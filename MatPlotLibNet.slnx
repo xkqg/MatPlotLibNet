@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/Src/">
+    <Project Path="Src/MatPlotLibNet/MatPlotLibNet.csproj" />
+    <Project Path="Src/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.csproj" />
+    <Project Path="Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj" />
+    <Project Path="Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj" />
+    <Project Path="Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj" />
+  </Folder>
+  <Folder Name="/Tst/">
+    <Project Path="Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.Tests.csproj" />
+  </Folder>
+</Solution>

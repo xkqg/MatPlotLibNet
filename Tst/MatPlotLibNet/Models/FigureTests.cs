@@ -1,0 +1,86 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
+
+namespace MatPlotLibNet.Tests.Models;
+
+public class FigureTests
+{
+    [Fact]
+    public void DefaultFigure_HasReasonableDefaults()
+    {
+        var fig = new Figure();
+        Assert.Equal(800, fig.Width);
+        Assert.Equal(600, fig.Height);
+        Assert.Equal(96, fig.Dpi);
+        Assert.Null(fig.Title);
+        Assert.Empty(fig.SubPlots);
+    }
+
+    [Fact]
+    public void AddSubPlot_ReturnsNewAxes()
+    {
+        var fig = new Figure();
+        var axes = fig.AddSubPlot();
+        Assert.NotNull(axes);
+        Assert.Single(fig.SubPlots);
+    }
+
+    [Fact]
+    public void AddSubPlot_MultipleCalls_AddsMultiple()
+    {
+        var fig = new Figure();
+        fig.AddSubPlot();
+        fig.AddSubPlot();
+        fig.AddSubPlot();
+        Assert.Equal(3, fig.SubPlots.Count);
+    }
+
+    [Fact]
+    public void AddSubPlot_WithGridPosition_StoresLayout()
+    {
+        var fig = new Figure();
+        var ax1 = fig.AddSubPlot(2, 2, 1);
+        var ax2 = fig.AddSubPlot(2, 2, 2);
+        Assert.Equal(2, fig.SubPlots.Count);
+        Assert.Equal(1, ax1.GridIndex);
+        Assert.Equal(2, ax2.GridIndex);
+    }
+
+    [Fact]
+    public void Theme_DefaultsToDefault()
+    {
+        var fig = new Figure();
+        Assert.Same(Theme.Default, fig.Theme);
+    }
+
+    [Fact]
+    public void Properties_CanBeSet()
+    {
+        var fig = new Figure
+        {
+            Title = "Test",
+            Width = 1024,
+            Height = 768,
+            Dpi = 150,
+            BackgroundColor = Color.Black,
+            Theme = Theme.Dark
+        };
+
+        Assert.Equal("Test", fig.Title);
+        Assert.Equal(1024, fig.Width);
+        Assert.Equal(768, fig.Height);
+        Assert.Equal(150, fig.Dpi);
+        Assert.Equal(Color.Black, fig.BackgroundColor);
+        Assert.Same(Theme.Dark, fig.Theme);
+    }
+
+    [Fact]
+    public void SubPlots_IsReadOnly()
+    {
+        var fig = new Figure();
+        Assert.IsAssignableFrom<IReadOnlyList<Axes>>(fig.SubPlots);
+    }
+}

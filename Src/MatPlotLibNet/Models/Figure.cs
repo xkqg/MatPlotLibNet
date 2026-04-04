@@ -1,0 +1,60 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+
+using MatPlotLibNet.Styling;
+
+namespace MatPlotLibNet.Models;
+
+/// <summary>Represents the top-level figure that contains one or more subplot axes.</summary>
+public sealed class Figure
+{
+    /// <summary>Gets or sets the figure title.</summary>
+    public string? Title { get; set; }
+
+    /// <summary>Gets or sets the figure width in pixels.</summary>
+    public double Width { get; set; } = 800;
+
+    /// <summary>Gets or sets the figure height in pixels.</summary>
+    public double Height { get; set; } = 600;
+
+    /// <summary>Gets or sets the dots-per-inch resolution of the figure.</summary>
+    public double Dpi { get; set; } = 96;
+
+    /// <summary>Gets or sets the background color of the figure.</summary>
+    public Color? BackgroundColor { get; set; }
+
+    /// <summary>Gets or sets the visual theme applied to the figure.</summary>
+    public Theme Theme { get; set; } = Theme.Default;
+
+    /// <summary>Gets the collection of subplot axes contained in this figure.</summary>
+    public IReadOnlyList<Axes> SubPlots => _subPlots;
+    private readonly List<Axes> _subPlots = [];
+
+    /// <summary>Adds a new subplot axes to the figure and returns it.</summary>
+    /// <returns>The newly created <see cref="Axes"/> instance.</returns>
+    public Axes AddSubPlot()
+    {
+        var axes = new Axes();
+        _subPlots.Add(axes);
+        return axes;
+    }
+
+    /// <summary>Adds a new subplot axes at the specified grid position and returns it.</summary>
+    /// <param name="rows">The number of rows in the subplot grid.</param>
+    /// <param name="cols">The number of columns in the subplot grid.</param>
+    /// <param name="index">The one-based index of this subplot within the grid.</param>
+    /// <returns>The newly created <see cref="Axes"/> instance.</returns>
+    public Axes AddSubPlot(int rows, int cols, int index)
+    {
+        var axes = new Axes
+        {
+            GridRows = rows,
+            GridCols = cols,
+            GridIndex = index
+        };
+        _subPlots.Add(axes);
+        return axes;
+    }
+
+    internal void AddAxes(Axes axes) => _subPlots.Add(axes);
+}

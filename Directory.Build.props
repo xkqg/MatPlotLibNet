@@ -1,0 +1,11 @@
+<Project>
+
+  <PropertyGroup>
+    <Authors>H.P. Gansevoort</Authors>
+    <Copyright>Copyright (c) 2026 H.P. Gansevoort</Copyright>
+    <PackageProjectUrl>https://github.com/xkqg/MatPlotLibNet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/xkqg/MatPlotLibNet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+</Project>

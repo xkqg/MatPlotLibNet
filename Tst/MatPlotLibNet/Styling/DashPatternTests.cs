@@ -1,0 +1,24 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+
+using MatPlotLibNet.Styling;
+
+namespace MatPlotLibNet.Tests.Styling;
+
+public class DashPatternTests
+{
+    [Fact]
+    public void Solid_ReturnsEmptyArray()
+        => Assert.Empty(DashPatterns.GetPattern(LineStyle.Solid).ToArray());
+
+    [Fact]
+    public void None_ReturnsEmptyArray()
+        => Assert.Empty(DashPatterns.GetPattern(LineStyle.None).ToArray());
+
+    [Theory]
+    [InlineData(LineStyle.Dashed, new double[] { 8, 4 })]
+    [InlineData(LineStyle.Dotted, new double[] { 2, 4 })]
+    [InlineData(LineStyle.DashDot, new double[] { 8, 4, 2, 4 })]
+    public void NonSolid_ReturnsCorrectRatios(LineStyle style, double[] expected)
+        => Assert.Equal(expected, DashPatterns.GetPattern(style).ToArray());
+}

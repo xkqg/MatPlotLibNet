@@ -1,0 +1,60 @@
+@* Copyright (c) 2026 H.P. Gansevoort. All rights reserved. *@
+@* Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information. *@
+
+@namespace MatPlotLibNet.Blazor
+
+@implements IAsyncDisposable
+
+<div class="mpl-chart mpl-live @CssClass">
+    @((MarkupString)_svgContent)
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string ChartId { get; set; } = default!;
+    [Parameter] public string HubUrl { get; set; } = "/charts-hub";
+    [Parameter] public string? CssClass { get; set; }
+    [Parameter] public Figure? InitialFigure { get; set; }
+
+    private IChartSubscriptionClient _client = new ChartSubscriptionClient();
+    private string _svgContent = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (InitialFigure is not null && string.IsNullOrEmpty(_svgContent))
+            _svgContent = ChartServices.SvgRenderer.Render(InitialFigure);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        _client.OnSvgUpdated((id, svg) =>
+        {
+            if (id == ChartId)
+            {
+                _svgContent = svg;
+                InvokeAsync(StateHasChanged);
+            }
+            return Task.CompletedTask;
+        });
+
+        _client.OnChartUpdated((id, json) =>
+        {
+            if (id == ChartId)
+            {
+                var figure = ChartServices.Serializer.FromJson(json);
+                _svgContent = ChartServices.SvgRenderer.Render(figure);
+                InvokeAsync(StateHasChanged);
+            }
+            return Task.CompletedTask;
+        });
+
+        await _client.ConnectAsync(HubUrl);
+        await _client.SubscribeAsync(ChartId);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _client.DisposeAsync();
+    }
+}

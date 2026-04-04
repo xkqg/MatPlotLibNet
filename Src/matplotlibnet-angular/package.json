@@ -1,0 +1,23 @@
+{
+  "name": "@matplotlibnet/angular",
+  "version": "0.1.0",
+  "description": "Angular components for MatPlotLibNet charting library with SignalR live updates",
+  "license": "GPL-3.0-only",
+  "author": "H.P. Gansevoort",
+  "peerDependencies": {
+    "@angular/common": "^19.0.0",
+    "@angular/core": "^19.0.0",
+    "@microsoft/signalr": "^8.0.0"
+  },
+  "dependencies": {
+    "tslib": "^2.6.0"
+  },
+  "keywords": [
+    "angular",
+    "charting",
+    "plotting",
+    "svg",
+    "signalr",
+    "matplotlibnet"
+  ]
+}

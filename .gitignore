@@ -1,0 +1,15 @@
+## .NET
+bin/
+obj/
+*.nupkg
+*.snupkg
+
+## IDE
+.vs/
+*.user
+*.suo
+
+## OS
+Thumbs.db
+Desktop.ini
+.DS_Store

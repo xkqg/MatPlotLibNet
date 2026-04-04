@@ -1,0 +1,223 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+
+using System.Globalization;
+using System.Text;
+using MatPlotLibNet.Styling;
+
+namespace MatPlotLibNet.Rendering.Svg;
+
+/// <summary>An <see cref="IRenderContext"/> implementation that emits SVG markup for each drawing operation.</summary>
+public sealed class SvgRenderContext : IRenderContext
+{
+    private readonly StringBuilder _sb = new();
+    private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
+    private int _clipId;
+
+    /// <summary>Returns the accumulated SVG markup as a string.</summary>
+    public string GetOutput() => _sb.ToString();
+
+    /// <summary>Gets the current length of the accumulated SVG output.</summary>
+    public int OutputLength => _sb.Length;
+
+    /// <summary>Appends the accumulated SVG markup to an existing StringBuilder (avoids extra string allocation).</summary>
+    public void WriteTo(StringBuilder target) => target.Append(_sb);
+
+    /// <inheritdoc />
+    public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style)
+    {
+        _sb.Append("<line x1=\"").Append(F(p1.X)).Append("\" y1=\"").Append(F(p1.Y))
+           .Append("\" x2=\"").Append(F(p2.X)).Append("\" y2=\"").Append(F(p2.Y))
+           .Append("\" stroke=\"").Append(color.ToHex()).Append("\" stroke-width=\"").Append(F(thickness)).Append('"');
+        AppendDashArray(style);
+        _sb.AppendLine(" />");
+    }
+
+    /// <inheritdoc />
+    public void DrawLines(IReadOnlyList<Point> points, Color color, double thickness, LineStyle style)
+    {
+        if (points.Count < 2) return;
+        _sb.Append("<polyline points=\"");
+        for (int i = 0; i < points.Count; i++)
+        {
+            if (i > 0) _sb.Append(' ');
+            _sb.Append(F(points[i].X)).Append(',').Append(F(points[i].Y));
+        }
+        _sb.Append("\" fill=\"none\" stroke=\"").Append(color.ToHex())
+           .Append("\" stroke-width=\"").Append(F(thickness)).Append('"');
+        AppendDashArray(style);
+        _sb.AppendLine(" />");
+    }
+
+    /// <inheritdoc />
+    public void DrawPolygon(IReadOnlyList<Point> points, Color? fill, Color? stroke, double strokeThickness)
+    {
+        _sb.Append("<polygon points=\"");
+        for (int i = 0; i < points.Count; i++)
+        {
+            if (i > 0) _sb.Append(' ');
+            _sb.Append(F(points[i].X)).Append(',').Append(F(points[i].Y));
+        }
+        _sb.Append('"');
+        AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendLine(" />");
+    }
+
+    /// <inheritdoc />
+    public void DrawCircle(Point center, double radius, Color? fill, Color? stroke, double strokeThickness)
+    {
+        _sb.Append("<circle cx=\"").Append(F(center.X)).Append("\" cy=\"").Append(F(center.Y))
+           .Append("\" r=\"").Append(F(radius)).Append('"');
+        AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendLine(" />");
+    }
+
+    /// <inheritdoc />
+    public void DrawRectangle(Rect rect, Color? fill, Color? stroke, double strokeThickness)
+    {
+        _sb.Append("<rect x=\"").Append(F(rect.X)).Append("\" y=\"").Append(F(rect.Y))
+           .Append("\" width=\"").Append(F(rect.Width)).Append("\" height=\"").Append(F(rect.Height)).Append('"');
+        AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendLine(" />");
+    }
+
+    /// <inheritdoc />
+    public void DrawEllipse(Rect bounds, Color? fill, Color? stroke, double strokeThickness)
+    {
+        double cx = bounds.X + bounds.Width / 2;
+        double cy = bounds.Y + bounds.Height / 2;
+        _sb.Append("<ellipse cx=\"").Append(F(cx)).Append("\" cy=\"").Append(F(cy))
+           .Append("\" rx=\"").Append(F(bounds.Width / 2)).Append("\" ry=\"").Append(F(bounds.Height / 2)).Append('"');
+        AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendLine(" />");
+    }
+
+    /// <inheritdoc />
+    public void DrawText(string text, Point position, Font font, TextAlignment alignment)
+    {
+        string anchor = alignment switch
+        {
+            TextAlignment.Left => "start",
+            TextAlignment.Center => "middle",
+            TextAlignment.Right => "end",
+            _ => "start"
+        };
+
+        _sb.Append("<text x=\"").Append(F(position.X)).Append("\" y=\"").Append(F(position.Y))
+           .Append("\" font-family=\"").Append(font.Family).Append("\" font-size=\"").Append(F(font.Size))
+           .Append("\" text-anchor=\"").Append(anchor).Append('"');
+        if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
+        if (font.Weight == FontWeight.Bold) _sb.Append(" font-weight=\"bold\"");
+        if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
+        _sb.Append('>').Append(EscapeXml(text)).AppendLine("</text>");
+    }
+
+    /// <inheritdoc />
+    public void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness)
+    {
+        _sb.Append("<path d=\"");
+        foreach (var seg in segments)
+        {
+            switch (seg)
+            {
+                case MoveToSegment m:
+                    _sb.Append("M ").Append(F(m.Point.X)).Append(' ').Append(F(m.Point.Y)).Append(' ');
+                    break;
+                case LineToSegment l:
+                    _sb.Append("L ").Append(F(l.Point.X)).Append(' ').Append(F(l.Point.Y)).Append(' ');
+                    break;
+                case BezierSegment b:
+                    _sb.Append("C ").Append(F(b.Control1.X)).Append(' ').Append(F(b.Control1.Y)).Append(' ')
+                       .Append(F(b.Control2.X)).Append(' ').Append(F(b.Control2.Y)).Append(' ')
+                       .Append(F(b.End.X)).Append(' ').Append(F(b.End.Y)).Append(' ');
+                    break;
+                case ArcSegment a:
+                    _sb.Append("A ").Append(F(a.RadiusX)).Append(' ').Append(F(a.RadiusY))
+                       .Append(" 0 0 1 ").Append(F(a.Center.X)).Append(' ').Append(F(a.Center.Y)).Append(' ');
+                    break;
+                case CloseSegment:
+                    _sb.Append("Z ");
+                    break;
+            }
+        }
+        _sb.Append('"');
+        AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendLine(" />");
+    }
+
+    /// <inheritdoc />
+    public void PushClip(Rect clipRect)
+    {
+        int id = _clipId++;
+        _sb.Append("<defs><clipPath id=\"clip-").Append(id)
+           .Append("\"><rect x=\"").Append(F(clipRect.X)).Append("\" y=\"").Append(F(clipRect.Y))
+           .Append("\" width=\"").Append(F(clipRect.Width)).Append("\" height=\"").Append(F(clipRect.Height))
+           .AppendLine("\" /></clipPath></defs>");
+        _sb.Append("<g clip-path=\"url(#clip-").Append(id).AppendLine(")\">");
+    }
+
+    /// <inheritdoc />
+    public void PopClip()
+    {
+        _sb.AppendLine("</g>");
+    }
+
+    /// <inheritdoc />
+    public Size MeasureText(string text, Font font)
+    {
+        double width = text.Length * font.Size * 0.6;
+        double height = font.Size * 1.2;
+        return new Size(width, height);
+    }
+
+    /// <inheritdoc />
+    public void SetOpacity(double opacity)
+    {
+        _sb.Append("<g opacity=\"").Append(F(opacity)).AppendLine("\">");
+    }
+
+    private void AppendFillStroke(Color? fill, Color? stroke, double strokeThickness)
+    {
+        if (fill.HasValue)
+            _sb.Append(" fill=\"").Append(fill.Value.ToHex()).Append('"');
+        else
+            _sb.Append(" fill=\"none\"");
+
+        if (stroke.HasValue)
+            _sb.Append(" stroke=\"").Append(stroke.Value.ToHex()).Append("\" stroke-width=\"").Append(F(strokeThickness)).Append('"');
+    }
+
+    private void AppendDashArray(LineStyle style)
+    {
+        var pattern = DashPatterns.GetPattern(style);
+        if (pattern.Length == 0) return;
+        _sb.Append(" stroke-dasharray=\"");
+        for (int i = 0; i < pattern.Length; i++)
+        {
+            if (i > 0) _sb.Append(',');
+            _sb.Append(F(pattern[i]));
+        }
+        _sb.Append('"');
+    }
+
+    private static string F(double value) => value.ToString("G", Inv);
+
+    private static string EscapeXml(string text)
+    {
+        // Fast path: no escaping needed for most labels
+        if (text.AsSpan().IndexOfAny('&', '<', '>') < 0) return text;
+
+        var sb = new StringBuilder(text.Length + 8);
+        foreach (var ch in text)
+        {
+            switch (ch)
+            {
+                case '&': sb.Append("&amp;"); break;
+                case '<': sb.Append("&lt;"); break;
+                case '>': sb.Append("&gt;"); break;
+                default: sb.Append(ch); break;
+            }
+        }
+        return sb.ToString();
+    }
+}

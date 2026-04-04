@@ -1,0 +1,11 @@
+tsconfig.json
+tsconfig.lib.json
+ng-package.json
+src/
+!dist/
+*.spec.ts
+*.spec.js
+*.map
+.angular/
+node_modules/
+coverage/

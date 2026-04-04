@@ -1,0 +1,67 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+
+namespace MatPlotLibNet.Tests.Rendering;
+
+public class ParallelRenderingTests
+{
+    [Fact]
+    public void ParallelRender_MultipleSubplots_AllTitlesPresent()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(2, 2, 1, ax => ax.WithTitle("TopLeft").Plot([1.0, 2.0], [3.0, 4.0]))
+            .AddSubPlot(2, 2, 2, ax => ax.WithTitle("TopRight").Scatter([1.0, 2.0], [5.0, 6.0]))
+            .AddSubPlot(2, 2, 3, ax => ax.WithTitle("BottomLeft").Bar(["A", "B"], [10.0, 20.0]))
+            .AddSubPlot(2, 2, 4, ax => ax.WithTitle("BottomRight").Hist([1.0, 2.0, 3.0, 4.0]))
+            .Build();
+
+        string svg = ChartServices.SvgRenderer.Render(figure);
+
+        Assert.Contains("TopLeft", svg);
+        Assert.Contains("TopRight", svg);
+        Assert.Contains("BottomLeft", svg);
+        Assert.Contains("BottomRight", svg);
+    }
+
+    [Fact]
+    public void ParallelRender_SingleSubplot_Works()
+    {
+        var figure = Plt.Create()
+            .WithTitle("Single")
+            .Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
+            .Build();
+
+        string svg = ChartServices.SvgRenderer.Render(figure);
+
+        Assert.Contains("<svg", svg);
+        Assert.Contains("Single", svg);
+        Assert.Contains("<polyline", svg);
+    }
+
+    [Fact]
+    public void ParallelRender_EmptyFigure_ValidSvg()
+    {
+        var figure = Plt.Create().Build();
+        string svg = ChartServices.SvgRenderer.Render(figure);
+
+        Assert.StartsWith("<svg", svg.TrimStart());
+        Assert.Contains("</svg>", svg);
+    }
+
+    [Fact]
+    public void ParallelRender_ManySubplots_AllPresent()
+    {
+        var builder = Plt.Create();
+        for (int i = 1; i <= 9; i++)
+        {
+            int idx = i; // capture by value
+            builder = builder.AddSubPlot(3, 3, idx, ax => ax.WithTitle($"Sub{idx}").Plot([1.0, 2.0], [3.0, 4.0]));
+        }
+        var figure = builder.Build();
+
+        string svg = ChartServices.SvgRenderer.Render(figure);
+
+        for (int i = 1; i <= 9; i++)
+            Assert.Contains($"Sub{i}", svg);
+    }
+}

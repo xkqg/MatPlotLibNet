@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="1.*" />
+    <PackageReference Include="NSubstitute" Version="5.*" />
+    <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.20" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
+  </ItemGroup>
+
+  <!-- Include MAUI source files directly to avoid multi-target dependency -->
+  <ItemGroup>
+    <Compile Include="..\..\Src\MatPlotLibNet.Maui\*.cs" LinkBase="MauiSrc" />
+    <Compile Include="..\..\Src\MatPlotLibNet.Maui\Extensions\*.cs" LinkBase="MauiSrc\Extensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
