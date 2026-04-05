@@ -1,9 +1,9 @@
-# MatPlotLibNet Core -- Architecture (v0.3.0)
+# MatPlotLibNet Core -- Architecture (v0.3.1)
 
 ## Package dependency graph
 
 ```
-MatPlotLibNet (Core)                      zero external dependencies
+MatPlotLibNet (Core)                      net10.0 + netstandard2.1 (System.Text.Json on ns2.1)
     |
     +-- MatPlotLibNet.Skia                SkiaSharp (PNG + PDF export)
     |
@@ -12,10 +12,16 @@ MatPlotLibNet (Core)                      zero external dependencies
     +-- MatPlotLibNet.AspNetCore          Microsoft.AspNetCore.App framework ref
     |       |
     |       +-- MatPlotLibNet.Interactive  embedded Kestrel + SignalR
+    |       |
+    |       +-- MatPlotLibNet.GraphQL      HotChocolate.AspNetCore (GraphQL queries + subscriptions)
     |
     +-- MatPlotLibNet.Maui                Microsoft.Maui.Controls
     |
     +-- @matplotlibnet/angular (npm)      @microsoft/signalr + Angular
+    |
+    +-- @matplotlibnet/react (npm)        @microsoft/signalr + React 19
+    |
+    +-- @matplotlibnet/vue (npm)          @microsoft/signalr + Vue 3
 ```
 
 ## Core library structure

@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-A .NET 10 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel SVG rendering, polymorphic export (SVG/PNG/PDF), and multi-platform output to Blazor, MAUI, ASP.NET Core, Angular, and standalone browser popups.
+A .NET 10 / .NET Standard 2.1 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel SVG rendering, polymorphic export (SVG/PNG/PDF), and multi-platform output to Blazor, MAUI, ASP.NET Core, Angular, React, Vue, and standalone browser popups.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
@@ -14,7 +14,10 @@ A .NET 10 charting library inspired by [matplotlib](https://matplotlib.org/). Fl
 | **MatPlotLibNet.AspNetCore** | `dotnet add package MatPlotLibNet.AspNetCore` | REST endpoints, SignalR hub, `IChartPublisher` |
 | **MatPlotLibNet.Maui** | `dotnet add package MatPlotLibNet.Maui` | Native `MplChartView` control via Microsoft.Maui.Graphics |
 | **MatPlotLibNet.Interactive** | `dotnet add package MatPlotLibNet.Interactive` | `figure.ShowAsync()` opens default browser with live updates |
+| **MatPlotLibNet.GraphQL** | `dotnet add package MatPlotLibNet.GraphQL` | GraphQL queries + subscriptions via HotChocolate |
 | **@matplotlibnet/angular** | `npm install @matplotlibnet/angular` | Angular components + TypeScript SignalR client |
+| **@matplotlibnet/react** | `npm install @matplotlibnet/react` | React hooks + components + TypeScript SignalR client |
+| **@matplotlibnet/vue** | `npm install @matplotlibnet/vue` | Vue 3 composables + components + TypeScript SignalR client |
 
 ## Quick start
 
@@ -222,7 +225,22 @@ await publisher.PublishSvgAsync("sensor-1", figure);
 <mpl-live-chart [chartId]="'sensor-1'" [hubUrl]="'/charts-hub'"></mpl-live-chart>
 ```
 
-Both use `IChartSubscriptionClient` -- same SignalR protocol, different implementations (C# / TypeScript).
+**React**:
+```tsx
+<MplLiveChart chartId="sensor-1" hubUrl="/charts-hub" />
+```
+
+**Vue**:
+```vue
+<MplLiveChart chartId="sensor-1" hubUrl="/charts-hub" />
+```
+
+**GraphQL** (subscription):
+```graphql
+subscription { onChartSvgUpdated(chartId: "sensor-1") }
+```
+
+All platforms use `IChartSubscriptionClient` -- same SignalR protocol, different implementations (C# / TypeScript).
 
 ## Interactive browser popup
 
@@ -236,14 +254,17 @@ await handle.UpdateAsync();              // pushes live updates
 ## Architecture
 
 ```
-MatPlotLibNet (Core)                      zero external dependencies
+MatPlotLibNet (Core)                      net10.0 + netstandard2.1
     |
     +-- MatPlotLibNet.Skia                PNG + PDF export via SkiaSharp
     +-- MatPlotLibNet.Blazor              Razor components + C# SignalR client
     +-- MatPlotLibNet.AspNetCore          REST endpoints + SignalR hub
     |       +-- MatPlotLibNet.Interactive  embedded Kestrel + browser popup
+    |       +-- MatPlotLibNet.GraphQL      GraphQL queries + subscriptions (HotChocolate)
     +-- MatPlotLibNet.Maui                native GraphicsView rendering
     +-- @matplotlibnet/angular            Angular components + TS SignalR client
+    +-- @matplotlibnet/react              React hooks + components + TS SignalR client
+    +-- @matplotlibnet/vue                Vue 3 composables + components + TS SignalR client
 ```
 
 See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering pipeline, data flow, and design patterns.
@@ -252,6 +273,7 @@ See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering 
 
 | Version | Highlights |
 |---------|-----------|
+| **0.3.1** | Platform expansion: `@matplotlibnet/react` (React 19 hooks + components), `@matplotlibnet/vue` (Vue 3 composables + components), `MatPlotLibNet.GraphQL` (HotChocolate queries + subscriptions). Core library multi-targets `netstandard2.1`. |
 | **0.3.0** | 25 series types (Donut, Bubble, OhlcBar, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline). 13 technical indicators (SMA, EMA, BB, VWAP, RSI, MACD, Stochastic, Volume, Fibonacci, ATR, ADX, Keltner, Ichimoku). Trading analytics (EquityCurve, ProfitLoss, DrawDown). Buy/sell signal markers. Generic `SeriesRenderer<T>` + `Indicator<TResult>`. Intuitive fluent API (`.Sma(20)`, `.BuyAt()`, `.SaveSvg()`). PriceSource enum, Offset, LineStyle on all indicators. Series organized by chart family. |
 | **0.2.0** | 16 series types (Area, Step, ErrorBar, Candlestick, Quiver, Radar). Stacked bars. Annotations (text, HLine/VLine, HSpan/VSpan). Secondary Y-axis (TwinX). SVG tooltips + zoom/pan. Polymorphic transforms (`IFigureTransform`, `FigureTransform`, `TransformResult`). PNG/PDF export via MatPlotLibNet.Skia. |
 | **0.1.0** | Initial release. 10 series types (Line, Scatter, Bar, Histogram, Pie, Heatmap, Box, Violin, Contour, Stem). Fluent builder API. Parallel SVG rendering. JSON serialization. 6 themes. Blazor, ASP.NET Core, MAUI, Angular, Interactive packages. |

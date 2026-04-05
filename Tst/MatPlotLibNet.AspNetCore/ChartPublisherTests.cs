@@ -18,7 +18,7 @@ public class ChartPublisherTests
         var hubContext = Substitute.For<IHubContext<ChartHub, IChartHubClient>>();
         hubContext.Clients.Returns(clients);
 
-        var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Rendering.Svg.SvgRenderer(new MatPlotLibNet.Rendering.ChartRenderer()));
+        var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Transforms.SvgTransform(new MatPlotLibNet.Rendering.ChartRenderer()));
         var figure = Plt.Create().WithTitle("Test").Plot([1.0], [2.0]).Build();
 
         await publisher.PublishAsync("test-chart", figure);
@@ -36,7 +36,7 @@ public class ChartPublisherTests
         var hubContext = Substitute.For<IHubContext<ChartHub, IChartHubClient>>();
         hubContext.Clients.Returns(clients);
 
-        var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Rendering.Svg.SvgRenderer(new MatPlotLibNet.Rendering.ChartRenderer()));
+        var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Transforms.SvgTransform(new MatPlotLibNet.Rendering.ChartRenderer()));
         var figure = Plt.Create().WithTitle("SVG Test").Plot([1.0], [2.0]).Build();
 
         await publisher.PublishSvgAsync("my-chart", figure);
@@ -54,7 +54,7 @@ public class ChartPublisherTests
         var hubContext = Substitute.For<IHubContext<ChartHub, IChartHubClient>>();
         hubContext.Clients.Returns(clients);
 
-        var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Rendering.Svg.SvgRenderer(new MatPlotLibNet.Rendering.ChartRenderer()));
+        var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Transforms.SvgTransform(new MatPlotLibNet.Rendering.ChartRenderer()));
         var figure = Plt.Create().Build();
 
         await publisher.PublishAsync("sensor-42", figure);

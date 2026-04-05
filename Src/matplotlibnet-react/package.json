@@ -1,0 +1,39 @@
+{
+  "name": "@matplotlibnet/react",
+  "version": "0.3.1",
+  "description": "React components for MatPlotLibNet charting library with SignalR live updates",
+  "license": "GPL-3.0-only",
+  "author": "H.P. Gansevoort",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@microsoft/signalr": "^8.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "jsdom": "^25.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@microsoft/signalr": "^8.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "react",
+    "charting",
+    "plotting",
+    "svg",
+    "signalr",
+    "matplotlibnet"
+  ]
+}

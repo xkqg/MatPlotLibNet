@@ -6,34 +6,27 @@
     <Nullable>enable</Nullable>
 
     <!-- NuGet Package Properties -->
-    <PackageId>MatPlotLibNet.Interactive</PackageId>
+    <PackageId>MatPlotLibNet.GraphQL</PackageId>
     <Version>0.3.1</Version>
-    <Description>Interactive display for MatPlotLibNet. Show charts in a browser popup with live SignalR updates.</Description>
-    <PackageTags>interactive;charting;browser;signalr;kestrel</PackageTags>
+    <Description>GraphQL integration for MatPlotLibNet using HotChocolate. Queries and subscriptions for real-time chart updates.</Description>
+    <PackageTags>graphql;hotchocolate;charting;realtime;subscriptions</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="HotChocolate.AspNetCore" Version="14.*" />
+  </ItemGroup>
+
+  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\MatPlotLibNet.AspNetCore\MatPlotLibNet.AspNetCore.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\signalr.min.js" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <InternalsVisibleTo Include="MatPlotLibNet.Interactive.Tests" />
   </ItemGroup>
 
 </Project>
