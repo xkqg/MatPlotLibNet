@@ -6,7 +6,7 @@ using MatPlotLibNet.Models;
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>Simple Moving Average indicator. Computes the unweighted mean of the last N prices.</summary>
-public sealed class Sma : Indicator<double[]>
+public sealed class Sma : Indicator<SignalResult>
 {
     private readonly double[] _prices;
     private readonly int _period;
@@ -24,7 +24,20 @@ public sealed class Sma : Indicator<double[]>
         : this(PriceSources.Resolve(source, open, high, low, close), period) { }
 
     /// <inheritdoc />
-    public override double[] Compute() => Compute(_prices, _period);
+    public override SignalResult Compute()
+    {
+        if (_prices.Length < _period) return Array.Empty<double>();
+        var result = new double[_prices.Length - _period + 1];
+        double sum = 0;
+        for (int i = 0; i < _period; i++) sum += _prices[i];
+        result[0] = sum / _period;
+        for (int i = _period; i < _prices.Length; i++)
+        {
+            sum += _prices[i] - _prices[i - _period];
+            result[i - _period + 1] = sum / _period;
+        }
+        return result;
+    }
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
@@ -38,21 +51,5 @@ public sealed class Sma : Indicator<double[]>
         if (Color.HasValue) series.Color = Color.Value;
         series.LineWidth = LineWidth;
         series.LineStyle = LineStyle;
-    }
-
-    /// <summary>Computes the Simple Moving Average from the given price array.</summary>
-    public static double[] Compute(double[] prices, int period)
-    {
-        if (prices.Length < period) return [];
-        var result = new double[prices.Length - period + 1];
-        double sum = 0;
-        for (int i = 0; i < period; i++) sum += prices[i];
-        result[0] = sum / period;
-        for (int i = period; i < prices.Length; i++)
-        {
-            sum += prices[i] - prices[i - period];
-            result[i - period + 1] = sum / period;
-        }
-        return result;
     }
 }

@@ -14,7 +14,7 @@ public class SmaTests
     public void Compute_ReturnsCorrectLength()
     {
         double[] prices = [10, 20, 30, 40, 50];
-        var result = Sma.Compute(prices, 3);
+        double[] result = new Sma(prices, 3).Compute();
         Assert.Equal(3, result.Length); // 5 - 3 + 1
     }
 
@@ -22,7 +22,7 @@ public class SmaTests
     public void Compute_ReturnsCorrectValues()
     {
         double[] prices = [10, 20, 30, 40, 50];
-        var result = Sma.Compute(prices, 3);
+        double[] result = new Sma(prices, 3).Compute();
         Assert.Equal(20, result[0]); // (10+20+30)/3
         Assert.Equal(30, result[1]); // (20+30+40)/3
         Assert.Equal(40, result[2]); // (30+40+50)/3
@@ -73,7 +73,7 @@ public class EmaTests
     public void Compute_ReturnsCorrectLength()
     {
         double[] prices = [10, 20, 30, 40, 50];
-        var result = Ema.Compute(prices, 3);
+        double[] result = new Ema(prices, 3).Compute();
         Assert.Equal(5, result.Length);
     }
 
@@ -81,7 +81,7 @@ public class EmaTests
     public void Compute_FirstValueIsSma()
     {
         double[] prices = [10, 20, 30, 40, 50];
-        var result = Ema.Compute(prices, 3);
+        double[] result = new Ema(prices, 3).Compute();
         Assert.Equal(20, result[2]); // SMA of first 3: (10+20+30)/3
     }
 
@@ -124,7 +124,7 @@ public class VwapTests
     {
         double[] prices = [100, 102, 101, 103];
         double[] volumes = [1000, 1500, 1200, 1800];
-        var result = Vwap.Compute(prices, volumes);
+        double[] result = new Vwap(prices, volumes).Compute();
         Assert.Equal(4, result.Length);
     }
 

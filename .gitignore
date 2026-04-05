@@ -9,6 +9,16 @@ obj/
 *.user
 *.suo
 
+## DocFX
+_site/
+api/
+
+## Test coverage
+TestResults/
+
+## npm
+node_modules/
+
 ## OS
 Thumbs.db
 Desktop.ini

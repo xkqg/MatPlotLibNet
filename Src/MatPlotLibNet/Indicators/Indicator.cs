@@ -41,9 +41,9 @@ public abstract class Indicator : IIndicator
 }
 
 /// <summary>Generic typed indicator that returns a typed result from <see cref="Compute"/>.</summary>
-/// <typeparam name="TResult">The type of the computed result (e.g., <c>double[]</c> for SMA, tuple for Bollinger Bands).</typeparam>
+/// <typeparam name="TResult">The type of the computed result. Must implement <see cref="IIndicatorResult"/>.</typeparam>
 /// <remarks>Enables composition: use one indicator's <see cref="Compute"/> output as input to another.</remarks>
-public abstract class Indicator<TResult> : Indicator
+public abstract class Indicator<TResult> : Indicator where TResult : IIndicatorResult
 {
     /// <summary>Pure computation — returns the typed result without side effects on any axes.</summary>
     public abstract TResult Compute();

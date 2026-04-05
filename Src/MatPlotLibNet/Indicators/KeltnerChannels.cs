@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>Keltner Channels indicator. EMA-based channel with ATR-based bands.</summary>
 /// <remarks>Similar to Bollinger Bands but uses ATR instead of standard deviation for band width.
 /// Upper = EMA + multiplier * ATR, Lower = EMA - multiplier * ATR.</remarks>
-public sealed class KeltnerChannels : Indicator<(double[] Middle, double[] Upper, double[] Lower)>
+public sealed class KeltnerChannels : Indicator<BandsResult>
 {
     private readonly double[] _high, _low, _close;
     private readonly int _period;
@@ -27,13 +27,34 @@ public sealed class KeltnerChannels : Indicator<(double[] Middle, double[] Upper
     }
 
     /// <inheritdoc />
-    public override (double[] Middle, double[] Upper, double[] Lower) Compute() =>
-        Compute(_high, _low, _close, _period, _atrMultiplier);
+    public override BandsResult Compute()
+    {
+        double[] ema = new Ema(_close, _period).Compute();
+        double[] atr = new Atr(_high, _low, _close, _period).Compute();
+
+        int len = Math.Min(atr.Length, ema.Length - _period);
+        if (len <= 0) return new BandsResult([], [], []);
+
+        var middle = new double[len];
+        var upper = new double[len];
+        var lower = new double[len];
+
+        for (int i = 0; i < len; i++)
+        {
+            middle[i] = ema[_period + i];
+            upper[i] = middle[i] + _atrMultiplier * atr[i];
+            lower[i] = middle[i] - _atrMultiplier * atr[i];
+        }
+        return new BandsResult(middle, upper, lower);
+    }
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        var (middle, upper, lower) = Compute();
+        var result = Compute();
+        var middle = result.Middle;
+        var upper = result.Upper;
+        var lower = result.Lower;
         if (middle.Length == 0) return;
         int offset = _period;
         var x = new double[middle.Length];
@@ -51,28 +72,5 @@ public sealed class KeltnerChannels : Indicator<(double[] Middle, double[] Upper
         mid.Color = bandColor;
         mid.LineWidth = LineWidth;
         mid.LineStyle = LineStyle;
-    }
-
-    /// <summary>Computes Keltner Channels.</summary>
-    public static (double[] Middle, double[] Upper, double[] Lower) Compute(
-        double[] high, double[] low, double[] close, int period, double atrMultiplier = 1.5)
-    {
-        var ema = Ema.Compute(close, period);
-        var atr = Atr.Compute(high, low, close, period);
-
-        int len = Math.Min(atr.Length, ema.Length - period);
-        if (len <= 0) return ([], [], []);
-
-        var middle = new double[len];
-        var upper = new double[len];
-        var lower = new double[len];
-
-        for (int i = 0; i < len; i++)
-        {
-            middle[i] = ema[period + i];
-            upper[i] = middle[i] + atrMultiplier * atr[i];
-            lower[i] = middle[i] - atrMultiplier * atr[i];
-        }
-        return (middle, upper, lower);
     }
 }

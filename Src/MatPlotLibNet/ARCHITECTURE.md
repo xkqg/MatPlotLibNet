@@ -79,10 +79,16 @@ MatPlotLibNet/
       ProgressBarSeries.cs            Value, FillColor, TrackColor (Categorical/)
       SparklineSeries.cs              Values, LineWidth (XY/)
 
-  Indicators/                           polymorphic: IIndicator -> Indicator -> Indicator<TResult>
+  Indicators/                           polymorphic: IIndicator -> Indicator -> Indicator<TResult> where TResult : IIndicatorResult
     IIndicator.cs                       interface: Apply(Axes)
     Indicator.cs                        abstract base: Color, Label, LineWidth, LineStyle, Offset
-    Indicator<TResult>.cs               generic: typed Compute() for composability
+    Indicator<TResult>.cs               generic: typed Compute() with IIndicatorResult constraint
+    IIndicatorResult.cs                 marker interface for all result types
+    SignalResult.cs                     single-line result (SMA, EMA, RSI, ATR, etc.) with implicit double[] conversion
+    BandsResult.cs                      band result (Bollinger Bands, Keltner Channels): Middle, Upper, Lower
+    MacdResult.cs                       MACD result: MacdLine, SignalLine, Histogram
+    StochasticResult.cs                 Stochastic result: K, D
+    IchimokuResult.cs                   Ichimoku result: TenkanSen, KijunSen, SenkouSpanA, SenkouSpanB, ChikouSpan
     PriceSource.cs                      enum (Close/Open/HL2/HLC3/OHLC4) + PriceSources resolver
     Sma.cs, Ema.cs                      Moving averages (overlay)
     BollingerBands.cs                   Upper/lower bands + SMA middle (overlay)

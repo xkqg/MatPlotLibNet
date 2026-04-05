@@ -1,0 +1,36 @@
+@page "/live"
+@using MatPlotLibNet.AspNetCore
+@inject IChartPublisher Publisher
+@implements IDisposable
+
+<h1>Live Dashboard</h1>
+<p>This chart updates every 3 seconds via SignalR.</p>
+
+<MplLiveChart ChartId="blazor-live" HubUrl="/charts-hub" InitialFigure="_initialFigure" />
+
+@code {
+    private Figure _initialFigure = Plt.Create()
+        .WithTitle("Waiting for data...")
+        .WithTheme(Theme.Dark)
+        .Build();
+
+    private Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        var random = new Random();
+        _timer = new Timer(async _ =>
+        {
+            var data = Enumerable.Range(1, 8).Select(i => random.NextDouble() * 100).ToArray();
+            var figure = Plt.Create()
+                .WithTitle($"Sensor Reading ({DateTime.Now:HH:mm:ss})")
+                .WithTheme(Theme.Dark)
+                .Plot(Enumerable.Range(1, 8).Select(i => (double)i).ToArray(), data,
+                    line => { line.Color = Color.Green; line.Label = "Value"; })
+                .Build();
+            await Publisher.PublishSvgAsync("blazor-live", figure);
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3));
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

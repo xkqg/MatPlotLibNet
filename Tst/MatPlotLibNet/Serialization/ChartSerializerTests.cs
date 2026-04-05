@@ -448,4 +448,157 @@ public class ChartSerializerTests
         var restored = ChartServices.Serializer.FromJson(json);
         Assert.Equal("shared-label", restored.SubPlots[0].Series[0].Label);
     }
+
+    [Fact]
+    public void RoundTrip_PreservesDonutSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        var donut = axes.Donut([30.0, 70.0], ["A", "B"]);
+        donut.InnerRadius = 0.5;
+        donut.CenterText = "Total";
+        donut.StartAngle = 45;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<DonutSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal([30.0, 70.0], series.Sizes);
+        Assert.Equal(["A", "B"], series.Labels);
+        Assert.Equal(0.5, series.InnerRadius);
+        Assert.Equal("Total", series.CenterText);
+        Assert.Equal(45, series.StartAngle);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesBubbleSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        var bubble = axes.Bubble([1.0, 2.0], [3.0, 4.0], [10.0, 20.0]);
+        bubble.Color = Color.Blue;
+        bubble.Alpha = 0.8;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<BubbleSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal([1.0, 2.0], series.XData);
+        Assert.Equal([3.0, 4.0], series.YData);
+        Assert.Equal([10.0, 20.0], series.Sizes);
+        Assert.Equal(Color.Blue, series.Color);
+        Assert.Equal(0.8, series.Alpha);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesOhlcBarSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        var ohlc = axes.OhlcBar([10.0, 12.0], [15.0, 14.0], [8.0, 10.0], [13.0, 11.0], ["Mon", "Tue"]);
+        ohlc.TickWidth = 0.5;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<OhlcBarSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal([10.0, 12.0], series.Open);
+        Assert.Equal([15.0, 14.0], series.High);
+        Assert.Equal([8.0, 10.0], series.Low);
+        Assert.Equal([13.0, 11.0], series.Close);
+        Assert.Equal(["Mon", "Tue"], series.DateLabels);
+        Assert.Equal(0.5, series.TickWidth);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesWaterfallSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        var wf = axes.Waterfall(["Start", "Add", "Total"], [100.0, 50.0, 150.0]);
+        wf.BarWidth = 0.8;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<WaterfallSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal(["Start", "Add", "Total"], series.Categories);
+        Assert.Equal([100.0, 50.0, 150.0], series.Values);
+        Assert.Equal(0.8, series.BarWidth);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesFunnelSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        axes.Funnel(["Leads", "Qualified", "Won"], [1000.0, 500.0, 100.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<FunnelSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal(["Leads", "Qualified", "Won"], series.Labels);
+        Assert.Equal([1000.0, 500.0, 100.0], series.Values);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesGanttSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        var gantt = axes.Gantt(["Task A", "Task B"], [0.0, 2.0], [3.0, 5.0]);
+        gantt.Color = Color.Green;
+        gantt.BarHeight = 0.8;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<GanttSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal(["Task A", "Task B"], series.Tasks);
+        Assert.Equal([0.0, 2.0], series.Starts);
+        Assert.Equal([3.0, 5.0], series.Ends);
+        Assert.Equal(Color.Green, series.Color);
+        Assert.Equal(0.8, series.BarHeight);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesGaugeSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        var gauge = axes.Gauge(75.0);
+        gauge.Min = 0;
+        gauge.Max = 150;
+        gauge.NeedleColor = Color.Red;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<GaugeSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal(75.0, series.Value);
+        Assert.Equal(0, series.Min);
+        Assert.Equal(150, series.Max);
+        Assert.Equal(Color.Red, series.NeedleColor);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesProgressBarSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        var pb = axes.ProgressBar(0.75);
+        pb.FillColor = Color.Green;
+        pb.TrackColor = Color.FromHex("#CCCCCC");
+        pb.BarHeight = 0.5;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<ProgressBarSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal(0.75, series.Value);
+        Assert.Equal(Color.Green, series.FillColor);
+        Assert.Equal(Color.FromHex("#CCCCCC"), series.TrackColor);
+        Assert.Equal(0.5, series.BarHeight);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesSparklineSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        var sparkline = axes.Sparkline([1.0, 3.0, 2.0, 5.0, 4.0]);
+        sparkline.Color = Color.Blue;
+        sparkline.LineWidth = 2.0;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<SparklineSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal([1.0, 3.0, 2.0, 5.0, 4.0], series.Values);
+        Assert.Equal(Color.Blue, series.Color);
+        Assert.Equal(2.0, series.LineWidth);
+    }
 }

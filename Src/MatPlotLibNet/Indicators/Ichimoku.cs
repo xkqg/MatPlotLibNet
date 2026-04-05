@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>Ichimoku Cloud (Ichimoku Kinko Hyo) indicator. Shows support/resistance, trend direction, and momentum.</summary>
 /// <remarks>Produces five lines: Tenkan-sen (conversion), Kijun-sen (base), Senkou Span A and B (cloud),
 /// and Chikou Span (lagging). The cloud is filled between Span A and B.</remarks>
-public sealed class Ichimoku : Indicator
+public sealed class Ichimoku : Indicator<IchimokuResult>
 {
     private readonly double[] _high, _low, _close;
     private readonly int _tenkanPeriod, _kijunPeriod, _senkouBPeriod, _displacement;
@@ -25,36 +25,48 @@ public sealed class Ichimoku : Indicator
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes)
+    public override IchimokuResult Compute()
     {
-        int n = _close.Length;
-        if (n < _senkouBPeriod) return;
-
         var tenkan = DonchianMid(_high, _low, _tenkanPeriod);
         var kijun = DonchianMid(_high, _low, _kijunPeriod);
 
-        // Tenkan-sen
-        var tenkanX = MakeX(tenkan.Length, _tenkanPeriod - 1);
-        var ts = axes.Plot(tenkanX, tenkan);
-        ts.Label = "Tenkan"; ts.Color = Styling.Color.FromHex("#0496ff"); ts.LineWidth = 1;
-
-        // Kijun-sen
-        var kijunX = MakeX(kijun.Length, _kijunPeriod - 1);
-        var ks = axes.Plot(kijunX, kijun);
-        ks.Label = "Kijun"; ks.Color = Styling.Color.FromHex("#991515"); ks.LineWidth = 1;
-
-        // Senkou Span A = (Tenkan + Kijun) / 2, shifted forward by displacement
+        // Senkou Span A = (Tenkan + Kijun) / 2
         int spanLen = Math.Min(tenkan.Length, kijun.Length);
         int kijunOffset = _kijunPeriod - _tenkanPeriod;
         var spanA = new double[spanLen - kijunOffset];
         for (int i = 0; i < spanA.Length; i++)
             spanA[i] = (tenkan[i + kijunOffset] + kijun[i]) / 2;
 
-        // Senkou Span B = Donchian mid of senkouB period, shifted forward
+        // Senkou Span B = Donchian mid of senkouB period
         var spanB = DonchianMid(_high, _low, _senkouBPeriod);
-        int cloudLen = Math.Min(spanA.Length, spanB.Length);
-        var cloudSpanA = spanA[..cloudLen];
-        var cloudSpanB = spanB[..cloudLen];
+
+        // Chikou Span = close (lagging line, plotted shifted back by displacement)
+        var chikou = _close;
+
+        return new IchimokuResult(tenkan, kijun, spanA, spanB, chikou);
+    }
+
+    /// <inheritdoc />
+    public override void Apply(Axes axes)
+    {
+        if (_close.Length < _senkouBPeriod) return;
+
+        var result = Compute();
+
+        // Tenkan-sen
+        var tenkanX = MakeX(result.TenkanSen.Length, _tenkanPeriod - 1);
+        var ts = axes.Plot(tenkanX, result.TenkanSen);
+        ts.Label = "Tenkan"; ts.Color = Styling.Color.FromHex("#0496ff"); ts.LineWidth = 1;
+
+        // Kijun-sen
+        var kijunX = MakeX(result.KijunSen.Length, _kijunPeriod - 1);
+        var ks = axes.Plot(kijunX, result.KijunSen);
+        ks.Label = "Kijun"; ks.Color = Styling.Color.FromHex("#991515"); ks.LineWidth = 1;
+
+        // Cloud (Senkou Span A & B)
+        int cloudLen = Math.Min(result.SenkouSpanA.Length, result.SenkouSpanB.Length);
+        var cloudSpanA = result.SenkouSpanA[..cloudLen];
+        var cloudSpanB = result.SenkouSpanB[..cloudLen];
 
         var cloudX = MakeX(cloudLen, _kijunPeriod - 1 + _displacement);
         var cloud = axes.FillBetween(cloudX, cloudSpanA, cloudSpanB);

@@ -1,0 +1,340 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 4 benchmark(s) in total *****
+// ***** Building 1 exe(s) in Parallel: Start   *****
+Unable to find .sln or .csproj file. Will use current directory C:\Ait\MatPlotLibNet to search for project file. If you don't use .sln file on purpose it should not be a problem.
+// start dotnet  restore /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 /p:Deterministic=true /p:Optimize=true /p:IntermediateOutputPath="C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\obj\Release\net10.0/" /p:OutDir="C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\bin\Release\net10.0/" /p:OutputPath="C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\bin\Release\net10.0/" in C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9
+// command took 1.86 sec and exited with 0
+// start dotnet  build -c Release --no-restore /p:UseSharedCompilation=false /p:BuildInParallel=false /m:1 /p:Deterministic=true /p:Optimize=true /p:IntermediateOutputPath="C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\obj\Release\net10.0/" /p:OutDir="C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\bin\Release\net10.0/" /p:OutputPath="C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\bin\Release\net10.0/" --output "C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\bin\Release\net10.0/" in C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9
+// command took 13.15 sec and exited with 0
+// ***** Done, took 00:00:15 (15.51 sec)   *****
+// Found 4 benchmarks:
+//   SkiaExportBenchmarks.ToPng_Simple: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+//   SkiaExportBenchmarks.ToPng_Complex: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+//   SkiaExportBenchmarks.ToPdf_Simple: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+//   SkiaExportBenchmarks.ToPdf_Complex: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: High performance)
+// **************************
+// Benchmark: SkiaExportBenchmarks.ToPng_Simple: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet c8a85c99-5ae8-424d-9636-85863f21c3c9.dll --anonymousPipes 3396 2200 --benchmarkName MatPlotLibNet.Benchmarks.SkiaExportBenchmarks.ToPng_Simple --job ShortRun --benchmarkId 0 in C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.14.0
+// Runtime=.NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX2,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT VectorSize=256
+// Job: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+
+OverheadJitting  1: 1 op, 352200.00 ns, 352.2000 us/op
+WorkloadJitting  1: 1 op, 82934200.00 ns, 82.9342 ms/op
+
+WorkloadPilot    1: 2 op, 41760600.00 ns, 20.8803 ms/op
+WorkloadPilot    2: 3 op, 62875900.00 ns, 20.9586 ms/op
+WorkloadPilot    3: 4 op, 84244700.00 ns, 21.0612 ms/op
+WorkloadPilot    4: 5 op, 106211300.00 ns, 21.2423 ms/op
+WorkloadPilot    5: 6 op, 126947800.00 ns, 21.1580 ms/op
+WorkloadPilot    6: 7 op, 149123100.00 ns, 21.3033 ms/op
+WorkloadPilot    7: 8 op, 166158500.00 ns, 20.7698 ms/op
+WorkloadPilot    8: 9 op, 190444600.00 ns, 21.1605 ms/op
+WorkloadPilot    9: 10 op, 211874200.00 ns, 21.1874 ms/op
+WorkloadPilot   10: 11 op, 229910700.00 ns, 20.9010 ms/op
+WorkloadPilot   11: 12 op, 253323700.00 ns, 21.1103 ms/op
+WorkloadPilot   12: 13 op, 274069700.00 ns, 21.0823 ms/op
+WorkloadPilot   13: 14 op, 296152700.00 ns, 21.1538 ms/op
+WorkloadPilot   14: 15 op, 322957900.00 ns, 21.5305 ms/op
+WorkloadPilot   15: 16 op, 333380300.00 ns, 20.8363 ms/op
+WorkloadPilot   16: 32 op, 670509200.00 ns, 20.9534 ms/op
+
+WorkloadWarmup   1: 32 op, 663989100.00 ns, 20.7497 ms/op
+WorkloadWarmup   2: 32 op, 665896000.00 ns, 20.8093 ms/op
+WorkloadWarmup   3: 32 op, 696865600.00 ns, 21.7771 ms/op
+
+// BeforeActualRun
+WorkloadActual   1: 32 op, 692130700.00 ns, 21.6291 ms/op
+WorkloadActual   2: 32 op, 654167100.00 ns, 20.4427 ms/op
+WorkloadActual   3: 32 op, 650526500.00 ns, 20.3290 ms/op
+
+// AfterActualRun
+WorkloadResult   1: 32 op, 692130700.00 ns, 21.6291 ms/op
+WorkloadResult   2: 32 op, 654167100.00 ns, 20.4427 ms/op
+WorkloadResult   3: 32 op, 650526500.00 ns, 20.3290 ms/op
+// GC:  0 0 0 2569808 32
+// Threading:  0 0 32
+
+// AfterAll
+// Benchmark Process 17460 has exited with code 0.
+
+Mean = 20.800 ms, StdErr = 0.416 ms (2.00%), N = 3, StdDev = 0.720 ms
+Min = 20.329 ms, Q1 = 20.386 ms, Median = 20.443 ms, Q3 = 21.036 ms, Max = 21.629 ms
+IQR = 0.650 ms, LowerFence = 19.411 ms, UpperFence = 22.011 ms
+ConfidenceInterval = [7.664 ms; 33.936 ms] (CI 99.9%), Margin = 13.136 ms (63.15% of Mean)
+Skewness = 0.37, Kurtosis = 0.67, MValue = 2
+
+// ** Remained 3 (75.0%) benchmark(s) to run. Estimated finish 2026-04-05 22:21 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: High performance)
+// **************************
+// Benchmark: SkiaExportBenchmarks.ToPng_Complex: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet c8a85c99-5ae8-424d-9636-85863f21c3c9.dll --anonymousPipes 2376 3368 --benchmarkName MatPlotLibNet.Benchmarks.SkiaExportBenchmarks.ToPng_Complex --job ShortRun --benchmarkId 1 in C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.14.0
+// Runtime=.NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX2,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT VectorSize=256
+// Job: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+
+OverheadJitting  1: 1 op, 347000.00 ns, 347.0000 us/op
+WorkloadJitting  1: 1 op, 68690200.00 ns, 68.6902 ms/op
+
+WorkloadPilot    1: 2 op, 40253000.00 ns, 20.1265 ms/op
+WorkloadPilot    2: 3 op, 60290700.00 ns, 20.0969 ms/op
+WorkloadPilot    3: 4 op, 79709400.00 ns, 19.9274 ms/op
+WorkloadPilot    4: 5 op, 104500900.00 ns, 20.9002 ms/op
+WorkloadPilot    5: 6 op, 121786700.00 ns, 20.2978 ms/op
+WorkloadPilot    6: 7 op, 142514900.00 ns, 20.3593 ms/op
+WorkloadPilot    7: 8 op, 160759500.00 ns, 20.0949 ms/op
+WorkloadPilot    8: 9 op, 184488800.00 ns, 20.4988 ms/op
+WorkloadPilot    9: 10 op, 204264800.00 ns, 20.4265 ms/op
+WorkloadPilot   10: 11 op, 220393100.00 ns, 20.0357 ms/op
+WorkloadPilot   11: 12 op, 245148700.00 ns, 20.4291 ms/op
+WorkloadPilot   12: 13 op, 258315400.00 ns, 19.8704 ms/op
+WorkloadPilot   13: 14 op, 279710400.00 ns, 19.9793 ms/op
+WorkloadPilot   14: 15 op, 301578800.00 ns, 20.1053 ms/op
+WorkloadPilot   15: 16 op, 325489700.00 ns, 20.3431 ms/op
+WorkloadPilot   16: 32 op, 659455400.00 ns, 20.6080 ms/op
+
+WorkloadWarmup   1: 32 op, 642351700.00 ns, 20.0735 ms/op
+WorkloadWarmup   2: 32 op, 652795400.00 ns, 20.3999 ms/op
+WorkloadWarmup   3: 32 op, 679490100.00 ns, 21.2341 ms/op
+
+// BeforeActualRun
+WorkloadActual   1: 32 op, 643133000.00 ns, 20.0979 ms/op
+WorkloadActual   2: 32 op, 646074000.00 ns, 20.1898 ms/op
+WorkloadActual   3: 32 op, 643292000.00 ns, 20.1029 ms/op
+
+// AfterActualRun
+WorkloadResult   1: 32 op, 643133000.00 ns, 20.0979 ms/op
+WorkloadResult   2: 32 op, 646074000.00 ns, 20.1898 ms/op
+WorkloadResult   3: 32 op, 643292000.00 ns, 20.1029 ms/op
+// GC:  0 0 0 1756752 32
+// Threading:  0 0 32
+
+// AfterAll
+// Benchmark Process 55728 has exited with code 0.
+
+Mean = 20.130 ms, StdErr = 0.030 ms (0.15%), N = 3, StdDev = 0.052 ms
+Min = 20.098 ms, Q1 = 20.100 ms, Median = 20.103 ms, Q3 = 20.146 ms, Max = 20.190 ms
+IQR = 0.046 ms, LowerFence = 20.031 ms, UpperFence = 20.215 ms
+ConfidenceInterval = [19.187 ms; 21.073 ms] (CI 99.9%), Margin = 0.943 ms (4.68% of Mean)
+Skewness = 0.38, Kurtosis = 0.67, MValue = 2
+
+// ** Remained 2 (50.0%) benchmark(s) to run. Estimated finish 2026-04-05 22:21 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: High performance)
+// **************************
+// Benchmark: SkiaExportBenchmarks.ToPdf_Simple: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet c8a85c99-5ae8-424d-9636-85863f21c3c9.dll --anonymousPipes 3436 3840 --benchmarkName MatPlotLibNet.Benchmarks.SkiaExportBenchmarks.ToPdf_Simple --job ShortRun --benchmarkId 2 in C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.14.0
+// Runtime=.NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX2,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT VectorSize=256
+// Job: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+
+OverheadJitting  1: 1 op, 303200.00 ns, 303.2000 us/op
+WorkloadJitting  1: 1 op, 98371400.00 ns, 98.3714 ms/op
+
+WorkloadPilot    1: 2 op, 117251600.00 ns, 58.6258 ms/op
+WorkloadPilot    2: 3 op, 175357800.00 ns, 58.4526 ms/op
+WorkloadPilot    3: 4 op, 192424300.00 ns, 48.1061 ms/op
+WorkloadPilot    4: 5 op, 233913800.00 ns, 46.7828 ms/op
+WorkloadPilot    5: 6 op, 297080300.00 ns, 49.5134 ms/op
+WorkloadPilot    6: 7 op, 360716900.00 ns, 51.5310 ms/op
+WorkloadPilot    7: 8 op, 370259300.00 ns, 46.2824 ms/op
+WorkloadPilot    8: 9 op, 429833400.00 ns, 47.7593 ms/op
+WorkloadPilot    9: 10 op, 466110100.00 ns, 46.6110 ms/op
+WorkloadPilot   10: 11 op, 505147600.00 ns, 45.9225 ms/op
+
+WorkloadWarmup   1: 11 op, 498612300.00 ns, 45.3284 ms/op
+WorkloadWarmup   2: 11 op, 494247600.00 ns, 44.9316 ms/op
+WorkloadWarmup   3: 11 op, 499308400.00 ns, 45.3917 ms/op
+
+// BeforeActualRun
+WorkloadActual   1: 11 op, 494721800.00 ns, 44.9747 ms/op
+WorkloadActual   2: 11 op, 496026700.00 ns, 45.0933 ms/op
+WorkloadActual   3: 11 op, 515543200.00 ns, 46.8676 ms/op
+
+// AfterActualRun
+WorkloadResult   1: 11 op, 494721800.00 ns, 44.9747 ms/op
+WorkloadResult   2: 11 op, 496026700.00 ns, 45.0933 ms/op
+WorkloadResult   3: 11 op, 515543200.00 ns, 46.8676 ms/op
+// GC:  10 10 10 42406144 11
+// Threading:  0 0 11
+
+// AfterAll
+// Benchmark Process 60864 has exited with code 0.
+
+Mean = 45.645 ms, StdErr = 0.612 ms (1.34%), N = 3, StdDev = 1.060 ms
+Min = 44.975 ms, Q1 = 45.034 ms, Median = 45.093 ms, Q3 = 45.980 ms, Max = 46.868 ms
+IQR = 0.946 ms, LowerFence = 43.614 ms, UpperFence = 47.400 ms
+ConfidenceInterval = [26.302 ms; 64.988 ms] (CI 99.9%), Margin = 19.343 ms (42.38% of Mean)
+Skewness = 0.38, Kurtosis = 0.67, MValue = 2
+
+// ** Remained 1 (25.0%) benchmark(s) to run. Estimated finish 2026-04-05 22:21 (0h 0m from now) **
+Setup power plan (GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c FriendlyName: High performance)
+// **************************
+// Benchmark: SkiaExportBenchmarks.ToPdf_Complex: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet c8a85c99-5ae8-424d-9636-85863f21c3c9.dll --anonymousPipes 3860 1140 --benchmarkName MatPlotLibNet.Benchmarks.SkiaExportBenchmarks.ToPdf_Complex --job ShortRun --benchmarkId 3 in C:\Ait\MatPlotLibNet\Benchmarks\MatPlotLibNet.Benchmarks\bin\Release\net10.0\c8a85c99-5ae8-424d-9636-85863f21c3c9\bin\Release\net10.0
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.14.0
+// Runtime=.NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2
+// GC=Concurrent Workstation
+// HardwareIntrinsics=AVX2,AES,BMI1,BMI2,FMA,LZCNT,PCLMUL,POPCNT VectorSize=256
+// Job: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+
+OverheadJitting  1: 1 op, 328900.00 ns, 328.9000 us/op
+WorkloadJitting  1: 1 op, 95227200.00 ns, 95.2272 ms/op
+
+WorkloadPilot    1: 2 op, 92567200.00 ns, 46.2836 ms/op
+WorkloadPilot    2: 3 op, 138367600.00 ns, 46.1225 ms/op
+WorkloadPilot    3: 4 op, 184159000.00 ns, 46.0398 ms/op
+WorkloadPilot    4: 5 op, 228190500.00 ns, 45.6381 ms/op
+WorkloadPilot    5: 6 op, 274657200.00 ns, 45.7762 ms/op
+WorkloadPilot    6: 7 op, 320884800.00 ns, 45.8407 ms/op
+WorkloadPilot    7: 8 op, 363602800.00 ns, 45.4504 ms/op
+WorkloadPilot    8: 9 op, 415496700.00 ns, 46.1663 ms/op
+WorkloadPilot    9: 10 op, 456834100.00 ns, 45.6834 ms/op
+WorkloadPilot   10: 11 op, 499976600.00 ns, 45.4524 ms/op
+WorkloadPilot   11: 12 op, 547455000.00 ns, 45.6213 ms/op
+
+WorkloadWarmup   1: 12 op, 544322500.00 ns, 45.3602 ms/op
+WorkloadWarmup   2: 12 op, 540560600.00 ns, 45.0467 ms/op
+WorkloadWarmup   3: 12 op, 541487700.00 ns, 45.1240 ms/op
+
+// BeforeActualRun
+WorkloadActual   1: 12 op, 567354300.00 ns, 47.2795 ms/op
+WorkloadActual   2: 12 op, 577988400.00 ns, 48.1657 ms/op
+WorkloadActual   3: 12 op, 547100600.00 ns, 45.5917 ms/op
+
+// AfterActualRun
+WorkloadResult   1: 12 op, 567354300.00 ns, 47.2795 ms/op
+WorkloadResult   2: 12 op, 577988400.00 ns, 48.1657 ms/op
+WorkloadResult   3: 12 op, 547100600.00 ns, 45.5917 ms/op
+// GC:  11 11 11 46203072 12
+// Threading:  0 0 12
+
+// AfterAll
+// Benchmark Process 60360 has exited with code 0.
+
+Mean = 47.012 ms, StdErr = 0.755 ms (1.61%), N = 3, StdDev = 1.308 ms
+Min = 45.592 ms, Q1 = 46.436 ms, Median = 47.280 ms, Q3 = 47.723 ms, Max = 48.166 ms
+IQR = 1.287 ms, LowerFence = 44.505 ms, UpperFence = 49.653 ms
+ConfidenceInterval = [23.156 ms; 70.868 ms] (CI 99.9%), Margin = 23.856 ms (50.74% of Mean)
+Skewness = -0.2, Kurtosis = 0.67, MValue = 2
+
+// ** Remained 0 (0.0%) benchmark(s) to run. Estimated finish 2026-04-05 22:21 (0h 0m from now) **
+Successfully reverted power plan (GUID: 381b4222-f694-41f0-9685-ff5bb260df2e FriendlyName: Balanced)
+// ***** BenchmarkRunner: Finish  *****
+
+// * Export *
+  BenchmarkDotNet.Artifacts\results\MatPlotLibNet.Benchmarks.SkiaExportBenchmarks-report.csv
+  BenchmarkDotNet.Artifacts\results\MatPlotLibNet.Benchmarks.SkiaExportBenchmarks-report-github.md
+  BenchmarkDotNet.Artifacts\results\MatPlotLibNet.Benchmarks.SkiaExportBenchmarks-report.html
+
+// * Detailed results *
+SkiaExportBenchmarks.ToPng_Simple: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+Runtime = .NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2; GC = Concurrent Workstation
+Mean = 20.800 ms, StdErr = 0.416 ms (2.00%), N = 3, StdDev = 0.720 ms
+Min = 20.329 ms, Q1 = 20.386 ms, Median = 20.443 ms, Q3 = 21.036 ms, Max = 21.629 ms
+IQR = 0.650 ms, LowerFence = 19.411 ms, UpperFence = 22.011 ms
+ConfidenceInterval = [7.664 ms; 33.936 ms] (CI 99.9%), Margin = 13.136 ms (63.15% of Mean)
+Skewness = 0.37, Kurtosis = 0.67, MValue = 2
+-------------------- Histogram --------------------
+[20.324 ms ; 21.634 ms) | @@@
+---------------------------------------------------
+
+SkiaExportBenchmarks.ToPng_Complex: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+Runtime = .NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2; GC = Concurrent Workstation
+Mean = 20.130 ms, StdErr = 0.030 ms (0.15%), N = 3, StdDev = 0.052 ms
+Min = 20.098 ms, Q1 = 20.100 ms, Median = 20.103 ms, Q3 = 20.146 ms, Max = 20.190 ms
+IQR = 0.046 ms, LowerFence = 20.031 ms, UpperFence = 20.215 ms
+ConfidenceInterval = [19.187 ms; 21.073 ms] (CI 99.9%), Margin = 0.943 ms (4.68% of Mean)
+Skewness = 0.38, Kurtosis = 0.67, MValue = 2
+-------------------- Histogram --------------------
+[20.097 ms ; 20.191 ms) | @@@
+---------------------------------------------------
+
+SkiaExportBenchmarks.ToPdf_Simple: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+Runtime = .NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2; GC = Concurrent Workstation
+Mean = 45.645 ms, StdErr = 0.612 ms (1.34%), N = 3, StdDev = 1.060 ms
+Min = 44.975 ms, Q1 = 45.034 ms, Median = 45.093 ms, Q3 = 45.980 ms, Max = 46.868 ms
+IQR = 0.946 ms, LowerFence = 43.614 ms, UpperFence = 47.400 ms
+ConfidenceInterval = [26.302 ms; 64.988 ms] (CI 99.9%), Margin = 19.343 ms (42.38% of Mean)
+Skewness = 0.38, Kurtosis = 0.67, MValue = 2
+-------------------- Histogram --------------------
+[44.956 ms ; 46.886 ms) | @@@
+---------------------------------------------------
+
+SkiaExportBenchmarks.ToPdf_Complex: ShortRun(IterationCount=3, LaunchCount=1, WarmupCount=3)
+Runtime = .NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2; GC = Concurrent Workstation
+Mean = 47.012 ms, StdErr = 0.755 ms (1.61%), N = 3, StdDev = 1.308 ms
+Min = 45.592 ms, Q1 = 46.436 ms, Median = 47.280 ms, Q3 = 47.723 ms, Max = 48.166 ms
+IQR = 1.287 ms, LowerFence = 44.505 ms, UpperFence = 49.653 ms
+ConfidenceInterval = [23.156 ms; 70.868 ms] (CI 99.9%), Margin = 23.856 ms (50.74% of Mean)
+Skewness = -0.2, Kurtosis = 0.67, MValue = 2
+-------------------- Histogram --------------------
+[44.402 ms ; 46.533 ms) | @
+[46.533 ms ; 49.356 ms) | @@
+---------------------------------------------------
+
+// * Summary *
+
+BenchmarkDotNet v0.14.0, Windows 11 (10.0.26200.8117)
+AMD Ryzen 9 3950X, 1 CPU, 32 logical and 16 physical cores
+.NET SDK 10.0.201
+  [Host]   : .NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2
+  ShortRun : .NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2
+
+Job=ShortRun  IterationCount=3  LaunchCount=1  
+WarmupCount=3  
+
+| Method        | Mean     | Error     | StdDev   | Gen0     | Gen1     | Gen2     | Allocated  |
+|-------------- |---------:|----------:|---------:|---------:|---------:|---------:|-----------:|
+| ToPng_Simple  | 20.80 ms | 13.136 ms | 0.720 ms |        - |        - |        - |   78.42 KB |
+| ToPng_Complex | 20.13 ms |  0.943 ms | 0.052 ms |        - |        - |        - |   53.61 KB |
+| ToPdf_Simple  | 45.65 ms | 19.343 ms | 1.060 ms | 909.0909 | 909.0909 | 909.0909 | 3764.75 KB |
+| ToPdf_Complex | 47.01 ms | 23.856 ms | 1.308 ms | 916.6667 | 916.6667 | 916.6667 | 3760.02 KB |
+
+// * Legends *
+  Mean      : Arithmetic mean of all measurements
+  Error     : Half of 99.9% confidence interval
+  StdDev    : Standard deviation of all measurements
+  Gen0      : GC Generation 0 collects per 1000 operations
+  Gen1      : GC Generation 1 collects per 1000 operations
+  Gen2      : GC Generation 2 collects per 1000 operations
+  Allocated : Allocated memory per single operation (managed only, inclusive, 1KB = 1024B)
+  1 ms      : 1 Millisecond (0.001 sec)
+
+// * Diagnostic Output - MemoryDiagnoser *
+
+
+// ***** BenchmarkRunner: End *****
+Run time: 00:00:33 (33.39 sec), executed benchmarks: 4
+
+Global total time: 00:00:49 (49.29 sec), executed benchmarks: 4
+// * Artifacts cleanup *
+Artifacts cleanup is finished

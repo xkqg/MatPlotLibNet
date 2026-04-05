@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>Drawdown indicator. Shows the percentage decline from peak equity as a filled area below zero.</summary>
 /// <remarks>Drawdown is always non-negative (0% = at peak, 20% = 20% below peak).
 /// Best placed in a separate subplot. The area is filled from the drawdown line down to zero.</remarks>
-public sealed class DrawDown : Indicator
+public sealed class DrawDown : Indicator<SignalResult>
 {
     private readonly double[] _equity;
 
@@ -25,9 +25,22 @@ public sealed class DrawDown : Indicator
     }
 
     /// <inheritdoc />
+    public override SignalResult Compute()
+    {
+        var dd = new double[_equity.Length];
+        double peak = _equity[0];
+        for (int i = 0; i < _equity.Length; i++)
+        {
+            if (_equity[i] > peak) peak = _equity[i];
+            dd[i] = peak > 0 ? (peak - _equity[i]) / peak * 100 : 0;
+        }
+        return dd;
+    }
+
+    /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        var dd = Compute(_equity);
+        double[] dd = Compute();
         var x = new double[dd.Length];
         for (int i = 0; i < dd.Length; i++) x[i] = i;
 
@@ -41,19 +54,5 @@ public sealed class DrawDown : Indicator
         series.Alpha = Alpha;
 
         axes.YAxis.Max = 0;
-    }
-
-    /// <summary>Computes the percentage drawdown from peak at each point.</summary>
-    /// <returns>Array of non-negative drawdown percentages (0 = at peak).</returns>
-    public static double[] Compute(double[] equity)
-    {
-        var dd = new double[equity.Length];
-        double peak = equity[0];
-        for (int i = 0; i < equity.Length; i++)
-        {
-            if (equity[i] > peak) peak = equity[i];
-            dd[i] = peak > 0 ? (peak - equity[i]) / peak * 100 : 0;
-        }
-        return dd;
     }
 }

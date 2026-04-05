@@ -171,6 +171,61 @@ public sealed class ChartSerializer : IChartSerializer
                 LineStyle = ar.LineStyle.ToString().ToLowerInvariant(),
                 LineWidth = ar.LineWidth
             },
+            DonutSeries ds => new SeriesDto
+            {
+                Type = "donut",
+                Sizes = ds.Sizes, PieLabels = ds.Labels,
+                InnerRadius = ds.InnerRadius, CenterText = ds.CenterText,
+                StartAngle = ds.StartAngle
+            },
+            BubbleSeries bs2 => new SeriesDto
+            {
+                Type = "bubble",
+                XData = bs2.XData, YData = bs2.YData, Sizes = bs2.Sizes,
+                Color = bs2.Color, Alpha = bs2.Alpha
+            },
+            OhlcBarSeries ob => new SeriesDto
+            {
+                Type = "ohlcbar",
+                Open = ob.Open, High = ob.High, Low = ob.Low, Close = ob.Close,
+                DateLabels = ob.DateLabels, UpColor = ob.UpColor, DownColor = ob.DownColor,
+                TickWidth = ob.TickWidth
+            },
+            WaterfallSeries ws => new SeriesDto
+            {
+                Type = "waterfall",
+                Categories = ws.Categories, Values = ws.Values,
+                IncreaseColor = ws.IncreaseColor, DecreaseColor = ws.DecreaseColor,
+                TotalColor = ws.TotalColor, BarWidth = ws.BarWidth
+            },
+            FunnelSeries fs => new SeriesDto
+            {
+                Type = "funnel",
+                PieLabels = fs.Labels, Values = fs.Values
+            },
+            GanttSeries gs => new SeriesDto
+            {
+                Type = "gantt",
+                Tasks = gs.Tasks, Starts = gs.Starts, Ends = gs.Ends,
+                Color = gs.Color, BarHeight = gs.BarHeight
+            },
+            GaugeSeries gg => new SeriesDto
+            {
+                Type = "gauge",
+                GaugeValue = gg.Value, GaugeMin = gg.Min, GaugeMax = gg.Max,
+                NeedleColor = gg.NeedleColor
+            },
+            ProgressBarSeries pb => new SeriesDto
+            {
+                Type = "progressbar",
+                GaugeValue = pb.Value, FillColor = pb.FillColor,
+                TrackColor = pb.TrackColor, BarHeight = pb.BarHeight
+            },
+            SparklineSeries sl => new SeriesDto
+            {
+                Type = "sparkline",
+                Values = sl.Values, Color = sl.Color, LineWidth = sl.LineWidth
+            },
             _ => new SeriesDto { Type = "unknown" }
         };
         dto.Label = series.Label;
@@ -275,6 +330,15 @@ public sealed class ChartSerializer : IChartSerializer
             "candlestick" => CreateCandlestick(axes, dto),
             "quiver" => CreateQuiver(axes, dto),
             "radar" => CreateRadar(axes, dto),
+            "donut" => CreateDonut(axes, dto),
+            "bubble" => CreateBubble(axes, dto),
+            "ohlcbar" => CreateOhlcBar(axes, dto),
+            "waterfall" => CreateWaterfall(axes, dto),
+            "funnel" => CreateFunnel(axes, dto),
+            "gantt" => CreateGantt(axes, dto),
+            "gauge" => CreateGauge(axes, dto),
+            "progressbar" => CreateProgressBar(axes, dto),
+            "sparkline" => CreateSparkline(axes, dto),
             _ => null
         };
         if (series is not null)
@@ -396,6 +460,91 @@ public sealed class ChartSerializer : IChartSerializer
         if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
         s.LineWidth = dto.LineWidth ?? 1.5;
         ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="DonutSeries"/> from the DTO, including inner radius and center text.</summary>
+    private static DonutSeries CreateDonut(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Donut(dto.Sizes ?? [], dto.PieLabels);
+        if (dto.InnerRadius.HasValue) s.InnerRadius = dto.InnerRadius.Value;
+        s.CenterText = dto.CenterText;
+        if (dto.StartAngle.HasValue) s.StartAngle = dto.StartAngle.Value;
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="BubbleSeries"/> from the DTO, including alpha transparency.</summary>
+    private static BubbleSeries CreateBubble(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Bubble(dto.XData ?? [], dto.YData ?? [], dto.Sizes ?? []);
+        s.Color = dto.Color;
+        if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
+        return s;
+    }
+
+    /// <summary>Reconstructs an <see cref="OhlcBarSeries"/> from the DTO, including up/down colors and tick width.</summary>
+    private static OhlcBarSeries CreateOhlcBar(Axes axes, SeriesDto dto)
+    {
+        var s = axes.OhlcBar(dto.Open ?? [], dto.High ?? [], dto.Low ?? [], dto.Close ?? [], dto.DateLabels);
+        if (dto.UpColor.HasValue) s.UpColor = dto.UpColor.Value;
+        if (dto.DownColor.HasValue) s.DownColor = dto.DownColor.Value;
+        if (dto.TickWidth.HasValue) s.TickWidth = dto.TickWidth.Value;
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="WaterfallSeries"/> from the DTO, including increase/decrease/total colors.</summary>
+    private static WaterfallSeries CreateWaterfall(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Waterfall(dto.Categories ?? [], dto.Values ?? []);
+        if (dto.IncreaseColor.HasValue) s.IncreaseColor = dto.IncreaseColor.Value;
+        if (dto.DecreaseColor.HasValue) s.DecreaseColor = dto.DecreaseColor.Value;
+        if (dto.TotalColor.HasValue) s.TotalColor = dto.TotalColor.Value;
+        if (dto.BarWidth.HasValue) s.BarWidth = dto.BarWidth.Value;
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="FunnelSeries"/> from the DTO.</summary>
+    private static FunnelSeries CreateFunnel(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Funnel(dto.PieLabels ?? [], dto.Values ?? []);
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="GanttSeries"/> from the DTO, including bar height.</summary>
+    private static GanttSeries CreateGantt(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Gantt(dto.Tasks ?? [], dto.Starts ?? [], dto.Ends ?? []);
+        s.Color = dto.Color;
+        if (dto.BarHeight.HasValue) s.BarHeight = dto.BarHeight.Value;
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="GaugeSeries"/> from the DTO, including min/max range and needle color.</summary>
+    private static GaugeSeries CreateGauge(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Gauge(dto.GaugeValue ?? 0);
+        if (dto.GaugeMin.HasValue) s.Min = dto.GaugeMin.Value;
+        if (dto.GaugeMax.HasValue) s.Max = dto.GaugeMax.Value;
+        if (dto.NeedleColor.HasValue) s.NeedleColor = dto.NeedleColor.Value;
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="ProgressBarSeries"/> from the DTO, including fill and track colors.</summary>
+    private static ProgressBarSeries CreateProgressBar(Axes axes, SeriesDto dto)
+    {
+        var s = axes.ProgressBar(dto.GaugeValue ?? 0);
+        if (dto.FillColor.HasValue) s.FillColor = dto.FillColor.Value;
+        if (dto.TrackColor.HasValue) s.TrackColor = dto.TrackColor.Value;
+        if (dto.BarHeight.HasValue) s.BarHeight = dto.BarHeight.Value;
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="SparklineSeries"/> from the DTO, including color and line width.</summary>
+    private static SparklineSeries CreateSparkline(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Sparkline(dto.Values ?? []);
+        s.Color = dto.Color;
+        s.LineWidth = dto.LineWidth ?? 1.5;
         return s;
     }
 
@@ -555,6 +704,22 @@ internal sealed record SeriesDto
     public double? ArrowHeadSize { get; init; }
     public Color? FillColor { get; init; }
     public double? MaxValue { get; init; }
+    public double? InnerRadius { get; init; }
+    public string? CenterText { get; init; }
+    public double? StartAngle { get; init; }
+    public double? TickWidth { get; init; }
+    public Color? IncreaseColor { get; init; }
+    public Color? DecreaseColor { get; init; }
+    public Color? TotalColor { get; init; }
+    public string[]? Tasks { get; init; }
+    public double[]? Starts { get; init; }
+    public double[]? Ends { get; init; }
+    public double? BarHeight { get; init; }
+    public double? GaugeValue { get; init; }
+    public double? GaugeMin { get; init; }
+    public double? GaugeMax { get; init; }
+    public Color? NeedleColor { get; init; }
+    public Color? TrackColor { get; init; }
 }
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>

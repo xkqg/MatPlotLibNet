@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>MACD (Moving Average Convergence Divergence) indicator. Shows trend direction and momentum.</summary>
 /// <remarks>Adds three series: MACD line (fast EMA - slow EMA), signal line (EMA of MACD),
 /// and a histogram (bar series showing the difference). Best placed in a separate subplot.</remarks>
-public sealed class Macd : Indicator
+public sealed class Macd : Indicator<MacdResult>
 {
     private readonly double[] _prices;
     private readonly int _fastPeriod;
@@ -34,9 +34,37 @@ public sealed class Macd : Indicator
     }
 
     /// <inheritdoc />
+    public override MacdResult Compute()
+    {
+        double[] fastEma = new Ema(_prices, _fastPeriod).Compute();
+        double[] slowEma = new Ema(_prices, _slowPeriod).Compute();
+
+        // Both EMAs are valid from slowPeriod-1 onward (slow EMA starts later)
+        int start = _slowPeriod - 1;
+        int macdLen = _prices.Length - start;
+        var macdLine = new double[macdLen];
+        for (int i = 0; i < macdLen; i++)
+            macdLine[i] = fastEma[start + i] - slowEma[start + i];
+
+        // Compute signal from valid MACD values only
+        double[] signalSma = new Sma(macdLine, _signalPeriod).Compute(); // Use SMA for signal to avoid NaN seed issues
+        int sigStart = _signalPeriod - 1;
+        int sigLen = signalSma.Length;
+        var signalLine = signalSma;
+        var histogram = new double[sigLen];
+        for (int i = 0; i < sigLen; i++)
+            histogram[i] = macdLine[sigStart + i] - signalLine[i];
+
+        return new MacdResult(macdLine, signalLine, histogram);
+    }
+
+    /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        var (macdLine, signalLine, histogram) = Compute(_prices, _fastPeriod, _slowPeriod, _signalPeriod);
+        var result = Compute();
+        var macdLine = result.MacdLine;
+        var signalLine = result.SignalLine;
+        var histogram = result.Histogram;
         int offset = _slowPeriod - 1;
         int signalOffset = offset + _signalPeriod - 1;
 
@@ -62,32 +90,5 @@ public sealed class Macd : Indicator
         var histSeries = axes.Bar(histLabels, histogram);
         histSeries.Label = "Histogram";
         histSeries.BarWidth = 0.6;
-    }
-
-    /// <summary>Computes MACD line, signal line, and histogram.</summary>
-    /// <returns>Tuple of (MACD line, signal line, histogram) arrays.</returns>
-    public static (double[] MacdLine, double[] SignalLine, double[] Histogram) Compute(
-        double[] prices, int fastPeriod = 12, int slowPeriod = 26, int signalPeriod = 9)
-    {
-        var fastEma = Ema.Compute(prices, fastPeriod);
-        var slowEma = Ema.Compute(prices, slowPeriod);
-
-        // Both EMAs are valid from slowPeriod-1 onward (slow EMA starts later)
-        int start = slowPeriod - 1;
-        int macdLen = prices.Length - start;
-        var macdLine = new double[macdLen];
-        for (int i = 0; i < macdLen; i++)
-            macdLine[i] = fastEma[start + i] - slowEma[start + i];
-
-        // Compute signal from valid MACD values only
-        var signalEma = Sma.Compute(macdLine, signalPeriod); // Use SMA for signal to avoid NaN seed issues
-        int sigStart = signalPeriod - 1;
-        int sigLen = signalEma.Length;
-        var signalLine = signalEma;
-        var histogram = new double[sigLen];
-        for (int i = 0; i < sigLen; i++)
-            histogram[i] = macdLine[sigStart + i] - signalLine[i];
-
-        return (macdLine, signalLine, histogram);
     }
 }

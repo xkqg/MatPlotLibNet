@@ -74,4 +74,161 @@ public class ColorMapTests
             Assert.Equal(255, color.A);
         }
     }
+
+    [Fact]
+    public void Magma_Name()
+    {
+        Assert.Equal("magma", ColorMaps.Magma.Name);
+    }
+
+    [Fact]
+    public void Coolwarm_Name()
+    {
+        Assert.Equal("coolwarm", ColorMaps.Coolwarm.Name);
+    }
+
+    [Fact]
+    public void Blues_Name()
+    {
+        Assert.Equal("blues", ColorMaps.Blues.Name);
+    }
+
+    [Fact]
+    public void Reds_Name()
+    {
+        Assert.Equal("reds", ColorMaps.Reds.Name);
+    }
+
+    [Fact]
+    public void Magma_AtZero_ReturnsValidColor()
+    {
+        var color = ColorMaps.Magma.GetColor(0.0);
+        Assert.InRange(color.R, (byte)0, (byte)255);
+        Assert.InRange(color.G, (byte)0, (byte)255);
+        Assert.InRange(color.B, (byte)0, (byte)255);
+        Assert.InRange(color.A, (byte)0, (byte)255);
+    }
+
+    [Fact]
+    public void Magma_AtOne_ReturnsValidColor()
+    {
+        var color = ColorMaps.Magma.GetColor(1.0);
+        Assert.InRange(color.R, (byte)0, (byte)255);
+        Assert.InRange(color.G, (byte)0, (byte)255);
+        Assert.InRange(color.B, (byte)0, (byte)255);
+        Assert.InRange(color.A, (byte)0, (byte)255);
+    }
+
+    [Fact]
+    public void Blues_AtZero_ReturnsLightColor()
+    {
+        var color = ColorMaps.Blues.GetColor(0.0);
+        // Blues starts near white (#F7FBFF)
+        Assert.True(color.R > 200);
+    }
+
+    [Fact]
+    public void Blues_AtOne_ReturnsBlueColor()
+    {
+        var color = ColorMaps.Blues.GetColor(1.0);
+        // Blues ends dark blue (#084594) — blue channel dominates
+        Assert.True(color.B > color.R);
+        Assert.True(color.B > color.G);
+    }
+
+    [Fact]
+    public void Reds_AtZero_ReturnsLightColor()
+    {
+        var color = ColorMaps.Reds.GetColor(0.0);
+        // Reds starts near white (#FFF5F0)
+        Assert.True(color.R > 200);
+    }
+
+    [Fact]
+    public void Coolwarm_AtHalf_ReturnsNeutralColor()
+    {
+        var color = ColorMaps.Coolwarm.GetColor(0.5);
+        // At the midpoint the color should be a neutral/transition tone
+        // It should differ from the endpoints
+        Assert.NotEqual(ColorMaps.Coolwarm.GetColor(0.0), color);
+        Assert.NotEqual(ColorMaps.Coolwarm.GetColor(1.0), color);
+    }
+
+    public static IEnumerable<object[]> AllMaps =>
+    [
+        [ColorMaps.Viridis],
+        [ColorMaps.Plasma],
+        [ColorMaps.Inferno],
+        [ColorMaps.Magma],
+        [ColorMaps.Coolwarm],
+        [ColorMaps.Blues],
+        [ColorMaps.Reds],
+    ];
+
+    [Theory]
+    [MemberData(nameof(AllMaps))]
+    public void AllMaps_AtZero_HaveFullOpacity(IColorMap map)
+    {
+        var color = map.GetColor(0.0);
+        Assert.Equal(255, color.A);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllMaps))]
+    public void AllMaps_AtOne_HaveFullOpacity(IColorMap map)
+    {
+        var color = map.GetColor(1.0);
+        Assert.Equal(255, color.A);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllMaps))]
+    public void AllMaps_Clamp_BelowZero(IColorMap map)
+    {
+        var belowZero = map.GetColor(-0.5);
+        var atZero = map.GetColor(0.0);
+        Assert.Equal(atZero, belowZero);
+    }
+
+    [Theory]
+    [MemberData(nameof(AllMaps))]
+    public void AllMaps_Clamp_AboveOne(IColorMap map)
+    {
+        var aboveOne = map.GetColor(1.5);
+        var atOne = map.GetColor(1.0);
+        Assert.Equal(atOne, aboveOne);
+    }
+
+    [Fact]
+    public void Interpolation_Midpoint_IsBetweenEndpoints()
+    {
+        var c0 = ColorMaps.Viridis.GetColor(0.0);
+        var cMid = ColorMaps.Viridis.GetColor(0.5);
+        var c1 = ColorMaps.Viridis.GetColor(1.0);
+
+        Assert.InRange(cMid.R, Math.Min(c0.R, c1.R), Math.Max(c0.R, c1.R));
+        Assert.InRange(cMid.G, Math.Min(c0.G, c1.G), Math.Max(c0.G, c1.G));
+        Assert.InRange(cMid.B, Math.Min(c0.B, c1.B), Math.Max(c0.B, c1.B));
+    }
+
+    [Theory]
+    [MemberData(nameof(AllMaps))]
+    public void AllMaps_ReturnDifferentColorsAtEndpoints(IColorMap map)
+    {
+        var atZero = map.GetColor(0.0);
+        var atOne = map.GetColor(1.0);
+        Assert.NotEqual(atZero, atOne);
+    }
+
+    [Fact]
+    public void Blues_MonotonicBrightness()
+    {
+        // Blues goes from light (#F7FBFF) to dark (#084594), so brightness should decrease
+        var c0 = ColorMaps.Blues.GetColor(0.0);
+        var c1 = ColorMaps.Blues.GetColor(1.0);
+        int brightness0 = c0.R + c0.G + c0.B;
+        int brightness1 = c1.R + c1.G + c1.B;
+        Assert.True(brightness0 > brightness1,
+            $"Blues at 0.0 (brightness {brightness0}) should be brighter than at 1.0 (brightness {brightness1})");
+    }
 }

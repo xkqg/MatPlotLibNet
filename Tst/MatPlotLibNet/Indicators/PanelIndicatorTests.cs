@@ -15,14 +15,14 @@ public class RsiTests
     [Fact]
     public void Compute_ReturnsCorrectLength()
     {
-        var rsi = Rsi.Compute(Prices, 14);
+        double[] rsi = new Rsi(Prices, 14).Compute();
         Assert.Equal(Prices.Length - 14, rsi.Length);
     }
 
     [Fact]
     public void Compute_ValuesInRange()
     {
-        var rsi = Rsi.Compute(Prices, 14);
+        double[] rsi = new Rsi(Prices, 14).Compute();
         foreach (var v in rsi)
             Assert.InRange(v, 0, 100);
     }
@@ -114,7 +114,8 @@ public class StochasticTests
     [Fact]
     public void Compute_ValuesInRange()
     {
-        var (k, _) = Stochastic.Compute(High, Low, Close, 14, 3);
+        var result = new Stochastic(High, Low, Close, 14, 3).Compute();
+        var k = result.K;
         foreach (var v in k)
             Assert.InRange(v, 0, 100);
     }

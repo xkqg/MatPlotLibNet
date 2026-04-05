@@ -6,7 +6,7 @@ using MatPlotLibNet.Models;
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>Exponential Moving Average indicator. Gives more weight to recent prices via a smoothing multiplier.</summary>
-public sealed class Ema : Indicator<double[]>
+public sealed class Ema : Indicator<SignalResult>
 {
     private readonly double[] _prices;
     private readonly int _period;
@@ -24,7 +24,18 @@ public sealed class Ema : Indicator<double[]>
         : this(PriceSources.Resolve(source, open, high, low, close), period) { }
 
     /// <inheritdoc />
-    public override double[] Compute() => Compute(_prices, _period);
+    public override SignalResult Compute()
+    {
+        if (_prices.Length < _period) return Array.Empty<double>();
+        var result = new double[_prices.Length];
+        double multiplier = 2.0 / (_period + 1);
+        double sum = 0;
+        for (int i = 0; i < _period; i++) { result[i] = double.NaN; sum += _prices[i]; }
+        result[_period - 1] = sum / _period;
+        for (int i = _period; i < _prices.Length; i++)
+            result[i] = (_prices[i] - result[i - 1]) * multiplier + result[i - 1];
+        return result;
+    }
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
@@ -38,19 +49,5 @@ public sealed class Ema : Indicator<double[]>
         if (Color.HasValue) series.Color = Color.Value;
         series.LineWidth = LineWidth;
         series.LineStyle = LineStyle;
-    }
-
-    /// <summary>Computes the Exponential Moving Average. The first <paramref name="period"/> values use SMA as seed.</summary>
-    public static double[] Compute(double[] prices, int period)
-    {
-        if (prices.Length < period) return [];
-        var result = new double[prices.Length];
-        double multiplier = 2.0 / (period + 1);
-        double sum = 0;
-        for (int i = 0; i < period; i++) { result[i] = double.NaN; sum += prices[i]; }
-        result[period - 1] = sum / period;
-        for (int i = period; i < prices.Length; i++)
-            result[i] = (prices[i] - result[i - 1]) * multiplier + result[i - 1];
-        return result;
     }
 }

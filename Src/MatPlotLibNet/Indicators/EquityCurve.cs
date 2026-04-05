@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Indicators;
 
 /// <summary>Equity curve indicator. Plots cumulative P&amp;L as a line starting from initial capital.</summary>
 /// <remarks>Best placed in a separate subplot below the price chart to show portfolio value over time.</remarks>
-public sealed class EquityCurve : Indicator
+public sealed class EquityCurve : Indicator<SignalResult>
 {
     private readonly double[] _returns;
     private readonly double _startingCapital;
@@ -23,25 +23,24 @@ public sealed class EquityCurve : Indicator
     }
 
     /// <inheritdoc />
+    public override SignalResult Compute()
+    {
+        var equity = new double[_returns.Length + 1];
+        equity[0] = _startingCapital;
+        for (int i = 0; i < _returns.Length; i++)
+            equity[i + 1] = equity[i] + _returns[i];
+        return equity;
+    }
+
+    /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        var equity = Compute(_returns, _startingCapital);
+        double[] equity = Compute();
         var x = new double[equity.Length];
         for (int i = 0; i < equity.Length; i++) x[i] = i;
         var series = axes.Plot(x, equity);
         series.Label = Label;
         if (Color.HasValue) series.Color = Color.Value;
         series.LineWidth = LineWidth;
-    }
-
-    /// <summary>Computes the cumulative equity curve.</summary>
-    /// <returns>Array of length <c>returns.Length + 1</c> starting at <paramref name="startingCapital"/>.</returns>
-    public static double[] Compute(double[] returns, double startingCapital = 10000)
-    {
-        var equity = new double[returns.Length + 1];
-        equity[0] = startingCapital;
-        for (int i = 0; i < returns.Length; i++)
-            equity[i + 1] = equity[i] + returns[i];
-        return equity;
     }
 }

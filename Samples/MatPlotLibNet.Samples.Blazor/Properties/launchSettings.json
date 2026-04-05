@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "MatPlotLibNet.Samples.Blazor": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:52649;http://localhost:52651"
+    }
+  }
+}

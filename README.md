@@ -251,6 +251,18 @@ var handle = await figure.ShowAsync();   // opens default browser
 await handle.UpdateAsync();              // pushes live updates
 ```
 
+## Performance: server-side SVG + SignalR
+
+Charts render **server-side as SVG** and push to clients via SignalR — no client-side chart library, no JavaScript rendering, no canvas redraws.
+
+- **Less traffic** — a chart SVG is 5-15 KB vs. shipping raw datasets (100 KB+) plus a JS chart library (200-500 KB). Only changed charts are pushed.
+- **Zero client CPU** — the browser swaps innerHTML. A Raspberry Pi displays the same dashboard as a workstation.
+- **Inline SVG in the DOM** — CSS-stylable, printable, accessible to screen readers. Works in hidden tabs and below the fold.
+- **Inline, expandable, or popup** — view charts in-page, expand in-place, or pop out into a separate window. `figure.ShowAsync()` opens a standalone browser with live updates.
+- **Same output everywhere** — identical SVG whether inline in Blazor, pushed to React via SignalR, saved as a file, exported to PNG/PDF, or rendered in MAUI.
+
+A simple line chart: **52 us**. A 3x3 subplot grid: **224 us**. All 13 indicators on 100K points: **< 8 ms**. See [BENCHMARKS.md](BENCHMARKS.md).
+
 ## Architecture
 
 ```
@@ -273,10 +285,13 @@ See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering 
 
 | Version | Highlights |
 |---------|-----------|
+| **0.3.2** | Quality release: OO indicator refactor (`Indicator<TResult>` with `IIndicatorResult` constraint, named result records, no statics). 92 new tests. BenchmarkDotNet suite. CHANGELOG, BENCHMARKS.md, DocFX, 4 sample projects. JSON serialization fix for 9 series types. |
 | **0.3.1** | Platform expansion: `@matplotlibnet/react` (React 19 hooks + components), `@matplotlibnet/vue` (Vue 3 composables + components), `MatPlotLibNet.GraphQL` (HotChocolate queries + subscriptions). Core library multi-targets `netstandard2.1`. |
 | **0.3.0** | 25 series types (Donut, Bubble, OhlcBar, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline). 13 technical indicators (SMA, EMA, BB, VWAP, RSI, MACD, Stochastic, Volume, Fibonacci, ATR, ADX, Keltner, Ichimoku). Trading analytics (EquityCurve, ProfitLoss, DrawDown). Buy/sell signal markers. Generic `SeriesRenderer<T>` + `Indicator<TResult>`. Intuitive fluent API (`.Sma(20)`, `.BuyAt()`, `.SaveSvg()`). PriceSource enum, Offset, LineStyle on all indicators. Series organized by chart family. |
 | **0.2.0** | 16 series types (Area, Step, ErrorBar, Candlestick, Quiver, Radar). Stacked bars. Annotations (text, HLine/VLine, HSpan/VSpan). Secondary Y-axis (TwinX). SVG tooltips + zoom/pan. Polymorphic transforms (`IFigureTransform`, `FigureTransform`, `TransformResult`). PNG/PDF export via MatPlotLibNet.Skia. |
 | **0.1.0** | Initial release. 10 series types (Line, Scatter, Bar, Histogram, Pie, Heatmap, Box, Violin, Contour, Stem). Fluent builder API. Parallel SVG rendering. JSON serialization. 6 themes. Blazor, ASP.NET Core, MAUI, Angular, Interactive packages. |
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed release notes. See [BENCHMARKS.md](BENCHMARKS.md) for performance numbers.
 
 ## License
 

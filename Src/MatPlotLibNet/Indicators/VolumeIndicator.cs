@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Indicators;
 
 /// <summary>Volume indicator. Displays trading volume as a bar chart in a subplot panel.</summary>
 /// <remarks>Best placed in a separate subplot below the price chart. Automatically sets Y-axis minimum to zero.</remarks>
-public sealed class VolumeIndicator : Indicator
+public sealed class VolumeIndicator : Indicator<SignalResult>
 {
     private readonly double[] _volumes;
     private readonly string[]? _labels;
@@ -21,6 +21,9 @@ public sealed class VolumeIndicator : Indicator
         _labels = labels;
         Label = "Volume";
     }
+
+    /// <inheritdoc />
+    public override SignalResult Compute() => new(_volumes);
 
     /// <inheritdoc />
     public override void Apply(Axes axes)

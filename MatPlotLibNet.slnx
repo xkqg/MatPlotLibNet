@@ -15,4 +15,13 @@
     <Project Path="Tst/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.Tests.csproj" />
   </Folder>
+  <Folder Name="/Samples/">
+    <Project Path="Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj" />
+    <Project Path="Samples/MatPlotLibNet.Samples.Blazor/MatPlotLibNet.Samples.Blazor.csproj" />
+    <Project Path="Samples/MatPlotLibNet.Samples.WebApi/MatPlotLibNet.Samples.WebApi.csproj" />
+    <Project Path="Samples/MatPlotLibNet.Samples.GraphQL/MatPlotLibNet.Samples.GraphQL.csproj" />
+  </Folder>
+  <Folder Name="/Benchmarks/">
+    <Project Path="Benchmarks/MatPlotLibNet.Benchmarks/MatPlotLibNet.Benchmarks.csproj" />
+  </Folder>
 </Solution>

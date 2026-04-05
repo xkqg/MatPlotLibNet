@@ -1,0 +1,28 @@
+@page "/"
+
+<h1>MatPlotLibNet Blazor Sample</h1>
+
+<h2>Bar Chart</h2>
+<MplChart Figure="_barChart" />
+
+<h2>Scatter Plot</h2>
+<MplChart Figure="_scatterChart" />
+
+<p><a href="/live">View Live Dashboard &rarr;</a></p>
+
+@code {
+    private Figure _barChart = Plt.Create()
+        .WithTitle("Quarterly Revenue")
+        .WithTheme(Theme.Seaborn)
+        .Bar(["Q1", "Q2", "Q3", "Q4"], [120.0, 340, 250, 410],
+            bar => { bar.Color = Color.Blue; bar.Label = "Revenue ($k)"; })
+        .Build();
+
+    private Figure _scatterChart = Plt.Create()
+        .WithTitle("Temperature vs Ice Cream Sales")
+        .WithTheme(Theme.FiveThirtyEight)
+        .Scatter([15, 18, 21, 24, 27, 30, 33, 36],
+                 [50, 65, 80, 95, 120, 150, 170, 200],
+            s => { s.Color = Color.Orange; s.Label = "Sales"; })
+        .Build();
+}

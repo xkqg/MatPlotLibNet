@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>Stochastic Oscillator indicator. Compares closing price to the high-low range over a lookback period.</summary>
 /// <remarks>Produces two lines: %K (fast) and %D (slow, SMA of %K). Values range 0-100.
 /// Above 80 is typically overbought; below 20 is oversold. Best placed in a separate subplot.</remarks>
-public sealed class Stochastic : Indicator
+public sealed class Stochastic : Indicator<StochasticResult>
 {
     private readonly double[] _high;
     private readonly double[] _low;
@@ -37,9 +37,36 @@ public sealed class Stochastic : Indicator
     }
 
     /// <inheritdoc />
+    public override StochasticResult Compute()
+    {
+        int n = _close.Length;
+        if (n < _kPeriod) return new StochasticResult([], []);
+
+        int kLen = n - _kPeriod + 1;
+        var k = new double[kLen];
+
+        for (int i = 0; i < kLen; i++)
+        {
+            double highest = double.MinValue, lowest = double.MaxValue;
+            for (int j = i; j < i + _kPeriod; j++)
+            {
+                if (_high[j] > highest) highest = _high[j];
+                if (_low[j] < lowest) lowest = _low[j];
+            }
+            double range = highest - lowest;
+            k[i] = range > 0 ? (_close[i + _kPeriod - 1] - lowest) / range * 100 : 50;
+        }
+
+        double[] d = new Sma(k, _dPeriod).Compute();
+        return new StochasticResult(k, d);
+    }
+
+    /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        var (k, d) = Compute(_high, _low, _close, _kPeriod, _dPeriod);
+        var result = Compute();
+        var k = result.K;
+        var d = result.D;
         int kOffset = _kPeriod - 1;
         int dOffset = kOffset + _dPeriod - 1;
 
@@ -62,31 +89,5 @@ public sealed class Stochastic : Indicator
 
         axes.YAxis.Min = 0;
         axes.YAxis.Max = 100;
-    }
-
-    /// <summary>Computes the Stochastic %K and %D values.</summary>
-    /// <returns>Tuple of (%K array, %D array).</returns>
-    public static (double[] K, double[] D) Compute(double[] high, double[] low, double[] close, int kPeriod = 14, int dPeriod = 3)
-    {
-        int n = close.Length;
-        if (n < kPeriod) return ([], []);
-
-        int kLen = n - kPeriod + 1;
-        var k = new double[kLen];
-
-        for (int i = 0; i < kLen; i++)
-        {
-            double highest = double.MinValue, lowest = double.MaxValue;
-            for (int j = i; j < i + kPeriod; j++)
-            {
-                if (high[j] > highest) highest = high[j];
-                if (low[j] < lowest) lowest = low[j];
-            }
-            double range = highest - lowest;
-            k[i] = range > 0 ? (close[i + kPeriod - 1] - lowest) / range * 100 : 50;
-        }
-
-        var d = Sma.Compute(k, dPeriod);
-        return (k, d);
     }
 }

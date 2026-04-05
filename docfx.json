@@ -1,0 +1,34 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": [
+            "Src/MatPlotLibNet/MatPlotLibNet.csproj",
+            "Src/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.csproj",
+            "Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj",
+            "Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj",
+            "Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj",
+            "Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj"
+          ]
+        }
+      ],
+      "dest": "api",
+      "properties": {
+        "TargetFramework": "net10.0"
+      }
+    }
+  ],
+  "build": {
+    "content": [
+      { "files": ["api/**.yml", "api/index.md"] },
+      { "files": ["articles/**.md", "articles/**/toc.yml", "toc.yml", "*.md"] }
+    ],
+    "resource": [
+      { "files": ["images/**"] }
+    ],
+    "dest": "_site",
+    "template": ["default", "modern"],
+    "markdownEngineName": "markdig"
+  }
+}

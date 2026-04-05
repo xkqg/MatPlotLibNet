@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>Fibonacci Retracement indicator. Adds horizontal reference lines at key Fibonacci ratios between a high and low price.</summary>
 /// <remarks>Draws lines at 23.6%, 38.2%, 50%, 61.8%, and 78.6% retracement levels.
 /// These levels are widely used as support and resistance zones in technical analysis.</remarks>
-public sealed class FibonacciRetracement : Indicator
+public sealed class FibonacciRetracement : Indicator<SignalResult>
 {
     private readonly double _low;
     private readonly double _high;
@@ -25,6 +25,16 @@ public sealed class FibonacciRetracement : Indicator
         _low = low;
         _high = high;
         Label = "Fib";
+    }
+
+    /// <inheritdoc />
+    public override SignalResult Compute()
+    {
+        double range = _high - _low;
+        var result = new double[Levels.Length];
+        for (int i = 0; i < Levels.Length; i++)
+            result[i] = _high - range * Levels[i];
+        return result;
     }
 
     /// <inheritdoc />

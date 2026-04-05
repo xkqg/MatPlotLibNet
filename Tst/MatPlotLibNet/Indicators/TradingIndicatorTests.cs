@@ -12,7 +12,7 @@ public class EquityCurveTests
     [Fact]
     public void Compute_CumulativeSum()
     {
-        var equity = EquityCurve.Compute([100, -30, 50, -10], 10000);
+        double[] equity = new EquityCurve([100, -30, 50, -10], 10000).Compute();
         Assert.Equal(10000, equity[0]);
         Assert.Equal(10100, equity[1]);
         Assert.Equal(10070, equity[2]);
@@ -63,7 +63,7 @@ public class DrawDownTests
     [Fact]
     public void Compute_ReturnsCorrectDrawdown()
     {
-        var dd = DrawDown.Compute([100, 110, 105, 120, 100]);
+        double[] dd = new DrawDown([100, 110, 105, 120, 100]).Compute();
         Assert.Equal(0, dd[0]);     // first point = no drawdown
         Assert.Equal(0, dd[1]);     // new high
         Assert.InRange(dd[2], 4, 5); // ~4.5% drawdown from 110
@@ -74,7 +74,7 @@ public class DrawDownTests
     [Fact]
     public void Compute_AllValuesNonNegative()
     {
-        var dd = DrawDown.Compute([100, 90, 80, 95, 70, 110]);
+        double[] dd = new DrawDown([100, 90, 80, 95, 70, 110]).Compute();
         foreach (var v in dd)
             Assert.True(v >= 0, $"Drawdown should be non-negative, got {v}");
     }

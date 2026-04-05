@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>MatPlotLibNet.Benchmarks.IndicatorBenchmarks-20260405-221544</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, Windows 11 (10.0.26200.8117)
+AMD Ryzen 9 3950X, 1 CPU, 32 logical and 16 physical cores
+.NET SDK 10.0.201
+  [Host]   : .NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2
+  ShortRun : .NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2
+</code></pre>
+<pre><code>Job=ShortRun  IterationCount=3  LaunchCount=1  
+WarmupCount=3  
+</code></pre>
+
+<table>
+<thead><tr><th>Method      </th><th>DataSize</th><th>Mean  </th><th>Error </th><th>StdDev</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Gen1</th><th>Gen2</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>Sma_20</td><td>1000</td><td>2.020 &mu;s</td><td>1.811 &mu;s</td><td>0.0993 &mu;s</td><td>1.00</td><td>0.06</td><td>0.9556</td><td>0.0267</td><td>-</td><td>7.81 KB</td><td>1.00</td>
+</tr><tr><td>Ema_20</td><td>1000</td><td>4.983 &mu;s</td><td>1.634 &mu;s</td><td>0.0896 &mu;s</td><td>2.47</td><td>0.11</td><td>0.9689</td><td>0.0229</td><td>-</td><td>7.96 KB</td><td>1.02</td>
+</tr><tr><td>BollingerBands_20</td><td>1000</td><td>19.682 &mu;s</td><td>6.201 &mu;s</td><td>0.3399 &mu;s</td><td>9.76</td><td>0.45</td><td>2.8381</td><td>0.1526</td><td>-</td><td>23.34 KB</td><td>2.99</td>
+</tr><tr><td>KeltnerChannels_20</td><td>1000</td><td>16.451 &mu;s</td><td>10.544 &mu;s</td><td>0.5780 &mu;s</td><td>8.16</td><td>0.43</td><td>5.7068</td><td>0.4578</td><td>-</td><td>46.84 KB</td><td>6.00</td>
+</tr><tr><td>Atr_14</td><td>1000</td><td>8.261 &mu;s</td><td>3.305 &mu;s</td><td>0.1812 &mu;s</td><td>4.10</td><td>0.20</td><td>1.9073</td><td>0.0458</td><td>-</td><td>15.7 KB</td><td>2.01</td>
+</tr><tr><td>Adx_14</td><td>1000</td><td>18.222 &mu;s</td><td>24.968 &mu;s</td><td>1.3686 &mu;s</td><td>9.03</td><td>0.71</td><td>6.6223</td><td>0.2747</td><td>-</td><td>54.3 KB</td><td>6.95</td>
+</tr><tr><td>Macd_12_26_9</td><td>1000</td><td>14.293 &mu;s</td><td>7.460 &mu;s</td><td>0.4089 &mu;s</td><td>7.09</td><td>0.36</td><td>4.7607</td><td>0.2289</td><td>-</td><td>39.01 KB</td><td>4.99</td>
+</tr><tr><td>Stochastic_14</td><td>1000</td><td>54.753 &mu;s</td><td>41.223 &mu;s</td><td>2.2596 &mu;s</td><td>27.14</td><td>1.53</td><td>1.8921</td><td>0.0610</td><td>-</td><td>15.73 KB</td><td>2.01</td>
+</tr><tr><td>Rsi_14</td><td>1000</td><td>6.440 &mu;s</td><td>1.491 &mu;s</td><td>0.0817 &mu;s</td><td>3.19</td><td>0.14</td><td>0.9537</td><td>0.0229</td><td>-</td><td>7.85 KB</td><td>1.00</td>
+</tr><tr><td>Vwap</td><td>1000</td><td>1.910 &mu;s</td><td>1.569 &mu;s</td><td>0.0860 &mu;s</td><td>0.95</td><td>0.06</td><td>0.9689</td><td>0.0286</td><td>-</td><td>7.92 KB</td><td>1.01</td>
+</tr><tr><td>EquityCurve</td><td>1000</td><td>3.606 &mu;s</td><td>2.356 &mu;s</td><td>0.1291 &mu;s</td><td>1.79</td><td>0.10</td><td>0.9689</td><td>0.0267</td><td>-</td><td>7.93 KB</td><td>1.01</td>
+</tr><tr><td>DrawDown</td><td>1000</td><td>1.984 &mu;s</td><td>3.360 &mu;s</td><td>0.1842 &mu;s</td><td>0.98</td><td>0.09</td><td>0.9689</td><td>0.0286</td><td>-</td><td>7.92 KB</td><td>1.01</td>
+</tr><tr><td>Sma_20</td><td>10000</td><td>20.719 &mu;s</td><td>15.844 &mu;s</td><td>0.8684 &mu;s</td><td>1.00</td><td>0.05</td><td>9.5215</td><td>1.5869</td><td>-</td><td>78.13 KB</td><td>1.00</td>
+</tr><tr><td>Ema_20</td><td>10000</td><td>50.047 &mu;s</td><td>1.962 &mu;s</td><td>0.1076 &mu;s</td><td>2.42</td><td>0.09</td><td>9.5215</td><td>1.5869</td><td>-</td><td>78.27 KB</td><td>1.00</td>
+</tr><tr><td>BollingerBands_20</td><td>10000</td><td>216.197 &mu;s</td><td>78.202 &mu;s</td><td>4.2865 &mu;s</td><td>10.45</td><td>0.42</td><td>28.5645</td><td>7.0801</td><td>-</td><td>234.28 KB</td><td>3.00</td>
+</tr><tr><td>KeltnerChannels_20</td><td>10000</td><td>176.884 &mu;s</td><td>92.065 &mu;s</td><td>5.0464 &mu;s</td><td>8.55</td><td>0.38</td><td>57.1289</td><td>19.0430</td><td>-</td><td>468.71 KB</td><td>6.00</td>
+</tr><tr><td>Atr_14</td><td>10000</td><td>87.418 &mu;s</td><td>71.910 &mu;s</td><td>3.9416 &mu;s</td><td>4.22</td><td>0.23</td><td>19.0430</td><td>3.7842</td><td>-</td><td>156.33 KB</td><td>2.00</td>
+</tr><tr><td>Adx_14</td><td>10000</td><td>220.069 &mu;s</td><td>70.419 &mu;s</td><td>3.8599 &mu;s</td><td>10.63</td><td>0.42</td><td>66.6504</td><td>-</td><td>-</td><td>546.49 KB</td><td>7.00</td>
+</tr><tr><td>Macd_12_26_9</td><td>10000</td><td>143.397 &mu;s</td><td>103.456 &mu;s</td><td>5.6708 &mu;s</td><td>6.93</td><td>0.35</td><td>47.6074</td><td>11.9629</td><td>-</td><td>390.57 KB</td><td>5.00</td>
+</tr><tr><td>Stochastic_14</td><td>10000</td><td>738.275 &mu;s</td><td>99.758 &mu;s</td><td>5.4681 &mu;s</td><td>35.67</td><td>1.33</td><td>18.5547</td><td>3.9063</td><td>-</td><td>156.36 KB</td><td>2.00</td>
+</tr><tr><td>Rsi_14</td><td>10000</td><td>68.560 &mu;s</td><td>9.934 &mu;s</td><td>0.5445 &mu;s</td><td>3.31</td><td>0.12</td><td>9.5215</td><td>1.5869</td><td>-</td><td>78.16 KB</td><td>1.00</td>
+</tr><tr><td>Vwap</td><td>10000</td><td>18.603 &mu;s</td><td>16.281 &mu;s</td><td>0.8924 &mu;s</td><td>0.90</td><td>0.05</td><td>9.5215</td><td>1.5869</td><td>-</td><td>78.23 KB</td><td>1.00</td>
+</tr><tr><td>EquityCurve</td><td>10000</td><td>34.115 &mu;s</td><td>5.736 &mu;s</td><td>0.3144 &mu;s</td><td>1.65</td><td>0.06</td><td>9.5215</td><td>1.5869</td><td>-</td><td>78.24 KB</td><td>1.00</td>
+</tr><tr><td>DrawDown</td><td>10000</td><td>19.137 &mu;s</td><td>3.311 &mu;s</td><td>0.1815 &mu;s</td><td>0.92</td><td>0.03</td><td>9.5215</td><td>1.5869</td><td>-</td><td>78.23 KB</td><td>1.00</td>
+</tr><tr><td>Sma_20</td><td>100000</td><td>196.482 &mu;s</td><td>18.619 &mu;s</td><td>1.0206 &mu;s</td><td>1.00</td><td>0.01</td><td>195.3125</td><td>195.0684</td><td>195.0684</td><td>781.33 KB</td><td>1.00</td>
+</tr><tr><td>Ema_20</td><td>100000</td><td>496.205 &mu;s</td><td>37.687 &mu;s</td><td>2.0658 &mu;s</td><td>2.53</td><td>0.01</td><td>197.2656</td><td>197.2656</td><td>197.2656</td><td>781.46 KB</td><td>1.00</td>
+</tr><tr><td>BollingerBands_20</td><td>100000</td><td>2,016.362 &mu;s</td><td>327.367 &mu;s</td><td>17.9441 &mu;s</td><td>10.26</td><td>0.09</td><td>300.7813</td><td>300.7813</td><td>300.7813</td><td>2343.88 KB</td><td>3.00</td>
+</tr><tr><td>KeltnerChannels_20</td><td>100000</td><td>1,811.964 &mu;s</td><td>398.480 &mu;s</td><td>21.8420 &mu;s</td><td>9.22</td><td>0.10</td><td>976.5625</td><td>976.5625</td><td>976.5625</td><td>4687.77 KB</td><td>6.00</td>
+</tr><tr><td>Atr_14</td><td>100000</td><td>886.493 &mu;s</td><td>117.909 &mu;s</td><td>6.4630 &mu;s</td><td>4.51</td><td>0.04</td><td>331.0547</td><td>331.0547</td><td>331.0547</td><td>1562.68 KB</td><td>2.00</td>
+</tr><tr><td>Adx_14</td><td>100000</td><td>2,608.928 &mu;s</td><td>1,547.848 &mu;s</td><td>84.8427 &mu;s</td><td>13.28</td><td>0.38</td><td>992.1875</td><td>992.1875</td><td>992.1875</td><td>5468.65 KB</td><td>7.00</td>
+</tr><tr><td>Macd_12_26_9</td><td>100000</td><td>1,574.128 &mu;s</td><td>801.413 &mu;s</td><td>43.9281 &mu;s</td><td>8.01</td><td>0.20</td><td>994.1406</td><td>994.1406</td><td>994.1406</td><td>3906.5 KB</td><td>5.00</td>
+</tr><tr><td>Stochastic_14</td><td>100000</td><td>7,669.416 &mu;s</td><td>464.806 &mu;s</td><td>25.4776 &mu;s</td><td>39.03</td><td>0.21</td><td>250.0000</td><td>250.0000</td><td>250.0000</td><td>1562.75 KB</td><td>2.00</td>
+</tr><tr><td>Rsi_14</td><td>100000</td><td>850.918 &mu;s</td><td>83.186 &mu;s</td><td>4.5597 &mu;s</td><td>4.33</td><td>0.03</td><td>197.2656</td><td>197.2656</td><td>197.2656</td><td>781.35 KB</td><td>1.00</td>
+</tr><tr><td>Vwap</td><td>100000</td><td>211.935 &mu;s</td><td>98.565 &mu;s</td><td>5.4027 &mu;s</td><td>1.08</td><td>0.02</td><td>194.8242</td><td>194.5801</td><td>194.5801</td><td>781.44 KB</td><td>1.00</td>
+</tr><tr><td>EquityCurve</td><td>100000</td><td>348.874 &mu;s</td><td>10.951 &mu;s</td><td>0.6003 &mu;s</td><td>1.78</td><td>0.01</td><td>198.2422</td><td>198.2422</td><td>198.2422</td><td>781.43 KB</td><td>1.00</td>
+</tr><tr><td>DrawDown</td><td>100000</td><td>274.216 &mu;s</td><td>120.293 &mu;s</td><td>6.5937 &mu;s</td><td>1.40</td><td>0.03</td><td>198.7305</td><td>198.7305</td><td>198.7305</td><td>781.42 KB</td><td>1.00</td>
+</tr></tbody></table>
+</body>
+</html>

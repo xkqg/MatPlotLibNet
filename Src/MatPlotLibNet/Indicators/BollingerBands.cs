@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>Bollinger Bands indicator. Plots upper and lower bands at N standard deviations from a moving average.</summary>
-public sealed class BollingerBands : Indicator<(double[] Middle, double[] Upper, double[] Lower)>
+public sealed class BollingerBands : Indicator<BandsResult>
 {
     private readonly double[] _prices;
     private readonly int _period;
@@ -30,13 +30,30 @@ public sealed class BollingerBands : Indicator<(double[] Middle, double[] Upper,
         : this(PriceSources.Resolve(source, open, high, low, close), period, stdDevMultiplier) { }
 
     /// <inheritdoc />
-    public override (double[] Middle, double[] Upper, double[] Lower) Compute() =>
-        Compute(_prices, _period, _stdDevMultiplier);
+    public override BandsResult Compute()
+    {
+        double[] sma = new Sma(_prices, _period).Compute();
+        int n = sma.Length;
+        var upper = new double[n];
+        var lower = new double[n];
+        for (int i = 0; i < n; i++)
+        {
+            double sumSq = 0;
+            for (int j = 0; j < _period; j++) { double diff = _prices[i + j] - sma[i]; sumSq += diff * diff; }
+            double stdDev = Math.Sqrt(sumSq / _period);
+            upper[i] = sma[i] + _stdDevMultiplier * stdDev;
+            lower[i] = sma[i] - _stdDevMultiplier * stdDev;
+        }
+        return new BandsResult(sma, upper, lower);
+    }
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        var (middle, upper, lower) = Compute();
+        var result = Compute();
+        var middle = result.Middle;
+        var upper = result.Upper;
+        var lower = result.Lower;
         var x = new double[middle.Length];
         for (int i = 0; i < middle.Length; i++) x[i] = _period - 1 + i;
         x = ApplyOffset(x);
@@ -52,24 +69,5 @@ public sealed class BollingerBands : Indicator<(double[] Middle, double[] Upper,
         mid.Color = bandColor;
         mid.LineWidth = LineWidth;
         mid.LineStyle = LineStyle;
-    }
-
-    /// <summary>Computes Bollinger Bands from the given price array.</summary>
-    public static (double[] Middle, double[] Upper, double[] Lower) Compute(
-        double[] prices, int period, double stdDevMultiplier = 2.0)
-    {
-        var sma = Sma.Compute(prices, period);
-        int n = sma.Length;
-        var upper = new double[n];
-        var lower = new double[n];
-        for (int i = 0; i < n; i++)
-        {
-            double sumSq = 0;
-            for (int j = 0; j < period; j++) { double diff = prices[i + j] - sma[i]; sumSq += diff * diff; }
-            double stdDev = Math.Sqrt(sumSq / period);
-            upper[i] = sma[i] + stdDevMultiplier * stdDev;
-            lower[i] = sma[i] - stdDevMultiplier * stdDev;
-        }
-        return (sma, upper, lower);
     }
 }

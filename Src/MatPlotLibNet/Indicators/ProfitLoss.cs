@@ -8,7 +8,7 @@ namespace MatPlotLibNet.Indicators;
 
 /// <summary>Profit/Loss indicator. Displays per-trade or per-period returns as colored bars.</summary>
 /// <remarks>Positive returns are shown in green, negative in red. Best placed in a separate subplot.</remarks>
-public sealed class ProfitLoss : Indicator
+public sealed class ProfitLoss : Indicator<SignalResult>
 {
     private readonly double[] _returns;
     private readonly string[]? _labels;
@@ -28,6 +28,9 @@ public sealed class ProfitLoss : Indicator
         _labels = labels;
         Label = "P&L";
     }
+
+    /// <inheritdoc />
+    public override SignalResult Compute() => new(_returns);
 
     /// <inheritdoc />
     public override void Apply(Axes axes)

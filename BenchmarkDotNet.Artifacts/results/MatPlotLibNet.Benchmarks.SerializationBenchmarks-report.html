@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>MatPlotLibNet.Benchmarks.SerializationBenchmarks-20260405-222037</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, Windows 11 (10.0.26200.8117)
+AMD Ryzen 9 3950X, 1 CPU, 32 logical and 16 physical cores
+.NET SDK 10.0.201
+  [Host]   : .NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2
+  ShortRun : .NET 10.0.5 (10.0.526.15411), X64 RyuJIT AVX2
+</code></pre>
+<pre><code>Job=ShortRun  IterationCount=3  LaunchCount=1  
+WarmupCount=3  
+</code></pre>
+
+<table>
+<thead><tr><th>Method  </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>ToJson</td><td>20.06 &mu;s</td><td>5.142 &mu;s</td><td>0.282 &mu;s</td><td>0.9460</td><td>7.75 KB</td>
+</tr><tr><td>ToJsonIndented</td><td>23.34 &mu;s</td><td>7.396 &mu;s</td><td>0.405 &mu;s</td><td>1.7090</td><td>14.2 KB</td>
+</tr><tr><td>FromJson</td><td>19.47 &mu;s</td><td>1.648 &mu;s</td><td>0.090 &mu;s</td><td>1.3123</td><td>10.92 KB</td>
+</tr><tr><td>RoundTrip</td><td>41.36 &mu;s</td><td>14.365 &mu;s</td><td>0.787 &mu;s</td><td>2.1973</td><td>18.67 KB</td>
+</tr></tbody></table>
+</body>
+</html>

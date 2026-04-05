@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="1.*" />
-    <PackageReference Include="coverlet.collector" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>

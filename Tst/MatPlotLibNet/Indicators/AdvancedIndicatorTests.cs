@@ -16,14 +16,14 @@ public class AtrTests
     [Fact]
     public void Compute_ReturnsCorrectLength()
     {
-        var atr = Atr.Compute(High, Low, Close, 14);
+        double[] atr = new Atr(High, Low, Close, 14).Compute();
         Assert.Equal(Close.Length - 14, atr.Length);
     }
 
     [Fact]
     public void Compute_ValuesArePositive()
     {
-        var atr = Atr.Compute(High, Low, Close, 5);
+        double[] atr = new Atr(High, Low, Close, 5).Compute();
         foreach (var v in atr) Assert.True(v > 0);
     }
 
@@ -46,14 +46,14 @@ public class AdxTests
     [Fact]
     public void Compute_ReturnsNonEmpty()
     {
-        var adx = Adx.Compute(High, Low, Close, 5);
+        double[] adx = new Adx(High, Low, Close, 5).Compute();
         Assert.True(adx.Length > 0);
     }
 
     [Fact]
     public void Compute_ValuesInRange()
     {
-        var adx = Adx.Compute(High, Low, Close, 5);
+        double[] adx = new Adx(High, Low, Close, 5).Compute();
         foreach (var v in adx) Assert.InRange(v, 0, 100);
     }
 

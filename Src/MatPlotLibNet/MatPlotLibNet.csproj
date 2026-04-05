@@ -8,12 +8,13 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet</PackageId>
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
     <Description>A .NET 10 charting library inspired by matplotlib with fluent API and multi-platform rendering.</Description>
     <PackageTags>charting;plotting;charts;svg;blazor;maui;fluent-api</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <InternalsVisibleTo>MatPlotLibNet.Tests</InternalsVisibleTo>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">

@@ -93,8 +93,8 @@ public class SmaOhlcConstructorTests
         double[] l = [0, 0, 0, 0, 0];
         double[] c = [15, 15, 15, 15, 15];
 
-        var smaClose = Sma.Compute(c, 3);
-        var smaHL2 = Sma.Compute(PriceSources.Resolve(PriceSource.HL2, o, h, l, c), 3);
+        double[] smaClose = new Sma(c, 3).Compute();
+        double[] smaHL2 = new Sma(PriceSources.Resolve(PriceSource.HL2, o, h, l, c), 3).Compute();
 
         Assert.Equal(15, smaClose[0]); // avg of 15,15,15
         Assert.Equal(10, smaHL2[0]);   // avg of 10,10,10 (HL2 = (20+0)/2 = 10)

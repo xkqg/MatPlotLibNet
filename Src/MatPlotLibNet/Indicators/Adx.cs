@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>Average Directional Index indicator. Measures trend strength on a 0-100 scale regardless of direction.</summary>
 /// <remarks>ADX above 25 indicates a strong trend, below 20 indicates ranging. Produces three lines:
 /// ADX (trend strength), +DI (bullish direction), and -DI (bearish direction).</remarks>
-public sealed class Adx : Indicator<double[]>
+public sealed class Adx : Indicator<SignalResult>
 {
     private readonly double[] _high, _low, _close;
     private readonly int _period;
@@ -28,12 +28,16 @@ public sealed class Adx : Indicator<double[]>
     }
 
     /// <inheritdoc />
-    public override double[] Compute() => Compute(_high, _low, _close, _period);
+    public override SignalResult Compute()
+    {
+        var (adx, _, _) = ComputeFull();
+        return adx;
+    }
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        var (adx, plusDi, minusDi) = ComputeFull(_high, _low, _close, _period);
+        var (adx, plusDi, minusDi) = ComputeFull();
         int offset = _period * 2;
         var x = new double[adx.Length];
         for (int i = 0; i < adx.Length; i++) x[i] = offset + i;
@@ -57,18 +61,11 @@ public sealed class Adx : Indicator<double[]>
         axes.YAxis.Max = 100;
     }
 
-    /// <summary>Computes the ADX values.</summary>
-    public static double[] Compute(double[] high, double[] low, double[] close, int period)
-    {
-        var (adx, _, _) = ComputeFull(high, low, close, period);
-        return adx;
-    }
-
     /// <summary>Computes ADX, +DI, and -DI.</summary>
-    public static (double[] Adx, double[] PlusDi, double[] MinusDi) ComputeFull(double[] high, double[] low, double[] close, int period)
+    public (double[] Adx, double[] PlusDi, double[] MinusDi) ComputeFull()
     {
-        int n = close.Length;
-        if (n <= period * 2) return ([], [], []);
+        int n = _close.Length;
+        if (n <= _period * 2) return ([], [], []);
 
         var tr = new double[n - 1];
         var plusDm = new double[n - 1];
@@ -76,32 +73,32 @@ public sealed class Adx : Indicator<double[]>
 
         for (int i = 0; i < n - 1; i++)
         {
-            double h = high[i + 1], l = low[i + 1], pc = close[i];
+            double h = _high[i + 1], l = _low[i + 1], pc = _close[i];
             tr[i] = Math.Max(h - l, Math.Max(Math.Abs(h - pc), Math.Abs(l - pc)));
-            double upMove = high[i + 1] - high[i];
-            double downMove = low[i] - low[i + 1];
+            double upMove = _high[i + 1] - _high[i];
+            double downMove = _low[i] - _low[i + 1];
             plusDm[i] = upMove > downMove && upMove > 0 ? upMove : 0;
             minusDm[i] = downMove > upMove && downMove > 0 ? downMove : 0;
         }
 
         // Wilder's smoothing for first period
         double smoothTr = 0, smoothPlusDm = 0, smoothMinusDm = 0;
-        for (int i = 0; i < period; i++)
+        for (int i = 0; i < _period; i++)
         {
             smoothTr += tr[i]; smoothPlusDm += plusDm[i]; smoothMinusDm += minusDm[i];
         }
 
-        int resultLen = n - period * 2;
+        int resultLen = n - _period * 2;
         if (resultLen <= 0) return ([], [], []);
 
-        var dx = new double[n - period - 1];
+        var dx = new double[n - _period - 1];
         int dxIdx = 0;
 
-        for (int i = period; i < n - 1; i++)
+        for (int i = _period; i < n - 1; i++)
         {
-            smoothTr = smoothTr - smoothTr / period + tr[i];
-            smoothPlusDm = smoothPlusDm - smoothPlusDm / period + plusDm[i];
-            smoothMinusDm = smoothMinusDm - smoothMinusDm / period + minusDm[i];
+            smoothTr = smoothTr - smoothTr / _period + tr[i];
+            smoothPlusDm = smoothPlusDm - smoothPlusDm / _period + plusDm[i];
+            smoothMinusDm = smoothMinusDm - smoothMinusDm / _period + minusDm[i];
 
             double pdi = smoothTr > 0 ? smoothPlusDm / smoothTr * 100 : 0;
             double mdi = smoothTr > 0 ? smoothMinusDm / smoothTr * 100 : 0;
@@ -110,13 +107,13 @@ public sealed class Adx : Indicator<double[]>
         }
 
         // ADX = SMA of DX over period
-        var adxValues = Sma.Compute(dx, period);
+        double[] adxValues = new Sma(dx, _period).Compute();
         int adxLen = adxValues.Length;
 
         // +DI/-DI at same offset as ADX
         var plusDiValues = new double[adxLen];
         var minusDiValues = new double[adxLen];
-        int diStart = period - 1; // SMA offset
+        int diStart = _period - 1; // SMA offset
         for (int i = 0; i < adxLen && diStart + i < dx.Length; i++)
         {
             // Recompute DI at this point

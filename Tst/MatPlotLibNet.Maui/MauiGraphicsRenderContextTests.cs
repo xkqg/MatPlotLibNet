@@ -147,4 +147,156 @@ public class MauiGraphicsRenderContextTests
         Assert.True(size.Width > 0);
         Assert.True(size.Height > 0);
     }
+
+    [Fact]
+    public void DrawLines_CallsDrawPath()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        var points = new List<MplPoint> { new(0, 0), new(10, 10), new(20, 0) };
+        ctx.DrawLines(points, MplColor.Red, 1.0, Styling.LineStyle.Solid);
+
+        canvas.Received(1).DrawPath(Arg.Any<PathF>());
+    }
+
+    [Fact]
+    public void DrawPolygon_WithFill_CallsFillPath()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        var points = new List<MplPoint> { new(0, 0), new(50, 0), new(50, 50), new(0, 50) };
+        ctx.DrawPolygon(points, fill: MplColor.Blue, stroke: null, strokeThickness: 0);
+
+        canvas.Received(1).FillPath(Arg.Any<PathF>());
+    }
+
+    [Fact]
+    public void DrawPolygon_WithStroke_CallsDrawPath()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        var points = new List<MplPoint> { new(0, 0), new(50, 0), new(50, 50), new(0, 50) };
+        ctx.DrawPolygon(points, fill: null, stroke: MplColor.Red, strokeThickness: 2);
+
+        canvas.Received(1).DrawPath(Arg.Any<PathF>());
+    }
+
+    [Fact]
+    public void DrawEllipse_WithFill_CallsFillEllipse()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.DrawEllipse(new MplRect(10, 20, 60, 40),
+            fill: MplColor.Green, stroke: null, strokeThickness: 0);
+
+        canvas.Received(1).FillEllipse(10f, 20f, 60f, 40f);
+    }
+
+    [Fact]
+    public void DrawEllipse_WithStroke_CallsDrawEllipse()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.DrawEllipse(new MplRect(10, 20, 60, 40),
+            fill: null, stroke: MplColor.Red, strokeThickness: 2);
+
+        canvas.Received(1).DrawEllipse(10f, 20f, 60f, 40f);
+    }
+
+    [Fact]
+    public void DrawPath_MoveToLineTo_CallsDrawPath()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        var segments = new List<MatPlotLibNet.Rendering.PathSegment>
+        {
+            new MatPlotLibNet.Rendering.MoveToSegment(new MplPoint(0, 0)),
+            new MatPlotLibNet.Rendering.LineToSegment(new MplPoint(50, 50)),
+            new MatPlotLibNet.Rendering.LineToSegment(new MplPoint(100, 0))
+        };
+        ctx.DrawPath(segments, fill: null, stroke: MplColor.Black, strokeThickness: 1);
+
+        canvas.Received(1).DrawPath(Arg.Any<PathF>());
+    }
+
+    [Fact]
+    public void PushClip_CallsSaveStateAndClipRectangle()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.PushClip(new MplRect(10, 20, 100, 50));
+
+        canvas.Received(1).SaveState();
+        canvas.Received(1).ClipRectangle(10f, 20f, 100f, 50f);
+    }
+
+    [Fact]
+    public void PopClip_CallsRestoreState()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.PopClip();
+
+        canvas.Received(1).RestoreState();
+    }
+
+    [Fact]
+    public void SetOpacity_SetsCanvasAlpha()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.SetOpacity(0.5);
+
+        canvas.Received().Alpha = 0.5f;
+    }
+
+    [Fact]
+    public void DrawCircle_WithStroke_CallsDrawCircle()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.DrawCircle(new MplPoint(50, 50), 10, fill: null, stroke: MplColor.Red, strokeThickness: 2);
+
+        canvas.Received(1).DrawCircle(50f, 50f, 10f);
+    }
+
+    [Fact]
+    public void DrawText_CenterAlignment_CallsDrawString()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.DrawText("Center", new MplPoint(50, 50), new MplFont { Size = 14 },
+            MatPlotLibNet.Rendering.TextAlignment.Center);
+
+        canvas.Received(1).DrawString(
+            "Center",
+            Arg.Any<float>(), Arg.Any<float>(),
+            HorizontalAlignment.Center);
+    }
+
+    [Fact]
+    public void DrawRectangle_NullFill_NullStroke_NoCanvasCalls()
+    {
+        var canvas = Substitute.For<ICanvas>();
+        var ctx = new MauiGraphicsRenderContext(canvas);
+
+        ctx.DrawRectangle(new MplRect(10, 20, 100, 50),
+            fill: null, stroke: null, strokeThickness: 0);
+
+        canvas.DidNotReceive().FillRectangle(Arg.Any<float>(), Arg.Any<float>(),
+            Arg.Any<float>(), Arg.Any<float>());
+        canvas.DidNotReceive().DrawRectangle(Arg.Any<float>(), Arg.Any<float>(),
+            Arg.Any<float>(), Arg.Any<float>());
+    }
 }

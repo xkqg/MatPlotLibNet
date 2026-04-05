@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Usage: dotnet-coverage collect "dotnet test" --output TestResults/coverage.cobertura.xml --output-format cobertura -->
+<!-- Install: dotnet tool install --global dotnet-coverage -->
+<RunSettings>
+  <RunConfiguration>
+    <ResultsDirectory>TestResults</ResultsDirectory>
+  </RunConfiguration>
+</RunSettings>
