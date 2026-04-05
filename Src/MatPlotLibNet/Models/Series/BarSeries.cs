@@ -37,6 +37,8 @@ public sealed class BarSeries : ChartSeries
     /// <summary>Gets or sets the relative width of each bar (0.0 to 1.0).</summary>
     public double BarWidth { get; set; } = 0.8;
 
+    /// <summary>Gets the stack baseline offsets computed by the renderer for stacked bar mode. Null when not stacking.</summary>
+    internal double[]? StackBaseline { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="BarSeries"/> with the specified categories and values.</summary>
     /// <param name="categories">The category labels for each bar.</param>

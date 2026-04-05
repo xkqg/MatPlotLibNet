@@ -20,6 +20,12 @@ public class AllSeriesTests
         { new ViolinSeries([[1.0, 2.0, 3.0]]), nameof(ViolinSeries) },
         { new ContourSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(ContourSeries) },
         { new StemSeries([1.0, 2.0], [3.0, 4.0]), nameof(StemSeries) },
+        { new AreaSeries([1.0, 2.0], [3.0, 4.0]), nameof(AreaSeries) },
+        { new StepSeries([1.0, 2.0], [3.0, 4.0]), nameof(StepSeries) },
+        { new ErrorBarSeries([1.0, 2.0], [3.0, 4.0], [0.1, 0.1], [0.2, 0.2]), nameof(ErrorBarSeries) },
+        { new CandlestickSeries([10.0], [15.0], [8.0], [13.0]), nameof(CandlestickSeries) },
+        { new QuiverSeries([1.0], [2.0], [0.5], [0.5]), nameof(QuiverSeries) },
+        { new RadarSeries(["A", "B", "C"], [1.0, 2.0, 3.0]), nameof(RadarSeries) },
     };
 
     [Theory]

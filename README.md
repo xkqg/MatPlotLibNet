@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-A .NET 10 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel SVG rendering, and multi-platform output to Blazor, MAUI, ASP.NET Core, Angular, and standalone browser popups.
+A .NET 10 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel SVG rendering, polymorphic export (SVG/PNG/PDF), and multi-platform output to Blazor, MAUI, ASP.NET Core, Angular, and standalone browser popups.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
@@ -8,7 +8,8 @@ A .NET 10 charting library inspired by [matplotlib](https://matplotlib.org/). Fl
 
 | Package | Install | What it does |
 |---------|---------|--------------|
-| **MatPlotLibNet** | `dotnet add package MatPlotLibNet` | Core: models, fluent API, SVG rendering, JSON serialization, DI interfaces |
+| **MatPlotLibNet** | `dotnet add package MatPlotLibNet` | Core: models, fluent API, SVG rendering, JSON serialization, transforms |
+| **MatPlotLibNet.Skia** | `dotnet add package MatPlotLibNet.Skia` | PNG and PDF export via SkiaSharp |
 | **MatPlotLibNet.Blazor** | `dotnet add package MatPlotLibNet.Blazor` | `MplChart` + `MplLiveChart` Razor components with SignalR |
 | **MatPlotLibNet.AspNetCore** | `dotnet add package MatPlotLibNet.AspNetCore` | REST endpoints, SignalR hub, `IChartPublisher` |
 | **MatPlotLibNet.Maui** | `dotnet add package MatPlotLibNet.Maui` | Native `MplChartView` control via Microsoft.Maui.Graphics |
@@ -32,11 +33,18 @@ string svg = Plt.Create()
     .Build()
     .ToSvg();
 
-// Save to file
-File.WriteAllText("chart.svg", svg);
+// Polymorphic export via transforms
+using MatPlotLibNet.Transforms;
+
+var figure = Plt.Create().Plot(x, y).Build();
+figure.Transform(new SvgTransform()).ToFile("chart.svg");
+figure.Transform(new PngTransform()).ToFile("chart.png");   // requires MatPlotLibNet.Skia
+figure.Transform(new PdfTransform()).ToFile("chart.pdf");   // requires MatPlotLibNet.Skia
 ```
 
 ## Chart types
+
+**16 series types** with fluent builder API:
 
 ```csharp
 var fig = Plt.Create()
@@ -45,10 +53,46 @@ var fig = Plt.Create()
     .Bar(["Q1", "Q2", "Q3"], [100, 200, 150])             // bar
     .Hist(measurements, bins: 20)                          // histogram
     .Pie([40, 30, 20, 10], ["A", "B", "C", "D"])          // pie
+    .Step(x, y, s => s.StepPosition = StepPosition.Post)  // step function
+    .FillBetween(x, y)                                    // area / fill between
+    .ErrorBar(x, y, errLow, errHigh)                      // error bars
     .Build();
 ```
 
-Additional types via `AxesBuilder.AddSubPlot`: Heatmap, Box, Violin, Contour, Stem.
+Additional types via `AxesBuilder.AddSubPlot`:
+Heatmap, Box, Violin, Contour, Stem, Candlestick, Quiver, Radar.
+
+### Stacked bars
+
+```csharp
+.AddSubPlot(1, 1, 1, ax => ax
+    .SetBarMode(BarMode.Stacked)
+    .Bar(["A", "B"], [10.0, 20.0])
+    .Bar(["A", "B"], [5.0, 10.0]))
+```
+
+## Annotations and decorations
+
+```csharp
+.AddSubPlot(1, 1, 1, ax => ax
+    .Plot(x, y)
+    .Annotate("peak", 2.0, 4.0, a => { a.ArrowTargetX = 1.5; a.ArrowTargetY = 3.5; })
+    .AxHLine(3.5, l => l.Color = Color.Red)           // horizontal reference line
+    .AxVLine(2.0)                                       // vertical reference line
+    .AxHSpan(3.0, 4.0, s => s.Alpha = 0.1)            // shaded horizontal region
+    .AxVSpan(1.5, 2.5))                                // shaded vertical region
+```
+
+## Secondary Y-axis (TwinX)
+
+```csharp
+.AddSubPlot(1, 1, 1, ax => ax
+    .Plot(time, temperature)
+    .SetYLabel("Temperature (C)")
+    .WithSecondaryYAxis(sec => sec
+        .SetYLabel("Humidity (%)")
+        .Plot(time, humidity, s => s.Color = Color.Orange)))
+```
 
 ## Subplots
 
@@ -68,6 +112,38 @@ var fig = Plt.Create()
 
 Subplots render in **parallel** -- each gets its own SVG context, merged in order.
 
+## Export transforms
+
+All output formats share the `IFigureTransform` interface with a fluent `TransformResult`:
+
+```csharp
+using MatPlotLibNet.Transforms;
+
+// Polymorphic -- same pattern for any format
+figure.Transform(new SvgTransform()).ToFile("chart.svg");
+figure.Transform(new PngTransform()).ToFile("chart.png");
+figure.Transform(new PdfTransform()).ToFile("chart.pdf");
+
+// Or get bytes / write to stream
+byte[] png = figure.Transform(new PngTransform()).ToBytes();
+figure.Transform(new SvgTransform()).ToStream(stream);
+
+// Convenience shortcuts still work
+string svg = figure.ToSvg();
+byte[] pngBytes = figure.ToPng();
+byte[] pdfBytes = figure.ToPdf();
+```
+
+## SVG interactivity
+
+```csharp
+// Native browser tooltips on hover
+.AddSubPlot(1, 1, 1, ax => ax.WithTooltips().Scatter(x, y))
+
+// Zoom (mouse wheel) and pan (click-drag) via embedded JavaScript
+Plt.Create().WithZoomPan().Plot(x, y).Build()
+```
+
 ## Dependency injection
 
 Rendering and serialization are interface-based:
@@ -84,7 +160,7 @@ string json = ChartServices.Serializer.ToJson(figure);
 ChartServices.Serializer = new MyCustomSerializer();
 ```
 
-Interfaces: `IChartRenderer`, `ISvgRenderer`, `IChartSerializer`, `IChartPublisher`, `IChartSubscriptionClient`.
+Interfaces: `IFigureTransform`, `IChartRenderer`, `ISvgRenderer`, `IChartSerializer`, `IChartPublisher`.
 
 ## Themes
 
@@ -140,6 +216,7 @@ await handle.UpdateAsync();              // pushes live updates
 ```
 MatPlotLibNet (Core)                      zero external dependencies
     |
+    +-- MatPlotLibNet.Skia                PNG + PDF export via SkiaSharp
     +-- MatPlotLibNet.Blazor              Razor components + C# SignalR client
     +-- MatPlotLibNet.AspNetCore          REST endpoints + SignalR hub
     |       +-- MatPlotLibNet.Interactive  embedded Kestrel + browser popup

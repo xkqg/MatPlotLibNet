@@ -2,20 +2,24 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet;
 
 /// <summary>Extension methods for converting a <see cref="Figure"/> to various output formats.</summary>
 public static class FigureExtensions
 {
-    /// <summary>Renders the figure as a standalone SVG string (e.g., <c>figure.ToSvg()</c>).</summary>
-    /// <returns>A complete SVG document as a string.</returns>
+    /// <summary>Binds the figure to a transform, returning a fluent <see cref="TransformResult"/> for output.</summary>
+    /// <param name="figure">The figure to transform.</param>
+    /// <param name="transform">The transform to apply (e.g., <c>new SvgTransform()</c>, <c>new PngTransform()</c>).</param>
+    /// <returns>A <see cref="TransformResult"/> with <c>ToStream()</c>, <c>ToFile()</c>, and <c>ToBytes()</c> methods.</returns>
+    public static TransformResult Transform(this Figure figure, IFigureTransform transform) =>
+        new(figure, transform);
+
+    /// <summary>Renders the figure as a standalone SVG string.</summary>
     public static string ToSvg(this Figure figure) => ChartServices.SvgRenderer.Render(figure);
 
-    /// <summary>Serializes the figure to JSON (e.g., <c>figure.ToJson(indented: true)</c>).</summary>
-    /// <param name="figure">The figure to serialize.</param>
-    /// <param name="indented">Whether to produce indented JSON output.</param>
-    /// <returns>A JSON string representing the figure.</returns>
+    /// <summary>Serializes the figure to JSON.</summary>
     public static string ToJson(this Figure figure, bool indented = false) =>
         ChartServices.Serializer.ToJson(figure, indented);
 }

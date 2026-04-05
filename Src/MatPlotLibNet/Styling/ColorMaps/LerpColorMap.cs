@@ -5,6 +5,7 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 
 internal sealed class LerpColorMap : IColorMap
 {
+    /// <inheritdoc />
     public string Name { get; }
     private readonly Color[] _stops;
 
@@ -14,6 +15,7 @@ internal sealed class LerpColorMap : IColorMap
         _stops = stops;
     }
 
+    /// <inheritdoc />
     public Color GetColor(double value)
     {
         value = Math.Clamp(value, 0, 1);

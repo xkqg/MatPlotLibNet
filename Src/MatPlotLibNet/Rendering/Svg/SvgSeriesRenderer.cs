@@ -11,14 +11,33 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private readonly DataTransform _transform;
     private readonly IRenderContext _ctx;
     private readonly Color _seriesColor;
+    private readonly bool _tooltipsEnabled;
 
-    public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor)
+    public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor, bool tooltipsEnabled = false)
     {
         _transform = transform;
         _ctx = ctx;
         _seriesColor = seriesColor;
+        _tooltipsEnabled = tooltipsEnabled;
     }
 
+    /// <summary>Opens a tooltip wrapper around the next drawn elements when tooltips are enabled.</summary>
+    /// <remarks>Only effective when the context is <see cref="SvgRenderContext"/>; wraps elements in
+    /// <c>&lt;g&gt;&lt;title&gt;text&lt;/title&gt;...&lt;/g&gt;</c> for native browser hover tooltips.</remarks>
+    private void BeginTooltip(string text)
+    {
+        if (_tooltipsEnabled && _ctx is SvgRenderContext svgCtx)
+            svgCtx.BeginTooltipGroup(text);
+    }
+
+    /// <summary>Closes the tooltip wrapper opened by <see cref="BeginTooltip"/>.</summary>
+    private void EndTooltip()
+    {
+        if (_tooltipsEnabled && _ctx is SvgRenderContext svgCtx)
+            svgCtx.EndTooltipGroup();
+    }
+
+    /// <inheritdoc />
     public void Visit(LineSeries series, RenderArea area)
     {
         var color = series.Color ?? _seriesColor;
@@ -35,18 +54,22 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         }
     }
 
+    /// <inheritdoc />
     public void Visit(ScatterSeries series, RenderArea area)
     {
         var color = series.Color ?? _seriesColor;
         for (int i = 0; i < series.XData.Length; i++)
         {
+            BeginTooltip($"x={series.XData[i]:G5}, y={series.YData[i]:G5}");
             var pt = _transform.DataToPixel(series.XData[i], series.YData[i]);
             double size = series.Sizes is not null ? Math.Sqrt(series.Sizes[i]) : Math.Sqrt(series.MarkerSize);
             var c = series.Colors is not null ? series.Colors[i] : color;
             _ctx.DrawCircle(pt, size / 2, c, null, 0);
+            EndTooltip();
         }
     }
 
+    /// <inheritdoc />
     public void Visit(BarSeries series, RenderArea area)
     {
         var color = series.Color ?? _seriesColor;
@@ -57,19 +80,20 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
             double catPos = i;
             double value = series.Values[i];
             double halfWidth = series.BarWidth / 2;
+            double baseline = series.StackBaseline is not null ? series.StackBaseline[i] : 0;
 
             if (series.Orientation == BarOrientation.Vertical)
             {
-                var topLeft = _transform.DataToPixel(catPos - halfWidth, Math.Max(value, 0));
-                var bottomRight = _transform.DataToPixel(catPos + halfWidth, Math.Min(value, 0));
+                var topLeft = _transform.DataToPixel(catPos - halfWidth, baseline + Math.Max(value, 0));
+                var bottomRight = _transform.DataToPixel(catPos + halfWidth, baseline + Math.Min(value, 0));
                 var rect = new Rect(topLeft.X, topLeft.Y,
                     bottomRight.X - topLeft.X, bottomRight.Y - topLeft.Y);
                 _ctx.DrawRectangle(rect, color, series.EdgeColor, series.EdgeColor.HasValue ? 1 : 0);
             }
             else
             {
-                var topLeft = _transform.DataToPixel(Math.Min(value, 0), catPos + halfWidth);
-                var bottomRight = _transform.DataToPixel(Math.Max(value, 0), catPos - halfWidth);
+                var topLeft = _transform.DataToPixel(baseline + Math.Min(value, 0), catPos + halfWidth);
+                var bottomRight = _transform.DataToPixel(baseline + Math.Max(value, 0), catPos - halfWidth);
                 var rect = new Rect(topLeft.X, topLeft.Y,
                     bottomRight.X - topLeft.X, bottomRight.Y - topLeft.Y);
                 _ctx.DrawRectangle(rect, color, series.EdgeColor, series.EdgeColor.HasValue ? 1 : 0);
@@ -77,6 +101,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         }
     }
 
+    /// <inheritdoc />
     public void Visit(HistogramSeries series, RenderArea area)
     {
         var color = series.Color ?? _seriesColor;
@@ -96,6 +121,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         }
     }
 
+    /// <inheritdoc />
     public void Visit(PieSeries series, RenderArea area)
     {
         double total = series.Sizes.Sum();
@@ -133,6 +159,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         }
     }
 
+    /// <inheritdoc />
     public void Visit(HeatmapSeries series, RenderArea area)
     {
         int rows = series.Data.GetLength(0);
@@ -162,6 +189,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         }
     }
 
+    /// <inheritdoc />
     public void Visit(BoxSeries series, RenderArea area)
     {
         var color = series.Color ?? _seriesColor;
@@ -194,6 +222,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         }
     }
 
+    /// <inheritdoc />
     public void Visit(ViolinSeries series, RenderArea area)
     {
         var color = series.Color ?? _seriesColor;
@@ -233,6 +262,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         }
     }
 
+    /// <inheritdoc />
     public void Visit(ContourSeries series, RenderArea area)
     {
         // Simplified: draw as colored rects (heatmap-like)
@@ -240,6 +270,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         Visit(heatmap, area);
     }
 
+    /// <inheritdoc />
     public void Visit(StemSeries series, RenderArea area)
     {
         var stemColor = series.StemColor ?? _seriesColor;
@@ -262,6 +293,266 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         }
     }
 
+    /// <summary>Renders a radar (spider) chart with its own polar coordinate system inside the plot bounds.</summary>
+    /// <remarks>Draws concentric web polygons at 20% intervals, radial axis lines, category labels,
+    /// and a filled data polygon. Bypasses the standard <see cref="DataTransform"/> since radar charts
+    /// use polar coordinates computed directly from <see cref="RenderArea.PlotBounds"/>.</remarks>
+    public void Visit(RadarSeries series, RenderArea area)
+    {
+        var color = series.Color ?? _seriesColor;
+        var fillColor = series.FillColor ?? color.WithAlpha((byte)(series.Alpha * 255));
+        int n = series.Categories.Length;
+        if (n < 3) return;
+
+        var bounds = area.PlotBounds;
+        double centerX = bounds.X + bounds.Width / 2;
+        double centerY = bounds.Y + bounds.Height / 2;
+        double radius = Math.Min(bounds.Width, bounds.Height) / 2 * 0.75;
+
+        double maxVal = series.MaxValue ?? series.Values.Max();
+        if (maxVal <= 0) maxVal = 1;
+
+        // Draw concentric web polygons (20%, 40%, 60%, 80%, 100%)
+        var webColor = Color.FromHex("#CCCCCC");
+        for (int ring = 1; ring <= 5; ring++)
+        {
+            double frac = ring / 5.0;
+            var ringPoints = new List<Point>(n);
+            for (int i = 0; i < n; i++)
+            {
+                double angle = 2 * Math.PI * i / n - Math.PI / 2;
+                ringPoints.Add(new Point(
+                    centerX + radius * frac * Math.Cos(angle),
+                    centerY + radius * frac * Math.Sin(angle)));
+            }
+            _ctx.DrawPolygon(ringPoints, null, webColor, 0.5);
+        }
+
+        // Draw radial lines and category labels
+        var labelFont = new Font { Size = 10 };
+        for (int i = 0; i < n; i++)
+        {
+            double angle = 2 * Math.PI * i / n - Math.PI / 2;
+            var endpoint = new Point(
+                centerX + radius * Math.Cos(angle),
+                centerY + radius * Math.Sin(angle));
+            _ctx.DrawLine(new Point(centerX, centerY), endpoint, webColor, 0.5, LineStyle.Solid);
+
+            // Label slightly outside the web
+            var labelPos = new Point(
+                centerX + (radius + 15) * Math.Cos(angle),
+                centerY + (radius + 15) * Math.Sin(angle));
+            _ctx.DrawText(series.Categories[i], labelPos, labelFont, TextAlignment.Center);
+        }
+
+        // Draw data polygon
+        var dataPoints = new List<Point>(n);
+        for (int i = 0; i < n; i++)
+        {
+            double normalized = Math.Min(series.Values[i] / maxVal, 1.0);
+            double angle = 2 * Math.PI * i / n - Math.PI / 2;
+            dataPoints.Add(new Point(
+                centerX + radius * normalized * Math.Cos(angle),
+                centerY + radius * normalized * Math.Sin(angle)));
+        }
+
+        _ctx.DrawPolygon(dataPoints, fillColor, color, series.LineWidth);
+    }
+
+    /// <summary>Renders a vector field as arrows with shaft lines and V-shaped arrowheads.</summary>
+    /// <remarks>Each arrow starts at (X, Y) and extends by (U, V) scaled by <see cref="QuiverSeries.Scale"/>.
+    /// Arrowheads are drawn at approximately 143 degrees from the shaft direction.</remarks>
+    public void Visit(QuiverSeries series, RenderArea area)
+    {
+        var color = series.Color ?? _seriesColor;
+        for (int i = 0; i < series.XData.Length; i++)
+        {
+            double x0 = series.XData[i], y0 = series.YData[i];
+            double x1 = x0 + series.UData[i] * series.Scale;
+            double y1 = y0 + series.VData[i] * series.Scale;
+
+            var start = _transform.DataToPixel(x0, y0);
+            var end = _transform.DataToPixel(x1, y1);
+
+            // Shaft
+            _ctx.DrawLine(start, end, color, 1.5, LineStyle.Solid);
+
+            // Arrowhead
+            double dx = end.X - start.X, dy = end.Y - start.Y;
+            double len = Math.Sqrt(dx * dx + dy * dy);
+            if (len < 1e-6) continue;
+
+            double headLen = len * series.ArrowHeadSize;
+            double angle = Math.Atan2(dy, dx);
+            double a1 = angle + 2.5; // ~143 degrees
+            double a2 = angle - 2.5;
+
+            var h1 = new Point(end.X + headLen * Math.Cos(a1), end.Y + headLen * Math.Sin(a1));
+            var h2 = new Point(end.X + headLen * Math.Cos(a2), end.Y + headLen * Math.Sin(a2));
+            _ctx.DrawLine(end, h1, color, 1.5, LineStyle.Solid);
+            _ctx.DrawLine(end, h2, color, 1.5, LineStyle.Solid);
+        }
+    }
+
+    /// <summary>Renders OHLC candlesticks with wicks (high-low lines) and filled bodies (open-close rectangles).</summary>
+    /// <remarks>Candles where close &gt;= open are colored with <see cref="CandlestickSeries.UpColor"/>;
+    /// candles where close &lt; open use <see cref="CandlestickSeries.DownColor"/>.</remarks>
+    public void Visit(CandlestickSeries series, RenderArea area)
+    {
+        double halfW = series.BodyWidth / 2;
+        for (int i = 0; i < series.Open.Length; i++)
+        {
+            bool isUp = series.Close[i] >= series.Open[i];
+            var color = isUp ? series.UpColor : series.DownColor;
+            double bodyTop = Math.Max(series.Open[i], series.Close[i]);
+            double bodyBottom = Math.Min(series.Open[i], series.Close[i]);
+
+            // Wick
+            var wickTop = _transform.DataToPixel(i, series.High[i]);
+            var wickBottom = _transform.DataToPixel(i, series.Low[i]);
+            _ctx.DrawLine(wickBottom, wickTop, color, 1, LineStyle.Solid);
+
+            // Body
+            var topLeft = _transform.DataToPixel(i - halfW, bodyTop);
+            var bottomRight = _transform.DataToPixel(i + halfW, bodyBottom);
+            var bodyRect = new Rect(
+                topLeft.X, topLeft.Y,
+                bottomRight.X - topLeft.X,
+                bottomRight.Y - topLeft.Y);
+            _ctx.DrawRectangle(bodyRect, color, color, 1);
+        }
+    }
+
+    /// <summary>Renders vertical error bars with end caps and center markers at each data point.</summary>
+    /// <remarks>When <see cref="ErrorBarSeries.XErrorLow"/> and <see cref="ErrorBarSeries.XErrorHigh"/>
+    /// are provided, horizontal error bars with caps are also drawn.</remarks>
+    public void Visit(ErrorBarSeries series, RenderArea area)
+    {
+        var color = series.Color ?? _seriesColor;
+        for (int i = 0; i < series.XData.Length; i++)
+        {
+            double x = series.XData[i], y = series.YData[i];
+            var center = _transform.DataToPixel(x, y);
+            var top = _transform.DataToPixel(x, y + series.YErrorHigh[i]);
+            var bottom = _transform.DataToPixel(x, y - series.YErrorLow[i]);
+
+            // Vertical error bar
+            _ctx.DrawLine(bottom, top, color, series.LineWidth, LineStyle.Solid);
+
+            // Caps
+            _ctx.DrawLine(
+                new Point(top.X - series.CapSize, top.Y),
+                new Point(top.X + series.CapSize, top.Y),
+                color, series.LineWidth, LineStyle.Solid);
+            _ctx.DrawLine(
+                new Point(bottom.X - series.CapSize, bottom.Y),
+                new Point(bottom.X + series.CapSize, bottom.Y),
+                color, series.LineWidth, LineStyle.Solid);
+
+            // Optional horizontal error bars
+            if (series.XErrorLow is not null && series.XErrorHigh is not null)
+            {
+                var left = _transform.DataToPixel(x - series.XErrorLow[i], y);
+                var right = _transform.DataToPixel(x + series.XErrorHigh[i], y);
+                _ctx.DrawLine(left, right, color, series.LineWidth, LineStyle.Solid);
+                _ctx.DrawLine(
+                    new Point(left.X, left.Y - series.CapSize),
+                    new Point(left.X, left.Y + series.CapSize),
+                    color, series.LineWidth, LineStyle.Solid);
+                _ctx.DrawLine(
+                    new Point(right.X, right.Y - series.CapSize),
+                    new Point(right.X, right.Y + series.CapSize),
+                    color, series.LineWidth, LineStyle.Solid);
+            }
+
+            // Center marker
+            _ctx.DrawCircle(center, 3, color, null, 0);
+        }
+    }
+
+    /// <summary>Renders a step-function line by generating intermediate horizontal and vertical segments.</summary>
+    /// <remarks>The step position determines where the transition occurs:
+    /// <see cref="StepPosition.Post"/> steps after each point (matplotlib default),
+    /// <see cref="StepPosition.Pre"/> steps before, and <see cref="StepPosition.Mid"/> steps at the midpoint.</remarks>
+    public void Visit(StepSeries series, RenderArea area)
+    {
+        var color = series.Color ?? _seriesColor;
+        int n = series.XData.Length;
+        if (n == 0) return;
+
+        var stepPoints = new List<Point>();
+
+        switch (series.StepPosition)
+        {
+            case StepPosition.Post:
+                for (int i = 0; i < n - 1; i++)
+                {
+                    stepPoints.Add(_transform.DataToPixel(series.XData[i], series.YData[i]));
+                    stepPoints.Add(_transform.DataToPixel(series.XData[i + 1], series.YData[i]));
+                }
+                stepPoints.Add(_transform.DataToPixel(series.XData[n - 1], series.YData[n - 1]));
+                break;
+
+            case StepPosition.Pre:
+                stepPoints.Add(_transform.DataToPixel(series.XData[0], series.YData[0]));
+                for (int i = 1; i < n; i++)
+                {
+                    stepPoints.Add(_transform.DataToPixel(series.XData[i - 1], series.YData[i]));
+                    stepPoints.Add(_transform.DataToPixel(series.XData[i], series.YData[i]));
+                }
+                break;
+
+            case StepPosition.Mid:
+                for (int i = 0; i < n - 1; i++)
+                {
+                    double midX = (series.XData[i] + series.XData[i + 1]) / 2;
+                    stepPoints.Add(_transform.DataToPixel(series.XData[i], series.YData[i]));
+                    stepPoints.Add(_transform.DataToPixel(midX, series.YData[i]));
+                    stepPoints.Add(_transform.DataToPixel(midX, series.YData[i + 1]));
+                }
+                stepPoints.Add(_transform.DataToPixel(series.XData[n - 1], series.YData[n - 1]));
+                break;
+        }
+
+        _ctx.DrawLines(stepPoints, color, series.LineWidth, series.LineStyle);
+    }
+
+    /// <summary>Renders a filled area between the top line and a baseline (y=0 or a second Y dataset).</summary>
+    /// <remarks>The fill region is drawn as a polygon with alpha transparency, followed by a solid top-edge line.
+    /// When <see cref="AreaSeries.YData2"/> is set, fills between the two curves instead of to y=0.</remarks>
+    public void Visit(AreaSeries series, RenderArea area)
+    {
+        var color = series.Color ?? _seriesColor;
+        var fillColor = series.FillColor ?? color.WithAlpha((byte)(series.Alpha * 255));
+        int n = series.XData.Length;
+        if (n == 0) return;
+
+        // Build polygon: top line forward, then baseline backward
+        var polygon = new List<Point>(n * 2);
+        for (int i = 0; i < n; i++)
+            polygon.Add(_transform.DataToPixel(series.XData[i], series.YData[i]));
+
+        if (series.YData2 is not null)
+        {
+            for (int i = n - 1; i >= 0; i--)
+                polygon.Add(_transform.DataToPixel(series.XData[i], series.YData2[i]));
+        }
+        else
+        {
+            for (int i = n - 1; i >= 0; i--)
+                polygon.Add(_transform.DataToPixel(series.XData[i], 0));
+        }
+
+        _ctx.DrawPolygon(polygon, fillColor, null, 0);
+
+        // Draw top edge line
+        var topPoints = new List<Point>(n);
+        for (int i = 0; i < n; i++)
+            topPoints.Add(_transform.DataToPixel(series.XData[i], series.YData[i]));
+        _ctx.DrawLines(topPoints, color, series.LineWidth, series.LineStyle);
+    }
+
+    /// <summary>Computes the <paramref name="p"/>-th percentile from a pre-sorted array using linear interpolation.</summary>
     private static double Percentile(double[] sorted, double p)
     {
         double idx = (sorted.Length - 1) * p / 100.0;
@@ -271,6 +562,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         return sorted[lower] + frac * (sorted[upper] - sorted[lower]);
     }
 
+    /// <summary>Returns the leftmost insertion index for <paramref name="value"/> in a sorted array (binary search).</summary>
     private static int BisectLeft(double[] sorted, double value)
     {
         int lo = 0, hi = sorted.Length;
@@ -283,6 +575,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
         return lo;
     }
 
+    /// <summary>Returns the rightmost insertion index for <paramref name="value"/> in a sorted array (binary search).</summary>
     private static int BisectRight(double[] sorted, double value)
     {
         int lo = 0, hi = sorted.Length;

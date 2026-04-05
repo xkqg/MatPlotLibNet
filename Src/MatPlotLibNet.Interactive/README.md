@@ -20,7 +20,7 @@ var figure = Plt.Create()
     .Build();
 
 // Opens default browser with the chart
-var handle = figure.Show();
+var handle = await figure.ShowAsync();
 
 // Later, update the chart in the browser
 figure.Title = "Updated Chart";

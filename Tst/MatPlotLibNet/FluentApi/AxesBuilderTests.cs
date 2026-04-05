@@ -163,4 +163,119 @@ public class AxesBuilderTests
             .Build();
         Assert.IsType<StemSeries>(figure.SubPlots[0].Series[0]);
     }
+
+    [Fact]
+    public void WithSecondaryYAxis_ConfiguresSecondaryAxis()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .WithSecondaryYAxis(sec => sec
+                    .SetYLabel("Secondary")
+                    .Plot([1.0, 2.0], [100.0, 200.0])))
+            .Build();
+
+        Assert.NotNull(figure.SubPlots[0].SecondaryYAxis);
+        Assert.Equal("Secondary", figure.SubPlots[0].SecondaryYAxis!.Label);
+        Assert.Single(figure.SubPlots[0].SecondarySeries);
+    }
+
+    [Fact]
+    public void Annotate_AddsAnnotation()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .Annotate("peak", 2.0, 4.0))
+            .Build();
+        Assert.Single(figure.SubPlots[0].Annotations);
+    }
+
+    [Fact]
+    public void AxHLine_AddsReferenceLine()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AxHLine(3.5))
+            .Build();
+        Assert.Single(figure.SubPlots[0].ReferenceLines);
+    }
+
+    [Fact]
+    public void AxVSpan_AddsSpanRegion()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AxVSpan(1.2, 1.8))
+            .Build();
+        Assert.Single(figure.SubPlots[0].Spans);
+    }
+
+    [Fact]
+    public void Radar_AddsRadarSeries()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Radar(["A", "B", "C"], [1.0, 2.0, 3.0]))
+            .Build();
+        Assert.IsType<RadarSeries>(figure.SubPlots[0].Series[0]);
+    }
+
+    [Fact]
+    public void SetBarMode_SetsStackedMode()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .SetBarMode(BarMode.Stacked)
+                .Bar(["A", "B"], [10.0, 20.0])
+                .Bar(["A", "B"], [5.0, 10.0]))
+            .Build();
+        Assert.Equal(BarMode.Stacked, figure.SubPlots[0].BarMode);
+    }
+
+    [Fact]
+    public void Quiver_AddsQuiverSeries()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Quiver([1.0], [2.0], [0.5], [0.5]))
+            .Build();
+        Assert.IsType<QuiverSeries>(figure.SubPlots[0].Series[0]);
+    }
+
+    [Fact]
+    public void Candlestick_AddsCandlestickSeries()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Candlestick([10.0], [15.0], [8.0], [13.0]))
+            .Build();
+        Assert.IsType<CandlestickSeries>(figure.SubPlots[0].Series[0]);
+    }
+
+    [Fact]
+    public void ErrorBar_AddsErrorBarSeries()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.ErrorBar([1.0, 2.0], [3.0, 4.0], [0.1, 0.1], [0.2, 0.2]))
+            .Build();
+        Assert.IsType<ErrorBarSeries>(figure.SubPlots[0].Series[0]);
+    }
+
+    [Fact]
+    public void Step_AddsStepSeries()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Step([1.0, 2.0], [3.0, 4.0]))
+            .Build();
+        Assert.IsType<StepSeries>(figure.SubPlots[0].Series[0]);
+    }
+
+    [Fact]
+    public void FillBetween_AddsAreaSeries()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.FillBetween([1.0, 2.0], [3.0, 4.0]))
+            .Build();
+        Assert.IsType<AreaSeries>(figure.SubPlots[0].Series[0]);
+    }
 }

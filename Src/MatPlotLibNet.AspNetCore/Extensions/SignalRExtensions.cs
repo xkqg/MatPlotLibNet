@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet.AspNetCore;
 
@@ -20,7 +21,7 @@ public static class SignalRExtensions
         services.AddSignalR();
         services.AddSingleton<IChartSerializer, ChartSerializer>();
         services.AddSingleton<IChartRenderer, ChartRenderer>();
-        services.AddSingleton<ISvgRenderer, SvgRenderer>();
+        services.AddSingleton<ISvgRenderer, SvgTransform>();
         services.AddSingleton<IChartPublisher, ChartPublisher>();
         return services;
     }

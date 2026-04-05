@@ -187,6 +187,20 @@ public sealed class SvgRenderContext : IRenderContext
             _sb.Append(" stroke=\"").Append(stroke.Value.ToHex()).Append("\" stroke-width=\"").Append(F(strokeThickness)).Append('"');
     }
 
+    /// <summary>Opens an SVG group containing a <c>&lt;title&gt;</c> element for native browser hover tooltips.</summary>
+    /// <remarks>Browsers display <c>&lt;title&gt;</c> content as a tooltip when hovering over any child element.
+    /// Must be paired with a matching <see cref="EndTooltipGroup"/> call.</remarks>
+    internal void BeginTooltipGroup(string tooltipText)
+    {
+        _sb.Append("<g><title>").Append(EscapeXml(tooltipText)).AppendLine("</title>");
+    }
+
+    /// <summary>Closes the SVG group opened by <see cref="BeginTooltipGroup"/>.</summary>
+    internal void EndTooltipGroup()
+    {
+        _sb.AppendLine("</g>");
+    }
+
     private void AppendDashArray(LineStyle style)
     {
         var pattern = DashPatterns.GetPattern(style);

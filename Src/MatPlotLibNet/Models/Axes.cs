@@ -33,9 +33,73 @@ public sealed class Axes
     /// <summary>Gets the one-based index of this axes within the subplot grid.</summary>
     public int GridIndex { get; internal set; }
 
+    /// <summary>Gets or sets whether native SVG tooltips are enabled for data elements.</summary>
+    /// <remarks>When enabled, each data point in the SVG output is wrapped in a <c>&lt;g&gt;&lt;title&gt;...&lt;/title&gt;&lt;/g&gt;</c>
+    /// element that browsers display as a hover tooltip. Has no effect on non-SVG transforms (PNG, PDF).</remarks>
+    public bool EnableTooltips { get; set; }
+
+    /// <summary>Gets or sets how multiple bar series on this axes are displayed.</summary>
+    /// <remarks>When set to <see cref="Models.BarMode.Stacked"/>, bar values are cumulated per category
+    /// so each bar sits on top of the previous one. Defaults to <see cref="Models.BarMode.Grouped"/>.</remarks>
+    public BarMode BarMode { get; set; } = BarMode.Grouped;
+
     /// <summary>Gets the collection of data series plotted on this axes.</summary>
     public IReadOnlyList<ISeries> Series => _series;
     private readonly List<ISeries> _series = [];
+
+    /// <summary>Gets the collection of text annotations on this axes.</summary>
+    public IReadOnlyList<Annotation> Annotations => _annotations;
+    private readonly List<Annotation> _annotations = [];
+
+    /// <summary>Gets the collection of reference lines on this axes.</summary>
+    public IReadOnlyList<ReferenceLine> ReferenceLines => _referenceLines;
+    private readonly List<ReferenceLine> _referenceLines = [];
+
+    /// <summary>Gets the collection of shaded span regions on this axes.</summary>
+    public IReadOnlyList<SpanRegion> Spans => _spans;
+    private readonly List<SpanRegion> _spans = [];
+
+    /// <summary>Gets the secondary Y-axis configuration, or null when no secondary axis is active.</summary>
+    /// <remarks>Activated by calling <see cref="TwinX"/>. Series added via <see cref="PlotSecondary"/> or
+    /// <see cref="ScatterSecondary"/> are rendered against this axis with independent Y scaling.
+    /// The secondary axis renders tick marks and labels on the right side of the plot area.</remarks>
+    public Axis? SecondaryYAxis { get; private set; }
+
+    /// <summary>Gets the collection of data series plotted against the secondary Y-axis.</summary>
+    /// <remarks>These series use a separate <see cref="Rendering.DataTransform"/> based on the secondary Y range,
+    /// while sharing the primary X-axis transform.</remarks>
+    public IReadOnlyList<ISeries> SecondarySeries => _secondarySeries;
+    private readonly List<ISeries> _secondarySeries = [];
+
+    /// <summary>Enables a secondary Y-axis (right side) on this axes, creating it if it does not already exist.</summary>
+    /// <returns>This axes instance for chaining.</returns>
+    public Axes TwinX()
+    {
+        SecondaryYAxis ??= new Axis();
+        return this;
+    }
+
+    /// <summary>Adds a line series plotted against the secondary Y-axis.</summary>
+    /// <remarks>Implicitly calls <see cref="TwinX"/> to ensure the secondary axis exists.</remarks>
+    public LineSeries PlotSecondary(double[] x, double[] y)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        TwinX();
+        var series = new LineSeries(x, y);
+        _secondarySeries.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a scatter series plotted against the secondary Y-axis.</summary>
+    /// <remarks>Implicitly calls <see cref="TwinX"/> to ensure the secondary axis exists.</remarks>
+    public ScatterSeries ScatterSecondary(double[] x, double[] y)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        TwinX();
+        var series = new ScatterSeries(x, y);
+        _secondarySeries.Add(series);
+        return series;
+    }
 
     /// <summary>Adds a line series from the given X and Y data arrays.</summary>
     /// <param name="x">The X-axis data values.</param>
@@ -161,6 +225,114 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a radar (spider) chart series from the given categories and values.</summary>
+    public RadarSeries Radar(string[] categories, double[] values)
+    {
+        ValidateMatchingLengths(categories.Length, values.Length);
+        var series = new RadarSeries(categories, values);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a quiver (vector field) series from the given position and vector data.</summary>
+    public QuiverSeries Quiver(double[] x, double[] y, double[] u, double[] v)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        ValidateMatchingLengths(x.Length, u.Length);
+        ValidateMatchingLengths(x.Length, v.Length);
+        var series = new QuiverSeries(x, y, u, v);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a candlestick (OHLC) series from the given price data.</summary>
+    public CandlestickSeries Candlestick(double[] open, double[] high, double[] low, double[] close, string[]? dateLabels = null)
+    {
+        ValidateMatchingLengths(open.Length, high.Length);
+        ValidateMatchingLengths(open.Length, low.Length);
+        ValidateMatchingLengths(open.Length, close.Length);
+        var series = new CandlestickSeries(open, high, low, close) { DateLabels = dateLabels };
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds an error bar series from the given X, Y data and error magnitudes.</summary>
+    public ErrorBarSeries ErrorBar(double[] x, double[] y, double[] yErrorLow, double[] yErrorHigh)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        ValidateMatchingLengths(x.Length, yErrorLow.Length);
+        ValidateMatchingLengths(x.Length, yErrorHigh.Length);
+        var series = new ErrorBarSeries(x, y, yErrorLow, yErrorHigh);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a step-function series from the given X and Y data arrays.</summary>
+    /// <param name="x">The X-axis data values.</param>
+    /// <param name="y">The Y-axis data values.</param>
+    /// <returns>The newly created <see cref="StepSeries"/> for further configuration.</returns>
+    public StepSeries Step(double[] x, double[] y)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        var series = new StepSeries(x, y);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a filled area series from the given X and Y data arrays.</summary>
+    /// <param name="x">The X-axis data values.</param>
+    /// <param name="y">The Y-axis data values (top line of the fill region).</param>
+    /// <param name="y2">Optional secondary Y data. When provided, fills between the two curves; when null, fills down to y=0.</param>
+    /// <returns>The newly created <see cref="AreaSeries"/> for further configuration.</returns>
+    public AreaSeries FillBetween(double[] x, double[] y, double[]? y2 = null)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        if (y2 is not null) ValidateMatchingLengths(x.Length, y2.Length);
+        var series = new AreaSeries(x, y) { YData2 = y2 };
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a text annotation at the specified data coordinates.</summary>
+    public Annotation Annotate(string text, double x, double y)
+    {
+        var annotation = new Annotation(text, x, y);
+        _annotations.Add(annotation);
+        return annotation;
+    }
+
+    /// <summary>Adds a horizontal reference line at the specified Y value.</summary>
+    public ReferenceLine AxHLine(double y)
+    {
+        var line = new ReferenceLine(y, Orientation.Horizontal);
+        _referenceLines.Add(line);
+        return line;
+    }
+
+    /// <summary>Adds a vertical reference line at the specified X value.</summary>
+    public ReferenceLine AxVLine(double x)
+    {
+        var line = new ReferenceLine(x, Orientation.Vertical);
+        _referenceLines.Add(line);
+        return line;
+    }
+
+    /// <summary>Adds a horizontal shaded span between the specified Y values.</summary>
+    public SpanRegion AxHSpan(double yMin, double yMax)
+    {
+        var span = new SpanRegion(yMin, yMax, Orientation.Horizontal);
+        _spans.Add(span);
+        return span;
+    }
+
+    /// <summary>Adds a vertical shaded span between the specified X values.</summary>
+    public SpanRegion AxVSpan(double xMin, double xMax)
+    {
+        var span = new SpanRegion(xMin, xMax, Orientation.Vertical);
+        _spans.Add(span);
+        return span;
+    }
+
     private static void ValidateMatchingLengths(int a, int b)
     {
         if (a != b)
@@ -195,4 +367,14 @@ public enum LegendPosition
 
     /// <summary>Place the legend in the lower-left corner.</summary>
     LowerLeft
+}
+
+/// <summary>Specifies how multiple bar series on the same axes are displayed.</summary>
+public enum BarMode
+{
+    /// <summary>Bars are placed side by side.</summary>
+    Grouped,
+
+    /// <summary>Bars are stacked on top of each other.</summary>
+    Stacked
 }

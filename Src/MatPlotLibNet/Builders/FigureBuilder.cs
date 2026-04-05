@@ -54,6 +54,22 @@ public sealed class FigureBuilder
     public FigureBuilder Pie(double[] sizes, string[]? labels = null, Action<PieSeries>? configure = null) =>
         AddSeries(ax => ax.Pie(sizes, labels), configure);
 
+    /// <summary>Enables interactive zoom and pan via JavaScript in SVG output.</summary>
+    public FigureBuilder WithZoomPan(bool enabled = true) { _enableZoomPan = enabled; return this; }
+    private bool _enableZoomPan;
+
+    /// <summary>Adds an error bar series to the default axes.</summary>
+    public FigureBuilder ErrorBar(double[] x, double[] y, double[] yErrorLow, double[] yErrorHigh, Action<ErrorBarSeries>? configure = null) =>
+        AddSeries(ax => ax.ErrorBar(x, y, yErrorLow, yErrorHigh), configure);
+
+    /// <summary>Adds a step-function series to the default axes.</summary>
+    public FigureBuilder Step(double[] x, double[] y, Action<StepSeries>? configure = null) =>
+        AddSeries(ax => ax.Step(x, y), configure);
+
+    /// <summary>Adds a filled area (fill-between) series to the default axes.</summary>
+    public FigureBuilder FillBetween(double[] x, double[] y, double[]? y2 = null, Action<AreaSeries>? configure = null) =>
+        AddSeries(ax => ax.FillBetween(x, y, y2), configure);
+
     /// <summary>Adds a subplot at the specified grid position, configured via an <see cref="AxesBuilder"/>.</summary>
     /// <param name="rows">Number of rows in the subplot grid.</param>
     /// <param name="cols">Number of columns in the subplot grid.</param>
@@ -76,7 +92,8 @@ public sealed class FigureBuilder
             Height = _height,
             Dpi = _dpi,
             BackgroundColor = _background,
-            Theme = _theme
+            Theme = _theme,
+            EnableZoomPan = _enableZoomPan
         };
 
         if (_defaultAxes is not null)

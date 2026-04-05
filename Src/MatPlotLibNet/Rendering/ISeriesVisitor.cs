@@ -37,4 +37,22 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a stem plot series.</summary>
     void Visit(StemSeries series, RenderArea area);
+
+    /// <summary>Renders an area (fill-between) series.</summary>
+    void Visit(AreaSeries series, RenderArea area);
+
+    /// <summary>Renders a step-function series.</summary>
+    void Visit(StepSeries series, RenderArea area);
+
+    /// <summary>Renders an error bar series.</summary>
+    void Visit(ErrorBarSeries series, RenderArea area);
+
+    /// <summary>Renders a candlestick (OHLC) series.</summary>
+    void Visit(CandlestickSeries series, RenderArea area);
+
+    /// <summary>Renders a quiver (vector field) series.</summary>
+    void Visit(QuiverSeries series, RenderArea area);
+
+    /// <summary>Renders a radar (spider) chart series.</summary>
+    void Visit(RadarSeries series, RenderArea area);
 }

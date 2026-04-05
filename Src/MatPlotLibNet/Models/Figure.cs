@@ -26,6 +26,12 @@ public sealed class Figure
     /// <summary>Gets or sets the visual theme applied to the figure.</summary>
     public Theme Theme { get; set; } = Theme.Default;
 
+    /// <summary>Gets or sets whether interactive zoom and pan via JavaScript is enabled in SVG output.</summary>
+    /// <remarks>When enabled, a <c>&lt;script&gt;</c> block is injected into the SVG document that handles
+    /// mouse-wheel zoom and click-drag pan via viewBox manipulation. Has no effect on raster transforms (PNG, PDF).
+    /// Double-click resets to the original view.</remarks>
+    public bool EnableZoomPan { get; set; }
+
     /// <summary>Gets the collection of subplot axes contained in this figure.</summary>
     public IReadOnlyList<Axes> SubPlots => _subPlots;
     private readonly List<Axes> _subPlots = [];

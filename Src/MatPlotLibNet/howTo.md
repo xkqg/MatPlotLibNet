@@ -1,9 +1,10 @@
-# How to use MatPlotLibNet
+# How to use MatPlotLibNet (v0.2.0)
 
 ## Install
 
 ```
 dotnet add package MatPlotLibNet
+dotnet add package MatPlotLibNet.Skia    # for PNG/PDF export
 ```
 
 ## 1. Create a chart with the fluent API
@@ -35,7 +36,7 @@ string svg = Plt.Create()
 
 ## 2. Chart types
 
-All 10 chart types are available via `FigureBuilder` and `AxesBuilder`:
+All 16 chart types are available via `FigureBuilder` and `AxesBuilder`:
 
 ```csharp
 // Line
@@ -58,6 +59,16 @@ builder.Hist(measurements, bins: 20, h => h.Color = Color.Orange);
 // Pie
 builder.Pie([40, 30, 20, 10], ["A", "B", "C", "D"]);
 
+// Step function
+builder.Step(x, y, s => s.StepPosition = StepPosition.Post);
+
+// Area / fill between
+builder.FillBetween(x, y);                        // fill to y=0
+builder.FillBetween(x, yUpper, yLower);           // fill between two curves
+
+// Error bars
+builder.ErrorBar(x, y, errLow, errHigh, e => e.CapSize = 8);
+
 // Heatmap (via AxesBuilder)
 ax.Heatmap(new double[,] { { 1, 2, 3 }, { 4, 5, 6 } });
 
@@ -72,9 +83,54 @@ ax.Contour(xGrid, yGrid, zData);
 
 // Stem
 ax.Stem(x, y);
+
+// Candlestick (OHLC financial chart)
+ax.Candlestick(open, high, low, close, ["Mon", "Tue", "Wed"]);
+
+// Quiver (vector field)
+ax.Quiver(xPos, yPos, uComponent, vComponent);
+
+// Radar (spider chart)
+ax.Radar(["Speed", "Power", "Range", "Defense"], [8, 6, 9, 5]);
 ```
 
-## 3. Subplots
+### Stacked bars
+
+```csharp
+ax.SetBarMode(BarMode.Stacked)
+  .Bar(["A", "B", "C"], [10, 20, 15])
+  .Bar(["A", "B", "C"], [5, 10, 8]);
+```
+
+## 3. Annotations and decorations
+
+```csharp
+ax.Plot(x, y)
+  .Annotate("peak", 2.0, 4.0, a =>
+  {
+      a.ArrowTargetX = 1.5;
+      a.ArrowTargetY = 3.5;
+      a.Color = Color.Red;
+  })
+  .AxHLine(3.5, l => { l.Color = Color.Red; l.LineStyle = LineStyle.Dashed; })
+  .AxVLine(2.0)
+  .AxHSpan(3.0, 4.0, s => s.Alpha = 0.1)
+  .AxVSpan(1.5, 2.5);
+```
+
+## 4. Secondary Y-axis (TwinX)
+
+Plot series with independent Y scales:
+
+```csharp
+ax.Plot(time, temperature)
+  .SetYLabel("Temperature (C)")
+  .WithSecondaryYAxis(sec => sec
+      .SetYLabel("Humidity (%)")
+      .Plot(time, humidity, s => s.Color = Color.Orange));
+```
+
+## 5. Subplots
 
 Use `AddSubPlot(rows, cols, index, configure)` for multi-panel figures. Subplots render in **parallel** for performance.
 
@@ -107,9 +163,50 @@ string svg = figure.ToSvg();
 | `SetXLim(min, max)` / `SetYLim(min, max)` | Axis range |
 | `SetXScale(AxisScale)` / `SetYScale(AxisScale)` | Linear or Log scale |
 | `ShowGrid(bool)` | Toggle grid lines |
-| `Plot`, `Scatter`, `Bar`, `Hist`, `Pie`, `Heatmap`, `BoxPlot`, `Violin`, `Contour`, `Stem` | Add series |
+| `SetBarMode(BarMode)` | Grouped or Stacked bars |
+| `WithTooltips(bool)` | Enable native SVG hover tooltips |
+| `WithSecondaryYAxis(Action)` | Add right-side Y-axis |
+| `Annotate`, `AxHLine`, `AxVLine`, `AxHSpan`, `AxVSpan` | Decorations |
+| `Plot`, `Scatter`, `Bar`, `Hist`, `Pie`, `Step`, `FillBetween`, `ErrorBar` | Series (FigureBuilder) |
+| `Heatmap`, `BoxPlot`, `Violin`, `Contour`, `Stem`, `Candlestick`, `Quiver`, `Radar` | Series (AxesBuilder) |
 
-## 4. Direct model manipulation
+## 6. Export transforms
+
+All output formats implement `IFigureTransform` with a fluent `TransformResult`:
+
+```csharp
+using MatPlotLibNet.Transforms;
+
+var figure = Plt.Create().Plot(x, y).Build();
+
+// Polymorphic -- same pattern for any format
+figure.Transform(new SvgTransform()).ToFile("chart.svg");
+figure.Transform(new PngTransform()).ToFile("chart.png");   // requires MatPlotLibNet.Skia
+figure.Transform(new PdfTransform()).ToFile("chart.pdf");   // requires MatPlotLibNet.Skia
+
+// Get bytes or write to stream
+byte[] png = figure.Transform(new PngTransform()).ToBytes();
+figure.Transform(new SvgTransform()).ToStream(stream);
+
+// Convenience shortcuts
+string svg = figure.ToSvg();
+byte[] pngBytes = figure.ToPng();
+byte[] pdfBytes = figure.ToPdf();
+```
+
+## 7. SVG interactivity
+
+```csharp
+// Native browser tooltips -- data values shown on hover
+ax.WithTooltips().Scatter(x, y);
+
+// Zoom (mouse wheel) and pan (click-drag) -- embedded JavaScript
+Plt.Create().WithZoomPan().Plot(x, y).Build()
+
+// Double-click resets to original view. Only effective in browsers.
+```
+
+## 8. Direct model manipulation
 
 For full control, create `Figure` and `Axes` directly:
 
@@ -136,12 +233,15 @@ var bars = axes.Bar(["Q1", "Q2", "Q3", "Q4"], [100, 150, 200, 175]);
 bars.Color = Color.FromHex("#2196F3");
 bars.Label = "2026";
 
+axes.AxHLine(150, line => { line.Label = "Target"; line.Color = Color.Red; });
+axes.Annotate("Best quarter", 2, 200);
+
 string svg = figure.ToSvg();
 ```
 
 Note: `Grid`, `Legend`, and `TickConfig` are immutable records -- use `with` expressions to modify them.
 
-## 5. Dependency injection
+## 9. Dependency injection
 
 All rendering and serialization goes through interfaces:
 
@@ -156,12 +256,11 @@ string json = ChartServices.Serializer.ToJson(figure);
 
 // Replace with your own implementation
 ChartServices.Serializer = new MyCustomSerializer();
-ChartServices.SvgRenderer = new MySvgRenderer(new MyChartRenderer());
 ```
 
 The extension methods `figure.ToSvg()` and `figure.ToJson()` delegate to `ChartServices` under the hood.
 
-## 6. Themes
+## 10. Themes
 
 Six built-in themes:
 
@@ -193,18 +292,7 @@ var svg = Plt.Create()
     .ToSvg();
 ```
 
-## 7. SVG output
-
-Every `Figure` renders to a standalone SVG string:
-
-```csharp
-string svg = figure.ToSvg();
-File.WriteAllText("chart.svg", svg);
-```
-
-The SVG renderer has zero external dependencies and renders subplots in parallel.
-
-## 8. JSON serialization
+## 11. JSON serialization
 
 Figures round-trip to JSON for storage or API transport:
 
@@ -219,7 +307,7 @@ Figure restored = ChartServices.Serializer.FromJson(json);
 string svg = restored.ToSvg();
 ```
 
-## 9. Colors
+## 12. Colors
 
 ```csharp
 // Named colors
@@ -237,7 +325,7 @@ var transparent = Color.Blue.WithAlpha(128);
 
 `Color` is a `readonly record struct` -- value equality, immutable.
 
-## 10. Color maps
+## 13. Color maps
 
 Built-in color maps for heatmaps and contour plots:
 
@@ -260,7 +348,7 @@ var heatmap = axes.Heatmap(data);
 heatmap.ColorMap = ColorMaps.Plasma;
 ```
 
-## 11. Real-time subscription client
+## 14. Real-time subscription client
 
 `IChartSubscriptionClient` is the shared contract for receiving live chart updates via SignalR. Implemented in C# (Blazor) and TypeScript (Angular):
 
@@ -280,7 +368,7 @@ await client.SubscribeAsync("sensor-1");
 await client.DisposeAsync();
 ```
 
-## 12. Display modes
+## 15. Display modes
 
 `DisplayMode` enum controls how chart components present the chart:
 

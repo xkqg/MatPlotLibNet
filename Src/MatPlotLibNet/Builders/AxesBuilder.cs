@@ -33,6 +33,61 @@ public sealed class AxesBuilder
     /// <summary>Sets the Y-axis scale type (e.g., linear or logarithmic).</summary>
     public AxesBuilder SetYScale(AxisScale scale) { _axes.YAxis.Scale = scale; return this; }
 
+    /// <summary>Enables or disables native SVG tooltips for data elements.</summary>
+    public AxesBuilder WithTooltips(bool enabled = true) { _axes.EnableTooltips = enabled; return this; }
+
+    /// <summary>Configures a secondary Y-axis and adds series to it.</summary>
+    public AxesBuilder WithSecondaryYAxis(Action<SecondaryAxisBuilder> configure)
+    {
+        _axes.TwinX();
+        var builder = new SecondaryAxisBuilder(_axes);
+        configure(builder);
+        return this;
+    }
+
+    /// <summary>Adds a text annotation at the specified data coordinates.</summary>
+    public AxesBuilder Annotate(string text, double x, double y, Action<Annotation>? configure = null)
+    {
+        var annotation = _axes.Annotate(text, x, y);
+        configure?.Invoke(annotation);
+        return this;
+    }
+
+    /// <summary>Adds a horizontal reference line at the specified Y value.</summary>
+    public AxesBuilder AxHLine(double y, Action<ReferenceLine>? configure = null)
+    {
+        var line = _axes.AxHLine(y);
+        configure?.Invoke(line);
+        return this;
+    }
+
+    /// <summary>Adds a vertical reference line at the specified X value.</summary>
+    public AxesBuilder AxVLine(double x, Action<ReferenceLine>? configure = null)
+    {
+        var line = _axes.AxVLine(x);
+        configure?.Invoke(line);
+        return this;
+    }
+
+    /// <summary>Adds a horizontal shaded span between the specified Y values.</summary>
+    public AxesBuilder AxHSpan(double yMin, double yMax, Action<SpanRegion>? configure = null)
+    {
+        var span = _axes.AxHSpan(yMin, yMax);
+        configure?.Invoke(span);
+        return this;
+    }
+
+    /// <summary>Adds a vertical shaded span between the specified X values.</summary>
+    public AxesBuilder AxVSpan(double xMin, double xMax, Action<SpanRegion>? configure = null)
+    {
+        var span = _axes.AxVSpan(xMin, xMax);
+        configure?.Invoke(span);
+        return this;
+    }
+
+    /// <summary>Sets the bar mode (grouped or stacked) for multiple bar series.</summary>
+    public AxesBuilder SetBarMode(BarMode mode) { _axes.BarMode = mode; return this; }
+
     /// <summary>Toggles grid line visibility on the axes.</summary>
     public AxesBuilder ShowGrid(bool visible = true) { _axes.Grid = _axes.Grid with { Visible = visible }; return this; }
 
@@ -76,6 +131,30 @@ public sealed class AxesBuilder
     public AxesBuilder Stem(double[] x, double[] y, Action<StemSeries>? configure = null)
         => AddSeries(ax => ax.Stem(x, y), configure);
 
+    /// <summary>Adds a radar (spider) chart series to the axes.</summary>
+    public AxesBuilder Radar(string[] categories, double[] values, Action<RadarSeries>? configure = null)
+        => AddSeries(ax => ax.Radar(categories, values), configure);
+
+    /// <summary>Adds a quiver (vector field) series to the axes.</summary>
+    public AxesBuilder Quiver(double[] x, double[] y, double[] u, double[] v, Action<QuiverSeries>? configure = null)
+        => AddSeries(ax => ax.Quiver(x, y, u, v), configure);
+
+    /// <summary>Adds a candlestick (OHLC) series to the axes.</summary>
+    public AxesBuilder Candlestick(double[] open, double[] high, double[] low, double[] close, string[]? dateLabels = null, Action<CandlestickSeries>? configure = null)
+        => AddSeries(ax => ax.Candlestick(open, high, low, close, dateLabels), configure);
+
+    /// <summary>Adds an error bar series to the axes.</summary>
+    public AxesBuilder ErrorBar(double[] x, double[] y, double[] yErrorLow, double[] yErrorHigh, Action<ErrorBarSeries>? configure = null)
+        => AddSeries(ax => ax.ErrorBar(x, y, yErrorLow, yErrorHigh), configure);
+
+    /// <summary>Adds a step-function series to the axes.</summary>
+    public AxesBuilder Step(double[] x, double[] y, Action<StepSeries>? configure = null)
+        => AddSeries(ax => ax.Step(x, y), configure);
+
+    /// <summary>Adds a filled area (fill-between) series to the axes.</summary>
+    public AxesBuilder FillBetween(double[] x, double[] y, double[]? y2 = null, Action<AreaSeries>? configure = null)
+        => AddSeries(ax => ax.FillBetween(x, y, y2), configure);
+
     private AxesBuilder AddSeries<T>(Func<Axes, T> factory, Action<T>? configure) where T : ISeries
     {
         var series = factory(_axes);
@@ -89,5 +168,37 @@ public sealed class AxesBuilder
         _axes.GridCols = cols;
         _axes.GridIndex = index;
         return _axes;
+    }
+}
+
+/// <summary>Fluent builder for configuring a secondary Y-axis and adding series that scale against it.</summary>
+/// <remarks>Obtained via <see cref="AxesBuilder.WithSecondaryYAxis"/>. The secondary axis renders ticks and
+/// labels on the right side of the plot and uses an independent Y-axis data range.</remarks>
+public sealed class SecondaryAxisBuilder
+{
+    private readonly Axes _axes;
+
+    internal SecondaryAxisBuilder(Axes axes) => _axes = axes;
+
+    /// <summary>Sets the label displayed alongside the right-side Y-axis.</summary>
+    public SecondaryAxisBuilder SetYLabel(string label) { _axes.SecondaryYAxis!.Label = label; return this; }
+
+    /// <summary>Sets explicit min/max limits for the secondary Y-axis data range.</summary>
+    public SecondaryAxisBuilder SetYLim(double min, double max) { _axes.SecondaryYAxis!.Min = min; _axes.SecondaryYAxis!.Max = max; return this; }
+
+    /// <summary>Adds a line series plotted against the secondary Y-axis.</summary>
+    public SecondaryAxisBuilder Plot(double[] x, double[] y, Action<LineSeries>? configure = null)
+    {
+        var series = _axes.PlotSecondary(x, y);
+        configure?.Invoke(series);
+        return this;
+    }
+
+    /// <summary>Adds a scatter series plotted against the secondary Y-axis.</summary>
+    public SecondaryAxisBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null)
+    {
+        var series = _axes.ScatterSecondary(x, y);
+        configure?.Invoke(series);
+        return this;
     }
 }

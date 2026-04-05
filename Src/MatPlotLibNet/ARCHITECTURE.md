@@ -1,9 +1,11 @@
-# MatPlotLibNet Core -- Architecture
+# MatPlotLibNet Core -- Architecture (v0.2.0)
 
 ## Package dependency graph
 
 ```
 MatPlotLibNet (Core)                      zero external dependencies
+    |
+    +-- MatPlotLibNet.Skia                SkiaSharp (PNG + PDF export)
     |
     +-- MatPlotLibNet.Blazor              Microsoft.AspNetCore.SignalR.Client
     |
@@ -28,22 +30,26 @@ MatPlotLibNet/
   Builders/
     FigureBuilder.cs                  fluent API: Plt.Create().WithTitle().Plot().Build()
     AxesBuilder.cs                    subplot config: WithTitle(), SetXLabel(), Plot(), Scatter(), etc.
+    SecondaryAxisBuilder.cs           secondary Y-axis: SetYLabel(), Plot(), Scatter()
     ThemeBuilder.cs                   custom themes: Theme.CreateFrom().WithFont().Build()
 
   Extensions/
-    FigureExtensions.cs               figure.ToSvg(), figure.ToJson()
+    FigureExtensions.cs               figure.ToSvg(), figure.ToJson(), figure.Transform()
 
   Models/
-    Figure.cs                         top-level container (Title, Width, Height, Theme, SubPlots)
-    Axes.cs                           subplot with series collection + axis config
+    Figure.cs                         top-level container (Title, Width, Height, Theme, EnableZoomPan)
+    Axes.cs                           subplot: series, annotations, ref lines, spans, secondary axis
     Axis.cs                           label, min/max, scale, ticks
+    Annotation.cs                     text annotation at data coordinates with optional arrow
+    ReferenceLine.cs                  horizontal/vertical reference line (AxHLine, AxVLine)
+    SpanRegion.cs                     shaded horizontal/vertical region (AxHSpan, AxVSpan)
 
-    Series/
+    Series/                           16 series types via ISeries + ChartSeries base + visitor pattern
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
       ChartSeries.cs                  abstract base: implements ISeries common properties
       LineSeries.cs                   XData, YData, Color, LineStyle, LineWidth, Marker
       ScatterSeries.cs                XData, YData, Color, MarkerSize, Sizes[], Colors[]
-      BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth
+      BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth, StackBaseline
       HistogramSeries.cs              Data, Bins, Color, Alpha, ComputeBins()
       PieSeries.cs                    Sizes, Labels, Colors[], StartAngle
       HeatmapSeries.cs               Data[,], ColorMap
@@ -51,25 +57,37 @@ MatPlotLibNet/
       ViolinSeries.cs                 Datasets[][], Color, Alpha
       ContourSeries.cs                XData, YData, ZData[,], Levels, ColorMap
       StemSeries.cs                   XData, YData, MarkerColor, StemColor, BaselineColor
+      AreaSeries.cs                   XData, YData, YData2 (fill between), Alpha, FillColor
+      StepSeries.cs                   XData, YData, StepPosition (Pre/Mid/Post)
+      ErrorBarSeries.cs               XData, YData, YErrorLow/High, XErrorLow/High, CapSize
+      CandlestickSeries.cs            Open, High, Low, Close, DateLabels, UpColor, DownColor
+      QuiverSeries.cs                 XData, YData, UData, VData, Scale, ArrowHeadSize
+      RadarSeries.cs                  Categories, Values, FillColor, Alpha, MaxValue
+
+  Transforms/                         polymorphic export: IFigureTransform -> FigureTransform -> concrete
+    IFigureTransform.cs               interface: Transform(Figure, Stream)
+    FigureTransform.cs                abstract base: holds ChartRenderer, shared by all transforms
+    SvgTransform.cs                   FigureTransform + ISvgRenderer: parallel SVG rendering
+    TransformResult.cs                fluent record: ToStream(), ToFile(), ToBytes()
 
   Rendering/
     IChartRenderer.cs                 interface: Render(Figure, IRenderContext)
-    ChartRenderer.cs                  orchestrator: background, layout, axes, series
+    ChartRenderer.cs                  orchestrator: background, layout, axes, series, annotations
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, etc.
-    ISeriesVisitor.cs                 visitor pattern: Visit(LineSeries), Visit(BarSeries), etc.
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 16 series types
     DataTransform.cs                  data space <-> pixel space coordinate mapping
     RenderArea.cs                     plot bounds + context container
-    Primitives.cs                     record structs: Point, Size, Rect, DataRange
+    Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
 
     Svg/
-      ISvgRenderer.cs                 interface: Render(Figure) -> string
-      SvgRenderer.cs                  parallel subplot rendering, SVG assembly
+      ISvgRenderer.cs                 interface: Render(Figure) -> string (backward compat)
       SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission
       SvgSeriesRenderer.cs            ISeriesVisitor impl: renders each series type to SVG
+      SvgInteractivityScript.cs       embedded JavaScript for zoom/pan via viewBox manipulation
 
   Serialization/
     IChartSerializer.cs               interface: ToJson(Figure), FromJson(string)
-    ChartSerializer.cs                System.Text.Json-based round-trip serialization
+    ChartSerializer.cs                System.Text.Json round-trip with series type discriminator
 
   Styling/
     Color.cs                          readonly record struct (R, G, B, A) + named colors + hex
@@ -77,7 +95,7 @@ MatPlotLibNet/
     Theme.cs                          6 built-in themes + GridStyle sealed record
     LineStyle.cs                      enum: Solid, Dashed, Dotted, DashDot, None
     MarkerStyle.cs                    enum: None, Circle, Square, Triangle, Diamond, etc.
-    DashPatterns.cs                   canonical dash ratios shared by SVG + MAUI renderers
+    DashPatterns.cs                   canonical dash ratios shared by SVG + MAUI + Skia renderers
 
     ColorMaps/
       IColorMap.cs                    interface: GetColor(double normalized) -> Color
@@ -96,23 +114,54 @@ FigureBuilder.Build()  produces Figure model
     |
 figure.ToSvg()         calls ChartServices.SvgRenderer.Render(figure)
     |
-SvgRenderer            renders background sequentially
+SvgTransform           renders background sequentially
     |                  computes subplot layout
     |                  renders subplots in PARALLEL (Parallel.For)
     |                  each subplot gets its own SvgRenderContext
     |                  merges SVG output in order
     |
 ChartRenderer          per subplot: computes data ranges, creates DataTransform
+    |                  renders spans, reference lines (decorations)
     |                  renders grid, ticks, axis labels
     |                  for each series: creates SvgSeriesRenderer (visitor)
+    |                  renders secondary Y-axis series with separate transform
+    |                  renders annotations (text + arrows)
     |
 SvgSeriesRenderer      visitor dispatches to type-specific rendering
     |                  transforms data points to pixels via DataTransform
     |                  emits SVG elements to SvgRenderContext
+    |                  wraps data elements in <title> for tooltips when enabled
     |
 SvgRenderContext       accumulates SVG markup in StringBuilder
     |
-string                 complete <svg>...</svg> document
+string                 complete <svg>...</svg> document (with optional zoom/pan script)
+```
+
+### Polymorphic figure transforms
+
+```
+IFigureTransform           common interface: Transform(Figure, Stream)
+    |
+FigureTransform            abstract base: holds ChartRenderer
+    |
+    +-- SvgTransform       writes UTF-8 SVG text (also implements ISvgRenderer)
+    +-- PngTransform       writes PNG bytes via SkiaSharp (MatPlotLibNet.Skia)
+    +-- PdfTransform       writes PDF bytes via SkiaSharp (MatPlotLibNet.Skia)
+```
+
+All transforms share the same flow:
+1. Create format-specific `IRenderContext` (SvgRenderContext or SkiaRenderContext)
+2. Call `ChartRenderer.Render(figure, ctx)` -- shared rendering pipeline
+3. Encode the context output into the target format (SVG string, PNG bitmap, PDF document)
+
+Usage (fluent via TransformResult record):
+```
+figure.Transform(new SvgTransform()).ToFile("chart.svg");
+figure.Transform(new PngTransform()).ToFile("chart.png");
+figure.Transform(new PdfTransform()).ToFile("chart.pdf");
+
+byte[] png = figure.Transform(new PngTransform()).ToBytes();
+figure.Transform(new SvgTransform()).ToStream(stream);
 ```
 
 ### JSON round-trip
@@ -147,10 +196,13 @@ ChartHub               routes to SignalR group by chartId
 
 | Pattern | Where | Why |
 |---------|-------|-----|
-| Fluent builder | FigureBuilder, AxesBuilder, ThemeBuilder | matplotlib-style method chaining |
+| Fluent builder | FigureBuilder, AxesBuilder, ThemeBuilder, SecondaryAxisBuilder | matplotlib-style method chaining |
 | Visitor | ISeriesVisitor + ChartSeries.Accept() | extensible per-series rendering without switch |
-| Strategy | IRenderContext (SVG, MAUI, custom) | multiple output targets from same model |
-| DI interfaces | IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |
+| Strategy | IRenderContext (SVG, MAUI, Skia) | multiple output targets from same model |
+| Template method | FigureTransform base class | shared renderer, format-specific Transform() |
+| Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
+| DI interfaces | IFigureTransform, IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |
 | Static defaults | ChartServices | non-DI usage for console apps |
-| Record types | Font, GridStyle, Legend, TickConfig, Color, Point, Rect | immutable value objects with `with` |
-| Parallel rendering | SvgRenderer + per-subplot SvgRenderContext | multi-core subplot rendering |
+| Record types | Font, GridStyle, Legend, TickConfig, Color, Point, Rect, TransformResult | immutable value objects |
+| Parallel rendering | SvgTransform + per-subplot SvgRenderContext | multi-core subplot rendering |
+| Delegate extraction | SvgTransform.BuildSvgDocument, ChartSerializer.ApplyEnum | DRY via higher-order functions |

@@ -276,6 +276,168 @@ public class ChartSerializerTests
     }
 
     [Fact]
+    public void RoundTrip_PreservesSecondaryYAxis()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        axes.Plot([1.0, 2.0], [3.0, 4.0]);
+        axes.TwinX();
+        axes.SecondaryYAxis!.Label = "Right";
+        axes.PlotSecondary([1.0, 2.0], [100.0, 200.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        Assert.NotNull(restored.SubPlots[0].SecondaryYAxis);
+        Assert.Equal("Right", restored.SubPlots[0].SecondaryYAxis!.Label);
+        Assert.Single(restored.SubPlots[0].SecondarySeries);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesAnnotations()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        axes.Plot([1.0, 2.0], [3.0, 4.0]);
+        var ann = axes.Annotate("peak", 2.0, 4.0);
+        ann.ArrowTargetX = 1.5;
+        ann.ArrowTargetY = 3.5;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        Assert.Single(restored.SubPlots[0].Annotations);
+        Assert.Equal("peak", restored.SubPlots[0].Annotations[0].Text);
+        Assert.Equal(1.5, restored.SubPlots[0].Annotations[0].ArrowTargetX);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesReferenceLines()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        axes.Plot([1.0, 2.0], [3.0, 4.0]);
+        axes.AxHLine(3.5);
+        axes.AxVLine(1.5);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        Assert.Equal(2, restored.SubPlots[0].ReferenceLines.Count);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesSpanRegions()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        axes.Plot([1.0, 2.0], [3.0, 4.0]);
+        axes.AxHSpan(3.0, 3.5);
+        axes.AxVSpan(1.2, 1.8);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        Assert.Equal(2, restored.SubPlots[0].Spans.Count);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesRadarSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        var radar = axes.Radar(["Speed", "Power", "Range"], [8.0, 6.0, 9.0]);
+        radar.Alpha = 0.5;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<RadarSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal(["Speed", "Power", "Range"], series.Categories);
+        Assert.Equal([8.0, 6.0, 9.0], series.Values);
+        Assert.Equal(0.5, series.Alpha);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesBarMode()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .SetBarMode(BarMode.Stacked)
+                .Bar(["A", "B"], [10.0, 20.0]))
+            .Build();
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        Assert.Equal(BarMode.Stacked, restored.SubPlots[0].BarMode);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesQuiverSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        axes.Quiver([1.0, 2.0], [3.0, 4.0], [0.5, -0.5], [0.5, 0.5]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<QuiverSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal([0.5, -0.5], series.UData);
+        Assert.Equal([0.5, 0.5], series.VData);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesCandlestickSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        axes.Candlestick([10.0, 12.0], [15.0, 14.0], [8.0, 10.0], [13.0, 11.0], ["Mon", "Tue"]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<CandlestickSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal([10.0, 12.0], series.Open);
+        Assert.Equal(["Mon", "Tue"], series.DateLabels);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesErrorBarSeries()
+    {
+        var figure = new Figure();
+        var axes = figure.AddSubPlot();
+        var eb = axes.ErrorBar([1.0, 2.0], [3.0, 4.0], [0.5, 0.5], [1.0, 1.0]);
+        eb.CapSize = 8.0;
+        eb.Color = Color.Red;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<ErrorBarSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal(Color.Red, series.Color);
+        Assert.Equal(8.0, series.CapSize);
+        Assert.Equal([0.5, 0.5], series.YErrorLow);
+        Assert.Equal([1.0, 1.0], series.YErrorHigh);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesStepSeries()
+    {
+        var figure = Plt.Create()
+            .Step([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], s => s.StepPosition = StepPosition.Pre)
+            .Build();
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<StepSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal(StepPosition.Pre, series.StepPosition);
+        Assert.Equal([1.0, 2.0, 3.0], series.XData);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesAreaSeries()
+    {
+        var figure = Plt.Create()
+            .FillBetween([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [1.0, 2.0, 3.0], s =>
+            {
+                s.Color = Color.Blue;
+                s.Alpha = 0.5;
+            })
+            .Build();
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var series = Assert.IsType<AreaSeries>(restored.SubPlots[0].Series[0]);
+        Assert.Equal(Color.Blue, series.Color);
+        Assert.Equal(0.5, series.Alpha);
+        Assert.Equal([1.0, 2.0, 3.0], series.XData);
+        Assert.Equal([4.0, 5.0, 6.0], series.YData);
+        Assert.Equal([1.0, 2.0, 3.0], series.YData2);
+    }
+
+    [Fact]
     public void RoundTrip_PreservesLabelAcrossAllTypes()
     {
         var figure = new Figure();

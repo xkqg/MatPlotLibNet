@@ -24,12 +24,12 @@ var figure = Plt.Create()
     .Plot(x, y, line => line.Color = Color.Blue)
     .Build();
 
-var handle = figure.Show();
+var handle = await figure.ShowAsync();
 
 Console.ReadLine(); // keep the process alive
 ```
 
-`Show()` returns an `InteractiveFigure` handle that you can use to push updates later.
+`ShowAsync()` returns an `InteractiveFigure` handle that you can use to push updates later.
 
 ## 2. Update a chart in real-time
 
