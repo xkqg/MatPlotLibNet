@@ -1,4 +1,4 @@
-# How to use MatPlotLibNet (v0.2.0)
+# How to use MatPlotLibNet (v0.3.0)
 
 ## Install
 

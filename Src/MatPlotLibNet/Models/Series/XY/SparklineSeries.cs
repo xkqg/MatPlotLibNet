@@ -1,0 +1,27 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling;
+
+namespace MatPlotLibNet.Models.Series;
+
+/// <summary>Represents a sparkline — a tiny, word-sized line chart with no axes, labels, or decorations.</summary>
+/// <remarks>Designed for inline dashboard use. Renders only the line within the full plot bounds.</remarks>
+public sealed class SparklineSeries : ChartSeries
+{
+    /// <summary>Gets the Y-axis data values. X positions are auto-generated as 0, 1, 2, ...</summary>
+    public double[] Values { get; }
+
+    /// <summary>Gets or sets the line color.</summary>
+    public Color? Color { get; set; }
+
+    /// <summary>Gets or sets the line width.</summary>
+    public double LineWidth { get; set; } = 1.5;
+
+    /// <summary>Creates a new sparkline series from the given values.</summary>
+    public SparklineSeries(double[] values) => Values = values;
+
+    /// <inheritdoc />
+    public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
+}

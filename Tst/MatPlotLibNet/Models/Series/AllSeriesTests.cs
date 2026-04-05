@@ -26,6 +26,15 @@ public class AllSeriesTests
         { new CandlestickSeries([10.0], [15.0], [8.0], [13.0]), nameof(CandlestickSeries) },
         { new QuiverSeries([1.0], [2.0], [0.5], [0.5]), nameof(QuiverSeries) },
         { new RadarSeries(["A", "B", "C"], [1.0, 2.0, 3.0]), nameof(RadarSeries) },
+        { new DonutSeries([30.0, 70.0]), nameof(DonutSeries) },
+        { new BubbleSeries([1.0], [2.0], [10.0]), nameof(BubbleSeries) },
+        { new OhlcBarSeries([10.0], [15.0], [8.0], [13.0]), nameof(OhlcBarSeries) },
+        { new WaterfallSeries(["A"], [10.0]), nameof(WaterfallSeries) },
+        { new FunnelSeries(["A"], [10.0]), nameof(FunnelSeries) },
+        { new GanttSeries(["A"], [0.0], [1.0]), nameof(GanttSeries) },
+        { new GaugeSeries(50), nameof(GaugeSeries) },
+        { new ProgressBarSeries(0.5), nameof(ProgressBarSeries) },
+        { new SparklineSeries([1.0, 2.0, 3.0]), nameof(SparklineSeries) },
     };
 
     [Theory]

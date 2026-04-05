@@ -59,6 +59,10 @@ public sealed class Axes
     public IReadOnlyList<SpanRegion> Spans => _spans;
     private readonly List<SpanRegion> _spans = [];
 
+    /// <summary>Gets the collection of buy/sell signal markers on this axes.</summary>
+    public IReadOnlyList<SignalMarker> Signals => _signals;
+    private readonly List<SignalMarker> _signals = [];
+
     /// <summary>Gets the secondary Y-axis configuration, or null when no secondary axis is active.</summary>
     /// <remarks>Activated by calling <see cref="TwinX"/>. Series added via <see cref="PlotSecondary"/> or
     /// <see cref="ScatterSecondary"/> are rendered against this axis with independent Y scaling.
@@ -291,6 +295,80 @@ public sealed class Axes
         var series = new AreaSeries(x, y) { YData2 = y2 };
         _series.Add(series);
         return series;
+    }
+
+    /// <summary>Adds a donut chart series.</summary>
+    public DonutSeries Donut(double[] sizes, string[]? labels = null)
+    {
+        var series = new DonutSeries(sizes) { Labels = labels };
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a bubble chart series from X, Y, and size arrays.</summary>
+    public BubbleSeries Bubble(double[] x, double[] y, double[] sizes)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        ValidateMatchingLengths(x.Length, sizes.Length);
+        var series = new BubbleSeries(x, y, sizes);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a traditional OHLC bar chart series from price data.</summary>
+    public OhlcBarSeries OhlcBar(double[] open, double[] high, double[] low, double[] close, string[]? dateLabels = null)
+    {
+        ValidateMatchingLengths(open.Length, high.Length);
+        ValidateMatchingLengths(open.Length, low.Length);
+        ValidateMatchingLengths(open.Length, close.Length);
+        var series = new OhlcBarSeries(open, high, low, close) { DateLabels = dateLabels };
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a waterfall chart showing cumulative positive and negative changes.</summary>
+    public WaterfallSeries Waterfall(string[] categories, double[] values)
+    {
+        ValidateMatchingLengths(categories.Length, values.Length);
+        var series = new WaterfallSeries(categories, values);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a funnel chart showing progressive reduction through stages.</summary>
+    public FunnelSeries Funnel(string[] labels, double[] values)
+    {
+        ValidateMatchingLengths(labels.Length, values.Length);
+        var series = new FunnelSeries(labels, values);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a gauge (speedometer) chart displaying a single value within a range.</summary>
+    public GaugeSeries Gauge(double value) { var s = new GaugeSeries(value); _series.Add(s); return s; }
+
+    /// <summary>Adds a progress bar showing a value as a fraction (0.0 to 1.0).</summary>
+    public ProgressBarSeries ProgressBar(double value) { var s = new ProgressBarSeries(value); _series.Add(s); return s; }
+
+    /// <summary>Adds a sparkline — a tiny inline line chart with no axes or labels.</summary>
+    public SparklineSeries Sparkline(double[] values) { var s = new SparklineSeries(values); _series.Add(s); return s; }
+
+    /// <summary>Adds a Gantt chart showing task durations on a timeline.</summary>
+    public GanttSeries Gantt(string[] tasks, double[] starts, double[] ends)
+    {
+        ValidateMatchingLengths(tasks.Length, starts.Length);
+        ValidateMatchingLengths(tasks.Length, ends.Length);
+        var series = new GanttSeries(tasks, starts, ends);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a buy or sell signal marker at the specified data coordinates.</summary>
+    public SignalMarker AddSignal(double x, double y, SignalDirection direction)
+    {
+        var marker = new SignalMarker(x, y, direction);
+        _signals.Add(marker);
+        return marker;
     }
 
     /// <summary>Adds a text annotation at the specified data coordinates.</summary>

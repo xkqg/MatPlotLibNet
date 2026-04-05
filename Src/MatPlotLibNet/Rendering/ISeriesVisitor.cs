@@ -55,4 +55,31 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a radar (spider) chart series.</summary>
     void Visit(RadarSeries series, RenderArea area);
+
+    /// <summary>Renders a donut chart series.</summary>
+    void Visit(DonutSeries series, RenderArea area);
+
+    /// <summary>Renders a bubble chart series.</summary>
+    void Visit(BubbleSeries series, RenderArea area);
+
+    /// <summary>Renders a traditional OHLC bar chart series.</summary>
+    void Visit(OhlcBarSeries series, RenderArea area);
+
+    /// <summary>Renders a waterfall chart series.</summary>
+    void Visit(WaterfallSeries series, RenderArea area);
+
+    /// <summary>Renders a funnel chart series.</summary>
+    void Visit(FunnelSeries series, RenderArea area);
+
+    /// <summary>Renders a Gantt chart series.</summary>
+    void Visit(GanttSeries series, RenderArea area);
+
+    /// <summary>Renders a gauge (speedometer) chart series.</summary>
+    void Visit(GaugeSeries series, RenderArea area);
+
+    /// <summary>Renders a progress bar series.</summary>
+    void Visit(ProgressBarSeries series, RenderArea area);
+
+    /// <summary>Renders a sparkline series.</summary>
+    void Visit(SparklineSeries series, RenderArea area);
 }

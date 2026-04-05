@@ -44,7 +44,7 @@ figure.Transform(new PdfTransform()).ToFile("chart.pdf");   // requires MatPlotL
 
 ## Chart types
 
-**16 series types** with fluent builder API:
+**25 series types** with fluent builder API:
 
 ```csharp
 var fig = Plt.Create()
@@ -60,7 +60,7 @@ var fig = Plt.Create()
 ```
 
 Additional types via `AxesBuilder.AddSubPlot`:
-Heatmap, Box, Violin, Contour, Stem, Candlestick, Quiver, Radar.
+Heatmap, Box, Violin, Contour, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline.
 
 ### Stacked bars
 
@@ -93,6 +93,28 @@ Heatmap, Box, Violin, Contour, Stem, Candlestick, Quiver, Radar.
         .SetYLabel("Humidity (%)")
         .Plot(time, humidity, s => s.Color = Color.Orange)))
 ```
+
+## Technical indicators (TradingView-style)
+
+```csharp
+// Overlay indicators — auto-detect price data from series on axes
+ax.Candlestick(open, high, low, close)
+  .Sma(20)                           // adds SMA overlay
+  .Ema(9)                            // adds EMA overlay
+  .BollingerBands(20, 2.0)           // adds BB bands + middle line
+
+// Buy/sell signals
+  .BuyAt(5, close[5])
+  .SellAt(12, close[12])
+
+// Panel indicators in subplots
+.AddSubPlot(3, 1, 2, ax => ax.Rsi(close, 14).AxHLine(70).AxHLine(30))
+.AddSubPlot(3, 1, 3, ax => ax.AddIndicator(new Macd(close)))
+```
+
+**13 indicators:** SMA, EMA, Bollinger Bands, VWAP, RSI, MACD, Stochastic, Volume, Fibonacci, ATR, ADX, Keltner Channels, Ichimoku Cloud.
+
+**Trading analytics:** EquityCurve, ProfitLoss, DrawDown — for strategy backtesting panels.
 
 ## Subplots
 
@@ -225,6 +247,14 @@ MatPlotLibNet (Core)                      zero external dependencies
 ```
 
 See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering pipeline, data flow, and design patterns.
+
+## Version history
+
+| Version | Highlights |
+|---------|-----------|
+| **0.3.0** | 25 series types (Donut, Bubble, OhlcBar, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline). 13 technical indicators (SMA, EMA, BB, VWAP, RSI, MACD, Stochastic, Volume, Fibonacci, ATR, ADX, Keltner, Ichimoku). Trading analytics (EquityCurve, ProfitLoss, DrawDown). Buy/sell signal markers. Generic `SeriesRenderer<T>` + `Indicator<TResult>`. Intuitive fluent API (`.Sma(20)`, `.BuyAt()`, `.SaveSvg()`). PriceSource enum, Offset, LineStyle on all indicators. Series organized by chart family. |
+| **0.2.0** | 16 series types (Area, Step, ErrorBar, Candlestick, Quiver, Radar). Stacked bars. Annotations (text, HLine/VLine, HSpan/VSpan). Secondary Y-axis (TwinX). SVG tooltips + zoom/pan. Polymorphic transforms (`IFigureTransform`, `FigureTransform`, `TransformResult`). PNG/PDF export via MatPlotLibNet.Skia. |
+| **0.1.0** | Initial release. 10 series types (Line, Scatter, Bar, Histogram, Pie, Heatmap, Box, Violin, Contour, Stem). Fluent builder API. Parallel SVG rendering. JSON serialization. 6 themes. Blazor, ASP.NET Core, MAUI, Angular, Interactive packages. |
 
 ## License
 

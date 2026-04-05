@@ -22,4 +22,8 @@ public static class FigureExtensions
     /// <summary>Serializes the figure to JSON.</summary>
     public static string ToJson(this Figure figure, bool indented = false) =>
         ChartServices.Serializer.ToJson(figure, indented);
+
+    /// <summary>Saves the figure as an SVG file.</summary>
+    public static void SaveSvg(this Figure figure, string path) =>
+        File.WriteAllText(path, figure.ToSvg());
 }

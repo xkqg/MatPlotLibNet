@@ -259,6 +259,19 @@ public sealed class ChartRenderer : IChartRenderer
             }
         }
 
+        // Signal markers (buy/sell triangles)
+        foreach (var signal in axes.Signals)
+        {
+            var pt = transform.DataToPixel(signal.X, signal.Y);
+            double s = signal.Size;
+            var signalColor = signal.Color ?? (signal.Direction == SignalDirection.Buy ? Color.Green : Color.Red);
+
+            Point[] triangle = signal.Direction == SignalDirection.Buy
+                ? [new(pt.X, pt.Y + s), new(pt.X - s / 2, pt.Y + s * 2), new(pt.X + s / 2, pt.Y + s * 2)]
+                : [new(pt.X, pt.Y - s), new(pt.X - s / 2, pt.Y - s * 2), new(pt.X + s / 2, pt.Y - s * 2)];
+            ctx.DrawPolygon(triangle, signalColor, null, 0);
+        }
+
         // Axes title
         if (axes.Title is not null)
         {
@@ -498,6 +511,41 @@ public sealed class ChartRenderer : IChartRenderer
                     if (ar.YData2 is not null)
                         UpdateRange(ar.YData2, ref yMin, ref yMax);
                     else if (0 < yMin) yMin = 0;
+                    break;
+                case BubbleSeries bu:
+                    UpdateRange(bu.XData, ref xMin, ref xMax);
+                    UpdateRange(bu.YData, ref yMin, ref yMax);
+                    break;
+                case OhlcBarSeries ob:
+                    xMin = axes.XAxis.Min ?? -0.5;
+                    xMax = axes.XAxis.Max ?? (ob.Open.Length - 0.5);
+                    UpdateRange(ob.Low, ref yMin, ref yMax);
+                    UpdateRange(ob.High, ref yMin, ref yMax);
+                    break;
+                case WaterfallSeries wf:
+                    xMin = axes.XAxis.Min ?? -0.5;
+                    xMax = axes.XAxis.Max ?? (wf.Categories.Length - 0.5);
+                    double wfCum = 0;
+                    foreach (var v in wf.Values) { wfCum += v; if (wfCum < yMin) yMin = wfCum; if (wfCum > yMax) yMax = wfCum; }
+                    if (0 < yMin) yMin = 0;
+                    break;
+                case GanttSeries gt:
+                    UpdateRange(gt.Starts, ref xMin, ref xMax);
+                    UpdateRange(gt.Ends, ref xMin, ref xMax);
+                    yMin = axes.YAxis.Min ?? -0.5;
+                    yMax = axes.YAxis.Max ?? (gt.Tasks.Length - 0.5);
+                    break;
+                case DonutSeries:
+                case FunnelSeries:
+                case GaugeSeries:
+                case ProgressBarSeries:
+                    // Render in own coordinate system within PlotBounds
+                    if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
+                    if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
+                    break;
+                case SparklineSeries sp:
+                    xMin = 0; xMax = sp.Values.Length - 1;
+                    UpdateRange(sp.Values, ref yMin, ref yMax);
                     break;
             }
         }

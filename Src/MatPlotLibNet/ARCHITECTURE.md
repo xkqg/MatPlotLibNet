@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.2.0)
+# MatPlotLibNet Core -- Architecture (v0.3.0)
 
 ## Package dependency graph
 
@@ -63,6 +63,37 @@ MatPlotLibNet/
       CandlestickSeries.cs            Open, High, Low, Close, DateLabels, UpColor, DownColor
       QuiverSeries.cs                 XData, YData, UData, VData, Scale, ArrowHeadSize
       RadarSeries.cs                  Categories, Values, FillColor, Alpha, MaxValue
+      DonutSeries.cs                  Sizes, InnerRadius, CenterText (Circular/)
+      BubbleSeries.cs                 XData, YData, Sizes, Alpha (XY/)
+      OhlcBarSeries.cs                Open, High, Low, Close, TickWidth (Financial/)
+      WaterfallSeries.cs              Categories, Values, IncreaseColor, DecreaseColor (Categorical/)
+      FunnelSeries.cs                 Labels, Values, Colors (Categorical/)
+      GanttSeries.cs                  Tasks, Starts, Ends, BarHeight (Categorical/)
+      GaugeSeries.cs                  Value, Min, Max, Ranges, NeedleColor (Circular/)
+      ProgressBarSeries.cs            Value, FillColor, TrackColor (Categorical/)
+      SparklineSeries.cs              Values, LineWidth (XY/)
+
+  Indicators/                           polymorphic: IIndicator -> Indicator -> Indicator<TResult>
+    IIndicator.cs                       interface: Apply(Axes)
+    Indicator.cs                        abstract base: Color, Label, LineWidth, LineStyle, Offset
+    Indicator<TResult>.cs               generic: typed Compute() for composability
+    PriceSource.cs                      enum (Close/Open/HL2/HLC3/OHLC4) + PriceSources resolver
+    Sma.cs, Ema.cs                      Moving averages (overlay)
+    BollingerBands.cs                   Upper/lower bands + SMA middle (overlay)
+    Vwap.cs                             Volume-weighted average price (overlay)
+    FibonacciRetracement.cs             Horizontal levels at key ratios (overlay)
+    Rsi.cs                              Relative Strength Index 0-100 (panel)
+    Macd.cs                             MACD + signal + histogram (panel)
+    Stochastic.cs                       %K + %D oscillator (panel)
+    VolumeIndicator.cs                  Volume bars (panel)
+    Atr.cs                              Average True Range (panel)
+    Adx.cs                              Average Directional Index + DI (panel)
+    KeltnerChannels.cs                  EMA + ATR bands (overlay)
+    Ichimoku.cs                         Ichimoku Cloud 5-line system (overlay)
+    BuySellSignal.cs                    Buy/sell triangle markers
+    EquityCurve.cs                      Cumulative P&L line (panel)
+    ProfitLoss.cs                       Per-trade colored bars (panel)
+    DrawDown.cs                         % drawdown from peak (panel)
 
   Transforms/                         polymorphic export: IFigureTransform -> FigureTransform -> concrete
     IFigureTransform.cs               interface: Transform(Figure, Stream)
@@ -74,15 +105,26 @@ MatPlotLibNet/
     IChartRenderer.cs                 interface: Render(Figure, IRenderContext)
     ChartRenderer.cs                  orchestrator: background, layout, axes, series, annotations
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, etc.
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 16 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 25 series types
     DataTransform.cs                  data space <-> pixel space coordinate mapping
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
 
+    SeriesRenderers/                    generic SeriesRenderer<T> per series type
+      SeriesRenderContext.cs            record: Transform + Ctx + Color + Area + options
+      SeriesRenderer.cs                 abstract base + generic SeriesRenderer<T>
+      XY/                               Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline
+      Categorical/                      Bar, Histogram, Waterfall, Funnel, Gantt, ProgressBar
+      Circular/                         Pie, Radar, Donut, Gauge
+      Grid/                             Heatmap, Contour
+      Distribution/                     Box, Violin
+      Financial/                        Candlestick, OhlcBar
+      Field/                            Quiver, Stem
+
     Svg/
       ISvgRenderer.cs                 interface: Render(Figure) -> string (backward compat)
       SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission
-      SvgSeriesRenderer.cs            ISeriesVisitor impl: renders each series type to SVG
+      SvgSeriesRenderer.cs            thin visitor dispatcher to SeriesRenderer<T> instances
       SvgInteractivityScript.cs       embedded JavaScript for zoom/pan via viewBox manipulation
 
   Serialization/

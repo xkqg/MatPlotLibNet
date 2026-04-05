@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Indicators;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
@@ -32,6 +33,23 @@ public sealed class AxesBuilder
 
     /// <summary>Sets the Y-axis scale type (e.g., linear or logarithmic).</summary>
     public AxesBuilder SetYScale(AxisScale scale) { _axes.YAxis.Scale = scale; return this; }
+
+    /// <summary>Adds a buy or sell signal marker at the specified data coordinates.</summary>
+    public AxesBuilder AddSignal(double x, double y, SignalDirection direction, Action<SignalMarker>? configure = null)
+    {
+        var marker = _axes.AddSignal(x, y, direction);
+        configure?.Invoke(marker);
+        return this;
+    }
+
+    /// <summary>Applies a technical indicator to this axes, adding computed series or decorations.</summary>
+    /// <remarks>Overlay indicators (SMA, EMA, Bollinger Bands) add series to the same axes.
+    /// Panel indicators (RSI, MACD) should be placed in a separate subplot by the caller.</remarks>
+    public AxesBuilder AddIndicator(IIndicator indicator)
+    {
+        indicator.Apply(_axes);
+        return this;
+    }
 
     /// <summary>Enables or disables native SVG tooltips for data elements.</summary>
     public AxesBuilder WithTooltips(bool enabled = true) { _axes.EnableTooltips = enabled; return this; }
@@ -131,6 +149,42 @@ public sealed class AxesBuilder
     public AxesBuilder Stem(double[] x, double[] y, Action<StemSeries>? configure = null)
         => AddSeries(ax => ax.Stem(x, y), configure);
 
+    /// <summary>Adds a gauge (speedometer) chart to the axes.</summary>
+    public AxesBuilder Gauge(double value, Action<GaugeSeries>? configure = null)
+        => AddSeries(ax => ax.Gauge(value), configure);
+
+    /// <summary>Adds a progress bar to the axes.</summary>
+    public AxesBuilder ProgressBar(double value, Action<ProgressBarSeries>? configure = null)
+        => AddSeries(ax => ax.ProgressBar(value), configure);
+
+    /// <summary>Adds a sparkline to the axes.</summary>
+    public AxesBuilder Sparkline(double[] values, Action<SparklineSeries>? configure = null)
+        => AddSeries(ax => ax.Sparkline(values), configure);
+
+    /// <summary>Adds a donut chart series to the axes.</summary>
+    public AxesBuilder Donut(double[] sizes, string[]? labels = null, Action<DonutSeries>? configure = null)
+        => AddSeries(ax => ax.Donut(sizes, labels), configure);
+
+    /// <summary>Adds a bubble chart series to the axes.</summary>
+    public AxesBuilder Bubble(double[] x, double[] y, double[] sizes, Action<BubbleSeries>? configure = null)
+        => AddSeries(ax => ax.Bubble(x, y, sizes), configure);
+
+    /// <summary>Adds a traditional OHLC bar chart series to the axes.</summary>
+    public AxesBuilder OhlcBar(double[] open, double[] high, double[] low, double[] close, string[]? dateLabels = null, Action<OhlcBarSeries>? configure = null)
+        => AddSeries(ax => ax.OhlcBar(open, high, low, close, dateLabels), configure);
+
+    /// <summary>Adds a waterfall chart series to the axes.</summary>
+    public AxesBuilder Waterfall(string[] categories, double[] values, Action<WaterfallSeries>? configure = null)
+        => AddSeries(ax => ax.Waterfall(categories, values), configure);
+
+    /// <summary>Adds a funnel chart series to the axes.</summary>
+    public AxesBuilder Funnel(string[] labels, double[] values, Action<FunnelSeries>? configure = null)
+        => AddSeries(ax => ax.Funnel(labels, values), configure);
+
+    /// <summary>Adds a Gantt chart series to the axes.</summary>
+    public AxesBuilder Gantt(string[] tasks, double[] starts, double[] ends, Action<GanttSeries>? configure = null)
+        => AddSeries(ax => ax.Gantt(tasks, starts, ends), configure);
+
     /// <summary>Adds a radar (spider) chart series to the axes.</summary>
     public AxesBuilder Radar(string[] categories, double[] values, Action<RadarSeries>? configure = null)
         => AddSeries(ax => ax.Radar(categories, values), configure);
@@ -160,6 +214,68 @@ public sealed class AxesBuilder
         var series = factory(_axes);
         configure?.Invoke(series);
         return this;
+    }
+
+    // --- Intuitive indicator shortcuts (auto-resolve price data from axes) ---
+
+    /// <summary>Adds a Simple Moving Average overlay. Auto-extracts price data from the last series on the axes.</summary>
+    public AxesBuilder Sma(int period, Action<Indicators.Sma>? configure = null)
+    {
+        var indicator = new Indicators.Sma(GetPriceData(), period);
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Exponential Moving Average overlay.</summary>
+    public AxesBuilder Ema(int period, Action<Indicators.Ema>? configure = null)
+    {
+        var indicator = new Indicators.Ema(GetPriceData(), period);
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds Bollinger Bands overlay.</summary>
+    public AxesBuilder BollingerBands(int period = 20, double stdDev = 2.0, Action<Indicators.BollingerBands>? configure = null)
+    {
+        var indicator = new Indicators.BollingerBands(GetPriceData(), period, stdDev);
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an RSI panel indicator.</summary>
+    public AxesBuilder Rsi(double[] prices, int period = 14, Action<Indicators.Rsi>? configure = null)
+    {
+        var indicator = new Indicators.Rsi(prices, period);
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a buy signal marker at the given position.</summary>
+    public AxesBuilder BuyAt(double x, double y, Action<SignalMarker>? configure = null)
+        => AddSignal(x, y, SignalDirection.Buy, configure);
+
+    /// <summary>Adds a sell signal marker at the given position.</summary>
+    public AxesBuilder SellAt(double x, double y, Action<SignalMarker>? configure = null)
+        => AddSignal(x, y, SignalDirection.Sell, configure);
+
+    /// <summary>Extracts Y data from the last series on the axes for indicator computation.</summary>
+    private double[] GetPriceData()
+    {
+        var last = _axes.Series.LastOrDefault();
+        return last switch
+        {
+            CandlestickSeries cs => cs.Close,
+            OhlcBarSeries ob => ob.Close,
+            LineSeries ls => ls.YData,
+            ScatterSeries ss => ss.YData,
+            StepSeries st => st.YData,
+            AreaSeries ar => ar.YData,
+            _ => throw new InvalidOperationException("No price data found on axes. Add a series with Y data before calling indicator shortcuts.")
+        };
     }
 
     internal Axes Build(int rows, int cols, int index)
