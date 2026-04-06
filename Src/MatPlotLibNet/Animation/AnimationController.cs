@@ -72,6 +72,6 @@ public sealed class AnimationController<TState> : IAsyncDisposable
     public ValueTask DisposeAsync()
     {
         Stop();
-        return ValueTask.CompletedTask;
+        return default;
     }
 }
