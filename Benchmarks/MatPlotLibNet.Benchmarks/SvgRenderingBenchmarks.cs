@@ -4,6 +4,7 @@
 using BenchmarkDotNet.Attributes;
 using MatPlotLibNet;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Benchmarks;
@@ -14,6 +15,12 @@ public class SvgRenderingBenchmarks
     private Figure _simpleLine = default!;
     private Figure _complexChart = default!;
     private Figure _subplotGrid = default!;
+    private Figure _treemap = default!;
+    private Figure _sunburst = default!;
+    private Figure _sankey = default!;
+    private Figure _polar = default!;
+    private Figure _surface3D = default!;
+    private Figure _legendChart = default!;
 
     [GlobalSetup]
     public void Setup()
@@ -46,6 +53,48 @@ public class SvgRenderingBenchmarks
             .AddSubPlot(3, 3, 8, ax => ax.Plot(x, y))
             .AddSubPlot(3, 3, 9, ax => ax.Plot(x, y))
             .Build();
+
+        var tree = new TreeNode
+        {
+            Label = "Root",
+            Children = [
+                new TreeNode { Label = "A", Value = 40, Children = [
+                    new TreeNode { Label = "A1", Value = 20 },
+                    new TreeNode { Label = "A2", Value = 20 }
+                ]},
+                new TreeNode { Label = "B", Value = 30 },
+                new TreeNode { Label = "C", Value = 20 },
+                new TreeNode { Label = "D", Value = 10 }
+            ]
+        };
+
+        _treemap = Plt.Create().Treemap(tree).Build();
+        _sunburst = Plt.Create().Sunburst(tree).Build();
+
+        _sankey = Plt.Create().Sankey(
+            [new SankeyNode("A"), new SankeyNode("B"), new SankeyNode("C"), new SankeyNode("D")],
+            [new SankeyLink(0, 2, 30), new SankeyLink(0, 3, 20), new SankeyLink(1, 2, 10), new SankeyLink(1, 3, 15)]
+        ).Build();
+
+        var r = Enumerable.Range(0, 50).Select(i => (double)i / 5).ToArray();
+        var theta = r.Select(v => v * 0.5).ToArray();
+        _polar = Plt.Create().PolarPlot(r, theta).Build();
+
+        var sx = Enumerable.Range(0, 10).Select(i => (double)i).ToArray();
+        var sy = Enumerable.Range(0, 10).Select(i => (double)i).ToArray();
+        var sz = new double[10, 10];
+        for (int i = 0; i < 10; i++)
+            for (int j = 0; j < 10; j++)
+                sz[i, j] = Math.Sin(i * 0.5) * Math.Cos(j * 0.5);
+        _surface3D = Plt.Create().Surface(sx, sy, sz).Build();
+
+        _legendChart = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(x, y, s => s.Label = "Line 1")
+                .Plot(x, y.Select(v => v * 0.8).ToArray(), s => s.Label = "Line 2")
+                .Plot(x, y.Select(v => v * 0.6).ToArray(), s => s.Label = "Line 3")
+                .WithLegend())
+            .Build();
     }
 
     [Benchmark(Baseline = true)]
@@ -56,4 +105,22 @@ public class SvgRenderingBenchmarks
 
     [Benchmark]
     public string SubplotGrid3x3() => _subplotGrid.ToSvg();
+
+    [Benchmark]
+    public string Treemap() => _treemap.ToSvg();
+
+    [Benchmark]
+    public string Sunburst() => _sunburst.ToSvg();
+
+    [Benchmark]
+    public string Sankey() => _sankey.ToSvg();
+
+    [Benchmark]
+    public string PolarLine() => _polar.ToSvg();
+
+    [Benchmark]
+    public string Surface3D() => _surface3D.ToSvg();
+
+    [Benchmark]
+    public string WithLegend() => _legendChart.ToSvg();
 }

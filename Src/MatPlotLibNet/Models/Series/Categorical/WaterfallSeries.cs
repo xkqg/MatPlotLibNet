@@ -13,7 +13,7 @@ public sealed class WaterfallSeries : ChartSeries, IHasDataRange
     public double[] Values { get; }
     public Color IncreaseColor { get; set; } = Color.Green;
     public Color DecreaseColor { get; set; } = Color.Red;
-    public Color TotalColor { get; set; } = Color.FromHex("#1f77b4");
+    public Color TotalColor { get; set; } = Color.Tab10Blue;
     public double BarWidth { get; set; } = 0.6;
 
     public WaterfallSeries(string[] categories, double[] values)

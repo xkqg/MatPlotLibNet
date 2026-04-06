@@ -7,14 +7,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a bar chart in polar coordinates with wedge-shaped bars.</summary>
-public sealed class PolarBarSeries : ChartSeries, IHasDataRange
+public sealed class PolarBarSeries : PolarSeries
 {
-    /// <summary>Gets the radial data values (bar heights).</summary>
-    public double[] R { get; }
-
-    /// <summary>Gets the angular data values in radians (bar center angles).</summary>
-    public double[] Theta { get; }
-
     /// <summary>Gets or sets the angular width of each bar in radians.</summary>
     public double BarWidth { get; set; } = 0.3;
 
@@ -25,11 +19,7 @@ public sealed class PolarBarSeries : ChartSeries, IHasDataRange
     public double Alpha { get; set; } = 0.8;
 
     /// <summary>Initializes a new polar bar series.</summary>
-    public PolarBarSeries(double[] r, double[] theta) { R = r; Theta = theta; }
-
-    /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(null, null, null, null);
+    public PolarBarSeries(double[] r, double[] theta) : base(r, theta) { }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

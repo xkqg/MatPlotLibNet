@@ -28,7 +28,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         var proj = new Projection3D(elevation, azimuth, PlotArea,
             range3D.XMin, range3D.XMax, range3D.YMin, range3D.YMax, range3D.ZMin, range3D.ZMax);
 
-        var edgeColor = Color.FromHex("#666666");
+        var edgeColor = Color.EdgeGray;
 
         // Draw 3D bounding box (12 edges of a cube)
         double x0 = range3D.XMin, x1 = range3D.XMax;
@@ -85,33 +85,22 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
 
         foreach (var series in Axes.Series)
         {
-            switch (series)
+            if (series is I3DGridSeries grid)
             {
-                case SurfaceSeries sf:
-                    UpdateRange(sf.X, ref xMin, ref xMax);
-                    UpdateRange(sf.Y, ref yMin, ref yMax);
-                    for (int r = 0; r < sf.Z.GetLength(0); r++)
-                        for (int c = 0; c < sf.Z.GetLength(1); c++)
-                        {
-                            if (sf.Z[r, c] < zMin) zMin = sf.Z[r, c];
-                            if (sf.Z[r, c] > zMax) zMax = sf.Z[r, c];
-                        }
-                    break;
-                case WireframeSeries wf:
-                    UpdateRange(wf.X, ref xMin, ref xMax);
-                    UpdateRange(wf.Y, ref yMin, ref yMax);
-                    for (int r = 0; r < wf.Z.GetLength(0); r++)
-                        for (int c = 0; c < wf.Z.GetLength(1); c++)
-                        {
-                            if (wf.Z[r, c] < zMin) zMin = wf.Z[r, c];
-                            if (wf.Z[r, c] > zMax) zMax = wf.Z[r, c];
-                        }
-                    break;
-                case Scatter3DSeries sc:
-                    UpdateRange(sc.X, ref xMin, ref xMax);
-                    UpdateRange(sc.Y, ref yMin, ref yMax);
-                    UpdateRange(sc.Z, ref zMin, ref zMax);
-                    break;
+                UpdateRange(grid.X, ref xMin, ref xMax);
+                UpdateRange(grid.Y, ref yMin, ref yMax);
+                for (int r = 0; r < grid.Z.GetLength(0); r++)
+                    for (int c = 0; c < grid.Z.GetLength(1); c++)
+                    {
+                        if (grid.Z[r, c] < zMin) zMin = grid.Z[r, c];
+                        if (grid.Z[r, c] > zMax) zMax = grid.Z[r, c];
+                    }
+            }
+            else if (series is I3DPointSeries pts)
+            {
+                UpdateRange(pts.X, ref xMin, ref xMax);
+                UpdateRange(pts.Y, ref yMin, ref yMax);
+                UpdateRange(pts.Z, ref zMin, ref zMax);
             }
         }
 

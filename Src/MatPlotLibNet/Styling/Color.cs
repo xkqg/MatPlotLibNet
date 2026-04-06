@@ -49,6 +49,31 @@ public readonly record struct Color(byte R, byte G, byte B, byte A = 255)
     /// <summary>Gets a fully transparent color (0, 0, 0, 0).</summary>
     public static Color Transparent => new(0, 0, 0, 0);
 
+    // Matplotlib Tab10 named colors (frequently used as defaults)
+
+    /// <summary>Gets the matplotlib default blue (#1f77b4).</summary>
+    public static Color Tab10Blue => new(0x1F, 0x77, 0xB4);
+
+    /// <summary>Gets the matplotlib default orange (#ff7f0e).</summary>
+    public static Color Tab10Orange => new(0xFF, 0x7F, 0x0E);
+
+    /// <summary>Gets the matplotlib default green (#2ca02c).</summary>
+    public static Color Tab10Green => new(0x2C, 0xA0, 0x2C);
+
+    // Common rendering colors
+
+    /// <summary>Gets the default grid color (#CCCCCC).</summary>
+    public static Color GridGray => new(0xCC, 0xCC, 0xCC);
+
+    /// <summary>Gets the default 3D edge color (#666666).</summary>
+    public static Color EdgeGray => new(0x66, 0x66, 0x66);
+
+    /// <summary>Gets the amber/warning color (#FFC107).</summary>
+    public static Color Amber => new(0xFF, 0xC1, 0x07);
+
+    /// <summary>Gets the Fibonacci orange (#FF9800).</summary>
+    public static Color FibonacciOrange => new(0xFF, 0x98, 0x00);
+
     /// <summary>
     /// Creates a <see cref="Color"/> from a hexadecimal string.
     /// </summary>

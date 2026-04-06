@@ -356,16 +356,9 @@ public sealed class AxesBuilder
     private double[] GetPriceData()
     {
         var last = _axes.Series.LastOrDefault();
-        return last switch
-        {
-            CandlestickSeries cs => cs.Close,
-            OhlcBarSeries ob => ob.Close,
-            LineSeries ls => ls.YData,
-            ScatterSeries ss => ss.YData,
-            StepSeries st => st.YData,
-            AreaSeries ar => ar.YData,
-            _ => throw new InvalidOperationException("No price data found on axes. Add a series with Y data before calling indicator shortcuts.")
-        };
+        return last is IPriceSeries price
+            ? price.PriceData
+            : throw new InvalidOperationException("No price data found. Add a series with Y data before calling indicator shortcuts.");
     }
 
     internal Axes Build(int rows, int cols, int index)

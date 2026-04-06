@@ -48,7 +48,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         // Render span regions (behind everything)
         foreach (var span in Axes.Spans)
         {
-            var spanColor = (span.Color ?? Color.FromHex("#1f77b4")).WithAlpha((byte)(span.Alpha * 255));
+            var spanColor = (span.Color ?? Color.Tab10Blue).WithAlpha((byte)(span.Alpha * 255));
             if (span.Orientation == Orientation.Horizontal)
             {
                 var topLeft = transform.DataToPixel(range.XMin, Math.Max(span.Min, span.Max));

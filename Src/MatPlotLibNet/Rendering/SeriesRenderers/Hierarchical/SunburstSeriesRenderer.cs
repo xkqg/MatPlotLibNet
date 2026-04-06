@@ -57,7 +57,7 @@ internal sealed class SunburstSeriesRenderer : SeriesRenderer<SunburstSeries>
                 new ArcSegment(new Point(cx, cy), innerR, innerR, currentAngle + childSweep, currentAngle),
                 new CloseSegment()
             };
-            Ctx.DrawPath(segments, color, Color.FromHex("#FFFFFF"), 1);
+            Ctx.DrawPath(segments, color, Color.White, 1);
 
             // Recurse
             RenderRing(child, cx, cy, currentAngle, childSweep, depth + 1, series, ringWidth, maxRadius);

@@ -71,7 +71,7 @@ public sealed class Ichimoku : Indicator<IchimokuResult>
         var cloudX = MakeX(cloudLen, _kijunPeriod - 1 + _displacement);
         var cloud = axes.FillBetween(cloudX, cloudSpanA, cloudSpanB);
         cloud.Alpha = 0.2;
-        cloud.Color = Styling.Color.FromHex("#2ca02c");
+        cloud.Color = Styling.Color.Tab10Green;
         cloud.Label = "Cloud";
     }
 

@@ -17,7 +17,7 @@ internal sealed class GaugeSeriesRenderer : SeriesRenderer<GaugeSeries>
         double radius = Math.Min(bounds.Width, bounds.Height) * 0.4;
         double range = series.Max - series.Min;
         if (range <= 0) return;
-        var ranges = series.Ranges ?? [(60, Color.Green), (80, Color.FromHex("#FFC107")), (100, Color.Red)];
+        var ranges = series.Ranges ?? [(60, Color.Green), (80, Color.Amber), (100, Color.Red)];
 
         double prevAngle = Math.PI;
         foreach (var (threshold, color) in ranges)

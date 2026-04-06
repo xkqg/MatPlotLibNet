@@ -7,17 +7,8 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D surface plot rendered as colored quadrilaterals with optional wireframe.</summary>
-public sealed class SurfaceSeries : ChartSeries, IHasDataRange
+public sealed class SurfaceSeries : GridSeries3D
 {
-    /// <summary>Gets the X-axis grid coordinates.</summary>
-    public double[] X { get; }
-
-    /// <summary>Gets the Y-axis grid coordinates.</summary>
-    public double[] Y { get; }
-
-    /// <summary>Gets the 2D matrix of Z values at each grid point.</summary>
-    public double[,] Z { get; }
-
     /// <summary>Gets or sets the color map used to color the surface by Z value.</summary>
     public IColorMap? ColorMap { get; set; }
 
@@ -28,11 +19,7 @@ public sealed class SurfaceSeries : ChartSeries, IHasDataRange
     public bool ShowWireframe { get; set; } = true;
 
     /// <summary>Initializes a new surface series with the specified grid data.</summary>
-    public SurfaceSeries(double[] x, double[] y, double[,] z) { X = x; Y = y; Z = z; }
-
-    /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(null, null, null, null);
+    public SurfaceSeries(double[] x, double[] y, double[,] z) : base(x, y, z) { }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

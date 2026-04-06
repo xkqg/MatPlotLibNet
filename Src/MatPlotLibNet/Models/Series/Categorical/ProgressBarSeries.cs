@@ -13,7 +13,7 @@ public sealed class ProgressBarSeries : ChartSeries, IHasDataRange
     public double Value { get; }
 
     /// <summary>Gets or sets the fill color of the progress portion.</summary>
-    public Color FillColor { get; set; } = Color.FromHex("#1f77b4");
+    public Color FillColor { get; set; } = Color.Tab10Blue;
 
     /// <summary>Gets or sets the track (background) color.</summary>
     public Color TrackColor { get; set; } = Color.LightGray;

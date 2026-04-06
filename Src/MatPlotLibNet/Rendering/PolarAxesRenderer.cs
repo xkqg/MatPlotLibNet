@@ -24,23 +24,16 @@ public sealed class PolarAxesRenderer : AxesRenderer
         double rMax = 1;
         foreach (var s in Axes.Series)
         {
-            double[] rData = s switch
+            if (s is IPolarSeries polar && polar.R.Length > 0)
             {
-                PolarLineSeries pls => pls.R,
-                PolarScatterSeries pss => pss.R,
-                PolarBarSeries pbs => pbs.R,
-                _ => []
-            };
-            if (rData.Length > 0)
-            {
-                double max = rData.Max();
+                double max = polar.R.Max();
                 if (max > rMax) rMax = max;
             }
         }
         rMax *= 1.1; // 10% padding
 
         var transform = new PolarTransform(PlotArea, rMax);
-        var gridColor = Color.FromHex("#CCCCCC");
+        var gridColor = Color.GridGray;
         var labelFont = TickFont();
 
         // Draw concentric circle grid

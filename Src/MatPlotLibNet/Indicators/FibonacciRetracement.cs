@@ -41,7 +41,7 @@ public sealed class FibonacciRetracement : Indicator<SignalResult>
     public override void Apply(Axes axes)
     {
         double range = _high - _low;
-        var lineColor = Color ?? Styling.Color.FromHex("#FF9800");
+        var lineColor = Color ?? Styling.Color.FibonacciOrange;
 
         foreach (double level in Levels)
         {

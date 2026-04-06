@@ -7,14 +7,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a scatter plot in polar coordinates (r, theta).</summary>
-public sealed class PolarScatterSeries : ChartSeries, IHasDataRange
+public sealed class PolarScatterSeries : PolarSeries
 {
-    /// <summary>Gets the radial data values.</summary>
-    public double[] R { get; }
-
-    /// <summary>Gets the angular data values in radians.</summary>
-    public double[] Theta { get; }
-
     /// <summary>Gets or sets the marker color.</summary>
     public Color? Color { get; set; }
 
@@ -22,11 +16,7 @@ public sealed class PolarScatterSeries : ChartSeries, IHasDataRange
     public double MarkerSize { get; set; } = 6;
 
     /// <summary>Initializes a new polar scatter series.</summary>
-    public PolarScatterSeries(double[] r, double[] theta) { R = r; Theta = theta; }
-
-    /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(null, null, null, null);
+    public PolarScatterSeries(double[] r, double[] theta) : base(r, theta) { }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

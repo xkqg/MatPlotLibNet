@@ -31,16 +31,16 @@ public class BuilderOutputTests
         Assert.Contains("JSON Test", json);
     }
 
-    /// <summary>Verifies that SaveSvg creates a file without calling Build().</summary>
+    /// <summary>Verifies that Save creates an SVG file without calling Build().</summary>
     [Fact]
-    public void SaveSvg_WithoutBuild_CreatesFile()
+    public void Save_WithoutBuild_CreatesFile()
     {
         string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid()}.svg");
         try
         {
             Plt.Create()
                 .Plot([1.0, 2.0], [3.0, 4.0])
-                .SaveSvg(path);
+                .Save(path);
 
             Assert.True(File.Exists(path));
             string content = File.ReadAllText(path);
@@ -52,12 +52,13 @@ public class BuilderOutputTests
         }
     }
 
-    /// <summary>Verifies that Transform produces a TransformResult without calling Build().</summary>
+    /// <summary>Verifies that Transform on Figure produces a TransformResult.</summary>
     [Fact]
-    public void Transform_WithoutBuild_ProducesResult()
+    public void Transform_OnFigure_ProducesResult()
     {
         var result = Plt.Create()
             .Plot([1.0], [2.0])
+            .Build()
             .Transform(new Transforms.SvgTransform());
 
         Assert.NotNull(result);

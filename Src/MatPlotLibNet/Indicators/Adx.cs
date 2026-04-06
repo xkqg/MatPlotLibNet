@@ -45,7 +45,7 @@ public sealed class Adx : Indicator<SignalResult>
 
         var adxSeries = axes.Plot(x, adx);
         adxSeries.Label = Label;
-        adxSeries.Color = Color ?? Styling.Color.FromHex("#1f77b4");
+        adxSeries.Color = Color ?? Styling.Color.Tab10Blue;
         adxSeries.LineWidth = LineWidth;
         adxSeries.LineStyle = LineStyle;
 

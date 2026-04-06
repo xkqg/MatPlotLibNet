@@ -27,20 +27,25 @@ public sealed class InteractiveFigure
         await ChartServer.Instance.UpdateFigureAsync(ChartId, Figure);
     }
 
-    /// <summary>Plays an animation by pushing each frame to the browser with the configured interval.</summary>
-    /// <param name="animation">The animation to play.</param>
-    /// <param name="ct">Cancellation token to stop the animation.</param>
+    /// <summary>Plays an animation using the legacy AnimationBuilder (backward compatible).</summary>
     public async Task AnimateAsync(AnimationBuilder animation, CancellationToken ct = default)
     {
-        do
-        {
-            for (int i = 0; i < animation.FrameCount && !ct.IsCancellationRequested; i++)
-            {
-                var frame = animation.GenerateFrame(i);
-                await ChartServer.Instance.UpdateFigureAsync(ChartId, frame);
-                await Task.Delay(animation.Interval, ct);
-            }
-        }
-        while (animation.Loop && !ct.IsCancellationRequested);
+        var adapter = new LegacyAnimationAdapter(animation);
+        await using var controller = new AnimationController<int>(adapter, PublishFrame);
+        await controller.PlayAsync(ct);
     }
+
+    /// <summary>Plays a generic stateful animation, pushing each frame via SignalR.</summary>
+    public async Task AnimateAsync<TState>(IAnimation<TState> animation, CancellationToken ct = default)
+    {
+        await using var controller = new AnimationController<TState>(animation, PublishFrame);
+        await controller.PlayAsync(ct);
+    }
+
+    /// <summary>Creates an animation controller for manual playback control (pause/resume/stop).</summary>
+    public AnimationController<TState> CreateController<TState>(IAnimation<TState> animation) =>
+        new(animation, PublishFrame);
+
+    private Task PublishFrame(Figure frame, CancellationToken ct) =>
+        ChartServer.Instance.UpdateFigureAsync(ChartId, frame);
 }

@@ -7,14 +7,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a filled area series, rendering the region between a line and a baseline (or between two Y datasets).</summary>
-public sealed class AreaSeries : ChartSeries, IHasDataRange
+public sealed class AreaSeries : XYSeries
 {
-    /// <summary>Gets the X-axis data values.</summary>
-    public double[] XData { get; }
-
-    /// <summary>Gets the primary Y-axis data values (top line).</summary>
-    public double[] YData { get; }
-
     /// <summary>Gets or sets the optional secondary Y data for fill-between-two-curves mode. When null, fills to y=0.</summary>
     public double[]? YData2 { get; set; }
 
@@ -34,14 +28,10 @@ public sealed class AreaSeries : ChartSeries, IHasDataRange
     public Color? FillColor { get; set; }
 
     /// <summary>Creates a new area series from the given X and Y data.</summary>
-    public AreaSeries(double[] xData, double[] yData)
-    {
-        XData = xData;
-        YData = yData;
-    }
+    public AreaSeries(double[] xData, double[] yData) : base(xData, yData) { }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         double yMin = YData.Min(), yMax = YData.Max();
         if (YData2 is not null)

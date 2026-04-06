@@ -1,11 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
-using System.Collections.Concurrent;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
-using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet;
 
@@ -156,7 +154,7 @@ public sealed class FigureBuilder
         return figure;
     }
 
-    // --- Output methods (auto-build, no explicit Build() needed) ---
+    // --- Output convenience methods (delegate to Figure extensions via Build()) ---
 
     /// <summary>Builds the figure and renders it as an SVG string.</summary>
     public string ToSvg() => Build().ToSvg();
@@ -164,50 +162,8 @@ public sealed class FigureBuilder
     /// <summary>Builds the figure and serializes it to JSON.</summary>
     public string ToJson(bool indented = false) => Build().ToJson(indented);
 
-    /// <summary>Builds the figure and saves it as an SVG file.</summary>
-    public void SaveSvg(string path) => Build().SaveSvg(path);
-
-    /// <summary>Builds the figure and binds it to a transform for fluent output (ToFile, ToStream, ToBytes).</summary>
-    public TransformResult Transform(IFigureTransform transform) => Build().Transform(transform);
-
-    /// <summary>Builds the figure and saves it to a file. Format is auto-detected from extension (.svg, .png, .pdf, .json).</summary>
-    /// <remarks>PNG and PDF require the MatPlotLibNet.Skia package. Register custom transforms via <see cref="RegisterTransform"/>.</remarks>
-    public void Save(string path)
-    {
-        string ext = Path.GetExtension(path).ToLowerInvariant();
-        if (string.IsNullOrEmpty(ext))
-        {
-            SaveSvg(path + ".svg");
-            return;
-        }
-        if (ext == ".json") { File.WriteAllText(path, ToJson()); return; }
-        if (_transforms.TryGetValue(ext, out var transform))
-        {
-            Build().Transform(transform).ToFile(path);
-            return;
-        }
-        SaveSvg(path);
-    }
-
-    /// <summary>Registers a transform for a file extension (e.g., ".png" for PngTransform).</summary>
-    public FigureBuilder RegisterTransform(string extension, IFigureTransform transform)
-    {
-        _transforms[extension.StartsWith('.') ? extension.ToLowerInvariant() : $".{extension.ToLowerInvariant()}"] = transform;
-        return this;
-    }
-
-    private readonly Dictionary<string, IFigureTransform> _transforms = new(GlobalTransforms);
-
-    private static readonly ConcurrentDictionary<string, IFigureTransform> GlobalTransforms = new()
-    {
-        [".svg"] = new SvgTransform()
-    };
-
-    /// <summary>Registers a transform globally for all future builders (e.g., call once at startup for PNG/PDF).</summary>
-    public static void RegisterGlobalTransform(string extension, IFigureTransform transform)
-    {
-        GlobalTransforms[extension.StartsWith('.') ? extension.ToLowerInvariant() : $".{extension.ToLowerInvariant()}"] = transform;
-    }
+    /// <summary>Builds the figure and saves it to a file. Format auto-detected from extension.</summary>
+    public void Save(string path) => Build().Save(path);
 
     private FigureBuilder AddSeries<T>(Func<Axes, T> factory, Action<T>? configure) where T : ISeries
     {

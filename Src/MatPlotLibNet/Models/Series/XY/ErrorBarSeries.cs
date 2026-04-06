@@ -7,14 +7,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents an error bar series showing uncertainty at each data point.</summary>
-public sealed class ErrorBarSeries : ChartSeries, IHasDataRange
+public sealed class ErrorBarSeries : XYSeries
 {
-    /// <summary>Gets the X-axis data values.</summary>
-    public double[] XData { get; }
-
-    /// <summary>Gets the Y-axis data values (center points).</summary>
-    public double[] YData { get; }
-
     /// <summary>Gets the lower Y error magnitudes.</summary>
     public double[] YErrorLow { get; }
 
@@ -38,15 +32,14 @@ public sealed class ErrorBarSeries : ChartSeries, IHasDataRange
 
     /// <summary>Creates a new error bar series from the given data and error magnitudes.</summary>
     public ErrorBarSeries(double[] xData, double[] yData, double[] yErrorLow, double[] yErrorHigh)
+        : base(xData, yData)
     {
-        XData = xData;
-        YData = yData;
         YErrorLow = yErrorLow;
         YErrorHigh = yErrorHigh;
     }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         double xMin = XData.Min(), xMax = XData.Max();
         double yMin = double.MaxValue, yMax = double.MinValue;

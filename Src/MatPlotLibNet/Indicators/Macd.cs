@@ -73,7 +73,7 @@ public sealed class Macd : Indicator<MacdResult>
         for (int i = 0; i < macdLine.Length; i++) macdX[i] = offset + i;
         var macdSeries = axes.Plot(macdX, macdLine);
         macdSeries.Label = Label;
-        macdSeries.Color = Color ?? Styling.Color.FromHex("#1f77b4");
+        macdSeries.Color = Color ?? Styling.Color.Tab10Blue;
         macdSeries.LineWidth = LineWidth;
 
         // Signal line
@@ -81,7 +81,7 @@ public sealed class Macd : Indicator<MacdResult>
         for (int i = 0; i < signalLine.Length; i++) sigX[i] = signalOffset + i;
         var sigSeries = axes.Plot(sigX, signalLine);
         sigSeries.Label = "Signal";
-        sigSeries.Color = SignalColor ?? Styling.Color.FromHex("#ff7f0e");
+        sigSeries.Color = SignalColor ?? Styling.Color.Tab10Orange;
         sigSeries.LineWidth = LineWidth;
 
         // Histogram

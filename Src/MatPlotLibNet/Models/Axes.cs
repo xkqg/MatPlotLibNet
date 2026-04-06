@@ -57,6 +57,13 @@ public sealed class Axes
     public IReadOnlyList<ISeries> Series => _series;
     private readonly List<ISeries> _series = [];
 
+    /// <summary>Adds a pre-constructed series to the axes.</summary>
+    public T AddSeries<T>(T series) where T : ISeries
+    {
+        _series.Add(series);
+        return series;
+    }
+
     /// <summary>Gets the collection of text annotations on this axes.</summary>
     public IReadOnlyList<Annotation> Annotations => _annotations;
     private readonly List<Annotation> _annotations = [];

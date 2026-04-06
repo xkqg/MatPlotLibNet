@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
+using System.Collections.Concurrent;
 using System.Globalization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
@@ -38,14 +39,23 @@ public abstract class AxesRenderer
     /// <summary>Renders the complete axes: background, grid, series, decorations, legend, colorbar, title, labels.</summary>
     public abstract void Render();
 
+    private static readonly ConcurrentDictionary<CoordinateSystem, Func<Axes, Rect, IRenderContext, Theme, AxesRenderer>>
+        RendererFactories = new()
+    {
+        [CoordinateSystem.Cartesian] = (a, p, c, t) => new CartesianAxesRenderer(a, p, c, t),
+        [CoordinateSystem.Polar] = (a, p, c, t) => new PolarAxesRenderer(a, p, c, t),
+        [CoordinateSystem.ThreeD] = (a, p, c, t) => new ThreeDAxesRenderer(a, p, c, t),
+    };
+
+    /// <summary>Registers a custom renderer factory for a coordinate system.</summary>
+    public static void RegisterRenderer(CoordinateSystem system, Func<Axes, Rect, IRenderContext, Theme, AxesRenderer> factory)
+        => RendererFactories[system] = factory;
+
     /// <summary>Creates the appropriate renderer for the axes coordinate system.</summary>
     public static AxesRenderer Create(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme) =>
-        axes.CoordinateSystem switch
-        {
-            CoordinateSystem.Polar => new PolarAxesRenderer(axes, plotArea, ctx, theme),
-            CoordinateSystem.ThreeD => new ThreeDAxesRenderer(axes, plotArea, ctx, theme),
-            _ => new CartesianAxesRenderer(axes, plotArea, ctx, theme)
-        };
+        RendererFactories.TryGetValue(axes.CoordinateSystem, out var factory)
+            ? factory(axes, plotArea, ctx, theme)
+            : new CartesianAxesRenderer(axes, plotArea, ctx, theme);
 
     // --- Shared rendering helpers (available to all subclasses) ---
 

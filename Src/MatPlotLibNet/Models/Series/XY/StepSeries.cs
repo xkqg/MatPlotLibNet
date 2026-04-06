@@ -20,14 +20,8 @@ public enum StepPosition
 }
 
 /// <summary>Represents a step-function line series.</summary>
-public sealed class StepSeries : ChartSeries, IHasDataRange
+public sealed class StepSeries : XYSeries
 {
-    /// <summary>Gets the X-axis data values.</summary>
-    public double[] XData { get; }
-
-    /// <summary>Gets the Y-axis data values.</summary>
-    public double[] YData { get; }
-
     /// <summary>Gets or sets where the step transition occurs.</summary>
     public StepPosition StepPosition { get; set; } = StepPosition.Post;
 
@@ -44,15 +38,7 @@ public sealed class StepSeries : ChartSeries, IHasDataRange
     public MarkerStyle? Marker { get; set; }
 
     /// <summary>Creates a new step series from the given X and Y data.</summary>
-    public StepSeries(double[] xData, double[] yData)
-    {
-        XData = xData;
-        YData = yData;
-    }
-
-    /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(XData.Min(), XData.Max(), YData.Min(), YData.Max());
+    public StepSeries(double[] xData, double[] yData) : base(xData, yData) { }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

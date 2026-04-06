@@ -52,7 +52,7 @@ Charts are rendered **once on the server** as SVG. The finished SVG is pushed to
 - **Same output inside and outside the browser** -- the SVG rendered on the server is identical whether it's displayed inline in a Blazor page, pushed to a React dashboard via SignalR, saved as a `.svg` file from a console app, exported to PNG/PDF via SkiaSharp, or rendered natively in a MAUI mobile app. One rendering pipeline, every target.
 - **Inline, expandable, or popup** -- charts render inline by default, but can be expanded in-place or popped out into a separate browser window for a larger view. The `DisplayMode` setting (`Inline`, `Expandable`, `Popup`) controls this per chart. The `Interactive` package goes further: `figure.ShowAsync()` opens a standalone browser window with live SignalR updates — no web app required.
 
-**Performance:** a simple line chart renders in **52 microseconds**. A full 3x3 subplot grid in **224 microseconds**. All 13 technical indicators compute on 100K data points in under 8ms. JSON serialization round-trips in under 50us.
+**Performance:** a simple line chart renders in **52 microseconds**. A treemap in **26us**. A 3D surface in **72us**. A full 3x3 subplot grid in **422 microseconds**. All 13 technical indicators compute on 100K data points in under 8ms. JSON serialization round-trips in under 50us.
 
 See [BENCHMARKS.md](../BENCHMARKS.md) for full results on AMD Ryzen 9 3950X.
 

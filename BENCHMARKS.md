@@ -20,10 +20,16 @@ MatPlotLibNet renders charts **server-side as SVG** and pushes the result to cli
 | Method | Mean | Allocated |
 |--------|-----:|----------:|
 | Simple line chart (100 points) | 52 us | 82 KB |
-| Complex chart (line + scatter + bar) | 64 us | 93 KB |
-| 3x3 subplot grid (9 subplots) | 224 us | 481 KB |
+| Complex chart (line + scatter + bar) | 72 us | 111 KB |
+| 3x3 subplot grid (9 subplots) | 422 us | 483 KB |
+| Treemap (nested 6 nodes) | 26 us | 42 KB |
+| Sunburst (4 nodes, 2 depth) | 45 us | 50 KB |
+| Sankey (4 nodes, 4 links) | 39 us | 60 KB |
+| Polar line (50 points) | 42 us | 56 KB |
+| 3D surface (10x10 grid) | 72 us | 124 KB |
+| Line chart with legend (3 series) | 110 us | 159 KB |
 
-Parallel rendering scales near-linearly: 9 subplots take ~4.3x a single chart, not 9x.
+Treemap is the fastest chart type at 26us — simpler geometry than line charts. 3D surface is comparable to a complex 2D chart. Legend adds ~60us overhead for color swatch + text measurement.
 
 ## JSON Serialization
 

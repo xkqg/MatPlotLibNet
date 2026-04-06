@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a traditional OHLC bar chart with vertical high-low lines and open/close tick marks.</summary>
-public sealed class OhlcBarSeries : ChartSeries, IHasDataRange
+public sealed class OhlcBarSeries : ChartSeries, IHasDataRange, IPriceSeries
 {
     public double[] Open { get; }
     public double[] High { get; }
@@ -22,6 +22,9 @@ public sealed class OhlcBarSeries : ChartSeries, IHasDataRange
     {
         Open = open; High = high; Low = low; Close = close;
     }
+
+    /// <inheritdoc />
+    public double[] PriceData => Close;
 
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
