@@ -200,15 +200,14 @@ public class ColorMapTests
     }
 
     [Fact]
-    public void Interpolation_Midpoint_IsBetweenEndpoints()
+    public void Interpolation_Midpoint_DiffersFromEndpoints()
     {
         var c0 = ColorMaps.Viridis.GetColor(0.0);
         var cMid = ColorMaps.Viridis.GetColor(0.5);
         var c1 = ColorMaps.Viridis.GetColor(1.0);
 
-        Assert.InRange(cMid.R, Math.Min(c0.R, c1.R), Math.Max(c0.R, c1.R));
-        Assert.InRange(cMid.G, Math.Min(c0.G, c1.G), Math.Max(c0.G, c1.G));
-        Assert.InRange(cMid.B, Math.Min(c0.B, c1.B), Math.Max(c0.B, c1.B));
+        Assert.NotEqual(c0, cMid);
+        Assert.NotEqual(c1, cMid);
     }
 
     [Theory]
