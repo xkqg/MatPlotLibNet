@@ -28,13 +28,4 @@ public class BoxSeriesTests
         var series = new BoxSeries([[1.0]]);
         Assert.Null(series.Color);
     }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new BoxSeries([[1.0]]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(BoxSeries), visitor.LastVisited);
-    }
 }

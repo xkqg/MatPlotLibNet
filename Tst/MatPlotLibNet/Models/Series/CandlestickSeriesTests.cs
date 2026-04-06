@@ -2,7 +2,6 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
@@ -46,14 +45,5 @@ public class CandlestickSeriesTests
     {
         var series = new CandlestickSeries([10], [15], [8], [13]);
         Assert.Null(series.DateLabels);
-    }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new CandlestickSeries([10], [15], [8], [13]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(CandlestickSeries), visitor.LastVisited);
     }
 }

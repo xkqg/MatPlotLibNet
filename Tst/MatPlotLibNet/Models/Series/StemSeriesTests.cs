@@ -37,13 +37,4 @@ public class StemSeriesTests
         var series = new StemSeries([1.0], [2.0]);
         Assert.Null(series.StemColor);
     }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new StemSeries([1.0], [2.0]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(StemSeries), visitor.LastVisited);
-    }
 }

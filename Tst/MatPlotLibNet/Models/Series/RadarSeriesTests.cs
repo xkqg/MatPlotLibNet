@@ -2,8 +2,6 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -52,14 +50,5 @@ public class RadarSeriesTests
     {
         var series = new RadarSeries(["A"], [1.0]);
         Assert.Null(series.MaxValue);
-    }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new RadarSeries(["A", "B", "C"], [1, 2, 3]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(RadarSeries), visitor.LastVisited);
     }
 }

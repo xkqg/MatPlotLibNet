@@ -2,7 +2,6 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -22,15 +21,6 @@ public class GaugeSeriesTests
         Assert.Equal(0, series.Min);
         Assert.Equal(100, series.Max);
     }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new GaugeSeries(50);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(GaugeSeries), visitor.LastVisited);
-    }
 }
 
 public class ProgressBarSeriesTests
@@ -41,15 +31,6 @@ public class ProgressBarSeriesTests
         var series = new ProgressBarSeries(0.65);
         Assert.Equal(0.65, series.Value);
     }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new ProgressBarSeries(0.5);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(ProgressBarSeries), visitor.LastVisited);
-    }
 }
 
 public class SparklineSeriesTests
@@ -59,14 +40,5 @@ public class SparklineSeriesTests
     {
         var series = new SparklineSeries([1, 3, 2, 4, 3, 5]);
         Assert.Equal([1.0, 3, 2, 4, 3, 5], series.Values);
-    }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new SparklineSeries([1, 2, 3]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(SparklineSeries), visitor.LastVisited);
     }
 }

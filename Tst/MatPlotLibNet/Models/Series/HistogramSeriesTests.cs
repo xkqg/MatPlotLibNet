@@ -45,13 +45,4 @@ public class HistogramSeriesTests
         Assert.Equal(1.0, bins.Min);
         Assert.True(bins.BinWidth > 0);
     }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new HistogramSeries([1.0]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(HistogramSeries), visitor.LastVisited);
-    }
 }

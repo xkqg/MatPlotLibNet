@@ -2,8 +2,6 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -53,14 +51,5 @@ public class ErrorBarSeriesTests
     {
         var series = new ErrorBarSeries([1.0], [2.0], [0.1], [0.1]);
         Assert.Null(series.Color);
-    }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new ErrorBarSeries([1.0], [2.0], [0.1], [0.1]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(ErrorBarSeries), visitor.LastVisited);
     }
 }

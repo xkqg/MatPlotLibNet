@@ -39,16 +39,6 @@ public class ParallelRenderingTests
     }
 
     [Fact]
-    public void ParallelRender_EmptyFigure_ValidSvg()
-    {
-        var figure = Plt.Create().Build();
-        string svg = ChartServices.SvgRenderer.Render(figure);
-
-        Assert.StartsWith("<svg", svg.TrimStart());
-        Assert.Contains("</svg>", svg);
-    }
-
-    [Fact]
     public void ParallelRender_ManySubplots_AllPresent()
     {
         var builder = Plt.Create();

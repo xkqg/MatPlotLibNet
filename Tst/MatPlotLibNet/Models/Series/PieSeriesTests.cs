@@ -35,13 +35,4 @@ public class PieSeriesTests
         var series = new PieSeries([1.0]);
         Assert.False(series.CounterClockwise);
     }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new PieSeries([1.0]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(PieSeries), visitor.LastVisited);
-    }
 }

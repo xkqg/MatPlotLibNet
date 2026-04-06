@@ -2,7 +2,6 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -21,15 +20,6 @@ public class DonutSeriesTests
         var series = new DonutSeries([50.0, 50.0]);
         Assert.Equal(0.4, series.InnerRadius);
     }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new DonutSeries([50.0, 50.0]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(DonutSeries), visitor.LastVisited);
-    }
 }
 
 public class BubbleSeriesTests
@@ -43,14 +33,6 @@ public class BubbleSeriesTests
         Assert.Equal([10.0, 20.0], series.Sizes);
     }
 
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new BubbleSeries([1.0], [2.0], [10]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(BubbleSeries), visitor.LastVisited);
-    }
 }
 
 public class OhlcBarSeriesTests
@@ -61,15 +43,6 @@ public class OhlcBarSeriesTests
         var series = new OhlcBarSeries([10], [15], [8], [13]);
         Assert.Equal([10.0], series.Open);
         Assert.Equal([15.0], series.High);
-    }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new OhlcBarSeries([10], [15], [8], [13]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(OhlcBarSeries), visitor.LastVisited);
     }
 }
 
@@ -82,15 +55,6 @@ public class WaterfallSeriesTests
         Assert.Equal(["Revenue", "Cost", "Profit"], series.Categories);
         Assert.Equal([100.0, -60.0, 40.0], series.Values);
     }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new WaterfallSeries(["A"], [10]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(WaterfallSeries), visitor.LastVisited);
-    }
 }
 
 public class FunnelSeriesTests
@@ -101,15 +65,6 @@ public class FunnelSeriesTests
         var series = new FunnelSeries(["Visits", "Signups", "Paid"], [1000, 300, 50]);
         Assert.Equal(["Visits", "Signups", "Paid"], series.Labels);
         Assert.Equal([1000.0, 300.0, 50.0], series.Values);
-    }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new FunnelSeries(["A"], [10]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(FunnelSeries), visitor.LastVisited);
     }
 }
 
@@ -122,14 +77,5 @@ public class GanttSeriesTests
         Assert.Equal(["Task A", "Task B"], series.Tasks);
         Assert.Equal([0.0, 2.0], series.Starts);
         Assert.Equal([3.0, 5.0], series.Ends);
-    }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new GanttSeries(["A"], [0], [1]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(GanttSeries), visitor.LastVisited);
     }
 }

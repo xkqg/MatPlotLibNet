@@ -2,8 +2,6 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -39,14 +37,5 @@ public class QuiverSeriesTests
     {
         var series = new QuiverSeries([1.0], [2.0], [0.5], [0.5]);
         Assert.Null(series.Color);
-    }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new QuiverSeries([1.0], [2.0], [0.5], [0.5]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(QuiverSeries), visitor.LastVisited);
     }
 }

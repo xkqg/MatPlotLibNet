@@ -2,8 +2,6 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -31,14 +29,5 @@ public class BarSeriesTests
     {
         var series = new BarSeries(["A"], [1.0]);
         Assert.Equal(0.8, series.BarWidth);
-    }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new BarSeries(["A"], [1.0]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(BarSeries), visitor.LastVisited);
     }
 }

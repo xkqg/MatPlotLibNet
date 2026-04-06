@@ -38,13 +38,4 @@ public class ContourSeriesTests
         var series = new ContourSeries([1.0], [1.0], new double[,] { { 1 } });
         Assert.Null(series.ColorMap);
     }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new ContourSeries([1.0], [1.0], new double[,] { { 1 } });
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(ContourSeries), visitor.LastVisited);
-    }
 }

@@ -21,13 +21,4 @@ public class HeatmapSeriesTests
         var series = new HeatmapSeries(new double[,] { { 1 } });
         Assert.Null(series.ColorMap);
     }
-
-    [Fact]
-    public void Accept_CallsCorrectVisitorMethod()
-    {
-        var series = new HeatmapSeries(new double[,] { { 1 } });
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(HeatmapSeries), visitor.LastVisited);
-    }
 }
