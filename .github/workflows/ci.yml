@@ -26,4 +26,9 @@ jobs:
         run: dotnet build MatPlotLibNet.CI.slnf --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test MatPlotLibNet.CI.slnf --no-build --configuration Release --verbosity normal
+        run: |
+          dotnet run --project Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj --no-build --configuration Release
+          dotnet run --project Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj --no-build --configuration Release
+          dotnet run --project Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj --no-build --configuration Release
+          dotnet run --project Tst/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.Tests.csproj --no-build --configuration Release
+          dotnet run --project Tst/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.Tests.csproj --no-build --configuration Release
