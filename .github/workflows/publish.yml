@@ -5,7 +5,7 @@ on:
     types: [published]
 
 jobs:
-  publish:
+  publish-core:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,3 +36,30 @@ jobs:
 
       - name: Push to NuGet
         run: dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+  publish-platform:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Install MAUI workload
+        run: dotnet workload install maui
+
+      - name: Pack Skia
+        run: dotnet pack Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj --configuration Release --output nupkgs
+
+      - name: Pack MAUI
+        run: dotnet pack Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --configuration Release --output nupkgs
+
+      - name: Push to NuGet
+        run: |
+          foreach ($pkg in Get-ChildItem nupkgs/*.nupkg) {
+            dotnet nuget push $pkg.FullName --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+          }
