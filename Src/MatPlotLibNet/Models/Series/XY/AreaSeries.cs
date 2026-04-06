@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a filled area series, rendering the region between a line and a baseline (or between two Y datasets).</summary>
-public sealed class AreaSeries : XYSeries
+public sealed class AreaSeries : XYSeries, ISeriesSerializable
 {
     /// <summary>Gets or sets the optional secondary Y data for fill-between-two-curves mode. When null, fills to y=0.</summary>
     public double[]? YData2 { get; set; }
@@ -42,6 +43,16 @@ public sealed class AreaSeries : XYSeries
         else if (0 < yMin) yMin = 0;
         return new(XData.Min(), XData.Max(), yMin, yMax);
     }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "area",
+        XData = XData, YData = YData, YData2 = YData2,
+        Color = Color, Alpha = Alpha,
+        LineStyle = LineStyle.ToString().ToLowerInvariant(),
+        LineWidth = LineWidth
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

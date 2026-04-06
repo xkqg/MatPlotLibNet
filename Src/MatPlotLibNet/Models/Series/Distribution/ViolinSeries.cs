@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a violin plot series displaying kernel density estimations for datasets.</summary>
-public sealed class ViolinSeries : ChartSeries, IHasDataRange
+public sealed class ViolinSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the array of datasets, each containing the values for one violin.</summary>
     public double[][] Datasets { get; }
@@ -40,6 +41,9 @@ public sealed class ViolinSeries : ChartSeries, IHasDataRange
         }
         return new(xMin, xMax, yMin, yMax);
     }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new() { Type = "violin", Datasets = Datasets };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

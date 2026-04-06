@@ -59,7 +59,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
     [Fact]
     public async Task MapChartEndpoint_ReturnsOk()
     {
-        var response = await _client.GetAsync("/api/chart/test");
+        var response = await _client.GetAsync("/api/chart/test", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -67,7 +67,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
     [Fact]
     public async Task MapChartEndpoint_ReturnsJsonContentType()
     {
-        var response = await _client.GetAsync("/api/chart/test");
+        var response = await _client.GetAsync("/api/chart/test", TestContext.Current.CancellationToken);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
     }
 
@@ -75,8 +75,9 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
     [Fact]
     public async Task MapChartEndpoint_ReturnsValidJson()
     {
-        var response = await _client.GetAsync("/api/chart/test");
-        var json = await response.Content.ReadAsStringAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/chart/test", ct);
+        var json = await response.Content.ReadAsStringAsync(ct);
 
         var doc = JsonDocument.Parse(json);
         Assert.Equal("Test Chart", doc.RootElement.GetProperty("title").GetString());
@@ -87,8 +88,9 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
     [Fact]
     public async Task MapChartEndpoint_IncludesSeriesData()
     {
-        var response = await _client.GetAsync("/api/chart/test");
-        var json = await response.Content.ReadAsStringAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/chart/test", ct);
+        var json = await response.Content.ReadAsStringAsync(ct);
 
         var doc = JsonDocument.Parse(json);
         var subPlots = doc.RootElement.GetProperty("subPlots");
@@ -103,7 +105,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
     [Fact]
     public async Task MapChartSvgEndpoint_ReturnsOk()
     {
-        var response = await _client.GetAsync("/api/chart/test.svg");
+        var response = await _client.GetAsync("/api/chart/test.svg", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -111,7 +113,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
     [Fact]
     public async Task MapChartSvgEndpoint_ReturnsSvgContentType()
     {
-        var response = await _client.GetAsync("/api/chart/test.svg");
+        var response = await _client.GetAsync("/api/chart/test.svg", TestContext.Current.CancellationToken);
         Assert.Equal("image/svg+xml", response.Content.Headers.ContentType?.MediaType);
     }
 
@@ -119,8 +121,9 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
     [Fact]
     public async Task MapChartSvgEndpoint_ReturnsValidSvg()
     {
-        var response = await _client.GetAsync("/api/chart/test.svg");
-        var svg = await response.Content.ReadAsStringAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/chart/test.svg", ct);
+        var svg = await response.Content.ReadAsStringAsync(ct);
 
         Assert.StartsWith("<svg", svg.TrimStart());
         Assert.Contains("</svg>", svg);
@@ -130,7 +133,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _client.Dispose();
-        await _host.StopAsync();
+        await _host.StopAsync(CancellationToken.None);
         _host.Dispose();
     }
 }

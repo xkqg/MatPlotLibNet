@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents an error bar series showing uncertainty at each data point.</summary>
-public sealed class ErrorBarSeries : XYSeries
+public sealed class ErrorBarSeries : XYSeries, ISeriesSerializable
 {
     /// <summary>Gets the lower Y error magnitudes.</summary>
     public double[] YErrorLow { get; }
@@ -62,6 +63,16 @@ public sealed class ErrorBarSeries : XYSeries
         }
         return new(xMin, xMax, yMin, yMax);
     }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "errorbar",
+        XData = XData, YData = YData,
+        YErrorLow = YErrorLow, YErrorHigh = YErrorHigh,
+        XErrorLow = XErrorLow, XErrorHigh = XErrorHigh,
+        Color = Color, LineWidth = LineWidth, CapSize = CapSize
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

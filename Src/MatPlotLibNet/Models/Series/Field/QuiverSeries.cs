@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a vector field (quiver) series with arrows at each grid point.</summary>
-public sealed class QuiverSeries : ChartSeries, IHasDataRange
+public sealed class QuiverSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the X-axis positions of the arrow origins.</summary>
     public double[] XData { get; }
@@ -55,6 +56,15 @@ public sealed class QuiverSeries : ChartSeries, IHasDataRange
         }
         return new(xMin, xMax, yMin, yMax);
     }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "quiver",
+        XData = XData, YData = YData,
+        UData = UData, VData = VData,
+        Color = Color, Scale = Scale, ArrowHeadSize = ArrowHeadSize
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

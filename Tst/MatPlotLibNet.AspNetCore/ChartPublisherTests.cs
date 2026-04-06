@@ -23,7 +23,7 @@ public class ChartPublisherTests
         var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Transforms.SvgTransform(new MatPlotLibNet.Rendering.ChartRenderer()));
         var figure = Plt.Create().WithTitle("Test").Plot([1.0], [2.0]).Build();
 
-        await publisher.PublishAsync("test-chart", figure);
+        await publisher.PublishAsync("test-chart", figure, TestContext.Current.CancellationToken);
 
         await clientProxy.Received(1).UpdateChart("test-chart", Arg.Is<string>(json =>
             json.Contains("\"title\":\"Test\"") && json.Contains("\"type\":\"line\"")));
@@ -42,7 +42,7 @@ public class ChartPublisherTests
         var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Transforms.SvgTransform(new MatPlotLibNet.Rendering.ChartRenderer()));
         var figure = Plt.Create().WithTitle("SVG Test").Plot([1.0], [2.0]).Build();
 
-        await publisher.PublishSvgAsync("my-chart", figure);
+        await publisher.PublishSvgAsync("my-chart", figure, TestContext.Current.CancellationToken);
 
         await clientProxy.Received(1).UpdateChartSvg("my-chart", Arg.Is<string>(svg =>
             svg.Contains("<svg") && svg.Contains("SVG Test")));
@@ -61,7 +61,7 @@ public class ChartPublisherTests
         var publisher = new ChartPublisher(hubContext, new MatPlotLibNet.Serialization.ChartSerializer(), new MatPlotLibNet.Transforms.SvgTransform(new MatPlotLibNet.Rendering.ChartRenderer()));
         var figure = Plt.Create().Build();
 
-        await publisher.PublishAsync("sensor-42", figure);
+        await publisher.PublishAsync("sensor-42", figure, TestContext.Current.CancellationToken);
 
         clients.Received(1).Group("sensor-42");
     }

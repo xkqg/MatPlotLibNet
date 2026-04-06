@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a progress bar showing a value as a fraction of a track (0.0 to 1.0).</summary>
-public sealed class ProgressBarSeries : ChartSeries, IHasDataRange
+public sealed class ProgressBarSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the progress value (0.0 = empty, 1.0 = full).</summary>
     public double Value { get; }
@@ -27,6 +28,14 @@ public sealed class ProgressBarSeries : ChartSeries, IHasDataRange
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "progressbar",
+        GaugeValue = Value, FillColor = FillColor,
+        TrackColor = TrackColor, BarHeight = BarHeight
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

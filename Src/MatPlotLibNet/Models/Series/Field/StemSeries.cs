@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a stem plot series displaying data as vertical lines with markers at the tips.</summary>
-public sealed class StemSeries : ChartSeries, IHasDataRange
+public sealed class StemSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the X-axis data values.</summary>
     public double[] XData { get; }
@@ -45,6 +46,9 @@ public sealed class StemSeries : ChartSeries, IHasDataRange
         if (0 > yMax) yMax = 0;
         return new(XData.Min(), XData.Max(), yMin, yMax);
     }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new() { Type = "stem", XData = XData, YData = YData };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

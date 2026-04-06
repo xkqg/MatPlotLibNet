@@ -2,11 +2,12 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a Sankey diagram that renders flows between nodes as curved links.</summary>
-public sealed class SankeySeries : ChartSeries, IHasDataRange
+public sealed class SankeySeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the nodes in the diagram.</summary>
     public IReadOnlyList<SankeyNode> Nodes { get; }
@@ -33,6 +34,9 @@ public sealed class SankeySeries : ChartSeries, IHasDataRange
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new() { Type = "sankey" };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

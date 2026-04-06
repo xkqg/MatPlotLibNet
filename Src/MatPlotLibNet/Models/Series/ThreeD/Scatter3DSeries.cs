@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D scatter plot rendered as projected circles.</summary>
-public sealed class Scatter3DSeries : ChartSeries, IHasDataRange, I3DPointSeries
+public sealed class Scatter3DSeries : ChartSeries, IHasDataRange, I3DPointSeries, ISeriesSerializable
 {
     /// <summary>Gets the X data values.</summary>
     public double[] X { get; }
@@ -30,6 +31,9 @@ public sealed class Scatter3DSeries : ChartSeries, IHasDataRange, I3DPointSeries
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new() { Type = "scatter3d" };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
@@ -17,7 +18,7 @@ public enum BarOrientation
 }
 
 /// <summary>Represents a bar chart series displaying categorical data as rectangular bars.</summary>
-public sealed class BarSeries : ChartSeries, IHasDataRange
+public sealed class BarSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the category labels for each bar.</summary>
     public string[] Categories { get; }
@@ -76,6 +77,15 @@ public sealed class BarSeries : ChartSeries, IHasDataRange
 
         return new(xMin, xMax, yMin, yMax);
     }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "bar",
+        Categories = Categories, Values = Values, Color = Color,
+        Orientation = Orientation.ToString().ToLowerInvariant(),
+        BarWidth = BarWidth
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

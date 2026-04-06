@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a radar (spider) chart series displaying multi-axis categorical data.</summary>
-public sealed class RadarSeries : ChartSeries, IHasDataRange
+public sealed class RadarSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the category labels for each axis.</summary>
     public string[] Categories { get; }
@@ -40,6 +41,15 @@ public sealed class RadarSeries : ChartSeries, IHasDataRange
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "radar",
+        Categories = Categories, Values = Values,
+        Color = Color, FillColor = FillColor,
+        Alpha = Alpha, LineWidth = LineWidth, MaxValue = MaxValue
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

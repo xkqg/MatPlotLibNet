@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a box plot series displaying statistical distribution summaries.</summary>
-public sealed class BoxSeries : ChartSeries, IHasDataRange
+public sealed class BoxSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the array of datasets, each containing the values for one box.</summary>
     public double[][] Datasets { get; }
@@ -43,6 +44,9 @@ public sealed class BoxSeries : ChartSeries, IHasDataRange
         }
         return new(xMin, xMax, yMin, yMax);
     }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new() { Type = "box", Datasets = Datasets };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

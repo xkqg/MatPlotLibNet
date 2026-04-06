@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a donut chart — a pie chart with a hollow center for displaying a summary value.</summary>
-public sealed class DonutSeries : ChartSeries, IHasDataRange
+public sealed class DonutSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     public double[] Sizes { get; }
     public string[]? Labels { get; set; }
@@ -21,6 +22,15 @@ public sealed class DonutSeries : ChartSeries, IHasDataRange
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "donut",
+        Sizes = Sizes, PieLabels = Labels,
+        InnerRadius = InnerRadius, CenterText = CenterText,
+        StartAngle = StartAngle
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

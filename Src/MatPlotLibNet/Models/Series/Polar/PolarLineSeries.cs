@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a line plot in polar coordinates (r, theta).</summary>
-public sealed class PolarLineSeries : PolarSeries
+public sealed class PolarLineSeries : PolarSeries, ISeriesSerializable
 {
     /// <summary>Gets or sets the line color.</summary>
     public Color? Color { get; set; }
@@ -20,6 +21,9 @@ public sealed class PolarLineSeries : PolarSeries
 
     /// <summary>Initializes a new polar line series.</summary>
     public PolarLineSeries(double[] r, double[] theta) : base(r, theta) { }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new() { Type = "polarline" };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

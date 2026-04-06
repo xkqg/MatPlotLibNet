@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a gauge (speedometer) chart with a semi-circular dial, needle, and colored range bands.</summary>
-public sealed class GaugeSeries : ChartSeries, IHasDataRange
+public sealed class GaugeSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the current value displayed by the needle.</summary>
     public double Value { get; }
@@ -31,6 +32,14 @@ public sealed class GaugeSeries : ChartSeries, IHasDataRange
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "gauge",
+        GaugeValue = Value, GaugeMin = Min, GaugeMax = Max,
+        NeedleColor = NeedleColor
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

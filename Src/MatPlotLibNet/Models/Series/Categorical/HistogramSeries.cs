@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a histogram series that bins continuous data into discrete intervals.</summary>
-public sealed class HistogramSeries : ChartSeries, IHasDataRange
+public sealed class HistogramSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the raw data values to be binned.</summary>
     public double[] Data { get; }
@@ -44,6 +45,13 @@ public sealed class HistogramSeries : ChartSeries, IHasDataRange
         }
         return new(Data.Length > 0 ? Data.Min() : 0, Data.Length > 0 ? Data.Max() : 1, yMin, yMax);
     }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "histogram",
+        Data = Data, Bins = Bins, Color = Color
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

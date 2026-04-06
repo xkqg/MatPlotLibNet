@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a waterfall chart showing how an initial value is affected by sequential positive and negative changes.</summary>
-public sealed class WaterfallSeries : ChartSeries, IHasDataRange
+public sealed class WaterfallSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     public string[] Categories { get; }
     public double[] Values { get; }
@@ -37,6 +38,15 @@ public sealed class WaterfallSeries : ChartSeries, IHasDataRange
         if (0 < yMin) yMin = 0;
         return new(xMin, xMax, yMin, yMax);
     }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "waterfall",
+        Categories = Categories, Values = Values,
+        IncreaseColor = IncreaseColor, DecreaseColor = DecreaseColor,
+        TotalColor = TotalColor, BarWidth = BarWidth
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

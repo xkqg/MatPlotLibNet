@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
@@ -20,7 +21,7 @@ public enum StepPosition
 }
 
 /// <summary>Represents a step-function line series.</summary>
-public sealed class StepSeries : XYSeries
+public sealed class StepSeries : XYSeries, ISeriesSerializable
 {
     /// <summary>Gets or sets where the step transition occurs.</summary>
     public StepPosition StepPosition { get; set; } = StepPosition.Post;
@@ -39,6 +40,16 @@ public sealed class StepSeries : XYSeries
 
     /// <summary>Creates a new step series from the given X and Y data.</summary>
     public StepSeries(double[] xData, double[] yData) : base(xData, yData) { }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "step",
+        XData = XData, YData = YData, Color = Color,
+        LineStyle = LineStyle.ToString().ToLowerInvariant(),
+        LineWidth = LineWidth,
+        StepPosition = StepPosition.ToString().ToLowerInvariant()
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

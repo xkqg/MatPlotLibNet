@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a heatmap series that renders a 2D data matrix as colored cells.</summary>
-public sealed class HeatmapSeries : ChartSeries, IHasDataRange
+public sealed class HeatmapSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the two-dimensional data matrix.</summary>
     public double[,] Data { get; }
@@ -26,6 +27,9 @@ public sealed class HeatmapSeries : ChartSeries, IHasDataRange
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new() { Type = "heatmap", HeatmapData = ChartSerializer.To2DList(Data) };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

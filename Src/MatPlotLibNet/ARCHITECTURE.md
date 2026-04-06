@@ -1,9 +1,9 @@
-# MatPlotLibNet Core -- Architecture (v0.3.3)
+# MatPlotLibNet Core -- Architecture (v0.4.0)
 
 ## Package dependency graph
 
 ```
-MatPlotLibNet (Core)                      net10.0 + netstandard2.1 (System.Text.Json on ns2.1)
+MatPlotLibNet (Core)                      net10.0 + net8.0
     |
     +-- MatPlotLibNet.Skia                SkiaSharp (PNG + PDF export)
     |
@@ -34,13 +34,14 @@ MatPlotLibNet/
   IChartSubscriptionClient.cs         shared SignalR client contract
 
   Builders/
-    FigureBuilder.cs                  fluent API: Plt.Create().WithTitle().Plot().Build()
+    FigureBuilder.cs                  fluent API: Plt.Create().WithTitle().Plot().Build() (build only)
     AxesBuilder.cs                    subplot config: WithTitle(), SetXLabel(), Plot(), Scatter(), etc.
     SecondaryAxisBuilder.cs           secondary Y-axis: SetYLabel(), Plot(), Scatter()
     ThemeBuilder.cs                   custom themes: Theme.CreateFrom().WithFont().Build()
 
   Extensions/
-    FigureExtensions.cs               figure.ToSvg(), figure.ToJson(), figure.Transform()
+    FigureExtensions.cs               Save(), Transform(), ToSvg(), ToJson(), RegisterTransform()
+                                      (SRP: all output responsibility moved here from FigureBuilder)
 
   Models/
     Figure.cs                         top-level container (Title, Width, Height, Theme, EnableZoomPan)
@@ -50,34 +51,53 @@ MatPlotLibNet/
     ReferenceLine.cs                  horizontal/vertical reference line (AxHLine, AxVLine)
     SpanRegion.cs                     shaded horizontal/vertical region (AxHSpan, AxVSpan)
 
-    Series/                           16 series types via ISeries + ChartSeries base + visitor pattern
+    Series/                           34 series types across 11 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
-      ChartSeries.cs                  abstract base: implements ISeries common properties
-      LineSeries.cs                   XData, YData, Color, LineStyle, LineWidth, Marker
-      ScatterSeries.cs                XData, YData, Color, MarkerSize, Sizes[], Colors[]
+      ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
+      IHasDataRange.cs                interface: series that expose their own data bounds
+      IPolarSeries.cs                 interface: polar coordinate series
+      I3DGridSeries.cs                interface: 3D grid-based series (Surface, Wireframe)
+      I3DPointSeries.cs               interface: 3D point-based series (Scatter3D)
+      IPriceSeries.cs                 interface: financial OHLC series (Candlestick, OhlcBar)
+      ChartSeries.cs                  abstract base: implements ISeries + ISeriesSerializable
+      XYSeries.cs                     generic base: XData, YData (Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Stem)
+      PolarSeries.cs                  generic base: RData, ThetaData (PolarLine, PolarScatter, PolarBar)
+      GridSeries3D.cs                 generic base: XData, YData, ZData[,] (Surface, Wireframe)
+      HierarchicalSeries.cs           generic base: Root, ColorMap, ShowLabels (Treemap, Sunburst)
+      LineSeries.cs                   XYSeries: Color, LineStyle, LineWidth, Marker
+      ScatterSeries.cs                XYSeries: Color, MarkerSize, Sizes[], Colors[]
       BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth, StackBaseline
       HistogramSeries.cs              Data, Bins, Color, Alpha, ComputeBins()
       PieSeries.cs                    Sizes, Labels, Colors[], StartAngle
-      HeatmapSeries.cs               Data[,], ColorMap
+      HeatmapSeries.cs               Data[,], ColorMap, IHasDataRange
       BoxSeries.cs                    Datasets[][], Color, MedianColor, ShowOutliers
       ViolinSeries.cs                 Datasets[][], Color, Alpha
-      ContourSeries.cs                XData, YData, ZData[,], Levels, ColorMap
-      StemSeries.cs                   XData, YData, MarkerColor, StemColor, BaselineColor
-      AreaSeries.cs                   XData, YData, YData2 (fill between), Alpha, FillColor
-      StepSeries.cs                   XData, YData, StepPosition (Pre/Mid/Post)
-      ErrorBarSeries.cs               XData, YData, YErrorLow/High, XErrorLow/High, CapSize
-      CandlestickSeries.cs            Open, High, Low, Close, DateLabels, UpColor, DownColor
+      ContourSeries.cs                XData, YData, ZData[,], Levels, ColorMap, IHasDataRange
+      StemSeries.cs                   XYSeries: MarkerColor, StemColor, BaselineColor
+      AreaSeries.cs                   XYSeries: YData2 (fill between), Alpha, FillColor
+      StepSeries.cs                   XYSeries: StepPosition (Pre/Mid/Post)
+      ErrorBarSeries.cs               XYSeries: YErrorLow/High, XErrorLow/High, CapSize
+      CandlestickSeries.cs            IPriceSeries: Open, High, Low, Close, DateLabels, UpColor, DownColor
       QuiverSeries.cs                 XData, YData, UData, VData, Scale, ArrowHeadSize
       RadarSeries.cs                  Categories, Values, FillColor, Alpha, MaxValue
       DonutSeries.cs                  Sizes, InnerRadius, CenterText (Circular/)
-      BubbleSeries.cs                 XData, YData, Sizes, Alpha (XY/)
-      OhlcBarSeries.cs                Open, High, Low, Close, TickWidth (Financial/)
+      BubbleSeries.cs                 XYSeries: Sizes, Alpha (XY/)
+      OhlcBarSeries.cs                IPriceSeries: Open, High, Low, Close, TickWidth (Financial/)
       WaterfallSeries.cs              Categories, Values, IncreaseColor, DecreaseColor (Categorical/)
       FunnelSeries.cs                 Labels, Values, Colors (Categorical/)
       GanttSeries.cs                  Tasks, Starts, Ends, BarHeight (Categorical/)
       GaugeSeries.cs                  Value, Min, Max, Ranges, NeedleColor (Circular/)
       ProgressBarSeries.cs            Value, FillColor, TrackColor (Categorical/)
-      SparklineSeries.cs              Values, LineWidth (XY/)
+      SparklineSeries.cs              XYSeries: Values, LineWidth (XY/)
+      PolarLineSeries.cs              PolarSeries: Color, LineStyle (Polar/)
+      PolarScatterSeries.cs           PolarSeries: Color, MarkerSize (Polar/)
+      PolarBarSeries.cs               PolarSeries: Color, BarWidth (Polar/)
+      SurfaceSeries.cs                GridSeries3D: ColorMap, ShowWireframe, I3DGridSeries
+      WireframeSeries.cs              GridSeries3D: WireColor, I3DGridSeries
+      Scatter3DSeries.cs              I3DPointSeries: XData, YData, ZData, MarkerSize
+      TreemapSeries.cs                HierarchicalSeries: Padding (Hierarchical/)
+      SunburstSeries.cs               HierarchicalSeries: InnerRadius (Hierarchical/)
+      SankeySeries.cs                 Nodes, Links (Flow/)
 
   Indicators/                           polymorphic: IIndicator -> Indicator -> Indicator<TResult> where TResult : IIndicatorResult
     IIndicator.cs                       interface: Apply(Axes)
@@ -113,15 +133,21 @@ MatPlotLibNet/
     SvgTransform.cs                   FigureTransform + ISvgRenderer: parallel SVG rendering
     TransformResult.cs                fluent record: ToStream(), ToFile(), ToBytes()
 
+  Animation/
+    IAnimation<TState>.cs             interface: typed animation state pipeline
+    AnimationController<TState>.cs    controller: runs animation loop with ConfigureAwait(false)
+    AnimationBuilder.cs               legacy: frame-based animation (FrameCount, Interval, Loop)
+    LegacyAnimationAdapter.cs         adapter: bridges AnimationBuilder to IAnimation<TState>
+
   Rendering/
     IChartRenderer.cs                 interface: Render(Figure, IRenderContext)
-    ChartRenderer.cs                  figure-level orchestrator: background, layout, dispatch to AxesRenderer
-    AxesRenderer.cs                   abstract base for coordinate-system-specific rendering
+    ChartRenderer.cs                  figure-level orchestrator (~100 lines): background, layout, dispatch to AxesRenderer
+    AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry)
     CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, series, annotations, signals
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, etc.
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 25 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 34 series types
     DataTransform.cs                  data space <-> pixel space coordinate mapping
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
@@ -147,10 +173,14 @@ MatPlotLibNet/
 
   Serialization/
     IChartSerializer.cs               interface: ToJson(Figure), FromJson(string)
-    ChartSerializer.cs                System.Text.Json round-trip with series type discriminator
+    ChartSerializer.cs                System.Text.Json round-trip — delegates to ISeriesSerializable per series
+    SeriesRegistry.cs                 ConcurrentDictionary-based type registry for deserialization
+                                      (series register themselves; no central switch statement)
 
   Styling/
     Color.cs                          readonly record struct (R, G, B, A) + named colors + hex
+                                      Color constants: Tab10Blue, Tab10Orange, Tab10Green, GridGray,
+                                      EdgeGray, Amber, FibonacciOrange (replace magic hex strings)
     Font.cs                           sealed record (Family, Size, Weight, Slant, Color)
     Theme.cs                          6 built-in themes + GridStyle sealed record
     LineStyle.cs                      enum: Solid, Dashed, Dotted, DashDot, None
@@ -229,13 +259,15 @@ figure.Transform(new SvgTransform()).ToStream(stream);
 ```
 figure.ToJson()        calls ChartServices.Serializer.ToJson(figure)
     |
-ChartSerializer        Figure -> FigureDto -> JsonSerializer.Serialize()
+ChartSerializer        Figure -> each series via ISeriesSerializable -> JsonSerializer.Serialize()
     |
 string                 JSON with camelCase, null-ignoring, Color as hex
 
 ChartServices.Serializer.FromJson(json)
     |
-ChartSerializer        JsonSerializer.Deserialize() -> FigureDto -> Figure
+ChartSerializer        JsonSerializer.Deserialize() -> SeriesRegistry resolves type -> Figure
+    |
+SeriesRegistry         ConcurrentDictionary<string, Func<...>> maps type discriminator to factory
 ```
 
 ### Real-time SignalR updates
@@ -258,11 +290,18 @@ ChartHub               routes to SignalR group by chartId
 |---------|-------|-----|
 | Fluent builder | FigureBuilder, AxesBuilder, ThemeBuilder, SecondaryAxisBuilder | matplotlib-style method chaining |
 | Visitor | ISeriesVisitor + ChartSeries.Accept() | extensible per-series rendering without switch |
-| Strategy | IRenderContext (SVG, MAUI, Skia) | multiple output targets from same model |
-| Template method | FigureTransform base class | shared renderer, format-specific Transform() |
+| Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D) | multiple output targets and coordinate systems from same model |
+| Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
+| Self-serialization | ISeriesSerializable on all 34 series | each series knows how to serialize itself (no central switch) |
+| Registry | SeriesRegistry (ConcurrentDictionary) | thread-safe deserialization type lookup |
+| Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries | DRY shared properties across series families |
+| Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries | narrow contracts for cross-cutting concerns |
 | DI interfaces | IFigureTransform, IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |
+| SRP extension methods | FigureExtensions (Save, Transform, ToSvg, RegisterTransform) | builder only builds; output is separate |
 | Static defaults | ChartServices | non-DI usage for console apps |
 | Record types | Font, GridStyle, Legend, TickConfig, Color, Point, Rect, TransformResult | immutable value objects |
 | Parallel rendering | SvgTransform + per-subplot SvgRenderContext | multi-core subplot rendering |
+| Thread safety | volatile fields, ConcurrentDictionary for GlobalTransforms, AxesRenderer registry, SeriesRegistry | safe concurrent access |
+| Adapter | LegacyAnimationAdapter | bridges AnimationBuilder to IAnimation\<TState\> |
 | Delegate extraction | SvgTransform.BuildSvgDocument, ChartSerializer.ApplyEnum | DRY via higher-order functions |

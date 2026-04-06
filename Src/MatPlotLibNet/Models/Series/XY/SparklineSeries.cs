@@ -2,13 +2,14 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a sparkline — a tiny, word-sized line chart with no axes, labels, or decorations.</summary>
 /// <remarks>Designed for inline dashboard use. Renders only the line within the full plot bounds.</remarks>
-public sealed class SparklineSeries : ChartSeries, IHasDataRange
+public sealed class SparklineSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the Y-axis data values. X positions are auto-generated as 0, 1, 2, ...</summary>
     public double[] Values { get; }
@@ -25,6 +26,13 @@ public sealed class SparklineSeries : ChartSeries, IHasDataRange
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(0, Values.Length - 1, Values.Min(), Values.Max());
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "sparkline",
+        Values = Values, Color = Color, LineWidth = LineWidth
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

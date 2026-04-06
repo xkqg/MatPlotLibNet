@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a traditional OHLC bar chart with vertical high-low lines and open/close tick marks.</summary>
-public sealed class OhlcBarSeries : ChartSeries, IHasDataRange, IPriceSeries
+public sealed class OhlcBarSeries : ChartSeries, IHasDataRange, IPriceSeries, ISeriesSerializable
 {
     public double[] Open { get; }
     public double[] High { get; }
@@ -29,6 +30,15 @@ public sealed class OhlcBarSeries : ChartSeries, IHasDataRange, IPriceSeries
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(context.XAxisMin ?? -0.5, context.XAxisMax ?? (Open.Length - 0.5), Low.Min(), High.Max());
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "ohlcbar",
+        Open = Open, High = High, Low = Low, Close = Close,
+        DateLabels = DateLabels, UpColor = UpColor, DownColor = DownColor,
+        TickWidth = TickWidth
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a funnel chart showing progressive reduction through stages (e.g., sales pipeline).</summary>
-public sealed class FunnelSeries : ChartSeries, IHasDataRange
+public sealed class FunnelSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     public string[] Labels { get; }
     public double[] Values { get; }
@@ -21,6 +22,13 @@ public sealed class FunnelSeries : ChartSeries, IHasDataRange
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "funnel",
+        PieLabels = Labels, Values = Values
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

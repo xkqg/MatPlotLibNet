@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a Gantt chart showing task durations as horizontal bars on a timeline.</summary>
-public sealed class GanttSeries : ChartSeries, IHasDataRange
+public sealed class GanttSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     public string[] Tasks { get; }
     public double[] Starts { get; }
@@ -24,6 +25,14 @@ public sealed class GanttSeries : ChartSeries, IHasDataRange
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(Math.Min(Starts.Min(), Ends.Min()), Math.Max(Starts.Max(), Ends.Max()),
             context.YAxisMin ?? -0.5, context.YAxisMax ?? (Tasks.Length - 0.5));
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "gantt",
+        Tasks = Tasks, Starts = Starts, Ends = Ends,
+        Color = Color, BarHeight = BarHeight
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

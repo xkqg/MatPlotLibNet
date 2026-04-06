@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a scatter plot in polar coordinates (r, theta).</summary>
-public sealed class PolarScatterSeries : PolarSeries
+public sealed class PolarScatterSeries : PolarSeries, ISeriesSerializable
 {
     /// <summary>Gets or sets the marker color.</summary>
     public Color? Color { get; set; }
@@ -17,6 +18,9 @@ public sealed class PolarScatterSeries : PolarSeries
 
     /// <summary>Initializes a new polar scatter series.</summary>
     public PolarScatterSeries(double[] r, double[] theta) : base(r, theta) { }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new() { Type = "polarscatter" };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

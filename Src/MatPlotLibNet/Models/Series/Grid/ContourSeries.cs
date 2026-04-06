@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a contour plot series displaying iso-lines or filled regions for 3D surface data.</summary>
-public sealed class ContourSeries : ChartSeries, IHasDataRange
+public sealed class ContourSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the X-axis grid coordinates.</summary>
     public double[] XData { get; }
@@ -42,6 +43,13 @@ public sealed class ContourSeries : ChartSeries, IHasDataRange
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "contour",
+        XData = XData, YData = YData, HeatmapData = ChartSerializer.To2DList(ZData)
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-A .NET 10 / .NET Standard 2.1 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel SVG rendering, polymorphic export (SVG/PNG/PDF), and multi-platform output to Blazor, MAUI, ASP.NET Core, Angular, React, Vue, and standalone browser popups.
+A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel SVG rendering, polymorphic export (SVG/PNG/PDF), and multi-platform output to Blazor, MAUI, ASP.NET Core, Angular, React, Vue, and standalone browser popups.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
@@ -28,19 +28,20 @@ using MatPlotLibNet.Styling;
 double[] x = [1, 2, 3, 4, 5];
 double[] y = [2, 4, 3, 5, 1];
 
-// Fluent API -> SVG string (no Build() needed)
-string svg = Plt.Create()
+// Fluent API -> save with format auto-detected from extension
+Plt.Create()
     .WithTitle("My Chart")
     .WithTheme(Theme.Seaborn)
     .Plot(x, y, line => { line.Color = Color.Blue; line.Label = "sin(x)"; })
-    .ToSvg();
+    .Save("chart");  // no extension = SVG by default
 
-// Polymorphic export via transforms
-using MatPlotLibNet.Transforms;
+// Or get the SVG string directly
+string svg = Plt.Create().Plot(x, y).ToSvg();
 
-Plt.Create().Plot(x, y).Transform(new SvgTransform()).Save("chart.svg");
-Plt.Create().Plot(x, y).Transform(new PngTransform()).Save("chart.png");   // requires MatPlotLibNet.Skia
-Plt.Create().Plot(x, y).Transform(new PdfTransform()).Save("chart.pdf");   // requires MatPlotLibNet.Skia
+// Multiple formats — no Build() needed
+Plt.Create().Plot(x, y).Save("chart.svg");
+Plt.Create().Plot(x, y).Save("chart.png");   // requires MatPlotLibNet.Skia
+Plt.Create().Plot(x, y).Save("chart.pdf");   // requires MatPlotLibNet.Skia
 ```
 
 ## Chart types
@@ -48,7 +49,7 @@ Plt.Create().Plot(x, y).Transform(new PdfTransform()).Save("chart.pdf");   // re
 **34 series types** with fluent builder API:
 
 ```csharp
-var fig = Plt.Create()
+Plt.Create()
     .Plot(x, y)                                           // line
     .Scatter(x, y, s => s.MarkerSize = 8)                 // scatter
     .Bar(["Q1", "Q2", "Q3"], [100, 200, 150])             // bar
@@ -57,7 +58,7 @@ var fig = Plt.Create()
     .Step(x, y, s => s.StepPosition = StepPosition.Post)  // step function
     .FillBetween(x, y)                                    // area / fill between
     .ErrorBar(x, y, errLow, errHigh)                      // error bars
-    .Build();
+    .Save("chart");
 ```
 
 Additional types via `AxesBuilder.AddSubPlot`:
@@ -130,8 +131,8 @@ var tree = new TreeNode
     ]
 };
 
-Plt.Create().Treemap(tree).Build();     // nested rectangles
-Plt.Create().Sunburst(tree).Build();    // concentric ring segments
+Plt.Create().Treemap(tree).Save("treemap");     // nested rectangles
+Plt.Create().Sunburst(tree).Save("sunburst");   // concentric ring segments
 ```
 
 ## Sankey diagrams
@@ -140,7 +141,7 @@ Plt.Create().Sunburst(tree).Build();    // concentric ring segments
 SankeyNode[] nodes = [new("A"), new("B"), new("C")];
 SankeyLink[] links = [new(0, 1, 30), new(0, 2, 20)];
 
-Plt.Create().Sankey(nodes, links).Build();
+Plt.Create().Sankey(nodes, links).Save("sankey");
 ```
 
 ## Legend
@@ -159,12 +160,12 @@ Plt.Create()
     .TightLayout()
     .AddSubPlot(2, 2, 1, ax => ax.Plot(x, y))
     .AddSubPlot(2, 2, 2, ax => ax.Scatter(x, y))
-    .Build();
+    .Save("tight");
 
 // Or custom margins
 Plt.Create()
     .WithSubPlotSpacing(s => s with { MarginLeft = 80, HorizontalGap = 20 })
-    .Build();
+    .Save("custom_spacing");
 ```
 
 ## Polar plots
@@ -232,7 +233,7 @@ Plt.Create()
 ## Subplots
 
 ```csharp
-var fig = Plt.Create()
+Plt.Create()
     .WithSize(1200, 600)
     .AddSubPlot(1, 2, 1, ax => ax
         .WithTitle("Temperature")
@@ -242,7 +243,7 @@ var fig = Plt.Create()
     .AddSubPlot(1, 2, 2, ax => ax
         .WithTitle("Distribution")
         .Hist(samples, bins: 15))
-    .Build();
+    .Save("subplots");
 ```
 
 Subplots render in **parallel** -- each gets its own SVG context, merged in order.
@@ -265,8 +266,8 @@ string svg = Plt.Create().Plot(x, y).ToSvg();
 string json = Plt.Create().Plot(x, y).ToJson();
 
 // Register PNG/PDF once at startup (when using MatPlotLibNet.Skia)
-FigureBuilder.RegisterGlobalTransform(".png", new PngTransform());
-FigureBuilder.RegisterGlobalTransform(".pdf", new PdfTransform());
+FigureExtensions.RegisterTransform(".png", new PngTransform());
+FigureExtensions.RegisterTransform(".pdf", new PdfTransform());
 ```
 
 ## SVG interactivity
@@ -276,7 +277,7 @@ FigureBuilder.RegisterGlobalTransform(".pdf", new PdfTransform());
 .AddSubPlot(1, 1, 1, ax => ax.WithTooltips().Scatter(x, y))
 
 // Zoom (mouse wheel) and pan (click-drag) via embedded JavaScript
-Plt.Create().WithZoomPan().Plot(x, y).Build()
+Plt.Create().WithZoomPan().Plot(x, y).Save("zoomable")
 ```
 
 ## Dependency injection
@@ -324,7 +325,7 @@ var theme = Theme.CreateFrom(Theme.Dark)
 using MatPlotLibNet.Animation;
 using MatPlotLibNet.Interactive;
 
-// Create an animation: 60 frames, each a sine wave with phase shift
+// Legacy: AnimationBuilder for frame-based animation
 var animation = new AnimationBuilder(60, frame =>
     Plt.Create()
         .WithTitle($"Frame {frame}")
@@ -334,6 +335,9 @@ var animation = new AnimationBuilder(60, frame =>
 // Play in browser with 50ms between frames
 var handle = await Plt.Create().Plot(x, y).Build().ShowAsync();
 await handle.AnimateAsync(animation);
+
+// New: IAnimation<TState> + AnimationController<TState> for typed animation pipelines
+// LegacyAnimationAdapter bridges AnimationBuilder to the new IAnimation<TState> contract
 ```
 
 ## Real-time charts
@@ -394,7 +398,7 @@ A simple line chart: **52 us**. A treemap: **26 us**. A 3D surface: **72 us**. A
 ## Architecture
 
 ```
-MatPlotLibNet (Core)                      net10.0 + netstandard2.1
+MatPlotLibNet (Core)                      net10.0 + net8.0
     |
     +-- MatPlotLibNet.Skia                PNG + PDF export via SkiaSharp
     +-- MatPlotLibNet.Blazor              Razor components + C# SignalR client
@@ -413,7 +417,7 @@ See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering 
 
 | Version | Highlights |
 |---------|-----------|
-| **0.4.0** | 34 series types: Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar, Surface, Wireframe, Scatter3D. Polar coordinate system with `PolarTransform`. 3D plots with `Projection3D` (Surface, Wireframe, Scatter3D). ColorBar with auto-detect. `HierarchicalSeries` generic base. Legend rendering. Configurable subplot spacing. `ITickFormatter` pipeline. `Save(path)` with format auto-detect. GitHub Actions v5. |
+| **0.4.0** | 34 series types (11 families), 798 tests. OO architecture: `AxesRenderer` polymorphism (`CartesianAxesRenderer`, `PolarAxesRenderer`, `ThreeDAxesRenderer`). `ISeriesSerializable` on all 34 series, `SeriesRegistry` for deserialization. Generic bases: `XYSeries`, `PolarSeries`, `GridSeries3D`, `HierarchicalSeries`. Interfaces: `IHasDataRange`, `IPolarSeries`, `I3DGridSeries`, `I3DPointSeries`, `IPriceSeries`. Thread-safe: volatile fields, `ConcurrentDictionary` for `GlobalTransforms`, `AxesRenderer` registry, `SeriesRegistry`. Animation: `IAnimation<TState>`, `AnimationController<TState>`, `LegacyAnimationAdapter`. `Save("chart")` API with format auto-detect. `FigureBuilder` SRP: Save/Transform moved to `FigureExtensions`. Color constants (`Tab10Blue`, `GridGray`, etc.). `ITickFormatter` pipeline. ColorBar, Legend, SubPlotSpacing. Polar + 3D coordinate systems. |
 | **0.3.2** | Quality release: OO indicator refactor (`Indicator<TResult>` with `IIndicatorResult` constraint, named result records, no statics). 92 new tests. BenchmarkDotNet suite. CHANGELOG, BENCHMARKS.md, DocFX, 4 sample projects. JSON serialization fix for 9 series types. |
 | **0.3.1** | Platform expansion: `@matplotlibnet/react` (React 19 hooks + components), `@matplotlibnet/vue` (Vue 3 composables + components), `MatPlotLibNet.GraphQL` (HotChocolate queries + subscriptions). Core library multi-targets `netstandard2.1`. |
 | **0.3.0** | 25 series types (Donut, Bubble, OhlcBar, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline). 13 technical indicators (SMA, EMA, BB, VWAP, RSI, MACD, Stochastic, Volume, Fibonacci, ATR, ADX, Keltner, Ichimoku). Trading analytics (EquityCurve, ProfitLoss, DrawDown). Buy/sell signal markers. Generic `SeriesRenderer<T>` + `Indicator<TResult>`. Intuitive fluent API (`.Sma(20)`, `.BuyAt()`, `.SaveSvg()`). PriceSource enum, Offset, LineStyle on all indicators. Series organized by chart family. |

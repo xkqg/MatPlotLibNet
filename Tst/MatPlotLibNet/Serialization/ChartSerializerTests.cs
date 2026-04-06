@@ -232,7 +232,7 @@ public class ChartSerializerTests
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
         var series = Assert.IsType<PieSeries>(restored.SubPlots[0].Series[0]);
         Assert.Equal([30.0, 70.0], series.Sizes);
-        Assert.Equal(["A", "B"], series.Labels);
+        Assert.Equal(["A", "B"], series.Labels!);
     }
 
     /// <summary>Verifies that a round-trip serialization preserves BoxSeries label and datasets.</summary>
@@ -412,7 +412,7 @@ public class ChartSerializerTests
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
         var series = Assert.IsType<CandlestickSeries>(restored.SubPlots[0].Series[0]);
         Assert.Equal([10.0, 12.0], series.Open);
-        Assert.Equal(["Mon", "Tue"], series.DateLabels);
+        Assert.Equal(["Mon", "Tue"], series.DateLabels!);
     }
 
     /// <summary>Verifies that a round-trip serialization preserves ErrorBarSeries color, cap size, and error ranges.</summary>
@@ -465,7 +465,7 @@ public class ChartSerializerTests
         Assert.Equal(0.5, series.Alpha);
         Assert.Equal([1.0, 2.0, 3.0], series.XData);
         Assert.Equal([4.0, 5.0, 6.0], series.YData);
-        Assert.Equal([1.0, 2.0, 3.0], series.YData2);
+        Assert.Equal([1.0, 2.0, 3.0], series.YData2!);
     }
 
     /// <summary>Verifies that a round-trip serialization preserves the label on any series type.</summary>
@@ -495,7 +495,7 @@ public class ChartSerializerTests
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
         var series = Assert.IsType<DonutSeries>(restored.SubPlots[0].Series[0]);
         Assert.Equal([30.0, 70.0], series.Sizes);
-        Assert.Equal(["A", "B"], series.Labels);
+        Assert.Equal(["A", "B"], series.Labels!);
         Assert.Equal(0.5, series.InnerRadius);
         Assert.Equal("Total", series.CenterText);
         Assert.Equal(45, series.StartAngle);
@@ -535,7 +535,7 @@ public class ChartSerializerTests
         Assert.Equal([15.0, 14.0], series.High);
         Assert.Equal([8.0, 10.0], series.Low);
         Assert.Equal([13.0, 11.0], series.Close);
-        Assert.Equal(["Mon", "Tue"], series.DateLabels);
+        Assert.Equal(["Mon", "Tue"], series.DateLabels!);
         Assert.Equal(0.5, series.TickWidth);
     }
 

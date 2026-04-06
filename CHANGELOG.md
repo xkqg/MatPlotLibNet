@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- `Projection3D` class for 3D→2D projection with elevation/azimuth rotation and depth sorting
+- `Projection3D` class for 3D-to-2D projection with elevation/azimuth rotation and depth sorting
 - `DataRange3D` record struct for 3D data bounds
 - `SurfaceSeries` — colored quadrilateral surface with optional wireframe overlay
 - `WireframeSeries` — 3D wireframe grid rendering
@@ -17,8 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `ColorBar` record with auto-detect from heatmap/contour data range and colormap
 - `AxesBuilder.WithColorBar()` and `WithProjection(elevation, azimuth)` fluent methods
 - `FigureBuilder.Save(path)` with auto-detect format from extension (no extension = SVG)
-- `FigureBuilder.RegisterGlobalTransform()` for startup-time format registration
 - `AnimationBuilder` class for frame-based animation (FrameCount, Interval, Loop, GenerateFrames)
+- `IAnimation<TState>` interface and `AnimationController<TState>` for typed animation pipelines
+- `LegacyAnimationAdapter` bridges `AnimationBuilder` to `IAnimation<TState>` contract
+- `ConfigureAwait(false)` in `AnimationController` for library-safe async
 - `InteractiveFigure.AnimateAsync()` for pushing animation frames via SignalR
 - `CoordinateSystem` enum (`Cartesian`, `Polar`, `ThreeD`) on `Axes` for alternative rendering paths
 - `PolarTransform` class for (r, theta) to pixel coordinate conversion
@@ -26,8 +28,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `ChartRenderer.RenderPolarAxes()` — circular grid, radial axis lines, angle labels
 - `FigureBuilder.ToSvg()`, `ToJson()`, `SaveSvg()`, `Transform()`, `Save(path)` — output directly from the builder without `.Build()`
 - `FigureBuilder.Save(path)` auto-detects format from file extension (.svg, .png, .pdf, .json)
-- `FigureBuilder.RegisterGlobalTransform()` for registering PNG/PDF at startup
-- `FigureBuilder.RegisterTransform()` for per-builder custom transforms
 - `TreeNode` record for hierarchical data (Label, Value, Color, Children with recursive TotalValue)
 - `HierarchicalSeries` abstract base class with shared Root, ColorMap, ShowLabels properties
 - `TreemapSeries` — nested rectangle layout with configurable padding
@@ -48,6 +48,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `AxesBuilder.WithLegend()`, `SetXDateFormat()`, `SetYDateFormat()`, `SetXTickFormatter()`, `SetYTickFormatter()` fluent methods
 - `FigureBuilder.TightLayout()` and `WithSubPlotSpacing()` fluent methods
 - `SvgRenderContext.BeginGroup()` / `EndGroup()` for CSS-classed SVG groups
+- `ISeriesSerializable` interface on all 34 series — each series serializes itself, eliminating the 152-line `SeriesToDto` switch in `ChartSerializer`
+- `SeriesRegistry` for deserialization with `ConcurrentDictionary`-based type lookup
+- `IHasDataRange` interface for series that expose their own data bounds
+- `IPolarSeries` interface for polar coordinate series
+- `I3DGridSeries` and `I3DPointSeries` interfaces for 3D series families
+- `IPriceSeries` interface for financial OHLC series
+- Generic base classes: `XYSeries`, `PolarSeries`, `GridSeries3D`, `HierarchicalSeries`
+- Color constants: `Tab10Blue`, `Tab10Orange`, `Tab10Green`, `GridGray`, `EdgeGray`, `Amber`, `FibonacciOrange` — replacing magic hex strings throughout the codebase
 
 ### Changed
 
@@ -59,6 +67,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `AxesRenderer` abstract base with `CartesianAxesRenderer`, `PolarAxesRenderer`, `ThreeDAxesRenderer` — no more `private static` methods with repeated parameters
 - `ChartRenderer.RenderAxes` is now a one-liner: `AxesRenderer.Create(axes, plotArea, ctx, theme).Render()`
 - Tests refactored to use builder output methods (`.ToSvg()`) instead of explicit `.Build()`
+- `FigureBuilder` SRP: `Save()`, `Transform()`, `ToSvg()` moved to `FigureExtensions` — builder only builds
+- `FigureExtensions.RegisterTransform()` replaces `FigureBuilder.RegisterGlobalTransform()` for startup-time format registration
+- `GlobalTransforms` registry uses `ConcurrentDictionary` for thread safety
+- `AxesRenderer` registry uses `ConcurrentDictionary` for thread-safe coordinate system dispatch
+- Volatile fields used for thread-safe state in animation and rendering pipelines
+- Publish workflow fix: build before pack for Skia/MAUI projects
+- Warning cleanup: xUnit1051 `CancellationToken` warnings and CS8604 nullable reference warnings resolved
 
 ## [0.3.2] - 2026-04-05
 

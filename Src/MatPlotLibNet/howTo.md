@@ -1,4 +1,4 @@
-# How to use MatPlotLibNet (v0.3.2)
+# How to use MatPlotLibNet (v0.4.0)
 
 ## Install
 
@@ -18,7 +18,8 @@ using MatPlotLibNet.Styling;
 double[] x = [1, 2, 3, 4, 5];
 double[] y = [2, 4, 3, 5, 1];
 
-string svg = Plt.Create()
+// Save directly — no Build() needed, format auto-detected from extension
+Plt.Create()
     .WithTitle("My First Chart")
     .WithSize(1000, 600)
     .WithDpi(96)
@@ -30,13 +31,15 @@ string svg = Plt.Create()
         line.LineStyle = LineStyle.Dashed;
         line.LineWidth = 2.0;
     })
-    .Build()
-    .ToSvg();
+    .Save("chart");  // no extension = SVG by default
+
+// Or get SVG as a string
+string svg = Plt.Create().Plot(x, y).ToSvg();
 ```
 
 ## 2. Chart types
 
-All 16 chart types are available via `FigureBuilder` and `AxesBuilder`:
+All 34 chart types are available via `FigureBuilder` and `AxesBuilder`:
 
 ```csharp
 // Line
@@ -135,7 +138,7 @@ ax.Plot(time, temperature)
 Use `AddSubPlot(rows, cols, index, configure)` for multi-panel figures. Subplots render in **parallel** for performance.
 
 ```csharp
-var figure = Plt.Create()
+Plt.Create()
     .WithSize(1200, 600)
     .WithTheme(Theme.Dark)
     .AddSubPlot(1, 2, 1, ax => ax
@@ -149,9 +152,7 @@ var figure = Plt.Create()
     .AddSubPlot(1, 2, 2, ax => ax
         .WithTitle("Distribution")
         .Hist(samples, bins: 15))
-    .Build();
-
-string svg = figure.ToSvg();
+    .Save("subplots.svg");
 ```
 
 `AxesBuilder` methods:
@@ -170,28 +171,38 @@ string svg = figure.ToSvg();
 | `Plot`, `Scatter`, `Bar`, `Hist`, `Pie`, `Step`, `FillBetween`, `ErrorBar` | Series (FigureBuilder) |
 | `Heatmap`, `BoxPlot`, `Violin`, `Contour`, `Stem`, `Candlestick`, `Quiver`, `Radar` | Series (AxesBuilder) |
 
-## 6. Export transforms
+## 6. Export
 
-All output formats implement `IFigureTransform` with a fluent `TransformResult`:
+Save directly from the builder -- no `.Build()` needed:
+
+```csharp
+// Auto-detect format from file extension
+Plt.Create().Plot(x, y).Save("chart.svg");
+Plt.Create().Plot(x, y).Save("chart.png");    // requires MatPlotLibNet.Skia
+Plt.Create().Plot(x, y).Save("chart.pdf");    // requires MatPlotLibNet.Skia
+Plt.Create().Plot(x, y).Save("chart.json");
+
+// Get strings directly
+string svg = Plt.Create().Plot(x, y).ToSvg();
+string json = Plt.Create().Plot(x, y).ToJson();
+
+// Register PNG/PDF once at startup
+FigureExtensions.RegisterTransform(".png", new PngTransform());
+FigureExtensions.RegisterTransform(".pdf", new PdfTransform());
+```
+
+For advanced usage with explicit transforms (when you need the Figure object):
 
 ```csharp
 using MatPlotLibNet.Transforms;
 
 var figure = Plt.Create().Plot(x, y).Build();
 
-// Polymorphic -- same pattern for any format
 figure.Transform(new SvgTransform()).ToFile("chart.svg");
-figure.Transform(new PngTransform()).ToFile("chart.png");   // requires MatPlotLibNet.Skia
-figure.Transform(new PdfTransform()).ToFile("chart.pdf");   // requires MatPlotLibNet.Skia
+figure.Transform(new PngTransform()).ToFile("chart.png");
 
-// Get bytes or write to stream
 byte[] png = figure.Transform(new PngTransform()).ToBytes();
 figure.Transform(new SvgTransform()).ToStream(stream);
-
-// Convenience shortcuts
-string svg = figure.ToSvg();
-byte[] pngBytes = figure.ToPng();
-byte[] pdfBytes = figure.ToPdf();
 ```
 
 ## 7. SVG interactivity
@@ -201,7 +212,7 @@ byte[] pdfBytes = figure.ToPdf();
 ax.WithTooltips().Scatter(x, y);
 
 // Zoom (mouse wheel) and pan (click-drag) -- embedded JavaScript
-Plt.Create().WithZoomPan().Plot(x, y).Build()
+Plt.Create().WithZoomPan().Plot(x, y).Save("zoomable")
 
 // Double-click resets to original view. Only effective in browsers.
 ```
@@ -285,11 +296,10 @@ var myTheme = Theme.CreateFrom(Theme.Dark)
     .WithGrid(g => g with { Visible = true, Alpha = 0.3 })
     .Build();
 
-var svg = Plt.Create()
+Plt.Create()
     .WithTheme(myTheme)
     .Plot(x, y)
-    .Build()
-    .ToSvg();
+    .Save("themed_chart");
 ```
 
 ## 11. JSON serialization

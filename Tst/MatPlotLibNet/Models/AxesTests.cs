@@ -138,7 +138,7 @@ public class AxesTests
     {
         var axes = new Axes();
         var series = axes.Pie([30.0, 70.0], ["A", "B"]);
-        Assert.Equal(["A", "B"], series.Labels);
+        Assert.Equal(["A", "B"], series.Labels!);
     }
 
     /// <summary>Verifies that Heatmap adds a HeatmapSeries to the series collection.</summary>

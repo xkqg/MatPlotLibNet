@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a pie chart series displaying proportional data as circular slices.</summary>
-public sealed class PieSeries : ChartSeries, IHasDataRange
+public sealed class PieSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 {
     /// <summary>Gets the numeric sizes of each pie slice.</summary>
     public double[] Sizes { get; }
@@ -35,6 +36,13 @@ public sealed class PieSeries : ChartSeries, IHasDataRange
     /// <inheritdoc />
     public DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "pie",
+        Sizes = Sizes, PieLabels = Labels
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -36,8 +36,8 @@ string json = Plt.Create().Plot(x, y).ToJson();
 using MatPlotLibNet.Skia;
 
 // Register once at startup
-FigureBuilder.RegisterGlobalTransform(".png", new PngTransform());
-FigureBuilder.RegisterGlobalTransform(".pdf", new PdfTransform());
+FigureExtensions.RegisterTransform(".png", new PngTransform());
+FigureExtensions.RegisterTransform(".pdf", new PdfTransform());
 
 // Then use ToFile everywhere
 Plt.Create().Plot(x, y).Save("chart.png");

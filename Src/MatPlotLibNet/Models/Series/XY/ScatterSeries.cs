@@ -2,13 +2,14 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a scatter chart series displaying individual data points as markers.</summary>
-public sealed class ScatterSeries : XYSeries
+public sealed class ScatterSeries : XYSeries, ISeriesSerializable
 {
     /// <summary>Gets or sets per-point marker sizes.</summary>
     public double[]? Sizes { get; set; }
@@ -36,6 +37,14 @@ public sealed class ScatterSeries : XYSeries
     /// <param name="xData">The X-axis data values.</param>
     /// <param name="yData">The Y-axis data values.</param>
     public ScatterSeries(double[] xData, double[] yData) : base(xData, yData) { }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "scatter",
+        XData = XData, YData = YData, Color = Color,
+        MarkerSize = MarkerSize
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

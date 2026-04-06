@@ -2,12 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a line chart series connecting data points with a line.</summary>
-public sealed class LineSeries : XYSeries
+public sealed class LineSeries : XYSeries, ISeriesSerializable
 {
     /// <summary>Gets or sets the line color.</summary>
     public Color? Color { get; set; }
@@ -28,6 +29,15 @@ public sealed class LineSeries : XYSeries
     /// <param name="xData">The X-axis data values.</param>
     /// <param name="yData">The Y-axis data values.</param>
     public LineSeries(double[] xData, double[] yData) : base(xData, yData) { }
+
+    /// <inheritdoc />
+    public SeriesDto ToSeriesDto() => new()
+    {
+        Type = "line",
+        XData = XData, YData = YData, Color = Color,
+        LineStyle = LineStyle.ToString().ToLowerInvariant(),
+        LineWidth = LineWidth
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

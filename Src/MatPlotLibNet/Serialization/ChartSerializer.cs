@@ -85,158 +85,9 @@ public sealed class ChartSerializer : IChartSerializer
 
     private static SeriesDto SeriesToDto(ISeries series)
     {
-        var dto = series switch
-        {
-            LineSeries ls => new SeriesDto
-            {
-                Type = "line",
-                XData = ls.XData, YData = ls.YData, Color = ls.Color,
-                LineStyle = ls.LineStyle.ToString().ToLowerInvariant(),
-                LineWidth = ls.LineWidth
-            },
-            ScatterSeries ss => new SeriesDto
-            {
-                Type = "scatter",
-                XData = ss.XData, YData = ss.YData, Color = ss.Color,
-                MarkerSize = ss.MarkerSize
-            },
-            BarSeries bs => new SeriesDto
-            {
-                Type = "bar",
-                Categories = bs.Categories, Values = bs.Values, Color = bs.Color,
-                Orientation = bs.Orientation.ToString().ToLowerInvariant(),
-                BarWidth = bs.BarWidth
-            },
-            HistogramSeries hs => new SeriesDto
-            {
-                Type = "histogram",
-                Data = hs.Data, Bins = hs.Bins, Color = hs.Color
-            },
-            PieSeries ps => new SeriesDto
-            {
-                Type = "pie",
-                Sizes = ps.Sizes, PieLabels = ps.Labels
-            },
-            BoxSeries bx => new SeriesDto { Type = "box", Datasets = bx.Datasets },
-            ViolinSeries vs => new SeriesDto { Type = "violin", Datasets = vs.Datasets },
-            HeatmapSeries hm => new SeriesDto { Type = "heatmap", HeatmapData = To2DList(hm.Data) },
-            StemSeries st => new SeriesDto { Type = "stem", XData = st.XData, YData = st.YData },
-            ContourSeries cs => new SeriesDto
-            {
-                Type = "contour",
-                XData = cs.XData, YData = cs.YData, HeatmapData = To2DList(cs.ZData)
-            },
-            RadarSeries rs => new SeriesDto
-            {
-                Type = "radar",
-                Categories = rs.Categories, Values = rs.Values,
-                Color = rs.Color, FillColor = rs.FillColor,
-                Alpha = rs.Alpha, LineWidth = rs.LineWidth, MaxValue = rs.MaxValue
-            },
-            QuiverSeries qs => new SeriesDto
-            {
-                Type = "quiver",
-                XData = qs.XData, YData = qs.YData,
-                UData = qs.UData, VData = qs.VData,
-                Color = qs.Color, Scale = qs.Scale, ArrowHeadSize = qs.ArrowHeadSize
-            },
-            CandlestickSeries cs => new SeriesDto
-            {
-                Type = "candlestick",
-                Open = cs.Open, High = cs.High, Low = cs.Low, Close = cs.Close,
-                DateLabels = cs.DateLabels, UpColor = cs.UpColor, DownColor = cs.DownColor,
-                BodyWidth = cs.BodyWidth
-            },
-            ErrorBarSeries eb => new SeriesDto
-            {
-                Type = "errorbar",
-                XData = eb.XData, YData = eb.YData,
-                YErrorLow = eb.YErrorLow, YErrorHigh = eb.YErrorHigh,
-                XErrorLow = eb.XErrorLow, XErrorHigh = eb.XErrorHigh,
-                Color = eb.Color, LineWidth = eb.LineWidth, CapSize = eb.CapSize
-            },
-            StepSeries ss => new SeriesDto
-            {
-                Type = "step",
-                XData = ss.XData, YData = ss.YData, Color = ss.Color,
-                LineStyle = ss.LineStyle.ToString().ToLowerInvariant(),
-                LineWidth = ss.LineWidth,
-                StepPosition = ss.StepPosition.ToString().ToLowerInvariant()
-            },
-            AreaSeries ar => new SeriesDto
-            {
-                Type = "area",
-                XData = ar.XData, YData = ar.YData, YData2 = ar.YData2,
-                Color = ar.Color, Alpha = ar.Alpha,
-                LineStyle = ar.LineStyle.ToString().ToLowerInvariant(),
-                LineWidth = ar.LineWidth
-            },
-            DonutSeries ds => new SeriesDto
-            {
-                Type = "donut",
-                Sizes = ds.Sizes, PieLabels = ds.Labels,
-                InnerRadius = ds.InnerRadius, CenterText = ds.CenterText,
-                StartAngle = ds.StartAngle
-            },
-            BubbleSeries bs2 => new SeriesDto
-            {
-                Type = "bubble",
-                XData = bs2.XData, YData = bs2.YData, Sizes = bs2.Sizes,
-                Color = bs2.Color, Alpha = bs2.Alpha
-            },
-            OhlcBarSeries ob => new SeriesDto
-            {
-                Type = "ohlcbar",
-                Open = ob.Open, High = ob.High, Low = ob.Low, Close = ob.Close,
-                DateLabels = ob.DateLabels, UpColor = ob.UpColor, DownColor = ob.DownColor,
-                TickWidth = ob.TickWidth
-            },
-            WaterfallSeries ws => new SeriesDto
-            {
-                Type = "waterfall",
-                Categories = ws.Categories, Values = ws.Values,
-                IncreaseColor = ws.IncreaseColor, DecreaseColor = ws.DecreaseColor,
-                TotalColor = ws.TotalColor, BarWidth = ws.BarWidth
-            },
-            FunnelSeries fs => new SeriesDto
-            {
-                Type = "funnel",
-                PieLabels = fs.Labels, Values = fs.Values
-            },
-            GanttSeries gs => new SeriesDto
-            {
-                Type = "gantt",
-                Tasks = gs.Tasks, Starts = gs.Starts, Ends = gs.Ends,
-                Color = gs.Color, BarHeight = gs.BarHeight
-            },
-            GaugeSeries gg => new SeriesDto
-            {
-                Type = "gauge",
-                GaugeValue = gg.Value, GaugeMin = gg.Min, GaugeMax = gg.Max,
-                NeedleColor = gg.NeedleColor
-            },
-            ProgressBarSeries pb => new SeriesDto
-            {
-                Type = "progressbar",
-                GaugeValue = pb.Value, FillColor = pb.FillColor,
-                TrackColor = pb.TrackColor, BarHeight = pb.BarHeight
-            },
-            SparklineSeries sl => new SeriesDto
-            {
-                Type = "sparkline",
-                Values = sl.Values, Color = sl.Color, LineWidth = sl.LineWidth
-            },
-            TreemapSeries tm => new SeriesDto { Type = "treemap" },
-            SunburstSeries sb => new SeriesDto { Type = "sunburst" },
-            SankeySeries sk => new SeriesDto { Type = "sankey" },
-            PolarLineSeries pl => new SeriesDto { Type = "polarline" },
-            PolarScatterSeries ps => new SeriesDto { Type = "polarscatter" },
-            PolarBarSeries pb => new SeriesDto { Type = "polarbar" },
-            SurfaceSeries sf => new SeriesDto { Type = "surface" },
-            WireframeSeries wf => new SeriesDto { Type = "wireframe" },
-            Scatter3DSeries sc => new SeriesDto { Type = "scatter3d" },
-            _ => new SeriesDto { Type = "unknown" }
-        };
+        var dto = series is ISeriesSerializable serializable
+            ? serializable.ToSeriesDto()
+            : new SeriesDto { Type = "unknown" };
         dto.Label = series.Label;
         return dto;
     }
@@ -321,50 +172,13 @@ public sealed class ChartSerializer : IChartSerializer
 
     private static void AddSeriesFromDto(Axes axes, SeriesDto dto)
     {
-        ISeries? series = dto.Type switch
-        {
-            "line" => CreateLine(axes, dto),
-            "scatter" => CreateScatter(axes, dto),
-            "bar" => CreateBar(axes, dto),
-            "histogram" => CreateHistogram(axes, dto),
-            "pie" => axes.Pie(dto.Sizes ?? [], dto.PieLabels),
-            "box" => axes.BoxPlot(dto.Datasets ?? []),
-            "violin" => axes.Violin(dto.Datasets ?? []),
-            "heatmap" => axes.Heatmap(From2DList(dto.HeatmapData)),
-            "stem" => axes.Stem(dto.XData ?? [], dto.YData ?? []),
-            "contour" => axes.Contour(dto.XData ?? [], dto.YData ?? [], From2DList(dto.HeatmapData)),
-            "area" => CreateArea(axes, dto),
-            "step" => CreateStep(axes, dto),
-            "errorbar" => CreateErrorBar(axes, dto),
-            "candlestick" => CreateCandlestick(axes, dto),
-            "quiver" => CreateQuiver(axes, dto),
-            "radar" => CreateRadar(axes, dto),
-            "donut" => CreateDonut(axes, dto),
-            "bubble" => CreateBubble(axes, dto),
-            "ohlcbar" => CreateOhlcBar(axes, dto),
-            "waterfall" => CreateWaterfall(axes, dto),
-            "funnel" => CreateFunnel(axes, dto),
-            "gantt" => CreateGantt(axes, dto),
-            "gauge" => CreateGauge(axes, dto),
-            "progressbar" => CreateProgressBar(axes, dto),
-            "sparkline" => CreateSparkline(axes, dto),
-            "treemap" => axes.Treemap(new TreeNode { Label = "Root" }),
-            "sunburst" => axes.Sunburst(new TreeNode { Label = "Root" }),
-            "sankey" => axes.Sankey([new SankeyNode("A")], []),
-            "polarline" => axes.PolarPlot([1.0], [0.0]),
-            "polarscatter" => axes.PolarScatter([1.0], [0.0]),
-            "polarbar" => axes.PolarBar([1.0], [0.0]),
-            "surface" => axes.Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 0 }, { 0, 0 } }),
-            "wireframe" => axes.Wireframe([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 0 }, { 0, 0 } }),
-            "scatter3d" => axes.Scatter3D([0.0], [0.0], [0.0]),
-            _ => null
-        };
+        var series = SeriesRegistry.Create(dto.Type ?? "unknown", axes, dto);
         if (series is not null)
             series.Label = dto.Label;
     }
 
     /// <summary>Reconstructs a <see cref="LineSeries"/> from the DTO and adds it to the axes.</summary>
-    private static LineSeries CreateLine(Axes axes, SeriesDto dto)
+    internal static LineSeries CreateLine(Axes axes, SeriesDto dto)
     {
         var s = axes.Plot(dto.XData ?? [], dto.YData ?? []);
         ApplyLineProperties(s, dto);
@@ -372,7 +186,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="ScatterSeries"/> from the DTO and adds it to the axes.</summary>
-    private static ScatterSeries CreateScatter(Axes axes, SeriesDto dto)
+    internal static ScatterSeries CreateScatter(Axes axes, SeriesDto dto)
     {
         var s = axes.Scatter(dto.XData ?? [], dto.YData ?? []);
         s.Color = dto.Color;
@@ -381,7 +195,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="BarSeries"/> from the DTO, including orientation, and adds it to the axes.</summary>
-    private static BarSeries CreateBar(Axes axes, SeriesDto dto)
+    internal static BarSeries CreateBar(Axes axes, SeriesDto dto)
     {
         var s = axes.Bar(dto.Categories ?? [], dto.Values ?? []);
         s.Color = dto.Color;
@@ -391,7 +205,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="HistogramSeries"/> from the DTO and adds it to the axes.</summary>
-    private static HistogramSeries CreateHistogram(Axes axes, SeriesDto dto)
+    internal static HistogramSeries CreateHistogram(Axes axes, SeriesDto dto)
     {
         var s = axes.Hist(dto.Data ?? [], dto.Bins ?? 10);
         s.Color = dto.Color;
@@ -399,7 +213,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="LineSeries"/> on the secondary Y-axis from the DTO.</summary>
-    private static LineSeries CreateSecondaryLine(Axes axes, SeriesDto dto)
+    internal static LineSeries CreateSecondaryLine(Axes axes, SeriesDto dto)
     {
         var s = axes.PlotSecondary(dto.XData ?? [], dto.YData ?? []);
         ApplyLineProperties(s, dto);
@@ -407,7 +221,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="ScatterSeries"/> on the secondary Y-axis from the DTO.</summary>
-    private static ScatterSeries CreateSecondaryScatter(Axes axes, SeriesDto dto)
+    internal static ScatterSeries CreateSecondaryScatter(Axes axes, SeriesDto dto)
     {
         var s = axes.ScatterSecondary(dto.XData ?? [], dto.YData ?? []);
         s.Color = dto.Color;
@@ -416,7 +230,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="RadarSeries"/> from the DTO, including fill color and max value.</summary>
-    private static RadarSeries CreateRadar(Axes axes, SeriesDto dto)
+    internal static RadarSeries CreateRadar(Axes axes, SeriesDto dto)
     {
         var s = axes.Radar(dto.Categories ?? [], dto.Values ?? []);
         s.Color = dto.Color;
@@ -428,7 +242,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="QuiverSeries"/> from the DTO, including scale and arrowhead size.</summary>
-    private static QuiverSeries CreateQuiver(Axes axes, SeriesDto dto)
+    internal static QuiverSeries CreateQuiver(Axes axes, SeriesDto dto)
     {
         var s = axes.Quiver(dto.XData ?? [], dto.YData ?? [], dto.UData ?? [], dto.VData ?? []);
         s.Color = dto.Color;
@@ -438,7 +252,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="CandlestickSeries"/> from the DTO, including up/down colors and date labels.</summary>
-    private static CandlestickSeries CreateCandlestick(Axes axes, SeriesDto dto)
+    internal static CandlestickSeries CreateCandlestick(Axes axes, SeriesDto dto)
     {
         var s = axes.Candlestick(dto.Open ?? [], dto.High ?? [], dto.Low ?? [], dto.Close ?? [], dto.DateLabels);
         if (dto.UpColor.HasValue) s.UpColor = dto.UpColor.Value;
@@ -448,7 +262,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs an <see cref="ErrorBarSeries"/> from the DTO, including optional X error bars.</summary>
-    private static ErrorBarSeries CreateErrorBar(Axes axes, SeriesDto dto)
+    internal static ErrorBarSeries CreateErrorBar(Axes axes, SeriesDto dto)
     {
         var s = axes.ErrorBar(dto.XData ?? [], dto.YData ?? [], dto.YErrorLow ?? [], dto.YErrorHigh ?? []);
         s.Color = dto.Color;
@@ -460,7 +274,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="StepSeries"/> from the DTO, including step position.</summary>
-    private static StepSeries CreateStep(Axes axes, SeriesDto dto)
+    internal static StepSeries CreateStep(Axes axes, SeriesDto dto)
     {
         var s = axes.Step(dto.XData ?? [], dto.YData ?? []);
         s.Color = dto.Color;
@@ -471,7 +285,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs an <see cref="AreaSeries"/> from the DTO, including optional second Y dataset for fill-between.</summary>
-    private static AreaSeries CreateArea(Axes axes, SeriesDto dto)
+    internal static AreaSeries CreateArea(Axes axes, SeriesDto dto)
     {
         var s = axes.FillBetween(dto.XData ?? [], dto.YData ?? [], dto.YData2);
         s.Color = dto.Color;
@@ -482,7 +296,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="DonutSeries"/> from the DTO, including inner radius and center text.</summary>
-    private static DonutSeries CreateDonut(Axes axes, SeriesDto dto)
+    internal static DonutSeries CreateDonut(Axes axes, SeriesDto dto)
     {
         var s = axes.Donut(dto.Sizes ?? [], dto.PieLabels);
         if (dto.InnerRadius.HasValue) s.InnerRadius = dto.InnerRadius.Value;
@@ -492,7 +306,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="BubbleSeries"/> from the DTO, including alpha transparency.</summary>
-    private static BubbleSeries CreateBubble(Axes axes, SeriesDto dto)
+    internal static BubbleSeries CreateBubble(Axes axes, SeriesDto dto)
     {
         var s = axes.Bubble(dto.XData ?? [], dto.YData ?? [], dto.Sizes ?? []);
         s.Color = dto.Color;
@@ -501,7 +315,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs an <see cref="OhlcBarSeries"/> from the DTO, including up/down colors and tick width.</summary>
-    private static OhlcBarSeries CreateOhlcBar(Axes axes, SeriesDto dto)
+    internal static OhlcBarSeries CreateOhlcBar(Axes axes, SeriesDto dto)
     {
         var s = axes.OhlcBar(dto.Open ?? [], dto.High ?? [], dto.Low ?? [], dto.Close ?? [], dto.DateLabels);
         if (dto.UpColor.HasValue) s.UpColor = dto.UpColor.Value;
@@ -511,7 +325,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="WaterfallSeries"/> from the DTO, including increase/decrease/total colors.</summary>
-    private static WaterfallSeries CreateWaterfall(Axes axes, SeriesDto dto)
+    internal static WaterfallSeries CreateWaterfall(Axes axes, SeriesDto dto)
     {
         var s = axes.Waterfall(dto.Categories ?? [], dto.Values ?? []);
         if (dto.IncreaseColor.HasValue) s.IncreaseColor = dto.IncreaseColor.Value;
@@ -522,14 +336,14 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="FunnelSeries"/> from the DTO.</summary>
-    private static FunnelSeries CreateFunnel(Axes axes, SeriesDto dto)
+    internal static FunnelSeries CreateFunnel(Axes axes, SeriesDto dto)
     {
         var s = axes.Funnel(dto.PieLabels ?? [], dto.Values ?? []);
         return s;
     }
 
     /// <summary>Reconstructs a <see cref="GanttSeries"/> from the DTO, including bar height.</summary>
-    private static GanttSeries CreateGantt(Axes axes, SeriesDto dto)
+    internal static GanttSeries CreateGantt(Axes axes, SeriesDto dto)
     {
         var s = axes.Gantt(dto.Tasks ?? [], dto.Starts ?? [], dto.Ends ?? []);
         s.Color = dto.Color;
@@ -538,7 +352,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="GaugeSeries"/> from the DTO, including min/max range and needle color.</summary>
-    private static GaugeSeries CreateGauge(Axes axes, SeriesDto dto)
+    internal static GaugeSeries CreateGauge(Axes axes, SeriesDto dto)
     {
         var s = axes.Gauge(dto.GaugeValue ?? 0);
         if (dto.GaugeMin.HasValue) s.Min = dto.GaugeMin.Value;
@@ -548,7 +362,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="ProgressBarSeries"/> from the DTO, including fill and track colors.</summary>
-    private static ProgressBarSeries CreateProgressBar(Axes axes, SeriesDto dto)
+    internal static ProgressBarSeries CreateProgressBar(Axes axes, SeriesDto dto)
     {
         var s = axes.ProgressBar(dto.GaugeValue ?? 0);
         if (dto.FillColor.HasValue) s.FillColor = dto.FillColor.Value;
@@ -558,7 +372,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="SparklineSeries"/> from the DTO, including color and line width.</summary>
-    private static SparklineSeries CreateSparkline(Axes axes, SeriesDto dto)
+    internal static SparklineSeries CreateSparkline(Axes axes, SeriesDto dto)
     {
         var s = axes.Sparkline(dto.Values ?? []);
         s.Color = dto.Color;
@@ -568,7 +382,7 @@ public sealed class ChartSerializer : IChartSerializer
 
     /// <summary>Parses a string to an enum value and applies it via the <paramref name="setter"/> delegate if successful.</summary>
     /// <remarks>Uses case-insensitive parsing. No-ops when <paramref name="value"/> is null or not a valid enum member.</remarks>
-    private static void ApplyEnum<T>(string? value, Action<T> setter) where T : struct, Enum
+    internal static void ApplyEnum<T>(string? value, Action<T> setter) where T : struct, Enum
     {
         if (value is not null && Enum.TryParse<T>(value, true, out var parsed))
             setter(parsed);
@@ -576,14 +390,14 @@ public sealed class ChartSerializer : IChartSerializer
 
     /// <summary>Applies the common line series properties (color, width, style) from a DTO to a <see cref="LineSeries"/>.</summary>
     /// <remarks>Shared between primary and secondary line series deserialization to avoid duplication.</remarks>
-    private static void ApplyLineProperties(LineSeries s, SeriesDto dto)
+    internal static void ApplyLineProperties(LineSeries s, SeriesDto dto)
     {
         s.Color = dto.Color;
         s.LineWidth = dto.LineWidth ?? 1.5;
         ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
     }
 
-    private static List<List<double>>? To2DList(double[,] data)
+    internal static List<List<double>>? To2DList(double[,] data)
     {
         int rows = data.GetLength(0), cols = data.GetLength(1);
         var result = new List<List<double>>(rows);
@@ -596,7 +410,7 @@ public sealed class ChartSerializer : IChartSerializer
         return result;
     }
 
-    private static double[,] From2DList(List<List<double>>? data)
+    internal static double[,] From2DList(List<List<double>>? data)
     {
         if (data is null || data.Count == 0) return new double[0, 0];
         int rows = data.Count, cols = data[0].Count;
@@ -680,7 +494,7 @@ internal sealed record GridDto
 /// <summary>Unified flat DTO for all series types. The <see cref="Type"/> discriminator determines which properties are populated.</summary>
 /// <remarks>This is intentionally a wide record — each series type uses a different subset of properties.
 /// Unused properties serialize as null and are omitted from JSON output via <c>DefaultIgnoreCondition.WhenWritingNull</c>.</remarks>
-internal sealed record SeriesDto
+public sealed record SeriesDto
 {
     public string? Type { get; init; }
     public string? Label { get; set; }
