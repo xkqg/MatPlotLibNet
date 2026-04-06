@@ -379,6 +379,14 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a Sankey diagram series to the axes.</summary>
+    public SankeySeries Sankey(SankeyNode[] nodes, SankeyLink[] links)
+    {
+        var series = new SankeySeries(nodes, links);
+        _series.Add(series);
+        return series;
+    }
+
     /// <summary>Adds a buy or sell signal marker at the specified data coordinates.</summary>
     public SignalMarker AddSignal(double x, double y, SignalDirection direction)
     {

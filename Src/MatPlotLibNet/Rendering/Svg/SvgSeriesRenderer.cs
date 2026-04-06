@@ -57,6 +57,9 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private TreemapSeriesRenderer? _treemap;
     private SunburstSeriesRenderer? _sunburst;
 
+    // Flow family
+    private SankeySeriesRenderer? _sankey;
+
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor, bool tooltipsEnabled = false)
     {
         _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(default, ctx))
@@ -134,4 +137,8 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(TreemapSeries s, RenderArea a) => (_treemap ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(SunburstSeries s, RenderArea a) => (_sunburst ??= new(_context)).Render(s);
+
+    // Flow family
+    /// <inheritdoc />
+    public void Visit(SankeySeries s, RenderArea a) => (_sankey ??= new(_context)).Render(s);
 }

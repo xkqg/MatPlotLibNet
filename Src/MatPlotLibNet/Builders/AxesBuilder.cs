@@ -230,6 +230,10 @@ public sealed class AxesBuilder
     public AxesBuilder Sunburst(TreeNode root, Action<SunburstSeries>? configure = null)
         => AddSeries(ax => ax.Sunburst(root), configure);
 
+    /// <summary>Adds a Sankey diagram series to the axes.</summary>
+    public AxesBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null)
+        => AddSeries(ax => ax.Sankey(nodes, links), configure);
+
     /// <summary>Adds a radar (spider) chart series to the axes.</summary>
     public AxesBuilder Radar(string[] categories, double[] values, Action<RadarSeries>? configure = null)
         => AddSeries(ax => ax.Radar(categories, values), configure);

@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.3.1)
+# MatPlotLibNet Core -- Architecture (v0.3.3)
 
 ## Package dependency graph
 
@@ -132,6 +132,8 @@ MatPlotLibNet/
       Distribution/                     Box, Violin
       Financial/                        Candlestick, OhlcBar
       Field/                            Quiver, Stem
+      Hierarchical/                     Treemap, Sunburst (shared HierarchicalSeries base)
+      Flow/                             Sankey
 
     Svg/
       ISvgRenderer.cs                 interface: Render(Figure) -> string (backward compat)

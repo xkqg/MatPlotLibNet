@@ -47,7 +47,7 @@ figure.Transform(new PdfTransform()).ToFile("chart.pdf");   // requires MatPlotL
 
 ## Chart types
 
-**25 series types** with fluent builder API:
+**28 series types** with fluent builder API:
 
 ```csharp
 var fig = Plt.Create()
@@ -63,7 +63,7 @@ var fig = Plt.Create()
 ```
 
 Additional types via `AxesBuilder.AddSubPlot`:
-Heatmap, Box, Violin, Contour, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline.
+Heatmap, Box, Violin, Contour, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Treemap, Sunburst, Sankey.
 
 ### Stacked bars
 
@@ -118,6 +118,68 @@ ax.Candlestick(open, high, low, close)
 **13 indicators:** SMA, EMA, Bollinger Bands, VWAP, RSI, MACD, Stochastic, Volume, Fibonacci, ATR, ADX, Keltner Channels, Ichimoku Cloud.
 
 **Trading analytics:** EquityCurve, ProfitLoss, DrawDown — for strategy backtesting panels.
+
+## Hierarchical charts (Treemap + Sunburst)
+
+```csharp
+var tree = new TreeNode
+{
+    Label = "Sales",
+    Children = [
+        new TreeNode { Label = "Electronics", Value = 400 },
+        new TreeNode { Label = "Clothing", Value = 300 },
+        new TreeNode { Label = "Food", Value = 200 }
+    ]
+};
+
+Plt.Create().Treemap(tree).Build();     // nested rectangles
+Plt.Create().Sunburst(tree).Build();    // concentric ring segments
+```
+
+## Sankey diagrams
+
+```csharp
+SankeyNode[] nodes = [new("A"), new("B"), new("C")];
+SankeyLink[] links = [new(0, 1, 30), new(0, 2, 20)];
+
+Plt.Create().Sankey(nodes, links).Build();
+```
+
+## Legend
+
+```csharp
+.AddSubPlot(1, 1, 1, ax => ax
+    .Plot(x, temp, s => s.Label = "Temperature")
+    .Plot(x, humidity, s => s.Label = "Humidity")
+    .WithLegend(LegendPosition.UpperRight))
+```
+
+## Subplot spacing
+
+```csharp
+Plt.Create()
+    .TightLayout()
+    .AddSubPlot(2, 2, 1, ax => ax.Plot(x, y))
+    .AddSubPlot(2, 2, 2, ax => ax.Scatter(x, y))
+    .Build();
+
+// Or custom margins
+Plt.Create()
+    .WithSubPlotSpacing(s => s with { MarginLeft = 80, HorizontalGap = 20 })
+    .Build();
+```
+
+## Axis formatting
+
+```csharp
+// Date axis
+.AddSubPlot(1, 1, 1, ax => ax
+    .SetXDateFormat("MMM yyyy")
+    .Plot(dates, values))
+
+// Custom tick formatter
+.SetXTickFormatter(new LogTickFormatter())
+```
 
 ## Subplots
 
@@ -285,6 +347,7 @@ See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering 
 
 | Version | Highlights |
 |---------|-----------|
+| **0.3.3** | 28 series types: Treemap, Sunburst (hierarchical with shared `HierarchicalSeries` base), Sankey diagrams (flow). Legend rendering with position control. Configurable subplot spacing (`SubPlotSpacing` record, `TightLayout()`). Axis formatting: `ITickFormatter` pipeline with `DateTickFormatter`, `LogTickFormatter`, `NumericTickFormatter`. Date axis scale. GitHub Actions v5. CI/CD improvements. |
 | **0.3.2** | Quality release: OO indicator refactor (`Indicator<TResult>` with `IIndicatorResult` constraint, named result records, no statics). 92 new tests. BenchmarkDotNet suite. CHANGELOG, BENCHMARKS.md, DocFX, 4 sample projects. JSON serialization fix for 9 series types. |
 | **0.3.1** | Platform expansion: `@matplotlibnet/react` (React 19 hooks + components), `@matplotlibnet/vue` (Vue 3 composables + components), `MatPlotLibNet.GraphQL` (HotChocolate queries + subscriptions). Core library multi-targets `netstandard2.1`. |
 | **0.3.0** | 25 series types (Donut, Bubble, OhlcBar, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline). 13 technical indicators (SMA, EMA, BB, VWAP, RSI, MACD, Stochastic, Volume, Fibonacci, ATR, ADX, Keltner, Ichimoku). Trading analytics (EquityCurve, ProfitLoss, DrawDown). Buy/sell signal markers. Generic `SeriesRenderer<T>` + `Indicator<TResult>`. Intuitive fluent API (`.Sma(20)`, `.BuyAt()`, `.SaveSvg()`). PriceSource enum, Offset, LineStyle on all indicators. Series organized by chart family. |

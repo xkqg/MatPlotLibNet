@@ -643,6 +643,11 @@ public sealed class ChartRenderer : IChartRenderer
                     if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
                     if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
                     break;
+                case SankeySeries:
+                    // Render in own coordinate system within PlotBounds
+                    if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
+                    if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
+                    break;
             }
         }
 

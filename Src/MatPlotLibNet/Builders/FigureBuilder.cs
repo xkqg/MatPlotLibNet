@@ -85,6 +85,10 @@ public sealed class FigureBuilder
     public FigureBuilder Sunburst(TreeNode root, Action<SunburstSeries>? configure = null) =>
         AddSeries(ax => ax.Sunburst(root), configure);
 
+    /// <summary>Adds a Sankey diagram series to the default axes.</summary>
+    public FigureBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null) =>
+        AddSeries(ax => ax.Sankey(nodes, links), configure);
+
     /// <summary>Adds a subplot at the specified grid position, configured via an <see cref="AxesBuilder"/>.</summary>
     /// <param name="rows">Number of rows in the subplot grid.</param>
     /// <param name="cols">Number of columns in the subplot grid.</param>

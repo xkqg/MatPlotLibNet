@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.3] - 2026-04-06
+
+### Added
+
+- `TreeNode` record for hierarchical data (Label, Value, Color, Children with recursive TotalValue)
+- `HierarchicalSeries` abstract base class with shared Root, ColorMap, ShowLabels properties
+- `TreemapSeries` — nested rectangle layout with configurable padding
+- `SunburstSeries` — concentric ring segments with configurable inner radius
+- `TreemapSeriesRenderer` — squarified slice-and-dice layout algorithm
+- `SunburstSeriesRenderer` — arc-based radial rendering with recursive depth
+- `SankeySeries` — flow diagram with nodes and bezier-curved links
+- `SankeyNode` and `SankeyLink` records for Sankey data model
+- `SankeySeriesRenderer` — BFS column layout, curved link rendering, node labels
+- Legend rendering in `ChartRenderer.RenderLegend()` with color swatches and position control
+- `SubPlotSpacing` record with configurable margins, gaps, and `TightLayout` flag
+- `ITickFormatter` interface for pluggable axis tick formatting
+- `DateTickFormatter` — formats OLE Automation dates with configurable format string
+- `LogTickFormatter` — superscript notation for powers of ten
+- `NumericTickFormatter` — extracted from existing `FormatTick` logic
+- `AxisScale.Date` enum value for date axes
+- `Axis.TickFormatter` property for custom tick formatting
+- `AxesBuilder.WithLegend()`, `SetXDateFormat()`, `SetYDateFormat()`, `SetXTickFormatter()`, `SetYTickFormatter()` fluent methods
+- `FigureBuilder.TightLayout()` and `WithSubPlotSpacing()` fluent methods
+- `SvgRenderContext.BeginGroup()` / `EndGroup()` for CSS-classed SVG groups
+
+### Changed
+
+- Subplot layout margins are now configurable via `Figure.Spacing` (was hardcoded constants)
+- `ChartRenderer.RenderTicks` uses `Axis.TickFormatter` when set (falls back to default formatting)
+- GitHub Actions updated to v5 (Node.js 24 compatibility)
+- Series count increased from 25 to 28
+
 ## [0.3.2] - 2026-04-05
 
 ### Added

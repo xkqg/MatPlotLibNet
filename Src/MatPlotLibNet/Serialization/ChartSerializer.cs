@@ -228,6 +228,7 @@ public sealed class ChartSerializer : IChartSerializer
             },
             TreemapSeries tm => new SeriesDto { Type = "treemap" },
             SunburstSeries sb => new SeriesDto { Type = "sunburst" },
+            SankeySeries sk => new SeriesDto { Type = "sankey" },
             _ => new SeriesDto { Type = "unknown" }
         };
         dto.Label = series.Label;
@@ -343,6 +344,7 @@ public sealed class ChartSerializer : IChartSerializer
             "sparkline" => CreateSparkline(axes, dto),
             "treemap" => axes.Treemap(new TreeNode { Label = "Root" }),
             "sunburst" => axes.Sunburst(new TreeNode { Label = "Root" }),
+            "sankey" => axes.Sankey([new SankeyNode("A")], []),
             _ => null
         };
         if (series is not null)

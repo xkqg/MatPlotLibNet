@@ -88,4 +88,7 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a sunburst series.</summary>
     void Visit(SunburstSeries series, RenderArea area);
+
+    /// <summary>Renders a Sankey diagram series.</summary>
+    void Visit(SankeySeries series, RenderArea area);
 }

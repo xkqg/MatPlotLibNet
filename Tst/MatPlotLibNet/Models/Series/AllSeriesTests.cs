@@ -7,7 +7,7 @@ using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies common <see cref="ISeries"/> behavior across all 27 series types.</summary>
+/// <summary>Verifies common <see cref="ISeries"/> behavior across all 28 series types.</summary>
 public class AllSeriesTests
 {
     public static TheoryData<ISeries, string> AllSeriesInstances => new()
@@ -39,6 +39,7 @@ public class AllSeriesTests
         { new SparklineSeries([1.0, 2.0, 3.0]), nameof(SparklineSeries) },
         { new TreemapSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(TreemapSeries) },
         { new SunburstSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(SunburstSeries) },
+        { new SankeySeries([new SankeyNode("A"), new SankeyNode("B")], [new SankeyLink(0, 1, 10)]), nameof(SankeySeries) },
     };
 
     /// <summary>Verifies that Label defaults to null for every series type.</summary>
