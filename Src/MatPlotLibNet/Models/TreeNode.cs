@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Models;
 public sealed record TreeNode
 {
     /// <summary>Gets the display label for this node.</summary>
-    public required string Label { get; init; }
+    public string Label { get; init; } = "";
 
     /// <summary>Gets the value of this node (used for leaf nodes).</summary>
     public double Value { get; init; }
@@ -18,7 +18,7 @@ public sealed record TreeNode
     public Color? Color { get; init; }
 
     /// <summary>Gets the child nodes of this node.</summary>
-    public IReadOnlyList<TreeNode> Children { get; init; } = [];
+    public IReadOnlyList<TreeNode> Children { get; init; } = Array.Empty<TreeNode>();
 
     /// <summary>Computes the total value: own value if leaf, sum of children if branch.</summary>
     public double TotalValue => Children.Count > 0
