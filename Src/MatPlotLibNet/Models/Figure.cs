@@ -26,6 +26,9 @@ public sealed class Figure
     /// <summary>Gets or sets the visual theme applied to the figure.</summary>
     public Theme Theme { get; set; } = Theme.Default;
 
+    /// <summary>Gets or sets the subplot spacing configuration (margins and gaps).</summary>
+    public SubPlotSpacing Spacing { get; set; } = new();
+
     /// <summary>Gets or sets whether interactive zoom and pan via JavaScript is enabled in SVG output.</summary>
     /// <remarks>When enabled, a <c>&lt;script&gt;</c> block is injected into the SVG document that handles
     /// mouse-wheel zoom and click-drag pan via viewBox manipulation. Has no effect on raster transforms (PNG, PDF).

@@ -176,6 +176,18 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.Append("<g opacity=\"").Append(F(opacity)).AppendLine("\">");
     }
 
+    /// <summary>Opens an SVG group element with a CSS class attribute.</summary>
+    internal void BeginGroup(string cssClass)
+    {
+        _sb.Append("<g class=\"").Append(cssClass).AppendLine("\">");
+    }
+
+    /// <summary>Closes the current SVG group element.</summary>
+    internal void EndGroup()
+    {
+        _sb.AppendLine("</g>");
+    }
+
     private void AppendFillStroke(Color? fill, Color? stroke, double strokeThickness)
     {
         if (fill.HasValue)

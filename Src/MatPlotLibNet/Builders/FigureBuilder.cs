@@ -58,6 +58,13 @@ public sealed class FigureBuilder
     public FigureBuilder WithZoomPan(bool enabled = true) { _enableZoomPan = enabled; return this; }
     private bool _enableZoomPan;
 
+    /// <summary>Enables tight layout, which computes minimal margins automatically.</summary>
+    public FigureBuilder TightLayout() { _spacing = _spacing with { TightLayout = true }; return this; }
+
+    /// <summary>Configures custom subplot spacing (margins and gaps).</summary>
+    public FigureBuilder WithSubPlotSpacing(Func<SubPlotSpacing, SubPlotSpacing> configure) { _spacing = configure(_spacing); return this; }
+    private SubPlotSpacing _spacing = new();
+
     /// <summary>Adds an error bar series to the default axes.</summary>
     public FigureBuilder ErrorBar(double[] x, double[] y, double[] yErrorLow, double[] yErrorHigh, Action<ErrorBarSeries>? configure = null) =>
         AddSeries(ax => ax.ErrorBar(x, y, yErrorLow, yErrorHigh), configure);
@@ -93,7 +100,8 @@ public sealed class FigureBuilder
             Dpi = _dpi,
             BackgroundColor = _background,
             Theme = _theme,
-            EnableZoomPan = _enableZoomPan
+            EnableZoomPan = _enableZoomPan,
+            Spacing = _spacing
         };
 
         if (_defaultAxes is not null)

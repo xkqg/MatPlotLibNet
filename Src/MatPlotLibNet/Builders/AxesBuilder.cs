@@ -106,6 +106,13 @@ public sealed class AxesBuilder
     /// <summary>Sets the bar mode (grouped or stacked) for multiple bar series.</summary>
     public AxesBuilder SetBarMode(BarMode mode) { _axes.BarMode = mode; return this; }
 
+    /// <summary>Configures the legend display for this axes.</summary>
+    public AxesBuilder WithLegend(LegendPosition position = LegendPosition.Best, bool visible = true)
+    {
+        _axes.Legend = new Legend { Visible = visible, Position = position };
+        return this;
+    }
+
     /// <summary>Toggles grid line visibility on the axes.</summary>
     public AxesBuilder ShowGrid(bool visible = true) { _axes.Grid = _axes.Grid with { Visible = visible }; return this; }
 

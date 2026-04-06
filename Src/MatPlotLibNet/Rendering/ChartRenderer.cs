@@ -11,12 +11,7 @@ namespace MatPlotLibNet.Rendering;
 /// <summary>Renders a complete <see cref="Figure"/> including subplots, axes, grids, and series onto an <see cref="IRenderContext"/>.</summary>
 public sealed class ChartRenderer : IChartRenderer
 {
-    private const double MarginLeft = 60;
-    private const double MarginRight = 20;
-    private const double MarginTop = 40;
-    private const double MarginBottom = 50;
     private const double TitleHeight = 30;
-    private const double SubPlotGap = 40;
 
     /// <inheritdoc />
     public void Render(Figure figure, IRenderContext ctx)
@@ -39,10 +34,10 @@ public sealed class ChartRenderer : IChartRenderer
 
         ctx.DrawRectangle(new Rect(0, 0, figure.Width, figure.Height), bgColor, null, 0);
 
-        double plotAreaTop = MarginTop;
+        double plotAreaTop = figure.Spacing.MarginTop;
         if (figure.Title is not null)
         {
-            ctx.DrawText(figure.Title, new Point(figure.Width / 2, MarginTop / 2 + 5),
+            ctx.DrawText(figure.Title, new Point(figure.Width / 2, figure.Spacing.MarginTop / 2 + 5),
                 TitleFont(theme), TextAlignment.Center);
             plotAreaTop += TitleHeight;
         }
@@ -53,8 +48,9 @@ public sealed class ChartRenderer : IChartRenderer
     /// <summary>Computes subplot layout positions.</summary>
     internal List<Rect> ComputeSubPlotLayout(Figure figure, double plotAreaTop)
     {
-        double totalWidth = figure.Width - MarginLeft - MarginRight;
-        double totalHeight = figure.Height - plotAreaTop - MarginBottom;
+        var sp = figure.Spacing;
+        double totalWidth = figure.Width - sp.MarginLeft - sp.MarginRight;
+        double totalHeight = figure.Height - plotAreaTop - sp.MarginBottom;
 
         // Determine grid dimensions from subplot metadata
         int maxRows = 1, maxCols = 1;
@@ -71,8 +67,8 @@ public sealed class ChartRenderer : IChartRenderer
             maxRows = 1;
         }
 
-        double cellWidth = (totalWidth - SubPlotGap * (maxCols - 1)) / maxCols;
-        double cellHeight = (totalHeight - SubPlotGap * (maxRows - 1)) / maxRows;
+        double cellWidth = (totalWidth - sp.HorizontalGap * (maxCols - 1)) / maxCols;
+        double cellHeight = (totalHeight - sp.VerticalGap * (maxRows - 1)) / maxRows;
 
         var areas = new List<Rect>();
         for (int i = 0; i < figure.SubPlots.Count; i++)
@@ -93,8 +89,8 @@ public sealed class ChartRenderer : IChartRenderer
                 col = i % maxCols;
             }
 
-            double x = MarginLeft + col * (cellWidth + SubPlotGap);
-            double y = plotAreaTop + row * (cellHeight + SubPlotGap);
+            double x = sp.MarginLeft + col * (cellWidth + sp.HorizontalGap);
+            double y = plotAreaTop + row * (cellHeight + sp.VerticalGap);
             areas.Add(new Rect(x, y, cellWidth, cellHeight));
         }
 
@@ -272,6 +268,9 @@ public sealed class ChartRenderer : IChartRenderer
             ctx.DrawPolygon(triangle, signalColor, null, 0);
         }
 
+        // Legend
+        RenderLegend(axes, plotArea, ctx, theme);
+
         // Axes title
         if (axes.Title is not null)
         {
@@ -296,6 +295,94 @@ public sealed class ChartRenderer : IChartRenderer
                 new Point(plotArea.X - 45, plotArea.Y + plotArea.Height / 2),
                 labelFont, TextAlignment.Center);
         }
+    }
+
+    /// <summary>Renders the legend box showing labeled series with color swatches.</summary>
+    private static void RenderLegend(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme)
+    {
+        if (!axes.Legend.Visible) return;
+
+        // Collect labeled series with their colors
+        var entries = new List<(string Label, Color Color)>();
+        for (int i = 0; i < axes.Series.Count; i++)
+        {
+            var series = axes.Series[i];
+            if (string.IsNullOrEmpty(series.Label)) continue;
+            var color = theme.CycleColors[i % theme.CycleColors.Length];
+            entries.Add((series.Label, color));
+        }
+
+        if (entries.Count == 0) return;
+
+        var font = TickFont(theme);
+        double swatchSize = 12;
+        double swatchGap = 6;
+        double padding = 8;
+        double lineHeight = swatchSize + 4;
+
+        // Measure legend box dimensions
+        double maxTextWidth = 0;
+        foreach (var (label, _) in entries)
+        {
+            var size = ctx.MeasureText(label, font);
+            if (size.Width > maxTextWidth) maxTextWidth = size.Width;
+        }
+
+        double boxWidth = padding + swatchSize + swatchGap + maxTextWidth + padding;
+        double boxHeight = padding + entries.Count * lineHeight - 4 + padding;
+
+        // Position legend based on LegendPosition
+        double boxX, boxY;
+        double inset = 10;
+
+        switch (axes.Legend.Position)
+        {
+            case LegendPosition.UpperLeft:
+                boxX = plotArea.X + inset;
+                boxY = plotArea.Y + inset;
+                break;
+            case LegendPosition.LowerRight:
+                boxX = plotArea.X + plotArea.Width - boxWidth - inset;
+                boxY = plotArea.Y + plotArea.Height - boxHeight - inset;
+                break;
+            case LegendPosition.LowerLeft:
+                boxX = plotArea.X + inset;
+                boxY = plotArea.Y + plotArea.Height - boxHeight - inset;
+                break;
+            default: // Best, UpperRight
+                boxX = plotArea.X + plotArea.Width - boxWidth - inset;
+                boxY = plotArea.Y + inset;
+                break;
+        }
+
+        // Draw legend background with border
+        var bgColor = theme.Background.WithAlpha(220);
+        ctx.DrawRectangle(new Rect(boxX, boxY, boxWidth, boxHeight), bgColor, theme.ForegroundText, 0.5);
+
+        // Mark as legend group via CSS class using a clip region trick — draw class attribute
+        // SVG render context handles this by wrapping in <g class="legend">
+        if (ctx is SvgRenderContext svgCtx)
+            svgCtx.BeginGroup("legend");
+
+        // Draw entries
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var (label, color) = entries[i];
+            double entryY = boxY + padding + i * lineHeight;
+
+            // Color swatch
+            ctx.DrawRectangle(
+                new Rect(boxX + padding, entryY, swatchSize, swatchSize),
+                color, null, 0);
+
+            // Label text
+            ctx.DrawText(label,
+                new Point(boxX + padding + swatchSize + swatchGap, entryY + swatchSize - 1),
+                font, TextAlignment.Left);
+        }
+
+        if (ctx is SvgRenderContext svgCtx2)
+            svgCtx2.EndGroup();
     }
 
     /// <summary>Renders major grid lines behind the plot area at each tick position.</summary>
