@@ -28,7 +28,7 @@ public class InteractiveExtensionsTests : IDisposable
         Assert.Same(figure, handle.Figure);
     }
 
-    [Fact]
+    [Fact(Skip = "Requires a desktop environment (no browser on CI)")]
     public async Task ShowAsync_OpensBrowser()
     {
         var mock = Substitute.For<IBrowserLauncher>();
