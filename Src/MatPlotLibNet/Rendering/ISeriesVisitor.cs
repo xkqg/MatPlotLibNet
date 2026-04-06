@@ -82,4 +82,10 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a sparkline series.</summary>
     void Visit(SparklineSeries series, RenderArea area);
+
+    /// <summary>Renders a treemap series.</summary>
+    void Visit(TreemapSeries series, RenderArea area);
+
+    /// <summary>Renders a sunburst series.</summary>
+    void Visit(SunburstSeries series, RenderArea area);
 }

@@ -77,6 +77,14 @@ public sealed class FigureBuilder
     public FigureBuilder FillBetween(double[] x, double[] y, double[]? y2 = null, Action<AreaSeries>? configure = null) =>
         AddSeries(ax => ax.FillBetween(x, y, y2), configure);
 
+    /// <summary>Adds a treemap series to the default axes.</summary>
+    public FigureBuilder Treemap(TreeNode root, Action<TreemapSeries>? configure = null) =>
+        AddSeries(ax => ax.Treemap(root), configure);
+
+    /// <summary>Adds a sunburst series to the default axes.</summary>
+    public FigureBuilder Sunburst(TreeNode root, Action<SunburstSeries>? configure = null) =>
+        AddSeries(ax => ax.Sunburst(root), configure);
+
     /// <summary>Adds a subplot at the specified grid position, configured via an <see cref="AxesBuilder"/>.</summary>
     /// <param name="rows">Number of rows in the subplot grid.</param>
     /// <param name="cols">Number of columns in the subplot grid.</param>

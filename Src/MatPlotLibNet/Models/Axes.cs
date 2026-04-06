@@ -363,6 +363,22 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a treemap series to the axes.</summary>
+    public TreemapSeries Treemap(TreeNode root)
+    {
+        var series = new TreemapSeries(root);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a sunburst series to the axes.</summary>
+    public SunburstSeries Sunburst(TreeNode root)
+    {
+        var series = new SunburstSeries(root);
+        _series.Add(series);
+        return series;
+    }
+
     /// <summary>Adds a buy or sell signal marker at the specified data coordinates.</summary>
     public SignalMarker AddSignal(double x, double y, SignalDirection direction)
     {

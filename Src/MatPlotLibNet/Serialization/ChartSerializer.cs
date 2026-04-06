@@ -226,6 +226,8 @@ public sealed class ChartSerializer : IChartSerializer
                 Type = "sparkline",
                 Values = sl.Values, Color = sl.Color, LineWidth = sl.LineWidth
             },
+            TreemapSeries tm => new SeriesDto { Type = "treemap" },
+            SunburstSeries sb => new SeriesDto { Type = "sunburst" },
             _ => new SeriesDto { Type = "unknown" }
         };
         dto.Label = series.Label;
@@ -339,6 +341,8 @@ public sealed class ChartSerializer : IChartSerializer
             "gauge" => CreateGauge(axes, dto),
             "progressbar" => CreateProgressBar(axes, dto),
             "sparkline" => CreateSparkline(axes, dto),
+            "treemap" => axes.Treemap(new TreeNode { Label = "Root" }),
+            "sunburst" => axes.Sunburst(new TreeNode { Label = "Root" }),
             _ => null
         };
         if (series is not null)

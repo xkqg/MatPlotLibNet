@@ -637,6 +637,12 @@ public sealed class ChartRenderer : IChartRenderer
                     xMin = 0; xMax = sp.Values.Length - 1;
                     UpdateRange(sp.Values, ref yMin, ref yMax);
                     break;
+                case TreemapSeries:
+                case SunburstSeries:
+                    // Render in own coordinate system within PlotBounds
+                    if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
+                    if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
+                    break;
             }
         }
 

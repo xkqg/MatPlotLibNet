@@ -222,6 +222,14 @@ public sealed class AxesBuilder
     public AxesBuilder Gantt(string[] tasks, double[] starts, double[] ends, Action<GanttSeries>? configure = null)
         => AddSeries(ax => ax.Gantt(tasks, starts, ends), configure);
 
+    /// <summary>Adds a treemap series to the axes.</summary>
+    public AxesBuilder Treemap(TreeNode root, Action<TreemapSeries>? configure = null)
+        => AddSeries(ax => ax.Treemap(root), configure);
+
+    /// <summary>Adds a sunburst series to the axes.</summary>
+    public AxesBuilder Sunburst(TreeNode root, Action<SunburstSeries>? configure = null)
+        => AddSeries(ax => ax.Sunburst(root), configure);
+
     /// <summary>Adds a radar (spider) chart series to the axes.</summary>
     public AxesBuilder Radar(string[] categories, double[] values, Action<RadarSeries>? configure = null)
         => AddSeries(ax => ax.Radar(categories, values), configure);

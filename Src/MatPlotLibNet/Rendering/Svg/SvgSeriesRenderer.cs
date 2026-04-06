@@ -53,6 +53,10 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private QuiverSeriesRenderer? _quiver;
     private StemSeriesRenderer? _stem;
 
+    // Hierarchical family
+    private TreemapSeriesRenderer? _treemap;
+    private SunburstSeriesRenderer? _sunburst;
+
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor, bool tooltipsEnabled = false)
     {
         _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(default, ctx))
@@ -124,4 +128,10 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(QuiverSeries s, RenderArea a) => (_quiver ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(StemSeries s, RenderArea a) => (_stem ??= new(_context)).Render(s);
+
+    // Hierarchical family
+    /// <inheritdoc />
+    public void Visit(TreemapSeries s, RenderArea a) => (_treemap ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(SunburstSeries s, RenderArea a) => (_sunburst ??= new(_context)).Render(s);
 }

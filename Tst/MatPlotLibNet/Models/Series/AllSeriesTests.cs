@@ -1,12 +1,13 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies common <see cref="ISeries"/> behavior across all 25 series types.</summary>
+/// <summary>Verifies common <see cref="ISeries"/> behavior across all 27 series types.</summary>
 public class AllSeriesTests
 {
     public static TheoryData<ISeries, string> AllSeriesInstances => new()
@@ -36,6 +37,8 @@ public class AllSeriesTests
         { new GaugeSeries(50), nameof(GaugeSeries) },
         { new ProgressBarSeries(0.5), nameof(ProgressBarSeries) },
         { new SparklineSeries([1.0, 2.0, 3.0]), nameof(SparklineSeries) },
+        { new TreemapSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(TreemapSeries) },
+        { new SunburstSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(SunburstSeries) },
     };
 
     /// <summary>Verifies that Label defaults to null for every series type.</summary>
