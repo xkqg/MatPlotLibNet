@@ -103,6 +103,36 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Sets the X-axis to date scale with the specified format.</summary>
+    public AxesBuilder SetXDateFormat(string format = "yyyy-MM-dd")
+    {
+        _axes.XAxis.Scale = AxisScale.Date;
+        _axes.XAxis.TickFormatter = new Rendering.TickFormatters.DateTickFormatter { DateFormat = format };
+        return this;
+    }
+
+    /// <summary>Sets the Y-axis to date scale with the specified format.</summary>
+    public AxesBuilder SetYDateFormat(string format = "yyyy-MM-dd")
+    {
+        _axes.YAxis.Scale = AxisScale.Date;
+        _axes.YAxis.TickFormatter = new Rendering.TickFormatters.DateTickFormatter { DateFormat = format };
+        return this;
+    }
+
+    /// <summary>Sets a custom tick formatter on the X-axis.</summary>
+    public AxesBuilder SetXTickFormatter(Rendering.TickFormatters.ITickFormatter formatter)
+    {
+        _axes.XAxis.TickFormatter = formatter;
+        return this;
+    }
+
+    /// <summary>Sets a custom tick formatter on the Y-axis.</summary>
+    public AxesBuilder SetYTickFormatter(Rendering.TickFormatters.ITickFormatter formatter)
+    {
+        _axes.YAxis.TickFormatter = formatter;
+        return this;
+    }
+
     /// <summary>Sets the bar mode (grouped or stacked) for multiple bar series.</summary>
     public AxesBuilder SetBarMode(BarMode mode) { _axes.BarMode = mode; return this; }
 

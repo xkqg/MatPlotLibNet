@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering.TickFormatters;
+
 namespace MatPlotLibNet.Models;
 
 /// <summary>Represents the configuration of a single axis (X or Y) on an axes.</summary>
@@ -26,6 +28,9 @@ public sealed class Axis
 
     /// <summary>Gets or sets whether the axis direction is inverted.</summary>
     public bool Inverted { get; set; }
+
+    /// <summary>Gets or sets a custom tick formatter for this axis.</summary>
+    public ITickFormatter? TickFormatter { get; set; }
 }
 
 /// <summary>Specifies the scale type used for an axis.</summary>
@@ -41,7 +46,10 @@ public enum AxisScale
     SymLog,
 
     /// <summary>Logit scale for probability data in the range (0, 1).</summary>
-    Logit
+    Logit,
+
+    /// <summary>Date scale that interprets values as OLE Automation dates.</summary>
+    Date
 }
 
 /// <summary>Configures the appearance and spacing of axis tick marks.</summary>

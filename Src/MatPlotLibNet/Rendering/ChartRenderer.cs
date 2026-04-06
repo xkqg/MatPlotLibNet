@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
@@ -432,21 +433,23 @@ public sealed class ChartRenderer : IChartRenderer
             RenderCategoryLabels(candleSeries.DateLabels, plotArea, ctx, tickFont, yMin, transform);
         else
         {
+            var xFormatter = axes.XAxis.TickFormatter;
             foreach (var tick in xTicks)
             {
                 var pt = transform.DataToPixel(tick, yMin);
                 ctx.DrawLine(pt, new Point(pt.X, pt.Y + 5), theme.ForegroundText, 1, LineStyle.Solid);
-                ctx.DrawText(FormatTick(tick),
+                ctx.DrawText(xFormatter?.Format(tick) ?? FormatTick(tick),
                     new Point(pt.X, plotArea.Y + plotArea.Height + 15),
                     tickFont, TextAlignment.Center);
             }
         }
 
+        var yFormatter = axes.YAxis.TickFormatter;
         foreach (var tick in yTicks)
         {
             var pt = transform.DataToPixel(axes.XAxis.Min ?? 0, tick);
             ctx.DrawLine(new Point(pt.X - 5, pt.Y), pt, theme.ForegroundText, 1, LineStyle.Solid);
-            ctx.DrawText(FormatTick(tick),
+            ctx.DrawText(yFormatter?.Format(tick) ?? FormatTick(tick),
                 new Point(plotArea.X - 8, pt.Y + 4),
                 tickFont, TextAlignment.Right);
         }
