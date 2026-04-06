@@ -102,6 +102,18 @@ public sealed class FigureBuilder
     public FigureBuilder PolarBar(double[] r, double[] theta, Action<PolarBarSeries>? configure = null) =>
         AddSeries(ax => ax.PolarBar(r, theta), configure);
 
+    /// <summary>Adds a 3D surface series to the default axes.</summary>
+    public FigureBuilder Surface(double[] x, double[] y, double[,] z, Action<SurfaceSeries>? configure = null) =>
+        AddSeries(ax => ax.Surface(x, y, z), configure);
+
+    /// <summary>Adds a 3D wireframe series to the default axes.</summary>
+    public FigureBuilder Wireframe(double[] x, double[] y, double[,] z, Action<WireframeSeries>? configure = null) =>
+        AddSeries(ax => ax.Wireframe(x, y, z), configure);
+
+    /// <summary>Adds a 3D scatter series to the default axes.</summary>
+    public FigureBuilder Scatter3D(double[] x, double[] y, double[] z, Action<Scatter3DSeries>? configure = null) =>
+        AddSeries(ax => ax.Scatter3D(x, y, z), configure);
+
     /// <summary>Adds a subplot at the specified grid position, configured via an <see cref="AxesBuilder"/>.</summary>
     /// <param name="rows">Number of rows in the subplot grid.</param>
     /// <param name="cols">Number of columns in the subplot grid.</param>

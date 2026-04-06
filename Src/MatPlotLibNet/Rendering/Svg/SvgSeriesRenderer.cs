@@ -65,6 +65,11 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private PolarScatterSeriesRenderer? _polarScatter;
     private PolarBarSeriesRenderer? _polarBar;
 
+    // ThreeD family
+    private SurfaceSeriesRenderer? _surface;
+    private WireframeSeriesRenderer? _wireframe;
+    private Scatter3DSeriesRenderer? _scatter3D;
+
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor, bool tooltipsEnabled = false)
     {
         _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(default, ctx))
@@ -154,4 +159,12 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(PolarScatterSeries s, RenderArea a) => (_polarScatter ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(PolarBarSeries s, RenderArea a) => (_polarBar ??= new(_context)).Render(s);
+
+    // ThreeD family
+    /// <inheritdoc />
+    public void Visit(SurfaceSeries s, RenderArea a) => (_surface ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(WireframeSeries s, RenderArea a) => (_wireframe ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(Scatter3DSeries s, RenderArea a) => (_scatter3D ??= new(_context)).Render(s);
 }

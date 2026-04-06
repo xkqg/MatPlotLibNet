@@ -1,0 +1,283 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+
+using System.Globalization;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
+
+namespace MatPlotLibNet.Rendering;
+
+/// <summary>Abstract base for coordinate-system-specific axes rendering. Subclass for Cartesian, Polar, or 3D.</summary>
+public abstract class AxesRenderer
+{
+    /// <summary>Gets the axes being rendered.</summary>
+    protected Axes Axes { get; }
+
+    /// <summary>Gets the pixel bounds of the plot area.</summary>
+    protected Rect PlotArea { get; }
+
+    /// <summary>Gets the render context for drawing.</summary>
+    protected IRenderContext Ctx { get; }
+
+    /// <summary>Gets the active theme.</summary>
+    protected Theme Theme { get; }
+
+    /// <summary>Initializes the renderer with the rendering context.</summary>
+    protected AxesRenderer(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme)
+    {
+        Axes = axes;
+        PlotArea = plotArea;
+        Ctx = ctx;
+        Theme = theme;
+    }
+
+    /// <summary>Renders the complete axes: background, grid, series, decorations, legend, colorbar, title, labels.</summary>
+    public abstract void Render();
+
+    /// <summary>Creates the appropriate renderer for the axes coordinate system.</summary>
+    public static AxesRenderer Create(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme) =>
+        axes.CoordinateSystem switch
+        {
+            CoordinateSystem.Polar => new PolarAxesRenderer(axes, plotArea, ctx, theme),
+            CoordinateSystem.ThreeD => new ThreeDAxesRenderer(axes, plotArea, ctx, theme),
+            _ => new CartesianAxesRenderer(axes, plotArea, ctx, theme)
+        };
+
+    // --- Shared rendering helpers (available to all subclasses) ---
+
+    /// <summary>Renders all series on these axes through the visitor pattern.</summary>
+    protected void RenderSeries()
+    {
+        for (int i = 0; i < Axes.Series.Count; i++)
+        {
+            var series = Axes.Series[i];
+            if (!series.Visible) continue;
+            var seriesColor = Theme.CycleColors[i % Theme.CycleColors.Length];
+            var renderer = new SvgSeriesRenderer(
+                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, Axes.EnableTooltips);
+            var area = new RenderArea(PlotArea, Ctx);
+            series.Accept(renderer, area);
+        }
+    }
+
+    /// <summary>Renders all series with a specific DataTransform.</summary>
+    protected void RenderSeries(DataTransform transform)
+    {
+        for (int i = 0; i < Axes.Series.Count; i++)
+        {
+            var series = Axes.Series[i];
+            if (!series.Visible) continue;
+            var seriesColor = Theme.CycleColors[i % Theme.CycleColors.Length];
+            var renderer = new SvgSeriesRenderer(transform, Ctx, seriesColor, Axes.EnableTooltips);
+            var area = new RenderArea(PlotArea, Ctx);
+            series.Accept(renderer, area);
+        }
+    }
+
+    /// <summary>Renders the legend if any series have labels.</summary>
+    protected void RenderLegend()
+    {
+        if (!Axes.Legend.Visible) return;
+
+        var entries = new List<(string Label, Color Color)>();
+        for (int i = 0; i < Axes.Series.Count; i++)
+        {
+            var series = Axes.Series[i];
+            if (string.IsNullOrEmpty(series.Label)) continue;
+            var color = Theme.CycleColors[i % Theme.CycleColors.Length];
+            entries.Add((series.Label, color));
+        }
+
+        if (entries.Count == 0) return;
+
+        var font = TickFont();
+        double swatchSize = 12, swatchGap = 6, padding = 8;
+        double lineHeight = swatchSize + 4;
+
+        double maxTextWidth = 0;
+        foreach (var (label, _) in entries)
+        {
+            var size = Ctx.MeasureText(label, font);
+            if (size.Width > maxTextWidth) maxTextWidth = size.Width;
+        }
+
+        double boxWidth = padding + swatchSize + swatchGap + maxTextWidth + padding;
+        double boxHeight = padding + entries.Count * lineHeight - 4 + padding;
+
+        double inset = 10;
+        var (boxX, boxY) = Axes.Legend.Position switch
+        {
+            LegendPosition.UpperLeft => (PlotArea.X + inset, PlotArea.Y + inset),
+            LegendPosition.LowerRight => (PlotArea.X + PlotArea.Width - boxWidth - inset, PlotArea.Y + PlotArea.Height - boxHeight - inset),
+            LegendPosition.LowerLeft => (PlotArea.X + inset, PlotArea.Y + PlotArea.Height - boxHeight - inset),
+            _ => (PlotArea.X + PlotArea.Width - boxWidth - inset, PlotArea.Y + inset)
+        };
+
+        var bgColor = Theme.Background.WithAlpha(220);
+        Ctx.DrawRectangle(new Rect(boxX, boxY, boxWidth, boxHeight), bgColor, Theme.ForegroundText, 0.5);
+
+        if (Ctx is SvgRenderContext svgCtx) svgCtx.BeginGroup("legend");
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var (label, color) = entries[i];
+            double entryY = boxY + padding + i * lineHeight;
+            Ctx.DrawRectangle(new Rect(boxX + padding, entryY, swatchSize, swatchSize), color, null, 0);
+            Ctx.DrawText(label, new Point(boxX + padding + swatchSize + swatchGap, entryY + swatchSize - 1), font, TextAlignment.Left);
+        }
+
+        if (Ctx is SvgRenderContext svgCtx2) svgCtx2.EndGroup();
+    }
+
+    /// <summary>Renders a color bar gradient alongside the plot area if configured.</summary>
+    protected void RenderColorBar()
+    {
+        if (Axes.ColorBar is not { Visible: true } cb) return;
+
+        IColorMap colorMap = cb.ColorMap ?? ColorMaps.Viridis;
+        double min = cb.Min, max = cb.Max;
+
+        foreach (var s in Axes.Series)
+        {
+            if (s is HeatmapSeries hs)
+            {
+                colorMap = cb.ColorMap ?? hs.ColorMap ?? ColorMaps.Viridis;
+                double hMin = double.MaxValue, hMax = double.MinValue;
+                for (int r = 0; r < hs.Data.GetLength(0); r++)
+                    for (int c = 0; c < hs.Data.GetLength(1); c++)
+                    {
+                        if (hs.Data[r, c] < hMin) hMin = hs.Data[r, c];
+                        if (hs.Data[r, c] > hMax) hMax = hs.Data[r, c];
+                    }
+                if (hMin < hMax) { min = hMin; max = hMax; }
+                break;
+            }
+        }
+
+        if (Math.Abs(max - min) < 1e-10) { min = 0; max = 1; }
+
+        double barX = PlotArea.X + PlotArea.Width + cb.Padding;
+        double barY = PlotArea.Y;
+        double barH = PlotArea.Height;
+        int steps = 50;
+
+        if (Ctx is SvgRenderContext svgCtx) svgCtx.BeginGroup("colorbar");
+
+        for (int i = 0; i < steps; i++)
+        {
+            double frac = 1.0 - (double)i / steps;
+            var color = colorMap.GetColor(frac);
+            Ctx.DrawRectangle(new Rect(barX, barY + barH * i / steps, cb.Width, barH / steps + 1), color, null, 0);
+        }
+
+        Ctx.DrawRectangle(new Rect(barX, barY, cb.Width, barH), null, Theme.ForegroundText, 0.5);
+
+        var tickFont = TickFont();
+        double labelX = barX + cb.Width + 4;
+        for (int i = 0; i <= 5; i++)
+        {
+            double frac = (double)i / 5;
+            double value = max - frac * (max - min);
+            Ctx.DrawText(FormatTick(value), new Point(labelX, barY + barH * frac + 4), tickFont, TextAlignment.Left);
+        }
+
+        if (cb.Label is not null)
+            Ctx.DrawText(cb.Label, new Point(labelX + 30, barY + barH / 2), LabelFont(), TextAlignment.Center);
+
+        if (Ctx is SvgRenderContext svgCtx2) svgCtx2.EndGroup();
+    }
+
+    /// <summary>Renders the axes title above the plot area.</summary>
+    protected void RenderTitle()
+    {
+        if (Axes.Title is not null)
+            Ctx.DrawText(Axes.Title, new Point(PlotArea.X + PlotArea.Width / 2, PlotArea.Y - 8),
+                TitleFont(2), TextAlignment.Center);
+    }
+
+    /// <summary>Renders X and Y axis labels.</summary>
+    protected void RenderAxisLabels()
+    {
+        var font = LabelFont();
+        if (Axes.XAxis.Label is not null)
+            Ctx.DrawText(Axes.XAxis.Label, new Point(PlotArea.X + PlotArea.Width / 2, PlotArea.Y + PlotArea.Height + 35), font, TextAlignment.Center);
+        if (Axes.YAxis.Label is not null)
+            Ctx.DrawText(Axes.YAxis.Label, new Point(PlotArea.X - 45, PlotArea.Y + PlotArea.Height / 2), font, TextAlignment.Center);
+    }
+
+    // --- Font factories ---
+
+    /// <summary>Creates a title font from the theme.</summary>
+    protected Font TitleFont(int sizeOffset = 4) => new()
+    {
+        Family = Theme.DefaultFont.Family,
+        Size = Theme.DefaultFont.Size + sizeOffset,
+        Weight = FontWeight.Bold,
+        Color = Theme.ForegroundText
+    };
+
+    /// <summary>Creates a tick label font from the theme.</summary>
+    protected Font TickFont() => new()
+    {
+        Family = Theme.DefaultFont.Family,
+        Size = Theme.DefaultFont.Size - 2,
+        Color = Theme.ForegroundText
+    };
+
+    /// <summary>Creates an axis label font from the theme.</summary>
+    protected Font LabelFont() => new()
+    {
+        Family = Theme.DefaultFont.Family,
+        Size = Theme.DefaultFont.Size,
+        Color = Theme.ForegroundText
+    };
+
+    /// <summary>Formats a tick value for display.</summary>
+    protected static string FormatTick(double value)
+    {
+        if (Math.Abs(value) < 1e-10) return "0";
+        if (Math.Abs(value) >= 1e6 || (Math.Abs(value) < 0.01 && value != 0))
+            return value.ToString("G3", CultureInfo.InvariantCulture);
+        return value.ToString("G5", CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Expands min/max to include all values in the data array.</summary>
+    protected static void UpdateRange(double[] data, ref double min, ref double max)
+    {
+        foreach (var v in data)
+        {
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+    }
+
+    /// <summary>Computes aesthetically-spaced tick values.</summary>
+    protected static double[] ComputeTickValues(double min, double max, int targetCount = 5)
+    {
+        double range = max - min;
+        if (range <= 0) return [min];
+
+        double rawStep = range / targetCount;
+        double magnitude = Math.Pow(10, Math.Floor(Math.Log10(rawStep)));
+        double normalized = rawStep / magnitude;
+
+        double step = normalized switch
+        {
+            < 1.5 => magnitude,
+            < 3.5 => 2 * magnitude,
+            < 7.5 => 5 * magnitude,
+            _ => 10 * magnitude
+        };
+
+        double first = Math.Ceiling(min / step) * step;
+        var ticks = new List<double>();
+        for (double t = first; t <= max + step * 0.01; t += step)
+            ticks.Add(Math.Round(t, 10));
+
+        return ticks.ToArray();
+    }
+}

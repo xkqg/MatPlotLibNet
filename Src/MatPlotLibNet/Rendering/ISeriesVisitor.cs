@@ -100,4 +100,13 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a polar bar series.</summary>
     void Visit(PolarBarSeries series, RenderArea area);
+
+    /// <summary>Renders a 3D surface series.</summary>
+    void Visit(SurfaceSeries series, RenderArea area);
+
+    /// <summary>Renders a 3D wireframe series.</summary>
+    void Visit(WireframeSeries series, RenderArea area);
+
+    /// <summary>Renders a 3D scatter series.</summary>
+    void Visit(Scatter3DSeries series, RenderArea area);
 }

@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models;
@@ -45,6 +46,12 @@ public sealed class Axes
 
     /// <summary>Gets or sets the coordinate system for this axes.</summary>
     public CoordinateSystem CoordinateSystem { get; set; } = CoordinateSystem.Cartesian;
+
+    /// <summary>Gets or sets the 3D projection parameters, or null for default (elevation=30, azimuth=-60).</summary>
+    public Projection3D? Projection { get; set; }
+
+    /// <summary>Gets or sets the color bar configuration for this axes.</summary>
+    public ColorBar? ColorBar { get; set; }
 
     /// <summary>Gets the collection of data series plotted on this axes.</summary>
     public IReadOnlyList<ISeries> Series => _series;
@@ -413,6 +420,33 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.Polar;
         var series = new PolarBarSeries(r, theta);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a 3D surface series and sets coordinate system to ThreeD.</summary>
+    public SurfaceSeries Surface(double[] x, double[] y, double[,] z)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new SurfaceSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a 3D wireframe series and sets coordinate system to ThreeD.</summary>
+    public WireframeSeries Wireframe(double[] x, double[] y, double[,] z)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new WireframeSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a 3D scatter series and sets coordinate system to ThreeD.</summary>
+    public Scatter3DSeries Scatter3D(double[] x, double[] y, double[] z)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new Scatter3DSeries(x, y, z);
         _series.Add(series);
         return series;
     }

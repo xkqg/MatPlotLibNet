@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `Projection3D` class for 3D→2D projection with elevation/azimuth rotation and depth sorting
+- `DataRange3D` record struct for 3D data bounds
+- `SurfaceSeries` — colored quadrilateral surface with optional wireframe overlay
+- `WireframeSeries` — 3D wireframe grid rendering
+- `Scatter3DSeries` — 3D scatter with depth-based size variation
+- `ChartRenderer.Render3DAxes()` — 3D bounding box wireframe, axis labels, painter's algorithm
+- `ColorBar` record with auto-detect from heatmap/contour data range and colormap
+- `AxesBuilder.WithColorBar()` and `WithProjection(elevation, azimuth)` fluent methods
+- `FigureBuilder.Save(path)` with auto-detect format from extension (no extension = SVG)
+- `FigureBuilder.RegisterGlobalTransform()` for startup-time format registration
 - `CoordinateSystem` enum (`Cartesian`, `Polar`, `ThreeD`) on `Axes` for alternative rendering paths
 - `PolarTransform` class for (r, theta) to pixel coordinate conversion
 - `PolarLineSeries`, `PolarScatterSeries`, `PolarBarSeries` in new Polar family
@@ -42,8 +52,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Subplot layout margins are now configurable via `Figure.Spacing` (was hardcoded constants)
 - `ChartRenderer.RenderTicks` uses `Axis.TickFormatter` when set (falls back to default formatting)
 - GitHub Actions updated to v5 (Node.js 24 compatibility)
-- Series count increased from 25 to 31
-- `ChartRenderer.RenderAxes` branches on `CoordinateSystem` for polar rendering path
+- Series count increased from 25 to 34
+- `ChartRenderer` refactored from ~1100 lines to ~100 lines — all axes rendering moved to polymorphic `AxesRenderer` subclasses
+- `AxesRenderer` abstract base with `CartesianAxesRenderer`, `PolarAxesRenderer`, `ThreeDAxesRenderer` — no more `private static` methods with repeated parameters
+- `ChartRenderer.RenderAxes` is now a one-liner: `AxesRenderer.Create(axes, plotArea, ctx, theme).Render()`
 - Tests refactored to use builder output methods (`.ToSvg()`) instead of explicit `.Build()`
 
 ## [0.3.2] - 2026-04-05

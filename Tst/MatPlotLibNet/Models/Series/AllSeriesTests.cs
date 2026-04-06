@@ -43,6 +43,9 @@ public class AllSeriesTests
         { new PolarLineSeries([1.0, 2.0], [0.0, 1.0]), nameof(PolarLineSeries) },
         { new PolarScatterSeries([1.0], [0.5]), nameof(PolarScatterSeries) },
         { new PolarBarSeries([5.0, 10.0], [0.0, 1.57]), nameof(PolarBarSeries) },
+        { new SurfaceSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(SurfaceSeries) },
+        { new WireframeSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(WireframeSeries) },
+        { new Scatter3DSeries([1.0], [2.0], [3.0]), nameof(Scatter3DSeries) },
     };
 
     /// <summary>Verifies that Label defaults to null for every series type.</summary>

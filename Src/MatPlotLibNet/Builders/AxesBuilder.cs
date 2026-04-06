@@ -136,6 +136,15 @@ public sealed class AxesBuilder
     /// <summary>Sets the bar mode (grouped or stacked) for multiple bar series.</summary>
     public AxesBuilder SetBarMode(BarMode mode) { _axes.BarMode = mode; return this; }
 
+    /// <summary>Enables a color bar alongside the plot area. Auto-detects colormap and range from heatmap/contour series.</summary>
+    public AxesBuilder WithColorBar(Func<ColorBar, ColorBar>? configure = null)
+    {
+        var cb = new ColorBar { Visible = true };
+        if (configure is not null) cb = configure(cb);
+        _axes.ColorBar = cb;
+        return this;
+    }
+
     /// <summary>Configures the legend display for this axes.</summary>
     public AxesBuilder WithLegend(LegendPosition position = LegendPosition.Best, bool visible = true)
     {
@@ -245,6 +254,26 @@ public sealed class AxesBuilder
     /// <summary>Adds a polar bar series to the axes.</summary>
     public AxesBuilder PolarBar(double[] r, double[] theta, Action<PolarBarSeries>? configure = null)
         => AddSeries(ax => ax.PolarBar(r, theta), configure);
+
+    /// <summary>Adds a 3D surface series to the axes.</summary>
+    public AxesBuilder Surface(double[] x, double[] y, double[,] z, Action<SurfaceSeries>? configure = null)
+        => AddSeries(ax => ax.Surface(x, y, z), configure);
+
+    /// <summary>Adds a 3D wireframe series to the axes.</summary>
+    public AxesBuilder Wireframe(double[] x, double[] y, double[,] z, Action<WireframeSeries>? configure = null)
+        => AddSeries(ax => ax.Wireframe(x, y, z), configure);
+
+    /// <summary>Adds a 3D scatter series to the axes.</summary>
+    public AxesBuilder Scatter3D(double[] x, double[] y, double[] z, Action<Scatter3DSeries>? configure = null)
+        => AddSeries(ax => ax.Scatter3D(x, y, z), configure);
+
+    /// <summary>Sets the 3D projection angles for ThreeD coordinate system axes.</summary>
+    public AxesBuilder WithProjection(double elevation = 30, double azimuth = -60)
+    {
+        _axes.Projection = new Rendering.Projection3D(elevation, azimuth,
+            default, 0, 1, 0, 1, 0, 1); // Placeholder bounds; actual bounds computed at render time
+        return this;
+    }
 
     /// <summary>Adds a radar (spider) chart series to the axes.</summary>
     public AxesBuilder Radar(string[] categories, double[] values, Action<RadarSeries>? configure = null)

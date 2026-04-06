@@ -45,7 +45,7 @@ Plt.Create().Plot(x, y).Transform(new PdfTransform()).Save("chart.pdf");   // re
 
 ## Chart types
 
-**31 series types** with fluent builder API:
+**34 series types** with fluent builder API:
 
 ```csharp
 var fig = Plt.Create()
@@ -61,7 +61,7 @@ var fig = Plt.Create()
 ```
 
 Additional types via `AxesBuilder.AddSubPlot`:
-Heatmap, Box, Violin, Contour, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar.
+Heatmap, Box, Violin, Contour, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar, Surface, Wireframe, Scatter3D.
 
 ### Stacked bars
 
@@ -181,6 +181,40 @@ Plt.Create().PolarScatter(r, theta).ToSvg();
 
 // Polar bar (windrose-style)
 Plt.Create().PolarBar([5, 10, 8, 3], [0, Math.PI/2, Math.PI, 3*Math.PI/2]).ToSvg();
+```
+
+## 3D plots
+
+```csharp
+double[] x = [0, 1, 2, 3];
+double[] y = [0, 1, 2, 3];
+double[,] z = { {0, 1, 2, 3}, {1, 2, 3, 4}, {2, 3, 4, 5}, {3, 4, 5, 6} };
+
+// Surface plot with color mapping
+Plt.Create().Surface(x, y, z).Save("surface");
+
+// Wireframe
+Plt.Create().Wireframe(x, y, z).Save("wireframe");
+
+// 3D scatter
+Plt.Create().Scatter3D([1, 2, 3], [4, 5, 6], [7, 8, 9]).Save("scatter3d");
+
+// Custom projection angle
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithProjection(elevation: 45, azimuth: -45)
+        .Surface(x, y, z))
+    .Save("rotated");
+```
+
+## Color bar
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Heatmap(data)
+        .WithColorBar(cb => cb with { Label = "Temperature" }))
+    .Save("heatmap_colorbar");
 ```
 
 ## Axis formatting
@@ -361,7 +395,7 @@ See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering 
 
 | Version | Highlights |
 |---------|-----------|
-| **0.3.3** | 31 series types: Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar. Polar coordinate system with `PolarTransform` and circular grid rendering. `HierarchicalSeries` generic base. Legend rendering. Configurable subplot spacing. `ITickFormatter` pipeline (date, log, numeric). `FigureBuilder` output methods (`ToSvg()`, `SaveSvg()`, `Transform()`) — no `.Build()` needed. GitHub Actions v5. |
+| **0.3.3** | 34 series types: Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar, Surface, Wireframe, Scatter3D. Polar coordinate system with `PolarTransform`. 3D plots with `Projection3D` (Surface, Wireframe, Scatter3D). ColorBar with auto-detect. `HierarchicalSeries` generic base. Legend rendering. Configurable subplot spacing. `ITickFormatter` pipeline. `Save(path)` with format auto-detect. GitHub Actions v5. |
 | **0.3.2** | Quality release: OO indicator refactor (`Indicator<TResult>` with `IIndicatorResult` constraint, named result records, no statics). 92 new tests. BenchmarkDotNet suite. CHANGELOG, BENCHMARKS.md, DocFX, 4 sample projects. JSON serialization fix for 9 series types. |
 | **0.3.1** | Platform expansion: `@matplotlibnet/react` (React 19 hooks + components), `@matplotlibnet/vue` (Vue 3 composables + components), `MatPlotLibNet.GraphQL` (HotChocolate queries + subscriptions). Core library multi-targets `netstandard2.1`. |
 | **0.3.0** | 25 series types (Donut, Bubble, OhlcBar, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline). 13 technical indicators (SMA, EMA, BB, VWAP, RSI, MACD, Stochastic, Volume, Fibonacci, ATR, ADX, Keltner, Ichimoku). Trading analytics (EquityCurve, ProfitLoss, DrawDown). Buy/sell signal markers. Generic `SeriesRenderer<T>` + `Indicator<TResult>`. Intuitive fluent API (`.Sma(20)`, `.BuyAt()`, `.SaveSvg()`). PriceSource enum, Offset, LineStyle on all indicators. Series organized by chart family. |

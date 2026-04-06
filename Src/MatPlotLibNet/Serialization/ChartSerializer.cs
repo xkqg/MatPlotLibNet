@@ -232,6 +232,9 @@ public sealed class ChartSerializer : IChartSerializer
             PolarLineSeries pl => new SeriesDto { Type = "polarline" },
             PolarScatterSeries ps => new SeriesDto { Type = "polarscatter" },
             PolarBarSeries pb => new SeriesDto { Type = "polarbar" },
+            SurfaceSeries sf => new SeriesDto { Type = "surface" },
+            WireframeSeries wf => new SeriesDto { Type = "wireframe" },
+            Scatter3DSeries sc => new SeriesDto { Type = "scatter3d" },
             _ => new SeriesDto { Type = "unknown" }
         };
         dto.Label = series.Label;
@@ -351,6 +354,9 @@ public sealed class ChartSerializer : IChartSerializer
             "polarline" => axes.PolarPlot([1.0], [0.0]),
             "polarscatter" => axes.PolarScatter([1.0], [0.0]),
             "polarbar" => axes.PolarBar([1.0], [0.0]),
+            "surface" => axes.Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 0 }, { 0, 0 } }),
+            "wireframe" => axes.Wireframe([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 0 }, { 0, 0 } }),
+            "scatter3d" => axes.Scatter3D([0.0], [0.0], [0.0]),
             _ => null
         };
         if (series is not null)

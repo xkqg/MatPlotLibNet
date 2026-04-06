@@ -115,7 +115,11 @@ MatPlotLibNet/
 
   Rendering/
     IChartRenderer.cs                 interface: Render(Figure, IRenderContext)
-    ChartRenderer.cs                  orchestrator: background, layout, axes, series, annotations
+    ChartRenderer.cs                  figure-level orchestrator: background, layout, dispatch to AxesRenderer
+    AxesRenderer.cs                   abstract base for coordinate-system-specific rendering
+    CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, series, annotations, signals
+    PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
+    ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, etc.
     ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 25 series types
     DataTransform.cs                  data space <-> pixel space coordinate mapping

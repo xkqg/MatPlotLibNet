@@ -42,4 +42,7 @@ internal sealed class TestSeriesVisitor : ISeriesVisitor
     public void Visit(PolarLineSeries series, RenderArea area) => LastVisited = nameof(PolarLineSeries);
     public void Visit(PolarScatterSeries series, RenderArea area) => LastVisited = nameof(PolarScatterSeries);
     public void Visit(PolarBarSeries series, RenderArea area) => LastVisited = nameof(PolarBarSeries);
+    public void Visit(SurfaceSeries series, RenderArea area) => LastVisited = nameof(SurfaceSeries);
+    public void Visit(WireframeSeries series, RenderArea area) => LastVisited = nameof(WireframeSeries);
+    public void Visit(Scatter3DSeries series, RenderArea area) => LastVisited = nameof(Scatter3DSeries);
 }
