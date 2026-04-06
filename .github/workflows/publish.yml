@@ -52,11 +52,17 @@ jobs:
       - name: Install MAUI workload
         run: dotnet workload install maui
 
+      - name: Build Skia
+        run: dotnet build Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj --configuration Release
+
+      - name: Build MAUI
+        run: dotnet build Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --configuration Release
+
       - name: Pack Skia
-        run: dotnet pack Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj --configuration Release --output nupkgs
+        run: dotnet pack Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj --no-build --configuration Release --output nupkgs
 
       - name: Pack MAUI
-        run: dotnet pack Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --configuration Release --output nupkgs
+        run: dotnet pack Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --no-build --configuration Release --output nupkgs
 
       - name: Push to NuGet
         run: |
