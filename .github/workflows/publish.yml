@@ -17,6 +17,9 @@ jobs:
           dotnet-version: '10.0.x'
           dotnet-quality: 'preview'
 
+      - name: Install MAUI workload
+        run: dotnet workload install maui
+
       - name: Restore
         run: dotnet restore
 
