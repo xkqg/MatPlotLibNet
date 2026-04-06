@@ -210,6 +210,31 @@ var handle = await Plt.Create().Plot(x, y).Build().ShowAsync();
 await handle.UpdateAsync();
 ```
 
+## Animation
+
+```csharp
+using MatPlotLibNet.Animation;
+
+// Define frames
+var animation = new AnimationBuilder(60, frame =>
+    Plt.Create()
+        .WithTitle($"t = {frame * 0.1:F1}")
+        .Plot(x, x.Select(v => Math.Sin(v + frame * 0.1)).ToArray())
+        .Build())
+{
+    Interval = TimeSpan.FromMilliseconds(50),
+    Loop = true
+};
+
+// Play in browser
+var handle = await Plt.Create().Plot(x, y).Build().ShowAsync();
+await handle.AnimateAsync(animation);
+
+// Stop with cancellation
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+await handle.AnimateAsync(animation, cts.Token);
+```
+
 ## When you need the Figure object
 
 If you need to pass the figure to APIs (Blazor components, publishers, servers), use `.Build()`:

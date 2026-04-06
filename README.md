@@ -318,6 +318,24 @@ var theme = Theme.CreateFrom(Theme.Dark)
     .Build();
 ```
 
+## Animation
+
+```csharp
+using MatPlotLibNet.Animation;
+using MatPlotLibNet.Interactive;
+
+// Create an animation: 60 frames, each a sine wave with phase shift
+var animation = new AnimationBuilder(60, frame =>
+    Plt.Create()
+        .WithTitle($"Frame {frame}")
+        .Plot(x, x.Select(v => Math.Sin(v + frame * 0.1)).ToArray())
+        .Build());
+
+// Play in browser with 50ms between frames
+var handle = await Plt.Create().Plot(x, y).Build().ShowAsync();
+await handle.AnimateAsync(animation);
+```
+
 ## Real-time charts
 
 **Server** (ASP.NET Core):

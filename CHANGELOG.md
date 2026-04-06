@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `AxesBuilder.WithColorBar()` and `WithProjection(elevation, azimuth)` fluent methods
 - `FigureBuilder.Save(path)` with auto-detect format from extension (no extension = SVG)
 - `FigureBuilder.RegisterGlobalTransform()` for startup-time format registration
+- `AnimationBuilder` class for frame-based animation (FrameCount, Interval, Loop, GenerateFrames)
+- `InteractiveFigure.AnimateAsync()` for pushing animation frames via SignalR
 - `CoordinateSystem` enum (`Cartesian`, `Polar`, `ThreeD`) on `Axes` for alternative rendering paths
 - `PolarTransform` class for (r, theta) to pixel coordinate conversion
 - `PolarLineSeries`, `PolarScatterSeries`, `PolarBarSeries` in new Polar family
