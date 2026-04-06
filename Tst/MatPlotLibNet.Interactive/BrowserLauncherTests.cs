@@ -6,6 +6,7 @@ using NSubstitute;
 
 namespace MatPlotLibNet.Interactive.Tests;
 
+/// <summary>Verifies <see cref="BrowserLauncher"/> behavior.</summary>
 public class BrowserLauncherTests : IDisposable
 {
     private readonly IBrowserLauncher _original;
@@ -15,6 +16,7 @@ public class BrowserLauncherTests : IDisposable
         _original = InteractiveExtensions.Browser;
     }
 
+    /// <summary>Verifies that OpenAsync invokes the browser launcher with the given URL.</summary>
     [Fact]
     public async Task OpenAsync_CallsBrowserLauncher()
     {
@@ -27,6 +29,7 @@ public class BrowserLauncherTests : IDisposable
         await mock.Received(1).OpenAsync("http://localhost:5000/chart/abc");
     }
 
+    /// <summary>Verifies that OpenAsync passes the exact URL to the browser launcher.</summary>
     [Fact]
     public async Task OpenAsync_PassesCorrectUrl()
     {
@@ -40,6 +43,7 @@ public class BrowserLauncherTests : IDisposable
         Assert.Equal("http://localhost:5000/chart/abc", captured);
     }
 
+    /// <summary>Verifies that the default browser launcher instance is not null and is the expected type.</summary>
     [Fact]
     public void DefaultBrowser_IsNotNull()
     {

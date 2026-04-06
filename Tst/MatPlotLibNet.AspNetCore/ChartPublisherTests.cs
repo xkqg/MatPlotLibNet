@@ -7,8 +7,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.AspNetCore.Tests;
 
+/// <summary>Verifies <see cref="ChartPublisher"/> behavior.</summary>
 public class ChartPublisherTests
 {
+    /// <summary>Verifies that PublishAsync sends JSON containing the chart title and series type to the specified group.</summary>
     [Fact]
     public async Task PublishAsync_SendsJsonToGroup()
     {
@@ -27,6 +29,7 @@ public class ChartPublisherTests
             json.Contains("\"title\":\"Test\"") && json.Contains("\"type\":\"line\"")));
     }
 
+    /// <summary>Verifies that PublishSvgAsync sends SVG containing the chart title to the specified group.</summary>
     [Fact]
     public async Task PublishSvgAsync_SendsSvgToGroup()
     {
@@ -45,6 +48,7 @@ public class ChartPublisherTests
             svg.Contains("<svg") && svg.Contains("SVG Test")));
     }
 
+    /// <summary>Verifies that PublishAsync targets the correct SignalR group name.</summary>
     [Fact]
     public async Task PublishAsync_UsesCorrectGroupName()
     {

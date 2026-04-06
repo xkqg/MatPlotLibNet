@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="RadarSeries"/> default properties and construction.</summary>
 public class RadarSeriesTests
 {
+    /// <summary>Verifies that the constructor stores categories and values.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -17,6 +19,7 @@ public class RadarSeriesTests
         Assert.Equal(vals, series.Values);
     }
 
+    /// <summary>Verifies that Alpha defaults to 0.25.</summary>
     [Fact]
     public void DefaultAlpha_Is0Point25()
     {
@@ -24,6 +27,7 @@ public class RadarSeriesTests
         Assert.Equal(0.25, series.Alpha);
     }
 
+    /// <summary>Verifies that LineWidth defaults to 2.</summary>
     [Fact]
     public void DefaultLineWidth_Is2()
     {
@@ -31,6 +35,7 @@ public class RadarSeriesTests
         Assert.Equal(2.0, series.LineWidth);
     }
 
+    /// <summary>Verifies that Color defaults to null.</summary>
     [Fact]
     public void DefaultColor_IsNull()
     {
@@ -38,6 +43,7 @@ public class RadarSeriesTests
         Assert.Null(series.Color);
     }
 
+    /// <summary>Verifies that FillColor defaults to null.</summary>
     [Fact]
     public void DefaultFillColor_IsNull()
     {
@@ -45,6 +51,7 @@ public class RadarSeriesTests
         Assert.Null(series.FillColor);
     }
 
+    /// <summary>Verifies that MaxValue defaults to null.</summary>
     [Fact]
     public void DefaultMaxValue_IsNull()
     {

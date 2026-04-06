@@ -6,8 +6,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models;
 
+/// <summary>Verifies <see cref="Figure"/> behavior.</summary>
 public class FigureTests
 {
+    /// <summary>Verifies that a default figure has expected width, height, DPI, and empty subplots.</summary>
     [Fact]
     public void DefaultFigure_HasReasonableDefaults()
     {
@@ -19,6 +21,7 @@ public class FigureTests
         Assert.Empty(fig.SubPlots);
     }
 
+    /// <summary>Verifies that AddSubPlot returns a new Axes and adds it to SubPlots.</summary>
     [Fact]
     public void AddSubPlot_ReturnsNewAxes()
     {
@@ -28,6 +31,7 @@ public class FigureTests
         Assert.Single(fig.SubPlots);
     }
 
+    /// <summary>Verifies that multiple AddSubPlot calls each add a separate subplot.</summary>
     [Fact]
     public void AddSubPlot_MultipleCalls_AddsMultiple()
     {
@@ -38,6 +42,7 @@ public class FigureTests
         Assert.Equal(3, fig.SubPlots.Count);
     }
 
+    /// <summary>Verifies that AddSubPlot with grid parameters stores the correct grid index.</summary>
     [Fact]
     public void AddSubPlot_WithGridPosition_StoresLayout()
     {
@@ -49,6 +54,7 @@ public class FigureTests
         Assert.Equal(2, ax2.GridIndex);
     }
 
+    /// <summary>Verifies that the Theme defaults to Theme.Default.</summary>
     [Fact]
     public void Theme_DefaultsToDefault()
     {
@@ -56,6 +62,7 @@ public class FigureTests
         Assert.Same(Theme.Default, fig.Theme);
     }
 
+    /// <summary>Verifies that all figure properties can be set and retrieved.</summary>
     [Fact]
     public void Properties_CanBeSet()
     {
@@ -77,6 +84,7 @@ public class FigureTests
         Assert.Same(Theme.Dark, fig.Theme);
     }
 
+    /// <summary>Verifies that the SubPlots collection is read-only.</summary>
     [Fact]
     public void SubPlots_IsReadOnly()
     {

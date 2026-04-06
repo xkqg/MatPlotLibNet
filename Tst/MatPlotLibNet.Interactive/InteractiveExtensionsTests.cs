@@ -7,6 +7,7 @@ using NSubstitute;
 
 namespace MatPlotLibNet.Interactive.Tests;
 
+/// <summary>Verifies <see cref="InteractiveExtensions"/> behavior.</summary>
 public class InteractiveExtensionsTests : IDisposable
 {
     private readonly IBrowserLauncher _original;
@@ -17,6 +18,7 @@ public class InteractiveExtensionsTests : IDisposable
         InteractiveExtensions.Browser = Substitute.For<IBrowserLauncher>();
     }
 
+    /// <summary>Verifies that ShowAsync returns an InteractiveFigure with a valid chart ID and the original figure.</summary>
     [Fact]
     public async Task ShowAsync_ReturnsInteractiveFigureWithChartId()
     {
@@ -28,6 +30,7 @@ public class InteractiveExtensionsTests : IDisposable
         Assert.Same(figure, handle.Figure);
     }
 
+    /// <summary>Verifies that ShowAsync opens the browser with a URL containing the chart path.</summary>
     [Fact(Skip = "Requires a desktop environment (no browser on CI)")]
     public async Task ShowAsync_OpensBrowser()
     {
@@ -42,6 +45,7 @@ public class InteractiveExtensionsTests : IDisposable
             url.Contains("127.0.0.1") && url.Contains("/chart/")));
     }
 
+    /// <summary>Verifies that the figure URL contains the /chart/ prefix and the chart ID.</summary>
     [Fact]
     public void Show_UrlContainsChartPrefix()
     {
@@ -56,6 +60,7 @@ public class InteractiveExtensionsTests : IDisposable
         Assert.Contains(chartId, url);
     }
 
+    /// <summary>Verifies that InteractiveFigure correctly stores the chart ID and figure reference.</summary>
     [Fact]
     public void InteractiveFigure_StoresChartIdAndFigure()
     {

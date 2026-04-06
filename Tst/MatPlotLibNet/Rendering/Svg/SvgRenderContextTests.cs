@@ -7,8 +7,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg;
 
+/// <summary>Verifies <see cref="SvgRenderContext"/> behavior.</summary>
 public class SvgRenderContextTests
 {
+    /// <summary>Verifies that DrawLine produces an SVG line element with correct attributes and color.</summary>
     [Fact]
     public void DrawLine_ProducesSvgLineElement()
     {
@@ -23,6 +25,7 @@ public class SvgRenderContextTests
         Assert.Contains("#FF0000", svg);
     }
 
+    /// <summary>Verifies that DrawRectangle produces an SVG rect element with the specified fill color.</summary>
     [Fact]
     public void DrawRectangle_ProducesSvgRectElement()
     {
@@ -35,6 +38,7 @@ public class SvgRenderContextTests
         Assert.Contains("#0000FF", svg);
     }
 
+    /// <summary>Verifies that DrawText produces an SVG text element containing the specified string.</summary>
     [Fact]
     public void DrawText_ProducesSvgTextElement()
     {
@@ -46,6 +50,7 @@ public class SvgRenderContextTests
         Assert.Contains("Hello", svg);
     }
 
+    /// <summary>Verifies that DrawCircle produces an SVG circle element.</summary>
     [Fact]
     public void DrawCircle_ProducesSvgCircleElement()
     {
@@ -56,6 +61,7 @@ public class SvgRenderContextTests
         Assert.Contains("<circle", svg);
     }
 
+    /// <summary>Verifies that DrawLines produces an SVG polyline element from multiple points.</summary>
     [Fact]
     public void DrawLines_ProducesSvgPolylineElement()
     {
@@ -67,6 +73,7 @@ public class SvgRenderContextTests
         Assert.Contains("<polyline", svg);
     }
 
+    /// <summary>Verifies that a dashed line includes a stroke-dasharray attribute.</summary>
     [Fact]
     public void DashedLine_HasStrokeDasharray()
     {
@@ -80,6 +87,7 @@ public class SvgRenderContextTests
 
     // --- DrawPolygon ---
 
+    /// <summary>Verifies that DrawPolygon with a fill color produces a polygon element.</summary>
     [Fact]
     public void DrawPolygon_WithFill_ContainsPolygonElement()
     {
@@ -91,6 +99,7 @@ public class SvgRenderContextTests
         Assert.Contains("<polygon", svg);
     }
 
+    /// <summary>Verifies that DrawPolygon with a stroke color includes a stroke attribute.</summary>
     [Fact]
     public void DrawPolygon_WithStroke_HasStrokeAttribute()
     {
@@ -102,6 +111,7 @@ public class SvgRenderContextTests
         Assert.Contains("stroke=", svg);
     }
 
+    /// <summary>Verifies that DrawPolygon with both fill and stroke includes both attributes.</summary>
     [Fact]
     public void DrawPolygon_WithBothFillAndStroke()
     {
@@ -116,6 +126,7 @@ public class SvgRenderContextTests
 
     // --- DrawEllipse ---
 
+    /// <summary>Verifies that DrawEllipse produces an SVG ellipse element with cx, cy, rx, and ry attributes.</summary>
     [Fact]
     public void DrawEllipse_ContainsEllipseElement()
     {
@@ -131,6 +142,7 @@ public class SvgRenderContextTests
         Assert.Contains("ry=", svg);
     }
 
+    /// <summary>Verifies that DrawEllipse with a fill color includes the hex color value.</summary>
     [Fact]
     public void DrawEllipse_WithFill_HasFillColor()
     {
@@ -144,6 +156,7 @@ public class SvgRenderContextTests
 
     // --- DrawPath ---
 
+    /// <summary>Verifies that DrawPath with MoveTo and LineTo segments produces M and L commands in the path data.</summary>
     [Fact]
     public void DrawPath_MoveToLineTo_ContainsMAndLCommands()
     {
@@ -158,6 +171,7 @@ public class SvgRenderContextTests
         Assert.Contains("L ", svg);
     }
 
+    /// <summary>Verifies that DrawPath with a BezierSegment produces a C command in the path data.</summary>
     [Fact]
     public void DrawPath_BezierSegment_ContainsCCommand()
     {
@@ -171,6 +185,7 @@ public class SvgRenderContextTests
         Assert.Contains("C ", svg);
     }
 
+    /// <summary>Verifies that DrawPath with a CloseSegment produces a Z command to close the path.</summary>
     [Fact]
     public void DrawPath_CloseSegment_ContainsZCommand()
     {
@@ -188,6 +203,7 @@ public class SvgRenderContextTests
 
     // --- Clipping ---
 
+    /// <summary>Verifies that PushClip creates a clipPath definition in the SVG output.</summary>
     [Fact]
     public void PushClip_CreatesClipPathDef()
     {
@@ -198,6 +214,7 @@ public class SvgRenderContextTests
         Assert.Contains("<clipPath", svg);
     }
 
+    /// <summary>Verifies that PushClip opens a group element referencing the clip path URL.</summary>
     [Fact]
     public void PushClip_OpensGroupWithClipPathUrl()
     {
@@ -208,6 +225,7 @@ public class SvgRenderContextTests
         Assert.Contains("clip-path=\"url(#clip-", svg);
     }
 
+    /// <summary>Verifies that PopClip closes the clipping group element.</summary>
     [Fact]
     public void PopClip_ClosesGroup()
     {
@@ -221,6 +239,7 @@ public class SvgRenderContextTests
 
     // --- Opacity ---
 
+    /// <summary>Verifies that SetOpacity creates a group element with an opacity attribute.</summary>
     [Fact]
     public void SetOpacity_CreatesGroupWithOpacityAttribute()
     {
@@ -233,6 +252,7 @@ public class SvgRenderContextTests
 
     // --- MeasureText ---
 
+    /// <summary>Verifies that MeasureText returns a non-zero width and height for non-empty text.</summary>
     [Fact]
     public void MeasureText_ReturnsNonZeroSize()
     {
@@ -243,6 +263,7 @@ public class SvgRenderContextTests
         Assert.True(size.Height > 0);
     }
 
+    /// <summary>Verifies that MeasureText returns zero width for an empty string.</summary>
     [Fact]
     public void MeasureText_EmptyString_ReturnsZeroWidth()
     {
@@ -254,6 +275,7 @@ public class SvgRenderContextTests
 
     // --- DrawText variants ---
 
+    /// <summary>Verifies that center-aligned text uses the "middle" text-anchor attribute.</summary>
     [Fact]
     public void DrawText_CenterAlignment_HasMiddleAnchor()
     {
@@ -264,6 +286,7 @@ public class SvgRenderContextTests
         Assert.Contains("text-anchor=\"middle\"", svg);
     }
 
+    /// <summary>Verifies that right-aligned text uses the "end" text-anchor attribute.</summary>
     [Fact]
     public void DrawText_RightAlignment_HasEndAnchor()
     {
@@ -274,6 +297,7 @@ public class SvgRenderContextTests
         Assert.Contains("text-anchor=\"end\"", svg);
     }
 
+    /// <summary>Verifies that bold font weight produces a font-weight="bold" attribute.</summary>
     [Fact]
     public void DrawText_BoldFont_HasBoldWeight()
     {
@@ -285,6 +309,7 @@ public class SvgRenderContextTests
         Assert.Contains("font-weight=\"bold\"", svg);
     }
 
+    /// <summary>Verifies that italic font slant produces a font-style="italic" attribute.</summary>
     [Fact]
     public void DrawText_ItalicFont_HasItalicStyle()
     {
@@ -296,6 +321,7 @@ public class SvgRenderContextTests
         Assert.Contains("font-style=\"italic\"", svg);
     }
 
+    /// <summary>Verifies that special characters in text are properly XML-escaped in the SVG output.</summary>
     [Fact]
     public void DrawText_SpecialChars_AreEscaped()
     {

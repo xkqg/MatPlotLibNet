@@ -5,14 +5,17 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Styling;
 
+/// <summary>Verifies <see cref="Theme"/> behavior.</summary>
 public class ThemeTests
 {
+    /// <summary>Verifies that the default theme has a white background.</summary>
     [Fact]
     public void DefaultTheme_HasWhiteBackground()
     {
         Assert.Equal(Color.White, Theme.Default.Background);
     }
 
+    /// <summary>Verifies that the default theme has at least 10 cycle colors.</summary>
     [Fact]
     public void DefaultTheme_HasColorCycle()
     {
@@ -20,42 +23,49 @@ public class ThemeTests
         Assert.True(Theme.Default.CycleColors.Length >= 10);
     }
 
+    /// <summary>Verifies that the default theme has black foreground text.</summary>
     [Fact]
     public void DefaultTheme_HasBlackForeground()
     {
         Assert.Equal(Color.Black, Theme.Default.ForegroundText);
     }
 
+    /// <summary>Verifies that the default theme provides a non-null default font.</summary>
     [Fact]
     public void DefaultTheme_HasDefaultFont()
     {
         Assert.NotNull(Theme.Default.DefaultFont);
     }
 
+    /// <summary>Verifies that the dark theme has a non-white background.</summary>
     [Fact]
     public void DarkTheme_HasDarkBackground()
     {
         Assert.NotEqual(Color.White, Theme.Dark.Background);
     }
 
+    /// <summary>Verifies that the dark theme has a non-black foreground text.</summary>
     [Fact]
     public void DarkTheme_HasLightForeground()
     {
         Assert.NotEqual(Color.Black, Theme.Dark.ForegroundText);
     }
 
+    /// <summary>Verifies that the Seaborn theme is available.</summary>
     [Fact]
     public void SeabornTheme_Exists()
     {
         Assert.NotNull(Theme.Seaborn);
     }
 
+    /// <summary>Verifies that the Ggplot theme is available.</summary>
     [Fact]
     public void GgplotTheme_Exists()
     {
         Assert.NotNull(Theme.Ggplot);
     }
 
+    /// <summary>Verifies that the theme builder can override the background color.</summary>
     [Fact]
     public void ThemeBuilder_OverridesBackground()
     {
@@ -66,6 +76,7 @@ public class ThemeTests
         Assert.Equal(Color.FromHex("#333333"), theme.Background);
     }
 
+    /// <summary>Verifies that the theme builder can override the cycle colors array.</summary>
     [Fact]
     public void ThemeBuilder_OverridesCycleColors()
     {
@@ -78,6 +89,7 @@ public class ThemeTests
         Assert.Equal(Color.Red, theme.CycleColors[0]);
     }
 
+    /// <summary>Verifies that the theme builder can override the default font.</summary>
     [Fact]
     public void ThemeBuilder_OverridesFont()
     {
@@ -88,6 +100,7 @@ public class ThemeTests
         Assert.Equal(18, theme.DefaultFont.Size);
     }
 
+    /// <summary>Verifies that the theme builder preserves properties that were not overridden.</summary>
     [Fact]
     public void ThemeBuilder_PreservesUnchangedProperties()
     {

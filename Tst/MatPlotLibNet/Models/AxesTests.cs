@@ -7,8 +7,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models;
 
+/// <summary>Verifies <see cref="Axes"/> behavior.</summary>
 public class AxesTests
 {
+    /// <summary>Verifies that a default Axes has an empty series collection.</summary>
     [Fact]
     public void DefaultAxes_HasEmptySeries()
     {
@@ -16,6 +18,7 @@ public class AxesTests
         Assert.Empty(axes.Series);
     }
 
+    /// <summary>Verifies that a default Axes has non-null XAxis and YAxis.</summary>
     [Fact]
     public void DefaultAxes_HasAxes()
     {
@@ -24,6 +27,7 @@ public class AxesTests
         Assert.NotNull(axes.YAxis);
     }
 
+    /// <summary>Verifies that Plot adds a LineSeries to the series collection.</summary>
     [Fact]
     public void Plot_AddsLineSeries()
     {
@@ -33,6 +37,7 @@ public class AxesTests
         Assert.Single(axes.Series);
     }
 
+    /// <summary>Verifies that Plot stores X and Y data arrays correctly.</summary>
     [Fact]
     public void Plot_StoresDataCorrectly()
     {
@@ -43,6 +48,7 @@ public class AxesTests
         Assert.Equal(y, series.YData);
     }
 
+    /// <summary>Verifies that Plot throws when X and Y arrays have different lengths.</summary>
     [Fact]
     public void Plot_ThrowsOnMismatchedArrayLengths()
     {
@@ -51,6 +57,7 @@ public class AxesTests
             axes.Plot([1.0, 2.0], [3.0, 4.0, 5.0]));
     }
 
+    /// <summary>Verifies that Scatter adds a ScatterSeries to the series collection.</summary>
     [Fact]
     public void Scatter_AddsScatterSeries()
     {
@@ -60,6 +67,7 @@ public class AxesTests
         Assert.Single(axes.Series);
     }
 
+    /// <summary>Verifies that Scatter throws when X and Y arrays have different lengths.</summary>
     [Fact]
     public void Scatter_ThrowsOnMismatchedArrayLengths()
     {
@@ -68,6 +76,7 @@ public class AxesTests
             axes.Scatter([1.0], [2.0, 3.0]));
     }
 
+    /// <summary>Verifies that Bar adds a BarSeries to the series collection.</summary>
     [Fact]
     public void Bar_AddsBarSeries()
     {
@@ -77,6 +86,7 @@ public class AxesTests
         Assert.Single(axes.Series);
     }
 
+    /// <summary>Verifies that Bar throws when labels and values arrays have different lengths.</summary>
     [Fact]
     public void Bar_ThrowsOnMismatchedLengths()
     {
@@ -85,6 +95,7 @@ public class AxesTests
             axes.Bar(["A"], [1.0, 2.0]));
     }
 
+    /// <summary>Verifies that Barh adds a horizontal BarSeries.</summary>
     [Fact]
     public void Barh_AddsHorizontalBarSeries()
     {
@@ -94,6 +105,7 @@ public class AxesTests
         Assert.Equal(BarOrientation.Horizontal, series.Orientation);
     }
 
+    /// <summary>Verifies that Hist adds a HistogramSeries to the series collection.</summary>
     [Fact]
     public void Hist_AddsHistogramSeries()
     {
@@ -102,6 +114,7 @@ public class AxesTests
         Assert.IsType<HistogramSeries>(series);
     }
 
+    /// <summary>Verifies that Hist defaults to 10 bins.</summary>
     [Fact]
     public void Hist_DefaultBinsIs10()
     {
@@ -110,6 +123,7 @@ public class AxesTests
         Assert.Equal(10, series.Bins);
     }
 
+    /// <summary>Verifies that Pie adds a PieSeries to the series collection.</summary>
     [Fact]
     public void Pie_AddsPieSeries()
     {
@@ -118,6 +132,7 @@ public class AxesTests
         Assert.IsType<PieSeries>(series);
     }
 
+    /// <summary>Verifies that Pie stores the provided labels.</summary>
     [Fact]
     public void Pie_WithLabels()
     {
@@ -126,6 +141,7 @@ public class AxesTests
         Assert.Equal(["A", "B"], series.Labels);
     }
 
+    /// <summary>Verifies that Heatmap adds a HeatmapSeries to the series collection.</summary>
     [Fact]
     public void Heatmap_AddsHeatmapSeries()
     {
@@ -135,6 +151,7 @@ public class AxesTests
         Assert.IsType<HeatmapSeries>(series);
     }
 
+    /// <summary>Verifies that BoxPlot adds a BoxSeries to the series collection.</summary>
     [Fact]
     public void BoxPlot_AddsBoxSeries()
     {
@@ -143,6 +160,7 @@ public class AxesTests
         Assert.IsType<BoxSeries>(series);
     }
 
+    /// <summary>Verifies that Violin adds a ViolinSeries to the series collection.</summary>
     [Fact]
     public void Violin_AddsViolinSeries()
     {
@@ -151,6 +169,7 @@ public class AxesTests
         Assert.IsType<ViolinSeries>(series);
     }
 
+    /// <summary>Verifies that Stem adds a StemSeries to the series collection.</summary>
     [Fact]
     public void Stem_AddsStemSeries()
     {
@@ -159,6 +178,7 @@ public class AxesTests
         Assert.IsType<StemSeries>(series);
     }
 
+    /// <summary>Verifies that multiple series are maintained in insertion order.</summary>
     [Fact]
     public void MultipleSeries_MaintainOrder()
     {
@@ -172,6 +192,7 @@ public class AxesTests
         Assert.IsType<BarSeries>(axes.Series[2]);
     }
 
+    /// <summary>Verifies that the Title property can be set and retrieved.</summary>
     [Fact]
     public void Title_CanBeSet()
     {
@@ -179,6 +200,7 @@ public class AxesTests
         Assert.Equal("My Plot", axes.Title);
     }
 
+    /// <summary>Verifies that the Series collection is read-only.</summary>
     [Fact]
     public void Series_IsReadOnly()
     {

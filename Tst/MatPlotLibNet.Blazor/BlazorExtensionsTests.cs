@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Components;
 
 namespace MatPlotLibNet.Blazor.Tests;
 
+/// <summary>Verifies <see cref="BlazorExtensions"/> behavior.</summary>
 public class BlazorExtensionsTests
 {
+    /// <summary>Verifies that ToMarkupString returns a MarkupString containing valid SVG with the title.</summary>
     [Fact]
     public void ToMarkupString_ReturnsMarkupString()
     {
@@ -22,6 +24,7 @@ public class BlazorExtensionsTests
         Assert.Contains("Test", markup.Value);
     }
 
+    /// <summary>Verifies that ToMarkupString produces valid SVG even for an empty figure.</summary>
     [Fact]
     public void ToMarkupString_EmptyFigure_ReturnsValidSvg()
     {
@@ -33,6 +36,7 @@ public class BlazorExtensionsTests
         Assert.Contains("</svg>", markup.Value);
     }
 
+    /// <summary>Verifies that ToMarkupString preserves the configured width and height in the SVG output.</summary>
     [Fact]
     public void ToMarkupString_PreservesDimensions()
     {

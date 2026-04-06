@@ -5,8 +5,10 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Models;
 
+/// <summary>Verifies <see cref="Axis"/> behavior.</summary>
 public class AxisTests
 {
+    /// <summary>Verifies that a default axis has a null label.</summary>
     [Fact]
     public void DefaultAxis_HasNullLabel()
     {
@@ -14,6 +16,7 @@ public class AxisTests
         Assert.Null(axis.Label);
     }
 
+    /// <summary>Verifies that a default axis has null Min and Max limits.</summary>
     [Fact]
     public void DefaultAxis_HasNullLimits()
     {
@@ -22,6 +25,7 @@ public class AxisTests
         Assert.Null(axis.Max);
     }
 
+    /// <summary>Verifies that a default axis uses the Linear scale.</summary>
     [Fact]
     public void DefaultAxis_IsLinear()
     {
@@ -29,6 +33,7 @@ public class AxisTests
         Assert.Equal(AxisScale.Linear, axis.Scale);
     }
 
+    /// <summary>Verifies that a default axis is not inverted.</summary>
     [Fact]
     public void DefaultAxis_IsNotInverted()
     {
@@ -36,6 +41,7 @@ public class AxisTests
         Assert.False(axis.Inverted);
     }
 
+    /// <summary>Verifies that all axis properties can be set and retrieved.</summary>
     [Fact]
     public void Properties_CanBeSet()
     {

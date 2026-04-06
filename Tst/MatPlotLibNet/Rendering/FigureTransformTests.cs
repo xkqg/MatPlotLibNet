@@ -6,26 +6,31 @@ using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
+/// <summary>Verifies <see cref="FigureTransform"/> behavior.</summary>
 public class FigureTransformTests
 {
+    /// <summary>Verifies that SvgTransform implements IFigureTransform.</summary>
     [Fact]
     public void SvgTransform_ImplementsIFigureTransform()
     {
         Assert.IsAssignableFrom<IFigureTransform>(new SvgTransform());
     }
 
+    /// <summary>Verifies that SvgTransform implements ISvgRenderer.</summary>
     [Fact]
     public void SvgTransform_ImplementsISvgRenderer()
     {
         Assert.IsAssignableFrom<ISvgRenderer>(new SvgTransform());
     }
 
+    /// <summary>Verifies that SvgTransform extends the FigureTransform base class.</summary>
     [Fact]
     public void SvgTransform_ExtendsFigureTransform()
     {
         Assert.IsAssignableFrom<FigureTransform>(new SvgTransform());
     }
 
+    /// <summary>Verifies that ToStream writes valid SVG content to the stream.</summary>
     [Fact]
     public void TransformResult_ToStream_WritesOutput()
     {
@@ -40,6 +45,7 @@ public class FigureTransformTests
         Assert.StartsWith("<svg", reader.ReadToEnd().TrimStart());
     }
 
+    /// <summary>Verifies that ToBytes returns a non-empty byte array.</summary>
     [Fact]
     public void TransformResult_ToBytes_ReturnsNonEmpty()
     {
@@ -50,6 +56,7 @@ public class FigureTransformTests
         Assert.NotEmpty(bytes);
     }
 
+    /// <summary>Verifies that ToFile creates a file containing valid SVG content.</summary>
     [Fact]
     public void TransformResult_ToFile_CreatesFile()
     {
@@ -69,6 +76,7 @@ public class FigureTransformTests
         }
     }
 
+    /// <summary>Verifies that the legacy ChartServices.SvgRenderer path still produces valid SVG.</summary>
     [Fact]
     public void ChartServices_SvgRenderer_StillWorks()
     {
@@ -77,6 +85,7 @@ public class FigureTransformTests
         Assert.Contains("<svg", svg);
     }
 
+    /// <summary>Verifies that TransformResult is a record type.</summary>
     [Fact]
     public void TransformResult_IsRecord()
     {

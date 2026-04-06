@@ -5,8 +5,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Styling;
 
+/// <summary>Verifies <see cref="Font"/> behavior.</summary>
 public class FontTests
 {
+    /// <summary>Verifies that the default font family is sans-serif.</summary>
     [Fact]
     public void DefaultFont_HasSansSerif()
     {
@@ -14,6 +16,7 @@ public class FontTests
         Assert.Equal("sans-serif", font.Family);
     }
 
+    /// <summary>Verifies that the default font size is 12.</summary>
     [Fact]
     public void DefaultFont_Size12()
     {
@@ -21,6 +24,7 @@ public class FontTests
         Assert.Equal(12, font.Size);
     }
 
+    /// <summary>Verifies that the default font weight is Normal.</summary>
     [Fact]
     public void DefaultFont_NormalWeight()
     {
@@ -28,6 +32,7 @@ public class FontTests
         Assert.Equal(FontWeight.Normal, font.Weight);
     }
 
+    /// <summary>Verifies that the default font slant is Normal.</summary>
     [Fact]
     public void DefaultFont_NormalSlant()
     {
@@ -35,6 +40,7 @@ public class FontTests
         Assert.Equal(FontSlant.Normal, font.Slant);
     }
 
+    /// <summary>Verifies that the default font color is null.</summary>
     [Fact]
     public void DefaultFont_NullColor()
     {
@@ -42,6 +48,7 @@ public class FontTests
         Assert.Null(font.Color);
     }
 
+    /// <summary>Verifies that all font properties can be set and retrieved correctly.</summary>
     [Fact]
     public void Properties_CanBeSet()
     {

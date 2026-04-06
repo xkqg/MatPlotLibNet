@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="QuiverSeries"/> default properties and construction.</summary>
 public class QuiverSeriesTests
 {
+    /// <summary>Verifies that the constructor stores X, Y, U, and V data.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -18,6 +20,7 @@ public class QuiverSeriesTests
         Assert.Equal(v, series.VData);
     }
 
+    /// <summary>Verifies that Scale defaults to 1.</summary>
     [Fact]
     public void DefaultScale_Is1()
     {
@@ -25,6 +28,7 @@ public class QuiverSeriesTests
         Assert.Equal(1.0, series.Scale);
     }
 
+    /// <summary>Verifies that ArrowHeadSize defaults to 0.3.</summary>
     [Fact]
     public void DefaultArrowHeadSize_Is0Point3()
     {
@@ -32,6 +36,7 @@ public class QuiverSeriesTests
         Assert.Equal(0.3, series.ArrowHeadSize);
     }
 
+    /// <summary>Verifies that Color defaults to null.</summary>
     [Fact]
     public void DefaultColor_IsNull()
     {

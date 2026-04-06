@@ -14,6 +14,7 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.GraphQL.Tests;
 
+/// <summary>Verifies <see cref="GraphQLExtensions"/> integration behavior.</summary>
 public class GraphQLIntegrationTests : IAsyncDisposable
 {
     private readonly IHost _host;
@@ -48,6 +49,7 @@ public class GraphQLIntegrationTests : IAsyncDisposable
         _client = _host.GetTestClient();
     }
 
+    /// <summary>Verifies that the chartSvg GraphQL query returns valid SVG containing the chart title.</summary>
     [Fact]
     public async Task ChartSvgQuery_ReturnsValidSvg()
     {
@@ -65,6 +67,7 @@ public class GraphQLIntegrationTests : IAsyncDisposable
         Assert.Contains("Chart test", svg);
     }
 
+    /// <summary>Verifies that the chartJson GraphQL query returns valid JSON containing the chart title.</summary>
     [Fact]
     public async Task ChartJsonQuery_ReturnsValidJson()
     {
@@ -81,6 +84,7 @@ public class GraphQLIntegrationTests : IAsyncDisposable
         Assert.Contains("Chart sensor-1", chartJson);
     }
 
+    /// <summary>Verifies that the GraphQL endpoint returns HTTP 200 OK for a valid query.</summary>
     [Fact]
     public async Task GraphQLEndpoint_ReturnsOk()
     {

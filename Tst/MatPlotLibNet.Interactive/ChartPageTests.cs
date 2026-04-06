@@ -5,12 +5,14 @@ using MatPlotLibNet.Interactive;
 
 namespace MatPlotLibNet.Interactive.Tests;
 
+/// <summary>Verifies <see cref="ChartPage"/> behavior.</summary>
 public class ChartPageTests
 {
     private const string TestChartId = "test-chart-123";
     private const string TestSvg = "<svg><circle cx=\"50\" cy=\"50\" r=\"40\"/></svg>";
     private const int TestPort = 5123;
 
+    /// <summary>Verifies that the generated HTML starts with a DOCTYPE declaration.</summary>
     [Fact]
     public void Generate_ContainsDoctype()
     {
@@ -18,6 +20,7 @@ public class ChartPageTests
         Assert.StartsWith("<!DOCTYPE html>", html);
     }
 
+    /// <summary>Verifies that the generated HTML contains the initial SVG content.</summary>
     [Fact]
     public void Generate_ContainsInitialSvg()
     {
@@ -25,6 +28,7 @@ public class ChartPageTests
         Assert.Contains(TestSvg, html);
     }
 
+    /// <summary>Verifies that the generated HTML includes the chart ID in the script section.</summary>
     [Fact]
     public void Generate_ContainsChartIdInScript()
     {
@@ -32,6 +36,7 @@ public class ChartPageTests
         Assert.Contains($"\"{TestChartId}\"", html);
     }
 
+    /// <summary>Verifies that the generated HTML references the correct localhost port.</summary>
     [Fact]
     public void Generate_ContainsCorrectPort()
     {
@@ -39,6 +44,7 @@ public class ChartPageTests
         Assert.Contains($"localhost:{TestPort}", html);
     }
 
+    /// <summary>Verifies that the generated HTML includes a reference to the SignalR JavaScript file.</summary>
     [Fact]
     public void Generate_ContainsSignalRScriptReference()
     {
@@ -46,6 +52,7 @@ public class ChartPageTests
         Assert.Contains("/js/signalr.min.js", html);
     }
 
+    /// <summary>Verifies that the generated HTML contains a Subscribe call for real-time updates.</summary>
     [Fact]
     public void Generate_ContainsSubscribeCall()
     {
@@ -53,6 +60,7 @@ public class ChartPageTests
         Assert.Contains("Subscribe", html);
     }
 
+    /// <summary>Verifies that the generated HTML contains an UpdateChartSvg handler for live SVG updates.</summary>
     [Fact]
     public void Generate_ContainsUpdateChartSvgHandler()
     {
@@ -60,6 +68,7 @@ public class ChartPageTests
         Assert.Contains("UpdateChartSvg", html);
     }
 
+    /// <summary>Verifies that the chart ID is HTML-encoded to prevent script injection.</summary>
     [Fact]
     public void Generate_EncodesChartIdForHtml()
     {
@@ -68,6 +77,7 @@ public class ChartPageTests
         Assert.Contains("&lt;script&gt;", html);
     }
 
+    /// <summary>Verifies that the generated HTML contains a chart-container element.</summary>
     [Fact]
     public void Generate_ContainsChartContainer()
     {
@@ -75,6 +85,7 @@ public class ChartPageTests
         Assert.Contains("chart-container", html);
     }
 
+    /// <summary>Verifies that the generated HTML includes automatic reconnect configuration for SignalR.</summary>
     [Fact]
     public void Generate_ContainsAutoReconnect()
     {

@@ -15,6 +15,7 @@ using MatPlotLibNet.Interactive;
 
 namespace MatPlotLibNet.Interactive.Tests;
 
+/// <summary>Verifies <see cref="ChartServer"/> behavior.</summary>
 public class ChartServerTests : IAsyncDisposable
 {
     private readonly IHost _host;
@@ -46,6 +47,7 @@ public class ChartServerTests : IAsyncDisposable
         _httpClient = _host.GetTestClient();
     }
 
+    /// <summary>Verifies that registering a figure returns a non-empty chart ID.</summary>
     [Fact]
     public void RegisterFigure_ReturnsNonEmptyId()
     {
@@ -55,6 +57,7 @@ public class ChartServerTests : IAsyncDisposable
         Assert.False(string.IsNullOrEmpty(id));
     }
 
+    /// <summary>Verifies that registering multiple figures produces distinct chart IDs.</summary>
     [Fact]
     public void RegisterFigure_MultipleFigures_DistinctIds()
     {
@@ -64,6 +67,7 @@ public class ChartServerTests : IAsyncDisposable
         Assert.NotEqual(id1, id2);
     }
 
+    /// <summary>Verifies that the chart page endpoint returns HTTP 200 OK for a registered figure.</summary>
     [Fact]
     public async Task GetChartPage_ReturnsOk()
     {
@@ -75,6 +79,7 @@ public class ChartServerTests : IAsyncDisposable
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
     }
 
+    /// <summary>Verifies that the chart page endpoint returns text/html content type.</summary>
     [Fact]
     public async Task GetChartPage_ReturnsHtmlContentType()
     {
@@ -86,6 +91,7 @@ public class ChartServerTests : IAsyncDisposable
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
     }
 
+    /// <summary>Verifies that the chart page HTML contains the SVG with the expected title.</summary>
     [Fact]
     public async Task GetChartPage_ContainsSvg()
     {
@@ -98,6 +104,7 @@ public class ChartServerTests : IAsyncDisposable
         Assert.Contains("Svg Test", html);
     }
 
+    /// <summary>Verifies that the chart page endpoint returns HTTP 404 for an unknown chart ID.</summary>
     [Fact]
     public async Task GetChartPage_UnknownId_Returns404()
     {
@@ -105,6 +112,7 @@ public class ChartServerTests : IAsyncDisposable
         Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    /// <summary>Verifies that the SignalR JavaScript endpoint returns HTTP 200 OK.</summary>
     [Fact]
     public async Task GetSignalRJs_ReturnsOk()
     {
@@ -112,6 +120,7 @@ public class ChartServerTests : IAsyncDisposable
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
     }
 
+    /// <summary>Verifies that the SignalR JavaScript endpoint returns application/javascript content type.</summary>
     [Fact]
     public async Task GetSignalRJs_ReturnsJavaScript()
     {
@@ -119,6 +128,7 @@ public class ChartServerTests : IAsyncDisposable
         Assert.Equal("application/javascript", response.Content.Headers.ContentType?.MediaType);
     }
 
+    /// <summary>Verifies that the ChartHub is reachable and a client can connect successfully.</summary>
     [Fact]
     public async Task ChartHub_IsReachable()
     {
@@ -128,6 +138,7 @@ public class ChartServerTests : IAsyncDisposable
         await connection.DisposeAsync();
     }
 
+    /// <summary>Verifies that a subscribed client receives SVG updates published to the chart group.</summary>
     [Fact]
     public async Task SubscribedClient_ReceivesSvgUpdate()
     {
@@ -154,6 +165,7 @@ public class ChartServerTests : IAsyncDisposable
         await connection.DisposeAsync();
     }
 
+    /// <summary>Verifies that an unsubscribed client does not receive SVG updates.</summary>
     [Fact]
     public async Task UnsubscribedClient_DoesNotReceiveUpdate()
     {

@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="ViolinSeries"/> default properties and construction.</summary>
 public class ViolinSeriesTests
 {
+    /// <summary>Verifies that the constructor stores datasets.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -15,6 +17,7 @@ public class ViolinSeriesTests
         Assert.Equal(datasets, series.Datasets);
     }
 
+    /// <summary>Verifies that Alpha defaults to 0.7.</summary>
     [Fact]
     public void DefaultAlpha_Is0Point7()
     {
@@ -22,6 +25,7 @@ public class ViolinSeriesTests
         Assert.Equal(0.7, series.Alpha);
     }
 
+    /// <summary>Verifies that Color defaults to null.</summary>
     [Fact]
     public void DefaultColor_IsNull()
     {

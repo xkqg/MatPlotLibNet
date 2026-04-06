@@ -5,8 +5,10 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Models;
 
+/// <summary>Verifies <see cref="SpanRegion"/> behavior.</summary>
 public class SpanRegionTests
 {
+    /// <summary>Verifies that a span region stores its min, max, and orientation.</summary>
     [Fact]
     public void SpanRegion_StoresMinMaxOrientation()
     {
@@ -16,6 +18,7 @@ public class SpanRegionTests
         Assert.Equal(Orientation.Horizontal, span.Orientation);
     }
 
+    /// <summary>Verifies that the default alpha is 0.2.</summary>
     [Fact]
     public void DefaultAlpha_Is0Point2()
     {
@@ -23,6 +26,7 @@ public class SpanRegionTests
         Assert.Equal(0.2, span.Alpha);
     }
 
+    /// <summary>Verifies that AxHSpan adds a horizontal span region.</summary>
     [Fact]
     public void Axes_AxHSpan_AddsSpan()
     {
@@ -32,6 +36,7 @@ public class SpanRegionTests
         Assert.Equal(Orientation.Horizontal, span.Orientation);
     }
 
+    /// <summary>Verifies that AxVSpan adds a vertical span region.</summary>
     [Fact]
     public void Axes_AxVSpan_AddsSpan()
     {

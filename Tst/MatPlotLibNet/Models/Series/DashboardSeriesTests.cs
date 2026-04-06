@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="GaugeSeries"/> default properties and construction.</summary>
 public class GaugeSeriesTests
 {
+    /// <summary>Verifies that the constructor stores the gauge value.</summary>
     [Fact]
     public void Constructor_StoresValue()
     {
@@ -14,6 +16,7 @@ public class GaugeSeriesTests
         Assert.Equal(75, series.Value);
     }
 
+    /// <summary>Verifies that Min defaults to 0 and Max defaults to 100.</summary>
     [Fact]
     public void DefaultMinMax()
     {
@@ -23,8 +26,10 @@ public class GaugeSeriesTests
     }
 }
 
+/// <summary>Verifies <see cref="ProgressBarSeries"/> default properties and construction.</summary>
 public class ProgressBarSeriesTests
 {
+    /// <summary>Verifies that the constructor stores the progress value.</summary>
     [Fact]
     public void Constructor_StoresValue()
     {
@@ -33,8 +38,10 @@ public class ProgressBarSeriesTests
     }
 }
 
+/// <summary>Verifies <see cref="SparklineSeries"/> default properties and construction.</summary>
 public class SparklineSeriesTests
 {
+    /// <summary>Verifies that the constructor stores the values array.</summary>
     [Fact]
     public void Constructor_StoresData()
     {

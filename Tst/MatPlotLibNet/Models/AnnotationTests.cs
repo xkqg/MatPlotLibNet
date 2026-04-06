@@ -5,8 +5,10 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Models;
 
+/// <summary>Verifies <see cref="Annotation"/> behavior.</summary>
 public class AnnotationTests
 {
+    /// <summary>Verifies that an annotation stores its text, X, and Y values.</summary>
     [Fact]
     public void Annotation_StoresTextAndPosition()
     {
@@ -16,6 +18,7 @@ public class AnnotationTests
         Assert.Equal(2.5, ann.Y);
     }
 
+    /// <summary>Verifies that arrow target coordinates default to null.</summary>
     [Fact]
     public void Annotation_ArrowTarget_DefaultsToNull()
     {
@@ -24,6 +27,7 @@ public class AnnotationTests
         Assert.Null(ann.ArrowTargetY);
     }
 
+    /// <summary>Verifies that adding an annotation via Axes.Annotate appears in the Annotations collection.</summary>
     [Fact]
     public void Axes_AddAnnotation_AppearsInCollection()
     {
@@ -33,6 +37,7 @@ public class AnnotationTests
         Assert.Equal("label", axes.Annotations[0].Text);
     }
 
+    /// <summary>Verifies that the Annotations collection defaults to empty.</summary>
     [Fact]
     public void Axes_Annotations_DefaultsToEmpty()
     {

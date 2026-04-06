@@ -6,6 +6,7 @@ using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies common <see cref="ISeries"/> behavior across all 25 series types.</summary>
 public class AllSeriesTests
 {
     public static TheoryData<ISeries, string> AllSeriesInstances => new()
@@ -37,21 +38,25 @@ public class AllSeriesTests
         { new SparklineSeries([1.0, 2.0, 3.0]), nameof(SparklineSeries) },
     };
 
+    /// <summary>Verifies that Label defaults to null for every series type.</summary>
     [Theory]
     [MemberData(nameof(AllSeriesInstances))]
     public void Label_DefaultsToNull(ISeries series, string _)
         => Assert.Null(series.Label);
 
+    /// <summary>Verifies that Visible defaults to true for every series type.</summary>
     [Theory]
     [MemberData(nameof(AllSeriesInstances))]
     public void Visible_DefaultsToTrue(ISeries series, string _)
         => Assert.True(series.Visible);
 
+    /// <summary>Verifies that ZOrder defaults to zero for every series type.</summary>
     [Theory]
     [MemberData(nameof(AllSeriesInstances))]
     public void ZOrder_DefaultsToZero(ISeries series, string _)
         => Assert.Equal(0, series.ZOrder);
 
+    /// <summary>Verifies that Accept dispatches to the correct visitor method for each series type.</summary>
     [Theory]
     [MemberData(nameof(AllSeriesInstances))]
     public void Accept_DispatchesToCorrectVisitorMethod(ISeries series, string expectedName)
@@ -61,6 +66,7 @@ public class AllSeriesTests
         Assert.Equal(expectedName, visitor.LastVisited);
     }
 
+    /// <summary>Verifies that Label can be set and read back for every series type.</summary>
     [Theory]
     [MemberData(nameof(AllSeriesInstances))]
     public void Label_CanBeSetAndRead(ISeries series, string _)
@@ -69,6 +75,7 @@ public class AllSeriesTests
         Assert.Equal("test-label", series.Label);
     }
 
+    /// <summary>Verifies that Visible can be set to false for every series type.</summary>
     [Theory]
     [MemberData(nameof(AllSeriesInstances))]
     public void Visible_CanBeSetToFalse(ISeries series, string _)
@@ -77,6 +84,7 @@ public class AllSeriesTests
         Assert.False(series.Visible);
     }
 
+    /// <summary>Verifies that ZOrder can be set and read back for every series type.</summary>
     [Theory]
     [MemberData(nameof(AllSeriesInstances))]
     public void ZOrder_CanBeSet(ISeries series, string _)

@@ -5,8 +5,10 @@ using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
+/// <summary>Verifies <see cref="DataTransform"/> behavior.</summary>
 public class DataTransformTests
 {
+    /// <summary>Verifies that the data origin maps to the bottom-left pixel of the plot bounds.</summary>
     [Fact]
     public void DataToPixel_MapsOriginCorrectly()
     {
@@ -18,6 +20,7 @@ public class DataTransformTests
         Assert.Equal(450, pixel.Y); // bottom edge (Y inverted)
     }
 
+    /// <summary>Verifies that the data maximum maps to the top-right pixel of the plot bounds.</summary>
     [Fact]
     public void DataToPixel_MapsMaxCorrectly()
     {
@@ -29,6 +32,7 @@ public class DataTransformTests
         Assert.Equal(50, pixel.Y);
     }
 
+    /// <summary>Verifies that the data midpoint maps to the center pixel of the plot bounds.</summary>
     [Fact]
     public void DataToPixel_MapsMidpointCorrectly()
     {
@@ -40,6 +44,7 @@ public class DataTransformTests
         Assert.Equal(50, pixel.Y);
     }
 
+    /// <summary>Verifies that PixelToData is the inverse of DataToPixel for a round-trip conversion.</summary>
     [Fact]
     public void PixelToData_InvertsDataToPixel()
     {
@@ -52,6 +57,7 @@ public class DataTransformTests
         Assert.Equal(50, dy, 6);
     }
 
+    /// <summary>Verifies that a negative data range correctly maps the origin to the center pixel.</summary>
     [Fact]
     public void NegativeDataRange_WorksCorrectly()
     {

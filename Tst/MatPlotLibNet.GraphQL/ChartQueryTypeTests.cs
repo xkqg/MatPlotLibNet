@@ -10,11 +10,13 @@ using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet.GraphQL.Tests;
 
+/// <summary>Verifies <see cref="ChartQueryType"/> behavior.</summary>
 public class ChartQueryTypeTests
 {
     private readonly IChartSerializer _serializer = new ChartSerializer();
     private readonly ISvgRenderer _svgRenderer = new SvgTransform(new ChartRenderer());
 
+    /// <summary>Verifies that GetChartSvg returns SVG markup containing the chart title.</summary>
     [Fact]
     public void GetChartSvg_ReturnsSvgContainingSvgTag()
     {
@@ -28,6 +30,7 @@ public class ChartQueryTypeTests
         Assert.Contains("Query Test", svg);
     }
 
+    /// <summary>Verifies that GetChartJson returns valid JSON containing the chart title.</summary>
     [Fact]
     public void GetChartJson_ReturnsValidJson()
     {
@@ -40,6 +43,7 @@ public class ChartQueryTypeTests
         Assert.Contains("\"title\":\"JSON Query\"", json);
     }
 
+    /// <summary>Verifies that GetChartSvg passes the chart ID to the figure factory.</summary>
     [Fact]
     public void GetChartSvg_PassesChartIdToFactory()
     {

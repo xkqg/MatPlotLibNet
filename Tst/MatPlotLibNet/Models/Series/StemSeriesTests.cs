@@ -6,8 +6,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="StemSeries"/> default properties and construction.</summary>
 public class StemSeriesTests
 {
+    /// <summary>Verifies that the constructor stores X and Y data.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -17,6 +19,7 @@ public class StemSeriesTests
         Assert.Equal(y, series.YData);
     }
 
+    /// <summary>Verifies that Marker defaults to Circle.</summary>
     [Fact]
     public void DefaultMarker_IsCircle()
     {
@@ -24,6 +27,7 @@ public class StemSeriesTests
         Assert.Equal(MarkerStyle.Circle, series.Marker);
     }
 
+    /// <summary>Verifies that MarkerColor defaults to null.</summary>
     [Fact]
     public void DefaultMarkerColor_IsNull()
     {
@@ -31,6 +35,7 @@ public class StemSeriesTests
         Assert.Null(series.MarkerColor);
     }
 
+    /// <summary>Verifies that StemColor defaults to null.</summary>
     [Fact]
     public void DefaultStemColor_IsNull()
     {

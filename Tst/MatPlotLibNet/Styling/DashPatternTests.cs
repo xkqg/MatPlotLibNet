@@ -5,16 +5,20 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Styling;
 
+/// <summary>Verifies <see cref="DashPatterns"/> behavior.</summary>
 public class DashPatternTests
 {
+    /// <summary>Verifies that Solid line style returns an empty dash pattern.</summary>
     [Fact]
     public void Solid_ReturnsEmptyArray()
         => Assert.Empty(DashPatterns.GetPattern(LineStyle.Solid).ToArray());
 
+    /// <summary>Verifies that None line style returns an empty dash pattern.</summary>
     [Fact]
     public void None_ReturnsEmptyArray()
         => Assert.Empty(DashPatterns.GetPattern(LineStyle.None).ToArray());
 
+    /// <summary>Verifies that non-solid line styles return the correct dash-gap ratios.</summary>
     [Theory]
     [InlineData(LineStyle.Dashed, new double[] { 8, 4 })]
     [InlineData(LineStyle.Dotted, new double[] { 2, 4 })]

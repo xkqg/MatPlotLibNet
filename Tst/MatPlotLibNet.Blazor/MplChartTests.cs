@@ -7,8 +7,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Blazor.Tests;
 
+/// <summary>Verifies <see cref="MplChart"/> behavior.</summary>
 public class MplChartTests : BunitContext
 {
+    /// <summary>Verifies that the component renders SVG content inside a container div when a figure is provided.</summary>
     [Fact]
     public void Renders_SvgContent_WhenFigureProvided()
     {
@@ -25,6 +27,7 @@ public class MplChartTests : BunitContext
         Assert.NotNull(svgElement);
     }
 
+    /// <summary>Verifies that the component renders an empty container div when no figure is provided.</summary>
     [Fact]
     public void Renders_EmptyDiv_WhenFigureIsNull()
     {
@@ -35,6 +38,7 @@ public class MplChartTests : BunitContext
         Assert.Throws<Bunit.ElementNotFoundException>(() => cut.Find("svg"));
     }
 
+    /// <summary>Verifies that the component re-renders with updated content when the figure changes.</summary>
     [Fact]
     public void ReRenders_WhenFigureChanges()
     {
@@ -50,6 +54,7 @@ public class MplChartTests : BunitContext
         Assert.DoesNotContain("First", cut2.Markup);
     }
 
+    /// <summary>Verifies that the rendered SVG has a viewBox matching the configured figure dimensions.</summary>
     [Fact]
     public void SvgHasCorrectViewBox()
     {
@@ -67,6 +72,7 @@ public class MplChartTests : BunitContext
         Assert.Contains("768", viewBox);
     }
 
+    /// <summary>Verifies that the container div has the mpl-chart CSS class.</summary>
     [Fact]
     public void ContainerDiv_HasMplChartClass()
     {
@@ -77,6 +83,7 @@ public class MplChartTests : BunitContext
         Assert.NotNull(div);
     }
 
+    /// <summary>Verifies that a custom CSS class can be added to the chart container.</summary>
     [Fact]
     public void CssClass_CanBeAdded()
     {
@@ -91,6 +98,7 @@ public class MplChartTests : BunitContext
         Assert.Contains("my-custom-chart", div.GetAttribute("class"));
     }
 
+    /// <summary>Verifies that a line chart renders a polyline element in the SVG output.</summary>
     [Fact]
     public void LineChart_ContainsPolylineInSvg()
     {
@@ -103,6 +111,7 @@ public class MplChartTests : BunitContext
         Assert.Contains("<polyline", cut.Markup);
     }
 
+    /// <summary>Verifies that a bar chart renders rect elements in the SVG output.</summary>
     [Fact]
     public void BarChart_ContainsRectInSvg()
     {
@@ -115,6 +124,7 @@ public class MplChartTests : BunitContext
         Assert.Contains("<rect", cut.Markup);
     }
 
+    /// <summary>Verifies that a scatter chart renders circle elements in the SVG output.</summary>
     [Fact]
     public void ScatterChart_ContainsCircleInSvg()
     {
@@ -127,6 +137,7 @@ public class MplChartTests : BunitContext
         Assert.Contains("<circle", cut.Markup);
     }
 
+    /// <summary>Verifies that the figure title appears in the rendered SVG markup.</summary>
     [Fact]
     public void Title_AppearsInRenderedSvg()
     {
@@ -140,6 +151,7 @@ public class MplChartTests : BunitContext
         Assert.Contains("Dashboard", cut.Markup);
     }
 
+    /// <summary>Verifies that the dark theme renders a dark background color in the SVG.</summary>
     [Fact]
     public void DarkTheme_RendersDarkBackground()
     {
@@ -153,6 +165,7 @@ public class MplChartTests : BunitContext
         Assert.Contains("#1C1C1C", cut.Markup);
     }
 
+    /// <summary>Verifies that an empty figure still renders a valid SVG element.</summary>
     [Fact]
     public void EmptyFigure_StillRendersValidSvg()
     {
@@ -165,6 +178,7 @@ public class MplChartTests : BunitContext
         Assert.Contains("</svg>", cut.Markup);
     }
 
+    /// <summary>Verifies that multiple subplots all render their titles in the SVG output.</summary>
     [Fact]
     public void MultipleSubPlots_AllRenderInSvg()
     {
@@ -179,6 +193,7 @@ public class MplChartTests : BunitContext
         Assert.Contains("Right", cut.Markup);
     }
 
+    /// <summary>Verifies that the default display mode is inline with no expandable or popup classes.</summary>
     [Fact]
     public void DisplayMode_DefaultIsInline()
     {
@@ -192,6 +207,7 @@ public class MplChartTests : BunitContext
         Assert.DoesNotContain("mpl-popup", div.GetAttribute("class"));
     }
 
+    /// <summary>Verifies that the expandable display mode renders an expand button.</summary>
     [Fact]
     public void DisplayMode_Expandable_RendersExpandButton()
     {
@@ -208,6 +224,7 @@ public class MplChartTests : BunitContext
         Assert.Contains("Expand", btn.TextContent);
     }
 
+    /// <summary>Verifies that the expandable display mode applies the mpl-expandable CSS class.</summary>
     [Fact]
     public void DisplayMode_Expandable_HasExpandableClass()
     {
@@ -223,6 +240,7 @@ public class MplChartTests : BunitContext
         Assert.NotNull(div);
     }
 
+    /// <summary>Verifies that the popup display mode renders a link with the correct href and target.</summary>
     [Fact]
     public void DisplayMode_Popup_RendersPopupLink()
     {
@@ -241,6 +259,7 @@ public class MplChartTests : BunitContext
         Assert.Equal("_blank", link.GetAttribute("target"));
     }
 
+    /// <summary>Verifies that the popup display mode applies the mpl-popup CSS class.</summary>
     [Fact]
     public void DisplayMode_Popup_HasPopupClass()
     {
@@ -256,6 +275,7 @@ public class MplChartTests : BunitContext
         Assert.NotNull(div);
     }
 
+    /// <summary>Verifies that the popup display mode does not render a link when PopupUrl is empty.</summary>
     [Fact]
     public void DisplayMode_Popup_NoLinkWhenPopupUrlEmpty()
     {

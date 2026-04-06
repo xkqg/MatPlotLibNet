@@ -11,6 +11,7 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.AspNetCore.Tests;
 
+/// <summary>Verifies <see cref="ChartHub"/> behavior.</summary>
 public class SignalRIntegrationTests : IAsyncDisposable
 {
     private readonly IHost _host;
@@ -41,6 +42,7 @@ public class SignalRIntegrationTests : IAsyncDisposable
         _httpClient = _host.GetTestClient();
     }
 
+    /// <summary>Verifies that the ChartHub is reachable and a client can connect successfully.</summary>
     [Fact]
     public async Task ChartHub_IsReachable()
     {
@@ -50,6 +52,7 @@ public class SignalRIntegrationTests : IAsyncDisposable
         await connection.DisposeAsync();
     }
 
+    /// <summary>Verifies that subscribing to a chart group completes without throwing.</summary>
     [Fact]
     public async Task Subscribe_DoesNotThrow()
     {
@@ -59,6 +62,7 @@ public class SignalRIntegrationTests : IAsyncDisposable
         await connection.DisposeAsync();
     }
 
+    /// <summary>Verifies that a subscribed client receives an SVG broadcast from the publisher.</summary>
     [Fact]
     public async Task PublishSvg_ReceivesBroadcast()
     {
@@ -90,6 +94,7 @@ public class SignalRIntegrationTests : IAsyncDisposable
         await connection.DisposeAsync();
     }
 
+    /// <summary>Verifies that a subscribed client receives a JSON broadcast from the publisher.</summary>
     [Fact]
     public async Task PublishJson_ReceivesBroadcast()
     {
@@ -115,6 +120,7 @@ public class SignalRIntegrationTests : IAsyncDisposable
         await connection.DisposeAsync();
     }
 
+    /// <summary>Verifies that an unsubscribed client does not receive broadcast messages.</summary>
     [Fact]
     public async Task UnsubscribedClient_DoesNotReceive()
     {

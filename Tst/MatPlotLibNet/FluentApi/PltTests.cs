@@ -5,8 +5,10 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.FluentApi;
 
+/// <summary>Verifies <see cref="Plt"/> behavior.</summary>
 public class PltTests
 {
+    /// <summary>Verifies that Figure creates a figure with the specified dimensions.</summary>
     [Fact]
     public void Figure_CreatesWithDimensions()
     {
@@ -15,6 +17,7 @@ public class PltTests
         Assert.Equal(768, fig.Height);
     }
 
+    /// <summary>Verifies that Figure uses default dimensions when none are specified.</summary>
     [Fact]
     public void Figure_DefaultDimensions()
     {
@@ -23,6 +26,7 @@ public class PltTests
         Assert.Equal(600, fig.Height);
     }
 
+    /// <summary>Verifies that Create returns a <see cref="FigureBuilder"/> instance.</summary>
     [Fact]
     public void Create_ReturnsFigureBuilder()
     {

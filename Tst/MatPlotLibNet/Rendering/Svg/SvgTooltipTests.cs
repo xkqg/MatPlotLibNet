@@ -5,8 +5,10 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg;
 
+/// <summary>Verifies SVG tooltip rendering behavior.</summary>
 public class SvgTooltipTests
 {
+    /// <summary>Verifies that scatter series with tooltips enabled contains title elements.</summary>
     [Fact]
     public void ScatterSeries_WithTooltips_ContainsTitleElements()
     {
@@ -20,6 +22,7 @@ public class SvgTooltipTests
         Assert.Contains("<title>", svg);
     }
 
+    /// <summary>Verifies that scatter series without tooltips does not contain title elements.</summary>
     [Fact]
     public void Tooltips_Disabled_NoTitleElements()
     {
@@ -32,6 +35,7 @@ public class SvgTooltipTests
         Assert.DoesNotContain("<title>", svg);
     }
 
+    /// <summary>Verifies that tooltip text includes the x and y data values for each point.</summary>
     [Fact]
     public void ScatterSeries_WithTooltips_ContainsDataValues()
     {

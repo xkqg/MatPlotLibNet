@@ -5,8 +5,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Styling;
 
+/// <summary>Verifies <see cref="Color"/> behavior.</summary>
 public class ColorTests
 {
+    /// <summary>Verifies that the constructor sets R, G, B, and A components correctly.</summary>
     [Fact]
     public void Constructor_SetsRgba()
     {
@@ -17,6 +19,7 @@ public class ColorTests
         Assert.Equal(200, color.A);
     }
 
+    /// <summary>Verifies that alpha defaults to 255 when not specified.</summary>
     [Fact]
     public void DefaultAlpha_Is255()
     {
@@ -24,6 +27,7 @@ public class ColorTests
         Assert.Equal(255, color.A);
     }
 
+    /// <summary>Verifies that FromHex parses a 6-digit hex string into the correct RGB values.</summary>
     [Fact]
     public void FromHex_ParsesThreeByteHex()
     {
@@ -34,6 +38,7 @@ public class ColorTests
         Assert.Equal(255, color.A);
     }
 
+    /// <summary>Verifies that FromHex parses an 8-digit hex string including the alpha channel.</summary>
     [Fact]
     public void FromHex_ParsesFourByteHex()
     {
@@ -44,6 +49,7 @@ public class ColorTests
         Assert.Equal(200, color.A);
     }
 
+    /// <summary>Verifies that FromHex works without a leading hash character.</summary>
     [Fact]
     public void FromHex_WithoutHash_Works()
     {
@@ -53,6 +59,7 @@ public class ColorTests
         Assert.Equal(0, color.B);
     }
 
+    /// <summary>Verifies that ToHex produces an uppercase hex string with a leading hash.</summary>
     [Fact]
     public void ToHex_ProducesUppercaseHex()
     {
@@ -60,6 +67,7 @@ public class ColorTests
         Assert.Equal("#FF8000", color.ToHex());
     }
 
+    /// <summary>Verifies that ToRgbaString produces the correct rgba() format.</summary>
     [Fact]
     public void ToRgbaString_FormatsCorrectly()
     {
@@ -68,30 +76,35 @@ public class ColorTests
         Assert.StartsWith("rgba(255,128,0,", rgba);
     }
 
+    /// <summary>Verifies that Color.Red matches the expected RGB values.</summary>
     [Fact]
     public void NamedColor_Red_IsCorrect()
     {
         Assert.Equal(new Color(255, 0, 0), Color.Red);
     }
 
+    /// <summary>Verifies that Color.Blue matches the expected RGB values.</summary>
     [Fact]
     public void NamedColor_Blue_IsCorrect()
     {
         Assert.Equal(new Color(0, 0, 255), Color.Blue);
     }
 
+    /// <summary>Verifies that Color.White matches the expected RGB values.</summary>
     [Fact]
     public void NamedColor_White_IsCorrect()
     {
         Assert.Equal(new Color(255, 255, 255), Color.White);
     }
 
+    /// <summary>Verifies that Color.Black matches the expected RGB values.</summary>
     [Fact]
     public void NamedColor_Black_IsCorrect()
     {
         Assert.Equal(new Color(0, 0, 0), Color.Black);
     }
 
+    /// <summary>Verifies that FromRgba normalizes 0.0-1.0 double values to 0-255 byte range.</summary>
     [Fact]
     public void FromRgba_NormalizesDoubles()
     {
@@ -102,6 +115,7 @@ public class ColorTests
         Assert.Equal(128, color.A);
     }
 
+    /// <summary>Verifies that FromRgba defaults to fully opaque when alpha is omitted.</summary>
     [Fact]
     public void FromRgba_DefaultAlpha_IsOpaque()
     {
@@ -109,6 +123,7 @@ public class ColorTests
         Assert.Equal(255, color.A);
     }
 
+    /// <summary>Verifies that Color equality behaves as a value type comparison.</summary>
     [Fact]
     public void Equality_WorksAsValueType()
     {
@@ -116,6 +131,7 @@ public class ColorTests
         Assert.NotEqual(Color.Red, Color.Blue);
     }
 
+    /// <summary>Verifies that WithAlpha returns a new color with only the alpha channel changed.</summary>
     [Fact]
     public void WithAlpha_ReturnsNewColorWithModifiedAlpha()
     {
@@ -126,6 +142,7 @@ public class ColorTests
         Assert.Equal(128, color.A);
     }
 
+    /// <summary>Verifies that FromHex throws FormatException for an invalid hex string.</summary>
     [Fact]
     public void FromHex_InvalidHex_Throws()
     {

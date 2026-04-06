@@ -10,8 +10,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Serialization;
 
+/// <summary>Verifies <see cref="ChartServices"/> serialization behavior.</summary>
 public class ChartSerializerTests
 {
+    /// <summary>Verifies that ToJson produces a valid JSON document with the expected title.</summary>
     [Fact]
     public void ToJson_ProducesValidJson()
     {
@@ -26,6 +28,7 @@ public class ChartSerializerTests
         Assert.Equal("Test", doc.RootElement.GetProperty("title").GetString());
     }
 
+    /// <summary>Verifies that ToJson includes width and height dimensions.</summary>
     [Fact]
     public void ToJson_IncludesDimensions()
     {
@@ -39,6 +42,7 @@ public class ChartSerializerTests
         Assert.Equal(768, doc.RootElement.GetProperty("height").GetDouble());
     }
 
+    /// <summary>Verifies that ToJson includes a type discriminator for series.</summary>
     [Fact]
     public void ToJson_IncludesSeriesTypeDiscriminator()
     {
@@ -51,6 +55,7 @@ public class ChartSerializerTests
         Assert.Contains("scatter", json);
     }
 
+    /// <summary>Verifies that ToJson includes line series data and label.</summary>
     [Fact]
     public void ToJson_IncludesLineSeries()
     {
@@ -68,6 +73,7 @@ public class ChartSerializerTests
         Assert.Contains("My Line", json);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves the figure title.</summary>
     [Fact]
     public void RoundTrip_PreservesTitle()
     {
@@ -81,6 +87,7 @@ public class ChartSerializerTests
         Assert.Equal("Round Trip", restored.Title);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves width, height, and DPI.</summary>
     [Fact]
     public void RoundTrip_PreservesDimensions()
     {
@@ -97,6 +104,7 @@ public class ChartSerializerTests
         Assert.Equal(150, restored.Dpi);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves LineSeries properties.</summary>
     [Fact]
     public void RoundTrip_PreservesLineSeries()
     {
@@ -123,6 +131,7 @@ public class ChartSerializerTests
         Assert.Equal([4.0, 5.0, 6.0], series.YData);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves ScatterSeries color.</summary>
     [Fact]
     public void RoundTrip_PreservesScatterSeries()
     {
@@ -137,6 +146,7 @@ public class ChartSerializerTests
         Assert.Equal(Color.Blue, series.Color);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves BarSeries categories and values.</summary>
     [Fact]
     public void RoundTrip_PreservesBarSeries()
     {
@@ -152,6 +162,7 @@ public class ChartSerializerTests
         Assert.Equal([10.0, 20.0], series.Values);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves multiple subplots with distinct series types.</summary>
     [Fact]
     public void RoundTrip_PreservesMultipleSubPlots()
     {
@@ -170,6 +181,7 @@ public class ChartSerializerTests
         Assert.IsType<ScatterSeries>(restored.SubPlots[1].Series[0]);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves axis labels and limits.</summary>
     [Fact]
     public void RoundTrip_PreservesAxisConfig()
     {
@@ -193,6 +205,7 @@ public class ChartSerializerTests
         Assert.Equal(100, restored.SubPlots[0].XAxis.Max);
     }
 
+    /// <summary>Verifies that ToJson with indentation produces multi-line output.</summary>
     [Fact]
     public void ToJson_Indented_IsReadable()
     {
@@ -201,6 +214,7 @@ public class ChartSerializerTests
         Assert.Contains("\n", json);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves HistogramSeries bin count.</summary>
     [Fact]
     public void RoundTrip_PreservesHistogramSeries()
     {
@@ -210,6 +224,7 @@ public class ChartSerializerTests
         Assert.Equal(5, series.Bins);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves PieSeries sizes and labels.</summary>
     [Fact]
     public void RoundTrip_PreservesPieSeries()
     {
@@ -220,6 +235,7 @@ public class ChartSerializerTests
         Assert.Equal(["A", "B"], series.Labels);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves BoxSeries label and datasets.</summary>
     [Fact]
     public void RoundTrip_PreservesBoxSeries()
     {
@@ -233,6 +249,7 @@ public class ChartSerializerTests
         Assert.Equal(2, series.Datasets.Length);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves ViolinSeries type.</summary>
     [Fact]
     public void RoundTrip_PreservesViolinSeries()
     {
@@ -243,6 +260,7 @@ public class ChartSerializerTests
         Assert.IsType<ViolinSeries>(restored.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves StemSeries X and Y data.</summary>
     [Fact]
     public void RoundTrip_PreservesStemSeries()
     {
@@ -255,6 +273,7 @@ public class ChartSerializerTests
         Assert.Equal([3.0, 4.0], series.YData);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves ContourSeries type.</summary>
     [Fact]
     public void RoundTrip_PreservesContourSeries()
     {
@@ -265,6 +284,7 @@ public class ChartSerializerTests
         Assert.IsType<ContourSeries>(restored.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves HeatmapSeries type.</summary>
     [Fact]
     public void RoundTrip_PreservesHeatmapSeries()
     {
@@ -275,6 +295,7 @@ public class ChartSerializerTests
         Assert.IsType<HeatmapSeries>(restored.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves the secondary Y axis and its series.</summary>
     [Fact]
     public void RoundTrip_PreservesSecondaryYAxis()
     {
@@ -291,6 +312,7 @@ public class ChartSerializerTests
         Assert.Single(restored.SubPlots[0].SecondarySeries);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves annotation text and arrow targets.</summary>
     [Fact]
     public void RoundTrip_PreservesAnnotations()
     {
@@ -307,6 +329,7 @@ public class ChartSerializerTests
         Assert.Equal(1.5, restored.SubPlots[0].Annotations[0].ArrowTargetX);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves horizontal and vertical reference lines.</summary>
     [Fact]
     public void RoundTrip_PreservesReferenceLines()
     {
@@ -320,6 +343,7 @@ public class ChartSerializerTests
         Assert.Equal(2, restored.SubPlots[0].ReferenceLines.Count);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves horizontal and vertical span regions.</summary>
     [Fact]
     public void RoundTrip_PreservesSpanRegions()
     {
@@ -333,6 +357,7 @@ public class ChartSerializerTests
         Assert.Equal(2, restored.SubPlots[0].Spans.Count);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves RadarSeries categories, values, and alpha.</summary>
     [Fact]
     public void RoundTrip_PreservesRadarSeries()
     {
@@ -348,6 +373,7 @@ public class ChartSerializerTests
         Assert.Equal(0.5, series.Alpha);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves the subplot bar mode.</summary>
     [Fact]
     public void RoundTrip_PreservesBarMode()
     {
@@ -361,6 +387,7 @@ public class ChartSerializerTests
         Assert.Equal(BarMode.Stacked, restored.SubPlots[0].BarMode);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves QuiverSeries vector data.</summary>
     [Fact]
     public void RoundTrip_PreservesQuiverSeries()
     {
@@ -374,6 +401,7 @@ public class ChartSerializerTests
         Assert.Equal([0.5, 0.5], series.VData);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves CandlestickSeries OHLC data and date labels.</summary>
     [Fact]
     public void RoundTrip_PreservesCandlestickSeries()
     {
@@ -387,6 +415,7 @@ public class ChartSerializerTests
         Assert.Equal(["Mon", "Tue"], series.DateLabels);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves ErrorBarSeries color, cap size, and error ranges.</summary>
     [Fact]
     public void RoundTrip_PreservesErrorBarSeries()
     {
@@ -404,6 +433,7 @@ public class ChartSerializerTests
         Assert.Equal([1.0, 1.0], series.YErrorHigh);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves StepSeries position and data.</summary>
     [Fact]
     public void RoundTrip_PreservesStepSeries()
     {
@@ -417,6 +447,7 @@ public class ChartSerializerTests
         Assert.Equal([1.0, 2.0, 3.0], series.XData);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves AreaSeries color, alpha, and fill data.</summary>
     [Fact]
     public void RoundTrip_PreservesAreaSeries()
     {
@@ -437,6 +468,7 @@ public class ChartSerializerTests
         Assert.Equal([1.0, 2.0, 3.0], series.YData2);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves the label on any series type.</summary>
     [Fact]
     public void RoundTrip_PreservesLabelAcrossAllTypes()
     {
@@ -449,6 +481,7 @@ public class ChartSerializerTests
         Assert.Equal("shared-label", restored.SubPlots[0].Series[0].Label);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves DonutSeries properties including inner radius and center text.</summary>
     [Fact]
     public void RoundTrip_PreservesDonutSeries()
     {
@@ -468,6 +501,7 @@ public class ChartSerializerTests
         Assert.Equal(45, series.StartAngle);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves BubbleSeries positions, sizes, and styling.</summary>
     [Fact]
     public void RoundTrip_PreservesBubbleSeries()
     {
@@ -486,6 +520,7 @@ public class ChartSerializerTests
         Assert.Equal(0.8, series.Alpha);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves OhlcBarSeries OHLC data and tick width.</summary>
     [Fact]
     public void RoundTrip_PreservesOhlcBarSeries()
     {
@@ -504,6 +539,7 @@ public class ChartSerializerTests
         Assert.Equal(0.5, series.TickWidth);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves WaterfallSeries categories, values, and bar width.</summary>
     [Fact]
     public void RoundTrip_PreservesWaterfallSeries()
     {
@@ -519,6 +555,7 @@ public class ChartSerializerTests
         Assert.Equal(0.8, series.BarWidth);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves FunnelSeries labels and values.</summary>
     [Fact]
     public void RoundTrip_PreservesFunnelSeries()
     {
@@ -532,6 +569,7 @@ public class ChartSerializerTests
         Assert.Equal([1000.0, 500.0, 100.0], series.Values);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves GanttSeries tasks, timing, and styling.</summary>
     [Fact]
     public void RoundTrip_PreservesGanttSeries()
     {
@@ -550,6 +588,7 @@ public class ChartSerializerTests
         Assert.Equal(0.8, series.BarHeight);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves GaugeSeries value, range, and needle color.</summary>
     [Fact]
     public void RoundTrip_PreservesGaugeSeries()
     {
@@ -568,6 +607,7 @@ public class ChartSerializerTests
         Assert.Equal(Color.Red, series.NeedleColor);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves ProgressBarSeries value, colors, and bar height.</summary>
     [Fact]
     public void RoundTrip_PreservesProgressBarSeries()
     {
@@ -586,6 +626,7 @@ public class ChartSerializerTests
         Assert.Equal(0.5, series.BarHeight);
     }
 
+    /// <summary>Verifies that a round-trip serialization preserves SparklineSeries values, color, and line width.</summary>
     [Fact]
     public void RoundTrip_PreservesSparklineSeries()
     {

@@ -6,8 +6,10 @@ using MatPlotLibNet.Rendering.Svg;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg;
 
+/// <summary>Verifies <see cref="SvgTransform"/> SVG output behavior.</summary>
 public class SvgOutputTests
 {
+    /// <summary>Verifies that a simple line chart produces valid SVG with opening/closing tags and title.</summary>
     [Fact]
     public void SimpleLineChart_ProducesValidSvg()
     {
@@ -23,6 +25,7 @@ public class SvgOutputTests
         Assert.Contains("Test", svg); // title appears
     }
 
+    /// <summary>Verifies that a scatter chart renders circle elements for each data point.</summary>
     [Fact]
     public void ScatterChart_ContainsCircleElements()
     {
@@ -34,6 +37,7 @@ public class SvgOutputTests
         Assert.Contains("<circle", svg);
     }
 
+    /// <summary>Verifies that the SVG output includes a viewBox attribute matching the configured size.</summary>
     [Fact]
     public void SvgHasViewBox()
     {
@@ -47,6 +51,7 @@ public class SvgOutputTests
         Assert.Contains("768", svg);
     }
 
+    /// <summary>Verifies that an annotation appears as text in the SVG output.</summary>
     [Fact]
     public void AnnotatedChart_ContainsTextElement()
     {
@@ -59,6 +64,7 @@ public class SvgOutputTests
         Assert.Contains("peak", svg);
     }
 
+    /// <summary>Verifies that a horizontal reference line renders as a line element.</summary>
     [Fact]
     public void ReferenceLineChart_ContainsLineElement()
     {
@@ -71,6 +77,7 @@ public class SvgOutputTests
         Assert.Contains("<line", svg);
     }
 
+    /// <summary>Verifies that a radar chart renders as a polygon element.</summary>
     [Fact]
     public void RadarChart_ContainsPolygonElement()
     {
@@ -82,6 +89,7 @@ public class SvgOutputTests
         Assert.Contains("<polygon", svg);
     }
 
+    /// <summary>Verifies that an error bar chart renders line and circle elements for whiskers and points.</summary>
     [Fact]
     public void ErrorBarChart_ContainsLineElements()
     {
@@ -94,6 +102,7 @@ public class SvgOutputTests
         Assert.Contains("<circle", svg);
     }
 
+    /// <summary>Verifies that a step chart renders as a polyline element.</summary>
     [Fact]
     public void StepChart_ContainsPolylineElement()
     {
@@ -105,6 +114,7 @@ public class SvgOutputTests
         Assert.Contains("<polyline", svg);
     }
 
+    /// <summary>Verifies that a fill-between area chart renders as a polygon element.</summary>
     [Fact]
     public void AreaChart_ContainsPolygonElement()
     {

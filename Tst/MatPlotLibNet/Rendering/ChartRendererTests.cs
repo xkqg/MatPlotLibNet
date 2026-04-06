@@ -8,8 +8,10 @@ using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
+/// <summary>Verifies <see cref="SvgTransform"/> behavior.</summary>
 public class ChartRendererTests
 {
+    /// <summary>Verifies that rendering an empty figure produces valid SVG with opening and closing tags.</summary>
     [Fact]
     public void Render_EmptyFigure_ProducesValidSvg()
     {
@@ -21,6 +23,7 @@ public class ChartRendererTests
         Assert.Contains("</svg>", svg);
     }
 
+    /// <summary>Verifies that a figure with a title includes the title text in the SVG output.</summary>
     [Fact]
     public void Render_FigureWithTitle_ContainsTitleText()
     {
@@ -34,6 +37,7 @@ public class ChartRendererTests
         Assert.Contains("My Title", svg);
     }
 
+    /// <summary>Verifies that a figure without a title does not contain stray title text.</summary>
     [Fact]
     public void Render_FigureWithoutTitle_DoesNotContainTitleText()
     {
@@ -47,6 +51,7 @@ public class ChartRendererTests
         Assert.DoesNotContain("My Title", svg);
     }
 
+    /// <summary>Verifies that a single subplot renders axes with rect and line elements.</summary>
     [Fact]
     public void Render_SingleSubplot_ProducesAxes()
     {
@@ -61,6 +66,7 @@ public class ChartRendererTests
         Assert.Contains("<line", svg);
     }
 
+    /// <summary>Verifies that two side-by-side subplots both have their titles in the SVG output.</summary>
     [Fact]
     public void Render_TwoSubplots_ProducesBothTitles()
     {
@@ -79,6 +85,7 @@ public class ChartRendererTests
         Assert.Contains("Right Panel", svg);
     }
 
+    /// <summary>Verifies that a 2x2 grid of subplots renders all four subplot titles.</summary>
     [Fact]
     public void Render_2x2Grid_AllSubplotsPresent()
     {
@@ -105,6 +112,7 @@ public class ChartRendererTests
         Assert.Contains("BottomRight", svg);
     }
 
+    /// <summary>Verifies that a custom background color appears as a rect with the specified hex color.</summary>
     [Fact]
     public void Render_WithBackground_ContainsBackgroundRect()
     {
@@ -119,6 +127,7 @@ public class ChartRendererTests
         Assert.Contains("#AABBCC", svg);
     }
 
+    /// <summary>Verifies that enabling grid lines produces line elements in the SVG output.</summary>
     [Fact]
     public void Render_WithGrid_ContainsGridLines()
     {
@@ -133,6 +142,7 @@ public class ChartRendererTests
         Assert.Contains("<line", svg);
     }
 
+    /// <summary>Verifies that a line series renders as a polyline element.</summary>
     [Fact]
     public void Render_LineSeries_ContainsPolyline()
     {
@@ -145,6 +155,7 @@ public class ChartRendererTests
         Assert.Contains("<polyline", svg);
     }
 
+    /// <summary>Verifies that a bar series renders as rect elements.</summary>
     [Fact]
     public void Render_BarSeries_ContainsRects()
     {

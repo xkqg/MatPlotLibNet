@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="DonutSeries"/> default properties and construction.</summary>
 public class DonutSeriesTests
 {
+    /// <summary>Verifies that the constructor stores sizes.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -14,6 +16,7 @@ public class DonutSeriesTests
         Assert.Equal([30.0, 70.0], series.Sizes);
     }
 
+    /// <summary>Verifies that InnerRadius defaults to 0.4.</summary>
     [Fact]
     public void DefaultInnerRadius_Is0Point4()
     {
@@ -22,8 +25,10 @@ public class DonutSeriesTests
     }
 }
 
+/// <summary>Verifies <see cref="BubbleSeries"/> default properties and construction.</summary>
 public class BubbleSeriesTests
 {
+    /// <summary>Verifies that the constructor stores X, Y, and size data.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -35,8 +40,10 @@ public class BubbleSeriesTests
 
 }
 
+/// <summary>Verifies <see cref="OhlcBarSeries"/> default properties and construction.</summary>
 public class OhlcBarSeriesTests
 {
+    /// <summary>Verifies that the constructor stores OHLC data arrays.</summary>
     [Fact]
     public void Constructor_StoresOhlcData()
     {
@@ -46,8 +53,10 @@ public class OhlcBarSeriesTests
     }
 }
 
+/// <summary>Verifies <see cref="WaterfallSeries"/> default properties and construction.</summary>
 public class WaterfallSeriesTests
 {
+    /// <summary>Verifies that the constructor stores categories and values.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -57,8 +66,10 @@ public class WaterfallSeriesTests
     }
 }
 
+/// <summary>Verifies <see cref="FunnelSeries"/> default properties and construction.</summary>
 public class FunnelSeriesTests
 {
+    /// <summary>Verifies that the constructor stores labels and values.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -68,8 +79,10 @@ public class FunnelSeriesTests
     }
 }
 
+/// <summary>Verifies <see cref="GanttSeries"/> default properties and construction.</summary>
 public class GanttSeriesTests
 {
+    /// <summary>Verifies that the constructor stores tasks, starts, and ends.</summary>
     [Fact]
     public void Constructor_StoresData()
     {

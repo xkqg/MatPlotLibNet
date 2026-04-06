@@ -13,6 +13,7 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.AspNetCore.Tests;
 
+/// <summary>Verifies <see cref="MatPlotLibNetEndpoints"/> behavior.</summary>
 public class MatPlotLibNetEndpointsTests : IAsyncDisposable
 {
     private readonly IHost _host;
@@ -54,6 +55,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
         _client = _host.GetTestClient();
     }
 
+    /// <summary>Verifies that the chart JSON endpoint returns HTTP 200 OK.</summary>
     [Fact]
     public async Task MapChartEndpoint_ReturnsOk()
     {
@@ -61,6 +63,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    /// <summary>Verifies that the chart JSON endpoint returns application/json content type.</summary>
     [Fact]
     public async Task MapChartEndpoint_ReturnsJsonContentType()
     {
@@ -68,6 +71,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
     }
 
+    /// <summary>Verifies that the chart JSON endpoint returns valid JSON with the expected title and width.</summary>
     [Fact]
     public async Task MapChartEndpoint_ReturnsValidJson()
     {
@@ -79,6 +83,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
         Assert.Equal(800, doc.RootElement.GetProperty("width").GetDouble());
     }
 
+    /// <summary>Verifies that the chart JSON endpoint includes subplot and series data in the response.</summary>
     [Fact]
     public async Task MapChartEndpoint_IncludesSeriesData()
     {
@@ -94,6 +99,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
         Assert.Equal("line", series[0].GetProperty("type").GetString());
     }
 
+    /// <summary>Verifies that the chart SVG endpoint returns HTTP 200 OK.</summary>
     [Fact]
     public async Task MapChartSvgEndpoint_ReturnsOk()
     {
@@ -101,6 +107,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    /// <summary>Verifies that the chart SVG endpoint returns image/svg+xml content type.</summary>
     [Fact]
     public async Task MapChartSvgEndpoint_ReturnsSvgContentType()
     {
@@ -108,6 +115,7 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
         Assert.Equal("image/svg+xml", response.Content.Headers.ContentType?.MediaType);
     }
 
+    /// <summary>Verifies that the chart SVG endpoint returns valid SVG containing the chart title.</summary>
     [Fact]
     public async Task MapChartSvgEndpoint_ReturnsValidSvg()
     {

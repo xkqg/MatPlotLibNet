@@ -6,8 +6,10 @@ using MatPlotLibNet.GraphQL;
 
 namespace MatPlotLibNet.GraphQL.Tests;
 
+/// <summary>Verifies <see cref="GraphQLExtensions"/> behavior.</summary>
 public class GraphQLExtensionsTests
 {
+    /// <summary>Verifies that AddMatPlotLibNetGraphQL registers the IChartEventSender service.</summary>
     [Fact]
     public void AddMatPlotLibNetGraphQL_RegistersChartEventSender()
     {
@@ -21,6 +23,7 @@ public class GraphQLExtensionsTests
         Assert.NotNull(sender);
     }
 
+    /// <summary>Verifies that AddMatPlotLibNetGraphQL registers the HotChocolate request executor resolver.</summary>
     [Fact]
     public void AddMatPlotLibNetGraphQL_RegistersGraphQLServer()
     {
@@ -34,6 +37,7 @@ public class GraphQLExtensionsTests
         Assert.NotNull(executor);
     }
 
+    /// <summary>Verifies that AddMatPlotLibNetGraphQL stores and invokes the figure factory delegate.</summary>
     [Fact]
     public void AddMatPlotLibNetGraphQL_StoresFigureFactory()
     {

@@ -6,8 +6,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="CandlestickSeries"/> default properties and construction.</summary>
 public class CandlestickSeriesTests
 {
+    /// <summary>Verifies that the constructor stores OHLC data arrays.</summary>
     [Fact]
     public void Constructor_StoresOhlcData()
     {
@@ -19,6 +21,7 @@ public class CandlestickSeriesTests
         Assert.Equal(c, series.Close);
     }
 
+    /// <summary>Verifies that UpColor defaults to Green.</summary>
     [Fact]
     public void DefaultUpColor_IsGreen()
     {
@@ -26,6 +29,7 @@ public class CandlestickSeriesTests
         Assert.Equal(Color.Green, series.UpColor);
     }
 
+    /// <summary>Verifies that DownColor defaults to Red.</summary>
     [Fact]
     public void DefaultDownColor_IsRed()
     {
@@ -33,6 +37,7 @@ public class CandlestickSeriesTests
         Assert.Equal(Color.Red, series.DownColor);
     }
 
+    /// <summary>Verifies that BodyWidth defaults to 0.6.</summary>
     [Fact]
     public void DefaultBodyWidth_Is0Point6()
     {
@@ -40,6 +45,7 @@ public class CandlestickSeriesTests
         Assert.Equal(0.6, series.BodyWidth);
     }
 
+    /// <summary>Verifies that DateLabels defaults to null.</summary>
     [Fact]
     public void DateLabels_DefaultsToNull()
     {

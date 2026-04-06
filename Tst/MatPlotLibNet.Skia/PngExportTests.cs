@@ -7,20 +7,24 @@ using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet.Skia.Tests;
 
+/// <summary>Verifies <see cref="PngTransform"/> behavior.</summary>
 public class PngExportTests
 {
+    /// <summary>Verifies that PngTransform implements the IFigureTransform interface.</summary>
     [Fact]
     public void PngTransform_ImplementsIFigureTransform()
     {
         Assert.IsAssignableFrom<IFigureTransform>(new PngTransform());
     }
 
+    /// <summary>Verifies that PngTransform extends the FigureTransform base class.</summary>
     [Fact]
     public void PngTransform_ExtendsFigureTransform()
     {
         Assert.IsAssignableFrom<FigureTransform>(new PngTransform());
     }
 
+    /// <summary>Verifies that ToPng produces a non-empty byte array for a figure with data.</summary>
     [Fact]
     public void ToPng_ProducesNonEmptyByteArray()
     {
@@ -32,6 +36,7 @@ public class PngExportTests
         Assert.NotEmpty(figure.ToPng());
     }
 
+    /// <summary>Verifies that ToPng output starts with the PNG magic header bytes.</summary>
     [Fact]
     public void ToPng_StartsWithPngHeader()
     {
@@ -43,6 +48,7 @@ public class PngExportTests
         Assert.Equal(0x47, bytes[3]);
     }
 
+    /// <summary>Verifies that the fluent Transform API produces bytes with a valid PNG header.</summary>
     [Fact]
     public void FluentTransform_ToBytes_ProducesValidPng()
     {
@@ -53,6 +59,7 @@ public class PngExportTests
         Assert.Equal(0x89, bytes[0]);
     }
 
+    /// <summary>Verifies that the fluent Transform API writes non-empty PNG data to a stream.</summary>
     [Fact]
     public void FluentTransform_ToStream_WritesValidPng()
     {
@@ -64,6 +71,7 @@ public class PngExportTests
         Assert.True(stream.Length > 0);
     }
 
+    /// <summary>Verifies that the fluent Transform API creates a valid PNG file on disk.</summary>
     [Fact]
     public void FluentTransform_ToFile_CreatesValidPng()
     {

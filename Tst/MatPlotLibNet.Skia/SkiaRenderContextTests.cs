@@ -7,6 +7,7 @@ using SkiaSharp;
 
 namespace MatPlotLibNet.Skia.Tests;
 
+/// <summary>Verifies <see cref="SkiaRenderContext"/> behavior.</summary>
 public class SkiaRenderContextTests : IDisposable
 {
     private readonly SKBitmap _bitmap;
@@ -27,6 +28,7 @@ public class SkiaRenderContextTests : IDisposable
         _bitmap.Dispose();
     }
 
+    /// <summary>Verifies that the constructor accepts an SKCanvas without throwing.</summary>
     [Fact]
     public void Constructor_AcceptsSKCanvas_WithoutThrowing()
     {
@@ -36,6 +38,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.NotNull(ctx);
     }
 
+    /// <summary>Verifies that DrawLine renders non-transparent pixels on the canvas.</summary>
     [Fact]
     public void DrawLine_RendersNonTransparentPixels()
     {
@@ -45,6 +48,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(HasNonTransparentPixels());
     }
 
+    /// <summary>Verifies that DrawLines renders a polyline with non-transparent pixels.</summary>
     [Fact]
     public void DrawLines_RendersPolyline()
     {
@@ -55,6 +59,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(HasNonTransparentPixels());
     }
 
+    /// <summary>Verifies that DrawPolygon with a fill color renders filled pixels.</summary>
     [Fact]
     public void DrawPolygon_WithFill_RendersFilled()
     {
@@ -65,6 +70,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(HasNonTransparentPixels());
     }
 
+    /// <summary>Verifies that DrawPolygon with a stroke color renders an outline.</summary>
     [Fact]
     public void DrawPolygon_WithStroke_RendersOutline()
     {
@@ -75,6 +81,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(HasNonTransparentPixels());
     }
 
+    /// <summary>Verifies that DrawCircle with a fill color renders non-transparent pixels at the center.</summary>
     [Fact]
     public void DrawCircle_WithFill_RendersCenterArea()
     {
@@ -86,6 +93,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.NotEqual(SKColors.Transparent, pixel);
     }
 
+    /// <summary>Verifies that DrawCircle with a stroke color renders an outline.</summary>
     [Fact]
     public void DrawCircle_WithStroke_RendersOutline()
     {
@@ -95,6 +103,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(HasNonTransparentPixels());
     }
 
+    /// <summary>Verifies that DrawRectangle with a fill color renders non-transparent pixels at the center.</summary>
     [Fact]
     public void DrawRectangle_WithFill_RendersFilled()
     {
@@ -105,6 +114,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.NotEqual(SKColors.Transparent, pixel);
     }
 
+    /// <summary>Verifies that DrawRectangle with a stroke color renders an outline.</summary>
     [Fact]
     public void DrawRectangle_WithStroke_RendersOutline()
     {
@@ -114,6 +124,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(HasNonTransparentPixels());
     }
 
+    /// <summary>Verifies that DrawEllipse with a fill color renders non-transparent pixels at the center.</summary>
     [Fact]
     public void DrawEllipse_WithFill_RendersFilled()
     {
@@ -124,6 +135,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.NotEqual(SKColors.Transparent, pixel);
     }
 
+    /// <summary>Verifies that DrawText renders non-transparent pixels on the canvas.</summary>
     [Fact]
     public void DrawText_RendersPixels()
     {
@@ -134,6 +146,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(HasNonTransparentPixels());
     }
 
+    /// <summary>Verifies that DrawPath with MoveTo and LineTo segments renders non-transparent pixels.</summary>
     [Fact]
     public void DrawPath_MoveToLineTo_RendersSegments()
     {
@@ -149,6 +162,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(HasNonTransparentPixels());
     }
 
+    /// <summary>Verifies that DrawPath with a Close segment renders a filled closed shape.</summary>
     [Fact]
     public void DrawPath_WithClose_RendersClosedShape()
     {
@@ -165,6 +179,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(HasNonTransparentPixels());
     }
 
+    /// <summary>Verifies that PushClip prevents drawing outside the clipping rectangle.</summary>
     [Fact]
     public void PushClip_ClipsDrawingOutsideRect()
     {
@@ -179,6 +194,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.Equal(0, pixel.Alpha);
     }
 
+    /// <summary>Verifies that PopClip restores full-canvas drawing after removing the clip region.</summary>
     [Fact]
     public void PopClip_RestoresDrawingAfterClip()
     {
@@ -192,6 +208,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.NotEqual(SKColors.Transparent, pixel);
     }
 
+    /// <summary>Verifies that MeasureText returns a non-zero width and height for a text string.</summary>
     [Fact]
     public void MeasureText_ReturnsNonZeroSize()
     {
@@ -201,6 +218,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(size.Height > 0);
     }
 
+    /// <summary>Verifies that MeasureText returns larger dimensions for a larger font size.</summary>
     [Fact]
     public void MeasureText_LargerFont_ReturnsLargerSize()
     {
@@ -211,6 +229,7 @@ public class SkiaRenderContextTests : IDisposable
         Assert.True(largeSize.Height > smallSize.Height);
     }
 
+    /// <summary>Verifies that SetOpacity reduces the alpha channel of rendered pixels.</summary>
     [Fact]
     public void SetOpacity_ReducesPixelAlpha()
     {

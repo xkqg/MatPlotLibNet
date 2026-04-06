@@ -5,8 +5,10 @@ using MatPlotLibNet.GraphQL;
 
 namespace MatPlotLibNet.GraphQL.Tests;
 
+/// <summary>Verifies <see cref="ChartSubscriptionType"/> behavior.</summary>
 public class ChartSubscriptionTypeTests
 {
+    /// <summary>Verifies that OnChartSvgUpdated returns the SVG payload from the event message.</summary>
     [Fact]
     public void OnChartSvgUpdated_ReturnsMessagePayload()
     {
@@ -18,6 +20,7 @@ public class ChartSubscriptionTypeTests
         Assert.Equal("<svg>updated</svg>", result);
     }
 
+    /// <summary>Verifies that OnChartUpdated returns the JSON payload from the event message.</summary>
     [Fact]
     public void OnChartUpdated_ReturnsMessagePayload()
     {
@@ -29,6 +32,7 @@ public class ChartSubscriptionTypeTests
         Assert.Equal("{\"title\":\"Live\"}", result);
     }
 
+    /// <summary>Verifies that ChartEventMessage correctly stores the chart ID and payload.</summary>
     [Fact]
     public void ChartEventMessage_StoresChartIdAndPayload()
     {

@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="HeatmapSeries"/> default properties and construction.</summary>
 public class HeatmapSeriesTests
 {
+    /// <summary>Verifies that the constructor stores the 2D data array.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -15,6 +17,7 @@ public class HeatmapSeriesTests
         Assert.Equal(data, series.Data);
     }
 
+    /// <summary>Verifies that ColorMap defaults to null.</summary>
     [Fact]
     public void DefaultColorMap_IsNull()
     {

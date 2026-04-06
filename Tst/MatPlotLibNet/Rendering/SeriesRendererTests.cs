@@ -9,8 +9,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
+/// <summary>Verifies <see cref="SeriesRenderContext"/> behavior.</summary>
 public class SeriesRendererTests
 {
+    /// <summary>Verifies that SeriesRenderContext is a record supporting immutable with-expressions.</summary>
     [Fact]
     public void SeriesRenderContext_IsRecord_SupportsWithExpression()
     {
@@ -20,6 +22,7 @@ public class SeriesRendererTests
         Assert.False(ctx.TooltipsEnabled); // original unchanged (immutable)
     }
 
+    /// <summary>Verifies that SeriesRenderContext requires all four constructor parameters to be non-default.</summary>
     [Fact]
     public void SeriesRenderContext_RequiredFourParams()
     {
@@ -30,6 +33,7 @@ public class SeriesRendererTests
         Assert.NotEqual(default, ctx.Area);
     }
 
+    /// <summary>Verifies that rendering a figure with multiple series types still produces valid SVG after refactoring.</summary>
     [Fact]
     public void ExistingTests_StillPass_AfterRefactor()
     {
@@ -48,6 +52,7 @@ public class SeriesRendererTests
         Assert.Contains("<rect", svg);       // bar
     }
 
+    /// <summary>Verifies that all series types render without error through the visitor dispatch.</summary>
     [Fact]
     public void AllSeriesTypes_RenderWithoutError()
     {

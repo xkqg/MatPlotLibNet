@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="ErrorBarSeries"/> default properties and construction.</summary>
 public class ErrorBarSeriesTests
 {
+    /// <summary>Verifies that the constructor stores X, Y, and error data.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -18,6 +20,7 @@ public class ErrorBarSeriesTests
         Assert.Equal(eHigh, series.YErrorHigh);
     }
 
+    /// <summary>Verifies that XErrorLow defaults to null.</summary>
     [Fact]
     public void XErrorLow_DefaultsToNull()
     {
@@ -25,6 +28,7 @@ public class ErrorBarSeriesTests
         Assert.Null(series.XErrorLow);
     }
 
+    /// <summary>Verifies that XErrorHigh defaults to null.</summary>
     [Fact]
     public void XErrorHigh_DefaultsToNull()
     {
@@ -32,6 +36,7 @@ public class ErrorBarSeriesTests
         Assert.Null(series.XErrorHigh);
     }
 
+    /// <summary>Verifies that CapSize defaults to 5.</summary>
     [Fact]
     public void DefaultCapSize_Is5()
     {
@@ -39,6 +44,7 @@ public class ErrorBarSeriesTests
         Assert.Equal(5.0, series.CapSize);
     }
 
+    /// <summary>Verifies that LineWidth defaults to 1.5.</summary>
     [Fact]
     public void DefaultLineWidth_Is1Point5()
     {
@@ -46,6 +52,7 @@ public class ErrorBarSeriesTests
         Assert.Equal(1.5, series.LineWidth);
     }
 
+    /// <summary>Verifies that Color defaults to null.</summary>
     [Fact]
     public void DefaultColor_IsNull()
     {

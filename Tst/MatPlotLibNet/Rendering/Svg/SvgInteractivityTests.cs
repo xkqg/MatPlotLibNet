@@ -3,8 +3,10 @@
 
 namespace MatPlotLibNet.Tests.Rendering.Svg;
 
+/// <summary>Verifies SVG interactivity (zoom/pan) behavior.</summary>
 public class SvgInteractivityTests
 {
+    /// <summary>Verifies that enabling zoom/pan injects a script element into the SVG output.</summary>
     [Fact]
     public void EnableZoomPan_InjectsScriptElement()
     {
@@ -17,6 +19,7 @@ public class SvgInteractivityTests
         Assert.Contains("<script", svg);
     }
 
+    /// <summary>Verifies that without zoom/pan enabled, no script element is present in the SVG output.</summary>
     [Fact]
     public void DisabledZoomPan_NoScriptElement()
     {
@@ -28,6 +31,7 @@ public class SvgInteractivityTests
         Assert.DoesNotContain("<script", svg);
     }
 
+    /// <summary>Verifies that the injected script contains viewBox manipulation via setAttribute.</summary>
     [Fact]
     public void ScriptContains_ViewBoxManipulation()
     {
@@ -41,6 +45,7 @@ public class SvgInteractivityTests
         Assert.Contains("setAttribute", svg);
     }
 
+    /// <summary>Verifies that the injected script includes a wheel event handler for zoom.</summary>
     [Fact]
     public void ScriptContains_WheelEventHandler()
     {

@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="BoxSeries"/> default properties and construction.</summary>
 public class BoxSeriesTests
 {
+    /// <summary>Verifies that the constructor stores datasets.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -15,6 +17,7 @@ public class BoxSeriesTests
         Assert.Equal(datasets, series.Datasets);
     }
 
+    /// <summary>Verifies that ShowOutliers defaults to true.</summary>
     [Fact]
     public void DefaultShowOutliers_IsTrue()
     {
@@ -22,6 +25,7 @@ public class BoxSeriesTests
         Assert.True(series.ShowOutliers);
     }
 
+    /// <summary>Verifies that Color defaults to null.</summary>
     [Fact]
     public void DefaultColor_IsNull()
     {

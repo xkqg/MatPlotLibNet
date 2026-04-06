@@ -7,8 +7,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.FluentApi;
 
+/// <summary>Verifies <see cref="FigureBuilder"/> behavior.</summary>
 public class FigureBuilderTests
 {
+    /// <summary>Verifies that Build produces a figure with default dimensions.</summary>
     [Fact]
     public void Build_ProducesDefaultFigure()
     {
@@ -17,6 +19,7 @@ public class FigureBuilderTests
         Assert.Equal(800, figure.Width);
     }
 
+    /// <summary>Verifies that WithTitle sets the figure title.</summary>
     [Fact]
     public void WithTitle_SetsTitle()
     {
@@ -26,6 +29,7 @@ public class FigureBuilderTests
         Assert.Equal("Hello", figure.Title);
     }
 
+    /// <summary>Verifies that WithSize sets the figure width and height.</summary>
     [Fact]
     public void WithSize_SetsDimensions()
     {
@@ -36,6 +40,7 @@ public class FigureBuilderTests
         Assert.Equal(900, figure.Height);
     }
 
+    /// <summary>Verifies that WithDpi sets the figure DPI.</summary>
     [Fact]
     public void WithDpi_SetsDpi()
     {
@@ -45,6 +50,7 @@ public class FigureBuilderTests
         Assert.Equal(150, figure.Dpi);
     }
 
+    /// <summary>Verifies that WithTheme sets the figure theme.</summary>
     [Fact]
     public void WithTheme_SetsTheme()
     {
@@ -54,6 +60,7 @@ public class FigureBuilderTests
         Assert.Same(Theme.Dark, figure.Theme);
     }
 
+    /// <summary>Verifies that WithBackground sets the figure background color.</summary>
     [Fact]
     public void WithBackground_SetsColor()
     {
@@ -63,6 +70,7 @@ public class FigureBuilderTests
         Assert.Equal(Color.Black, figure.BackgroundColor);
     }
 
+    /// <summary>Verifies that Plot creates default axes with a <see cref="LineSeries"/>.</summary>
     [Fact]
     public void Plot_CreatesDefaultAxesWithLineSeries()
     {
@@ -74,6 +82,7 @@ public class FigureBuilderTests
         Assert.IsType<LineSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that Plot with a configure callback applies series settings.</summary>
     [Fact]
     public void Plot_WithConfigure_AppliesSettings()
     {
@@ -90,6 +99,7 @@ public class FigureBuilderTests
         Assert.Equal(3.0, series.LineWidth);
     }
 
+    /// <summary>Verifies that Scatter creates a <see cref="ScatterSeries"/>.</summary>
     [Fact]
     public void Scatter_CreatesScatterSeries()
     {
@@ -99,6 +109,7 @@ public class FigureBuilderTests
         Assert.IsType<ScatterSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that Bar creates a <see cref="BarSeries"/>.</summary>
     [Fact]
     public void Bar_CreatesBarSeries()
     {
@@ -108,6 +119,7 @@ public class FigureBuilderTests
         Assert.IsType<BarSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that Hist creates a <see cref="HistogramSeries"/>.</summary>
     [Fact]
     public void Hist_CreatesHistogramSeries()
     {
@@ -117,6 +129,7 @@ public class FigureBuilderTests
         Assert.IsType<HistogramSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that Pie creates a <see cref="PieSeries"/>.</summary>
     [Fact]
     public void Pie_CreatesPieSeries()
     {
@@ -126,6 +139,7 @@ public class FigureBuilderTests
         Assert.IsType<PieSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that multiple Plot calls add series to the same axes.</summary>
     [Fact]
     public void MultiplePlotCalls_AddSeriesToSameAxes()
     {
@@ -137,6 +151,7 @@ public class FigureBuilderTests
         Assert.Equal(2, figure.SubPlots[0].Series.Count);
     }
 
+    /// <summary>Verifies that AddSubPlot creates multiple axes in the figure.</summary>
     [Fact]
     public void AddSubPlot_CreatesMultipleAxes()
     {
@@ -147,6 +162,7 @@ public class FigureBuilderTests
         Assert.Equal(2, figure.SubPlots.Count);
     }
 
+    /// <summary>Verifies that AddSubPlot applies the configure callback to the axes.</summary>
     [Fact]
     public void AddSubPlot_ConfigureCallback_IsApplied()
     {
@@ -167,6 +183,7 @@ public class FigureBuilderTests
         Assert.Single(axes.Series);
     }
 
+    /// <summary>Verifies that all fluent methods return the builder for chaining.</summary>
     [Fact]
     public void MethodChaining_AllMethodsReturnBuilder()
     {

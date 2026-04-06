@@ -3,8 +3,10 @@
 
 namespace MatPlotLibNet.Tests.Rendering;
 
+/// <summary>Verifies <see cref="ChartServices"/> parallel rendering behavior.</summary>
 public class ParallelRenderingTests
 {
+    /// <summary>Verifies that parallel rendering of a 2x2 grid with mixed series types includes all subplot titles.</summary>
     [Fact]
     public void ParallelRender_MultipleSubplots_AllTitlesPresent()
     {
@@ -23,6 +25,7 @@ public class ParallelRenderingTests
         Assert.Contains("BottomRight", svg);
     }
 
+    /// <summary>Verifies that parallel rendering works correctly with a single subplot.</summary>
     [Fact]
     public void ParallelRender_SingleSubplot_Works()
     {
@@ -38,6 +41,7 @@ public class ParallelRenderingTests
         Assert.Contains("<polyline", svg);
     }
 
+    /// <summary>Verifies that parallel rendering of a 3x3 grid includes all nine subplot titles.</summary>
     [Fact]
     public void ParallelRender_ManySubplots_AllPresent()
     {

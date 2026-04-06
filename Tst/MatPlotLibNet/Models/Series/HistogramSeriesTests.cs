@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="HistogramSeries"/> default properties and construction.</summary>
 public class HistogramSeriesTests
 {
+    /// <summary>Verifies that the constructor stores the data array.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -15,6 +17,7 @@ public class HistogramSeriesTests
         Assert.Equal(data, series.Data);
     }
 
+    /// <summary>Verifies that Bins defaults to 10.</summary>
     [Fact]
     public void DefaultBins_Is10()
     {
@@ -22,6 +25,7 @@ public class HistogramSeriesTests
         Assert.Equal(10, series.Bins);
     }
 
+    /// <summary>Verifies that Alpha defaults to 0.7.</summary>
     [Fact]
     public void DefaultAlpha_Is0Point7()
     {
@@ -29,6 +33,7 @@ public class HistogramSeriesTests
         Assert.Equal(0.7, series.Alpha);
     }
 
+    /// <summary>Verifies that Color defaults to null.</summary>
     [Fact]
     public void DefaultColor_IsNull()
     {
@@ -36,6 +41,7 @@ public class HistogramSeriesTests
         Assert.Null(series.Color);
     }
 
+    /// <summary>Verifies that ComputeBins returns valid counts, min, and bin width.</summary>
     [Fact]
     public void ComputeBins_ReturnsValidResult()
     {

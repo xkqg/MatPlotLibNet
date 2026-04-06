@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="PieSeries"/> default properties and construction.</summary>
 public class PieSeriesTests
 {
+    /// <summary>Verifies that the constructor stores sizes.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -15,6 +17,7 @@ public class PieSeriesTests
         Assert.Equal(sizes, series.Sizes);
     }
 
+    /// <summary>Verifies that StartAngle defaults to 90.</summary>
     [Fact]
     public void DefaultStartAngle_Is90()
     {
@@ -22,6 +25,7 @@ public class PieSeriesTests
         Assert.Equal(90, series.StartAngle);
     }
 
+    /// <summary>Verifies that Labels defaults to null.</summary>
     [Fact]
     public void DefaultLabels_IsNull()
     {
@@ -29,6 +33,7 @@ public class PieSeriesTests
         Assert.Null(series.Labels);
     }
 
+    /// <summary>Verifies that CounterClockwise defaults to false.</summary>
     [Fact]
     public void DefaultCounterClockwise_IsFalse()
     {

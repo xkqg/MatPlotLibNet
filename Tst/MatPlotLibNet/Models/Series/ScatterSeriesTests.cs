@@ -6,8 +6,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="ScatterSeries"/> default properties and construction.</summary>
 public class ScatterSeriesTests
 {
+    /// <summary>Verifies that the constructor stores X and Y data.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -17,6 +19,7 @@ public class ScatterSeriesTests
         Assert.Equal(y, series.YData);
     }
 
+    /// <summary>Verifies that Marker defaults to Circle.</summary>
     [Fact]
     public void DefaultMarker_IsCircle()
     {
@@ -24,6 +27,7 @@ public class ScatterSeriesTests
         Assert.Equal(MarkerStyle.Circle, series.Marker);
     }
 
+    /// <summary>Verifies that Alpha defaults to 1.0.</summary>
     [Fact]
     public void DefaultAlpha_IsOne()
     {
@@ -31,6 +35,7 @@ public class ScatterSeriesTests
         Assert.Equal(1.0, series.Alpha);
     }
 
+    /// <summary>Verifies that Sizes defaults to null.</summary>
     [Fact]
     public void Sizes_DefaultNull()
     {

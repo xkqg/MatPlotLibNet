@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="BarSeries"/> default properties and construction.</summary>
 public class BarSeriesTests
 {
+    /// <summary>Verifies that the constructor stores categories and values.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -17,6 +19,7 @@ public class BarSeriesTests
         Assert.Equal(vals, series.Values);
     }
 
+    /// <summary>Verifies that Orientation defaults to Vertical.</summary>
     [Fact]
     public void DefaultOrientation_IsVertical()
     {
@@ -24,6 +27,7 @@ public class BarSeriesTests
         Assert.Equal(BarOrientation.Vertical, series.Orientation);
     }
 
+    /// <summary>Verifies that BarWidth defaults to 0.8.</summary>
     [Fact]
     public void DefaultBarWidth_Is0Point8()
     {

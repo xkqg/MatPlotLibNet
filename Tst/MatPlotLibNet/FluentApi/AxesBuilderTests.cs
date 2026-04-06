@@ -7,8 +7,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.FluentApi;
 
+/// <summary>Verifies <see cref="AxesBuilder"/> fluent API methods.</summary>
 public class AxesBuilderTests
 {
+    /// <summary>Verifies that WithTitle sets the axes title.</summary>
     [Fact]
     public void WithTitle_SetsTitle()
     {
@@ -18,6 +20,7 @@ public class AxesBuilderTests
         Assert.Equal("My Plot", figure.SubPlots[0].Title);
     }
 
+    /// <summary>Verifies that SetXLabel sets the X-axis label.</summary>
     [Fact]
     public void SetXLabel_SetsXAxisLabel()
     {
@@ -27,6 +30,7 @@ public class AxesBuilderTests
         Assert.Equal("Time", figure.SubPlots[0].XAxis.Label);
     }
 
+    /// <summary>Verifies that SetYLabel sets the Y-axis label.</summary>
     [Fact]
     public void SetYLabel_SetsYAxisLabel()
     {
@@ -36,6 +40,7 @@ public class AxesBuilderTests
         Assert.Equal("Value", figure.SubPlots[0].YAxis.Label);
     }
 
+    /// <summary>Verifies that SetXLim sets the X-axis min and max limits.</summary>
     [Fact]
     public void SetXLim_SetsXAxisLimits()
     {
@@ -46,6 +51,7 @@ public class AxesBuilderTests
         Assert.Equal(100, figure.SubPlots[0].XAxis.Max);
     }
 
+    /// <summary>Verifies that SetYLim sets the Y-axis min and max limits.</summary>
     [Fact]
     public void SetYLim_SetsYAxisLimits()
     {
@@ -56,6 +62,7 @@ public class AxesBuilderTests
         Assert.Equal(50, figure.SubPlots[0].YAxis.Max);
     }
 
+    /// <summary>Verifies that SetXScale sets the X-axis scale type.</summary>
     [Fact]
     public void SetXScale_SetsScale()
     {
@@ -65,6 +72,7 @@ public class AxesBuilderTests
         Assert.Equal(AxisScale.Log, figure.SubPlots[0].XAxis.Scale);
     }
 
+    /// <summary>Verifies that ShowGrid enables grid visibility.</summary>
     [Fact]
     public void ShowGrid_EnablesGrid()
     {
@@ -74,6 +82,7 @@ public class AxesBuilderTests
         Assert.True(figure.SubPlots[0].Grid.Visible);
     }
 
+    /// <summary>Verifies that Plot and Scatter add series to the axes.</summary>
     [Fact]
     public void Plot_AddsSeriesToAxes()
     {
@@ -88,6 +97,7 @@ public class AxesBuilderTests
         Assert.Equal(2, figure.SubPlots[0].Series.Count);
     }
 
+    /// <summary>Verifies that all fluent methods can be chained together.</summary>
     [Fact]
     public void MethodChaining_Works()
     {
@@ -110,6 +120,7 @@ public class AxesBuilderTests
         Assert.True(axes.Grid.Visible);
     }
 
+    /// <summary>Verifies that Pie adds a <see cref="PieSeries"/> to the axes.</summary>
     [Fact]
     public void Pie_AddsPieSeries()
     {
@@ -119,6 +130,7 @@ public class AxesBuilderTests
         Assert.IsType<PieSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that Heatmap adds a <see cref="HeatmapSeries"/> to the axes.</summary>
     [Fact]
     public void Heatmap_AddsHeatmapSeries()
     {
@@ -128,6 +140,7 @@ public class AxesBuilderTests
         Assert.IsType<HeatmapSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that BoxPlot adds a <see cref="BoxSeries"/> to the axes.</summary>
     [Fact]
     public void BoxPlot_AddsBoxSeries()
     {
@@ -137,6 +150,7 @@ public class AxesBuilderTests
         Assert.IsType<BoxSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that Violin adds a <see cref="ViolinSeries"/> to the axes.</summary>
     [Fact]
     public void Violin_AddsViolinSeries()
     {
@@ -146,6 +160,7 @@ public class AxesBuilderTests
         Assert.IsType<ViolinSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that Contour adds a <see cref="ContourSeries"/> to the axes.</summary>
     [Fact]
     public void Contour_AddsContourSeries()
     {
@@ -155,6 +170,7 @@ public class AxesBuilderTests
         Assert.IsType<ContourSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that Stem adds a <see cref="StemSeries"/> to the axes.</summary>
     [Fact]
     public void Stem_AddsStemSeries()
     {
@@ -164,6 +180,7 @@ public class AxesBuilderTests
         Assert.IsType<StemSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that WithSecondaryYAxis configures a secondary Y-axis with its own series.</summary>
     [Fact]
     public void WithSecondaryYAxis_ConfiguresSecondaryAxis()
     {
@@ -180,6 +197,7 @@ public class AxesBuilderTests
         Assert.Single(figure.SubPlots[0].SecondarySeries);
     }
 
+    /// <summary>Verifies that Annotate adds an annotation to the axes.</summary>
     [Fact]
     public void Annotate_AddsAnnotation()
     {
@@ -191,6 +209,7 @@ public class AxesBuilderTests
         Assert.Single(figure.SubPlots[0].Annotations);
     }
 
+    /// <summary>Verifies that AxHLine adds a horizontal reference line.</summary>
     [Fact]
     public void AxHLine_AddsReferenceLine()
     {
@@ -202,6 +221,7 @@ public class AxesBuilderTests
         Assert.Single(figure.SubPlots[0].ReferenceLines);
     }
 
+    /// <summary>Verifies that AxVSpan adds a vertical span region.</summary>
     [Fact]
     public void AxVSpan_AddsSpanRegion()
     {
@@ -213,6 +233,7 @@ public class AxesBuilderTests
         Assert.Single(figure.SubPlots[0].Spans);
     }
 
+    /// <summary>Verifies that Radar adds a <see cref="RadarSeries"/> to the axes.</summary>
     [Fact]
     public void Radar_AddsRadarSeries()
     {
@@ -222,6 +243,7 @@ public class AxesBuilderTests
         Assert.IsType<RadarSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that SetBarMode sets the bar stacking mode on the axes.</summary>
     [Fact]
     public void SetBarMode_SetsStackedMode()
     {
@@ -234,6 +256,7 @@ public class AxesBuilderTests
         Assert.Equal(BarMode.Stacked, figure.SubPlots[0].BarMode);
     }
 
+    /// <summary>Verifies that Quiver adds a <see cref="QuiverSeries"/> to the axes.</summary>
     [Fact]
     public void Quiver_AddsQuiverSeries()
     {
@@ -243,6 +266,7 @@ public class AxesBuilderTests
         Assert.IsType<QuiverSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that Candlestick adds a <see cref="CandlestickSeries"/> to the axes.</summary>
     [Fact]
     public void Candlestick_AddsCandlestickSeries()
     {
@@ -252,6 +276,7 @@ public class AxesBuilderTests
         Assert.IsType<CandlestickSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that ErrorBar adds an <see cref="ErrorBarSeries"/> to the axes.</summary>
     [Fact]
     public void ErrorBar_AddsErrorBarSeries()
     {
@@ -261,6 +286,7 @@ public class AxesBuilderTests
         Assert.IsType<ErrorBarSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that Step adds a <see cref="StepSeries"/> to the axes.</summary>
     [Fact]
     public void Step_AddsStepSeries()
     {
@@ -270,6 +296,7 @@ public class AxesBuilderTests
         Assert.IsType<StepSeries>(figure.SubPlots[0].Series[0]);
     }
 
+    /// <summary>Verifies that FillBetween adds an <see cref="AreaSeries"/> to the axes.</summary>
     [Fact]
     public void FillBetween_AddsAreaSeries()
     {

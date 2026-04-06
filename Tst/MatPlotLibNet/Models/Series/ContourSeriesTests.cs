@@ -5,8 +5,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="ContourSeries"/> default properties and construction.</summary>
 public class ContourSeriesTests
 {
+    /// <summary>Verifies that the constructor stores X, Y, and Z data.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -18,6 +20,7 @@ public class ContourSeriesTests
         Assert.Equal(z, series.ZData);
     }
 
+    /// <summary>Verifies that Levels defaults to 10.</summary>
     [Fact]
     public void DefaultLevels_Is10()
     {
@@ -25,6 +28,7 @@ public class ContourSeriesTests
         Assert.Equal(10, series.Levels);
     }
 
+    /// <summary>Verifies that Filled defaults to false.</summary>
     [Fact]
     public void DefaultFilled_IsFalse()
     {
@@ -32,6 +36,7 @@ public class ContourSeriesTests
         Assert.False(series.Filled);
     }
 
+    /// <summary>Verifies that ColorMap defaults to null.</summary>
     [Fact]
     public void DefaultColorMap_IsNull()
     {

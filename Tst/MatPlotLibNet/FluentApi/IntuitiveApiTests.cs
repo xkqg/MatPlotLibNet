@@ -7,10 +7,12 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.FluentApi;
 
+/// <summary>Verifies <see cref="AxesBuilder"/> indicator overlay methods.</summary>
 public class IntuitiveIndicatorTests
 {
     private static readonly double[] Close = [10, 12, 11, 14, 13, 15, 16, 14, 17, 18];
 
+    /// <summary>Verifies that Sma adds an SMA line series to the axes.</summary>
     [Fact]
     public void Sma_DirectOnBuilder_AddsLineSeries()
     {
@@ -23,6 +25,7 @@ public class IntuitiveIndicatorTests
         Assert.Equal(2, figure.SubPlots[0].Series.Count);
     }
 
+    /// <summary>Verifies that Ema adds an EMA line series to the axes.</summary>
     [Fact]
     public void Ema_DirectOnBuilder_AddsLineSeries()
     {
@@ -34,6 +37,7 @@ public class IntuitiveIndicatorTests
         Assert.Equal(2, figure.SubPlots[0].Series.Count);
     }
 
+    /// <summary>Verifies that BollingerBands adds band and middle-line series to the axes.</summary>
     [Fact]
     public void BollingerBands_DirectOnBuilder()
     {
@@ -46,6 +50,7 @@ public class IntuitiveIndicatorTests
         Assert.Equal(3, figure.SubPlots[0].Series.Count);
     }
 
+    /// <summary>Verifies that Rsi adds an RSI line series to the axes.</summary>
     [Fact]
     public void Rsi_DirectOnBuilder()
     {
@@ -58,8 +63,10 @@ public class IntuitiveIndicatorTests
     }
 }
 
+/// <summary>Verifies <see cref="AxesBuilder"/> trading signal methods.</summary>
 public class IntuitiveSignalTests
 {
+    /// <summary>Verifies that BuyAt adds a buy signal marker to the axes.</summary>
     [Fact]
     public void BuyAt_AddsSignalMarker()
     {
@@ -72,6 +79,7 @@ public class IntuitiveSignalTests
         Assert.Equal(SignalDirection.Buy, figure.SubPlots[0].Signals[0].Direction);
     }
 
+    /// <summary>Verifies that SellAt adds a sell signal marker to the axes.</summary>
     [Fact]
     public void SellAt_AddsSignalMarker()
     {
@@ -85,8 +93,10 @@ public class IntuitiveSignalTests
     }
 }
 
+/// <summary>Verifies <see cref="Figure"/> export methods.</summary>
 public class IntuitiveExportTests
 {
+    /// <summary>Verifies that SaveSvg creates a valid SVG file on disk.</summary>
     [Fact]
     public void SaveSvg_CreatesFile()
     {

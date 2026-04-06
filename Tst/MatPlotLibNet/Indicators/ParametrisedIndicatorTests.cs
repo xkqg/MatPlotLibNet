@@ -8,6 +8,7 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
+/// <summary>Verifies <see cref="PriceSources"/> behavior.</summary>
 public class PriceSourceTests
 {
     private static readonly double[] Open = [10, 11, 12];
@@ -15,6 +16,7 @@ public class PriceSourceTests
     private static readonly double[] Low = [8, 9, 10];
     private static readonly double[] Close = [13, 14, 15];
 
+    /// <summary>Verifies that Resolve with Close returns the close array unchanged.</summary>
     [Fact]
     public void Resolve_Close_ReturnsClose()
     {
@@ -22,6 +24,7 @@ public class PriceSourceTests
         Assert.Equal(Close, result);
     }
 
+    /// <summary>Verifies that Resolve with HL2 returns the average of high and low.</summary>
     [Fact]
     public void Resolve_HL2_ReturnsAverage()
     {
@@ -30,6 +33,7 @@ public class PriceSourceTests
         Assert.Equal(12.5, result[1]);
     }
 
+    /// <summary>Verifies that Resolve with HLC3 returns the average of high, low, and close.</summary>
     [Fact]
     public void Resolve_HLC3_ReturnsAverage()
     {
@@ -37,6 +41,7 @@ public class PriceSourceTests
         Assert.Equal(12, result[0]); // (15+8+13)/3
     }
 
+    /// <summary>Verifies that Resolve with OHLC4 returns the average of open, high, low, and close.</summary>
     [Fact]
     public void Resolve_OHLC4_ReturnsAverage()
     {
@@ -45,8 +50,10 @@ public class PriceSourceTests
     }
 }
 
+/// <summary>Verifies indicator offset behavior.</summary>
 public class IndicatorOffsetTests
 {
+    /// <summary>Verifies that setting Offset shifts the X coordinates of the resulting series.</summary>
     [Fact]
     public void Sma_WithOffset_ShiftsXCoordinates()
     {
@@ -58,8 +65,10 @@ public class IndicatorOffsetTests
     }
 }
 
+/// <summary>Verifies indicator line style behavior.</summary>
 public class IndicatorLineStyleTests
 {
+    /// <summary>Verifies that setting LineStyle applies the style to the resulting LineSeries.</summary>
     [Fact]
     public void Sma_WithLineStyle_AppliesStyle()
     {
@@ -70,8 +79,10 @@ public class IndicatorLineStyleTests
     }
 }
 
+/// <summary>Verifies <see cref="Sma"/> OHLC constructor behavior.</summary>
 public class SmaOhlcConstructorTests
 {
+    /// <summary>Verifies that the OHLC constructor with Close source produces a series.</summary>
     [Fact]
     public void Sma_FromOhlc_UsesClose()
     {
@@ -85,6 +96,7 @@ public class SmaOhlcConstructorTests
         Assert.Single(axes.Series);
     }
 
+    /// <summary>Verifies that the OHLC constructor with HL2 source produces different values than Close.</summary>
     [Fact]
     public void Sma_FromOhlc_UsesHL2()
     {
@@ -101,8 +113,10 @@ public class SmaOhlcConstructorTests
     }
 }
 
+/// <summary>Verifies generic typed Compute results for indicators.</summary>
 public class GenericIndicatorTests
 {
+    /// <summary>Verifies that Sma.Compute returns a typed double array with correct values.</summary>
     [Fact]
     public void Sma_Compute_ReturnsTypedResult()
     {
@@ -112,6 +126,7 @@ public class GenericIndicatorTests
         Assert.Equal(20, result[0]);
     }
 
+    /// <summary>Verifies that BollingerBands.Compute returns a typed tuple with middle, upper, and lower bands.</summary>
     [Fact]
     public void BollingerBands_Compute_ReturnsTypedTuple()
     {

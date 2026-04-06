@@ -6,8 +6,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Verifies <see cref="LineSeries"/> default properties and construction.</summary>
 public class LineSeriesTests
 {
+    /// <summary>Verifies that the constructor stores X and Y data.</summary>
     [Fact]
     public void Constructor_StoresData()
     {
@@ -17,6 +19,7 @@ public class LineSeriesTests
         Assert.Equal(y, series.YData);
     }
 
+    /// <summary>Verifies that LineStyle defaults to Solid.</summary>
     [Fact]
     public void DefaultLineStyle_IsSolid()
     {
@@ -24,6 +27,7 @@ public class LineSeriesTests
         Assert.Equal(LineStyle.Solid, series.LineStyle);
     }
 
+    /// <summary>Verifies that LineWidth defaults to 1.5.</summary>
     [Fact]
     public void DefaultLineWidth_Is1Point5()
     {
@@ -31,6 +35,7 @@ public class LineSeriesTests
         Assert.Equal(1.5, series.LineWidth);
     }
 
+    /// <summary>Verifies that Color defaults to null.</summary>
     [Fact]
     public void DefaultColor_IsNull()
     {
@@ -38,6 +43,7 @@ public class LineSeriesTests
         Assert.Null(series.Color);
     }
 
+    /// <summary>Verifies that Marker defaults to null.</summary>
     [Fact]
     public void DefaultMarker_IsNull()
     {

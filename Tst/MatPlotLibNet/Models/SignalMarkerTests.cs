@@ -7,8 +7,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models;
 
+/// <summary>Verifies <see cref="SignalMarker"/> behavior.</summary>
 public class SignalMarkerTests
 {
+    /// <summary>Verifies that a signal marker stores its X, Y, and direction.</summary>
     [Fact]
     public void SignalMarker_StoresPositionAndDirection()
     {
@@ -18,6 +20,7 @@ public class SignalMarkerTests
         Assert.Equal(SignalDirection.Buy, marker.Direction);
     }
 
+    /// <summary>Verifies that the default color is null.</summary>
     [Fact]
     public void DefaultColor_IsNull()
     {
@@ -25,6 +28,7 @@ public class SignalMarkerTests
         Assert.Null(marker.Color);
     }
 
+    /// <summary>Verifies that the default marker size is 12.</summary>
     [Fact]
     public void DefaultSize_Is12()
     {
@@ -32,6 +36,7 @@ public class SignalMarkerTests
         Assert.Equal(12, marker.Size);
     }
 
+    /// <summary>Verifies that the Signals collection defaults to empty.</summary>
     [Fact]
     public void Axes_Signals_DefaultsToEmpty()
     {
@@ -39,6 +44,7 @@ public class SignalMarkerTests
         Assert.Empty(axes.Signals);
     }
 
+    /// <summary>Verifies that AddSignal adds a signal marker to the collection.</summary>
     [Fact]
     public void Axes_AddSignal_AppearsInCollection()
     {
@@ -48,6 +54,7 @@ public class SignalMarkerTests
         Assert.Equal(SignalDirection.Buy, axes.Signals[0].Direction);
     }
 
+    /// <summary>Verifies that AddSignal supports fluent chaining via the builder API.</summary>
     [Fact]
     public void AxesBuilder_AddSignal_FluentChaining()
     {
@@ -60,6 +67,7 @@ public class SignalMarkerTests
         Assert.Equal(2, figure.SubPlots[0].Signals.Count);
     }
 
+    /// <summary>Verifies that SVG output contains a polygon element for a signal marker.</summary>
     [Fact]
     public void SvgOutput_ContainsPolygonForSignal()
     {
@@ -73,8 +81,10 @@ public class SignalMarkerTests
     }
 }
 
+/// <summary>Verifies <see cref="BuySellSignal"/> behavior.</summary>
 public class BuySellSignalIndicatorTests
 {
+    /// <summary>Verifies that Apply adds buy and sell signals to the axes.</summary>
     [Fact]
     public void Apply_AddsSignalsToAxes()
     {

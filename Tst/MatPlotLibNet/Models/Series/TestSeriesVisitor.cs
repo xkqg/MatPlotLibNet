@@ -6,6 +6,7 @@ using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
+/// <summary>Test helper that records the last visited series type name.</summary>
 internal sealed class TestSeriesVisitor : ISeriesVisitor
 {
     public string? LastVisited { get; private set; }

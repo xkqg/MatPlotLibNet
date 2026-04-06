@@ -8,8 +8,10 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
+/// <summary>Verifies <see cref="Sma"/> behavior.</summary>
 public class SmaTests
 {
+    /// <summary>Verifies that Compute returns an array whose length equals input length minus period plus one.</summary>
     [Fact]
     public void Compute_ReturnsCorrectLength()
     {
@@ -18,6 +20,7 @@ public class SmaTests
         Assert.Equal(3, result.Length); // 5 - 3 + 1
     }
 
+    /// <summary>Verifies that Compute returns correct simple moving average values.</summary>
     [Fact]
     public void Compute_ReturnsCorrectValues()
     {
@@ -28,6 +31,7 @@ public class SmaTests
         Assert.Equal(40, result[2]); // (30+40+50)/3
     }
 
+    /// <summary>Verifies that Apply adds a LineSeries to the axes.</summary>
     [Fact]
     public void Apply_AddsLineSeriesToAxes()
     {
@@ -38,6 +42,7 @@ public class SmaTests
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
 
+    /// <summary>Verifies that Apply sets the series label to the expected SMA format.</summary>
     [Fact]
     public void Apply_SetsLabel()
     {
@@ -46,6 +51,7 @@ public class SmaTests
         Assert.Equal("SMA(3)", axes.Series[0].Label);
     }
 
+    /// <summary>Verifies that a custom color is applied to the resulting LineSeries.</summary>
     [Fact]
     public void Apply_RespectsCustomColor()
     {
@@ -54,12 +60,14 @@ public class SmaTests
         Assert.Equal(Color.Red, ((LineSeries)axes.Series[0]).Color);
     }
 
+    /// <summary>Verifies that Sma implements the IIndicator interface.</summary>
     [Fact]
     public void ImplementsIIndicator()
     {
         Assert.IsAssignableFrom<IIndicator>(new Sma([1.0], 1));
     }
 
+    /// <summary>Verifies that Sma extends the Indicator base class.</summary>
     [Fact]
     public void ExtendsIndicatorBase()
     {
@@ -67,8 +75,10 @@ public class SmaTests
     }
 }
 
+/// <summary>Verifies <see cref="Ema"/> behavior.</summary>
 public class EmaTests
 {
+    /// <summary>Verifies that Compute returns an array matching the input length.</summary>
     [Fact]
     public void Compute_ReturnsCorrectLength()
     {
@@ -77,6 +87,7 @@ public class EmaTests
         Assert.Equal(5, result.Length);
     }
 
+    /// <summary>Verifies that the first EMA value equals the SMA seed value.</summary>
     [Fact]
     public void Compute_FirstValueIsSma()
     {
@@ -85,6 +96,7 @@ public class EmaTests
         Assert.Equal(20, result[2]); // SMA of first 3: (10+20+30)/3
     }
 
+    /// <summary>Verifies that Apply adds a LineSeries to the axes.</summary>
     [Fact]
     public void Apply_AddsLineSeriesToAxes()
     {
@@ -95,8 +107,10 @@ public class EmaTests
     }
 }
 
+/// <summary>Verifies <see cref="BollingerBands"/> behavior.</summary>
 public class BollingerBandsTests
 {
+    /// <summary>Verifies that Apply adds the band fill and middle SMA series to the axes.</summary>
     [Fact]
     public void Apply_AddsThreeSeriesToAxes()
     {
@@ -107,6 +121,7 @@ public class BollingerBandsTests
         Assert.Equal(2, axes.Series.Count);
     }
 
+    /// <summary>Verifies that Apply sets the expected label containing the period.</summary>
     [Fact]
     public void Apply_SetsLabel()
     {
@@ -117,8 +132,10 @@ public class BollingerBandsTests
     }
 }
 
+/// <summary>Verifies <see cref="Vwap"/> behavior.</summary>
 public class VwapTests
 {
+    /// <summary>Verifies that Compute returns an array matching the input length.</summary>
     [Fact]
     public void Compute_ReturnsCorrectLength()
     {
@@ -128,6 +145,7 @@ public class VwapTests
         Assert.Equal(4, result.Length);
     }
 
+    /// <summary>Verifies that Apply adds a LineSeries to the axes.</summary>
     [Fact]
     public void Apply_AddsLineSeriesToAxes()
     {
@@ -137,8 +155,10 @@ public class VwapTests
     }
 }
 
+/// <summary>Verifies <see cref="FibonacciRetracement"/> behavior.</summary>
 public class FibonacciRetracementTests
 {
+    /// <summary>Verifies that Apply adds five Fibonacci retracement reference lines.</summary>
     [Fact]
     public void Apply_AddsFiveReferenceLines()
     {
@@ -148,6 +168,7 @@ public class FibonacciRetracementTests
         Assert.Equal(5, axes.ReferenceLines.Count); // 23.6%, 38.2%, 50%, 61.8%, 78.6%
     }
 
+    /// <summary>Verifies that all retracement lines fall within the high-low price range.</summary>
     [Fact]
     public void Apply_LinesAreWithinRange()
     {
@@ -161,8 +182,10 @@ public class FibonacciRetracementTests
     }
 }
 
+/// <summary>Verifies the AddIndicator fluent API on the figure builder.</summary>
 public class AddIndicatorBuilderTests
 {
+    /// <summary>Verifies that AddIndicator adds the indicator series alongside the existing plot series.</summary>
     [Fact]
     public void AddIndicator_FluentChaining()
     {

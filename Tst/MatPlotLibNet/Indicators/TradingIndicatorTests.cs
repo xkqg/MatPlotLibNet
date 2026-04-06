@@ -7,8 +7,10 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Indicators;
 
+/// <summary>Verifies <see cref="EquityCurve"/> behavior.</summary>
 public class EquityCurveTests
 {
+    /// <summary>Verifies that Compute returns the correct cumulative equity values from initial capital.</summary>
     [Fact]
     public void Compute_CumulativeSum()
     {
@@ -20,6 +22,7 @@ public class EquityCurveTests
         Assert.Equal(10110, equity[4]);
     }
 
+    /// <summary>Verifies that Apply adds a LineSeries to the axes.</summary>
     [Fact]
     public void Apply_AddsLineSeriesToAxes()
     {
@@ -29,6 +32,7 @@ public class EquityCurveTests
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
 
+    /// <summary>Verifies that Apply sets the series label to "Equity".</summary>
     [Fact]
     public void Apply_SetsLabel()
     {
@@ -38,8 +42,10 @@ public class EquityCurveTests
     }
 }
 
+/// <summary>Verifies <see cref="ProfitLoss"/> behavior.</summary>
 public class ProfitLossTests
 {
+    /// <summary>Verifies that Apply adds at least one series to the axes.</summary>
     [Fact]
     public void Apply_AddsSeriesToAxes()
     {
@@ -48,6 +54,7 @@ public class ProfitLossTests
         Assert.True(axes.Series.Count > 0);
     }
 
+    /// <summary>Verifies that Apply configures the Y-axis minimum to accommodate negative values.</summary>
     [Fact]
     public void Apply_SetsYMinToIncludeNegatives()
     {
@@ -58,8 +65,10 @@ public class ProfitLossTests
     }
 }
 
+/// <summary>Verifies <see cref="DrawDown"/> behavior.</summary>
 public class DrawDownTests
 {
+    /// <summary>Verifies that Compute returns correct percentage drawdown values from peak equity.</summary>
     [Fact]
     public void Compute_ReturnsCorrectDrawdown()
     {
@@ -71,6 +80,7 @@ public class DrawDownTests
         Assert.InRange(dd[4], 16, 17); // ~16.7% drawdown from 120
     }
 
+    /// <summary>Verifies that all drawdown values are non-negative.</summary>
     [Fact]
     public void Compute_AllValuesNonNegative()
     {
@@ -79,6 +89,7 @@ public class DrawDownTests
             Assert.True(v >= 0, $"Drawdown should be non-negative, got {v}");
     }
 
+    /// <summary>Verifies that Apply adds an AreaSeries to the axes.</summary>
     [Fact]
     public void Apply_AddsAreaSeriesToAxes()
     {
