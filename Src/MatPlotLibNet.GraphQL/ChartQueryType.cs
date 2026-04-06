@@ -8,7 +8,6 @@ using MatPlotLibNet.Serialization;
 namespace MatPlotLibNet.GraphQL;
 
 /// <summary>GraphQL query type for fetching chart data as SVG or JSON.</summary>
-[QueryType]
 public sealed class ChartQueryType
 {
     /// <summary>Returns the chart as pre-rendered SVG markup.</summary>

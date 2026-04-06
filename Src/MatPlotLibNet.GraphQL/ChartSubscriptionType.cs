@@ -9,7 +9,6 @@ using HotChocolate.Types;
 namespace MatPlotLibNet.GraphQL;
 
 /// <summary>GraphQL subscription type for receiving real-time chart updates.</summary>
-[SubscriptionType]
 public sealed class ChartSubscriptionType
 {
     /// <summary>Subscribes to SVG updates for the specified chart.</summary>
