@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a box plot series displaying statistical distribution summaries.</summary>
-public sealed class BoxSeries : ChartSeries
+public sealed class BoxSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the array of datasets, each containing the values for one box.</summary>
     public double[][] Datasets { get; }
@@ -27,6 +27,21 @@ public sealed class BoxSeries : ChartSeries
     public BoxSeries(double[][] datasets)
     {
         Datasets = datasets;
+    }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        double xMin = context.XAxisMin ?? -0.5;
+        double xMax = context.XAxisMax ?? (Datasets.Length - 0.5);
+        double yMin = double.MaxValue, yMax = double.MinValue;
+        foreach (var ds in Datasets)
+        {
+            double dsMin = ds.Min(), dsMax = ds.Max();
+            if (dsMin < yMin) yMin = dsMin;
+            if (dsMax > yMax) yMax = dsMax;
+        }
+        return new(xMin, xMax, yMin, yMax);
     }
 
     /// <inheritdoc />

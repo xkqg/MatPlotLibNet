@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a donut chart — a pie chart with a hollow center for displaying a summary value.</summary>
-public sealed class DonutSeries : ChartSeries
+public sealed class DonutSeries : ChartSeries, IHasDataRange
 {
     public double[] Sizes { get; }
     public string[]? Labels { get; set; }
@@ -17,6 +17,10 @@ public sealed class DonutSeries : ChartSeries
     public double StartAngle { get; set; } = 90;
 
     public DonutSeries(double[] sizes) => Sizes = sizes;
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(null, null, null, null);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

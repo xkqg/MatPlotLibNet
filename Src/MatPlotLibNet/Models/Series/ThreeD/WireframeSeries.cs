@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D wireframe plot rendered as grid lines on a surface.</summary>
-public sealed class WireframeSeries : ChartSeries
+public sealed class WireframeSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the X-axis grid coordinates.</summary>
     public double[] X { get; }
@@ -26,6 +26,10 @@ public sealed class WireframeSeries : ChartSeries
 
     /// <summary>Initializes a new wireframe series with the specified grid data.</summary>
     public WireframeSeries(double[] x, double[] y, double[,] z) { X = x; Y = y; Z = z; }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(null, null, null, null);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

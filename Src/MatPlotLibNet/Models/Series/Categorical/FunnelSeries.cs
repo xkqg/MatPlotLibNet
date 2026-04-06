@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a funnel chart showing progressive reduction through stages (e.g., sales pipeline).</summary>
-public sealed class FunnelSeries : ChartSeries
+public sealed class FunnelSeries : ChartSeries, IHasDataRange
 {
     public string[] Labels { get; }
     public double[] Values { get; }
@@ -17,6 +17,10 @@ public sealed class FunnelSeries : ChartSeries
     {
         Labels = labels; Values = values;
     }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(null, null, null, null);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

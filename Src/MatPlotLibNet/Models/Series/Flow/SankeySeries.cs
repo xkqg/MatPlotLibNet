@@ -6,7 +6,7 @@ using MatPlotLibNet.Rendering;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a Sankey diagram that renders flows between nodes as curved links.</summary>
-public sealed class SankeySeries : ChartSeries
+public sealed class SankeySeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the nodes in the diagram.</summary>
     public IReadOnlyList<SankeyNode> Nodes { get; }
@@ -29,6 +29,10 @@ public sealed class SankeySeries : ChartSeries
         Nodes = nodes;
         Links = links;
     }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(null, null, null, null);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

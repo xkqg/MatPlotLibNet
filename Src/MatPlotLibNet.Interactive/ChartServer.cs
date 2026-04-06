@@ -23,14 +23,15 @@ public sealed class ChartServer : IAsyncDisposable
     /// <summary>Gets the process-wide singleton instance.</summary>
     public static ChartServer Instance => _instance.Value;
 
-    private WebApplication? _app;
+    private volatile WebApplication? _app;
     private readonly SemaphoreSlim _startLock = new(1, 1);
     private readonly ConcurrentDictionary<string, Figure> _figures = new();
-    private IChartPublisher? _publisher;
-    private bool _disposed;
+    private volatile IChartPublisher? _publisher;
+    private volatile bool _disposed;
+    private volatile int _port;
 
     /// <summary>Gets the port the server is listening on, or 0 if not started.</summary>
-    public int Port { get; private set; }
+    public int Port => _port;
 
     /// <summary>Gets whether the server is currently running.</summary>
     public bool IsRunning => _app is not null;
@@ -60,7 +61,7 @@ public sealed class ChartServer : IAsyncDisposable
 
             var addresses = app.Services.GetRequiredService<IServer>()
                 .Features.Get<IServerAddressesFeature>()!;
-            Port = new Uri(addresses.Addresses.First()).Port;
+            _port = new Uri(addresses.Addresses.First()).Port;
 
             _publisher = app.Services.GetRequiredService<IChartPublisher>();
             _app = app;

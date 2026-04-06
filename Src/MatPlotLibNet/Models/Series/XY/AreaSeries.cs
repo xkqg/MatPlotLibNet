@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a filled area series, rendering the region between a line and a baseline (or between two Y datasets).</summary>
-public sealed class AreaSeries : ChartSeries
+public sealed class AreaSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the X-axis data values.</summary>
     public double[] XData { get; }
@@ -38,6 +38,19 @@ public sealed class AreaSeries : ChartSeries
     {
         XData = xData;
         YData = yData;
+    }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        double yMin = YData.Min(), yMax = YData.Max();
+        if (YData2 is not null)
+        {
+            yMin = Math.Min(yMin, YData2.Min());
+            yMax = Math.Max(yMax, YData2.Max());
+        }
+        else if (0 < yMin) yMin = 0;
+        return new(XData.Min(), XData.Max(), yMin, yMax);
     }
 
     /// <inheritdoc />

@@ -11,9 +11,9 @@ namespace MatPlotLibNet;
 /// <summary>Provides default service instances for non-DI scenarios (console apps, scripts).</summary>
 public static class ChartServices
 {
-    private static IChartSerializer _serializer = new ChartSerializer();
-    private static IChartRenderer _renderer = new ChartRenderer();
-    private static ISvgRenderer _svgRenderer = new SvgTransform(new ChartRenderer());
+    private static volatile IChartSerializer _serializer = new ChartSerializer();
+    private static volatile IChartRenderer _renderer = new ChartRenderer();
+    private static volatile ISvgRenderer _svgRenderer = new SvgTransform(new ChartRenderer());
 
     /// <summary>Gets or sets the default chart serializer.</summary>
     public static IChartSerializer Serializer

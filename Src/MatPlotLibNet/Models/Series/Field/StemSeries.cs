@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a stem plot series displaying data as vertical lines with markers at the tips.</summary>
-public sealed class StemSeries : ChartSeries
+public sealed class StemSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the X-axis data values.</summary>
     public double[] XData { get; }
@@ -35,6 +35,15 @@ public sealed class StemSeries : ChartSeries
     {
         XData = xData;
         YData = yData;
+    }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        double yMin = YData.Min(), yMax = YData.Max();
+        if (0 < yMin) yMin = 0;
+        if (0 > yMax) yMax = 0;
+        return new(XData.Min(), XData.Max(), yMin, yMax);
     }
 
     /// <inheritdoc />

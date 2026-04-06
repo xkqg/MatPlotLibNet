@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a scatter chart series displaying individual data points as markers.</summary>
-public sealed class ScatterSeries : ChartSeries
+public sealed class ScatterSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the X-axis data values.</summary>
     public double[] XData { get; }
@@ -46,6 +46,10 @@ public sealed class ScatterSeries : ChartSeries
         XData = xData;
         YData = yData;
     }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(XData.Min(), XData.Max(), YData.Min(), YData.Max());
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a pie chart series displaying proportional data as circular slices.</summary>
-public sealed class PieSeries : ChartSeries
+public sealed class PieSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the numeric sizes of each pie slice.</summary>
     public double[] Sizes { get; }
@@ -31,6 +31,10 @@ public sealed class PieSeries : ChartSeries
     {
         Sizes = sizes;
     }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(null, null, null, null);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

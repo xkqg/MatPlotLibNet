@@ -8,7 +8,7 @@ namespace MatPlotLibNet.Interactive;
 /// <summary>Extension methods for displaying figures interactively in a browser.</summary>
 public static class InteractiveExtensions
 {
-    private static IBrowserLauncher _browserLauncher = new BrowserLauncher();
+    private static volatile IBrowserLauncher _browserLauncher = new BrowserLauncher();
 
     /// <summary>Gets or sets the browser launcher used by Show/ShowAsync. Replace for testing or custom behavior.</summary>
     public static IBrowserLauncher Browser

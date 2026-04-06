@@ -274,189 +274,16 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         double yMin = Axes.YAxis.Min ?? double.MaxValue;
         double yMax = Axes.YAxis.Max ?? double.MinValue;
 
+        var context = new AxesContextAdapter(Axes);
         foreach (var series in Axes.Series)
         {
-            switch (series)
+            if (series is IHasDataRange hasRange)
             {
-                case LineSeries ls:
-                    UpdateRange(ls.XData, ref xMin, ref xMax);
-                    UpdateRange(ls.YData, ref yMin, ref yMax);
-                    break;
-                case ScatterSeries ss:
-                    UpdateRange(ss.XData, ref xMin, ref xMax);
-                    UpdateRange(ss.YData, ref yMin, ref yMax);
-                    break;
-                case StemSeries st:
-                    UpdateRange(st.XData, ref xMin, ref xMax);
-                    UpdateRange(st.YData, ref yMin, ref yMax);
-                    if (0 < yMin) yMin = 0;
-                    if (0 > yMax) yMax = 0;
-                    break;
-                case BarSeries bs:
-                    xMin = Axes.XAxis.Min ?? -0.5;
-                    xMax = Axes.XAxis.Max ?? (bs.Categories.Length - 0.5);
-                    if (Axes.BarMode == BarMode.Stacked)
-                    {
-                        // For stacked, sum all bar series values per category
-                        var allBars = Axes.Series.OfType<BarSeries>().ToList();
-                        if (allBars.Count > 0)
-                        {
-                            int catCount = allBars[0].Categories.Length;
-                            for (int c = 0; c < catCount; c++)
-                            {
-                                double sum = allBars.Sum(b => c < b.Values.Length ? b.Values[c] : 0);
-                                if (sum > yMax) yMax = sum;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        UpdateRange(bs.Values, ref yMin, ref yMax);
-                    }
-                    if (0 < yMin) yMin = 0;
-                    break;
-                case HistogramSeries hs:
-                    UpdateRange(hs.Data, ref xMin, ref xMax);
-                    yMin = 0;
-                    if (hs.Data.Length > 0)
-                    {
-                        var bins = hs.ComputeBins();
-                        if (bins.Counts.Length > 0)
-                        {
-                            int maxCount = bins.Counts.Max();
-                            if (maxCount > yMax) yMax = maxCount;
-                        }
-                    }
-                    break;
-                case BoxSeries bx:
-                    xMin = Axes.XAxis.Min ?? -0.5;
-                    xMax = Axes.XAxis.Max ?? (bx.Datasets.Length - 0.5);
-                    foreach (var ds in bx.Datasets)
-                    {
-                        UpdateRange(ds, ref yMin, ref yMax);
-                    }
-                    break;
-                case ViolinSeries vs:
-                    xMin = Axes.XAxis.Min ?? -1;
-                    xMax = Axes.XAxis.Max ?? vs.Datasets.Length;
-                    foreach (var ds in vs.Datasets)
-                    {
-                        UpdateRange(ds, ref yMin, ref yMax);
-                    }
-                    break;
-                case RadarSeries:
-                    // Radar renders in its own coordinate system; set dummy range
-                    if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
-                    if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
-                    break;
-                case QuiverSeries qs:
-                    for (int i = 0; i < qs.XData.Length; i++)
-                    {
-                        double x0 = qs.XData[i], x1 = x0 + qs.UData[i] * qs.Scale;
-                        double y0 = qs.YData[i], y1 = y0 + qs.VData[i] * qs.Scale;
-                        if (Math.Min(x0, x1) < xMin) xMin = Math.Min(x0, x1);
-                        if (Math.Max(x0, x1) > xMax) xMax = Math.Max(x0, x1);
-                        if (Math.Min(y0, y1) < yMin) yMin = Math.Min(y0, y1);
-                        if (Math.Max(y0, y1) > yMax) yMax = Math.Max(y0, y1);
-                    }
-                    break;
-                case CandlestickSeries cs:
-                    xMin = Axes.XAxis.Min ?? -0.5;
-                    xMax = Axes.XAxis.Max ?? (cs.Open.Length - 0.5);
-                    UpdateRange(cs.Low, ref yMin, ref yMax);
-                    UpdateRange(cs.High, ref yMin, ref yMax);
-                    break;
-                case ErrorBarSeries eb:
-                    UpdateRange(eb.XData, ref xMin, ref xMax);
-                    for (int i = 0; i < eb.YData.Length; i++)
-                    {
-                        double lo = eb.YData[i] - eb.YErrorLow[i];
-                        double hi = eb.YData[i] + eb.YErrorHigh[i];
-                        if (lo < yMin) yMin = lo;
-                        if (hi > yMax) yMax = hi;
-                    }
-                    if (eb.XErrorLow is not null && eb.XErrorHigh is not null)
-                    {
-                        for (int i = 0; i < eb.XData.Length; i++)
-                        {
-                            double lo = eb.XData[i] - eb.XErrorLow[i];
-                            double hi = eb.XData[i] + eb.XErrorHigh[i];
-                            if (lo < xMin) xMin = lo;
-                            if (hi > xMax) xMax = hi;
-                        }
-                    }
-                    break;
-                case StepSeries ss:
-                    UpdateRange(ss.XData, ref xMin, ref xMax);
-                    UpdateRange(ss.YData, ref yMin, ref yMax);
-                    break;
-                case AreaSeries ar:
-                    UpdateRange(ar.XData, ref xMin, ref xMax);
-                    UpdateRange(ar.YData, ref yMin, ref yMax);
-                    if (ar.YData2 is not null)
-                        UpdateRange(ar.YData2, ref yMin, ref yMax);
-                    else if (0 < yMin) yMin = 0;
-                    break;
-                case BubbleSeries bu:
-                    UpdateRange(bu.XData, ref xMin, ref xMax);
-                    UpdateRange(bu.YData, ref yMin, ref yMax);
-                    break;
-                case OhlcBarSeries ob:
-                    xMin = Axes.XAxis.Min ?? -0.5;
-                    xMax = Axes.XAxis.Max ?? (ob.Open.Length - 0.5);
-                    UpdateRange(ob.Low, ref yMin, ref yMax);
-                    UpdateRange(ob.High, ref yMin, ref yMax);
-                    break;
-                case WaterfallSeries wf:
-                    xMin = Axes.XAxis.Min ?? -0.5;
-                    xMax = Axes.XAxis.Max ?? (wf.Categories.Length - 0.5);
-                    double wfCum = 0;
-                    foreach (var v in wf.Values) { wfCum += v; if (wfCum < yMin) yMin = wfCum; if (wfCum > yMax) yMax = wfCum; }
-                    if (0 < yMin) yMin = 0;
-                    break;
-                case GanttSeries gt:
-                    UpdateRange(gt.Starts, ref xMin, ref xMax);
-                    UpdateRange(gt.Ends, ref xMin, ref xMax);
-                    yMin = Axes.YAxis.Min ?? -0.5;
-                    yMax = Axes.YAxis.Max ?? (gt.Tasks.Length - 0.5);
-                    break;
-                case DonutSeries:
-                case FunnelSeries:
-                case GaugeSeries:
-                case ProgressBarSeries:
-                    // Render in own coordinate system within PlotBounds
-                    if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
-                    if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
-                    break;
-                case SparklineSeries sp:
-                    xMin = 0; xMax = sp.Values.Length - 1;
-                    UpdateRange(sp.Values, ref yMin, ref yMax);
-                    break;
-                case TreemapSeries:
-                case SunburstSeries:
-                    // Render in own coordinate system within PlotBounds
-                    if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
-                    if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
-                    break;
-                case SankeySeries:
-                    // Render in own coordinate system within PlotBounds
-                    if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
-                    if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
-                    break;
-                case PolarLineSeries:
-                case PolarScatterSeries:
-                case PolarBarSeries:
-                    // Polar renders in own coordinate system
-                    if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
-                    if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
-                    break;
-                case SurfaceSeries:
-                case WireframeSeries:
-                case Scatter3DSeries:
-                    // 3D renders in own coordinate system
-                    if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
-                    if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
-                    break;
+                var c = hasRange.ComputeDataRange(context);
+                if (c.XMin.HasValue && c.XMin.Value < xMin) xMin = c.XMin.Value;
+                if (c.XMax.HasValue && c.XMax.Value > xMax) xMax = c.XMax.Value;
+                if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
+                if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
             }
         }
 
@@ -483,16 +310,14 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         double yMin = Axes.SecondaryYAxis?.Min ?? double.MaxValue;
         double yMax = Axes.SecondaryYAxis?.Max ?? double.MinValue;
 
+        var context = new AxesContextAdapter(Axes);
         foreach (var series in Axes.SecondarySeries)
         {
-            switch (series)
+            if (series is IHasDataRange hasRange)
             {
-                case LineSeries ls:
-                    UpdateRange(ls.YData, ref yMin, ref yMax);
-                    break;
-                case ScatterSeries ss:
-                    UpdateRange(ss.YData, ref yMin, ref yMax);
-                    break;
+                var c = hasRange.ComputeDataRange(context);
+                if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
+                if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
             }
         }
 

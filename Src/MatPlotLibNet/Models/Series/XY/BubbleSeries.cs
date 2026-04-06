@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a bubble chart — a scatter plot where marker area encodes a third variable.</summary>
-public sealed class BubbleSeries : ChartSeries
+public sealed class BubbleSeries : ChartSeries, IHasDataRange
 {
     public double[] XData { get; }
     public double[] YData { get; }
@@ -21,6 +21,10 @@ public sealed class BubbleSeries : ChartSeries
         YData = yData;
         Sizes = sizes;
     }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(XData.Min(), XData.Max(), YData.Min(), YData.Max());
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

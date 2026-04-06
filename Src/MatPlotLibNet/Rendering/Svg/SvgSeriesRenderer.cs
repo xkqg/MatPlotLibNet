@@ -9,7 +9,9 @@ namespace MatPlotLibNet.Rendering.Svg;
 
 /// <summary>Visitor that dispatches each series type to its typed <see cref="SeriesRenderer{T}"/>.</summary>
 /// <remarks>Each series type has a dedicated renderer class in <c>Rendering.SeriesRenderers</c>.
-/// Renderers are lazily created on first use and reused for subsequent calls with the same context.</remarks>
+/// Renderers are lazily created on first use and reused for subsequent calls with the same context.
+/// THREAD-SAFETY: This class is designed for single-threaded use within one render pass.
+/// Lazy fields use ??= which is not atomic. Do not share instances across threads.</remarks>
 internal sealed class SvgSeriesRenderer : ISeriesVisitor
 {
     private readonly SeriesRenderContext _context;

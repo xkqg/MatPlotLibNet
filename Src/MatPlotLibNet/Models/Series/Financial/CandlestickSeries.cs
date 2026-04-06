@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents an OHLC candlestick series for financial chart visualization.</summary>
-public sealed class CandlestickSeries : ChartSeries
+public sealed class CandlestickSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the opening prices.</summary>
     public double[] Open { get; }
@@ -41,6 +41,10 @@ public sealed class CandlestickSeries : ChartSeries
         Low = low;
         Close = close;
     }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(context.XAxisMin ?? -0.5, context.XAxisMax ?? (Open.Length - 0.5), Low.Min(), High.Max());
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

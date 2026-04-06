@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a waterfall chart showing how an initial value is affected by sequential positive and negative changes.</summary>
-public sealed class WaterfallSeries : ChartSeries
+public sealed class WaterfallSeries : ChartSeries, IHasDataRange
 {
     public string[] Categories { get; }
     public double[] Values { get; }
@@ -19,6 +19,23 @@ public sealed class WaterfallSeries : ChartSeries
     public WaterfallSeries(string[] categories, double[] values)
     {
         Categories = categories; Values = values;
+    }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        double xMin = context.XAxisMin ?? -0.5;
+        double xMax = context.XAxisMax ?? (Categories.Length - 0.5);
+        double yMin = 0, yMax = 0;
+        double cum = 0;
+        foreach (var v in Values)
+        {
+            cum += v;
+            if (cum < yMin) yMin = cum;
+            if (cum > yMax) yMax = cum;
+        }
+        if (0 < yMin) yMin = 0;
+        return new(xMin, xMax, yMin, yMax);
     }
 
     /// <inheritdoc />

@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a progress bar showing a value as a fraction of a track (0.0 to 1.0).</summary>
-public sealed class ProgressBarSeries : ChartSeries
+public sealed class ProgressBarSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the progress value (0.0 = empty, 1.0 = full).</summary>
     public double Value { get; }
@@ -23,6 +23,10 @@ public sealed class ProgressBarSeries : ChartSeries
 
     /// <summary>Creates a new progress bar series with the given value (0.0 to 1.0).</summary>
     public ProgressBarSeries(double value) => Value = Math.Clamp(value, 0, 1);
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(null, null, null, null);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

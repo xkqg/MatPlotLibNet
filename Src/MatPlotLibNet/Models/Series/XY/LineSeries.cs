@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a line chart series connecting data points with a line.</summary>
-public sealed class LineSeries : ChartSeries
+public sealed class LineSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the X-axis data values.</summary>
     public double[] XData { get; }
@@ -38,6 +38,10 @@ public sealed class LineSeries : ChartSeries
         XData = xData;
         YData = yData;
     }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(XData.Min(), XData.Max(), YData.Min(), YData.Max());
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

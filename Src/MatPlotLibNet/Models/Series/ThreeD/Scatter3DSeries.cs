@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D scatter plot rendered as projected circles.</summary>
-public sealed class Scatter3DSeries : ChartSeries
+public sealed class Scatter3DSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the X data values.</summary>
     public double[] X { get; }
@@ -26,6 +26,10 @@ public sealed class Scatter3DSeries : ChartSeries
 
     /// <summary>Initializes a new 3D scatter series with the specified data.</summary>
     public Scatter3DSeries(double[] x, double[] y, double[] z) { X = x; Y = y; Z = z; }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(null, null, null, null);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

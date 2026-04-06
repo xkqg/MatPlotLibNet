@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a line plot in polar coordinates (r, theta).</summary>
-public sealed class PolarLineSeries : ChartSeries
+public sealed class PolarLineSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the radial data values.</summary>
     public double[] R { get; }
@@ -26,6 +26,10 @@ public sealed class PolarLineSeries : ChartSeries
 
     /// <summary>Initializes a new polar line series.</summary>
     public PolarLineSeries(double[] r, double[] theta) { R = r; Theta = theta; }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(null, null, null, null);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

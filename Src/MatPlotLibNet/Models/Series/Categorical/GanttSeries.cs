@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a Gantt chart showing task durations as horizontal bars on a timeline.</summary>
-public sealed class GanttSeries : ChartSeries
+public sealed class GanttSeries : ChartSeries, IHasDataRange
 {
     public string[] Tasks { get; }
     public double[] Starts { get; }
@@ -19,6 +19,11 @@ public sealed class GanttSeries : ChartSeries
     {
         Tasks = tasks; Starts = starts; Ends = ends;
     }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(Math.Min(Starts.Min(), Ends.Min()), Math.Max(Starts.Max(), Ends.Max()),
+            context.YAxisMin ?? -0.5, context.YAxisMax ?? (Tasks.Length - 0.5));
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

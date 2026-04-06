@@ -17,7 +17,7 @@ public enum BarOrientation
 }
 
 /// <summary>Represents a bar chart series displaying categorical data as rectangular bars.</summary>
-public sealed class BarSeries : ChartSeries
+public sealed class BarSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the category labels for each bar.</summary>
     public string[] Categories { get; }
@@ -47,6 +47,34 @@ public sealed class BarSeries : ChartSeries
     {
         Categories = categories;
         Values = values;
+    }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        double xMin = context.XAxisMin ?? -0.5;
+        double xMax = context.XAxisMax ?? (Categories.Length - 0.5);
+        double yMin = 0, yMax = double.MinValue;
+
+        if (context.BarMode == BarMode.Stacked)
+        {
+            var allBars = context.AllSeries.OfType<BarSeries>().ToList();
+            if (allBars.Count > 0)
+            {
+                int catCount = allBars[0].Categories.Length;
+                for (int c = 0; c < catCount; c++)
+                {
+                    double sum = allBars.Sum(b => c < b.Values.Length ? b.Values[c] : 0);
+                    if (sum > yMax) yMax = sum;
+                }
+            }
+        }
+        else
+        {
+            yMax = Values.Max();
+        }
+
+        return new(xMin, xMax, yMin, yMax);
     }
 
     /// <inheritdoc />

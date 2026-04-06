@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a heatmap series that renders a 2D data matrix as colored cells.</summary>
-public sealed class HeatmapSeries : ChartSeries
+public sealed class HeatmapSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the two-dimensional data matrix.</summary>
     public double[,] Data { get; }
@@ -22,6 +22,10 @@ public sealed class HeatmapSeries : ChartSeries
     {
         Data = data;
     }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        new(null, null, null, null);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

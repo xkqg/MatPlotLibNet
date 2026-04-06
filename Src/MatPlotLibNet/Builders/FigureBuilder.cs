@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
+using System.Collections.Concurrent;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
@@ -197,7 +198,7 @@ public sealed class FigureBuilder
 
     private readonly Dictionary<string, IFigureTransform> _transforms = new(GlobalTransforms);
 
-    private static readonly Dictionary<string, IFigureTransform> GlobalTransforms = new()
+    private static readonly ConcurrentDictionary<string, IFigureTransform> GlobalTransforms = new()
     {
         [".svg"] = new SvgTransform()
     };

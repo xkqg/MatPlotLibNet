@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a vector field (quiver) series with arrows at each grid point.</summary>
-public sealed class QuiverSeries : ChartSeries
+public sealed class QuiverSeries : ChartSeries, IHasDataRange
 {
     /// <summary>Gets the X-axis positions of the arrow origins.</summary>
     public double[] XData { get; }
@@ -37,6 +37,23 @@ public sealed class QuiverSeries : ChartSeries
         YData = yData;
         UData = uData;
         VData = vData;
+    }
+
+    /// <inheritdoc />
+    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        double xMin = double.MaxValue, xMax = double.MinValue;
+        double yMin = double.MaxValue, yMax = double.MinValue;
+        for (int i = 0; i < XData.Length; i++)
+        {
+            double x0 = XData[i], x1 = x0 + UData[i] * Scale;
+            double y0 = YData[i], y1 = y0 + VData[i] * Scale;
+            if (Math.Min(x0, x1) < xMin) xMin = Math.Min(x0, x1);
+            if (Math.Max(x0, x1) > xMax) xMax = Math.Max(x0, x1);
+            if (Math.Min(y0, y1) < yMin) yMin = Math.Min(y0, y1);
+            if (Math.Max(y0, y1) > yMax) yMax = Math.Max(y0, y1);
+        }
+        return new(xMin, xMax, yMin, yMax);
     }
 
     /// <inheritdoc />
