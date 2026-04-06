@@ -52,9 +52,7 @@ public class PdfExportTests
     [Fact]
     public void FluentTransform_ToBytes_ProducesValidPdf()
     {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-
-        byte[] bytes = figure.Transform(new PdfTransform()).ToBytes();
+        byte[] bytes = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Transform(new PdfTransform()).ToBytes();
 
         Assert.Equal((byte)'%', bytes[0]);
     }

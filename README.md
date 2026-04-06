@@ -28,26 +28,24 @@ using MatPlotLibNet.Styling;
 double[] x = [1, 2, 3, 4, 5];
 double[] y = [2, 4, 3, 5, 1];
 
-// Fluent API -> SVG string
+// Fluent API -> SVG string (no Build() needed)
 string svg = Plt.Create()
     .WithTitle("My Chart")
     .WithTheme(Theme.Seaborn)
     .Plot(x, y, line => { line.Color = Color.Blue; line.Label = "sin(x)"; })
-    .Build()
     .ToSvg();
 
 // Polymorphic export via transforms
 using MatPlotLibNet.Transforms;
 
-var figure = Plt.Create().Plot(x, y).Build();
-figure.Transform(new SvgTransform()).ToFile("chart.svg");
-figure.Transform(new PngTransform()).ToFile("chart.png");   // requires MatPlotLibNet.Skia
-figure.Transform(new PdfTransform()).ToFile("chart.pdf");   // requires MatPlotLibNet.Skia
+Plt.Create().Plot(x, y).Transform(new SvgTransform()).Save("chart.svg");
+Plt.Create().Plot(x, y).Transform(new PngTransform()).Save("chart.png");   // requires MatPlotLibNet.Skia
+Plt.Create().Plot(x, y).Transform(new PdfTransform()).Save("chart.pdf");   // requires MatPlotLibNet.Skia
 ```
 
 ## Chart types
 
-**28 series types** with fluent builder API:
+**31 series types** with fluent builder API:
 
 ```csharp
 var fig = Plt.Create()
@@ -63,7 +61,7 @@ var fig = Plt.Create()
 ```
 
 Additional types via `AxesBuilder.AddSubPlot`:
-Heatmap, Box, Violin, Contour, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Treemap, Sunburst, Sankey.
+Heatmap, Box, Violin, Contour, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar.
 
 ### Stacked bars
 
@@ -169,6 +167,22 @@ Plt.Create()
     .Build();
 ```
 
+## Polar plots
+
+```csharp
+double[] r = [1, 2, 3, 4, 5];
+double[] theta = [0, 0.5, 1.0, 1.5, 2.0];
+
+// Polar line
+Plt.Create().PolarPlot(r, theta).ToSvg();
+
+// Polar scatter
+Plt.Create().PolarScatter(r, theta).ToSvg();
+
+// Polar bar (windrose-style)
+Plt.Create().PolarBar([5, 10, 8, 3], [0, Math.PI/2, Math.PI, 3*Math.PI/2]).ToSvg();
+```
+
 ## Axis formatting
 
 ```csharp
@@ -201,24 +215,24 @@ Subplots render in **parallel** -- each gets its own SVG context, merged in orde
 
 ## Export transforms
 
-All output formats share the `IFigureTransform` interface with a fluent `TransformResult`:
+All output formats share the `IFigureTransform` interface with a fluent `TransformResult`. No `.Build()` needed:
 
 ```csharp
 using MatPlotLibNet.Transforms;
 
-// Polymorphic -- same pattern for any format
-figure.Transform(new SvgTransform()).ToFile("chart.svg");
-figure.Transform(new PngTransform()).ToFile("chart.png");
-figure.Transform(new PdfTransform()).ToFile("chart.pdf");
+// Auto-detect format from file extension -- no Build() needed
+Plt.Create().Plot(x, y).Save("chart.svg");
+Plt.Create().Plot(x, y).Save("chart.png");   // requires MatPlotLibNet.Skia
+Plt.Create().Plot(x, y).Save("chart.pdf");   // requires MatPlotLibNet.Skia
+Plt.Create().Plot(x, y).Save("chart.json");
 
-// Or get bytes / write to stream
-byte[] png = figure.Transform(new PngTransform()).ToBytes();
-figure.Transform(new SvgTransform()).ToStream(stream);
+// Convenience methods
+string svg = Plt.Create().Plot(x, y).ToSvg();
+string json = Plt.Create().Plot(x, y).ToJson();
 
-// Convenience shortcuts still work
-string svg = figure.ToSvg();
-byte[] pngBytes = figure.ToPng();
-byte[] pdfBytes = figure.ToPdf();
+// Register PNG/PDF once at startup (when using MatPlotLibNet.Skia)
+FigureBuilder.RegisterGlobalTransform(".png", new PngTransform());
+FigureBuilder.RegisterGlobalTransform(".pdf", new PdfTransform());
 ```
 
 ## SVG interactivity
@@ -347,7 +361,7 @@ See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering 
 
 | Version | Highlights |
 |---------|-----------|
-| **0.3.3** | 28 series types: Treemap, Sunburst (hierarchical with shared `HierarchicalSeries` base), Sankey diagrams (flow). Legend rendering with position control. Configurable subplot spacing (`SubPlotSpacing` record, `TightLayout()`). Axis formatting: `ITickFormatter` pipeline with `DateTickFormatter`, `LogTickFormatter`, `NumericTickFormatter`. Date axis scale. GitHub Actions v5. CI/CD improvements. |
+| **0.3.3** | 31 series types: Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar. Polar coordinate system with `PolarTransform` and circular grid rendering. `HierarchicalSeries` generic base. Legend rendering. Configurable subplot spacing. `ITickFormatter` pipeline (date, log, numeric). `FigureBuilder` output methods (`ToSvg()`, `SaveSvg()`, `Transform()`) — no `.Build()` needed. GitHub Actions v5. |
 | **0.3.2** | Quality release: OO indicator refactor (`Indicator<TResult>` with `IIndicatorResult` constraint, named result records, no statics). 92 new tests. BenchmarkDotNet suite. CHANGELOG, BENCHMARKS.md, DocFX, 4 sample projects. JSON serialization fix for 9 series types. |
 | **0.3.1** | Platform expansion: `@matplotlibnet/react` (React 19 hooks + components), `@matplotlibnet/vue` (Vue 3 composables + components), `MatPlotLibNet.GraphQL` (HotChocolate queries + subscriptions). Core library multi-targets `netstandard2.1`. |
 | **0.3.0** | 25 series types (Donut, Bubble, OhlcBar, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline). 13 technical indicators (SMA, EMA, BB, VWAP, RSI, MACD, Stochastic, Volume, Fibonacci, ATR, ADX, Keltner, Ichimoku). Trading analytics (EquityCurve, ProfitLoss, DrawDown). Buy/sell signal markers. Generic `SeriesRenderer<T>` + `Indicator<TResult>`. Intuitive fluent API (`.Sma(20)`, `.BuyAt()`, `.SaveSvg()`). PriceSource enum, Offset, LineStyle on all indicators. Series organized by chart family. |

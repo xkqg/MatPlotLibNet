@@ -13,12 +13,10 @@ public class SvgOutputTests
     [Fact]
     public void SimpleLineChart_ProducesValidSvg()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .WithTitle("Test")
             .Plot([1.0, 2.0, 3.0], [10.0, 20.0, 15.0])
-            .Build();
-
-        string svg = ChartServices.SvgRenderer.Render(figure);
+            .ToSvg();
 
         Assert.StartsWith("<svg", svg.TrimStart());
         Assert.Contains("</svg>", svg);
@@ -29,11 +27,10 @@ public class SvgOutputTests
     [Fact]
     public void ScatterChart_ContainsCircleElements()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .Scatter([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("<circle", svg);
     }
 
@@ -41,11 +38,10 @@ public class SvgOutputTests
     [Fact]
     public void SvgHasViewBox()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .WithSize(1024, 768)
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("viewBox=", svg);
         Assert.Contains("1024", svg);
         Assert.Contains("768", svg);
@@ -60,7 +56,7 @@ public class SvgOutputTests
         axes.Plot([1.0, 2.0, 3.0], [10.0, 20.0, 15.0]);
         axes.Annotate("peak", 2.0, 20.0);
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
+        string svg = figure.ToSvg();
         Assert.Contains("peak", svg);
     }
 
@@ -73,7 +69,7 @@ public class SvgOutputTests
         axes.Plot([1.0, 2.0], [3.0, 4.0]);
         axes.AxHLine(3.5);
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
+        string svg = figure.ToSvg();
         Assert.Contains("<line", svg);
     }
 
@@ -81,11 +77,10 @@ public class SvgOutputTests
     [Fact]
     public void RadarChart_ContainsPolygonElement()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Radar(["A", "B", "C", "D"], [3.0, 5.0, 2.0, 4.0]))
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("<polygon", svg);
     }
 
@@ -93,11 +88,10 @@ public class SvgOutputTests
     [Fact]
     public void ErrorBarChart_ContainsLineElements()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .ErrorBar([1.0, 2.0, 3.0], [10.0, 20.0, 15.0], [1.0, 1.0, 1.0], [2.0, 2.0, 2.0])
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("<line", svg);
         Assert.Contains("<circle", svg);
     }
@@ -106,11 +100,10 @@ public class SvgOutputTests
     [Fact]
     public void StepChart_ContainsPolylineElement()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .Step([1.0, 2.0, 3.0], [10.0, 20.0, 15.0])
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("<polyline", svg);
     }
 
@@ -118,11 +111,10 @@ public class SvgOutputTests
     [Fact]
     public void AreaChart_ContainsPolygonElement()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .FillBetween([1.0, 2.0, 3.0], [10.0, 20.0, 15.0])
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("<polygon", svg);
     }
 

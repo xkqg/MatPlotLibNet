@@ -234,6 +234,18 @@ public sealed class AxesBuilder
     public AxesBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null)
         => AddSeries(ax => ax.Sankey(nodes, links), configure);
 
+    /// <summary>Adds a polar line series to the axes.</summary>
+    public AxesBuilder PolarPlot(double[] r, double[] theta, Action<PolarLineSeries>? configure = null)
+        => AddSeries(ax => ax.PolarPlot(r, theta), configure);
+
+    /// <summary>Adds a polar scatter series to the axes.</summary>
+    public AxesBuilder PolarScatter(double[] r, double[] theta, Action<PolarScatterSeries>? configure = null)
+        => AddSeries(ax => ax.PolarScatter(r, theta), configure);
+
+    /// <summary>Adds a polar bar series to the axes.</summary>
+    public AxesBuilder PolarBar(double[] r, double[] theta, Action<PolarBarSeries>? configure = null)
+        => AddSeries(ax => ax.PolarBar(r, theta), configure);
+
     /// <summary>Adds a radar (spider) chart series to the axes.</summary>
     public AxesBuilder Radar(string[] categories, double[] values, Action<RadarSeries>? configure = null)
         => AddSeries(ax => ax.Radar(categories, values), configure);

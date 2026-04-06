@@ -10,14 +10,12 @@ public class ParallelRenderingTests
     [Fact]
     public void ParallelRender_MultipleSubplots_AllTitlesPresent()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(2, 2, 1, ax => ax.WithTitle("TopLeft").Plot([1.0, 2.0], [3.0, 4.0]))
             .AddSubPlot(2, 2, 2, ax => ax.WithTitle("TopRight").Scatter([1.0, 2.0], [5.0, 6.0]))
             .AddSubPlot(2, 2, 3, ax => ax.WithTitle("BottomLeft").Bar(["A", "B"], [10.0, 20.0]))
             .AddSubPlot(2, 2, 4, ax => ax.WithTitle("BottomRight").Hist([1.0, 2.0, 3.0, 4.0]))
-            .Build();
-
-        string svg = ChartServices.SvgRenderer.Render(figure);
+            .ToSvg();
 
         Assert.Contains("TopLeft", svg);
         Assert.Contains("TopRight", svg);
@@ -29,12 +27,10 @@ public class ParallelRenderingTests
     [Fact]
     public void ParallelRender_SingleSubplot_Works()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .WithTitle("Single")
             .Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
-            .Build();
-
-        string svg = ChartServices.SvgRenderer.Render(figure);
+            .ToSvg();
 
         Assert.Contains("<svg", svg);
         Assert.Contains("Single", svg);
@@ -51,9 +47,8 @@ public class ParallelRenderingTests
             int idx = i; // capture by value
             builder = builder.AddSubPlot(3, 3, idx, ax => ax.WithTitle($"Sub{idx}").Plot([1.0, 2.0], [3.0, 4.0]));
         }
-        var figure = builder.Build();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
+        string svg = builder.ToSvg();
 
         for (int i = 1; i <= 9; i++)
             Assert.Contains($"Sub{i}", svg);

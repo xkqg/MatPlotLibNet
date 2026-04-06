@@ -100,6 +100,12 @@ public sealed class ChartRenderer : IChartRenderer
 
     internal void RenderAxes(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme)
     {
+        if (axes.CoordinateSystem == CoordinateSystem.Polar)
+        {
+            RenderPolarAxes(axes, plotArea, ctx, theme);
+            return;
+        }
+
         var axesBg = theme.AxesBackground;
         ctx.DrawRectangle(plotArea, axesBg, null, 0);
 
@@ -296,6 +302,89 @@ public sealed class ChartRenderer : IChartRenderer
                 new Point(plotArea.X - 45, plotArea.Y + plotArea.Height / 2),
                 labelFont, TextAlignment.Center);
         }
+    }
+
+    /// <summary>Renders axes with polar coordinate system: circular grid, radial axis lines, and polar series.</summary>
+    private static void RenderPolarAxes(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme)
+    {
+        var axesBg = theme.AxesBackground;
+        ctx.DrawRectangle(plotArea, axesBg, null, 0);
+
+        // Determine max R from all polar series
+        double rMax = 1;
+        foreach (var s in axes.Series)
+        {
+            double[] rData = s switch
+            {
+                PolarLineSeries pls => pls.R,
+                PolarScatterSeries pss => pss.R,
+                PolarBarSeries pbs => pbs.R,
+                _ => []
+            };
+            if (rData.Length > 0)
+            {
+                double max = rData.Max();
+                if (max > rMax) rMax = max;
+            }
+        }
+        rMax *= 1.1; // 10% padding
+
+        var transform = new PolarTransform(plotArea, rMax);
+        var gridColor = Color.FromHex("#CCCCCC");
+        var labelFont = TickFont(theme);
+
+        // Draw concentric circle grid
+        for (int ring = 1; ring <= 5; ring++)
+        {
+            double frac = ring / 5.0;
+            double r = transform.MaxRadius * frac;
+            ctx.DrawEllipse(
+                new Rect(transform.CenterX - r, transform.CenterY - r, r * 2, r * 2),
+                null, gridColor, 0.5);
+
+            // Tick label on right side
+            string tickLabel = FormatTick(rMax * frac);
+            ctx.DrawText(tickLabel,
+                new Point(transform.CenterX + r + 4, transform.CenterY + 4),
+                labelFont, TextAlignment.Left);
+        }
+
+        // Draw radial axis lines (every 30 degrees = 12 lines)
+        for (int i = 0; i < 12; i++)
+        {
+            double angle = i * Math.PI / 6;
+            var outer = transform.PolarToPixel(rMax, angle);
+            ctx.DrawLine(
+                new Point(transform.CenterX, transform.CenterY),
+                outer, gridColor, 0.5, LineStyle.Solid);
+
+            // Angle label
+            string label = $"{i * 30}\u00b0";
+            ctx.DrawText(label,
+                new Point(outer.X + (outer.X > transform.CenterX ? 8 : -8),
+                          outer.Y + (outer.Y > transform.CenterY ? 12 : -4)),
+                labelFont, outer.X >= transform.CenterX ? TextAlignment.Left : TextAlignment.Right);
+        }
+
+        // Render series
+        for (int i = 0; i < axes.Series.Count; i++)
+        {
+            var series = axes.Series[i];
+            if (!series.Visible) continue;
+            var seriesColor = theme.CycleColors[i % theme.CycleColors.Length];
+            var renderer = new SvgSeriesRenderer(
+                new DataTransform(0, 1, 0, 1, plotArea), ctx, seriesColor, axes.EnableTooltips);
+            var area = new RenderArea(plotArea, ctx);
+            series.Accept(renderer, area);
+        }
+
+        // Legend
+        RenderLegend(axes, plotArea, ctx, theme);
+
+        // Title
+        if (axes.Title is not null)
+            ctx.DrawText(axes.Title, new Point(plotArea.X + plotArea.Width / 2, plotArea.Y - 8),
+                TitleFont(theme, sizeOffset: 2), TextAlignment.Center);
     }
 
     /// <summary>Renders the legend box showing labeled series with color swatches.</summary>
@@ -645,6 +734,13 @@ public sealed class ChartRenderer : IChartRenderer
                     break;
                 case SankeySeries:
                     // Render in own coordinate system within PlotBounds
+                    if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
+                    if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
+                    break;
+                case PolarLineSeries:
+                case PolarScatterSeries:
+                case PolarBarSeries:
+                    // Polar renders in own coordinate system
                     if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
                     if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
                     break;

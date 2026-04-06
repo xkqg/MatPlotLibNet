@@ -60,6 +60,11 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     // Flow family
     private SankeySeriesRenderer? _sankey;
 
+    // Polar family
+    private PolarLineSeriesRenderer? _polarLine;
+    private PolarScatterSeriesRenderer? _polarScatter;
+    private PolarBarSeriesRenderer? _polarBar;
+
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor, bool tooltipsEnabled = false)
     {
         _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(default, ctx))
@@ -141,4 +146,12 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     // Flow family
     /// <inheritdoc />
     public void Visit(SankeySeries s, RenderArea a) => (_sankey ??= new(_context)).Render(s);
+
+    // Polar family
+    /// <inheritdoc />
+    public void Visit(PolarLineSeries s, RenderArea a) => (_polarLine ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(PolarScatterSeries s, RenderArea a) => (_polarScatter ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(PolarBarSeries s, RenderArea a) => (_polarBar ??= new(_context)).Render(s);
 }

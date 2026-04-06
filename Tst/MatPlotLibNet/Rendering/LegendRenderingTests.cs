@@ -12,12 +12,10 @@ public class LegendRenderingTests
     [Fact]
     public void Legend_WithLabeledSeries_ContainsLegendText()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Temperature")
             .Plot([1.0, 2.0], [5.0, 6.0], s => s.Label = "Humidity")
-            .Build();
-
-        string svg = ChartServices.SvgRenderer.Render(figure);
+            .ToSvg();
 
         Assert.Contains("Temperature", svg);
         Assert.Contains("Humidity", svg);
@@ -27,11 +25,9 @@ public class LegendRenderingTests
     [Fact]
     public void Legend_NoLabels_SkipsLegend()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .Build();
-
-        string svg = ChartServices.SvgRenderer.Render(figure);
+            .ToSvg();
 
         // No labeled series → no legend rectangle
         // The SVG should not contain a legend group
@@ -42,13 +38,11 @@ public class LegendRenderingTests
     [Fact]
     public void Legend_NotVisible_SkipsLegend()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Data")
                 .WithLegend(visible: false))
-            .Build();
-
-        string svg = ChartServices.SvgRenderer.Render(figure);
+            .ToSvg();
 
         Assert.DoesNotContain("class=\"legend\"", svg);
     }
@@ -57,13 +51,11 @@ public class LegendRenderingTests
     [Fact]
     public void Legend_ContainsColorSwatches()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Series A")
                 .WithLegend())
-            .Build();
-
-        string svg = ChartServices.SvgRenderer.Render(figure);
+            .ToSvg();
 
         Assert.Contains("class=\"legend\"", svg);
         Assert.Contains("Series A", svg);
@@ -101,14 +93,12 @@ public class LegendRenderingTests
     [Fact]
     public void Legend_MixedLabeledAndUnlabeled_OnlyShowsLabeled()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Visible")
                 .Plot([1.0, 2.0], [5.0, 6.0])
                 .WithLegend())
-            .Build();
-
-        string svg = ChartServices.SvgRenderer.Render(figure);
+            .ToSvg();
 
         Assert.Contains("Visible", svg);
         Assert.Contains("class=\"legend\"", svg);
@@ -118,15 +108,13 @@ public class LegendRenderingTests
     [Fact]
     public void Legend_MultipleSeries_AllLabelsPresent()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Alpha")
                 .Plot([1.0, 2.0], [5.0, 6.0], s => s.Label = "Beta")
                 .Scatter([1.0, 2.0], [7.0, 8.0], s => s.Label = "Gamma")
                 .WithLegend())
-            .Build();
-
-        string svg = ChartServices.SvgRenderer.Render(figure);
+            .ToSvg();
 
         Assert.Contains("Alpha", svg);
         Assert.Contains("Beta", svg);

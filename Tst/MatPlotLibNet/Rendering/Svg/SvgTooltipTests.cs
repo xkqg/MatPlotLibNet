@@ -12,13 +12,12 @@ public class SvgTooltipTests
     [Fact]
     public void ScatterSeries_WithTooltips_ContainsTitleElements()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTooltips()
                 .Scatter([1.0, 2.0], [3.0, 4.0]))
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("<title>", svg);
     }
 
@@ -26,12 +25,11 @@ public class SvgTooltipTests
     [Fact]
     public void Tooltips_Disabled_NoTitleElements()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Scatter([1.0, 2.0], [3.0, 4.0]))
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.DoesNotContain("<title>", svg);
     }
 
@@ -39,13 +37,12 @@ public class SvgTooltipTests
     [Fact]
     public void ScatterSeries_WithTooltips_ContainsDataValues()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTooltips()
                 .Scatter([1.5], [3.2]))
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("x=1.5", svg);
         Assert.Contains("y=3.2", svg);
     }

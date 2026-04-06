@@ -52,9 +52,7 @@ public class PngExportTests
     [Fact]
     public void FluentTransform_ToBytes_ProducesValidPng()
     {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-
-        byte[] bytes = figure.Transform(new PngTransform()).ToBytes();
+        byte[] bytes = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Transform(new PngTransform()).ToBytes();
 
         Assert.Equal(0x89, bytes[0]);
     }
@@ -63,10 +61,8 @@ public class PngExportTests
     [Fact]
     public void FluentTransform_ToStream_WritesValidPng()
     {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-
         using var stream = new MemoryStream();
-        figure.Transform(new PngTransform()).ToStream(stream);
+        Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Transform(new PngTransform()).ToStream(stream);
 
         Assert.True(stream.Length > 0);
     }
@@ -75,12 +71,11 @@ public class PngExportTests
     [Fact]
     public void FluentTransform_ToFile_CreatesValidPng()
     {
-        var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
         var path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid()}.png");
 
         try
         {
-            figure.Transform(new PngTransform()).ToFile(path);
+            Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Transform(new PngTransform()).ToFile(path);
 
             Assert.True(File.Exists(path));
             var bytes = File.ReadAllBytes(path);

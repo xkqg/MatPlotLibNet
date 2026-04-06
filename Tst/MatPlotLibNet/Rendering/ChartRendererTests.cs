@@ -15,9 +15,7 @@ public class ChartRendererTests
     [Fact]
     public void Render_EmptyFigure_ProducesValidSvg()
     {
-        var figure = Plt.Create().Build();
-
-        string svg = new SvgTransform().Render(figure);
+        string svg = Plt.Create().ToSvg();
 
         Assert.Contains("<svg", svg);
         Assert.Contains("</svg>", svg);
@@ -27,12 +25,10 @@ public class ChartRendererTests
     [Fact]
     public void Render_FigureWithTitle_ContainsTitleText()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .WithTitle("My Title")
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .Build();
-
-        string svg = new SvgTransform().Render(figure);
+            .ToSvg();
 
         Assert.Contains("My Title", svg);
     }
@@ -41,11 +37,9 @@ public class ChartRendererTests
     [Fact]
     public void Render_FigureWithoutTitle_DoesNotContainTitleText()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .Build();
-
-        string svg = new SvgTransform().Render(figure);
+            .ToSvg();
 
         // The figure has no title, so "My Title" should not appear
         Assert.DoesNotContain("My Title", svg);
@@ -55,11 +49,9 @@ public class ChartRendererTests
     [Fact]
     public void Render_SingleSubplot_ProducesAxes()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .Plot([1.0, 2.0, 3.0], [10.0, 20.0, 15.0])
-            .Build();
-
-        string svg = new SvgTransform().Render(figure);
+            .ToSvg();
 
         // Axes frame is rendered as a rect, and tick marks as line elements
         Assert.Contains("<rect", svg);
@@ -70,16 +62,14 @@ public class ChartRendererTests
     [Fact]
     public void Render_TwoSubplots_ProducesBothTitles()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(1, 2, 1, ax => ax
                 .WithTitle("Left Panel")
                 .Plot([1.0, 2.0], [3.0, 4.0]))
             .AddSubPlot(1, 2, 2, ax => ax
                 .WithTitle("Right Panel")
                 .Plot([1.0, 2.0], [5.0, 6.0]))
-            .Build();
-
-        string svg = new SvgTransform().Render(figure);
+            .ToSvg();
 
         Assert.Contains("Left Panel", svg);
         Assert.Contains("Right Panel", svg);
@@ -89,7 +79,7 @@ public class ChartRendererTests
     [Fact]
     public void Render_2x2Grid_AllSubplotsPresent()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(2, 2, 1, ax => ax
                 .WithTitle("TopLeft")
                 .Plot([1.0, 2.0], [1.0, 2.0]))
@@ -102,9 +92,7 @@ public class ChartRendererTests
             .AddSubPlot(2, 2, 4, ax => ax
                 .WithTitle("BottomRight")
                 .Plot([1.0, 2.0], [7.0, 8.0]))
-            .Build();
-
-        string svg = new SvgTransform().Render(figure);
+            .ToSvg();
 
         Assert.Contains("TopLeft", svg);
         Assert.Contains("TopRight", svg);
@@ -116,12 +104,10 @@ public class ChartRendererTests
     [Fact]
     public void Render_WithBackground_ContainsBackgroundRect()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .WithBackground(Color.FromHex("#AABBCC"))
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .Build();
-
-        string svg = new SvgTransform().Render(figure);
+            .ToSvg();
 
         Assert.Contains("<rect", svg);
         Assert.Contains("#AABBCC", svg);
@@ -136,7 +122,7 @@ public class ChartRendererTests
         axes.Plot([1.0, 2.0, 3.0], [10.0, 20.0, 15.0]);
         axes.Grid = axes.Grid with { Visible = true };
 
-        string svg = new SvgTransform().Render(figure);
+        string svg = figure.ToSvg();
 
         // Grid lines are rendered as <line> elements
         Assert.Contains("<line", svg);
@@ -146,11 +132,9 @@ public class ChartRendererTests
     [Fact]
     public void Render_LineSeries_ContainsPolyline()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .Plot([1.0, 2.0, 3.0], [10.0, 20.0, 15.0])
-            .Build();
-
-        string svg = new SvgTransform().Render(figure);
+            .ToSvg();
 
         Assert.Contains("<polyline", svg);
     }
@@ -159,11 +143,9 @@ public class ChartRendererTests
     [Fact]
     public void Render_BarSeries_ContainsRects()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .Bar(["A", "B", "C"], [10.0, 20.0, 15.0])
-            .Build();
-
-        string svg = new SvgTransform().Render(figure);
+            .ToSvg();
 
         Assert.Contains("<rect", svg);
     }

@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `CoordinateSystem` enum (`Cartesian`, `Polar`, `ThreeD`) on `Axes` for alternative rendering paths
+- `PolarTransform` class for (r, theta) to pixel coordinate conversion
+- `PolarLineSeries`, `PolarScatterSeries`, `PolarBarSeries` in new Polar family
+- `ChartRenderer.RenderPolarAxes()` — circular grid, radial axis lines, angle labels
+- `FigureBuilder.ToSvg()`, `ToJson()`, `SaveSvg()`, `Transform()`, `Save(path)` — output directly from the builder without `.Build()`
+- `FigureBuilder.Save(path)` auto-detects format from file extension (.svg, .png, .pdf, .json)
+- `FigureBuilder.RegisterGlobalTransform()` for registering PNG/PDF at startup
+- `FigureBuilder.RegisterTransform()` for per-builder custom transforms
 - `TreeNode` record for hierarchical data (Label, Value, Color, Children with recursive TotalValue)
 - `HierarchicalSeries` abstract base class with shared Root, ColorMap, ShowLabels properties
 - `TreemapSeries` — nested rectangle layout with configurable padding
@@ -34,7 +42,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Subplot layout margins are now configurable via `Figure.Spacing` (was hardcoded constants)
 - `ChartRenderer.RenderTicks` uses `Axis.TickFormatter` when set (falls back to default formatting)
 - GitHub Actions updated to v5 (Node.js 24 compatibility)
-- Series count increased from 25 to 28
+- Series count increased from 25 to 31
+- `ChartRenderer.RenderAxes` branches on `CoordinateSystem` for polar rendering path
+- Tests refactored to use builder output methods (`.ToSvg()`) instead of explicit `.Build()`
 
 ## [0.3.2] - 2026-04-05
 

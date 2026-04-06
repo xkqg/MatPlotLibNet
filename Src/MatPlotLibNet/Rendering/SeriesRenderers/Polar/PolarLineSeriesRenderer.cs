@@ -1,0 +1,28 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+
+using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
+
+namespace MatPlotLibNet.Rendering.SeriesRenderers;
+
+/// <summary>Renders a <see cref="PolarLineSeries"/> as connected lines in polar coordinates.</summary>
+internal sealed class PolarLineSeriesRenderer : SeriesRenderer<PolarLineSeries>
+{
+    public PolarLineSeriesRenderer(SeriesRenderContext context) : base(context) { }
+
+    public override void Render(PolarLineSeries series)
+    {
+        var color = ResolveColor(series.Color);
+        var bounds = Area.PlotBounds;
+        double rMax = series.R.Length > 0 ? series.R.Max() : 1;
+        var transform = new PolarTransform(bounds, rMax);
+
+        var points = new List<Point>(series.R.Length);
+        for (int i = 0; i < series.R.Length; i++)
+            points.Add(transform.PolarToPixel(series.R[i], series.Theta[i]));
+
+        if (points.Count > 1)
+            Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);
+    }
+}

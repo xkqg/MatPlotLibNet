@@ -229,6 +229,9 @@ public sealed class ChartSerializer : IChartSerializer
             TreemapSeries tm => new SeriesDto { Type = "treemap" },
             SunburstSeries sb => new SeriesDto { Type = "sunburst" },
             SankeySeries sk => new SeriesDto { Type = "sankey" },
+            PolarLineSeries pl => new SeriesDto { Type = "polarline" },
+            PolarScatterSeries ps => new SeriesDto { Type = "polarscatter" },
+            PolarBarSeries pb => new SeriesDto { Type = "polarbar" },
             _ => new SeriesDto { Type = "unknown" }
         };
         dto.Label = series.Label;
@@ -345,6 +348,9 @@ public sealed class ChartSerializer : IChartSerializer
             "treemap" => axes.Treemap(new TreeNode { Label = "Root" }),
             "sunburst" => axes.Sunburst(new TreeNode { Label = "Root" }),
             "sankey" => axes.Sankey([new SankeyNode("A")], []),
+            "polarline" => axes.PolarPlot([1.0], [0.0]),
+            "polarscatter" => axes.PolarScatter([1.0], [0.0]),
+            "polarbar" => axes.PolarBar([1.0], [0.0]),
             _ => null
         };
         if (series is not null)

@@ -43,6 +43,9 @@ public sealed class Axes
     /// so each bar sits on top of the previous one. Defaults to <see cref="Models.BarMode.Grouped"/>.</remarks>
     public BarMode BarMode { get; set; } = BarMode.Grouped;
 
+    /// <summary>Gets or sets the coordinate system for this axes.</summary>
+    public CoordinateSystem CoordinateSystem { get; set; } = CoordinateSystem.Cartesian;
+
     /// <summary>Gets the collection of data series plotted on this axes.</summary>
     public IReadOnlyList<ISeries> Series => _series;
     private readonly List<ISeries> _series = [];
@@ -383,6 +386,33 @@ public sealed class Axes
     public SankeySeries Sankey(SankeyNode[] nodes, SankeyLink[] links)
     {
         var series = new SankeySeries(nodes, links);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a polar line series and sets coordinate system to Polar.</summary>
+    public PolarLineSeries PolarPlot(double[] r, double[] theta)
+    {
+        CoordinateSystem = CoordinateSystem.Polar;
+        var series = new PolarLineSeries(r, theta);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a polar scatter series and sets coordinate system to Polar.</summary>
+    public PolarScatterSeries PolarScatter(double[] r, double[] theta)
+    {
+        CoordinateSystem = CoordinateSystem.Polar;
+        var series = new PolarScatterSeries(r, theta);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a polar bar series and sets coordinate system to Polar.</summary>
+    public PolarBarSeries PolarBar(double[] r, double[] theta)
+    {
+        CoordinateSystem = CoordinateSystem.Polar;
+        var series = new PolarBarSeries(r, theta);
         _series.Add(series);
         return series;
     }

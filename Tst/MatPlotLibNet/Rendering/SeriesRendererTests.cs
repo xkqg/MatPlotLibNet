@@ -38,14 +38,13 @@ public class SeriesRendererTests
     public void ExistingTests_StillPass_AfterRefactor()
     {
         // Integration: render a figure with multiple series types, verify SVG output
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .WithTitle("Refactor Test")
             .Plot([1.0, 2.0, 3.0], [10.0, 20.0, 15.0])
             .Scatter([1.0, 2.0], [12.0, 18.0])
             .Bar(["A", "B"], [5.0, 10.0])
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("<svg", svg);
         Assert.Contains("<polyline", svg);   // line
         Assert.Contains("<circle", svg);     // scatter
@@ -57,16 +56,15 @@ public class SeriesRendererTests
     public void AllSeriesTypes_RenderWithoutError()
     {
         // Exercises all 25 typed renderers through the visitor dispatch
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .AddSubPlot(2, 3, 1, ax => ax.Plot([1.0, 2.0], [3.0, 4.0]))
             .AddSubPlot(2, 3, 2, ax => ax.Bar(["A", "B"], [10.0, 20.0]))
             .AddSubPlot(2, 3, 3, ax => ax.Pie([30.0, 70.0]))
             .AddSubPlot(2, 3, 4, ax => ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } }))
             .AddSubPlot(2, 3, 5, ax => ax.BoxPlot([[1.0, 2.0, 3.0]]))
             .AddSubPlot(2, 3, 6, ax => ax.Stem([1.0, 2.0], [3.0, 4.0]))
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("<svg", svg);
         Assert.Contains("</svg>", svg);
     }

@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet;
 
@@ -89,6 +90,18 @@ public sealed class FigureBuilder
     public FigureBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null) =>
         AddSeries(ax => ax.Sankey(nodes, links), configure);
 
+    /// <summary>Adds a polar line series to the default axes.</summary>
+    public FigureBuilder PolarPlot(double[] r, double[] theta, Action<PolarLineSeries>? configure = null) =>
+        AddSeries(ax => ax.PolarPlot(r, theta), configure);
+
+    /// <summary>Adds a polar scatter series to the default axes.</summary>
+    public FigureBuilder PolarScatter(double[] r, double[] theta, Action<PolarScatterSeries>? configure = null) =>
+        AddSeries(ax => ax.PolarScatter(r, theta), configure);
+
+    /// <summary>Adds a polar bar series to the default axes.</summary>
+    public FigureBuilder PolarBar(double[] r, double[] theta, Action<PolarBarSeries>? configure = null) =>
+        AddSeries(ax => ax.PolarBar(r, theta), configure);
+
     /// <summary>Adds a subplot at the specified grid position, configured via an <see cref="AxesBuilder"/>.</summary>
     /// <param name="rows">Number of rows in the subplot grid.</param>
     /// <param name="cols">Number of columns in the subplot grid.</param>
@@ -128,6 +141,59 @@ public sealed class FigureBuilder
         }
 
         return figure;
+    }
+
+    // --- Output methods (auto-build, no explicit Build() needed) ---
+
+    /// <summary>Builds the figure and renders it as an SVG string.</summary>
+    public string ToSvg() => Build().ToSvg();
+
+    /// <summary>Builds the figure and serializes it to JSON.</summary>
+    public string ToJson(bool indented = false) => Build().ToJson(indented);
+
+    /// <summary>Builds the figure and saves it as an SVG file.</summary>
+    public void SaveSvg(string path) => Build().SaveSvg(path);
+
+    /// <summary>Builds the figure and binds it to a transform for fluent output (ToFile, ToStream, ToBytes).</summary>
+    public TransformResult Transform(IFigureTransform transform) => Build().Transform(transform);
+
+    /// <summary>Builds the figure and saves it to a file. Format is auto-detected from extension (.svg, .png, .pdf, .json).</summary>
+    /// <remarks>PNG and PDF require the MatPlotLibNet.Skia package. Register custom transforms via <see cref="RegisterTransform"/>.</remarks>
+    public void Save(string path)
+    {
+        string ext = Path.GetExtension(path).ToLowerInvariant();
+        if (string.IsNullOrEmpty(ext))
+        {
+            SaveSvg(path + ".svg");
+            return;
+        }
+        if (ext == ".json") { File.WriteAllText(path, ToJson()); return; }
+        if (_transforms.TryGetValue(ext, out var transform))
+        {
+            Build().Transform(transform).ToFile(path);
+            return;
+        }
+        SaveSvg(path);
+    }
+
+    /// <summary>Registers a transform for a file extension (e.g., ".png" for PngTransform).</summary>
+    public FigureBuilder RegisterTransform(string extension, IFigureTransform transform)
+    {
+        _transforms[extension.StartsWith('.') ? extension.ToLowerInvariant() : $".{extension.ToLowerInvariant()}"] = transform;
+        return this;
+    }
+
+    private readonly Dictionary<string, IFigureTransform> _transforms = new(GlobalTransforms);
+
+    private static readonly Dictionary<string, IFigureTransform> GlobalTransforms = new()
+    {
+        [".svg"] = new SvgTransform()
+    };
+
+    /// <summary>Registers a transform globally for all future builders (e.g., call once at startup for PNG/PDF).</summary>
+    public static void RegisterGlobalTransform(string extension, IFigureTransform transform)
+    {
+        GlobalTransforms[extension.StartsWith('.') ? extension.ToLowerInvariant() : $".{extension.ToLowerInvariant()}"] = transform;
     }
 
     private FigureBuilder AddSeries<T>(Func<Axes, T> factory, Action<T>? configure) where T : ISeries

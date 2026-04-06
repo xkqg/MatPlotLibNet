@@ -10,12 +10,11 @@ public class SvgInteractivityTests
     [Fact]
     public void EnableZoomPan_InjectsScriptElement()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .WithZoomPan()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("<script", svg);
     }
 
@@ -23,11 +22,10 @@ public class SvgInteractivityTests
     [Fact]
     public void DisabledZoomPan_NoScriptElement()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.DoesNotContain("<script", svg);
     }
 
@@ -35,12 +33,11 @@ public class SvgInteractivityTests
     [Fact]
     public void ScriptContains_ViewBoxManipulation()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .WithZoomPan()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("viewBox", svg);
         Assert.Contains("setAttribute", svg);
     }
@@ -49,12 +46,11 @@ public class SvgInteractivityTests
     [Fact]
     public void ScriptContains_WheelEventHandler()
     {
-        var figure = Plt.Create()
+        string svg = Plt.Create()
             .WithZoomPan()
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .Build();
+            .ToSvg();
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
         Assert.Contains("wheel", svg);
     }
 }

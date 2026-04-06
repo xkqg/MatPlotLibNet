@@ -91,4 +91,13 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a Sankey diagram series.</summary>
     void Visit(SankeySeries series, RenderArea area);
+
+    /// <summary>Renders a polar line series.</summary>
+    void Visit(PolarLineSeries series, RenderArea area);
+
+    /// <summary>Renders a polar scatter series.</summary>
+    void Visit(PolarScatterSeries series, RenderArea area);
+
+    /// <summary>Renders a polar bar series.</summary>
+    void Visit(PolarBarSeries series, RenderArea area);
 }
