@@ -108,9 +108,9 @@ public class GridSpecLayoutTests
         var fig = new Figure { Width = 800, Height = 600 };
         var gs = new GridSpec { Rows = 2, Cols = 3 };
         fig.GridSpec = gs;
-        fig.AddSubPlot(gs, GridPosition.Span(0, 1, 0, 2)); // top row, cols 0-1
+        fig.AddSubPlot(gs, new GridPosition(0, 1, 0, 2)); // top row, cols 0-1
         fig.AddSubPlot(gs, GridPosition.Single(0, 2));       // top row, col 2
-        fig.AddSubPlot(gs, GridPosition.Span(1, 2, 0, 3)); // bottom row, all cols
+        fig.AddSubPlot(gs, new GridPosition(1, 2, 0, 3)); // bottom row, all cols
 
         var renderer = new ChartRenderer();
         var areas = renderer.ComputeSubPlotLayout(fig, PlotAreaTop);
@@ -128,7 +128,7 @@ public class GridSpecLayoutTests
         var fig = new Figure { Width = 800, Height = 600 };
         var gs = new GridSpec { Rows = 3, Cols = 1 };
         fig.GridSpec = gs;
-        fig.AddSubPlot(gs, GridPosition.Span(0, 2, 0, 1)); // rows 0-1
+        fig.AddSubPlot(gs, new GridPosition(0, 2, 0, 1)); // rows 0-1
         fig.AddSubPlot(gs, GridPosition.Single(2, 0));       // row 2
 
         var renderer = new ChartRenderer();
@@ -146,8 +146,8 @@ public class GridSpecLayoutTests
         var fig = new Figure { Width = 800, Height = 600 };
         var gs = new GridSpec { Rows = 2, Cols = 3 };
         fig.GridSpec = gs;
-        fig.AddSubPlot(gs, GridPosition.Span(0, 1, 0, 3)); // full width
-        fig.AddSubPlot(gs, GridPosition.Span(1, 2, 0, 3)); // full width
+        fig.AddSubPlot(gs, new GridPosition(0, 1, 0, 3)); // full width
+        fig.AddSubPlot(gs, new GridPosition(1, 2, 0, 3)); // full width
 
         var renderer = new ChartRenderer();
         var areas = renderer.ComputeSubPlotLayout(fig, PlotAreaTop);
@@ -182,7 +182,7 @@ public class GridSpecLayoutTests
         var fig = new Figure { Width = 800, Height = 600 };
         var gs = new GridSpec { Rows = 1, Cols = 3, WidthRatios = [1, 2, 1] };
         fig.GridSpec = gs;
-        fig.AddSubPlot(gs, GridPosition.Span(0, 1, 0, 2)); // span cols 0+1 (ratios 1+2=3)
+        fig.AddSubPlot(gs, new GridPosition(0, 1, 0, 2)); // span cols 0+1 (ratios 1+2=3)
         fig.AddSubPlot(gs, GridPosition.Single(0, 2));       // col 2 (ratio 1)
 
         var renderer = new ChartRenderer();

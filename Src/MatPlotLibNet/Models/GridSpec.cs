@@ -19,17 +19,3 @@ public sealed record GridSpec
     public double[]? WidthRatios { get; init; }
 }
 
-/// <summary>Specifies which cells in a <see cref="GridSpec"/> an axes occupies (supports spanning).</summary>
-/// <param name="RowStart">Starting row (0-based, inclusive).</param>
-/// <param name="RowEnd">Ending row (0-based, exclusive).</param>
-/// <param name="ColStart">Starting column (0-based, inclusive).</param>
-/// <param name="ColEnd">Ending column (0-based, exclusive).</param>
-public readonly record struct GridPosition(int RowStart, int RowEnd, int ColStart, int ColEnd)
-{
-    /// <summary>Creates a single-cell position at the given row and column.</summary>
-    public static GridPosition Single(int row, int col) => new(row, row + 1, col, col + 1);
-
-    /// <summary>Creates a multi-cell spanning position.</summary>
-    public static GridPosition Span(int rowStart, int rowEnd, int colStart, int colEnd) =>
-        new(rowStart, rowEnd, colStart, colEnd);
-}

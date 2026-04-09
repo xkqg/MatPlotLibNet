@@ -21,7 +21,7 @@ internal sealed class RadarSeriesRenderer : SeriesRenderer<RadarSeries>
         double radius = Math.Min(bounds.Width, bounds.Height) / 2 * 0.75;
         double maxVal = series.MaxValue ?? series.Values.Max();
         if (maxVal <= 0) maxVal = 1;
-        var webColor = Color.GridGray;
+        var webColor = Colors.GridGray;
 
         for (int ring = 1; ring <= 5; ring++)
         {

@@ -75,6 +75,6 @@ public class SeriesRendererTests
         var transform = new DataTransform(0, 10, 0, 100, plotArea);
         var svgCtx = new MatPlotLibNet.Rendering.Svg.SvgRenderContext();
         var area = new RenderArea(plotArea, svgCtx);
-        return new SeriesRenderContext(transform, svgCtx, Color.Blue, area);
+        return new SeriesRenderContext(transform, svgCtx, Colors.Blue, area);
     }
 }

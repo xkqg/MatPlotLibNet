@@ -16,11 +16,11 @@ namespace MatPlotLibNet.Rendering.Downsampling;
 public sealed class LttbDownsampler : IDownsampler
 {
     /// <inheritdoc />
-    public (double[] X, double[] Y) Downsample(double[] x, double[] y, int targetPoints)
+    public XYData Downsample(double[] x, double[] y, int targetPoints)
     {
         int n = x.Length;
-        if (n == 0) return ([], []);
-        if (n <= targetPoints) return (x, y);
+        if (n == 0) return new([], []);
+        if (n <= targetPoints) return new(x, y);
 
         var sampledX = new double[targetPoints];
         var sampledY = new double[targetPoints];
@@ -80,6 +80,6 @@ public sealed class LttbDownsampler : IDownsampler
             prevSelected = selected;
         }
 
-        return (sampledX, sampledY);
+        return new(sampledX, sampledY);
     }
 }

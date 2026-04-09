@@ -20,6 +20,6 @@ internal sealed class StemSeriesRenderer : SeriesRenderer<StemSeries>
             Ctx.DrawCircle(Transform.DataToPixel(series.XData[i], series.YData[i]), 4, markerColor, null, 0);
         }
         if (series.XData.Length > 0)
-            Ctx.DrawLine(Transform.DataToPixel(series.XData.Min(), 0), Transform.DataToPixel(series.XData.Max(), 0), series.BaselineColor ?? Color.Gray, 1, LineStyle.Solid);
+            Ctx.DrawLine(Transform.DataToPixel(series.XData.Min(), 0), Transform.DataToPixel(series.XData.Max(), 0), series.BaselineColor ?? Colors.Gray, 1, LineStyle.Solid);
     }
 }

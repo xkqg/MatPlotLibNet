@@ -15,14 +15,14 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
     {
         var color = ResolveColor(series.Color);
         // Viewport culling for scatter (no LTTB — scatter points don't need visual-shape preservation)
-        var (xData, yData) = series.MaxDisplayPoints.HasValue
+        var data = series.MaxDisplayPoints.HasValue
             ? ViewportCuller.Cull(series.XData, series.YData, Transform.DataXMin, Transform.DataXMax)
-            : (series.XData, series.YData);
+            : new XYData(series.XData, series.YData);
 
-        for (int i = 0; i < xData.Length; i++)
+        for (int i = 0; i < data.X.Length; i++)
         {
-            BeginTooltip($"x={xData[i]:G5}, y={yData[i]:G5}");
-            var pt = Transform.DataToPixel(xData[i], yData[i]);
+            BeginTooltip($"x={data.X[i]:G5}, y={data.Y[i]:G5}");
+            var pt = Transform.DataToPixel(data.X[i], data.Y[i]);
             double size = series.Sizes is not null ? Math.Sqrt(series.Sizes[i]) : Math.Sqrt(series.MarkerSize);
             var c = series.Colors is not null ? series.Colors[i] : color;
             Ctx.DrawCircle(pt, size / 2, c, null, 0);

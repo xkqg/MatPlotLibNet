@@ -14,20 +14,20 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
     public override void Render(LineSeries series)
     {
         var color = ResolveColor(series.Color);
-        var (xData, yData) = ApplyDownsampling(series.XData, series.YData, series.MaxDisplayPoints);
-        var points = new List<Point>(xData.Length);
-        for (int i = 0; i < xData.Length; i++)
-            points.Add(Transform.DataToPixel(xData[i], yData[i]));
+        var data = ApplyDownsampling(series.XData, series.YData, series.MaxDisplayPoints);
+        var points = new List<Point>(data.X.Length);
+        for (int i = 0; i < data.X.Length; i++)
+            points.Add(Transform.DataToPixel(data.X[i], data.Y[i]));
         Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);
         if (series.Marker is not null && series.Marker != MarkerStyle.None)
             foreach (var pt in points) Ctx.DrawCircle(pt, series.MarkerSize / 2, color, null, 0);
     }
 
-    private (double[] X, double[] Y) ApplyDownsampling(double[] x, double[] y, int? maxPoints)
+    private XYData ApplyDownsampling(double[] x, double[] y, int? maxPoints)
     {
-        if (maxPoints is null || x.Length <= maxPoints.Value) return (x, y);
-        var (cx, cy) = ViewportCuller.Cull(x, y, Transform.DataXMin, Transform.DataXMax);
-        if (cx.Length <= maxPoints.Value) return (cx, cy);
-        return new LttbDownsampler().Downsample(cx, cy, maxPoints.Value);
+        if (maxPoints is null || x.Length <= maxPoints.Value) return new(x, y);
+        var culled = ViewportCuller.Cull(x, y, Transform.DataXMin, Transform.DataXMax);
+        if (culled.X.Length <= maxPoints.Value) return culled;
+        return new LttbDownsampler().Downsample(culled.X, culled.Y, maxPoints.Value);
     }
 }

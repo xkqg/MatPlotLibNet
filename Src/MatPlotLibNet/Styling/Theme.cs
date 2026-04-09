@@ -59,9 +59,9 @@ public sealed class Theme
     /// <summary>Gets the default light theme matching matplotlib's standard style.</summary>
     public static Theme Default { get; } = new(
         name: "default",
-        background: Color.White,
-        foregroundText: Color.Black,
-        axesBackground: Color.White,
+        background: Colors.White,
+        foregroundText: Colors.Black,
+        axesBackground: Colors.White,
         cycleColors: DefaultCycleColors,
         defaultFont: new Font(),
         defaultGrid: new GridStyle());
@@ -79,7 +79,7 @@ public sealed class Theme
     /// <summary>Gets a theme inspired by the Seaborn visualization library.</summary>
     public static Theme Seaborn { get; } = new(
         name: "seaborn",
-        background: Color.White,
+        background: Colors.White,
         foregroundText: Color.FromHex("#262626"),
         axesBackground: Color.FromHex("#EAEAF2"),
         cycleColors:
@@ -96,13 +96,13 @@ public sealed class Theme
             Color.FromHex("#64B5CD"),
         ],
         defaultFont: new Font { Family = "sans-serif", Size = 11 },
-        defaultGrid: new GridStyle { Visible = true, Color = Color.White });
+        defaultGrid: new GridStyle { Visible = true, Color = Colors.White });
 
     /// <summary>Gets a theme inspired by the ggplot2 R library.</summary>
     public static Theme Ggplot { get; } = new(
         name: "ggplot",
-        background: Color.White,
-        foregroundText: Color.Black,
+        background: Colors.White,
+        foregroundText: Colors.Black,
         axesBackground: Color.FromHex("#E5E5E5"),
         cycleColors:
         [
@@ -118,12 +118,12 @@ public sealed class Theme
             Color.FromHex("#F0E442"),
         ],
         defaultFont: new Font(),
-        defaultGrid: new GridStyle { Visible = true, Color = Color.White });
+        defaultGrid: new GridStyle { Visible = true, Color = Colors.White });
 
     /// <summary>Gets a theme inspired by Bayesian Methods for Hackers.</summary>
     public static Theme Bmh { get; } = new(
         name: "bmh",
-        background: Color.White,
+        background: Colors.White,
         foregroundText: Color.FromHex("#555555"),
         axesBackground: Color.FromHex("#EEEEEE"),
         cycleColors:
@@ -140,7 +140,7 @@ public sealed class Theme
             Color.FromHex("#0072B2"),
         ],
         defaultFont: new Font(),
-        defaultGrid: new GridStyle { Visible = true, Color = Color.White });
+        defaultGrid: new GridStyle { Visible = true, Color = Colors.White });
 
     /// <summary>Gets a theme inspired by FiveThirtyEight.com charts.</summary>
     public static Theme FiveThirtyEight { get; } = new(

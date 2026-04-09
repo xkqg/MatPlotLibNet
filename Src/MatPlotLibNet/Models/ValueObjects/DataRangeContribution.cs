@@ -4,4 +4,8 @@
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>A series' contribution to the overall axes data range. Null values indicate no contribution to that axis.</summary>
+/// <param name="XMin">Minimum X value contributed, or null.</param>
+/// <param name="XMax">Maximum X value contributed, or null.</param>
+/// <param name="YMin">Minimum Y value contributed, or null.</param>
+/// <param name="YMax">Maximum Y value contributed, or null.</param>
 public readonly record struct DataRangeContribution(double? XMin, double? XMax, double? YMin, double? YMax);

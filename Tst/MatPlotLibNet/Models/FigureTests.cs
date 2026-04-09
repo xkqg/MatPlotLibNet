@@ -72,7 +72,7 @@ public class FigureTests
             Width = 1024,
             Height = 768,
             Dpi = 150,
-            BackgroundColor = Color.Black,
+            BackgroundColor = Colors.Black,
             Theme = Theme.Dark
         };
 
@@ -80,7 +80,7 @@ public class FigureTests
         Assert.Equal(1024, fig.Width);
         Assert.Equal(768, fig.Height);
         Assert.Equal(150, fig.Dpi);
-        Assert.Equal(Color.Black, fig.BackgroundColor);
+        Assert.Equal(Colors.Black, fig.BackgroundColor);
         Assert.Same(Theme.Dark, fig.Theme);
     }
 

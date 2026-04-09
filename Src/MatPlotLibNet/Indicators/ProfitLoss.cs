@@ -14,10 +14,10 @@ public sealed class ProfitLoss : Indicator<SignalResult>
     private readonly string[]? _labels;
 
     /// <summary>Gets or sets the color for profitable periods.</summary>
-    public Color ProfitColor { get; set; } = Styling.Color.Green;
+    public Color ProfitColor { get; set; } = Colors.Green;
 
     /// <summary>Gets or sets the color for losing periods.</summary>
-    public Color LossColor { get; set; } = Styling.Color.Red;
+    public Color LossColor { get; set; } = Colors.Red;
 
     /// <summary>Creates a new P&amp;L indicator.</summary>
     /// <param name="returns">Per-period returns (positive = profit, negative = loss).</param>

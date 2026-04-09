@@ -69,7 +69,7 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
         foreach (var (_, vertices, avgZ) in quads)
         {
             var color = cmap.GetColor((avgZ - zMin) / zRange);
-            Color? stroke = series.ShowWireframe ? Color.Black.WithAlpha(80) : null;
+            Color? stroke = series.ShowWireframe ? Colors.Black.WithAlpha(80) : null;
             double strokeWidth = series.ShowWireframe ? 0.5 : 0;
             Ctx.DrawPolygon(vertices, color, stroke, strokeWidth);
         }

@@ -48,7 +48,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         // Render span regions (behind everything)
         foreach (var span in Axes.Spans)
         {
-            var spanColor = (span.Color ?? Color.Tab10Blue).WithAlpha((byte)(span.Alpha * 255));
+            var spanColor = (span.Color ?? Colors.Tab10Blue).WithAlpha((byte)(span.Alpha * 255));
             if (span.Orientation == Orientation.Horizontal)
             {
                 var topLeft = transform.DataToPixel(range.XMin, Math.Max(span.Min, span.Max));
@@ -68,7 +68,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         // Render reference lines
         foreach (var refLine in Axes.ReferenceLines)
         {
-            var lineColor = refLine.Color ?? Color.Gray;
+            var lineColor = refLine.Color ?? Colors.Gray;
             if (refLine.Orientation == Orientation.Horizontal)
             {
                 var pt = transform.DataToPixel(range.XMin, refLine.Value);
@@ -204,7 +204,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         {
             var pt = transform.DataToPixel(signal.X, signal.Y);
             double s = signal.Size;
-            var signalColor = signal.Color ?? (signal.Direction == SignalDirection.Buy ? Color.Green : Color.Red);
+            var signalColor = signal.Color ?? (signal.Direction == SignalDirection.Buy ? Colors.Green : Colors.Red);
 
             Point[] triangle = signal.Direction == SignalDirection.Buy
                 ? [new(pt.X, pt.Y + s), new(pt.X - s / 2, pt.Y + s * 2), new(pt.X + s / 2, pt.Y + s * 2)]

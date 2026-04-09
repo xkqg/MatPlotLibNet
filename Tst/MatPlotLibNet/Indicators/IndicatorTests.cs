@@ -56,8 +56,8 @@ public class SmaTests
     public void Apply_RespectsCustomColor()
     {
         var axes = new Axes();
-        new Sma([10, 20, 30, 40, 50], 3) { Color = Color.Red }.Apply(axes);
-        Assert.Equal(Color.Red, ((LineSeries)axes.Series[0]).Color);
+        new Sma([10, 20, 30, 40, 50], 3) { Color = Colors.Red }.Apply(axes);
+        Assert.Equal(Colors.Red, ((LineSeries)axes.Series[0]).Color);
     }
 
     /// <summary>Verifies that Sma implements the IIndicator interface.</summary>

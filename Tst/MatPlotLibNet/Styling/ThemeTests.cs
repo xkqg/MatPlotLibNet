@@ -12,7 +12,7 @@ public class ThemeTests
     [Fact]
     public void DefaultTheme_HasWhiteBackground()
     {
-        Assert.Equal(Color.White, Theme.Default.Background);
+        Assert.Equal(Colors.White, Theme.Default.Background);
     }
 
     /// <summary>Verifies that the default theme has at least 10 cycle colors.</summary>
@@ -27,7 +27,7 @@ public class ThemeTests
     [Fact]
     public void DefaultTheme_HasBlackForeground()
     {
-        Assert.Equal(Color.Black, Theme.Default.ForegroundText);
+        Assert.Equal(Colors.Black, Theme.Default.ForegroundText);
     }
 
     /// <summary>Verifies that the default theme provides a non-null default font.</summary>
@@ -41,14 +41,14 @@ public class ThemeTests
     [Fact]
     public void DarkTheme_HasDarkBackground()
     {
-        Assert.NotEqual(Color.White, Theme.Dark.Background);
+        Assert.NotEqual(Colors.White, Theme.Dark.Background);
     }
 
     /// <summary>Verifies that the dark theme has a non-black foreground text.</summary>
     [Fact]
     public void DarkTheme_HasLightForeground()
     {
-        Assert.NotEqual(Color.Black, Theme.Dark.ForegroundText);
+        Assert.NotEqual(Colors.Black, Theme.Dark.ForegroundText);
     }
 
     /// <summary>Verifies that the Seaborn theme is available.</summary>
@@ -80,13 +80,13 @@ public class ThemeTests
     [Fact]
     public void ThemeBuilder_OverridesCycleColors()
     {
-        var colors = new[] { Color.Red, Color.Blue, Color.Green };
+        var colors = new[] { Colors.Red, Colors.Blue, Colors.Green };
         var theme = Theme.CreateFrom(Theme.Default)
             .WithCycleColors(colors)
             .Build();
 
         Assert.Equal(3, theme.CycleColors.Length);
-        Assert.Equal(Color.Red, theme.CycleColors[0]);
+        Assert.Equal(Colors.Red, theme.CycleColors[0]);
     }
 
     /// <summary>Verifies that the theme builder can override the default font.</summary>
@@ -105,7 +105,7 @@ public class ThemeTests
     public void ThemeBuilder_PreservesUnchangedProperties()
     {
         var theme = Theme.CreateFrom(Theme.Default)
-            .WithBackground(Color.Red)
+            .WithBackground(Colors.Red)
             .Build();
 
         Assert.Equal(Theme.Default.CycleColors.Length, theme.CycleColors.Length);

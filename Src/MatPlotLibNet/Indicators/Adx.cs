@@ -45,16 +45,16 @@ public sealed class Adx : Indicator<SignalResult>
 
         var adxSeries = axes.Plot(x, adx);
         adxSeries.Label = Label;
-        adxSeries.Color = Color ?? Styling.Color.Tab10Blue;
+        adxSeries.Color = Color ?? Colors.Tab10Blue;
         adxSeries.LineWidth = LineWidth;
         adxSeries.LineStyle = LineStyle;
 
         if (plusDi.Length == adx.Length)
         {
             var pdi = axes.Plot(x, plusDi);
-            pdi.Label = "+DI"; pdi.Color = PlusDiColor ?? Styling.Color.Green; pdi.LineWidth = 1;
+            pdi.Label = "+DI"; pdi.Color = PlusDiColor ?? Colors.Green; pdi.LineWidth = 1;
             var mdi = axes.Plot(x, minusDi);
-            mdi.Label = "-DI"; mdi.Color = MinusDiColor ?? Styling.Color.Red; mdi.LineWidth = 1;
+            mdi.Label = "-DI"; mdi.Color = MinusDiColor ?? Colors.Red; mdi.LineWidth = 1;
         }
 
         axes.YAxis.Min = 0;

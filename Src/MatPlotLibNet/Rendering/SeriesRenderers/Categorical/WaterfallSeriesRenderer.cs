@@ -26,7 +26,7 @@ internal sealed class WaterfallSeriesRenderer : SeriesRenderer<WaterfallSeries>
             {
                 var ls = Transform.DataToPixel(i + halfW, top);
                 var le = Transform.DataToPixel(i + 1 - halfW, top);
-                Ctx.DrawLine(ls, le, Color.Gray, 0.5, LineStyle.Dashed);
+                Ctx.DrawLine(ls, le, Colors.Gray, 0.5, LineStyle.Dashed);
             }
             cumulative = top;
         }

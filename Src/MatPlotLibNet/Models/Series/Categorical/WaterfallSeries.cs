@@ -12,9 +12,9 @@ public sealed class WaterfallSeries : ChartSeries
 {
     public string[] Categories { get; }
     public double[] Values { get; }
-    public Color IncreaseColor { get; set; } = Color.Green;
-    public Color DecreaseColor { get; set; } = Color.Red;
-    public Color TotalColor { get; set; } = Color.Tab10Blue;
+    public Color IncreaseColor { get; set; } = Colors.Green;
+    public Color DecreaseColor { get; set; } = Colors.Red;
+    public Color TotalColor { get; set; } = Colors.Tab10Blue;
     public double BarWidth { get; set; } = 0.6;
 
     public WaterfallSeries(string[] categories, double[] values)

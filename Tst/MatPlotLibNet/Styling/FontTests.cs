@@ -58,13 +58,13 @@ public class FontTests
             Size = 16,
             Weight = FontWeight.Bold,
             Slant = FontSlant.Italic,
-            Color = Color.Red
+            Color = Colors.Red
         };
 
         Assert.Equal("monospace", font.Family);
         Assert.Equal(16, font.Size);
         Assert.Equal(FontWeight.Bold, font.Weight);
         Assert.Equal(FontSlant.Italic, font.Slant);
-        Assert.Equal(Color.Red, font.Color);
+        Assert.Equal(Colors.Red, font.Color);
     }
 }

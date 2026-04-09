@@ -50,7 +50,7 @@ public sealed class DrawDown : Indicator<SignalResult>
 
         var series = axes.FillBetween(x, negDd);
         series.Label = Label;
-        series.Color = Color ?? Styling.Color.Red;
+        series.Color = Color ?? Colors.Red;
         series.Alpha = Alpha;
 
         axes.YAxis.Max = 0;

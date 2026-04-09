@@ -63,7 +63,7 @@ public class GridSpecTests
     [Fact]
     public void GridPosition_Span_CreatesMultiCells()
     {
-        var pos = GridPosition.Span(0, 2, 0, 3);
+        var pos = new GridPosition(0, 2, 0, 3);
         Assert.Equal(0, pos.RowStart);
         Assert.Equal(2, pos.RowEnd);
         Assert.Equal(0, pos.ColStart);

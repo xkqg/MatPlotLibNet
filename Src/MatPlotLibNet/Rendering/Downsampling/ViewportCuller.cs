@@ -17,11 +17,11 @@ public static class ViewportCuller
     /// <param name="y">The Y coordinate array, parallel to <paramref name="x"/>.</param>
     /// <param name="xMin">The minimum visible X value (inclusive).</param>
     /// <param name="xMax">The maximum visible X value (inclusive).</param>
-    /// <returns>A pair of arrays containing the culled X and Y values.</returns>
-    public static (double[] X, double[] Y) Cull(double[] x, double[] y, double xMin, double xMax)
+    /// <returns>An <see cref="XYData"/> containing the culled X and Y values.</returns>
+    public static XYData Cull(double[] x, double[] y, double xMin, double xMax)
     {
         int n = x.Length;
-        if (n == 0) return ([], []);
+        if (n == 0) return new([], []);
 
         // Find first index inside range
         int first = Array.FindIndex(x, v => v >= xMin);
@@ -29,7 +29,7 @@ public static class ViewportCuller
         int last = Array.FindLastIndex(x, v => v <= xMax);
 
         if (first < 0 || last < 0 || first > last)
-            return ([], []);
+            return new([], []);
 
         // Include one point before (for line clipping)
         int start = first > 0 ? first - 1 : first;
@@ -41,6 +41,6 @@ public static class ViewportCuller
         double[] outY = new double[len];
         Array.Copy(x, start, outX, 0, len);
         Array.Copy(y, start, outY, 0, len);
-        return (outX, outY);
+        return new(outX, outY);
     }
 }

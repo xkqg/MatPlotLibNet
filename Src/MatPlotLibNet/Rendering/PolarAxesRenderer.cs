@@ -33,7 +33,7 @@ public sealed class PolarAxesRenderer : AxesRenderer
         rMax *= 1.1; // 10% padding
 
         var transform = new PolarTransform(PlotArea, rMax);
-        var gridColor = Color.GridGray;
+        var gridColor = Colors.GridGray;
         var labelFont = TickFont();
 
         // Draw concentric circle grid

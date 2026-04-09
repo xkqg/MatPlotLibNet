@@ -29,10 +29,10 @@ public sealed class CandlestickSeries : ChartSeries, IPriceSeries, ICategoryLabe
     string[]? ICategoryLabeled.CategoryLabels => DateLabels;
 
     /// <summary>Gets or sets the color for up (close >= open) candles.</summary>
-    public Color UpColor { get; set; } = Color.Green;
+    public Color UpColor { get; set; } = Colors.Green;
 
     /// <summary>Gets or sets the color for down (close &lt; open) candles.</summary>
-    public Color DownColor { get; set; } = Color.Red;
+    public Color DownColor { get; set; } = Colors.Red;
 
     /// <summary>Gets or sets the width of the candle body as a fraction of the available space.</summary>
     public double BodyWidth { get; set; } = 0.6;

@@ -24,7 +24,7 @@ public sealed class GaugeSeries : ChartSeries
     public (double Threshold, Color Color)[]? Ranges { get; set; }
 
     /// <summary>Gets or sets the needle color.</summary>
-    public Color NeedleColor { get; set; } = Color.Black;
+    public Color NeedleColor { get; set; } = Colors.Black;
 
     /// <summary>Creates a new gauge series displaying the given value.</summary>
     public GaugeSeries(double value) => Value = value;

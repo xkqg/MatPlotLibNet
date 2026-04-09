@@ -20,7 +20,7 @@ internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
             double x0 = bins.Min + i * bins.BinWidth;
             var tl = Transform.DataToPixel(x0, bins.Counts[i]);
             var br = Transform.DataToPixel(x0 + bins.BinWidth, 0);
-            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, series.EdgeColor ?? Color.White, 0.5);
+            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, series.EdgeColor ?? Colors.White, 0.5);
         }
     }
 }

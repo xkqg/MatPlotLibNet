@@ -83,7 +83,7 @@ public sealed class Stochastic : Indicator<StochasticResult>
         for (int i = 0; i < d.Length; i++) dX[i] = dOffset + i;
         var dSeries = axes.Plot(dX, d);
         dSeries.Label = $"%D({_dPeriod})";
-        dSeries.Color = DColor ?? Styling.Color.Tab10Orange;
+        dSeries.Color = DColor ?? Colors.Tab10Orange;
         dSeries.LineWidth = LineWidth;
         dSeries.LineStyle = LineStyle.Dashed;
 

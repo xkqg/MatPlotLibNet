@@ -24,7 +24,7 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         {
             // Leaf: draw rectangle
             var color = node.Color ?? ResolveColor(null);
-            Ctx.DrawRectangle(bounds, color, Color.White, 1);
+            Ctx.DrawRectangle(bounds, color, Colors.White, 1);
             if (series.ShowLabels && bounds.Width > 20 && bounds.Height > 14)
                 Ctx.DrawText(node.Label, new Point(bounds.X + 4, bounds.Y + 14),
                     new Font { Size = 10 }, TextAlignment.Left);

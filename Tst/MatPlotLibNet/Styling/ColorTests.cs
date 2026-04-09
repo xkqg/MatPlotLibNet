@@ -76,32 +76,32 @@ public class ColorTests
         Assert.StartsWith("rgba(255,128,0,", rgba);
     }
 
-    /// <summary>Verifies that Color.Red matches the expected RGB values.</summary>
+    /// <summary>Verifies that Colors.Red matches the expected RGB values.</summary>
     [Fact]
     public void NamedColor_Red_IsCorrect()
     {
-        Assert.Equal(new Color(255, 0, 0), Color.Red);
+        Assert.Equal(new Color(255, 0, 0), Colors.Red);
     }
 
-    /// <summary>Verifies that Color.Blue matches the expected RGB values.</summary>
+    /// <summary>Verifies that Colors.Blue matches the expected RGB values.</summary>
     [Fact]
     public void NamedColor_Blue_IsCorrect()
     {
-        Assert.Equal(new Color(0, 0, 255), Color.Blue);
+        Assert.Equal(new Color(0, 0, 255), Colors.Blue);
     }
 
-    /// <summary>Verifies that Color.White matches the expected RGB values.</summary>
+    /// <summary>Verifies that Colors.White matches the expected RGB values.</summary>
     [Fact]
     public void NamedColor_White_IsCorrect()
     {
-        Assert.Equal(new Color(255, 255, 255), Color.White);
+        Assert.Equal(new Color(255, 255, 255), Colors.White);
     }
 
-    /// <summary>Verifies that Color.Black matches the expected RGB values.</summary>
+    /// <summary>Verifies that Colors.Black matches the expected RGB values.</summary>
     [Fact]
     public void NamedColor_Black_IsCorrect()
     {
-        Assert.Equal(new Color(0, 0, 0), Color.Black);
+        Assert.Equal(new Color(0, 0, 0), Colors.Black);
     }
 
     /// <summary>Verifies that FromRgba normalizes 0.0-1.0 double values to 0-255 byte range.</summary>
@@ -127,15 +127,15 @@ public class ColorTests
     [Fact]
     public void Equality_WorksAsValueType()
     {
-        Assert.Equal(Color.Red, new Color(255, 0, 0));
-        Assert.NotEqual(Color.Red, Color.Blue);
+        Assert.Equal(Colors.Red, new Color(255, 0, 0));
+        Assert.NotEqual(Colors.Red, Colors.Blue);
     }
 
     /// <summary>Verifies that WithAlpha returns a new color with only the alpha channel changed.</summary>
     [Fact]
     public void WithAlpha_ReturnsNewColorWithModifiedAlpha()
     {
-        var color = Color.Red.WithAlpha(128);
+        var color = Colors.Red.WithAlpha(128);
         Assert.Equal(255, color.R);
         Assert.Equal(0, color.G);
         Assert.Equal(0, color.B);

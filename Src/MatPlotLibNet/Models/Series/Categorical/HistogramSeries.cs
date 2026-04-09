@@ -74,9 +74,3 @@ public sealed class HistogramSeries : ChartSeries
         return new HistogramBins(min, binWidth, counts);
     }
 }
-
-/// <summary>Computed histogram bin data.</summary>
-/// <param name="Min">Minimum data value.</param>
-/// <param name="BinWidth">Width of each bin.</param>
-/// <param name="Counts">Count of values in each bin.</param>
-public readonly record struct HistogramBins(double Min, double BinWidth, int[] Counts);

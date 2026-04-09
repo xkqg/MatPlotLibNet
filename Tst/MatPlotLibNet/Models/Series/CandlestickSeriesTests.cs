@@ -26,7 +26,7 @@ public class CandlestickSeriesTests
     public void DefaultUpColor_IsGreen()
     {
         var series = new CandlestickSeries([10], [15], [8], [13]);
-        Assert.Equal(Color.Green, series.UpColor);
+        Assert.Equal(Colors.Green, series.UpColor);
     }
 
     /// <summary>Verifies that DownColor defaults to Red.</summary>
@@ -34,7 +34,7 @@ public class CandlestickSeriesTests
     public void DefaultDownColor_IsRed()
     {
         var series = new CandlestickSeries([10], [15], [8], [13]);
-        Assert.Equal(Color.Red, series.DownColor);
+        Assert.Equal(Colors.Red, series.DownColor);
     }
 
     /// <summary>Verifies that BodyWidth defaults to 0.6.</summary>

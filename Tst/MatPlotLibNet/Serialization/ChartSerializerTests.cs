@@ -62,7 +62,7 @@ public class ChartSerializerTests
         var figure = Plt.Create()
             .Plot([1.0, 2.0], [3.0, 4.0], line =>
             {
-                line.Color = Color.Red;
+                line.Color = Colors.Red;
                 line.LineWidth = 2.5;
                 line.Label = "My Line";
             })
@@ -111,7 +111,7 @@ public class ChartSerializerTests
         var original = Plt.Create()
             .Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], line =>
             {
-                line.Color = Color.Red;
+                line.Color = Colors.Red;
                 line.LineWidth = 2.5;
                 line.Label = "My Line";
                 line.LineStyle = LineStyle.Dashed;
@@ -123,7 +123,7 @@ public class ChartSerializerTests
 
         Assert.Single(restored.SubPlots);
         var series = Assert.IsType<LineSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(Color.Red, series.Color);
+        Assert.Equal(Colors.Red, series.Color);
         Assert.Equal(2.5, series.LineWidth);
         Assert.Equal("My Line", series.Label);
         Assert.Equal(LineStyle.Dashed, series.LineStyle);
@@ -136,14 +136,14 @@ public class ChartSerializerTests
     public void RoundTrip_PreservesScatterSeries()
     {
         var original = Plt.Create()
-            .Scatter([1.0, 2.0], [3.0, 4.0], s => s.Color = Color.Blue)
+            .Scatter([1.0, 2.0], [3.0, 4.0], s => s.Color = Colors.Blue)
             .Build();
 
         string json = ChartServices.Serializer.ToJson(original);
         var restored = ChartServices.Serializer.FromJson(json);
 
         var series = Assert.IsType<ScatterSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(Color.Blue, series.Color);
+        Assert.Equal(Colors.Blue, series.Color);
     }
 
     /// <summary>Verifies that a round-trip serialization preserves BarSeries categories and values.</summary>
@@ -423,11 +423,11 @@ public class ChartSerializerTests
         var axes = figure.AddSubPlot();
         var eb = axes.ErrorBar([1.0, 2.0], [3.0, 4.0], [0.5, 0.5], [1.0, 1.0]);
         eb.CapSize = 8.0;
-        eb.Color = Color.Red;
+        eb.Color = Colors.Red;
 
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
         var series = Assert.IsType<ErrorBarSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(Color.Red, series.Color);
+        Assert.Equal(Colors.Red, series.Color);
         Assert.Equal(8.0, series.CapSize);
         Assert.Equal([0.5, 0.5], series.YErrorLow);
         Assert.Equal([1.0, 1.0], series.YErrorHigh);
@@ -454,14 +454,14 @@ public class ChartSerializerTests
         var figure = Plt.Create()
             .FillBetween([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [1.0, 2.0, 3.0], s =>
             {
-                s.Color = Color.Blue;
+                s.Color = Colors.Blue;
                 s.Alpha = 0.5;
             })
             .Build();
 
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
         var series = Assert.IsType<AreaSeries>(restored.SubPlots[0].Series[0]);
-        Assert.Equal(Color.Blue, series.Color);
+        Assert.Equal(Colors.Blue, series.Color);
         Assert.Equal(0.5, series.Alpha);
         Assert.Equal([1.0, 2.0, 3.0], series.XData);
         Assert.Equal([4.0, 5.0, 6.0], series.YData);
@@ -508,7 +508,7 @@ public class ChartSerializerTests
         var figure = new Figure();
         var axes = figure.AddSubPlot();
         var bubble = axes.Bubble([1.0, 2.0], [3.0, 4.0], [10.0, 20.0]);
-        bubble.Color = Color.Blue;
+        bubble.Color = Colors.Blue;
         bubble.Alpha = 0.8;
 
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
@@ -516,7 +516,7 @@ public class ChartSerializerTests
         Assert.Equal([1.0, 2.0], series.XData);
         Assert.Equal([3.0, 4.0], series.YData);
         Assert.Equal([10.0, 20.0], series.Sizes);
-        Assert.Equal(Color.Blue, series.Color);
+        Assert.Equal(Colors.Blue, series.Color);
         Assert.Equal(0.8, series.Alpha);
     }
 
@@ -576,7 +576,7 @@ public class ChartSerializerTests
         var figure = new Figure();
         var axes = figure.AddSubPlot();
         var gantt = axes.Gantt(["Task A", "Task B"], [0.0, 2.0], [3.0, 5.0]);
-        gantt.Color = Color.Green;
+        gantt.Color = Colors.Green;
         gantt.BarHeight = 0.8;
 
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
@@ -584,7 +584,7 @@ public class ChartSerializerTests
         Assert.Equal(["Task A", "Task B"], series.Tasks);
         Assert.Equal([0.0, 2.0], series.Starts);
         Assert.Equal([3.0, 5.0], series.Ends);
-        Assert.Equal(Color.Green, series.Color);
+        Assert.Equal(Colors.Green, series.Color);
         Assert.Equal(0.8, series.BarHeight);
     }
 
@@ -597,14 +597,14 @@ public class ChartSerializerTests
         var gauge = axes.Gauge(75.0);
         gauge.Min = 0;
         gauge.Max = 150;
-        gauge.NeedleColor = Color.Red;
+        gauge.NeedleColor = Colors.Red;
 
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
         var series = Assert.IsType<GaugeSeries>(restored.SubPlots[0].Series[0]);
         Assert.Equal(75.0, series.Value);
         Assert.Equal(0, series.Min);
         Assert.Equal(150, series.Max);
-        Assert.Equal(Color.Red, series.NeedleColor);
+        Assert.Equal(Colors.Red, series.NeedleColor);
     }
 
     /// <summary>Verifies that a round-trip serialization preserves ProgressBarSeries value, colors, and bar height.</summary>
@@ -614,14 +614,14 @@ public class ChartSerializerTests
         var figure = new Figure();
         var axes = figure.AddSubPlot();
         var pb = axes.ProgressBar(0.75);
-        pb.FillColor = Color.Green;
+        pb.FillColor = Colors.Green;
         pb.TrackColor = Color.FromHex("#CCCCCC");
         pb.BarHeight = 0.5;
 
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
         var series = Assert.IsType<ProgressBarSeries>(restored.SubPlots[0].Series[0]);
         Assert.Equal(0.75, series.Value);
-        Assert.Equal(Color.Green, series.FillColor);
+        Assert.Equal(Colors.Green, series.FillColor);
         Assert.Equal(Color.FromHex("#CCCCCC"), series.TrackColor);
         Assert.Equal(0.5, series.BarHeight);
     }
@@ -633,13 +633,13 @@ public class ChartSerializerTests
         var figure = new Figure();
         var axes = figure.AddSubPlot();
         var sparkline = axes.Sparkline([1.0, 3.0, 2.0, 5.0, 4.0]);
-        sparkline.Color = Color.Blue;
+        sparkline.Color = Colors.Blue;
         sparkline.LineWidth = 2.0;
 
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
         var series = Assert.IsType<SparklineSeries>(restored.SubPlots[0].Series[0]);
         Assert.Equal([1.0, 3.0, 2.0, 5.0, 4.0], series.Values);
-        Assert.Equal(Color.Blue, series.Color);
+        Assert.Equal(Colors.Blue, series.Color);
         Assert.Equal(2.0, series.LineWidth);
     }
 
@@ -686,7 +686,7 @@ public class ChartSerializerTests
     {
         var figure = new Figure { GridSpec = new GridSpec { Rows = 3, Cols = 3 } };
         var gs = figure.GridSpec;
-        figure.AddSubPlot(gs, GridPosition.Span(0, 2, 0, 3)).Plot([1.0], [2.0]);
+        figure.AddSubPlot(gs, new GridPosition(0, 2, 0, 3)).Plot([1.0], [2.0]);
 
         var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
 

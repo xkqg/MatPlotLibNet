@@ -42,7 +42,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawLine_RendersNonTransparentPixels()
     {
-        _ctx.DrawLine(new Point(10, 50), new Point(90, 50), Color.Red, 2, LineStyle.Solid);
+        _ctx.DrawLine(new Point(10, 50), new Point(90, 50), Colors.Red, 2, LineStyle.Solid);
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -53,7 +53,7 @@ public class SkiaRenderContextTests : IDisposable
     public void DrawLines_RendersPolyline()
     {
         var points = new List<Point> { new(10, 10), new(50, 90), new(90, 10) };
-        _ctx.DrawLines(points, Color.Blue, 2, LineStyle.Solid);
+        _ctx.DrawLines(points, Colors.Blue, 2, LineStyle.Solid);
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -64,7 +64,7 @@ public class SkiaRenderContextTests : IDisposable
     public void DrawPolygon_WithFill_RendersFilled()
     {
         var points = new List<Point> { new(10, 10), new(90, 10), new(90, 90), new(10, 90) };
-        _ctx.DrawPolygon(points, fill: Color.Green, stroke: null, strokeThickness: 0);
+        _ctx.DrawPolygon(points, fill: Colors.Green, stroke: null, strokeThickness: 0);
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -75,7 +75,7 @@ public class SkiaRenderContextTests : IDisposable
     public void DrawPolygon_WithStroke_RendersOutline()
     {
         var points = new List<Point> { new(10, 10), new(90, 10), new(90, 90), new(10, 90) };
-        _ctx.DrawPolygon(points, fill: null, stroke: Color.Red, strokeThickness: 2);
+        _ctx.DrawPolygon(points, fill: null, stroke: Colors.Red, strokeThickness: 2);
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -85,7 +85,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawCircle_WithFill_RendersCenterArea()
     {
-        _ctx.DrawCircle(new Point(50, 50), 30, fill: Color.Blue, stroke: null, strokeThickness: 0);
+        _ctx.DrawCircle(new Point(50, 50), 30, fill: Colors.Blue, stroke: null, strokeThickness: 0);
         _canvas.Flush();
 
         // Verify the center area has non-transparent pixels
@@ -97,7 +97,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawCircle_WithStroke_RendersOutline()
     {
-        _ctx.DrawCircle(new Point(50, 50), 30, fill: null, stroke: Color.Red, strokeThickness: 3);
+        _ctx.DrawCircle(new Point(50, 50), 30, fill: null, stroke: Colors.Red, strokeThickness: 3);
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -107,7 +107,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawRectangle_WithFill_RendersFilled()
     {
-        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), fill: Color.Green, stroke: null, strokeThickness: 0);
+        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), fill: Colors.Green, stroke: null, strokeThickness: 0);
         _canvas.Flush();
 
         var pixel = _bitmap.GetPixel(50, 50);
@@ -118,7 +118,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawRectangle_WithStroke_RendersOutline()
     {
-        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), fill: null, stroke: Color.Black, strokeThickness: 2);
+        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), fill: null, stroke: Colors.Black, strokeThickness: 2);
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -128,7 +128,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawEllipse_WithFill_RendersFilled()
     {
-        _ctx.DrawEllipse(new Rect(10, 10, 80, 80), fill: Color.Magenta, stroke: null, strokeThickness: 0);
+        _ctx.DrawEllipse(new Rect(10, 10, 80, 80), fill: Colors.Magenta, stroke: null, strokeThickness: 0);
         _canvas.Flush();
 
         var pixel = _bitmap.GetPixel(50, 50);
@@ -139,7 +139,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawText_RendersPixels()
     {
-        _ctx.DrawText("Hello", new Point(10, 50), new Font { Size = 20, Color = Color.Black },
+        _ctx.DrawText("Hello", new Point(10, 50), new Font { Size = 20, Color = Colors.Black },
             TextAlignment.Left);
         _canvas.Flush();
 
@@ -156,7 +156,7 @@ public class SkiaRenderContextTests : IDisposable
             new LineToSegment(new Point(90, 50)),
             new LineToSegment(new Point(50, 90))
         };
-        _ctx.DrawPath(segments, fill: null, stroke: Color.Red, strokeThickness: 2);
+        _ctx.DrawPath(segments, fill: null, stroke: Colors.Red, strokeThickness: 2);
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -173,7 +173,7 @@ public class SkiaRenderContextTests : IDisposable
             new LineToSegment(new Point(50, 90)),
             new CloseSegment()
         };
-        _ctx.DrawPath(segments, fill: Color.Cyan, stroke: null, strokeThickness: 0);
+        _ctx.DrawPath(segments, fill: Colors.Cyan, stroke: null, strokeThickness: 0);
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -186,7 +186,7 @@ public class SkiaRenderContextTests : IDisposable
         // Clip to a small region in the top-left
         _ctx.PushClip(new Rect(0, 0, 10, 10));
         // Draw a rectangle in the bottom-right, fully outside the clip
-        _ctx.DrawRectangle(new Rect(50, 50, 40, 40), fill: Color.Red, stroke: null, strokeThickness: 0);
+        _ctx.DrawRectangle(new Rect(50, 50, 40, 40), fill: Colors.Red, stroke: null, strokeThickness: 0);
         _canvas.Flush();
 
         // Verify the bottom-right area remains transparent (alpha == 0)
@@ -201,7 +201,7 @@ public class SkiaRenderContextTests : IDisposable
         _ctx.PushClip(new Rect(0, 0, 10, 10));
         _ctx.PopClip();
         // Drawing should now work across the full canvas
-        _ctx.DrawRectangle(new Rect(50, 50, 40, 40), fill: Color.Blue, stroke: null, strokeThickness: 0);
+        _ctx.DrawRectangle(new Rect(50, 50, 40, 40), fill: Colors.Blue, stroke: null, strokeThickness: 0);
         _canvas.Flush();
 
         var pixel = _bitmap.GetPixel(70, 70);
@@ -238,13 +238,13 @@ public class SkiaRenderContextTests : IDisposable
         using var opaqueCanvas = new SKCanvas(opaqueBitmap);
         opaqueCanvas.Clear(SKColors.Transparent);
         var opaqueCtx = new SkiaRenderContext(opaqueCanvas);
-        opaqueCtx.DrawRectangle(new Rect(10, 10, 80, 80), fill: Color.Red, stroke: null, strokeThickness: 0);
+        opaqueCtx.DrawRectangle(new Rect(10, 10, 80, 80), fill: Colors.Red, stroke: null, strokeThickness: 0);
         opaqueCanvas.Flush();
         var opaquePixel = opaqueBitmap.GetPixel(50, 50);
 
         // Now draw with 50% opacity
         _ctx.SetOpacity(0.5);
-        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), fill: Color.Red, stroke: null, strokeThickness: 0);
+        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), fill: Colors.Red, stroke: null, strokeThickness: 0);
         _canvas.Flush();
         var semiPixel = _bitmap.GetPixel(50, 50);
 

@@ -21,7 +21,7 @@ internal sealed class BoxSeriesRenderer : SeriesRenderer<BoxSeries>
             double halfW = 0.35;
             var tl = Transform.DataToPixel(i - halfW, q3); var br = Transform.DataToPixel(i + halfW, q1);
             Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), null, color, 1.5);
-            Ctx.DrawLine(Transform.DataToPixel(i - halfW, median), Transform.DataToPixel(i + halfW, median), series.MedianColor ?? Color.Red, 2, LineStyle.Solid);
+            Ctx.DrawLine(Transform.DataToPixel(i - halfW, median), Transform.DataToPixel(i + halfW, median), series.MedianColor ?? Colors.Red, 2, LineStyle.Solid);
             Ctx.DrawLine(Transform.DataToPixel(i, q3), Transform.DataToPixel(i, data[^1]), color, 1, LineStyle.Solid);
             Ctx.DrawLine(Transform.DataToPixel(i, q1), Transform.DataToPixel(i, data[0]), color, 1, LineStyle.Solid);
         }

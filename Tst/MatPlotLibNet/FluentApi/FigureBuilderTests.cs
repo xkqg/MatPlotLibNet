@@ -65,9 +65,9 @@ public class FigureBuilderTests
     public void WithBackground_SetsColor()
     {
         var figure = Plt.Create()
-            .WithBackground(Color.Black)
+            .WithBackground(Colors.Black)
             .Build();
-        Assert.Equal(Color.Black, figure.BackgroundColor);
+        Assert.Equal(Colors.Black, figure.BackgroundColor);
     }
 
     /// <summary>Verifies that Plot creates default axes with a <see cref="LineSeries"/>.</summary>
@@ -89,13 +89,13 @@ public class FigureBuilderTests
         var figure = Plt.Create()
             .Plot([1.0], [2.0], line =>
             {
-                line.Color = Color.Red;
+                line.Color = Colors.Red;
                 line.LineWidth = 3.0;
             })
             .Build();
 
         var series = (LineSeries)figure.SubPlots[0].Series[0];
-        Assert.Equal(Color.Red, series.Color);
+        Assert.Equal(Colors.Red, series.Color);
         Assert.Equal(3.0, series.LineWidth);
     }
 
@@ -192,7 +192,7 @@ public class FigureBuilderTests
             .WithSize(800, 600)
             .WithDpi(150)
             .WithTheme(Theme.Dark)
-            .WithBackground(Color.White)
+            .WithBackground(Colors.White)
             .Plot([1.0], [2.0])
             .Scatter([3.0], [4.0])
             .Build();
@@ -249,7 +249,7 @@ public class FigureBuilderTests
     {
         var figure = Plt.Create()
             .WithGridSpec(3, 3)
-            .AddSubPlot(GridPosition.Span(0, 1, 0, 3), ax => ax.Plot([1.0], [2.0]))
+            .AddSubPlot(new GridPosition(0, 1, 0, 3), ax => ax.Plot([1.0], [2.0]))
             .Build();
 
         var pos = figure.SubPlots[0].GridPosition!.Value;

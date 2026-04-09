@@ -110,7 +110,7 @@ public sealed class SkiaRenderContext : IRenderContext
     {
         using var paint = new SKPaint
         {
-            Color = ToSkColor(font.Color ?? Color.Black),
+            Color = ToSkColor(font.Color ?? Colors.Black),
             TextSize = (float)font.Size,
             IsAntialias = true,
             Typeface = SKTypeface.FromFamilyName(font.Family,

@@ -61,7 +61,7 @@ public sealed class KeltnerChannels : Indicator<BandsResult>
         for (int i = 0; i < middle.Length; i++) x[i] = offset + i;
         x = ApplyOffset(x);
 
-        var bandColor = Color ?? Styling.Color.Tab10Orange;
+        var bandColor = Color ?? Colors.Tab10Orange;
         var fill = axes.FillBetween(x, upper, lower);
         fill.Color = bandColor;
         fill.Alpha = Alpha;

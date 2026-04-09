@@ -28,7 +28,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         var proj = new Projection3D(elevation, azimuth, PlotArea,
             range3D.XMin, range3D.XMax, range3D.YMin, range3D.YMax, range3D.ZMin, range3D.ZMax);
 
-        var edgeColor = Color.EdgeGray;
+        var edgeColor = Colors.EdgeGray;
 
         // Draw 3D bounding box (12 edges of a cube)
         double x0 = range3D.XMin, x1 = range3D.XMax;

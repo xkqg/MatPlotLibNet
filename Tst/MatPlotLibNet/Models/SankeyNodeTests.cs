@@ -29,7 +29,7 @@ public class SankeyNodeTests
     [Fact]
     public void Color_CanBeSet()
     {
-        var node = new SankeyNode("A", Color.Blue);
-        Assert.Equal(Color.Blue, node.Color);
+        var node = new SankeyNode("A", Colors.Blue);
+        Assert.Equal(Colors.Blue, node.Color);
     }
 }

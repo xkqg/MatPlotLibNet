@@ -94,7 +94,7 @@ public sealed class Figure
     /// <param name="colEnd">Ending column (0-based, exclusive).</param>
     /// <returns>The newly created <see cref="Axes"/> instance.</returns>
     public Axes AddSubPlot(GridSpec gridSpec, int rowStart, int rowEnd, int colStart, int colEnd) =>
-        AddSubPlot(gridSpec, GridPosition.Span(rowStart, rowEnd, colStart, colEnd));
+        AddSubPlot(gridSpec, new GridPosition(rowStart, rowEnd, colStart, colEnd));
 
     internal void AddAxes(Axes axes) => _subPlots.Add(axes);
 }

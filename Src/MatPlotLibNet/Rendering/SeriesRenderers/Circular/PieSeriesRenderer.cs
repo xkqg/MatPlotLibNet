@@ -28,7 +28,7 @@ internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
                 new LineToSegment(new Point(cx + radius * Math.Cos(startAngle), cy - radius * Math.Sin(startAngle))),
                 new ArcSegment(new Point(cx + radius * Math.Cos(endAngle), cy - radius * Math.Sin(endAngle)), radius, radius, startAngle, endAngle),
                 new CloseSegment()
-            ], sliceColor, Color.White, 1);
+            ], sliceColor, Colors.White, 1);
             startAngle = endAngle;
         }
     }

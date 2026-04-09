@@ -58,7 +58,7 @@ public sealed class BollingerBands : Indicator<BandsResult>
         for (int i = 0; i < middle.Length; i++) x[i] = _period - 1 + i;
         x = ApplyOffset(x);
 
-        var bandColor = Color ?? Styling.Color.Tab10Blue;
+        var bandColor = Color ?? Colors.Tab10Blue;
         var fill = axes.FillBetween(x, upper, lower);
         fill.Color = bandColor;
         fill.Alpha = Alpha;

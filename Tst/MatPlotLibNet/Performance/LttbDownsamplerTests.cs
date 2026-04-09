@@ -8,11 +8,11 @@ namespace MatPlotLibNet.Tests.Performance;
 /// <summary>Verifies <see cref="LttbDownsampler"/> behavior.</summary>
 public class LttbDownsamplerTests
 {
-    private static (double[] X, double[] Y) MakeLine(int n)
+    private static XYData MakeLine(int n)
     {
         double[] x = Enumerable.Range(0, n).Select(i => (double)i).ToArray();
         double[] y = x.Select(v => v * 2).ToArray();
-        return (x, y);
+        return new(x, y);
     }
 
     /// <summary>Verifies that the downsampler implements IDownsampler.</summary>

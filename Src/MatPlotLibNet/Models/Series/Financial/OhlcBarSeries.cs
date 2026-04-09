@@ -15,8 +15,8 @@ public sealed class OhlcBarSeries : ChartSeries, IPriceSeries
     public double[] Low { get; }
     public double[] Close { get; }
     public string[]? DateLabels { get; set; }
-    public Color UpColor { get; set; } = Color.Green;
-    public Color DownColor { get; set; } = Color.Red;
+    public Color UpColor { get; set; } = Colors.Green;
+    public Color DownColor { get; set; } = Colors.Red;
     public double TickWidth { get; set; } = 0.3;
 
     public OhlcBarSeries(double[] open, double[] high, double[] low, double[] close)

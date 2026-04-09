@@ -75,7 +75,7 @@ public class TreeNodeTests
     [Fact]
     public void Color_CanBeSet()
     {
-        var node = new TreeNode { Label = "Colored", Value = 5, Color = Color.Red };
-        Assert.Equal(Color.Red, node.Color);
+        var node = new TreeNode { Label = "Colored", Value = 5, Color = Colors.Red };
+        Assert.Equal(Colors.Red, node.Color);
     }
 }
