@@ -45,8 +45,9 @@ public sealed class PolarAxesRenderer : AxesRenderer
                 new Rect(transform.CenterX - r, transform.CenterY - r, r * 2, r * 2),
                 null, gridColor, 0.5);
 
-            // Tick label on right side
-            string tickLabel = FormatTick(rMax * frac);
+            // Tick label on right side (respects custom formatter if set)
+            double tickValue = rMax * frac;
+            string tickLabel = Axes.YAxis.TickFormatter?.Format(tickValue) ?? FormatTick(tickValue);
             Ctx.DrawText(tickLabel,
                 new Point(transform.CenterX + r + 4, transform.CenterY + 4),
                 labelFont, TextAlignment.Left);

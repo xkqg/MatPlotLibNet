@@ -25,6 +25,13 @@ public sealed class ContourSeries : ChartSeries, IColormappable
     /// <summary>Gets or sets whether the contour regions are filled.</summary>
     public bool Filled { get; set; }
 
+    /// <summary>
+    /// Gets or sets whether contour lines should be labeled with their Z value.
+    /// Note: actual contour label rendering requires marching-squares line computation
+    /// and is deferred to v0.6.0. Setting this flag reserves the property for future use.
+    /// </summary>
+    public bool ShowLabels { get; set; }
+
     /// <summary>Gets or sets the color map used to map contour levels to colors.</summary>
     public IColorMap? ColorMap { get; set; }
 

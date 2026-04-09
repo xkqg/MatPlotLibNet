@@ -4,6 +4,55 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.1] - 2026-04-09
+
+### Added
+
+**Phase C — Text & Annotation**
+- `Annotation.Alignment` (`TextAlignment`) — horizontal text alignment; default `Left`
+- `Annotation.Rotation` (`double`) — text rotation in degrees; default 0
+- `Annotation.ArrowStyle` (`ArrowStyle` enum) — `None`, `Simple` (existing line), `FancyArrow` (line + triangular arrowhead); default `Simple`
+- `Annotation.BackgroundColor` (`Color?`) — optional fill rect drawn behind annotation text
+- `ArrowStyle` enum — `None`, `Simple`, `FancyArrow`
+- `BarSeries.ShowLabels` / `.LabelFormat` — auto-label bars with their values; format string is optional (defaults to G4)
+- `ContourSeries.ShowLabels` — reserves property for future contour line labeling (rendering deferred to v0.6.0; requires marching-squares)
+- `IRenderContext.DrawText(text, position, font, alignment, rotation)` — overload with rotation; default interface method ignores rotation (backward-compatible)
+- `SvgRenderContext.DrawText(..., rotation)` — emits `transform="rotate(…)"` on the SVG text element
+
+**Phase D — Tick System**
+- `ITickLocator` interface — `double[] Locate(double min, double max)` strategy for axis tick positions
+- `AutoLocator(int targetCount = 5)` — extracts the existing nice-number algorithm as a reusable locator
+- `MaxNLocator(int maxN)` — nice numbers capped to at most `maxN` ticks
+- `MultipleLocator(double baseValue)` — ticks at exact multiples of base in `[min, max]`
+- `FixedLocator(double[] positions)` — returns exactly the provided positions filtered to range
+- `LogLocator` — powers of 10 within range
+- `EngFormatter` — SI prefix formatting: 1000→"1k", 1M→"1M", 1e-3→"1m", 1e-6→"1µ" etc.
+- `PercentFormatter(double max)` — `value/max*100` + "%" suffix
+- `Axis.TickLocator` (`ITickLocator?`) — per-axis custom locator; overrides default algorithm
+- `Axis.MajorTicks` and `Axis.MinorTicks` are now settable (changed from `{ get; }` to `{ get; set; }`)
+- Minor tick rendering — when `Axis.MinorTicks.Visible = true`, 5 minor subdivisions per major interval are drawn at half the tick length (3 px vs 5 px), no labels
+- `TickConfig.Spacing` is now respected: auto-creates `MultipleLocator(spacing)` when no explicit locator is set
+- `AxesBuilder.SetXTickLocator()` / `SetYTickLocator()` — fluent tick locator configuration
+- `AxesBuilder.WithMinorTicks(bool)` — enables minor ticks on both axes
+- Bug fix: secondary Y-axis tick labels now correctly use `Axes.SecondaryYAxis.TickFormatter` (was calling `FormatTick` unconditionally)
+- Bug fix: `PolarAxesRenderer` ring labels now use `Axes.YAxis.TickFormatter` when set
+
+**Phase E — Performance**
+- `IDownsampler` interface — `(double[] X, double[] Y) Downsample(double[] x, double[] y, int targetPoints)`
+- `LttbDownsampler` — Largest-Triangle-Three-Buckets O(n) algorithm; preserves visual peaks/troughs; always keeps first and last point
+- `ViewportCuller` (static) — filters XY data to `[xMin, xMax]` keeping one point on each side for correct line clipping
+- `XYSeries.MaxDisplayPoints` (`int?`) — opt-in downsampling for `LineSeries`, `AreaSeries`, `ScatterSeries`, `StepSeries`; viewport culling followed by LTTB when enabled
+- `DataTransform.DataXMin/XMax/YMin/YMax` — public properties exposing the current viewport bounds (needed by renderers to pass to `ViewportCuller`)
+- `AxesBuilder.WithDownsampling(int maxPoints = 2000)` — fluent downsampling configuration on last XY series
+- `AxesBuilder.WithBarLabels(string? format = null)` — fluent bar label configuration on last bar series
+
+### Changed
+
+- `CartesianAxesRenderer` tick computation now calls `ComputeTickValues(min, max, Axis)` — respects `TickLocator` and `Spacing`
+- `BarSeriesRenderer` — appends value text above vertical bars / beside horizontal bars when `ShowLabels = true`
+- `LineSeriesRenderer`, `AreaSeriesRenderer`, `StepSeriesRenderer` — apply viewport culling + LTTB before rendering when `MaxDisplayPoints` is set
+- `ScatterSeriesRenderer` — applies viewport culling when `MaxDisplayPoints` is set
+
 ## [0.5.0] - 2026-04-09
 
 ### Added

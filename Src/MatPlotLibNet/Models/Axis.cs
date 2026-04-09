@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering.TickLocators;
 
 namespace MatPlotLibNet.Models;
 
@@ -20,17 +21,25 @@ public sealed class Axis
     /// <summary>Gets or sets the scale type for this axis.</summary>
     public AxisScale Scale { get; set; } = AxisScale.Linear;
 
-    /// <summary>Gets the major tick configuration for this axis.</summary>
-    public TickConfig MajorTicks { get; } = new();
+    /// <summary>Gets or sets the major tick configuration for this axis.</summary>
+    public TickConfig MajorTicks { get; set; } = new();
 
-    /// <summary>Gets the minor tick configuration for this axis.</summary>
-    public TickConfig MinorTicks { get; } = new();
+    /// <summary>Gets or sets the minor tick configuration for this axis.</summary>
+    public TickConfig MinorTicks { get; set; } = new();
 
     /// <summary>Gets or sets whether the axis direction is inverted.</summary>
     public bool Inverted { get; set; }
 
     /// <summary>Gets or sets a custom tick formatter for this axis.</summary>
     public ITickFormatter? TickFormatter { get; set; }
+
+    /// <summary>
+    /// Gets or sets a custom tick locator for this axis.
+    /// When set, overrides the default nice-number algorithm.
+    /// When <see cref="TickConfig.Spacing"/> is set and no locator is provided, a
+    /// <see cref="MultipleLocator"/> is used automatically.
+    /// </summary>
+    public ITickLocator? TickLocator { get; set; }
 }
 
 /// <summary>Specifies the scale type used for an axis.</summary>

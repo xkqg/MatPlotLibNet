@@ -156,6 +156,54 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Sets a custom tick locator on the X-axis, overriding the default nice-number algorithm.</summary>
+    public AxesBuilder SetXTickLocator(Rendering.TickLocators.ITickLocator locator)
+    {
+        _axes.XAxis.TickLocator = locator;
+        return this;
+    }
+
+    /// <summary>Sets a custom tick locator on the Y-axis, overriding the default nice-number algorithm.</summary>
+    public AxesBuilder SetYTickLocator(Rendering.TickLocators.ITickLocator locator)
+    {
+        _axes.YAxis.TickLocator = locator;
+        return this;
+    }
+
+    /// <summary>Enables minor tick marks on both axes. Minor ticks subdivide each major interval into 5 sub-intervals.</summary>
+    public AxesBuilder WithMinorTicks(bool visible = true)
+    {
+        _axes.XAxis.MinorTicks = _axes.XAxis.MinorTicks with { Visible = visible };
+        _axes.YAxis.MinorTicks = _axes.YAxis.MinorTicks with { Visible = visible };
+        return this;
+    }
+
+    /// <summary>
+    /// Enables bar value labels on the last <see cref="BarSeries"/> added to this axes.
+    /// </summary>
+    /// <param name="format">Optional .NET format string (e.g. "F1"). When null, uses "G4".</param>
+    public AxesBuilder WithBarLabels(string? format = null)
+    {
+        if (_axes.Series.LastOrDefault(s => s is BarSeries) is BarSeries bar)
+        {
+            bar.ShowLabels = true;
+            bar.LabelFormat = format;
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// Enables LTTB downsampling on the last XY series (Line, Area, Scatter, Step) added to this axes.
+    /// Viewport culling is applied first; if the result still exceeds <paramref name="maxPoints"/>, LTTB reduces it.
+    /// </summary>
+    /// <param name="maxPoints">Maximum number of points to display. Default is 2000.</param>
+    public AxesBuilder WithDownsampling(int maxPoints = 2000)
+    {
+        if (_axes.Series.LastOrDefault(s => s is Models.Series.XYSeries) is Models.Series.XYSeries xy)
+            xy.MaxDisplayPoints = maxPoints;
+        return this;
+    }
+
     /// <summary>Sets the bar mode (grouped or stacked) for multiple bar series.</summary>
     public AxesBuilder SetBarMode(BarMode mode) { _axes.BarMode = mode; return this; }
 

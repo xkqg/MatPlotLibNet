@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Downsampling;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -13,10 +14,15 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
     public override void Render(ScatterSeries series)
     {
         var color = ResolveColor(series.Color);
-        for (int i = 0; i < series.XData.Length; i++)
+        // Viewport culling for scatter (no LTTB — scatter points don't need visual-shape preservation)
+        var (xData, yData) = series.MaxDisplayPoints.HasValue
+            ? ViewportCuller.Cull(series.XData, series.YData, Transform.DataXMin, Transform.DataXMax)
+            : (series.XData, series.YData);
+
+        for (int i = 0; i < xData.Length; i++)
         {
-            BeginTooltip($"x={series.XData[i]:G5}, y={series.YData[i]:G5}");
-            var pt = Transform.DataToPixel(series.XData[i], series.YData[i]);
+            BeginTooltip($"x={xData[i]:G5}, y={yData[i]:G5}");
+            var pt = Transform.DataToPixel(xData[i], yData[i]);
             double size = series.Sizes is not null ? Math.Sqrt(series.Sizes[i]) : Math.Sqrt(series.MarkerSize);
             var c = series.Colors is not null ? series.Colors[i] : color;
             Ctx.DrawCircle(pt, size / 2, c, null, 0);

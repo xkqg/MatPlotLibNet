@@ -45,6 +45,12 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable
     /// <inheritdoc />
     public double[]? StackBaseline { get; set; }
 
+    /// <summary>Gets or sets whether to display the bar values as text labels above (or beside) each bar.</summary>
+    public bool ShowLabels { get; set; }
+
+    /// <summary>Gets or sets the format string used for bar value labels (e.g. "F1" for one decimal place). Null uses the default numeric format.</summary>
+    public string? LabelFormat { get; set; }
+
     /// <summary>Initializes a new instance of <see cref="BarSeries"/> with the specified categories and values.</summary>
     /// <param name="categories">The category labels for each bar.</param>
     /// <param name="values">The numeric values for each bar.</param>

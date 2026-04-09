@@ -256,7 +256,7 @@ public abstract class AxesRenderer
         }
     }
 
-    /// <summary>Computes aesthetically-spaced tick values.</summary>
+    /// <summary>Computes aesthetically-spaced tick values using the default nice-number algorithm.</summary>
     protected static double[] ComputeTickValues(double min, double max, int targetCount = 5)
     {
         double range = max - min;
@@ -280,5 +280,22 @@ public abstract class AxesRenderer
             ticks.Add(Math.Round(t, 10));
 
         return ticks.ToArray();
+    }
+
+    /// <summary>
+    /// Computes tick values respecting any <see cref="Axis.TickLocator"/> or <see cref="TickConfig.Spacing"/>
+    /// configured on the axis, falling back to the default nice-number algorithm.
+    /// </summary>
+    protected static double[] ComputeTickValues(double min, double max, Axis axis)
+    {
+        // Explicit locator takes highest priority
+        if (axis.TickLocator is not null)
+            return axis.TickLocator.Locate(min, max);
+
+        // TickConfig.Spacing auto-creates a MultipleLocator
+        if (axis.MajorTicks.Spacing.HasValue)
+            return new TickLocators.MultipleLocator(axis.MajorTicks.Spacing.Value).Locate(min, max);
+
+        return ComputeTickValues(min, max);
     }
 }

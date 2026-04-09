@@ -3,6 +3,9 @@
 
 using MatPlotLibNet;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Transforms;
@@ -93,5 +96,69 @@ Plt.Create()
     .AddSubPlot(GridPosition.Span(1, 2, 0, 2), ax => ax.Bar(categories2, catValues).WithTitle("Wide bar"))
     .Save("gridspec_layout.svg");
 Console.WriteLine("Saved gridspec_layout.svg");
+
+// --- 8. Custom tick locators ---
+double[] bigX = Enumerable.Range(0, 200).Select(i => (double)i).ToArray();
+double[] bigY = bigX.Select(v => Math.Sin(v * 0.1) * 100_000 + v * 500).ToArray();
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithTitle("Engineering notation + MultipleLocator")
+        .SetXLabel("Sample index")
+        .SetYLabel("Amplitude")
+        .Plot(bigX, bigY, line => { line.Label = "Signal"; })
+        .SetYTickFormatter(new EngFormatter())           // e.g. "100k", "50k"
+        .SetXTickLocator(new MultipleLocator(25))        // ticks every 25 samples
+        .WithMinorTicks())
+    .Save("tick_locators.svg");
+Console.WriteLine("Saved tick_locators.svg");
+
+// --- 9. Bar labels ---
+string[] products = ["Alpha", "Beta", "Gamma", "Delta"];
+double[] sales    = [12_500, 34_800, 8_200, 27_600];
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithTitle("Sales by Product")
+        .SetYLabel("Revenue ($)")
+        .Bar(products, sales, bar => { bar.Color = Color.Tab10Blue; bar.Label = "Q1 Sales"; })
+        .WithBarLabels("F0")                            // integer labels above bars
+        .SetYTickFormatter(new EngFormatter()))
+    .Save("bar_labels.svg");
+Console.WriteLine("Saved bar_labels.svg");
+
+// --- 10. LTTB downsampling for large dataset ---
+double[] largeX = Enumerable.Range(0, 10_000).Select(i => (double)i).ToArray();
+double[] largeY = largeX.Select(v => Math.Sin(v * 0.05) * Math.Exp(-v * 0.0003) + (v % 500 == 0 ? 5 : 0)).ToArray();
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithTitle("10 000-point signal (LTTB → 500 display points)")
+        .SetXLabel("Time")
+        .SetYLabel("Amplitude")
+        .Plot(largeX, largeY, line => { line.Label = "Signal"; })
+        .WithDownsampling(500))                         // LTTB to 500 points
+    .Save("lttb_downsampling.svg");
+Console.WriteLine("Saved lttb_downsampling.svg");
+
+// --- 11. Rotated + background annotation ---
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithTitle("Annotation Enhancements")
+        .Plot(x, y, line => { line.Label = "Data"; })
+        .Annotate("Peak", 8, 8.9, ann =>
+        {
+            ann.ArrowTargetX = 8;
+            ann.ArrowTargetY = 8.9;
+            ann.ArrowStyle   = MatPlotLibNet.Models.ArrowStyle.FancyArrow;
+            ann.BackgroundColor = Color.White;
+        })
+        .Annotate("Rotated label", 2, 4.5, ann =>
+        {
+            ann.Rotation  = -30;
+            ann.Alignment = MatPlotLibNet.Rendering.TextAlignment.Center;
+        }))
+    .Save("annotations_enhanced.svg");
+Console.WriteLine("Saved annotations_enhanced.svg");
 
 Console.WriteLine("Done!");

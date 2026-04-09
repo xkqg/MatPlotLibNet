@@ -10,6 +10,18 @@ public sealed class DataTransform
     private readonly double _dataXMin, _dataXMax, _dataYMin, _dataYMax;
     private readonly Rect _plotBounds;
 
+    /// <summary>Gets the minimum X value in data space.</summary>
+    public double DataXMin => _dataXMin;
+
+    /// <summary>Gets the maximum X value in data space.</summary>
+    public double DataXMax => _dataXMax;
+
+    /// <summary>Gets the minimum Y value in data space.</summary>
+    public double DataYMin => _dataYMin;
+
+    /// <summary>Gets the maximum Y value in data space.</summary>
+    public double DataYMax => _dataYMax;
+
     /// <summary>Initializes a new transform mapping the specified data range onto the given pixel bounds.</summary>
     /// <param name="dataXMin">Minimum X value in data space.</param>
     /// <param name="dataXMax">Maximum X value in data space.</param>

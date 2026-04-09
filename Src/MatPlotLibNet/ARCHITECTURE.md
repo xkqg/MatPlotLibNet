@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.5.0)
+# MatPlotLibNet Core -- Architecture (v0.5.1)
 
 ## Package dependency graph
 
@@ -47,7 +47,8 @@ MatPlotLibNet/
     Figure.cs                         top-level container (Title, Width, Height, Theme, EnableZoomPan)
     Axes.cs                           subplot: series, annotations, ref lines, spans, secondary axis, insets, ShareX/ShareY
     Axis.cs                           label, min/max, scale, ticks
-    Annotation.cs                     text annotation at data coordinates with optional arrow
+    Annotation.cs                     text annotation: Text, X, Y, ArrowTarget, Alignment, Rotation, ArrowStyle, BackgroundColor
+    ArrowStyle.cs                     enum: None, Simple, FancyArrow
     ReferenceLine.cs                  horizontal/vertical reference line (AxHLine, AxVLine)
     SpanRegion.cs                     shaded horizontal/vertical region (AxHSpan, AxVSpan)
     GridSpec.cs                       unequal subplot layout: Rows, Cols, HeightRatios, WidthRatios
@@ -68,13 +69,13 @@ MatPlotLibNet/
       IColorBarDataProvider.cs        interface: GetColorBarRange() + ColorMap for colorbar auto-detection
       IStackable.cs                   interface: StackBaseline for bar stacking offset computation
       ChartSeries.cs                  abstract base: implements ISeries + ISeriesSerializable
-      XYSeries.cs                     generic base: XData, YData (Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Stem, Ecdf)
+      XYSeries.cs                     generic base: XData, YData, MaxDisplayPoints (Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Stem, Ecdf)
       PolarSeries.cs                  generic base: RData, ThetaData (PolarLine, PolarScatter, PolarBar)
       GridSeries3D.cs                 generic base: XData, YData, ZData[,] (Surface, Wireframe)
       HierarchicalSeries.cs           abstract base: Root, ColorMap, ShowLabels, IColormappable (Treemap, Sunburst)
       LineSeries.cs                   XYSeries: Color, LineStyle, LineWidth, Marker
       ScatterSeries.cs                XYSeries: Color, MarkerSize, Sizes[], Colors[], IColormappable
-      BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth, StackBaseline, ICategoryLabeled, IStackable
+      BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth, StackBaseline, ShowLabels, LabelFormat, ICategoryLabeled, IStackable
       HistogramSeries.cs              Data, Bins, Color, Alpha, ComputeBins()
       PieSeries.cs                    Sizes, Labels, Colors[], StartAngle
       HeatmapSeries.cs                Data[,], ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider
@@ -82,7 +83,7 @@ MatPlotLibNet/
       Histogram2DSeries.cs            X[], Y[], BinsX, BinsY, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       BoxSeries.cs                    Datasets[][], Color, MedianColor, ShowOutliers
       ViolinSeries.cs                 Datasets[][], Color, Alpha
-      ContourSeries.cs                XData, YData, ZData[,], Levels, ColorMap, IColormappable, IHasDataRange
+      ContourSeries.cs                XData, YData, ZData[,], Levels, Filled, ShowLabels (deferred), ColorMap, IColormappable, IHasDataRange
       StemSeries.cs                   XYSeries: MarkerColor, StemColor, BaselineColor
       AreaSeries.cs                   XYSeries: YData2 (fill between), Alpha, FillColor
       StepSeries.cs                   XYSeries: StepPosition (Pre/Mid/Post)
@@ -159,17 +160,38 @@ MatPlotLibNet/
     CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, series, annotations, signals
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
-    IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, etc.
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 34 series types
-    DataTransform.cs                  data space <-> pixel space coordinate mapping
+    IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation) overload
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 39 series types
+    DataTransform.cs                  data space <-> pixel space; exposes DataXMin/XMax/YMin/YMax
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
+
+    TickLocators/                       ITickLocator strategy for axis tick placement
+      ITickLocator.cs                   interface: double[] Locate(double min, double max)
+      AutoLocator.cs                    nice-number algorithm (extracted from AxesRenderer)
+      MaxNLocator.cs                    nice numbers capped to at most N ticks
+      MultipleLocator.cs                ticks at multiples of a fixed base
+      FixedLocator.cs                   exactly the provided positions within range
+      LogLocator.cs                     powers of 10 within range
+
+    TickFormatters/
+      ITickFormatter.cs                 interface: string Format(double value)
+      NumericTickFormatter.cs           G5 with scientific fallback
+      DateTickFormatter.cs              OLE dates with configurable format string
+      LogTickFormatter.cs               powers of 10
+      EngFormatter.cs                   SI prefix engineering notation (k, M, G, m, µ, n)
+      PercentFormatter.cs               value/max*100 + "%" suffix
+
+    Downsampling/                       performance helpers for large datasets
+      IDownsampler.cs                   interface: Downsample(x, y, targetPoints)
+      LttbDownsampler.cs                Largest-Triangle-Three-Buckets O(n) algorithm
+      ViewportCuller.cs                 static: filter to [xMin,xMax] + one padding point each side
 
     SeriesRenderers/                    generic SeriesRenderer<T> per series type
       SeriesRenderContext.cs            record: Transform + Ctx + Color + Area + options
       SeriesRenderer.cs                 abstract base + generic SeriesRenderer<T>
-      XY/                               Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Ecdf, StackedArea
-      Categorical/                      Bar, Histogram, Waterfall, Funnel, Gantt, ProgressBar
+      XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea
+      Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar
       Circular/                         Pie, Radar, Donut, Gauge
       Grid/                             Heatmap, Contour, Image, Histogram2D
       Distribution/                     Box, Violin

@@ -10,7 +10,7 @@ Creates charts and exports to SVG, PNG, and PDF.
 dotnet run --project MatPlotLibNet.Samples.Console
 ```
 
-Produces: `chart.svg`, `chart.png`, `chart.pdf`, `dashboard.svg`, `heatmap_colormap.svg`, `colormap_comparison.svg`, `gridspec_layout.svg`
+Produces: `chart.svg`, `chart.png`, `chart.pdf`, `dashboard.svg`, `heatmap_colormap.svg`, `colormap_comparison.svg`, `gridspec_layout.svg`, `tick_locators.svg`, `bar_labels.svg`, `lttb_downsampling.svg`, `annotations_enhanced.svg`
 
 ## Blazor
 

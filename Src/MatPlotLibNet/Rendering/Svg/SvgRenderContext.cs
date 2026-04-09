@@ -113,6 +113,31 @@ public sealed class SvgRenderContext : IRenderContext
     }
 
     /// <inheritdoc />
+    public void DrawText(string text, Point position, Font font, TextAlignment alignment, double rotation)
+    {
+        if (rotation == 0) { DrawText(text, position, font, alignment); return; }
+
+        string anchor = alignment switch
+        {
+            TextAlignment.Left => "start",
+            TextAlignment.Center => "middle",
+            TextAlignment.Right => "end",
+            _ => "start"
+        };
+
+        // SVG rotation: negative because SVG y-axis is flipped vs. mathematical convention
+        _sb.Append("<text x=\"").Append(F(position.X)).Append("\" y=\"").Append(F(position.Y))
+           .Append("\" font-family=\"").Append(font.Family).Append("\" font-size=\"").Append(F(font.Size))
+           .Append("\" text-anchor=\"").Append(anchor).Append('"')
+           .Append(" transform=\"rotate(").Append(F(-rotation)).Append(',')
+           .Append(F(position.X)).Append(',').Append(F(position.Y)).Append(")\"");
+        if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
+        if (font.Weight == FontWeight.Bold) _sb.Append(" font-weight=\"bold\"");
+        if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
+        _sb.Append('>').Append(EscapeXml(text)).AppendLine("</text>");
+    }
+
+    /// <inheritdoc />
     public void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness)
     {
         _sb.Append("<path d=\"");

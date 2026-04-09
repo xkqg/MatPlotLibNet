@@ -26,9 +26,9 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         var range = ComputeDataRanges();
         var transform = new DataTransform(range.XMin, range.XMax, range.YMin, range.YMax, PlotArea);
 
-        // Compute tick values once for grid + ticks
-        var xTicks = ComputeTickValues(range.XMin, range.XMax);
-        var yTicks = ComputeTickValues(range.YMin, range.YMax);
+        // Compute tick values once for grid + ticks (respects TickLocator / Spacing)
+        var xTicks = ComputeTickValues(range.XMin, range.XMax, Axes.XAxis);
+        var yTicks = ComputeTickValues(range.YMin, range.YMax, Axes.YAxis);
 
         // Skip standard grid/ticks/frame for radar-only axes
         bool radarOnly = Axes.Series.Count > 0 && Axes.Series.All(s => s is RadarSeries);
@@ -133,7 +133,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, pt.Y),
                     new Point(PlotArea.X + PlotArea.Width + 5, pt.Y),
                     Theme.ForegroundText, 1, LineStyle.Solid);
-                Ctx.DrawText(FormatTick(tick),
+                Ctx.DrawText(Axes.SecondaryYAxis!.TickFormatter?.Format(tick) ?? FormatTick(tick),
                     new Point(PlotArea.X + PlotArea.Width + 8, pt.Y + 4),
                     tickFont, TextAlignment.Left);
             }
@@ -156,13 +156,46 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 Color = annotation.Color ?? Theme.ForegroundText
             };
             var textPos = transform.DataToPixel(annotation.X, annotation.Y);
-            Ctx.DrawText(annotation.Text, textPos, annotFont, TextAlignment.Left);
 
-            if (annotation.ArrowTargetX.HasValue && annotation.ArrowTargetY.HasValue)
+            // Optional background fill behind text
+            if (annotation.BackgroundColor.HasValue)
+            {
+                var textSize = Ctx.MeasureText(annotation.Text, annotFont);
+                var bgRect = new Rect(textPos.X - 2, textPos.Y - textSize.Height, textSize.Width + 4, textSize.Height + 2);
+                Ctx.DrawRectangle(bgRect, annotation.BackgroundColor.Value, null, 0);
+            }
+
+            // Draw text with alignment and optional rotation
+            if (annotation.Rotation != 0)
+                Ctx.DrawText(annotation.Text, textPos, annotFont, annotation.Alignment, annotation.Rotation);
+            else
+                Ctx.DrawText(annotation.Text, textPos, annotFont, annotation.Alignment);
+
+            // Arrow (respects ArrowStyle)
+            if (annotation.ArrowTargetX.HasValue && annotation.ArrowTargetY.HasValue
+                && annotation.ArrowStyle != ArrowStyle.None)
             {
                 var arrowTarget = transform.DataToPixel(annotation.ArrowTargetX.Value, annotation.ArrowTargetY.Value);
                 var arrowColor = annotation.ArrowColor ?? annotation.Color ?? Theme.ForegroundText;
                 Ctx.DrawLine(textPos, arrowTarget, arrowColor, 1, LineStyle.Solid);
+
+                if (annotation.ArrowStyle == ArrowStyle.FancyArrow)
+                {
+                    // Small triangular arrowhead at target
+                    double dx = arrowTarget.X - textPos.X;
+                    double dy = arrowTarget.Y - textPos.Y;
+                    double len = Math.Sqrt(dx * dx + dy * dy);
+                    if (len > 0)
+                    {
+                        double ux = dx / len, uy = dy / len;
+                        double nx = -uy, ny = ux; // perpendicular
+                        const double headLen = 8, headHalf = 4;
+                        var tip = arrowTarget;
+                        var left  = new Point(tip.X - ux * headLen + nx * headHalf, tip.Y - uy * headLen + ny * headHalf);
+                        var right = new Point(tip.X - ux * headLen - nx * headHalf, tip.Y - uy * headLen - ny * headHalf);
+                        Ctx.DrawPolygon([tip, left, right], arrowColor, null, 0);
+                    }
+                }
             }
         }
 
@@ -218,7 +251,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         }
     }
 
-    /// <summary>Renders tick marks and tick labels along the X and Y axes.</summary>
+    /// <summary>Renders tick marks and tick labels along the X and Y axes, including minor ticks when enabled.</summary>
     private void RenderTicks(double[] xTicks, double[] yTicks, double yMin, DataTransform transform)
     {
         var tickFont = TickFont();
@@ -237,6 +270,24 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                     new Point(pt.X, PlotArea.Y + PlotArea.Height + 15),
                     tickFont, TextAlignment.Center);
             }
+
+            // Minor X ticks (no labels, shorter mark)
+            if (Axes.XAxis.MinorTicks.Visible && xTicks.Length >= 2)
+            {
+                double majorStep = xTicks[1] - xTicks[0];
+                double minorStep = majorStep / 5;
+                double xStart = xTicks[0] - majorStep;
+                double xEnd   = xTicks[^1] + majorStep;
+                for (double mt = xStart; mt <= xEnd + minorStep * 0.01; mt += minorStep)
+                {
+                    mt = Math.Round(mt, 10);
+                    // Skip positions that coincide with a major tick
+                    if (Array.Exists(xTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
+                    var pt = transform.DataToPixel(mt, yMin);
+                    if (pt.X < PlotArea.X || pt.X > PlotArea.X + PlotArea.Width) continue;
+                    Ctx.DrawLine(pt, new Point(pt.X, pt.Y + 3), Theme.ForegroundText, 0.5, LineStyle.Solid);
+                }
+            }
         }
 
         var yFormatter = Axes.YAxis.TickFormatter;
@@ -247,6 +298,23 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             Ctx.DrawText(yFormatter?.Format(tick) ?? FormatTick(tick),
                 new Point(PlotArea.X - 8, pt.Y + 4),
                 tickFont, TextAlignment.Right);
+        }
+
+        // Minor Y ticks (no labels, shorter mark)
+        if (Axes.YAxis.MinorTicks.Visible && yTicks.Length >= 2)
+        {
+            double majorStep = yTicks[1] - yTicks[0];
+            double minorStep = majorStep / 5;
+            double yStart = yTicks[0] - majorStep;
+            double yEnd   = yTicks[^1] + majorStep;
+            for (double mt = yStart; mt <= yEnd + minorStep * 0.01; mt += minorStep)
+            {
+                mt = Math.Round(mt, 10);
+                if (Array.Exists(yTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
+                var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, mt);
+                if (pt.Y < PlotArea.Y || pt.Y > PlotArea.Y + PlotArea.Height) continue;
+                Ctx.DrawLine(new Point(pt.X - 3, pt.Y), pt, Theme.ForegroundText, 0.5, LineStyle.Solid);
+            }
         }
     }
 

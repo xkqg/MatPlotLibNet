@@ -1,4 +1,4 @@
-# How to use MatPlotLibNet (v0.5.0)
+# How to use MatPlotLibNet (v0.5.1)
 
 
 ## Install
@@ -548,3 +548,141 @@ DisplayMode.Popup       // thumbnail with "open in new tab" link
 ```
 
 Used by Blazor's `MplChart` component and applicable to Angular components.
+
+---
+
+## 16. Tick locators and formatters (v0.5.1)
+
+By default, MatPlotLibNet uses a nice-number algorithm to choose 5 aesthetically-spaced ticks.
+You can override this per-axis with any `ITickLocator` implementation.
+
+### Built-in locators
+
+| Locator | Behaviour |
+|---------|-----------|
+| `AutoLocator(n)` | Nice numbers, ~n ticks (default algorithm, now a first-class object) |
+| `MaxNLocator(n)` | Nice numbers, at most n ticks |
+| `MultipleLocator(base)` | Ticks at exact multiples of `base` (e.g., every 0.25) |
+| `FixedLocator(positions[])` | Exactly the given positions within range |
+| `LogLocator` | Powers of 10 (for log-scale axes) |
+
+```csharp
+using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Rendering.TickFormatters;
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y)
+        .SetXTickLocator(new MultipleLocator(25))      // ticks every 25 units
+        .SetYTickLocator(new MaxNLocator(4))            // at most 4 Y ticks
+        .SetYTickFormatter(new EngFormatter())          // 1000 → "1k"
+        .WithMinorTicks())                              // subdivide major intervals by 5
+    .Save("chart.svg");
+```
+
+### Built-in formatters
+
+| Formatter | Example output |
+|-----------|---------------|
+| `EngFormatter` | 1000 → "1k", 1500 → "1.5k", 0.001 → "1m", 1e6 → "1M" |
+| `PercentFormatter(max)` | `value/max*100` + "%" — e.g., `new PercentFormatter(1.0)` formats 0.5 → "50%" |
+| `NumericTickFormatter` | Default: G5, scientific for large/tiny values |
+| `DateTickFormatter` | OLE Automation dates, configurable format string |
+
+Axis-level locator and formatter:
+
+```csharp
+// Direct model access
+axes.XAxis.TickLocator = new FixedLocator([0, Math.PI, 2 * Math.PI]);
+axes.XAxis.TickFormatter = new NumericTickFormatter();
+axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Spacing = 0.5 }; // auto MultipleLocator
+axes.YAxis.MinorTicks = axes.YAxis.MinorTicks with { Visible = true };
+```
+
+---
+
+## 17. Annotation enhancements (v0.5.1)
+
+Annotations gained four new properties for richer labeling:
+
+```csharp
+axes.Annotate("Max value", dataX, dataY, ann =>
+{
+    ann.ArrowTargetX     = dataX;
+    ann.ArrowTargetY     = dataY;
+    ann.ArrowStyle       = ArrowStyle.FancyArrow;    // triangular arrowhead
+    ann.BackgroundColor  = Color.White;              // highlight box behind text
+    ann.Alignment        = TextAlignment.Center;
+    ann.Rotation         = -30;                      // degrees
+});
+```
+
+| Property | Type | Default | Notes |
+|----------|------|---------|-------|
+| `Alignment` | `TextAlignment` | `Left` | `Left`, `Center`, `Right` |
+| `Rotation` | `double` | `0` | Degrees; positive = CCW in standard math |
+| `ArrowStyle` | `ArrowStyle` | `Simple` | `None`, `Simple`, `FancyArrow` |
+| `BackgroundColor` | `Color?` | `null` | Fill rect behind label |
+
+Fluent:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y)
+        .Annotate("Peak", 8, 9.0, ann =>
+        {
+            ann.ArrowTargetX = 8; ann.ArrowTargetY = 9.0;
+            ann.ArrowStyle   = ArrowStyle.FancyArrow;
+            ann.BackgroundColor = Color.White;
+        }))
+    .Save("annotated.svg");
+```
+
+### Bar labels
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Bar(categories, values)
+        .WithBarLabels("F0"))   // integer labels above each bar
+    .Save("bar_labels.svg");
+```
+
+---
+
+## 18. Performance — LTTB downsampling (v0.5.1)
+
+For large datasets (>5 000 points), rendering every point is wasteful and visually indistinguishable.
+The **Largest-Triangle-Three-Buckets** (LTTB) algorithm selects O(target) representative points that
+preserve the visual shape (peaks, troughs, changes) of the original series.
+
+```csharp
+// Opt-in via MaxDisplayPoints (null = no downsampling)
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(largeX, largeY)
+        .WithDownsampling(500))   // cull to viewport, then LTTB to 500 pts
+    .Save("chart.svg");
+```
+
+The pipeline is:
+1. **Viewport cull** — discard points outside the current X axis range (keep one each side for line clipping)
+2. **LTTB** — if culled count > `maxPoints`, run LTTB; always preserves first and last point
+
+Lower-level access:
+
+```csharp
+using MatPlotLibNet.Rendering.Downsampling;
+
+// Standalone LTTB
+var (outX, outY) = new LttbDownsampler().Downsample(x, y, targetPoints: 300);
+
+// Standalone viewport cull
+var (cx, cy) = ViewportCuller.Cull(x, y, xMin: 100, xMax: 500);
+
+// Direct on model
+lineSeries.MaxDisplayPoints = 1000;
+```
+
+Applies to: `LineSeries`, `AreaSeries`, `ScatterSeries`, `StepSeries`.

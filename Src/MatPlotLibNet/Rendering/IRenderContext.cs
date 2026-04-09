@@ -33,6 +33,14 @@ public interface IRenderContext
     /// <summary>Draws a text string at the specified position with the given font and alignment.</summary>
     void DrawText(string text, Point position, Font font, TextAlignment alignment);
 
+    /// <summary>
+    /// Draws a rotated text string at the specified position.
+    /// <paramref name="rotation"/> is in degrees, positive = counter-clockwise in standard math orientation.
+    /// Default implementation ignores rotation and delegates to the non-rotated overload.
+    /// </summary>
+    void DrawText(string text, Point position, Font font, TextAlignment alignment, double rotation)
+        => DrawText(text, position, font, alignment);
+
     /// <summary>Draws a complex path composed of move, line, bezier, arc, and close segments.</summary>
     void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness);
 

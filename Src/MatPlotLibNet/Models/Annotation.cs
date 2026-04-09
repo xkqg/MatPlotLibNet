@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models;
@@ -31,6 +32,18 @@ public sealed class Annotation
 
     /// <summary>Gets or sets the arrow color.</summary>
     public Color? ArrowColor { get; set; }
+
+    /// <summary>Gets or sets the horizontal alignment of the annotation text. Default is <see cref="TextAlignment.Left"/>.</summary>
+    public TextAlignment Alignment { get; set; } = TextAlignment.Left;
+
+    /// <summary>Gets or sets the rotation angle of the annotation text in degrees. Default is 0 (horizontal).</summary>
+    public double Rotation { get; set; }
+
+    /// <summary>Gets or sets the visual style of the arrow. Default is <see cref="ArrowStyle.Simple"/>.</summary>
+    public ArrowStyle ArrowStyle { get; set; } = ArrowStyle.Simple;
+
+    /// <summary>Gets or sets an optional background fill color drawn behind the annotation text.</summary>
+    public Color? BackgroundColor { get; set; }
 
     /// <summary>Creates a new annotation at the given data coordinates.</summary>
     public Annotation(string text, double x, double y)

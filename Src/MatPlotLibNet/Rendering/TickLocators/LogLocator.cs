@@ -1,0 +1,43 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
+
+namespace MatPlotLibNet.Rendering.TickLocators;
+
+/// <summary>
+/// Places ticks at powers of 10 within [min, max].
+/// Equivalent to matplotlib's <c>LogLocator</c> with base=10.
+/// Requires min &gt; 0.
+/// </summary>
+public sealed class LogLocator : ITickLocator
+{
+    /// <inheritdoc />
+    public double[] Locate(double min, double max)
+    {
+        if (min <= 0) min = 1e-10;
+        if (max <= min) return [min];
+
+        int startExp = (int)Math.Floor(Math.Log10(min));
+        int endExp   = (int)Math.Ceiling(Math.Log10(max));
+
+        var ticks = new List<double>();
+        for (int exp = startExp; exp <= endExp; exp++)
+        {
+            double t = Math.Pow(10, exp);
+            if (t >= min && t <= max)
+                ticks.Add(t);
+        }
+
+        // If nothing fell in range (e.g. min=1, max=5 — both within decade 0..1)
+        // include the lower decade boundary if valid
+        if (ticks.Count == 0)
+        {
+            double lower = Math.Pow(10, startExp);
+            if (lower >= min && lower <= max)
+                ticks.Add(lower);
+            else
+                ticks.Add(min);
+        }
+
+        return ticks.ToArray();
+    }
+}
