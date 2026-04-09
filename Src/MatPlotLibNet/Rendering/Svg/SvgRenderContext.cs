@@ -117,29 +117,7 @@ public sealed class SvgRenderContext : IRenderContext
     {
         _sb.Append("<path d=\"");
         foreach (var seg in segments)
-        {
-            switch (seg)
-            {
-                case MoveToSegment m:
-                    _sb.Append("M ").Append(F(m.Point.X)).Append(' ').Append(F(m.Point.Y)).Append(' ');
-                    break;
-                case LineToSegment l:
-                    _sb.Append("L ").Append(F(l.Point.X)).Append(' ').Append(F(l.Point.Y)).Append(' ');
-                    break;
-                case BezierSegment b:
-                    _sb.Append("C ").Append(F(b.Control1.X)).Append(' ').Append(F(b.Control1.Y)).Append(' ')
-                       .Append(F(b.Control2.X)).Append(' ').Append(F(b.Control2.Y)).Append(' ')
-                       .Append(F(b.End.X)).Append(' ').Append(F(b.End.Y)).Append(' ');
-                    break;
-                case ArcSegment a:
-                    _sb.Append("A ").Append(F(a.RadiusX)).Append(' ').Append(F(a.RadiusY))
-                       .Append(" 0 0 1 ").Append(F(a.Center.X)).Append(' ').Append(F(a.Center.Y)).Append(' ');
-                    break;
-                case CloseSegment:
-                    _sb.Append("Z ");
-                    break;
-            }
-        }
+            _sb.Append(seg.ToSvgPathData());
         _sb.Append('"');
         AppendFillStroke(fill, stroke, strokeThickness);
         _sb.AppendLine(" />");
@@ -177,13 +155,13 @@ public sealed class SvgRenderContext : IRenderContext
     }
 
     /// <summary>Opens an SVG group element with a CSS class attribute.</summary>
-    internal void BeginGroup(string cssClass)
+    public void BeginGroup(string cssClass)
     {
         _sb.Append("<g class=\"").Append(cssClass).AppendLine("\">");
     }
 
     /// <summary>Closes the current SVG group element.</summary>
-    internal void EndGroup()
+    public void EndGroup()
     {
         _sb.AppendLine("</g>");
     }

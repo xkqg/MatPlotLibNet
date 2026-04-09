@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a stem plot series displaying data as vertical lines with markers at the tips.</summary>
-public sealed class StemSeries : ChartSeries, IHasDataRange, ISeriesSerializable
+public sealed class StemSeries : ChartSeries
 {
     /// <summary>Gets the X-axis data values.</summary>
     public double[] XData { get; }
@@ -39,7 +39,7 @@ public sealed class StemSeries : ChartSeries, IHasDataRange, ISeriesSerializable
     }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         double yMin = YData.Min(), yMax = YData.Max();
         if (0 < yMin) yMin = 0;
@@ -48,7 +48,7 @@ public sealed class StemSeries : ChartSeries, IHasDataRange, ISeriesSerializable
     }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new() { Type = "stem", XData = XData, YData = YData };
+    public override SeriesDto ToSeriesDto() => new() { Type = "stem", XData = XData, YData = YData };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

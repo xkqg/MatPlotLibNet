@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a bar chart in polar coordinates with wedge-shaped bars.</summary>
-public sealed class PolarBarSeries : PolarSeries, ISeriesSerializable
+public sealed class PolarBarSeries : PolarSeries
 {
     /// <summary>Gets or sets the angular width of each bar in radians.</summary>
     public double BarWidth { get; set; } = 0.3;
@@ -23,7 +23,7 @@ public sealed class PolarBarSeries : PolarSeries, ISeriesSerializable
     public PolarBarSeries(double[] r, double[] theta) : base(r, theta) { }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new() { Type = "polarbar" };
+    public override SeriesDto ToSeriesDto() => new() { Type = "polarbar" };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

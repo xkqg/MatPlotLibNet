@@ -45,12 +45,26 @@ public sealed class ChartSerializer : IChartSerializer
         Height = figure.Height,
         Dpi = figure.Dpi,
         BackgroundColor = figure.BackgroundColor,
+        GridSpec = figure.GridSpec is { } gs ? new GridSpecDto
+        {
+            Rows = gs.Rows, Cols = gs.Cols,
+            HeightRatios = gs.HeightRatios, WidthRatios = gs.WidthRatios
+        } : null,
         SubPlots = figure.SubPlots.Select(AxesToDto).ToList()
     };
 
     private static AxesDto AxesToDto(Axes axes) => new()
     {
         Title = axes.Title,
+        Key = axes.Key,
+        ShareXKey = axes.ShareXWith?.Key,
+        ShareYKey = axes.ShareYWith?.Key,
+        GridPosition = axes.GridPosition is { } gp ? new GridPositionDto
+        {
+            RowStart = gp.RowStart, RowEnd = gp.RowEnd,
+            ColStart = gp.ColStart, ColEnd = gp.ColEnd
+        } : null,
+        Spines = SpinesAreDefault(axes.Spines) ? null : SpinesToDto(axes.Spines),
         XAxis = AxisToDto(axes.XAxis),
         YAxis = AxisToDto(axes.YAxis),
         Grid = new GridDto { Visible = axes.Grid.Visible },
@@ -72,7 +86,12 @@ public sealed class ChartSerializer : IChartSerializer
         {
             Min = s.Min, Max = s.Max, Orientation = s.Orientation.ToString().ToLowerInvariant(),
             Alpha = s.Alpha
-        }).ToList() : null
+        }).ToList() : null,
+        InsetBounds = axes.InsetBounds is { } ib ? new InsetBoundsDto
+        {
+            X = ib.X, Y = ib.Y, Width = ib.Width, Height = ib.Height
+        } : null,
+        Insets = axes.Insets.Count > 0 ? axes.Insets.Select(AxesToDto).ToList() : null
     };
 
     private static AxisDto AxisToDto(Axis axis) => new()
@@ -83,11 +102,51 @@ public sealed class ChartSerializer : IChartSerializer
         Scale = axis.Scale.ToString().ToLowerInvariant()
     };
 
+    private static bool SpinesAreDefault(SpinesConfig s) =>
+        s.Top.Visible && s.Bottom.Visible && s.Left.Visible && s.Right.Visible
+        && s.Top.Position == SpinePosition.Edge && s.Bottom.Position == SpinePosition.Edge
+        && s.Left.Position == SpinePosition.Edge && s.Right.Position == SpinePosition.Edge;
+
+    private static SpinesConfigDto SpinesToDto(SpinesConfig s) => new()
+    {
+        Top = SpineToDto(s.Top),
+        Bottom = SpineToDto(s.Bottom),
+        Left = SpineToDto(s.Left),
+        Right = SpineToDto(s.Right)
+    };
+
+    private static SpineConfigDto SpineToDto(SpineConfig s) => new()
+    {
+        Visible = s.Visible,
+        Position = s.Position == SpinePosition.Edge ? null : s.Position.ToString().ToLowerInvariant(),
+        PositionValue = s.PositionValue,
+        LineWidth = s.LineWidth
+    };
+
+    private static SpinesConfig DtoToSpines(SpinesConfigDto dto) => new()
+    {
+        Top = DtoToSpine(dto.Top),
+        Bottom = DtoToSpine(dto.Bottom),
+        Left = DtoToSpine(dto.Left),
+        Right = DtoToSpine(dto.Right)
+    };
+
+    private static SpineConfig DtoToSpine(SpineConfigDto? dto) => dto is null ? new() : new()
+    {
+        Visible = dto.Visible,
+        Position = dto.Position switch
+        {
+            "data" => SpinePosition.Data,
+            "axes" => SpinePosition.Axes,
+            _ => SpinePosition.Edge
+        },
+        PositionValue = dto.PositionValue,
+        LineWidth = dto.LineWidth
+    };
+
     private static SeriesDto SeriesToDto(ISeries series)
     {
-        var dto = series is ISeriesSerializable serializable
-            ? serializable.ToSeriesDto()
-            : new SeriesDto { Type = "unknown" };
+        var dto = series.ToSeriesDto();
         dto.Label = series.Label;
         return dto;
     }
@@ -103,14 +162,32 @@ public sealed class ChartSerializer : IChartSerializer
             BackgroundColor = dto.BackgroundColor
         };
 
+        if (dto.GridSpec is { } gsDto)
+            figure.GridSpec = new GridSpec
+            {
+                Rows = gsDto.Rows, Cols = gsDto.Cols,
+                HeightRatios = gsDto.HeightRatios, WidthRatios = gsDto.WidthRatios
+            };
+
         foreach (var axDto in dto.SubPlots ?? [])
         {
-            var axes = figure.AddSubPlot();
+            Axes axes;
+            if (axDto.GridPosition is { } gpDto && figure.GridSpec is not null)
+            {
+                var pos = new GridPosition(gpDto.RowStart, gpDto.RowEnd, gpDto.ColStart, gpDto.ColEnd);
+                axes = figure.AddSubPlot(figure.GridSpec, pos);
+            }
+            else
+            {
+                axes = figure.AddSubPlot();
+            }
             axes.Title = axDto.Title;
+            axes.Key = axDto.Key;
 
             if (axDto.XAxis is not null) ApplyAxis(axes.XAxis, axDto.XAxis);
             if (axDto.YAxis is not null) ApplyAxis(axes.YAxis, axDto.YAxis);
             if (axDto.Grid is not null) axes.Grid = axes.Grid with { Visible = axDto.Grid.Visible };
+            if (axDto.Spines is not null) axes.Spines = DtoToSpines(axDto.Spines);
             if (axDto.BarMode is "stacked") axes.BarMode = BarMode.Stacked;
 
             foreach (var sDto in axDto.Series ?? [])
@@ -156,6 +233,36 @@ public sealed class ChartSerializer : IChartSerializer
                 var sp = orient == Orientation.Horizontal ? axes.AxHSpan(sDto.Min, sDto.Max) : axes.AxVSpan(sDto.Min, sDto.Max);
                 sp.Alpha = sDto.Alpha;
             }
+
+            // Restore insets recursively
+            foreach (var insetDto in axDto.Insets ?? [])
+            {
+                if (insetDto.InsetBounds is not { } ibDto) continue;
+                var inset = axes.AddInset(ibDto.X, ibDto.Y, ibDto.Width, ibDto.Height);
+                inset.Title = insetDto.Title;
+                if (insetDto.XAxis is not null) ApplyAxis(inset.XAxis, insetDto.XAxis);
+                if (insetDto.YAxis is not null) ApplyAxis(inset.YAxis, insetDto.YAxis);
+                if (insetDto.Spines is not null) inset.Spines = DtoToSpines(insetDto.Spines);
+                foreach (var sDto in insetDto.Series ?? [])
+                    AddSeriesFromDto(inset, sDto);
+            }
+        }
+
+        // Resolve sharing references by key
+        var keyedAxes = new Dictionary<string, Axes>();
+        for (int i = 0; i < figure.SubPlots.Count; i++)
+        {
+            if (figure.SubPlots[i].Key is { } key)
+                keyedAxes[key] = figure.SubPlots[i];
+        }
+
+        for (int i = 0; i < figure.SubPlots.Count && i < (dto.SubPlots?.Count ?? 0); i++)
+        {
+            var axDto = dto.SubPlots![i];
+            if (axDto.ShareXKey is not null && keyedAxes.TryGetValue(axDto.ShareXKey, out var xTarget))
+                figure.SubPlots[i].ShareXWith = xTarget;
+            if (axDto.ShareYKey is not null && keyedAxes.TryGetValue(axDto.ShareYKey, out var yTarget))
+                figure.SubPlots[i].ShareYWith = yTarget;
         }
 
         return figure;
@@ -251,6 +358,15 @@ public sealed class ChartSerializer : IChartSerializer
         return s;
     }
 
+    /// <summary>Reconstructs a <see cref="StreamplotSeries"/> from the DTO.</summary>
+    internal static StreamplotSeries CreateStreamplot(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Streamplot(dto.XData ?? [], dto.YData ?? [], From2DList(dto.HeatmapData), From2DList(dto.VFieldData));
+        if (dto.Color.HasValue) s.Color = dto.Color.Value;
+        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+        return s;
+    }
+
     /// <summary>Reconstructs a <see cref="CandlestickSeries"/> from the DTO, including up/down colors and date labels.</summary>
     internal static CandlestickSeries CreateCandlestick(Axes axes, SeriesDto dto)
     {
@@ -270,6 +386,47 @@ public sealed class ChartSerializer : IChartSerializer
         if (dto.CapSize.HasValue) s.CapSize = dto.CapSize.Value;
         s.XErrorLow = dto.XErrorLow;
         s.XErrorHigh = dto.XErrorHigh;
+        return s;
+    }
+
+    /// <summary>Reconstructs an <see cref="EcdfSeries"/> from the DTO.</summary>
+    internal static EcdfSeries CreateEcdf(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Ecdf(dto.Data ?? []);
+        if (dto.Color.HasValue) s.Color = dto.Color.Value;
+        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+        if (dto.LineStyle is not null && Enum.TryParse<LineStyle>(dto.LineStyle, true, out var ls)) s.LineStyle = ls;
+        return s;
+    }
+
+    /// <summary>Reconstructs an <see cref="ImageSeries"/> from the DTO.</summary>
+    internal static ImageSeries CreateImage(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Image(ChartSerializer.From2DList(dto.HeatmapData));
+        if (dto.ColorMapName is not null)
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        s.VMin = dto.VMin;
+        s.VMax = dto.VMax;
+        s.Interpolation = dto.Interpolation;
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="Histogram2DSeries"/> from the DTO.</summary>
+    internal static Histogram2DSeries CreateHistogram2D(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Histogram2D(dto.XData ?? [], dto.YData ?? [], dto.Bins ?? 20);
+        if (dto.BinsY.HasValue) s.BinsY = dto.BinsY.Value;
+        if (dto.ColorMapName is not null)
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="StackedAreaSeries"/> from the DTO.</summary>
+    internal static StackedAreaSeries CreateStackedArea(Axes axes, SeriesDto dto)
+    {
+        var s = axes.StackPlot(dto.XData ?? [], dto.Datasets ?? []);
+        s.Labels = dto.PieLabels;
+        if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
         return s;
     }
 
@@ -433,13 +590,51 @@ internal sealed record FigureDto
     public double Height { get; init; }
     public double Dpi { get; init; }
     public Color? BackgroundColor { get; init; }
+    public GridSpecDto? GridSpec { get; init; }
     public List<AxesDto>? SubPlots { get; init; }
+}
+
+internal sealed record GridSpecDto
+{
+    public int Rows { get; init; }
+    public int Cols { get; init; }
+    public double[]? HeightRatios { get; init; }
+    public double[]? WidthRatios { get; init; }
+}
+
+internal sealed record GridPositionDto
+{
+    public int RowStart { get; init; }
+    public int RowEnd { get; init; }
+    public int ColStart { get; init; }
+    public int ColEnd { get; init; }
+}
+
+internal sealed record SpinesConfigDto
+{
+    public SpineConfigDto? Top { get; init; }
+    public SpineConfigDto? Bottom { get; init; }
+    public SpineConfigDto? Left { get; init; }
+    public SpineConfigDto? Right { get; init; }
+}
+
+internal sealed record SpineConfigDto
+{
+    public bool Visible { get; init; } = true;
+    public string? Position { get; init; }
+    public double PositionValue { get; init; }
+    public double LineWidth { get; init; } = 1.0;
 }
 
 /// <summary>JSON-serializable representation of an <see cref="Models.Axes"/> subplot, including series, annotations, and decorations.</summary>
 internal sealed record AxesDto
 {
     public string? Title { get; init; }
+    public string? Key { get; init; }
+    public string? ShareXKey { get; init; }
+    public string? ShareYKey { get; init; }
+    public GridPositionDto? GridPosition { get; init; }
+    public SpinesConfigDto? Spines { get; init; }
     public AxisDto? XAxis { get; init; }
     public AxisDto? YAxis { get; init; }
     public GridDto? Grid { get; init; }
@@ -450,6 +645,16 @@ internal sealed record AxesDto
     public List<AnnotationDto>? Annotations { get; init; }
     public List<ReferenceLineDto>? ReferenceLines { get; init; }
     public List<SpanRegionDto>? Spans { get; init; }
+    public InsetBoundsDto? InsetBounds { get; init; }
+    public List<AxesDto>? Insets { get; init; }
+}
+
+internal sealed record InsetBoundsDto
+{
+    public double X { get; init; }
+    public double Y { get; init; }
+    public double Width { get; init; }
+    public double Height { get; init; }
 }
 
 internal sealed record AnnotationDto
@@ -514,6 +719,7 @@ public sealed record SeriesDto
     public double? BarWidth { get; init; }
     public string? Orientation { get; init; }
     public int? Bins { get; init; }
+    public int? BinsY { get; init; }
     public double[]? YData2 { get; init; }
     public double? Alpha { get; init; }
     public string? StepPosition { get; init; }
@@ -552,6 +758,11 @@ public sealed record SeriesDto
     public double? GaugeMax { get; init; }
     public Color? NeedleColor { get; init; }
     public Color? TrackColor { get; init; }
+    public string? ColorMapName { get; init; }
+    public double? VMin { get; init; }
+    public double? VMax { get; init; }
+    public string? Interpolation { get; init; }
+    public List<List<double>>? VFieldData { get; init; }
 }
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>

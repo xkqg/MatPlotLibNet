@@ -29,6 +29,9 @@ public sealed class Figure
     /// <summary>Gets or sets the subplot spacing configuration (margins and gaps).</summary>
     public SubPlotSpacing Spacing { get; set; } = new();
 
+    /// <summary>Gets or sets the grid specification for advanced subplot layouts with ratios and spanning.</summary>
+    public GridSpec? GridSpec { get; set; }
+
     /// <summary>Gets or sets whether interactive zoom and pan via JavaScript is enabled in SVG output.</summary>
     /// <remarks>When enabled, a <c>&lt;script&gt;</c> block is injected into the SVG document that handles
     /// mouse-wheel zoom and click-drag pan via viewBox manipulation. Has no effect on raster transforms (PNG, PDF).
@@ -52,18 +55,44 @@ public sealed class Figure
     /// <param name="rows">The number of rows in the subplot grid.</param>
     /// <param name="cols">The number of columns in the subplot grid.</param>
     /// <param name="index">The one-based index of this subplot within the grid.</param>
+    /// <param name="sharex">Optional axes whose X range this subplot shares.</param>
+    /// <param name="sharey">Optional axes whose Y range this subplot shares.</param>
     /// <returns>The newly created <see cref="Axes"/> instance.</returns>
-    public Axes AddSubPlot(int rows, int cols, int index)
+    public Axes AddSubPlot(int rows, int cols, int index, Axes? sharex = null, Axes? sharey = null)
     {
         var axes = new Axes
         {
             GridRows = rows,
             GridCols = cols,
-            GridIndex = index
+            GridIndex = index,
+            ShareXWith = sharex,
+            ShareYWith = sharey
         };
         _subPlots.Add(axes);
         return axes;
     }
+
+    /// <summary>Adds a new subplot axes at the specified grid position within a <see cref="Models.GridSpec"/> and returns it.</summary>
+    /// <param name="gridSpec">The grid specification defining rows, columns, and optional ratios.</param>
+    /// <param name="position">The cell position (and optional span) within the grid.</param>
+    /// <returns>The newly created <see cref="Axes"/> instance.</returns>
+    public Axes AddSubPlot(GridSpec gridSpec, GridPosition position, Axes? sharex = null, Axes? sharey = null)
+    {
+        GridSpec ??= gridSpec;
+        var axes = new Axes { GridPosition = position, ShareXWith = sharex, ShareYWith = sharey };
+        _subPlots.Add(axes);
+        return axes;
+    }
+
+    /// <summary>Adds a new subplot axes spanning the specified rows and columns within a <see cref="Models.GridSpec"/>.</summary>
+    /// <param name="gridSpec">The grid specification defining rows, columns, and optional ratios.</param>
+    /// <param name="rowStart">Starting row (0-based, inclusive).</param>
+    /// <param name="rowEnd">Ending row (0-based, exclusive).</param>
+    /// <param name="colStart">Starting column (0-based, inclusive).</param>
+    /// <param name="colEnd">Ending column (0-based, exclusive).</param>
+    /// <returns>The newly created <see cref="Axes"/> instance.</returns>
+    public Axes AddSubPlot(GridSpec gridSpec, int rowStart, int rowEnd, int colStart, int colEnd) =>
+        AddSubPlot(gridSpec, GridPosition.Span(rowStart, rowEnd, colStart, colEnd));
 
     internal void AddAxes(Axes axes) => _subPlots.Add(axes);
 }

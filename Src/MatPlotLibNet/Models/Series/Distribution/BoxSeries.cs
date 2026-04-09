@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a box plot series displaying statistical distribution summaries.</summary>
-public sealed class BoxSeries : ChartSeries, IHasDataRange, ISeriesSerializable
+public sealed class BoxSeries : ChartSeries
 {
     /// <summary>Gets the array of datasets, each containing the values for one box.</summary>
     public double[][] Datasets { get; }
@@ -31,7 +31,7 @@ public sealed class BoxSeries : ChartSeries, IHasDataRange, ISeriesSerializable
     }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         double xMin = context.XAxisMin ?? -0.5;
         double xMax = context.XAxisMax ?? (Datasets.Length - 0.5);
@@ -46,7 +46,7 @@ public sealed class BoxSeries : ChartSeries, IHasDataRange, ISeriesSerializable
     }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new() { Type = "box", Datasets = Datasets };
+    public override SeriesDto ToSeriesDto() => new() { Type = "box", Datasets = Datasets };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

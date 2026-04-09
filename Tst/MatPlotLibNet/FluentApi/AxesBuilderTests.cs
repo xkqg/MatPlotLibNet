@@ -305,4 +305,123 @@ public class AxesBuilderTests
             .Build();
         Assert.IsType<AreaSeries>(figure.SubPlots[0].Series[0]);
     }
+
+    // --- Spines builder tests ---
+
+    /// <summary>Verifies that WithSpines configures spines on the built axes.</summary>
+    [Fact]
+    public void WithSpines_ConfiguresSpines()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithSpines(s => s with { Top = s.Top with { Visible = false } })
+                .Plot([1.0], [2.0]))
+            .Build();
+        Assert.False(figure.SubPlots[0].Spines.Top.Visible);
+        Assert.True(figure.SubPlots[0].Spines.Bottom.Visible);
+    }
+
+    /// <summary>Verifies that HideTopSpine hides only the top spine.</summary>
+    [Fact]
+    public void HideTopSpine_HidesTopOnly()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.HideTopSpine().Plot([1.0], [2.0]))
+            .Build();
+        Assert.False(figure.SubPlots[0].Spines.Top.Visible);
+        Assert.True(figure.SubPlots[0].Spines.Bottom.Visible);
+        Assert.True(figure.SubPlots[0].Spines.Left.Visible);
+        Assert.True(figure.SubPlots[0].Spines.Right.Visible);
+    }
+
+    /// <summary>Verifies that HideRightSpine hides only the right spine.</summary>
+    [Fact]
+    public void HideRightSpine_HidesRightOnly()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.HideRightSpine().Plot([1.0], [2.0]))
+            .Build();
+        Assert.False(figure.SubPlots[0].Spines.Right.Visible);
+        Assert.True(figure.SubPlots[0].Spines.Left.Visible);
+    }
+
+    // --- Inset axes builder tests ---
+
+    /// <summary>Verifies that AddInset creates an inset on the built axes.</summary>
+    [Fact]
+    public void AddInset_Fluent_CreatesInset()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AddInset(0.6, 0.1, 0.35, 0.35, inset => inset
+                    .Plot([1.5, 2.0], [3.5, 4.0])))
+            .Build();
+
+        Assert.Single(figure.SubPlots[0].Insets);
+    }
+
+    /// <summary>Verifies that the inset has series added via the builder.</summary>
+    [Fact]
+    public void AddInset_Fluent_ConfiguresInsetSeries()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AddInset(0.6, 0.1, 0.35, 0.35, inset => inset
+                    .Plot([1.5, 2.0], [3.5, 4.0])))
+            .Build();
+
+        var inset = figure.SubPlots[0].Insets[0];
+        Assert.Single(inset.Series);
+    }
+
+    // --- Colormap builder tests ---
+
+    /// <summary>Verifies that WithColorMap by name resolves from registry.</summary>
+    [Fact]
+    public void WithColorMap_String_ResolvesFromRegistry()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Heatmap(new double[,] { { 1, 2 }, { 3, 4 } })
+                .WithColorMap("plasma"))
+            .Build();
+
+        var hs = (MatPlotLibNet.Models.Series.HeatmapSeries)figure.SubPlots[0].Series[0];
+        Assert.NotNull(hs.ColorMap);
+        Assert.Equal("plasma", hs.ColorMap!.Name);
+    }
+
+    /// <summary>Verifies that WithNormalizer sets the normalizer on the last heatmap series.</summary>
+    [Fact]
+    public void WithNormalizer_SetsOnHeatmapSeries()
+    {
+        var norm = new MatPlotLibNet.Styling.ColorMaps.LogNormalizer();
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Heatmap(new double[,] { { 1, 2 }, { 3, 4 } })
+                .WithNormalizer(norm))
+            .Build();
+
+        var hs = (MatPlotLibNet.Models.Series.HeatmapSeries)figure.SubPlots[0].Series[0];
+        Assert.Same(norm, hs.Normalizer);
+    }
+
+    /// <summary>Verifies that the inset has correct InsetBounds.</summary>
+    [Fact]
+    public void AddInset_Fluent_SetsInsetBounds()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AddInset(0.6, 0.1, 0.35, 0.35, inset => inset
+                    .Plot([1.5, 2.0], [3.5, 4.0])))
+            .Build();
+
+        var inset = figure.SubPlots[0].Insets[0];
+        Assert.NotNull(inset.InsetBounds);
+        Assert.Equal(0.6, inset.InsetBounds.Value.X);
+        Assert.Equal(0.35, inset.InsetBounds.Value.Width);
+    }
 }

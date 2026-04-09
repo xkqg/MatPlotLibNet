@@ -51,6 +51,29 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Configures the spine (border line) display for this axes.</summary>
+    public AxesBuilder WithSpines(Func<SpinesConfig, SpinesConfig> configure) { _axes.Spines = configure(_axes.Spines); return this; }
+
+    /// <summary>Hides the top spine.</summary>
+    public AxesBuilder HideTopSpine() { _axes.Spines = _axes.Spines with { Top = _axes.Spines.Top with { Visible = false } }; return this; }
+
+    /// <summary>Hides the right spine.</summary>
+    public AxesBuilder HideRightSpine() { _axes.Spines = _axes.Spines with { Right = _axes.Spines.Right with { Visible = false } }; return this; }
+
+    /// <summary>Shares the X axis with the axes identified by the given key.</summary>
+    public AxesBuilder ShareX(string key) { _shareXKey = key; return this; }
+    private string? _shareXKey;
+
+    /// <summary>Shares the Y axis with the axes identified by the given key.</summary>
+    public AxesBuilder ShareY(string key) { _shareYKey = key; return this; }
+    private string? _shareYKey;
+
+    /// <summary>Gets the pending share-X key, if any. Used by FigureBuilder to resolve sharing at build time.</summary>
+    internal string? ShareXKey => _shareXKey;
+
+    /// <summary>Gets the pending share-Y key, if any. Used by FigureBuilder to resolve sharing at build time.</summary>
+    internal string? ShareYKey => _shareYKey;
+
     /// <summary>Enables or disables native SVG tooltips for data elements.</summary>
     public AxesBuilder WithTooltips(bool enabled = true) { _axes.EnableTooltips = enabled; return this; }
 
@@ -136,6 +159,28 @@ public sealed class AxesBuilder
     /// <summary>Sets the bar mode (grouped or stacked) for multiple bar series.</summary>
     public AxesBuilder SetBarMode(BarMode mode) { _axes.BarMode = mode; return this; }
 
+    /// <summary>Sets the colormap on the last heatmap/contour/surface series by name (resolved from <see cref="ColorMapRegistry"/>).</summary>
+    public AxesBuilder WithColorMap(string name)
+    {
+        var map = Styling.ColorMaps.ColorMapRegistry.Get(name);
+        if (map is not null) return WithColorMap(map);
+        return this;
+    }
+
+    /// <summary>Sets the colormap on the last colormappable series (heatmap, image, histogram2d, contour, surface, scatter, hierarchical).</summary>
+    public AxesBuilder WithColorMap(Styling.ColorMaps.IColorMap colorMap)
+    {
+        if (_axes.Series.LastOrDefault() is Models.Series.IColormappable c) c.ColorMap = colorMap;
+        return this;
+    }
+
+    /// <summary>Sets the normalizer on the last normalizable series (heatmap, image, histogram2d).</summary>
+    public AxesBuilder WithNormalizer(Styling.ColorMaps.INormalizer normalizer)
+    {
+        if (_axes.Series.LastOrDefault() is Models.Series.INormalizable n) n.Normalizer = normalizer;
+        return this;
+    }
+
     /// <summary>Enables a color bar alongside the plot area. Auto-detects colormap and range from heatmap/contour series.</summary>
     public AxesBuilder WithColorBar(Func<ColorBar, ColorBar>? configure = null)
     {
@@ -171,6 +216,14 @@ public sealed class AxesBuilder
     public AxesBuilder Hist(double[] data, int bins = 10, Action<HistogramSeries>? configure = null)
         => AddSeries(ax => ax.Hist(data, bins), configure);
 
+    /// <summary>Adds an ECDF series to the axes.</summary>
+    public AxesBuilder Ecdf(double[] data, Action<EcdfSeries>? configure = null)
+        => AddSeries(ax => ax.Ecdf(data), configure);
+
+    /// <summary>Adds a stacked area (stackplot) series to the axes.</summary>
+    public AxesBuilder StackPlot(double[] x, double[][] ySets, Action<StackedAreaSeries>? configure = null)
+        => AddSeries(ax => ax.StackPlot(x, ySets), configure);
+
     /// <summary>Adds a pie series to the axes.</summary>
     public AxesBuilder Pie(double[] sizes, string[]? labels = null, Action<PieSeries>? configure = null)
         => AddSeries(ax => ax.Pie(sizes, labels), configure);
@@ -178,6 +231,14 @@ public sealed class AxesBuilder
     /// <summary>Adds a heatmap series to the axes.</summary>
     public AxesBuilder Heatmap(double[,] data, Action<HeatmapSeries>? configure = null)
         => AddSeries(ax => ax.Heatmap(data), configure);
+
+    /// <summary>Adds an image series to the axes.</summary>
+    public AxesBuilder Image(double[,] data, Action<ImageSeries>? configure = null)
+        => AddSeries(ax => ax.Image(data), configure);
+
+    /// <summary>Adds a 2D histogram (density) series to the axes.</summary>
+    public AxesBuilder Histogram2D(double[] x, double[] y, int bins = 20, Action<Histogram2DSeries>? configure = null)
+        => AddSeries(ax => ax.Histogram2D(x, y, bins), configure);
 
     /// <summary>Adds a box plot series to the axes.</summary>
     public AxesBuilder BoxPlot(double[][] datasets, Action<BoxSeries>? configure = null)
@@ -283,6 +344,10 @@ public sealed class AxesBuilder
     public AxesBuilder Quiver(double[] x, double[] y, double[] u, double[] v, Action<QuiverSeries>? configure = null)
         => AddSeries(ax => ax.Quiver(x, y, u, v), configure);
 
+    /// <summary>Adds a streamplot (vector field streamlines) series to the axes.</summary>
+    public AxesBuilder Streamplot(double[] x, double[] y, double[,] u, double[,] v, Action<StreamplotSeries>? configure = null)
+        => AddSeries(ax => ax.Streamplot(x, y, u, v), configure);
+
     /// <summary>Adds a candlestick (OHLC) series to the axes.</summary>
     public AxesBuilder Candlestick(double[] open, double[] high, double[] low, double[] close, string[]? dateLabels = null, Action<CandlestickSeries>? configure = null)
         => AddSeries(ax => ax.Candlestick(open, high, low, close, dateLabels), configure);
@@ -367,6 +432,33 @@ public sealed class AxesBuilder
         _axes.GridCols = cols;
         _axes.GridIndex = index;
         return _axes;
+    }
+
+    internal Axes Build(GridPosition position)
+    {
+        _axes.GridPosition = position;
+        return _axes;
+    }
+
+    /// <summary>Adds an inset axes at the specified fractional position within this axes.</summary>
+    public AxesBuilder AddInset(double x, double y, double width, double height, Action<AxesBuilder> configure)
+    {
+        var insetBuilder = new AxesBuilder();
+        configure(insetBuilder);
+        var inset = _axes.AddInset(x, y, width, height);
+        // Copy series and configuration from the builder's axes to the inset
+        foreach (var series in insetBuilder._axes.Series)
+            inset.AddSeries(series);
+        inset.Title = insetBuilder._axes.Title;
+        inset.XAxis.Label = insetBuilder._axes.XAxis.Label;
+        inset.YAxis.Label = insetBuilder._axes.YAxis.Label;
+        inset.XAxis.Min = insetBuilder._axes.XAxis.Min;
+        inset.XAxis.Max = insetBuilder._axes.XAxis.Max;
+        inset.YAxis.Min = insetBuilder._axes.YAxis.Min;
+        inset.YAxis.Max = insetBuilder._axes.YAxis.Max;
+        inset.Spines = insetBuilder._axes.Spines;
+        inset.Grid = insetBuilder._axes.Grid;
+        return this;
     }
 }
 

@@ -31,14 +31,25 @@ public static class SeriesRegistry
         Register("pie", (axes, dto) => axes.Pie(dto.Sizes ?? [], dto.PieLabels));
         Register("box", (axes, dto) => axes.BoxPlot(dto.Datasets ?? []));
         Register("violin", (axes, dto) => axes.Violin(dto.Datasets ?? []));
-        Register("heatmap", (axes, dto) => axes.Heatmap(ChartSerializer.From2DList(dto.HeatmapData)));
+        Register("heatmap", (axes, dto) =>
+        {
+            var hs = axes.Heatmap(ChartSerializer.From2DList(dto.HeatmapData));
+            if (dto.ColorMapName is not null)
+                hs.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+            return hs;
+        });
+        Register("image", ChartSerializer.CreateImage);
+        Register("histogram2d", ChartSerializer.CreateHistogram2D);
         Register("stem", (axes, dto) => axes.Stem(dto.XData ?? [], dto.YData ?? []));
         Register("contour", (axes, dto) => axes.Contour(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData)));
         Register("area", ChartSerializer.CreateArea);
         Register("step", ChartSerializer.CreateStep);
+        Register("ecdf", ChartSerializer.CreateEcdf);
+        Register("stackedarea", ChartSerializer.CreateStackedArea);
         Register("errorbar", ChartSerializer.CreateErrorBar);
         Register("candlestick", ChartSerializer.CreateCandlestick);
         Register("quiver", ChartSerializer.CreateQuiver);
+        Register("streamplot", ChartSerializer.CreateStreamplot);
         Register("radar", ChartSerializer.CreateRadar);
         Register("donut", ChartSerializer.CreateDonut);
         Register("bubble", ChartSerializer.CreateBubble);

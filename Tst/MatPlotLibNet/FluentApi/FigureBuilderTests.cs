@@ -199,4 +199,89 @@ public class FigureBuilderTests
 
         Assert.Equal("Test", figure.Title);
     }
+
+    // --- GridSpec builder tests ---
+
+    /// <summary>Verifies that WithGridSpec sets the GridSpec on the built Figure.</summary>
+    [Fact]
+    public void WithGridSpec_SetsGridSpecOnFigure()
+    {
+        var figure = Plt.Create()
+            .WithGridSpec(3, 3)
+            .Build();
+
+        Assert.NotNull(figure.GridSpec);
+        Assert.Equal(3, figure.GridSpec.Rows);
+        Assert.Equal(3, figure.GridSpec.Cols);
+    }
+
+    /// <summary>Verifies that WithGridSpec with ratios stores them on the Figure.</summary>
+    [Fact]
+    public void WithGridSpec_WithRatios_StoresRatios()
+    {
+        var figure = Plt.Create()
+            .WithGridSpec(2, 3, heightRatios: [1, 3], widthRatios: [1, 2, 1])
+            .Build();
+
+        Assert.Equal([1.0, 3.0], figure.GridSpec!.HeightRatios);
+        Assert.Equal([1.0, 2.0, 1.0], figure.GridSpec.WidthRatios);
+    }
+
+    /// <summary>Verifies that AddSubPlot with GridPosition creates correct Axes.</summary>
+    [Fact]
+    public void AddSubPlot_WithGridPosition_CreatesCorrectAxes()
+    {
+        var figure = Plt.Create()
+            .WithGridSpec(2, 2)
+            .AddSubPlot(GridPosition.Single(0, 0), ax => ax.Plot([1.0], [2.0]))
+            .AddSubPlot(GridPosition.Single(0, 1), ax => ax.Scatter([3.0], [4.0]))
+            .Build();
+
+        Assert.Equal(2, figure.SubPlots.Count);
+        Assert.NotNull(figure.SubPlots[0].GridPosition);
+        Assert.Equal(0, figure.SubPlots[0].GridPosition!.Value.ColStart);
+        Assert.Equal(1, figure.SubPlots[1].GridPosition!.Value.ColStart);
+    }
+
+    /// <summary>Verifies that AddSubPlot with span coordinates creates spanning Axes.</summary>
+    [Fact]
+    public void AddSubPlot_WithSpanCoordinates_CreatesCorrectAxes()
+    {
+        var figure = Plt.Create()
+            .WithGridSpec(3, 3)
+            .AddSubPlot(GridPosition.Span(0, 1, 0, 3), ax => ax.Plot([1.0], [2.0]))
+            .Build();
+
+        var pos = figure.SubPlots[0].GridPosition!.Value;
+        Assert.Equal(0, pos.RowStart);
+        Assert.Equal(1, pos.RowEnd);
+        Assert.Equal(0, pos.ColStart);
+        Assert.Equal(3, pos.ColEnd);
+    }
+
+    // --- Shared axes builder tests ---
+
+    /// <summary>Verifies that key-based ShareX resolves at Build time.</summary>
+    [Fact]
+    public void AddSubPlot_WithShareXKey_ResolvesAtBuild()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(2, 1, 1, ax => ax.Plot([1.0], [2.0]), key: "price")
+            .AddSubPlot(2, 1, 2, ax => ax.ShareX("price").Plot([3.0], [4.0]))
+            .Build();
+
+        Assert.Same(figure.SubPlots[0], figure.SubPlots[1].ShareXWith);
+    }
+
+    /// <summary>Verifies that key-based ShareY resolves at Build time.</summary>
+    [Fact]
+    public void AddSubPlot_WithShareYKey_ResolvesAtBuild()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 2, 1, ax => ax.Plot([1.0], [2.0]), key: "main")
+            .AddSubPlot(1, 2, 2, ax => ax.ShareY("main").Plot([3.0], [4.0]))
+            .Build();
+
+        Assert.Same(figure.SubPlots[0], figure.SubPlots[1].ShareYWith);
+    }
 }

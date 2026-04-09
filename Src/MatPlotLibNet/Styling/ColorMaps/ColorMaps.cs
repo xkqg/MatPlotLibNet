@@ -105,4 +105,42 @@ public static class ColorMaps
         Color.FromHex("#CB181D"),
         Color.FromHex("#99000D"),
     ]);
+
+    /// <summary>Gets the Turbo color map (perceptually-uniform rainbow: dark blue to teal to yellow to dark red).</summary>
+    /// <remarks>Turbo is Google's improved replacement for Jet. Prefer Turbo over Jet for new work.</remarks>
+    public static IColorMap Turbo { get; } = new LerpColorMap("turbo",
+    [
+        Color.FromHex("#30123B"),
+        Color.FromHex("#4662D7"),
+        Color.FromHex("#36AAF9"),
+        Color.FromHex("#1AE4B6"),
+        Color.FromHex("#72FE5E"),
+        Color.FromHex("#C8EF34"),
+        Color.FromHex("#FABA39"),
+        Color.FromHex("#F66B19"),
+        Color.FromHex("#CA2A04"),
+        Color.FromHex("#7A0403"),
+    ]);
+
+    /// <summary>Gets the Jet color map (legacy rainbow: dark blue to cyan to yellow to dark red).</summary>
+    /// <remarks>Jet is not perceptually uniform. Use <see cref="Turbo"/> or <see cref="Viridis"/> for new work.</remarks>
+    public static IColorMap Jet { get; } = new LerpColorMap("jet",
+    [
+        Color.FromHex("#000080"),
+        Color.FromHex("#0000FF"),
+        Color.FromHex("#0080FF"),
+        Color.FromHex("#00FFFF"),
+        Color.FromHex("#80FF80"),
+        Color.FromHex("#FFFF00"),
+        Color.FromHex("#FF8000"),
+        Color.FromHex("#FF0000"),
+        Color.FromHex("#800000"),
+    ]);
+
+    /// <summary>Gets a colormap by name (case-insensitive), or null if not found.</summary>
+    public static IColorMap? Get(string name) => ColorMapRegistry.Get(name);
+
+    /// <summary>Gets all registered colormaps (including reversed variants).</summary>
+    public static IEnumerable<IColorMap> All =>
+        ColorMapRegistry.Names.Select(n => ColorMapRegistry.Get(n)!);
 }

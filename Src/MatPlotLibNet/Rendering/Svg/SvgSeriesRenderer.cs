@@ -24,6 +24,8 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private ErrorBarSeriesRenderer? _errorBar;
     private BubbleSeriesRenderer? _bubble;
     private SparklineSeriesRenderer? _sparkline;
+    private EcdfSeriesRenderer? _ecdf;
+    private StackedAreaSeriesRenderer? _stackedArea;
 
     // Categorical family
     private BarSeriesRenderer? _bar;
@@ -41,6 +43,8 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
 
     // Grid family
     private HeatmapSeriesRenderer? _heatmap;
+    private ImageSeriesRenderer? _image;
+    private Histogram2DSeriesRenderer? _histogram2D;
     private ContourSeriesRenderer? _contour;
 
     // Distribution family
@@ -53,6 +57,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
 
     // Field family
     private QuiverSeriesRenderer? _quiver;
+    private StreamplotSeriesRenderer? _streamplot;
     private StemSeriesRenderer? _stem;
 
     // Hierarchical family
@@ -95,6 +100,10 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(BubbleSeries s, RenderArea a) => (_bubble ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(SparklineSeries s, RenderArea a) => (_sparkline ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(EcdfSeries s, RenderArea a) => (_ecdf ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(StackedAreaSeries s, RenderArea a) => (_stackedArea ??= new(_context)).Render(s);
 
     // Categorical family
     /// <inheritdoc />
@@ -124,6 +133,10 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     /// <inheritdoc />
     public void Visit(HeatmapSeries s, RenderArea a) => (_heatmap ??= new(_context)).Render(s);
     /// <inheritdoc />
+    public void Visit(ImageSeries s, RenderArea a) => (_image ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(Histogram2DSeries s, RenderArea a) => (_histogram2D ??= new(_context)).Render(s);
+    /// <inheritdoc />
     public void Visit(ContourSeries s, RenderArea a) => (_contour ??= new(_context)).Render(s);
 
     // Distribution family
@@ -141,6 +154,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     // Field family
     /// <inheritdoc />
     public void Visit(QuiverSeries s, RenderArea a) => (_quiver ??= new(_context)).Render(s);
+    public void Visit(StreamplotSeries s, RenderArea a) => (_streamplot ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(StemSeries s, RenderArea a) => (_stem ??= new(_context)).Render(s);
 

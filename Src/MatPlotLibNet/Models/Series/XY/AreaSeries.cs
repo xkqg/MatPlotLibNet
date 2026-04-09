@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a filled area series, rendering the region between a line and a baseline (or between two Y datasets).</summary>
-public sealed class AreaSeries : XYSeries, ISeriesSerializable
+public sealed class AreaSeries : XYSeries
 {
     /// <summary>Gets or sets the optional secondary Y data for fill-between-two-curves mode. When null, fills to y=0.</summary>
     public double[]? YData2 { get; set; }
@@ -45,7 +45,7 @@ public sealed class AreaSeries : XYSeries, ISeriesSerializable
     }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "area",
         XData = XData, YData = YData, YData2 = YData2,

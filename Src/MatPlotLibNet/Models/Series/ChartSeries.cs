@@ -2,11 +2,13 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Models.Series;
 
-/// <summary>Base class providing common <see cref="ISeries"/> properties. Subclasses must implement <see cref="Accept"/>.</summary>
-public abstract class ChartSeries : ISeries
+/// <summary>Base class providing common <see cref="ISeries"/> properties. All series must implement
+/// <see cref="Accept"/>, <see cref="ComputeDataRange"/>, and <see cref="ToSeriesDto"/>.</summary>
+public abstract class ChartSeries : ISeries, IHasDataRange, ISeriesSerializable
 {
     /// <inheritdoc />
     public string? Label { get; set; }
@@ -19,4 +21,10 @@ public abstract class ChartSeries : ISeries
 
     /// <inheritdoc />
     public abstract void Accept(ISeriesVisitor visitor, RenderArea area);
+
+    /// <inheritdoc />
+    public abstract DataRangeContribution ComputeDataRange(IAxesContext context);
+
+    /// <inheritdoc />
+    public abstract SeriesDto ToSeriesDto();
 }

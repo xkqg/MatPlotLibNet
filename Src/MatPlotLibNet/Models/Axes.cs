@@ -25,6 +25,9 @@ public sealed class Axes
     /// <summary>Gets or sets the grid style configuration for this axes.</summary>
     public GridStyle Grid { get; set; } = new();
 
+    /// <summary>Gets or sets the spine (border line) configuration for this axes.</summary>
+    public SpinesConfig Spines { get; set; } = new();
+
     /// <summary>Gets the number of rows in the subplot grid layout.</summary>
     public int GridRows { get; internal set; }
 
@@ -33,6 +36,18 @@ public sealed class Axes
 
     /// <summary>Gets the one-based index of this axes within the subplot grid.</summary>
     public int GridIndex { get; internal set; }
+
+    /// <summary>Gets the cell position (and optional span) within a <see cref="Models.GridSpec"/> layout.</summary>
+    public GridPosition? GridPosition { get; internal set; }
+
+    /// <summary>Gets the axes whose X range this axes shares, or null for independent X range.</summary>
+    public Axes? ShareXWith { get; internal set; }
+
+    /// <summary>Gets the axes whose Y range this axes shares, or null for independent Y range.</summary>
+    public Axes? ShareYWith { get; internal set; }
+
+    /// <summary>Gets or sets a string key used to identify this axes for sharing references during serialization.</summary>
+    public string? Key { get; set; }
 
     /// <summary>Gets or sets whether native SVG tooltips are enabled for data elements.</summary>
     /// <remarks>When enabled, each data point in the SVG output is wrapped in a <c>&lt;g&gt;&lt;title&gt;...&lt;/title&gt;&lt;/g&gt;</c>
@@ -79,6 +94,34 @@ public sealed class Axes
     /// <summary>Gets the collection of buy/sell signal markers on this axes.</summary>
     public IReadOnlyList<SignalMarker> Signals => _signals;
     private readonly List<SignalMarker> _signals = [];
+
+    /// <summary>Gets the collection of inset axes rendered within this axes.</summary>
+    public IReadOnlyList<Axes> Insets => _insets;
+    private readonly List<Axes> _insets = [];
+
+    /// <summary>Gets the inset bounds when this axes IS an inset (fractional position within parent), or null for top-level axes.</summary>
+    public InsetBounds? InsetBounds { get; internal set; }
+
+    /// <summary>Adds an inset axes at the specified fractional position within this axes.</summary>
+    /// <param name="x">Horizontal position as a fraction of parent width (0-1).</param>
+    /// <param name="y">Vertical position as a fraction of parent height (0-1).</param>
+    /// <param name="width">Width as a fraction of parent width.</param>
+    /// <param name="height">Height as a fraction of parent height.</param>
+    /// <returns>The newly created inset <see cref="Axes"/> instance.</returns>
+    public Axes AddInset(double x, double y, double width, double height)
+    {
+        var inset = new Axes { InsetBounds = new InsetBounds(x, y, width, height) };
+        _insets.Add(inset);
+        return inset;
+    }
+
+    /// <summary>Adds an inset axes at the specified bounds.</summary>
+    public Axes AddInset(InsetBounds bounds)
+    {
+        var inset = new Axes { InsetBounds = bounds };
+        _insets.Add(inset);
+        return inset;
+    }
 
     /// <summary>Gets the secondary Y-axis configuration, or null when no secondary axis is active.</summary>
     /// <remarks>Activated by calling <see cref="TwinX"/>. Series added via <see cref="PlotSecondary"/> or
@@ -181,6 +224,25 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds an ECDF (empirical cumulative distribution function) series from the given data.</summary>
+    public EcdfSeries Ecdf(double[] data)
+    {
+        var series = new EcdfSeries(data);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a stacked area (stackplot) series from the given shared X values and multiple Y datasets.</summary>
+    /// <param name="x">The shared X-axis data values.</param>
+    /// <param name="ySets">An array of Y arrays, one per stacked layer.</param>
+    /// <returns>The newly created <see cref="StackedAreaSeries"/> for further configuration.</returns>
+    public StackedAreaSeries StackPlot(double[] x, double[][] ySets)
+    {
+        var series = new StackedAreaSeries(x, ySets);
+        _series.Add(series);
+        return series;
+    }
+
     /// <summary>Adds a pie chart series from the given slice sizes.</summary>
     /// <param name="sizes">The numeric sizes of each pie slice.</param>
     /// <param name="labels">Optional labels for each pie slice.</param>
@@ -198,6 +260,29 @@ public sealed class Axes
     public HeatmapSeries Heatmap(double[,] data)
     {
         var series = new HeatmapSeries(data);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds an image series from the given two-dimensional data array (imshow).</summary>
+    /// <param name="data">The 2D data matrix to render as a colored image.</param>
+    /// <returns>The newly created <see cref="ImageSeries"/> for further configuration.</returns>
+    public ImageSeries Image(double[,] data)
+    {
+        var series = new ImageSeries(data);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a 2D histogram (density) series from X,Y scatter data.</summary>
+    /// <param name="x">The X-axis data values.</param>
+    /// <param name="y">The Y-axis data values.</param>
+    /// <param name="bins">The number of bins along both axes.</param>
+    /// <returns>The newly created <see cref="Histogram2DSeries"/> for further configuration.</returns>
+    public Histogram2DSeries Histogram2D(double[] x, double[] y, int bins = 20)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        var series = new Histogram2DSeries(x, y, bins, bins);
         _series.Add(series);
         return series;
     }
@@ -262,6 +347,14 @@ public sealed class Axes
         ValidateMatchingLengths(x.Length, u.Length);
         ValidateMatchingLengths(x.Length, v.Length);
         var series = new QuiverSeries(x, y, u, v);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a streamplot (vector field streamlines) series from the given grid and velocity data.</summary>
+    public StreamplotSeries Streamplot(double[] x, double[] y, double[,] u, double[,] v)
+    {
+        var series = new StreamplotSeries(x, y, u, v);
         _series.Add(series);
         return series;
     }

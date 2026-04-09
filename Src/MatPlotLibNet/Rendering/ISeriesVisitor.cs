@@ -26,6 +26,12 @@ public interface ISeriesVisitor
     /// <summary>Renders a heatmap series.</summary>
     void Visit(HeatmapSeries series, RenderArea area);
 
+    /// <summary>Renders an image series.</summary>
+    void Visit(ImageSeries series, RenderArea area);
+
+    /// <summary>Renders a 2D histogram (density) series.</summary>
+    void Visit(Histogram2DSeries series, RenderArea area);
+
     /// <summary>Renders a box plot series.</summary>
     void Visit(BoxSeries series, RenderArea area);
 
@@ -44,6 +50,12 @@ public interface ISeriesVisitor
     /// <summary>Renders a step-function series.</summary>
     void Visit(StepSeries series, RenderArea area);
 
+    /// <summary>Renders an ECDF series.</summary>
+    void Visit(EcdfSeries series, RenderArea area);
+
+    /// <summary>Renders a stacked area (stackplot) series.</summary>
+    void Visit(StackedAreaSeries series, RenderArea area);
+
     /// <summary>Renders an error bar series.</summary>
     void Visit(ErrorBarSeries series, RenderArea area);
 
@@ -52,6 +64,9 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a quiver (vector field) series.</summary>
     void Visit(QuiverSeries series, RenderArea area);
+
+    /// <summary>Renders a streamplot (vector field streamlines) series.</summary>
+    void Visit(StreamplotSeries series, RenderArea area);
 
     /// <summary>Renders a radar (spider) chart series.</summary>
     void Visit(RadarSeries series, RenderArea area);

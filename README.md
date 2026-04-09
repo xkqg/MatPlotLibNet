@@ -46,7 +46,7 @@ Plt.Create().Plot(x, y).Save("chart.pdf");   // requires MatPlotLibNet.Skia
 
 ## Chart types
 
-**34 series types** with fluent builder API:
+**39 series types** with fluent builder API:
 
 ```csharp
 Plt.Create()
@@ -62,7 +62,7 @@ Plt.Create()
 ```
 
 Additional types via `AxesBuilder.AddSubPlot`:
-Heatmap, Box, Violin, Contour, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar, Surface, Wireframe, Scatter3D.
+Heatmap, Image (imshow), Histogram2D, Box, Violin, Contour, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Ecdf, StackedArea, Streamplot, Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar, Surface, Wireframe, Scatter3D.
 
 ### Stacked bars
 
@@ -208,6 +208,29 @@ Plt.Create()
     .Save("rotated");
 ```
 
+## Color maps
+
+52 built-in colormaps across 6 categories (104 including reversed `_r` variants):
+
+```csharp
+using MatPlotLibNet.Styling.ColorMaps;
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Heatmap(data)
+        .WithColorMap("turbo")
+        .WithColorBar(cb => cb with { Label = "Intensity" }))
+    .Save("heatmap");
+```
+
+Categories: **Perceptually-uniform** (Viridis, Plasma, Inferno, Magma, Turbo, Cividis), **Sequential** (Blues, Reds, Hot, Copper, Bone, BuPu, GnBu, YlGnBu, PuBuGn, and 12 more), **Diverging** (Coolwarm, RdBu, Seismic, Bwr, PuOr, and 5 more), **Cyclic** (Twilight, TwilightShifted, Hsv), **Qualitative** (Tab10, Tab20, Set1-3, Pastel1-2, Dark2, Accent, Paired).
+
+Reversed: append `_r` to any name — `ColorMapRegistry.Get("viridis_r")`.
+
+Normalizers: `LogNormalizer`, `TwoSlopeNormalizer(center)`, `BoundaryNormalizer(double[])`.
+
+See [howTo.md §13](Src/MatPlotLibNet/howTo.md#13-color-maps) for the full reference.
+
 ## Color bar
 
 ```csharp
@@ -247,6 +270,31 @@ Plt.Create()
 ```
 
 Subplots render in **parallel** -- each gets its own SVG context, merged in order.
+
+## GridSpec layouts
+
+Unequal row/column sizes with cell spanning:
+
+```csharp
+Plt.Create()
+    .WithGridSpec(2, 2, heightRatios: [2.0, 1.0], widthRatios: [3.0, 1.0])
+    .AddSubPlot(GridPosition.Single(0, 0), ax => ax.Plot(x, y).WithTitle("Main"))
+    .AddSubPlot(GridPosition.Single(0, 1), ax => ax.Scatter(x, y))
+    .AddSubPlot(GridPosition.Span(1, 2, 0, 2), ax => ax.Bar(cats, vals))
+    .Save("gridspec");
+```
+
+## Inset axes
+
+```csharp
+.AddSubPlot(1, 1, 1, ax => ax
+    .Plot(x, y)
+    .AddInset(0.6, 0.6, 0.35, 0.35, inset => inset
+        .Plot(xZoom, yZoom)
+        .WithTitle("Detail")))
+```
+
+Coordinates are fractions of the parent axes (0–1). Nests up to 3 levels deep.
 
 ## Export transforms
 
@@ -417,6 +465,7 @@ See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering 
 
 | Version | Highlights |
 |---------|-----------|
+| **0.5.0** | 39 series types. Layout: `GridSpec` unequal subplots, `SpinesConfig`, shared axes (`ShareX`/`ShareY`), inset axes. 5 new series: `ImageSeries` (imshow), `Histogram2DSeries`, `StreamplotSeries`, `EcdfSeries`, `StackedAreaSeries`. OO interfaces: `IColormappable`, `INormalizable`, `ICategoryLabeled`, `IColorBarDataProvider`, `IStackable`. 20 new colormaps (52 base, 104 with `_r` variants): Turbo, Jet, Hsv, Hot, Copper, Bone, BuPu, GnBu, PuRd, RdPu, YlGnBu, PuBuGn, Cubehelix, PuOr, Seismic, Bwr, Pastel2, Dark2, Accent, Paired. `ColorMapRegistry` (case-insensitive, thread-safe). `INormalizer`: Linear, Log, TwoSlope, Boundary. `AxesBuilder.WithColorMap/WithNormalizer` collapse to single-line interface check (bug fix: previously missed 3 of 7 colormappable series). 1502 tests. |
 | **0.4.0** | 34 series types (11 families), 798 tests. OO architecture: `AxesRenderer` polymorphism (`CartesianAxesRenderer`, `PolarAxesRenderer`, `ThreeDAxesRenderer`). `ISeriesSerializable` on all 34 series, `SeriesRegistry` for deserialization. Generic bases: `XYSeries`, `PolarSeries`, `GridSeries3D`, `HierarchicalSeries`. Interfaces: `IHasDataRange`, `IPolarSeries`, `I3DGridSeries`, `I3DPointSeries`, `IPriceSeries`. Thread-safe: volatile fields, `ConcurrentDictionary` for `GlobalTransforms`, `AxesRenderer` registry, `SeriesRegistry`. Animation: `IAnimation<TState>`, `AnimationController<TState>`, `LegacyAnimationAdapter`. `Save("chart")` API with format auto-detect. `FigureBuilder` SRP: Save/Transform moved to `FigureExtensions`. Color constants (`Tab10Blue`, `GridGray`, etc.). `ITickFormatter` pipeline. ColorBar, Legend, SubPlotSpacing. Polar + 3D coordinate systems. |
 | **0.3.2** | Quality release: OO indicator refactor (`Indicator<TResult>` with `IIndicatorResult` constraint, named result records, no statics). 92 new tests. BenchmarkDotNet suite. CHANGELOG, BENCHMARKS.md, DocFX, 4 sample projects. JSON serialization fix for 9 series types. |
 | **0.3.1** | Platform expansion: `@matplotlibnet/react` (React 19 hooks + components), `@matplotlibnet/vue` (Vue 3 composables + components), `MatPlotLibNet.GraphQL` (HotChocolate queries + subscriptions). Core library multi-targets `netstandard2.1`. |

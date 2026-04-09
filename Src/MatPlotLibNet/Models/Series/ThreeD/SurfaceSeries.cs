@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D surface plot rendered as colored quadrilaterals with optional wireframe.</summary>
-public sealed class SurfaceSeries : GridSeries3D, ISeriesSerializable
+public sealed class SurfaceSeries : GridSeries3D, IColormappable
 {
     /// <summary>Gets or sets the color map used to color the surface by Z value.</summary>
     public IColorMap? ColorMap { get; set; }
@@ -23,7 +23,7 @@ public sealed class SurfaceSeries : GridSeries3D, ISeriesSerializable
     public SurfaceSeries(double[] x, double[] y, double[,] z) : base(x, y, z) { }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new() { Type = "surface" };
+    public override SeriesDto ToSeriesDto() => new() { Type = "surface" };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a bubble chart — a scatter plot where marker area encodes a third variable.</summary>
-public sealed class BubbleSeries : XYSeries, ISeriesSerializable
+public sealed class BubbleSeries : XYSeries
 {
     public double[] Sizes { get; }
     public Color? Color { get; set; }
@@ -20,7 +20,7 @@ public sealed class BubbleSeries : XYSeries, ISeriesSerializable
     }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "bubble",
         XData = XData, YData = YData, Sizes = Sizes,

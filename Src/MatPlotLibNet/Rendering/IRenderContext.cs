@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
@@ -47,23 +48,60 @@ public interface IRenderContext
 
     /// <summary>Sets the global opacity for subsequent drawing operations.</summary>
     void SetOpacity(double opacity);
+
+    /// <summary>Begins a named group (e.g., emits <c>&lt;g class="..."&gt;</c> in SVG). Default is a no-op.</summary>
+    void BeginGroup(string cssClass) { }
+
+    /// <summary>Ends the current group. Default is a no-op.</summary>
+    void EndGroup() { }
 }
 
 /// <summary>Base record for path drawing segments used by <see cref="IRenderContext.DrawPath"/>.</summary>
-public abstract record PathSegment;
+public abstract record PathSegment
+{
+    private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
+
+    /// <summary>Returns the SVG path data command string for this segment (e.g., "M 10 20 ").</summary>
+    public abstract string ToSvgPathData();
+
+    /// <summary>Formats a double value for SVG path data using invariant culture.</summary>
+    protected static string F(double value) => value.ToString("G", Inv);
+}
 
 /// <summary>A path segment that moves the current position without drawing.</summary>
-public sealed record MoveToSegment(Point Point) : PathSegment;
+public sealed record MoveToSegment(Point Point) : PathSegment
+{
+    /// <inheritdoc />
+    public override string ToSvgPathData() => $"M {F(Point.X)} {F(Point.Y)} ";
+}
 
 /// <summary>A path segment that draws a straight line to the specified point.</summary>
-public sealed record LineToSegment(Point Point) : PathSegment;
+public sealed record LineToSegment(Point Point) : PathSegment
+{
+    /// <inheritdoc />
+    public override string ToSvgPathData() => $"L {F(Point.X)} {F(Point.Y)} ";
+}
 
 /// <summary>A path segment that draws a cubic Bezier curve through two control points to an endpoint.</summary>
-public sealed record BezierSegment(Point Control1, Point Control2, Point End) : PathSegment;
+public sealed record BezierSegment(Point Control1, Point Control2, Point End) : PathSegment
+{
+    /// <inheritdoc />
+    public override string ToSvgPathData() =>
+        $"C {F(Control1.X)} {F(Control1.Y)} {F(Control2.X)} {F(Control2.Y)} {F(End.X)} {F(End.Y)} ";
+}
 
 /// <summary>A path segment that draws an elliptical arc.</summary>
 public sealed record ArcSegment(Point Center, double RadiusX, double RadiusY,
-    double StartAngle, double EndAngle) : PathSegment;
+    double StartAngle, double EndAngle) : PathSegment
+{
+    /// <inheritdoc />
+    public override string ToSvgPathData() =>
+        $"A {F(RadiusX)} {F(RadiusY)} 0 0 1 {F(Center.X)} {F(Center.Y)} ";
+}
 
 /// <summary>A path segment that closes the current sub-path by drawing a line back to its start.</summary>
-public sealed record CloseSegment() : PathSegment;
+public sealed record CloseSegment() : PathSegment
+{
+    /// <inheritdoc />
+    public override string ToSvgPathData() => "Z ";
+}

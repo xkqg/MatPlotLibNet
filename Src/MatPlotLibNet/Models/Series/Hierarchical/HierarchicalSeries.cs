@@ -6,7 +6,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Base class for series types that render hierarchical <see cref="TreeNode"/> data.</summary>
-public abstract class HierarchicalSeries : ChartSeries, IHasDataRange
+public abstract class HierarchicalSeries : ChartSeries, IColormappable
 {
     /// <summary>Gets the root node of the tree hierarchy.</summary>
     public TreeNode Root { get; }
@@ -21,6 +21,6 @@ public abstract class HierarchicalSeries : ChartSeries, IHasDataRange
     protected HierarchicalSeries(TreeNode root) => Root = root;
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
 }

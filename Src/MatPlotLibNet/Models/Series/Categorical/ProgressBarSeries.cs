@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a progress bar showing a value as a fraction of a track (0.0 to 1.0).</summary>
-public sealed class ProgressBarSeries : ChartSeries, IHasDataRange, ISeriesSerializable
+public sealed class ProgressBarSeries : ChartSeries
 {
     /// <summary>Gets the progress value (0.0 = empty, 1.0 = full).</summary>
     public double Value { get; }
@@ -26,11 +26,11 @@ public sealed class ProgressBarSeries : ChartSeries, IHasDataRange, ISeriesSeria
     public ProgressBarSeries(double value) => Value = Math.Clamp(value, 0, 1);
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "progressbar",
         GaugeValue = Value, FillColor = FillColor,

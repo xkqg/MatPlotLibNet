@@ -1,4 +1,5 @@
-# How to use MatPlotLibNet (v0.4.0)
+# How to use MatPlotLibNet (v0.5.0)
+
 
 ## Install
 
@@ -39,7 +40,7 @@ string svg = Plt.Create().Plot(x, y).ToSvg();
 
 ## 2. Chart types
 
-All 34 chart types are available via `FigureBuilder` and `AxesBuilder`:
+All 39 chart types are available via `FigureBuilder` and `AxesBuilder`:
 
 ```csharp
 // Line
@@ -75,6 +76,21 @@ builder.ErrorBar(x, y, errLow, errHigh, e => e.CapSize = 8);
 // Heatmap (via AxesBuilder)
 ax.Heatmap(new double[,] { { 1, 2, 3 }, { 4, 5, 6 } });
 
+// Image (imshow) — display 2D data as colored pixels
+ax.Image(data, img => { img.ColorMap = ColorMaps.Inferno; img.VMin = 0; img.VMax = 1; });
+
+// 2D histogram — density plot binned from scatter data
+ax.Histogram2D(xData, yData, binsX: 25, binsY: 25);
+
+// ECDF — empirical cumulative distribution function
+ax.Ecdf(measurements);
+
+// Stacked area (stackplot)
+ax.StackPlot(x, [y1, y2, y3], labels: ["A", "B", "C"]);
+
+// Streamplot — vector field streamlines
+ax.Streamplot(xGrid, yGrid, u, v);
+
 // Box plot
 ax.BoxPlot([[1.0, 2.0, 3.0, 4.0], [2.0, 3.0, 5.0, 7.0]]);
 
@@ -90,7 +106,7 @@ ax.Stem(x, y);
 // Candlestick (OHLC financial chart)
 ax.Candlestick(open, high, low, close, ["Mon", "Tue", "Wed"]);
 
-// Quiver (vector field)
+// Quiver (vector field arrows)
 ax.Quiver(xPos, yPos, uComponent, vComponent);
 
 // Radar (spider chart)
@@ -132,6 +148,60 @@ ax.Plot(time, temperature)
       .SetYLabel("Humidity (%)")
       .Plot(time, humidity, s => s.Color = Color.Orange));
 ```
+
+## 4b. Advanced layouts
+
+### GridSpec — unequal subplot sizes
+
+```csharp
+Plt.Create()
+    .WithGridSpec(2, 2, heightRatios: [2.0, 1.0], widthRatios: [3.0, 1.0])
+    .AddSubPlot(GridPosition.Single(0, 0), ax => ax.Plot(x, y).WithTitle("Main"))
+    .AddSubPlot(GridPosition.Single(0, 1), ax => ax.Scatter(x, y))
+    .AddSubPlot(GridPosition.Span(1, 2, 0, 2), ax => ax.Bar(cats, vals).WithTitle("Wide bar"))
+    .Save("gridspec");
+```
+
+`WithGridSpec(rows, cols, heightRatios, widthRatios)` creates proportional row/column sizes.
+`AddSubPlot(GridPosition.Single(row, col), configure)` places a subplot at a grid cell.
+`GridPosition.Span(rowStart, rowEnd, colStart, colEnd)` spans multiple cells (exclusive end indices).
+
+### Shared axes
+
+Linked subplots share a common range — panning one updates all:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(2, 1, 1, ax => ax.ShareX("group1").Plot(x, y1))
+    .AddSubPlot(2, 1, 2, ax => ax.ShareX("group1").Plot(x, y2))
+    .Save("shared_x");
+```
+
+`ShareX(key)` / `ShareY(key)` take an arbitrary string key; all subplots using the same key share range.
+
+### Spine control
+
+```csharp
+// Quick helpers
+ax.HideTopSpine().HideRightSpine();
+
+// Fine-grained via SpinesConfig
+ax.WithSpines(s => s with
+{
+    Bottom = s.Bottom with { Position = SpinePosition.Data(0) }   // move x-axis to y=0
+});
+```
+
+### Inset axes
+
+```csharp
+ax.Plot(x, y)
+  .AddInset(0.6, 0.6, 0.35, 0.35, inset => inset
+      .Plot(xZoom, yZoom)
+      .WithTitle("Detail"));
+```
+
+`AddInset(x, y, w, h, configure)` — coordinates are fractions of the parent axes (0–1). Insets nest up to 3 levels deep.
 
 ## 5. Subplots
 
@@ -252,6 +322,43 @@ string svg = figure.ToSvg();
 
 Note: `Grid`, `Legend`, and `TickConfig` are immutable records -- use `with` expressions to modify them.
 
+### Python/matplotlib-style imperative API
+
+If you come from Python's matplotlib, the `new Figure()` + `AddSubPlot()` pattern maps directly to how `fig, ax = plt.subplots()` works — you get explicit handles to both the figure and each axes, and mutate them in place:
+
+```python
+# Python matplotlib
+fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True)
+ax1.plot(x, y1)
+ax2.bar(cats, vals)
+plt.savefig("chart.svg")
+```
+
+```csharp
+// C# equivalent
+var fig = new Figure { Width = 1200, Height = 600 };
+var ax1 = fig.AddSubPlot(1, 2, 1);
+var ax2 = fig.AddSubPlot(1, 2, 2, sharex: ax1);   // shared X range
+ax1.Plot(x, y1);
+ax2.Bar(cats, vals);
+fig.ToSvg();
+```
+
+This style is particularly useful when building figures programmatically — dynamic panel counts, updating axes after construction, or passing axes to separate methods:
+
+```csharp
+var fig = new Figure();
+foreach (var (dataset, i) in datasets.Select((d, i) => (d, i)))
+{
+    var ax = fig.AddSubPlot(datasets.Count, 1, i + 1);
+    ax.Title = dataset.Name;
+    ax.Plot(dataset.X, dataset.Y);
+}
+string svg = fig.ToSvg();
+```
+
+`Plt.Create()` (fluent builder) and `new Figure()` (direct model) produce identical output — choose whichever fits the context.
+
 ## 9. Dependency injection
 
 All rendering and serialization goes through interfaces:
@@ -337,25 +444,77 @@ var transparent = Color.Blue.WithAlpha(128);
 
 ## 13. Color maps
 
-Built-in color maps for heatmaps and contour plots:
+52 built-in colormaps across 6 categories (104 total including reversed `_r` variants):
+
+| Category | Count | Maps | When to use |
+|----------|-------|------|-------------|
+| Perceptually-uniform | 6 | Viridis (default), Plasma, Inferno, Magma, Turbo, Cividis | Continuous numerical data |
+| Sequential | 21 | Blues, Reds, Greens, Oranges, Purples, Greys, Hot, Copper, Bone, BuPu, GnBu, PuRd, RdPu, YlGnBu, PuBuGn, YlOrBr, YlOrRd, OrRd, PuBu, YlGn, BuGn, Cubehelix | Light→dark single-hue ramp |
+| Diverging | 10 | Coolwarm, RdBu, RdYlGn, RdYlBu, BrBG, PiYG, Spectral, PuOr, Seismic, Bwr | Data with meaningful center (e.g. diverging from zero) |
+| Cyclic | 3 | Twilight, TwilightShifted, Hsv | Phase angles, time-of-day |
+| Qualitative | 10 | Tab10, Tab20, Set1, Set2, Set3, Pastel1, Pastel2, Dark2, Accent, Paired | Categorical, unordered |
+| Legacy | 2 | Jet, Jet_r | Rainbow (prefer Turbo instead) |
+
+### Usage patterns
 
 ```csharp
 using MatPlotLibNet.Styling.ColorMaps;
 
-ColorMaps.Viridis     // perceptually uniform, default
-ColorMaps.Plasma
-ColorMaps.Inferno
-ColorMaps.Magma
-ColorMaps.Coolwarm    // diverging blue-red
-ColorMaps.Blues
-ColorMaps.Reds
+// 1. Fluent API — recommended
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Heatmap(data)
+        .WithColorMap("plasma")
+        .WithNormalizer(new LogNormalizer())
+        .WithColorBar(cb => cb with { Label = "Intensity" }))
+    .Save("heatmap");
+
+// 2. Direct property assignment
+var hm = axes.Heatmap(data);
+hm.ColorMap = ColorMaps.Plasma;
+hm.Normalizer = new TwoSlopeNormalizer(center: 0);
+
+// 3. Registry lookup — case-insensitive, _r for reversed
+var map = ColorMapRegistry.Get("rdylgn");
+var reversed = ColorMapRegistry.Get("rdylgn_r");
 ```
 
-Use on a heatmap:
+### Reversed variants
+
+Every colormap automatically registers a `_r` reversed variant — 52 → 104 names:
 
 ```csharp
-var heatmap = axes.Heatmap(data);
-heatmap.ColorMap = ColorMaps.Plasma;
+ColorMapRegistry.Get("viridis_r")   // flips dark→light
+ColorMapRegistry.Get("coolwarm_r")  // flips red→blue
+```
+
+### Normalizers
+
+Normalizers map data values to [0, 1] before color lookup:
+
+| Normalizer | When to use |
+|------------|-------------|
+| `LinearNormalizer.Instance` | default, evenly spaced data |
+| `new LogNormalizer()` | power-law / wide-range data |
+| `new TwoSlopeNormalizer(center)` | diverging data with asymmetric range |
+| `new BoundaryNormalizer(double[])` | discrete bins, step-function mapping |
+
+### Colormappable series
+
+Seven series implement `IColormappable` and accept `.WithColorMap()` / `.WithNormalizer()`:
+`HeatmapSeries`, `ImageSeries`, `Histogram2DSeries`, `ContourSeries`, `SurfaceSeries`, `ScatterSeries`, `HierarchicalSeries` (Treemap/Sunburst).
+
+### Custom colormap
+
+```csharp
+public class MyMap : IColorMap
+{
+    public string Name => "my_gradient";
+    public Color GetColor(double value) =>
+        new((byte)(value * 255), 0, (byte)((1 - value) * 255));
+}
+
+ColorMapRegistry.Register("my_gradient", new MyMap());
 ```
 
 ## 14. Real-time subscription client

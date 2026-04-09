@@ -38,8 +38,8 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             if (Axes.Grid.Visible)
                 RenderGrid(xTicks, yTicks, range.YMin, transform);
 
-            // Axes frame
-            Ctx.DrawRectangle(PlotArea, null, Theme.ForegroundText, 1);
+            // Axes spines (border lines)
+            RenderSpines(transform);
 
             // Tick marks and labels
             RenderTicks(xTicks, yTicks, range.YMin, transform);
@@ -87,19 +87,19 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             }
         }
 
-        // Compute stacked bar baselines if needed
+        // Compute stacked baselines if needed
         if (Axes.BarMode == BarMode.Stacked)
         {
-            var barSeriesList = Axes.Series.OfType<BarSeries>().ToList();
-            if (barSeriesList.Count > 1)
+            var stackableList = Axes.Series.OfType<IStackable>().ToList();
+            if (stackableList.Count > 1)
             {
-                int catCount = barSeriesList[0].Categories.Length;
+                int catCount = stackableList[0].Values.Length;
                 var cumulative = new double[catCount];
-                foreach (var bs in barSeriesList)
+                foreach (var s in stackableList)
                 {
-                    bs.StackBaseline = (double[])cumulative.Clone();
-                    for (int c = 0; c < Math.Min(catCount, bs.Values.Length); c++)
-                        cumulative[c] += bs.Values[c];
+                    s.StackBaseline = (double[])cumulative.Clone();
+                    for (int c = 0; c < Math.Min(catCount, s.Values.Length); c++)
+                        cumulative[c] += s.Values[c];
                 }
             }
         }
@@ -223,12 +223,9 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     {
         var tickFont = TickFont();
 
-        var barSeries = Axes.Series.OfType<BarSeries>().FirstOrDefault();
-        var candleSeries = Axes.Series.OfType<CandlestickSeries>().FirstOrDefault();
-        if (barSeries is not null)
-            RenderCategoryLabels(barSeries.Categories, yMin, transform);
-        else if (candleSeries?.DateLabels is not null)
-            RenderCategoryLabels(candleSeries.DateLabels, yMin, transform);
+        var categoryLabeled = Axes.Series.OfType<ICategoryLabeled>().FirstOrDefault(s => s.CategoryLabels is not null);
+        if (categoryLabeled?.CategoryLabels is not null)
+            RenderCategoryLabels(categoryLabeled.CategoryLabels, yMin, transform);
         else
         {
             var xFormatter = Axes.XAxis.TickFormatter;
@@ -266,7 +263,8 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         }
     }
 
-    /// <summary>Computes the combined X and Y data ranges across all series on the axes.</summary>
+    /// <summary>Computes the combined X and Y data ranges across all series on the axes,
+    /// including shared axes ranges when sharex/sharey is configured.</summary>
     private DataRange ComputeDataRanges()
     {
         double xMin = Axes.XAxis.Min ?? double.MaxValue;
@@ -274,16 +272,29 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         double yMin = Axes.YAxis.Min ?? double.MaxValue;
         double yMax = Axes.YAxis.Max ?? double.MinValue;
 
-        var context = new AxesContextAdapter(Axes);
-        foreach (var series in Axes.Series)
+        // Aggregate from this axes' series
+        AggregateSeriesRanges(Axes, ref xMin, ref xMax, ref yMin, ref yMax);
+
+        // Aggregate from shared axes' series (walk chain, guard against cycles)
+        if (Axes.ShareXWith is not null)
         {
-            if (series is IHasDataRange hasRange)
+            var visited = new HashSet<Axes> { Axes };
+            var current = Axes.ShareXWith;
+            while (current is not null && visited.Add(current))
             {
-                var c = hasRange.ComputeDataRange(context);
-                if (c.XMin.HasValue && c.XMin.Value < xMin) xMin = c.XMin.Value;
-                if (c.XMax.HasValue && c.XMax.Value > xMax) xMax = c.XMax.Value;
-                if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
-                if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
+                AggregateSeriesXRange(current, ref xMin, ref xMax);
+                current = current.ShareXWith;
+            }
+        }
+
+        if (Axes.ShareYWith is not null)
+        {
+            var visited = new HashSet<Axes> { Axes };
+            var current = Axes.ShareYWith;
+            while (current is not null && visited.Add(current))
+            {
+                AggregateSeriesYRange(current, ref yMin, ref yMax);
+                current = current.ShareYWith;
             }
         }
 
@@ -302,6 +313,41 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         if (!Axes.YAxis.Max.HasValue) yMax += yPadding;
 
         return new DataRange(xMin, xMax, yMin, yMax);
+    }
+
+    private static void AggregateSeriesRanges(Axes axes, ref double xMin, ref double xMax, ref double yMin, ref double yMax)
+    {
+        var context = new AxesContextAdapter(axes);
+        foreach (var series in axes.Series)
+        {
+            var c = series.ComputeDataRange(context);
+            if (c.XMin.HasValue && c.XMin.Value < xMin) xMin = c.XMin.Value;
+            if (c.XMax.HasValue && c.XMax.Value > xMax) xMax = c.XMax.Value;
+            if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
+            if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
+        }
+    }
+
+    private static void AggregateSeriesXRange(Axes axes, ref double xMin, ref double xMax)
+    {
+        var context = new AxesContextAdapter(axes);
+        foreach (var series in axes.Series)
+        {
+            var c = series.ComputeDataRange(context);
+            if (c.XMin.HasValue && c.XMin.Value < xMin) xMin = c.XMin.Value;
+            if (c.XMax.HasValue && c.XMax.Value > xMax) xMax = c.XMax.Value;
+        }
+    }
+
+    private static void AggregateSeriesYRange(Axes axes, ref double yMin, ref double yMax)
+    {
+        var context = new AxesContextAdapter(axes);
+        foreach (var series in axes.Series)
+        {
+            var c = series.ComputeDataRange(context);
+            if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
+            if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
+        }
     }
 
     /// <summary>Computes the Y data range for series plotted against the secondary Y-axis.</summary>
@@ -329,5 +375,63 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         if (!Axes.SecondaryYAxis!.Max.HasValue) yMax += yPadding;
 
         return new DataRange(xMin, xMax, yMin, yMax);
+    }
+
+    /// <summary>Renders the four axis spines (border lines) based on the <see cref="Axes.Spines"/> configuration.</summary>
+    private void RenderSpines(DataTransform transform)
+    {
+        var spines = Axes.Spines;
+        var color = Theme.ForegroundText;
+        double left = PlotArea.X;
+        double right = PlotArea.X + PlotArea.Width;
+        double top = PlotArea.Y;
+        double bottom = PlotArea.Y + PlotArea.Height;
+
+        if (spines.Bottom.Visible)
+        {
+            double y = ResolveSpineY(spines.Bottom, bottom, top, bottom, transform);
+            DrawSpineLine(new Point(left, y), new Point(right, y), color, spines.Bottom.LineWidth);
+        }
+
+        if (spines.Top.Visible)
+        {
+            double y = ResolveSpineY(spines.Top, top, top, bottom, transform);
+            DrawSpineLine(new Point(left, y), new Point(right, y), color, spines.Top.LineWidth);
+        }
+
+        if (spines.Left.Visible)
+        {
+            double x = ResolveSpineX(spines.Left, left, left, right, transform);
+            DrawSpineLine(new Point(x, top), new Point(x, bottom), color, spines.Left.LineWidth);
+        }
+
+        if (spines.Right.Visible)
+        {
+            double x = ResolveSpineX(spines.Right, right, left, right, transform);
+            DrawSpineLine(new Point(x, top), new Point(x, bottom), color, spines.Right.LineWidth);
+        }
+    }
+
+    private double ResolveSpineY(SpineConfig spine, double edgeY, double plotTop, double plotBottom, DataTransform transform) =>
+        spine.Position switch
+        {
+            SpinePosition.Data => transform.DataToPixel(0, spine.PositionValue).Y,
+            SpinePosition.Axes => plotTop + (1 - spine.PositionValue) * (plotBottom - plotTop),
+            _ => edgeY
+        };
+
+    private double ResolveSpineX(SpineConfig spine, double edgeX, double plotLeft, double plotRight, DataTransform transform) =>
+        spine.Position switch
+        {
+            SpinePosition.Data => transform.DataToPixel(spine.PositionValue, 0).X,
+            SpinePosition.Axes => plotLeft + spine.PositionValue * (plotRight - plotLeft),
+            _ => edgeX
+        };
+
+    private void DrawSpineLine(Point p1, Point p2, Color color, double lineWidth)
+    {
+        Ctx.BeginGroup("spine");
+        Ctx.DrawLine(p1, p2, color, lineWidth, LineStyle.Solid);
+        Ctx.EndGroup();
     }
 }

@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D wireframe plot rendered as grid lines on a surface.</summary>
-public sealed class WireframeSeries : GridSeries3D, ISeriesSerializable
+public sealed class WireframeSeries : GridSeries3D
 {
     /// <summary>Gets or sets the wireframe line color.</summary>
     public Color? Color { get; set; }
@@ -20,7 +20,7 @@ public sealed class WireframeSeries : GridSeries3D, ISeriesSerializable
     public WireframeSeries(double[] x, double[] y, double[,] z) : base(x, y, z) { }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new() { Type = "wireframe" };
+    public override SeriesDto ToSeriesDto() => new() { Type = "wireframe" };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

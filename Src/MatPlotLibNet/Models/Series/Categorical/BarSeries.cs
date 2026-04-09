@@ -18,10 +18,13 @@ public enum BarOrientation
 }
 
 /// <summary>Represents a bar chart series displaying categorical data as rectangular bars.</summary>
-public sealed class BarSeries : ChartSeries, IHasDataRange, ISeriesSerializable
+public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable
 {
     /// <summary>Gets the category labels for each bar.</summary>
     public string[] Categories { get; }
+
+    /// <inheritdoc />
+    string[]? ICategoryLabeled.CategoryLabels => Categories;
 
     /// <summary>Gets the numeric values for each bar.</summary>
     public double[] Values { get; }
@@ -39,7 +42,8 @@ public sealed class BarSeries : ChartSeries, IHasDataRange, ISeriesSerializable
     public double BarWidth { get; set; } = 0.8;
 
     /// <summary>Gets the stack baseline offsets computed by the renderer for stacked bar mode. Null when not stacking.</summary>
-    internal double[]? StackBaseline { get; set; }
+    /// <inheritdoc />
+    public double[]? StackBaseline { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="BarSeries"/> with the specified categories and values.</summary>
     /// <param name="categories">The category labels for each bar.</param>
@@ -51,7 +55,7 @@ public sealed class BarSeries : ChartSeries, IHasDataRange, ISeriesSerializable
     }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         double xMin = context.XAxisMin ?? -0.5;
         double xMax = context.XAxisMax ?? (Categories.Length - 0.5);
@@ -59,13 +63,13 @@ public sealed class BarSeries : ChartSeries, IHasDataRange, ISeriesSerializable
 
         if (context.BarMode == BarMode.Stacked)
         {
-            var allBars = context.AllSeries.OfType<BarSeries>().ToList();
-            if (allBars.Count > 0)
+            var allStackable = context.AllSeries.OfType<IStackable>().ToList();
+            if (allStackable.Count > 0)
             {
-                int catCount = allBars[0].Categories.Length;
+                int catCount = allStackable[0].Values.Length;
                 for (int c = 0; c < catCount; c++)
                 {
-                    double sum = allBars.Sum(b => c < b.Values.Length ? b.Values[c] : 0);
+                    double sum = allStackable.Sum(s => c < s.Values.Length ? s.Values[c] : 0);
                     if (sum > yMax) yMax = sum;
                 }
             }
@@ -79,7 +83,7 @@ public sealed class BarSeries : ChartSeries, IHasDataRange, ISeriesSerializable
     }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "bar",
         Categories = Categories, Values = Values, Color = Color,

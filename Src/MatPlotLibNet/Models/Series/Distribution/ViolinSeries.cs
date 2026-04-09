@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a violin plot series displaying kernel density estimations for datasets.</summary>
-public sealed class ViolinSeries : ChartSeries, IHasDataRange, ISeriesSerializable
+public sealed class ViolinSeries : ChartSeries
 {
     /// <summary>Gets the array of datasets, each containing the values for one violin.</summary>
     public double[][] Datasets { get; }
@@ -28,7 +28,7 @@ public sealed class ViolinSeries : ChartSeries, IHasDataRange, ISeriesSerializab
     }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         double xMin = context.XAxisMin ?? -1;
         double xMax = context.XAxisMax ?? Datasets.Length;
@@ -43,7 +43,7 @@ public sealed class ViolinSeries : ChartSeries, IHasDataRange, ISeriesSerializab
     }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new() { Type = "violin", Datasets = Datasets };
+    public override SeriesDto ToSeriesDto() => new() { Type = "violin", Datasets = Datasets };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

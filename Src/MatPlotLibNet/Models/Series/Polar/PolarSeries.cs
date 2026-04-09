@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Base class for series rendered in polar coordinates (r, theta).</summary>
-public abstract class PolarSeries : ChartSeries, IHasDataRange, IPolarSeries
+public abstract class PolarSeries : ChartSeries, IPolarSeries
 {
     /// <summary>Gets the radial data values.</summary>
     public double[] R { get; }
@@ -16,6 +16,6 @@ public abstract class PolarSeries : ChartSeries, IHasDataRange, IPolarSeries
     protected PolarSeries(double[] r, double[] theta) { R = r; Theta = theta; }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
 }

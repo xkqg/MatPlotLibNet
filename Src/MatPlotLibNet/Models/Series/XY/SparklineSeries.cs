@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a sparkline — a tiny, word-sized line chart with no axes, labels, or decorations.</summary>
 /// <remarks>Designed for inline dashboard use. Renders only the line within the full plot bounds.</remarks>
-public sealed class SparklineSeries : ChartSeries, IHasDataRange, ISeriesSerializable
+public sealed class SparklineSeries : ChartSeries
 {
     /// <summary>Gets the Y-axis data values. X positions are auto-generated as 0, 1, 2, ...</summary>
     public double[] Values { get; }
@@ -24,11 +24,11 @@ public sealed class SparklineSeries : ChartSeries, IHasDataRange, ISeriesSeriali
     public SparklineSeries(double[] values) => Values = values;
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(0, Values.Length - 1, Values.Min(), Values.Max());
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "sparkline",
         Values = Values, Color = Color, LineWidth = LineWidth

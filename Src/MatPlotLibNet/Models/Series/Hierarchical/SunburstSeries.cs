@@ -7,7 +7,7 @@ using MatPlotLibNet.Serialization;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a sunburst series that renders hierarchical data as concentric ring segments.</summary>
-public sealed class SunburstSeries : HierarchicalSeries, ISeriesSerializable
+public sealed class SunburstSeries : HierarchicalSeries
 {
     /// <summary>Gets or sets the inner radius as a fraction of the maximum radius (0.0 to 1.0).</summary>
     public double InnerRadius { get; set; }
@@ -16,7 +16,7 @@ public sealed class SunburstSeries : HierarchicalSeries, ISeriesSerializable
     public SunburstSeries(TreeNode root) : base(root) { }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new() { Type = "sunburst" };
+    public override SeriesDto ToSeriesDto() => new() { Type = "sunburst" };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

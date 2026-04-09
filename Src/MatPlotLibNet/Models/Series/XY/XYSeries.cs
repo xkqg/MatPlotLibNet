@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Base class for series plotted on Cartesian X/Y coordinates.</summary>
-public abstract class XYSeries : ChartSeries, IHasDataRange, IPriceSeries
+public abstract class XYSeries : ChartSeries, IPriceSeries
 {
     /// <summary>Gets the X-axis data values.</summary>
     public double[] XData { get; }
@@ -19,6 +19,6 @@ public abstract class XYSeries : ChartSeries, IHasDataRange, IPriceSeries
     protected XYSeries(double[] xData, double[] yData) { XData = xData; YData = yData; }
 
     /// <inheritdoc />
-    public virtual DataRangeContribution ComputeDataRange(IAxesContext context) =>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(XData.Min(), XData.Max(), YData.Min(), YData.Max());
 }

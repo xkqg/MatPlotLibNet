@@ -4,6 +4,71 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-04-09
+
+### Added
+
+- `GridSpec` model — unequal subplot layouts with row/col height/width ratios and cell spanning
+- `SpinesConfig` — per-spine show/hide/position (`Edge`, `Data`, `Axes` fraction) via `AxesBuilder.WithSpines()`, `.HideTopSpine()`, `.HideRightSpine()`
+- Shared axes (`ShareX`/`ShareY`) with union range computation across linked subplots
+- Inset axes — `AddInset(x, y, w, h)` on `AxesBuilder` with recursive rendering (depth guard = 3)
+- `ImageSeries` (imshow) — display 2D data as colored pixels with colormap + `VMin`/`VMax`, implements `IColormappable`, `INormalizable`, `IColorBarDataProvider`
+- `Histogram2DSeries` — 2D density histogram binning scatter data into a grid, implements `IColormappable`, `INormalizable`, `IColorBarDataProvider`
+- `StreamplotSeries` — vector field streamlines with configurable `Density` and `ArrowSize`
+- `EcdfSeries` — empirical cumulative distribution function (sorted XY series)
+- `StackedAreaSeries` — stacked filled areas (stackplot) with `X[]`, `YSets[][]`, `StackLabels`, `FillColors`
+- `ICategoryLabeled` — polymorphic tick-label resolution for bar/candlestick series; eliminates per-type casts in renderers
+- `IColorBarDataProvider` — colorbar auto-detection from series data range + colormap; eliminates type dispatch in `AxesBuilder.WithColorBar()`
+- `IStackable` — stacking offset computation for bar series
+- `IRenderContext.BeginGroup`/`EndGroup` — default interface methods; eliminated 6 type casts across renderers
+- `PathSegment.ToSvgPathData()` — polymorphic SVG path rendering; eliminated 5-case `switch` in `SvgSeriesRenderer`
+- Series count increased from 34 to 39 chart types
+- `IColormappable` interface — `IColorMap? ColorMap { get; set; }` — implemented by all 7 series that support colormaps (`HeatmapSeries`, `ImageSeries`, `Histogram2DSeries`, `ContourSeries`, `SurfaceSeries`, `ScatterSeries`, `HierarchicalSeries`)
+- `INormalizable` interface — `INormalizer? Normalizer { get; set; }` — implemented by `HeatmapSeries`, `ImageSeries`, `Histogram2DSeries`
+- **20 new colormaps** (52 base total, 104 with reversed `_r` variants):
+  - Sequential: `Hot`, `Copper`, `Bone`, `BuPu`, `GnBu`, `PuRd`, `RdPu`, `YlGnBu`, `PuBuGn`, `Cubehelix`
+  - Diverging: `PuOr`, `Seismic`, `Bwr`
+  - Qualitative: `Pastel2`, `Dark2`, `Accent`, `Paired`
+  - Special: `Turbo` (perceptually-uniform rainbow), `Jet` (legacy rainbow), `Hsv` (cyclic hue)
+- 502 new tests (1502 total); category-specific theories: monotonic brightness, diverging midpoint neutrality, cyclic start≈end, qualitative color distinctness
+
+### Changed
+
+- `FigureBuilder.WithGridSpec()` / `AddSubPlot(GridPosition, ...)` for GridSpec-based unequal subplot layouts
+- `AxesBuilder.WithSpines()`, `.HideTopSpine()`, `.HideRightSpine()` for spine control
+- `AxesBuilder.ShareX(key)` / `.ShareY(key)` for shared-axis range synchronization
+- `AxesBuilder.AddInset(x, y, w, h, configure)` for inset axes
+- `AxesBuilder.WithColorMap(IColorMap)` — replaced 4-branch `if/else if` type chain with `if (last is IColormappable c)` — now covers all 7 colormappable series (previously missed `SurfaceSeries`, `ScatterSeries`, `HierarchicalSeries`)
+- `AxesBuilder.WithNormalizer(INormalizer)` — replaced 3-branch `if/else if` type chain with `if (last is INormalizable n)`
+
+## [0.4.1] - 2026-04-06
+
+### Added
+
+- `ISeriesSerializable` interface on all 34 series — each series serializes itself, eliminating the 152-line `SeriesToDto` switch in `ChartSerializer`
+- `SeriesRegistry` for deserialization with `ConcurrentDictionary`-based type lookup
+- `IHasDataRange` interface for series that expose their own data bounds
+- `IPolarSeries` interface for polar coordinate series
+- `I3DGridSeries` and `I3DPointSeries` interfaces for 3D series families
+- `IPriceSeries` interface for financial OHLC series
+- Generic base classes: `XYSeries`, `PolarSeries`, `GridSeries3D`, `HierarchicalSeries`
+- Color constants: `Tab10Blue`, `Tab10Orange`, `Tab10Green`, `GridGray`, `EdgeGray`, `Amber`, `FibonacciOrange` — replacing magic hex strings throughout the codebase
+- `IAnimation<TState>` interface and `AnimationController<TState>` for typed animation pipelines
+- `LegacyAnimationAdapter` bridges `AnimationBuilder` to `IAnimation<TState>` contract
+- `ConfigureAwait(false)` in `AnimationController` for library-safe async
+
+### Changed
+
+- Target frameworks changed to `net10.0;net8.0` (dropped `netstandard2.1`)
+- Removed `IsExternalInit` polyfill (no longer needed without netstandard2.1)
+- `FigureBuilder` SRP: `Save()`, `Transform()`, `ToSvg()` moved to `FigureExtensions` — builder only builds
+- `FigureExtensions.RegisterTransform()` replaces `FigureBuilder.RegisterGlobalTransform()` for startup-time format registration
+- `GlobalTransforms` registry uses `ConcurrentDictionary` for thread safety
+- `AxesRenderer` registry uses `ConcurrentDictionary` for thread-safe coordinate system dispatch
+- Volatile fields used for thread-safe state in animation and rendering pipelines
+- Publish workflow fix: build before pack for Skia/MAUI projects
+- Warning cleanup: xUnit1051 `CancellationToken` warnings and CS8604 nullable reference warnings resolved
+
 ## [0.4.0] - 2026-04-06
 
 ### Added
@@ -18,9 +83,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `AxesBuilder.WithColorBar()` and `WithProjection(elevation, azimuth)` fluent methods
 - `FigureBuilder.Save(path)` with auto-detect format from extension (no extension = SVG)
 - `AnimationBuilder` class for frame-based animation (FrameCount, Interval, Loop, GenerateFrames)
-- `IAnimation<TState>` interface and `AnimationController<TState>` for typed animation pipelines
-- `LegacyAnimationAdapter` bridges `AnimationBuilder` to `IAnimation<TState>` contract
-- `ConfigureAwait(false)` in `AnimationController` for library-safe async
 - `InteractiveFigure.AnimateAsync()` for pushing animation frames via SignalR
 - `CoordinateSystem` enum (`Cartesian`, `Polar`, `ThreeD`) on `Axes` for alternative rendering paths
 - `PolarTransform` class for (r, theta) to pixel coordinate conversion
@@ -48,14 +110,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `AxesBuilder.WithLegend()`, `SetXDateFormat()`, `SetYDateFormat()`, `SetXTickFormatter()`, `SetYTickFormatter()` fluent methods
 - `FigureBuilder.TightLayout()` and `WithSubPlotSpacing()` fluent methods
 - `SvgRenderContext.BeginGroup()` / `EndGroup()` for CSS-classed SVG groups
-- `ISeriesSerializable` interface on all 34 series — each series serializes itself, eliminating the 152-line `SeriesToDto` switch in `ChartSerializer`
-- `SeriesRegistry` for deserialization with `ConcurrentDictionary`-based type lookup
-- `IHasDataRange` interface for series that expose their own data bounds
-- `IPolarSeries` interface for polar coordinate series
-- `I3DGridSeries` and `I3DPointSeries` interfaces for 3D series families
-- `IPriceSeries` interface for financial OHLC series
-- Generic base classes: `XYSeries`, `PolarSeries`, `GridSeries3D`, `HierarchicalSeries`
-- Color constants: `Tab10Blue`, `Tab10Orange`, `Tab10Green`, `GridGray`, `EdgeGray`, `Amber`, `FibonacciOrange` — replacing magic hex strings throughout the codebase
 
 ### Changed
 
@@ -67,13 +121,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `AxesRenderer` abstract base with `CartesianAxesRenderer`, `PolarAxesRenderer`, `ThreeDAxesRenderer` — no more `private static` methods with repeated parameters
 - `ChartRenderer.RenderAxes` is now a one-liner: `AxesRenderer.Create(axes, plotArea, ctx, theme).Render()`
 - Tests refactored to use builder output methods (`.ToSvg()`) instead of explicit `.Build()`
-- `FigureBuilder` SRP: `Save()`, `Transform()`, `ToSvg()` moved to `FigureExtensions` — builder only builds
-- `FigureExtensions.RegisterTransform()` replaces `FigureBuilder.RegisterGlobalTransform()` for startup-time format registration
-- `GlobalTransforms` registry uses `ConcurrentDictionary` for thread safety
-- `AxesRenderer` registry uses `ConcurrentDictionary` for thread-safe coordinate system dispatch
-- Volatile fields used for thread-safe state in animation and rendering pipelines
-- Publish workflow fix: build before pack for Skia/MAUI projects
-- Warning cleanup: xUnit1051 `CancellationToken` warnings and CS8604 nullable reference warnings resolved
 
 ## [0.3.2] - 2026-04-05
 

@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Base class for 3D grid series with X[], Y[], Z[,] data.</summary>
-public abstract class GridSeries3D : ChartSeries, IHasDataRange, I3DGridSeries
+public abstract class GridSeries3D : ChartSeries, I3DGridSeries
 {
     /// <summary>Gets the X-axis grid coordinates.</summary>
     public double[] X { get; }
@@ -19,6 +19,6 @@ public abstract class GridSeries3D : ChartSeries, IHasDataRange, I3DGridSeries
     protected GridSeries3D(double[] x, double[] y, double[,] z) { X = x; Y = y; Z = z; }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
 }

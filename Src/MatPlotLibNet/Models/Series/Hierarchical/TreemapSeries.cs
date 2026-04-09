@@ -7,7 +7,7 @@ using MatPlotLibNet.Serialization;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a treemap series that renders hierarchical data as nested rectangles.</summary>
-public sealed class TreemapSeries : HierarchicalSeries, ISeriesSerializable
+public sealed class TreemapSeries : HierarchicalSeries
 {
     /// <summary>Gets or sets the padding between nested rectangles in pixels.</summary>
     public double Padding { get; set; } = 2.0;
@@ -16,7 +16,7 @@ public sealed class TreemapSeries : HierarchicalSeries, ISeriesSerializable
     public TreemapSeries(TreeNode root) : base(root) { }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new() { Type = "treemap" };
+    public override SeriesDto ToSeriesDto() => new() { Type = "treemap" };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

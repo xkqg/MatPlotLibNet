@@ -23,9 +23,14 @@ internal sealed class TestSeriesVisitor : ISeriesVisitor
     public void Visit(StemSeries series, RenderArea area) => LastVisited = nameof(StemSeries);
     public void Visit(AreaSeries series, RenderArea area) => LastVisited = nameof(AreaSeries);
     public void Visit(StepSeries series, RenderArea area) => LastVisited = nameof(StepSeries);
+    public void Visit(EcdfSeries series, RenderArea area) => LastVisited = nameof(EcdfSeries);
+    public void Visit(ImageSeries series, RenderArea area) => LastVisited = nameof(ImageSeries);
+    public void Visit(Histogram2DSeries series, RenderArea area) => LastVisited = nameof(Histogram2DSeries);
+    public void Visit(StackedAreaSeries series, RenderArea area) => LastVisited = nameof(StackedAreaSeries);
     public void Visit(ErrorBarSeries series, RenderArea area) => LastVisited = nameof(ErrorBarSeries);
     public void Visit(CandlestickSeries series, RenderArea area) => LastVisited = nameof(CandlestickSeries);
     public void Visit(QuiverSeries series, RenderArea area) => LastVisited = nameof(QuiverSeries);
+    public void Visit(StreamplotSeries series, RenderArea area) => LastVisited = nameof(StreamplotSeries);
     public void Visit(RadarSeries series, RenderArea area) => LastVisited = nameof(RadarSeries);
     public void Visit(DonutSeries series, RenderArea area) => LastVisited = nameof(DonutSeries);
     public void Visit(BubbleSeries series, RenderArea area) => LastVisited = nameof(BubbleSeries);

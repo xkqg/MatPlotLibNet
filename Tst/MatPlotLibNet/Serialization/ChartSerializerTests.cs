@@ -642,4 +642,233 @@ public class ChartSerializerTests
         Assert.Equal(Color.Blue, series.Color);
         Assert.Equal(2.0, series.LineWidth);
     }
+
+    // --- GridSpec serialization ---
+
+    /// <summary>Verifies that a GridSpec with ratios survives JSON round-trip.</summary>
+    [Fact]
+    public void RoundTrip_PreservesGridSpec()
+    {
+        var figure = new Figure { GridSpec = new GridSpec { Rows = 3, Cols = 2, HeightRatios = [1, 2, 1], WidthRatios = [1, 3] } };
+        var gs = figure.GridSpec;
+        figure.AddSubPlot(gs, GridPosition.Single(0, 0)).Plot([1.0], [2.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+
+        Assert.NotNull(restored.GridSpec);
+        Assert.Equal(3, restored.GridSpec.Rows);
+        Assert.Equal(2, restored.GridSpec.Cols);
+        Assert.Equal([1.0, 2.0, 1.0], restored.GridSpec.HeightRatios);
+        Assert.Equal([1.0, 3.0], restored.GridSpec.WidthRatios);
+    }
+
+    /// <summary>Verifies that a GridPosition survives JSON round-trip.</summary>
+    [Fact]
+    public void RoundTrip_PreservesGridPosition()
+    {
+        var figure = new Figure { GridSpec = new GridSpec { Rows = 2, Cols = 2 } };
+        var gs = figure.GridSpec;
+        figure.AddSubPlot(gs, GridPosition.Single(0, 1)).Plot([1.0], [2.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+
+        Assert.NotNull(restored.SubPlots[0].GridPosition);
+        var pos = restored.SubPlots[0].GridPosition!.Value;
+        Assert.Equal(0, pos.RowStart);
+        Assert.Equal(1, pos.RowEnd);
+        Assert.Equal(1, pos.ColStart);
+        Assert.Equal(2, pos.ColEnd);
+    }
+
+    /// <summary>Verifies that a spanning GridPosition survives JSON round-trip.</summary>
+    [Fact]
+    public void RoundTrip_PreservesGridPosition_Spanning()
+    {
+        var figure = new Figure { GridSpec = new GridSpec { Rows = 3, Cols = 3 } };
+        var gs = figure.GridSpec;
+        figure.AddSubPlot(gs, GridPosition.Span(0, 2, 0, 3)).Plot([1.0], [2.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+
+        var pos = restored.SubPlots[0].GridPosition!.Value;
+        Assert.Equal(0, pos.RowStart);
+        Assert.Equal(2, pos.RowEnd);
+        Assert.Equal(0, pos.ColStart);
+        Assert.Equal(3, pos.ColEnd);
+    }
+
+    /// <summary>Verifies that a figure without GridSpec omits the gridSpec field from JSON.</summary>
+    [Fact]
+    public void RoundTrip_NoGridSpec_OmitsFromJson()
+    {
+        var figure = Plt.Create().Plot([1.0], [2.0]).Build();
+
+        string json = ChartServices.Serializer.ToJson(figure);
+        Assert.DoesNotContain("gridSpec", json);
+    }
+
+    // --- Spines serialization ---
+
+    /// <summary>Verifies that hidden spines survive JSON round-trip.</summary>
+    [Fact]
+    public void RoundTrip_PreservesSpinesConfig()
+    {
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        ax.Spines = ax.Spines with
+        {
+            Top = new SpineConfig() with { Visible = false },
+            Right = new SpineConfig() with { Visible = false }
+        };
+        ax.Plot([1.0], [2.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        Assert.False(restored.SubPlots[0].Spines.Top.Visible);
+        Assert.False(restored.SubPlots[0].Spines.Right.Visible);
+        Assert.True(restored.SubPlots[0].Spines.Bottom.Visible);
+        Assert.True(restored.SubPlots[0].Spines.Left.Visible);
+    }
+
+    /// <summary>Verifies that spine data position survives JSON round-trip.</summary>
+    [Fact]
+    public void RoundTrip_PreservesSpinePosition()
+    {
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        ax.Spines = ax.Spines with
+        {
+            Bottom = new SpineConfig() with { Position = SpinePosition.Data, PositionValue = 0.0 }
+        };
+        ax.Plot([1.0], [2.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        Assert.Equal(SpinePosition.Data, restored.SubPlots[0].Spines.Bottom.Position);
+        Assert.Equal(0.0, restored.SubPlots[0].Spines.Bottom.PositionValue);
+    }
+
+    /// <summary>Verifies that default spines are omitted from JSON.</summary>
+    [Fact]
+    public void RoundTrip_DefaultSpines_OmitsFromJson()
+    {
+        var figure = new Figure();
+        figure.AddSubPlot().Plot([1.0], [2.0]);
+
+        string json = ChartServices.Serializer.ToJson(figure);
+        Assert.DoesNotContain("spines", json);
+    }
+
+    // --- Shared axes serialization ---
+
+    /// <summary>Verifies that shared X axis survives JSON round-trip via keys.</summary>
+    [Fact]
+    public void RoundTrip_PreservesSharedXAxis()
+    {
+        var figure = new Figure();
+        var ax1 = figure.AddSubPlot(2, 1, 1);
+        ax1.Key = "price";
+        ax1.Plot([1.0, 2.0], [3.0, 4.0]);
+
+        var ax2 = figure.AddSubPlot(2, 1, 2, sharex: ax1);
+        ax2.Key = "volume";
+        ax2.Plot([1.0, 2.0], [5.0, 6.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+
+        Assert.NotNull(restored.SubPlots[1].ShareXWith);
+        Assert.Same(restored.SubPlots[0], restored.SubPlots[1].ShareXWith);
+    }
+
+    /// <summary>Verifies that shared Y axis survives JSON round-trip via keys.</summary>
+    [Fact]
+    public void RoundTrip_PreservesSharedYAxis()
+    {
+        var figure = new Figure();
+        var ax1 = figure.AddSubPlot(1, 2, 1);
+        ax1.Key = "main";
+        ax1.Plot([1.0, 2.0], [3.0, 4.0]);
+
+        var ax2 = figure.AddSubPlot(1, 2, 2, sharey: ax1);
+        ax2.Key = "side";
+        ax2.Plot([1.0, 2.0], [5.0, 6.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+
+        Assert.NotNull(restored.SubPlots[1].ShareYWith);
+        Assert.Same(restored.SubPlots[0], restored.SubPlots[1].ShareYWith);
+    }
+
+    /// <summary>Verifies that no sharing keys are emitted when not configured.</summary>
+    [Fact]
+    public void RoundTrip_NoSharing_OmitsKeys()
+    {
+        var figure = new Figure();
+        figure.AddSubPlot().Plot([1.0], [2.0]);
+
+        string json = ChartServices.Serializer.ToJson(figure);
+        Assert.DoesNotContain("shareXKey", json);
+        Assert.DoesNotContain("shareYKey", json);
+    }
+
+    // --- Inset axes serialization ---
+
+    /// <summary>Verifies that an inset with series survives JSON round-trip.</summary>
+    [Fact]
+    public void RoundTrip_PreservesInsetAxes()
+    {
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        ax.Plot([1.0, 2.0], [3.0, 4.0]);
+        var inset = ax.AddInset(0.6, 0.1, 0.35, 0.35);
+        inset.Plot([1.5, 2.0], [3.5, 4.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+
+        Assert.Single(restored.SubPlots[0].Insets);
+        Assert.Single(restored.SubPlots[0].Insets[0].Series);
+    }
+
+    /// <summary>Verifies that InsetBounds values are preserved.</summary>
+    [Fact]
+    public void RoundTrip_PreservesInsetBounds()
+    {
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        ax.Plot([1.0], [2.0]);
+        ax.AddInset(0.6, 0.1, 0.35, 0.35).Plot([1.0], [2.0]);
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+
+        var bounds = restored.SubPlots[0].Insets[0].InsetBounds!.Value;
+        Assert.Equal(0.6, bounds.X);
+        Assert.Equal(0.1, bounds.Y);
+        Assert.Equal(0.35, bounds.Width);
+        Assert.Equal(0.35, bounds.Height);
+    }
+
+    /// <summary>Verifies that colormap name survives JSON round-trip.</summary>
+    [Fact]
+    public void RoundTrip_PreservesColorMapName()
+    {
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        var hs = ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
+        hs.ColorMap = MatPlotLibNet.Styling.ColorMaps.ColorMaps.Plasma;
+
+        var restored = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+        var restoredHs = (HeatmapSeries)restored.SubPlots[0].Series[0];
+        Assert.NotNull(restoredHs.ColorMap);
+        Assert.Equal("plasma", restoredHs.ColorMap!.Name);
+    }
+
+    /// <summary>Verifies that no insets field is emitted when not configured.</summary>
+    [Fact]
+    public void RoundTrip_NoInsets_OmitsFromJson()
+    {
+        var figure = new Figure();
+        figure.AddSubPlot().Plot([1.0], [2.0]);
+
+        string json = ChartServices.Serializer.ToJson(figure);
+        Assert.DoesNotContain("insets", json);
+        Assert.DoesNotContain("insetBounds", json);
+    }
 }

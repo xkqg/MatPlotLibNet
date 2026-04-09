@@ -91,4 +91,59 @@ public class FigureTests
         var fig = new Figure();
         Assert.IsAssignableFrom<IReadOnlyList<Axes>>(fig.SubPlots);
     }
+
+    // --- GridSpec integration ---
+
+    /// <summary>Verifies that GridSpec defaults to null.</summary>
+    [Fact]
+    public void GridSpec_DefaultIsNull()
+    {
+        var fig = new Figure();
+        Assert.Null(fig.GridSpec);
+    }
+
+    /// <summary>Verifies that AddSubPlot with GridSpec and GridPosition stores position on the Axes.</summary>
+    [Fact]
+    public void AddSubPlot_WithGridSpecAndPosition_StoresPosition()
+    {
+        var fig = new Figure();
+        var gs = new GridSpec { Rows = 2, Cols = 3 };
+        fig.GridSpec = gs;
+        var ax = fig.AddSubPlot(gs, GridPosition.Single(0, 0));
+
+        Assert.Single(fig.SubPlots);
+        Assert.NotNull(ax.GridPosition);
+        Assert.Equal(0, ax.GridPosition.Value.RowStart);
+        Assert.Equal(1, ax.GridPosition.Value.RowEnd);
+        Assert.Equal(0, ax.GridPosition.Value.ColStart);
+        Assert.Equal(1, ax.GridPosition.Value.ColEnd);
+    }
+
+    /// <summary>Verifies that AddSubPlot with spanning stores the correct GridPosition.</summary>
+    [Fact]
+    public void AddSubPlot_WithGridSpecSpanning_StoresSpan()
+    {
+        var fig = new Figure();
+        var gs = new GridSpec { Rows = 3, Cols = 3 };
+        fig.GridSpec = gs;
+        var ax = fig.AddSubPlot(gs, 0, 1, 0, 3);
+
+        Assert.NotNull(ax.GridPosition);
+        Assert.Equal(0, ax.GridPosition.Value.RowStart);
+        Assert.Equal(1, ax.GridPosition.Value.RowEnd);
+        Assert.Equal(0, ax.GridPosition.Value.ColStart);
+        Assert.Equal(3, ax.GridPosition.Value.ColEnd);
+    }
+
+    /// <summary>Verifies that the legacy AddSubPlot(rows, cols, index) still works unchanged.</summary>
+    [Fact]
+    public void AddSubPlot_LegacyOverload_StillWorks()
+    {
+        var fig = new Figure();
+        var ax = fig.AddSubPlot(2, 2, 1);
+        Assert.Equal(2, ax.GridRows);
+        Assert.Equal(2, ax.GridCols);
+        Assert.Equal(1, ax.GridIndex);
+        Assert.Null(ax.GridPosition);
+    }
 }

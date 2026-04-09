@@ -21,7 +21,7 @@ public enum StepPosition
 }
 
 /// <summary>Represents a step-function line series.</summary>
-public sealed class StepSeries : XYSeries, ISeriesSerializable
+public sealed class StepSeries : XYSeries
 {
     /// <summary>Gets or sets where the step transition occurs.</summary>
     public StepPosition StepPosition { get; set; } = StepPosition.Post;
@@ -42,7 +42,7 @@ public sealed class StepSeries : XYSeries, ISeriesSerializable
     public StepSeries(double[] xData, double[] yData) : base(xData, yData) { }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "step",
         XData = XData, YData = YData, Color = Color,

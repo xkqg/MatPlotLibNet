@@ -130,7 +130,7 @@ public abstract class AxesRenderer
         var bgColor = Theme.Background.WithAlpha(220);
         Ctx.DrawRectangle(new Rect(boxX, boxY, boxWidth, boxHeight), bgColor, Theme.ForegroundText, 0.5);
 
-        if (Ctx is SvgRenderContext svgCtx) svgCtx.BeginGroup("legend");
+        Ctx.BeginGroup("legend");
 
         for (int i = 0; i < entries.Count; i++)
         {
@@ -140,7 +140,7 @@ public abstract class AxesRenderer
             Ctx.DrawText(label, new Point(boxX + padding + swatchSize + swatchGap, entryY + swatchSize - 1), font, TextAlignment.Left);
         }
 
-        if (Ctx is SvgRenderContext svgCtx2) svgCtx2.EndGroup();
+        Ctx.EndGroup();
     }
 
     /// <summary>Renders a color bar gradient alongside the plot area if configured.</summary>
@@ -151,21 +151,12 @@ public abstract class AxesRenderer
         IColorMap colorMap = cb.ColorMap ?? ColorMaps.Viridis;
         double min = cb.Min, max = cb.Max;
 
-        foreach (var s in Axes.Series)
+        var dataProvider = Axes.Series.OfType<IColorBarDataProvider>().FirstOrDefault();
+        if (dataProvider is not null)
         {
-            if (s is HeatmapSeries hs)
-            {
-                colorMap = cb.ColorMap ?? hs.ColorMap ?? ColorMaps.Viridis;
-                double hMin = double.MaxValue, hMax = double.MinValue;
-                for (int r = 0; r < hs.Data.GetLength(0); r++)
-                    for (int c = 0; c < hs.Data.GetLength(1); c++)
-                    {
-                        if (hs.Data[r, c] < hMin) hMin = hs.Data[r, c];
-                        if (hs.Data[r, c] > hMax) hMax = hs.Data[r, c];
-                    }
-                if (hMin < hMax) { min = hMin; max = hMax; }
-                break;
-            }
+            colorMap = cb.ColorMap ?? dataProvider.ColorMap ?? ColorMaps.Viridis;
+            var (dMin, dMax) = dataProvider.GetColorBarRange();
+            if (dMin < dMax) { min = dMin; max = dMax; }
         }
 
         if (Math.Abs(max - min) < 1e-10) { min = 0; max = 1; }
@@ -175,7 +166,7 @@ public abstract class AxesRenderer
         double barH = PlotArea.Height;
         int steps = 50;
 
-        if (Ctx is SvgRenderContext svgCtx) svgCtx.BeginGroup("colorbar");
+        Ctx.BeginGroup("colorbar");
 
         for (int i = 0; i < steps; i++)
         {
@@ -198,7 +189,7 @@ public abstract class AxesRenderer
         if (cb.Label is not null)
             Ctx.DrawText(cb.Label, new Point(labelX + 30, barY + barH / 2), LabelFont(), TextAlignment.Center);
 
-        if (Ctx is SvgRenderContext svgCtx2) svgCtx2.EndGroup();
+        Ctx.EndGroup();
     }
 
     /// <summary>Renders the axes title above the plot area.</summary>

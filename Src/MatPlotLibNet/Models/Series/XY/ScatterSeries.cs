@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a scatter chart series displaying individual data points as markers.</summary>
-public sealed class ScatterSeries : XYSeries, ISeriesSerializable
+public sealed class ScatterSeries : XYSeries, IColormappable
 {
     /// <summary>Gets or sets per-point marker sizes.</summary>
     public double[]? Sizes { get; set; }
@@ -39,7 +39,7 @@ public sealed class ScatterSeries : XYSeries, ISeriesSerializable
     public ScatterSeries(double[] xData, double[] yData) : base(xData, yData) { }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "scatter",
         XData = XData, YData = YData, Color = Color,

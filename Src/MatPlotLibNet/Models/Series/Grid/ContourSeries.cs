@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a contour plot series displaying iso-lines or filled regions for 3D surface data.</summary>
-public sealed class ContourSeries : ChartSeries, IHasDataRange, ISeriesSerializable
+public sealed class ContourSeries : ChartSeries, IColormappable
 {
     /// <summary>Gets the X-axis grid coordinates.</summary>
     public double[] XData { get; }
@@ -41,11 +41,11 @@ public sealed class ContourSeries : ChartSeries, IHasDataRange, ISeriesSerializa
     }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "contour",
         XData = XData, YData = YData, HeatmapData = ChartSerializer.To2DList(ZData)

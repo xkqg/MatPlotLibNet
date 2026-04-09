@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents an OHLC candlestick series for financial chart visualization.</summary>
-public sealed class CandlestickSeries : ChartSeries, IHasDataRange, IPriceSeries, ISeriesSerializable
+public sealed class CandlestickSeries : ChartSeries, IPriceSeries, ICategoryLabeled
 {
     /// <summary>Gets the opening prices.</summary>
     public double[] Open { get; }
@@ -24,6 +24,9 @@ public sealed class CandlestickSeries : ChartSeries, IHasDataRange, IPriceSeries
 
     /// <summary>Gets or sets the optional date/category labels for the X axis.</summary>
     public string[]? DateLabels { get; set; }
+
+    /// <inheritdoc />
+    string[]? ICategoryLabeled.CategoryLabels => DateLabels;
 
     /// <summary>Gets or sets the color for up (close >= open) candles.</summary>
     public Color UpColor { get; set; } = Color.Green;
@@ -47,11 +50,11 @@ public sealed class CandlestickSeries : ChartSeries, IHasDataRange, IPriceSeries
     public double[] PriceData => Close;
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(context.XAxisMin ?? -0.5, context.XAxisMax ?? (Open.Length - 0.5), Low.Min(), High.Max());
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "candlestick",
         Open = Open, High = High, Low = Low, Close = Close,

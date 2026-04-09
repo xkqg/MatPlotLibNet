@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.4.0)
+# MatPlotLibNet Core -- Architecture (v0.5.0)
 
 ## Package dependency graph
 
@@ -45,13 +45,16 @@ MatPlotLibNet/
 
   Models/
     Figure.cs                         top-level container (Title, Width, Height, Theme, EnableZoomPan)
-    Axes.cs                           subplot: series, annotations, ref lines, spans, secondary axis
+    Axes.cs                           subplot: series, annotations, ref lines, spans, secondary axis, insets, ShareX/ShareY
     Axis.cs                           label, min/max, scale, ticks
     Annotation.cs                     text annotation at data coordinates with optional arrow
     ReferenceLine.cs                  horizontal/vertical reference line (AxHLine, AxVLine)
     SpanRegion.cs                     shaded horizontal/vertical region (AxHSpan, AxVSpan)
+    GridSpec.cs                       unequal subplot layout: Rows, Cols, HeightRatios, WidthRatios
+    InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates)
+    SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
 
-    Series/                           34 series types across 11 families
+    Series/                           39 series types across 12 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
       ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
       IHasDataRange.cs                interface: series that expose their own data bounds
@@ -59,40 +62,50 @@ MatPlotLibNet/
       I3DGridSeries.cs                interface: 3D grid-based series (Surface, Wireframe)
       I3DPointSeries.cs               interface: 3D point-based series (Scatter3D)
       IPriceSeries.cs                 interface: financial OHLC series (Candlestick, OhlcBar)
+      IColormappable.cs               interface: ColorMap { get; set; } — polymorphic colormap assignment
+      INormalizable.cs                interface: Normalizer { get; set; } — polymorphic normalizer assignment
+      ICategoryLabeled.cs             interface: CategoryLabels for polymorphic tick-label rendering
+      IColorBarDataProvider.cs        interface: GetColorBarRange() + ColorMap for colorbar auto-detection
+      IStackable.cs                   interface: StackBaseline for bar stacking offset computation
       ChartSeries.cs                  abstract base: implements ISeries + ISeriesSerializable
-      XYSeries.cs                     generic base: XData, YData (Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Stem)
+      XYSeries.cs                     generic base: XData, YData (Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Stem, Ecdf)
       PolarSeries.cs                  generic base: RData, ThetaData (PolarLine, PolarScatter, PolarBar)
       GridSeries3D.cs                 generic base: XData, YData, ZData[,] (Surface, Wireframe)
-      HierarchicalSeries.cs           generic base: Root, ColorMap, ShowLabels (Treemap, Sunburst)
+      HierarchicalSeries.cs           abstract base: Root, ColorMap, ShowLabels, IColormappable (Treemap, Sunburst)
       LineSeries.cs                   XYSeries: Color, LineStyle, LineWidth, Marker
-      ScatterSeries.cs                XYSeries: Color, MarkerSize, Sizes[], Colors[]
-      BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth, StackBaseline
+      ScatterSeries.cs                XYSeries: Color, MarkerSize, Sizes[], Colors[], IColormappable
+      BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth, StackBaseline, ICategoryLabeled, IStackable
       HistogramSeries.cs              Data, Bins, Color, Alpha, ComputeBins()
       PieSeries.cs                    Sizes, Labels, Colors[], StartAngle
-      HeatmapSeries.cs               Data[,], ColorMap, IHasDataRange
+      HeatmapSeries.cs                Data[,], ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider
+      ImageSeries.cs                  Data[,], ColorMap, Normalizer, VMin, VMax, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
+      Histogram2DSeries.cs            X[], Y[], BinsX, BinsY, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       BoxSeries.cs                    Datasets[][], Color, MedianColor, ShowOutliers
       ViolinSeries.cs                 Datasets[][], Color, Alpha
-      ContourSeries.cs                XData, YData, ZData[,], Levels, ColorMap, IHasDataRange
+      ContourSeries.cs                XData, YData, ZData[,], Levels, ColorMap, IColormappable, IHasDataRange
       StemSeries.cs                   XYSeries: MarkerColor, StemColor, BaselineColor
       AreaSeries.cs                   XYSeries: YData2 (fill between), Alpha, FillColor
       StepSeries.cs                   XYSeries: StepPosition (Pre/Mid/Post)
       ErrorBarSeries.cs               XYSeries: YErrorLow/High, XErrorLow/High, CapSize
-      CandlestickSeries.cs            IPriceSeries: Open, High, Low, Close, DateLabels, UpColor, DownColor
+      CandlestickSeries.cs            IPriceSeries: Open, High, Low, Close, DateLabels, UpColor, DownColor, ICategoryLabeled
       QuiverSeries.cs                 XData, YData, UData, VData, Scale, ArrowHeadSize
       RadarSeries.cs                  Categories, Values, FillColor, Alpha, MaxValue
       DonutSeries.cs                  Sizes, InnerRadius, CenterText (Circular/)
       BubbleSeries.cs                 XYSeries: Sizes, Alpha (XY/)
-      OhlcBarSeries.cs                IPriceSeries: Open, High, Low, Close, TickWidth (Financial/)
+      OhlcBarSeries.cs                IPriceSeries: Open, High, Low, Close, TickWidth, ICategoryLabeled (Financial/)
       WaterfallSeries.cs              Categories, Values, IncreaseColor, DecreaseColor (Categorical/)
       FunnelSeries.cs                 Labels, Values, Colors (Categorical/)
       GanttSeries.cs                  Tasks, Starts, Ends, BarHeight (Categorical/)
       GaugeSeries.cs                  Value, Min, Max, Ranges, NeedleColor (Circular/)
       ProgressBarSeries.cs            Value, FillColor, TrackColor (Categorical/)
       SparklineSeries.cs              XYSeries: Values, LineWidth (XY/)
+      EcdfSeries.cs                   XYSeries: sorted empirical CDF (XY/)
+      StackedAreaSeries.cs            X[], YSets[][], StackLabels, FillColors, IStackable (XY/)
+      StreamplotSeries.cs             XData[], YData[], UData[,], VData[,], Density, ArrowSize (Field/)
       PolarLineSeries.cs              PolarSeries: Color, LineStyle (Polar/)
       PolarScatterSeries.cs           PolarSeries: Color, MarkerSize (Polar/)
       PolarBarSeries.cs               PolarSeries: Color, BarWidth (Polar/)
-      SurfaceSeries.cs                GridSeries3D: ColorMap, ShowWireframe, I3DGridSeries
+      SurfaceSeries.cs                GridSeries3D: ColorMap, ShowWireframe, IColormappable, I3DGridSeries
       WireframeSeries.cs              GridSeries3D: WireColor, I3DGridSeries
       Scatter3DSeries.cs              I3DPointSeries: XData, YData, ZData, MarkerSize
       TreemapSeries.cs                HierarchicalSeries: Padding (Hierarchical/)
@@ -155,13 +168,13 @@ MatPlotLibNet/
     SeriesRenderers/                    generic SeriesRenderer<T> per series type
       SeriesRenderContext.cs            record: Transform + Ctx + Color + Area + options
       SeriesRenderer.cs                 abstract base + generic SeriesRenderer<T>
-      XY/                               Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline
+      XY/                               Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Ecdf, StackedArea
       Categorical/                      Bar, Histogram, Waterfall, Funnel, Gantt, ProgressBar
       Circular/                         Pie, Radar, Donut, Gauge
-      Grid/                             Heatmap, Contour
+      Grid/                             Heatmap, Contour, Image, Histogram2D
       Distribution/                     Box, Violin
       Financial/                        Candlestick, OhlcBar
-      Field/                            Quiver, Stem
+      Field/                            Quiver, Stem, Streamplot
       Hierarchical/                     Treemap, Sunburst (shared HierarchicalSeries base)
       Flow/                             Sankey
 
@@ -189,8 +202,22 @@ MatPlotLibNet/
 
     ColorMaps/
       IColorMap.cs                    interface: GetColor(double normalized) -> Color
-      LerpColorMap.cs                 linear interpolation between color stops
-      ColorMaps.cs                    built-in: Viridis, Plasma, Inferno, Magma, Coolwarm, etc.
+      LerpColorMap.cs                 internal sealed: linear interpolation between Color[] hex stops
+      ReversedColorMap.cs             public decorator: inverts normalized input, appends _r suffix
+      ColorMapRegistry.cs             thread-safe ConcurrentDictionary, case-insensitive, auto-registers _r variants
+      INormalizer.cs                  interface + 4 implementations: LinearNormalizer (singleton),
+                                        LogNormalizer, TwoSlopeNormalizer(center), BoundaryNormalizer(double[])
+      ColorMaps.cs                    9 perceptually-uniform + rainbow: Viridis, Plasma, Inferno, Magma,
+                                        Coolwarm, Blues, Reds, Turbo (prefer over Jet), Jet (legacy)
+      SequentialColorMaps.cs          21 sequential: Cividis, Greens, Oranges, Purples, Greys, YlOrBr,
+                                        YlOrRd, OrRd, PuBu, YlGn, BuGn, Hot, Copper, Bone, BuPu, GnBu,
+                                        PuRd, RdPu, YlGnBu, PuBuGn, Cubehelix
+      DivergingColorMaps.cs           9 diverging: RdBu, RdYlGn, RdYlBu, BrBG, PiYG, Spectral, PuOr,
+                                        Seismic, Bwr
+      CyclicColorMaps.cs              3 cyclic (start≈end): Twilight, TwilightShifted, Hsv
+      QualitativeColorMaps.cs         10 qualitative: Tab10, Tab20, Set1, Set2, Set3, Pastel1, Pastel2,
+                                        Dark2, Accent, Paired
+                                      Total: 52 base colormaps × 2 (+ _r reversed) = 104 registered names
 ```
 
 ## Data flow
@@ -296,7 +323,7 @@ ChartHub               routes to SignalR group by chartId
 | Self-serialization | ISeriesSerializable on all 34 series | each series knows how to serialize itself (no central switch) |
 | Registry | SeriesRegistry (ConcurrentDictionary) | thread-safe deserialization type lookup |
 | Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries | DRY shared properties across series families |
-| Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries | narrow contracts for cross-cutting concerns |
+| Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable | narrow contracts for cross-cutting concerns |
 | DI interfaces | IFigureTransform, IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |
 | SRP extension methods | FigureExtensions (Save, Transform, ToSvg, RegisterTransform) | builder only builds; output is separate |
 | Static defaults | ChartServices | non-DI usage for console apps |

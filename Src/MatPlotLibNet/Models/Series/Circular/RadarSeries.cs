@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a radar (spider) chart series displaying multi-axis categorical data.</summary>
-public sealed class RadarSeries : ChartSeries, IHasDataRange, ISeriesSerializable
+public sealed class RadarSeries : ChartSeries
 {
     /// <summary>Gets the category labels for each axis.</summary>
     public string[] Categories { get; }
@@ -39,11 +39,11 @@ public sealed class RadarSeries : ChartSeries, IHasDataRange, ISeriesSerializabl
     }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "radar",
         Categories = Categories, Values = Values,

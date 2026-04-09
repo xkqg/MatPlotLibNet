@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a gauge (speedometer) chart with a semi-circular dial, needle, and colored range bands.</summary>
-public sealed class GaugeSeries : ChartSeries, IHasDataRange, ISeriesSerializable
+public sealed class GaugeSeries : ChartSeries
 {
     /// <summary>Gets the current value displayed by the needle.</summary>
     public double Value { get; }
@@ -30,11 +30,11 @@ public sealed class GaugeSeries : ChartSeries, IHasDataRange, ISeriesSerializabl
     public GaugeSeries(double value) => Value = value;
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context) =>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "gauge",
         GaugeValue = Value, GaugeMin = Min, GaugeMax = Max,

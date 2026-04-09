@@ -166,6 +166,65 @@ Plt.Create()
     .Save("logscale.svg");
 ```
 
+## Color maps
+
+52 built-in colormaps — see [Src/MatPlotLibNet/howTo.md §13](Src/MatPlotLibNet/howTo.md#13-color-maps) for the full taxonomy table and normalizer reference.
+
+```csharp
+using MatPlotLibNet.Styling.ColorMaps;
+
+// Fluent API (heatmap with colormap + colorbar)
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Heatmap(data)
+        .WithColorMap("plasma")
+        .WithColorBar(cb => cb with { Label = "Intensity" }))
+    .Save("heatmap.svg");
+
+// Registry lookup — case-insensitive, append _r for reversed variant
+var map = ColorMapRegistry.Get("rdylgn");
+var reversed = ColorMapRegistry.Get("viridis_r");
+```
+
+Normalizers: `new LogNormalizer()`, `new TwoSlopeNormalizer(center)`, `new BoundaryNormalizer(double[])`.
+
+## Advanced layouts
+
+### GridSpec — unequal subplot sizes
+
+```csharp
+Plt.Create()
+    .WithGridSpec(2, 2, heightRatios: [2.0, 1.0], widthRatios: [3.0, 1.0])
+    .AddSubPlot(GridPosition.Single(0, 0), ax => ax.Plot(x, y).WithTitle("Main"))
+    .AddSubPlot(GridPosition.Single(0, 1), ax => ax.Scatter(x, y))
+    .AddSubPlot(GridPosition.Span(1, 2, 0, 2), ax => ax.Bar(cats, vals))
+    .Save("gridspec.svg");
+```
+
+### Shared axes
+
+```csharp
+.AddSubPlot(2, 1, 1, ax => ax.ShareX("group1").Plot(x, y1))
+.AddSubPlot(2, 1, 2, ax => ax.ShareX("group1").Plot(x, y2))
+```
+
+### Spines
+
+```csharp
+ax.HideTopSpine().HideRightSpine();
+
+// Move x-axis to y=0
+ax.WithSpines(s => s with { Bottom = s.Bottom with { Position = SpinePosition.Data(0) } });
+```
+
+### Inset axes
+
+```csharp
+ax.Plot(x, y)
+  .AddInset(0.6, 0.6, 0.35, 0.35, inset => inset
+      .Plot(xZoom, yZoom).WithTitle("Detail"));
+```
+
 ## Subplot spacing
 
 ```csharp

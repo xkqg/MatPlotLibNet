@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a histogram series that bins continuous data into discrete intervals.</summary>
-public sealed class HistogramSeries : ChartSeries, IHasDataRange, ISeriesSerializable
+public sealed class HistogramSeries : ChartSeries
 {
     /// <summary>Gets the raw data values to be binned.</summary>
     public double[] Data { get; }
@@ -34,7 +34,7 @@ public sealed class HistogramSeries : ChartSeries, IHasDataRange, ISeriesSeriali
     }
 
     /// <inheritdoc />
-    public DataRangeContribution ComputeDataRange(IAxesContext context)
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         double yMin = 0, yMax = 0;
         if (Data.Length > 0)
@@ -47,7 +47,7 @@ public sealed class HistogramSeries : ChartSeries, IHasDataRange, ISeriesSeriali
     }
 
     /// <inheritdoc />
-    public SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => new()
     {
         Type = "histogram",
         Data = Data, Bins = Bins, Color = Color
