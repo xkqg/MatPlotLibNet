@@ -15,6 +15,7 @@ public sealed class PercentFormatter : ITickFormatter
     private readonly double _max;
 
     /// <summary>Initialises with the value that represents 100%.</summary>
+    /// <param name="max">The data value that corresponds to 100%. For a 0–1 scale use 1.0; for a 0–100 scale use 100.0.</param>
     public PercentFormatter(double max) => _max = max;
 
     /// <inheritdoc />

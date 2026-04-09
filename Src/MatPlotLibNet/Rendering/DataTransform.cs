@@ -47,6 +47,8 @@ public sealed class DataTransform
     }
 
     /// <summary>Converts data-space coordinates to pixel-space coordinates.</summary>
+    /// <param name="x">The X value in data space.</param>
+    /// <param name="y">The Y value in data space.</param>
     /// <returns>The corresponding pixel position.</returns>
     public Point DataToPixel(double x, double y)
     {
@@ -63,6 +65,7 @@ public sealed class DataTransform
     }
 
     /// <summary>Converts pixel-space coordinates back to data-space coordinates.</summary>
+    /// <param name="pixel">The pixel-space point to convert.</param>
     /// <returns>The corresponding data-space point.</returns>
     public Point PixelToData(Point pixel)
     {

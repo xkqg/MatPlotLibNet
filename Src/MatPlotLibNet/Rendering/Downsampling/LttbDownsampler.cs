@@ -8,6 +8,11 @@ namespace MatPlotLibNet.Rendering.Downsampling;
 /// O(n) in practice — selects the point in each bucket that forms the largest triangle with the
 /// previous selected point and the average of the next bucket, preserving visual peaks and troughs.
 /// </summary>
+/// <remarks>
+/// The first and last data points are always preserved. Input X data must be sorted in ascending
+/// order; unsorted data produces undefined output. When the input already contains fewer points
+/// than <c>targetPoints</c>, the original arrays are returned unchanged without allocation.
+/// </remarks>
 public sealed class LttbDownsampler : IDownsampler
 {
     /// <inheritdoc />

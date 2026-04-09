@@ -12,6 +12,7 @@ public sealed class FixedLocator : ITickLocator
     private readonly double[] _positions;
 
     /// <summary>Initialises with the fixed tick positions.</summary>
+    /// <param name="positions">The explicit tick values to use; positions outside the current axis range are silently ignored.</param>
     public FixedLocator(double[] positions) => _positions = positions;
 
     /// <inheritdoc />

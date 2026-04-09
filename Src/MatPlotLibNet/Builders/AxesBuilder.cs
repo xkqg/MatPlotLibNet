@@ -157,6 +157,8 @@ public sealed class AxesBuilder
     }
 
     /// <summary>Sets a custom tick locator on the X-axis, overriding the default nice-number algorithm.</summary>
+    /// <param name="locator">The <see cref="Rendering.TickLocators.ITickLocator"/> implementation to use.</param>
+    /// <remarks>Also overrides any <see cref="Models.TickConfig.Spacing"/> set on the axis. Tick formatting via the axis <c>TickFormatter</c> is still applied after the locator produces its positions.</remarks>
     public AxesBuilder SetXTickLocator(Rendering.TickLocators.ITickLocator locator)
     {
         _axes.XAxis.TickLocator = locator;
@@ -164,13 +166,16 @@ public sealed class AxesBuilder
     }
 
     /// <summary>Sets a custom tick locator on the Y-axis, overriding the default nice-number algorithm.</summary>
+    /// <param name="locator">The <see cref="Rendering.TickLocators.ITickLocator"/> implementation to use.</param>
+    /// <remarks>Also overrides any <see cref="Models.TickConfig.Spacing"/> set on the axis. Tick formatting via the axis <c>TickFormatter</c> is still applied after the locator produces its positions.</remarks>
     public AxesBuilder SetYTickLocator(Rendering.TickLocators.ITickLocator locator)
     {
         _axes.YAxis.TickLocator = locator;
         return this;
     }
 
-    /// <summary>Enables minor tick marks on both axes. Minor ticks subdivide each major interval into 5 sub-intervals.</summary>
+    /// <summary>Enables or disables minor tick marks on both axes. Minor ticks subdivide each major interval into 5 sub-intervals.</summary>
+    /// <param name="visible">When <c>true</c> (default), minor ticks are shown; when <c>false</c>, they are hidden.</param>
     public AxesBuilder WithMinorTicks(bool visible = true)
     {
         _axes.XAxis.MinorTicks = _axes.XAxis.MinorTicks with { Visible = visible };
@@ -182,6 +187,7 @@ public sealed class AxesBuilder
     /// Enables bar value labels on the last <see cref="BarSeries"/> added to this axes.
     /// </summary>
     /// <param name="format">Optional .NET format string (e.g. "F1"). When null, uses "G4".</param>
+    /// <remarks>Only the last <see cref="BarSeries"/> in the series list is affected. Call this method once per <see cref="BarSeries"/> immediately after adding it.</remarks>
     public AxesBuilder WithBarLabels(string? format = null)
     {
         if (_axes.Series.LastOrDefault(s => s is BarSeries) is BarSeries bar)
@@ -197,6 +203,7 @@ public sealed class AxesBuilder
     /// Viewport culling is applied first; if the result still exceeds <paramref name="maxPoints"/>, LTTB reduces it.
     /// </summary>
     /// <param name="maxPoints">Maximum number of points to display. Default is 2000.</param>
+    /// <remarks>Only the last XY series is affected; call after each series you want to downsample. The two-stage pipeline (viewport cull → LTTB) is opt-in — series without <c>MaxDisplayPoints</c> set are rendered at full resolution.</remarks>
     public AxesBuilder WithDownsampling(int maxPoints = 2000)
     {
         if (_axes.Series.LastOrDefault(s => s is Models.Series.XYSeries) is Models.Series.XYSeries xy)
@@ -207,7 +214,7 @@ public sealed class AxesBuilder
     /// <summary>Sets the bar mode (grouped or stacked) for multiple bar series.</summary>
     public AxesBuilder SetBarMode(BarMode mode) { _axes.BarMode = mode; return this; }
 
-    /// <summary>Sets the colormap on the last heatmap/contour/surface series by name (resolved from <see cref="ColorMapRegistry"/>).</summary>
+    /// <summary>Sets the colormap on the last heatmap/contour/surface series by name (resolved from <see cref="Styling.ColorMaps.ColorMapRegistry"/>).</summary>
     public AxesBuilder WithColorMap(string name)
     {
         var map = Styling.ColorMaps.ColorMapRegistry.Get(name);

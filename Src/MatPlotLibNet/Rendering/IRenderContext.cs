@@ -38,6 +38,11 @@ public interface IRenderContext
     /// <paramref name="rotation"/> is in degrees, positive = counter-clockwise in standard math orientation.
     /// Default implementation ignores rotation and delegates to the non-rotated overload.
     /// </summary>
+    /// <param name="text">The string to draw.</param>
+    /// <param name="position">The anchor point in pixel space.</param>
+    /// <param name="font">Font family, size, weight, and color.</param>
+    /// <param name="alignment">Horizontal alignment relative to <paramref name="position"/>.</param>
+    /// <param name="rotation">Rotation angle in degrees (positive = counter-clockwise).</param>
     void DrawText(string text, Point position, Font font, TextAlignment alignment, double rotation)
         => DrawText(text, position, font, alignment);
 

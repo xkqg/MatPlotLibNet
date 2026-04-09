@@ -75,6 +75,8 @@ public sealed class Figure
     /// <summary>Adds a new subplot axes at the specified grid position within a <see cref="Models.GridSpec"/> and returns it.</summary>
     /// <param name="gridSpec">The grid specification defining rows, columns, and optional ratios.</param>
     /// <param name="position">The cell position (and optional span) within the grid.</param>
+    /// <param name="sharex">Optional axes whose X range this subplot shares.</param>
+    /// <param name="sharey">Optional axes whose Y range this subplot shares.</param>
     /// <returns>The newly created <see cref="Axes"/> instance.</returns>
     public Axes AddSubPlot(GridSpec gridSpec, GridPosition position, Axes? sharex = null, Axes? sharey = null)
     {

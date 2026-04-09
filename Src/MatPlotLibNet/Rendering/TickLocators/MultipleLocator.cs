@@ -12,6 +12,7 @@ public sealed class MultipleLocator : ITickLocator
     private readonly double _base;
 
     /// <summary>Initialises with the tick spacing base value.</summary>
+    /// <param name="baseValue">The interval between consecutive ticks; ticks are placed at multiples of this value.</param>
     public MultipleLocator(double baseValue) => _base = baseValue;
 
     /// <inheritdoc />

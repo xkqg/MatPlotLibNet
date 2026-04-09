@@ -7,5 +7,8 @@ namespace MatPlotLibNet.Rendering.TickLocators;
 public interface ITickLocator
 {
     /// <summary>Returns tick positions within [<paramref name="min"/>, <paramref name="max"/>].</summary>
+    /// <param name="min">The minimum value of the axis range.</param>
+    /// <param name="max">The maximum value of the axis range.</param>
+    /// <returns>An array of tick positions, sorted ascending, each within [<paramref name="min"/>, <paramref name="max"/>].</returns>
     double[] Locate(double min, double max);
 }

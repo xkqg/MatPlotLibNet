@@ -46,6 +46,9 @@ public sealed class Annotation
     public Color? BackgroundColor { get; set; }
 
     /// <summary>Creates a new annotation at the given data coordinates.</summary>
+    /// <param name="text">The annotation text to display.</param>
+    /// <param name="x">The X data coordinate of the annotation.</param>
+    /// <param name="y">The Y data coordinate of the annotation.</param>
     public Annotation(string text, double x, double y)
     {
         Text = text;

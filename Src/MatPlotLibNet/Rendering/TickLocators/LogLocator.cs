@@ -8,6 +8,11 @@ namespace MatPlotLibNet.Rendering.TickLocators;
 /// Equivalent to matplotlib's <c>LogLocator</c> with base=10.
 /// Requires min &gt; 0.
 /// </summary>
+/// <remarks>
+/// When the range spans less than a full decade (e.g. min=1, max=5), no exact power of 10 may
+/// fall within [min, max]. In that case the lower decade boundary (10^⌊log10(min)⌋) is returned
+/// if it lies within the range; otherwise <c>min</c> itself is used as a fallback tick.
+/// </remarks>
 public sealed class LogLocator : ITickLocator
 {
     /// <inheritdoc />

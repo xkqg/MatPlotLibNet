@@ -28,6 +28,10 @@ public abstract class AxesRenderer
     protected Theme Theme { get; }
 
     /// <summary>Initializes the renderer with the rendering context.</summary>
+    /// <param name="axes">The axes model to render.</param>
+    /// <param name="plotArea">The pixel-space rectangle that bounds the plot.</param>
+    /// <param name="ctx">The drawing surface to emit primitives onto.</param>
+    /// <param name="theme">The active visual theme.</param>
     protected AxesRenderer(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme)
     {
         Axes = axes;
@@ -48,10 +52,17 @@ public abstract class AxesRenderer
     };
 
     /// <summary>Registers a custom renderer factory for a coordinate system.</summary>
+    /// <param name="system">The coordinate system whose renderer to replace.</param>
+    /// <param name="factory">A factory delegate that constructs the custom renderer given axes, plot area, context, and theme.</param>
     public static void RegisterRenderer(CoordinateSystem system, Func<Axes, Rect, IRenderContext, Theme, AxesRenderer> factory)
         => RendererFactories[system] = factory;
 
     /// <summary>Creates the appropriate renderer for the axes coordinate system.</summary>
+    /// <param name="axes">The axes model to render.</param>
+    /// <param name="plotArea">The pixel-space rectangle that bounds the plot.</param>
+    /// <param name="ctx">The drawing surface to emit primitives onto.</param>
+    /// <param name="theme">The active visual theme.</param>
+    /// <returns>An <see cref="AxesRenderer"/> instance for the axes' coordinate system.</returns>
     public static AxesRenderer Create(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme) =>
         RendererFactories.TryGetValue(axes.CoordinateSystem, out var factory)
             ? factory(axes, plotArea, ctx, theme)
@@ -75,6 +86,7 @@ public abstract class AxesRenderer
     }
 
     /// <summary>Renders all series with a specific DataTransform.</summary>
+    /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
     protected void RenderSeries(DataTransform transform)
     {
         for (int i = 0; i < Axes.Series.Count; i++)
@@ -213,6 +225,7 @@ public abstract class AxesRenderer
     // --- Font factories ---
 
     /// <summary>Creates a title font from the theme.</summary>
+    /// <param name="sizeOffset">Points added to the theme's default font size; defaults to 4.</param>
     protected Font TitleFont(int sizeOffset = 4) => new()
     {
         Family = Theme.DefaultFont.Family,
@@ -238,6 +251,8 @@ public abstract class AxesRenderer
     };
 
     /// <summary>Formats a tick value for display.</summary>
+    /// <param name="value">The numeric tick value to format.</param>
+    /// <returns>A compact string representation using SI notation for very large or very small values.</returns>
     protected static string FormatTick(double value)
     {
         if (Math.Abs(value) < 1e-10) return "0";
@@ -247,6 +262,9 @@ public abstract class AxesRenderer
     }
 
     /// <summary>Expands min/max to include all values in the data array.</summary>
+    /// <param name="data">The data values to scan.</param>
+    /// <param name="min">The current minimum; updated if any value is smaller.</param>
+    /// <param name="max">The current maximum; updated if any value is larger.</param>
     protected static void UpdateRange(double[] data, ref double min, ref double max)
     {
         foreach (var v in data)
@@ -257,6 +275,9 @@ public abstract class AxesRenderer
     }
 
     /// <summary>Computes aesthetically-spaced tick values using the default nice-number algorithm.</summary>
+    /// <param name="min">The minimum value of the visible data range.</param>
+    /// <param name="max">The maximum value of the visible data range.</param>
+    /// <param name="targetCount">The desired number of tick intervals; the algorithm snaps to a nearby nice number.</param>
     protected static double[] ComputeTickValues(double min, double max, int targetCount = 5)
     {
         double range = max - min;
@@ -286,6 +307,16 @@ public abstract class AxesRenderer
     /// Computes tick values respecting any <see cref="Axis.TickLocator"/> or <see cref="TickConfig.Spacing"/>
     /// configured on the axis, falling back to the default nice-number algorithm.
     /// </summary>
+    /// <param name="min">The minimum value of the visible data range.</param>
+    /// <param name="max">The maximum value of the visible data range.</param>
+    /// <param name="axis">The axis whose locator, spacing, and formatter configuration to honour.</param>
+    /// <remarks>
+    /// Priority order: (1) <see cref="Axis.TickLocator"/> takes highest precedence;
+    /// (2) <see cref="TickConfig.Spacing"/> auto-constructs a <c>MultipleLocator</c>;
+    /// (3) the default nice-number algorithm is used as fallback.
+    /// Tick formatting via <see cref="Axis.TickFormatter"/> is applied separately during rendering,
+    /// not in this method.
+    /// </remarks>
     protected static double[] ComputeTickValues(double min, double max, Axis axis)
     {
         // Explicit locator takes highest priority

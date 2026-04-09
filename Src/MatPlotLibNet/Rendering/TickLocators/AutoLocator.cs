@@ -5,14 +5,15 @@ namespace MatPlotLibNet.Rendering.TickLocators;
 
 /// <summary>
 /// Chooses aesthetically-spaced tick positions using the same nice-number algorithm as
-/// <see cref="AxesRenderer.ComputeTickValues"/>, making it available as an <see cref="ITickLocator"/>
-/// strategy that can be swapped on any axis.
+/// <see cref="AxesRenderer.ComputeTickValues(double, double, int)"/>, making it available as an
+/// <see cref="ITickLocator"/> strategy that can be swapped on any axis.
 /// </summary>
 public sealed class AutoLocator : ITickLocator
 {
     private readonly int _targetCount;
 
-    /// <summary>Initialises with the desired number of tick intervals (default 5).</summary>
+    /// <summary>Initialises with the desired number of tick intervals.</summary>
+    /// <param name="targetCount">Approximate number of major tick intervals; the algorithm rounds to the nearest nice number. Defaults to 5.</param>
     public AutoLocator(int targetCount = 5) => _targetCount = targetCount;
 
     /// <inheritdoc />

@@ -13,6 +13,11 @@ public static class ViewportCuller
     /// Returns points with X in [<paramref name="xMin"/>, <paramref name="xMax"/>], plus the
     /// immediately adjacent out-of-range points on each side (for correct line clipping).
     /// </summary>
+    /// <param name="x">The X coordinate array (must be sorted ascending).</param>
+    /// <param name="y">The Y coordinate array, parallel to <paramref name="x"/>.</param>
+    /// <param name="xMin">The minimum visible X value (inclusive).</param>
+    /// <param name="xMax">The maximum visible X value (inclusive).</param>
+    /// <returns>A pair of arrays containing the culled X and Y values.</returns>
     public static (double[] X, double[] Y) Cull(double[] x, double[] y, double xMin, double xMax)
     {
         int n = x.Length;

@@ -10,5 +10,9 @@ public interface IDownsampler
     /// Returns a downsampled version of the input arrays with at most <paramref name="targetPoints"/> entries.
     /// If the input already has fewer points than the target, all points are returned unchanged.
     /// </summary>
+    /// <param name="x">The X coordinate array.</param>
+    /// <param name="y">The Y coordinate array, parallel to <paramref name="x"/>.</param>
+    /// <param name="targetPoints">The maximum number of points to return.</param>
+    /// <returns>A pair of arrays with at most <paramref name="targetPoints"/> elements.</returns>
     (double[] X, double[] Y) Downsample(double[] x, double[] y, int targetPoints);
 }
