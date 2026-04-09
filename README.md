@@ -2,7 +2,7 @@
 
 A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel SVG rendering, polymorphic export (SVG/PNG/PDF), and multi-platform output to Blazor, MAUI, ASP.NET Core, Angular, React, Vue, and standalone browser popups.
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPLv3-blue.svg)](LICENSE)
 
 ## Packages
 
@@ -480,4 +480,4 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed release notes. See [BENCHMARKS.md]
 
 ## License
 
-[GPL-3.0](LICENSE) -- Copyright (c) 2026 H.P. Gansevoort
+[LGPL-3.0](LICENSE) -- Copyright (c) 2026 H.P. Gansevoort
