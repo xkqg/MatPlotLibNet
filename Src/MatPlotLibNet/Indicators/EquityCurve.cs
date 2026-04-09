@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -27,8 +28,8 @@ public sealed class EquityCurve : Indicator<SignalResult>
     {
         var equity = new double[_returns.Length + 1];
         equity[0] = _startingCapital;
-        for (int i = 0; i < _returns.Length; i++)
-            equity[i + 1] = equity[i] + _returns[i];
+        VectorMath.CumulativeSum(_returns, equity.AsSpan(1));
+        VectorMath.Add(equity.AsSpan(1), _startingCapital, equity.AsSpan(1));
         return equity;
     }
 
@@ -36,8 +37,7 @@ public sealed class EquityCurve : Indicator<SignalResult>
     public override void Apply(Axes axes)
     {
         double[] equity = Compute();
-        var x = new double[equity.Length];
-        for (int i = 0; i < equity.Length; i++) x[i] = i;
+        var x = VectorMath.Linspace(equity.Length, 0.0);
         var series = axes.Plot(x, equity);
         series.Label = Label;
         if (Color.HasValue) series.Color = Color.Value;

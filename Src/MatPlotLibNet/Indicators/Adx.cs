@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
@@ -39,9 +40,7 @@ public sealed class Adx : Indicator<SignalResult>
     {
         var (adx, plusDi, minusDi) = ComputeFull();
         int offset = _period * 2;
-        var x = new double[adx.Length];
-        for (int i = 0; i < adx.Length; i++) x[i] = offset + i;
-        x = ApplyOffset(x);
+        var x = ApplyOffset(VectorMath.Linspace(adx.Length, offset));
 
         var adxSeries = axes.Plot(x, adx);
         adxSeries.Label = Label;

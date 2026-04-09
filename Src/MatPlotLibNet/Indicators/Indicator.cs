@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
@@ -35,7 +36,7 @@ public abstract class Indicator : IIndicator
     {
         if (Offset == 0) return x;
         var result = new double[x.Length];
-        for (int i = 0; i < x.Length; i++) result[i] = x[i] + Offset;
+        VectorMath.Add(x, Offset, result);
         return result;
     }
 }

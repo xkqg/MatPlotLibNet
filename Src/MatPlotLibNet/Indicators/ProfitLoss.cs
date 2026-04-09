@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
@@ -39,14 +40,9 @@ public sealed class ProfitLoss : Indicator<SignalResult>
         if (_labels is null)
             for (int i = 0; i < _returns.Length; i++) categories[i] = i.ToString();
 
-        // Profit bars (positive values, zeros for negative)
         var profits = new double[_returns.Length];
         var losses = new double[_returns.Length];
-        for (int i = 0; i < _returns.Length; i++)
-        {
-            if (_returns[i] >= 0) profits[i] = _returns[i];
-            else losses[i] = _returns[i];
-        }
+        VectorMath.SplitPositiveNegative(_returns, profits, losses);
 
         var profitSeries = axes.Bar(categories, profits);
         profitSeries.Color = ProfitColor;

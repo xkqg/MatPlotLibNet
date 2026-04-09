@@ -16,6 +16,14 @@ obj/
 _site/
 api/
 
+## Benchmark artifacts
+BenchmarkDotNet.Artifacts/
+
+## Sample output
+Samples/**/*.svg
+Samples/**/*.png
+Samples/**/*.pdf
+
 ## Test coverage
 TestResults/
 

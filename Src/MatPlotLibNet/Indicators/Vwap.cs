@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -42,8 +43,7 @@ public sealed class Vwap : Indicator<SignalResult>
     public override void Apply(Axes axes)
     {
         double[] vwap = Compute();
-        var x = new double[vwap.Length];
-        for (int i = 0; i < vwap.Length; i++) x[i] = i;
+        var x = VectorMath.Linspace(vwap.Length, 0.0);
         var series = axes.Plot(x, vwap);
         series.Label = Label;
         if (Color.HasValue) series.Color = Color.Value;

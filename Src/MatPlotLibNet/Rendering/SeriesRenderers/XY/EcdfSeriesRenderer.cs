@@ -16,19 +16,21 @@ internal sealed class EcdfSeriesRenderer : SeriesRenderer<EcdfSeries>
         int n = series.SortedX.Length;
         if (n == 0) return;
 
-        var pts = new List<Point>();
+        // Precompute pixel coordinates for all data points (SIMD batch)
+        var pxArr = Transform.TransformX(series.SortedX);
+        var pyArr = Transform.TransformY(series.CdfY);
+        double pyZero = Transform.TransformY([0.0])[0];
 
-        // Start at (SortedX[0], 0)
-        pts.Add(Transform.DataToPixel(series.SortedX[0], 0));
+        var pts = new List<Point>(2 * n + 1);
+        pts.Add(new Point(pxArr[0], pyZero)); // Start at (SortedX[0], 0)
 
         for (int i = 0; i < n; i++)
         {
             // Horizontal line to (SortedX[i], previous CDF value)
-            double prevY = i > 0 ? series.CdfY[i - 1] : 0;
-            pts.Add(Transform.DataToPixel(series.SortedX[i], prevY));
-
+            double prevPy = i > 0 ? pyArr[i - 1] : pyZero;
+            pts.Add(new Point(pxArr[i], prevPy));
             // Vertical line to (SortedX[i], CdfY[i])
-            pts.Add(Transform.DataToPixel(series.SortedX[i], series.CdfY[i]));
+            pts.Add(new Point(pxArr[i], pyArr[i]));
         }
 
         Ctx.DrawLines(pts, color, series.LineWidth, series.LineStyle);

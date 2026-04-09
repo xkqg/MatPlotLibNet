@@ -81,4 +81,18 @@ public class IndicatorBenchmarks
 
     [Benchmark]
     public double[] DrawDown() => new Indicators.DrawDown(_prices).Compute();
+
+    // --- Phase F indicators (v0.6.0) ---
+
+    [Benchmark]
+    public double[] WilliamsR_14() => new Indicators.WilliamsR(_high, _low, _close, 14).Compute();
+
+    [Benchmark]
+    public double[] Obv() => new Indicators.Obv(_close, _volume).Compute();
+
+    [Benchmark]
+    public double[] Cci_20() => new Indicators.Cci(_high, _low, _close, 20).Compute();
+
+    [Benchmark]
+    public Indicators.ParabolicSarResult ParabolicSar_() => new Indicators.ParabolicSar(_high, _low).Compute();
 }

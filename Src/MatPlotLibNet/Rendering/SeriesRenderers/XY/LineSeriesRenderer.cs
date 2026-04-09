@@ -15,9 +15,7 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
     {
         var color = ResolveColor(series.Color);
         var data = ApplyDownsampling(series.XData, series.YData, series.MaxDisplayPoints);
-        var points = new List<Point>(data.X.Length);
-        for (int i = 0; i < data.X.Length; i++)
-            points.Add(Transform.DataToPixel(data.X[i], data.Y[i]));
+        var points = new List<Point>(Transform.TransformBatch(data.X, data.Y));
         Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);
         if (series.Marker is not null && series.Marker != MarkerStyle.None)
             foreach (var pt in points) Ctx.DrawCircle(pt, series.MarkerSize / 2, color, null, 0);

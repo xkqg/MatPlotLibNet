@@ -30,7 +30,7 @@ public class SkiaExportBenchmarks
         _complexFigure = Plt.Create()
             .WithTitle("Complex")
             .WithTheme(Theme.Dark)
-            .Plot(x, y, l => { l.Color = Color.Blue; })
+            .Plot(x, y, l => { l.Color = Colors.Blue; })
             .Scatter(x.Take(20).ToArray(), y.Take(20).ToArray())
             .Bar(["A", "B", "C"], [10.0, 25, 15])
             .Build();

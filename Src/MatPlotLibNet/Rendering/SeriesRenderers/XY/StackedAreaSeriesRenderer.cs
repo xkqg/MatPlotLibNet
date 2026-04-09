@@ -31,23 +31,34 @@ internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeri
             }
         }
 
+        // Precompute pixel X coordinates once for all layers (SIMD batch)
+        var pxArr = Transform.TransformX(series.X);
+        double pyZero = Transform.TransformY([0.0])[0];
+
         // Draw each layer as a filled polygon between consecutive cumulative curves
         for (int layer = 0; layer < layers; layer++)
         {
             var color = cycleColors[layer % cycleColors.Length];
             var fillColor = color.WithAlpha((byte)(series.Alpha * 255));
 
+            var pyTop = Transform.TransformY(cumulative[layer]);
             var polygon = new List<Point>(n * 2);
 
-            // Top edge: left to right along this layer's cumulative curve
+            // Top edge: left to right (SIMD-transformed)
             for (int i = 0; i < n; i++)
-                polygon.Add(Transform.DataToPixel(series.X[i], cumulative[layer][i]));
+                polygon.Add(new Point(pxArr[i], pyTop[i]));
 
-            // Bottom edge: right to left along previous layer's cumulative curve (or y=0)
-            for (int i = n - 1; i >= 0; i--)
+            // Bottom edge: right to left
+            if (layer > 0)
             {
-                double bottom = layer > 0 ? cumulative[layer - 1][i] : 0;
-                polygon.Add(Transform.DataToPixel(series.X[i], bottom));
+                var pyBot = Transform.TransformY(cumulative[layer - 1]);
+                for (int i = n - 1; i >= 0; i--)
+                    polygon.Add(new Point(pxArr[i], pyBot[i]));
+            }
+            else
+            {
+                for (int i = n - 1; i >= 0; i--)
+                    polygon.Add(new Point(pxArr[i], pyZero));
             }
 
             Ctx.DrawPolygon(polygon, fillColor, null, 0);

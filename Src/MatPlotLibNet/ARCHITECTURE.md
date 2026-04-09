@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.5.1)
+# MatPlotLibNet Core -- Architecture (v0.6.0)
 
 ## Package dependency graph
 
@@ -14,6 +14,8 @@ MatPlotLibNet (Core)                      net10.0 + net8.0
     |       +-- MatPlotLibNet.Interactive  embedded Kestrel + SignalR
     |       |
     |       +-- MatPlotLibNet.GraphQL      HotChocolate.AspNetCore (GraphQL queries + subscriptions)
+    |
+    +-- MatPlotLibNet.Notebooks           Microsoft.DotNet.Interactive (Polyglot Notebooks)
     |
     +-- MatPlotLibNet.Maui                Microsoft.Maui.Controls
     |
@@ -32,6 +34,8 @@ MatPlotLibNet/
   ChartServices.cs                    static DI defaults (IChartSerializer, IChartRenderer, ISvgRenderer)
   DisplayMode.cs                      enum: Inline, Expandable, Popup
   IChartSubscriptionClient.cs         shared SignalR client contract
+
+  FigureTemplates.cs                  pre-built layouts: FinancialDashboard(), ScientificPaper(), SparklineDashboard()
 
   Builders/
     FigureBuilder.cs                  fluent API: Plt.Create().WithTitle().Plot().Build() (build only)
@@ -83,7 +87,7 @@ MatPlotLibNet/
       Histogram2DSeries.cs            X[], Y[], BinsX, BinsY, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       BoxSeries.cs                    Datasets[][], Color, MedianColor, ShowOutliers
       ViolinSeries.cs                 Datasets[][], Color, Alpha
-      ContourSeries.cs                XData, YData, ZData[,], Levels, Filled, ShowLabels (deferred), ColorMap, IColormappable, IHasDataRange
+      ContourSeries.cs                XData, YData, ZData[,], Levels, Filled, ShowLabels, LabelFormat, LabelFontSize, ColorMap, IColormappable, IHasDataRange
       StemSeries.cs                   XYSeries: MarkerColor, StemColor, BaselineColor
       AreaSeries.cs                   XYSeries: YData2 (fill between), Alpha, FillColor
       StepSeries.cs                   XYSeries: StepPosition (Pre/Mid/Post)
@@ -162,7 +166,7 @@ MatPlotLibNet/
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation) overload
     ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 39 series types
-    DataTransform.cs                  data space <-> pixel space; exposes DataXMin/XMax/YMin/YMax
+    DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
 

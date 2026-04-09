@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
@@ -78,24 +79,22 @@ public sealed class Ichimoku : Indicator<IchimokuResult>
     private static double[] DonchianMid(double[] high, double[] low, int period)
     {
         int n = high.Length;
-        var result = new double[n - period + 1];
-        for (int i = 0; i < result.Length; i++)
-        {
-            double hh = double.MinValue, ll = double.MaxValue;
-            for (int j = i; j < i + period; j++)
-            {
-                if (high[j] > hh) hh = high[j];
-                if (low[j] < ll) ll = low[j];
-            }
-            result[i] = (hh + ll) / 2;
-        }
+        if (n < period) return [];
+        int len = n - period + 1;
+        // O(n) monotone-deque rolling max/min (replaces O(n×period) nested loop)
+        var hhBuf = new double[n];
+        var llBuf = new double[n];
+        VectorMath.RollingMax(high, period, hhBuf);
+        VectorMath.RollingMin(low, period, llBuf);
+        var result = new double[len];
+        // hhBuf[i + period - 1] = max(high[i..i+period))
+        var hhSlice = ((ReadOnlySpan<double>)hhBuf).Slice(period - 1, len);
+        var llSlice = ((ReadOnlySpan<double>)llBuf).Slice(period - 1, len);
+        VectorMath.Add(hhSlice, llSlice, result);
+        VectorMath.Divide(result, 2.0, result);
         return result;
     }
 
-    private double[] MakeX(int length, int offset)
-    {
-        var x = new double[length];
-        for (int i = 0; i < length; i++) x[i] = offset + i;
-        return ApplyOffset(x);
-    }
+    private double[] MakeX(int length, int offset) =>
+        ApplyOffset(VectorMath.Linspace(length, offset));
 }

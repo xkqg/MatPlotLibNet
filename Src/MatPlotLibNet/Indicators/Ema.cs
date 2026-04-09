@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -41,9 +42,7 @@ public sealed class Ema : Indicator<SignalResult>
     public override void Apply(Axes axes)
     {
         var ema = Compute();
-        var x = new double[ema.Length];
-        for (int i = 0; i < ema.Length; i++) x[i] = i;
-        x = ApplyOffset(x);
+        var x = ApplyOffset(VectorMath.Linspace(ema.Length, 0.0));
         var series = axes.Plot(x, ema);
         series.Label = Label;
         if (Color.HasValue) series.Color = Color.Value;

@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
@@ -36,15 +37,13 @@ public sealed class KeltnerChannels : Indicator<BandsResult>
         if (len <= 0) return new BandsResult([], [], []);
 
         var middle = new double[len];
+        ema.AsSpan(_period, len).CopyTo(middle);
+        var scaledAtr = new double[len];
+        VectorMath.Multiply(((ReadOnlySpan<double>)atr).Slice(0, len), _atrMultiplier, scaledAtr);
         var upper = new double[len];
         var lower = new double[len];
-
-        for (int i = 0; i < len; i++)
-        {
-            middle[i] = ema[_period + i];
-            upper[i] = middle[i] + _atrMultiplier * atr[i];
-            lower[i] = middle[i] - _atrMultiplier * atr[i];
-        }
+        VectorMath.Add(middle, scaledAtr, upper);
+        VectorMath.Subtract(middle, scaledAtr, lower);
         return new BandsResult(middle, upper, lower);
     }
 
@@ -56,10 +55,7 @@ public sealed class KeltnerChannels : Indicator<BandsResult>
         var upper = result.Upper;
         var lower = result.Lower;
         if (middle.Length == 0) return;
-        int offset = _period;
-        var x = new double[middle.Length];
-        for (int i = 0; i < middle.Length; i++) x[i] = offset + i;
-        x = ApplyOffset(x);
+        var x = ApplyOffset(VectorMath.Linspace(middle.Length, _period));
 
         var bandColor = Color ?? Colors.Tab10Orange;
         var fill = axes.FillBetween(x, upper, lower);

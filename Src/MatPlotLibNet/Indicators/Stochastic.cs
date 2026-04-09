@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
@@ -45,14 +46,16 @@ public sealed class Stochastic : Indicator<StochasticResult>
         int kLen = n - _kPeriod + 1;
         var k = new double[kLen];
 
+        // O(n) monotone-deque rolling max/min (replaces O(n×kPeriod) nested loop)
+        var highBuf = new double[n];
+        var lowBuf = new double[n];
+        VectorMath.RollingMax(_high, _kPeriod, highBuf);
+        VectorMath.RollingMin(_low, _kPeriod, lowBuf);
+
         for (int i = 0; i < kLen; i++)
         {
-            double highest = double.MinValue, lowest = double.MaxValue;
-            for (int j = i; j < i + _kPeriod; j++)
-            {
-                if (_high[j] > highest) highest = _high[j];
-                if (_low[j] < lowest) lowest = _low[j];
-            }
+            double highest = highBuf[i + _kPeriod - 1];
+            double lowest = lowBuf[i + _kPeriod - 1];
             double range = highest - lowest;
             k[i] = range > 0 ? (_close[i + _kPeriod - 1] - lowest) / range * 100 : 50;
         }
@@ -71,16 +74,14 @@ public sealed class Stochastic : Indicator<StochasticResult>
         int dOffset = kOffset + _dPeriod - 1;
 
         // %K line
-        var kX = new double[k.Length];
-        for (int i = 0; i < k.Length; i++) kX[i] = kOffset + i;
+        var kX = VectorMath.Linspace(k.Length, kOffset);
         var kSeries = axes.Plot(kX, k);
         kSeries.Label = Label;
         if (Color.HasValue) kSeries.Color = Color.Value;
         kSeries.LineWidth = LineWidth;
 
         // %D line
-        var dX = new double[d.Length];
-        for (int i = 0; i < d.Length; i++) dX[i] = dOffset + i;
+        var dX = VectorMath.Linspace(d.Length, dOffset);
         var dSeries = axes.Plot(dX, d);
         dSeries.Label = $"%D({_dPeriod})";
         dSeries.Color = DColor ?? Colors.Tab10Orange;

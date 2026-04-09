@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
@@ -43,17 +44,22 @@ public sealed class Macd : Indicator<MacdResult>
         int start = _slowPeriod - 1;
         int macdLen = _prices.Length - start;
         var macdLine = new double[macdLen];
-        for (int i = 0; i < macdLen; i++)
-            macdLine[i] = fastEma[start + i] - slowEma[start + i];
+        VectorMath.Subtract(
+            ((ReadOnlySpan<double>)fastEma).Slice(start, macdLen),
+            ((ReadOnlySpan<double>)slowEma).Slice(start, macdLen),
+            macdLine);
 
         // Compute signal from valid MACD values only
-        double[] signalSma = new Sma(macdLine, _signalPeriod).Compute(); // Use SMA for signal to avoid NaN seed issues
+        double[] signalSma = new Sma(macdLine, _signalPeriod).Compute();
         int sigStart = _signalPeriod - 1;
         int sigLen = signalSma.Length;
         var signalLine = signalSma;
         var histogram = new double[sigLen];
-        for (int i = 0; i < sigLen; i++)
-            histogram[i] = macdLine[sigStart + i] - signalLine[i];
+        if (sigLen > 0)
+            VectorMath.Subtract(
+                ((ReadOnlySpan<double>)macdLine).Slice(sigStart, sigLen),
+                signalLine,
+                histogram);
 
         return new MacdResult(macdLine, signalLine, histogram);
     }
@@ -69,16 +75,14 @@ public sealed class Macd : Indicator<MacdResult>
         int signalOffset = offset + _signalPeriod - 1;
 
         // MACD line
-        var macdX = new double[macdLine.Length];
-        for (int i = 0; i < macdLine.Length; i++) macdX[i] = offset + i;
+        var macdX = VectorMath.Linspace(macdLine.Length, offset);
         var macdSeries = axes.Plot(macdX, macdLine);
         macdSeries.Label = Label;
         macdSeries.Color = Color ?? Colors.Tab10Blue;
         macdSeries.LineWidth = LineWidth;
 
         // Signal line
-        var sigX = new double[signalLine.Length];
-        for (int i = 0; i < signalLine.Length; i++) sigX[i] = signalOffset + i;
+        var sigX = VectorMath.Linspace(signalLine.Length, signalOffset);
         var sigSeries = axes.Plot(sigX, signalLine);
         sigSeries.Label = "Signal";
         sigSeries.Color = SignalColor ?? Colors.Tab10Orange;

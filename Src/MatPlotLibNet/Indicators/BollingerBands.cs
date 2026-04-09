@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
@@ -34,16 +35,15 @@ public sealed class BollingerBands : Indicator<BandsResult>
     {
         double[] sma = new Sma(_prices, _period).Compute();
         int n = sma.Length;
+        var stdDev = new double[n];
+        VectorMath.RollingStdDev(_prices, _period, sma, stdDev);
+        // upper = sma + mult*stdDev;  lower = sma - mult*stdDev
+        var scaledStd = new double[n];
+        VectorMath.Multiply(stdDev, _stdDevMultiplier, scaledStd);
         var upper = new double[n];
         var lower = new double[n];
-        for (int i = 0; i < n; i++)
-        {
-            double sumSq = 0;
-            for (int j = 0; j < _period; j++) { double diff = _prices[i + j] - sma[i]; sumSq += diff * diff; }
-            double stdDev = Math.Sqrt(sumSq / _period);
-            upper[i] = sma[i] + _stdDevMultiplier * stdDev;
-            lower[i] = sma[i] - _stdDevMultiplier * stdDev;
-        }
+        VectorMath.Add(sma, scaledStd, upper);
+        VectorMath.Subtract(sma, scaledStd, lower);
         return new BandsResult(sma, upper, lower);
     }
 
@@ -54,9 +54,7 @@ public sealed class BollingerBands : Indicator<BandsResult>
         var middle = result.Middle;
         var upper = result.Upper;
         var lower = result.Lower;
-        var x = new double[middle.Length];
-        for (int i = 0; i < middle.Length; i++) x[i] = _period - 1 + i;
-        x = ApplyOffset(x);
+        var x = ApplyOffset(VectorMath.Linspace(middle.Length, _period - 1));
 
         var bandColor = Color ?? Colors.Tab10Blue;
         var fill = axes.FillBetween(x, upper, lower);

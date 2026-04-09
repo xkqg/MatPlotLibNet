@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "WebFetch(domain:oxyplot.readthedocs.io)",
-      "WebFetch(domain:store.scichart.com)",
-      "WebFetch(domain:www.scichart.com)"
-    ]
-  }
-}

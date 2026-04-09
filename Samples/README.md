@@ -10,7 +10,16 @@ Creates charts and exports to SVG, PNG, and PDF.
 dotnet run --project MatPlotLibNet.Samples.Console
 ```
 
-Produces: `chart.svg`, `chart.png`, `chart.pdf`, `dashboard.svg`, `heatmap_colormap.svg`, `colormap_comparison.svg`, `gridspec_layout.svg`, `tick_locators.svg`, `bar_labels.svg`, `lttb_downsampling.svg`, `annotations_enhanced.svg`
+Produces: `chart.svg`, `chart.png`, `chart.pdf`, `dashboard.svg`, `heatmap_colormap.svg`, `colormap_comparison.svg`, `gridspec_layout.svg`, `tick_locators.svg`, `bar_labels.svg`, `lttb_downsampling.svg`, `annotations_enhanced.svg`, `financial_dashboard.svg`, `phase_f_indicators.svg`, `contour_labels.svg`, `scientific_paper.svg`, `sparkline_dashboard.svg`
+
+### v0.6.0 samples (12-17)
+
+- **12. Vec** -- SIMD-accelerated numeric computation (returns, mean, std, min/max)
+- **13. Financial dashboard** -- `FigureTemplates.FinancialDashboard()` with Bollinger Bands + RSI
+- **14. Phase F indicators** -- WilliamsR, OBV, CCI, ParabolicSAR in a 2x2 grid
+- **15. Contour labels** -- `ShowLabels` with `LabelFormat` on contour plot
+- **16. Scientific paper** -- `FigureTemplates.ScientificPaper()` with 150 DPI, hidden spines
+- **17. Sparkline dashboard** -- `FigureTemplates.SparklineDashboard()` with server metrics
 
 ## Blazor
 

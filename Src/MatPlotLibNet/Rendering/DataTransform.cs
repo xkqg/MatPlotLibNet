@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
+using System.Runtime.InteropServices;
+
 namespace MatPlotLibNet.Rendering;
 
 /// <summary>Transforms data coordinates to pixel coordinates and vice versa within a plot area.</summary>
@@ -62,6 +64,63 @@ public sealed class DataTransform
             : _yOffset - y * _yScale;
 
         return new Point(px, py);
+    }
+
+    // -------------------------------------------------------------------------
+    // Batch / vectorized transforms (SIMD via VectorMath)
+    // -------------------------------------------------------------------------
+
+    /// <summary>Batch-transforms X data coordinates to pixel X values using SIMD MultiplyAdd.</summary>
+    /// <param name="xData">Data-space X values.</param>
+    /// <returns>Pixel-space X values, one per input element.</returns>
+    public double[] TransformX(ReadOnlySpan<double> xData)
+    {
+        var dst = new double[xData.Length];
+        if (_xScale == 0)
+            Array.Fill(dst, _plotBounds.X + _plotBounds.Width / 2);
+        else
+            Numerics.VectorMath.MultiplyAdd(xData, _xScale, _xOffset, dst);
+        return dst;
+    }
+
+    /// <summary>Batch-transforms Y data coordinates to pixel Y values using SIMD MultiplyAdd.
+    /// Note: Y axis is inverted — larger data values map to smaller pixel Y.</summary>
+    /// <param name="yData">Data-space Y values.</param>
+    /// <returns>Pixel-space Y values, one per input element.</returns>
+    public double[] TransformY(ReadOnlySpan<double> yData)
+    {
+        var dst = new double[yData.Length];
+        if (_yScale == 0)
+            Array.Fill(dst, _plotBounds.Y + _plotBounds.Height / 2);
+        else
+            Numerics.VectorMath.MultiplyAdd(yData, -_yScale, _yOffset, dst);
+        return dst;
+    }
+
+    /// <summary>Batch-transforms paired X/Y data coordinates to pixel-space <see cref="Point"/> values.</summary>
+    /// <param name="xData">Data-space X values.</param>
+    /// <param name="yData">Data-space Y values; must be the same length as <paramref name="xData"/>.</param>
+    /// <returns>Array of pixel-space points.</returns>
+    /// <remarks>Single-pass, zero intermediate allocations. Uses AVX SIMD interleave on x86-64
+    /// (FMA multiply-add → UnpackLow/High → Permute2x128 → direct store into <c>Point[]</c> memory).
+    /// Falls back to a branchless scalar loop on other architectures.</remarks>
+    public Point[] TransformBatch(ReadOnlySpan<double> xData, ReadOnlySpan<double> yData)
+    {
+        int n = xData.Length;
+        var result = new Point[n];
+
+        double xS = _xScale, xO = _xOffset;
+        double yS = -_yScale, yO = _yOffset;
+
+        // Handle degenerate zero-range axes (same as DataToPixel center logic)
+        if (_xScale == 0) { xS = 0; xO = _plotBounds.X + _plotBounds.Width / 2; }
+        if (_yScale == 0) { yS = 0; yO = _plotBounds.Y + _plotBounds.Height / 2; }
+
+        // Reinterpret Point[] as flat double[] — Point is (double X, double Y) = 16 bytes contiguous
+        Span<double> raw = MemoryMarshal.Cast<Point, double>(result);
+        Numerics.VectorMath.TransformInterleave(xData, yData, xS, xO, yS, yO, raw);
+
+        return result;
     }
 
     /// <summary>Converts pixel-space coordinates back to data-space coordinates.</summary>

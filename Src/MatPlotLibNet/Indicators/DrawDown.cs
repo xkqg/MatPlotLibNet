@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
@@ -41,12 +42,10 @@ public sealed class DrawDown : Indicator<SignalResult>
     public override void Apply(Axes axes)
     {
         double[] dd = Compute();
-        var x = new double[dd.Length];
-        for (int i = 0; i < dd.Length; i++) x[i] = i;
-
+        var x = VectorMath.Linspace(dd.Length, 0.0);
         // Negate for visual (drawdown plots below zero)
         var negDd = new double[dd.Length];
-        for (int i = 0; i < dd.Length; i++) negDd[i] = -dd[i];
+        VectorMath.Negate(dd, negDd);
 
         var series = axes.FillBetween(x, negDd);
         series.Label = Label;

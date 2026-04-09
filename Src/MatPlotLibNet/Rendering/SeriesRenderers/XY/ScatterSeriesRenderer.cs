@@ -19,13 +19,13 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
             ? ViewportCuller.Cull(series.XData, series.YData, Transform.DataXMin, Transform.DataXMax)
             : new XYData(series.XData, series.YData);
 
-        for (int i = 0; i < data.X.Length; i++)
+        var pts = Transform.TransformBatch(data.X, data.Y);
+        for (int i = 0; i < pts.Length; i++)
         {
             BeginTooltip($"x={data.X[i]:G5}, y={data.Y[i]:G5}");
-            var pt = Transform.DataToPixel(data.X[i], data.Y[i]);
             double size = series.Sizes is not null ? Math.Sqrt(series.Sizes[i]) : Math.Sqrt(series.MarkerSize);
             var c = series.Colors is not null ? series.Colors[i] : color;
-            Ctx.DrawCircle(pt, size / 2, c, null, 0);
+            Ctx.DrawCircle(pts[i], size / 2, c, null, 0);
             EndTooltip();
         }
     }

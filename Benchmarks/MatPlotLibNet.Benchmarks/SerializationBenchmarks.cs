@@ -25,7 +25,7 @@ public class SerializationBenchmarks
         _figure = Plt.Create()
             .WithTitle("Serialization Test")
             .WithTheme(Theme.Dark)
-            .Plot(x, y, l => { l.Color = Color.Blue; l.Label = "Data"; })
+            .Plot(x, y, l => { l.Color = Colors.Blue; l.Label = "Data"; })
             .Bar(["Q1", "Q2", "Q3", "Q4"], [100.0, 250, 180, 320])
             .Build();
 

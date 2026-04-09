@@ -464,6 +464,42 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Adds a Williams %R panel indicator.</summary>
+    public AxesBuilder WilliamsR(double[] high, double[] low, double[] close, int period = 14, Action<Indicators.WilliamsR>? configure = null)
+    {
+        var indicator = new Indicators.WilliamsR(high, low, close, period);
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an On-Balance Volume panel indicator.</summary>
+    public AxesBuilder Obv(double[] close, double[] volume, Action<Indicators.Obv>? configure = null)
+    {
+        var indicator = new Indicators.Obv(close, volume);
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Commodity Channel Index panel indicator.</summary>
+    public AxesBuilder Cci(double[] high, double[] low, double[] close, int period = 20, Action<Indicators.Cci>? configure = null)
+    {
+        var indicator = new Indicators.Cci(high, low, close, period);
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Parabolic SAR overlay to the price axes.</summary>
+    public AxesBuilder ParabolicSar(double[] high, double[] low, double step = 0.02, double max = 0.2, Action<Indicators.ParabolicSar>? configure = null)
+    {
+        var indicator = new Indicators.ParabolicSar(high, low, step, max);
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
     /// <summary>Adds a buy signal marker at the given position.</summary>
     public AxesBuilder BuyAt(double x, double y, Action<SignalMarker>? configure = null)
         => AddSignal(x, y, SignalDirection.Buy, configure);

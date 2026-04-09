@@ -6,6 +6,7 @@
     <Project Path="Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj" />
     <Project Path="Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj" />
     <Project Path="Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj" />
+    <Project Path="Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj" />
   </Folder>
   <Folder Name="/Tst/">
     <Project Path="Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj" />

@@ -18,14 +18,23 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
         var data = ApplyDownsampling(series.XData, series.YData, series.MaxDisplayPoints);
         int n = data.X.Length;
         if (n == 0) return;
+        // Batch-transform the top edge; reuse pixel X for the reverse bottom edge
+        var topPts = Transform.TransformBatch(data.X, data.Y);
+        var pxX = Transform.TransformX(data.X);
         var polygon = new List<Point>(n * 2);
-        for (int i = 0; i < n; i++) polygon.Add(Transform.DataToPixel(data.X[i], data.Y[i]));
-        if (series.YData2 is not null) for (int i = n - 1; i >= 0; i--) polygon.Add(Transform.DataToPixel(data.X[i], series.YData2[i]));
-        else for (int i = n - 1; i >= 0; i--) polygon.Add(Transform.DataToPixel(data.X[i], 0));
+        polygon.AddRange(topPts);
+        if (series.YData2 is not null)
+        {
+            var botPxY = Transform.TransformY(series.YData2);
+            for (int i = n - 1; i >= 0; i--) polygon.Add(new Point(pxX[i], botPxY[i]));
+        }
+        else
+        {
+            double pyZero = Transform.TransformY([0.0])[0];
+            for (int i = n - 1; i >= 0; i--) polygon.Add(new Point(pxX[i], pyZero));
+        }
         Ctx.DrawPolygon(polygon, fillColor, null, 0);
-        var top = new List<Point>(n);
-        for (int i = 0; i < n; i++) top.Add(Transform.DataToPixel(data.X[i], data.Y[i]));
-        Ctx.DrawLines(top, color, series.LineWidth, series.LineStyle);
+        Ctx.DrawLines(new List<Point>(topPts), color, series.LineWidth, series.LineStyle);
     }
 
     private XYData ApplyDownsampling(double[] x, double[] y, int? maxPoints)

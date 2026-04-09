@@ -4,6 +4,59 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] - 2026-04-09
+
+### Added
+
+**Batch 1 — VectorMath SIMD Kernel**
+- `VectorMath` (`internal static`) — `System.Numerics.Tensors.TensorPrimitives` wrappers: `Add`, `Subtract`, `Multiply`, `Divide`, `Sum`, `Min`, `Max`, `Abs`, `Negate`, `MultiplyAdd`
+- `VectorMath` domain algorithms: `Linspace`, `RollingMean`, `RollingMin`, `RollingMax` (O(n) monotone deque), `RollingStdDev`, `CumulativeSum`, `StandardDeviation`, `SplitPositiveNegative`
+- `Vec` (`public readonly record struct`) — LINQ-style wrapper with SIMD-accelerated operators (`+`, `-`, `*`, `/`, unary `-`), reductions (`Sum`, `Min`, `Max`, `Mean`, `Std`), scalar lambdas (`Select`, `Where`, `Zip`, `Aggregate`), and implicit `double[]` conversions
+- `System.Numerics.Tensors` NuGet dependency added to main package
+
+**Batch 2 — DataTransform Batch Path**
+- `DataTransform.TransformX(ReadOnlySpan<double>)` — SIMD batch X coordinate transform
+- `DataTransform.TransformY(ReadOnlySpan<double>)` — SIMD batch Y coordinate transform
+- `DataTransform.TransformBatch(ReadOnlySpan<double>, ReadOnlySpan<double>)` — single-pass AVX SIMD interleave (FMA → UnpackLow/High → Permute2x128 → direct store), zero intermediate allocations, 3.6× faster than per-point loop at 1K points
+- `VectorMath.TransformInterleave` — SoA→AoS affine transform kernel with AVX fast path and scalar fallback
+- 8 series renderers refactored to pre-compute batch pixel coordinates: `LineSeriesRenderer`, `AreaSeriesRenderer`, `ScatterSeriesRenderer`, `StepSeriesRenderer`, `EcdfSeriesRenderer`, `StackedAreaSeriesRenderer`, `ErrorBarSeriesRenderer`, `BubbleSeriesRenderer`
+
+**Batch 3 — Indicator Refactoring**
+- All 15 indicators (`Sma`, `Ema`, `BollingerBands`, `Stochastic`, `Ichimoku`, `Adx`, `Atr`, `Rsi`, `Macd`, `KeltnerChannels`, `Vwap`, `EquityCurve`, `DrawDown`, `ProfitLoss`, `Indicator.ApplyOffset`) refactored to use `VectorMath` instead of scalar loops
+
+**Batch 4 — Phase F Indicators**
+- `WilliamsR` — Williams %R momentum indicator (-100..0), reference lines at -20 and -80
+- `Obv` — On-Balance Volume, sequential cumulative indicator
+- `Cci` — Commodity Channel Index, mean-deviation oscillator, reference lines at ±100
+- `ParabolicSar` — Parabolic SAR trend indicator; returns `ParabolicSarResult(double[] Sar, bool[] IsLong)`
+- `AxesBuilder` shortcuts: `WilliamsR()`, `Obv()`, `Cci()`, `ParabolicSar()`
+
+**Batch 5 — Chart Templates**
+- `FigureTemplates.FinancialDashboard()` — 3-panel chart (price/candlestick 60%, volume 15%, oscillator 25%) with shared X axis and custom GridSpec height ratios
+- `FigureTemplates.ScientificPaper()` — N×M subplot grid, 150 DPI, tight layout, hidden top/right spines
+- `FigureTemplates.SparklineDashboard()` — vertically stacked sparklines, one row per data series with Y label
+
+**Batch 6 — Contour Labels (Marching Squares)**
+- `MarchingSquares` (`internal static`) in `Rendering/Algorithms/` — 4-bit cell classification, edge interpolation, greedy segment joining into polylines
+- `ContourSeries.LabelFormat` (`string?`, default `"G4"`) — format string for contour level labels
+- `ContourSeries.LabelFontSize` (`double`, default `10`) — font size for contour level labels
+- `ContourSeriesRenderer` — now draws iso-lines via marching-squares; `ShowLabels = true` renders centered labels with white background rectangles
+
+**Batch 7 — Polyglot Notebooks**
+- New package `MatPlotLibNet.Notebooks` — `IKernelExtension` for Polyglot Notebooks / Jupyter
+- `NotebookExtension` — registers `Figure` as an inline SVG display type via `Formatter.Register<Figure>`
+- `FigureFormatter` — wraps `figure.ToSvg()` in a `<div>` for notebook cell output
+
+**Batch 8 — Benchmarks**
+- `VectorMathBenchmarks.cs` — benchmarks Vec SIMD operators, reductions, and domain algorithm proxies
+- `DataTransformBenchmarks.cs` — per-point loop vs TransformBatch comparison
+- Extended `IndicatorBenchmarks.cs` — added WilliamsR, OBV, CCI, ParabolicSar
+- Extended `SvgRenderingBenchmarks.cs` — added 10K-point line chart and 100K-point LTTB chart
+- Updated `BENCHMARKS.md` with new sections
+
+### Fixed
+- `Macd.Compute()` — guard against out-of-range slice when MACD data is shorter than the signal period
+
 ## [0.5.1] - 2026-04-09
 
 ### Added

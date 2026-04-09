@@ -3,6 +3,8 @@
 
 using MatPlotLibNet;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
@@ -18,7 +20,7 @@ var figure = Plt.Create()
     .WithTitle("Sales Trend")
     .WithTheme(Theme.Seaborn)
     .WithSize(800, 500)
-    .Plot(x, y, line => { line.Color = Color.Blue; line.Label = "Revenue"; })
+    .Plot(x, y, line => { line.Color = Colors.Blue; line.Label = "Revenue"; })
     .Build();
 
 figure.Transform(new SvgTransform()).ToFile("chart.svg");
@@ -37,7 +39,7 @@ double[] histData = [1.2, 2.3, 2.1, 3.4, 3.5, 3.6, 4.1, 4.8, 5.2, 5.5, 6.1, 6.3]
 var multiChart = Plt.Create()
     .WithTitle("Dashboard")
     .WithTheme(Theme.Dark)
-    .Bar(categories, values, bar => { bar.Color = Color.Orange; bar.Label = "Units sold"; })
+    .Bar(categories, values, bar => { bar.Color = Colors.Orange; bar.Label = "Units sold"; })
     .AddSubPlot(1, 2, 2, ax => ax.Hist(histData, 6))
     .Build();
 
@@ -93,7 +95,7 @@ Plt.Create()
     .WithGridSpec(2, 2, heightRatios: [2.0, 1.0], widthRatios: [3.0, 1.0])
     .AddSubPlot(GridPosition.Single(0, 0), ax => ax.Plot(x, y).WithTitle("Main plot"))
     .AddSubPlot(GridPosition.Single(0, 1), ax => ax.Scatter(x, y).WithTitle("Scatter"))
-    .AddSubPlot(GridPosition.Span(1, 2, 0, 2), ax => ax.Bar(categories2, catValues).WithTitle("Wide bar"))
+    .AddSubPlot(new GridPosition(1, 2, 0, 2), ax => ax.Bar(categories2, catValues).WithTitle("Wide bar"))
     .Save("gridspec_layout.svg");
 Console.WriteLine("Saved gridspec_layout.svg");
 
@@ -121,7 +123,7 @@ Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
         .WithTitle("Sales by Product")
         .SetYLabel("Revenue ($)")
-        .Bar(products, sales, bar => { bar.Color = Color.Tab10Blue; bar.Label = "Q1 Sales"; })
+        .Bar(products, sales, bar => { bar.Color = Colors.Tab10Blue; bar.Label = "Q1 Sales"; })
         .WithBarLabels("F0")                            // integer labels above bars
         .SetYTickFormatter(new EngFormatter()))
     .Save("bar_labels.svg");
@@ -151,7 +153,7 @@ Plt.Create()
             ann.ArrowTargetX = 8;
             ann.ArrowTargetY = 8.9;
             ann.ArrowStyle   = MatPlotLibNet.Models.ArrowStyle.FancyArrow;
-            ann.BackgroundColor = Color.White;
+            ann.BackgroundColor = Colors.White;
         })
         .Annotate("Rotated label", 2, 4.5, ann =>
         {
@@ -160,5 +162,117 @@ Plt.Create()
         }))
     .Save("annotations_enhanced.svg");
 Console.WriteLine("Saved annotations_enhanced.svg");
+
+// =====================================================================
+// v0.6.0 — SIMD Vectorization + Phase F
+// =====================================================================
+
+// --- 12. Vec — SIMD-accelerated numeric computation ---
+var rng = new Random(42);
+double[] priceArr = new double[100];
+priceArr[0] = 100;
+for (int i = 1; i < priceArr.Length; i++)
+    priceArr[i] = priceArr[i - 1] + (rng.NextDouble() - 0.48) * 3;
+
+Vec prices = priceArr;                                  // implicit conversion from double[]
+Vec shifted = prices.Slice(1, prices.Length - 1);
+Vec prev    = prices.Slice(0, prices.Length - 1);
+Vec diff    = shifted - prev;                            // SIMD-accelerated operators
+Vec returns = diff.Zip(prev, (d, p) => p == 0 ? 0 : d / p * 100);
+
+Console.WriteLine($"Vec: {prices.Length} prices, mean return={returns.Mean():F3}%, " +
+                  $"std={returns.Std():F3}%, max={returns.Max():F3}%, min={returns.Min():F3}%");
+
+// --- 13. Financial dashboard template ---
+double[] open  = new double[50];
+double[] high  = new double[50];
+double[] low   = new double[50];
+double[] close = new double[50];
+double[] vol   = new double[50];
+double price = 100;
+for (int i = 0; i < 50; i++)
+{
+    double change = (rng.NextDouble() - 0.48) * 4;
+    open[i]  = price;
+    high[i]  = price + Math.Abs(change) + rng.NextDouble() * 2;
+    low[i]   = price - Math.Abs(change) - rng.NextDouble() * 2;
+    price   += change;
+    close[i] = price;
+    vol[i]   = 50_000 + rng.NextDouble() * 100_000;
+}
+
+FigureTemplates.FinancialDashboard(
+        open, high, low, close, vol,
+        title: "ACME Corp — 50 Day",
+        configurePricePanel: ax => ax.BollingerBands(20),
+        configureOscillatorPanel: ax => ax.Rsi(close, 14))
+    .Save("financial_dashboard.svg");
+Console.WriteLine("Saved financial_dashboard.svg");
+
+// --- 14. New indicators: WilliamsR, OBV, CCI, ParabolicSAR ---
+Plt.Create()
+    .WithTitle("Phase F Indicators")
+    .WithSize(1000, 800)
+    .WithGridSpec(2, 2)
+    .AddSubPlot(new GridPosition(0, 1, 0, 1), ax =>
+    {
+        ax.Plot(Enumerable.Range(0, close.Length).Select(i => (double)i).ToArray(), close);
+        ax.ParabolicSar(high, low);
+        ax.WithTitle("Parabolic SAR");
+    })
+    .AddSubPlot(new GridPosition(0, 1, 1, 2), ax =>
+    {
+        ax.WilliamsR(high, low, close, 14);
+        ax.WithTitle("Williams %R");
+    })
+    .AddSubPlot(new GridPosition(1, 2, 0, 1), ax =>
+    {
+        ax.Obv(close, vol);
+        ax.WithTitle("On-Balance Volume");
+    })
+    .AddSubPlot(new GridPosition(1, 2, 1, 2), ax =>
+    {
+        ax.Cci(high, low, close, 20);
+        ax.WithTitle("CCI(20)");
+    })
+    .Save("phase_f_indicators.svg");
+Console.WriteLine("Saved phase_f_indicators.svg");
+
+// --- 15. Contour with labels ---
+double[] cx = Enumerable.Range(0, 20).Select(i => i * 0.5 - 5.0).ToArray();
+double[] cy = Enumerable.Range(0, 20).Select(i => i * 0.5 - 5.0).ToArray();
+var cz = new double[20, 20];
+for (int r = 0; r < 20; r++)
+    for (int c = 0; c < 20; c++)
+        cz[r, c] = Math.Sin(cx[c]) * Math.Cos(cy[r]);
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithTitle("Contour with Labels")
+        .Contour(cx, cy, cz, s =>
+        {
+            s.ShowLabels = true;
+            s.LabelFormat = "F2";
+            s.LabelFontSize = 9;
+        })
+        .WithColorMap("coolwarm"))
+    .Save("contour_labels.svg");
+Console.WriteLine("Saved contour_labels.svg");
+
+// --- 16. Scientific paper template (150 DPI, hidden top/right spines, tight layout) ---
+FigureTemplates.ScientificPaper(1, 1, title: "Damped Oscillation")
+    .Save("scientific_paper.svg");
+Console.WriteLine("Saved scientific_paper.svg");
+
+// --- 17. Sparkline dashboard ---
+FigureTemplates.SparklineDashboard(
+    [
+        ("CPU %",    Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 100).ToArray()),
+        ("Memory %", Enumerable.Range(0, 60).Select(_ => 40 + rng.NextDouble() * 30).ToArray()),
+        ("Disk I/O", Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 500).ToArray()),
+    ],
+    title: "Server Metrics — Last 60s")
+    .Save("sparkline_dashboard.svg");
+Console.WriteLine("Saved sparkline_dashboard.svg");
 
 Console.WriteLine("Done!");

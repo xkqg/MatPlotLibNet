@@ -1,4 +1,4 @@
-# How to use MatPlotLibNet (v0.5.1)
+# How to use MatPlotLibNet (v0.6.0)
 
 
 ## Install
@@ -686,3 +686,122 @@ lineSeries.MaxDisplayPoints = 1000;
 ```
 
 Applies to: `LineSeries`, `AreaSeries`, `ScatterSeries`, `StepSeries`.
+
+
+## §19 Vec & VectorMath
+
+`Vec` is a LINQ-style wrapper over `double[]` with SIMD-accelerated operators and reductions backed by `System.Numerics.Tensors.TensorPrimitives`.
+
+```csharp
+using MatPlotLibNet.Numerics;
+
+double[] closeArr = GetClosePrices();
+Vec close = closeArr;   // implicit conversion
+
+// SIMD-accelerated operators (allocate new arrays)
+Vec shifted = close.Slice(1, close.Length - 1);
+Vec prev    = close.Slice(0, close.Length - 1);
+Vec diff    = shifted - prev;
+Vec returns = diff.Zip(prev, (d, p) => p == 0 ? 0 : d / p * 100);
+
+// SIMD reductions (zero allocation)
+double avg  = returns.Mean();
+double risk = returns.Std();
+double best = returns.Max();
+
+// Scalar lambdas (chain-friendly, not SIMD)
+Vec gains = returns.Where(r => r > 0);
+Vec log   = close.Select(v => Math.Log(v));
+```
+
+`VectorMath` is `internal` plumbing — use `Vec` from your code, use `VectorMath` only inside the library.
+
+## §20 Chart Templates
+
+`FigureTemplates` provides pre-built layouts for common scenarios.
+
+```csharp
+using MatPlotLibNet;
+
+// 3-panel financial dashboard
+FigureTemplates.FinancialDashboard(open, high, low, close, volume, title: "AAPL")
+    .Build()
+    .Save("dashboard.svg");
+
+// Scientific paper — 150 DPI, hidden spines, tight layout
+FigureTemplates.ScientificPaper(rows: 2, cols: 2, title: "Results")
+    // returns FigureBuilder — add data before saving
+    .AddSubPlot(2, 2, 1, ax => ax.Plot(x1, y1, s => s.Label = "Series A"))
+    .AddSubPlot(2, 2, 2, ax => ax.Scatter(x2, y2))
+    .ToSvg();
+
+// Sparkline dashboard
+FigureTemplates.SparklineDashboard([
+    ("Revenue", revenueData),
+    ("Costs",   costsData),
+    ("Profit",  profitData)
+]).Save("sparklines.svg");
+```
+
+Each method returns a `FigureBuilder`, so you can chain `.WithTitle()`, `.AddSubPlot()`, etc.
+
+## §21 Contour Labels
+
+Enable contour level labels with `ShowLabels = true`. The labels use marching-squares to find iso-line midpoints and render a centered value with a white background.
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax =>
+        ax.Contour(xGrid, yGrid, zGrid, c =>
+        {
+            c.Levels      = 8;
+            c.ShowLabels  = true;
+            c.LabelFormat = "F1";   // one decimal place
+            c.LabelFontSize = 9;
+        })
+        .WithColorMap("RdBu"))
+    .Save("contour.svg");
+```
+
+## §22 Polyglot Notebooks
+
+Add the Notebooks package in a `.dib` or `.ipynb` notebook cell:
+
+```csharp
+#r "nuget: MatPlotLibNet.Notebooks"
+
+using MatPlotLibNet;
+
+// Return a Figure from any cell — it renders inline as SVG
+Plt.Create()
+    .WithTitle("Hello Notebooks")
+    .Plot([1.0, 2, 3, 4, 5], [2.0, 4, 3, 5, 1])
+    .Build()
+```
+
+## §23 Phase F Indicators (v0.6.0)
+
+Four new technical indicators, each with an `AxesBuilder` shortcut:
+
+```csharp
+Plt.Create()
+    .WithGridSpec(2, 2)
+    // Williams %R — momentum oscillator, range [-100, 0]
+    .AddSubPlot(new GridPosition(0, 1, 0, 1), ax =>
+        ax.WilliamsR(high, low, close, period: 14))
+    // On-Balance Volume — cumulative volume indicator
+    .AddSubPlot(new GridPosition(0, 1, 1, 2), ax =>
+        ax.Obv(close, volume))
+    // Commodity Channel Index — mean-deviation oscillator, reference at +/-100
+    .AddSubPlot(new GridPosition(1, 2, 0, 1), ax =>
+        ax.Cci(high, low, close, period: 20))
+    // Parabolic SAR — trend dots above/below price
+    .AddSubPlot(new GridPosition(1, 2, 1, 2), ax =>
+    {
+        ax.Plot(Enumerable.Range(0, close.Length).Select(i => (double)i).ToArray(), close);
+        ax.ParabolicSar(high, low, step: 0.02, max: 0.2);
+    })
+    .Save("indicators.svg");
+```
+
+All four use the SIMD `VectorMath` kernel internally. `WilliamsR` and `CCI` use O(n) monotone-deque rolling min/max. `ParabolicSar` renders as two scatter series (long = green, short = red) — customize via `LongColor`/`ShortColor`.

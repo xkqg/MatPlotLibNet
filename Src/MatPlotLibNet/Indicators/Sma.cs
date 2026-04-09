@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -27,25 +28,14 @@ public sealed class Sma : Indicator<SignalResult>
     public override SignalResult Compute()
     {
         if (_prices.Length < _period) return Array.Empty<double>();
-        var result = new double[_prices.Length - _period + 1];
-        double sum = 0;
-        for (int i = 0; i < _period; i++) sum += _prices[i];
-        result[0] = sum / _period;
-        for (int i = _period; i < _prices.Length; i++)
-        {
-            sum += _prices[i] - _prices[i - _period];
-            result[i - _period + 1] = sum / _period;
-        }
-        return result;
+        return VectorMath.RollingMean(_prices, _period);
     }
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
         var sma = Compute();
-        var x = new double[sma.Length];
-        for (int i = 0; i < sma.Length; i++) x[i] = _period - 1 + i;
-        x = ApplyOffset(x);
+        var x = ApplyOffset(VectorMath.Linspace(sma.Length, _period - 1));
         var series = axes.Plot(x, sma);
         series.Label = Label;
         if (Color.HasValue) series.Color = Color.Value;

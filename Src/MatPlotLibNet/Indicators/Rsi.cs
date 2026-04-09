@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -58,8 +59,7 @@ public sealed class Rsi : Indicator<SignalResult>
     public override void Apply(Axes axes)
     {
         double[] rsi = Compute();
-        var x = new double[rsi.Length];
-        for (int i = 0; i < rsi.Length; i++) x[i] = _period + i;
+        var x = VectorMath.Linspace(rsi.Length, _period);
         var series = axes.Plot(x, rsi);
         series.Label = Label;
         if (Color.HasValue) series.Color = Color.Value;

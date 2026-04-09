@@ -21,6 +21,8 @@ public class SvgRenderingBenchmarks
     private Figure _polar = default!;
     private Figure _surface3D = default!;
     private Figure _legendChart = default!;
+    private Figure _largeLine10K = default!;
+    private Figure _largeLine100K = default!;
 
     [GlobalSetup]
     public void Setup()
@@ -36,8 +38,8 @@ public class SvgRenderingBenchmarks
         _complexChart = Plt.Create()
             .WithTitle("Complex")
             .WithTheme(Theme.Seaborn)
-            .Plot(x, y, l => { l.Color = Color.Blue; l.Label = "sin"; })
-            .Scatter(x.Take(20).ToArray(), y.Take(20).ToArray(), s => { s.Color = Color.Red; })
+            .Plot(x, y, l => { l.Color = Colors.Blue; l.Label = "sin"; })
+            .Scatter(x.Take(20).ToArray(), y.Take(20).ToArray(), s => { s.Color = Colors.Red; })
             .Bar(["A", "B", "C", "D"], [10.0, 25, 15, 30])
             .Build();
 
@@ -95,6 +97,18 @@ public class SvgRenderingBenchmarks
                 .Plot(x, y.Select(v => v * 0.6).ToArray(), s => s.Label = "Line 3")
                 .WithLegend())
             .Build();
+
+        var x10K = Enumerable.Range(0, 10_000).Select(i => (double)i).ToArray();
+        var y10K = x10K.Select(v => Math.Sin(v * 0.01) * 50 + 50).ToArray();
+        _largeLine10K = Plt.Create().WithTitle("Large Line 10K").Plot(x10K, y10K).Build();
+
+        var x100K = Enumerable.Range(0, 100_000).Select(i => (double)i).ToArray();
+        var y100K = x100K.Select(v => Math.Sin(v * 0.001) * 50 + 50).ToArray();
+        _largeLine100K = Plt.Create().WithTitle("Large Line 100K")
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(x100K, y100K)
+                .WithDownsampling(2000))
+            .Build();
     }
 
     [Benchmark(Baseline = true)]
@@ -123,4 +137,10 @@ public class SvgRenderingBenchmarks
 
     [Benchmark]
     public string WithLegend() => _legendChart.ToSvg();
+
+    [Benchmark]
+    public string LargeLineChart_10K() => _largeLine10K.ToSvg();
+
+    [Benchmark]
+    public string LargeLineChart_100K_LTTB() => _largeLine100K.ToSvg();
 }

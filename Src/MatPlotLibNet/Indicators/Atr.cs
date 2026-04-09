@@ -2,6 +2,7 @@
 // Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Indicators;
 
@@ -46,9 +47,7 @@ public sealed class Atr : Indicator<SignalResult>
     public override void Apply(Axes axes)
     {
         var atr = Compute();
-        var x = new double[atr.Length];
-        for (int i = 0; i < atr.Length; i++) x[i] = _period + i;
-        x = ApplyOffset(x);
+        var x = ApplyOffset(VectorMath.Linspace(atr.Length, _period));
         var series = axes.Plot(x, atr);
         series.Label = Label;
         if (Color.HasValue) series.Color = Color.Value;
