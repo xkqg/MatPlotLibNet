@@ -4,6 +4,9 @@ obj/
 *.nupkg
 *.snupkg
 
+## Claude Code
+.claude/
+
 ## IDE
 .vs/
 *.user
