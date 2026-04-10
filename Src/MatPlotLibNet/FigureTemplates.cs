@@ -93,6 +93,46 @@ public static class FigureTemplates
         return builder;
     }
 
+    /// <summary>
+    /// Creates a joint distribution plot: center scatter with marginal histograms on the top and right edges.
+    /// Layout: 2×2 GridSpec — top-left = X marginal, bottom-left = scatter, bottom-right = Y marginal.
+    /// </summary>
+    /// <param name="x">X data values.</param>
+    /// <param name="y">Y data values.</param>
+    /// <param name="title">Optional figure title.</param>
+    /// <param name="bins">Number of histogram bins for the marginal distributions (default 30).</param>
+    public static FigureBuilder JointPlot(double[] x, double[] y, string? title = null, int bins = 30)
+    {
+        var builder = Plt.Create()
+            .WithGridSpec(2, 2, heightRatios: [1.0, 4.0], widthRatios: [4.0, 1.0]);
+
+        if (title is not null) builder.WithTitle(title);
+
+        // Top marginal: X distribution
+        builder.AddSubPlot(new GridPosition(0, 1, 0, 1), ax =>
+        {
+            ax.Hist(x, bins);
+            ax.HideTopSpine();
+            ax.HideRightSpine();
+        });
+
+        // Center: joint scatter
+        builder.AddSubPlot(new GridPosition(1, 2, 0, 1), ax =>
+        {
+            ax.Scatter(x, y);
+        });
+
+        // Right marginal: Y distribution
+        builder.AddSubPlot(new GridPosition(1, 2, 1, 2), ax =>
+        {
+            ax.Hist(y, bins);
+            ax.HideTopSpine();
+            ax.HideRightSpine();
+        });
+
+        return builder;
+    }
+
     /// <summary>Creates a vertically stacked sparkline dashboard with one row per series.</summary>
     /// <param name="series">Array of (label, values) tuples. Each tuple becomes one subplot row.</param>
     /// <param name="title">Optional figure title.</param>

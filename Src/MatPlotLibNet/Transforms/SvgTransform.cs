@@ -35,6 +35,11 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         var plotAreas = Renderer.ComputeSubPlotLayout(figure, plotAreaTop);
         var theme = figure.Theme;
 
+        // Propagate interactivity flags to each axes before rendering
+        if (figure.HasInteractivity)
+            foreach (var axes in figure.SubPlots)
+                axes.EnableInteractiveAttributes = true;
+
         // Render subplots in parallel (each gets its own context)
         var subplotContexts = new SvgRenderContext[figure.SubPlots.Count];
         Parallel.For(0, figure.SubPlots.Count, i =>
@@ -51,6 +56,14 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
                 ctx.WriteTo(sb);
             if (figure.EnableZoomPan)
                 sb.AppendLine(SvgInteractivityScript.GetZoomPanScript());
+            if (figure.EnableLegendToggle)
+                sb.AppendLine(SvgLegendToggleScript.GetScript());
+            if (figure.EnableRichTooltips)
+                sb.AppendLine(SvgCustomTooltipScript.GetScript());
+            if (figure.EnableHighlight)
+                sb.AppendLine(SvgHighlightScript.GetScript());
+            if (figure.EnableSelection)
+                sb.AppendLine(SvgSelectionScript.GetScript());
         });
     }
 

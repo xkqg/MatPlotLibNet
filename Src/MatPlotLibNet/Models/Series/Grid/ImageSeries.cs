@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Models.Series;
@@ -21,8 +22,14 @@ public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormapp
     /// <summary>Gets or sets the normalizer used to map data values to [0, 1] for colormap lookup. Defaults to linear.</summary>
     public INormalizer? Normalizer { get; set; }
 
-    /// <summary>Gets or sets the interpolation method. Currently "nearest" (default); "bilinear" reserved for future use.</summary>
+    /// <summary>Gets or sets the interpolation method: "nearest" (default), "bilinear", or "bicubic".</summary>
     public string? Interpolation { get; set; }
+
+    /// <summary>Gets or sets the fill opacity in [0, 1]. Default 1.0 (fully opaque).</summary>
+    public double Alpha { get; set; } = 1.0;
+
+    /// <summary>Gets or sets the blend mode for compositing over background. Default <see cref="BlendMode.Normal"/>.</summary>
+    public BlendMode BlendMode { get; set; } = BlendMode.Normal;
 
     /// <summary>Gets or sets the explicit minimum value for color scaling. When null, auto-detected from data.</summary>
     public double? VMin { get; set; }

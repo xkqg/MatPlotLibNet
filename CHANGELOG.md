@@ -4,6 +4,132 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.7.0] - Unreleased
+
+### Added
+
+**Feature 4a — KdeSeries + GaussianKde**
+- `KdeSeries` (sealed, Distribution family) — kernel density estimation rendered as a filled area + density curve
+  - Properties: `Data[]`, `Bandwidth` (double?, null = auto Silverman), `Fill` (bool, default true), `Alpha` (double, default 0.3), `LineWidth` (double, default 1.5), `Color`, `LineStyle`
+  - Implements `ISeriesSerializable`, `IHasDataRange` (30% X padding, density curve Y range)
+- `GaussianKde` (internal static, `Rendering/SeriesRenderers/Distribution/`) — Gaussian KDE math helper
+  - `SilvermanBandwidth(double[] sortedData)` → `1.06 * σ * n^(-0.2)`, fallback 1.0 for constant/degenerate data
+  - `Evaluate(double[] sortedData, double bandwidth, int numPoints=100)` → `(double[] X, double[] Density)` over [min-3h, max+3h]
+- `KdeSeriesRenderer` — sorts data → bandwidth → `GaussianKde.Evaluate` → optional filled polygon + density polyline
+- `Axes.Kde()`, `AxesBuilder.Kde()`, `FigureBuilder.Kde()` — fluent factory methods
+- `SeriesRegistry` registration for `"kde"` type discriminator
+- `SeriesDto.Bandwidth` (`double?`) added
+- Series count: 40 → 41
+
+**Feature 4b — RegressionSeries + LeastSquares**
+- `RegressionSeries` (sealed, XY family) — polynomial regression line with optional confidence bands
+  - Properties: `XData[]`, `YData[]`, `Degree` (int, default 1), `ShowConfidence` (bool, default false), `ConfidenceLevel` (double, default 0.95), `LineWidth` (double, default 2.0), `Color`, `BandColor`, `BandAlpha` (double, default 0.2), `LineStyle`
+- `LeastSquares` (public static, `Numerics/`) — polynomial regression math helper
+  - `PolyFit(double[] x, double[] y, int degree)` → coefficient array `[a₀, a₁, ..., aₙ]` via normal equations, degree 0–10
+  - `PolyEval(double[] coefficients, double[] x)` → evaluated Y values via Horner's method
+  - `ConfidenceBand(double[] x, double[] y, double[] coeff, double[] evalX, double level=0.95)` → `(double[] Upper, double[] Lower)` using leverage-based t-distribution intervals
+- `RegressionSeriesRenderer` — 100 eval points on linspace, optional confidence-band polygon
+- `Axes.Regression()`, `AxesBuilder.Regression()` — fluent factory methods
+- `SeriesRegistry` registration for `"regression"` type discriminator
+- `SeriesDto.Degree` (`int?`), `SeriesDto.ShowConfidence` (`bool?`), `SeriesDto.ConfidenceLevel` (`double?`) added
+- Series count: 41 → 42
+
+**Feature 4c — HexbinSeries + HexGrid**
+- `HexbinSeries` (sealed, Grid family) — 2D hexagonal bin density plot
+  - Properties: `X[]`, `Y[]`, `GridSize` (int, default 20), `MinCount` (int, default 1), `ColorMap`, `Normalizer`
+  - Implements `IColormappable`, `INormalizable`, `IColorBarDataProvider`
+- `HexGrid` (internal static, namespace `MatPlotLibNet.Numerics`) — flat-top hex bin math helper
+  - `ComputeHexBins(...)` → `Dictionary<(int q, int r), int>` count map using axial (q,r) cube-coordinate rounding
+  - `HexagonVertices(cx, cy, hexSize)` → 6 vertex coordinates for a flat-top hexagon
+  - `HexCenter(q, r, hexSize, ...)` → (X, Y) center coordinates
+- `HexbinSeriesRenderer` — renders colored hexagonal polygons with 5% visual gap; uses `HexGrid.ComputeHexBins`
+- `Axes.Hexbin()`, `AxesBuilder.Hexbin()` — fluent factory methods
+- `SeriesRegistry` registration for `"hexbin"` type discriminator
+- `SeriesDto.GridSize` (`int?`), `SeriesDto.MinCount` (`int?`) added
+- Series count: 42 → 43
+
+**Feature 4d — JointPlotBuilder**
+- `FigureTemplates.JointPlot(double[] x, double[] y, string? title = null, int bins = 30)` — scatter + marginal histogram template
+  - 2×2 `GridSpec` with `heightRatios=[1,4]`, `widthRatios=[4,1]`
+  - Top marginal: `Histogram(x)` at `GridPosition(0,1,0,1)`
+  - Center: `Scatter(x, y)` at `GridPosition(1,2,0,1)`
+  - Right marginal: `Histogram(y)` at `GridPosition(1,2,1,2)`
+
+**Feature 5a — Data Attributes Foundation**
+- `Figure.EnableLegendToggle`, `EnableRichTooltips`, `EnableHighlight`, `EnableSelection` (bool) — per-feature interactivity flags
+- `Figure.HasInteractivity` (bool) — true when any flag is set; used to gate data-attribute emission
+- `Axes.EnableInteractiveAttributes` (bool) — propagated by `SvgTransform` before parallel rendering
+- `SvgRenderContext.BeginDataGroup(string cssClass, int seriesIndex)` — emits `<g class="..." data-series-index="N">`
+- `SvgRenderContext.BeginLegendItemGroup(int legendIndex)` — emits `<g data-legend-index="N" style="cursor:pointer">`
+- `AxesRenderer.RenderSeries()` — wraps each series in a `data-series-index` group when `EnableInteractiveAttributes`
+- `AxesRenderer.RenderLegend()` — wraps each legend entry in a `data-legend-index` group when `EnableInteractiveAttributes`
+
+**Feature 5b — Legend Toggle Script**
+- `SvgLegendToggleScript` — click `[data-legend-index=N]` → toggles `display` on `g[data-series-index=N]` + dims legend entry opacity to 0.4
+- `FigureBuilder.WithLegendToggle(bool enabled = true)` — fluent enable method
+- Injected by `SvgTransform` when `Figure.EnableLegendToggle` is true
+
+**Feature 5c — Rich Tooltips Script**
+- `SvgCustomTooltipScript` — intercepts `<title>` elements and shows a styled floating `div` tooltip instead of native browser tooltip
+- `FigureBuilder.WithRichTooltips(bool enabled = true)` — fluent enable method
+- Injected by `SvgTransform` when `Figure.EnableRichTooltips` is true
+
+**Feature 5d — Highlight Script**
+- `SvgHighlightScript` — `mouseenter` on `g[data-series-index]` → dims siblings to 0.3 opacity; `mouseleave` → restores all to 1.0
+- `FigureBuilder.WithHighlight(bool enabled = true)` — fluent enable method
+- Injected by `SvgTransform` when `Figure.EnableHighlight` is true
+
+**Feature 5e — Selection Script**
+- `SvgSelectionScript` — Shift+mousedown draws a blue selection rectangle; mouseup dispatches `CustomEvent('mpl:selection', { detail: { x1, y1, x2, y2 } })` on the SVG element
+- `FigureBuilder.WithSelection(bool enabled = true)` — fluent enable method
+- Injected by `SvgTransform` when `Figure.EnableSelection` is true
+
+**Notebooks package fix**
+- `MatPlotLibNet.Notebooks.csproj` — added `<BuildOutputTargetFolder>interactive-extensions/dotnet</BuildOutputTargetFolder>` so Polyglot Notebooks auto-discovers `NotebookExtension` via `IKernelExtension`
+- `Microsoft.DotNet.Interactive` reference now carries `PrivateAssets="all"` to prevent transitive dependency leakage
+
+**Test suite:** 1924 tests (up from 1777), zero regressions.
+
+**Feature 1 — Style Sheets / rcParams**
+- `RcParams` global configuration registry — typed dictionary keyed by string (e.g., `"font.size"`, `"lines.linewidth"`, `"axes.grid"`), thread-safe via `AsyncLocal<T>` scoping
+- `RcParams.Default` static instance with hard-coded defaults matching current behavior
+- `RcParams.Current` resolves scoped override → Default (AsyncLocal per async flow)
+- `RcParamKeys` static constants for all supported keys — compile-time safe, no string typos
+- `StyleSheet` named bundle of `RcParams` overrides — `StyleSheet.FromTheme(Theme)` bridge converts existing 6 themes to style sheets
+- `StyleContext : IDisposable` scoped override — pushes `RcParams` layer on construct, pops on `Dispose()`; nests arbitrarily
+- `StyleSheetRegistry` thread-safe `ConcurrentDictionary` — all 6 built-in themes auto-registered as style sheets
+- `Plt.Style.Use(name)` / `Plt.Style.Use(StyleSheet)` — modifies global defaults (matches `matplotlib.pyplot.style.use()`)
+- `Plt.Style.Context(name)` / `Plt.Style.Context(StyleSheet)` — returns `StyleContext` for scoped overrides (matches `matplotlib.pyplot.style.context()`)
+- `Theme.ToStyleSheet()` — converts any `Theme` to a `StyleSheet` for use with rcParams
+- Precedence: explicit property > Theme > `RcParams.Current` > `RcParams.Default`
+- `FigureBuilder`, `CartesianAxesRenderer`, `LineSeriesRenderer`, `ScatterSeriesRenderer` consult `RcParams.Current` for defaults when no explicit value is set
+
+**Feature 2 — Filled Contours (ContourfSeries)**
+- `ContourfSeries` (sealed, Grid family) — filled contour plot rendering colored bands between consecutive iso-levels
+  - Properties: `XData[]`, `YData[]`, `ZData[,]`, `Levels` (int, default 10), `Alpha` (double, default 1.0), `ShowLines` (bool, default true), `LineWidth` (double, default 0.5), `ColorMap`, `Normalizer`
+  - Implements `IColormappable`, `INormalizable`, `IColorBarDataProvider`
+- `ContourfSeriesRenderer` — painter's algorithm: fills entire plot area with bottom band color, then paints ascending iso-level regions over previous using `DrawPolygon()`; optional iso-line overlay via `DrawLines()`
+- `MarchingSquares.ExtractBands()` — new method producing `ContourBand[]` (closed polygon bands between iso-levels)
+- `ContourBand` `readonly record struct` — `(double LevelLow, double LevelHigh, PointF[][] Polygons)`
+- `ISeriesVisitor.Visit(ContourfSeries)` — new visitor overload
+- `Axes.Contourf()`, `AxesBuilder.Contourf()`, `FigureBuilder.Contourf()` — fluent API methods
+- `SeriesRegistry` registration for `"contourf"` type discriminator
+- Series count: 39 → 40
+
+**Feature 3 — Image Compositing**
+- `IInterpolationEngine` strategy interface — `Resample(double[,] data, int targetRows, int targetCols)`
+- `NearestInterpolation` (singleton) — identity / pixel duplication (existing behavior)
+- `BilinearInterpolation` (singleton) — 2×2 neighborhood, linear weights
+- `BicubicInterpolation` (singleton) — 4×4 neighborhood, Catmull-Rom / Keys kernel with output clamping to prevent ringing
+- `InterpolationRegistry` thread-safe `ConcurrentDictionary` — maps `"nearest"` / `"bilinear"` / `"bicubic"` to engine instances (mirrors `ColorMapRegistry` pattern)
+- `BlendMode` enum — `Normal`, `Multiply`, `Screen`, `Overlay`
+- `CompositeOperation` static utility — `Color Blend(Color src, Color dst, BlendMode mode)`
+- `ImageSeries.Alpha` (`double`, default 1.0) — overall opacity
+- `ImageSeries.BlendMode` (`BlendMode`, default `Normal`) — alpha composite blend mode
+- `ImageSeriesRenderer` enhanced — resolves `InterpolationRegistry.Get(series.Interpolation)` to resample data before rendering; upsampled grid capped at min(source×4, 256) to prevent SVG size explosion
+
+**Test suite:** 1777 tests (up from 1668), zero regressions.
+
 ## [0.6.0] - 2026-04-09
 
 ### Added

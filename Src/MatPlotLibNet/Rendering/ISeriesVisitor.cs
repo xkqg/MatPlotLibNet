@@ -38,8 +38,20 @@ public interface ISeriesVisitor
     /// <summary>Renders a violin plot series.</summary>
     void Visit(ViolinSeries series, RenderArea area);
 
+    /// <summary>Renders a kernel density estimation (KDE) series.</summary>
+    void Visit(KdeSeries series, RenderArea area);
+
+    /// <summary>Renders a polynomial regression series.</summary>
+    void Visit(RegressionSeries series, RenderArea area);
+
+    /// <summary>Renders a hexagonal binning series.</summary>
+    void Visit(HexbinSeries series, RenderArea area);
+
     /// <summary>Renders a contour series.</summary>
     void Visit(ContourSeries series, RenderArea area);
+
+    /// <summary>Renders a filled contour series.</summary>
+    void Visit(ContourfSeries series, RenderArea area);
 
     /// <summary>Renders a stem plot series.</summary>
     void Visit(StemSeries series, RenderArea area);

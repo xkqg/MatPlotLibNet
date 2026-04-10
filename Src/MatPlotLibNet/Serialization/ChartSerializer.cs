@@ -763,6 +763,12 @@ public sealed record SeriesDto
     public double? VMax { get; init; }
     public string? Interpolation { get; init; }
     public List<List<double>>? VFieldData { get; init; }
+    public double? Bandwidth { get; init; }
+    public int? Degree { get; init; }
+    public bool? ShowConfidence { get; init; }
+    public double? ConfidenceLevel { get; init; }
+    public int? GridSize { get; init; }
+    public int? MinCount { get; init; }
 }
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>

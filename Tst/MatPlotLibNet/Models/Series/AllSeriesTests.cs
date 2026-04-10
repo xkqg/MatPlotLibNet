@@ -7,7 +7,7 @@ using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies common <see cref="ISeries"/> behavior across all 31 series types.</summary>
+/// <summary>Verifies common <see cref="ISeries"/> behavior across all series types.</summary>
 public class AllSeriesTests
 {
     public static TheoryData<ISeries, string> AllSeriesInstances => new()
@@ -21,7 +21,11 @@ public class AllSeriesTests
         { new Histogram2DSeries([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]), nameof(Histogram2DSeries) },
         { new BoxSeries([[1.0, 2.0, 3.0]]), nameof(BoxSeries) },
         { new ViolinSeries([[1.0, 2.0, 3.0]]), nameof(ViolinSeries) },
+        { new KdeSeries([1.0, 2.0, 3.0]), nameof(KdeSeries) },
+        { new RegressionSeries([1.0, 2.0, 3.0], [1.0, 2.0, 3.0]), nameof(RegressionSeries) },
+        { new HexbinSeries([1.0, 2.0, 3.0], [1.0, 2.0, 3.0]), nameof(HexbinSeries) },
         { new ContourSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(ContourSeries) },
+        { new ContourfSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(ContourfSeries) },
         { new StemSeries([1.0, 2.0], [3.0, 4.0]), nameof(StemSeries) },
         { new AreaSeries([1.0, 2.0], [3.0, 4.0]), nameof(AreaSeries) },
         { new StepSeries([1.0, 2.0], [3.0, 4.0]), nameof(StepSeries) },

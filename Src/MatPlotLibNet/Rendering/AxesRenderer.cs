@@ -73,15 +73,18 @@ public abstract class AxesRenderer
     /// <summary>Renders all series on these axes through the visitor pattern.</summary>
     protected void RenderSeries()
     {
+        var svgCtx = Axes.EnableInteractiveAttributes ? Ctx as SvgRenderContext : null;
         for (int i = 0; i < Axes.Series.Count; i++)
         {
             var series = Axes.Series[i];
             if (!series.Visible) continue;
             var seriesColor = Theme.CycleColors[i % Theme.CycleColors.Length];
+            svgCtx?.BeginDataGroup("series", i);
             var renderer = new SvgSeriesRenderer(
                 new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, Axes.EnableTooltips);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
+            if (svgCtx is not null) Ctx.EndGroup();
         }
     }
 
@@ -89,14 +92,17 @@ public abstract class AxesRenderer
     /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
     protected void RenderSeries(DataTransform transform)
     {
+        var svgCtx = Axes.EnableInteractiveAttributes ? Ctx as SvgRenderContext : null;
         for (int i = 0; i < Axes.Series.Count; i++)
         {
             var series = Axes.Series[i];
             if (!series.Visible) continue;
             var seriesColor = Theme.CycleColors[i % Theme.CycleColors.Length];
+            svgCtx?.BeginDataGroup("series", i);
             var renderer = new SvgSeriesRenderer(transform, Ctx, seriesColor, Axes.EnableTooltips);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
+            if (svgCtx is not null) Ctx.EndGroup();
         }
     }
 
@@ -144,12 +150,15 @@ public abstract class AxesRenderer
 
         Ctx.BeginGroup("legend");
 
+        var svgCtxLegend = Axes.EnableInteractiveAttributes ? Ctx as SvgRenderContext : null;
         for (int i = 0; i < entries.Count; i++)
         {
             var (label, color) = entries[i];
             double entryY = boxY + padding + i * lineHeight;
+            svgCtxLegend?.BeginLegendItemGroup(i);
             Ctx.DrawRectangle(new Rect(boxX + padding, entryY, swatchSize, swatchSize), color, null, 0);
             Ctx.DrawText(label, new Point(boxX + padding + swatchSize + swatchGap, entryY + swatchSize - 1), font, TextAlignment.Left);
+            if (svgCtxLegend is not null) Ctx.EndGroup();
         }
 
         Ctx.EndGroup();

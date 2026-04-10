@@ -47,7 +47,7 @@ Plt.Create().Plot(x, y).Save("chart.pdf");   // requires MatPlotLibNet.Skia
 
 ## Chart types
 
-**39 series types** with fluent builder API:
+**43 series types** with fluent builder API:
 
 ```csharp
 Plt.Create()
@@ -63,7 +63,7 @@ Plt.Create()
 ```
 
 Additional types via `AxesBuilder.AddSubPlot`:
-Heatmap, Image (imshow), Histogram2D, Box, Violin, Contour, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Ecdf, StackedArea, Streamplot, Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar, Surface, Wireframe, Scatter3D.
+Heatmap, Image (imshow), Histogram2D, Box, Violin, Contour, Contourf, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Ecdf, StackedArea, Streamplot, Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar, Surface, Wireframe, Scatter3D, Kde, Regression, Hexbin.
 
 ### Stacked bars
 
@@ -209,6 +209,41 @@ Plt.Create()
     .Save("rotated");
 ```
 
+## Filled contours (contourf)
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Contourf(xGrid, yGrid, zGrid, c =>
+        {
+            c.Levels = 12;
+            c.Alpha = 0.9;
+            c.ShowLines = true;      // overlay iso-lines
+        })
+        .WithColorMap("RdBu")
+        .WithColorBar())
+    .Save("contourf");
+```
+
+Renders colored bands between consecutive iso-levels using a painter's algorithm. Supports all colormaps, normalizers, and color bars.
+
+## Image interpolation
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Image(data, img =>
+        {
+            img.Interpolation = "bilinear";   // "nearest", "bilinear", "bicubic"
+            img.Alpha = 0.8;
+            img.BlendMode = BlendMode.Normal;
+        })
+        .WithColorMap("plasma"))
+    .Save("smooth_image");
+```
+
+Interpolation engines: **nearest** (default, one color per cell), **bilinear** (smooth 2x2), **bicubic** (Catmull-Rom 4x4). Blend modes: Normal, Multiply, Screen, Overlay.
+
 ## Color maps
 
 52 built-in colormaps across 6 categories (104 including reversed `_r` variants):
@@ -319,14 +354,73 @@ FigureExtensions.RegisterTransform(".png", new PngTransform());
 FigureExtensions.RegisterTransform(".pdf", new PdfTransform());
 ```
 
+## Statistical series
+
+```csharp
+// KDE — kernel density estimation with auto Silverman bandwidth
+Plt.Create().Kde(samples, k => { k.Fill = true; k.Alpha = 0.3; }).Save("kde");
+
+// Regression line with 95% confidence band
+ax.Regression(xData, yData, r =>
+{
+    r.Degree = 2;
+    r.ShowConfidence = true;
+    r.ConfidenceLevel = 0.95;
+});
+
+// Hexbin — 2D density via hexagonal binning
+ax.Hexbin(x, y, h =>
+{
+    h.GridSize = 25;
+    h.MinCount = 2;
+}).WithColorMap("YlOrRd").WithColorBar();
+```
+
+## Joint plot (scatter + marginals)
+
+```csharp
+FigureTemplates.JointPlot(x, y, title: "Correlation", bins: 30)
+    .Save("joint.svg");
+```
+
+Produces a 2×2 GridSpec with the scatter in the center, X histogram on top, and Y histogram on the right.
+
 ## SVG interactivity
 
 ```csharp
 // Native browser tooltips on hover
 .AddSubPlot(1, 1, 1, ax => ax.WithTooltips().Scatter(x, y))
 
-// Zoom (mouse wheel) and pan (click-drag) via embedded JavaScript
+// Zoom (mouse wheel) and pan (click-drag)
 Plt.Create().WithZoomPan().Plot(x, y).Save("zoomable")
+
+// Click legend entries to show/hide series
+Plt.Create().WithLegendToggle()
+    .Plot(x, y1, s => s.Label = "Train")
+    .Plot(x, y2, s => s.Label = "Test")
+    .Save("toggle.svg");
+
+// Hover to highlight a series and dim the rest
+Plt.Create().WithHighlight()
+    .Plot(x, y1, s => s.Label = "A")
+    .Plot(x, y2, s => s.Label = "B")
+    .Save("highlight.svg");
+
+// Styled HTML tooltips (replaces native browser tooltip)
+Plt.Create().WithRichTooltips()
+    .AddSubPlot(1, 1, 1, ax => ax.WithTooltips().Scatter(x, y))
+    .Save("tooltips.svg");
+
+// Shift+drag to select a data region — fires mpl:selection CustomEvent
+Plt.Create().WithSelection().Plot(x, y).Save("select.svg");
+
+// Combine features freely
+Plt.Create()
+    .WithLegendToggle()
+    .WithHighlight()
+    .WithRichTooltips()
+    .Plot(x, y, s => s.Label = "Series")
+    .Save("interactive.svg");
 ```
 
 ## Dependency injection
@@ -346,6 +440,39 @@ ChartServices.Serializer = new MyCustomSerializer();
 ```
 
 Interfaces: `IFigureTransform`, `IChartRenderer`, `ISvgRenderer`, `IChartSerializer`, `IChartPublisher`.
+
+## Style sheets / rcParams
+
+Global configuration with scoped overrides — like matplotlib's `rcParams` + `plt.style.use()`:
+
+```csharp
+using MatPlotLibNet.Styling;
+
+// Apply a named style globally
+Plt.Style.Use("seaborn");
+
+// Scoped override (auto-reverts on Dispose)
+using (Plt.Style.Context("dark"))
+{
+    Plt.Create().Plot(x, y).Save("dark_chart");
+}
+// Back to previous style here
+
+// Override individual parameters
+using (Plt.Style.Context(new Dictionary<string, object>
+{
+    ["font.size"] = 16.0,
+    ["lines.linewidth"] = 2.5,
+    ["axes.grid"] = true
+}))
+{
+    Plt.Create().Plot(x, y).Save("custom_params");
+}
+```
+
+Precedence: explicit property > Theme > `RcParams.Current` > defaults.
+
+Built-in style sheets: `default`, `dark`, `seaborn`, `ggplot`, `bmh`, `fivethirtyeight`.
 
 ## Themes
 
@@ -466,6 +593,7 @@ See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering 
 
 | Version | Highlights |
 |---------|-----------|
+| **0.7.0** | **Style sheets + Stats series + Interactive SVG.** `RcParams` global config registry + `Plt.Style.Use()`/`Context()`. `ContourfSeries` filled contours. `IInterpolationEngine` (nearest/bilinear/bicubic) + `BlendMode`. `KdeSeries` (Silverman KDE + fill). `RegressionSeries` (polynomial fit + confidence bands, `LeastSquares`). `HexbinSeries` (flat-top hex bins, `HexGrid`). `FigureTemplates.JointPlot()`. Interactive SVG: `WithLegendToggle()`, `WithHighlight()`, `WithRichTooltips()`, `WithSelection()` — 4 embedded JS modules keyed on DOM `data-series-index`/`data-legend-index`. Notebooks package `BuildOutputTargetFolder` fix. 43 series types. 1924 tests. |
 | **0.6.0** | **SIMD Vectorization + Phase F.** `VectorMath` kernel backed by `TensorPrimitives` (SIMD-accelerated): `RollingMean`, `RollingMin/Max` (O(n) monotone deque), `RollingStdDev`, `MultiplyAdd`, `CumulativeSum`. `Vec` public `readonly record struct` with SIMD operators, reductions, and LINQ-style lambdas. `TransformBatch` rewritten as single-pass AVX SIMD interleave (3.6x faster, zero intermediate allocations). 4 new indicators: `WilliamsR`, `OBV`, `CCI`, `ParabolicSar`. `FigureTemplates`: `FinancialDashboard`, `ScientificPaper`, `SparklineDashboard`. `MarchingSquares` contour label rendering. `MatPlotLibNet.Notebooks` package (Polyglot Notebooks / Jupyter inline SVG). All 15 existing indicators refactored onto VectorMath. 1668 tests. |
 | **0.5.1** | **Phase C — Annotations**: `Annotation.Alignment`, `Rotation`, `ArrowStyle` (None/Simple/FancyArrow with triangular arrowhead), `BackgroundColor`. Bar labels (`ShowLabels`/`LabelFormat` on `BarSeries`). `ContourSeries.ShowLabels` reserved. `IRenderContext.DrawText(…, rotation)` overload (SVG `transform="rotate(…)"`). **Phase D — Ticks**: `ITickLocator` interface + `AutoLocator`, `MaxNLocator`, `MultipleLocator`, `FixedLocator`, `LogLocator`. `EngFormatter` (SI prefixes) + `PercentFormatter`. `Axis.TickLocator`, minor tick rendering (5 per major interval), `TickConfig.Spacing` now wires `MultipleLocator`. `AxesBuilder.SetXTickLocator/SetYTickLocator`, `.WithMinorTicks()`. Bug fix: secondary Y-axis and polar chart formatters now use the custom `TickFormatter` instead of `FormatTick`. **Phase E — Performance**: `IDownsampler` + `LttbDownsampler` (Largest-Triangle-Three-Buckets O(n)) + `ViewportCuller` (static). `XYSeries.MaxDisplayPoints` opt-in downsampling for Line/Area/Scatter/Step. `DataTransform.DataXMin/XMax/YMin/YMax`. `AxesBuilder.WithDownsampling(maxPoints)`. 1588 tests (86 new). |
 | **0.5.0** | 39 series types. Layout: `GridSpec` unequal subplots, `SpinesConfig`, shared axes (`ShareX`/`ShareY`), inset axes. 5 new series: `ImageSeries` (imshow), `Histogram2DSeries`, `StreamplotSeries`, `EcdfSeries`, `StackedAreaSeries`. OO interfaces: `IColormappable`, `INormalizable`, `ICategoryLabeled`, `IColorBarDataProvider`, `IStackable`. 20 new colormaps (52 base, 104 with `_r` variants): Turbo, Jet, Hsv, Hot, Copper, Bone, BuPu, GnBu, PuRd, RdPu, YlGnBu, PuBuGn, Cubehelix, PuOr, Seismic, Bwr, Pastel2, Dark2, Accent, Paired. `ColorMapRegistry` (case-insensitive, thread-safe). `INormalizer`: Linear, Log, TwoSlope, Boundary. `AxesBuilder.WithColorMap/WithNormalizer` collapse to single-line interface check (bug fix: previously missed 3 of 7 colormappable series). 1502 tests. |

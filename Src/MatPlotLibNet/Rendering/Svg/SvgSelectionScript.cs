@@ -1,0 +1,61 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+
+namespace MatPlotLibNet.Rendering.Svg;
+
+/// <summary>Provides the embedded JavaScript for rectangular data selection in SVG output.</summary>
+internal static class SvgSelectionScript
+{
+    /// <summary>
+    /// Returns a <c>&lt;script&gt;</c> block that activates a selection rectangle on Shift+mousedown.
+    /// On mouseup, a <c>CustomEvent('mpl:selection', { detail: { x1, y1, x2, y2 } })</c> is dispatched
+    /// on the SVG element, allowing host applications to react to user-defined data regions.
+    /// </summary>
+    internal static string GetScript() => """
+        <script type="text/ecmascript"><![CDATA[
+        (function() {
+            var svg = document.querySelector('svg');
+            if (!svg) return;
+            var rect = null, startPt = null;
+            svg.addEventListener('mousedown', function(e) {
+                if (!e.shiftKey) return;
+                e.preventDefault();
+                var pt = svg.createSVGPoint();
+                pt.x = e.clientX; pt.y = e.clientY;
+                startPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+                rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('fill', 'rgba(100,149,237,0.25)');
+                rect.setAttribute('stroke', '#6495ED');
+                rect.setAttribute('stroke-width', '1');
+                rect.setAttribute('x', startPt.x);
+                rect.setAttribute('y', startPt.y);
+                rect.setAttribute('width', '0');
+                rect.setAttribute('height', '0');
+                svg.appendChild(rect);
+            });
+            svg.addEventListener('mousemove', function(e) {
+                if (!rect || !startPt) return;
+                var pt = svg.createSVGPoint();
+                pt.x = e.clientX; pt.y = e.clientY;
+                var cur = pt.matrixTransform(svg.getScreenCTM().inverse());
+                var x = Math.min(startPt.x, cur.x), y = Math.min(startPt.y, cur.y);
+                var w = Math.abs(cur.x - startPt.x), h = Math.abs(cur.y - startPt.y);
+                rect.setAttribute('x', x); rect.setAttribute('y', y);
+                rect.setAttribute('width', w); rect.setAttribute('height', h);
+            });
+            svg.addEventListener('mouseup', function(e) {
+                if (!rect || !startPt) return;
+                var pt = svg.createSVGPoint();
+                pt.x = e.clientX; pt.y = e.clientY;
+                var endPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+                svg.dispatchEvent(new CustomEvent('mpl:selection', { detail: {
+                    x1: Math.min(startPt.x, endPt.x), y1: Math.min(startPt.y, endPt.y),
+                    x2: Math.max(startPt.x, endPt.x), y2: Math.max(startPt.y, endPt.y)
+                }, bubbles: true }));
+                svg.removeChild(rect);
+                rect = null; startPt = null;
+            });
+        })();
+        ]]></script>
+        """;
+}

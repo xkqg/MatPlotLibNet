@@ -18,6 +18,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
 
     // XY family
     private LineSeriesRenderer? _line;
+    private RegressionSeriesRenderer? _regression;
     private ScatterSeriesRenderer? _scatter;
     private StepSeriesRenderer? _step;
     private AreaSeriesRenderer? _area;
@@ -43,13 +44,16 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
 
     // Grid family
     private HeatmapSeriesRenderer? _heatmap;
+    private HexbinSeriesRenderer? _hexbin;
     private ImageSeriesRenderer? _image;
     private Histogram2DSeriesRenderer? _histogram2D;
     private ContourSeriesRenderer? _contour;
+    private ContourfSeriesRenderer? _contourf;
 
     // Distribution family
     private BoxSeriesRenderer? _box;
     private ViolinSeriesRenderer? _violin;
+    private KdeSeriesRenderer? _kde;
 
     // Financial family
     private CandlestickSeriesRenderer? _candlestick;
@@ -88,6 +92,8 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     // XY family
     /// <inheritdoc />
     public void Visit(LineSeries s, RenderArea a) => (_line ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(RegressionSeries s, RenderArea a) => (_regression ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(ScatterSeries s, RenderArea a) => (_scatter ??= new(_context)).Render(s);
     /// <inheritdoc />
@@ -133,17 +139,23 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     /// <inheritdoc />
     public void Visit(HeatmapSeries s, RenderArea a) => (_heatmap ??= new(_context)).Render(s);
     /// <inheritdoc />
+    public void Visit(HexbinSeries s, RenderArea a) => (_hexbin ??= new(_context)).Render(s);
+    /// <inheritdoc />
     public void Visit(ImageSeries s, RenderArea a) => (_image ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(Histogram2DSeries s, RenderArea a) => (_histogram2D ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(ContourSeries s, RenderArea a) => (_contour ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(ContourfSeries s, RenderArea a) => (_contourf ??= new(_context)).Render(s);
 
     // Distribution family
     /// <inheritdoc />
     public void Visit(BoxSeries s, RenderArea a) => (_box ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(ViolinSeries s, RenderArea a) => (_violin ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(KdeSeries s, RenderArea a) => (_kde ??= new(_context)).Render(s);
 
     // Financial family
     /// <inheritdoc />

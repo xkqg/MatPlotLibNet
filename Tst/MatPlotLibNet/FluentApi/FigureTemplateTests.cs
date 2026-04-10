@@ -106,4 +106,60 @@ public class FigureTemplateTests
         var figure = FigureTemplates.SparklineDashboard(series).Build();
         Assert.Equal(3, figure.SubPlots.Count);
     }
+
+    // --- JointPlot ---
+
+    private static readonly double[] JointX = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+    private static readonly double[] JointY = [1.2, 1.9, 3.1, 4.0, 5.1, 5.8, 7.2, 8.0];
+
+    /// <summary>JointPlot returns a non-null FigureBuilder.</summary>
+    [Fact]
+    public void JointPlot_ReturnsFigureBuilder()
+    {
+        var builder = FigureTemplates.JointPlot(JointX, JointY);
+        Assert.NotNull(builder);
+    }
+
+    /// <summary>JointPlot builds a figure with exactly 3 subplots.</summary>
+    [Fact]
+    public void JointPlot_HasThreeSubplots()
+    {
+        var figure = FigureTemplates.JointPlot(JointX, JointY).Build();
+        Assert.Equal(3, figure.SubPlots.Count);
+    }
+
+    /// <summary>JointPlot center panel contains a ScatterSeries.</summary>
+    [Fact]
+    public void JointPlot_CenterPanel_ContainsScatterSeries()
+    {
+        var figure = FigureTemplates.JointPlot(JointX, JointY).Build();
+        // Center is subplot index 1 (0-indexed: top marginal, center scatter, right marginal)
+        bool hasScatter = figure.SubPlots.Any(ax => ax.Series.OfType<ScatterSeries>().Any());
+        Assert.True(hasScatter);
+    }
+
+    /// <summary>JointPlot marginals contain HistogramSeries.</summary>
+    [Fact]
+    public void JointPlot_MarginalPanels_ContainHistogramSeries()
+    {
+        var figure = FigureTemplates.JointPlot(JointX, JointY).Build();
+        int histCount = figure.SubPlots.Sum(ax => ax.Series.OfType<HistogramSeries>().Count());
+        Assert.Equal(2, histCount);
+    }
+
+    /// <summary>JointPlot renders to valid SVG.</summary>
+    [Fact]
+    public void JointPlot_RendersToValidSvg()
+    {
+        string svg = FigureTemplates.JointPlot(JointX, JointY).ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>JointPlot with title includes the title in SVG output.</summary>
+    [Fact]
+    public void JointPlot_WithTitle_IncludesTitleInSvg()
+    {
+        string svg = FigureTemplates.JointPlot(JointX, JointY, title: "My Joint Plot").ToSvg();
+        Assert.Contains("My Joint Plot", svg);
+    }
 }

@@ -41,6 +41,9 @@ public sealed class Theme
         DefaultGrid = defaultGrid;
     }
 
+    /// <summary>Creates a <see cref="StyleSheet"/> that mirrors this theme's visual settings as rcParam keys.</summary>
+    public StyleSheet ToStyleSheet() => StyleSheet.FromTheme(this);
+
     // Matplotlib's default tab10 color cycle
     private static readonly Color[] DefaultCycleColors =
     [

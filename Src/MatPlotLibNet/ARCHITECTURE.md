@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.6.0)
+# MatPlotLibNet Core -- Architecture (v0.7.0)
 
 ## Package dependency graph
 
@@ -35,7 +35,9 @@ MatPlotLibNet/
   DisplayMode.cs                      enum: Inline, Expandable, Popup
   IChartSubscriptionClient.cs         shared SignalR client contract
 
-  FigureTemplates.cs                  pre-built layouts: FinancialDashboard(), ScientificPaper(), SparklineDashboard()
+  FigureTemplates.cs                  pre-built layouts: FinancialDashboard(), ScientificPaper(), SparklineDashboard(), JointPlot()
+
+  Plt.Style                           nested static class: Use(), Context() for rcParams configuration
 
   Builders/
     FigureBuilder.cs                  fluent API: Plt.Create().WithTitle().Plot().Build() (build only)
@@ -48,8 +50,8 @@ MatPlotLibNet/
                                       (SRP: all output responsibility moved here from FigureBuilder)
 
   Models/
-    Figure.cs                         top-level container (Title, Width, Height, Theme, EnableZoomPan)
-    Axes.cs                           subplot: series, annotations, ref lines, spans, secondary axis, insets, ShareX/ShareY
+    Figure.cs                         top-level container (Title, Width, Height, Theme, EnableZoomPan, EnableLegendToggle, EnableRichTooltips, EnableHighlight, EnableSelection, HasInteractivity)
+    Axes.cs                           subplot: series, annotations, ref lines, spans, secondary axis, insets, ShareX/ShareY, EnableInteractiveAttributes
     Axis.cs                           label, min/max, scale, ticks
     Annotation.cs                     text annotation: Text, X, Y, ArrowTarget, Alignment, Rotation, ArrowStyle, BackgroundColor
     ArrowStyle.cs                     enum: None, Simple, FancyArrow
@@ -59,7 +61,7 @@ MatPlotLibNet/
     InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
 
-    Series/                           39 series types across 12 families
+    Series/                           43 series types across 12 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
       ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
       IHasDataRange.cs                interface: series that expose their own data bounds
@@ -88,6 +90,7 @@ MatPlotLibNet/
       BoxSeries.cs                    Datasets[][], Color, MedianColor, ShowOutliers
       ViolinSeries.cs                 Datasets[][], Color, Alpha
       ContourSeries.cs                XData, YData, ZData[,], Levels, Filled, ShowLabels, LabelFormat, LabelFontSize, ColorMap, IColormappable, IHasDataRange
+      ContourfSeries.cs               XData, YData, ZData[,], Levels, Alpha, ShowLines, LineWidth, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       StemSeries.cs                   XYSeries: MarkerColor, StemColor, BaselineColor
       AreaSeries.cs                   XYSeries: YData2 (fill between), Alpha, FillColor
       StepSeries.cs                   XYSeries: StepPosition (Pre/Mid/Post)
@@ -116,6 +119,9 @@ MatPlotLibNet/
       TreemapSeries.cs                HierarchicalSeries: Padding (Hierarchical/)
       SunburstSeries.cs               HierarchicalSeries: InnerRadius (Hierarchical/)
       SankeySeries.cs                 Nodes, Links (Flow/)
+      KdeSeries.cs                    Data[], Bandwidth?, Fill, Alpha, LineWidth, Color, LineStyle (Distribution/)
+      RegressionSeries.cs             XData[], YData[], Degree, ShowConfidence, ConfidenceLevel, BandColor, BandAlpha (XY/)
+      HexbinSeries.cs                 X[], Y[], GridSize, MinCount, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
 
   Indicators/                           polymorphic: IIndicator -> Indicator -> Indicator<TResult> where TResult : IIndicatorResult
     IIndicator.cs                       interface: Apply(Axes)
@@ -165,7 +171,7 @@ MatPlotLibNet/
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation) overload
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 39 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 40 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
@@ -186,6 +192,13 @@ MatPlotLibNet/
       EngFormatter.cs                   SI prefix engineering notation (k, M, G, m, µ, n)
       PercentFormatter.cs               value/max*100 + "%" suffix
 
+    Interpolation/                      image interpolation engines
+      IInterpolationEngine.cs           interface: Resample(double[,], int, int) strategy
+      NearestInterpolation.cs           singleton: identity / pixel duplication (default)
+      BilinearInterpolation.cs          singleton: 2x2 neighborhood, linear weights
+      BicubicInterpolation.cs           singleton: 4x4 Catmull-Rom kernel with output clamping
+      InterpolationRegistry.cs          thread-safe ConcurrentDictionary, mirrors ColorMapRegistry pattern
+
     Downsampling/                       performance helpers for large datasets
       IDownsampler.cs                   interface: Downsample(x, y, targetPoints)
       LttbDownsampler.cs                Largest-Triangle-Three-Buckets O(n) algorithm
@@ -194,11 +207,11 @@ MatPlotLibNet/
     SeriesRenderers/                    generic SeriesRenderer<T> per series type
       SeriesRenderContext.cs            record: Transform + Ctx + Color + Area + options
       SeriesRenderer.cs                 abstract base + generic SeriesRenderer<T>
-      XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea
+      XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band)
       Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar
       Circular/                         Pie, Radar, Donut, Gauge
-      Grid/                             Heatmap, Contour, Image, Histogram2D
-      Distribution/                     Box, Violin
+      Grid/                             Heatmap, Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins)
+      Distribution/                     Box, Violin, Kde (GaussianKde Silverman bandwidth)
       Financial/                        Candlestick, OhlcBar
       Field/                            Quiver, Stem, Streamplot
       Hierarchical/                     Treemap, Sunburst (shared HierarchicalSeries base)
@@ -206,9 +219,18 @@ MatPlotLibNet/
 
     Svg/
       ISvgRenderer.cs                 interface: Render(Figure) -> string (backward compat)
-      SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission
+      SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission; BeginDataGroup(cssClass, idx), BeginLegendItemGroup(idx)
       SvgSeriesRenderer.cs            thin visitor dispatcher to SeriesRenderer<T> instances
       SvgInteractivityScript.cs       embedded JavaScript for zoom/pan via viewBox manipulation
+      SvgLegendToggleScript.cs        embedded JS: click data-legend-index → toggle data-series-index display
+      SvgCustomTooltipScript.cs       embedded JS: styled floating div tooltip from <title> text
+      SvgHighlightScript.cs           embedded JS: mouseenter dims siblings to 0.3 opacity, mouseleave restores
+      SvgSelectionScript.cs           embedded JS: Shift+drag selection rect, dispatches mpl:selection CustomEvent
+
+  Numerics/
+    LeastSquares.cs                   public static: PolyFit (normal equations), PolyEval (Horner), ConfidenceBand (t-distribution leverage)
+    HexGrid.cs*                       internal static: ComputeHexBins, HexagonVertices, HexCenter (axial q,r coords)
+                                      (* file lives in Rendering/SeriesRenderers/Grid/ but uses MatPlotLibNet.Numerics namespace)
 
   Serialization/
     IChartSerializer.cs               interface: ToJson(Figure), FromJson(string)
@@ -217,6 +239,12 @@ MatPlotLibNet/
                                       (series register themselves; no central switch statement)
 
   Styling/
+    RcParamKeys.cs                    static constants for all supported rcParams keys
+    RcParams.cs                       global config registry: typed Dictionary + AsyncLocal scoping
+    StyleSheet.cs                     named bundle of RcParams overrides + Theme bridge
+    StyleContext.cs                    IDisposable scoped override: push on construct, pop on Dispose
+    StyleSheetRegistry.cs             thread-safe ConcurrentDictionary: name -> StyleSheet
+    BlendMode.cs                      enum (Normal, Multiply, Screen, Overlay) + CompositeOperation utility
     Color.cs                          readonly record struct (R, G, B, A) + named colors + hex
                                       Color constants: Tab10Blue, Tab10Orange, Tab10Green, GridGray,
                                       EdgeGray, Amber, FibonacciOrange (replace magic hex strings)
@@ -277,7 +305,15 @@ SvgSeriesRenderer      visitor dispatches to type-specific rendering
     |
 SvgRenderContext       accumulates SVG markup in StringBuilder
     |
-string                 complete <svg>...</svg> document (with optional zoom/pan script)
+string                 complete <svg>...</svg> document
+                       optional scripts appended at end of body:
+                         SvgInteractivityScript  (EnableZoomPan)
+                         SvgLegendToggleScript   (EnableLegendToggle)
+                         SvgCustomTooltipScript  (EnableRichTooltips)
+                         SvgHighlightScript      (EnableHighlight)
+                         SvgSelectionScript      (EnableSelection)
+                       data-series-index / data-legend-index attributes emitted
+                         when Figure.HasInteractivity via Axes.EnableInteractiveAttributes
 ```
 
 ### Polymorphic figure transforms
@@ -346,7 +382,8 @@ ChartHub               routes to SignalR group by chartId
 | Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D) | multiple output targets and coordinate systems from same model |
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
-| Self-serialization | ISeriesSerializable on all 34 series | each series knows how to serialize itself (no central switch) |
+| Self-serialization | ISeriesSerializable on all 43 series | each series knows how to serialize itself (no central switch) |
+| Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
 | Registry | SeriesRegistry (ConcurrentDictionary) | thread-safe deserialization type lookup |
 | Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries | DRY shared properties across series families |
 | Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable | narrow contracts for cross-cutting concerns |

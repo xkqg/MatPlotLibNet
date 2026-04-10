@@ -31,6 +31,38 @@ public static class SeriesRegistry
         Register("pie", (axes, dto) => axes.Pie(dto.Sizes ?? [], dto.PieLabels));
         Register("box", (axes, dto) => axes.BoxPlot(dto.Datasets ?? []));
         Register("violin", (axes, dto) => axes.Violin(dto.Datasets ?? []));
+        Register("hexbin", (axes, dto) =>
+        {
+            var s = axes.Hexbin(dto.XData ?? [], dto.YData ?? []);
+            if (dto.GridSize.HasValue) s.GridSize = dto.GridSize.Value;
+            if (dto.MinCount.HasValue) s.MinCount = dto.MinCount.Value;
+            if (dto.ColorMapName is not null)
+                s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+            return s;
+        });
+        Register("regression", (axes, dto) =>
+        {
+            var s = axes.Regression(dto.XData ?? [], dto.YData ?? []);
+            if (dto.Degree.HasValue) s.Degree = dto.Degree.Value;
+            if (dto.ShowConfidence.HasValue) s.ShowConfidence = dto.ShowConfidence.Value;
+            if (dto.ConfidenceLevel.HasValue) s.ConfidenceLevel = dto.ConfidenceLevel.Value;
+            if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+            if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            if (dto.FillColor.HasValue) s.BandColor = dto.FillColor.Value;
+            if (dto.Alpha.HasValue) s.BandAlpha = dto.Alpha.Value;
+            if (dto.LineStyle is not null && Enum.TryParse<Styling.LineStyle>(dto.LineStyle, true, out var ls)) s.LineStyle = ls;
+            return s;
+        });
+        Register("kde", (axes, dto) =>
+        {
+            var s = axes.Kde(dto.Data ?? []);
+            if (dto.Bandwidth.HasValue) s.Bandwidth = dto.Bandwidth.Value;
+            if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
+            if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+            if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            if (dto.LineStyle is not null && Enum.TryParse<Styling.LineStyle>(dto.LineStyle, true, out var ls)) s.LineStyle = ls;
+            return s;
+        });
         Register("heatmap", (axes, dto) =>
         {
             var hs = axes.Heatmap(ChartSerializer.From2DList(dto.HeatmapData));
@@ -42,6 +74,7 @@ public static class SeriesRegistry
         Register("histogram2d", ChartSerializer.CreateHistogram2D);
         Register("stem", (axes, dto) => axes.Stem(dto.XData ?? [], dto.YData ?? []));
         Register("contour", (axes, dto) => axes.Contour(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData)));
+        Register("contourf", (axes, dto) => axes.Contourf(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData)));
         Register("area", ChartSerializer.CreateArea);
         Register("step", ChartSerializer.CreateStep);
         Register("ecdf", ChartSerializer.CreateEcdf);

@@ -38,6 +38,21 @@ public sealed class Figure
     /// Double-click resets to the original view.</remarks>
     public bool EnableZoomPan { get; set; }
 
+    /// <summary>Gets or sets whether clicking legend entries toggles series visibility.</summary>
+    public bool EnableLegendToggle { get; set; }
+
+    /// <summary>Gets or sets whether styled HTML tooltip overlays replace native SVG titles.</summary>
+    public bool EnableRichTooltips { get; set; }
+
+    /// <summary>Gets or sets whether hovering a series dims its siblings (highlight-on-hover).</summary>
+    public bool EnableHighlight { get; set; }
+
+    /// <summary>Gets or sets whether Shift+drag draws a selection rectangle that fires a custom DOM event.</summary>
+    public bool EnableSelection { get; set; }
+
+    /// <summary>Returns <see langword="true"/> if any interactive JS feature is enabled.</summary>
+    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection;
+
     /// <summary>Gets the collection of subplot axes contained in this figure.</summary>
     public IReadOnlyList<Axes> SubPlots => _subPlots;
     private readonly List<Axes> _subPlots = [];

@@ -202,6 +202,19 @@ public sealed class SvgRenderContext : IRenderContext
             _sb.Append(" stroke=\"").Append(stroke.Value.ToHex()).Append("\" stroke-width=\"").Append(F(strokeThickness)).Append('"');
     }
 
+    /// <summary>Opens an SVG group with a CSS class and <c>data-series-index</c> attribute for JS interactivity.</summary>
+    internal void BeginDataGroup(string cssClass, int seriesIndex)
+    {
+        _sb.Append("<g class=\"").Append(cssClass)
+           .Append("\" data-series-index=\"").Append(seriesIndex).AppendLine("\">");
+    }
+
+    /// <summary>Opens an SVG group for a legend entry with a <c>data-legend-index</c> attribute.</summary>
+    internal void BeginLegendItemGroup(int legendIndex)
+    {
+        _sb.Append("<g data-legend-index=\"").Append(legendIndex).AppendLine("\" style=\"cursor:pointer\">");
+    }
+
     /// <summary>Opens an SVG group containing a <c>&lt;title&gt;</c> element for native browser hover tooltips.</summary>
     /// <remarks>Browsers display <c>&lt;title&gt;</c> content as a tooltip when hovering over any child element.
     /// Must be paired with a matching <see cref="EndTooltipGroup"/> call.</remarks>

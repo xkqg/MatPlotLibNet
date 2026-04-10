@@ -54,6 +54,10 @@ public sealed class Axes
     /// element that browsers display as a hover tooltip. Has no effect on non-SVG transforms (PNG, PDF).</remarks>
     public bool EnableTooltips { get; set; }
 
+    /// <summary>Gets or sets whether <c>data-series-index</c> and <c>data-legend-index</c> attributes are emitted in SVG output.
+    /// Set automatically by <see cref="Transforms.SvgTransform"/> when any figure-level interactivity flag is enabled.</summary>
+    public bool EnableInteractiveAttributes { get; set; }
+
     /// <summary>Gets or sets how multiple bar series on this axes are displayed.</summary>
     /// <remarks>When set to <see cref="Models.BarMode.Stacked"/>, bar values are cumulated per category
     /// so each bar sits on top of the previous one. Defaults to <see cref="Models.BarMode.Grouped"/>.</remarks>
@@ -307,6 +311,38 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a hexagonal binning series from the given X and Y scatter data.</summary>
+    /// <param name="x">The X data values.</param>
+    /// <param name="y">The Y data values.</param>
+    /// <returns>The newly created <see cref="HexbinSeries"/> for further configuration.</returns>
+    public HexbinSeries Hexbin(double[] x, double[] y)
+    {
+        var series = new HexbinSeries(x, y);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a polynomial regression series fitted to the given X and Y data.</summary>
+    /// <param name="x">The X data values.</param>
+    /// <param name="y">The Y data values.</param>
+    /// <returns>The newly created <see cref="RegressionSeries"/> for further configuration.</returns>
+    public RegressionSeries Regression(double[] x, double[] y)
+    {
+        var series = new RegressionSeries(x, y);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a kernel density estimation (KDE) series for the given data sample.</summary>
+    /// <param name="data">The data values used to estimate the density.</param>
+    /// <returns>The newly created <see cref="KdeSeries"/> for further configuration.</returns>
+    public KdeSeries Kde(double[] data)
+    {
+        var series = new KdeSeries(data);
+        _series.Add(series);
+        return series;
+    }
+
     /// <summary>Adds a contour series from the given X, Y, and Z data.</summary>
     /// <param name="x">The X-axis grid coordinates.</param>
     /// <param name="y">The Y-axis grid coordinates.</param>
@@ -315,6 +351,18 @@ public sealed class Axes
     public ContourSeries Contour(double[] x, double[] y, double[,] z)
     {
         var series = new ContourSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a filled contour series from the given X, Y, and Z data.</summary>
+    /// <param name="x">The X-axis grid coordinates.</param>
+    /// <param name="y">The Y-axis grid coordinates.</param>
+    /// <param name="z">The 2D matrix of Z values at each grid point.</param>
+    /// <returns>The newly created <see cref="ContourfSeries"/> for further configuration.</returns>
+    public ContourfSeries Contourf(double[] x, double[] y, double[,] z)
+    {
+        var series = new ContourfSeries(x, y, z);
         _series.Add(series);
         return series;
     }

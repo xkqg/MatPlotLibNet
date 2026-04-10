@@ -303,9 +303,25 @@ public sealed class AxesBuilder
     public AxesBuilder Violin(double[][] datasets, Action<ViolinSeries>? configure = null)
         => AddSeries(ax => ax.Violin(datasets), configure);
 
+    /// <summary>Adds a hexagonal binning series to the axes.</summary>
+    public AxesBuilder Hexbin(double[] x, double[] y, Action<HexbinSeries>? configure = null)
+        => AddSeries(ax => ax.Hexbin(x, y), configure);
+
+    /// <summary>Adds a polynomial regression series to the axes.</summary>
+    public AxesBuilder Regression(double[] x, double[] y, Action<RegressionSeries>? configure = null)
+        => AddSeries(ax => ax.Regression(x, y), configure);
+
+    /// <summary>Adds a kernel density estimation (KDE) series to the axes.</summary>
+    public AxesBuilder Kde(double[] data, Action<KdeSeries>? configure = null)
+        => AddSeries(ax => ax.Kde(data), configure);
+
     /// <summary>Adds a contour series to the axes.</summary>
     public AxesBuilder Contour(double[] x, double[] y, double[,] z, Action<ContourSeries>? configure = null)
         => AddSeries(ax => ax.Contour(x, y, z), configure);
+
+    /// <summary>Adds a filled contour series to the axes.</summary>
+    public AxesBuilder Contourf(double[] x, double[] y, double[,] z, Action<ContourfSeries>? configure = null)
+        => AddSeries(ax => ax.Contourf(x, y, z), configure);
 
     /// <summary>Adds a stem series to the axes.</summary>
     public AxesBuilder Stem(double[] x, double[] y, Action<StemSeries>? configure = null)

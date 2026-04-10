@@ -75,6 +75,22 @@ public sealed class FigureBuilder
     public FigureBuilder WithZoomPan(bool enabled = true) { _enableZoomPan = enabled; return this; }
     private bool _enableZoomPan;
 
+    /// <summary>Enables click-to-toggle legend entries in SVG output.</summary>
+    public FigureBuilder WithLegendToggle(bool enabled = true) { _enableLegendToggle = enabled; return this; }
+    private bool _enableLegendToggle;
+
+    /// <summary>Enables styled HTML tooltip overlays (replacing native browser tooltips) in SVG output.</summary>
+    public FigureBuilder WithRichTooltips(bool enabled = true) { _enableRichTooltips = enabled; return this; }
+    private bool _enableRichTooltips;
+
+    /// <summary>Enables series highlight-on-hover (dims sibling series) in SVG output.</summary>
+    public FigureBuilder WithHighlight(bool enabled = true) { _enableHighlight = enabled; return this; }
+    private bool _enableHighlight;
+
+    /// <summary>Enables Shift+drag rectangular data selection in SVG output.</summary>
+    public FigureBuilder WithSelection(bool enabled = true) { _enableSelection = enabled; return this; }
+    private bool _enableSelection;
+
     /// <summary>Enables tight layout, which computes minimal margins automatically.</summary>
     public FigureBuilder TightLayout() { _spacing = _spacing with { TightLayout = true }; return this; }
 
@@ -93,6 +109,14 @@ public sealed class FigureBuilder
     /// <summary>Adds a filled area (fill-between) series to the default axes.</summary>
     public FigureBuilder FillBetween(double[] x, double[] y, double[]? y2 = null, Action<AreaSeries>? configure = null) =>
         AddSeries(ax => ax.FillBetween(x, y, y2), configure);
+
+    /// <summary>Adds a filled contour series to the default axes.</summary>
+    public FigureBuilder Contourf(double[] x, double[] y, double[,] z, Action<ContourfSeries>? configure = null) =>
+        AddSeries(ax => ax.Contourf(x, y, z), configure);
+
+    /// <summary>Adds a kernel density estimation (KDE) series to the default axes.</summary>
+    public FigureBuilder Kde(double[] data, Action<KdeSeries>? configure = null) =>
+        AddSeries(ax => ax.Kde(data), configure);
 
     /// <summary>Adds a treemap series to the default axes.</summary>
     public FigureBuilder Treemap(TreeNode root, Action<TreemapSeries>? configure = null) =>
@@ -171,6 +195,10 @@ public sealed class FigureBuilder
             BackgroundColor = _background,
             Theme = _theme,
             EnableZoomPan = _enableZoomPan,
+            EnableLegendToggle = _enableLegendToggle,
+            EnableRichTooltips = _enableRichTooltips,
+            EnableHighlight = _enableHighlight,
+            EnableSelection = _enableSelection,
             Spacing = _spacing,
             GridSpec = _gridSpec
         };

@@ -9,13 +9,27 @@
             "Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj",
             "Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj",
             "Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj",
-            "Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj"
+            "Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj",
+            "Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj"
           ]
         }
       ],
       "dest": "api",
       "properties": {
         "TargetFramework": "net10.0"
+      }
+    },
+    {
+      "src": [
+        {
+          "files": [
+            "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj"
+          ]
+        }
+      ],
+      "dest": "api",
+      "properties": {
+        "TargetFramework": "net8.0"
       }
     }
   ],
