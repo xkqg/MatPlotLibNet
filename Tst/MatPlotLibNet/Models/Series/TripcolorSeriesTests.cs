@@ -41,6 +41,6 @@ public class TripcolorSeriesTests
     public void ToSeriesDto_IncludesTrianglesWhenSet()
     {
         var s = new TripcolorSeries(X, Y, Z) { Triangles = [0, 1, 2] };
-        Assert.Equal([0, 1, 2], s.ToSeriesDto().Triangles);
+        Assert.Equal([0, 1, 2], s.ToSeriesDto().Triangles!);
     }
 }

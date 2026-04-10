@@ -658,8 +658,8 @@ public class ChartSerializerTests
         Assert.NotNull(restored.GridSpec);
         Assert.Equal(3, restored.GridSpec.Rows);
         Assert.Equal(2, restored.GridSpec.Cols);
-        Assert.Equal([1.0, 2.0, 1.0], restored.GridSpec.HeightRatios);
-        Assert.Equal([1.0, 3.0], restored.GridSpec.WidthRatios);
+        Assert.Equal([1.0, 2.0, 1.0], restored.GridSpec.HeightRatios!);
+        Assert.Equal([1.0, 3.0], restored.GridSpec.WidthRatios!);
     }
 
     /// <summary>Verifies that a GridPosition survives JSON round-trip.</summary>

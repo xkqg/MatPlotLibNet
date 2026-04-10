@@ -3,7 +3,7 @@
 
 namespace MatPlotLibNet.Numerics;
 
-/// <summary>Flat-top hexagonal grid utilities for <see cref="HexbinSeries"/> rendering.</summary>
+/// <summary>Flat-top hexagonal grid utilities for hexbin series rendering.</summary>
 internal static class HexGrid
 {
     private const double Sqrt3 = 1.7320508075688772; // Math.Sqrt(3)

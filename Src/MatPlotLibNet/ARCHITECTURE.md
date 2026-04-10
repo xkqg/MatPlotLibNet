@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.8.0)
+# MatPlotLibNet Core -- Architecture (v0.8.1)
 
 ## Package dependency graph
 
@@ -182,12 +182,12 @@ MatPlotLibNet/
 
   Rendering/
     IChartRenderer.cs                 interface: Render(Figure, IRenderContext)
-    ChartRenderer.cs                  figure-level orchestrator (~100 lines): background, layout, dispatch to AxesRenderer
+    ChartRenderer.cs                  figure-level orchestrator: background, constrained layout, subplot layout, dispatch to AxesRenderer
     AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry)
     CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, series, annotations, signals
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
-    IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation) overload
+    IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation), DrawRichText (default method)
     ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 60 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
@@ -200,14 +200,30 @@ MatPlotLibNet/
       MultipleLocator.cs                ticks at multiples of a fixed base
       FixedLocator.cs                   exactly the provided positions within range
       LogLocator.cs                     powers of 10 within range
+      AutoDateLocator.cs                OA date range → DateInterval → aligned tick positions (new v0.8.1)
+      DateInterval.cs                   enum: Years, Months, Weeks, Days, Hours, Minutes, Seconds (new v0.8.1)
 
     TickFormatters/
       ITickFormatter.cs                 interface: string Format(double value)
       NumericTickFormatter.cs           G5 with scientific fallback
       DateTickFormatter.cs              OLE dates with configurable format string
+      AutoDateFormatter.cs              reads ChosenInterval from AutoDateLocator, selects matching format (new v0.8.1)
       LogTickFormatter.cs               powers of 10
       EngFormatter.cs                   SI prefix engineering notation (k, M, G, m, µ, n)
       PercentFormatter.cs               value/max*100 + "%" suffix
+
+    Layout/                             margin computation (new v0.8.1)
+      ConstrainedLayoutEngine.cs        Compute(Figure, IRenderContext) → SubPlotSpacing; measures text extents, clamps margins
+      LayoutMetrics.cs                  internal record: LeftNeeded, BottomNeeded, TopNeeded, RightNeeded (per subplot)
+
+    TextMeasurement/                    text width estimation (new v0.8.1)
+      CharacterWidthTable.cs            internal static: per-char width factors for Helvetica/Arial at 1em
+
+    MathText/                           mini-LaTeX → SVG tspan rendering (new v0.8.1)
+      MathTextParser.cs                 state machine: $…$ delimiters, \cmd → Unicode, ^{} / _ → TextSpan
+      RichText.cs                       RichText(IReadOnlyList<TextSpan>); TextSpan(Text, Kind, FontSizeScale); TextSpanKind enum
+      GreekLetters.cs                   48-entry dictionary: \alpha…\Omega → Unicode code points
+      MathSymbols.cs                    40+ entries: \pm, \times, \leq, \infty, \degree, … → Unicode
 
     Interpolation/                      image interpolation engines
       IInterpolationEngine.cs           interface: Resample(double[,], int, int) strategy
@@ -279,10 +295,12 @@ MatPlotLibNet/
                                       Color constants: Tab10Blue, Tab10Orange, Tab10Green, GridGray,
                                       EdgeGray, Amber, FibonacciOrange (replace magic hex strings)
     Font.cs                           sealed record (Family, Size, Weight, Slant, Color)
-    Theme.cs                          6 built-in themes + GridStyle sealed record
+    Theme.cs                          6 built-in themes + GridStyle sealed record + PropCycler? property
     LineStyle.cs                      enum: Solid, Dashed, Dotted, DashDot, None
     MarkerStyle.cs                    enum: None, Circle, Square, Triangle, Diamond, etc.
     DashPatterns.cs                   canonical dash ratios shared by SVG + MAUI + Skia renderers
+    PropCycler.cs                     LCM-based multi-property cycler; CycledProperties record struct (new v0.8.1)
+    PropCyclerBuilder.cs              fluent builder: WithColors(), WithLineStyles(), WithMarkerStyles(), WithLineWidths() (new v0.8.1)
 
     ColorMaps/
       IColorMap.cs                    interface: GetColor(double normalized) -> Color
@@ -425,3 +443,6 @@ ChartHub               routes to SignalR group by chartId
 | Thread safety | volatile fields, ConcurrentDictionary for GlobalTransforms, AxesRenderer registry, SeriesRegistry | safe concurrent access |
 | Adapter | LegacyAnimationAdapter | bridges AnimationBuilder to IAnimation\<TState\> |
 | Delegate extraction | SvgTransform.BuildSvgDocument, ChartSerializer.ApplyEnum | DRY via higher-order functions |
+| Default interface method | IRenderContext.DrawRichText | all backends get plain-text fallback; SVG overrides with tspan emission |
+| State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
+| Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |

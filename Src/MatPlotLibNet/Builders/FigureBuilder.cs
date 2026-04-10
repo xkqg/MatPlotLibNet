@@ -43,6 +43,31 @@ public sealed class FigureBuilder
     public FigureBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null) =>
         AddSeries(ax => ax.Scatter(x, y), configure);
 
+    /// <summary>Adds a line series with DateTime X values to the default axes; automatically activates the date X-axis.</summary>
+    public FigureBuilder Plot(DateTime[] dates, double[] y, Action<LineSeries>? configure = null)
+    {
+        double[] x = dates.Select(d => d.ToOADate()).ToArray();
+        ApplyDateXAxis(EnsureDefaultAxes());
+        return AddSeries(ax => ax.Plot(x, y), configure);
+    }
+
+    /// <summary>Adds a scatter series with DateTime X values to the default axes; automatically activates the date X-axis.</summary>
+    public FigureBuilder Scatter(DateTime[] dates, double[] y, Action<ScatterSeries>? configure = null)
+    {
+        double[] x = dates.Select(d => d.ToOADate()).ToArray();
+        ApplyDateXAxis(EnsureDefaultAxes());
+        return AddSeries(ax => ax.Scatter(x, y), configure);
+    }
+
+    private static void ApplyDateXAxis(Axes axes)
+    {
+        if (axes.XAxis.Scale == AxisScale.Date) return; // already set
+        var locator = new Rendering.TickLocators.AutoDateLocator();
+        axes.XAxis.Scale = AxisScale.Date;
+        axes.XAxis.TickLocator = locator;
+        axes.XAxis.TickFormatter = new Rendering.TickFormatters.AutoDateFormatter(locator);
+    }
+
     /// <summary>Adds a bar series to the default axes.</summary>
     public FigureBuilder Bar(string[] categories, double[] values, Action<BarSeries>? configure = null) =>
         AddSeries(ax => ax.Bar(categories, values), configure);
@@ -93,6 +118,9 @@ public sealed class FigureBuilder
 
     /// <summary>Enables tight layout, which computes minimal margins automatically.</summary>
     public FigureBuilder TightLayout() { _spacing = _spacing with { TightLayout = true }; return this; }
+
+    /// <summary>Enables constrained layout, which adjusts margins to fit tick labels and axis labels.</summary>
+    public FigureBuilder ConstrainedLayout() { _spacing = _spacing with { ConstrainedLayout = true }; return this; }
 
     /// <summary>Configures custom subplot spacing (margins and gaps).</summary>
     public FigureBuilder WithSubPlotSpacing(Func<SubPlotSpacing, SubPlotSpacing> configure) { _spacing = configure(_spacing); return this; }

@@ -275,4 +275,79 @@ FigureTemplates.SparklineDashboard(
     .Save("sparkline_dashboard.svg");
 Console.WriteLine("Saved sparkline_dashboard.svg");
 
+// =====================================================================
+// v0.8.1 — Tier 3 Infrastructure
+// =====================================================================
+
+// --- 18. Date axis — 90-day time series with AutoDateLocator ---
+var startDate = new DateTime(2025, 1, 1);
+DateTime[] dates = Enumerable.Range(0, 90)
+    .Select(i => startDate.AddDays(i))
+    .ToArray();
+var rng2 = new Random(7);
+double[] price2 = new double[90];
+price2[0] = 50.0;
+for (int i = 1; i < 90; i++)
+    price2[i] = price2[i - 1] + (rng2.NextDouble() - 0.48) * 1.5;
+
+Plt.Create()
+    .WithTitle("Stock Price — Jan to Mar 2025")
+    .WithSize(900, 400)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .SetXLabel("Date")
+        .SetYLabel("Price ($)")
+        .Plot(dates, price2, line => { line.Color = Colors.Tab10Blue; line.Label = "ACME"; })
+        .WithLegend(LegendPosition.UpperRight))
+    .Save("date_axis.svg");
+Console.WriteLine("Saved date_axis.svg");
+
+// --- 19. Math text labels — Greek letters and super/subscript in titles and axes ---
+double[] tMs = Enumerable.Range(0, 100).Select(i => i * 0.5).ToArray();
+double[] decay = tMs.Select(t => Math.Exp(-t / 20.0) * Math.Cos(t * 0.4)).ToArray();
+double[] noise = tMs.Select(t => Math.Sin(t * 1.3) * 0.3).ToArray();
+
+Plt.Create()
+    .WithTitle("$\\alpha$ decay and $\\beta$ noise — $\\omega = 0.4$ rad/ms")
+    .WithSize(1000, 450)
+    .AddSubPlot(1, 2, 1, ax => ax
+        .WithTitle("R$^{2}$ = 0.97")
+        .SetXLabel("$\\Delta t$ (ms)")
+        .SetYLabel("$\\sigma$ (normalised)")
+        .Plot(tMs, decay, line => { line.Color = Colors.Tab10Blue; line.Label = "$\\alpha$ decay"; })
+        .WithLegend(LegendPosition.UpperRight))
+    .AddSubPlot(1, 2, 2, ax => ax
+        .WithTitle("Noise — $\\mu \\pm 2\\sigma$")
+        .SetXLabel("$\\Delta t$ (ms)")
+        .SetYLabel("Amplitude ($\\times 10^{-3}$)")
+        .Plot(tMs, noise, line => { line.Color = Colors.Orange; line.Label = "$\\beta$ noise"; })
+        .WithLegend(LegendPosition.UpperRight))
+    .TightLayout()
+    .Save("math_text.svg");
+Console.WriteLine("Saved math_text.svg");
+
+// --- 20. PropCycler — multi-series chart with custom color + linestyle cycling ---
+var cycler = new PropCyclerBuilder()
+    .WithColors(Colors.Tab10Blue, Colors.Orange, Colors.Green, Colors.Red)
+    .WithLineStyles(LineStyle.Solid, LineStyle.Dashed, LineStyle.Dotted, LineStyle.DashDot)
+    .Build();
+
+double[] cx2 = Enumerable.Range(0, 60).Select(i => i * 0.2).ToArray();
+
+Plt.Create()
+    .WithTitle("PropCycler — four series, cycling color + line style")
+    .WithSize(900, 450)
+    .WithPropCycler(cycler)
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        ax.SetXLabel("x").SetYLabel("f(x)");
+        ax.Plot(cx2, cx2.Select(v => Math.Sin(v)).ToArray(),           s => s.Label = "sin(x)");
+        ax.Plot(cx2, cx2.Select(v => Math.Sin(v + 1.0)).ToArray(),     s => s.Label = "sin(x+1)");
+        ax.Plot(cx2, cx2.Select(v => Math.Sin(v + 2.0)).ToArray(),     s => s.Label = "sin(x+2)");
+        ax.Plot(cx2, cx2.Select(v => Math.Sin(v + 3.0)).ToArray(),     s => s.Label = "sin(x+3)");
+        ax.WithLegend(LegendPosition.UpperRight);
+    })
+    .TightLayout()
+    .Save("prop_cycler.svg");
+Console.WriteLine("Saved prop_cycler.svg");
+
 Console.WriteLine("Done!");

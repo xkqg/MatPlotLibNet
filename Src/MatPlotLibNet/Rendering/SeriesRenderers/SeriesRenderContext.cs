@@ -20,4 +20,8 @@ public record SeriesRenderContext(
 {
     /// <summary>Gets whether native SVG tooltips are enabled for data elements.</summary>
     public bool TooltipsEnabled { get; init; }
+
+    /// <summary>Gets the full set of cycled properties when a <see cref="PropCycler"/> is active on the theme;
+    /// <see langword="null"/> when the theme uses the legacy <see cref="Theme.CycleColors"/> fallback.</summary>
+    public CycledProperties? CycledProps { get; init; }
 }

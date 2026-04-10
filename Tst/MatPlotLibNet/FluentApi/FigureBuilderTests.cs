@@ -223,8 +223,8 @@ public class FigureBuilderTests
             .WithGridSpec(2, 3, heightRatios: [1, 3], widthRatios: [1, 2, 1])
             .Build();
 
-        Assert.Equal([1.0, 3.0], figure.GridSpec!.HeightRatios);
-        Assert.Equal([1.0, 2.0, 1.0], figure.GridSpec.WidthRatios);
+        Assert.Equal([1.0, 3.0], figure.GridSpec!.HeightRatios!);
+        Assert.Equal([1.0, 2.0, 1.0], figure.GridSpec.WidthRatios!);
     }
 
     /// <summary>Verifies that AddSubPlot with GridPosition creates correct Axes.</summary>

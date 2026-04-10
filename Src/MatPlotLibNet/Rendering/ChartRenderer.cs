@@ -2,6 +2,8 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering.Layout;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
@@ -14,6 +16,10 @@ public sealed class ChartRenderer : IChartRenderer
     /// <inheritdoc />
     public void Render(Figure figure, IRenderContext ctx)
     {
+        // Adjust margins based on actual text extents when TightLayout or ConstrainedLayout is enabled.
+        if (figure.Spacing.TightLayout || figure.Spacing.ConstrainedLayout)
+            figure.Spacing = new ConstrainedLayoutEngine().Compute(figure, ctx);
+
         double plotAreaTop = RenderBackground(figure, ctx);
 
         if (figure.SubPlots.Count == 0) return;
@@ -35,8 +41,12 @@ public sealed class ChartRenderer : IChartRenderer
         double plotAreaTop = figure.Spacing.MarginTop;
         if (figure.Title is not null)
         {
-            ctx.DrawText(figure.Title, new Point(figure.Width / 2, figure.Spacing.MarginTop / 2 + 5),
-                TitleFont(theme), TextAlignment.Center);
+            var titlePoint = new Point(figure.Width / 2, figure.Spacing.MarginTop / 2 + 5);
+            var titleFont  = TitleFont(theme);
+            if (MathTextParser.ContainsMath(figure.Title))
+                ctx.DrawRichText(MathTextParser.Parse(figure.Title), titlePoint, titleFont, TextAlignment.Center);
+            else
+                ctx.DrawText(figure.Title, titlePoint, titleFont, TextAlignment.Center);
             plotAreaTop += TitleHeight;
         }
 

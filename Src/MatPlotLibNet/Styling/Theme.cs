@@ -29,8 +29,12 @@ public sealed class Theme
     /// <summary>Gets the default grid style.</summary>
     public GridStyle DefaultGrid { get; init; }
 
+    /// <summary>Gets the optional multi-property cycle. When set, takes precedence over <see cref="CycleColors"/>.</summary>
+    /// <remarks>Null by default; all built-in themes fall back to <see cref="CycleColors"/>.</remarks>
+    public PropCycler? PropCycler { get; init; }
+
     internal Theme(string name, Color background, Color foregroundText, Color axesBackground,
-        Color[] cycleColors, Font defaultFont, GridStyle defaultGrid)
+        Color[] cycleColors, Font defaultFont, GridStyle defaultGrid, PropCycler? propCycler = null)
     {
         Name = name;
         Background = background;
@@ -39,6 +43,7 @@ public sealed class Theme
         CycleColors = cycleColors;
         DefaultFont = defaultFont;
         DefaultGrid = defaultGrid;
+        PropCycler = propCycler;
     }
 
     /// <summary>Creates a <see cref="StyleSheet"/> that mirrors this theme's visual settings as rcParam keys.</summary>

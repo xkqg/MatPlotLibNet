@@ -18,7 +18,7 @@ public sealed record Dendrogram(DendrogramNode[] Merges, int[] LeafOrder);
 /// <summary>Hierarchical (agglomerative) clustering using Ward's method. Suitable for N&lt;1000 observations.</summary>
 public static class HierarchicalClustering
 {
-    /// <summary>Clusters <paramref name="n"/> observations using Ward's linkage over a pairwise distance matrix.</summary>
+    /// <summary>Clusters observations using Ward's linkage over a pairwise distance matrix.</summary>
     /// <param name="distanceMatrix">Symmetric N×N matrix where entry (i,j) is the distance between observations i and j.</param>
     /// <returns>A <see cref="Dendrogram"/> with merge steps and a leaf ordering that minimizes dendrogram crossings.</returns>
     public static Dendrogram Cluster(double[,] distanceMatrix)

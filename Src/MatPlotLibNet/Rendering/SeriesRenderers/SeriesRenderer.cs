@@ -34,6 +34,18 @@ internal abstract class SeriesRenderer
     /// <summary>Returns the series-specific color if set, otherwise the theme cycle color. Override to change fallback logic.</summary>
     protected virtual Color ResolveColor(Color? seriesColor) => seriesColor ?? SeriesColor;
 
+    /// <summary>Returns the series-specific line style if set; falls back to the cycled style, then <see cref="LineStyle.Solid"/>.</summary>
+    protected virtual LineStyle ResolveLineStyle(LineStyle? seriesLineStyle) =>
+        seriesLineStyle ?? Context.CycledProps?.LineStyle ?? LineStyle.Solid;
+
+    /// <summary>Returns the series-specific marker style if set; falls back to the cycled style, then <see cref="MarkerStyle.None"/>.</summary>
+    protected virtual MarkerStyle ResolveMarkerStyle(MarkerStyle? seriesMarkerStyle) =>
+        seriesMarkerStyle ?? Context.CycledProps?.MarkerStyle ?? MarkerStyle.None;
+
+    /// <summary>Returns the series-specific line width if set; falls back to the cycled width, then 1.5.</summary>
+    protected virtual double ResolveLineWidth(double? seriesLineWidth) =>
+        seriesLineWidth ?? Context.CycledProps?.LineWidth ?? 1.5;
+
     /// <summary>Opens a tooltip wrapper around subsequent drawing calls. Override to customize tooltip format.</summary>
     protected virtual void BeginTooltip(string text)
     {

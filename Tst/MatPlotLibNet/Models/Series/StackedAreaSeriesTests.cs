@@ -73,7 +73,7 @@ public class StackedAreaSeriesTests
         Assert.Equal(YSets.Length, restoredSeries.YSets.Length);
         for (int i = 0; i < YSets.Length; i++)
             Assert.Equal(YSets[i], restoredSeries.YSets[i]);
-        Assert.Equal(["A", "B"], restoredSeries.Labels);
+        Assert.Equal(["A", "B"], restoredSeries.Labels!);
         Assert.Equal(0.5, restoredSeries.Alpha);
     }
 
@@ -94,7 +94,7 @@ public class StackedAreaSeriesTests
     {
         var series = new StackedAreaSeries(X, YSets);
         var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, default);
+        series.Accept(visitor, null!);
         Assert.Equal(nameof(StackedAreaSeries), visitor.LastVisited);
     }
 

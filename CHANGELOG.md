@@ -4,7 +4,75 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.8.0] - Unreleased
+## [0.8.1] - 2026-04-11
+
+> **Note:** Phase 1 (CSS4 Named Colors — 148 colors + `Color.FromName()`) is deferred to the next release (v0.8.2).
+
+### Added
+
+**Phase 2 — PropCycler**
+- `PropCycler` — cycles Color, LineStyle, MarkerStyle, and LineWidth simultaneously across series; `this[int index]` returns `CycledProperties` with LCM-based wrap-around
+- `CycledProperties` readonly record struct — `(Color Color, LineStyle LineStyle, MarkerStyle MarkerStyle, double LineWidth)`
+- `PropCyclerBuilder` — fluent builder: `WithColors()`, `WithLineStyles()`, `WithMarkerStyles()`, `WithLineWidths()`, `Build()`
+- `Theme.PropCycler` (`PropCycler?`) — optional; when null the existing `CycleColors[]` path is unchanged (full backward compat)
+- `ThemeBuilder.WithPropCycler()` — wires a custom cycler into a theme
+- `FigureBuilder.WithPropCycler()` — shortcut for single-figure override
+- `AxesRenderer` updated to pass `CycledProperties` to `SvgSeriesRenderer` when `PropCycler` is set
+
+**Phase 3 — Date Axis**
+- `AutoDateLocator` — examines OA date range and selects the best tick interval (Years → Months → Weeks → Days → Hours → Minutes → Seconds); exposes `ChosenInterval` after `Locate()`
+- `AutoDateFormatter` — reads `ChosenInterval` from the locator and selects the matching format string (`"yyyy"`, `"MMM yyyy"`, `"MMM dd"`, `"HH:mm"`, `"HH:mm:ss"`)
+- `DateInterval` enum — Years, Months, Weeks, Days, Hours, Minutes, Seconds
+- `DateTime` overloads on `AxesBuilder` and `FigureBuilder` — `Plot(DateTime[], double[])`, `Scatter(DateTime[], double[])` auto-set X scale to `AxisScale.Date`
+- `CartesianAxesRenderer` auto-applies `AutoDateLocator` + `AutoDateFormatter` when `Scale=Date` and no explicit locator is set
+
+**Phase 4 — Constrained Layout Engine**
+- `CharacterWidthTable` (internal static) — per-character width factors for Helvetica/Arial proportional sans-serif; replaces the crude uniform `text.Length × 0.6` estimate in `SvgRenderContext.MeasureText`
+- `ConstrainedLayoutEngine` (internal sealed) — `Compute(Figure, IRenderContext) → SubPlotSpacing`; measures Y-tick labels, axis labels, and titles; clamps margins left ∈ [30,120], bottom ∈ [30,100], top ∈ [20,80], right ∈ [10,60]
+- `LayoutMetrics` (internal record) — per-subplot margin requirements consumed by the engine
+- `SubPlotSpacing.ConstrainedLayout` — new `bool` property; both `TightLayout` and `ConstrainedLayout` invoke the engine
+- `FigureBuilder.ConstrainedLayout()` — fluent method to enable the engine
+- `ChartRenderer.Render` wired: when `TightLayout || ConstrainedLayout`, calls engine before layout
+- `SvgRenderContext.MeasureText` improved: uses `CharacterWidthTable` per character instead of uniform factor
+
+**Phase 5 — Math Text Parser**
+- `MathTextParser` — state-machine mini-LaTeX parser: `$...$` delimiters, `\command` → Greek/symbol Unicode substitution, `^{text}` / `_text` super/subscript spans; `Parse(string) → RichText`, `ContainsMath(string?) → bool`
+- `RichText` sealed record — `IReadOnlyList<TextSpan> Spans`
+- `TextSpan` sealed record — `string Text`, `TextSpanKind Kind` (Normal/Superscript/Subscript), `double FontSizeScale`
+- `GreekLetters` — 48-entry dictionary: `\alpha`…`\omega` (24 lowercase) and `\Alpha`…`\Omega` (24 uppercase) → Unicode
+- `MathSymbols` — 40+ entries: `\pm`, `\times`, `\div`, `\leq`, `\geq`, `\neq`, `\infty`, `\approx`, `\cdot`, `\degree`, and more
+- `IRenderContext.DrawRichText()` — default interface method; concatenates span text and delegates to `DrawText()` for backends that do not natively support rich text
+- `SvgRenderContext.DrawRichText()` — override emits `<tspan baseline-shift="super/sub" font-size="70%">` for super/subscript spans
+- `AxesRenderer.RenderTitle` and `RenderAxisLabels` detect `$...$` and route through `DrawRichText`
+- `ChartRenderer.RenderBackground` (figure title) likewise routes through `DrawRichText`
+
+**Phase 6 — GIF Animation Export**
+- `GifEncoder` — custom minimal GIF89a encoder: NETSCAPE2.0 loop extension, per-frame graphic control, LZW-compressed image data
+- `ColorQuantizer` — uniform 6×7×6 = 252-color palette (+ 4 reserved) quantization
+- `GifTransform` — renders `AnimationBuilder` frames via `SkiaRenderContext`, quantizes each frame, writes animated GIF
+- `IAnimationTransform` — interface: `Transform(IEnumerable<Figure>, TimeSpan, bool, Stream)`
+- `AnimationSkiaExtensions` — `SaveGif(string path)`, `ToGif() → byte[]` extension methods on `AnimationBuilder`
+
+### Fixed
+
+- Resolved all CS build warnings across `MatPlotLibNet` and `MatPlotLibNet.Skia`:
+  - Nullable suppression operators on test parameters that were incorrectly typed as nullable
+  - Removed stale `<cref>` and `<paramref>` XML doc references
+  - `QuiverKeySeries.Label` hides inherited `ChartSeries.Label`: added `new` keyword
+  - `SkiaRenderContext`: migrated from deprecated `SKPaint.TextSize`/`Typeface`/`MeasureText`/`DrawText(…,SKPaint)` to the current `SKFont` API
+
+### Samples
+
+Added three new examples to `MatPlotLibNet.Samples.Console`:
+- **Example 18 — Date axis**: 90-day `DateTime[]` time-series; `AutoDateLocator` picks month-boundary ticks automatically
+- **Example 19 — Math text labels**: 2-panel physics chart with Greek letters (`$\alpha$`, `$\sigma$`, `$\omega$`), super/subscript (`R$^{2}$`, `$\Delta t$`), and `.TightLayout()`
+- **Example 20 — PropCycler**: 4-series sine chart with `PropCyclerBuilder` cycling four colors × four line styles
+
+### Tests: 2268 → 2430 (+162)
+
+---
+
+## [0.8.0] - 2026-04-10
 
 ### Added
 

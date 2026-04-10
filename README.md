@@ -585,6 +585,98 @@ var theme = Theme.CreateFrom(Theme.Dark)
     .Build();
 ```
 
+## PropCycler
+
+Cycle Color, LineStyle, MarkerStyle, and LineWidth simultaneously — like matplotlib's `prop_cycle`:
+
+```csharp
+using MatPlotLibNet.Styling;
+
+var cycler = new PropCyclerBuilder()
+    .WithColors(Color.Blue, Color.Orange, Color.Green)
+    .WithLineStyles(LineStyle.Solid, LineStyle.Dashed)
+    .WithMarkerStyles(MarkerStyle.Circle, MarkerStyle.Square)
+    .Build();
+
+// Apply to a single figure
+Plt.Create()
+    .WithPropCycler(cycler)
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        ax.Plot(x, y1, s => s.Label = "A");
+        ax.Plot(x, y2, s => s.Label = "B");
+        ax.Plot(x, y3, s => s.Label = "C");
+    })
+    .Save("cycler.svg");
+
+// Or embed in a custom theme
+var theme = Theme.CreateFrom(Theme.Default)
+    .WithPropCycler(cycler)
+    .Build();
+```
+
+Properties cycle independently using their individual lengths (LCM wrap-around). When `PropCycler` is not set, the existing `Theme.CycleColors[]` path is unchanged.
+
+## Date axes
+
+```csharp
+DateTime[] dates = Enumerable.Range(0, 90)
+    .Select(i => DateTime.Today.AddDays(i))
+    .ToArray();
+double[] values = dates.Select((_, i) => Math.Sin(i * 0.1)).ToArray();
+
+Plt.Create()
+    .Plot(dates, values)              // auto-sets X to AxisScale.Date
+    .WithXLabel("Date")
+    .Save("date_axis.svg");           // ticks show "Apr 15", "May 01", etc.
+```
+
+`AutoDateLocator` chooses the tick interval (Years/Months/Weeks/Days/Hours/Minutes/Seconds) from the data range. `AutoDateFormatter` picks the matching format string. Both are applied automatically when `AxisScale.Date` is set and no explicit locator is configured.
+
+## Math text labels
+
+Use mini-LaTeX syntax in any title, axis label, or annotation:
+
+```csharp
+Plt.Create()
+    .WithTitle("$\\alpha$ vs $\\beta$ correlation")
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        ax.WithTitle("R$^{2}$ = 0.97");
+        ax.SetYLabel("$\\sigma$ (Pa)");
+        ax.SetXLabel("$\\Delta t$ (ms)");
+        ax.Plot(x, y);
+    })
+    .Save("math.svg");
+```
+
+**Supported syntax:**
+
+| Syntax | Example | Output |
+|--------|---------|--------|
+| Math delimiters | `$...$` | switch to math mode |
+| Greek lowercase | `\alpha` … `\omega` | α … ω |
+| Greek uppercase | `\Alpha` … `\Omega` | Α … Ω |
+| Superscript | `^{text}` or `^x` | raised + 70% size |
+| Subscript | `_{text}` or `_x` | lowered + 70% size |
+| Math symbols | `\pm \times \leq \geq \neq \infty \approx \cdot \degree` | ± × ≤ ≥ ≠ ∞ ≈ ⋅ ° |
+
+Mixed text is supported: `Temperature ($\\degree$C)` renders as plain text outside `$...$`.
+
+## Constrained layout
+
+Automatic margin computation from actual text extents — no more clipped axis labels:
+
+```csharp
+Plt.Create()
+    .TightLayout()                   // or .ConstrainedLayout()
+    .AddSubPlot(2, 2, 1, ax => { ax.SetYLabel("$\\sigma$ (very long label)"); ax.Plot(x, y); })
+    .AddSubPlot(2, 2, 2, ax => { ax.SetYLabel("Value"); ax.Plot(x, y); })
+    .Save("tight.svg");
+```
+
+`ConstrainedLayoutEngine` measures Y-tick label widths, axis label sizes, and title heights; computes exact margins per subplot; and takes the maximum across all subplots. Margins are clamped to sensible ranges (left ∈ [30,120], bottom ∈ [30,100]).
+
 ## Animation
 
 ```csharp
@@ -605,6 +697,29 @@ await handle.AnimateAsync(animation);
 // New: IAnimation<TState> + AnimationController<TState> for typed animation pipelines
 // LegacyAnimationAdapter bridges AnimationBuilder to the new IAnimation<TState> contract
 ```
+
+### GIF export
+
+Save an animated GIF directly from an `AnimationBuilder` — no FFmpeg required:
+
+```csharp
+using MatPlotLibNet.Skia;  // MatPlotLibNet.Skia package required
+
+var animation = new AnimationBuilder(30, frame =>
+    Plt.Create()
+        .WithTitle($"t = {frame * 0.1:F1}")
+        .Plot(x, x.Select(v => Math.Sin(v + frame * 0.2)).ToArray())
+        .Build())
+{
+    Interval = TimeSpan.FromMilliseconds(100),
+    Loop = true
+};
+
+animation.SaveGif("output.gif");        // saves to file
+byte[] bytes = animation.ToGif();       // returns bytes
+```
+
+GIF89a format with NETSCAPE2.0 loop extension, 252-color uniform quantization, LZW-compressed frames.
 
 ## Real-time charts
 
@@ -683,6 +798,7 @@ See [ARCHITECTURE.md](Src/MatPlotLibNet/ARCHITECTURE.md) for the full rendering 
 
 | Version | Highlights |
 |---------|-----------|
+| **0.8.1** | **Tier 3 Infrastructure.** `PropCycler` cycles Color + LineStyle + MarkerStyle + LineWidth simultaneously across series (LCM wrap-around). Date Axis: `AutoDateLocator` + `AutoDateFormatter` auto-select tick intervals from years down to seconds; `DateTime[]` overloads on builder API. Constrained Layout: `TightLayout()` and `ConstrainedLayout()` now invoke a real engine that measures text extents via `CharacterWidthTable` and computes exact margins. Math Text: mini-LaTeX in any label — `$\alpha^{2}$` renders as SVG `<tspan>` with Greek Unicode + super/subscript; 48 Greek + 40 math symbols. GIF Animation: `AnimationBuilder.SaveGif()` / `ToGif()` via custom GIF89a encoder + 252-color quantizer. SkiaSharp `SKFont` API migration. 2430 tests. |
 | **0.7.0** | **Style sheets + Stats series + Interactive SVG.** `RcParams` global config registry + `Plt.Style.Use()`/`Context()`. `ContourfSeries` filled contours. `IInterpolationEngine` (nearest/bilinear/bicubic) + `BlendMode`. `KdeSeries` (Silverman KDE + fill). `RegressionSeries` (polynomial fit + confidence bands, `LeastSquares`). `HexbinSeries` (flat-top hex bins, `HexGrid`). `FigureTemplates.JointPlot()`. Interactive SVG: `WithLegendToggle()`, `WithHighlight()`, `WithRichTooltips()`, `WithSelection()` — 4 embedded JS modules keyed on DOM `data-series-index`/`data-legend-index`. Notebooks package `BuildOutputTargetFolder` fix. 43 series types. 1924 tests. |
 | **0.6.0** | **SIMD Vectorization + Phase F.** `VectorMath` kernel backed by `TensorPrimitives` (SIMD-accelerated): `RollingMean`, `RollingMin/Max` (O(n) monotone deque), `RollingStdDev`, `MultiplyAdd`, `CumulativeSum`. `Vec` public `readonly record struct` with SIMD operators, reductions, and LINQ-style lambdas. `TransformBatch` rewritten as single-pass AVX SIMD interleave (3.6x faster, zero intermediate allocations). 4 new indicators: `WilliamsR`, `OBV`, `CCI`, `ParabolicSar`. `FigureTemplates`: `FinancialDashboard`, `ScientificPaper`, `SparklineDashboard`. `MarchingSquares` contour label rendering. `MatPlotLibNet.Notebooks` package (Polyglot Notebooks / Jupyter inline SVG). All 15 existing indicators refactored onto VectorMath. 1668 tests. |
 | **0.5.1** | **Phase C — Annotations**: `Annotation.Alignment`, `Rotation`, `ArrowStyle` (None/Simple/FancyArrow with triangular arrowhead), `BackgroundColor`. Bar labels (`ShowLabels`/`LabelFormat` on `BarSeries`). `ContourSeries.ShowLabels` reserved. `IRenderContext.DrawText(…, rotation)` overload (SVG `transform="rotate(…)"`). **Phase D — Ticks**: `ITickLocator` interface + `AutoLocator`, `MaxNLocator`, `MultipleLocator`, `FixedLocator`, `LogLocator`. `EngFormatter` (SI prefixes) + `PercentFormatter`. `Axis.TickLocator`, minor tick rendering (5 per major interval), `TickConfig.Spacing` now wires `MultipleLocator`. `AxesBuilder.SetXTickLocator/SetYTickLocator`, `.WithMinorTicks()`. Bug fix: secondary Y-axis and polar chart formatters now use the custom `TickFormatter` instead of `FormatTick`. **Phase E — Performance**: `IDownsampler` + `LttbDownsampler` (Largest-Triangle-Three-Buckets O(n)) + `ViewportCuller` (static). `XYSeries.MaxDisplayPoints` opt-in downsampling for Line/Area/Scatter/Step. `DataTransform.DataXMin/XMax/YMin/YMax`. `AxesBuilder.WithDownsampling(maxPoints)`. 1588 tests (86 new). |

@@ -5,6 +5,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
@@ -25,6 +26,15 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         // Compute data ranges
         var range = ComputeDataRanges();
         var transform = new DataTransform(range.XMin, range.XMax, range.YMin, range.YMax, PlotArea);
+
+        // Auto-apply AutoDateLocator + AutoDateFormatter when scale is Date but no locator is set
+        // (handles legacy SetXDateFormat() calls that only set scale + formatter, not a locator)
+        if (Axes.XAxis.Scale == AxisScale.Date && Axes.XAxis.TickLocator is null)
+        {
+            var autoLocator = new AutoDateLocator();
+            Axes.XAxis.TickLocator = autoLocator;
+            Axes.XAxis.TickFormatter ??= new AutoDateFormatter(autoLocator);
+        }
 
         // Compute tick values once for grid + ticks (respects TickLocator / Spacing)
         var xTicks = ComputeTickValues(range.XMin, range.XMax, Axes.XAxis);

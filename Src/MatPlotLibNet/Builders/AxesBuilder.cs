@@ -126,6 +126,35 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Sets the X-axis to date scale with intelligent tick placement and automatic format selection.</summary>
+    /// <remarks>
+    /// Installs an <see cref="Rendering.TickLocators.AutoDateLocator"/> and a paired
+    /// <see cref="Rendering.TickFormatters.AutoDateFormatter"/> that together choose granularity
+    /// (years, months, weeks, days, hours, minutes, or seconds) from the visible range.
+    /// </remarks>
+    public AxesBuilder SetXDateAxis()
+    {
+        var locator = new Rendering.TickLocators.AutoDateLocator();
+        _axes.XAxis.Scale = AxisScale.Date;
+        _axes.XAxis.TickLocator = locator;
+        _axes.XAxis.TickFormatter = new Rendering.TickFormatters.AutoDateFormatter(locator);
+        return this;
+    }
+
+    /// <summary>Adds a line series with DateTime X values; automatically activates the date X-axis.</summary>
+    /// <param name="dates">X values as <see cref="DateTime"/> instances (converted to OLE Automation dates).</param>
+    /// <param name="y">Y values corresponding to each date.</param>
+    /// <param name="configure">Optional delegate to further configure the series.</param>
+    public AxesBuilder Plot(DateTime[] dates, double[] y, Action<Models.Series.LineSeries>? configure = null)
+        => SetXDateAxis().Plot(dates.Select(d => d.ToOADate()).ToArray(), y, configure);
+
+    /// <summary>Adds a scatter series with DateTime X values; automatically activates the date X-axis.</summary>
+    /// <param name="dates">X values as <see cref="DateTime"/> instances (converted to OLE Automation dates).</param>
+    /// <param name="y">Y values corresponding to each date.</param>
+    /// <param name="configure">Optional delegate to further configure the series.</param>
+    public AxesBuilder Scatter(DateTime[] dates, double[] y, Action<Models.Series.ScatterSeries>? configure = null)
+        => SetXDateAxis().Scatter(dates.Select(d => d.ToOADate()).ToArray(), y, configure);
+
     /// <summary>Sets the X-axis to date scale with the specified format.</summary>
     public AxesBuilder SetXDateFormat(string format = "yyyy-MM-dd")
     {

@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Styling;
@@ -78,10 +79,11 @@ public abstract class AxesRenderer
         {
             var series = Axes.Series[i];
             if (!series.Visible) continue;
-            var seriesColor = Theme.CycleColors[i % Theme.CycleColors.Length];
+            var cycledProps  = Theme.PropCycler?[i];
+            var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
             svgCtx?.BeginDataGroup("series", i);
             var renderer = new SvgSeriesRenderer(
-                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, Axes.EnableTooltips);
+                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps, Axes.EnableTooltips);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             if (svgCtx is not null) Ctx.EndGroup();
@@ -97,9 +99,10 @@ public abstract class AxesRenderer
         {
             var series = Axes.Series[i];
             if (!series.Visible) continue;
-            var seriesColor = Theme.CycleColors[i % Theme.CycleColors.Length];
+            var cycledProps  = Theme.PropCycler?[i];
+            var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
             svgCtx?.BeginDataGroup("series", i);
-            var renderer = new SvgSeriesRenderer(transform, Ctx, seriesColor, Axes.EnableTooltips);
+            var renderer = new SvgSeriesRenderer(transform, Ctx, seriesColor, cycledProps, Axes.EnableTooltips);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             if (svgCtx is not null) Ctx.EndGroup();
@@ -116,7 +119,7 @@ public abstract class AxesRenderer
         {
             var series = Axes.Series[i];
             if (string.IsNullOrEmpty(series.Label)) continue;
-            var color = Theme.CycleColors[i % Theme.CycleColors.Length];
+            var color = Theme.PropCycler?[i].Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
             entries.Add((series.Label, color));
         }
 
@@ -216,9 +219,13 @@ public abstract class AxesRenderer
     /// <summary>Renders the axes title above the plot area.</summary>
     protected void RenderTitle()
     {
-        if (Axes.Title is not null)
-            Ctx.DrawText(Axes.Title, new Point(PlotArea.X + PlotArea.Width / 2, PlotArea.Y - 8),
-                TitleFont(2), TextAlignment.Center);
+        if (Axes.Title is null) return;
+        var point = new Point(PlotArea.X + PlotArea.Width / 2, PlotArea.Y - 8);
+        var font  = TitleFont(2);
+        if (MathTextParser.ContainsMath(Axes.Title))
+            Ctx.DrawRichText(MathTextParser.Parse(Axes.Title), point, font, TextAlignment.Center);
+        else
+            Ctx.DrawText(Axes.Title, point, font, TextAlignment.Center);
     }
 
     /// <summary>Renders X and Y axis labels.</summary>
@@ -226,9 +233,21 @@ public abstract class AxesRenderer
     {
         var font = LabelFont();
         if (Axes.XAxis.Label is not null)
-            Ctx.DrawText(Axes.XAxis.Label, new Point(PlotArea.X + PlotArea.Width / 2, PlotArea.Y + PlotArea.Height + 35), font, TextAlignment.Center);
+        {
+            var point = new Point(PlotArea.X + PlotArea.Width / 2, PlotArea.Y + PlotArea.Height + 35);
+            if (MathTextParser.ContainsMath(Axes.XAxis.Label))
+                Ctx.DrawRichText(MathTextParser.Parse(Axes.XAxis.Label), point, font, TextAlignment.Center);
+            else
+                Ctx.DrawText(Axes.XAxis.Label, point, font, TextAlignment.Center);
+        }
         if (Axes.YAxis.Label is not null)
-            Ctx.DrawText(Axes.YAxis.Label, new Point(PlotArea.X - 45, PlotArea.Y + PlotArea.Height / 2), font, TextAlignment.Center);
+        {
+            var point = new Point(PlotArea.X - 45, PlotArea.Y + PlotArea.Height / 2);
+            if (MathTextParser.ContainsMath(Axes.YAxis.Label))
+                Ctx.DrawRichText(MathTextParser.Parse(Axes.YAxis.Label), point, font, TextAlignment.Center);
+            else
+                Ctx.DrawText(Axes.YAxis.Label, point, font, TextAlignment.Center);
+        }
     }
 
     // --- Font factories ---
@@ -269,6 +288,9 @@ public abstract class AxesRenderer
             return value.ToString("G3", CultureInfo.InvariantCulture);
         return value.ToString("G5", CultureInfo.InvariantCulture);
     }
+
+    /// <summary>Internal wrapper for <see cref="FormatTick"/> used by the layout engine.</summary>
+    internal static string FormatTickValue(double value) => FormatTick(value);
 
     /// <summary>Expands min/max to include all values in the data array.</summary>
     /// <param name="data">The data values to scan.</param>

@@ -103,7 +103,7 @@ public class ContourfSeriesTests
     {
         var visitor = new TestSeriesVisitor();
         var series = new ContourfSeries(X, Y, Z);
-        series.Accept(visitor, default);
+        series.Accept(visitor, null!);
         Assert.Equal(nameof(ContourfSeries), visitor.LastVisited);
     }
 

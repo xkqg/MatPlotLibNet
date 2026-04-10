@@ -1,0 +1,9 @@
+# Normalize line endings to LF in the repo, CRLF on Windows checkout
+* text=auto eol=lf
+
+# Explicitly mark binary files
+*.png binary
+*.pdf binary
+*.nupkg binary
+*.snupkg binary
+*.gif binary

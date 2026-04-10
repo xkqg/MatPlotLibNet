@@ -310,3 +310,164 @@ await publisher.PublishSvgAsync("chart-1", figure);
 // Pass to interactive popup
 await figure.ShowAsync();
 ```
+
+## PropCycler
+
+Cycle Color, LineStyle, MarkerStyle, and LineWidth simultaneously across series.
+
+```csharp
+using MatPlotLibNet.Styling;
+
+// Build a cycler
+var cycler = new PropCyclerBuilder()
+    .WithColors(Color.Blue, Color.Orange, Color.Green, Color.Red)
+    .WithLineStyles(LineStyle.Solid, LineStyle.Dashed)
+    .Build();
+
+// Apply to a figure
+Plt.Create()
+    .WithPropCycler(cycler)
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        for (int i = 0; i < 4; i++)
+            ax.Plot(x, y[i], s => s.Label = $"Series {i + 1}");
+        ax.WithLegend();
+    })
+    .Save("cycler.svg");
+
+// Embed in a theme for reuse
+var theme = Theme.CreateFrom(Theme.Dark)
+    .WithPropCycler(cycler)
+    .Build();
+```
+
+Properties cycle at their own lengths; the series index wraps modulo the LCM. If `PropCycler` is null, the original `Theme.CycleColors[]` path is used (backward compatible).
+
+## Date axes
+
+Plot time-series data with automatic date tick placement.
+
+```csharp
+DateTime[] dates = Enumerable.Range(0, 365)
+    .Select(i => new DateTime(2025, 1, 1).AddDays(i))
+    .ToArray();
+double[] values = dates.Select((d, i) => Math.Sin(i / 30.0)).ToArray();
+
+// DateTime[] overload auto-sets X to AxisScale.Date
+Plt.Create()
+    .Plot(dates, values)
+    .WithXLabel("Date")
+    .WithYLabel("Value")
+    .Save("dates.svg");   // ticks: "Jan 2025", "Feb 2025", …
+```
+
+For sub-day data:
+
+```csharp
+DateTime[] hours = Enumerable.Range(0, 48)
+    .Select(i => DateTime.Today.AddHours(i))
+    .ToArray();
+
+Plt.Create()
+    .Plot(hours, measurements)
+    .Save("hourly.svg");   // ticks: "00:00", "06:00", "12:00", …
+```
+
+`AutoDateLocator` automatically selects the tick interval from years down to seconds. To override:
+
+```csharp
+ax.SetXTickLocator(new AutoDateLocator())
+  .SetXTickFormatter(new AutoDateFormatter());
+```
+
+## Math text labels
+
+Use mini-LaTeX syntax in any title, axis label, annotation, or legend entry. Wrap math in `$...$`.
+
+```csharp
+// Greek letters + super/subscript in chart title
+Plt.Create()
+    .WithTitle("$\\alpha$ vs $\\beta$ correlation")
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        ax.WithTitle("R$^{2}$ = 0.97");
+        ax.SetYLabel("$\\sigma$ (Pa)");
+        ax.SetXLabel("Time $\\Delta t$ (ms)");
+        ax.Plot(x, y);
+    })
+    .Save("math.svg");
+```
+
+**Quick reference:**
+
+| Syntax | Renders as |
+|--------|-----------|
+| `$\\alpha$` | α |
+| `$\\sigma^{2}$` | σ² |
+| `$x_{i}$` | x subscript i |
+| `$\\pm$` | ± |
+| `$\\infty$` | ∞ |
+| `$\\leq$` | ≤ |
+| `$\\degree$C` | °C |
+
+Text outside `$...$` is rendered as-is. SVG backends emit `<tspan baseline-shift="super/sub">`. Non-SVG backends (Skia, MAUI) get a plain-text fallback with Unicode substitution.
+
+## Constrained layout / tight layout
+
+Automatically compute margins from actual text extents instead of hardcoded defaults.
+
+```csharp
+// TightLayout or ConstrainedLayout — same effect
+Plt.Create()
+    .TightLayout()
+    .AddSubPlot(2, 2, 1, ax =>
+    {
+        ax.SetYLabel("Population (millions)");
+        ax.Plot(x, y1);
+    })
+    .AddSubPlot(2, 2, 2, ax =>
+    {
+        ax.SetYLabel("GDP ($\\times 10^{9}$)");
+        ax.Plot(x, y2);
+    })
+    .Save("constrained.svg");
+```
+
+The engine measures Y-tick label widths, axis label sizes, and subplot title heights; computes exact `SubPlotSpacing` margins; and takes the maximum across all subplots. Margins are clamped to sensible ranges.
+
+```csharp
+// Equivalent using ConstrainedLayout()
+Plt.Create()
+    .ConstrainedLayout()
+    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y))
+    .Save("cl.svg");
+```
+
+When neither flag is set, fixed default margins (`MarginLeft=60`, `MarginBottom=50`, etc.) are used as before.
+
+## GIF animation export
+
+Export an `AnimationBuilder` directly to an animated GIF (requires `MatPlotLibNet.Skia`).
+
+```csharp
+using MatPlotLibNet.Animation;
+using MatPlotLibNet.Skia;
+
+var animation = new AnimationBuilder(60, frame =>
+    Plt.Create()
+        .WithTitle($"t = {frame * 0.1:F1} s")
+        .Plot(x, x.Select(v => Math.Sin(v + frame * 0.2)).ToArray())
+        .Build())
+{
+    Interval = TimeSpan.FromMilliseconds(80),
+    Loop = true
+};
+
+// Save to file
+animation.SaveGif("wave.gif");
+
+// Or get bytes (e.g., for a Blazor download)
+byte[] gif = animation.ToGif();
+```
+
+The encoder writes GIF89a with a NETSCAPE2.0 loop extension, 252-color uniform quantization (6×7×6 RGB cube), and LZW-compressed per-frame image data. No FFmpeg dependency.

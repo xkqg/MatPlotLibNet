@@ -108,22 +108,19 @@ public sealed class SkiaRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawText(string text, Point position, Font font, TextAlignment alignment)
     {
-        using var paint = new SKPaint
-        {
-            Color = ToSkColor(font.Color ?? Colors.Black),
-            TextSize = (float)font.Size,
-            IsAntialias = true,
-            Typeface = SKTypeface.FromFamilyName(font.Family,
-                font.Weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-                SKFontStyleWidth.Normal,
-                font.Slant == FontSlant.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright)
-        };
+        var typeface = SKTypeface.FromFamilyName(font.Family,
+            font.Weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            SKFontStyleWidth.Normal,
+            font.Slant == FontSlant.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+        using var skFont = new SKFont(typeface, (float)font.Size);
+        using var paint  = new SKPaint { Color = ToSkColor(font.Color ?? Colors.Black), IsAntialias = true };
 
         float x = (float)position.X;
-        if (alignment == TextAlignment.Center) x -= paint.MeasureText(text) / 2;
-        else if (alignment == TextAlignment.Right) x -= paint.MeasureText(text);
+        float textWidth = skFont.MeasureText(text);
+        if (alignment == TextAlignment.Center) x -= textWidth / 2;
+        else if (alignment == TextAlignment.Right) x -= textWidth;
 
-        _canvas.DrawText(text, x, (float)position.Y, paint);
+        _canvas.DrawText(text, x, (float)position.Y, skFont, paint);
     }
 
     /// <inheritdoc />
@@ -165,7 +162,8 @@ public sealed class SkiaRenderContext : IRenderContext
     /// <inheritdoc />
     public Size MeasureText(string text, Font font)
     {
-        return new Size(text.Length * font.Size * 0.6, font.Size * 1.2);
+        using var skFont = new SKFont(SKTypeface.FromFamilyName(font.Family), (float)font.Size);
+        return new Size(skFont.MeasureText(text), font.Size * 1.2);
     }
 
     /// <inheritdoc />

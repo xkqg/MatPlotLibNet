@@ -2,6 +2,8 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using System.Text;
+using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
@@ -67,6 +69,19 @@ public interface IRenderContext
 
     /// <summary>Ends the current group. Default is a no-op.</summary>
     void EndGroup() { }
+
+    /// <summary>
+    /// Draws a <see cref="RichText"/> value that may contain superscript, subscript, and Unicode-substituted
+    /// math characters.  The default implementation concatenates all span text and delegates to
+    /// <see cref="DrawText(string, Point, Font, TextAlignment)"/> for backends that do not support rich text.
+    /// Override in <c>SvgRenderContext</c> to emit <c>&lt;tspan&gt;</c> elements.
+    /// </summary>
+    void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment)
+    {
+        var sb = new StringBuilder();
+        foreach (var span in richText.Spans) sb.Append(span.Text);
+        DrawText(sb.ToString(), position, font, alignment);
+    }
 }
 
 /// <summary>Base record for path drawing segments used by <see cref="IRenderContext.DrawPath"/>.</summary>

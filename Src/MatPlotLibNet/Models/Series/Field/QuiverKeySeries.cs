@@ -20,7 +20,7 @@ public sealed class QuiverKeySeries : ChartSeries
     public double U { get; set; }
 
     /// <summary>Gets or sets the label displayed next to the reference arrow.</summary>
-    public string Label { get; set; }
+    public new string Label { get; set; }
 
     /// <summary>Gets or sets the font size of the label in points.</summary>
     public double FontSize { get; set; } = 12;

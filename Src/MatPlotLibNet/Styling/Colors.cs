@@ -58,6 +58,49 @@ public static class Colors
     /// <summary>Matplotlib default green (#2ca02c).</summary>
     public static Color Tab10Green => new(0x2C, 0xA0, 0x2C);
 
+    // --- CSS4 aliases (most-used names, full catalog in Css4Colors) ---
+
+    /// <summary>Alice blue (#F0F8FF). Full catalog: <see cref="Css4Colors"/>.</summary>
+    public static Color AliceBlue      => Css4Colors.AliceBlue;
+    /// <summary>Cornflower blue (#6495ED).</summary>
+    public static Color CornflowerBlue => Css4Colors.CornflowerBlue;
+    /// <summary>Steel blue (#4682B4).</summary>
+    public static Color SteelBlue      => Css4Colors.SteelBlue;
+    /// <summary>Royal blue (#4169E1).</summary>
+    public static Color RoyalBlue      => Css4Colors.RoyalBlue;
+    /// <summary>Navy (#000080).</summary>
+    public static Color Navy           => Css4Colors.Navy;
+    /// <summary>Crimson (#DC143C).</summary>
+    public static Color Crimson        => Css4Colors.Crimson;
+    /// <summary>Tomato (#FF6347).</summary>
+    public static Color Tomato         => Css4Colors.Tomato;
+    /// <summary>Gold (#FFD700).</summary>
+    public static Color Gold           => Css4Colors.Gold;
+    /// <summary>Forest green (#228B22).</summary>
+    public static Color ForestGreen    => Css4Colors.ForestGreen;
+    /// <summary>Teal (#008080).</summary>
+    public static Color Teal           => Css4Colors.Teal;
+    /// <summary>Indigo (#4B0082).</summary>
+    public static Color Indigo         => Css4Colors.Indigo;
+    /// <summary>Violet (#EE82EE).</summary>
+    public static Color Violet         => Css4Colors.Violet;
+    /// <summary>Orchid (#DA70D6).</summary>
+    public static Color Orchid         => Css4Colors.Orchid;
+    /// <summary>Salmon (#FA8072).</summary>
+    public static Color Salmon         => Css4Colors.Salmon;
+    /// <summary>Coral (#FF7F50).</summary>
+    public static Color Coral          => Css4Colors.Coral;
+    /// <summary>Khaki (#F0E68C).</summary>
+    public static Color Khaki          => Css4Colors.Khaki;
+    /// <summary>Silver (#C0C0C0).</summary>
+    public static Color Silver         => Css4Colors.Silver;
+    /// <summary>Midnight blue (#191970).</summary>
+    public static Color MidnightBlue   => Css4Colors.MidnightBlue;
+    /// <summary>Rebecca purple (#663399).</summary>
+    public static Color RebeccaPurple  => Css4Colors.RebeccaPurple;
+    /// <summary>Chocolate (#D2691E).</summary>
+    public static Color Chocolate      => Css4Colors.Chocolate;
+
     // --- Rendering defaults ---
 
     /// <summary>Default grid line color (#CCCCCC).</summary>

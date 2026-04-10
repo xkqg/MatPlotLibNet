@@ -26,4 +26,7 @@ public sealed record SubPlotSpacing
 
     /// <summary>Gets whether tight layout is enabled, which computes minimal margins automatically.</summary>
     public bool TightLayout { get; init; }
+
+    /// <summary>Gets whether constrained layout is enabled, which adjusts margins to fit text extents.</summary>
+    public bool ConstrainedLayout { get; init; }
 }

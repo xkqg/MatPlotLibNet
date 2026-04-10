@@ -3,6 +3,8 @@
 
 using System.Globalization;
 using System.Text;
+using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.Svg;
@@ -168,9 +170,60 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public Size MeasureText(string text, Font font)
     {
-        double width = text.Length * font.Size * 0.6;
+        double width = 0;
+        foreach (var c in text)
+            width += CharacterWidthTable.GetWidth(c);
+        width *= font.Size;
         double height = font.Size * 1.2;
         return new Size(width, height);
+    }
+
+    /// <inheritdoc />
+    public void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment)
+    {
+        // Shortcut: no super/subscript spans → emit plain text element
+        bool hasSpecial = richText.Spans.Any(s => s.Kind != TextSpanKind.Normal);
+        if (!hasSpecial)
+        {
+            var plain = string.Concat(richText.Spans.Select(s => s.Text));
+            DrawText(plain, position, font, alignment);
+            return;
+        }
+
+        string anchor = alignment switch
+        {
+            TextAlignment.Left   => "start",
+            TextAlignment.Center => "middle",
+            TextAlignment.Right  => "end",
+            _                    => "start",
+        };
+
+        _sb.Append("<text x=\"").Append(F(position.X)).Append("\" y=\"").Append(F(position.Y))
+           .Append("\" font-family=\"").Append(font.Family)
+           .Append("\" font-size=\"").Append(F(font.Size))
+           .Append("\" text-anchor=\"").Append(anchor).Append('"');
+        if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
+        if (font.Weight == FontWeight.Bold)  _sb.Append(" font-weight=\"bold\"");
+        if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
+        _sb.Append('>');
+
+        foreach (var span in richText.Spans)
+        {
+            if (span.Kind == TextSpanKind.Normal)
+            {
+                _sb.Append(EscapeXml(span.Text));
+            }
+            else
+            {
+                string shift = span.Kind == TextSpanKind.Superscript ? "super" : "sub";
+                _sb.Append("<tspan baseline-shift=\"").Append(shift)
+                   .Append("\" font-size=\"").Append(F(span.FontSizeScale * 100)).Append("%\">")
+                   .Append(EscapeXml(span.Text))
+                   .Append("</tspan>");
+            }
+        }
+
+        _sb.AppendLine("</text>");
     }
 
     /// <inheritdoc />

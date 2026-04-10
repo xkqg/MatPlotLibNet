@@ -116,11 +116,13 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private QuiverKeySeriesRenderer? _quiverKey;
     private BarbsSeriesRenderer? _barbs;
 
-    public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor, bool tooltipsEnabled = false)
+    public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor,
+        CycledProperties? cycledProps = null, bool tooltipsEnabled = false)
     {
         _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(default, ctx))
         {
-            TooltipsEnabled = tooltipsEnabled
+            TooltipsEnabled = tooltipsEnabled,
+            CycledProps     = cycledProps
         };
     }
 

@@ -56,6 +56,23 @@ public readonly record struct Color(byte R, byte G, byte B, byte A = 255)
     /// <returns>The RGBA string representation.</returns>
     public string ToRgbaString() => $"rgba({R},{G},{B},{A / 255.0:F2})";
 
+    /// <summary>Returns the CSS4 named color matching <paramref name="name"/> (case-insensitive).</summary>
+    /// <param name="name">A CSS4 color name such as "cornflowerblue" or "RebeccaPurple".</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="name"/> is not a known CSS4 color.</exception>
+    public static Color FromName(string name)
+    {
+        if (Css4Colors.All.TryGetValue(name, out Color color))
+            return color;
+        throw new ArgumentException($"Unknown CSS4 color name: '{name}'.", nameof(name));
+    }
+
+    /// <summary>Attempts to get the CSS4 named color matching <paramref name="name"/> (case-insensitive).</summary>
+    /// <param name="name">A CSS4 color name.</param>
+    /// <param name="color">The matched color, or default when not found.</param>
+    /// <returns><see langword="true"/> if the name was recognised; otherwise <see langword="false"/>.</returns>
+    public static bool TryFromName(string name, out Color color) =>
+        Css4Colors.All.TryGetValue(name, out color);
+
     private static byte ParseHexByte(ReadOnlySpan<char> hex) =>
         byte.Parse(hex, System.Globalization.NumberStyles.HexNumber);
 }

@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.AspNetCore</PackageId>
-    <Version>0.7.0</Version>
+    <Version>0.8.1</Version>
     <Description>ASP.NET Core endpoint helpers for MatPlotLibNet. Serves chart JSON specs for Angular and other SPA frameworks.</Description>
     <PackageTags>aspnetcore;charting;api;angular;json</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

@@ -14,6 +14,7 @@ public sealed class ThemeBuilder
     private Color[] _cycleColors;
     private Font _defaultFont;
     private GridStyle _defaultGrid;
+    private PropCycler? _propCycler;
     private readonly string _baseName;
 
     internal ThemeBuilder(Theme baseTheme)
@@ -25,6 +26,7 @@ public sealed class ThemeBuilder
         _cycleColors = [.. baseTheme.CycleColors];
         _defaultFont = baseTheme.DefaultFont;
         _defaultGrid = baseTheme.DefaultGrid;
+        _propCycler = baseTheme.PropCycler;
     }
 
     /// <summary>Sets the figure background color.</summary>
@@ -65,6 +67,11 @@ public sealed class ThemeBuilder
         return this;
     }
 
+    /// <summary>Sets the multi-property cycle. Pass <see langword="null"/> to clear and fall back to <see cref="Theme.CycleColors"/>.</summary>
+    /// <param name="cycler">The <see cref="PropCycler"/> to use, or <see langword="null"/> to disable.</param>
+    /// <returns>This builder for chaining.</returns>
+    public ThemeBuilder WithPropCycler(PropCycler? cycler) { _propCycler = cycler; return this; }
+
     /// <summary>Builds and returns the customized <see cref="Theme"/>.</summary>
     /// <returns>The constructed theme.</returns>
     public Theme Build() => new(
@@ -74,5 +81,6 @@ public sealed class ThemeBuilder
         _axesBackground,
         _cycleColors,
         _defaultFont,
-        _defaultGrid);
+        _defaultGrid,
+        _propCycler);
 }
