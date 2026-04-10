@@ -47,7 +47,7 @@ Plt.Create().Plot(x, y).Save("chart.pdf");   // requires MatPlotLibNet.Skia
 
 ## Chart types
 
-**43 series types** with fluent builder API:
+**60 series types** with fluent builder API:
 
 ```csharp
 Plt.Create()
@@ -63,7 +63,7 @@ Plt.Create()
 ```
 
 Additional types via `AxesBuilder.AddSubPlot`:
-Heatmap, Image (imshow), Histogram2D, Box, Violin, Contour, Contourf, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Ecdf, StackedArea, Streamplot, Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar, Surface, Wireframe, Scatter3D, Kde, Regression, Hexbin.
+Heatmap, Image (imshow), Histogram2D, Box, Violin, Contour, Contourf, Stem, Candlestick, OhlcBar, Quiver, Radar, Donut, Bubble, Waterfall, Funnel, Gantt, Gauge, ProgressBar, Sparkline, Ecdf, StackedArea, Streamplot, Treemap, Sunburst, Sankey, PolarLine, PolarScatter, PolarBar, Surface, Wireframe, Scatter3D, Kde, Regression, Hexbin, Rugplot, Stripplot, Eventplot, BrokenBarH, Countplot, Pcolormesh, Residplot, Pointplot, Swarmplot, Spectrogram, Table, Tricontour, Tripcolor, QuiverKey, Barbs, Stem3D, Bar3D.
 
 ### Stacked bars
 
@@ -374,6 +374,96 @@ ax.Hexbin(x, y, h =>
     h.GridSize = 25;
     h.MinCount = 2;
 }).WithColorMap("YlOrRd").WithColorBar();
+```
+
+## Statistical distribution plots (v0.8.0)
+
+```csharp
+// Rug plot — tick marks showing individual data values
+ax.Rugplot(samples, r => { r.Height = 0.05; r.Alpha = 0.5; });
+
+// Strip plot — jittered dots per category
+ax.Stripplot(datasets, s => s.Jitter = 0.2);
+
+// Swarm plot — beeswarm algorithm (non-overlapping)
+ax.Swarmplot(datasets, s => s.MarkerSize = 5);
+
+// Point plot — mean + confidence interval per category
+ax.Pointplot(datasets, p => { p.CapSize = 0.2; p.ConfidenceLevel = 0.95; });
+
+// Count plot — bar chart from raw category labels
+ax.Countplot(new[] { "A", "B", "A", "C", "B", "A" });
+
+// Residual plot — scatter of model residuals
+ax.Residplot(xData, yData, r => { r.Degree = 2; r.ShowZeroLine = true; });
+```
+
+## Triangular mesh plots (v0.8.0)
+
+```csharp
+// Tricontour — iso-lines on unstructured points
+ax.Tricontour(x, y, z, tc => { tc.Levels = 10; tc.ColorMap = ColorMaps.Viridis; });
+
+// Tripcolor — pseudocolor fill on triangular mesh
+ax.Tripcolor(x, y, z, tc => tc.ColorMap = ColorMaps.Plasma);
+
+// Wind barbs — meteorological speed/direction field
+ax.Barbs(x, y, speed, direction, b => b.BarbLength = 15);
+
+// Quiver key — reference arrow for quiver field
+ax.QuiverKey(0.85, 0.95, 10.0, "10 m/s");
+```
+
+## 3D stem and bar (v0.8.0)
+
+```csharp
+// 3D stem — vertical lines from XY-plane to data points
+Plt.Create().Stem3D(x, y, z).Save("stem3d");
+
+// 3D bar chart — rectangular prisms rising from XY-plane
+Plt.Create().Bar3D(x, y, heights, b => b.BarWidth = 0.4).Save("bar3d");
+```
+
+## Spectrogram (v0.8.0)
+
+```csharp
+// Spectrogram — short-time Fourier transform heatmap
+ax.Spectrogram(signal, sampleRate: 44100, s =>
+{
+    s.WindowSize = 256;
+    s.Overlap = 128;
+    s.ColorMap = ColorMaps.Inferno;
+});
+```
+
+## Table (v0.8.0)
+
+```csharp
+// Table — render tabular data inside axes
+ax.Table(
+    new[] { new[] { "Row 1", "100", "A" }, new[] { "Row 2", "200", "B" } },
+    t =>
+    {
+        t.ColumnHeaders = new[] { "Name", "Value", "Grade" };
+        t.FontSize = 11;
+    });
+```
+
+## Pair plot, facet grid, clustermap (v0.8.0)
+
+```csharp
+// Pair plot — N×N scatter matrix with diagonal histograms
+FigureTemplates.PairPlot(columns, columnNames: new[] { "X1", "X2", "X3" })
+    .Save("pairplot");
+
+// Facet grid — one subplot per category
+FigureTemplates.FacetGrid(x, y, category,
+    (ax, fx, fy) => ax.Scatter(fx, fy),
+    cols: 3)
+    .Save("facet");
+
+// Clustermap — hierarchically clustered heatmap with dendrograms
+FigureTemplates.Clustermap(data, rowLabels, colLabels).Save("clustermap");
 ```
 
 ## Joint plot (scatter + marginals)

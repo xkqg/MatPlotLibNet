@@ -769,6 +769,35 @@ public sealed record SeriesDto
     public double? ConfidenceLevel { get; init; }
     public int? GridSize { get; init; }
     public int? MinCount { get; init; }
+
+    // v0.8.0
+    public double? RugHeight { get; init; }
+    public double? Jitter { get; init; }
+    public double[][]? EventPositions { get; init; }
+    public double? LineLength { get; init; }
+    public double[][]? RangeStarts { get; init; }
+    public double[][]? RangeWidths { get; init; }
+
+    // v0.8.0 Phase B
+    public string[][]? TableCellData { get; init; }
+    public string[]? RowHeaders { get; init; }
+    public string[]? ColumnHeaders { get; init; }
+    public double[]? Signal { get; init; }
+    public int? SampleRate { get; init; }
+    public int? WindowSize { get; init; }
+    public int? Overlap { get; init; }
+
+    // v0.8.0 Phase C
+    public double[]? ZData { get; init; }
+    public int? Levels { get; init; }
+    public int[]? Triangles { get; init; }
+    public double? QuiverKeyX { get; init; }
+    public double? QuiverKeyY { get; init; }
+    public double? QuiverKeyU { get; init; }
+    public string? QuiverKeyLabel { get; init; }
+    public double[]? Speed { get; init; }
+    public double[]? Direction { get; init; }
+    public double? BarbLength { get; init; }
 }
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>

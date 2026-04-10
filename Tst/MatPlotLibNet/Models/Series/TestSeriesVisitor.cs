@@ -54,4 +54,21 @@ internal sealed class TestSeriesVisitor : ISeriesVisitor
     public void Visit(SurfaceSeries series, RenderArea area) => LastVisited = nameof(SurfaceSeries);
     public void Visit(WireframeSeries series, RenderArea area) => LastVisited = nameof(WireframeSeries);
     public void Visit(Scatter3DSeries series, RenderArea area) => LastVisited = nameof(Scatter3DSeries);
+    public void Visit(RugplotSeries series, RenderArea area) => LastVisited = nameof(RugplotSeries);
+    public void Visit(StripplotSeries series, RenderArea area) => LastVisited = nameof(StripplotSeries);
+    public void Visit(EventplotSeries series, RenderArea area) => LastVisited = nameof(EventplotSeries);
+    public void Visit(BrokenBarSeries series, RenderArea area) => LastVisited = nameof(BrokenBarSeries);
+    public void Visit(CountSeries series, RenderArea area) => LastVisited = nameof(CountSeries);
+    public void Visit(PcolormeshSeries series, RenderArea area) => LastVisited = nameof(PcolormeshSeries);
+    public void Visit(ResidualSeries series, RenderArea area) => LastVisited = nameof(ResidualSeries);
+    public void Visit(PointplotSeries series, RenderArea area) => LastVisited = nameof(PointplotSeries);
+    public void Visit(SwarmplotSeries series, RenderArea area) => LastVisited = nameof(SwarmplotSeries);
+    public void Visit(SpectrogramSeries series, RenderArea area) => LastVisited = nameof(SpectrogramSeries);
+    public void Visit(TableSeries series, RenderArea area) => LastVisited = nameof(TableSeries);
+    public void Visit(TricontourSeries series, RenderArea area) => LastVisited = nameof(TricontourSeries);
+    public void Visit(TripcolorSeries series, RenderArea area) => LastVisited = nameof(TripcolorSeries);
+    public void Visit(QuiverKeySeries series, RenderArea area) => LastVisited = nameof(QuiverKeySeries);
+    public void Visit(BarbsSeries series, RenderArea area) => LastVisited = nameof(BarbsSeries);
+    public void Visit(Stem3DSeries series, RenderArea area) => LastVisited = nameof(Stem3DSeries);
+    public void Visit(Bar3DSeries series, RenderArea area) => LastVisited = nameof(Bar3DSeries);
 }

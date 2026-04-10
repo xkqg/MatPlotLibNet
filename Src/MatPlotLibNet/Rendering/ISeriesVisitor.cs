@@ -136,4 +136,55 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a 3D scatter series.</summary>
     void Visit(Scatter3DSeries series, RenderArea area);
+
+    /// <summary>Renders a rug plot series.</summary>
+    void Visit(RugplotSeries series, RenderArea area);
+
+    /// <summary>Renders a strip plot series.</summary>
+    void Visit(StripplotSeries series, RenderArea area);
+
+    /// <summary>Renders an event plot series.</summary>
+    void Visit(EventplotSeries series, RenderArea area);
+
+    /// <summary>Renders a broken bar series.</summary>
+    void Visit(BrokenBarSeries series, RenderArea area);
+
+    /// <summary>Renders a count plot series.</summary>
+    void Visit(CountSeries series, RenderArea area);
+
+    /// <summary>Renders a pseudocolor mesh series.</summary>
+    void Visit(PcolormeshSeries series, RenderArea area);
+
+    /// <summary>Renders a residual plot series.</summary>
+    void Visit(ResidualSeries series, RenderArea area);
+
+    /// <summary>Renders a point plot series.</summary>
+    void Visit(PointplotSeries series, RenderArea area);
+
+    /// <summary>Renders a swarm plot series.</summary>
+    void Visit(SwarmplotSeries series, RenderArea area);
+
+    /// <summary>Renders a spectrogram series.</summary>
+    void Visit(SpectrogramSeries series, RenderArea area);
+
+    /// <summary>Renders a table series.</summary>
+    void Visit(TableSeries series, RenderArea area);
+
+    /// <summary>Renders a contour series on a triangular mesh.</summary>
+    void Visit(TricontourSeries series, RenderArea area);
+
+    /// <summary>Renders a pseudocolor series on a triangular mesh.</summary>
+    void Visit(TripcolorSeries series, RenderArea area);
+
+    /// <summary>Renders a quiver key (reference arrow) series.</summary>
+    void Visit(QuiverKeySeries series, RenderArea area);
+
+    /// <summary>Renders a wind barb series.</summary>
+    void Visit(BarbsSeries series, RenderArea area);
+
+    /// <summary>Renders a 3D stem series.</summary>
+    void Visit(Stem3DSeries series, RenderArea area);
+
+    /// <summary>Renders a 3D bar series.</summary>
+    void Visit(Bar3DSeries series, RenderArea area);
 }

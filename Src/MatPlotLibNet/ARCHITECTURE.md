@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.7.0)
+# MatPlotLibNet Core -- Architecture (v0.8.0)
 
 ## Package dependency graph
 
@@ -35,7 +35,7 @@ MatPlotLibNet/
   DisplayMode.cs                      enum: Inline, Expandable, Popup
   IChartSubscriptionClient.cs         shared SignalR client contract
 
-  FigureTemplates.cs                  pre-built layouts: FinancialDashboard(), ScientificPaper(), SparklineDashboard(), JointPlot()
+  FigureTemplates.cs                  pre-built layouts: FinancialDashboard(), ScientificPaper(), SparklineDashboard(), JointPlot(), PairPlot(), FacetGrid(), Clustermap()
 
   Plt.Style                           nested static class: Use(), Context() for rcParams configuration
 
@@ -61,13 +61,13 @@ MatPlotLibNet/
     InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
 
-    Series/                           43 series types across 12 families
+    Series/                           60 series types across 14 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
       ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
       IHasDataRange.cs                interface: series that expose their own data bounds
       IPolarSeries.cs                 interface: polar coordinate series
       I3DGridSeries.cs                interface: 3D grid-based series (Surface, Wireframe)
-      I3DPointSeries.cs               interface: 3D point-based series (Scatter3D)
+      I3DPointSeries.cs               interface: 3D point-based series (Scatter3D, Stem3D, Bar3D)
       IPriceSeries.cs                 interface: financial OHLC series (Candlestick, OhlcBar)
       IColormappable.cs               interface: ColorMap { get; set; } — polymorphic colormap assignment
       INormalizable.cs                interface: Normalizer { get; set; } — polymorphic normalizer assignment
@@ -122,6 +122,23 @@ MatPlotLibNet/
       KdeSeries.cs                    Data[], Bandwidth?, Fill, Alpha, LineWidth, Color, LineStyle (Distribution/)
       RegressionSeries.cs             XData[], YData[], Degree, ShowConfidence, ConfidenceLevel, BandColor, BandAlpha (XY/)
       HexbinSeries.cs                 X[], Y[], GridSize, MinCount, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
+      RugplotSeries.cs                Vec Data, Height, Color, Alpha, LineWidth (Distribution/)
+      StripplotSeries.cs              double[][] Datasets, Jitter, MarkerSize, Color, Alpha (Distribution/)
+      SwarmplotSeries.cs              double[][] Datasets, MarkerSize, Color, Alpha — beeswarm layout (Distribution/)
+      EventplotSeries.cs              double[][] Positions, LineWidth, Colors[], LineLength (Categorical/)
+      BrokenBarSeries.cs              (double Start,Width)[][] Ranges, Labels, BarHeight, Color (Categorical/)
+      CountSeries.cs                  string[] Values, Color, Orientation, BarWidth — auto group-count (Categorical/)
+      PointplotSeries.cs              double[][] Datasets, Categories, Color, MarkerSize, CapSize, ConfidenceLevel (Categorical/)
+      PcolormeshSeries.cs             Vec X (M+1), Vec Y (N+1), double[,] C (N×M), IColormappable, INormalizable, IColorBarDataProvider (Grid/)
+      SpectrogramSeries.cs            Vec Signal, SampleRate, WindowSize=256, Overlap=128, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
+      ResidualSeries.cs               Vec XData, Vec YData, Degree=1, MarkerSize, Color, ShowZeroLine (XY/)
+      TableSeries.cs                  string[][] CellData, ColumnHeaders, RowHeaders, CellHeight, CellPadding, colors, FontSize (Special/)
+      TricontourSeries.cs             Vec X, Y, Z (unstructured), Levels=10, IColormappable, INormalizable (Grid/)
+      TripcolorSeries.cs              Vec X, Y, Z, int[]? Triangles (auto-Delaunay), IColormappable, INormalizable, IColorBarDataProvider (Grid/)
+      QuiverKeySeries.cs              double X, Y (axes-fraction), U (data units), Label, FontSize — reference arrow annotation (Field/)
+      BarbsSeries.cs                  Vec X, Y, Speed, Direction, BarbLength, Color — meteorological wind barbs (Field/)
+      Stem3DSeries.cs                 Vec X, Y, Z, Color, MarkerSize, I3DPointSeries — vertical stems (ThreeD/)
+      Bar3DSeries.cs                  Vec X, Y, Z (heights), BarWidth, Color, I3DPointSeries — 3D bar prisms (ThreeD/)
 
   Indicators/                           polymorphic: IIndicator -> Indicator -> Indicator<TResult> where TResult : IIndicatorResult
     IIndicator.cs                       interface: Apply(Axes)
@@ -171,7 +188,7 @@ MatPlotLibNet/
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation) overload
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 40 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 60 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
@@ -207,15 +224,17 @@ MatPlotLibNet/
     SeriesRenderers/                    generic SeriesRenderer<T> per series type
       SeriesRenderContext.cs            record: Transform + Ctx + Color + Area + options
       SeriesRenderer.cs                 abstract base + generic SeriesRenderer<T>
-      XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band)
-      Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar
+      XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band), Residual (LeastSquares residuals + optional zero line)
+      Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
       Circular/                         Pie, Radar, Donut, Gauge
-      Grid/                             Heatmap, Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins)
-      Distribution/                     Box, Violin, Kde (GaussianKde Silverman bandwidth)
+      Grid/                             Heatmap, Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill)
+      Distribution/                     Box, Violin, Kde (GaussianKde Silverman bandwidth), Rugplot (tick marks), Stripplot (jittered points), Swarmplot (BeeswarmLayout circle-packing)
       Financial/                        Candlestick, OhlcBar
-      Field/                            Quiver, Stem, Streamplot
+      Field/                            Quiver, Stem, Streamplot, QuiverKey (reference arrow), Barbs (meteorological wind barbs)
       Hierarchical/                     Treemap, Sunburst (shared HierarchicalSeries base)
       Flow/                             Sankey
+      Special/                          Table (measured column widths, header+data rows, borders)
+      ThreeD/                           Stem3D (vertical stems via Projection3D), Bar3D (prism faces, painter's depth sort)
 
     Svg/
       ISvgRenderer.cs                 interface: Render(Figure) -> string (backward compat)
@@ -229,8 +248,19 @@ MatPlotLibNet/
 
   Numerics/
     LeastSquares.cs                   public static: PolyFit (normal equations), PolyEval (Horner), ConfidenceBand (t-distribution leverage)
+    Vec.cs                            readonly record struct: Data[], Length, Min/Max/Mean/Std/Sum/Percentile(p)/Quantile(q), element-wise ops, implicit double[] conversions
+    Fft.cs                            public static: Forward (Cooley-Tukey radix-2, Hann window, zero-pad to power-of-2), Stft (sliding window FFT → StftResult)
+                                        StftResult: double[,] Magnitudes, double[] Frequencies, double[] Times
+    Delaunay.cs                       public static: Triangulate(x, y) → TriMesh — Bowyer-Watson algorithm, CCW super-triangle, epsilon jitter for collinear points
+                                        TriMesh: int[] Triangles (flat, every 3 = 1 triangle), double[] X, double[] Y
+    HierarchicalClustering.cs         public static: Cluster(double[,] distanceMatrix) → Dendrogram — Ward's method (Lance-Williams), O(n³)
+                                        Dendrogram: DendrogramNode[] Merges, int[] LeafOrder
+                                        DendrogramNode: Left, Right, Distance, Size
     HexGrid.cs*                       internal static: ComputeHexBins, HexagonVertices, HexCenter (axial q,r coords)
                                       (* file lives in Rendering/SeriesRenderers/Grid/ but uses MatPlotLibNet.Numerics namespace)
+
+    SeriesRenderers/Distribution/
+    BeeswarmLayout.cs                 internal static: Compute(sortedValues, markerRadius, categoryCenter, pixelScale) — greedy circle-packing, cap 1000 pts, jitter fallback
 
   Serialization/
     IChartSerializer.cs               interface: ToJson(Figure), FromJson(string)
@@ -382,7 +412,7 @@ ChartHub               routes to SignalR group by chartId
 | Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D) | multiple output targets and coordinate systems from same model |
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
-| Self-serialization | ISeriesSerializable on all 43 series | each series knows how to serialize itself (no central switch) |
+| Self-serialization | ISeriesSerializable on all 60 series | each series knows how to serialize itself (no central switch) |
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
 | Registry | SeriesRegistry (ConcurrentDictionary) | thread-safe deserialization type lookup |
 | Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries | DRY shared properties across series families |

@@ -162,4 +162,103 @@ public class FigureTemplateTests
         string svg = FigureTemplates.JointPlot(JointX, JointY, title: "My Joint Plot").ToSvg();
         Assert.Contains("My Joint Plot", svg);
     }
+
+    // --- PairPlot ---
+
+    private static readonly double[][] PairColumns =
+    [
+        [1.0, 2.0, 3.0, 4.0],
+        [4.0, 3.0, 2.0, 1.0],
+        [1.0, 3.0, 2.0, 4.0]
+    ];
+
+    /// <summary>PairPlot returns a non-null FigureBuilder.</summary>
+    [Fact]
+    public void PairPlot_ReturnsFigureBuilder()
+        => Assert.NotNull(FigureTemplates.PairPlot(PairColumns));
+
+    /// <summary>PairPlot creates N×N subplots.</summary>
+    [Fact]
+    public void PairPlot_HasNxNSubplots()
+    {
+        int n = PairColumns.Length;
+        var figure = FigureTemplates.PairPlot(PairColumns).Build();
+        Assert.Equal(n * n, figure.SubPlots.Count);
+    }
+
+    /// <summary>PairPlot diagonal panels contain HistogramSeries.</summary>
+    [Fact]
+    public void PairPlot_DiagonalHasHistograms()
+    {
+        var figure = FigureTemplates.PairPlot(PairColumns).Build();
+        bool hasHist = figure.SubPlots.Any(ax => ax.Series.OfType<HistogramSeries>().Any());
+        Assert.True(hasHist);
+    }
+
+    /// <summary>PairPlot renders to valid SVG.</summary>
+    [Fact]
+    public void PairPlot_RendersToValidSvg()
+    {
+        string svg = FigureTemplates.PairPlot(PairColumns).ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    // --- FacetGrid ---
+
+    private static readonly double[] FgX = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+    private static readonly double[] FgY = [1.0, 2.0, 3.0, 1.5, 2.5, 3.5];
+    private static readonly string[] FgCat = ["A", "A", "B", "B", "C", "C"];
+
+    /// <summary>FacetGrid returns a non-null FigureBuilder.</summary>
+    [Fact]
+    public void FacetGrid_ReturnsFigureBuilder()
+        => Assert.NotNull(FigureTemplates.FacetGrid(FgX, FgY, FgCat, (ax, x, y) => ax.Scatter(x, y)));
+
+    /// <summary>FacetGrid creates one subplot per unique category.</summary>
+    [Fact]
+    public void FacetGrid_HasOneSubplotPerCategory()
+    {
+        var figure = FigureTemplates.FacetGrid(FgX, FgY, FgCat, (ax, x, y) => ax.Scatter(x, y)).Build();
+        int uniqueCats = FgCat.Distinct().Count();
+        Assert.Equal(uniqueCats, figure.SubPlots.Count);
+    }
+
+    /// <summary>FacetGrid renders to valid SVG.</summary>
+    [Fact]
+    public void FacetGrid_RendersToValidSvg()
+    {
+        string svg = FigureTemplates.FacetGrid(FgX, FgY, FgCat, (ax, x, y) => ax.Scatter(x, y)).ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    // --- Clustermap ---
+
+    private static readonly double[,] ClusterData =
+    {
+        { 1.0, 2.0, 0.5 },
+        { 1.1, 1.9, 0.6 },
+        { 5.0, 0.1, 4.0 },
+        { 4.8, 0.2, 3.9 }
+    };
+
+    /// <summary>Clustermap returns a non-null FigureBuilder.</summary>
+    [Fact]
+    public void Clustermap_ReturnsFigureBuilder()
+        => Assert.NotNull(FigureTemplates.Clustermap(ClusterData));
+
+    /// <summary>Clustermap builds a figure with exactly 4 subplots (2×2 grid).</summary>
+    [Fact]
+    public void Clustermap_HasFourSubplots()
+    {
+        var figure = FigureTemplates.Clustermap(ClusterData).Build();
+        Assert.Equal(4, figure.SubPlots.Count);
+    }
+
+    /// <summary>Clustermap renders to valid SVG.</summary>
+    [Fact]
+    public void Clustermap_RendersToValidSvg()
+    {
+        string svg = FigureTemplates.Clustermap(ClusterData).ToSvg();
+        Assert.Contains("<svg", svg);
+    }
 }

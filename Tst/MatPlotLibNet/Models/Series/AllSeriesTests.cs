@@ -53,6 +53,23 @@ public class AllSeriesTests
         { new SurfaceSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(SurfaceSeries) },
         { new WireframeSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(WireframeSeries) },
         { new Scatter3DSeries([1.0], [2.0], [3.0]), nameof(Scatter3DSeries) },
+        { new RugplotSeries(new double[] { 1.0, 2.0, 3.0 }), nameof(RugplotSeries) },
+        { new StripplotSeries([[1.0, 2.0], [3.0, 4.0]]), nameof(StripplotSeries) },
+        { new EventplotSeries([[1.0, 2.0], [3.0]]), nameof(EventplotSeries) },
+        { new BrokenBarSeries([[(1.0, 2.0), (4.0, 1.0)]]), nameof(BrokenBarSeries) },
+        { new CountSeries(["a", "b", "a"]), nameof(CountSeries) },
+        { new PcolormeshSeries(new double[] { 0.0, 1.0, 2.0 }, new double[] { 0.0, 1.0, 2.0 }, new double[,] { { 1, 2 }, { 3, 4 } }), nameof(PcolormeshSeries) },
+        { new ResidualSeries(new double[] { 1.0, 2.0, 3.0 }, new double[] { 2.0, 4.0, 6.0 }), nameof(ResidualSeries) },
+        { new PointplotSeries([[1.0, 2.0, 3.0], [4.0, 5.0]]), nameof(PointplotSeries) },
+        { new SwarmplotSeries([[1.0, 2.0], [3.0, 4.0]]), nameof(SwarmplotSeries) },
+        { new SpectrogramSeries(new double[] { 1.0, 0.5, -0.5, -1.0, 0.0, 0.5, 1.0, 0.5 }), nameof(SpectrogramSeries) },
+        { new TableSeries([["a", "b"], ["c", "d"]]), nameof(TableSeries) },
+        { new TricontourSeries(new double[] { 0.0, 1.0, 0.5 }, new double[] { 0.0, 0.0, 1.0 }, new double[] { 1.0, 2.0, 3.0 }), nameof(TricontourSeries) },
+        { new TripcolorSeries(new double[] { 0.0, 1.0, 0.5 }, new double[] { 0.0, 0.0, 1.0 }, new double[] { 1.0, 2.0, 3.0 }), nameof(TripcolorSeries) },
+        { new QuiverKeySeries(0.5, 0.9, 1.0, "1 m/s"), nameof(QuiverKeySeries) },
+        { new BarbsSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 10.0, 20.0 }, new double[] { 45.0, 90.0 }), nameof(BarbsSeries) },
+        { new Stem3DSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 3.0, 4.0 }), nameof(Stem3DSeries) },
+        { new Bar3DSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 3.0, 4.0 }), nameof(Bar3DSeries) },
     };
 
     /// <summary>Verifies that Label defaults to null for every series type.</summary>

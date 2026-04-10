@@ -154,6 +154,76 @@ public sealed class FigureBuilder
     public FigureBuilder Scatter3D(double[] x, double[] y, double[] z, Action<Scatter3DSeries>? configure = null) =>
         AddSeries(ax => ax.Scatter3D(x, y, z), configure);
 
+    /// <summary>Adds a 3D stem series to the default axes.</summary>
+    public FigureBuilder Stem3D(double[] x, double[] y, double[] z, Action<Stem3DSeries>? configure = null) =>
+        AddSeries(ax => ax.Stem3D(x, y, z), configure);
+
+    /// <summary>Adds a 3D bar series to the default axes.</summary>
+    public FigureBuilder Bar3D(double[] x, double[] y, double[] z, Action<Bar3DSeries>? configure = null) =>
+        AddSeries(ax => ax.Bar3D(x, y, z), configure);
+
+    // --- v0.8.0 shortcuts ---
+
+    /// <summary>Adds a rug plot series to the default axes.</summary>
+    public FigureBuilder Rugplot(double[] data, Action<RugplotSeries>? configure = null) =>
+        AddSeries(ax => ax.Rugplot(data), configure);
+
+    /// <summary>Adds a strip plot series to the default axes.</summary>
+    public FigureBuilder Stripplot(double[][] datasets, Action<StripplotSeries>? configure = null) =>
+        AddSeries(ax => ax.Stripplot(datasets), configure);
+
+    /// <summary>Adds an event plot series to the default axes.</summary>
+    public FigureBuilder Eventplot(double[][] positions, Action<EventplotSeries>? configure = null) =>
+        AddSeries(ax => ax.Eventplot(positions), configure);
+
+    /// <summary>Adds a broken bar series to the default axes.</summary>
+    public FigureBuilder BrokenBarH((double Start, double Width)[][] ranges, Action<BrokenBarSeries>? configure = null) =>
+        AddSeries(ax => ax.BrokenBarH(ranges), configure);
+
+    /// <summary>Adds a count plot series to the default axes.</summary>
+    public FigureBuilder Countplot(string[] values, Action<CountSeries>? configure = null) =>
+        AddSeries(ax => ax.Countplot(values), configure);
+
+    /// <summary>Adds a pseudocolor mesh series to the default axes.</summary>
+    public FigureBuilder Pcolormesh(double[] x, double[] y, double[,] c, Action<PcolormeshSeries>? configure = null) =>
+        AddSeries(ax => ax.Pcolormesh(x, y, c), configure);
+
+    /// <summary>Adds a residual plot series to the default axes.</summary>
+    public FigureBuilder Residplot(double[] x, double[] y, Action<ResidualSeries>? configure = null) =>
+        AddSeries(ax => ax.Residplot(x, y), configure);
+
+    /// <summary>Adds a point plot series to the default axes.</summary>
+    public FigureBuilder Pointplot(double[][] datasets, Action<PointplotSeries>? configure = null) =>
+        AddSeries(ax => ax.Pointplot(datasets), configure);
+
+    /// <summary>Adds a swarm plot series to the default axes.</summary>
+    public FigureBuilder Swarmplot(double[][] datasets, Action<SwarmplotSeries>? configure = null) =>
+        AddSeries(ax => ax.Swarmplot(datasets), configure);
+
+    /// <summary>Adds a spectrogram series to the default axes.</summary>
+    public FigureBuilder Spectrogram(double[] signal, int sampleRate = 1, Action<SpectrogramSeries>? configure = null) =>
+        AddSeries(ax => ax.Spectrogram(signal, sampleRate), configure);
+
+    /// <summary>Adds a table series to the default axes.</summary>
+    public FigureBuilder Table(string[][] cellData, Action<TableSeries>? configure = null) =>
+        AddSeries(ax => ax.Table(cellData), configure);
+
+    /// <summary>Adds a contour series on a triangular mesh to the default axes.</summary>
+    public FigureBuilder Tricontour(double[] x, double[] y, double[] z, Action<TricontourSeries>? configure = null) =>
+        AddSeries(ax => ax.Tricontour(x, y, z), configure);
+
+    /// <summary>Adds a pseudocolor series on a triangular mesh to the default axes.</summary>
+    public FigureBuilder Tripcolor(double[] x, double[] y, double[] z, Action<TripcolorSeries>? configure = null) =>
+        AddSeries(ax => ax.Tripcolor(x, y, z), configure);
+
+    /// <summary>Adds a quiver key series to the default axes.</summary>
+    public FigureBuilder QuiverKey(double x, double y, double u, string label, Action<QuiverKeySeries>? configure = null) =>
+        AddSeries(ax => ax.QuiverKey(x, y, u, label), configure);
+
+    /// <summary>Adds a wind barb series to the default axes.</summary>
+    public FigureBuilder Barbs(double[] x, double[] y, double[] speed, double[] direction, Action<BarbsSeries>? configure = null) =>
+        AddSeries(ax => ax.Barbs(x, y, speed, direction), configure);
+
     /// <summary>Sets the grid specification for advanced subplot layouts with ratios and spanning.</summary>
     public FigureBuilder WithGridSpec(int rows, int cols, double[]? heightRatios = null, double[]? widthRatios = null)
     {

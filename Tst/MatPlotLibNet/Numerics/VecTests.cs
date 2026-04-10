@@ -196,4 +196,43 @@ public class VecTests
         Vec b = arr;
         Assert.Equal(a, b);
     }
+
+    // --- Percentile / Quantile (v0.8.0) ---
+
+    [Fact]
+    public void Percentile_Median_ReturnsMiddleValue()
+    {
+        Vec v = new double[] { 1.0, 2.0, 3.0, 4.0, 5.0 };
+        Assert.Equal(3.0, v.Percentile(50));
+    }
+
+    [Fact]
+    public void Percentile_Q1Q3_CorrectValues()
+    {
+        Vec v = new double[] { 1.0, 2.0, 3.0, 4.0, 5.0 };
+        Assert.Equal(2.0, v.Percentile(25));
+        Assert.Equal(4.0, v.Percentile(75));
+    }
+
+    [Fact]
+    public void Percentile_Boundary_ZeroAndHundred()
+    {
+        Vec v = new double[] { 10.0, 20.0, 30.0 };
+        Assert.Equal(10.0, v.Percentile(0));
+        Assert.Equal(30.0, v.Percentile(100));
+    }
+
+    [Fact]
+    public void Percentile_SingleElement_ReturnsThatElement()
+    {
+        Vec v = new double[] { 42.0 };
+        Assert.Equal(42.0, v.Percentile(50));
+    }
+
+    [Fact]
+    public void Quantile_EquivalentToPercentile()
+    {
+        Vec v = new double[] { 1.0, 2.0, 3.0, 4.0, 5.0 };
+        Assert.Equal(v.Percentile(75), v.Quantile(0.75));
+    }
 }

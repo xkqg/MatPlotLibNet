@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.0] - Unreleased
+
+### Added
+
+**17 new series types (43 → 60)**
+
+*Phase A — Statistical & categorical:*
+- `RugplotSeries` — tick marks along X axis showing individual data distribution (`Vec Data`, `Height`, `Alpha`, `LineWidth`)
+- `StripplotSeries` — jittered points per category (`double[][] Datasets`, `Jitter`, `MarkerSize`, `Alpha`)
+- `EventplotSeries` — vertical tick lines per event row (`double[][] Positions`, `LineLength`, `Colors[]`)
+- `BrokenBarSeries` — broken horizontal bars for Gantt-style ranges (`(double Start, double Width)[][]`, `BarHeight`)
+- `CountSeries` — bar chart auto-counting category frequencies (`string[] Values`, `BarOrientation`)
+- `PcolormeshSeries` — pseudocolor grid with irregular quad cells (`Vec X`, `Vec Y`, `double[,] C`, `IColorMap`)
+- `ResidualSeries` — residual scatter from polynomial fit (`Vec XData`, `Vec YData`, `Degree`, `ShowZeroLine`)
+
+*Phase B — Statistical helpers + dependent series:*
+- `PointplotSeries` — mean + confidence interval per category dataset (`CapSize`, `ConfidenceLevel`)
+- `SwarmplotSeries` — beeswarm-algorithm non-overlapping dot plot (`MarkerSize`, `Alpha`)
+- `SpectrogramSeries` — STFT spectrogram heatmap (`Vec Signal`, `SampleRate`, `WindowSize`, `Overlap`, `IColorMap`)
+- `TableSeries` — tabular data rendered inside axes (`string[][] CellData`, `ColumnHeaders`, `RowHeaders`)
+
+*Phase C — Triangular mesh & field:*
+- `TricontourSeries` — iso-contour lines on unstructured triangular mesh (`Vec X`, `Vec Y`, `Vec Z`, `Levels`)
+- `TripcolorSeries` — pseudocolor fill on triangular mesh with auto-Delaunay (`int[]? Triangles`)
+- `QuiverKeySeries` — reference arrow legend for quiver plots (axes-fraction position, `U`, `Label`)
+- `BarbsSeries` — meteorological wind barbs with speed/direction flags (`Vec Speed`, `Vec Direction`, `BarbLength`)
+
+*Phase D — 3D:*
+- `Stem3DSeries` — vertical lines from XY-plane to 3D data points (`Vec X`, `Vec Y`, `Vec Z`, `MarkerSize`)
+- `Bar3DSeries` — 3D rectangular prism bars with depth-sorted painter's algorithm (`BarWidth`)
+
+**5 new numeric helpers**
+- `Vec.Percentile(double p)` / `Vec.Quantile(double q)` — sorted linear-interpolation percentile on Vec
+- `Fft` (public static) — Cooley-Tukey radix-2 DIT with Hann window; `Forward(double[])` + `Stft(...)` → `StftResult(Magnitudes, Frequencies, Times)`
+- `BeeswarmLayout` (internal static) — greedy O(n²) circle-packing for swarm plots; falls back to deterministic jitter for N > 1000
+- `Delaunay` (public static) — Bowyer-Watson incremental triangulation returning `TriMesh(int[] Triangles, double[] X, double[] Y)`
+- `HierarchicalClustering` (public static) — Ward's method agglomerative clustering returning `Dendrogram(DendrogramNode[] Merges, int[] LeafOrder)`
+
+**3 new FigureTemplates**
+- `FigureTemplates.PairPlot(double[][] columns, string[]? columnNames, int bins)` — N×N grid; diagonal = histograms, off-diagonal = scatter
+- `FigureTemplates.FacetGrid(double[] x, double[] y, string[] category, Action<AxesBuilder, double[], double[]> plotFunc, int cols)` — one subplot per unique category
+- `FigureTemplates.Clustermap(double[,] data, string[]? rowLabels, string[]? colLabels)` — 2×2 GridSpec heatmap with row/column dendrograms
+
+**Tests: 1924 → 2268 (+344)**
+
+---
+
 ## [0.7.0] - Unreleased
 
 ### Added

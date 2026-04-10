@@ -154,6 +154,28 @@ public readonly record struct Vec(double[] Data)
     public ReadOnlySpan<double> AsSpan() => Data.AsSpan();
 
     // -------------------------------------------------------------------------
+    // Statistical methods (v0.8.0)
+    // -------------------------------------------------------------------------
+
+    /// <summary>Returns the value at the specified percentile using linear interpolation.</summary>
+    /// <param name="p">Percentile in [0, 100].</param>
+    public double Percentile(double p)
+    {
+        if (Length == 0) throw new InvalidOperationException("Percentile of empty Vec.");
+        if (Length == 1) return Data[0];
+        var sorted = Data.ToArray();
+        Array.Sort(sorted);
+        double idx = (sorted.Length - 1) * Math.Clamp(p, 0.0, 100.0) / 100.0;
+        int lower = (int)Math.Floor(idx);
+        int upper = Math.Min(lower + 1, sorted.Length - 1);
+        return sorted[lower] + (idx - lower) * (sorted[upper] - sorted[lower]);
+    }
+
+    /// <summary>Returns the value at the specified quantile (0–1) using linear interpolation.</summary>
+    /// <param name="q">Quantile in [0, 1].</param>
+    public double Quantile(double q) => Percentile(q * 100.0);
+
+    // -------------------------------------------------------------------------
     // Conversions
     // -------------------------------------------------------------------------
 

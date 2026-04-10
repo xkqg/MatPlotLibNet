@@ -599,6 +599,174 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a 3D stem series and sets coordinate system to ThreeD.</summary>
+    public Stem3DSeries Stem3D(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new Stem3DSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a 3D bar series and sets coordinate system to ThreeD.</summary>
+    public Bar3DSeries Bar3D(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new Bar3DSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
+    // -------------------------------------------------------------------------
+    // v0.8.0 series
+    // -------------------------------------------------------------------------
+
+    /// <summary>Adds a rug plot series showing individual data values as tick marks along the X axis.</summary>
+    /// <param name="data">The data values to display as rug ticks.</param>
+    /// <returns>The newly created <see cref="RugplotSeries"/> for further configuration.</returns>
+    public RugplotSeries Rugplot(Numerics.Vec data)
+    {
+        var series = new RugplotSeries(data);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a strip plot series showing individual data points per category with random jitter.</summary>
+    /// <param name="datasets">An array of datasets, each containing values for one category.</param>
+    /// <returns>The newly created <see cref="StripplotSeries"/> for further configuration.</returns>
+    public StripplotSeries Stripplot(double[][] datasets)
+    {
+        var series = new StripplotSeries(datasets);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds an event plot series showing event positions as vertical tick lines per row.</summary>
+    /// <param name="positions">An array of event position sets, one per row.</param>
+    /// <returns>The newly created <see cref="EventplotSeries"/> for further configuration.</returns>
+    public EventplotSeries Eventplot(double[][] positions)
+    {
+        var series = new EventplotSeries(positions);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a broken bar series showing horizontal bars with gaps per row.</summary>
+    /// <param name="ranges">An array of (Start, Width) range sets, one per row.</param>
+    /// <returns>The newly created <see cref="BrokenBarSeries"/> for further configuration.</returns>
+    public BrokenBarSeries BrokenBarH((double Start, double Width)[][] ranges)
+    {
+        var series = new BrokenBarSeries(ranges);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a count plot series showing the frequency of raw categorical values as bars.</summary>
+    /// <param name="values">The raw categorical values to count and display.</param>
+    /// <returns>The newly created <see cref="CountSeries"/> for further configuration.</returns>
+    public CountSeries Countplot(string[] values)
+    {
+        var series = new CountSeries(values);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a pseudocolor mesh series on a non-uniform rectangular grid.</summary>
+    /// <param name="x">The M+1 X-axis edge coordinates.</param>
+    /// <param name="y">The N+1 Y-axis edge coordinates.</param>
+    /// <param name="c">The N×M data matrix.</param>
+    /// <returns>The newly created <see cref="PcolormeshSeries"/> for further configuration.</returns>
+    public PcolormeshSeries Pcolormesh(Numerics.Vec x, Numerics.Vec y, double[,] c)
+    {
+        var series = new PcolormeshSeries(x, y, c);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a residual plot series showing regression residuals as a scatter plot.</summary>
+    /// <param name="x">The X data values.</param>
+    /// <param name="y">The Y data values.</param>
+    /// <returns>The newly created <see cref="ResidualSeries"/> for further configuration.</returns>
+    public ResidualSeries Residplot(Numerics.Vec x, Numerics.Vec y)
+    {
+        var series = new ResidualSeries(x, y);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a point plot series showing mean ± confidence interval per category.</summary>
+    /// <param name="datasets">An array of datasets, one per category.</param>
+    /// <returns>The newly created <see cref="PointplotSeries"/> for further configuration.</returns>
+    public PointplotSeries Pointplot(double[][] datasets)
+    {
+        var series = new PointplotSeries(datasets);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a swarm plot series showing non-overlapping dots per category.</summary>
+    /// <param name="datasets">An array of datasets, one per category.</param>
+    /// <returns>The newly created <see cref="SwarmplotSeries"/> for further configuration.</returns>
+    public SwarmplotSeries Swarmplot(double[][] datasets)
+    {
+        var series = new SwarmplotSeries(datasets);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a spectrogram series displaying the time-frequency content of a signal.</summary>
+    /// <param name="signal">The input signal values.</param>
+    /// <param name="sampleRate">The sample rate in Hz.</param>
+    /// <returns>The newly created <see cref="SpectrogramSeries"/> for further configuration.</returns>
+    public SpectrogramSeries Spectrogram(Numerics.Vec signal, int sampleRate = 1)
+    {
+        var series = new SpectrogramSeries(signal) { SampleRate = sampleRate };
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a table series rendered inside the plot area.</summary>
+    /// <param name="cellData">2D array of cell text values (rows × columns).</param>
+    /// <returns>The newly created <see cref="TableSeries"/> for further configuration.</returns>
+    public TableSeries Table(string[][] cellData)
+    {
+        var series = new TableSeries(cellData);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a contour series on an unstructured triangular mesh.</summary>
+    public TricontourSeries Tricontour(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
+    {
+        var series = new TricontourSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a pseudocolor series on a triangular mesh.</summary>
+    public TripcolorSeries Tripcolor(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
+    {
+        var series = new TripcolorSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a quiver key (reference arrow) series.</summary>
+    public QuiverKeySeries QuiverKey(double x, double y, double u, string label)
+    {
+        var series = new QuiverKeySeries(x, y, u, label);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a wind barb series.</summary>
+    public BarbsSeries Barbs(Numerics.Vec x, Numerics.Vec y, Numerics.Vec speed, Numerics.Vec direction)
+    {
+        var series = new BarbsSeries(x, y, speed, direction);
+        _series.Add(series);
+        return series;
+    }
+
     /// <summary>Adds a buy or sell signal marker at the specified data coordinates.</summary>
     public SignalMarker AddSignal(double x, double y, SignalDirection direction)
     {

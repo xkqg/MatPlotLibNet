@@ -81,6 +81,41 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private WireframeSeriesRenderer? _wireframe;
     private Scatter3DSeriesRenderer? _scatter3D;
 
+    // Distribution v0.8
+    private RugplotSeriesRenderer? _rugplot;
+    private StripplotSeriesRenderer? _stripplot;
+
+    // Categorical v0.8
+    private EventplotSeriesRenderer? _eventplot;
+    private BrokenBarSeriesRenderer? _brokenBar;
+    private CountSeriesRenderer? _count;
+
+    // Grid v0.8
+    private PcolormeshSeriesRenderer? _pcolormesh;
+
+    // XY v0.8
+    private ResidualSeriesRenderer? _residual;
+
+    // Categorical v0.8 B
+    private PointplotSeriesRenderer? _pointplot;
+
+    // Distribution v0.8 B
+    private SwarmplotSeriesRenderer? _swarmplot;
+
+    // Grid v0.8 B
+    private SpectrogramSeriesRenderer? _spectrogram;
+
+    // Special v0.8 B
+    private TableSeriesRenderer? _table;
+
+    // Grid v0.8 C
+    private TricontourSeriesRenderer? _tricontour;
+    private TripcolorSeriesRenderer? _tripcolor;
+
+    // Field v0.8 C
+    private QuiverKeySeriesRenderer? _quiverKey;
+    private BarbsSeriesRenderer? _barbs;
+
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor, bool tooltipsEnabled = false)
     {
         _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(default, ctx))
@@ -195,4 +230,54 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(WireframeSeries s, RenderArea a) => (_wireframe ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(Scatter3DSeries s, RenderArea a) => (_scatter3D ??= new(_context)).Render(s);
+
+    // Distribution v0.8
+    /// <inheritdoc />
+    public void Visit(RugplotSeries s, RenderArea a) => (_rugplot ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(StripplotSeries s, RenderArea a) => (_stripplot ??= new(_context)).Render(s);
+
+    // Categorical v0.8
+    /// <inheritdoc />
+    public void Visit(EventplotSeries s, RenderArea a) => (_eventplot ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(BrokenBarSeries s, RenderArea a) => (_brokenBar ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(CountSeries s, RenderArea a) => (_count ??= new(_context)).Render(s);
+
+    // Grid v0.8
+    /// <inheritdoc />
+    public void Visit(PcolormeshSeries s, RenderArea a) => (_pcolormesh ??= new(_context)).Render(s);
+
+    // XY v0.8
+    /// <inheritdoc />
+    public void Visit(ResidualSeries s, RenderArea a) => (_residual ??= new(_context)).Render(s);
+
+    // Phase B additions
+    /// <inheritdoc />
+    public void Visit(PointplotSeries s, RenderArea a) => (_pointplot ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(SwarmplotSeries s, RenderArea a) => (_swarmplot ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(SpectrogramSeries s, RenderArea a) => (_spectrogram ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(TableSeries s, RenderArea a) => (_table ??= new(_context)).Render(s);
+
+    // Phase C additions
+    /// <inheritdoc />
+    public void Visit(TricontourSeries s, RenderArea a) => (_tricontour ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(TripcolorSeries s, RenderArea a) => (_tripcolor ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(QuiverKeySeries s, RenderArea a) => (_quiverKey ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(BarbsSeries s, RenderArea a) => (_barbs ??= new(_context)).Render(s);
+
+    // Phase D additions
+    private Stem3DSeriesRenderer? _stem3D;
+    private Bar3DSeriesRenderer? _bar3D;
+    /// <inheritdoc />
+    public void Visit(Stem3DSeries s, RenderArea a) => (_stem3D ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(Bar3DSeries s, RenderArea a) => (_bar3D ??= new(_context)).Render(s);
 }

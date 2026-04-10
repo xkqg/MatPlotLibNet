@@ -1256,3 +1256,146 @@ InterpolationRegistry.Register("lanczos", new LanczosInterpolation());
 // Use by name
 ax.Image(data, img => img.Interpolation = "lanczos");
 ```
+
+## §30 Statistical Distribution Series (v0.8.0)
+
+`RugplotSeries`, `StripplotSeries`, `SwarmplotSeries`, `PointplotSeries`, `CountSeries`, `ResidualSeries` — six new distribution and categorical series.
+
+```csharp
+// Rug plot — individual ticks along X axis at each data value
+ax.Rugplot(samples, r =>
+{
+    r.Height = 0.05;   // fraction of Y axis range
+    r.Alpha = 0.5;
+    r.Color = Color.Teal;
+});
+
+// Strip plot — jittered dots per category group
+ax.Stripplot(new[] { groupA, groupB }, s =>
+{
+    s.Jitter = 0.2;
+    s.MarkerSize = 5;
+    s.Alpha = 0.8;
+});
+
+// Swarm plot — BeeswarmLayout algorithm, no overlap
+ax.Swarmplot(new[] { groupA, groupB, groupC }, s =>
+{
+    s.MarkerSize = 4;
+    s.Alpha = 0.7;
+});
+
+// Point plot — per-category mean with 95% CI bars
+ax.Pointplot(datasets, p =>
+{
+    p.CapSize = 0.2;
+    p.ConfidenceLevel = 0.95;
+    p.MarkerSize = 8;
+});
+
+// Count plot — bar chart from raw categorical labels
+ax.Countplot(new[] { "red", "blue", "red", "green", "red", "blue" });
+
+// Residual plot — scatter of polynomial fit residuals
+ax.Residplot(xData, yData, r =>
+{
+    r.Degree = 1;           // linear fit (default)
+    r.ShowZeroLine = true;  // dashed y=0 reference line
+    r.MarkerSize = 6;
+});
+```
+
+## §31 Spectrogram and Pseudocolor Mesh (v0.8.0)
+
+`SpectrogramSeries`, `PcolormeshSeries` — frequency-time and irregular grid coloring.
+
+```csharp
+// Spectrogram — STFT of audio signal
+ax.Spectrogram(signal, sampleRate: 44100, s =>
+{
+    s.WindowSize = 256;
+    s.Overlap = 128;
+    s.ColorMap = ColorMaps.Inferno;
+});
+
+// Pseudocolor mesh — fill rectangular cells (X/Y are edge coordinates, C is N×M values)
+ax.Pcolormesh(xEdges, yEdges, values, m =>
+    m.ColorMap = ColorMaps.Viridis);
+```
+
+## §32 Triangular Mesh & Wind Field Series (v0.8.0)
+
+`TricontourSeries`, `TripcolorSeries`, `BarbsSeries`, `QuiverKeySeries`, and `TableSeries`.
+
+```csharp
+// Tricontour — iso-lines on unstructured (x, y, z) triplets
+ax.Tricontour(x, y, z, tc =>
+{
+    tc.Levels = 10;
+    tc.ColorMap = ColorMaps.Coolwarm;
+});
+
+// Tripcolor — per-triangle pseudocolor (auto-Delaunay or explicit triangles)
+ax.Tripcolor(x, y, z, tc => tc.ColorMap = ColorMaps.Plasma);
+
+// Wind barbs — meteorological speed/direction notation
+ax.Barbs(x, y, speed, direction, b =>
+{
+    b.BarbLength = 15;
+    b.Color = Color.Navy;
+});
+
+// Quiver key — adds a reference arrow legend for quiver series
+ax.QuiverKey(0.85, 0.92, 10.0, "10 m/s");
+
+// Table — render a data table inside axes
+ax.Table(
+    new[] { new[] { "Alice", "90", "A" }, new[] { "Bob", "75", "B" } },
+    t =>
+    {
+        t.ColumnHeaders = new[] { "Name", "Score", "Grade" };
+        t.RowHeaders = new[] { "1", "2" };
+        t.FontSize = 11;
+    });
+```
+
+## §33 3D Stem / Bar, Templates: PairPlot, FacetGrid, Clustermap (v0.8.0)
+
+**3D Stem and Bar:**
+```csharp
+// Stem3D — vertical lines from XY-plane to (x, y, z) tips
+Plt.Create().Stem3D(x, y, z, s => s.MarkerSize = 6).Save("stem3d");
+
+// Bar3D — rectangular prisms rising from XY-plane
+Plt.Create().Bar3D(x, y, heights, b =>
+{
+    b.BarWidth = 0.4;
+    b.Color = Color.SteelBlue;
+}).Save("bar3d");
+```
+
+**PairPlot:**
+```csharp
+double[][] columns = [columnA, columnB, columnC];
+FigureTemplates.PairPlot(columns, new[] { "A", "B", "C" }, bins: 20)
+    .Save("pairplot");
+// Produces a 3×3 grid: diagonal = histograms, off-diagonal = scatter plots
+```
+
+**FacetGrid:**
+```csharp
+FigureTemplates.FacetGrid(
+    x, y, category,
+    (ax, fx, fy) => ax.Scatter(fx, fy),
+    cols: 3)
+    .Save("facet");
+// Filters x/y by each unique category and places one subplot per category
+```
+
+**Clustermap:**
+```csharp
+FigureTemplates.Clustermap(data, rowLabels, colLabels)
+    .Save("clustermap");
+// 2×2 GridSpec: top-right = column dendrogram, bottom-left = row dendrogram,
+// bottom-right = heatmap reordered by Ward's hierarchical clustering
+```

@@ -399,6 +399,14 @@ public sealed class AxesBuilder
     public AxesBuilder Scatter3D(double[] x, double[] y, double[] z, Action<Scatter3DSeries>? configure = null)
         => AddSeries(ax => ax.Scatter3D(x, y, z), configure);
 
+    /// <summary>Adds a 3D stem series to the axes.</summary>
+    public AxesBuilder Stem3D(double[] x, double[] y, double[] z, Action<Stem3DSeries>? configure = null)
+        => AddSeries(ax => ax.Stem3D(x, y, z), configure);
+
+    /// <summary>Adds a 3D bar series to the axes.</summary>
+    public AxesBuilder Bar3D(double[] x, double[] y, double[] z, Action<Bar3DSeries>? configure = null)
+        => AddSeries(ax => ax.Bar3D(x, y, z), configure);
+
     /// <summary>Sets the 3D projection angles for ThreeD coordinate system axes.</summary>
     public AxesBuilder WithProjection(double elevation = 30, double azimuth = -60)
     {
@@ -434,6 +442,68 @@ public sealed class AxesBuilder
     /// <summary>Adds a filled area (fill-between) series to the axes.</summary>
     public AxesBuilder FillBetween(double[] x, double[] y, double[]? y2 = null, Action<AreaSeries>? configure = null)
         => AddSeries(ax => ax.FillBetween(x, y, y2), configure);
+
+    // --- v0.8.0 builder methods ---
+
+    /// <summary>Adds a rug plot series to the axes.</summary>
+    public AxesBuilder Rugplot(double[] data, Action<RugplotSeries>? configure = null)
+        => AddSeries(ax => ax.Rugplot(data), configure);
+
+    /// <summary>Adds a strip plot series to the axes.</summary>
+    public AxesBuilder Stripplot(double[][] datasets, Action<StripplotSeries>? configure = null)
+        => AddSeries(ax => ax.Stripplot(datasets), configure);
+
+    /// <summary>Adds an event plot series to the axes.</summary>
+    public AxesBuilder Eventplot(double[][] positions, Action<EventplotSeries>? configure = null)
+        => AddSeries(ax => ax.Eventplot(positions), configure);
+
+    /// <summary>Adds a broken bar series to the axes.</summary>
+    public AxesBuilder BrokenBarH((double Start, double Width)[][] ranges, Action<BrokenBarSeries>? configure = null)
+        => AddSeries(ax => ax.BrokenBarH(ranges), configure);
+
+    /// <summary>Adds a count plot series to the axes.</summary>
+    public AxesBuilder Countplot(string[] values, Action<CountSeries>? configure = null)
+        => AddSeries(ax => ax.Countplot(values), configure);
+
+    /// <summary>Adds a pseudocolor mesh series to the axes.</summary>
+    public AxesBuilder Pcolormesh(double[] x, double[] y, double[,] c, Action<PcolormeshSeries>? configure = null)
+        => AddSeries(ax => ax.Pcolormesh(x, y, c), configure);
+
+    /// <summary>Adds a residual plot series to the axes.</summary>
+    public AxesBuilder Residplot(double[] x, double[] y, Action<ResidualSeries>? configure = null)
+        => AddSeries(ax => ax.Residplot(x, y), configure);
+
+    /// <summary>Adds a point plot series to the axes.</summary>
+    public AxesBuilder Pointplot(double[][] datasets, Action<PointplotSeries>? configure = null)
+        => AddSeries(ax => ax.Pointplot(datasets), configure);
+
+    /// <summary>Adds a swarm plot series to the axes.</summary>
+    public AxesBuilder Swarmplot(double[][] datasets, Action<SwarmplotSeries>? configure = null)
+        => AddSeries(ax => ax.Swarmplot(datasets), configure);
+
+    /// <summary>Adds a spectrogram series to the axes.</summary>
+    public AxesBuilder Spectrogram(double[] signal, int sampleRate = 1, Action<SpectrogramSeries>? configure = null)
+        => AddSeries(ax => ax.Spectrogram(signal, sampleRate), configure);
+
+    /// <summary>Adds a table series to the axes.</summary>
+    public AxesBuilder Table(string[][] cellData, Action<TableSeries>? configure = null)
+        => AddSeries(ax => ax.Table(cellData), configure);
+
+    /// <summary>Adds a contour series on an unstructured triangular mesh to the axes.</summary>
+    public AxesBuilder Tricontour(double[] x, double[] y, double[] z, Action<TricontourSeries>? configure = null)
+        => AddSeries(ax => ax.Tricontour(x, y, z), configure);
+
+    /// <summary>Adds a pseudocolor series on a triangular mesh to the axes.</summary>
+    public AxesBuilder Tripcolor(double[] x, double[] y, double[] z, Action<TripcolorSeries>? configure = null)
+        => AddSeries(ax => ax.Tripcolor(x, y, z), configure);
+
+    /// <summary>Adds a quiver key series to the axes.</summary>
+    public AxesBuilder QuiverKey(double x, double y, double u, string label, Action<QuiverKeySeries>? configure = null)
+        => AddSeries(ax => ax.QuiverKey(x, y, u, label), configure);
+
+    /// <summary>Adds a wind barb series to the axes.</summary>
+    public AxesBuilder Barbs(double[] x, double[] y, double[] speed, double[] direction, Action<BarbsSeries>? configure = null)
+        => AddSeries(ax => ax.Barbs(x, y, speed, direction), configure);
 
     private AxesBuilder AddSeries<T>(Func<Axes, T> factory, Action<T>? configure) where T : ISeries
     {
