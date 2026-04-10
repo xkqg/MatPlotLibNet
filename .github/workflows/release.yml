@@ -22,4 +22,5 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           gh release create "$TAG" \
             --title "$TAG" \
-            --generate-notes
+            --generate-notes \
+            --update-if-exists
