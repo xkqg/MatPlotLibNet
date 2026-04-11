@@ -82,6 +82,13 @@ public interface IRenderContext
         foreach (var span in richText.Spans) sb.Append(span.Text);
         DrawText(sb.ToString(), position, font, alignment);
     }
+
+    /// <summary>
+    /// Draws a rotated <see cref="RichText"/> value. Default implementation ignores rotation.
+    /// Override in <c>SvgRenderContext</c> to emit the rotation transform.
+    /// </summary>
+    void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment, double rotation)
+        => DrawRichText(richText, position, font, alignment);
 }
 
 /// <summary>Base record for path drawing segments used by <see cref="IRenderContext.DrawPath"/>.</summary>

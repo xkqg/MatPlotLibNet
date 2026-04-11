@@ -18,11 +18,13 @@ public class DashPatternTests
     public void None_ReturnsEmptyArray()
         => Assert.Empty(DashPatterns.GetPattern(LineStyle.None).ToArray());
 
-    /// <summary>Verifies that non-solid line styles return the correct dash-gap ratios.</summary>
+    /// <summary>Verifies that non-solid line styles return the correct dash-gap ratios.
+    /// Patterns are calibrated to match matplotlib defaults at ~96 dpi:
+    /// '--' ≈ 3.7pt/1.6pt → 5/2px; ':' ≈ 1pt/3pt → 1/3px; '-.' ≈ 5/2/1/2px.</summary>
     [Theory]
-    [InlineData(LineStyle.Dashed, new double[] { 8, 4 })]
-    [InlineData(LineStyle.Dotted, new double[] { 2, 4 })]
-    [InlineData(LineStyle.DashDot, new double[] { 8, 4, 2, 4 })]
+    [InlineData(LineStyle.Dashed,  new double[] { 5, 2 })]
+    [InlineData(LineStyle.Dotted,  new double[] { 1, 3 })]
+    [InlineData(LineStyle.DashDot, new double[] { 5, 2, 1, 2 })]
     public void NonSolid_ReturnsCorrectRatios(LineStyle style, double[] expected)
         => Assert.Equal(expected, DashPatterns.GetPattern(style).ToArray());
 }

@@ -4,9 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.2] - 2026-04-11
+
+### Fixed
+
+- **Y-axis label rotation** — `RenderAxisLabels` now passes `rotation: 90` to `DrawText` / `DrawRichText`; previously Y-axis labels rendered horizontally flush to the left edge
+- **Dollar sign stripped from labels** — `MathTextParser.ContainsMath` now requires two `$` delimiters; a lone `$` (e.g. `"Revenue ($)"`) was incorrectly toggling math mode and discarding the character
+- **Heatmap / area-based series blank** — `SvgSeriesRenderer` was initialising `RenderArea` with `default(Rect)` (zero width × height); renderers that derive cell size from `PlotBounds` (Heatmap, Hexbin, Pcolormesh, Spectrogram, Tripcolor) now receive the correct plot area
+- **Indicator chaining crash** — `AxesBuilder.GetPriceData()` now prefers `CandlestickSeries` / `OhlcBarSeries` over the last series; calling `BollingerBands` followed by `Sma` on the same axes no longer throws `InvalidOperationException`
+
+### Added
+
+- **`DrawRichText` rotation overload** — `IRenderContext.DrawRichText(RichText, Point, Font, TextAlignment, double rotation)` default interface method; `SvgRenderContext` override emits `transform="rotate(…)"` enabling rotated math-text Y-axis labels
+- **`BarCenterFormatter`** — new `ITickFormatter` that centres category labels under each bar group
+- **`MultipleLocator` center-offset** — optional `centerOffset` parameter aligns tick positions to bar centres for categorical bar charts
+
+### Tests: 2430 → 2432 (+2)
+
+- `BollingerBands_ThenSma_DoesNotThrow`
+- `BollingerBands_ThenSma_ResolvesOriginalPriceData`
+
+---
+
 ## [0.8.1] - 2026-04-11
 
-> **Note:** Phase 1 (CSS4 Named Colors — 148 colors + `Color.FromName()`) is deferred to the next release (v0.8.2).
+> **Note:** Phase 1 (CSS4 Named Colors — 148 colors + `Color.FromName()`) is deferred to v0.8.3.
 
 ### Added
 

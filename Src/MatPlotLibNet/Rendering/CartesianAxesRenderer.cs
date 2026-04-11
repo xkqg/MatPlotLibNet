@@ -44,12 +44,11 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         bool radarOnly = Axes.Series.Count > 0 && Axes.Series.All(s => s is RadarSeries);
         if (!radarOnly)
         {
-            // Grid
-            if (Axes.Grid.Visible)
-                RenderGrid(xTicks, yTicks, range.YMin, transform);
-
-            // Axes spines (border lines)
-            RenderSpines(transform);
+            // Grid — axes-level setting overrides theme when explicitly set (Visible=true);
+            // otherwise fall back to Theme.DefaultGrid so the theme controls the default.
+            var effectiveGrid = Axes.Grid.Visible ? Axes.Grid : Theme.DefaultGrid;
+            if (effectiveGrid.Visible)
+                RenderGrid(xTicks, yTicks, range.YMin, transform, effectiveGrid);
 
             // Tick marks and labels
             RenderTicks(xTicks, yTicks, range.YMin, transform);
@@ -130,7 +129,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 if (!series.Visible) continue;
                 int colorIndex = Axes.Series.Count + i;
                 var seriesColor = Theme.CycleColors[colorIndex % Theme.CycleColors.Length];
-                var renderer = new SvgSeriesRenderer(secTransform, Ctx, seriesColor);
+                var renderer = new SvgSeriesRenderer(secTransform, Ctx, seriesColor, plotArea: PlotArea);
                 var area = new RenderArea(PlotArea, Ctx);
                 series.Accept(renderer, area);
             }
@@ -222,6 +221,10 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             Ctx.DrawPolygon(triangle, signalColor, null, 0);
         }
 
+        // Axes spines — rendered after series so they appear on top of fills/areas
+        if (!radarOnly)
+            RenderSpines(transform);
+
         // Legend
         RenderLegend();
 
@@ -236,11 +239,11 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     }
 
     /// <summary>Renders major grid lines behind the plot area at each tick position.</summary>
-    private void RenderGrid(double[] xTicks, double[] yTicks, double yMin, DataTransform transform)
+    private void RenderGrid(double[] xTicks, double[] yTicks, double yMin, DataTransform transform, GridStyle grid)
     {
-        var gridColor = Axes.Grid.Color;
-        var gridStyle = Axes.Grid.LineStyle;
-        double gridWidth = Axes.Grid.LineWidth;
+        var gridColor = grid.Color;
+        var gridStyle = grid.LineStyle;
+        double gridWidth = grid.LineWidth;
 
         foreach (var tick in xTicks)
         {
@@ -267,7 +270,9 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         var tickFont = TickFont();
 
         var categoryLabeled = Axes.Series.OfType<ICategoryLabeled>().FirstOrDefault(s => s.CategoryLabels is not null);
-        if (categoryLabeled?.CategoryLabels is not null)
+        // When a custom TickLocator is set it takes priority — use the standard tick path so the
+        // locator controls spacing (e.g. MultipleLocator(5,0.5) for bar charts with many bars).
+        if (categoryLabeled?.CategoryLabels is not null && Axes.XAxis.TickLocator is null)
             RenderCategoryLabels(categoryLabeled.CategoryLabels, yMin, transform);
         else
         {
@@ -334,7 +339,8 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         var tickFont = TickFont();
         for (int i = 0; i < labels.Length; i++)
         {
-            var pt = transform.DataToPixel(i, yMin);
+            // Bar slot [i, i+1] has its center at i+0.5 — place the label there.
+            var pt = transform.DataToPixel(i + 0.5, yMin);
             Ctx.DrawText(labels[i],
                 new Point(pt.X, PlotArea.Y + PlotArea.Height + 15),
                 tickFont, TextAlignment.Center);
@@ -382,8 +388,8 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         if (Math.Abs(xMax - xMin) < 1e-10) { xMin -= 0.5; xMax += 0.5; }
         if (Math.Abs(yMax - yMin) < 1e-10) { yMin -= 0.5; yMax += 0.5; }
 
-        double xPadding = (xMax - xMin) * 0.05;
-        double yPadding = (yMax - yMin) * 0.05;
+        double xPadding = (xMax - xMin) * Axes.XAxis.Margin;
+        double yPadding = (yMax - yMin) * Axes.YAxis.Margin;
 
         if (!Axes.XAxis.Min.HasValue) xMin -= xPadding;
         if (!Axes.XAxis.Max.HasValue) xMax += xPadding;

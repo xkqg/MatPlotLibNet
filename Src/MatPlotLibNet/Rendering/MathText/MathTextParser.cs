@@ -107,8 +107,17 @@ public static class MathTextParser
         return new RichText(spans);
     }
 
-    /// <summary>Returns <see langword="true"/> when the string contains at least one <c>$</c> delimiter.</summary>
-    public static bool ContainsMath(string? text) => text is not null && text.Contains('$');
+    /// <summary>
+    /// Returns <see langword="true"/> when the string contains at least two <c>$</c> delimiters,
+    /// indicating a properly-delimited math expression like <c>$\alpha$</c>.
+    /// A single <c>$</c> (e.g. as a currency symbol in "Revenue ($)") is treated as a literal.
+    /// </summary>
+    public static bool ContainsMath(string? text)
+    {
+        if (text is null) return false;
+        int first = text.IndexOf('$');
+        return first >= 0 && text.IndexOf('$', first + 1) >= 0;
+    }
 
     // --- Helpers ---
 

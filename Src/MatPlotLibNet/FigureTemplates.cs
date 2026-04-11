@@ -3,6 +3,8 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering.TickLocators;
 
 namespace MatPlotLibNet;
 
@@ -39,10 +41,19 @@ public static class FigureTemplates
 
         if (title is not null) builder.WithTitle(title);
 
+        // Tick labels centered inside each bar slot: ticks at k*step+0.5, formatted as integer bar index.
+        // Step is chosen to yield ~10 visible ticks regardless of n.
+        double tickStep = Math.Max(1, Math.Round((double)n / 10));
+        var barLocator  = new MultipleLocator(tickStep, 0.5);
+        var barFormatter = new BarCenterFormatter();
+
         builder.AddSubPlot(new GridPosition(0, 1, 0, 1), ax =>
         {
             ax.Candlestick(open, high, low, close, labels);
             ax.SetYLabel("Price");
+            ax.SetXMargin(0);
+            ax.SetXTickLocator(barLocator);
+            ax.SetXTickFormatter(barFormatter);
             configurePricePanel?.Invoke(ax);
         });
 
@@ -52,12 +63,19 @@ public static class FigureTemplates
             for (int i = 0; i < n; i++) volLabels[i] = i.ToString();
             ax.Bar(volLabels, volume);
             ax.SetYLabel("Volume");
+            ax.SetXMargin(0);
+            ax.SetXTickLocator(barLocator);
+            ax.SetXTickFormatter(barFormatter);
             configureVolumePanel?.Invoke(ax);
         });
 
         builder.AddSubPlot(new GridPosition(2, 3, 0, 1), ax =>
         {
             ax.SetYLabel("Oscillator");
+            ax.SetXMargin(0);
+            ax.SetXLim(0, n);  // align x range with price/volume panels
+            ax.SetXTickLocator(barLocator);
+            ax.SetXTickFormatter(barFormatter);
             configureOscillatorPanel?.Invoke(ax);
         });
 

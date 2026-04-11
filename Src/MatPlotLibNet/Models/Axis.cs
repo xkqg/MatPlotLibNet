@@ -30,6 +30,12 @@ public sealed class Axis
     /// <summary>Gets or sets whether the axis direction is inverted.</summary>
     public bool Inverted { get; set; }
 
+    /// <summary>
+    /// Gets or sets the fraction of the data range added as padding on each side when auto-scaling.
+    /// Default is 0.05 (5%). Set to 0 for bar/candlestick axes that already include half-bar-width boundaries.
+    /// </summary>
+    public double Margin { get; set; } = 0.05;
+
     /// <summary>Gets or sets a custom tick formatter for this axis.</summary>
     public ITickFormatter? TickFormatter { get; set; }
 

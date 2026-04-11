@@ -11,8 +11,8 @@ public sealed record Font
     /// <summary>Gets the font family name.</summary>
     public string Family { get; init; } = "sans-serif";
 
-    /// <summary>Gets the font size in points.</summary>
-    public double Size { get; init; } = 12;
+    /// <summary>Gets the font size in CSS pixels. Default 13 ≈ matplotlib's 10pt at 96 dpi.</summary>
+    public double Size { get; init; } = 13;
 
     /// <summary>Gets the font weight.</summary>
     public FontWeight Weight { get; init; } = FontWeight.Normal;

@@ -29,7 +29,8 @@ public sealed class AreaSeries : XYSeries
     public Color? FillColor { get; set; }
 
     /// <summary>Creates a new area series from the given X and Y data.</summary>
-    public AreaSeries(double[] xData, double[] yData) : base(xData, yData) { }
+    /// <remarks>ZOrder defaults to -1 so fills render behind all other series (ZOrder 0).</remarks>
+    public AreaSeries(double[] xData, double[] yData) : base(xData, yData) { ZOrder = -1; }
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)

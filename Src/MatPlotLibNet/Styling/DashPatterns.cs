@@ -6,9 +6,13 @@ namespace MatPlotLibNet.Styling;
 /// <summary>Provides canonical dash-gap ratio patterns for each <see cref="LineStyle"/>.</summary>
 public static class DashPatterns
 {
-    private static readonly double[] DashedPattern = [8, 4];
-    private static readonly double[] DottedPattern = [2, 4];
-    private static readonly double[] DashDotPattern = [8, 4, 2, 4];
+    // Patterns calibrated to match matplotlib's default dash styles at ~96 dpi.
+    // matplotlib '--': 3.7pt on / 1.6pt off ≈ 5px/2px at 96 dpi.
+    // matplotlib ':' : 1pt   on / 3pt   off ≈ 1px/4px.
+    // matplotlib '-.': 5pt on / 2pt off / 1pt on / 2pt off ≈ 5/2/1/2.
+    private static readonly double[] DashedPattern  = [5, 2];
+    private static readonly double[] DottedPattern  = [1, 3];
+    private static readonly double[] DashDotPattern = [5, 2, 1, 2];
     private static readonly double[] EmptyPattern = [];
 
     /// <summary>Returns the dash-gap ratio array for the given line style.</summary>

@@ -28,6 +28,12 @@ public sealed class AxesBuilder
     /// <summary>Sets the Y-axis data range limits.</summary>
     public AxesBuilder SetYLim(double min, double max) { _axes.YAxis.Min = min; _axes.YAxis.Max = max; return this; }
 
+    /// <summary>Sets the auto-scale margin on each side of the X axis (default 0.05). Use 0 for bar/candlestick charts that already include half-bar-width padding.</summary>
+    public AxesBuilder SetXMargin(double margin) { _axes.XAxis.Margin = margin; return this; }
+
+    /// <summary>Sets the auto-scale margin on each side of the Y axis (default 0.05).</summary>
+    public AxesBuilder SetYMargin(double margin) { _axes.YAxis.Margin = margin; return this; }
+
     /// <summary>Sets the X-axis scale type (e.g., linear or logarithmic).</summary>
     public AxesBuilder SetXScale(AxisScale scale) { _axes.XAxis.Scale = scale; return this; }
 
@@ -547,6 +553,7 @@ public sealed class AxesBuilder
     public AxesBuilder Sma(int period, Action<Indicators.Sma>? configure = null)
     {
         var indicator = new Indicators.Sma(GetPriceData(), period);
+        if (HasCategoricalSeries()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -556,6 +563,7 @@ public sealed class AxesBuilder
     public AxesBuilder Ema(int period, Action<Indicators.Ema>? configure = null)
     {
         var indicator = new Indicators.Ema(GetPriceData(), period);
+        if (HasCategoricalSeries()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -565,6 +573,7 @@ public sealed class AxesBuilder
     public AxesBuilder BollingerBands(int period = 20, double stdDev = 2.0, Action<Indicators.BollingerBands>? configure = null)
     {
         var indicator = new Indicators.BollingerBands(GetPriceData(), period, stdDev);
+        if (HasCategoricalSeries()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -610,6 +619,7 @@ public sealed class AxesBuilder
     public AxesBuilder ParabolicSar(double[] high, double[] low, double step = 0.02, double max = 0.2, Action<Indicators.ParabolicSar>? configure = null)
     {
         var indicator = new Indicators.ParabolicSar(high, low, step, max);
+        if (HasCategoricalSeries()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -624,8 +634,19 @@ public sealed class AxesBuilder
         => AddSignal(x, y, SignalDirection.Sell, configure);
 
     /// <summary>Extracts Y data from the last series on the axes for indicator computation.</summary>
+    // Returns true when the axes contains a categorical series (bar/candlestick), so overlay
+    // indicators should shift their x values by +0.5 to align with bar centres (slot [i, i+1]).
+    private bool HasCategoricalSeries() =>
+        _axes.Series.Any(s => s is ICategoryLabeled);
+
     private double[] GetPriceData()
     {
+        // Prefer dedicated OHLC price series (candlestick, OHLC bar) over generic XY series,
+        // so that indicators chained after other indicators (e.g. BB then SMA) still resolve
+        // the original price data rather than the last indicator's output.
+        var canonical = _axes.Series.LastOrDefault(s => s is CandlestickSeries or OhlcBarSeries);
+        if (canonical is IPriceSeries ohlc) return ohlc.PriceData;
+
         var last = _axes.Series.LastOrDefault();
         return last is IPriceSeries price
             ? price.PriceData

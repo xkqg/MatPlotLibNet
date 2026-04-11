@@ -16,12 +16,12 @@ public class FontTests
         Assert.Equal("sans-serif", font.Family);
     }
 
-    /// <summary>Verifies that the default font size is 12.</summary>
+    /// <summary>Verifies that the default font size matches matplotlib's 10pt at 96 dpi (~13px).</summary>
     [Fact]
-    public void DefaultFont_Size12()
+    public void DefaultFont_Size13()
     {
         var font = new Font();
-        Assert.Equal(12, font.Size);
+        Assert.Equal(13, font.Size);
     }
 
     /// <summary>Verifies that the default font weight is Normal.</summary>

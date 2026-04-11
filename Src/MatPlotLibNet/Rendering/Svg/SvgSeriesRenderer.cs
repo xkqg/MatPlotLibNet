@@ -117,9 +117,9 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private BarbsSeriesRenderer? _barbs;
 
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor,
-        CycledProperties? cycledProps = null, bool tooltipsEnabled = false)
+        CycledProperties? cycledProps = null, bool tooltipsEnabled = false, Rect plotArea = default)
     {
-        _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(default, ctx))
+        _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(plotArea, ctx))
         {
             TooltipsEnabled = tooltipsEnabled,
             CycledProps     = cycledProps

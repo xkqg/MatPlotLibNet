@@ -25,8 +25,9 @@ public abstract class Indicator : IIndicator
     /// <summary>Gets or sets the line style for the indicator series.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
-    /// <summary>Gets or sets the horizontal offset (shift) applied to X coordinates. Positive = shift right, negative = shift left.</summary>
-    public int Offset { get; set; }
+    /// <summary>Gets or sets the horizontal offset (shift) applied to X coordinates. Positive = shift right, negative = shift left.
+    /// Use 0.5 when the axes uses bar-slot positioning (candlestick/bar charts) to center overlays on bar bodies.</summary>
+    public double Offset { get; set; }
 
     /// <inheritdoc />
     public abstract void Apply(Axes axes);

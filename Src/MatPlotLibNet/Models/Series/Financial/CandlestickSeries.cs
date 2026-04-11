@@ -51,7 +51,7 @@ public sealed class CandlestickSeries : ChartSeries, IPriceSeries, ICategoryLabe
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(context.XAxisMin ?? -0.5, context.XAxisMax ?? (Open.Length - 0.5), Low.Min(), High.Max());
+        new(context.XAxisMin ?? 0, context.XAxisMax ?? Open.Length, Low.Min(), High.Max());
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

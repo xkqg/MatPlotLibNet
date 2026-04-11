@@ -75,15 +75,16 @@ public abstract class AxesRenderer
     protected void RenderSeries()
     {
         var svgCtx = Axes.EnableInteractiveAttributes ? Ctx as SvgRenderContext : null;
-        for (int i = 0; i < Axes.Series.Count; i++)
+        // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
+        var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
+        foreach (var (series, i) in ordered)
         {
-            var series = Axes.Series[i];
             if (!series.Visible) continue;
             var cycledProps  = Theme.PropCycler?[i];
             var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
             svgCtx?.BeginDataGroup("series", i);
             var renderer = new SvgSeriesRenderer(
-                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps, Axes.EnableTooltips);
+                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             if (svgCtx is not null) Ctx.EndGroup();
@@ -95,14 +96,15 @@ public abstract class AxesRenderer
     protected void RenderSeries(DataTransform transform)
     {
         var svgCtx = Axes.EnableInteractiveAttributes ? Ctx as SvgRenderContext : null;
-        for (int i = 0; i < Axes.Series.Count; i++)
+        // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
+        var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
+        foreach (var (series, i) in ordered)
         {
-            var series = Axes.Series[i];
             if (!series.Visible) continue;
             var cycledProps  = Theme.PropCycler?[i];
             var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
             svgCtx?.BeginDataGroup("series", i);
-            var renderer = new SvgSeriesRenderer(transform, Ctx, seriesColor, cycledProps, Axes.EnableTooltips);
+            var renderer = new SvgSeriesRenderer(transform, Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             if (svgCtx is not null) Ctx.EndGroup();
@@ -119,8 +121,10 @@ public abstract class AxesRenderer
         {
             var series = Axes.Series[i];
             if (string.IsNullOrEmpty(series.Label)) continue;
-            var color = Theme.PropCycler?[i].Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
-            entries.Add((series.Label, color));
+            // Use the series' own Color when explicitly set; fall back to cycle/PropCycler.
+            var cycleColor = Theme.PropCycler?[i].Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
+            var seriesColor = series.GetType().GetProperty("Color")?.GetValue(series) as Color?;
+            entries.Add((series.Label, seriesColor ?? cycleColor));
         }
 
         if (entries.Count == 0) return;
@@ -244,9 +248,9 @@ public abstract class AxesRenderer
         {
             var point = new Point(PlotArea.X - 45, PlotArea.Y + PlotArea.Height / 2);
             if (MathTextParser.ContainsMath(Axes.YAxis.Label))
-                Ctx.DrawRichText(MathTextParser.Parse(Axes.YAxis.Label), point, font, TextAlignment.Center);
+                Ctx.DrawRichText(MathTextParser.Parse(Axes.YAxis.Label), point, font, TextAlignment.Center, 90);
             else
-                Ctx.DrawText(Axes.YAxis.Label, point, font, TextAlignment.Center);
+                Ctx.DrawText(Axes.YAxis.Label, point, font, TextAlignment.Center, 90);
         }
     }
 
@@ -266,7 +270,7 @@ public abstract class AxesRenderer
     protected Font TickFont() => new()
     {
         Family = Theme.DefaultFont.Family,
-        Size = Theme.DefaultFont.Size - 2,
+        Size = Theme.DefaultFont.Size,   // same as axis labels — matches matplotlib's default
         Color = Theme.ForegroundText
     };
 

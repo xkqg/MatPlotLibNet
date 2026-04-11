@@ -63,8 +63,8 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        double xMin = context.XAxisMin ?? -0.5;
-        double xMax = context.XAxisMax ?? (Categories.Length - 0.5);
+        double xMin = context.XAxisMin ?? 0;
+        double xMax = context.XAxisMax ?? Categories.Length;
         double yMin = 0, yMax = double.MinValue;
 
         if (context.BarMode == BarMode.Stacked)

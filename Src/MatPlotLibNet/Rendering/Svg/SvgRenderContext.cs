@@ -180,13 +180,17 @@ public sealed class SvgRenderContext : IRenderContext
 
     /// <inheritdoc />
     public void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment)
+        => DrawRichText(richText, position, font, alignment, rotation: 0);
+
+    /// <inheritdoc />
+    public void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment, double rotation)
     {
         // Shortcut: no super/subscript spans → emit plain text element
         bool hasSpecial = richText.Spans.Any(s => s.Kind != TextSpanKind.Normal);
         if (!hasSpecial)
         {
             var plain = string.Concat(richText.Spans.Select(s => s.Text));
-            DrawText(plain, position, font, alignment);
+            DrawText(plain, position, font, alignment, rotation);
             return;
         }
 
@@ -202,6 +206,9 @@ public sealed class SvgRenderContext : IRenderContext
            .Append("\" font-family=\"").Append(font.Family)
            .Append("\" font-size=\"").Append(F(font.Size))
            .Append("\" text-anchor=\"").Append(anchor).Append('"');
+        if (rotation != 0)
+            _sb.Append(" transform=\"rotate(").Append(F(-rotation)).Append(',')
+               .Append(F(position.X)).Append(',').Append(F(position.Y)).Append(")\"");
         if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
         if (font.Weight == FontWeight.Bold)  _sb.Append(" font-weight=\"bold\"");
         if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
@@ -247,7 +254,11 @@ public sealed class SvgRenderContext : IRenderContext
     private void AppendFillStroke(Color? fill, Color? stroke, double strokeThickness)
     {
         if (fill.HasValue)
+        {
             _sb.Append(" fill=\"").Append(fill.Value.ToHex()).Append('"');
+            if (fill.Value.A < 255)
+                _sb.Append(" fill-opacity=\"").Append(F(fill.Value.A / 255.0)).Append('"');
+        }
         else
             _sb.Append(" fill=\"none\"");
 

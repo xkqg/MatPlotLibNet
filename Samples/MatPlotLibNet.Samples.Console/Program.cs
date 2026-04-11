@@ -205,7 +205,15 @@ FigureTemplates.FinancialDashboard(
         open, high, low, close, vol,
         title: "ACME Corp — 50 Day",
         configurePricePanel: ax => ax.BollingerBands(20),
-        configureOscillatorPanel: ax => ax.Rsi(close, 14))
+        configureVolumePanel: ax => ax
+            .SetYTickLocator(new MaxNLocator(3))
+            .SetYTickFormatter(new EngFormatter()),
+        configureOscillatorPanel: ax => ax
+            .Rsi(close, 14)
+            .SetYLim(0, 100)
+            .AxHLine(70, l => { l.Color = Colors.Red;   l.LineStyle = LineStyle.Dashed; l.Label = "Overbought"; })
+            .AxHLine(20, l => { l.Color = Colors.Green; l.LineStyle = LineStyle.Dashed; l.Label = "Oversold"; }))
+    .WithSize(1200, 900)
     .Save("financial_dashboard.svg");
 Console.WriteLine("Saved financial_dashboard.svg");
 
@@ -276,7 +284,7 @@ FigureTemplates.SparklineDashboard(
 Console.WriteLine("Saved sparkline_dashboard.svg");
 
 // =====================================================================
-// v0.8.1 — Tier 3 Infrastructure
+// v0.8.2 — Tier 3 Infrastructure + Rendering Fixes
 // =====================================================================
 
 // --- 18. Date axis — 90-day time series with AutoDateLocator ---
@@ -336,7 +344,7 @@ double[] cx2 = Enumerable.Range(0, 60).Select(i => i * 0.2).ToArray();
 Plt.Create()
     .WithTitle("PropCycler — four series, cycling color + line style")
     .WithSize(900, 450)
-    .WithPropCycler(cycler)
+    .WithTheme(Theme.CreateFrom(Theme.Default).WithPropCycler(cycler).Build())
     .AddSubPlot(1, 1, 1, ax =>
     {
         ax.SetXLabel("x").SetYLabel("f(x)");

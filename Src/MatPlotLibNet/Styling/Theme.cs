@@ -72,7 +72,7 @@ public sealed class Theme
         axesBackground: Colors.White,
         cycleColors: DefaultCycleColors,
         defaultFont: new Font(),
-        defaultGrid: new GridStyle());
+        defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#B0B0B0"), LineStyle = LineStyle.Solid, LineWidth = 0.8 });
 
     /// <summary>Gets a dark background theme.</summary>
     public static Theme Dark { get; } = new(

@@ -84,11 +84,12 @@ public class AllSeriesTests
     public void Visible_DefaultsToTrue(ISeries series, string _)
         => Assert.True(series.Visible);
 
-    /// <summary>Verifies that ZOrder defaults to zero for every series type.</summary>
+    /// <summary>Verifies that ZOrder has the correct default for each series type.
+    /// AreaSeries defaults to -1 (renders behind all other series); everything else defaults to 0.</summary>
     [Theory]
     [MemberData(nameof(AllSeriesInstances))]
-    public void ZOrder_DefaultsToZero(ISeries series, string _)
-        => Assert.Equal(0, series.ZOrder);
+    public void ZOrder_DefaultsToExpectedValue(ISeries series, string _)
+        => Assert.Equal(series is AreaSeries ? -1 : 0, series.ZOrder);
 
     /// <summary>Verifies that Accept dispatches to the correct visitor method for each series type.</summary>
     [Theory]
