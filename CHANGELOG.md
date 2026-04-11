@@ -4,22 +4,51 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.8.3] - 2026-04-11
+## [0.8.4] - 2026-04-11
 
 ### Added
 
-- **Stacked base classes** — enriched behaviour through the pipe (DRY, SOLID, Liskov):
-  - `Indicator` enriched with `MakeX()`, `PlotSignal()`, `PlotBands()` — all 14 plotable indicators flow through the pipe
-  - `CandleIndicator<T>` — OHLCV cache + `ComputeTrueRange()`, `ComputeTypicalPrice()`, `ComputeDonchianMid()` for 7 HLC indicators
-  - `PriceIndicator<T>` — `Prices` + `PriceSource` constructor for 6 single-price indicators
-  - `OhlcSeries` — shared base for `CandlestickSeries` and `OhlcBarSeries`
-  - `DatasetSeries` — shared base + default `ComputeDataRange` for 5 distribution series
-  - `SeriesRenderer` enriched with `ApplyAlpha()` (11 renderers) + `ApplyDownsampling()` (3 renderers)
+**Roadmap Phase B — Colormap Engine**
+
+- **`LinearColorMap`** (public) — replaces internal `LerpColorMap`; adds `FromPositions(name, (double, Color)[])` factory for custom gradient stop positions (binary search + local lerp)
+- **`ListedColorMap`** — discrete `floor(v * N)` lookup without interpolation; fixes all 10 qualitative colormaps (`Tab10`, `Tab20`, `Set1–3`, `Pastel1–2`, `Dark2`, `Accent`, `Paired`) which incorrectly used `LerpColorMap`
+- **Extreme values on `IColorMap`** — default interface methods `GetUnderColor()`, `GetOverColor()`, `GetBadColor()` (default `null`); `LinearColorMap` and `ListedColorMap` gain `UnderColor`, `OverColor`, `BadColor` init properties; `ReversedColorMap` swaps under/over
+- **4 new normalizers:**
+  - `SymLogNormalizer(linthresh, base, linScale)` — symmetric log; linear within ±linthresh, log-compressed beyond
+  - `PowerNormNormalizer(gamma)` — power-law `((v-min)/(max-min))^γ`
+  - `CenteredNormNormalizer(vcenter, halfrange?)` — maps chosen center to 0.5; optional symmetric half-range constraint
+  - `NoNormNormalizer.Instance` — pass-through, clamps to [0, 1]
+- **13 new colormaps** (65 total; 130 including reversed): `gray`, `spring`, `summer`, `autumn`, `winter`, `cool`, `afmhot`, `prgn`, `rdgy`, `rainbow`, `ocean`, `terrain`, `cmrmap`
+- **`ColorBarExtend` enum** (`Neither` / `Min` / `Max` / `Both`) — `ColorBar.Extend` property; `AxesRenderer.RenderColorBar` draws under/over extension rectangles using `GetUnderColor()` / `GetOverColor()`
+- **`SurfaceSeries`** now implements `INormalizable`; `SurfaceSeriesRenderer` uses the normalizer for Z→color mapping
+
+**Gap Phase 1 — Core Series Property Enrichment (~30 properties, 8 series)**
+
+- `LineSeries` — `MarkerFaceColor`, `MarkerEdgeColor`, `MarkerEdgeWidth`, `DrawStyle` (step interpolation: `StepsPre` / `StepsMid` / `StepsPost`), `MarkEvery`
+- `ScatterSeries` — `EdgeColors`, `LineWidths`, `VMin`, `VMax`, `Normalizer` (`INormalizable`), `C` (per-point colormap scalar array; priority: `Colors[]` > `C+ColorMap` > uniform)
+- `BarSeries` — `Alpha`, `LineWidth`, `Align` (`BarAlignment.Center` / `Edge`)
+- `HistogramSeries` — `Density`, `Cumulative`, `HistType` (`Bar` / `Step` / `StepFilled`), `Weights`, `RWidth`
+- `PieSeries` — `Explode`, `AutoPct`, `Shadow`, `Radius`
+- `BoxSeries` — `Widths`, `Vert`, `Whis`, `ShowMeans`, `Positions`
+- `ViolinSeries` — `ShowMeans`, `ShowMedians`, `ShowExtrema`, `Positions`, `Widths`, `Side` (`ViolinSide.Both` / `Low` / `High`)
+- `ErrorBarSeries` — `ELineWidth`, `CapThick`, `ErrorEvery`
+- **4 new enums:** `DrawStyle`, `BarAlignment`, `HistType`, `ViolinSide`
+
+**SOLID/DRY Refactoring — Stacked Base Classes**
+
+- `Indicator` enriched with `MakeX()`, `PlotSignal()`, `PlotBands()` — all 14 plotable indicators flow through the pipe
+- `CandleIndicator<T>` — OHLCV cache + `ComputeTrueRange()`, `ComputeTypicalPrice()`, `ComputeDonchianMid()` for 7 HLC indicators
+- `PriceIndicator<T>` — `Prices` + `PriceSource` constructor for 6 single-price indicators
+- `OhlcSeries` — shared base for `CandlestickSeries` and `OhlcBarSeries`
+- `DatasetSeries` — shared base + default `ComputeDataRange` for 5 distribution series
+- `SeriesRenderer` enriched with `ApplyAlpha()` (11 renderers) + `ApplyDownsampling()` (3 renderers)
 - **`UseBarSlotX()`** — `AxesBuilder` method marking a panel as bar-slot context; all indicators auto-align to bar centres
 
 ### Fixed
 
 - **Panel indicator alignment** — oscillator indicators (RSI, Stochastic, MACD) now align with bar centres; offset handled automatically through `MakeX()` / `PlotSignal()` in the base + `UseBarSlotX()` on the panel
+
+### Tests: 2432 → 2662 (+230)
 
 ## [0.8.2] - 2026-04-11
 

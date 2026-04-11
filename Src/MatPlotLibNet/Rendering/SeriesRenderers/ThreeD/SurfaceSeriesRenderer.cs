@@ -35,6 +35,7 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
 
         var proj = new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
         var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
 
         // Build quads with average depth for painter's algorithm sorting
         var quads = new List<(double Depth, Point[] Vertices, double AvgZ)>((rows - 1) * (cols - 1));
@@ -68,7 +69,7 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
 
         foreach (var (_, vertices, avgZ) in quads)
         {
-            var color = cmap.GetColor((avgZ - zMin) / zRange);
+            var color = cmap.GetColor(normalizer.Normalize(avgZ, zMin, zMax));
             Color? stroke = series.ShowWireframe ? Colors.Black.WithAlpha(80) : null;
             double strokeWidth = series.ShowWireframe ? 0.5 : 0;
             Ctx.DrawPolygon(vertices, color, stroke, strokeWidth);

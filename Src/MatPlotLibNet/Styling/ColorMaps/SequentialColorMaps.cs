@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 public static class SequentialColorMaps
 {
     /// <summary>Gets the Cividis color map (colorblind-friendly, dark blue to yellow).</summary>
-    public static IColorMap Cividis { get; } = new LerpColorMap("cividis",
+    public static IColorMap Cividis { get; } = new LinearColorMap("cividis",
     [
         Color.FromHex("#00204D"),
         Color.FromHex("#414D6B"),
@@ -20,7 +20,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the Greens color map (white to dark green).</summary>
-    public static IColorMap Greens { get; } = new LerpColorMap("greens",
+    public static IColorMap Greens { get; } = new LinearColorMap("greens",
     [
         Color.FromHex("#F7FCF5"),
         Color.FromHex("#E5F5E0"),
@@ -33,7 +33,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the Oranges color map (white to dark orange).</summary>
-    public static IColorMap Oranges { get; } = new LerpColorMap("oranges",
+    public static IColorMap Oranges { get; } = new LinearColorMap("oranges",
     [
         Color.FromHex("#FFF5EB"),
         Color.FromHex("#FEE6CE"),
@@ -46,7 +46,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the Purples color map (white to dark purple).</summary>
-    public static IColorMap Purples { get; } = new LerpColorMap("purples",
+    public static IColorMap Purples { get; } = new LinearColorMap("purples",
     [
         Color.FromHex("#FCFBFD"),
         Color.FromHex("#EFEDF5"),
@@ -59,7 +59,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the Greys color map (white to black).</summary>
-    public static IColorMap Greys { get; } = new LerpColorMap("greys",
+    public static IColorMap Greys { get; } = new LinearColorMap("greys",
     [
         Color.FromHex("#FFFFFF"),
         Color.FromHex("#F0F0F0"),
@@ -72,7 +72,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the YlOrBr color map (yellow to brown).</summary>
-    public static IColorMap YlOrBr { get; } = new LerpColorMap("ylorbr",
+    public static IColorMap YlOrBr { get; } = new LinearColorMap("ylorbr",
     [
         Color.FromHex("#FFFFE5"),
         Color.FromHex("#FFF7BC"),
@@ -85,7 +85,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the YlOrRd color map (yellow to red).</summary>
-    public static IColorMap YlOrRd { get; } = new LerpColorMap("ylorrd",
+    public static IColorMap YlOrRd { get; } = new LinearColorMap("ylorrd",
     [
         Color.FromHex("#FFFFCC"),
         Color.FromHex("#FFEDA0"),
@@ -98,7 +98,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the OrRd color map (orange to red).</summary>
-    public static IColorMap OrRd { get; } = new LerpColorMap("orrd",
+    public static IColorMap OrRd { get; } = new LinearColorMap("orrd",
     [
         Color.FromHex("#FFF7EC"),
         Color.FromHex("#FEE8C8"),
@@ -111,7 +111,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the PuBu color map (purple to blue).</summary>
-    public static IColorMap PuBu { get; } = new LerpColorMap("pubu",
+    public static IColorMap PuBu { get; } = new LinearColorMap("pubu",
     [
         Color.FromHex("#FFF7FB"),
         Color.FromHex("#ECE7F2"),
@@ -124,7 +124,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the YlGn color map (yellow to green).</summary>
-    public static IColorMap YlGn { get; } = new LerpColorMap("ylgn",
+    public static IColorMap YlGn { get; } = new LinearColorMap("ylgn",
     [
         Color.FromHex("#FFFFE5"),
         Color.FromHex("#F7FCB1"),
@@ -137,7 +137,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the BuGn color map (blue to green).</summary>
-    public static IColorMap BuGn { get; } = new LerpColorMap("bugn",
+    public static IColorMap BuGn { get; } = new LinearColorMap("bugn",
     [
         Color.FromHex("#F7FCFD"),
         Color.FromHex("#E5F5F9"),
@@ -150,7 +150,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the Hot color map (black to red to yellow to white).</summary>
-    public static IColorMap Hot { get; } = new LerpColorMap("hot",
+    public static IColorMap Hot { get; } = new LinearColorMap("hot",
     [
         Color.FromHex("#0B0000"),
         Color.FromHex("#6F0000"),
@@ -162,7 +162,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the Copper color map (black to warm copper brown).</summary>
-    public static IColorMap Copper { get; } = new LerpColorMap("copper",
+    public static IColorMap Copper { get; } = new LinearColorMap("copper",
     [
         Color.FromHex("#000000"),
         Color.FromHex("#3F2819"),
@@ -173,7 +173,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the Bone color map (blue-grey ramp from black to near-white).</summary>
-    public static IColorMap Bone { get; } = new LerpColorMap("bone",
+    public static IColorMap Bone { get; } = new LinearColorMap("bone",
     [
         Color.FromHex("#000000"),
         Color.FromHex("#1A1A2E"),
@@ -186,7 +186,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the BuPu color map (light blue to dark purple).</summary>
-    public static IColorMap BuPu { get; } = new LerpColorMap("bupu",
+    public static IColorMap BuPu { get; } = new LinearColorMap("bupu",
     [
         Color.FromHex("#F7FCFD"),
         Color.FromHex("#E0ECF4"),
@@ -199,7 +199,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the GnBu color map (light green to dark blue).</summary>
-    public static IColorMap GnBu { get; } = new LerpColorMap("gnbu",
+    public static IColorMap GnBu { get; } = new LinearColorMap("gnbu",
     [
         Color.FromHex("#F7FCF0"),
         Color.FromHex("#E0F3DB"),
@@ -212,7 +212,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the PuRd color map (light purple to dark red).</summary>
-    public static IColorMap PuRd { get; } = new LerpColorMap("purd",
+    public static IColorMap PuRd { get; } = new LinearColorMap("purd",
     [
         Color.FromHex("#F7F4F9"),
         Color.FromHex("#E7E1EF"),
@@ -225,7 +225,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the RdPu color map (light red to dark purple).</summary>
-    public static IColorMap RdPu { get; } = new LerpColorMap("rdpu",
+    public static IColorMap RdPu { get; } = new LinearColorMap("rdpu",
     [
         Color.FromHex("#FFF7F3"),
         Color.FromHex("#FDE0DD"),
@@ -238,7 +238,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the YlGnBu color map (yellow to green to dark blue).</summary>
-    public static IColorMap YlGnBu { get; } = new LerpColorMap("ylgnbu",
+    public static IColorMap YlGnBu { get; } = new LinearColorMap("ylgnbu",
     [
         Color.FromHex("#FFFFD9"),
         Color.FromHex("#EDF8B1"),
@@ -251,7 +251,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the Cubehelix color map (monotonically increasing brightness with helical color progression).</summary>
-    public static IColorMap Cubehelix { get; } = new LerpColorMap("cubehelix",
+    public static IColorMap Cubehelix { get; } = new LinearColorMap("cubehelix",
     [
         Color.FromHex("#000000"),
         Color.FromHex("#1A1530"),
@@ -267,7 +267,7 @@ public static class SequentialColorMaps
     ]);
 
     /// <summary>Gets the PuBuGn color map (light purple to blue to dark green).</summary>
-    public static IColorMap PuBuGn { get; } = new LerpColorMap("pubugn",
+    public static IColorMap PuBuGn { get; } = new LinearColorMap("pubugn",
     [
         Color.FromHex("#FFF7FB"),
         Color.FromHex("#ECE2F0"),

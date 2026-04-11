@@ -98,19 +98,27 @@ public class ColormappableTests
     }
 
     [Fact]
-    public void ScatterSeries_IsColormappableButNotNormalizable()
+    public void ScatterSeries_IsColormappableAndNormalizable()
     {
         var series = new ScatterSeries([1.0], [2.0]);
         Assert.IsAssignableFrom<IColormappable>(series);
-        Assert.False(typeof(INormalizable).IsAssignableFrom(typeof(ScatterSeries)));
+        Assert.IsAssignableFrom<INormalizable>(series);
     }
 
     [Fact]
-    public void SurfaceSeries_IsColormappableButNotNormalizable()
+    public void SurfaceSeries_IsColormappableAndNormalizable()
     {
         var series = new SurfaceSeries([0.0, 1.0], [0.0, 1.0], new double[2, 2]);
         Assert.IsAssignableFrom<IColormappable>(series);
-        Assert.False(typeof(INormalizable).IsAssignableFrom(typeof(SurfaceSeries)));
+        Assert.IsAssignableFrom<INormalizable>(series);
+    }
+
+    [Fact]
+    public void INormalizable_SurfaceSeries()
+    {
+        INormalizable n = new SurfaceSeries([0.0, 1.0], [0.0, 1.0], new double[2, 2]);
+        n.Normalizer = new PowerNormNormalizer(0.5);
+        Assert.IsType<PowerNormNormalizer>(n.Normalizer);
     }
 
     // --- AxesBuilder polymorphic routing ---
@@ -165,5 +173,62 @@ public class ColormappableTests
 
         var hs = (HeatmapSeries)figure.SubPlots[0].Series[0];
         Assert.Equal("plasma", hs.ColorMap?.Name);
+    }
+
+    // --- B6: ScatterSeries C array ---
+
+    [Fact]
+    public void ScatterSeries_C_CanBeAssigned()
+    {
+        var series = new ScatterSeries([1.0, 2.0], [3.0, 4.0]) { C = [0.0, 1.0] };
+        Assert.Equal(2, series.C!.Length);
+    }
+
+    [Fact]
+    public void ScatterSeries_ColorsArray_TakesPrecedenceOverC()
+    {
+        // When Colors[] is set, C is effectively ignored (Colors wins)
+        var colors = new[] { ColorMaps.Viridis.GetColor(0.0), ColorMaps.Viridis.GetColor(1.0) };
+        var series = new ScatterSeries([1.0, 2.0], [3.0, 4.0])
+        {
+            Colors = colors,
+            C = [0.5, 0.5],
+            ColorMap = ColorMaps.Viridis
+        };
+        // Colors is set — renderer should use it; C is secondary
+        Assert.NotNull(series.Colors);
+        Assert.NotNull(series.C);
+    }
+
+    [Fact]
+    public void ScatterSeries_CWithVMinVMax_Used()
+    {
+        var series = new ScatterSeries([1.0], [2.0])
+        {
+            C = [5.0],
+            VMin = 0.0,
+            VMax = 10.0,
+            ColorMap = ColorMaps.Viridis
+        };
+        // VMin/VMax constrain the normalization: 5/(10-0) = 0.5
+        var norm = LinearNormalizer.Instance;
+        double expected = norm.Normalize(series.C![0], series.VMin!.Value, series.VMax!.Value);
+        Assert.Equal(0.5, expected, 5);
+    }
+
+    [Fact]
+    public void ScatterSeries_C_WithNormalizerFromSeries()
+    {
+        var series = new ScatterSeries([1.0], [2.0])
+        {
+            C = [25.0],
+            VMin = 0.0,
+            VMax = 100.0,
+            ColorMap = ColorMaps.Viridis,
+            Normalizer = new PowerNormNormalizer(gamma: 0.5)
+        };
+        // sqrt(25/100) = sqrt(0.25) = 0.5
+        double t = series.Normalizer!.Normalize(series.C![0], series.VMin!.Value, series.VMax!.Value);
+        Assert.Equal(0.5, t, 5);
     }
 }

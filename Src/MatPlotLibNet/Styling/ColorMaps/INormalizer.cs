@@ -89,3 +89,104 @@ public sealed class BoundaryNormalizer : INormalizer
         return (double)(nBins - 1) / nBins;
     }
 }
+
+/// <summary>Symmetric logarithmic normalization. Linear within ±<paramref name="linthresh"/>,
+/// log-compressed beyond. Useful for data that spans positive and negative values including zero.</summary>
+public sealed class SymLogNormalizer : INormalizer
+{
+    /// <summary>Gets the range of values mapped linearly around zero.</summary>
+    public double Linthresh { get; }
+
+    /// <summary>Gets the logarithm base used outside the linear region.</summary>
+    public double Base { get; }
+
+    /// <summary>Gets the scale factor for the linear region.</summary>
+    public double LinScale { get; }
+
+    /// <summary>Creates a symmetric-log normalizer.</summary>
+    public SymLogNormalizer(double linthresh = 1.0, double @base = 10.0, double linScale = 1.0)
+    {
+        Linthresh = linthresh;
+        Base = @base;
+        LinScale = linScale;
+    }
+
+    /// <inheritdoc />
+    public double Normalize(double value, double min, double max)
+    {
+        double Transform(double v) =>
+            Math.Abs(v) <= Linthresh
+                ? v * LinScale / Linthresh
+                : Math.Sign(v) * (LinScale + Math.Log(Math.Abs(v) / Linthresh) / Math.Log(Base));
+
+        double t = Transform(Math.Clamp(value, min, max));
+        double tMin = Transform(min);
+        double tMax = Transform(max);
+        double range = tMax - tMin;
+        return range == 0 ? 0.5 : Math.Clamp((t - tMin) / range, 0, 1);
+    }
+}
+
+/// <summary>Power-law normalization: <c>((value − min) / (max − min))^gamma</c>.
+/// gamma &lt; 1 expands low values; gamma &gt; 1 compresses them.</summary>
+public sealed class PowerNormNormalizer : INormalizer
+{
+    /// <summary>Gets the power (gamma) exponent.</summary>
+    public double Gamma { get; }
+
+    /// <summary>Creates a power-norm normalizer with the specified gamma.</summary>
+    public PowerNormNormalizer(double gamma = 1.0) => Gamma = gamma;
+
+    /// <inheritdoc />
+    public double Normalize(double value, double min, double max)
+    {
+        double range = max - min;
+        if (range == 0) return 0.5;
+        return Math.Pow(Math.Clamp((value - min) / range, 0, 1), Gamma);
+    }
+}
+
+/// <summary>Centered normalization that maps a chosen <see cref="Vcenter"/> to 0.5.
+/// Independently scales the lower and upper halves. Optionally constrains a symmetric
+/// half-range around the center.</summary>
+public sealed class CenteredNormNormalizer : INormalizer
+{
+    /// <summary>Gets the data value that maps to 0.5.</summary>
+    public double Vcenter { get; }
+
+    /// <summary>Gets the optional symmetric half-range that constrains the mapping.</summary>
+    public double? Halfrange { get; }
+
+    /// <summary>Creates a centered normalizer.</summary>
+    public CenteredNormNormalizer(double vcenter = 0.0, double? halfrange = null)
+    {
+        Vcenter = vcenter;
+        Halfrange = halfrange;
+    }
+
+    /// <inheritdoc />
+    public double Normalize(double value, double min, double max)
+    {
+        double lo = Halfrange.HasValue ? Vcenter - Halfrange.Value : min;
+        double hi = Halfrange.HasValue ? Vcenter + Halfrange.Value : max;
+        double clamped = Math.Clamp(value, lo, hi);
+        if (clamped <= Vcenter)
+        {
+            double lower = Vcenter - lo;
+            return lower == 0 ? 0.5 : 0.5 * (clamped - lo) / lower;
+        }
+        double upper = hi - Vcenter;
+        return upper == 0 ? 0.5 : 0.5 + 0.5 * (clamped - Vcenter) / upper;
+    }
+}
+
+/// <summary>No-op normalization: the value is passed through as-is, clamped to [0, 1].
+/// Use when the data is already in the normalized range.</summary>
+public sealed class NoNormNormalizer : INormalizer
+{
+    /// <summary>Gets the singleton instance.</summary>
+    public static NoNormNormalizer Instance { get; } = new();
+
+    /// <inheritdoc />
+    public double Normalize(double value, double min, double max) => Math.Clamp(value, 0, 1);
+}

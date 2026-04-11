@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -33,5 +34,56 @@ public class BarSeriesTests
     {
         var series = new BarSeries(["A"], [1.0]);
         Assert.Equal(0.8, series.BarWidth);
+    }
+
+    /// <summary>Verifies that Alpha defaults to 1.0.</summary>
+    [Fact]
+    public void DefaultAlpha_Is1()
+    {
+        var series = new BarSeries(["A"], [1.0]);
+        Assert.Equal(1.0, series.Alpha);
+    }
+
+    /// <summary>Verifies that LineWidth defaults to 0.0.</summary>
+    [Fact]
+    public void DefaultLineWidth_Is0()
+    {
+        var series = new BarSeries(["A"], [1.0]);
+        Assert.Equal(0.0, series.LineWidth);
+    }
+
+    /// <summary>Verifies that Align defaults to Center.</summary>
+    [Fact]
+    public void DefaultAlign_IsCenter()
+    {
+        var series = new BarSeries(["A"], [1.0]);
+        Assert.Equal(BarAlignment.Center, series.Align);
+    }
+
+    /// <summary>Verifies that Alpha can be set.</summary>
+    [Fact]
+    public void Alpha_CanBeSet()
+    {
+        var series = new BarSeries(["A"], [1.0]);
+        series.Alpha = 0.5;
+        Assert.Equal(0.5, series.Alpha);
+    }
+
+    /// <summary>Verifies that Align can be set.</summary>
+    [Fact]
+    public void Align_CanBeSet()
+    {
+        var series = new BarSeries(["A"], [1.0]);
+        series.Align = BarAlignment.Edge;
+        Assert.Equal(BarAlignment.Edge, series.Align);
+    }
+
+    /// <summary>Verifies that LineWidth can be set.</summary>
+    [Fact]
+    public void LineWidth_CanBeSet()
+    {
+        var series = new BarSeries(["A"], [1.0]);
+        series.LineWidth = 1.5;
+        Assert.Equal(1.5, series.LineWidth);
     }
 }

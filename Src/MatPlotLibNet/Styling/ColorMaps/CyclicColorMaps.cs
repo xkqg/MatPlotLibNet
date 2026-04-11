@@ -10,7 +10,7 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 public static class CyclicColorMaps
 {
     /// <summary>Gets the Twilight color map (symmetric purple-orange-purple).</summary>
-    public static IColorMap Twilight { get; } = new LerpColorMap("twilight",
+    public static IColorMap Twilight { get; } = new LinearColorMap("twilight",
     [
         Color.FromHex("#E2D9E2"),
         Color.FromHex("#9E9CC2"),
@@ -23,7 +23,7 @@ public static class CyclicColorMaps
     ]);
 
     /// <summary>Gets the Twilight Shifted color map (shifted version starting from dark).</summary>
-    public static IColorMap TwilightShifted { get; } = new LerpColorMap("twilight_shifted",
+    public static IColorMap TwilightShifted { get; } = new LinearColorMap("twilight_shifted",
     [
         Color.FromHex("#2D1E3E"),
         Color.FromHex("#6C3624"),
@@ -36,7 +36,7 @@ public static class CyclicColorMaps
     ]);
 
     /// <summary>Gets the HSV color map (full hue cycle: red → yellow → green → cyan → blue → magenta → red).</summary>
-    public static IColorMap Hsv { get; } = new LerpColorMap("hsv",
+    public static IColorMap Hsv { get; } = new LinearColorMap("hsv",
     [
         Color.FromHex("#FF0000"),
         Color.FromHex("#FFFF00"),

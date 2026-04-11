@@ -40,4 +40,52 @@ public class PieSeriesTests
         var series = new PieSeries([1.0]);
         Assert.False(series.CounterClockwise);
     }
+
+    /// <summary>Verifies that Explode defaults to null.</summary>
+    [Fact]
+    public void DefaultExplode_IsNull()
+    {
+        var series = new PieSeries([1.0]);
+        Assert.Null(series.Explode);
+    }
+
+    /// <summary>Verifies that AutoPct defaults to null.</summary>
+    [Fact]
+    public void DefaultAutoPct_IsNull()
+    {
+        var series = new PieSeries([1.0]);
+        Assert.Null(series.AutoPct);
+    }
+
+    /// <summary>Verifies that Shadow defaults to false.</summary>
+    [Fact]
+    public void DefaultShadow_IsFalse()
+    {
+        var series = new PieSeries([1.0]);
+        Assert.False(series.Shadow);
+    }
+
+    /// <summary>Verifies that Radius defaults to null.</summary>
+    [Fact]
+    public void DefaultRadius_IsNull()
+    {
+        var series = new PieSeries([1.0]);
+        Assert.Null(series.Radius);
+    }
+
+    /// <summary>Verifies that Explode can be set.</summary>
+    [Fact]
+    public void Explode_CanBeSet()
+    {
+        var series = new PieSeries([30.0, 70.0]) { Explode = [0.1, 0.0] };
+        Assert.Equal([0.1, 0.0], series.Explode);
+    }
+
+    /// <summary>Verifies that AutoPct can be set.</summary>
+    [Fact]
+    public void AutoPct_CanBeSet()
+    {
+        var series = new PieSeries([1.0]) { AutoPct = "{0:F1}%" };
+        Assert.Equal("{0:F1}%", series.AutoPct);
+    }
 }

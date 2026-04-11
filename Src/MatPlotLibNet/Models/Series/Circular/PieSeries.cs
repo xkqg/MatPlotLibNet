@@ -25,6 +25,18 @@ public sealed class PieSeries : ChartSeries
     /// <summary>Gets or sets whether slices are drawn counter-clockwise.</summary>
     public bool CounterClockwise { get; set; }
 
+    /// <summary>Gets or sets per-slice radial offsets (0.0–0.3). Null means no explosion.</summary>
+    public double[]? Explode { get; set; }
+
+    /// <summary>Gets or sets the percentage format string (e.g. <c>"{0:F1}%"</c>). Null disables percentage labels.</summary>
+    public string? AutoPct { get; set; }
+
+    /// <summary>Gets or sets whether a drop-shadow is drawn behind the pie.</summary>
+    public bool Shadow { get; set; }
+
+    /// <summary>Gets or sets a custom radius. Null uses the default auto-computed radius.</summary>
+    public double? Radius { get; set; }
+
 
     /// <summary>Initializes a new instance of <see cref="PieSeries"/> with the specified slice sizes.</summary>
     /// <param name="sizes">The numeric sizes of each pie slice.</param>

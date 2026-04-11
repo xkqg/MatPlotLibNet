@@ -25,6 +25,21 @@ public sealed class LineSeries : XYSeries
     /// <summary>Gets or sets the marker size in points.</summary>
     public double MarkerSize { get; set; } = 6;
 
+    /// <summary>Gets or sets the marker fill color. When null, uses the line Color.</summary>
+    public Color? MarkerFaceColor { get; set; }
+
+    /// <summary>Gets or sets the marker edge/stroke color.</summary>
+    public Color? MarkerEdgeColor { get; set; }
+
+    /// <summary>Gets or sets the marker edge stroke width in points.</summary>
+    public double MarkerEdgeWidth { get; set; } = 1.0;
+
+    /// <summary>Gets or sets the draw style for step interpolation.</summary>
+    public DrawStyle? DrawStyle { get; set; }
+
+    /// <summary>Gets or sets the marker draw interval. When set, only every N-th point gets a marker.</summary>
+    public int? MarkEvery { get; set; }
+
     /// <summary>Initializes a new instance of <see cref="LineSeries"/> with the specified data.</summary>
     /// <param name="xData">The X-axis data values.</param>
     /// <param name="yData">The Y-axis data values.</param>

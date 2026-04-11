@@ -59,4 +59,39 @@ public class ErrorBarSeriesTests
         var series = new ErrorBarSeries([1.0], [2.0], [0.1], [0.1]);
         Assert.Null(series.Color);
     }
+
+    /// <summary>Verifies that ELineWidth defaults to null.</summary>
+    [Fact]
+    public void DefaultELineWidth_IsNull()
+    {
+        var series = new ErrorBarSeries([1.0], [2.0], [0.1], [0.1]);
+        Assert.Null(series.ELineWidth);
+    }
+
+    /// <summary>Verifies that CapThick defaults to null.</summary>
+    [Fact]
+    public void DefaultCapThick_IsNull()
+    {
+        var series = new ErrorBarSeries([1.0], [2.0], [0.1], [0.1]);
+        Assert.Null(series.CapThick);
+    }
+
+    /// <summary>Verifies that ErrorEvery defaults to 1.</summary>
+    [Fact]
+    public void DefaultErrorEvery_Is1()
+    {
+        var series = new ErrorBarSeries([1.0], [2.0], [0.1], [0.1]);
+        Assert.Equal(1, series.ErrorEvery);
+    }
+
+    /// <summary>Verifies that ErrorEvery can be set.</summary>
+    [Fact]
+    public void ErrorEvery_CanBeSet()
+    {
+        var series = new ErrorBarSeries([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1])
+        {
+            ErrorEvery = 2
+        };
+        Assert.Equal(2, series.ErrorEvery);
+    }
 }

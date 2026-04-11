@@ -17,4 +17,13 @@ public interface IColorMap
     /// <param name="value">A value between 0.0 and 1.0.</param>
     /// <returns>The interpolated color.</returns>
     Color GetColor(double value);
+
+    /// <summary>Returns the color for values below the minimum (under-range), or <c>null</c> to clamp to the first stop.</summary>
+    Color? GetUnderColor() => null;
+
+    /// <summary>Returns the color for values above the maximum (over-range), or <c>null</c> to clamp to the last stop.</summary>
+    Color? GetOverColor() => null;
+
+    /// <summary>Returns the color for masked or invalid (NaN) values, or <c>null</c> if not set.</summary>
+    Color? GetBadColor() => null;
 }

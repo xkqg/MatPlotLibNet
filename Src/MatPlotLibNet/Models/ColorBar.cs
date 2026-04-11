@@ -28,4 +28,7 @@ public sealed record ColorBar
 
     /// <summary>Gets the padding between the plot area and the color bar in pixels.</summary>
     public double Padding { get; init; } = 10;
+
+    /// <summary>Gets whether to draw extension slots for under-range and/or over-range values.</summary>
+    public ColorBarExtend Extend { get; init; } = ColorBarExtend.Neither;
 }

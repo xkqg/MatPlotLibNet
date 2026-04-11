@@ -20,4 +20,15 @@ public sealed class ReversedColorMap : IColorMap
 
     /// <inheritdoc />
     public Color GetColor(double value) => _inner.GetColor(1.0 - Math.Clamp(value, 0, 1));
+
+    /// <inheritdoc />
+    /// <remarks>When reversed, the under-range corresponds to the inner map's over-range.</remarks>
+    Color? IColorMap.GetUnderColor() => _inner.GetOverColor();
+
+    /// <inheritdoc />
+    /// <remarks>When reversed, the over-range corresponds to the inner map's under-range.</remarks>
+    Color? IColorMap.GetOverColor() => _inner.GetUnderColor();
+
+    /// <inheritdoc />
+    Color? IColorMap.GetBadColor() => _inner.GetBadColor();
 }

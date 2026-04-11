@@ -284,7 +284,7 @@ FigureTemplates.SparklineDashboard(
 Console.WriteLine("Saved sparkline_dashboard.svg");
 
 // =====================================================================
-// v0.8.3 — Stacked base classes (CandleIndicator, OhlcSeries, DatasetSeries, PriceIndicator)
+// v0.8.4 — Stacked base classes (CandleIndicator, OhlcSeries, DatasetSeries, PriceIndicator)
 // =====================================================================
 
 // --- 18. Date axis — 90-day time series with AutoDateLocator ---

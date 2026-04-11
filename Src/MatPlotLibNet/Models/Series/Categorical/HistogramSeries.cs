@@ -25,6 +25,20 @@ public sealed class HistogramSeries : ChartSeries
     /// <summary>Gets or sets the opacity of the histogram bars (0.0 to 1.0).</summary>
     public double Alpha { get; set; } = 0.7;
 
+    /// <summary>Gets or sets whether to normalize bin heights to a probability density (area sums to 1).</summary>
+    public bool Density { get; set; } = false;
+
+    /// <summary>Gets or sets whether to display a cumulative histogram (prefix sum of bin counts).</summary>
+    public bool Cumulative { get; set; } = false;
+
+    /// <summary>Gets or sets the histogram rendering style (Bar, Step, or StepFilled).</summary>
+    public HistType HistType { get; set; } = HistType.Bar;
+
+    /// <summary>Gets or sets per-sample weights applied when computing bin counts. Null means each sample has weight 1.</summary>
+    public double[]? Weights { get; set; }
+
+    /// <summary>Gets or sets the relative bar width within each bin slot (0.0 to 1.0). A value of 1.0 fills the bin exactly.</summary>
+    public double RWidth { get; set; } = 1.0;
 
     /// <summary>Initializes a new instance of <see cref="HistogramSeries"/> with the specified data.</summary>
     /// <param name="data">The raw data values to be binned.</param>

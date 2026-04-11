@@ -194,13 +194,35 @@ public abstract class AxesRenderer
         double barH = PlotArea.Height;
         int steps = 50;
 
+        // Reserve space for extension slots (10% of bar height each)
+        const double extendFrac = 0.10;
+        double extH = barH * extendFrac;
+        bool extendMin = cb.Extend is ColorBarExtend.Min or ColorBarExtend.Both;
+        bool extendMax = cb.Extend is ColorBarExtend.Max or ColorBarExtend.Both;
+        double gradY = barY + (extendMax ? extH : 0);
+        double gradH = barH - (extendMin ? extH : 0) - (extendMax ? extH : 0);
+
         Ctx.BeginGroup("colorbar");
+
+        // Extension slot — max (over-range) at top
+        if (extendMax)
+        {
+            var overColor = colorMap.GetOverColor() ?? colorMap.GetColor(1.0);
+            Ctx.DrawRectangle(new Rect(barX, barY, cb.Width, extH), overColor, null, 0);
+        }
 
         for (int i = 0; i < steps; i++)
         {
             double frac = 1.0 - (double)i / steps;
             var color = colorMap.GetColor(frac);
-            Ctx.DrawRectangle(new Rect(barX, barY + barH * i / steps, cb.Width, barH / steps + 1), color, null, 0);
+            Ctx.DrawRectangle(new Rect(barX, gradY + gradH * i / steps, cb.Width, gradH / steps + 1), color, null, 0);
+        }
+
+        // Extension slot — min (under-range) at bottom
+        if (extendMin)
+        {
+            var underColor = colorMap.GetUnderColor() ?? colorMap.GetColor(0.0);
+            Ctx.DrawRectangle(new Rect(barX, gradY + gradH, cb.Width, extH), underColor, null, 0);
         }
 
         Ctx.DrawRectangle(new Rect(barX, barY, cb.Width, barH), null, Theme.ForegroundText, 0.5);

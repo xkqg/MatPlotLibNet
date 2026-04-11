@@ -19,6 +19,21 @@ public sealed class BoxSeries : DatasetSeries
     /// <summary>Gets or sets whether outlier points are displayed.</summary>
     public bool ShowOutliers { get; set; } = true;
 
+    /// <summary>Gets or sets the box width (0.0–1.0).</summary>
+    public double Widths { get; set; } = 0.5;
+
+    /// <summary>Gets or sets whether boxes are drawn vertically (<c>true</c>) or horizontally (<c>false</c>).</summary>
+    public bool Vert { get; set; } = true;
+
+    /// <summary>Gets or sets the whisker range as an IQR multiplier.</summary>
+    public double Whis { get; set; } = 1.5;
+
+    /// <summary>Gets or sets whether a mean marker is drawn on each box.</summary>
+    public bool ShowMeans { get; set; }
+
+    /// <summary>Gets or sets explicit X positions for each box. Null uses sequential 0-based indices.</summary>
+    public double[]? Positions { get; set; }
+
 
     /// <summary>Initializes a new instance of <see cref="BoxSeries"/> with the specified datasets.</summary>
     /// <param name="datasets">An array of datasets, each containing the values for one box.</param>

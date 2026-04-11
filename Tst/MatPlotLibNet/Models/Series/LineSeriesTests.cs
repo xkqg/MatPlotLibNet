@@ -50,4 +50,76 @@ public class LineSeriesTests
         var series = new LineSeries([1.0], [2.0]);
         Assert.Null(series.Marker);
     }
+
+    /// <summary>Verifies that MarkerFaceColor defaults to null.</summary>
+    [Fact]
+    public void DefaultMarkerFaceColor_IsNull()
+    {
+        var series = new LineSeries([1.0], [2.0]);
+        Assert.Null(series.MarkerFaceColor);
+    }
+
+    /// <summary>Verifies that MarkerEdgeColor defaults to null.</summary>
+    [Fact]
+    public void DefaultMarkerEdgeColor_IsNull()
+    {
+        var series = new LineSeries([1.0], [2.0]);
+        Assert.Null(series.MarkerEdgeColor);
+    }
+
+    /// <summary>Verifies that MarkerEdgeWidth defaults to 1.0.</summary>
+    [Fact]
+    public void DefaultMarkerEdgeWidth_Is1()
+    {
+        var series = new LineSeries([1.0], [2.0]);
+        Assert.Equal(1.0, series.MarkerEdgeWidth);
+    }
+
+    /// <summary>Verifies that DrawStyle defaults to null.</summary>
+    [Fact]
+    public void DefaultDrawStyle_IsNull()
+    {
+        var series = new LineSeries([1.0], [2.0]);
+        Assert.Null(series.DrawStyle);
+    }
+
+    /// <summary>Verifies that MarkEvery defaults to null.</summary>
+    [Fact]
+    public void DefaultMarkEvery_IsNull()
+    {
+        var series = new LineSeries([1.0], [2.0]);
+        Assert.Null(series.MarkEvery);
+    }
+
+    /// <summary>Verifies that MarkerFaceColor can be set.</summary>
+    [Fact]
+    public void MarkerFaceColor_CanBeSet()
+    {
+        var series = new LineSeries([1.0], [2.0]) { MarkerFaceColor = Color.FromHex("#FF0000") };
+        Assert.NotNull(series.MarkerFaceColor);
+    }
+
+    /// <summary>Verifies that MarkerEdgeColor can be set.</summary>
+    [Fact]
+    public void MarkerEdgeColor_CanBeSet()
+    {
+        var series = new LineSeries([1.0], [2.0]) { MarkerEdgeColor = Color.FromHex("#00FF00") };
+        Assert.NotNull(series.MarkerEdgeColor);
+    }
+
+    /// <summary>Verifies that DrawStyle can be set.</summary>
+    [Fact]
+    public void DrawStyle_CanBeSet()
+    {
+        var series = new LineSeries([1.0], [2.0]) { DrawStyle = DrawStyle.StepsPre };
+        Assert.Equal(DrawStyle.StepsPre, series.DrawStyle);
+    }
+
+    /// <summary>Verifies that MarkEvery can be set.</summary>
+    [Fact]
+    public void MarkEvery_CanBeSet()
+    {
+        var series = new LineSeries([1.0], [2.0]) { MarkEvery = 3 };
+        Assert.Equal(3, series.MarkEvery);
+    }
 }

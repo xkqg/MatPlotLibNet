@@ -42,4 +42,84 @@ public class ScatterSeriesTests
         var series = new ScatterSeries([1.0], [2.0]);
         Assert.Null(series.Sizes);
     }
+
+    /// <summary>Verifies that EdgeColors defaults to null.</summary>
+    [Fact]
+    public void DefaultEdgeColors_IsNull()
+    {
+        var series = new ScatterSeries([1.0], [2.0]);
+        Assert.Null(series.EdgeColors);
+    }
+
+    /// <summary>Verifies that LineWidths defaults to null.</summary>
+    [Fact]
+    public void DefaultLineWidths_IsNull()
+    {
+        var series = new ScatterSeries([1.0], [2.0]);
+        Assert.Null(series.LineWidths);
+    }
+
+    /// <summary>Verifies that VMin defaults to null.</summary>
+    [Fact]
+    public void DefaultVMin_IsNull()
+    {
+        var series = new ScatterSeries([1.0], [2.0]);
+        Assert.Null(series.VMin);
+    }
+
+    /// <summary>Verifies that VMax defaults to null.</summary>
+    [Fact]
+    public void DefaultVMax_IsNull()
+    {
+        var series = new ScatterSeries([1.0], [2.0]);
+        Assert.Null(series.VMax);
+    }
+
+    /// <summary>Verifies that Normalizer defaults to null.</summary>
+    [Fact]
+    public void DefaultNormalizer_IsNull()
+    {
+        var series = new ScatterSeries([1.0], [2.0]);
+        Assert.Null(series.Normalizer);
+    }
+
+    /// <summary>Verifies that ScatterSeries implements INormalizable.</summary>
+    [Fact]
+    public void ImplementsINormalizable()
+    {
+        var series = new ScatterSeries([1.0], [2.0]);
+        Assert.IsAssignableFrom<INormalizable>(series);
+    }
+
+    /// <summary>Verifies that EdgeColors can be assigned and retrieved.</summary>
+    [Fact]
+    public void EdgeColors_CanBeSet()
+    {
+        var colors = new[] { Color.FromHex("#FF0000"), Color.FromHex("#00FF00") };
+        var series = new ScatterSeries([1.0, 2.0], [3.0, 4.0]) { EdgeColors = colors };
+        Assert.Equal(colors, series.EdgeColors);
+    }
+
+    /// <summary>Verifies that VMin and VMax can be assigned and retrieved.</summary>
+    [Fact]
+    public void VMin_VMax_CanBeSet()
+    {
+        var series = new ScatterSeries([1.0], [2.0]) { VMin = 0.0, VMax = 100.0 };
+        Assert.Equal(0.0, series.VMin);
+        Assert.Equal(100.0, series.VMax);
+    }
+
+    [Fact]
+    public void C_DefaultsToNull()
+    {
+        var series = new ScatterSeries([1.0], [2.0]);
+        Assert.Null(series.C);
+    }
+
+    [Fact]
+    public void C_CanBeSet()
+    {
+        var series = new ScatterSeries([1.0, 2.0], [3.0, 4.0]) { C = [0.0, 1.0] };
+        Assert.Equal([0.0, 1.0], series.C);
+    }
 }

@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a scatter chart series displaying individual data points as markers.</summary>
-public sealed class ScatterSeries : XYSeries, IColormappable
+public sealed class ScatterSeries : XYSeries, IColormappable, INormalizable
 {
     /// <summary>Gets or sets per-point marker sizes.</summary>
     public double[]? Sizes { get; set; }
@@ -31,6 +31,25 @@ public sealed class ScatterSeries : XYSeries, IColormappable
 
     /// <summary>Gets or sets the color map used for mapping scalar data to colors.</summary>
     public IColorMap? ColorMap { get; set; }
+
+    /// <summary>Gets or sets per-point marker edge colors.</summary>
+    public Color[]? EdgeColors { get; set; }
+
+    /// <summary>Gets or sets per-point marker edge widths.</summary>
+    public double[]? LineWidths { get; set; }
+
+    /// <summary>Gets or sets scalar values for per-point colormap lookup.
+    /// Priority: <see cref="Colors"/>[] &gt; C+<see cref="ColorMap"/> &gt; uniform <see cref="Color"/>.</summary>
+    public double[]? C { get; set; }
+
+    /// <summary>Gets or sets the minimum value for colormap normalization.</summary>
+    public double? VMin { get; set; }
+
+    /// <summary>Gets or sets the maximum value for colormap normalization.</summary>
+    public double? VMax { get; set; }
+
+    /// <summary>Gets or sets the normalizer for colormap scaling.</summary>
+    public INormalizer? Normalizer { get; set; }
 
 
     /// <summary>Initializes a new instance of <see cref="ScatterSeries"/> with the specified data.</summary>

@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D surface plot rendered as colored quadrilaterals with optional wireframe.</summary>
-public sealed class SurfaceSeries : GridSeries3D, IColormappable
+public sealed class SurfaceSeries : GridSeries3D, IColormappable, INormalizable
 {
     /// <summary>Gets or sets the color map used to color the surface by Z value.</summary>
     public IColorMap? ColorMap { get; set; }
@@ -18,6 +18,9 @@ public sealed class SurfaceSeries : GridSeries3D, IColormappable
 
     /// <summary>Gets or sets whether wireframe edges are drawn on the surface quads.</summary>
     public bool ShowWireframe { get; set; } = true;
+
+    /// <summary>Gets or sets the normalizer for mapping Z values to colormap range, or null for linear normalization.</summary>
+    public INormalizer? Normalizer { get; set; }
 
     /// <summary>Initializes a new surface series with the specified grid data.</summary>
     public SurfaceSeries(double[] x, double[] y, double[,] z) : base(x, y, z) { }

@@ -10,7 +10,7 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 public static class QualitativeColorMaps
 {
     /// <summary>Gets the Tab10 color map (10 distinct categorical colors).</summary>
-    public static IColorMap Tab10 { get; } = new LerpColorMap("tab10",
+    public static IColorMap Tab10 { get; } = new ListedColorMap("tab10",
     [
         Color.FromHex("#1F77B4"),
         Color.FromHex("#FF7F0E"),
@@ -25,7 +25,7 @@ public static class QualitativeColorMaps
     ]);
 
     /// <summary>Gets the Tab20 color map (20 colors in 10 light/dark pairs).</summary>
-    public static IColorMap Tab20 { get; } = new LerpColorMap("tab20",
+    public static IColorMap Tab20 { get; } = new ListedColorMap("tab20",
     [
         Color.FromHex("#1F77B4"),
         Color.FromHex("#AEC7E8"),
@@ -50,7 +50,7 @@ public static class QualitativeColorMaps
     ]);
 
     /// <summary>Gets the Set1 color map (9 bold categorical colors).</summary>
-    public static IColorMap Set1 { get; } = new LerpColorMap("set1",
+    public static IColorMap Set1 { get; } = new ListedColorMap("set1",
     [
         Color.FromHex("#E41A1C"),
         Color.FromHex("#377EB8"),
@@ -64,7 +64,7 @@ public static class QualitativeColorMaps
     ]);
 
     /// <summary>Gets the Set2 color map (8 pastel categorical colors).</summary>
-    public static IColorMap Set2 { get; } = new LerpColorMap("set2",
+    public static IColorMap Set2 { get; } = new ListedColorMap("set2",
     [
         Color.FromHex("#66C2A5"),
         Color.FromHex("#FC8D62"),
@@ -77,7 +77,7 @@ public static class QualitativeColorMaps
     ]);
 
     /// <summary>Gets the Set3 color map (12 light categorical colors).</summary>
-    public static IColorMap Set3 { get; } = new LerpColorMap("set3",
+    public static IColorMap Set3 { get; } = new ListedColorMap("set3",
     [
         Color.FromHex("#8DD3C7"),
         Color.FromHex("#FFFFB3"),
@@ -94,7 +94,7 @@ public static class QualitativeColorMaps
     ]);
 
     /// <summary>Gets the Pastel1 color map (9 very light categorical colors).</summary>
-    public static IColorMap Pastel1 { get; } = new LerpColorMap("pastel1",
+    public static IColorMap Pastel1 { get; } = new ListedColorMap("pastel1",
     [
         Color.FromHex("#FBB4AE"),
         Color.FromHex("#B3CDE3"),
@@ -108,7 +108,7 @@ public static class QualitativeColorMaps
     ]);
 
     /// <summary>Gets the Pastel2 color map (8 light pastel categorical colors).</summary>
-    public static IColorMap Pastel2 { get; } = new LerpColorMap("pastel2",
+    public static IColorMap Pastel2 { get; } = new ListedColorMap("pastel2",
     [
         Color.FromHex("#B3E2CD"),
         Color.FromHex("#FDCDAC"),
@@ -121,7 +121,7 @@ public static class QualitativeColorMaps
     ]);
 
     /// <summary>Gets the Dark2 color map (8 bold, dark categorical colors).</summary>
-    public static IColorMap Dark2 { get; } = new LerpColorMap("dark2",
+    public static IColorMap Dark2 { get; } = new ListedColorMap("dark2",
     [
         Color.FromHex("#1B9E77"),
         Color.FromHex("#D95F02"),
@@ -134,7 +134,7 @@ public static class QualitativeColorMaps
     ]);
 
     /// <summary>Gets the Accent color map (8 accented categorical colors).</summary>
-    public static IColorMap Accent { get; } = new LerpColorMap("accent",
+    public static IColorMap Accent { get; } = new ListedColorMap("accent",
     [
         Color.FromHex("#7FC97F"),
         Color.FromHex("#BEAED4"),
@@ -147,7 +147,7 @@ public static class QualitativeColorMaps
     ]);
 
     /// <summary>Gets the Paired color map (12 paired light/dark categorical colors).</summary>
-    public static IColorMap Paired { get; } = new LerpColorMap("paired",
+    public static IColorMap Paired { get; } = new ListedColorMap("paired",
     [
         Color.FromHex("#A6CEE3"),
         Color.FromHex("#1F78B4"),

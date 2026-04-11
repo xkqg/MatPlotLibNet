@@ -14,6 +14,8 @@ internal sealed class ErrorBarSeriesRenderer : SeriesRenderer<ErrorBarSeries>
     {
         var color = ResolveColor(series.Color);
         int n = series.XData.Length;
+        double eLineWidth = series.ELineWidth ?? series.LineWidth;
+        double capThick = series.CapThick ?? series.LineWidth;
 
         // Batch-transform all center, top, and bottom Y coordinates (SIMD)
         var pxCenter = Transform.TransformX(series.XData);
@@ -28,20 +30,27 @@ internal sealed class ErrorBarSeriesRenderer : SeriesRenderer<ErrorBarSeries>
         {
             double cx = pxCenter[i];
             var center = new Point(cx, pyCenterArr[i]);
-            var top = new Point(cx, pyTop[i]);
-            var bottom = new Point(cx, pyBot[i]);
-            Ctx.DrawLine(bottom, top, color, series.LineWidth, LineStyle.Solid);
-            Ctx.DrawLine(new Point(top.X - series.CapSize, top.Y), new Point(top.X + series.CapSize, top.Y), color, series.LineWidth, LineStyle.Solid);
-            Ctx.DrawLine(new Point(bottom.X - series.CapSize, bottom.Y), new Point(bottom.X + series.CapSize, bottom.Y), color, series.LineWidth, LineStyle.Solid);
-            if (series.XErrorLow is not null && series.XErrorHigh is not null)
-            {
-                var left = Transform.DataToPixel(series.XData[i] - series.XErrorLow[i], series.YData[i]);
-                var right = Transform.DataToPixel(series.XData[i] + series.XErrorHigh[i], series.YData[i]);
-                Ctx.DrawLine(left, right, color, series.LineWidth, LineStyle.Solid);
-                Ctx.DrawLine(new Point(left.X, left.Y - series.CapSize), new Point(left.X, left.Y + series.CapSize), color, series.LineWidth, LineStyle.Solid);
-                Ctx.DrawLine(new Point(right.X, right.Y - series.CapSize), new Point(right.X, right.Y + series.CapSize), color, series.LineWidth, LineStyle.Solid);
-            }
+
+            // Draw the data point marker always
             Ctx.DrawCircle(center, 3, color, null, 0);
+
+            // Honor ErrorEvery: only draw error bars at every N-th point
+            if (series.ErrorEvery <= 1 || i % series.ErrorEvery == 0)
+            {
+                var top = new Point(cx, pyTop[i]);
+                var bottom = new Point(cx, pyBot[i]);
+                Ctx.DrawLine(bottom, top, color, eLineWidth, LineStyle.Solid);
+                Ctx.DrawLine(new Point(top.X - series.CapSize, top.Y), new Point(top.X + series.CapSize, top.Y), color, capThick, LineStyle.Solid);
+                Ctx.DrawLine(new Point(bottom.X - series.CapSize, bottom.Y), new Point(bottom.X + series.CapSize, bottom.Y), color, capThick, LineStyle.Solid);
+                if (series.XErrorLow is not null && series.XErrorHigh is not null)
+                {
+                    var left = Transform.DataToPixel(series.XData[i] - series.XErrorLow[i], series.YData[i]);
+                    var right = Transform.DataToPixel(series.XData[i] + series.XErrorHigh[i], series.YData[i]);
+                    Ctx.DrawLine(left, right, color, eLineWidth, LineStyle.Solid);
+                    Ctx.DrawLine(new Point(left.X, left.Y - series.CapSize), new Point(left.X, left.Y + series.CapSize), color, capThick, LineStyle.Solid);
+                    Ctx.DrawLine(new Point(right.X, right.Y - series.CapSize), new Point(right.X, right.Y + series.CapSize), color, capThick, LineStyle.Solid);
+                }
+            }
         }
     }
 }

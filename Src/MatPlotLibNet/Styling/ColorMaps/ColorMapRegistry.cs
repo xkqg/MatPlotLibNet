@@ -63,6 +63,21 @@ public static class ColorMapRegistry
         RegisterBuiltIn(CyclicColorMaps.TwilightShifted);
         RegisterBuiltIn(CyclicColorMaps.Hsv);
 
+        // Additional
+        RegisterBuiltIn(AdditionalColorMaps.Gray);
+        RegisterBuiltIn(AdditionalColorMaps.Spring);
+        RegisterBuiltIn(AdditionalColorMaps.Summer);
+        RegisterBuiltIn(AdditionalColorMaps.Autumn);
+        RegisterBuiltIn(AdditionalColorMaps.Winter);
+        RegisterBuiltIn(AdditionalColorMaps.Cool);
+        RegisterBuiltIn(AdditionalColorMaps.AfmHot);
+        RegisterBuiltIn(AdditionalColorMaps.PRGn);
+        RegisterBuiltIn(AdditionalColorMaps.RdGy);
+        RegisterBuiltIn(AdditionalColorMaps.Rainbow);
+        RegisterBuiltIn(AdditionalColorMaps.Ocean);
+        RegisterBuiltIn(AdditionalColorMaps.Terrain);
+        RegisterBuiltIn(AdditionalColorMaps.CMRmap);
+
         // Qualitative
         RegisterBuiltIn(QualitativeColorMaps.Tab10);
         RegisterBuiltIn(QualitativeColorMaps.Tab20);

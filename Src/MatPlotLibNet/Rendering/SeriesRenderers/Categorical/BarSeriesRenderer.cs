@@ -13,20 +13,38 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
 
     public override void Render(BarSeries series)
     {
-        var color = ResolveColor(series.Color);
+        var baseColor = ResolveColor(series.Color);
+        var fillColor = ApplyAlpha(baseColor, series.Alpha);
         var labelFont = new Font { Family = "sans-serif", Size = 11 };
+        double edgeWidth = series.LineWidth > 0 ? series.LineWidth : (series.EdgeColor.HasValue ? 1 : 0);
+        Color? edgeColor = series.LineWidth > 0 ? (series.EdgeColor ?? baseColor) : series.EdgeColor;
 
         for (int i = 0; i < series.Categories.Length; i++)
         {
-            // Bar i occupies slot [i, i+1]; body centered at i+0.5 with barWidth fraction.
-            double center = i + 0.5;
+            // Bar i occupies slot [i, i+1].
+            // Center alignment: body centered at i+0.5.
+            // Edge alignment: bar left edge at i, right edge at i + barWidth.
+            double slotStart = i;
             double halfW = series.BarWidth / 2;
+            double barLeft, barRight;
+            if (series.Align == BarAlignment.Edge)
+            {
+                barLeft = slotStart;
+                barRight = slotStart + series.BarWidth;
+            }
+            else
+            {
+                double center = slotStart + 0.5;
+                barLeft = center - halfW;
+                barRight = center + halfW;
+            }
+
             double baseline = series.StackBaseline is not null ? series.StackBaseline[i] : 0;
             if (series.Orientation == BarOrientation.Vertical)
             {
-                var tl = Transform.DataToPixel(center - halfW, baseline + Math.Max(series.Values[i], 0));
-                var br = Transform.DataToPixel(center + halfW, baseline + Math.Min(series.Values[i], 0));
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, series.EdgeColor, series.EdgeColor.HasValue ? 1 : 0);
+                var tl = Transform.DataToPixel(barLeft, baseline + Math.Max(series.Values[i], 0));
+                var br = Transform.DataToPixel(barRight, baseline + Math.Min(series.Values[i], 0));
+                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), fillColor, edgeColor, edgeWidth);
 
                 if (series.ShowLabels)
                 {
@@ -37,9 +55,9 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
             }
             else
             {
-                var tl = Transform.DataToPixel(baseline + Math.Min(series.Values[i], 0), center + halfW);
-                var br = Transform.DataToPixel(baseline + Math.Max(series.Values[i], 0), center - halfW);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, series.EdgeColor, series.EdgeColor.HasValue ? 1 : 0);
+                var tl = Transform.DataToPixel(baseline + Math.Min(series.Values[i], 0), barRight);
+                var br = Transform.DataToPixel(baseline + Math.Max(series.Values[i], 0), barLeft);
+                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), fillColor, edgeColor, edgeWidth);
 
                 if (series.ShowLabels)
                 {

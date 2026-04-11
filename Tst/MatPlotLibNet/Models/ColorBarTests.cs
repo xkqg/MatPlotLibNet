@@ -50,4 +50,40 @@ public class ColorBarTests
         var cb = new ColorBar();
         Assert.Null(cb.ColorMap);
     }
+
+    // --- B7: ColorBarExtend ---
+
+    [Fact]
+    public void Extend_DefaultsToNeither()
+    {
+        var cb = new ColorBar();
+        Assert.Equal(ColorBarExtend.Neither, cb.Extend);
+    }
+
+    [Fact]
+    public void Extend_Min_CanBeSet()
+    {
+        var cb = new ColorBar() with { Extend = ColorBarExtend.Min };
+        Assert.Equal(ColorBarExtend.Min, cb.Extend);
+    }
+
+    [Fact]
+    public void Extend_Max_CanBeSet()
+    {
+        var cb = new ColorBar() with { Extend = ColorBarExtend.Max };
+        Assert.Equal(ColorBarExtend.Max, cb.Extend);
+    }
+
+    [Fact]
+    public void Extend_Both_CanBeSet()
+    {
+        var cb = new ColorBar() with { Extend = ColorBarExtend.Both };
+        Assert.Equal(ColorBarExtend.Both, cb.Extend);
+    }
+
+    [Fact]
+    public void ColorBarExtend_HasFourMembers()
+    {
+        Assert.Equal(4, Enum.GetValues<ColorBarExtend>().Length);
+    }
 }

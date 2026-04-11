@@ -31,6 +31,15 @@ public sealed class ErrorBarSeries : XYSeries
     /// <summary>Gets or sets the cap size in pixels at the ends of error bars.</summary>
     public double CapSize { get; set; } = 5.0;
 
+    /// <summary>Gets or sets the error bar line width. Null falls back to <see cref="LineWidth"/>.</summary>
+    public double? ELineWidth { get; set; }
+
+    /// <summary>Gets or sets the cap stroke thickness. Null falls back to <see cref="LineWidth"/>.</summary>
+    public double? CapThick { get; set; }
+
+    /// <summary>Gets or sets the interval at which error bars are drawn (every N-th point).</summary>
+    public int ErrorEvery { get; set; } = 1;
+
     /// <summary>Creates a new error bar series from the given data and error magnitudes.</summary>
     public ErrorBarSeries(double[] xData, double[] yData, double[] yErrorLow, double[] yErrorHigh)
         : base(xData, yData)

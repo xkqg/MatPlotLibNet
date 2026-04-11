@@ -51,6 +51,15 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable
     /// <summary>Gets or sets the format string used for bar value labels (e.g. "F1" for one decimal place). Null uses the default numeric format.</summary>
     public string? LabelFormat { get; set; }
 
+    /// <summary>Gets or sets the fill opacity of the bars (0.0 to 1.0).</summary>
+    public double Alpha { get; set; } = 1.0;
+
+    /// <summary>Gets or sets the edge stroke width of the bars. A value of 0.0 means no visible edge.</summary>
+    public double LineWidth { get; set; } = 0.0;
+
+    /// <summary>Gets or sets how bar positions are aligned relative to their X coordinate.</summary>
+    public BarAlignment Align { get; set; } = BarAlignment.Center;
+
     /// <summary>Initializes a new instance of <see cref="BarSeries"/> with the specified categories and values.</summary>
     /// <param name="categories">The category labels for each bar.</param>
     /// <param name="values">The numeric values for each bar.</param>
