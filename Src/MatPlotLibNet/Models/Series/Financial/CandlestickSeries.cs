@@ -8,46 +8,17 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents an OHLC candlestick series for financial chart visualization.</summary>
-public sealed class CandlestickSeries : ChartSeries, IPriceSeries, ICategoryLabeled
+public sealed class CandlestickSeries : OhlcSeries, ICategoryLabeled
 {
-    /// <summary>Gets the opening prices.</summary>
-    public double[] Open { get; }
-
-    /// <summary>Gets the highest prices.</summary>
-    public double[] High { get; }
-
-    /// <summary>Gets the lowest prices.</summary>
-    public double[] Low { get; }
-
-    /// <summary>Gets the closing prices.</summary>
-    public double[] Close { get; }
-
-    /// <summary>Gets or sets the optional date/category labels for the X axis.</summary>
-    public string[]? DateLabels { get; set; }
-
     /// <inheritdoc />
     string[]? ICategoryLabeled.CategoryLabels => DateLabels;
-
-    /// <summary>Gets or sets the color for up (close >= open) candles.</summary>
-    public Color UpColor { get; set; } = Colors.Green;
-
-    /// <summary>Gets or sets the color for down (close &lt; open) candles.</summary>
-    public Color DownColor { get; set; } = Colors.Red;
 
     /// <summary>Gets or sets the width of the candle body as a fraction of the available space.</summary>
     public double BodyWidth { get; set; } = 0.6;
 
     /// <summary>Creates a new candlestick series from the given OHLC data.</summary>
     public CandlestickSeries(double[] open, double[] high, double[] low, double[] close)
-    {
-        Open = open;
-        High = high;
-        Low = low;
-        Close = close;
-    }
-
-    /// <inheritdoc />
-    public double[] PriceData => Close;
+        : base(open, high, low, close) { }
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>

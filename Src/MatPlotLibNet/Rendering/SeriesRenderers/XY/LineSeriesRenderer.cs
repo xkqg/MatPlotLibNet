@@ -21,11 +21,4 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
             foreach (var pt in points) Ctx.DrawCircle(pt, series.MarkerSize / 2, color, null, 0);
     }
 
-    private XYData ApplyDownsampling(double[] x, double[] y, int? maxPoints)
-    {
-        if (maxPoints is null || x.Length <= maxPoints.Value) return new(x, y);
-        var culled = ViewportCuller.Cull(x, y, Transform.DataXMin, Transform.DataXMax);
-        if (culled.X.Length <= maxPoints.Value) return culled;
-        return new LttbDownsampler().Downsample(culled.X, culled.Y, maxPoints.Value);
-    }
 }

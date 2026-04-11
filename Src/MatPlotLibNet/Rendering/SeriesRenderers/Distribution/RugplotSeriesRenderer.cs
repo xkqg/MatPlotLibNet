@@ -15,8 +15,7 @@ internal sealed class RugplotSeriesRenderer : SeriesRenderer<RugplotSeries>
         if (series.Data.Length == 0) return;
 
         var color = ResolveColor(series.Color);
-        byte alpha255 = (byte)Math.Round(Math.Clamp(series.Alpha, 0.0, 1.0) * 255);
-        var tickColor = color.WithAlpha(alpha255);
+        var tickColor = ApplyAlpha(color, series.Alpha);
 
         double yDataMin = Transform.DataYMin;
         double yDataMax = Transform.DataYMax;

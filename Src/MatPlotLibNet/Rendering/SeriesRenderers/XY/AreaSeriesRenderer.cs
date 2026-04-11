@@ -14,7 +14,7 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
     public override void Render(AreaSeries series)
     {
         var color = ResolveColor(series.Color);
-        var fillColor = series.FillColor ?? color.WithAlpha((byte)(series.Alpha * 255));
+        var fillColor = series.FillColor ?? ApplyAlpha(color, series.Alpha);
         var data = ApplyDownsampling(series.XData, series.YData, series.MaxDisplayPoints);
         int n = data.X.Length;
         if (n == 0) return;
@@ -37,11 +37,4 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
         Ctx.DrawLines(new List<Point>(topPts), color, series.LineWidth, series.LineStyle);
     }
 
-    private XYData ApplyDownsampling(double[] x, double[] y, int? maxPoints)
-    {
-        if (maxPoints is null || x.Length <= maxPoints.Value) return new(x, y);
-        var culled = ViewportCuller.Cull(x, y, Transform.DataXMin, Transform.DataXMax);
-        if (culled.X.Length <= maxPoints.Value) return culled;
-        return new LttbDownsampler().Downsample(culled.X, culled.Y, maxPoints.Value);
-    }
 }

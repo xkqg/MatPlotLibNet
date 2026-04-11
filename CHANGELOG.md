@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.3] - 2026-04-11
+
+### Added
+
+- **Stacked base classes** — enriched behaviour through the pipe (DRY, SOLID, Liskov):
+  - `Indicator` enriched with `MakeX()`, `PlotSignal()`, `PlotBands()` — all 14 plotable indicators flow through the pipe
+  - `CandleIndicator<T>` — OHLCV cache + `ComputeTrueRange()`, `ComputeTypicalPrice()`, `ComputeDonchianMid()` for 7 HLC indicators
+  - `PriceIndicator<T>` — `Prices` + `PriceSource` constructor for 6 single-price indicators
+  - `OhlcSeries` — shared base for `CandlestickSeries` and `OhlcBarSeries`
+  - `DatasetSeries` — shared base + default `ComputeDataRange` for 5 distribution series
+  - `SeriesRenderer` enriched with `ApplyAlpha()` (11 renderers) + `ApplyDownsampling()` (3 renderers)
+- **`UseBarSlotX()`** — `AxesBuilder` method marking a panel as bar-slot context; all indicators auto-align to bar centres
+
+### Fixed
+
+- **Panel indicator alignment** — oscillator indicators (RSI, Stochastic, MACD) now align with bar centres; offset handled automatically through `MakeX()` / `PlotSignal()` in the base + `UseBarSlotX()` on the panel
+
 ## [0.8.2] - 2026-04-11
 
 ### Fixed

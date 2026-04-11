@@ -9,17 +9,15 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>Volume-Weighted Average Price indicator. Computes the cumulative average price weighted by volume.</summary>
 /// <remarks>VWAP is an intraday benchmark used by institutional traders. The value at each point
 /// represents the average price paid per share up to that point, weighted by volume.</remarks>
-public sealed class Vwap : Indicator<SignalResult>
+public sealed class Vwap : PriceIndicator<SignalResult>
 {
-    private readonly double[] _prices;
     private readonly double[] _volumes;
 
     /// <summary>Creates a new VWAP indicator.</summary>
     /// <param name="prices">The price data (typically the typical price: (H+L+C)/3).</param>
     /// <param name="volumes">The volume data for each period.</param>
-    public Vwap(double[] prices, double[] volumes)
+    public Vwap(double[] prices, double[] volumes) : base(prices)
     {
-        _prices = prices;
         _volumes = volumes;
         Label = "VWAP";
     }
@@ -27,26 +25,18 @@ public sealed class Vwap : Indicator<SignalResult>
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Math.Min(_prices.Length, _volumes.Length);
+        int n = Math.Min(Prices.Length, _volumes.Length);
         var result = new double[n];
         double cumPriceVol = 0, cumVol = 0;
         for (int i = 0; i < n; i++)
         {
-            cumPriceVol += _prices[i] * _volumes[i];
+            cumPriceVol += Prices[i] * _volumes[i];
             cumVol += _volumes[i];
-            result[i] = cumVol > 0 ? cumPriceVol / cumVol : _prices[i];
+            result[i] = cumVol > 0 ? cumPriceVol / cumVol : Prices[i];
         }
         return result;
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes)
-    {
-        double[] vwap = Compute();
-        var x = VectorMath.Linspace(vwap.Length, 0.0);
-        var series = axes.Plot(x, vwap);
-        series.Label = Label;
-        if (Color.HasValue) series.Color = Color.Value;
-        series.LineWidth = LineWidth;
-    }
+    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), 0);
 }

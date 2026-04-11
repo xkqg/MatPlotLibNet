@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.8.2)
+# MatPlotLibNet Core -- Architecture (v0.8.3)
 
 ## Package dependency graph
 
@@ -76,6 +76,8 @@ MatPlotLibNet/
       IStackable.cs                   interface: StackBaseline for bar stacking offset computation
       ChartSeries.cs                  abstract base: implements ISeries + ISeriesSerializable
       XYSeries.cs                     generic base: XData, YData, MaxDisplayPoints (Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Stem, Ecdf)
+      OhlcSeries.cs                   financial base: Open, High, Low, Close, DateLabels, UpColor, DownColor, PriceData (Candlestick, OhlcBar)
+      DatasetSeries.cs                distribution base: Datasets[][], default ComputeDataRange (Stripplot, Swarmplot, Pointplot, Box, Violin)
       PolarSeries.cs                  generic base: RData, ThetaData (PolarLine, PolarScatter, PolarBar)
       GridSeries3D.cs                 generic base: XData, YData, ZData[,] (Surface, Wireframe)
       HierarchicalSeries.cs           abstract base: Root, ColorMap, ShowLabels, IColormappable (Treemap, Sunburst)
@@ -87,20 +89,20 @@ MatPlotLibNet/
       HeatmapSeries.cs                Data[,], ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider
       ImageSeries.cs                  Data[,], ColorMap, Normalizer, VMin, VMax, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       Histogram2DSeries.cs            X[], Y[], BinsX, BinsY, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
-      BoxSeries.cs                    Datasets[][], Color, MedianColor, ShowOutliers
-      ViolinSeries.cs                 Datasets[][], Color, Alpha
+      BoxSeries.cs                    DatasetSeries: Color, MedianColor, ShowOutliers (overrides ComputeDataRange)
+      ViolinSeries.cs                 DatasetSeries: Color, Alpha (overrides ComputeDataRange)
       ContourSeries.cs                XData, YData, ZData[,], Levels, Filled, ShowLabels, LabelFormat, LabelFontSize, ColorMap, IColormappable, IHasDataRange
       ContourfSeries.cs               XData, YData, ZData[,], Levels, Alpha, ShowLines, LineWidth, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       StemSeries.cs                   XYSeries: MarkerColor, StemColor, BaselineColor
       AreaSeries.cs                   XYSeries: YData2 (fill between), Alpha, FillColor
       StepSeries.cs                   XYSeries: StepPosition (Pre/Mid/Post)
       ErrorBarSeries.cs               XYSeries: YErrorLow/High, XErrorLow/High, CapSize
-      CandlestickSeries.cs            IPriceSeries: Open, High, Low, Close, DateLabels, UpColor, DownColor, ICategoryLabeled
+      CandlestickSeries.cs            OhlcSeries: BodyWidth, ICategoryLabeled
       QuiverSeries.cs                 XData, YData, UData, VData, Scale, ArrowHeadSize
       RadarSeries.cs                  Categories, Values, FillColor, Alpha, MaxValue
       DonutSeries.cs                  Sizes, InnerRadius, CenterText (Circular/)
       BubbleSeries.cs                 XYSeries: Sizes, Alpha (XY/)
-      OhlcBarSeries.cs                IPriceSeries: Open, High, Low, Close, TickWidth, ICategoryLabeled (Financial/)
+      OhlcBarSeries.cs                OhlcSeries: TickWidth (Financial/)
       WaterfallSeries.cs              Categories, Values, IncreaseColor, DecreaseColor (Categorical/)
       FunnelSeries.cs                 Labels, Values, Colors (Categorical/)
       GanttSeries.cs                  Tasks, Starts, Ends, BarHeight (Categorical/)
@@ -123,12 +125,12 @@ MatPlotLibNet/
       RegressionSeries.cs             XData[], YData[], Degree, ShowConfidence, ConfidenceLevel, BandColor, BandAlpha (XY/)
       HexbinSeries.cs                 X[], Y[], GridSize, MinCount, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       RugplotSeries.cs                Vec Data, Height, Color, Alpha, LineWidth (Distribution/)
-      StripplotSeries.cs              double[][] Datasets, Jitter, MarkerSize, Color, Alpha (Distribution/)
-      SwarmplotSeries.cs              double[][] Datasets, MarkerSize, Color, Alpha — beeswarm layout (Distribution/)
+      StripplotSeries.cs              DatasetSeries: Jitter, MarkerSize, Color, Alpha (Distribution/)
+      SwarmplotSeries.cs              DatasetSeries: MarkerSize, Color, Alpha — beeswarm layout (Distribution/)
       EventplotSeries.cs              double[][] Positions, LineWidth, Colors[], LineLength (Categorical/)
       BrokenBarSeries.cs              (double Start,Width)[][] Ranges, Labels, BarHeight, Color (Categorical/)
       CountSeries.cs                  string[] Values, Color, Orientation, BarWidth — auto group-count (Categorical/)
-      PointplotSeries.cs              double[][] Datasets, Categories, Color, MarkerSize, CapSize, ConfidenceLevel (Categorical/)
+      PointplotSeries.cs              DatasetSeries: Categories, Color, MarkerSize, CapSize, ConfidenceLevel (Categorical/)
       PcolormeshSeries.cs             Vec X (M+1), Vec Y (N+1), double[,] C (N×M), IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       SpectrogramSeries.cs            Vec Signal, SampleRate, WindowSize=256, Overlap=128, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       ResidualSeries.cs               Vec XData, Vec YData, Degree=1, MarkerSize, Color, ShowZeroLine (XY/)
@@ -140,10 +142,12 @@ MatPlotLibNet/
       Stem3DSeries.cs                 Vec X, Y, Z, Color, MarkerSize, I3DPointSeries — vertical stems (ThreeD/)
       Bar3DSeries.cs                  Vec X, Y, Z (heights), BarWidth, Color, I3DPointSeries — 3D bar prisms (ThreeD/)
 
-  Indicators/                           polymorphic: IIndicator -> Indicator -> Indicator<TResult> where TResult : IIndicatorResult
+  Indicators/                           stacked base classes: IIndicator → Indicator → Indicator<T> → CandleIndicator<T> / PriceIndicator<T>
     IIndicator.cs                       interface: Apply(Axes)
-    Indicator.cs                        abstract base: Color, Label, LineWidth, LineStyle, Offset
+    Indicator.cs                        abstract base: Color, Label, LineWidth, LineStyle, Offset, MakeX(), PlotSignal(), PlotBands()
     Indicator<TResult>.cs               generic: typed Compute() with IIndicatorResult constraint
+    CandleIndicator<TResult>.cs         OHLCV base: Open, High, Low, Close, Volume, BarCount, ComputeTrueRange(), ComputeTypicalPrice(), ComputeDonchianMid()
+    PriceIndicator<TResult>.cs          single-price base: Prices, PriceSource constructor overload
     IIndicatorResult.cs                 marker interface for all result types
     SignalResult.cs                     single-line result (SMA, EMA, RSI, ATR, etc.) with implicit double[] conversion
     BandsResult.cs                      band result (Bollinger Bands, Keltner Channels): Middle, Upper, Lower
@@ -151,18 +155,18 @@ MatPlotLibNet/
     StochasticResult.cs                 Stochastic result: K, D
     IchimokuResult.cs                   Ichimoku result: TenkanSen, KijunSen, SenkouSpanA, SenkouSpanB, ChikouSpan
     PriceSource.cs                      enum (Close/Open/HL2/HLC3/OHLC4) + PriceSources resolver
-    Sma.cs, Ema.cs                      Moving averages (overlay)
-    BollingerBands.cs                   Upper/lower bands + SMA middle (overlay)
-    Vwap.cs                             Volume-weighted average price (overlay)
+    Sma.cs, Ema.cs                      PriceIndicator: moving averages (overlay)
+    BollingerBands.cs                   PriceIndicator: upper/lower bands via PlotBands() (overlay)
+    Vwap.cs                             PriceIndicator: volume-weighted average price (overlay)
     FibonacciRetracement.cs             Horizontal levels at key ratios (overlay)
-    Rsi.cs                              Relative Strength Index 0-100 (panel)
-    Macd.cs                             MACD + signal + histogram (panel)
-    Stochastic.cs                       %K + %D oscillator (panel)
+    Rsi.cs                              PriceIndicator: Relative Strength Index 0-100 (panel)
+    Macd.cs                             PriceIndicator: MACD + signal + histogram (panel)
+    Stochastic.cs                       CandleIndicator: %K + %D oscillator (panel)
     VolumeIndicator.cs                  Volume bars (panel)
-    Atr.cs                              Average True Range (panel)
-    Adx.cs                              Average Directional Index + DI (panel)
-    KeltnerChannels.cs                  EMA + ATR bands (overlay)
-    Ichimoku.cs                         Ichimoku Cloud 5-line system (overlay)
+    Atr.cs                              CandleIndicator: Average True Range via ComputeTrueRange() (panel)
+    Adx.cs                              CandleIndicator: Average Directional Index via ComputeTrueRange() (panel)
+    KeltnerChannels.cs                  CandleIndicator: EMA + ATR bands via PlotBands() (overlay)
+    Ichimoku.cs                         CandleIndicator: Ichimoku Cloud via ComputeDonchianMid() (overlay)
     BuySellSignal.cs                    Buy/sell triangle markers
     EquityCurve.cs                      Cumulative P&L line (panel)
     ProfitLoss.cs                       Per-trade colored bars (panel)
@@ -239,7 +243,7 @@ MatPlotLibNet/
 
     SeriesRenderers/                    generic SeriesRenderer<T> per series type
       SeriesRenderContext.cs            record: Transform + Ctx + Color + Area + options
-      SeriesRenderer.cs                 abstract base + generic SeriesRenderer<T>
+      SeriesRenderer.cs                 abstract base: ResolveColor(), ApplyAlpha(), ApplyDownsampling() + generic SeriesRenderer<T>
       XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band), Residual (LeastSquares residuals + optional zero line)
       Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
       Circular/                         Pie, Radar, Donut, Gauge

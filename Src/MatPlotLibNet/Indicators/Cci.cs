@@ -9,9 +9,8 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>Commodity Channel Index indicator. Measures how far price has deviated from its statistical mean.</summary>
 /// <remarks>Values above +100 indicate overbought conditions; below -100 indicate oversold.
 /// Reference lines at ±100 are added automatically. Best placed in a separate subplot.</remarks>
-public sealed class Cci : Indicator<SignalResult>
+public sealed class Cci : CandleIndicator<SignalResult>
 {
-    private readonly double[] _high, _low, _close;
     private readonly int _period;
 
     /// <summary>Creates a new CCI indicator.</summary>
@@ -20,8 +19,8 @@ public sealed class Cci : Indicator<SignalResult>
     /// <param name="close">Close prices.</param>
     /// <param name="period">Lookback period (default 20).</param>
     public Cci(double[] high, double[] low, double[] close, int period = 20)
+        : base(high, low, close)
     {
-        _high = high; _low = low; _close = close;
         _period = period;
         Label = $"CCI({period})";
     }
@@ -29,14 +28,11 @@ public sealed class Cci : Indicator<SignalResult>
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Math.Min(Math.Min(_high.Length, _low.Length), _close.Length);
+        int n = BarCount;
         int len = n - _period + 1;
         if (len <= 0) return Array.Empty<double>();
 
-        // Typical price: (H + L + C) / 3
-        var tp = new double[n];
-        for (int i = 0; i < n; i++)
-            tp[i] = (_high[i] + _low[i] + _close[i]) / 3.0;
+        var tp = ComputeTypicalPrice();
 
         double[] sma = VectorMath.RollingMean(tp, _period);  // length = len
 
@@ -60,13 +56,7 @@ public sealed class Cci : Indicator<SignalResult>
     {
         double[] cci = Compute();
         if (cci.Length == 0) return;
-        var x = ApplyOffset(VectorMath.Linspace(cci.Length, _period - 1));
-
-        var series = axes.Plot(x, cci);
-        series.Label = Label;
-        if (Color.HasValue) series.Color = Color.Value;
-        series.LineWidth = LineWidth;
-
+        PlotSignal(axes, cci, _period - 1);
         axes.AxHLine(100);
         axes.AxHLine(-100);
     }

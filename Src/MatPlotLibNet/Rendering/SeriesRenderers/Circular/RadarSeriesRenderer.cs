@@ -13,7 +13,7 @@ internal sealed class RadarSeriesRenderer : SeriesRenderer<RadarSeries>
     public override void Render(RadarSeries series)
     {
         var color = ResolveColor(series.Color);
-        var fillColor = series.FillColor ?? color.WithAlpha((byte)(series.Alpha * 255));
+        var fillColor = series.FillColor ?? ApplyAlpha(color, series.Alpha);
         int n = series.Categories.Length;
         if (n < 3) return;
         var bounds = Area.PlotBounds;

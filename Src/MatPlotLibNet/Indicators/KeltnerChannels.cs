@@ -3,16 +3,14 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Numerics;
-using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>Keltner Channels indicator. EMA-based channel with ATR-based bands.</summary>
 /// <remarks>Similar to Bollinger Bands but uses ATR instead of standard deviation for band width.
 /// Upper = EMA + multiplier * ATR, Lower = EMA - multiplier * ATR.</remarks>
-public sealed class KeltnerChannels : Indicator<BandsResult>
+public sealed class KeltnerChannels : CandleIndicator<BandsResult>
 {
-    private readonly double[] _high, _low, _close;
     private readonly int _period;
     private readonly double _atrMultiplier;
 
@@ -21,8 +19,8 @@ public sealed class KeltnerChannels : Indicator<BandsResult>
 
     /// <summary>Creates a new Keltner Channels indicator.</summary>
     public KeltnerChannels(double[] high, double[] low, double[] close, int period = 20, double atrMultiplier = 1.5)
+        : base(high, low, close)
     {
-        _high = high; _low = low; _close = close;
         _period = period; _atrMultiplier = atrMultiplier;
         Label = $"KC({period},{atrMultiplier})";
     }
@@ -30,8 +28,8 @@ public sealed class KeltnerChannels : Indicator<BandsResult>
     /// <inheritdoc />
     public override BandsResult Compute()
     {
-        double[] ema = new Ema(_close, _period).Compute();
-        double[] atr = new Atr(_high, _low, _close, _period).Compute();
+        double[] ema = new Ema(Close, _period).Compute();
+        double[] atr = new Atr(High, Low, Close, _period).Compute();
 
         int len = Math.Min(atr.Length, ema.Length - _period);
         if (len <= 0) return new BandsResult([], [], []);
@@ -48,25 +46,5 @@ public sealed class KeltnerChannels : Indicator<BandsResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes)
-    {
-        var result = Compute();
-        var middle = result.Middle;
-        var upper = result.Upper;
-        var lower = result.Lower;
-        if (middle.Length == 0) return;
-        var x = ApplyOffset(VectorMath.Linspace(middle.Length, _period));
-
-        var bandColor = Color ?? Colors.Tab10Orange;
-        var fill = axes.FillBetween(x, upper, lower);
-        fill.Color = bandColor;
-        fill.Alpha = Alpha;
-        fill.LineWidth = 0;
-
-        var mid = axes.Plot(x, middle);
-        mid.Label = Label;
-        mid.Color = bandColor;
-        mid.LineWidth = LineWidth;
-        mid.LineStyle = LineStyle;
-    }
+    public override void Apply(Axes axes) => PlotBands(axes, Compute(), _period, Alpha);
 }

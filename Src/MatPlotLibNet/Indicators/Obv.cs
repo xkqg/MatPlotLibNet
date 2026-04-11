@@ -45,13 +45,5 @@ public sealed class Obv : Indicator<SignalResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes)
-    {
-        double[] obv = Compute();
-        var x = ApplyOffset(VectorMath.Linspace(obv.Length, 0.0));
-        var series = axes.Plot(x, obv);
-        series.Label = Label;
-        if (Color.HasValue) series.Color = Color.Value;
-        series.LineWidth = LineWidth;
-    }
+    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), 0);
 }

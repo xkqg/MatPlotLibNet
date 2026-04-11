@@ -76,6 +76,7 @@ public static class FigureTemplates
             ax.SetXLim(0, n);  // align x range with price/volume panels
             ax.SetXTickLocator(barLocator);
             ax.SetXTickFormatter(barFormatter);
+            ax.UseBarSlotX();  // panel indicators (RSI, etc.) will auto-align to bar centres
             configureOscillatorPanel?.Invoke(ax);
         });
 

@@ -43,11 +43,4 @@ internal sealed class StepSeriesRenderer : SeriesRenderer<StepSeries>
         Ctx.DrawLines(pts, color, series.LineWidth, series.LineStyle);
     }
 
-    private XYData ApplyDownsampling(double[] x, double[] y, int? maxPoints)
-    {
-        if (maxPoints is null || x.Length <= maxPoints.Value) return new(x, y);
-        var culled = ViewportCuller.Cull(x, y, Transform.DataXMin, Transform.DataXMax);
-        if (culled.X.Length <= maxPoints.Value) return culled;
-        return new LttbDownsampler().Downsample(culled.X, culled.Y, maxPoints.Value);
-    }
 }

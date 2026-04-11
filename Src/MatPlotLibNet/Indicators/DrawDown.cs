@@ -42,7 +42,7 @@ public sealed class DrawDown : Indicator<SignalResult>
     public override void Apply(Axes axes)
     {
         double[] dd = Compute();
-        var x = VectorMath.Linspace(dd.Length, 0.0);
+        var x = MakeX(dd.Length, 0);
         // Negate for visual (drawdown plots below zero)
         var negDd = new double[dd.Length];
         VectorMath.Negate(dd, negDd);

@@ -26,12 +26,11 @@ internal sealed class KdeSeriesRenderer : SeriesRenderer<KdeSeries>
 
         if (series.Fill)
         {
-            byte alpha255 = (byte)Math.Round(Math.Clamp(series.Alpha, 0.0, 1.0) * 255);
             var polygon = new List<Point>(points.Count + 2);
             polygon.AddRange(points);
             polygon.Add(Transform.DataToPixel(xs[^1], 0));
             polygon.Add(Transform.DataToPixel(xs[0], 0));
-            Ctx.DrawPolygon(polygon, color.WithAlpha(alpha255), null, 0);
+            Ctx.DrawPolygon(polygon, ApplyAlpha(color, series.Alpha), null, 0);
         }
 
         Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);

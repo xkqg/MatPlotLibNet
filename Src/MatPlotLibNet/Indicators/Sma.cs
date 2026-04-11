@@ -7,39 +7,24 @@ using MatPlotLibNet.Numerics;
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>Simple Moving Average indicator. Computes the unweighted mean of the last N prices.</summary>
-public sealed class Sma : Indicator<SignalResult>
+public sealed class Sma : PriceIndicator<SignalResult>
 {
-    private readonly double[] _prices;
     private readonly int _period;
 
     /// <summary>Creates a new SMA indicator from a price array.</summary>
-    public Sma(double[] prices, int period)
+    public Sma(double[] prices, int period) : base(prices)
     {
-        _prices = prices;
         _period = period;
         Label = $"SMA({period})";
     }
 
-    /// <summary>Creates a new SMA indicator from OHLC data with a selectable price source.</summary>
-    public Sma(double[] open, double[] high, double[] low, double[] close, int period, PriceSource source = PriceSource.Close)
-        : this(PriceSources.Resolve(source, open, high, low, close), period) { }
-
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        if (_prices.Length < _period) return Array.Empty<double>();
-        return VectorMath.RollingMean(_prices, _period);
+        if (Prices.Length < _period) return Array.Empty<double>();
+        return VectorMath.RollingMean(Prices, _period);
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes)
-    {
-        var sma = Compute();
-        var x = ApplyOffset(VectorMath.Linspace(sma.Length, _period - 1));
-        var series = axes.Plot(x, sma);
-        series.Label = Label;
-        if (Color.HasValue) series.Color = Color.Value;
-        series.LineWidth = LineWidth;
-        series.LineStyle = LineStyle;
-    }
+    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), _period - 1);
 }

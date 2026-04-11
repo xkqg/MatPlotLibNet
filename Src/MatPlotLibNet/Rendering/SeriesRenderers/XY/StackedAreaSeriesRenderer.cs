@@ -39,7 +39,7 @@ internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeri
         for (int layer = 0; layer < layers; layer++)
         {
             var color = cycleColors[layer % cycleColors.Length];
-            var fillColor = color.WithAlpha((byte)(series.Alpha * 255));
+            var fillColor = ApplyAlpha(color, series.Alpha);
 
             var pyTop = Transform.TransformY(cumulative[layer]);
             var polygon = new List<Point>(n * 2);

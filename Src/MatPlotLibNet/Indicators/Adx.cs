@@ -10,9 +10,8 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>Average Directional Index indicator. Measures trend strength on a 0-100 scale regardless of direction.</summary>
 /// <remarks>ADX above 25 indicates a strong trend, below 20 indicates ranging. Produces three lines:
 /// ADX (trend strength), +DI (bullish direction), and -DI (bearish direction).</remarks>
-public sealed class Adx : Indicator<SignalResult>
+public sealed class Adx : CandleIndicator<SignalResult>
 {
-    private readonly double[] _high, _low, _close;
     private readonly int _period;
 
     /// <summary>Gets or sets the +DI line color.</summary>
@@ -23,8 +22,9 @@ public sealed class Adx : Indicator<SignalResult>
 
     /// <summary>Creates a new ADX indicator.</summary>
     public Adx(double[] high, double[] low, double[] close, int period = 14)
+        : base(high, low, close)
     {
-        _high = high; _low = low; _close = close; _period = period;
+        _period = period;
         Label = $"ADX({period})";
     }
 
@@ -40,22 +40,12 @@ public sealed class Adx : Indicator<SignalResult>
     {
         var (adx, plusDi, minusDi) = ComputeFull();
         int offset = _period * 2;
-        var x = ApplyOffset(VectorMath.Linspace(adx.Length, offset));
-
-        var adxSeries = axes.Plot(x, adx);
-        adxSeries.Label = Label;
-        adxSeries.Color = Color ?? Colors.Tab10Blue;
-        adxSeries.LineWidth = LineWidth;
-        adxSeries.LineStyle = LineStyle;
-
+        PlotSignal(axes, adx, offset);
         if (plusDi.Length == adx.Length)
         {
-            var pdi = axes.Plot(x, plusDi);
-            pdi.Label = "+DI"; pdi.Color = PlusDiColor ?? Colors.Green; pdi.LineWidth = 1;
-            var mdi = axes.Plot(x, minusDi);
-            mdi.Label = "-DI"; mdi.Color = MinusDiColor ?? Colors.Red; mdi.LineWidth = 1;
+            PlotSignal(axes, plusDi, offset, "+DI", PlusDiColor ?? Colors.Green).LineWidth = 1;
+            PlotSignal(axes, minusDi, offset, "-DI", MinusDiColor ?? Colors.Red).LineWidth = 1;
         }
-
         axes.YAxis.Min = 0;
         axes.YAxis.Max = 100;
     }
@@ -63,7 +53,7 @@ public sealed class Adx : Indicator<SignalResult>
     /// <summary>Computes ADX, +DI, and -DI.</summary>
     public (double[] Adx, double[] PlusDi, double[] MinusDi) ComputeFull()
     {
-        int n = _close.Length;
+        int n = Close.Length;
         if (n <= _period * 2) return ([], [], []);
 
         var tr = new double[n - 1];
@@ -72,10 +62,10 @@ public sealed class Adx : Indicator<SignalResult>
 
         for (int i = 0; i < n - 1; i++)
         {
-            double h = _high[i + 1], l = _low[i + 1], pc = _close[i];
+            double h = High[i + 1], l = Low[i + 1], pc = Close[i];
             tr[i] = Math.Max(h - l, Math.Max(Math.Abs(h - pc), Math.Abs(l - pc)));
-            double upMove = _high[i + 1] - _high[i];
-            double downMove = _low[i] - _low[i + 1];
+            double upMove = High[i + 1] - High[i];
+            double downMove = Low[i] - Low[i + 1];
             plusDm[i] = upMove > downMove && upMove > 0 ? upMove : 0;
             minusDm[i] = downMove > upMove && downMove > 0 ? downMove : 0;
         }

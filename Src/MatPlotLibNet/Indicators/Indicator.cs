@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
@@ -39,6 +40,42 @@ public abstract class Indicator : IIndicator
         var result = new double[x.Length];
         VectorMath.Add(x, Offset, result);
         return result;
+    }
+
+    /// <summary>Generates offset X coordinates for a signal of the given length
+    /// starting at the specified warmup offset.</summary>
+    protected double[] MakeX(int length, int warmup) =>
+        ApplyOffset(VectorMath.Linspace(length, warmup));
+
+    /// <summary>Plots a single signal line with the indicator's styling applied.</summary>
+    /// <returns>The created <see cref="LineSeries"/> for further customization.</returns>
+    protected LineSeries PlotSignal(Axes axes, double[] values, int warmup,
+        string? label = null, Color? color = null)
+    {
+        var x = MakeX(values.Length, warmup);
+        var series = axes.Plot(x, values);
+        series.Label = label ?? Label;
+        if (color.HasValue) series.Color = color.Value;
+        else if (Color.HasValue) series.Color = Color.Value;
+        series.LineWidth = LineWidth;
+        series.LineStyle = LineStyle;
+        return series;
+    }
+
+    /// <summary>Plots a band indicator: FillBetween for the upper/lower range + a midline with the indicator's styling.</summary>
+    protected void PlotBands(Axes axes, BandsResult result, int warmup, double alpha = 0.15)
+    {
+        var x = MakeX(result.Middle.Length, warmup);
+        var bandColor = Color ?? Colors.Tab10Blue;
+        var fill = axes.FillBetween(x, result.Upper, result.Lower);
+        fill.Color = bandColor;
+        fill.Alpha = alpha;
+        fill.LineWidth = 0;
+        var mid = axes.Plot(x, result.Middle);
+        mid.Label = Label;
+        mid.Color = bandColor;
+        mid.LineWidth = LineWidth;
+        mid.LineStyle = LineStyle;
     }
 }
 

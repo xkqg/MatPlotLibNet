@@ -10,16 +10,15 @@ namespace MatPlotLibNet.Indicators;
 /// <summary>Ichimoku Cloud (Ichimoku Kinko Hyo) indicator. Shows support/resistance, trend direction, and momentum.</summary>
 /// <remarks>Produces five lines: Tenkan-sen (conversion), Kijun-sen (base), Senkou Span A and B (cloud),
 /// and Chikou Span (lagging). The cloud is filled between Span A and B.</remarks>
-public sealed class Ichimoku : Indicator<IchimokuResult>
+public sealed class Ichimoku : CandleIndicator<IchimokuResult>
 {
-    private readonly double[] _high, _low, _close;
     private readonly int _tenkanPeriod, _kijunPeriod, _senkouBPeriod, _displacement;
 
     /// <summary>Creates a new Ichimoku Cloud indicator with standard parameters.</summary>
     public Ichimoku(double[] high, double[] low, double[] close,
         int tenkanPeriod = 9, int kijunPeriod = 26, int senkouBPeriod = 52, int displacement = 26)
+        : base(high, low, close)
     {
-        _high = high; _low = low; _close = close;
         _tenkanPeriod = tenkanPeriod; _kijunPeriod = kijunPeriod;
         _senkouBPeriod = senkouBPeriod; _displacement = displacement;
         Label = "Ichimoku";
@@ -28,8 +27,8 @@ public sealed class Ichimoku : Indicator<IchimokuResult>
     /// <inheritdoc />
     public override IchimokuResult Compute()
     {
-        var tenkan = DonchianMid(_high, _low, _tenkanPeriod);
-        var kijun = DonchianMid(_high, _low, _kijunPeriod);
+        var tenkan = ComputeDonchianMid(_tenkanPeriod);
+        var kijun = ComputeDonchianMid(_kijunPeriod);
 
         // Senkou Span A = (Tenkan + Kijun) / 2
         int spanLen = Math.Min(tenkan.Length, kijun.Length);
@@ -39,10 +38,10 @@ public sealed class Ichimoku : Indicator<IchimokuResult>
             spanA[i] = (tenkan[i + kijunOffset] + kijun[i]) / 2;
 
         // Senkou Span B = Donchian mid of senkouB period
-        var spanB = DonchianMid(_high, _low, _senkouBPeriod);
+        var spanB = ComputeDonchianMid(_senkouBPeriod);
 
         // Chikou Span = close (lagging line, plotted shifted back by displacement)
-        var chikou = _close;
+        var chikou = Close;
 
         return new IchimokuResult(tenkan, kijun, spanA, spanB, chikou);
     }
@@ -50,7 +49,7 @@ public sealed class Ichimoku : Indicator<IchimokuResult>
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        if (_close.Length < _senkouBPeriod) return;
+        if (Close.Length < _senkouBPeriod) return;
 
         var result = Compute();
 
@@ -76,25 +75,4 @@ public sealed class Ichimoku : Indicator<IchimokuResult>
         cloud.Label = "Cloud";
     }
 
-    private static double[] DonchianMid(double[] high, double[] low, int period)
-    {
-        int n = high.Length;
-        if (n < period) return [];
-        int len = n - period + 1;
-        // O(n) monotone-deque rolling max/min (replaces O(n×period) nested loop)
-        var hhBuf = new double[n];
-        var llBuf = new double[n];
-        VectorMath.RollingMax(high, period, hhBuf);
-        VectorMath.RollingMin(low, period, llBuf);
-        var result = new double[len];
-        // hhBuf[i + period - 1] = max(high[i..i+period))
-        var hhSlice = ((ReadOnlySpan<double>)hhBuf).Slice(period - 1, len);
-        var llSlice = ((ReadOnlySpan<double>)llBuf).Slice(period - 1, len);
-        VectorMath.Add(hhSlice, llSlice, result);
-        VectorMath.Divide(result, 2.0, result);
-        return result;
-    }
-
-    private double[] MakeX(int length, int offset) =>
-        ApplyOffset(VectorMath.Linspace(length, offset));
 }

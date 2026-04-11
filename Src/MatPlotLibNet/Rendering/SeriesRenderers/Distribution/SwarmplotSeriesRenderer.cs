@@ -15,8 +15,7 @@ internal sealed class SwarmplotSeriesRenderer : SeriesRenderer<SwarmplotSeries>
         if (series.Datasets.Length == 0) return;
 
         var color = ResolveColor(series.Color);
-        byte alpha255 = (byte)Math.Round(Math.Clamp(series.Alpha, 0.0, 1.0) * 255);
-        var dotColor = color.WithAlpha(alpha255);
+        var dotColor = ApplyAlpha(color, series.Alpha);
         double r = series.MarkerSize / 2.0;
 
         // Estimate markerRadius in data units from pixel radius

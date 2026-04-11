@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Downsampling;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
 
@@ -58,6 +59,19 @@ internal abstract class SeriesRenderer
     {
         if (TooltipsEnabled && Ctx is SvgRenderContext svgCtx)
             svgCtx.EndTooltipGroup();
+    }
+
+    /// <summary>Converts a normalized alpha (0.0–1.0) to a byte and applies it to the color.</summary>
+    protected Color ApplyAlpha(Color color, double alpha) =>
+        color.WithAlpha((byte)Math.Round(Math.Clamp(alpha, 0.0, 1.0) * 255));
+
+    /// <summary>Applies viewport culling and LTTB downsampling to XY data when maxPoints is set.</summary>
+    protected XYData ApplyDownsampling(double[] x, double[] y, int? maxPoints)
+    {
+        if (maxPoints is null || x.Length <= maxPoints.Value) return new(x, y);
+        var culled = ViewportCuller.Cull(x, y, Transform.DataXMin, Transform.DataXMax);
+        if (culled.X.Length <= maxPoints.Value) return culled;
+        return new LttbDownsampler().Downsample(culled.X, culled.Y, maxPoints.Value);
     }
 }
 

@@ -10,9 +10,8 @@ namespace MatPlotLibNet.Indicators;
 /// <remarks>Values near 0 indicate overbought conditions; values near -100 indicate oversold.
 /// Reference lines at -20 (overbought) and -80 (oversold) are added automatically.
 /// Best placed in a separate subplot.</remarks>
-public sealed class WilliamsR : Indicator<SignalResult>
+public sealed class WilliamsR : CandleIndicator<SignalResult>
 {
-    private readonly double[] _high, _low, _close;
     private readonly int _period;
 
     /// <summary>Creates a new Williams %R indicator.</summary>
@@ -21,8 +20,8 @@ public sealed class WilliamsR : Indicator<SignalResult>
     /// <param name="close">Close prices.</param>
     /// <param name="period">Lookback period (default 14).</param>
     public WilliamsR(double[] high, double[] low, double[] close, int period = 14)
+        : base(high, low, close)
     {
-        _high = high; _low = low; _close = close;
         _period = period;
         Label = $"%R({period})";
     }
@@ -30,14 +29,14 @@ public sealed class WilliamsR : Indicator<SignalResult>
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        int n = Math.Min(Math.Min(_high.Length, _low.Length), _close.Length);
+        int n = BarCount;
         int len = n - _period + 1;
         if (len <= 0) return Array.Empty<double>();
 
         var highBuf = new double[n];
         var lowBuf = new double[n];
-        VectorMath.RollingMax(_high, _period, highBuf);
-        VectorMath.RollingMin(_low, _period, lowBuf);
+        VectorMath.RollingMax(High, _period, highBuf);
+        VectorMath.RollingMin(Low, _period, lowBuf);
 
         var result = new double[len];
         for (int i = 0; i < len; i++)
@@ -46,7 +45,7 @@ public sealed class WilliamsR : Indicator<SignalResult>
             double hh = highBuf[idx];
             double ll = lowBuf[idx];
             double range = hh - ll;
-            result[i] = range == 0 ? -50.0 : (hh - _close[idx]) / range * -100.0;
+            result[i] = range == 0 ? -50.0 : (hh - Close[idx]) / range * -100.0;
         }
         return result;
     }
@@ -56,13 +55,7 @@ public sealed class WilliamsR : Indicator<SignalResult>
     {
         double[] wr = Compute();
         if (wr.Length == 0) return;
-        var x = ApplyOffset(VectorMath.Linspace(wr.Length, _period - 1));
-
-        var series = axes.Plot(x, wr);
-        series.Label = Label;
-        if (Color.HasValue) series.Color = Color.Value;
-        series.LineWidth = LineWidth;
-
+        PlotSignal(axes, wr, _period - 1);
         axes.YAxis.Min = -100;
         axes.YAxis.Max = 0;
         axes.AxHLine(-20);

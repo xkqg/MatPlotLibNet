@@ -8,11 +8,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a swarm plot series that draws non-overlapping dots per category using beeswarm layout.</summary>
-public sealed class SwarmplotSeries : ChartSeries
+public sealed class SwarmplotSeries : DatasetSeries
 {
-    /// <summary>Gets the array of datasets, one per category.</summary>
-    public double[][] Datasets { get; }
-
     /// <summary>Gets or sets the radius of each dot in pixels.</summary>
     public double MarkerSize { get; set; } = 5;
 
@@ -24,19 +21,7 @@ public sealed class SwarmplotSeries : ChartSeries
 
     /// <summary>Initializes a new instance of <see cref="SwarmplotSeries"/> with the specified datasets.</summary>
     /// <param name="datasets">An array of datasets, each containing values for one category.</param>
-    public SwarmplotSeries(double[][] datasets)
-    {
-        Datasets = datasets;
-    }
-
-    /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context)
-    {
-        if (Datasets.Length == 0) return new(0, 1, 0, 1);
-        double yMin = Datasets.SelectMany(d => d).DefaultIfEmpty(0).Min();
-        double yMax = Datasets.SelectMany(d => d).DefaultIfEmpty(1).Max();
-        return new(-0.5, Datasets.Length - 0.5, yMin, yMax);
-    }
+    public SwarmplotSeries(double[][] datasets) : base(datasets) { }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

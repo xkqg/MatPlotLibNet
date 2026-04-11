@@ -12,6 +12,9 @@ namespace MatPlotLibNet;
 public sealed class AxesBuilder
 {
     private readonly Axes _axes = new();
+    // True when the panel uses bar-slot X coordinates (slot [i,i+1], centre at i+0.5).
+    // Set by UseBarSlotX() or inferred from a categorical series on the same axes.
+    private bool _isBarSlotContext;
 
     /// <summary>Sets the axes title.</summary>
     public AxesBuilder WithTitle(string title) { _axes.Title = title; return this; }
@@ -30,6 +33,11 @@ public sealed class AxesBuilder
 
     /// <summary>Sets the auto-scale margin on each side of the X axis (default 0.05). Use 0 for bar/candlestick charts that already include half-bar-width padding.</summary>
     public AxesBuilder SetXMargin(double margin) { _axes.XAxis.Margin = margin; return this; }
+
+    /// <summary>Marks this panel as using bar-slot X coordinates (slot [i, i+1], centre at i+0.5).
+    /// All subsequently added indicators will automatically apply a +0.5 offset so their points
+    /// align with bar centres rather than the left edge of each bar slot.</summary>
+    public AxesBuilder UseBarSlotX() { _isBarSlotContext = true; return this; }
 
     /// <summary>Sets the auto-scale margin on each side of the Y axis (default 0.05).</summary>
     public AxesBuilder SetYMargin(double margin) { _axes.YAxis.Margin = margin; return this; }
@@ -553,7 +561,7 @@ public sealed class AxesBuilder
     public AxesBuilder Sma(int period, Action<Indicators.Sma>? configure = null)
     {
         var indicator = new Indicators.Sma(GetPriceData(), period);
-        if (HasCategoricalSeries()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -563,7 +571,7 @@ public sealed class AxesBuilder
     public AxesBuilder Ema(int period, Action<Indicators.Ema>? configure = null)
     {
         var indicator = new Indicators.Ema(GetPriceData(), period);
-        if (HasCategoricalSeries()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -573,7 +581,7 @@ public sealed class AxesBuilder
     public AxesBuilder BollingerBands(int period = 20, double stdDev = 2.0, Action<Indicators.BollingerBands>? configure = null)
     {
         var indicator = new Indicators.BollingerBands(GetPriceData(), period, stdDev);
-        if (HasCategoricalSeries()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -583,6 +591,7 @@ public sealed class AxesBuilder
     public AxesBuilder Rsi(double[] prices, int period = 14, Action<Indicators.Rsi>? configure = null)
     {
         var indicator = new Indicators.Rsi(prices, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -592,6 +601,7 @@ public sealed class AxesBuilder
     public AxesBuilder WilliamsR(double[] high, double[] low, double[] close, int period = 14, Action<Indicators.WilliamsR>? configure = null)
     {
         var indicator = new Indicators.WilliamsR(high, low, close, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -601,6 +611,7 @@ public sealed class AxesBuilder
     public AxesBuilder Obv(double[] close, double[] volume, Action<Indicators.Obv>? configure = null)
     {
         var indicator = new Indicators.Obv(close, volume);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -610,6 +621,7 @@ public sealed class AxesBuilder
     public AxesBuilder Cci(double[] high, double[] low, double[] close, int period = 20, Action<Indicators.Cci>? configure = null)
     {
         var indicator = new Indicators.Cci(high, low, close, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -619,7 +631,7 @@ public sealed class AxesBuilder
     public AxesBuilder ParabolicSar(double[] high, double[] low, double step = 0.02, double max = 0.2, Action<Indicators.ParabolicSar>? configure = null)
     {
         var indicator = new Indicators.ParabolicSar(high, low, step, max);
-        if (HasCategoricalSeries()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -634,8 +646,11 @@ public sealed class AxesBuilder
         => AddSignal(x, y, SignalDirection.Sell, configure);
 
     /// <summary>Extracts Y data from the last series on the axes for indicator computation.</summary>
-    // Returns true when the axes contains a categorical series (bar/candlestick), so overlay
-    // indicators should shift their x values by +0.5 to align with bar centres (slot [i, i+1]).
+    // Returns true when this panel uses bar-slot X coordinates — either because it contains
+    // a categorical series (candlestick/bar), or because UseBarSlotX() was called explicitly
+    // (e.g. for a separate oscillator panel aligned to the same bar-slot X axis).
+    private bool IsBarSlotContext() => _isBarSlotContext || HasCategoricalSeries();
+
     private bool HasCategoricalSeries() =>
         _axes.Series.Any(s => s is ICategoryLabeled);
 

@@ -92,7 +92,7 @@ public class SmaOhlcConstructorTests
         double[] c = [13, 14, 15, 16, 17];
 
         var axes = new Axes();
-        new Sma(o, h, l, c, 3, PriceSource.Close).Apply(axes);
+        new Sma(PriceSources.Resolve(PriceSource.Close, o, h, l, c), 3).Apply(axes);
         Assert.Single(axes.Series);
     }
 

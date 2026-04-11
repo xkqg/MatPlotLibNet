@@ -14,7 +14,7 @@ internal sealed class PolarBarSeriesRenderer : SeriesRenderer<PolarBarSeries>
     public override void Render(PolarBarSeries series)
     {
         var baseColor = ResolveColor(series.Color);
-        var fillColor = baseColor.WithAlpha((byte)(series.Alpha * 255));
+        var fillColor = ApplyAlpha(baseColor, series.Alpha);
         var bounds = Area.PlotBounds;
         double rMax = series.R.Length > 0 ? series.R.Max() * 1.1 : 1;
         var transform = new PolarTransform(bounds, rMax);

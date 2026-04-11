@@ -8,9 +8,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>Bollinger Bands indicator. Plots upper and lower bands at N standard deviations from a moving average.</summary>
-public sealed class BollingerBands : Indicator<BandsResult>
+public sealed class BollingerBands : PriceIndicator<BandsResult>
 {
-    private readonly double[] _prices;
     private readonly int _period;
     private readonly double _stdDevMultiplier;
 
@@ -18,25 +17,20 @@ public sealed class BollingerBands : Indicator<BandsResult>
     public double Alpha { get; set; } = 0.15;
 
     /// <summary>Creates a new Bollinger Bands indicator from a price array.</summary>
-    public BollingerBands(double[] prices, int period = 20, double stdDevMultiplier = 2.0)
+    public BollingerBands(double[] prices, int period = 20, double stdDevMultiplier = 2.0) : base(prices)
     {
-        _prices = prices;
         _period = period;
         _stdDevMultiplier = stdDevMultiplier;
         Label = $"BB({period},{stdDevMultiplier})";
     }
 
-    /// <summary>Creates a new Bollinger Bands indicator from OHLC data with a selectable price source.</summary>
-    public BollingerBands(double[] open, double[] high, double[] low, double[] close, int period = 20, double stdDevMultiplier = 2.0, PriceSource source = PriceSource.Close)
-        : this(PriceSources.Resolve(source, open, high, low, close), period, stdDevMultiplier) { }
-
     /// <inheritdoc />
     public override BandsResult Compute()
     {
-        double[] sma = new Sma(_prices, _period).Compute();
+        double[] sma = new Sma(Prices, _period).Compute();
         int n = sma.Length;
         var stdDev = new double[n];
-        VectorMath.RollingStdDev(_prices, _period, sma, stdDev);
+        VectorMath.RollingStdDev(Prices, _period, sma, stdDev);
         // upper = sma + mult*stdDev;  lower = sma - mult*stdDev
         var scaledStd = new double[n];
         VectorMath.Multiply(stdDev, _stdDevMultiplier, scaledStd);
@@ -48,24 +42,5 @@ public sealed class BollingerBands : Indicator<BandsResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes)
-    {
-        var result = Compute();
-        var middle = result.Middle;
-        var upper = result.Upper;
-        var lower = result.Lower;
-        var x = ApplyOffset(VectorMath.Linspace(middle.Length, _period - 1));
-
-        var bandColor = Color ?? Colors.Tab10Blue;
-        var fill = axes.FillBetween(x, upper, lower);
-        fill.Color = bandColor;
-        fill.Alpha = Alpha;
-        fill.LineWidth = 0;
-
-        var mid = axes.Plot(x, middle);
-        mid.Label = Label;
-        mid.Color = bandColor;
-        mid.LineWidth = LineWidth;
-        mid.LineStyle = LineStyle;
-    }
+    public override void Apply(Axes axes) => PlotBands(axes, Compute(), _period - 1, Alpha);
 }

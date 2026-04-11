@@ -8,11 +8,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a box plot series displaying statistical distribution summaries.</summary>
-public sealed class BoxSeries : ChartSeries
+public sealed class BoxSeries : DatasetSeries
 {
-    /// <summary>Gets the array of datasets, each containing the values for one box.</summary>
-    public double[][] Datasets { get; }
-
     /// <summary>Gets or sets the fill color of the boxes.</summary>
     public Color? Color { get; set; }
 
@@ -25,10 +22,7 @@ public sealed class BoxSeries : ChartSeries
 
     /// <summary>Initializes a new instance of <see cref="BoxSeries"/> with the specified datasets.</summary>
     /// <param name="datasets">An array of datasets, each containing the values for one box.</param>
-    public BoxSeries(double[][] datasets)
-    {
-        Datasets = datasets;
-    }
+    public BoxSeries(double[][] datasets) : base(datasets) { }
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)

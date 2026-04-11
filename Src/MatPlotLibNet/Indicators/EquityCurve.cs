@@ -34,13 +34,5 @@ public sealed class EquityCurve : Indicator<SignalResult>
     }
 
     /// <inheritdoc />
-    public override void Apply(Axes axes)
-    {
-        double[] equity = Compute();
-        var x = VectorMath.Linspace(equity.Length, 0.0);
-        var series = axes.Plot(x, equity);
-        series.Label = Label;
-        if (Color.HasValue) series.Color = Color.Value;
-        series.LineWidth = LineWidth;
-    }
+    public override void Apply(Axes axes) => PlotSignal(axes, Compute(), 0);
 }

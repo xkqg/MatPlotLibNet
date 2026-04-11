@@ -8,11 +8,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a violin plot series displaying kernel density estimations for datasets.</summary>
-public sealed class ViolinSeries : ChartSeries
+public sealed class ViolinSeries : DatasetSeries
 {
-    /// <summary>Gets the array of datasets, each containing the values for one violin.</summary>
-    public double[][] Datasets { get; }
-
     /// <summary>Gets or sets the fill color of the violins.</summary>
     public Color? Color { get; set; }
 
@@ -22,10 +19,7 @@ public sealed class ViolinSeries : ChartSeries
 
     /// <summary>Initializes a new instance of <see cref="ViolinSeries"/> with the specified datasets.</summary>
     /// <param name="datasets">An array of datasets, each containing the values for one violin.</param>
-    public ViolinSeries(double[][] datasets)
-    {
-        Datasets = datasets;
-    }
+    public ViolinSeries(double[][] datasets) : base(datasets) { }
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)

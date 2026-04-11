@@ -13,7 +13,7 @@ internal sealed class BubbleSeriesRenderer : SeriesRenderer<BubbleSeries>
     public override void Render(BubbleSeries series)
     {
         var color = ResolveColor(series.Color);
-        var fill = color.WithAlpha((byte)(series.Alpha * 255));
+        var fill = ApplyAlpha(color, series.Alpha);
         var pts = Transform.TransformBatch(series.XData, series.YData);
         for (int i = 0; i < pts.Length; i++)
             Ctx.DrawCircle(pts[i], Math.Sqrt(series.Sizes[i]) / 2, fill, color, 1);

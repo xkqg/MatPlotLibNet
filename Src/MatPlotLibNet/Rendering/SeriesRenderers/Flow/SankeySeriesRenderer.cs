@@ -77,7 +77,7 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
             double midX = (srcX + tgtX) / 2;
 
             var srcColor = series.Nodes[link.SourceIndex].Color ?? ResolveColor(null);
-            var linkColor = srcColor.WithAlpha((byte)(series.LinkAlpha * 255));
+            var linkColor = ApplyAlpha(srcColor, series.LinkAlpha);
 
             // Top curve
             var segments = new List<PathSegment>

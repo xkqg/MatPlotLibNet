@@ -8,11 +8,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a strip plot series that draws randomly jittered dots per category to show individual data points.</summary>
-public sealed class StripplotSeries : ChartSeries
+public sealed class StripplotSeries : DatasetSeries
 {
-    /// <summary>Gets the array of datasets, one per category.</summary>
-    public double[][] Datasets { get; }
-
     /// <summary>Gets or sets the amount of random jitter applied to the X position of each point.</summary>
     public double Jitter { get; set; } = 0.2;
 
@@ -27,19 +24,7 @@ public sealed class StripplotSeries : ChartSeries
 
     /// <summary>Initializes a new instance of <see cref="StripplotSeries"/> with the specified datasets.</summary>
     /// <param name="datasets">An array of datasets, each containing values for one category.</param>
-    public StripplotSeries(double[][] datasets)
-    {
-        Datasets = datasets;
-    }
-
-    /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context)
-    {
-        if (Datasets.Length == 0) return new(0, 1, 0, 1);
-        double yMin = Datasets.SelectMany(d => d).DefaultIfEmpty(0).Min();
-        double yMax = Datasets.SelectMany(d => d).DefaultIfEmpty(1).Max();
-        return new(-0.5, Datasets.Length - 0.5, yMin, yMax);
-    }
+    public StripplotSeries(double[][] datasets) : base(datasets) { }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
