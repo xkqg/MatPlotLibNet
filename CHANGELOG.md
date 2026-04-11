@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.6] - 2026-04-11
+
+### Added
+
+**Gap Phase 3 — Series Enhancements (7 sub-phases)**
+
+- **`HatchPattern` enum** (`None`, `ForwardDiagonal`, `BackDiagonal`, `Horizontal`, `Vertical`, `Cross`, `DiagonalCross`, `Dots`, `Stars`) + **`HatchRenderer`** static utility — uses existing `PushClip` + `DrawLines` + `DrawCircle` primitives; no `IRenderContext` changes needed (ISP preserved)
+- **Hatch properties on filled-region series** — `HatchPattern Hatch` + `Color? HatchColor` on `BarSeries`, `HistogramSeries`, `AreaSeries`, `StackedAreaSeries`; `HatchPattern[]? Hatches` (per-slice) on `PieSeries`; `HatchPattern[]? Hatches` (per-level) on `ContourfSeries`
+- **`AreaSeries` enhancements** — `Color? EdgeColor` (separate stroke for boundary lines), `DrawStyle StepMode` (step interpolation: `StepsPre` / `StepsMid` / `StepsPost`)
+- **`StackedBaseline` enum** (`Zero`, `Symmetric`, `Wiggle`, `WeightedWiggle`) + **`BaselineHelper`** pure-function strategy — `Symmetric` shifts mid-stack to y=0; `Wiggle` uses Byron-Wattenberg baseline; `WeightedWiggle` weights by layer magnitude; `StackedAreaSeries.Baseline` property; `ComputeDataRange()` and renderer both use `BaselineHelper.ComputeBaselines()`
+- **Contour explicit levels** — `double[]? LevelValues` on `ContourSeries` and `ContourfSeries`; when set, overrides auto-spaced `Levels` count
+- **`SurfaceSeries` enhancements** — `Color? EdgeColor` (wireframe stroke override), `int RowStride` + `int ColStride` (render every N-th row/column for performance)
+- **`SaveOptions` record** — `int Dpi` (96), `bool PrettifySvg`, `int? SvgDecimalPrecision`, `string? Title`, `string? Author`; `FigureExtensions.Save(string, SaveOptions?)` overload
+
+**Phase C — Layout Engine v2 (3 sub-phases)**
+
+- **`TwinY` (secondary X-axis)** — `Axes.TwinY()` mirrors `TwinX` pattern; `SecondaryXAxis` property; `PlotXSecondary()` / `ScatterXSecondary()` methods; `XSecondarySeries` collection; `AxesBuilder.WithSecondaryXAxis(Action<SecondaryXAxisBuilder>)` builder overload; `CartesianAxesRenderer` draws top-edge ticks + label for the secondary X range
+- **ConstrainedLayout spanning fix** — `ConstrainedLayoutEngine.Compute()` now uses `GetEffectivePosition()` to identify which edge each subplot touches; only edge subplots contribute to the corresponding margin (center subplots no longer inflate outer margins); secondary X-axis label top margin handled in `Measure()`
+- **Figure-level ColorBar** — `Figure.FigureColorBar` property; `FigureBuilder.WithColorBar(Func<ColorBar,ColorBar>?)` builder method; `ChartRenderer.RenderFigureColorBar()` renders a shared colorbar outside all subplot areas (vertical or horizontal); `SvgTransform.Render()` calls it after parallel subplot rendering; bar position clamped to stay within figure bounds
+
+### Tests: 2730 → 2814 (+84)
+
 ## [0.8.5] - 2026-04-11
 
 ### Added

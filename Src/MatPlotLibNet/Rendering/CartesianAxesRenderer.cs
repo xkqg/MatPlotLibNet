@@ -155,6 +155,45 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             }
         }
 
+        // Secondary X-axis series (TwinY — top edge)
+        if (Axes.SecondaryXAxis is not null && Axes.XSecondarySeries.Count > 0)
+        {
+            var secXRange = ComputeSecondaryXDataRanges(range.YMin, range.YMax);
+            var secXTransform = new DataTransform(secXRange.XMin, secXRange.XMax, secXRange.YMin, secXRange.YMax, PlotArea);
+            var secXTicks = ComputeTickValues(secXRange.XMin, secXRange.XMax);
+
+            for (int i = 0; i < Axes.XSecondarySeries.Count; i++)
+            {
+                var series = Axes.XSecondarySeries[i];
+                if (!series.Visible) continue;
+                int colorIndex = Axes.Series.Count + Axes.SecondarySeries.Count + i;
+                var seriesColor = Theme.CycleColors[colorIndex % Theme.CycleColors.Length];
+                var renderer = new SvgSeriesRenderer(secXTransform, Ctx, seriesColor, plotArea: PlotArea);
+                var area = new RenderArea(PlotArea, Ctx);
+                series.Accept(renderer, area);
+            }
+
+            // Top-edge X-axis ticks
+            var tickFont = TickFont();
+            foreach (var tick in secXTicks)
+            {
+                var pt = secXTransform.DataToPixel(tick, secXRange.YMax);
+                Ctx.DrawLine(new Point(pt.X, PlotArea.Y),
+                    new Point(pt.X, PlotArea.Y - 5),
+                    Theme.ForegroundText, 1, LineStyle.Solid);
+                Ctx.DrawText(Axes.SecondaryXAxis!.TickFormatter?.Format(tick) ?? FormatTick(tick),
+                    new Point(pt.X, PlotArea.Y - 8),
+                    tickFont, TextAlignment.Center);
+            }
+
+            if (Axes.SecondaryXAxis.Label is not null)
+            {
+                Ctx.DrawText(Axes.SecondaryXAxis.Label,
+                    new Point(PlotArea.X + PlotArea.Width / 2, PlotArea.Y - 28),
+                    LabelFont(), TextAlignment.Center);
+            }
+        }
+
         // Annotations
         foreach (var annotation in Axes.Annotations)
         {
@@ -570,6 +609,33 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         double yPadding = (yMax - yMin) * 0.05;
         if (!Axes.SecondaryYAxis!.Min.HasValue) yMin -= yPadding;
         if (!Axes.SecondaryYAxis!.Max.HasValue) yMax += yPadding;
+
+        return new DataRange(xMin, xMax, yMin, yMax);
+    }
+
+    /// <summary>Computes the X data range for series plotted against the secondary X-axis.</summary>
+    private DataRange ComputeSecondaryXDataRanges(double yMin, double yMax)
+    {
+        double xMin = Axes.SecondaryXAxis?.Min ?? double.MaxValue;
+        double xMax = Axes.SecondaryXAxis?.Max ?? double.MinValue;
+
+        var context = new AxesContextAdapter(Axes);
+        foreach (var series in Axes.XSecondarySeries)
+        {
+            if (series is IHasDataRange hasRange)
+            {
+                var c = hasRange.ComputeDataRange(context);
+                if (c.XMin.HasValue && c.XMin.Value < xMin) xMin = c.XMin.Value;
+                if (c.XMax.HasValue && c.XMax.Value > xMax) xMax = c.XMax.Value;
+            }
+        }
+
+        if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
+        if (Math.Abs(xMax - xMin) < 1e-10) { xMin -= 0.5; xMax += 0.5; }
+
+        double xPadding = (xMax - xMin) * 0.05;
+        if (!Axes.SecondaryXAxis!.Min.HasValue) xMin -= xPadding;
+        if (!Axes.SecondaryXAxis!.Max.HasValue) xMax += xPadding;
 
         return new DataRange(xMin, xMax, yMin, yMax);
     }

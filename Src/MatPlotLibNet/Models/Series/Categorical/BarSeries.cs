@@ -60,6 +60,12 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable
     /// <summary>Gets or sets how bar positions are aligned relative to their X coordinate.</summary>
     public BarAlignment Align { get; set; } = BarAlignment.Center;
 
+    /// <summary>Gets or sets the hatch pattern drawn inside each bar. Default is <see cref="HatchPattern.None"/>.</summary>
+    public HatchPattern Hatch { get; set; } = HatchPattern.None;
+
+    /// <summary>Gets or sets the hatch line color. When null, the bar edge color is used.</summary>
+    public Color? HatchColor { get; set; }
+
     /// <summary>Initializes a new instance of <see cref="BarSeries"/> with the specified categories and values.</summary>
     /// <param name="categories">The category labels for each bar.</param>
     /// <param name="values">The numeric values for each bar.</param>

@@ -124,6 +124,15 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Configures a secondary X-axis (top edge) and adds series to it.</summary>
+    public AxesBuilder WithSecondaryXAxis(Action<SecondaryXAxisBuilder> configure)
+    {
+        _axes.TwinY();
+        var builder = new SecondaryXAxisBuilder(_axes);
+        configure(builder);
+        return this;
+    }
+
     /// <summary>Adds a text annotation at the specified data coordinates.</summary>
     public AxesBuilder Annotate(string text, double x, double y, Action<Annotation>? configure = null)
     {
@@ -769,6 +778,38 @@ public sealed class SecondaryAxisBuilder
     public SecondaryAxisBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null)
     {
         var series = _axes.ScatterSecondary(x, y);
+        configure?.Invoke(series);
+        return this;
+    }
+}
+
+/// <summary>Fluent builder for configuring a secondary X-axis (top edge) and adding series that scale against it.</summary>
+/// <remarks>Obtained via <see cref="AxesBuilder.WithSecondaryXAxis"/>. The secondary axis renders ticks and
+/// labels on the top of the plot and uses an independent X-axis data range.</remarks>
+public sealed class SecondaryXAxisBuilder
+{
+    private readonly Axes _axes;
+
+    internal SecondaryXAxisBuilder(Axes axes) => _axes = axes;
+
+    /// <summary>Sets the label displayed above the top-edge X-axis.</summary>
+    public SecondaryXAxisBuilder SetXLabel(string label) { _axes.SecondaryXAxis!.Label = label; return this; }
+
+    /// <summary>Sets explicit min/max limits for the secondary X-axis data range.</summary>
+    public SecondaryXAxisBuilder SetXLim(double min, double max) { _axes.SecondaryXAxis!.Min = min; _axes.SecondaryXAxis!.Max = max; return this; }
+
+    /// <summary>Adds a line series plotted against the secondary X-axis.</summary>
+    public SecondaryXAxisBuilder PlotXSecondary(double[] x, double[] y, Action<LineSeries>? configure = null)
+    {
+        var series = _axes.PlotXSecondary(x, y);
+        configure?.Invoke(series);
+        return this;
+    }
+
+    /// <summary>Adds a scatter series plotted against the secondary X-axis.</summary>
+    public SecondaryXAxisBuilder ScatterXSecondary(double[] x, double[] y, Action<ScatterSeries>? configure = null)
+    {
+        var series = _axes.ScatterXSecondary(x, y);
         configure?.Invoke(series);
         return this;
     }

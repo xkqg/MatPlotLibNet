@@ -22,6 +22,9 @@ public sealed class ContourSeries : ChartSeries, IColormappable
     /// <summary>Gets or sets the number of contour levels to draw.</summary>
     public int Levels { get; set; } = 10;
 
+    /// <summary>Gets or sets explicit contour level thresholds. When set, overrides <see cref="Levels"/> count.</summary>
+    public double[]? LevelValues { get; set; }
+
     /// <summary>Gets or sets whether the contour regions are filled.</summary>
     public bool Filled { get; set; }
 

@@ -38,13 +38,19 @@ internal sealed class ConstrainedLayoutEngine
         double top    = figure.Spacing.MarginTop;
         double right  = figure.Spacing.MarginRight;
 
+        int maxRows = GetMaxRows(figure);
+        int maxCols = GetMaxCols(figure);
+
         foreach (var axes in figure.SubPlots)
         {
-            var m = Measure(axes, ctx, tickFont, labelFont, titleFont);
-            if (m.LeftNeeded   > left)   left   = m.LeftNeeded;
-            if (m.BottomNeeded > bottom) bottom = m.BottomNeeded;
-            if (m.TopNeeded    > top)    top    = m.TopNeeded;
-            if (m.RightNeeded  > right)  right  = m.RightNeeded;
+            var m   = Measure(axes, ctx, tickFont, labelFont, titleFont);
+            var pos = GetEffectivePosition(axes, figure);
+
+            // Only edge subplots contribute to the margin on that edge
+            if (pos.ColStart == 0        && m.LeftNeeded   > left)   left   = m.LeftNeeded;
+            if (pos.RowEnd   >= maxRows  && m.BottomNeeded > bottom) bottom = m.BottomNeeded;
+            if (pos.RowStart == 0        && m.TopNeeded    > top)    top    = m.TopNeeded;
+            if (pos.ColEnd   >= maxCols  && m.RightNeeded  > right)  right  = m.RightNeeded;
         }
 
         // Clamp to sane bounds
@@ -55,6 +61,58 @@ internal sealed class ConstrainedLayoutEngine
             MarginTop    = Math.Clamp(top,    20, 80),
             MarginRight  = Math.Clamp(right,  10, 60),
         };
+    }
+
+    // ── Grid position helpers ────────────────────────────────────────────────
+
+    /// <summary>Returns the effective grid cell range for the axes, normalised to 0-based row/col indices.</summary>
+    private static GridPosition GetEffectivePosition(Axes axes, Figure figure)
+    {
+        // GridSpec-based positioning takes highest priority
+        if (axes.GridPosition.HasValue)
+            return axes.GridPosition.Value;
+
+        // Legacy 1-based GridRows/GridCols/GridIndex (rows × cols grid, 1-based)
+        if (axes.GridRows > 0 && axes.GridCols > 0 && axes.GridIndex > 0)
+        {
+            int zeroIdx = axes.GridIndex - 1;
+            int row = zeroIdx / axes.GridCols;
+            int col = zeroIdx % axes.GridCols;
+            return new GridPosition(row, row + 1, col, col + 1);
+        }
+
+        // Fallback: treat as a single-cell 1×1 grid (touches all four edges)
+        int maxRows = GetMaxRows(figure);
+        int maxCols = GetMaxCols(figure);
+        return new GridPosition(0, maxRows, 0, maxCols);
+    }
+
+    private static int GetMaxRows(Figure figure)
+    {
+        if (figure.GridSpec is { Rows: > 0 } gs) return gs.Rows;
+        int max = 1;
+        foreach (var ax in figure.SubPlots)
+        {
+            if (ax.GridPosition.HasValue && ax.GridPosition.Value.RowEnd > max)
+                max = ax.GridPosition.Value.RowEnd;
+            else if (ax.GridRows > max)
+                max = ax.GridRows;
+        }
+        return max;
+    }
+
+    private static int GetMaxCols(Figure figure)
+    {
+        if (figure.GridSpec is { Cols: > 0 } gs) return gs.Cols;
+        int max = 1;
+        foreach (var ax in figure.SubPlots)
+        {
+            if (ax.GridPosition.HasValue && ax.GridPosition.Value.ColEnd > max)
+                max = ax.GridPosition.Value.ColEnd;
+            else if (ax.GridCols > max)
+                max = ax.GridCols;
+        }
+        return max;
     }
 
     private LayoutMetrics Measure(Axes axes, IRenderContext ctx, Font tickFont, Font labelFont, Font titleFont)
@@ -82,12 +140,18 @@ internal sealed class ConstrainedLayoutEngine
             bottomNeeded = Math.Max(bottomNeeded, xLabelBottom + PadBottom);
         }
 
-        // --- Top margin: axes title (figure title is handled by ChartRenderer itself) ---
+        // --- Top margin: axes title + optional secondary X-axis label (TwinY) ---
         double topNeeded = 0;
         if (axes.Title is not null)
         {
             double titleH = ctx.MeasureText(axes.Title, titleFont).Height;
             topNeeded = titleH + PadTop + PadTop;  // gap above + gap below to plot edge
+        }
+        if (axes.SecondaryXAxis?.Label is not null)
+        {
+            // Secondary X label is drawn at PlotArea.Y - 28; add enough top margin
+            double secLabelH = ctx.MeasureText(axes.SecondaryXAxis.Label, labelFont).Height;
+            topNeeded = Math.Max(topNeeded, 28 + secLabelH + PadTop);
         }
 
         // --- Right margin: minimal; widen if secondary Y-axis label present ---

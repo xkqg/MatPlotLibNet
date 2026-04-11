@@ -175,6 +175,48 @@ public sealed class Axes
         return series;
     }
 
+    // ── TwinY — secondary X-axis (top edge) ─────────────────────────────────
+
+    /// <summary>Gets the secondary X-axis configuration, or null when no secondary X-axis is active.</summary>
+    /// <remarks>Activated by calling <see cref="TwinY"/>. Series added via <see cref="PlotXSecondary"/> or
+    /// <see cref="ScatterXSecondary"/> are rendered against this axis with independent X scaling.
+    /// The secondary axis renders tick marks and labels on the top of the plot area.</remarks>
+    public Axis? SecondaryXAxis { get; private set; }
+
+    /// <summary>Gets the collection of data series plotted against the secondary X-axis.</summary>
+    public IReadOnlyList<ISeries> XSecondarySeries => _xSecondarySeries;
+    private readonly List<ISeries> _xSecondarySeries = [];
+
+    /// <summary>Enables a secondary X-axis (top edge) on this axes, creating it if it does not already exist.</summary>
+    /// <returns>This axes instance for chaining.</returns>
+    public Axes TwinY()
+    {
+        SecondaryXAxis ??= new Axis();
+        return this;
+    }
+
+    /// <summary>Adds a line series plotted against the secondary X-axis.</summary>
+    /// <remarks>Implicitly calls <see cref="TwinY"/> to ensure the secondary axis exists.</remarks>
+    public LineSeries PlotXSecondary(double[] x, double[] y)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        TwinY();
+        var series = new LineSeries(x, y);
+        _xSecondarySeries.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a scatter series plotted against the secondary X-axis.</summary>
+    /// <remarks>Implicitly calls <see cref="TwinY"/> to ensure the secondary axis exists.</remarks>
+    public ScatterSeries ScatterXSecondary(double[] x, double[] y)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        TwinY();
+        var series = new ScatterSeries(x, y);
+        _xSecondarySeries.Add(series);
+        return series;
+    }
+
     /// <summary>Adds a line series from the given X and Y data arrays.</summary>
     /// <param name="x">The X-axis data values.</param>
     /// <param name="y">The Y-axis data values.</param>

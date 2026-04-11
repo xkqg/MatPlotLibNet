@@ -37,6 +37,8 @@ public sealed class PieSeries : ChartSeries
     /// <summary>Gets or sets a custom radius. Null uses the default auto-computed radius.</summary>
     public double? Radius { get; set; }
 
+    /// <summary>Gets or sets per-slice hatch patterns. Null means no hatching. The array is indexed modulo <see cref="Sizes"/>.Length.</summary>
+    public HatchPattern[]? Hatches { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="PieSeries"/> with the specified slice sizes.</summary>
     /// <param name="sizes">The numeric sizes of each pie slice.</param>

@@ -1,8 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
@@ -20,6 +22,15 @@ public sealed class StackedAreaSeries : ChartSeries
 
     /// <summary>Gets or sets the fill opacity (0.0 to 1.0).</summary>
     public double Alpha { get; set; } = 0.7;
+
+    /// <summary>Gets or sets the baseline strategy for stacking. Default is <see cref="StackedBaseline.Zero"/>.</summary>
+    public StackedBaseline Baseline { get; set; } = StackedBaseline.Zero;
+
+    /// <summary>Gets or sets the hatch pattern drawn inside each stacked layer. Default is <see cref="HatchPattern.None"/>.</summary>
+    public HatchPattern Hatch { get; set; } = HatchPattern.None;
+
+    /// <summary>Gets or sets the hatch line color. When null, the cycle color is used.</summary>
+    public Color? HatchColor { get; set; }
 
     /// <summary>Creates a new stacked area series from shared X values and multiple Y datasets.</summary>
     /// <param name="x">The shared X-axis data values.</param>
@@ -39,20 +50,27 @@ public sealed class StackedAreaSeries : ChartSeries
         double xMin = X.Min();
         double xMax = X.Max();
 
-        // Compute max cumulative sum at any X position
-        double yMax = 0;
-        for (int i = 0; i < X.Length; i++)
+        // Use the baseline strategy to find the true yMin and yMax
+        var baselines = BaselineHelper.ComputeBaselines(YSets, Baseline);
+
+        double yMin = double.MaxValue;
+        double yMax = double.MinValue;
+
+        for (int layer = 0; layer < YSets.Length; layer++)
         {
-            double cumulative = 0;
-            for (int layer = 0; layer < YSets.Length; layer++)
+            for (int i = 0; i < X.Length; i++)
             {
-                if (i < YSets[layer].Length)
-                    cumulative += YSets[layer][i];
+                double bot = baselines[layer][i];
+                double top = bot + (i < YSets[layer].Length ? YSets[layer][i] : 0.0);
+                if (bot < yMin) yMin = bot;
+                if (top > yMax) yMax = top;
             }
-            if (cumulative > yMax) yMax = cumulative;
         }
 
-        return new(xMin, xMax, 0, yMax);
+        if (yMin == double.MaxValue) yMin = 0;
+        if (yMax == double.MinValue) yMax = 1;
+
+        return new(xMin, xMax, yMin, yMax);
     }
 
     /// <inheritdoc />

@@ -38,7 +38,7 @@ public static class FigureExtensions
         File.WriteAllText(path, figure.ToSvg());
 
     /// <summary>Saves the figure to a file. Format is auto-detected from the file extension. No extension defaults to SVG.</summary>
-    public static void Save(this Figure figure, string path)
+    public static void Save(this Figure figure, string path, SaveOptions? options = null)
     {
         var ext = Path.GetExtension(path).ToLowerInvariant();
 

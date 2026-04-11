@@ -37,10 +37,13 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
         var cmap = series.ColorMap ?? ColorMaps.Viridis;
         var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
 
+        int rowStride = Math.Max(1, series.RowStride);
+        int colStride = Math.Max(1, series.ColStride);
+
         // Build quads with average depth for painter's algorithm sorting
         var quads = new List<(double Depth, Point[] Vertices, double AvgZ)>((rows - 1) * (cols - 1));
-        for (int r = 0; r < rows - 1; r++)
-            for (int c = 0; c < cols - 1; c++)
+        for (int r = 0; r < rows - 1; r += rowStride)
+            for (int c = 0; c < cols - 1; c += colStride)
             {
                 double x0 = series.X[c], x1 = series.X[c + 1];
                 double y0 = series.Y[r], y1 = series.Y[r + 1];
@@ -70,7 +73,7 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
         foreach (var (_, vertices, avgZ) in quads)
         {
             var color = cmap.GetColor(normalizer.Normalize(avgZ, zMin, zMax));
-            Color? stroke = series.ShowWireframe ? Colors.Black.WithAlpha(80) : null;
+            Color? stroke = series.ShowWireframe ? (series.EdgeColor ?? Colors.Black.WithAlpha(80)) : null;
             double strokeWidth = series.ShowWireframe ? 0.5 : 0;
             Ctx.DrawPolygon(vertices, color, stroke, strokeWidth);
         }

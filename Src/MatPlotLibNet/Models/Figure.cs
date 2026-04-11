@@ -32,6 +32,9 @@ public sealed class Figure
     /// <summary>Gets or sets the grid specification for advanced subplot layouts with ratios and spanning.</summary>
     public GridSpec? GridSpec { get; set; }
 
+    /// <summary>Gets or sets a figure-level color bar rendered outside all subplots. When null, no figure-level color bar is shown.</summary>
+    public ColorBar? FigureColorBar { get; set; }
+
     /// <summary>Gets or sets whether interactive zoom and pan via JavaScript is enabled in SVG output.</summary>
     /// <remarks>When enabled, a <c>&lt;script&gt;</c> block is injected into the SVG document that handles
     /// mouse-wheel zoom and click-drag pan via viewBox manipulation. Has no effect on raster transforms (PNG, PDF).

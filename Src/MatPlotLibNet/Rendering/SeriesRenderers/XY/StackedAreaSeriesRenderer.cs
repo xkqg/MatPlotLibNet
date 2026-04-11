@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -18,48 +19,41 @@ internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeri
 
         var cycleColors = Theme.Default.CycleColors;
 
-        // Compute cumulative Y values for each layer
-        var cumulative = new double[layers][];
+        // Compute per-layer baselines using the chosen strategy
+        var baselines = BaselineHelper.ComputeBaselines(series.YSets, series.Baseline);
+
+        // Compute top edge (baseline + layer value) for each layer
+        var tops = new double[layers][];
         for (int layer = 0; layer < layers; layer++)
         {
-            cumulative[layer] = new double[n];
+            tops[layer] = new double[n];
             for (int i = 0; i < n; i++)
             {
-                double prev = layer > 0 ? cumulative[layer - 1][i] : 0;
                 double val = i < series.YSets[layer].Length ? series.YSets[layer][i] : 0;
-                cumulative[layer][i] = prev + val;
+                tops[layer][i] = baselines[layer][i] + val;
             }
         }
 
         // Precompute pixel X coordinates once for all layers (SIMD batch)
         var pxArr = Transform.TransformX(series.X);
-        double pyZero = Transform.TransformY([0.0])[0];
 
-        // Draw each layer as a filled polygon between consecutive cumulative curves
+        // Draw each layer as a filled polygon between baseline and top edge
         for (int layer = 0; layer < layers; layer++)
         {
             var color = cycleColors[layer % cycleColors.Length];
             var fillColor = ApplyAlpha(color, series.Alpha);
 
-            var pyTop = Transform.TransformY(cumulative[layer]);
+            var pyTop = Transform.TransformY(tops[layer]);
+            var pyBot = Transform.TransformY(baselines[layer]);
             var polygon = new List<Point>(n * 2);
 
-            // Top edge: left to right (SIMD-transformed)
+            // Top edge: left to right
             for (int i = 0; i < n; i++)
                 polygon.Add(new Point(pxArr[i], pyTop[i]));
 
             // Bottom edge: right to left
-            if (layer > 0)
-            {
-                var pyBot = Transform.TransformY(cumulative[layer - 1]);
-                for (int i = n - 1; i >= 0; i--)
-                    polygon.Add(new Point(pxArr[i], pyBot[i]));
-            }
-            else
-            {
-                for (int i = n - 1; i >= 0; i--)
-                    polygon.Add(new Point(pxArr[i], pyZero));
-            }
+            for (int i = n - 1; i >= 0; i--)
+                polygon.Add(new Point(pxArr[i], pyBot[i]));
 
             Ctx.DrawPolygon(polygon, fillColor, null, 0);
         }

@@ -49,11 +49,20 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
             subplotContexts[i] = ctx;
         });
 
+        // Render figure-level colorbar (if present) after all subplots
+        SvgRenderContext? figCbCtx = null;
+        if (figure.FigureColorBar is { Visible: true } cb)
+        {
+            figCbCtx = new SvgRenderContext();
+            Renderer.RenderFigureColorBar(figure, plotAreas, cb, figCbCtx);
+        }
+
         return BuildSvgDocument(w, h, sb =>
         {
             bgCtx.WriteTo(sb);
             foreach (var ctx in subplotContexts)
                 ctx.WriteTo(sb);
+            figCbCtx?.WriteTo(sb);
             if (figure.EnableZoomPan)
                 sb.AppendLine(SvgInteractivityScript.GetZoomPanScript());
             if (figure.EnableLegendToggle)

@@ -2,9 +2,11 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering;
 
@@ -28,6 +30,10 @@ public sealed class ChartRenderer : IChartRenderer
 
         for (int i = 0; i < figure.SubPlots.Count; i++)
             RenderAxes(figure.SubPlots[i], plotAreas[i], ctx, figure.Theme);
+
+        // Figure-level colorbar — rendered after all subplots
+        if (figure.FigureColorBar is { Visible: true } cb)
+            RenderFigureColorBar(figure, plotAreas, cb, ctx);
     }
 
     /// <summary>Renders the figure background and title, returning the top Y coordinate for subplots.</summary>
@@ -198,6 +204,103 @@ public sealed class ChartRenderer : IChartRenderer
                 RenderAxes(inset, insetRect, ctx, theme, depth + 1);
             }
         }
+    }
+
+    /// <summary>Renders a figure-level color bar placed outside all subplot areas.</summary>
+    internal void RenderFigureColorBar(Figure figure, List<Rect> plotAreas, ColorBar cb, IRenderContext ctx)
+    {
+        // Find first IColorBarDataProvider across all subplots
+        IColorBarDataProvider? provider = null;
+        IColorMap colorMap = cb.ColorMap ?? ColorMaps.Viridis;
+        double min = cb.Min, max = cb.Max;
+
+        foreach (var axes in figure.SubPlots)
+        {
+            provider = axes.Series.OfType<IColorBarDataProvider>().FirstOrDefault();
+            if (provider is not null)
+            {
+                colorMap = cb.ColorMap ?? provider.ColorMap ?? ColorMaps.Viridis;
+                var (dMin, dMax) = provider.GetColorBarRange();
+                if (dMin < dMax) { min = dMin; max = dMax; }
+                break;
+            }
+        }
+
+        if (Math.Abs(max - min) < 1e-10) { min = 0; max = 1; }
+
+        // Compute bounding rect of all subplot plot areas
+        double allLeft   = plotAreas.Count > 0 ? plotAreas.Min(r => r.X)             : figure.Spacing.MarginLeft;
+        double allTop    = plotAreas.Count > 0 ? plotAreas.Min(r => r.Y)             : figure.Spacing.MarginTop;
+        double allRight  = plotAreas.Count > 0 ? plotAreas.Max(r => r.X + r.Width)   : figure.Width - figure.Spacing.MarginRight;
+        double allBottom = plotAreas.Count > 0 ? plotAreas.Max(r => r.Y + r.Height)  : figure.Height - figure.Spacing.MarginBottom;
+
+        var theme = figure.Theme;
+        var tickFont = new Font { Family = theme.DefaultFont.Family, Size = theme.DefaultFont.Size - 2, Color = theme.ForegroundText };
+        var labelFont = new Font { Family = theme.DefaultFont.Family, Size = theme.DefaultFont.Size, Color = theme.ForegroundText };
+
+        const int steps = 50;
+
+        ctx.BeginGroup("figure-colorbar");
+
+        if (cb.Orientation == ColorBarOrientation.Horizontal)
+        {
+            double totalW = (allRight - allLeft) * cb.Shrink;
+            double barH   = cb.Aspect > 0 ? totalW / cb.Aspect : cb.Width;
+            double barX   = allLeft + (allRight - allLeft - totalW) / 2;
+            double barY   = allBottom + cb.Padding;
+
+            for (int i = 0; i < steps; i++)
+            {
+                double frac  = (double)i / steps;
+                double stepX = barX + totalW * i / steps;
+                double stepW = totalW / steps + 1;
+                ctx.DrawRectangle(new Rect(stepX, barY, stepW, barH), colorMap.GetColor(frac), null, 0);
+            }
+            ctx.DrawRectangle(new Rect(barX, barY, totalW, barH), null, theme.ForegroundText, 0.5);
+
+            double labelY = barY + barH + 4 + tickFont.Size;
+            for (int i = 0; i <= 5; i++)
+            {
+                double frac  = (double)i / 5;
+                double value = min + frac * (max - min);
+                ctx.DrawText(AxesRenderer.FormatTickValue(value), new Point(barX + totalW * frac, labelY), tickFont, TextAlignment.Center);
+            }
+            if (cb.Label is not null)
+                ctx.DrawText(cb.Label, new Point(barX + totalW / 2, labelY + tickFont.Size + 4), labelFont, TextAlignment.Center);
+        }
+        else
+        {
+            // Vertical: clamp barX so the bar + ticks + label fit within figure width
+            double totalH  = (allBottom - allTop) * cb.Shrink;
+            double barW    = cb.Width;
+            double tickAreaW = 30; // estimated tick label width
+            double labelAreaW = cb.Label is not null ? tickFont.Size + 6 : 0;
+            double rightEdge = figure.Width - 4; // 4px from figure edge
+            double barX = Math.Min(allRight + cb.Padding, rightEdge - barW - tickAreaW - labelAreaW);
+            double barY = allTop + (allBottom - allTop - totalH) / 2;
+
+            for (int i = 0; i < steps; i++)
+            {
+                double frac  = 1.0 - (double)i / steps;
+                double stepY = barY + totalH * i / steps;
+                double stepH = totalH / steps + 1;
+                ctx.DrawRectangle(new Rect(barX, stepY, barW, stepH), colorMap.GetColor(frac), null, 0);
+            }
+            ctx.DrawRectangle(new Rect(barX, barY, barW, totalH), null, theme.ForegroundText, 0.5);
+
+            double labelX = barX + barW + 4;
+            for (int i = 0; i <= 5; i++)
+            {
+                double frac  = (double)i / 5;
+                double value = max - frac * (max - min);
+                ctx.DrawText(AxesRenderer.FormatTickValue(value), new Point(labelX, barY + totalH * frac + 4), tickFont, TextAlignment.Left);
+            }
+            if (cb.Label is not null)
+                ctx.DrawText(cb.Label, new Point(labelX + tickAreaW, barY + totalH / 2),
+                    labelFont, TextAlignment.Center, 90);
+        }
+
+        ctx.EndGroup();
     }
 
     /// <summary>Creates a bold title font for the figure title.</summary>

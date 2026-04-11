@@ -40,6 +40,12 @@ public sealed class HistogramSeries : ChartSeries
     /// <summary>Gets or sets the relative bar width within each bin slot (0.0 to 1.0). A value of 1.0 fills the bin exactly.</summary>
     public double RWidth { get; set; } = 1.0;
 
+    /// <summary>Gets or sets the hatch pattern drawn inside each histogram bar. Default is <see cref="HatchPattern.None"/>.</summary>
+    public HatchPattern Hatch { get; set; } = HatchPattern.None;
+
+    /// <summary>Gets or sets the hatch line color. When null, the edge color is used.</summary>
+    public Color? HatchColor { get; set; }
+
     /// <summary>Initializes a new instance of <see cref="HistogramSeries"/> with the specified data.</summary>
     /// <param name="data">The raw data values to be binned.</param>
     public HistogramSeries(double[] data)

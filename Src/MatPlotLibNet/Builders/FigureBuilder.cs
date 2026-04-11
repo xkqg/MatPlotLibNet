@@ -259,6 +259,18 @@ public sealed class FigureBuilder
         return this;
     }
 
+    /// <summary>Adds a figure-level color bar rendered outside all subplots.</summary>
+    /// <param name="configure">Optional function to customise the color bar (label, orientation, shrink, etc.).</param>
+    public FigureBuilder WithColorBar(Func<ColorBar, ColorBar>? configure = null)
+    {
+        var cb = new ColorBar { Visible = true };
+        if (configure is not null) cb = configure(cb);
+        _figureColorBar = cb;
+        return this;
+    }
+
+    private ColorBar? _figureColorBar;
+
     /// <summary>Adds a subplot at the specified grid position, configured via an <see cref="AxesBuilder"/>.</summary>
     /// <param name="rows">Number of rows in the subplot grid.</param>
     /// <param name="cols">Number of columns in the subplot grid.</param>
@@ -298,7 +310,8 @@ public sealed class FigureBuilder
             EnableHighlight = _enableHighlight,
             EnableSelection = _enableSelection,
             Spacing = _spacing,
-            GridSpec = _gridSpec
+            GridSpec = _gridSpec,
+            FigureColorBar = _figureColorBar
         };
 
         if (_defaultAxes is not null)

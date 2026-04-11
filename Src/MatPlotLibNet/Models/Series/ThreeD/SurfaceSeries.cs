@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Models.Series;
@@ -21,6 +22,15 @@ public sealed class SurfaceSeries : GridSeries3D, IColormappable, INormalizable
 
     /// <summary>Gets or sets the normalizer for mapping Z values to colormap range, or null for linear normalization.</summary>
     public INormalizer? Normalizer { get; set; }
+
+    /// <summary>Gets or sets the wireframe edge color. When null, a semi-transparent black (<c>rgba(0,0,0,80)</c>) is used.</summary>
+    public Color? EdgeColor { get; set; }
+
+    /// <summary>Gets or sets how many rows to skip between rendered wireframe lines (1 = every row, 2 = every other row). Default 1.</summary>
+    public int RowStride { get; set; } = 1;
+
+    /// <summary>Gets or sets how many columns to skip between rendered wireframe lines (1 = every column). Default 1.</summary>
+    public int ColStride { get; set; } = 1;
 
     /// <summary>Initializes a new surface series with the specified grid data.</summary>
     public SurfaceSeries(double[] x, double[] y, double[,] z) : base(x, y, z) { }

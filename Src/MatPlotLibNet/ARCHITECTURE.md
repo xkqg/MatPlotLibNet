@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.8.5)
+# MatPlotLibNet Core -- Architecture (v0.8.6)
 
 ## Package dependency graph
 
