@@ -11,8 +11,10 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
 {
     private const int NumEvalPoints = 100;
 
+    /// <inheritdoc />
     public RegressionSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(RegressionSeries series)
     {
         if (series.XData.Length < 2) return;

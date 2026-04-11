@@ -10,7 +10,6 @@ namespace MatPlotLibNet.Indicators;
 public abstract class PriceIndicator<TResult> : Indicator<TResult>
     where TResult : IIndicatorResult
 {
-    /// <summary>Gets the price data.</summary>
     protected double[] Prices { get; }
 
     /// <summary>Creates a new price indicator from a price array.</summary>

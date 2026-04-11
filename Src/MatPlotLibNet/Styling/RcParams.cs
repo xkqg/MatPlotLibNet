@@ -20,7 +20,6 @@ public sealed class RcParams
     // Thread-safe async-local scope stack
     private static readonly AsyncLocal<RcParams?> _current = new();
 
-    /// <summary>Gets the global default <see cref="RcParams"/> instance.</summary>
     public static RcParams Default { get; } = CreateDefaults();
 
     /// <summary>Gets the current scoped <see cref="RcParams"/>, or <see cref="Default"/> when no scope is active.</summary>

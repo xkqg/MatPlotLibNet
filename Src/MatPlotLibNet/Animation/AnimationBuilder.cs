@@ -10,13 +10,10 @@ public sealed class AnimationBuilder
 {
     private readonly Func<int, Figure> _frameGenerator;
 
-    /// <summary>Gets the total number of frames in the animation.</summary>
     public int FrameCount { get; }
 
-    /// <summary>Gets or sets the delay between frames.</summary>
     public TimeSpan Interval { get; set; } = TimeSpan.FromMilliseconds(50);
 
-    /// <summary>Gets or sets whether the animation loops continuously.</summary>
     public bool Loop { get; set; } = true;
 
     /// <summary>Creates an animation builder with the specified frame count and generator function.</summary>

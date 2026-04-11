@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="ErrorBarSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class ErrorBarSeriesRenderer : SeriesRenderer<ErrorBarSeries>
 {
+    /// <inheritdoc />
     public ErrorBarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(ErrorBarSeries series)
     {
         var color = ResolveColor(series.Color);

@@ -31,6 +31,7 @@ public sealed class PropCycler
     private readonly MarkerStyle[] _markerStyles;
     private readonly double[] _lineWidths;
 
+    /// <summary>Initializes a new <see cref="PropCycler"/> from pre-validated property arrays.</summary>
     internal PropCycler(Color[] colors, LineStyle[] lineStyles, MarkerStyle[] markerStyles, double[] lineWidths)
     {
         _colors       = colors.Length       > 0 ? colors       : [Colors.Tab10Blue];

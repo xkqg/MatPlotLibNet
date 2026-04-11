@@ -8,8 +8,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="SwarmplotSeries"/> using beeswarm layout for non-overlapping dots per category.</summary>
 internal sealed class SwarmplotSeriesRenderer : SeriesRenderer<SwarmplotSeries>
 {
+    /// <inheritdoc />
     public SwarmplotSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(SwarmplotSeries series)
     {
         if (series.Datasets.Length == 0) return;

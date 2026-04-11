@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="FunnelSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class FunnelSeriesRenderer : SeriesRenderer<FunnelSeries>
 {
+    /// <inheritdoc />
     public FunnelSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(FunnelSeries series)
     {
         double maxVal = series.Values.Max();

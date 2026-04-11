@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="CandlestickSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class CandlestickSeriesRenderer : SeriesRenderer<CandlestickSeries>
 {
+    /// <inheritdoc />
     public CandlestickSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(CandlestickSeries series)
     {
         // Each bar i occupies slot [i, i+1]; body centered at i+0.5 with bodyWidth fraction.

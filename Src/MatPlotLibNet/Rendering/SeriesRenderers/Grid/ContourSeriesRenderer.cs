@@ -8,10 +8,13 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="ContourSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
 {
+    /// <inheritdoc />
     public ContourSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(ContourSeries series)
     {
         int rows = series.ZData.GetLength(0);

@@ -14,7 +14,6 @@ public sealed class KeltnerChannels : CandleIndicator<BandsResult>
     private readonly int _period;
     private readonly double _atrMultiplier;
 
-    /// <summary>Gets or sets the fill opacity for the channel region.</summary>
     public double Alpha { get; set; } = 0.15;
 
     /// <summary>Creates a new Keltner Channels indicator.</summary>

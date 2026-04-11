@@ -11,44 +11,30 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a scatter chart series displaying individual data points as markers.</summary>
 public sealed class ScatterSeries : XYSeries, IColormappable, INormalizable
 {
-    /// <summary>Gets or sets per-point marker sizes.</summary>
     public double[]? Sizes { get; set; }
 
-    /// <summary>Gets or sets per-point marker colors.</summary>
     public Color[]? Colors { get; set; }
 
-    /// <summary>Gets or sets the uniform marker color.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the marker style for the data points.</summary>
     public MarkerStyle Marker { get; set; } = MarkerStyle.Circle;
 
-    /// <summary>Gets or sets the default marker size in points squared.</summary>
     public double MarkerSize { get; set; } = 36;
 
-    /// <summary>Gets or sets the opacity of the markers (0.0 to 1.0).</summary>
     public double Alpha { get; set; } = 1.0;
 
-    /// <summary>Gets or sets the color map used for mapping scalar data to colors.</summary>
     public IColorMap? ColorMap { get; set; }
 
-    /// <summary>Gets or sets per-point marker edge colors.</summary>
     public Color[]? EdgeColors { get; set; }
 
-    /// <summary>Gets or sets per-point marker edge widths.</summary>
     public double[]? LineWidths { get; set; }
 
-    /// <summary>Gets or sets scalar values for per-point colormap lookup.
-    /// Priority: <see cref="Colors"/>[] &gt; C+<see cref="ColorMap"/> &gt; uniform <see cref="Color"/>.</summary>
     public double[]? C { get; set; }
 
-    /// <summary>Gets or sets the minimum value for colormap normalization.</summary>
     public double? VMin { get; set; }
 
-    /// <summary>Gets or sets the maximum value for colormap normalization.</summary>
     public double? VMax { get; set; }
 
-    /// <summary>Gets or sets the normalizer for colormap scaling.</summary>
     public INormalizer? Normalizer { get; set; }
 
 

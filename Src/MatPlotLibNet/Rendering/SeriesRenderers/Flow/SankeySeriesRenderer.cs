@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="SankeySeries"/> as node rectangles connected by curved bezier links.</summary>
 internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
 {
+    /// <inheritdoc />
     public SankeySeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(SankeySeries series)
     {
         var bounds = Context.Area.PlotBounds;

@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="HexbinSeries"/> as a flat-top hexagonal density grid.</summary>
 internal sealed class HexbinSeriesRenderer : SeriesRenderer<HexbinSeries>
 {
+    /// <inheritdoc />
     public HexbinSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(HexbinSeries series)
     {
         if (series.X.Length == 0) return;

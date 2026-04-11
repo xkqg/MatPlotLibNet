@@ -8,8 +8,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="BrokenBarSeries"/> as horizontal bars with gaps per row.</summary>
 internal sealed class BrokenBarSeriesRenderer : SeriesRenderer<BrokenBarSeries>
 {
+    /// <inheritdoc />
     public BrokenBarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(BrokenBarSeries series)
     {
         if (series.Ranges.Length == 0) return;

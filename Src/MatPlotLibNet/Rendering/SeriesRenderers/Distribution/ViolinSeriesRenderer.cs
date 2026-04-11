@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="ViolinSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class ViolinSeriesRenderer : SeriesRenderer<ViolinSeries>
 {
+    /// <inheritdoc />
     public ViolinSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(ViolinSeries series)
     {
         var color = ResolveColor(series.Color);

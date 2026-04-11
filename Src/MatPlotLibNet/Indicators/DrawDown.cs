@@ -14,7 +14,6 @@ public sealed class DrawDown : Indicator<SignalResult>
 {
     private readonly double[] _equity;
 
-    /// <summary>Gets or sets the fill opacity for the drawdown area.</summary>
     public double Alpha { get; set; } = 0.4;
 
     /// <summary>Creates a new drawdown indicator from an equity curve.</summary>

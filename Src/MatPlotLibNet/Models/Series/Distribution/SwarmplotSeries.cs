@@ -10,13 +10,10 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a swarm plot series that draws non-overlapping dots per category using beeswarm layout.</summary>
 public sealed class SwarmplotSeries : DatasetSeries
 {
-    /// <summary>Gets or sets the radius of each dot in pixels.</summary>
     public double MarkerSize { get; set; } = 5;
 
-    /// <summary>Gets or sets the color of the dots. If <see langword="null"/>, the current cycle color is used.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the opacity of the dots (0.0 to 1.0).</summary>
     public double Alpha { get; set; } = 0.8;
 
     /// <summary>Initializes a new instance of <see cref="SwarmplotSeries"/> with the specified datasets.</summary>

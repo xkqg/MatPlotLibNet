@@ -11,19 +11,14 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a 3D bar chart series — rectangular prisms rising from the XY-plane.</summary>
 public sealed class Bar3DSeries : ChartSeries, I3DPointSeries
 {
-    /// <summary>Gets the X coordinates of the bar bases.</summary>
     public Vec X { get; }
 
-    /// <summary>Gets the Y coordinates of the bar bases.</summary>
     public Vec Y { get; }
 
-    /// <summary>Gets the Z values (heights) of each bar.</summary>
     public Vec Z { get; }
 
-    /// <summary>Gets or sets the width and depth of each bar in data units.</summary>
     public double BarWidth { get; set; } = 0.5;
 
-    /// <summary>Gets or sets the bar color. If <see langword="null"/>, the current cycle color is used.</summary>
     public Color? Color { get; set; }
 
     // I3DPointSeries explicit implementations

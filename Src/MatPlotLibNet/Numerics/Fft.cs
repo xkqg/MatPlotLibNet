@@ -120,6 +120,7 @@ public static class Fft
         return rev;
     }
 
+    /// <summary>Returns the smallest power of two that is greater than or equal to <paramref name="n"/>.</summary>
     internal static int NextPowerOf2(int n)
     {
         if (n <= 0) return 1;

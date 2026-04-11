@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="TricontourSeries"/> as contour polylines on a Delaunay-triangulated mesh.</summary>
 internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries>
 {
+    /// <inheritdoc />
     public TricontourSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(TricontourSeries series)
     {
         if (series.X.Length < 3) return;

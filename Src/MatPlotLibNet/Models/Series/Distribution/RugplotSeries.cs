@@ -11,19 +11,14 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a rug plot series that draws short tick marks along an axis to show the distribution of individual values.</summary>
 public sealed class RugplotSeries : ChartSeries
 {
-    /// <summary>Gets the data values to display as rug ticks.</summary>
     public Vec Data { get; }
 
-    /// <summary>Gets or sets the relative height of each rug tick as a fraction of the Y axis range.</summary>
     public double Height { get; set; } = 0.05;
 
-    /// <summary>Gets or sets the opacity of the rug ticks (0.0 to 1.0).</summary>
     public double Alpha { get; set; } = 0.5;
 
-    /// <summary>Gets or sets the width of each rug tick line in pixels.</summary>
     public double LineWidth { get; set; } = 1.0;
 
-    /// <summary>Gets or sets the color of the rug ticks. If <see langword="null"/>, the current cycle color is used.</summary>
     public Color? Color { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="RugplotSeries"/> with the specified data.</summary>

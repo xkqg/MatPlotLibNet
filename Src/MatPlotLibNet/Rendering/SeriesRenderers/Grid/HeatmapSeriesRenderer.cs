@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="HeatmapSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class HeatmapSeriesRenderer : SeriesRenderer<HeatmapSeries>
 {
+    /// <inheritdoc />
     public HeatmapSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(HeatmapSeries series)
     {
         int rows = series.Data.GetLength(0), cols = series.Data.GetLength(1);

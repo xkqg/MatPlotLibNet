@@ -10,25 +10,18 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a kernel density estimation (KDE) series that draws a smooth density curve for a data sample.</summary>
 public sealed class KdeSeries : ChartSeries
 {
-    /// <summary>Gets the data values used to estimate the density.</summary>
     public double[] Data { get; }
 
-    /// <summary>Gets or sets the bandwidth for the Gaussian kernel. If <see langword="null"/>, Silverman's rule-of-thumb is used automatically.</summary>
     public double? Bandwidth { get; set; }
 
-    /// <summary>Gets or sets whether to fill the area under the density curve.</summary>
     public bool Fill { get; set; } = true;
 
-    /// <summary>Gets or sets the opacity of the fill area (0.0 to 1.0).</summary>
     public double Alpha { get; set; } = 0.3;
 
-    /// <summary>Gets or sets the width of the density curve line in pixels.</summary>
     public double LineWidth { get; set; } = 1.5;
 
-    /// <summary>Gets or sets the color of the series. If <see langword="null"/>, the current cycle color is used.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the dash style of the density curve line.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
     /// <summary>Initializes a new instance of <see cref="KdeSeries"/> with the specified data.</summary>

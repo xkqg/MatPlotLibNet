@@ -13,7 +13,6 @@ public sealed class BollingerBands : PriceIndicator<BandsResult>
     private readonly int _period;
     private readonly double _stdDevMultiplier;
 
-    /// <summary>Gets or sets the fill opacity for the band region.</summary>
     public double Alpha { get; set; } = 0.15;
 
     /// <summary>Creates a new Bollinger Bands indicator from a price array.</summary>

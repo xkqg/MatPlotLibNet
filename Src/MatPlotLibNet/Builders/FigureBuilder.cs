@@ -379,22 +379,16 @@ public sealed class FigureBuilder
 /// <summary>Describes a subplot position and configuration within a figure grid.</summary>
 internal readonly record struct SubPlotSpec
 {
-    /// <summary>Number of rows in the subplot grid (legacy mode).</summary>
     public int Rows { get; init; }
 
-    /// <summary>Number of columns in the subplot grid (legacy mode).</summary>
     public int Cols { get; init; }
 
-    /// <summary>One-based index of this subplot within the grid (legacy mode).</summary>
     public int Index { get; init; }
 
-    /// <summary>Cell position within a GridSpec (new mode).</summary>
     public GridPosition? Position { get; init; }
 
-    /// <summary>Optional string key for referencing this axes in sharing.</summary>
     public string? Key { get; init; }
 
-    /// <summary>Action to configure the subplot axes.</summary>
     public Action<AxesBuilder> Configure { get; init; }
 
     /// <summary>Creates a legacy grid-index spec.</summary>

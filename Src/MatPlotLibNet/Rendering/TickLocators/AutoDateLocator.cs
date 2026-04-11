@@ -28,7 +28,6 @@ public sealed class AutoDateLocator : ITickLocator
     private const double OneHourInOA   = 1.0 / 24;
     private const double OneMinuteInOA = 1.0 / (24 * 60);
 
-    /// <summary>Gets the granularity chosen by the most recent call to <see cref="Locate"/>.</summary>
     public DateInterval ChosenInterval { get; private set; }
 
     /// <inheritdoc />

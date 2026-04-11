@@ -9,19 +9,14 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a Sankey diagram that renders flows between nodes as curved links.</summary>
 public sealed class SankeySeries : ChartSeries
 {
-    /// <summary>Gets the nodes in the diagram.</summary>
     public IReadOnlyList<SankeyNode> Nodes { get; }
 
-    /// <summary>Gets the links connecting nodes.</summary>
     public IReadOnlyList<SankeyLink> Links { get; }
 
-    /// <summary>Gets or sets the width of node rectangles in pixels.</summary>
     public double NodeWidth { get; set; } = 20;
 
-    /// <summary>Gets or sets the vertical padding between nodes in pixels.</summary>
     public double NodePadding { get; set; } = 10;
 
-    /// <summary>Gets or sets the opacity of link curves.</summary>
     public double LinkAlpha { get; set; } = 0.4;
 
     /// <summary>Initializes a new instance with the specified nodes and links.</summary>

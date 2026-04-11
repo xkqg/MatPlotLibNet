@@ -11,12 +11,20 @@ internal sealed class AxesContextAdapter : IAxesContext
 {
     private readonly Axes _axes;
 
+    /// <summary>Initializes a new adapter wrapping the given <see cref="Axes"/> instance.</summary>
+    /// <param name="axes">The subplot axes to expose through the <see cref="IAxesContext"/> interface.</param>
     public AxesContextAdapter(Axes axes) => _axes = axes;
 
+    /// <inheritdoc />
     public double? XAxisMin => _axes.XAxis.Min;
+    /// <inheritdoc />
     public double? XAxisMax => _axes.XAxis.Max;
+    /// <inheritdoc />
     public double? YAxisMin => _axes.YAxis.Min;
+    /// <inheritdoc />
     public double? YAxisMax => _axes.YAxis.Max;
+    /// <inheritdoc />
     public BarMode BarMode => _axes.BarMode;
+    /// <inheritdoc />
     public IReadOnlyList<ISeries> AllSeries => _axes.Series;
 }

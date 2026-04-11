@@ -9,8 +9,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="PolarScatterSeries"/> as markers in polar coordinates.</summary>
 internal sealed class PolarScatterSeriesRenderer : SeriesRenderer<PolarScatterSeries>
 {
+    /// <inheritdoc />
     public PolarScatterSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(PolarScatterSeries series)
     {
         var color = ResolveColor(series.Color);

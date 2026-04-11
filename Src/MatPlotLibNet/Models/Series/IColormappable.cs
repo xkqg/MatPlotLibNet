@@ -8,6 +8,5 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Series that supports colormap assignment for scalar-to-color mapping.</summary>
 public interface IColormappable
 {
-    /// <summary>Gets or sets the colormap used to map scalar values to colors, or null for the default.</summary>
     IColorMap? ColorMap { get; set; }
 }

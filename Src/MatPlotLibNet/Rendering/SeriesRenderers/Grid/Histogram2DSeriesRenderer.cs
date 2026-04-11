@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="Histogram2DSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class Histogram2DSeriesRenderer : SeriesRenderer<Histogram2DSeries>
 {
+    /// <inheritdoc />
     public Histogram2DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(Histogram2DSeries series)
     {
         if (series.X.Length == 0 || series.Y.Length == 0) return;

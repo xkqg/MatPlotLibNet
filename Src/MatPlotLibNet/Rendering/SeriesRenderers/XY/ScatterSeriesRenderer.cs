@@ -8,10 +8,13 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="ScatterSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
 {
+    /// <inheritdoc />
     public ScatterSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(ScatterSeries series)
     {
         var defaultColor = ResolveColor(series.Color);

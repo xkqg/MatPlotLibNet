@@ -7,10 +7,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="AreaSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
 {
+    /// <inheritdoc />
     public AreaSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(AreaSeries series)
     {
         var color = ResolveColor(series.Color);

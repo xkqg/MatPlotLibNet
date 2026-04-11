@@ -23,19 +23,14 @@ public enum StepPosition
 /// <summary>Represents a step-function line series.</summary>
 public sealed class StepSeries : XYSeries
 {
-    /// <summary>Gets or sets where the step transition occurs.</summary>
     public StepPosition StepPosition { get; set; } = StepPosition.Post;
 
-    /// <summary>Gets or sets the line color.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the line style.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
-    /// <summary>Gets or sets the line width.</summary>
     public double LineWidth { get; set; } = 1.5;
 
-    /// <summary>Gets or sets the optional marker style at each data point.</summary>
     public MarkerStyle? Marker { get; set; }
 
     /// <summary>Creates a new step series from the given X and Y data.</summary>

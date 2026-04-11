@@ -10,22 +10,16 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a stem plot series displaying data as vertical lines with markers at the tips.</summary>
 public sealed class StemSeries : ChartSeries
 {
-    /// <summary>Gets the X-axis data values.</summary>
     public double[] XData { get; }
 
-    /// <summary>Gets the Y-axis data values.</summary>
     public double[] YData { get; }
 
-    /// <summary>Gets or sets the color of the markers at the stem tips.</summary>
     public Color? MarkerColor { get; set; }
 
-    /// <summary>Gets or sets the color of the vertical stem lines.</summary>
     public Color? StemColor { get; set; }
 
-    /// <summary>Gets or sets the color of the horizontal baseline.</summary>
     public Color? BaselineColor { get; set; }
 
-    /// <summary>Gets or sets the marker style drawn at each stem tip.</summary>
     public MarkerStyle Marker { get; set; } = MarkerStyle.Circle;
 
 

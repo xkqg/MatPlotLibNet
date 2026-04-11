@@ -7,10 +7,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="StackedAreaSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeries>
 {
+    /// <inheritdoc />
     public StackedAreaSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(StackedAreaSeries series)
     {
         int n = series.X.Length;

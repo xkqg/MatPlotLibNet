@@ -554,6 +554,7 @@ public sealed class ChartSerializer : IChartSerializer
         ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
     }
 
+    /// <summary>Converts a rectangular 2D array to a jagged list-of-lists for JSON serialization.</summary>
     internal static List<List<double>>? To2DList(double[,] data)
     {
         int rows = data.GetLength(0), cols = data.GetLength(1);
@@ -567,6 +568,7 @@ public sealed class ChartSerializer : IChartSerializer
         return result;
     }
 
+    /// <summary>Converts a JSON jagged list-of-lists back to a rectangular 2D array.</summary>
     internal static double[,] From2DList(List<List<double>>? data)
     {
         if (data is null || data.Count == 0) return new double[0, 0];
@@ -594,6 +596,7 @@ internal sealed record FigureDto
     public List<AxesDto>? SubPlots { get; init; }
 }
 
+/// <summary>Data-transfer object for a <see cref="Models.GridSpec"/> layout descriptor.</summary>
 internal sealed record GridSpecDto
 {
     public int Rows { get; init; }
@@ -602,6 +605,7 @@ internal sealed record GridSpecDto
     public double[]? WidthRatios { get; init; }
 }
 
+/// <summary>Data-transfer object for a <see cref="Models.GridPosition"/> span within a grid layout.</summary>
 internal sealed record GridPositionDto
 {
     public int RowStart { get; init; }
@@ -610,6 +614,7 @@ internal sealed record GridPositionDto
     public int ColEnd { get; init; }
 }
 
+/// <summary>Data-transfer object that groups all four axis-spine configurations for a subplot.</summary>
 internal sealed record SpinesConfigDto
 {
     public SpineConfigDto? Top { get; init; }
@@ -618,6 +623,7 @@ internal sealed record SpinesConfigDto
     public SpineConfigDto? Right { get; init; }
 }
 
+/// <summary>Data-transfer object for a single axis spine (border line) on a subplot.</summary>
 internal sealed record SpineConfigDto
 {
     public bool Visible { get; init; } = true;
@@ -649,6 +655,7 @@ internal sealed record AxesDto
     public List<AxesDto>? Insets { get; init; }
 }
 
+/// <summary>Data-transfer object for an inset axes bounding box expressed in figure-normalized coordinates (0–1).</summary>
 internal sealed record InsetBoundsDto
 {
     public double X { get; init; }
@@ -657,6 +664,7 @@ internal sealed record InsetBoundsDto
     public double Height { get; init; }
 }
 
+/// <summary>Data-transfer object for an <see cref="Models.Annotation"/> text label optionally linked to an arrow target.</summary>
 internal sealed record AnnotationDto
 {
     public string? Text { get; init; }
@@ -666,6 +674,7 @@ internal sealed record AnnotationDto
     public double? ArrowTargetY { get; init; }
 }
 
+/// <summary>Data-transfer object for a horizontal or vertical reference line drawn across a subplot.</summary>
 internal sealed record ReferenceLineDto
 {
     public double Value { get; init; }
@@ -675,6 +684,7 @@ internal sealed record ReferenceLineDto
     public string? Label { get; init; }
 }
 
+/// <summary>Data-transfer object for a shaded span region (axhspan / axvspan) on a subplot.</summary>
 internal sealed record SpanRegionDto
 {
     public double Min { get; init; }
@@ -683,6 +693,7 @@ internal sealed record SpanRegionDto
     public double Alpha { get; init; }
 }
 
+/// <summary>Data-transfer object for an axis configuration (label, limits, and scale).</summary>
 internal sealed record AxisDto
 {
     public string? Label { get; init; }
@@ -691,6 +702,7 @@ internal sealed record AxisDto
     public string? Scale { get; init; }
 }
 
+/// <summary>Data-transfer object for the grid visibility setting on a subplot.</summary>
 internal sealed record GridDto
 {
     public bool Visible { get; init; }
@@ -803,12 +815,14 @@ public sealed record SeriesDto
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>
 internal sealed class ColorJsonConverter : JsonConverter<Color>
 {
+    /// <inheritdoc />
     public override Color Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         var hex = reader.GetString();
         return hex is not null ? Color.FromHex(hex) : default;
     }
 
+    /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, Color value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value.ToHex());

@@ -10,34 +10,24 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a polynomial regression series that fits and draws a trend line with optional confidence bands.</summary>
 public sealed class RegressionSeries : ChartSeries
 {
-    /// <summary>Gets the X data values used for fitting.</summary>
     public double[] XData { get; }
 
-    /// <summary>Gets the Y data values used for fitting.</summary>
     public double[] YData { get; }
 
-    /// <summary>Gets or sets the polynomial degree (1 = linear, 2 = quadratic, …). Capped at 10.</summary>
     public int Degree { get; set; } = 1;
 
-    /// <summary>Gets or sets whether to draw the confidence band around the regression line.</summary>
     public bool ShowConfidence { get; set; } = false;
 
-    /// <summary>Gets or sets the confidence level for the band (default 0.95 = 95%).</summary>
     public double ConfidenceLevel { get; set; } = 0.95;
 
-    /// <summary>Gets or sets the width of the regression line in pixels.</summary>
     public double LineWidth { get; set; } = 2.0;
 
-    /// <summary>Gets or sets the line color. If <see langword="null"/>, the current cycle color is used.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the confidence band fill color. If <see langword="null"/>, the line color with reduced alpha is used.</summary>
     public Color? BandColor { get; set; }
 
-    /// <summary>Gets or sets the opacity of the confidence band fill (0.0 to 1.0).</summary>
     public double BandAlpha { get; set; } = 0.2;
 
-    /// <summary>Gets or sets the line style of the regression line.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
     /// <summary>Initializes a new instance of <see cref="RegressionSeries"/> with the specified X and Y data.</summary>

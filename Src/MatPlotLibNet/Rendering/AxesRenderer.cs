@@ -16,16 +16,12 @@ namespace MatPlotLibNet.Rendering;
 /// <summary>Abstract base for coordinate-system-specific axes rendering. Subclass for Cartesian, Polar, or 3D.</summary>
 public abstract class AxesRenderer
 {
-    /// <summary>Gets the axes being rendered.</summary>
     protected Axes Axes { get; }
 
-    /// <summary>Gets the pixel bounds of the plot area.</summary>
     protected Rect PlotArea { get; }
 
-    /// <summary>Gets the render context for drawing.</summary>
     protected IRenderContext Ctx { get; }
 
-    /// <summary>Gets the active theme.</summary>
     protected Theme Theme { get; }
 
     /// <summary>Initializes the renderer with the rendering context.</summary>

@@ -8,8 +8,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="BarbsSeries"/> using meteorological wind barb notation.</summary>
 internal sealed class BarbsSeriesRenderer : SeriesRenderer<BarbsSeries>
 {
+    /// <inheritdoc />
     public BarbsSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(BarbsSeries series)
     {
         if (series.X.Length == 0) return;

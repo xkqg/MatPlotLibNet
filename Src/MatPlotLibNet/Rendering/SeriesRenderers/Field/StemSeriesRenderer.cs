@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="StemSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class StemSeriesRenderer : SeriesRenderer<StemSeries>
 {
+    /// <inheritdoc />
     public StemSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(StemSeries series)
     {
         var stemColor = series.StemColor ?? SeriesColor;

@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="HistogramSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
 {
+    /// <inheritdoc />
     public HistogramSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(HistogramSeries series)
     {
         var baseColor = ResolveColor(series.Color);

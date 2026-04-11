@@ -9,18 +9,14 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// <c>GetColor(0)</c> returns the first color, <c>GetColor(1)</c> the last.</summary>
 public sealed class ListedColorMap : IColorMap
 {
-    /// <inheritdoc />
     public string Name { get; }
 
     private readonly Color[] _colors;
 
-    /// <summary>Gets or sets the color for values below the minimum. <c>null</c> clamps to the first color.</summary>
     public Color? UnderColor { get; init; }
 
-    /// <summary>Gets or sets the color for values above the maximum. <c>null</c> clamps to the last color.</summary>
     public Color? OverColor { get; init; }
 
-    /// <summary>Gets or sets the color for masked/invalid (NaN) values.</summary>
     public Color? BadColor { get; init; }
 
     /// <summary>Creates a listed colormap with the specified discrete colors.</summary>

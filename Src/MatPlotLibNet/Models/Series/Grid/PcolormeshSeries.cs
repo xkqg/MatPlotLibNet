@@ -12,19 +12,14 @@ namespace MatPlotLibNet.Models.Series;
 /// <remarks>X has M+1 edge coordinates, Y has N+1 edge coordinates, and C is an N×M data matrix.</remarks>
 public sealed class PcolormeshSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
 {
-    /// <summary>Gets the M+1 X-axis edge coordinates.</summary>
     public Vec X { get; }
 
-    /// <summary>Gets the N+1 Y-axis edge coordinates.</summary>
     public Vec Y { get; }
 
-    /// <summary>Gets the N×M data matrix (rows = Y cells, cols = X cells).</summary>
     public double[,] C { get; }
 
-    /// <summary>Gets or sets the color map used to map data values to colors.</summary>
     public IColorMap? ColorMap { get; set; }
 
-    /// <summary>Gets or sets the normalizer used to map data values to [0, 1] for colormap lookup.</summary>
     public INormalizer? Normalizer { get; set; }
 
     /// <inheritdoc />

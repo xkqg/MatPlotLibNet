@@ -23,7 +23,7 @@ public class InteractiveExtensionsTests : IDisposable
     public async Task ShowAsync_ReturnsInteractiveFigureWithChartId()
     {
         var figure = Plt.Create().WithTitle("Test").Plot([1.0], [2.0]).Build();
-        var handle = await figure.ShowAsync();
+        var handle = await figure.ShowAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(handle);
         Assert.False(string.IsNullOrEmpty(handle.ChartId));
@@ -39,7 +39,7 @@ public class InteractiveExtensionsTests : IDisposable
         InteractiveExtensions.Browser = mock;
 
         var figure = Plt.Create().WithTitle("Browser Test").Build();
-        await figure.ShowAsync();
+        await figure.ShowAsync(TestContext.Current.CancellationToken);
 
         await mock.Received(1).OpenAsync(Arg.Is<string>(url =>
             url.Contains("127.0.0.1") && url.Contains("/chart/")));

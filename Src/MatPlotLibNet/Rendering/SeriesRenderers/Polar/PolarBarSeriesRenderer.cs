@@ -9,8 +9,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="PolarBarSeries"/> as wedge-shaped bars in polar coordinates.</summary>
 internal sealed class PolarBarSeriesRenderer : SeriesRenderer<PolarBarSeries>
 {
+    /// <inheritdoc />
     public PolarBarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(PolarBarSeries series)
     {
         var baseColor = ResolveColor(series.Color);

@@ -8,8 +8,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="StripplotSeries"/> as randomly jittered dots per category.</summary>
 internal sealed class StripplotSeriesRenderer : SeriesRenderer<StripplotSeries>
 {
+    /// <inheritdoc />
     public StripplotSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(StripplotSeries series)
     {
         if (series.Datasets.Length == 0) return;

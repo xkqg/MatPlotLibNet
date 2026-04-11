@@ -9,8 +9,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="ResidualSeries"/> as a scatter plot of regression residuals with an optional zero line.</summary>
 internal sealed class ResidualSeriesRenderer : SeriesRenderer<ResidualSeries>
 {
+    /// <inheritdoc />
     public ResidualSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(ResidualSeries series)
     {
         if (series.XData.Length == 0) return;

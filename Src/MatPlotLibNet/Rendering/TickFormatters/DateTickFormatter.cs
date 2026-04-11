@@ -8,7 +8,6 @@ namespace MatPlotLibNet.Rendering.TickFormatters;
 /// <summary>Formats tick values as dates by interpreting them as OLE Automation dates.</summary>
 public sealed class DateTickFormatter : ITickFormatter
 {
-    /// <summary>Gets or sets the date format string (default "yyyy-MM-dd").</summary>
     public string DateFormat { get; set; } = "yyyy-MM-dd";
 
     /// <inheritdoc />

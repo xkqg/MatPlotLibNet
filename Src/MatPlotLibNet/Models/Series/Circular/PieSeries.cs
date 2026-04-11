@@ -10,34 +10,24 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a pie chart series displaying proportional data as circular slices.</summary>
 public sealed class PieSeries : ChartSeries
 {
-    /// <summary>Gets the numeric sizes of each pie slice.</summary>
     public double[] Sizes { get; }
 
-    /// <summary>Gets or sets the labels for each pie slice.</summary>
     public string[]? Labels { get; set; }
 
-    /// <summary>Gets or sets the colors for each pie slice.</summary>
     public Color[]? Colors { get; set; }
 
-    /// <summary>Gets or sets the starting angle in degrees for the first slice.</summary>
     public double StartAngle { get; set; } = 90;
 
-    /// <summary>Gets or sets whether slices are drawn counter-clockwise.</summary>
     public bool CounterClockwise { get; set; }
 
-    /// <summary>Gets or sets per-slice radial offsets (0.0–0.3). Null means no explosion.</summary>
     public double[]? Explode { get; set; }
 
-    /// <summary>Gets or sets the percentage format string (e.g. <c>"{0:F1}%"</c>). Null disables percentage labels.</summary>
     public string? AutoPct { get; set; }
 
-    /// <summary>Gets or sets whether a drop-shadow is drawn behind the pie.</summary>
     public bool Shadow { get; set; }
 
-    /// <summary>Gets or sets a custom radius. Null uses the default auto-computed radius.</summary>
     public double? Radius { get; set; }
 
-    /// <summary>Gets or sets per-slice hatch patterns. Null means no hatching. The array is indexed modulo <see cref="Sizes"/>.Length.</summary>
     public HatchPattern[]? Hatches { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="PieSeries"/> with the specified slice sizes.</summary>

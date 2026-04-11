@@ -10,28 +10,20 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a streamline plot through a 2D vector field (U, V components on a grid).</summary>
 public sealed class StreamplotSeries : ChartSeries
 {
-    /// <summary>Gets the X-axis grid coordinates.</summary>
     public double[] X { get; }
 
-    /// <summary>Gets the Y-axis grid coordinates.</summary>
     public double[] Y { get; }
 
-    /// <summary>Gets the X-component of the velocity field (rows=Y, cols=X).</summary>
     public double[,] U { get; }
 
-    /// <summary>Gets the Y-component of the velocity field (rows=Y, cols=X).</summary>
     public double[,] V { get; }
 
-    /// <summary>Gets or sets the density factor controlling the number of streamlines.</summary>
     public double Density { get; set; } = 1.0;
 
-    /// <summary>Gets or sets the streamline color.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the streamline width.</summary>
     public double LineWidth { get; set; } = 1.0;
 
-    /// <summary>Gets or sets the arrowhead size factor.</summary>
     public double ArrowSize { get; set; } = 1.0;
 
     /// <summary>Creates a new streamplot series from grid coordinates and velocity field components.</summary>

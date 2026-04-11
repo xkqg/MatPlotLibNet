@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="SpectrogramSeries"/> as colored time-frequency cells computed via STFT.</summary>
 internal sealed class SpectrogramSeriesRenderer : SeriesRenderer<SpectrogramSeries>
 {
+    /// <inheritdoc />
     public SpectrogramSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(SpectrogramSeries series)
     {
         if (series.Signal.Length == 0) return;

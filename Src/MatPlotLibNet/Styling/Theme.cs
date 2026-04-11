@@ -8,31 +8,23 @@ namespace MatPlotLibNet.Styling;
 /// </summary>
 public sealed class Theme
 {
-    /// <summary>Gets the theme name.</summary>
     public string Name { get; }
 
-    /// <summary>Gets the figure background color.</summary>
     public Color Background { get; init; }
 
-    /// <summary>Gets the foreground text color.</summary>
     public Color ForegroundText { get; init; }
 
-    /// <summary>Gets the axes area background color.</summary>
     public Color AxesBackground { get; init; }
 
-    /// <summary>Gets the color cycle used for successive plot series.</summary>
     public Color[] CycleColors { get; init; }
 
-    /// <summary>Gets the default font applied to text elements.</summary>
     public Font DefaultFont { get; init; }
 
-    /// <summary>Gets the default grid style.</summary>
     public GridStyle DefaultGrid { get; init; }
 
-    /// <summary>Gets the optional multi-property cycle. When set, takes precedence over <see cref="CycleColors"/>.</summary>
-    /// <remarks>Null by default; all built-in themes fall back to <see cref="CycleColors"/>.</remarks>
     public PropCycler? PropCycler { get; init; }
 
+    /// <summary>Initializes a new <see cref="Theme"/> with all visual properties.</summary>
     internal Theme(string name, Color background, Color foregroundText, Color axesBackground,
         Color[] cycleColors, Font defaultFont, GridStyle defaultGrid, PropCycler? propCycler = null)
     {
@@ -64,7 +56,6 @@ public sealed class Theme
         Color.FromHex("#17becf"), // cyan
     ];
 
-    /// <summary>Gets the default light theme matching matplotlib's standard style.</summary>
     public static Theme Default { get; } = new(
         name: "default",
         background: Colors.White,
@@ -74,7 +65,6 @@ public sealed class Theme
         defaultFont: new Font(),
         defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#B0B0B0"), LineStyle = LineStyle.Solid, LineWidth = 0.8 });
 
-    /// <summary>Gets a dark background theme.</summary>
     public static Theme Dark { get; } = new(
         name: "dark",
         background: Color.FromHex("#1C1C1C"),
@@ -84,7 +74,6 @@ public sealed class Theme
         defaultFont: new Font { Color = Color.FromHex("#E0E0E0") },
         defaultGrid: new GridStyle { Color = Color.FromHex("#404040"), Visible = true });
 
-    /// <summary>Gets a theme inspired by the Seaborn visualization library.</summary>
     public static Theme Seaborn { get; } = new(
         name: "seaborn",
         background: Colors.White,
@@ -106,7 +95,6 @@ public sealed class Theme
         defaultFont: new Font { Family = "sans-serif", Size = 11 },
         defaultGrid: new GridStyle { Visible = true, Color = Colors.White });
 
-    /// <summary>Gets a theme inspired by the ggplot2 R library.</summary>
     public static Theme Ggplot { get; } = new(
         name: "ggplot",
         background: Colors.White,
@@ -128,7 +116,6 @@ public sealed class Theme
         defaultFont: new Font(),
         defaultGrid: new GridStyle { Visible = true, Color = Colors.White });
 
-    /// <summary>Gets a theme inspired by Bayesian Methods for Hackers.</summary>
     public static Theme Bmh { get; } = new(
         name: "bmh",
         background: Colors.White,
@@ -150,7 +137,6 @@ public sealed class Theme
         defaultFont: new Font(),
         defaultGrid: new GridStyle { Visible = true, Color = Colors.White });
 
-    /// <summary>Gets a theme inspired by FiveThirtyEight.com charts.</summary>
     public static Theme FiveThirtyEight { get; } = new(
         name: "fivethirtyeight",
         background: Color.FromHex("#F0F0F0"),
@@ -185,24 +171,17 @@ public sealed class Theme
 /// </summary>
 public sealed record GridStyle
 {
-    /// <summary>Gets whether grid lines are visible.</summary>
     public bool Visible { get; init; }
 
-    /// <summary>Gets the grid line color.</summary>
     public Color Color { get; init; } = Color.FromHex("#CCCCCC");
 
-    /// <summary>Gets the grid line dash style.</summary>
     public LineStyle LineStyle { get; init; } = LineStyle.Solid;
 
-    /// <summary>Gets the grid line width in points.</summary>
     public double LineWidth { get; init; } = 0.5;
 
-    /// <summary>Gets the grid line opacity (0.0 to 1.0).</summary>
     public double Alpha { get; init; } = 0.7;
 
-    /// <summary>Gets which tick level receives grid lines. Default is <see cref="GridWhich.Major"/>.</summary>
     public GridWhich Which { get; init; } = GridWhich.Major;
 
-    /// <summary>Gets which axes receive grid lines. Default is <see cref="GridAxis.Both"/>.</summary>
     public GridAxis Axis { get; init; } = GridAxis.Both;
 }

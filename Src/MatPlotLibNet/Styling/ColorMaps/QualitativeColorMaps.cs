@@ -9,7 +9,6 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public static class QualitativeColorMaps
 {
-    /// <summary>Gets the Tab10 color map (10 distinct categorical colors).</summary>
     public static IColorMap Tab10 { get; } = new ListedColorMap("tab10",
     [
         Color.FromHex("#1F77B4"),
@@ -24,7 +23,6 @@ public static class QualitativeColorMaps
         Color.FromHex("#17BECF"),
     ]);
 
-    /// <summary>Gets the Tab20 color map (20 colors in 10 light/dark pairs).</summary>
     public static IColorMap Tab20 { get; } = new ListedColorMap("tab20",
     [
         Color.FromHex("#1F77B4"),
@@ -49,7 +47,6 @@ public static class QualitativeColorMaps
         Color.FromHex("#9EDAE5"),
     ]);
 
-    /// <summary>Gets the Set1 color map (9 bold categorical colors).</summary>
     public static IColorMap Set1 { get; } = new ListedColorMap("set1",
     [
         Color.FromHex("#E41A1C"),
@@ -63,7 +60,6 @@ public static class QualitativeColorMaps
         Color.FromHex("#999999"),
     ]);
 
-    /// <summary>Gets the Set2 color map (8 pastel categorical colors).</summary>
     public static IColorMap Set2 { get; } = new ListedColorMap("set2",
     [
         Color.FromHex("#66C2A5"),
@@ -76,7 +72,6 @@ public static class QualitativeColorMaps
         Color.FromHex("#B3B3B3"),
     ]);
 
-    /// <summary>Gets the Set3 color map (12 light categorical colors).</summary>
     public static IColorMap Set3 { get; } = new ListedColorMap("set3",
     [
         Color.FromHex("#8DD3C7"),
@@ -93,7 +88,6 @@ public static class QualitativeColorMaps
         Color.FromHex("#FFED6F"),
     ]);
 
-    /// <summary>Gets the Pastel1 color map (9 very light categorical colors).</summary>
     public static IColorMap Pastel1 { get; } = new ListedColorMap("pastel1",
     [
         Color.FromHex("#FBB4AE"),
@@ -107,7 +101,6 @@ public static class QualitativeColorMaps
         Color.FromHex("#F2F2F2"),
     ]);
 
-    /// <summary>Gets the Pastel2 color map (8 light pastel categorical colors).</summary>
     public static IColorMap Pastel2 { get; } = new ListedColorMap("pastel2",
     [
         Color.FromHex("#B3E2CD"),
@@ -120,7 +113,6 @@ public static class QualitativeColorMaps
         Color.FromHex("#CCCCCC"),
     ]);
 
-    /// <summary>Gets the Dark2 color map (8 bold, dark categorical colors).</summary>
     public static IColorMap Dark2 { get; } = new ListedColorMap("dark2",
     [
         Color.FromHex("#1B9E77"),
@@ -133,7 +125,6 @@ public static class QualitativeColorMaps
         Color.FromHex("#666666"),
     ]);
 
-    /// <summary>Gets the Accent color map (8 accented categorical colors).</summary>
     public static IColorMap Accent { get; } = new ListedColorMap("accent",
     [
         Color.FromHex("#7FC97F"),
@@ -146,7 +137,6 @@ public static class QualitativeColorMaps
         Color.FromHex("#666666"),
     ]);
 
-    /// <summary>Gets the Paired color map (12 paired light/dark categorical colors).</summary>
     public static IColorMap Paired { get; } = new ListedColorMap("paired",
     [
         Color.FromHex("#A6CEE3"),

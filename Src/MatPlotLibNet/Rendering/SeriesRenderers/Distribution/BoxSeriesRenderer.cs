@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="BoxSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class BoxSeriesRenderer : SeriesRenderer<BoxSeries>
 {
+    /// <inheritdoc />
     public BoxSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(BoxSeries series)
     {
         var color = ResolveColor(series.Color);

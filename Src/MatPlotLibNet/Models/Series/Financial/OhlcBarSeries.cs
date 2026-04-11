@@ -12,6 +12,11 @@ public sealed class OhlcBarSeries : OhlcSeries
 {
     public double TickWidth { get; set; } = 0.3;
 
+    /// <summary>Initializes a new <see cref="OhlcBarSeries"/> with per-bar OHLC price data.</summary>
+    /// <param name="open">Opening price for each bar.</param>
+    /// <param name="high">High price for each bar.</param>
+    /// <param name="low">Low price for each bar.</param>
+    /// <param name="close">Closing price for each bar.</param>
     public OhlcBarSeries(double[] open, double[] high, double[] low, double[] close)
         : base(open, high, low, close) { }
 

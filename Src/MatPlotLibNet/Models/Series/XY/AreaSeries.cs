@@ -10,34 +10,24 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a filled area series, rendering the region between a line and a baseline (or between two Y datasets).</summary>
 public sealed class AreaSeries : XYSeries
 {
-    /// <summary>Gets or sets the optional secondary Y data for fill-between-two-curves mode. When null, fills to y=0.</summary>
     public double[]? YData2 { get; set; }
 
-    /// <summary>Gets or sets the line and fill color.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the fill opacity (0.0 = transparent, 1.0 = opaque).</summary>
     public double Alpha { get; set; } = 0.3;
 
-    /// <summary>Gets or sets the top edge line style.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
-    /// <summary>Gets or sets the top edge line width.</summary>
     public double LineWidth { get; set; } = 1.5;
 
-    /// <summary>Gets or sets an optional separate fill color. When null, uses <see cref="Color"/> with <see cref="Alpha"/>.</summary>
     public Color? FillColor { get; set; }
 
-    /// <summary>Gets or sets the hatch pattern drawn inside the filled area. Default is <see cref="HatchPattern.None"/>.</summary>
     public HatchPattern Hatch { get; set; } = HatchPattern.None;
 
-    /// <summary>Gets or sets the hatch line color. When null, the series color is used.</summary>
     public Color? HatchColor { get; set; }
 
-    /// <summary>Gets or sets an optional edge (boundary) color drawn on top of the fill. When null, the series <see cref="Color"/> is used.</summary>
     public Color? EdgeColor { get; set; }
 
-    /// <summary>Gets or sets the step interpolation mode for the polygon boundary. Default is <see cref="DrawStyle.Default"/> (linear).</summary>
     public DrawStyle StepMode { get; set; } = DrawStyle.Default;
 
     /// <summary>Creates a new area series from the given X and Y data.</summary>

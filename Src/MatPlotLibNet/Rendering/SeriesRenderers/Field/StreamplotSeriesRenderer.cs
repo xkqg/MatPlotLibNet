@@ -12,8 +12,10 @@ internal sealed class StreamplotSeriesRenderer : SeriesRenderer<StreamplotSeries
     private const int MaxSteps = 500;
     private const double StepFraction = 0.02;
 
+    /// <inheritdoc />
     public StreamplotSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(StreamplotSeries series)
     {
         var color = ResolveColor(series.Color);

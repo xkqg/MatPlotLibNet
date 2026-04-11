@@ -6,9 +6,7 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Marker interface for series rendered in polar coordinates.</summary>
 public interface IPolarSeries : ISeries
 {
-    /// <summary>Gets the radial data values.</summary>
     double[] R { get; }
 
-    /// <summary>Gets the angular data values in radians.</summary>
     double[] Theta { get; }
 }

@@ -8,7 +8,6 @@ public sealed class ReversedColorMap : IColorMap
 {
     private readonly IColorMap _inner;
 
-    /// <inheritdoc />
     public string Name { get; }
 
     /// <summary>Creates a reversed version of the given colormap.</summary>

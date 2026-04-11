@@ -10,34 +10,24 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents an error bar series showing uncertainty at each data point.</summary>
 public sealed class ErrorBarSeries : XYSeries
 {
-    /// <summary>Gets the lower Y error magnitudes.</summary>
     public double[] YErrorLow { get; }
 
-    /// <summary>Gets the upper Y error magnitudes.</summary>
     public double[] YErrorHigh { get; }
 
-    /// <summary>Gets or sets the optional lower X error magnitudes.</summary>
     public double[]? XErrorLow { get; set; }
 
-    /// <summary>Gets or sets the optional upper X error magnitudes.</summary>
     public double[]? XErrorHigh { get; set; }
 
-    /// <summary>Gets or sets the line and marker color.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the error bar line width.</summary>
     public double LineWidth { get; set; } = 1.5;
 
-    /// <summary>Gets or sets the cap size in pixels at the ends of error bars.</summary>
     public double CapSize { get; set; } = 5.0;
 
-    /// <summary>Gets or sets the error bar line width. Null falls back to <see cref="LineWidth"/>.</summary>
     public double? ELineWidth { get; set; }
 
-    /// <summary>Gets or sets the cap stroke thickness. Null falls back to <see cref="LineWidth"/>.</summary>
     public double? CapThick { get; set; }
 
-    /// <summary>Gets or sets the interval at which error bars are drawn (every N-th point).</summary>
     public int ErrorEvery { get; set; } = 1;
 
     /// <summary>Creates a new error bar series from the given data and error magnitudes.</summary>

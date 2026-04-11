@@ -16,6 +16,10 @@ public sealed class GanttSeries : ChartSeries
     public Color? Color { get; set; }
     public double BarHeight { get; set; } = 0.6;
 
+    /// <summary>Initializes a new <see cref="GanttSeries"/> with task names and their start/end data positions.</summary>
+    /// <param name="tasks">Task label for each row.</param>
+    /// <param name="starts">Start value for each task bar.</param>
+    /// <param name="ends">End value for each task bar.</param>
     public GanttSeries(string[] tasks, double[] starts, double[] ends)
     {
         Tasks = tasks; Starts = starts; Ends = ends;

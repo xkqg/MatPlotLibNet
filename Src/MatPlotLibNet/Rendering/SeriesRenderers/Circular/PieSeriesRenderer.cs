@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="PieSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
 {
+    /// <inheritdoc />
     public PieSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(PieSeries series)
     {
         double total = series.Sizes.Sum();

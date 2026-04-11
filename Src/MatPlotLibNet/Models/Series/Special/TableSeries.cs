@@ -10,31 +10,22 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a data table rendered inside the plot area.</summary>
 public sealed class TableSeries : ChartSeries
 {
-    /// <summary>Gets the 2D array of cell text values (rows × columns).</summary>
     public string[][] CellData { get; }
 
-    /// <summary>Gets or sets optional column header labels.</summary>
     public string[]? ColumnHeaders { get; set; }
 
-    /// <summary>Gets or sets optional row header labels.</summary>
     public string[]? RowHeaders { get; set; }
 
-    /// <summary>Gets or sets the height of each cell in pixels.</summary>
     public double CellHeight { get; set; } = 25;
 
-    /// <summary>Gets or sets the horizontal padding inside each cell in pixels.</summary>
     public double CellPadding { get; set; } = 4;
 
-    /// <summary>Gets or sets the background color of header cells. If <see langword="null"/>, a default gray is used.</summary>
     public Color? HeaderColor { get; set; }
 
-    /// <summary>Gets or sets the background color of data cells. If <see langword="null"/>, white is used.</summary>
     public Color? CellColor { get; set; }
 
-    /// <summary>Gets or sets the border color. If <see langword="null"/>, a default dark gray is used.</summary>
     public Color? BorderColor { get; set; }
 
-    /// <summary>Gets or sets the font size in points.</summary>
     public double FontSize { get; set; } = 11;
 
     /// <summary>Initializes a new instance of <see cref="TableSeries"/> with the specified cell data.</summary>

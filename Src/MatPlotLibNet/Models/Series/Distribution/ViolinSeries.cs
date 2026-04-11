@@ -10,28 +10,20 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a violin plot series displaying kernel density estimations for datasets.</summary>
 public sealed class ViolinSeries : DatasetSeries
 {
-    /// <summary>Gets or sets the fill color of the violins.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the opacity of the violins (0.0 to 1.0).</summary>
     public double Alpha { get; set; } = 0.7;
 
-    /// <summary>Gets or sets whether a mean line is drawn on each violin.</summary>
     public bool ShowMeans { get; set; }
 
-    /// <summary>Gets or sets whether a median line is drawn on each violin.</summary>
     public bool ShowMedians { get; set; }
 
-    /// <summary>Gets or sets whether min/max lines are drawn on each violin.</summary>
     public bool ShowExtrema { get; set; } = true;
 
-    /// <summary>Gets or sets explicit positions for each violin. Null uses sequential 0-based indices.</summary>
     public double[]? Positions { get; set; }
 
-    /// <summary>Gets or sets the violin width (0.0–1.0).</summary>
     public double Widths { get; set; } = 0.5;
 
-    /// <summary>Gets or sets which side(s) of the violin to draw.</summary>
     public ViolinSide Side { get; set; } = ViolinSide.Both;
 
 

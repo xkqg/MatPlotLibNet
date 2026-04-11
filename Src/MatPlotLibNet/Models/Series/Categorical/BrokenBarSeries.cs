@@ -10,16 +10,12 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a broken bar series that draws horizontal bars with gaps, one row per set of time ranges.</summary>
 public sealed class BrokenBarSeries : ChartSeries
 {
-    /// <summary>Gets the array of range sets, one per row. Each range is a (Start, Width) tuple.</summary>
     public (double Start, double Width)[][] Ranges { get; }
 
-    /// <summary>Gets or sets optional row labels.</summary>
     public string[]? Labels { get; set; }
 
-    /// <summary>Gets or sets the height of each bar as a fraction of the row spacing.</summary>
     public double BarHeight { get; set; } = 0.8;
 
-    /// <summary>Gets or sets the fill color of the bars. If <see langword="null"/>, the current cycle color is used.</summary>
     public Color? Color { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="BrokenBarSeries"/> with the specified ranges.</summary>

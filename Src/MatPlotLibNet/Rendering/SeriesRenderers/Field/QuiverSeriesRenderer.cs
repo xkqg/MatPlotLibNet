@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="QuiverSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class QuiverSeriesRenderer : SeriesRenderer<QuiverSeries>
 {
+    /// <inheritdoc />
     public QuiverSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(QuiverSeries series)
     {
         var color = ResolveColor(series.Color);

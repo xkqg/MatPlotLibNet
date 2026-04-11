@@ -10,34 +10,24 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a contour plot series displaying iso-lines or filled regions for 3D surface data.</summary>
 public sealed class ContourSeries : ChartSeries, IColormappable
 {
-    /// <summary>Gets the X-axis grid coordinates.</summary>
     public double[] XData { get; }
 
-    /// <summary>Gets the Y-axis grid coordinates.</summary>
     public double[] YData { get; }
 
-    /// <summary>Gets the 2D matrix of Z values at each grid point.</summary>
     public double[,] ZData { get; }
 
-    /// <summary>Gets or sets the number of contour levels to draw.</summary>
     public int Levels { get; set; } = 10;
 
-    /// <summary>Gets or sets explicit contour level thresholds. When set, overrides <see cref="Levels"/> count.</summary>
     public double[]? LevelValues { get; set; }
 
-    /// <summary>Gets or sets whether the contour regions are filled.</summary>
     public bool Filled { get; set; }
 
-    /// <summary>Gets or sets whether contour lines should be labeled with their Z value.</summary>
     public bool ShowLabels { get; set; }
 
-    /// <summary>Gets or sets the .NET format string for contour level labels (default "G4").</summary>
     public string? LabelFormat { get; set; }
 
-    /// <summary>Gets or sets the font size for contour level labels (default 10).</summary>
     public double LabelFontSize { get; set; } = 10;
 
-    /// <summary>Gets or sets the color map used to map contour levels to colors.</summary>
     public IColorMap? ColorMap { get; set; }
 
 

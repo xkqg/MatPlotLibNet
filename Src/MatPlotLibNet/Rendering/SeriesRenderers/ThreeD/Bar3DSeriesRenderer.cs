@@ -8,8 +8,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="Bar3DSeries"/> as depth-sorted rectangular prisms projected from 3D to 2D.</summary>
 internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
 {
+    /// <inheritdoc />
     public Bar3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(Bar3DSeries series)
     {
         if (series.X.Length == 0) return;

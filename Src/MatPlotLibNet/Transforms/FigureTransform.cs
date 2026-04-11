@@ -12,7 +12,6 @@ namespace MatPlotLibNet.Transforms;
 /// and encode the result to the target format. The renderer is held as a shared dependency in this base class.</remarks>
 public abstract class FigureTransform : IFigureTransform
 {
-    /// <summary>Gets the chart renderer used to render figure elements.</summary>
     protected ChartRenderer Renderer { get; }
 
     /// <summary>Creates a new figure transform with the specified chart renderer.</summary>

@@ -9,8 +9,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="PcolormeshSeries"/> as colored rectangular cells on a non-uniform grid.</summary>
 internal sealed class PcolormeshSeriesRenderer : SeriesRenderer<PcolormeshSeries>
 {
+    /// <inheritdoc />
     public PcolormeshSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(PcolormeshSeries series)
     {
         int rows = series.C.GetLength(0), cols = series.C.GetLength(1);

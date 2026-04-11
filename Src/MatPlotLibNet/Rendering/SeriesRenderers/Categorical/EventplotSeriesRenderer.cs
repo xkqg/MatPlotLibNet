@@ -8,8 +8,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders an <see cref="EventplotSeries"/> as rows of vertical tick lines at event positions.</summary>
 internal sealed class EventplotSeriesRenderer : SeriesRenderer<EventplotSeries>
 {
+    /// <inheritdoc />
     public EventplotSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(EventplotSeries series)
     {
         if (series.Positions.Length == 0) return;

@@ -17,6 +17,9 @@ public sealed class WaterfallSeries : ChartSeries
     public Color TotalColor { get; set; } = Colors.Tab10Blue;
     public double BarWidth { get; set; } = 0.6;
 
+    /// <summary>Initializes a new <see cref="WaterfallSeries"/> with category labels and step values.</summary>
+    /// <param name="categories">Label for each step.</param>
+    /// <param name="values">Signed delta for each step.</param>
     public WaterfallSeries(string[] categories, double[] values)
     {
         Categories = categories; Values = values;

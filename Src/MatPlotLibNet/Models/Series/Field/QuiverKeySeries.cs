@@ -10,22 +10,16 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a quiver key (reference arrow) series showing the scale of a quiver field.</summary>
 public sealed class QuiverKeySeries : ChartSeries
 {
-    /// <summary>Gets or sets the X position in axes fraction (0–1).</summary>
     public double X { get; set; }
 
-    /// <summary>Gets or sets the Y position in axes fraction (0–1).</summary>
     public double Y { get; set; }
 
-    /// <summary>Gets or sets the reference arrow length in data units.</summary>
     public double U { get; set; }
 
-    /// <summary>Gets or sets the label displayed next to the reference arrow.</summary>
     public new string Label { get; set; }
 
-    /// <summary>Gets or sets the font size of the label in points.</summary>
     public double FontSize { get; set; } = 12;
 
-    /// <summary>Gets or sets the color. If <see langword="null"/>, the current cycle color is used.</summary>
     public Color? Color { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="QuiverKeySeries"/>.</summary>

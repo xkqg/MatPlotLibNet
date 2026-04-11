@@ -9,7 +9,6 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public static class DivergingColorMaps
 {
-    /// <summary>Gets the RdBu color map (red to blue).</summary>
     public static IColorMap RdBu { get; } = new LinearColorMap("rdbu",
     [
         Color.FromHex("#67001F"),
@@ -24,7 +23,6 @@ public static class DivergingColorMaps
         Color.FromHex("#053061"),
     ]);
 
-    /// <summary>Gets the RdYlGn color map (red to green via yellow).</summary>
     public static IColorMap RdYlGn { get; } = new LinearColorMap("rdylgn",
     [
         Color.FromHex("#A50026"),
@@ -39,7 +37,6 @@ public static class DivergingColorMaps
         Color.FromHex("#006837"),
     ]);
 
-    /// <summary>Gets the RdYlBu color map (red to blue via yellow).</summary>
     public static IColorMap RdYlBu { get; } = new LinearColorMap("rdylbu",
     [
         Color.FromHex("#A50026"),
@@ -54,7 +51,6 @@ public static class DivergingColorMaps
         Color.FromHex("#313695"),
     ]);
 
-    /// <summary>Gets the BrBG color map (brown to teal).</summary>
     public static IColorMap BrBG { get; } = new LinearColorMap("brbg",
     [
         Color.FromHex("#543005"),
@@ -69,7 +65,6 @@ public static class DivergingColorMaps
         Color.FromHex("#003C30"),
     ]);
 
-    /// <summary>Gets the PiYG color map (pink to green).</summary>
     public static IColorMap PiYG { get; } = new LinearColorMap("piyg",
     [
         Color.FromHex("#8E0152"),
@@ -84,7 +79,6 @@ public static class DivergingColorMaps
         Color.FromHex("#276419"),
     ]);
 
-    /// <summary>Gets the Spectral color map (red to blue via rainbow).</summary>
     public static IColorMap Spectral { get; } = new LinearColorMap("spectral",
     [
         Color.FromHex("#9E0142"),
@@ -99,7 +93,6 @@ public static class DivergingColorMaps
         Color.FromHex("#5E4FA2"),
     ]);
 
-    /// <summary>Gets the PuOr color map (dark purple to dark orange).</summary>
     public static IColorMap PuOr { get; } = new LinearColorMap("puor",
     [
         Color.FromHex("#2D004B"),
@@ -114,7 +107,6 @@ public static class DivergingColorMaps
         Color.FromHex("#7F3B08"),
     ]);
 
-    /// <summary>Gets the Seismic color map (dark blue to dark red with strong contrast).</summary>
     public static IColorMap Seismic { get; } = new LinearColorMap("seismic",
     [
         Color.FromHex("#00004C"),
@@ -130,7 +122,6 @@ public static class DivergingColorMaps
         Color.FromHex("#800000"),
     ]);
 
-    /// <summary>Gets the Bwr color map (blue to white to red).</summary>
     public static IColorMap Bwr { get; } = new LinearColorMap("bwr",
     [
         Color.FromHex("#0000FF"),

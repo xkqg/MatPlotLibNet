@@ -14,6 +14,9 @@ public sealed class FunnelSeries : ChartSeries
     public double[] Values { get; }
     public Color[]? Colors { get; set; }
 
+    /// <summary>Initializes a new <see cref="FunnelSeries"/> with the given stage labels and values.</summary>
+    /// <param name="labels">Stage label for each slice.</param>
+    /// <param name="values">Numeric value for each slice, in order from top to bottom.</param>
     public FunnelSeries(string[] labels, double[] values)
     {
         Labels = labels; Values = values;

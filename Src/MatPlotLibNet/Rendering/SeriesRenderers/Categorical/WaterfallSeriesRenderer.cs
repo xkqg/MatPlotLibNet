@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="WaterfallSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class WaterfallSeriesRenderer : SeriesRenderer<WaterfallSeries>
 {
+    /// <inheritdoc />
     public WaterfallSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(WaterfallSeries series)
     {
         double cumulative = 0;

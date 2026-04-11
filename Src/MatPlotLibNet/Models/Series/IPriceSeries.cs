@@ -6,6 +6,5 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Series from which price/Y data can be extracted for indicator computation.</summary>
 public interface IPriceSeries : ISeries
 {
-    /// <summary>Gets the price data array (Close for financial, YData for XY series).</summary>
     double[] PriceData { get; }
 }

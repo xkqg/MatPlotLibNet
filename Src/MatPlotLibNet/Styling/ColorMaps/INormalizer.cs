@@ -13,7 +13,6 @@ public interface INormalizer
 /// <summary>Linear normalization: <c>(value - min) / (max - min)</c>, clamped to [0, 1].</summary>
 public sealed class LinearNormalizer : INormalizer
 {
-    /// <summary>Gets the singleton instance.</summary>
     public static LinearNormalizer Instance { get; } = new();
 
     /// <inheritdoc />
@@ -42,7 +41,6 @@ public sealed class LogNormalizer : INormalizer
 /// where values above and below center should use different halves of a diverging colormap.</summary>
 public sealed class TwoSlopeNormalizer : INormalizer
 {
-    /// <summary>Gets the center data value that maps to 0.5.</summary>
     public double Center { get; }
 
     /// <summary>Creates a two-slope normalizer with the specified center value.</summary>
@@ -90,17 +88,14 @@ public sealed class BoundaryNormalizer : INormalizer
     }
 }
 
-/// <summary>Symmetric logarithmic normalization. Linear within ±<paramref name="linthresh"/>,
+/// <summary>Symmetric logarithmic normalization. Linear within ±<see cref="Linthresh"/>,
 /// log-compressed beyond. Useful for data that spans positive and negative values including zero.</summary>
 public sealed class SymLogNormalizer : INormalizer
 {
-    /// <summary>Gets the range of values mapped linearly around zero.</summary>
     public double Linthresh { get; }
 
-    /// <summary>Gets the logarithm base used outside the linear region.</summary>
     public double Base { get; }
 
-    /// <summary>Gets the scale factor for the linear region.</summary>
     public double LinScale { get; }
 
     /// <summary>Creates a symmetric-log normalizer.</summary>
@@ -131,7 +126,6 @@ public sealed class SymLogNormalizer : INormalizer
 /// gamma &lt; 1 expands low values; gamma &gt; 1 compresses them.</summary>
 public sealed class PowerNormNormalizer : INormalizer
 {
-    /// <summary>Gets the power (gamma) exponent.</summary>
     public double Gamma { get; }
 
     /// <summary>Creates a power-norm normalizer with the specified gamma.</summary>
@@ -151,10 +145,8 @@ public sealed class PowerNormNormalizer : INormalizer
 /// half-range around the center.</summary>
 public sealed class CenteredNormNormalizer : INormalizer
 {
-    /// <summary>Gets the data value that maps to 0.5.</summary>
     public double Vcenter { get; }
 
-    /// <summary>Gets the optional symmetric half-range that constrains the mapping.</summary>
     public double? Halfrange { get; }
 
     /// <summary>Creates a centered normalizer.</summary>
@@ -184,7 +176,6 @@ public sealed class CenteredNormNormalizer : INormalizer
 /// Use when the data is already in the normalized range.</summary>
 public sealed class NoNormNormalizer : INormalizer
 {
-    /// <summary>Gets the singleton instance.</summary>
     public static NoNormNormalizer Instance { get; } = new();
 
     /// <inheritdoc />

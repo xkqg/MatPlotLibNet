@@ -9,13 +9,10 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Defines the contract for a data series that can be rendered on an axes.</summary>
 public interface ISeries
 {
-    /// <summary>Gets or sets the legend label for this series.</summary>
     string? Label { get; set; }
 
-    /// <summary>Gets or sets whether this series is visible.</summary>
     bool Visible { get; set; }
 
-    /// <summary>Gets or sets the drawing order of this series.</summary>
     int ZOrder { get; set; }
 
     /// <summary>Accepts a visitor for rendering this series within the specified area.</summary>

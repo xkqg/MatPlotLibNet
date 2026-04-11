@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="GaugeSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class GaugeSeriesRenderer : SeriesRenderer<GaugeSeries>
 {
+    /// <inheritdoc />
     public GaugeSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(GaugeSeries series)
     {
         var bounds = Area.PlotBounds;

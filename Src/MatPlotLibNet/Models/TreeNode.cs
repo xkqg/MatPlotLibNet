@@ -8,16 +8,12 @@ namespace MatPlotLibNet.Models;
 /// <summary>Represents a node in a hierarchical tree structure, used by Treemap and Sunburst series.</summary>
 public sealed record TreeNode
 {
-    /// <summary>Gets the display label for this node.</summary>
     public string Label { get; init; } = "";
 
-    /// <summary>Gets the value of this node (used for leaf nodes).</summary>
     public double Value { get; init; }
 
-    /// <summary>Gets the optional color override for this node.</summary>
     public Color? Color { get; init; }
 
-    /// <summary>Gets the child nodes of this node.</summary>
     public IReadOnlyList<TreeNode> Children { get; init; } = Array.Empty<TreeNode>();
 
     /// <summary>Computes the total value: own value if leaf, sum of children if branch.</summary>

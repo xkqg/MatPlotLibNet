@@ -9,8 +9,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="QuiverKeySeries"/> as a reference arrow with a label in axes-fraction coordinates.</summary>
 internal sealed class QuiverKeySeriesRenderer : SeriesRenderer<QuiverKeySeries>
 {
+    /// <inheritdoc />
     public QuiverKeySeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(QuiverKeySeries series)
     {
         var color = ResolveColor(series.Color);

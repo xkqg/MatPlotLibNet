@@ -10,22 +10,16 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents an empirical cumulative distribution function (ECDF) step-function series.</summary>
 public sealed class EcdfSeries : ChartSeries
 {
-    /// <summary>Gets the raw input data.</summary>
     public double[] Data { get; }
 
-    /// <summary>Gets the sorted data values (computed from <see cref="Data"/>).</summary>
     public double[] SortedX { get; }
 
-    /// <summary>Gets the CDF values (1/n, 2/n, ..., 1.0), computed from <see cref="Data"/>.</summary>
     public double[] CdfY { get; }
 
-    /// <summary>Gets or sets the line color.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the line width.</summary>
     public double LineWidth { get; set; } = 1.5;
 
-    /// <summary>Gets or sets the line style.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
     /// <summary>Creates a new ECDF series from the given raw data.</summary>

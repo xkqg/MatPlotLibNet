@@ -18,7 +18,7 @@ public class ChartSeriesOOTests
         ISeries series = new LineSeries([1.0], [2.0]);
         // Should compile and work without any cast
         var range = series.ComputeDataRange(new NullAxesContext());
-        Assert.NotNull(range);
+        Assert.NotNull(range.XMin);
     }
 
     /// <summary>Verifies that ChartSeries implements ISeriesSerializable.</summary>

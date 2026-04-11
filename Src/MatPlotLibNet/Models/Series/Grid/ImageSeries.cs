@@ -13,28 +13,20 @@ namespace MatPlotLibNet.Models.Series;
 /// and supports explicit VMin/VMax for color scaling.</remarks>
 public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
 {
-    /// <summary>Gets the two-dimensional data matrix.</summary>
     public double[,] Data { get; }
 
-    /// <summary>Gets or sets the color map used to map data values to colors.</summary>
     public IColorMap? ColorMap { get; set; }
 
-    /// <summary>Gets or sets the normalizer used to map data values to [0, 1] for colormap lookup. Defaults to linear.</summary>
     public INormalizer? Normalizer { get; set; }
 
-    /// <summary>Gets or sets the interpolation method: "nearest" (default), "bilinear", or "bicubic".</summary>
     public string? Interpolation { get; set; }
 
-    /// <summary>Gets or sets the fill opacity in [0, 1]. Default 1.0 (fully opaque).</summary>
     public double Alpha { get; set; } = 1.0;
 
-    /// <summary>Gets or sets the blend mode for compositing over background. Default <see cref="BlendMode.Normal"/>.</summary>
     public BlendMode BlendMode { get; set; } = BlendMode.Normal;
 
-    /// <summary>Gets or sets the explicit minimum value for color scaling. When null, auto-detected from data.</summary>
     public double? VMin { get; set; }
 
-    /// <summary>Gets or sets the explicit maximum value for color scaling. When null, auto-detected from data.</summary>
     public double? VMax { get; set; }
 
     /// <inheritdoc />

@@ -20,50 +20,35 @@ public enum BarOrientation
 /// <summary>Represents a bar chart series displaying categorical data as rectangular bars.</summary>
 public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable
 {
-    /// <summary>Gets the category labels for each bar.</summary>
     public string[] Categories { get; }
 
     /// <inheritdoc />
     string[]? ICategoryLabeled.CategoryLabels => Categories;
 
-    /// <summary>Gets the numeric values for each bar.</summary>
     public double[] Values { get; }
 
-    /// <summary>Gets or sets the bar orientation (vertical or horizontal).</summary>
     public BarOrientation Orientation { get; set; } = BarOrientation.Vertical;
 
-    /// <summary>Gets or sets the fill color of the bars.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the edge color of the bars.</summary>
     public Color? EdgeColor { get; set; }
 
-    /// <summary>Gets or sets the relative width of each bar (0.0 to 1.0).</summary>
     public double BarWidth { get; set; } = 0.8;
 
-    /// <summary>Gets the stack baseline offsets computed by the renderer for stacked bar mode. Null when not stacking.</summary>
-    /// <inheritdoc />
     public double[]? StackBaseline { get; set; }
 
-    /// <summary>Gets or sets whether to display the bar values as text labels above (or beside) each bar.</summary>
     public bool ShowLabels { get; set; }
 
-    /// <summary>Gets or sets the format string used for bar value labels (e.g. "F1" for one decimal place). Null uses the default numeric format.</summary>
     public string? LabelFormat { get; set; }
 
-    /// <summary>Gets or sets the fill opacity of the bars (0.0 to 1.0).</summary>
     public double Alpha { get; set; } = 1.0;
 
-    /// <summary>Gets or sets the edge stroke width of the bars. A value of 0.0 means no visible edge.</summary>
     public double LineWidth { get; set; } = 0.0;
 
-    /// <summary>Gets or sets how bar positions are aligned relative to their X coordinate.</summary>
     public BarAlignment Align { get; set; } = BarAlignment.Center;
 
-    /// <summary>Gets or sets the hatch pattern drawn inside each bar. Default is <see cref="HatchPattern.None"/>.</summary>
     public HatchPattern Hatch { get; set; } = HatchPattern.None;
 
-    /// <summary>Gets or sets the hatch line color. When null, the bar edge color is used.</summary>
     public Color? HatchColor { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="BarSeries"/> with the specified categories and values.</summary>

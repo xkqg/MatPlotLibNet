@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="ProgressBarSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class ProgressBarSeriesRenderer : SeriesRenderer<ProgressBarSeries>
 {
+    /// <inheritdoc />
     public ProgressBarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(ProgressBarSeries series)
     {
         var bounds = Area.PlotBounds;

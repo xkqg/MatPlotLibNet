@@ -10,16 +10,12 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a progress bar showing a value as a fraction of a track (0.0 to 1.0).</summary>
 public sealed class ProgressBarSeries : ChartSeries
 {
-    /// <summary>Gets the progress value (0.0 = empty, 1.0 = full).</summary>
     public double Value { get; }
 
-    /// <summary>Gets or sets the fill color of the progress portion.</summary>
     public Color FillColor { get; set; } = Colors.Tab10Blue;
 
-    /// <summary>Gets or sets the track (background) color.</summary>
     public Color TrackColor { get; set; } = Colors.LightGray;
 
-    /// <summary>Gets or sets the bar height as a fraction of the available plot height.</summary>
     public double BarHeight { get; set; } = 0.3;
 
     /// <summary>Creates a new progress bar series with the given value (0.0 to 1.0).</summary>

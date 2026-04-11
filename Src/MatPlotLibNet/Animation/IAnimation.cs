@@ -9,13 +9,10 @@ namespace MatPlotLibNet.Animation;
 /// <typeparam name="TState">The animation state type passed between frames.</typeparam>
 public interface IAnimation<TState>
 {
-    /// <summary>Gets the total number of frames.</summary>
     int FrameCount { get; }
 
-    /// <summary>Gets or sets the delay between frames.</summary>
     TimeSpan Interval { get; set; }
 
-    /// <summary>Gets or sets whether the animation loops continuously.</summary>
     bool Loop { get; set; }
 
     /// <summary>Creates the initial animation state.</summary>

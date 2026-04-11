@@ -8,19 +8,14 @@ namespace MatPlotLibNet.Styling;
 /// </summary>
 public sealed record Font
 {
-    /// <summary>Gets the font family name.</summary>
     public string Family { get; init; } = "sans-serif";
 
-    /// <summary>Gets the font size in CSS pixels. Default 13 ≈ matplotlib's 10pt at 96 dpi.</summary>
     public double Size { get; init; } = 13;
 
-    /// <summary>Gets the font weight.</summary>
     public FontWeight Weight { get; init; } = FontWeight.Normal;
 
-    /// <summary>Gets the font slant (normal, italic, or oblique).</summary>
     public FontSlant Slant { get; init; } = FontSlant.Normal;
 
-    /// <summary>Gets the font color, or <c>null</c> to inherit from the theme.</summary>
     public Color? Color { get; init; }
 }
 

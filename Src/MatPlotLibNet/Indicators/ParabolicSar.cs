@@ -21,10 +21,8 @@ public sealed class ParabolicSar : Indicator<ParabolicSarResult>
     private readonly double _step;
     private readonly double _max;
 
-    /// <summary>Gets or sets the color for long (uptrend) dots.</summary>
     public Color LongColor { get; set; } = Colors.Green;
 
-    /// <summary>Gets or sets the color for short (downtrend) dots.</summary>
     public Color ShortColor { get; set; } = Colors.Red;
 
     /// <summary>Creates a new Parabolic SAR indicator.</summary>

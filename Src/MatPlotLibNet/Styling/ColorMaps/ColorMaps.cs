@@ -8,7 +8,6 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public static class ColorMaps
 {
-    /// <summary>Gets the Viridis color map (dark purple to teal to yellow).</summary>
     public static IColorMap Viridis { get; } = new LinearColorMap("viridis",
     [
         Color.FromHex("#440154"),
@@ -22,7 +21,6 @@ public static class ColorMaps
         Color.FromHex("#FDE725"),
     ]);
 
-    /// <summary>Gets the Plasma color map (dark purple to magenta to orange to yellow).</summary>
     public static IColorMap Plasma { get; } = new LinearColorMap("plasma",
     [
         Color.FromHex("#0D0887"),
@@ -37,7 +35,6 @@ public static class ColorMaps
         Color.FromHex("#F0F921"),
     ]);
 
-    /// <summary>Gets the Inferno color map (black to dark red to orange to yellow to white).</summary>
     public static IColorMap Inferno { get; } = new LinearColorMap("inferno",
     [
         Color.FromHex("#000004"),
@@ -52,7 +49,6 @@ public static class ColorMaps
         Color.FromHex("#FCFFA4"),
     ]);
 
-    /// <summary>Gets the Magma color map (black to purple to pink to light).</summary>
     public static IColorMap Magma { get; } = new LinearColorMap("magma",
     [
         Color.FromHex("#000004"),
@@ -67,7 +63,6 @@ public static class ColorMaps
         Color.FromHex("#FCFDBF"),
     ]);
 
-    /// <summary>Gets the Coolwarm diverging color map (blue to white to red).</summary>
     public static IColorMap Coolwarm { get; } = new LinearColorMap("coolwarm",
     [
         Color.FromHex("#3B4CC0"),
@@ -80,7 +75,6 @@ public static class ColorMaps
         Color.FromHex("#B40426"),
     ]);
 
-    /// <summary>Gets the Blues sequential color map (white to dark blue).</summary>
     public static IColorMap Blues { get; } = new LinearColorMap("blues",
     [
         Color.FromHex("#F7FBFF"),
@@ -93,7 +87,6 @@ public static class ColorMaps
         Color.FromHex("#084594"),
     ]);
 
-    /// <summary>Gets the Reds sequential color map (white to dark red).</summary>
     public static IColorMap Reds { get; } = new LinearColorMap("reds",
     [
         Color.FromHex("#FFF5F0"),
@@ -106,8 +99,6 @@ public static class ColorMaps
         Color.FromHex("#99000D"),
     ]);
 
-    /// <summary>Gets the Turbo color map (perceptually-uniform rainbow: dark blue to teal to yellow to dark red).</summary>
-    /// <remarks>Turbo is Google's improved replacement for Jet. Prefer Turbo over Jet for new work.</remarks>
     public static IColorMap Turbo { get; } = new LinearColorMap("turbo",
     [
         Color.FromHex("#30123B"),
@@ -122,8 +113,6 @@ public static class ColorMaps
         Color.FromHex("#7A0403"),
     ]);
 
-    /// <summary>Gets the Jet color map (legacy rainbow: dark blue to cyan to yellow to dark red).</summary>
-    /// <remarks>Jet is not perceptually uniform. Use <see cref="Turbo"/> or <see cref="Viridis"/> for new work.</remarks>
     public static IColorMap Jet { get; } = new LinearColorMap("jet",
     [
         Color.FromHex("#000080"),

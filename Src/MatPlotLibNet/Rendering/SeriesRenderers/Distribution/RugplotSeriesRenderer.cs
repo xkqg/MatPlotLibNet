@@ -8,8 +8,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="RugplotSeries"/> as short vertical tick marks along the X axis.</summary>
 internal sealed class RugplotSeriesRenderer : SeriesRenderer<RugplotSeries>
 {
+    /// <inheritdoc />
     public RugplotSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(RugplotSeries series)
     {
         if (series.Data.Length == 0) return;

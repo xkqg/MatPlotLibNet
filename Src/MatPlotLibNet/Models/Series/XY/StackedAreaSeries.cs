@@ -11,25 +11,18 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a stacked area (stackplot) series where multiple Y datasets are stacked vertically with filled areas.</summary>
 public sealed class StackedAreaSeries : ChartSeries
 {
-    /// <summary>Gets the shared X values.</summary>
     public double[] X { get; }
 
-    /// <summary>Gets the array of Y arrays, one per stacked layer.</summary>
     public double[][] YSets { get; }
 
-    /// <summary>Gets or sets optional labels for each layer.</summary>
     public string[]? Labels { get; set; }
 
-    /// <summary>Gets or sets the fill opacity (0.0 to 1.0).</summary>
     public double Alpha { get; set; } = 0.7;
 
-    /// <summary>Gets or sets the baseline strategy for stacking. Default is <see cref="StackedBaseline.Zero"/>.</summary>
     public StackedBaseline Baseline { get; set; } = StackedBaseline.Zero;
 
-    /// <summary>Gets or sets the hatch pattern drawn inside each stacked layer. Default is <see cref="HatchPattern.None"/>.</summary>
     public HatchPattern Hatch { get; set; } = HatchPattern.None;
 
-    /// <summary>Gets or sets the hatch line color. When null, the cycle color is used.</summary>
     public Color? HatchColor { get; set; }
 
     /// <summary>Creates a new stacked area series from shared X values and multiple Y datasets.</summary>

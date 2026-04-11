@@ -7,10 +7,13 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="ImageSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class ImageSeriesRenderer : SeriesRenderer<ImageSeries>
 {
+    /// <inheritdoc />
     public ImageSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(ImageSeries series)
     {
         int srcRows = series.Data.GetLength(0), srcCols = series.Data.GetLength(1);

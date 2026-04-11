@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="RadarSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class RadarSeriesRenderer : SeriesRenderer<RadarSeries>
 {
+    /// <inheritdoc />
     public RadarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(RadarSeries series)
     {
         var color = ResolveColor(series.Color);

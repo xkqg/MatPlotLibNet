@@ -18,22 +18,16 @@ public enum SignalDirection
 /// <summary>Represents a buy or sell signal marker at a specific data coordinate on the chart.</summary>
 public sealed class SignalMarker
 {
-    /// <summary>Gets the X data coordinate.</summary>
     public double X { get; }
 
-    /// <summary>Gets the Y data coordinate (price level).</summary>
     public double Y { get; }
 
-    /// <summary>Gets the signal direction (Buy or Sell).</summary>
     public SignalDirection Direction { get; }
 
-    /// <summary>Gets or sets the marker color. Defaults to green for Buy, red for Sell.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the marker size in pixels.</summary>
     public double Size { get; set; } = 12;
 
-    /// <summary>Gets or sets an optional text label displayed near the marker.</summary>
     public string? Label { get; set; }
 
     /// <summary>Creates a new signal marker at the given data coordinates.</summary>

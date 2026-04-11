@@ -6,19 +6,15 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// <summary>Colormap that linearly interpolates between evenly-spaced (or explicitly positioned) color stops.</summary>
 public sealed class LinearColorMap : IColorMap
 {
-    /// <inheritdoc />
     public string Name { get; }
 
     private readonly Color[] _stops;
     private readonly double[]? _positions; // null → evenly spaced
 
-    /// <summary>Gets or sets the color for values below the minimum. <c>null</c> clamps to the first stop.</summary>
     public Color? UnderColor { get; init; }
 
-    /// <summary>Gets or sets the color for values above the maximum. <c>null</c> clamps to the last stop.</summary>
     public Color? OverColor { get; init; }
 
-    /// <summary>Gets or sets the color for masked/invalid (NaN) values.</summary>
     public Color? BadColor { get; init; }
 
     /// <summary>Creates a colormap that interpolates between evenly-spaced color stops.</summary>

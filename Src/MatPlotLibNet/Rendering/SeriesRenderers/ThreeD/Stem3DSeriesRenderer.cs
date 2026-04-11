@@ -8,8 +8,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="Stem3DSeries"/> as projected vertical lines with markers at the data points.</summary>
 internal sealed class Stem3DSeriesRenderer : SeriesRenderer<Stem3DSeries>
 {
+    /// <inheritdoc />
     public Stem3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(Stem3DSeries series)
     {
         if (series.X.Length == 0) return;

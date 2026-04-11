@@ -11,22 +11,16 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a residual plot series that displays regression residuals as a scatter plot with an optional zero line.</summary>
 public sealed class ResidualSeries : ChartSeries
 {
-    /// <summary>Gets the X data values.</summary>
     public Vec XData { get; }
 
-    /// <summary>Gets the Y data values.</summary>
     public Vec YData { get; }
 
-    /// <summary>Gets or sets the polynomial degree of the regression used to compute residuals.</summary>
     public int Degree { get; set; } = 1;
 
-    /// <summary>Gets or sets the radius of each residual dot in pixels.</summary>
     public double MarkerSize { get; set; } = 6;
 
-    /// <summary>Gets or sets the color of the dots. If <see langword="null"/>, the current cycle color is used.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets whether to draw a horizontal zero line at y = 0.</summary>
     public bool ShowZeroLine { get; set; } = true;
 
     /// <summary>Initializes a new instance of <see cref="ResidualSeries"/> with the specified X and Y data.</summary>

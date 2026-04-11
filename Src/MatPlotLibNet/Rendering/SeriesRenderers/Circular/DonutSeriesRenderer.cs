@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="DonutSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class DonutSeriesRenderer : SeriesRenderer<DonutSeries>
 {
+    /// <inheritdoc />
     public DonutSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(DonutSeries series)
     {
         var bounds = Area.PlotBounds;

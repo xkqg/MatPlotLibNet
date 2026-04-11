@@ -85,7 +85,7 @@ public class CandleIndicatorTests
     public void ParabolicSar_DoesNotInheritCandleIndicator()
     {
         var sar = new ParabolicSar(H, L);
-        Assert.IsNotType<CandleIndicator<ParabolicSarResult>>(sar);
+        Assert.IsNotAssignableFrom<CandleIndicator<ParabolicSarResult>>(sar);
     }
 
     // ── Compute unchanged ──

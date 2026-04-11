@@ -6,10 +6,8 @@ namespace MatPlotLibNet.Styling;
 /// <summary>An immutable named set of <see cref="RcParams"/> overrides that can be applied globally or in a scope.</summary>
 public sealed class StyleSheet
 {
-    /// <summary>Gets the style sheet name (e.g. "dark", "seaborn").</summary>
     public string Name { get; }
 
-    /// <summary>Gets the parameter overrides defined by this style sheet.</summary>
     public IReadOnlyDictionary<string, object> Parameters { get; }
 
     /// <summary>Initializes a new <see cref="StyleSheet"/> with the given name and parameters.</summary>
@@ -39,13 +37,10 @@ public sealed class StyleSheet
 
     // ── Built-in style sheets ─────────────────────────────────────────────────
 
-    /// <summary>Gets the default matplotlib-like white background style.</summary>
     public static StyleSheet Default { get; } = FromTheme(Theme.Default);
 
-    /// <summary>Gets a dark background style.</summary>
     public static StyleSheet Dark { get; } = FromTheme(Theme.Dark);
 
-    /// <summary>Gets a seaborn-inspired muted style (light grid, muted colors).</summary>
     public static StyleSheet Seaborn { get; } = new("seaborn", new Dictionary<string, object>
     {
         [RcParamKeys.FigureFaceColor]  = Color.FromHex("#eaeaf2"),
@@ -58,7 +53,6 @@ public sealed class StyleSheet
         [RcParamKeys.TextColor]        = Color.FromHex("#262626"),
     });
 
-    /// <summary>Gets a ggplot2-inspired grey background style.</summary>
     public static StyleSheet Ggplot { get; } = new("ggplot", new Dictionary<string, object>
     {
         [RcParamKeys.FigureFaceColor]  = Color.FromHex("#e5e5e5"),

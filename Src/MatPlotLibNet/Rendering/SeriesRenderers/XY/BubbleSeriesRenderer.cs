@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="BubbleSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class BubbleSeriesRenderer : SeriesRenderer<BubbleSeries>
 {
+    /// <inheritdoc />
     public BubbleSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(BubbleSeries series)
     {
         var color = ResolveColor(series.Color);

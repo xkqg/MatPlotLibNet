@@ -12,7 +12,6 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// and shared helper methods that subclasses can override to customize behavior.</summary>
 internal abstract class SeriesRenderer
 {
-    /// <summary>Gets the full rendering context record.</summary>
     protected SeriesRenderContext Context { get; }
 
     /// <summary>Gets the coordinate transform. Override to apply custom transformations.</summary>
@@ -30,6 +29,8 @@ internal abstract class SeriesRenderer
     /// <summary>Gets whether tooltips are enabled. Override to force enable/disable per renderer.</summary>
     protected virtual bool TooltipsEnabled => Context.TooltipsEnabled;
 
+    /// <summary>Initializes a new renderer with the supplied rendering context.</summary>
+    /// <param name="context">The context containing transform, draw target, and theme data for this render pass.</param>
     protected SeriesRenderer(SeriesRenderContext context) => Context = context;
 
     /// <summary>Returns the series-specific color if set, otherwise the theme cycle color. Override to change fallback logic.</summary>
@@ -79,6 +80,7 @@ internal abstract class SeriesRenderer
 /// <typeparam name="T">The series type this renderer handles.</typeparam>
 internal abstract class SeriesRenderer<T> : SeriesRenderer where T : ISeries
 {
+    /// <inheritdoc />
     protected SeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <summary>Renders the given series using the context provided at construction time.</summary>

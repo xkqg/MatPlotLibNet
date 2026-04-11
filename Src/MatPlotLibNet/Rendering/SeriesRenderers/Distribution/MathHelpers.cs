@@ -3,8 +3,12 @@
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Lightweight statistical helper methods used by distribution-plot renderers.</summary>
 internal static class MathHelpers
 {
+    /// <summary>Returns the <paramref name="p"/>-th percentile of a pre-sorted array using linear interpolation.</summary>
+    /// <param name="sorted">Array of values sorted in ascending order.</param>
+    /// <param name="p">Percentile to compute, in the range [0, 100].</param>
     internal static double Percentile(double[] sorted, double p)
     {
         double idx = (sorted.Length - 1) * p / 100.0;
@@ -12,6 +16,9 @@ internal static class MathHelpers
         return sorted[lower] + (idx - lower) * (sorted[upper] - sorted[lower]);
     }
 
+    /// <summary>Returns the leftmost index where <paramref name="value"/> can be inserted into <paramref name="sorted"/> while maintaining order.</summary>
+    /// <param name="sorted">A sorted array of doubles.</param>
+    /// <param name="value">The value to locate.</param>
     internal static int BisectLeft(double[] sorted, double value)
     {
         int lo = 0, hi = sorted.Length;
@@ -19,6 +26,9 @@ internal static class MathHelpers
         return lo;
     }
 
+    /// <summary>Returns the rightmost index where <paramref name="value"/> can be inserted into <paramref name="sorted"/> while maintaining order.</summary>
+    /// <param name="sorted">A sorted array of doubles.</param>
+    /// <param name="value">The value to locate.</param>
     internal static int BisectRight(double[] sorted, double value)
     {
         int lo = 0, hi = sorted.Length;

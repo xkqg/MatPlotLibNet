@@ -9,7 +9,6 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a treemap series that renders hierarchical data as nested rectangles.</summary>
 public sealed class TreemapSeries : HierarchicalSeries
 {
-    /// <summary>Gets or sets the padding between nested rectangles in pixels.</summary>
     public double Padding { get; set; } = 2.0;
 
     /// <summary>Initializes a new instance of <see cref="TreemapSeries"/> with the specified root node.</summary>

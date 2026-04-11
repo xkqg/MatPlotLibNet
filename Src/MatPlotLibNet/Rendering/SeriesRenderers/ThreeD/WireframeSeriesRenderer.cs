@@ -9,8 +9,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="WireframeSeries"/> as grid lines projected from 3D to 2D.</summary>
 internal sealed class WireframeSeriesRenderer : SeriesRenderer<WireframeSeries>
 {
+    /// <inheritdoc />
     public WireframeSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(WireframeSeries series)
     {
         int rows = series.Z.GetLength(0), cols = series.Z.GetLength(1);

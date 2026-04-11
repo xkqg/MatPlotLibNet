@@ -11,22 +11,16 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a contour series on an unstructured triangular mesh.</summary>
 public sealed class TricontourSeries : ChartSeries, IColormappable, INormalizable
 {
-    /// <summary>Gets the X coordinates of the unstructured data points.</summary>
     public Vec X { get; }
 
-    /// <summary>Gets the Y coordinates of the unstructured data points.</summary>
     public Vec Y { get; }
 
-    /// <summary>Gets the Z values at each data point.</summary>
     public Vec Z { get; }
 
-    /// <summary>Gets or sets the number of contour levels.</summary>
     public int Levels { get; set; } = 10;
 
-    /// <summary>Gets or sets the color map used to color contour levels.</summary>
     public IColorMap? ColorMap { get; set; }
 
-    /// <summary>Gets or sets the normalizer for contour value mapping.</summary>
     public INormalizer? Normalizer { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="TricontourSeries"/>.</summary>

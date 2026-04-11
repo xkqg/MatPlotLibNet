@@ -10,12 +10,20 @@ public sealed class Projection3D
     private readonly Rect _plotBounds;
     private readonly double _xMin, _xMax, _yMin, _yMax, _zMin, _zMax;
 
-    /// <summary>Gets the elevation angle in degrees.</summary>
     public double Elevation { get; }
 
-    /// <summary>Gets the azimuth angle in degrees.</summary>
     public double Azimuth { get; }
 
+    /// <summary>Initializes a new <see cref="Projection3D"/> with the given view angles and data bounds.</summary>
+    /// <param name="elevation">Camera elevation above the XY plane in degrees.</param>
+    /// <param name="azimuth">Camera azimuth rotation around the Z axis in degrees.</param>
+    /// <param name="plotBounds">Pixel rectangle into which the projection maps.</param>
+    /// <param name="xMin">Minimum X data value.</param>
+    /// <param name="xMax">Maximum X data value.</param>
+    /// <param name="yMin">Minimum Y data value.</param>
+    /// <param name="yMax">Maximum Y data value.</param>
+    /// <param name="zMin">Minimum Z data value.</param>
+    /// <param name="zMax">Maximum Z data value.</param>
     public Projection3D(double elevation, double azimuth, Rect plotBounds,
         double xMin, double xMax, double yMin, double yMax, double zMin, double zMax)
     {

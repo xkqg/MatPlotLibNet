@@ -8,49 +8,32 @@ namespace MatPlotLibNet.Models;
 /// <summary>Represents the top-level figure that contains one or more subplot axes.</summary>
 public sealed class Figure
 {
-    /// <summary>Gets or sets the figure title.</summary>
     public string? Title { get; set; }
 
-    /// <summary>Gets or sets the figure width in pixels.</summary>
     public double Width { get; set; } = 800;
 
-    /// <summary>Gets or sets the figure height in pixels.</summary>
     public double Height { get; set; } = 600;
 
-    /// <summary>Gets or sets the dots-per-inch resolution of the figure.</summary>
     public double Dpi { get; set; } = 96;
 
-    /// <summary>Gets or sets the background color of the figure.</summary>
     public Color? BackgroundColor { get; set; }
 
-    /// <summary>Gets or sets the visual theme applied to the figure.</summary>
     public Theme Theme { get; set; } = Theme.Default;
 
-    /// <summary>Gets or sets the subplot spacing configuration (margins and gaps).</summary>
     public SubPlotSpacing Spacing { get; set; } = new();
 
-    /// <summary>Gets or sets the grid specification for advanced subplot layouts with ratios and spanning.</summary>
     public GridSpec? GridSpec { get; set; }
 
-    /// <summary>Gets or sets a figure-level color bar rendered outside all subplots. When null, no figure-level color bar is shown.</summary>
     public ColorBar? FigureColorBar { get; set; }
 
-    /// <summary>Gets or sets whether interactive zoom and pan via JavaScript is enabled in SVG output.</summary>
-    /// <remarks>When enabled, a <c>&lt;script&gt;</c> block is injected into the SVG document that handles
-    /// mouse-wheel zoom and click-drag pan via viewBox manipulation. Has no effect on raster transforms (PNG, PDF).
-    /// Double-click resets to the original view.</remarks>
     public bool EnableZoomPan { get; set; }
 
-    /// <summary>Gets or sets whether clicking legend entries toggles series visibility.</summary>
     public bool EnableLegendToggle { get; set; }
 
-    /// <summary>Gets or sets whether styled HTML tooltip overlays replace native SVG titles.</summary>
     public bool EnableRichTooltips { get; set; }
 
-    /// <summary>Gets or sets whether hovering a series dims its siblings (highlight-on-hover).</summary>
     public bool EnableHighlight { get; set; }
 
-    /// <summary>Gets or sets whether Shift+drag draws a selection rectangle that fires a custom DOM event.</summary>
     public bool EnableSelection { get; set; }
 
     /// <summary>Returns <see langword="true"/> if any interactive JS feature is enabled.</summary>
@@ -114,5 +97,6 @@ public sealed class Figure
     public Axes AddSubPlot(GridSpec gridSpec, int rowStart, int rowEnd, int colStart, int colEnd) =>
         AddSubPlot(gridSpec, new GridPosition(rowStart, rowEnd, colStart, colEnd));
 
+    /// <summary>Adds an <see cref="Axes"/> instance directly to the subplot list.</summary>
     internal void AddAxes(Axes axes) => _subPlots.Add(axes);
 }

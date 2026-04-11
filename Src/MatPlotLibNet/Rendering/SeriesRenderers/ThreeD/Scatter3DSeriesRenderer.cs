@@ -9,8 +9,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="Scatter3DSeries"/> as projected circles sorted by depth.</summary>
 internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
 {
+    /// <inheritdoc />
     public Scatter3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(Scatter3DSeries series)
     {
         if (series.X.Length == 0) return;

@@ -9,8 +9,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="PolarLineSeries"/> as connected lines in polar coordinates.</summary>
 internal sealed class PolarLineSeriesRenderer : SeriesRenderer<PolarLineSeries>
 {
+    /// <inheritdoc />
     public PolarLineSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(PolarLineSeries series)
     {
         var color = ResolveColor(series.Color);

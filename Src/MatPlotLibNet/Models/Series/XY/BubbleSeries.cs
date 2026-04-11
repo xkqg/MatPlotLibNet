@@ -14,6 +14,10 @@ public sealed class BubbleSeries : XYSeries
     public Color? Color { get; set; }
     public double Alpha { get; set; } = 0.6;
 
+    /// <summary>Initializes a new <see cref="BubbleSeries"/> with position and size data.</summary>
+    /// <param name="xData">X coordinates.</param>
+    /// <param name="yData">Y coordinates.</param>
+    /// <param name="sizes">Marker area in points² for each data point.</param>
     public BubbleSeries(double[] xData, double[] yData, double[] sizes) : base(xData, yData)
     {
         Sizes = sizes;

@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="SunburstSeries"/> as concentric ring segments.</summary>
 internal sealed class SunburstSeriesRenderer : SeriesRenderer<SunburstSeries>
 {
+    /// <inheritdoc />
     public SunburstSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(SunburstSeries series)
     {
         var bounds = Context.Area.PlotBounds;

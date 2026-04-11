@@ -8,8 +8,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="KdeSeries"/> as a smooth Gaussian KDE density curve with optional fill.</summary>
 internal sealed class KdeSeriesRenderer : SeriesRenderer<KdeSeries>
 {
+    /// <inheritdoc />
     public KdeSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(KdeSeries series)
     {
         if (series.Data.Length == 0) return;

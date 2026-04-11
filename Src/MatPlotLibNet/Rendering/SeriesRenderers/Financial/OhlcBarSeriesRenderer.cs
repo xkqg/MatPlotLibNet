@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="OhlcBarSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class OhlcBarSeriesRenderer : SeriesRenderer<OhlcBarSeries>
 {
+    /// <inheritdoc />
     public OhlcBarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(OhlcBarSeries series)
     {
         for (int i = 0; i < series.Open.Length; i++)

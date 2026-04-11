@@ -21,37 +21,27 @@ public enum SpinePosition
 /// <summary>Configures a single axis spine (border line).</summary>
 public sealed record SpineConfig
 {
-    /// <summary>Gets whether this spine is visible.</summary>
     public bool Visible { get; init; } = true;
 
-    /// <summary>Gets the position mode for this spine.</summary>
     public SpinePosition Position { get; init; } = SpinePosition.Edge;
 
-    /// <summary>Gets the data or axes-fraction value when <see cref="Position"/> is <see cref="SpinePosition.Data"/> or <see cref="SpinePosition.Axes"/>.</summary>
     public double PositionValue { get; init; }
 
-    /// <summary>Gets the line width of the spine.</summary>
     public double LineWidth { get; init; } = 1.0;
 
-    /// <summary>Gets the stroke color of this spine, or <c>null</c> to use the theme foreground color.</summary>
     public Color? Color { get; init; }
 
-    /// <summary>Gets the dash pattern for this spine. Default is <see cref="LineStyle.Solid"/>.</summary>
     public LineStyle LineStyle { get; init; } = LineStyle.Solid;
 }
 
 /// <summary>Configures all four spines of a Cartesian axes.</summary>
 public sealed record SpinesConfig
 {
-    /// <summary>Gets the top spine configuration.</summary>
     public SpineConfig Top { get; init; } = new();
 
-    /// <summary>Gets the bottom spine configuration.</summary>
     public SpineConfig Bottom { get; init; } = new();
 
-    /// <summary>Gets the left spine configuration.</summary>
     public SpineConfig Left { get; init; } = new();
 
-    /// <summary>Gets the right spine configuration.</summary>
     public SpineConfig Right { get; init; } = new();
 }

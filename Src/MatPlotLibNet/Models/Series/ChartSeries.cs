@@ -10,13 +10,10 @@ namespace MatPlotLibNet.Models.Series;
 /// <see cref="Accept"/>, <see cref="ComputeDataRange"/>, and <see cref="ToSeriesDto"/>.</summary>
 public abstract class ChartSeries : ISeries, IHasDataRange, ISeriesSerializable
 {
-    /// <inheritdoc />
     public string? Label { get; set; }
 
-    /// <inheritdoc />
     public bool Visible { get; set; } = true;
 
-    /// <inheritdoc />
     public int ZOrder { get; set; }
 
     /// <inheritdoc />

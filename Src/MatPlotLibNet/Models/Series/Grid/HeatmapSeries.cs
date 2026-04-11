@@ -10,13 +10,10 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a heatmap series that renders a 2D data matrix as colored cells.</summary>
 public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
 {
-    /// <summary>Gets the two-dimensional data matrix.</summary>
     public double[,] Data { get; }
 
-    /// <summary>Gets or sets the color map used to map data values to colors.</summary>
     public IColorMap? ColorMap { get; set; }
 
-    /// <summary>Gets or sets the normalizer used to map data values to [0, 1] for colormap lookup. Defaults to linear.</summary>
     public INormalizer? Normalizer { get; set; }
 
     /// <inheritdoc />

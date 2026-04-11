@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="GanttSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class GanttSeriesRenderer : SeriesRenderer<GanttSeries>
 {
+    /// <inheritdoc />
     public GanttSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(GanttSeries series)
     {
         var color = ResolveColor(series.Color);

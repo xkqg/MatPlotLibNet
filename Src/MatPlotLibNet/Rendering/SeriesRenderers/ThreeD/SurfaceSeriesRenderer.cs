@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="SurfaceSeries"/> as colored quadrilaterals projected from 3D to 2D.</summary>
 internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
 {
+    /// <inheritdoc />
     public SurfaceSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(SurfaceSeries series)
     {
         int rows = series.Z.GetLength(0), cols = series.Z.GetLength(1);

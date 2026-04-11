@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="EcdfSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class EcdfSeriesRenderer : SeriesRenderer<EcdfSeries>
 {
+    /// <inheritdoc />
     public EcdfSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(EcdfSeries series)
     {
         var color = ResolveColor(series.Color);

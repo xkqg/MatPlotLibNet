@@ -16,7 +16,6 @@ public sealed class Macd : PriceIndicator<MacdResult>
     private readonly int _slowPeriod;
     private readonly int _signalPeriod;
 
-    /// <summary>Gets or sets the signal line color.</summary>
     public Color? SignalColor { get; set; }
 
     /// <summary>Creates a new MACD indicator.</summary>

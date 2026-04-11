@@ -16,8 +16,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// </summary>
 internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
 {
+    /// <inheritdoc />
     public ContourfSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(ContourfSeries series)
     {
         int rows = series.ZData.GetLength(0);

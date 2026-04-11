@@ -17,6 +17,8 @@ public sealed class DonutSeries : ChartSeries
     public string? CenterText { get; set; }
     public double StartAngle { get; set; } = 90;
 
+    /// <summary>Initializes a new <see cref="DonutSeries"/> with the given slice sizes.</summary>
+    /// <param name="sizes">Fractional or absolute size of each slice; they will be normalized automatically.</param>
     public DonutSeries(double[] sizes) => Sizes = sizes;
 
     /// <inheritdoc />

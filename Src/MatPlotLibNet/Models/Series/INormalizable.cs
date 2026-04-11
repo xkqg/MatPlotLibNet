@@ -8,6 +8,5 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Series that supports data normalization before colormap lookup.</summary>
 public interface INormalizable
 {
-    /// <summary>Gets or sets the normalizer that maps data values to [0, 1], or null for linear normalization.</summary>
     INormalizer? Normalizer { get; set; }
 }

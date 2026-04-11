@@ -9,8 +9,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="PointplotSeries"/> as mean point + confidence interval whisker per category.</summary>
 internal sealed class PointplotSeriesRenderer : SeriesRenderer<PointplotSeries>
 {
+    /// <inheritdoc />
     public PointplotSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(PointplotSeries series)
     {
         if (series.Datasets.Length == 0) return;

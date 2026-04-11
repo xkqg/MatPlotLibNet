@@ -24,6 +24,5 @@ public interface IChartSubscriptionClient : IAsyncDisposable
     /// <summary>Registers a callback invoked when a JSON chart update is received. Parameters: chartId, json.</summary>
     void OnChartUpdated(Func<string, string, Task> handler);
 
-    /// <summary>Gets whether the client is currently connected to the hub.</summary>
     bool IsConnected { get; }
 }

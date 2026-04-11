@@ -715,6 +715,10 @@ public sealed class AxesBuilder
             : throw new InvalidOperationException("No price data found. Add a series with Y data before calling indicator shortcuts.");
     }
 
+    /// <summary>Builds and returns a new <see cref="Axes"/> at the specified grid position.</summary>
+    /// <param name="rows">Total number of rows in the grid.</param>
+    /// <param name="cols">Total number of columns in the grid.</param>
+    /// <param name="index">Zero-based linear index of this subplot within the grid.</param>
     internal Axes Build(int rows, int cols, int index)
     {
         _axes.GridRows = rows;
@@ -723,6 +727,8 @@ public sealed class AxesBuilder
         return _axes;
     }
 
+    /// <summary>Builds and returns a new <see cref="Axes"/> at the specified grid position.</summary>
+    /// <param name="position">The row/column span that this subplot occupies.</param>
     internal Axes Build(GridPosition position)
     {
         _axes.GridPosition = position;
@@ -758,6 +764,7 @@ public sealed class SecondaryAxisBuilder
 {
     private readonly Axes _axes;
 
+    /// <summary>Initializes a new <see cref="SecondaryAxisBuilder"/> attached to the given axes.</summary>
     internal SecondaryAxisBuilder(Axes axes) => _axes = axes;
 
     /// <summary>Sets the label displayed alongside the right-side Y-axis.</summary>
@@ -790,6 +797,7 @@ public sealed class SecondaryXAxisBuilder
 {
     private readonly Axes _axes;
 
+    /// <summary>Initializes a new <see cref="SecondaryXAxisBuilder"/> attached to the given axes.</summary>
     internal SecondaryXAxisBuilder(Axes axes) => _axes = axes;
 
     /// <summary>Sets the label displayed above the top-edge X-axis.</summary>

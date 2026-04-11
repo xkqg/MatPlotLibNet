@@ -24,22 +24,16 @@ namespace MatPlotLibNet.Styling;
 /// </remarks>
 public sealed record TextStyle
 {
-    /// <summary>Gets the font size override in CSS pixels, or <c>null</c> to inherit from the base font.</summary>
     public double? FontSize { get; init; }
 
-    /// <summary>Gets the font weight override, or <c>null</c> to inherit from the base font.</summary>
     public FontWeight? FontWeight { get; init; }
 
-    /// <summary>Gets the font family override, or <c>null</c> to inherit from the base font.</summary>
     public string? FontFamily { get; init; }
 
-    /// <summary>Gets the font slant override, or <c>null</c> to inherit from the base font.</summary>
     public FontSlant? FontSlant { get; init; }
 
-    /// <summary>Gets the text color override, or <c>null</c> to inherit from the base font.</summary>
     public Color? Color { get; init; }
 
-    /// <summary>Gets the padding offset (in pixels) between the text and adjacent elements, or <c>null</c> for the default.</summary>
     public double? Pad { get; init; }
 
     /// <summary>

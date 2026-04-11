@@ -9,8 +9,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="TableSeries"/> as a grid of text cells within the plot area.</summary>
 internal sealed class TableSeriesRenderer : SeriesRenderer<TableSeries>
 {
+    /// <inheritdoc />
     public TableSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(TableSeries series)
     {
         if (series.CellData.Length == 0) return;

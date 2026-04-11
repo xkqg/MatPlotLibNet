@@ -8,7 +8,6 @@ namespace MatPlotLibNet.Styling.ColorMaps;
 /// </summary>
 public interface IColorMap
 {
-    /// <summary>Gets the name of this color map.</summary>
     string Name { get; }
 
     /// <summary>

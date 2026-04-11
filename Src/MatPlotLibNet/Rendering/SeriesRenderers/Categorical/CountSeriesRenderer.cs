@@ -8,8 +8,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="CountSeries"/> as a frequency bar chart from raw categorical values.</summary>
 internal sealed class CountSeriesRenderer : SeriesRenderer<CountSeries>
 {
+    /// <inheritdoc />
     public CountSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(CountSeries series)
     {
         if (series.Values.Length == 0) return;

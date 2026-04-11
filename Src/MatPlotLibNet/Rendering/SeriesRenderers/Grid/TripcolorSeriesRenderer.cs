@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="TripcolorSeries"/> as filled triangles colored by mean vertex Z value.</summary>
 internal sealed class TripcolorSeriesRenderer : SeriesRenderer<TripcolorSeries>
 {
+    /// <inheritdoc />
     public TripcolorSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(TripcolorSeries series)
     {
         if (series.X.Length < 3) return;

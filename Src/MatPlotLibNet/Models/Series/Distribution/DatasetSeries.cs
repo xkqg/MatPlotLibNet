@@ -7,7 +7,6 @@ namespace MatPlotLibNet.Models.Series;
 /// Provides the shared <see cref="Datasets"/> property and a default <see cref="ComputeDataRange"/>.</summary>
 public abstract class DatasetSeries : ChartSeries
 {
-    /// <summary>Gets the array of datasets, one per category.</summary>
     public double[][] Datasets { get; }
 
     /// <summary>Creates a new dataset series.</summary>

@@ -10,13 +10,10 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a line plot in polar coordinates (r, theta).</summary>
 public sealed class PolarLineSeries : PolarSeries
 {
-    /// <summary>Gets or sets the line color.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the line style.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
-    /// <summary>Gets or sets the line width.</summary>
     public double LineWidth { get; set; } = 1.5;
 
     /// <summary>Initializes a new polar line series.</summary>

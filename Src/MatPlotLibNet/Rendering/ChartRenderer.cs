@@ -186,6 +186,7 @@ public sealed class ChartRenderer : IChartRenderer
         return areas;
     }
 
+    /// <summary>Renders a single <see cref="Axes"/> subplot, including all series, decorations, and nested insets.</summary>
     internal void RenderAxes(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme, int depth = 0)
     {
         AxesRenderer.Create(axes, plotArea, ctx, theme).Render();

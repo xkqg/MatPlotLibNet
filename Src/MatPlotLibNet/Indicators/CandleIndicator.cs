@@ -11,22 +11,16 @@ namespace MatPlotLibNet.Indicators;
 public abstract class CandleIndicator<TResult> : Indicator<TResult>
     where TResult : IIndicatorResult
 {
-    /// <summary>Gets the open prices.</summary>
     protected double[] Open { get; }
 
-    /// <summary>Gets the high prices.</summary>
     protected double[] High { get; }
 
-    /// <summary>Gets the low prices.</summary>
     protected double[] Low { get; }
 
-    /// <summary>Gets the close prices.</summary>
     protected double[] Close { get; }
 
-    /// <summary>Gets the volume data (empty when not supplied).</summary>
     protected double[] Volume { get; }
 
-    /// <summary>Gets the number of bars in the dataset.</summary>
     protected int BarCount { get; }
 
     /// <summary>Creates a new candle indicator from HLC data.</summary>

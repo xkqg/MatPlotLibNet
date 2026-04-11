@@ -11,22 +11,16 @@ namespace MatPlotLibNet.Models.Series;
 /// <remarks>Similar to matplotlib's <c>hist2d</c>. Takes raw scatter data and computes bin counts at render time.</remarks>
 public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
 {
-    /// <summary>Gets the raw X data values.</summary>
     public double[] X { get; }
 
-    /// <summary>Gets the raw Y data values.</summary>
     public double[] Y { get; }
 
-    /// <summary>Gets or sets the number of bins along the X axis.</summary>
     public int BinsX { get; set; }
 
-    /// <summary>Gets or sets the number of bins along the Y axis.</summary>
     public int BinsY { get; set; }
 
-    /// <summary>Gets or sets the color map used to map bin counts to colors.</summary>
     public IColorMap? ColorMap { get; set; }
 
-    /// <summary>Gets or sets the normalizer used to map bin counts to [0, 1] for colormap lookup. Defaults to linear.</summary>
     public INormalizer? Normalizer { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="Histogram2DSeries"/> with the specified scatter data.</summary>

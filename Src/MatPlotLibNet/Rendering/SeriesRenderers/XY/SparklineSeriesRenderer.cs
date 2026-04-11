@@ -6,10 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
+/// <summary>Renders <see cref="SparklineSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class SparklineSeriesRenderer : SeriesRenderer<SparklineSeries>
 {
+    /// <inheritdoc />
     public SparklineSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(SparklineSeries series)
     {
         if (series.Values.Length < 2) return;

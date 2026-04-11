@@ -6,18 +6,13 @@ namespace MatPlotLibNet;
 /// <summary>Controls how a figure is saved to disk.</summary>
 public sealed record SaveOptions
 {
-    /// <summary>Gets the dots-per-inch resolution used when computing pixel dimensions from physical sizes. Default 96.</summary>
     public int Dpi { get; init; } = 96;
 
-    /// <summary>Gets whether SVG output is written with human-readable indentation. Default false (compact output).</summary>
     public bool PrettifySvg { get; init; }
 
-    /// <summary>Gets the number of decimal places used for SVG coordinate values, or null for the default precision.</summary>
     public int? SvgDecimalPrecision { get; init; }
 
-    /// <summary>Gets an optional document title embedded in the SVG <c>&lt;title&gt;</c> element.</summary>
     public string? Title { get; init; }
 
-    /// <summary>Gets an optional author string embedded in the SVG metadata.</summary>
     public string? Author { get; init; }
 }

@@ -79,7 +79,7 @@ public class StyleContextTests
             await Task.Run(() =>
             {
                 capturedFontSize = RcParams.Current.Get<double>(RcParamKeys.FontSize);
-            });
+            }, TestContext.Current.CancellationToken);
         }
 
         Assert.Equal(77.0, capturedFontSize);

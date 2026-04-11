@@ -56,10 +56,10 @@ public class GraphQLIntegrationTests : IAsyncDisposable
         var query = new { query = "{ chartSvg(chartId: \"test\") }" };
         var content = new StringContent(JsonSerializer.Serialize(query), Encoding.UTF8, "application/json");
 
-        var response = await _client.PostAsync("/graphql", content);
+        var response = await _client.PostAsync("/graphql", content, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadAsStringAsync();
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         var doc = JsonDocument.Parse(json);
         var svg = doc.RootElement.GetProperty("data").GetProperty("chartSvg").GetString();
         Assert.NotNull(svg);
@@ -74,10 +74,10 @@ public class GraphQLIntegrationTests : IAsyncDisposable
         var query = new { query = "{ chartJson(chartId: \"sensor-1\") }" };
         var content = new StringContent(JsonSerializer.Serialize(query), Encoding.UTF8, "application/json");
 
-        var response = await _client.PostAsync("/graphql", content);
+        var response = await _client.PostAsync("/graphql", content, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadAsStringAsync();
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         var doc = JsonDocument.Parse(json);
         var chartJson = doc.RootElement.GetProperty("data").GetProperty("chartJson").GetString();
         Assert.NotNull(chartJson);
@@ -91,7 +91,7 @@ public class GraphQLIntegrationTests : IAsyncDisposable
         var query = new { query = "{ chartSvg(chartId: \"x\") }" };
         var content = new StringContent(JsonSerializer.Serialize(query), Encoding.UTF8, "application/json");
 
-        var response = await _client.PostAsync("/graphql", content);
+        var response = await _client.PostAsync("/graphql", content, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -99,7 +99,7 @@ public class GraphQLIntegrationTests : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _client.Dispose();
-        await _host.StopAsync();
+        await _host.StopAsync(TestContext.Current.CancellationToken);
         _host.Dispose();
     }
 }

@@ -12,22 +12,16 @@ namespace MatPlotLibNet.Models.Series;
 /// <remarks>Analogous to matplotlib's <c>hexbin</c>. Uses flat-top hexagons in axial (q, r) coordinates.</remarks>
 public sealed class HexbinSeries : ChartSeries, IColormappable, INormalizable, IColorBarDataProvider
 {
-    /// <summary>Gets the X data values.</summary>
     public double[] X { get; }
 
-    /// <summary>Gets the Y data values.</summary>
     public double[] Y { get; }
 
-    /// <summary>Gets or sets the number of hexagons across the X data range.</summary>
     public int GridSize { get; set; } = 20;
 
-    /// <summary>Gets or sets the minimum bin count to render. Hexagons with fewer points are hidden.</summary>
     public int MinCount { get; set; } = 1;
 
-    /// <summary>Gets or sets the color map used to map bin counts to colors.</summary>
     public IColorMap? ColorMap { get; set; }
 
-    /// <summary>Gets or sets the normalizer used to map bin counts to [0, 1]. Defaults to linear.</summary>
     public INormalizer? Normalizer { get; set; }
 
     /// <summary>Initializes a new instance of <see cref="HexbinSeries"/> with the specified scatter data.</summary>

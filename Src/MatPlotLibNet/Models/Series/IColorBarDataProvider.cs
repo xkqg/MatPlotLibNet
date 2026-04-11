@@ -11,6 +11,5 @@ public interface IColorBarDataProvider
     /// <summary>Gets the min and max data values for the color bar gradient.</summary>
     (double Min, double Max) GetColorBarRange();
 
-    /// <summary>Gets the colormap used by this series, or null for the default.</summary>
     IColorMap? ColorMap { get; }
 }

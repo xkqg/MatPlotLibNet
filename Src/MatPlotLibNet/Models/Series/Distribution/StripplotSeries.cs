@@ -10,16 +10,12 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a strip plot series that draws randomly jittered dots per category to show individual data points.</summary>
 public sealed class StripplotSeries : DatasetSeries
 {
-    /// <summary>Gets or sets the amount of random jitter applied to the X position of each point.</summary>
     public double Jitter { get; set; } = 0.2;
 
-    /// <summary>Gets or sets the radius of each dot in pixels.</summary>
     public double MarkerSize { get; set; } = 5;
 
-    /// <summary>Gets or sets the color of the dots. If <see langword="null"/>, the current cycle color is used.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the opacity of the dots (0.0 to 1.0).</summary>
     public double Alpha { get; set; } = 0.8;
 
     /// <summary>Initializes a new instance of <see cref="StripplotSeries"/> with the specified datasets.</summary>

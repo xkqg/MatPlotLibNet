@@ -18,22 +18,16 @@ public enum Orientation
 /// <summary>Represents a horizontal or vertical reference line at a specific data value.</summary>
 public sealed class ReferenceLine
 {
-    /// <summary>Gets the data value where the line is drawn.</summary>
     public double Value { get; }
 
-    /// <summary>Gets the orientation of the reference line.</summary>
     public Orientation Orientation { get; }
 
-    /// <summary>Gets or sets the line color.</summary>
     public Color? Color { get; set; }
 
-    /// <summary>Gets or sets the line style.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Dashed;
 
-    /// <summary>Gets or sets the line width.</summary>
     public double LineWidth { get; set; } = 1.0;
 
-    /// <summary>Gets or sets the optional label for the reference line.</summary>
     public string? Label { get; set; }
 
     /// <summary>Creates a new reference line at the given value and orientation.</summary>

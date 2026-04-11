@@ -14,10 +14,8 @@ public sealed class Adx : CandleIndicator<SignalResult>
 {
     private readonly int _period;
 
-    /// <summary>Gets or sets the +DI line color.</summary>
     public Color? PlusDiColor { get; set; }
 
-    /// <summary>Gets or sets the -DI line color.</summary>
     public Color? MinusDiColor { get; set; }
 
     /// <summary>Creates a new ADX indicator.</summary>

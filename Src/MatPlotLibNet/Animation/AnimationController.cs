@@ -17,7 +17,6 @@ public sealed class AnimationController<TState> : IAsyncDisposable
     /// <summary>Gets the current playback state.</summary>
     public AnimationPlaybackState State => _state;
 
-    /// <summary>Gets the current frame index.</summary>
     public int CurrentFrame { get; private set; }
 
     /// <summary>Creates a controller for the given animation with a frame publish callback.</summary>

@@ -116,6 +116,13 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private QuiverKeySeriesRenderer? _quiverKey;
     private BarbsSeriesRenderer? _barbs;
 
+    /// <summary>Initializes a new <see cref="SvgSeriesRenderer"/> for a single render pass.</summary>
+    /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
+    /// <param name="ctx">The drawing target for this render pass.</param>
+    /// <param name="seriesColor">The theme cycle color for this series slot.</param>
+    /// <param name="cycledProps">Optional additional cycled style properties (line style, marker, width).</param>
+    /// <param name="tooltipsEnabled">Whether to emit SVG tooltip group wrappers.</param>
+    /// <param name="plotArea">The pixel bounds of the current plot area.</param>
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor,
         CycledProperties? cycledProps = null, bool tooltipsEnabled = false, Rect plotArea = default)
     {
@@ -203,6 +210,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     // Field family
     /// <inheritdoc />
     public void Visit(QuiverSeries s, RenderArea a) => (_quiver ??= new(_context)).Render(s);
+    /// <inheritdoc />
     public void Visit(StreamplotSeries s, RenderArea a) => (_streamplot ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(StemSeries s, RenderArea a) => (_stem ??= new(_context)).Render(s);

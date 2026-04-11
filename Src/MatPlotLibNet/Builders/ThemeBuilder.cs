@@ -17,6 +17,8 @@ public sealed class ThemeBuilder
     private PropCycler? _propCycler;
     private readonly string _baseName;
 
+    /// <summary>Initializes a new <see cref="ThemeBuilder"/> pre-populated from <paramref name="baseTheme"/>.</summary>
+    /// <param name="baseTheme">The theme whose settings are copied as the starting point.</param>
     internal ThemeBuilder(Theme baseTheme)
     {
         _baseName = baseTheme.Name;

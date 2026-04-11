@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="TreemapSeries"/> as nested rectangles using a slice-and-dice layout.</summary>
 internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
 {
+    /// <inheritdoc />
     public TreemapSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <inheritdoc />
     public override void Render(TreemapSeries series)
     {
         var bounds = Context.Area.PlotBounds;
