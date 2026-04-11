@@ -40,6 +40,12 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
             foreach (var axes in figure.SubPlots)
                 axes.EnableInteractiveAttributes = true;
 
+        // Propagate 3D rotation flag to 3D axes
+        if (figure.Enable3DRotation)
+            foreach (var axes in figure.SubPlots)
+                if (axes.CoordinateSystem == CoordinateSystem.ThreeD)
+                    axes.Emit3DVertexData = true;
+
         // Render subplots in parallel (each gets its own context)
         var subplotContexts = new SvgRenderContext[figure.SubPlots.Count];
         Parallel.For(0, figure.SubPlots.Count, i =>
@@ -73,6 +79,8 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
                 sb.AppendLine(SvgHighlightScript.GetScript());
             if (figure.EnableSelection)
                 sb.AppendLine(SvgSelectionScript.GetScript());
+            if (figure.Enable3DRotation)
+                sb.AppendLine(Svg3DRotationScript.GetScript());
         });
     }
 

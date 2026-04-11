@@ -2,6 +2,8 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Lighting;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -24,7 +26,8 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
         double zMin = 0;
         double zMax = series.Z.Max();
 
-        var proj = new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        var proj = Context.Projection3D
+            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
         double hw = series.BarWidth / 2.0;
 
         // Build bars with depth for painter's algorithm
@@ -76,13 +79,25 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
 
         var strokeColor = baseColor.WithAlpha(80);
 
+        Color topColor, frontColor, sideColor;
+
+        if (Context.LightSource is { } light)
+        {
+            // Per-face lighting using fixed normals for top, front, and right faces
+            topColor   = LightingHelper.ModulateColor(baseColor, light.ComputeIntensity(0, 0, 1));
+            frontColor = LightingHelper.ModulateColor(baseColor, light.ComputeIntensity(0, -1, 0));
+            sideColor  = LightingHelper.ModulateColor(baseColor, light.ComputeIntensity(1, 0, 0));
+        }
+        else
+        {
+            // Legacy alpha-based shading (backward compatible)
+            topColor   = baseColor;
+            frontColor = baseColor.WithAlpha((byte)(baseColor.A * 0.85));
+            sideColor  = baseColor.WithAlpha((byte)(baseColor.A * 0.70));
+        }
+
         foreach (var (_, top, front, side) in bars)
         {
-            // Shade faces slightly
-            var topColor = baseColor;
-            var frontColor = baseColor.WithAlpha((byte)(baseColor.A * 0.85));
-            var sideColor = baseColor.WithAlpha((byte)(baseColor.A * 0.70));
-
             Ctx.DrawPolygon(top, topColor, strokeColor, 0.5);
             Ctx.DrawPolygon(front, frontColor, strokeColor, 0.5);
             Ctx.DrawPolygon(side, sideColor, strokeColor, 0.5);

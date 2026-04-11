@@ -453,4 +453,80 @@ Plt.Create()
     .Save("geo_choropleth.svg");
 Console.WriteLine("Saved geo_choropleth.svg");
 
+// =====================================================================
+// --- Phase G: True 3-D samples ---
+// =====================================================================
+
+// 1. Surface plot with perspective camera + directional lighting
+{
+    int n = 30;
+    double[] x = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
+    double[] y = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
+    double[,] z = new double[n, n];
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+        {
+            double r = Math.Sqrt(x[i] * x[i] + y[j] * y[j]);
+            z[i, j] = r < 1e-10 ? 1.0 : Math.Sin(r) / r;
+        }
+
+    Plt.Create()
+        .WithTitle("3D Surface — sinc(r) with perspective + lighting")
+        .WithSize(800, 600)
+        .WithCamera(elevation: 35, azimuth: -50, distance: 6.0)
+        .WithLighting(dx: 0.5, dy: -0.5, dz: 1.0, ambient: 0.3, diffuse: 0.7)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Surface(x, y, z, s =>
+            {
+                s.ColorMap = ColorMaps.Plasma;
+                s.ShowWireframe = false;
+                s.Alpha = 1.0;
+            }))
+        .Save("threed_surface_sinc.svg");
+    Console.WriteLine("Saved threed_surface_sinc.svg");
+}
+
+// 2. Scatter3D with custom elevation/azimuth
+{
+    var rng = new Random(42);
+    double[] xs = Enumerable.Range(0, 100).Select(_ => rng.NextDouble() * 4 - 2).ToArray();
+    double[] ys = Enumerable.Range(0, 100).Select(_ => rng.NextDouble() * 4 - 2).ToArray();
+    double[] zs = xs.Zip(ys, (xi, yi) => xi * xi + yi * yi + rng.NextDouble() * 0.5).ToArray();
+
+    Plt.Create()
+        .WithTitle("3D Scatter — Paraboloid with noise")
+        .WithSize(700, 600)
+        .WithCamera(elevation: 25, azimuth: -70)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Scatter3D(xs, ys, zs, s =>
+            {
+                s.Color = Colors.CornflowerBlue;
+                s.MarkerSize = 5;
+            }))
+        .Save("threed_scatter3d_paraboloid.svg");
+    Console.WriteLine("Saved threed_scatter3d_paraboloid.svg");
+}
+
+// 3. Bar3D with interactive rotation enabled
+{
+    double[] bx = [0, 1, 2, 0, 1, 2];
+    double[] by = [0, 0, 0, 1, 1, 1];
+    double[] bz = [3, 5, 2, 4, 1, 6];
+
+    Plt.Create()
+        .WithTitle("3D Bar Chart — Interactive rotation")
+        .WithSize(700, 550)
+        .WithCamera(elevation: 30, azimuth: -55)
+        .WithLighting(dx: 0.3, dy: -0.6, dz: 0.8)
+        .With3DRotation()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Bar3D(bx, by, bz, s =>
+            {
+                s.Color = Colors.Tomato;
+                s.BarWidth = 0.6;
+            }))
+        .Save("threed_bar3d_interactive.svg");
+    Console.WriteLine("Saved threed_bar3d_interactive.svg");
+}
+
 Console.WriteLine("Done!");

@@ -4,6 +4,7 @@
 using MatPlotLibNet.Geo.GeoJson;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.Lighting;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models;
@@ -50,6 +51,21 @@ public sealed class Axes
     public CoordinateSystem CoordinateSystem { get; set; } = CoordinateSystem.Cartesian;
 
     public Projection3D? Projection { get; set; }
+
+    /// <summary>Camera elevation above the XY plane in degrees. Default is 30.</summary>
+    public double Elevation { get; set; } = 30;
+
+    /// <summary>Camera azimuth rotation around the Z axis in degrees. Default is -60.</summary>
+    public double Azimuth { get; set; } = -60;
+
+    /// <summary>Camera distance for perspective projection. Null (default) = orthographic. Minimum 2.0.</summary>
+    public double? CameraDistance { get; set; }
+
+    /// <summary>Optional light source for per-face shading on 3D surfaces and bars. Null = no lighting.</summary>
+    public ILightSource? LightSource { get; set; }
+
+    /// <summary>When true, 3D renderers emit normalized vertex data as data-v3d attributes for interactive rotation.</summary>
+    public bool Emit3DVertexData { get; set; }
 
     public ColorBar? ColorBar { get; set; }
 

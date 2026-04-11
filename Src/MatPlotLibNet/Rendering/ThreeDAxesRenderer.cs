@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
@@ -23,10 +24,11 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         // Compute 3D data ranges from all 3D series
         var range3D = Compute3DDataRanges();
 
-        double elevation = Axes.Projection?.Elevation ?? 30;
-        double azimuth = Axes.Projection?.Azimuth ?? -60;
+        double elevation = Axes.Projection?.Elevation ?? Axes.Elevation;
+        double azimuth = Axes.Projection?.Azimuth ?? Axes.Azimuth;
+        double? distance = Axes.CameraDistance;
         var proj = new Projection3D(elevation, azimuth, PlotArea,
-            range3D.XMin, range3D.XMax, range3D.YMin, range3D.YMax, range3D.ZMin, range3D.ZMax);
+            range3D.XMin, range3D.XMax, range3D.YMin, range3D.YMax, range3D.ZMin, range3D.ZMax, distance);
 
         var edgeColor = Colors.EdgeGray;
 
@@ -66,8 +68,15 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             Ctx.DrawText(Axes.YAxis.Label, new Point(labelPos.X + 15, labelPos.Y), labelFont, TextAlignment.Left);
         }
 
-        // Render series
-        RenderSeries();
+        // Wrap in scene group when interactive rotation is enabled
+        bool sceneGroup = Axes.Emit3DVertexData && Ctx is SvgRenderContext;
+        if (sceneGroup)
+            ((SvgRenderContext)Ctx).Begin3DSceneGroup(elevation, azimuth, distance, PlotArea);
+
+        // Render series using unified projection and optional lighting
+        RenderSeries(proj, Axes.LightSource);
+
+        if (sceneGroup) Ctx.EndGroup();
 
         // Legend
         RenderLegend();

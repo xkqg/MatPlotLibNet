@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Lighting;
 using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Styling;
 
@@ -123,13 +124,20 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     /// <param name="cycledProps">Optional additional cycled style properties (line style, marker, width).</param>
     /// <param name="tooltipsEnabled">Whether to emit SVG tooltip group wrappers.</param>
     /// <param name="plotArea">The pixel bounds of the current plot area.</param>
+    /// <param name="projection">Unified 3D projection to pass through to 3D series renderers.</param>
+    /// <param name="lightSource">Optional light source for per-face lighting on 3D surfaces.</param>
+    /// <param name="emit3DData">When true, 3D renderers emit data-v3d attributes for interactive rotation.</param>
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor,
-        CycledProperties? cycledProps = null, bool tooltipsEnabled = false, Rect plotArea = default)
+        CycledProperties? cycledProps = null, bool tooltipsEnabled = false, Rect plotArea = default,
+        Projection3D? projection = null, ILightSource? lightSource = null, bool emit3DData = false)
     {
         _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(plotArea, ctx))
         {
             TooltipsEnabled = tooltipsEnabled,
-            CycledProps     = cycledProps
+            CycledProps     = cycledProps,
+            Projection3D    = projection,
+            LightSource     = lightSource,
+            Emit3DData      = emit3DData
         };
     }
 

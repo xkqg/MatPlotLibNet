@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Lighting;
 using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Rendering.TickFormatters;
@@ -82,6 +83,30 @@ public abstract class AxesRenderer
             bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
             var renderer = new SvgSeriesRenderer(
                 new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea);
+            var area = new RenderArea(PlotArea, Ctx);
+            series.Accept(renderer, area);
+            if (openedGroup) Ctx.EndGroup();
+        }
+    }
+
+    /// <summary>Renders all series using a unified 3D projection (for ThreeD axes).</summary>
+    /// <param name="projection">The shared projection used by all 3D series renderers.</param>
+    /// <param name="lightSource">Optional light source for per-face lighting.</param>
+    protected void RenderSeries(Projection3D projection, ILightSource? lightSource = null)
+    {
+        var svgCtx = Ctx as SvgRenderContext;
+        var interactiveSvgCtx = Axes.EnableInteractiveAttributes ? svgCtx : null;
+        bool emit3D = Axes.Emit3DVertexData;
+        var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
+        foreach (var (series, i) in ordered)
+        {
+            if (!series.Visible) continue;
+            var cycledProps  = Theme.PropCycler?[i];
+            var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
+            bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
+            var renderer = new SvgSeriesRenderer(
+                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps,
+                Axes.EnableTooltips, PlotArea, projection, lightSource, emit3D);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             if (openedGroup) Ctx.EndGroup();

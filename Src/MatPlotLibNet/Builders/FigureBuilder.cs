@@ -124,6 +124,8 @@ public sealed class FigureBuilder
     public FigureBuilder WithSelection(bool enabled = true) { _enableSelection = enabled; return this; }
     private bool _enableSelection;
 
+    private bool _enable3DRotation;
+
     /// <summary>Enables tight layout, which computes minimal margins automatically.</summary>
     public FigureBuilder TightLayout() { _spacing = _spacing with { TightLayout = true }; return this; }
 
@@ -197,6 +199,39 @@ public sealed class FigureBuilder
     /// <summary>Adds a 3D bar series to the default axes.</summary>
     public FigureBuilder Bar3D(double[] x, double[] y, double[] z, Action<Bar3DSeries>? configure = null) =>
         AddSeries(ax => ax.Bar3D(x, y, z), configure);
+
+    /// <summary>Sets camera elevation, azimuth, and optional perspective distance on the default axes.</summary>
+    /// <param name="elevation">Camera elevation above the XY plane in degrees.</param>
+    /// <param name="azimuth">Camera azimuth rotation around the Z axis in degrees.</param>
+    /// <param name="distance">Perspective camera distance. Null = orthographic. Minimum clamped to 2.0.</param>
+    public FigureBuilder WithCamera(double elevation = 30, double azimuth = -60, double? distance = null)
+    {
+        var axes = EnsureDefaultAxes();
+        axes.Elevation = elevation;
+        axes.Azimuth = azimuth;
+        axes.CameraDistance = distance;
+        return this;
+    }
+
+    /// <summary>Enables interactive 3D rotation via mouse drag and keyboard arrow keys in the SVG output.</summary>
+    public FigureBuilder With3DRotation(bool enabled = true)
+    {
+        _enable3DRotation = enabled;
+        return this;
+    }
+
+    /// <summary>Attaches a directional light source for per-face shading on 3D surfaces and bars on the default axes.</summary>
+    /// <param name="dx">X component of the light direction.</param>
+    /// <param name="dy">Y component of the light direction.</param>
+    /// <param name="dz">Z component of the light direction.</param>
+    /// <param name="ambient">Ambient light intensity [0, 1]. Default 0.3.</param>
+    /// <param name="diffuse">Diffuse light intensity [0, 1]. Default 0.7.</param>
+    public FigureBuilder WithLighting(double dx, double dy, double dz,
+        double ambient = 0.3, double diffuse = 0.7)
+    {
+        EnsureDefaultAxes().LightSource = new Rendering.Lighting.DirectionalLight(dx, dy, dz, ambient, diffuse);
+        return this;
+    }
 
     // --- v0.8.0 shortcuts ---
 
@@ -327,6 +362,7 @@ public sealed class FigureBuilder
             EnableRichTooltips = _enableRichTooltips,
             EnableHighlight = _enableHighlight,
             EnableSelection = _enableSelection,
+            Enable3DRotation = _enable3DRotation,
             Spacing = _spacing,
             GridSpec = _gridSpec,
             FigureColorBar = _figureColorBar

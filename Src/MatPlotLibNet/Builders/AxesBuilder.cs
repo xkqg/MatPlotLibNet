@@ -511,8 +511,33 @@ public sealed class AxesBuilder
     /// <summary>Sets the 3D projection angles for ThreeD coordinate system axes.</summary>
     public AxesBuilder WithProjection(double elevation = 30, double azimuth = -60)
     {
-        _axes.Projection = new Rendering.Projection3D(elevation, azimuth,
-            default, 0, 1, 0, 1, 0, 1); // Placeholder bounds; actual bounds computed at render time
+        _axes.Elevation = elevation;
+        _axes.Azimuth = azimuth;
+        return this;
+    }
+
+    /// <summary>Sets camera elevation, azimuth, and optional perspective distance for 3D axes.</summary>
+    /// <param name="elevation">Camera elevation above the XY plane in degrees.</param>
+    /// <param name="azimuth">Camera azimuth rotation around the Z axis in degrees.</param>
+    /// <param name="distance">Perspective camera distance. Null = orthographic. Minimum clamped to 2.0.</param>
+    public AxesBuilder WithCamera(double elevation = 30, double azimuth = -60, double? distance = null)
+    {
+        _axes.Elevation = elevation;
+        _axes.Azimuth = azimuth;
+        _axes.CameraDistance = distance;
+        return this;
+    }
+
+    /// <summary>Attaches a directional light source for per-face shading on 3D surfaces and bars.</summary>
+    /// <param name="dx">X component of the light direction.</param>
+    /// <param name="dy">Y component of the light direction.</param>
+    /// <param name="dz">Z component of the light direction.</param>
+    /// <param name="ambient">Ambient light intensity [0, 1]. Default 0.3.</param>
+    /// <param name="diffuse">Diffuse light intensity [0, 1]. Default 0.7.</param>
+    public AxesBuilder WithLighting(double dx, double dy, double dz,
+        double ambient = 0.3, double diffuse = 0.7)
+    {
+        _axes.LightSource = new Rendering.Lighting.DirectionalLight(dx, dy, dz, ambient, diffuse);
         return this;
     }
 

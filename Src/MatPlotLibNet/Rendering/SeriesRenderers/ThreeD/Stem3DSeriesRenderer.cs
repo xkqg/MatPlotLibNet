@@ -24,7 +24,8 @@ internal sealed class Stem3DSeriesRenderer : SeriesRenderer<Stem3DSeries>
         double zMin = Math.Min(0, series.Z.Min());
         double zMax = series.Z.Max();
 
-        var proj = new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        var proj = Context.Projection3D
+            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
 
         for (int i = 0; i < series.X.Length; i++)
         {

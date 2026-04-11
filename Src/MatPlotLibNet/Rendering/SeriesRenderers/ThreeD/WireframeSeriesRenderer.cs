@@ -31,7 +31,8 @@ internal sealed class WireframeSeriesRenderer : SeriesRenderer<WireframeSeries>
                 if (series.Z[r, c] > zMax) zMax = series.Z[r, c];
             }
 
-        var proj = new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        var proj = Context.Projection3D
+            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
 
         // Draw grid lines along X direction (constant Y)
         for (int r = 0; r < rows; r++)

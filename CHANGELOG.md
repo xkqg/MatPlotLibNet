@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.0] - 2026-04-11
+
+### Added
+
+**Phase G — True 3-D (4 sub-phases)**
+
+- **Camera system** — `Axes.Elevation` (default 30°), `Axes.Azimuth` (default −60°), `Axes.CameraDistance` (null = orthographic) replace the broken `WithProjection()` placeholder; `ThreeDAxesRenderer` builds one unified `Projection3D` and threads it through `SeriesRenderContext.Projection3D` to all 5 3D series renderers — fixing the bug where angle changes were ignored
+- **Perspective projection** — `Projection3D` gains optional `distance` parameter (clamped ≥ 2.0); when set, applies Lambertian perspective scale `d/(d−viewDepth)` after rotation; `Projection3D.Normalize()` returns [-1,1] coordinates for JS re-projection
+- **`SeriesRenderContext.Projection3D?`** + **`SeriesRenderContext.LightSource?`** init-only fields; unified projection eliminates per-renderer duplicate range computations
+- **`AxesBuilder.WithCamera(elevation, azimuth, distance?)`** + **`FigureBuilder.WithCamera(…)`** — fluent camera API
+- **`ILightSource`** interface — `ComputeIntensity(nx, ny, nz) → [0,1]` for per-face lighting
+- **`DirectionalLight`** sealed record — Lambertian diffuse + ambient (defaults 0.3/0.7); implements `ILightSource`
+- **`LightingHelper`** static class — `ComputeFaceNormal()` (cross product) + `ModulateColor(color, intensity)` shared by Surface and Bar3D renderers
+- **`Axes.LightSource`** — optional `ILightSource`; `SurfaceSeriesRenderer` uses it for per-quad color modulation; `Bar3DSeriesRenderer` uses fixed face normals for top/front/side
+- **`AxesBuilder.WithLighting(dx, dy, dz, ambient, diffuse)`** + **`FigureBuilder.WithLighting(…)`**
+- **`IRenderContext.SetNextElementData(key, value)`** — default no-op; `SvgRenderContext` flushes `data-{key}="{value}"` before `/>` in DrawLine/DrawLines/DrawPolygon/DrawCircle
+- **`SvgRenderContext.Begin3DSceneGroup(elevation, azimuth, distance?, plotBounds)`** — emits `<g class="mpl-3d-scene" data-*>` with camera parameters
+- **`Figure.Enable3DRotation`** + **`FigureBuilder.With3DRotation()`** — when enabled, 3D renderers emit `data-v3d` normalized vertex attributes and `ThreeDAxesRenderer` wraps output in a scene group
+- **`Svg3DRotationScript`** — embedded JavaScript (~80 lines): reads `data-v3d` normalized coords, reimplements `Projection3D.Project()` in JS, re-sorts DOM by depth; mouse drag (azimuth/elevation) + keyboard arrows + Home reset
+- **3D serialization fixes** — `SurfaceSeries`, `WireframeSeries`, `Scatter3DSeries` now populate XData/YData/ZGridData/ZData in `ToSeriesDto()`; `SeriesRegistry` factories restore full series state from DTO; `AxesDto` gains `Elevation?/Azimuth?/CameraDistance?/LightSourceType?`; `FigureDto` gains `Enable3DRotation?`
+- **3D sample scenes** added to `MatPlotLibNet.Samples.Console`
+
+### Fixed
+
+- All 5 3D renderers previously hardcoded `new Projection3D(30, -60, ...)` ignoring user-set angles — now use context projection
+- `AxesBuilder.WithProjection()` previously created a broken `Projection3D` with placeholder bounds — now sets `Axes.Elevation/Azimuth` directly
+
+### Tests: 3,001 → 3,042 (+41)
+
 ## [0.8.9] - 2026-04-11
 
 ### Added

@@ -67,6 +67,9 @@ public interface IRenderContext
     /// <summary>Begins a named group (e.g., emits <c>&lt;g class="..."&gt;</c> in SVG). Default is a no-op.</summary>
     void BeginGroup(string cssClass) { }
 
+    /// <summary>Attaches a data attribute on the next drawn SVG element. No-op for non-SVG contexts.</summary>
+    void SetNextElementData(string key, string value) { }
+
     /// <summary>Ends the current group. Default is a no-op.</summary>
     void EndGroup() { }
 

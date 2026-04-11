@@ -18,7 +18,16 @@ public sealed class WireframeSeries : GridSeries3D
     public WireframeSeries(double[] x, double[] y, double[,] z) : base(x, y, z) { }
 
     /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new() { Type = "wireframe" };
+    public override SeriesDto ToSeriesDto() => new()
+    {
+        Type = "wireframe",
+        XData = X,
+        YData = Y,
+        ZGridData = ZToListList(),
+        Color = Color,
+        LineWidth = LineWidth != 0.5 ? LineWidth : null,
+        Label = Label
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

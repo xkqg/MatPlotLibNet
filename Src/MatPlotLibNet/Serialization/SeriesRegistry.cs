@@ -100,9 +100,33 @@ public static class SeriesRegistry
         Register("polarline", (axes, _) => axes.PolarPlot([1.0], [0.0]));
         Register("polarscatter", (axes, _) => axes.PolarScatter([1.0], [0.0]));
         Register("polarbar", (axes, _) => axes.PolarBar([1.0], [0.0]));
-        Register("surface", (axes, _) => axes.Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 0 }, { 0, 0 } }));
-        Register("wireframe", (axes, _) => axes.Wireframe([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 0 }, { 0, 0 } }));
-        Register("scatter3d", (axes, _) => axes.Scatter3D([0.0], [0.0], [0.0]));
+        Register("surface", (axes, dto) =>
+        {
+            var z = ChartSerializer.From2DList(dto.ZGridData);
+            var s = axes.Surface(dto.XData ?? [0.0, 1.0], dto.YData ?? [0.0, 1.0],
+                z.GetLength(0) > 0 ? z : new double[,] { { 0, 0 }, { 0, 0 } });
+            if (dto.ShowWireframe.HasValue) s.ShowWireframe = dto.ShowWireframe.Value;
+            if (dto.RowStride.HasValue) s.RowStride = dto.RowStride.Value;
+            if (dto.ColStride.HasValue) s.ColStride = dto.ColStride.Value;
+            if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
+            return s;
+        });
+        Register("wireframe", (axes, dto) =>
+        {
+            var z = ChartSerializer.From2DList(dto.ZGridData);
+            var s = axes.Wireframe(dto.XData ?? [0.0, 1.0], dto.YData ?? [0.0, 1.0],
+                z.GetLength(0) > 0 ? z : new double[,] { { 0, 0 }, { 0, 0 } });
+            if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+            return s;
+        });
+        Register("scatter3d", (axes, dto) =>
+        {
+            var s = axes.Scatter3D(dto.XData ?? [0.0], dto.YData ?? [0.0], dto.ZData ?? [0.0]);
+            if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            if (dto.MarkerSize.HasValue) s.MarkerSize = dto.MarkerSize.Value;
+            return s;
+        });
 
         // v0.8.0
         Register("rugplot", (axes, dto) =>

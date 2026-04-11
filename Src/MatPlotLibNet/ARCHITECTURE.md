@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.8.9)
+# MatPlotLibNet Core -- Architecture (v0.9.0)
 
 ## Package dependency graph
 
@@ -143,6 +143,14 @@ MatPlotLibNet/
       Bar3DSeries.cs                  Vec X, Y, Z (heights), BarWidth, Color, I3DPointSeries — 3D bar prisms (ThreeD/)
       MapSeries.cs                    GeoData (GeoJsonDocument), Projection (IMapProjection), FaceColor?, EdgeColor?, LineWidth (Geo/)
       ChoroplethSeries.cs             MapSeries: Values[], ColorMap, Normalizer, VMin?, VMax? — per-feature fill from colormap (Geo/)
+
+  Rendering/
+    Lighting/                         per-face 3D lighting model (Phase G, v0.9.0)
+      ILightSource.cs                 interface: ComputeIntensity(nx, ny, nz) → [0,1]
+      DirectionalLight.cs             sealed record: Dx/Dy/Dz direction + Ambient/Diffuse (Lambertian)
+      LightingHelper.cs               static: ComputeFaceNormal() (cross product) + ModulateColor(color, intensity)
+    Svg/
+      Svg3DRotationScript.cs          embedded JS for mouse/keyboard interactive 3D rotation
 
   Geo/                               geographic projection and GeoJSON support (Phase F, v0.8.9)
     Projections/

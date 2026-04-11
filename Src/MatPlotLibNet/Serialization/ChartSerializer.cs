@@ -52,7 +52,8 @@ public sealed class ChartSerializer : IChartSerializer
             Rows = gs.Rows, Cols = gs.Cols,
             HeightRatios = gs.HeightRatios, WidthRatios = gs.WidthRatios
         } : null,
-        SubPlots = figure.SubPlots.Select(AxesToDto).ToList()
+        SubPlots = figure.SubPlots.Select(AxesToDto).ToList(),
+        Enable3DRotation = figure.Enable3DRotation ? true : null
     };
 
     private static AxesDto AxesToDto(Axes axes) => new()
@@ -102,7 +103,13 @@ public sealed class ChartSerializer : IChartSerializer
         {
             X = ib.X, Y = ib.Y, Width = ib.Width, Height = ib.Height
         } : null,
-        Insets = axes.Insets.Count > 0 ? axes.Insets.Select(AxesToDto).ToList() : null
+        Insets = axes.Insets.Count > 0 ? axes.Insets.Select(AxesToDto).ToList() : null,
+        Elevation = axes.Elevation != 30 ? axes.Elevation : null,
+        Azimuth = axes.Azimuth != -60 ? axes.Azimuth : null,
+        CameraDistance = axes.CameraDistance,
+        LightSourceType = axes.LightSource is Rendering.Lighting.DirectionalLight dl
+            ? $"directional:{dl.Dx},{dl.Dy},{dl.Dz},{dl.Ambient},{dl.Diffuse}"
+            : null
     };
 
     private static AxisDto AxisToDto(Axis axis) => new()
@@ -175,6 +182,8 @@ public sealed class ChartSerializer : IChartSerializer
             BackgroundColor = dto.BackgroundColor
         };
 
+        if (dto.Enable3DRotation is true) figure.Enable3DRotation = true;
+
         if (dto.GridSpec is { } gsDto)
             figure.GridSpec = new GridSpec
             {
@@ -202,6 +211,22 @@ public sealed class ChartSerializer : IChartSerializer
             if (axDto.Grid is not null) axes.Grid = axes.Grid with { Visible = axDto.Grid.Visible };
             if (axDto.Spines is not null) axes.Spines = DtoToSpines(axDto.Spines);
             if (axDto.BarMode is "stacked") axes.BarMode = BarMode.Stacked;
+
+            // Camera and lighting
+            if (axDto.Elevation.HasValue) axes.Elevation = axDto.Elevation.Value;
+            if (axDto.Azimuth.HasValue) axes.Azimuth = axDto.Azimuth.Value;
+            if (axDto.CameraDistance.HasValue) axes.CameraDistance = axDto.CameraDistance.Value;
+            if (axDto.LightSourceType is { } lsType && lsType.StartsWith("directional:", StringComparison.Ordinal))
+            {
+                var parts = lsType[12..].Split(',');
+                if (parts.Length >= 5 &&
+                    double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldx) &&
+                    double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldy) &&
+                    double.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldz) &&
+                    double.TryParse(parts[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double amb) &&
+                    double.TryParse(parts[4], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double diff))
+                    axes.LightSource = new Rendering.Lighting.DirectionalLight(ldx, ldy, ldz, amb, diff);
+            }
 
             foreach (var sDto in axDto.Series ?? [])
                 AddSeriesFromDto(axes, sDto);
@@ -621,6 +646,7 @@ internal sealed record FigureDto
     public Color? BackgroundColor { get; init; }
     public GridSpecDto? GridSpec { get; init; }
     public List<AxesDto>? SubPlots { get; init; }
+    public bool? Enable3DRotation { get; init; }
 }
 
 /// <summary>Data-transfer object for a <see cref="Models.GridSpec"/> layout descriptor.</summary>
@@ -680,6 +706,10 @@ internal sealed record AxesDto
     public List<SpanRegionDto>? Spans { get; init; }
     public InsetBoundsDto? InsetBounds { get; init; }
     public List<AxesDto>? Insets { get; init; }
+    public double? Elevation { get; init; }
+    public double? Azimuth { get; init; }
+    public double? CameraDistance { get; init; }
+    public string? LightSourceType { get; init; }
 }
 
 /// <summary>Data-transfer object for an inset axes bounding box expressed in figure-normalized coordinates (0–1).</summary>
@@ -850,6 +880,12 @@ public sealed record SeriesDto
     public double[]? Speed { get; init; }
     public double[]? Direction { get; init; }
     public double? BarbLength { get; init; }
+
+    // v0.9.0 Phase G — 3D enhancements
+    public List<List<double>>? ZGridData { get; init; }
+    public bool? ShowWireframe { get; init; }
+    public int? RowStride { get; init; }
+    public int? ColStride { get; init; }
 }
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>

@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Lighting;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -35,15 +36,19 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
         double xMin = series.X.Min(), xMax = series.X.Max();
         double yMin = series.Y.Min(), yMax = series.Y.Max();
 
-        var proj = new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        var proj = Context.Projection3D
+            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
         var cmap = series.ColorMap ?? ColorMaps.Viridis;
         var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
 
         int rowStride = Math.Max(1, series.RowStride);
         int colStride = Math.Max(1, series.ColStride);
 
+        bool useLighting = Context.LightSource is not null;
+        bool emitV3d = Context.Emit3DData;
+
         // Build quads with average depth for painter's algorithm sorting
-        var quads = new List<(double Depth, Point[] Vertices, double AvgZ)>((rows - 1) * (cols - 1));
+        var quads = new List<(double Depth, Point[] Vertices, double AvgZ, double Nx, double Ny, double Nz, string? V3d)>((rows - 1) * (cols - 1));
         for (int r = 0; r < rows - 1; r += rowStride)
             for (int c = 0; c < cols - 1; c += colStride)
             {
@@ -64,7 +69,23 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
                     proj.Project(x0, y1, z10)
                 };
 
-                quads.Add((avgDepth, vertices, avgZ));
+                double nx = 0, ny = 0, nz = 0;
+                if (useLighting)
+                    (nx, ny, nz) = LightingHelper.ComputeFaceNormal(
+                        (x0, y0, z00), (x1, y0, z01), (x0, y1, z10));
+
+                string? v3d = null;
+                if (emitV3d)
+                {
+                    var (n0x, n0y, n0z) = proj.Normalize(x0, y0, z00);
+                    var (n1x, n1y, n1z) = proj.Normalize(x1, y0, z01);
+                    var (n2x, n2y, n2z) = proj.Normalize(x1, y1, z11);
+                    var (n3x, n3y, n3z) = proj.Normalize(x0, y1, z10);
+                    v3d = FormattableString.Invariant(
+                        $"{n0x:G4},{n0y:G4},{n0z:G4} {n1x:G4},{n1y:G4},{n1z:G4} {n2x:G4},{n2y:G4},{n2z:G4} {n3x:G4},{n3y:G4},{n3z:G4}");
+                }
+
+                quads.Add((avgDepth, vertices, avgZ, nx, ny, nz, v3d));
             }
 
         // Sort back-to-front (painter's algorithm)
@@ -72,9 +93,16 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
 
         Ctx.SetOpacity(series.Alpha);
 
-        foreach (var (_, vertices, avgZ) in quads)
+        foreach (var (_, vertices, avgZ, nx, ny, nz, v3d) in quads)
         {
             var color = cmap.GetColor(normalizer.Normalize(avgZ, zMin, zMax));
+            if (Context.LightSource is { } light)
+            {
+                double intensity = light.ComputeIntensity(nx, ny, nz);
+                color = LightingHelper.ModulateColor(color, intensity);
+            }
+            if (v3d is not null)
+                Ctx.SetNextElementData("v3d", v3d);
             Color? stroke = series.ShowWireframe ? (series.EdgeColor ?? Colors.Black.WithAlpha(80)) : null;
             double strokeWidth = series.ShowWireframe ? 0.5 : 0;
             Ctx.DrawPolygon(vertices, color, stroke, strokeWidth);

@@ -24,7 +24,8 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
         double yMin = series.Y.Min(), yMax = series.Y.Max();
         double zMin = series.Z.Min(), zMax = series.Z.Max();
 
-        var proj = new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        var proj = Context.Projection3D
+            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
 
         // Build indexed depth list for sorting
         var indexed = new List<(int Index, double Depth)>(series.X.Length);
@@ -38,14 +39,22 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
             ? indexed[^1].Depth - indexed[0].Depth
             : 1;
 
+        bool emitV3d = Context.Emit3DData;
+
         foreach (var (idx, depth) in indexed)
         {
-            var pt = proj.Project(series.X[idx], series.Y[idx], series.Z[idx]);
+            double xi = series.X[idx], yi = series.Y[idx], zi = series.Z[idx];
+            var pt = proj.Project(xi, yi, zi);
 
             // Vary size by depth for perspective effect: closer points are larger
             double depthFrac = depthRange > 0 ? (depth - indexed[0].Depth) / depthRange : 0.5;
             double radius = series.MarkerSize / 2 * (0.5 + 0.5 * depthFrac);
 
+            if (emitV3d)
+            {
+                var (nx, ny, nz) = proj.Normalize(xi, yi, zi);
+                Ctx.SetNextElementData("v3d", FormattableString.Invariant($"{nx:G4},{ny:G4},{nz:G4}"));
+            }
             Ctx.DrawCircle(pt, radius, color, null, 0);
         }
     }

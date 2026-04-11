@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Lighting;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -21,4 +22,10 @@ public record SeriesRenderContext(
     public bool TooltipsEnabled { get; init; }
 
     public CycledProperties? CycledProps { get; init; }
+
+    public Projection3D? Projection3D { get; init; }
+
+    public ILightSource? LightSource { get; init; }
+
+    public bool Emit3DData { get; init; }
 }

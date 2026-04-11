@@ -28,7 +28,16 @@ public sealed class Scatter3DSeries : ChartSeries, I3DPointSeries
         new(null, null, null, null);
 
     /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new() { Type = "scatter3d" };
+    public override SeriesDto ToSeriesDto() => new()
+    {
+        Type = "scatter3d",
+        XData = X,
+        YData = Y,
+        ZData = Z,
+        Color = Color,
+        MarkerSize = MarkerSize != 6 ? MarkerSize : null,
+        Label = Label
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -42,8 +42,11 @@ public sealed class Figure
 
     public bool EnableSelection { get; set; }
 
+    /// <summary>When true, embeds a JavaScript 3D rotation handler in the SVG output.</summary>
+    public bool Enable3DRotation { get; set; }
+
     /// <summary>Returns <see langword="true"/> if any interactive JS feature is enabled.</summary>
-    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection;
+    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || Enable3DRotation;
 
     /// <summary>Gets the collection of subplot axes contained in this figure.</summary>
     public IReadOnlyList<Axes> SubPlots => _subPlots;

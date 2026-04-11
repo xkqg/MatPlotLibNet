@@ -15,6 +15,7 @@ public sealed class SvgRenderContext : IRenderContext
     private readonly StringBuilder _sb = new();
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
     private int _clipId;
+    private List<(string Key, string Value)>? _pendingData;
 
     /// <summary>Returns the accumulated SVG markup as a string.</summary>
     public string GetOutput() => _sb.ToString();
@@ -26,12 +27,28 @@ public sealed class SvgRenderContext : IRenderContext
     public void WriteTo(StringBuilder target) => target.Append(_sb);
 
     /// <inheritdoc />
+    public void SetNextElementData(string key, string value)
+    {
+        _pendingData ??= [];
+        _pendingData.Add((key, value));
+    }
+
+    private void FlushPendingData()
+    {
+        if (_pendingData is null || _pendingData.Count == 0) return;
+        foreach (var (key, value) in _pendingData)
+            _sb.Append(" data-").Append(key).Append("=\"").Append(value).Append('"');
+        _pendingData.Clear();
+    }
+
+    /// <inheritdoc />
     public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style)
     {
         _sb.Append("<line x1=\"").Append(F(p1.X)).Append("\" y1=\"").Append(F(p1.Y))
            .Append("\" x2=\"").Append(F(p2.X)).Append("\" y2=\"").Append(F(p2.Y))
            .Append("\" stroke=\"").Append(color.ToHex()).Append("\" stroke-width=\"").Append(F(thickness)).Append('"');
         AppendDashArray(style);
+        FlushPendingData();
         _sb.AppendLine(" />");
     }
 
@@ -48,6 +65,7 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.Append("\" fill=\"none\" stroke=\"").Append(color.ToHex())
            .Append("\" stroke-width=\"").Append(F(thickness)).Append('"');
         AppendDashArray(style);
+        FlushPendingData();
         _sb.AppendLine(" />");
     }
 
@@ -62,6 +80,7 @@ public sealed class SvgRenderContext : IRenderContext
         }
         _sb.Append('"');
         AppendFillStroke(fill, stroke, strokeThickness);
+        FlushPendingData();
         _sb.AppendLine(" />");
     }
 
@@ -71,6 +90,7 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.Append("<circle cx=\"").Append(F(center.X)).Append("\" cy=\"").Append(F(center.Y))
            .Append("\" r=\"").Append(F(radius)).Append('"');
         AppendFillStroke(fill, stroke, strokeThickness);
+        FlushPendingData();
         _sb.AppendLine(" />");
     }
 
@@ -281,6 +301,21 @@ public sealed class SvgRenderContext : IRenderContext
         if (!string.IsNullOrEmpty(ariaLabel))
             _sb.Append(" aria-label=\"").Append(EscapeXml(ariaLabel)).Append('"');
         _sb.AppendLine(">");
+    }
+
+    /// <summary>Opens an SVG group for a 3D scene with camera parameters as data attributes for JS rotation.</summary>
+    internal void Begin3DSceneGroup(double elevation, double azimuth, double? distance, Rect plotBounds)
+    {
+        _sb.Append("<g class=\"mpl-3d-scene\"")
+           .Append(" data-elevation=\"").Append(F(elevation)).Append('"')
+           .Append(" data-azimuth=\"").Append(F(azimuth)).Append('"');
+        if (distance.HasValue)
+            _sb.Append(" data-distance=\"").Append(F(distance.Value)).Append('"');
+        _sb.Append(" data-plot-x=\"").Append(F(plotBounds.X)).Append('"')
+           .Append(" data-plot-y=\"").Append(F(plotBounds.Y)).Append('"')
+           .Append(" data-plot-w=\"").Append(F(plotBounds.Width)).Append('"')
+           .Append(" data-plot-h=\"").Append(F(plotBounds.Height)).Append('"')
+           .AppendLine(">");
     }
 
     /// <summary>Opens an SVG group for a legend entry with a <c>data-legend-index</c> attribute and optional <c>aria-label</c>.</summary>
