@@ -13,6 +13,12 @@ public sealed class Axes
     /// <summary>Gets or sets the axes title.</summary>
     public string? Title { get; set; }
 
+    /// <summary>Gets or sets the text style override for the title, or <c>null</c> to use theme defaults.</summary>
+    public TextStyle? TitleStyle { get; set; }
+
+    /// <summary>Gets or sets the horizontal alignment of the title. Default is <see cref="TitleLocation.Center"/>.</summary>
+    public TitleLocation TitleLoc { get; set; } = TitleLocation.Center;
+
     /// <summary>Gets the X-axis configuration.</summary>
     public Axis XAxis { get; } = new();
 
@@ -830,6 +836,45 @@ public sealed record Legend
 
     /// <summary>Gets the position of the legend within the axes.</summary>
     public LegendPosition Position { get; init; } = LegendPosition.Best;
+
+    /// <summary>Gets the number of columns in the legend layout. Default is 1.</summary>
+    public int NCols { get; init; } = 1;
+
+    /// <summary>Gets the legend entry font size override, or <c>null</c> to use the theme default.</summary>
+    public double? FontSize { get; init; }
+
+    /// <summary>Gets the legend title text, or <c>null</c> for no title.</summary>
+    public string? Title { get; init; }
+
+    /// <summary>Gets the legend title font size override, or <c>null</c> to use the theme default + 1.</summary>
+    public double? TitleFontSize { get; init; }
+
+    /// <summary>Gets whether a frame is drawn around the legend. Default is <c>true</c>.</summary>
+    public bool FrameOn { get; init; } = true;
+
+    /// <summary>Gets the opacity of the legend frame background. Default is 0.8.</summary>
+    public double FrameAlpha { get; init; } = 0.8;
+
+    /// <summary>Gets whether the frame has rounded corners. Default is <c>false</c>.</summary>
+    public bool FancyBox { get; init; }
+
+    /// <summary>Gets whether a drop shadow is rendered behind the legend frame. Default is <c>false</c>.</summary>
+    public bool Shadow { get; init; }
+
+    /// <summary>Gets the legend frame edge color override, or <c>null</c> to use the theme foreground color.</summary>
+    public Color? EdgeColor { get; init; }
+
+    /// <summary>Gets the legend frame fill color override, or <c>null</c> to use the theme background color.</summary>
+    public Color? FaceColor { get; init; }
+
+    /// <summary>Gets the scale factor applied to legend swatches. Default is 1.0.</summary>
+    public double MarkerScale { get; init; } = 1.0;
+
+    /// <summary>Gets the vertical spacing between legend entries, in em units. Default is 0.5.</summary>
+    public double LabelSpacing { get; init; } = 0.5;
+
+    /// <summary>Gets the horizontal spacing between legend columns, in em units. Default is 2.0.</summary>
+    public double ColumnSpacing { get; init; } = 2.0;
 }
 
 /// <summary>Specifies the position of a legend within the axes.</summary>
@@ -848,7 +893,25 @@ public enum LegendPosition
     LowerRight,
 
     /// <summary>Place the legend in the lower-left corner.</summary>
-    LowerLeft
+    LowerLeft,
+
+    /// <summary>Place the legend along the right edge, vertically centered.</summary>
+    Right,
+
+    /// <summary>Place the legend along the left edge, vertically centered.</summary>
+    CenterLeft,
+
+    /// <summary>Place the legend along the right edge, vertically centered (alias for Right).</summary>
+    CenterRight,
+
+    /// <summary>Place the legend along the bottom edge, horizontally centered.</summary>
+    LowerCenter,
+
+    /// <summary>Place the legend along the top edge, horizontally centered.</summary>
+    UpperCenter,
+
+    /// <summary>Place the legend at the center of the plot area.</summary>
+    Center,
 }
 
 /// <summary>Specifies how multiple bar series on the same axes are displayed.</summary>

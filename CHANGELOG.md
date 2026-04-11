@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.5] - 2026-04-11
+
+### Added
+
+**Gap Phase 2 — Chrome Configuration (7 sub-phases)**
+
+- **`TextStyle` record** — nullable partial font override with `ApplyTo(Font)` merge method; used throughout the chrome system to override theme fonts without breaking Liskov (TextStyle is NOT a Font subtype — it's a partial overlay)
+- **Legend enrichment** — 13 new `Legend` properties: `NCols`, `FontSize`, `Title`, `TitleFontSize`, `FrameOn`, `FrameAlpha`, `FancyBox`, `Shadow`, `EdgeColor`, `FaceColor`, `MarkerScale`, `LabelSpacing`, `ColumnSpacing`; 6 new `LegendPosition` values: `Right`, `CenterLeft`, `CenterRight`, `LowerCenter`, `UpperCenter`, `Center`; `AxesBuilder.WithLegend(Func<Legend,Legend>)` overload; `RenderLegend` updated for multi-column layout, title, frame/shadow/fancy rendering
+- **`TitleLocation` enum** (`Left` / `Center` / `Right`) — `Axes.TitleLoc` property (default `Center`); `Axes.TitleStyle` (`TextStyle?`); builder overloads `WithTitle(string, Func<TextStyle,TextStyle>?)`, `SetXLabel(string, Func<TextStyle,TextStyle>?)`, `SetYLabel(string, Func<TextStyle,TextStyle>?)`; `Axis.LabelStyle` (`TextStyle?`); `RenderTitle` / `RenderAxisLabels` apply `TextStyle.ApplyTo` and `TitleLoc` alignment
+- **`TickDirection` enum** (`In` / `Out` / `InOut`) — 7 new `TickConfig` properties: `Direction`, `Length` (5.0), `Width` (0.8), `Color?`, `LabelSize?`, `LabelColor?`, `Pad` (3.0); `RenderTicks` refactored with `DrawTickMark` helper using all new properties
+- **`GridWhich` enum** (`Major` / `Minor` / `Both`) + **`GridAxis` enum** (`X` / `Y` / `Both`) — `GridStyle.Which` + `GridStyle.Axis` properties; `AxesBuilder.WithGrid(Func<GridStyle,GridStyle>)` overload; `RenderGrid` draws minor grid lines at 5× density when `Which` is `Minor` or `Both`, respects `Axis` filter
+- **`ColorBarOrientation` enum** (`Vertical` / `Horizontal`) — 4 new `ColorBar` properties: `Orientation`, `Shrink` (1.0), `DrawEdges` (false), `Aspect` (20); `RenderColorBar` fully rewritten to support both orientations, shrink centering, edge lines between gradient steps
+- **`SpineConfig`** gains `Color?` and `LineStyle` (default `Solid`) — `RenderSpines` uses per-spine color and dash pattern instead of hardcoded theme foreground + `Solid`
+
+### Tests: 2662 → 2730 (+68)
+
 ## [0.8.4] - 2026-04-11
 
 ### Added

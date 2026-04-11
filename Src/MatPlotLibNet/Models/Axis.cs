@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models;
 
@@ -11,6 +12,9 @@ public sealed class Axis
 {
     /// <summary>Gets or sets the axis label text.</summary>
     public string? Label { get; set; }
+
+    /// <summary>Gets or sets the text style override for this axis label, or <c>null</c> to use theme defaults.</summary>
+    public TextStyle? LabelStyle { get; set; }
 
     /// <summary>Gets or sets the minimum value of the axis range.</summary>
     public double? Min { get; set; }
@@ -78,4 +82,25 @@ public sealed record TickConfig
 
     /// <summary>Gets the format string for tick labels.</summary>
     public string? Format { get; init; }
+
+    /// <summary>Gets the direction tick marks are drawn relative to the axis line. Default is <see cref="TickDirection.Out"/>.</summary>
+    public TickDirection Direction { get; init; } = TickDirection.Out;
+
+    /// <summary>Gets the length of major tick marks in pixels. Default is 5.0.</summary>
+    public double Length { get; init; } = 5.0;
+
+    /// <summary>Gets the stroke width of tick marks in pixels. Default is 0.8.</summary>
+    public double Width { get; init; } = 0.8;
+
+    /// <summary>Gets the tick mark color override, or <c>null</c> to use the theme foreground color.</summary>
+    public Color? Color { get; init; }
+
+    /// <summary>Gets the tick label font size override, or <c>null</c> to use the theme default.</summary>
+    public double? LabelSize { get; init; }
+
+    /// <summary>Gets the tick label color override, or <c>null</c> to use the theme foreground color.</summary>
+    public Color? LabelColor { get; init; }
+
+    /// <summary>Gets the space between the tick mark end and the tick label in pixels. Default is 3.0.</summary>
+    public double Pad { get; init; } = 3.0;
 }

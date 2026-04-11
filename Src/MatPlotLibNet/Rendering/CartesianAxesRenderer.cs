@@ -245,29 +245,99 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         var gridStyle = grid.LineStyle;
         double gridWidth = grid.LineWidth;
 
-        foreach (var tick in xTicks)
+        bool drawX = grid.Axis is GridAxis.X or GridAxis.Both;
+        bool drawY = grid.Axis is GridAxis.Y or GridAxis.Both;
+
+        // Major grid lines
+        if (grid.Which is GridWhich.Major or GridWhich.Both)
         {
-            var pt = transform.DataToPixel(tick, yMin);
-            Ctx.DrawLine(
-                new Point(pt.X, PlotArea.Y),
-                new Point(pt.X, PlotArea.Y + PlotArea.Height),
-                gridColor, gridWidth, gridStyle);
+            if (drawX)
+            {
+                foreach (var tick in xTicks)
+                {
+                    var pt = transform.DataToPixel(tick, yMin);
+                    Ctx.DrawLine(
+                        new Point(pt.X, PlotArea.Y),
+                        new Point(pt.X, PlotArea.Y + PlotArea.Height),
+                        gridColor, gridWidth, gridStyle);
+                }
+            }
+
+            if (drawY)
+            {
+                foreach (var tick in yTicks)
+                {
+                    var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, tick);
+                    Ctx.DrawLine(
+                        new Point(PlotArea.X, pt.Y),
+                        new Point(PlotArea.X + PlotArea.Width, pt.Y),
+                        gridColor, gridWidth, gridStyle);
+                }
+            }
         }
 
-        foreach (var tick in yTicks)
+        // Minor grid lines (thinner and more transparent)
+        if (grid.Which is GridWhich.Minor or GridWhich.Both)
         {
-            var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, tick);
-            Ctx.DrawLine(
-                new Point(PlotArea.X, pt.Y),
-                new Point(PlotArea.X + PlotArea.Width, pt.Y),
-                gridColor, gridWidth, gridStyle);
+            double minorWidth = gridWidth * 0.5;
+            var minorColor = gridColor.WithAlpha((byte)(gridColor.A / 2));
+
+            if (drawX && xTicks.Length >= 2)
+            {
+                double majorStep = xTicks[1] - xTicks[0];
+                double minorStep = majorStep / 5;
+                double xStart = xTicks[0] - majorStep;
+                double xEnd   = xTicks[^1] + majorStep;
+                for (double mt = xStart; mt <= xEnd + minorStep * 0.01; mt += minorStep)
+                {
+                    mt = Math.Round(mt, 10);
+                    if (Array.Exists(xTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
+                    var pt = transform.DataToPixel(mt, yMin);
+                    if (pt.X < PlotArea.X || pt.X > PlotArea.X + PlotArea.Width) continue;
+                    Ctx.DrawLine(new Point(pt.X, PlotArea.Y), new Point(pt.X, PlotArea.Y + PlotArea.Height),
+                        minorColor, minorWidth, gridStyle);
+                }
+            }
+
+            if (drawY && yTicks.Length >= 2)
+            {
+                double majorStep = yTicks[1] - yTicks[0];
+                double minorStep = majorStep / 5;
+                double yStart = yTicks[0] - majorStep;
+                double yEnd   = yTicks[^1] + majorStep;
+                for (double mt = yStart; mt <= yEnd + minorStep * 0.01; mt += minorStep)
+                {
+                    mt = Math.Round(mt, 10);
+                    if (Array.Exists(yTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
+                    var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, mt);
+                    if (pt.Y < PlotArea.Y || pt.Y > PlotArea.Y + PlotArea.Height) continue;
+                    Ctx.DrawLine(new Point(PlotArea.X, pt.Y), new Point(PlotArea.X + PlotArea.Width, pt.Y),
+                        minorColor, minorWidth, gridStyle);
+                }
+            }
         }
     }
 
     /// <summary>Renders tick marks and tick labels along the X and Y axes, including minor ticks when enabled.</summary>
     private void RenderTicks(double[] xTicks, double[] yTicks, double yMin, DataTransform transform)
     {
-        var tickFont = TickFont();
+        // --- X axis ticks ---
+        var xMajor = Axes.XAxis.MajorTicks;
+        var xMinor = Axes.XAxis.MinorTicks;
+        var xTickColor  = xMajor.Color ?? Theme.ForegroundText;
+        var xTickLength = xMajor.Length;
+        var xTickWidth  = xMajor.Width;
+
+        // Build tick label font from theme, applying overrides
+        var baseFont = TickFont();
+        var xLabelFont = baseFont;
+        if (xMajor.LabelSize.HasValue)  xLabelFont = xLabelFont with { Size  = xMajor.LabelSize.Value };
+        if (xMajor.LabelColor.HasValue) xLabelFont = xLabelFont with { Color = xMajor.LabelColor };
+
+        var yLabelFont = baseFont;
+        var yMajor = Axes.YAxis.MajorTicks;
+        if (yMajor.LabelSize.HasValue)  yLabelFont = yLabelFont with { Size  = yMajor.LabelSize.Value };
+        if (yMajor.LabelColor.HasValue) yLabelFont = yLabelFont with { Color = yMajor.LabelColor };
 
         var categoryLabeled = Axes.Series.OfType<ICategoryLabeled>().FirstOrDefault(s => s.CategoryLabels is not null);
         // When a custom TickLocator is set it takes priority — use the standard tick path so the
@@ -277,18 +347,22 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         else
         {
             var xFormatter = Axes.XAxis.TickFormatter;
+            double xAxisY = PlotArea.Y + PlotArea.Height;
             foreach (var tick in xTicks)
             {
                 var pt = transform.DataToPixel(tick, yMin);
-                Ctx.DrawLine(pt, new Point(pt.X, pt.Y + 5), Theme.ForegroundText, 1, LineStyle.Solid);
+                DrawTickMark(pt.X, xAxisY, isVertical: true, xTickLength, xTickColor, xTickWidth, xMajor.Direction);
+                double labelY = xAxisY + xTickLength + xMajor.Pad + xLabelFont.Size;
                 Ctx.DrawText(xFormatter?.Format(tick) ?? FormatTick(tick),
-                    new Point(pt.X, PlotArea.Y + PlotArea.Height + 15),
-                    tickFont, TextAlignment.Center);
+                    new Point(pt.X, labelY),
+                    xLabelFont, TextAlignment.Center);
             }
 
             // Minor X ticks (no labels, shorter mark)
-            if (Axes.XAxis.MinorTicks.Visible && xTicks.Length >= 2)
+            if (xMinor.Visible && xTicks.Length >= 2)
             {
+                var xMinorColor = xMinor.Color ?? Theme.ForegroundText;
+                double minorLength = xMinor.Length;
                 double majorStep = xTicks[1] - xTicks[0];
                 double minorStep = majorStep / 5;
                 double xStart = xTicks[0] - majorStep;
@@ -296,28 +370,37 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 for (double mt = xStart; mt <= xEnd + minorStep * 0.01; mt += minorStep)
                 {
                     mt = Math.Round(mt, 10);
-                    // Skip positions that coincide with a major tick
                     if (Array.Exists(xTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
                     var pt = transform.DataToPixel(mt, yMin);
                     if (pt.X < PlotArea.X || pt.X > PlotArea.X + PlotArea.Width) continue;
-                    Ctx.DrawLine(pt, new Point(pt.X, pt.Y + 3), Theme.ForegroundText, 0.5, LineStyle.Solid);
+                    DrawTickMark(pt.X, xAxisY, isVertical: true, minorLength, xMinorColor, xMinor.Width, xMinor.Direction);
                 }
             }
         }
+
+        // --- Y axis ticks ---
+        var yTickColor  = yMajor.Color ?? Theme.ForegroundText;
+        var yTickLength = yMajor.Length;
+        var yTickWidth  = yMajor.Width;
+        double yAxisX = PlotArea.X;
 
         var yFormatter = Axes.YAxis.TickFormatter;
         foreach (var tick in yTicks)
         {
             var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, tick);
-            Ctx.DrawLine(new Point(pt.X - 5, pt.Y), pt, Theme.ForegroundText, 1, LineStyle.Solid);
+            DrawTickMark(yAxisX, pt.Y, isVertical: false, yTickLength, yTickColor, yTickWidth, yMajor.Direction);
+            double labelX = yAxisX - yTickLength - yMajor.Pad;
             Ctx.DrawText(yFormatter?.Format(tick) ?? FormatTick(tick),
-                new Point(PlotArea.X - 8, pt.Y + 4),
-                tickFont, TextAlignment.Right);
+                new Point(labelX, pt.Y + 4),
+                yLabelFont, TextAlignment.Right);
         }
 
         // Minor Y ticks (no labels, shorter mark)
-        if (Axes.YAxis.MinorTicks.Visible && yTicks.Length >= 2)
+        var yMinor = Axes.YAxis.MinorTicks;
+        if (yMinor.Visible && yTicks.Length >= 2)
         {
+            var yMinorColor = yMinor.Color ?? Theme.ForegroundText;
+            double minorLength = yMinor.Length;
             double majorStep = yTicks[1] - yTicks[0];
             double minorStep = majorStep / 5;
             double yStart = yTicks[0] - majorStep;
@@ -328,8 +411,38 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 if (Array.Exists(yTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
                 var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, mt);
                 if (pt.Y < PlotArea.Y || pt.Y > PlotArea.Y + PlotArea.Height) continue;
-                Ctx.DrawLine(new Point(pt.X - 3, pt.Y), pt, Theme.ForegroundText, 0.5, LineStyle.Solid);
+                DrawTickMark(yAxisX, pt.Y, isVertical: false, minorLength, yMinorColor, yMinor.Width, yMinor.Direction);
             }
+        }
+    }
+
+    /// <summary>
+    /// Draws a single tick mark at the given axis edge position.
+    /// For vertical ticks (X-axis): tickX is the data pixel position, axisEdge is the axis Y coordinate.
+    /// For horizontal ticks (Y-axis): axisEdge is the axis X coordinate, tickY is the data pixel position.
+    /// </summary>
+    private void DrawTickMark(double tickPos, double axisEdge, bool isVertical,
+        double length, Color color, double width, TickDirection direction)
+    {
+        if (isVertical)
+        {
+            // X-axis tick: drawn vertically downward (Out) or upward (In) from axisEdge
+            double outEnd = axisEdge + (direction is TickDirection.Out or TickDirection.InOut ? length : 0);
+            double inEnd  = axisEdge - (direction is TickDirection.In  or TickDirection.InOut ? length : 0);
+            double startY = direction is TickDirection.InOut ? inEnd : (direction is TickDirection.In ? inEnd : axisEdge);
+            double endY   = direction is TickDirection.InOut ? outEnd : (direction is TickDirection.Out ? outEnd : axisEdge);
+            if (Math.Abs(endY - startY) > 0.1)
+                Ctx.DrawLine(new Point(tickPos, startY), new Point(tickPos, endY), color, width, LineStyle.Solid);
+        }
+        else
+        {
+            // Y-axis tick: drawn horizontally leftward (Out) or rightward (In) from axisEdge
+            double outEnd = axisEdge - (direction is TickDirection.Out or TickDirection.InOut ? length : 0);
+            double inEnd  = axisEdge + (direction is TickDirection.In  or TickDirection.InOut ? length : 0);
+            double startX = direction is TickDirection.InOut ? outEnd : (direction is TickDirection.Out ? outEnd : axisEdge);
+            double endX   = direction is TickDirection.InOut ? inEnd  : (direction is TickDirection.In  ? inEnd  : axisEdge);
+            if (Math.Abs(endX - startX) > 0.1)
+                Ctx.DrawLine(new Point(startX, tickPos), new Point(endX, tickPos), color, width, LineStyle.Solid);
         }
     }
 
@@ -465,7 +578,6 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     private void RenderSpines(DataTransform transform)
     {
         var spines = Axes.Spines;
-        var color = Theme.ForegroundText;
         double left = PlotArea.X;
         double right = PlotArea.X + PlotArea.Width;
         double top = PlotArea.Y;
@@ -474,25 +586,29 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         if (spines.Bottom.Visible)
         {
             double y = ResolveSpineY(spines.Bottom, bottom, top, bottom, transform);
-            DrawSpineLine(new Point(left, y), new Point(right, y), color, spines.Bottom.LineWidth);
+            DrawSpineLine(new Point(left, y), new Point(right, y),
+                spines.Bottom.Color ?? Theme.ForegroundText, spines.Bottom.LineWidth, spines.Bottom.LineStyle);
         }
 
         if (spines.Top.Visible)
         {
             double y = ResolveSpineY(spines.Top, top, top, bottom, transform);
-            DrawSpineLine(new Point(left, y), new Point(right, y), color, spines.Top.LineWidth);
+            DrawSpineLine(new Point(left, y), new Point(right, y),
+                spines.Top.Color ?? Theme.ForegroundText, spines.Top.LineWidth, spines.Top.LineStyle);
         }
 
         if (spines.Left.Visible)
         {
             double x = ResolveSpineX(spines.Left, left, left, right, transform);
-            DrawSpineLine(new Point(x, top), new Point(x, bottom), color, spines.Left.LineWidth);
+            DrawSpineLine(new Point(x, top), new Point(x, bottom),
+                spines.Left.Color ?? Theme.ForegroundText, spines.Left.LineWidth, spines.Left.LineStyle);
         }
 
         if (spines.Right.Visible)
         {
             double x = ResolveSpineX(spines.Right, right, left, right, transform);
-            DrawSpineLine(new Point(x, top), new Point(x, bottom), color, spines.Right.LineWidth);
+            DrawSpineLine(new Point(x, top), new Point(x, bottom),
+                spines.Right.Color ?? Theme.ForegroundText, spines.Right.LineWidth, spines.Right.LineStyle);
         }
     }
 
@@ -512,10 +628,10 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             _ => edgeX
         };
 
-    private void DrawSpineLine(Point p1, Point p2, Color color, double lineWidth)
+    private void DrawSpineLine(Point p1, Point p2, Color color, double lineWidth, LineStyle lineStyle = LineStyle.Solid)
     {
         Ctx.BeginGroup("spine");
-        Ctx.DrawLine(p1, p2, color, lineWidth, LineStyle.Solid);
+        Ctx.DrawLine(p1, p2, color, lineWidth, lineStyle);
         Ctx.EndGroup();
     }
 }

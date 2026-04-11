@@ -199,4 +199,10 @@ public sealed record GridStyle
 
     /// <summary>Gets the grid line opacity (0.0 to 1.0).</summary>
     public double Alpha { get; init; } = 0.7;
+
+    /// <summary>Gets which tick level receives grid lines. Default is <see cref="GridWhich.Major"/>.</summary>
+    public GridWhich Which { get; init; } = GridWhich.Major;
+
+    /// <summary>Gets which axes receive grid lines. Default is <see cref="GridAxis.Both"/>.</summary>
+    public GridAxis Axis { get; init; } = GridAxis.Both;
 }

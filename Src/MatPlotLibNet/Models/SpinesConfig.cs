@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Styling;
+
 namespace MatPlotLibNet.Models;
 
 /// <summary>Specifies how a spine is positioned relative to the axes.</summary>
@@ -30,6 +32,12 @@ public sealed record SpineConfig
 
     /// <summary>Gets the line width of the spine.</summary>
     public double LineWidth { get; init; } = 1.0;
+
+    /// <summary>Gets the stroke color of this spine, or <c>null</c> to use the theme foreground color.</summary>
+    public Color? Color { get; init; }
+
+    /// <summary>Gets the dash pattern for this spine. Default is <see cref="LineStyle.Solid"/>.</summary>
+    public LineStyle LineStyle { get; init; } = LineStyle.Solid;
 }
 
 /// <summary>Configures all four spines of a Cartesian axes.</summary>

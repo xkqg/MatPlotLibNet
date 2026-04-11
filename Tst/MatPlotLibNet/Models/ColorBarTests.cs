@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Tests.Models;
@@ -85,5 +86,58 @@ public class ColorBarTests
     public void ColorBarExtend_HasFourMembers()
     {
         Assert.Equal(4, Enum.GetValues<ColorBarExtend>().Length);
+    }
+
+    // --- 2F: ColorBar Enrichment ---
+
+    [Fact]
+    public void ColorBar_Orientation_DefaultsToVertical()
+    {
+        var cb = new ColorBar();
+        Assert.Equal(ColorBarOrientation.Vertical, cb.Orientation);
+    }
+
+    [Fact]
+    public void ColorBar_Shrink_DefaultsTo1()
+    {
+        var cb = new ColorBar();
+        Assert.Equal(1.0, cb.Shrink);
+    }
+
+    [Fact]
+    public void ColorBar_DrawEdges_DefaultsToFalse()
+    {
+        var cb = new ColorBar();
+        Assert.False(cb.DrawEdges);
+    }
+
+    [Fact]
+    public void ColorBar_Aspect_DefaultsTo20()
+    {
+        var cb = new ColorBar();
+        Assert.Equal(20.0, cb.Aspect);
+    }
+
+    [Fact]
+    public void ColorBarOrientation_HasTwoValues()
+    {
+        var values = Enum.GetValues<ColorBarOrientation>();
+        Assert.Equal(2, values.Length);
+        Assert.Contains(ColorBarOrientation.Vertical, values);
+        Assert.Contains(ColorBarOrientation.Horizontal, values);
+    }
+
+    [Fact]
+    public void ColorBar_Orientation_Horizontal_CanBeSet()
+    {
+        var cb = new ColorBar() with { Orientation = ColorBarOrientation.Horizontal };
+        Assert.Equal(ColorBarOrientation.Horizontal, cb.Orientation);
+    }
+
+    [Fact]
+    public void ColorBar_Shrink_CanBeSet()
+    {
+        var cb = new ColorBar() with { Shrink = 0.75 };
+        Assert.Equal(0.75, cb.Shrink);
     }
 }

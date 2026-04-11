@@ -19,11 +19,35 @@ public sealed class AxesBuilder
     /// <summary>Sets the axes title.</summary>
     public AxesBuilder WithTitle(string title) { _axes.Title = title; return this; }
 
+    /// <summary>Sets the axes title with an optional text style override.</summary>
+    public AxesBuilder WithTitle(string title, Func<TextStyle, TextStyle>? configure)
+    {
+        _axes.Title = title;
+        if (configure is not null) _axes.TitleStyle = configure(new TextStyle());
+        return this;
+    }
+
     /// <summary>Sets the X-axis label.</summary>
     public AxesBuilder SetXLabel(string label) { _axes.XAxis.Label = label; return this; }
 
+    /// <summary>Sets the X-axis label with an optional text style override.</summary>
+    public AxesBuilder SetXLabel(string label, Func<TextStyle, TextStyle>? configure)
+    {
+        _axes.XAxis.Label = label;
+        if (configure is not null) _axes.XAxis.LabelStyle = configure(new TextStyle());
+        return this;
+    }
+
     /// <summary>Sets the Y-axis label.</summary>
     public AxesBuilder SetYLabel(string label) { _axes.YAxis.Label = label; return this; }
+
+    /// <summary>Sets the Y-axis label with an optional text style override.</summary>
+    public AxesBuilder SetYLabel(string label, Func<TextStyle, TextStyle>? configure)
+    {
+        _axes.YAxis.Label = label;
+        if (configure is not null) _axes.YAxis.LabelStyle = configure(new TextStyle());
+        return this;
+    }
 
     /// <summary>Sets the X-axis data range limits.</summary>
     public AxesBuilder SetXLim(double min, double max) { _axes.XAxis.Min = min; _axes.XAxis.Max = max; return this; }
@@ -295,8 +319,22 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Configures the legend using a transform function, preserving all other properties.</summary>
+    public AxesBuilder WithLegend(Func<Legend, Legend> configure)
+    {
+        _axes.Legend = configure(_axes.Legend);
+        return this;
+    }
+
     /// <summary>Toggles grid line visibility on the axes.</summary>
     public AxesBuilder ShowGrid(bool visible = true) { _axes.Grid = _axes.Grid with { Visible = visible }; return this; }
+
+    /// <summary>Configures the grid style using a transform function, preserving all other properties.</summary>
+    public AxesBuilder WithGrid(Func<GridStyle, GridStyle> configure)
+    {
+        _axes.Grid = configure(_axes.Grid);
+        return this;
+    }
 
     /// <summary>Adds a line series to the axes.</summary>
     public AxesBuilder Plot(double[] x, double[] y, Action<LineSeries>? configure = null)

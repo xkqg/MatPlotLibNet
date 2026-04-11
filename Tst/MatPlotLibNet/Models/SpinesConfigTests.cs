@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models;
 
@@ -86,5 +87,49 @@ public class SpinesConfigTests
         var spine = new SpineConfig() with { Position = SpinePosition.Axes, PositionValue = 0.5 };
         Assert.Equal(SpinePosition.Axes, spine.Position);
         Assert.Equal(0.5, spine.PositionValue);
+    }
+
+    // --- 2G: Spine Enrichment ---
+
+    [Fact]
+    public void SpineConfig_Color_DefaultsToNull()
+    {
+        var spine = new SpineConfig();
+        Assert.Null(spine.Color);
+    }
+
+    [Fact]
+    public void SpineConfig_LineStyle_DefaultsToSolid()
+    {
+        var spine = new SpineConfig();
+        Assert.Equal(LineStyle.Solid, spine.LineStyle);
+    }
+
+    [Fact]
+    public void SpineConfig_Color_CanBeSet()
+    {
+        var spine = new SpineConfig() with { Color = Colors.Red };
+        Assert.Equal(Colors.Red, spine.Color);
+    }
+
+    [Fact]
+    public void SpineConfig_LineStyle_CanBeSet()
+    {
+        var spine = new SpineConfig() with { LineStyle = LineStyle.Dashed };
+        Assert.Equal(LineStyle.Dashed, spine.LineStyle);
+    }
+
+    [Fact]
+    public void SpinesConfig_PerSpineColor_Independent()
+    {
+        var spines = new SpinesConfig() with
+        {
+            Top    = new SpineConfig() with { Color = Colors.Red },
+            Bottom = new SpineConfig() with { Color = Colors.Blue }
+        };
+        Assert.Equal(Colors.Red, spines.Top.Color);
+        Assert.Equal(Colors.Blue, spines.Bottom.Color);
+        Assert.Null(spines.Left.Color);
+        Assert.Null(spines.Right.Color);
     }
 }
