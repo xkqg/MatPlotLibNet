@@ -7,6 +7,7 @@
       "Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj",
       "Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj",
       "Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj",
+      "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj",
       "Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj",
       "Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj",
       "Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj",
