@@ -355,6 +355,59 @@ public sealed class FigureBuilder
         return figure;
     }
 
+    // --- Annotation / reference line / span convenience methods on default axes ---
+
+    /// <summary>Adds a text annotation at the specified data coordinates on the default axes.</summary>
+    public FigureBuilder Annotate(string text, double x, double y, Action<Annotation>? configure = null)
+    {
+        var ann = EnsureDefaultAxes().Annotate(text, x, y);
+        configure?.Invoke(ann);
+        return this;
+    }
+
+    /// <summary>Adds a text annotation with an arrow pointing to the given target coordinates on the default axes.</summary>
+    public FigureBuilder Annotate(string text, double x, double y, double arrowX, double arrowY,
+        Action<Annotation>? configure = null)
+    {
+        var ann = EnsureDefaultAxes().Annotate(text, x, y);
+        ann.ArrowTargetX = arrowX;
+        ann.ArrowTargetY = arrowY;
+        configure?.Invoke(ann);
+        return this;
+    }
+
+    /// <summary>Adds a horizontal reference line at the specified Y value on the default axes.</summary>
+    public FigureBuilder AxHLine(double y, Action<ReferenceLine>? configure = null)
+    {
+        var line = EnsureDefaultAxes().AxHLine(y);
+        configure?.Invoke(line);
+        return this;
+    }
+
+    /// <summary>Adds a vertical reference line at the specified X value on the default axes.</summary>
+    public FigureBuilder AxVLine(double x, Action<ReferenceLine>? configure = null)
+    {
+        var line = EnsureDefaultAxes().AxVLine(x);
+        configure?.Invoke(line);
+        return this;
+    }
+
+    /// <summary>Adds a horizontal shaded span between the specified Y values on the default axes.</summary>
+    public FigureBuilder AxHSpan(double yMin, double yMax, Action<SpanRegion>? configure = null)
+    {
+        var span = EnsureDefaultAxes().AxHSpan(yMin, yMax);
+        configure?.Invoke(span);
+        return this;
+    }
+
+    /// <summary>Adds a vertical shaded span between the specified X values on the default axes.</summary>
+    public FigureBuilder AxVSpan(double xMin, double xMax, Action<SpanRegion>? configure = null)
+    {
+        var span = EnsureDefaultAxes().AxVSpan(xMin, xMax);
+        configure?.Invoke(span);
+        return this;
+    }
+
     // --- Output convenience methods (delegate to Figure extensions via Build()) ---
 
     /// <summary>Builds the figure and renders it as an SVG string.</summary>

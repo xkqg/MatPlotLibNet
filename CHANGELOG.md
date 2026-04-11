@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.7] - 2026-04-11
+
+### Added
+
+**Phase D — Annotation System (5 sub-phases)**
+
+- **ReferenceLine label rendering** — `ReferenceLine.Label` (already on the model) is now rendered: horizontal lines draw the label right-aligned at the right edge of the plot area, above the line; vertical lines draw the label left-aligned near the top of the line; color inherits from the line color
+- **`ConnectionStyle` enum** (`Straight`, `Arc3`, `Angle`, `Angle3`) — controls the path shape of annotation arrows; `Annotation.ConnectionStyle` property (default `Straight`); `Annotation.ConnectionRad` (default 0.3) controls arc/elbow curvature; `ConnectionPathBuilder` internal static utility produces `IReadOnlyList<PathSegment>` for each style
+- **Extended `ArrowStyle` enum** — 7 new values: `Wedge` (wider filled arrowhead), `CurveA`/`CurveB`/`CurveAB` (open curved arrowheads at one/both ends), `BracketA`/`BracketB`/`BracketAB` (perpendicular bracket lines at one/both ends); `Annotation.ArrowHeadSize` property (default 8)
+- **`ArrowHeadBuilder`** internal static utility — `BuildPolygon(tip, ux, uy, style, size)` for filled polygon heads; `BuildPath(tip, ux, uy, style, size)` for open/line heads; replaces inline arrowhead math in `CartesianAxesRenderer`
+- **`ConnectionPathBuilder`** internal static utility — `BuildPath(from, to, style, rad)` returns `IReadOnlyList<PathSegment>`; replaces `DrawLine` connection in the annotation renderer
+- **`BoxStyle` enum** (`None`, `Square`, `Round`, `RoundTooth`, `Sawtooth`) — background box style for annotations; `Annotation.BoxStyle` property (default `None`); `Annotation.BoxPadding` (default 4), `BoxCornerRadius` (default 5), `BoxFaceColor?`, `BoxEdgeColor?`, `BoxLineWidth` (default 1)
+- **`CalloutBoxRenderer`** internal static utility — `Draw(ctx, textBounds, style, padding, cornerRadius, faceColor, edgeColor, edgeWidth)` draws `Square` via `DrawRectangle`; `Round` via rounded-rect bezier path; `RoundTooth` via rounded-rect + zigzag bottom; `Sawtooth` via all-sides sawtooth path
+- **SpanRegion border** — `SpanRegion.LineStyle` (default `None`), `LineWidth` (default 1.0), `EdgeColor?` properties; when `LineStyle != None`, 4 border lines are drawn around the span rectangle using `DrawLine`
+- **SpanRegion label** — `SpanRegion.Label?` property; horizontal spans draw the label top-left inside the span, vertical spans draw it top-center
+- **Builder convenience overloads** — `FigureBuilder.Annotate(text, x, y, arrowX, arrowY, configure?)`, `AxesBuilder.Annotate(text, x, y, arrowX, arrowY, configure?)` — set `ArrowTargetX/Y` inline; `FigureBuilder` now exposes `Annotate`, `AxHLine`, `AxVLine`, `AxHSpan`, `AxVSpan` delegation methods for single-axes fluent API
+- **Serialization** — `AnnotationDto` extended with `ConnectionStyle?`, `ConnectionRad?`, `ArrowHeadSize?`, `BoxStyle?`, `BoxPadding?`, `BoxCornerRadius?`; `SpanRegionDto` extended with `LineStyle?`, `LineWidth?`, `Label?`; full round-trip support
+
+### Changed
+
+- **`CartesianAxesRenderer` annotation block** refactored (DRY/SOLID): rotation dispatch simplified to always use `DrawText(..., rotation)` (0 is a no-op); `DrawLine` connection replaced by `ConnectionPathBuilder.BuildPath` + `DrawPath`; inline arrowhead polygon replaced by `ArrowHeadBuilder.BuildPolygon/BuildPath`; background box routing: `BoxStyle != None` → `CalloutBoxRenderer.Draw`, else `BackgroundColor.HasValue` → existing simple rect (backward compat)
+
+### Tests: 2814 → 2880 (+66)
+
 ## [0.8.6] - 2026-04-11
 
 ### Added

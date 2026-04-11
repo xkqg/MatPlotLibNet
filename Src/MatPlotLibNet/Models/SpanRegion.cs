@@ -18,6 +18,14 @@ public sealed class SpanRegion
 
     public double Alpha { get; set; } = 0.2;
 
+    public LineStyle LineStyle { get; set; } = LineStyle.None;
+
+    public double LineWidth { get; set; } = 1.0;
+
+    public Color? EdgeColor { get; set; }
+
+    public string? Label { get; set; }
+
     /// <summary>Creates a new span region between the given data values.</summary>
     public SpanRegion(double min, double max, Orientation orientation)
     {

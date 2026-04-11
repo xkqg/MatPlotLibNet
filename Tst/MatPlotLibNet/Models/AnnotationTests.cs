@@ -115,4 +115,100 @@ public class AnnotationTests
         var ann = new Annotation("test", 1, 2) { ArrowStyle = ArrowStyle.FancyArrow };
         Assert.Equal(ArrowStyle.FancyArrow, ann.ArrowStyle);
     }
+
+    /// <summary>Verifies that ConnectionStyle defaults to Straight.</summary>
+    [Fact]
+    public void Annotation_ConnectionStyle_DefaultsToStraight()
+    {
+        var ann = new Annotation("test", 1, 2);
+        Assert.Equal(ConnectionStyle.Straight, ann.ConnectionStyle);
+    }
+
+    /// <summary>Verifies that ConnectionStyle can be changed.</summary>
+    [Fact]
+    public void Annotation_ConnectionStyle_CanBeSet()
+    {
+        var ann = new Annotation("test", 1, 2) { ConnectionStyle = ConnectionStyle.Arc3 };
+        Assert.Equal(ConnectionStyle.Arc3, ann.ConnectionStyle);
+    }
+
+    /// <summary>Verifies that ConnectionRad defaults to 0.3.</summary>
+    [Fact]
+    public void Annotation_ConnectionRad_DefaultsTo0Point3()
+    {
+        var ann = new Annotation("test", 1, 2);
+        Assert.Equal(0.3, ann.ConnectionRad);
+    }
+
+    /// <summary>Verifies that ArrowHeadSize defaults to 8.</summary>
+    [Fact]
+    public void Annotation_ArrowHeadSize_DefaultsTo8()
+    {
+        var ann = new Annotation("test", 1, 2);
+        Assert.Equal(8.0, ann.ArrowHeadSize);
+    }
+
+    /// <summary>Verifies that ArrowStyle.Wedge can be set.</summary>
+    [Fact]
+    public void Annotation_ArrowStyle_Wedge_CanBeSet()
+    {
+        var ann = new Annotation("test", 1, 2) { ArrowStyle = ArrowStyle.Wedge };
+        Assert.Equal(ArrowStyle.Wedge, ann.ArrowStyle);
+    }
+
+    /// <summary>Verifies that ArrowStyle.BracketAB can be set.</summary>
+    [Fact]
+    public void Annotation_ArrowStyle_BracketAB_CanBeSet()
+    {
+        var ann = new Annotation("test", 1, 2) { ArrowStyle = ArrowStyle.BracketAB };
+        Assert.Equal(ArrowStyle.BracketAB, ann.ArrowStyle);
+    }
+
+    /// <summary>Verifies that BoxStyle defaults to None.</summary>
+    [Fact]
+    public void Annotation_BoxStyle_DefaultsToNone()
+    {
+        var ann = new Annotation("test", 1, 2);
+        Assert.Equal(BoxStyle.None, ann.BoxStyle);
+    }
+
+    /// <summary>Verifies that BoxPadding defaults to 4.</summary>
+    [Fact]
+    public void Annotation_BoxPadding_DefaultsTo4()
+    {
+        var ann = new Annotation("test", 1, 2);
+        Assert.Equal(4.0, ann.BoxPadding);
+    }
+
+    /// <summary>Verifies that BoxCornerRadius defaults to 5.</summary>
+    [Fact]
+    public void Annotation_BoxCornerRadius_DefaultsTo5()
+    {
+        var ann = new Annotation("test", 1, 2);
+        Assert.Equal(5.0, ann.BoxCornerRadius);
+    }
+
+    /// <summary>Verifies that BoxFaceColor defaults to null.</summary>
+    [Fact]
+    public void Annotation_BoxFaceColor_DefaultsToNull()
+    {
+        var ann = new Annotation("test", 1, 2);
+        Assert.Null(ann.BoxFaceColor);
+    }
+
+    /// <summary>Verifies that BoxEdgeColor defaults to null.</summary>
+    [Fact]
+    public void Annotation_BoxEdgeColor_DefaultsToNull()
+    {
+        var ann = new Annotation("test", 1, 2);
+        Assert.Null(ann.BoxEdgeColor);
+    }
+
+    /// <summary>Verifies that BoxLineWidth defaults to 1.</summary>
+    [Fact]
+    public void Annotation_BoxLineWidth_DefaultsTo1()
+    {
+        var ann = new Annotation("test", 1, 2);
+        Assert.Equal(1.0, ann.BoxLineWidth);
+    }
 }

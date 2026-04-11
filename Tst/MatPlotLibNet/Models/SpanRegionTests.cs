@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models;
 
@@ -44,5 +45,45 @@ public class SpanRegionTests
         var span = axes.AxVSpan(2.0, 4.0);
         Assert.Single(axes.Spans);
         Assert.Equal(Orientation.Vertical, span.Orientation);
+    }
+
+    /// <summary>Verifies that LineStyle defaults to None.</summary>
+    [Fact]
+    public void SpanRegion_LineStyle_DefaultsToNone()
+    {
+        var span = new SpanRegion(1.0, 3.0, Orientation.Horizontal);
+        Assert.Equal(LineStyle.None, span.LineStyle);
+    }
+
+    /// <summary>Verifies that LineWidth defaults to 1.</summary>
+    [Fact]
+    public void SpanRegion_LineWidth_DefaultsTo1()
+    {
+        var span = new SpanRegion(1.0, 3.0, Orientation.Horizontal);
+        Assert.Equal(1.0, span.LineWidth);
+    }
+
+    /// <summary>Verifies that EdgeColor defaults to null.</summary>
+    [Fact]
+    public void SpanRegion_EdgeColor_DefaultsToNull()
+    {
+        var span = new SpanRegion(1.0, 3.0, Orientation.Horizontal);
+        Assert.Null(span.EdgeColor);
+    }
+
+    /// <summary>Verifies that Label defaults to null.</summary>
+    [Fact]
+    public void SpanRegion_Label_DefaultsToNull()
+    {
+        var span = new SpanRegion(1.0, 3.0, Orientation.Horizontal);
+        Assert.Null(span.Label);
+    }
+
+    /// <summary>Verifies that Label can be set.</summary>
+    [Fact]
+    public void SpanRegion_Label_CanBeSet()
+    {
+        var span = new SpanRegion(1.0, 3.0, Orientation.Horizontal) { Label = "zone" };
+        Assert.Equal("zone", span.Label);
     }
 }

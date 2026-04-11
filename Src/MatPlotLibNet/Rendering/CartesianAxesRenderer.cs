@@ -55,15 +55,29 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         }
 
         // Render span regions (behind everything)
+        var spanLabelFont = TickFont();
         foreach (var span in Axes.Spans)
         {
             var spanColor = (span.Color ?? Colors.Tab10Blue).WithAlpha((byte)(span.Alpha * 255));
+            var borderColor = span.EdgeColor ?? (span.Color ?? Colors.Tab10Blue);
             if (span.Orientation == Orientation.Horizontal)
             {
                 var topLeft = transform.DataToPixel(range.XMin, Math.Max(span.Min, span.Max));
                 var bottomRight = transform.DataToPixel(range.XMax, Math.Min(span.Min, span.Max));
                 var rect = new Rect(PlotArea.X, topLeft.Y, PlotArea.Width, bottomRight.Y - topLeft.Y);
                 Ctx.DrawRectangle(rect, spanColor, null, 0);
+                if (span.LineStyle != LineStyle.None)
+                {
+                    Ctx.DrawLine(new Point(PlotArea.X, topLeft.Y), new Point(PlotArea.X + PlotArea.Width, topLeft.Y), borderColor, span.LineWidth, span.LineStyle);
+                    Ctx.DrawLine(new Point(PlotArea.X, bottomRight.Y), new Point(PlotArea.X + PlotArea.Width, bottomRight.Y), borderColor, span.LineWidth, span.LineStyle);
+                    Ctx.DrawLine(new Point(PlotArea.X, topLeft.Y), new Point(PlotArea.X, bottomRight.Y), borderColor, span.LineWidth, span.LineStyle);
+                    Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, topLeft.Y), new Point(PlotArea.X + PlotArea.Width, bottomRight.Y), borderColor, span.LineWidth, span.LineStyle);
+                }
+                if (span.Label is not null)
+                {
+                    var labelFont = spanLabelFont with { Color = borderColor };
+                    Ctx.DrawText(span.Label, new Point(PlotArea.X + 2, topLeft.Y + spanLabelFont.Size + 2), labelFont, TextAlignment.Left);
+                }
             }
             else
             {
@@ -71,10 +85,23 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 var right = transform.DataToPixel(Math.Max(span.Min, span.Max), range.YMin);
                 var rect = new Rect(left.X, PlotArea.Y, right.X - left.X, PlotArea.Height);
                 Ctx.DrawRectangle(rect, spanColor, null, 0);
+                if (span.LineStyle != LineStyle.None)
+                {
+                    Ctx.DrawLine(new Point(left.X, PlotArea.Y), new Point(left.X, PlotArea.Y + PlotArea.Height), borderColor, span.LineWidth, span.LineStyle);
+                    Ctx.DrawLine(new Point(right.X, PlotArea.Y), new Point(right.X, PlotArea.Y + PlotArea.Height), borderColor, span.LineWidth, span.LineStyle);
+                    Ctx.DrawLine(new Point(left.X, PlotArea.Y), new Point(right.X, PlotArea.Y), borderColor, span.LineWidth, span.LineStyle);
+                    Ctx.DrawLine(new Point(left.X, PlotArea.Y + PlotArea.Height), new Point(right.X, PlotArea.Y + PlotArea.Height), borderColor, span.LineWidth, span.LineStyle);
+                }
+                if (span.Label is not null)
+                {
+                    var labelFont = spanLabelFont with { Color = borderColor };
+                    Ctx.DrawText(span.Label, new Point((left.X + right.X) / 2, PlotArea.Y + spanLabelFont.Size + 2), labelFont, TextAlignment.Center);
+                }
             }
         }
 
         // Render reference lines
+        var refLabelFont = TickFont();
         foreach (var refLine in Axes.ReferenceLines)
         {
             var lineColor = refLine.Color ?? Colors.Gray;
@@ -85,6 +112,13 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                     new Point(PlotArea.X, pt.Y),
                     new Point(PlotArea.X + PlotArea.Width, pt.Y),
                     lineColor, refLine.LineWidth, refLine.LineStyle);
+                if (refLine.Label is not null)
+                {
+                    var labelFont = refLabelFont with { Color = lineColor };
+                    Ctx.DrawText(refLine.Label,
+                        new Point(PlotArea.X + PlotArea.Width, pt.Y - 2),
+                        labelFont, TextAlignment.Right);
+                }
             }
             else
             {
@@ -93,6 +127,13 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                     new Point(pt.X, PlotArea.Y),
                     new Point(pt.X, PlotArea.Y + PlotArea.Height),
                     lineColor, refLine.LineWidth, refLine.LineStyle);
+                if (refLine.Label is not null)
+                {
+                    var labelFont = refLabelFont with { Color = lineColor };
+                    Ctx.DrawText(refLine.Label,
+                        new Point(pt.X + 2, PlotArea.Y + refLabelFont.Size),
+                        labelFont, TextAlignment.Left);
+                }
             }
         }
 
@@ -205,44 +246,52 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             };
             var textPos = transform.DataToPixel(annotation.X, annotation.Y);
 
-            // Optional background fill behind text
-            if (annotation.BackgroundColor.HasValue)
+            // Background box or legacy background fill behind text
+            var textSize = Ctx.MeasureText(annotation.Text, annotFont);
+            var textBounds = new Rect(textPos.X - 2, textPos.Y - textSize.Height, textSize.Width + 4, textSize.Height + 2);
+
+            if (annotation.BoxStyle != BoxStyle.None)
             {
-                var textSize = Ctx.MeasureText(annotation.Text, annotFont);
-                var bgRect = new Rect(textPos.X - 2, textPos.Y - textSize.Height, textSize.Width + 4, textSize.Height + 2);
-                Ctx.DrawRectangle(bgRect, annotation.BackgroundColor.Value, null, 0);
+                CalloutBoxRenderer.Draw(Ctx, textBounds, annotation.BoxStyle,
+                    annotation.BoxPadding, annotation.BoxCornerRadius,
+                    annotation.BoxFaceColor, annotation.BoxEdgeColor, annotation.BoxLineWidth);
+            }
+            else if (annotation.BackgroundColor.HasValue)
+            {
+                Ctx.DrawRectangle(textBounds, annotation.BackgroundColor.Value, null, 0);
             }
 
-            // Draw text with alignment and optional rotation
-            if (annotation.Rotation != 0)
-                Ctx.DrawText(annotation.Text, textPos, annotFont, annotation.Alignment, annotation.Rotation);
-            else
-                Ctx.DrawText(annotation.Text, textPos, annotFont, annotation.Alignment);
+            // Draw text with alignment and optional rotation (rotation=0 is a no-op in the SVG renderer)
+            Ctx.DrawText(annotation.Text, textPos, annotFont, annotation.Alignment, annotation.Rotation);
 
-            // Arrow (respects ArrowStyle)
+            // Connection path + arrowhead (respects ConnectionStyle + ArrowStyle)
             if (annotation.ArrowTargetX.HasValue && annotation.ArrowTargetY.HasValue
                 && annotation.ArrowStyle != ArrowStyle.None)
             {
                 var arrowTarget = transform.DataToPixel(annotation.ArrowTargetX.Value, annotation.ArrowTargetY.Value);
                 var arrowColor = annotation.ArrowColor ?? annotation.Color ?? Theme.ForegroundText;
-                Ctx.DrawLine(textPos, arrowTarget, arrowColor, 1, LineStyle.Solid);
 
-                if (annotation.ArrowStyle == ArrowStyle.FancyArrow)
+                // Connection path
+                var connPath = ConnectionPathBuilder.BuildPath(textPos, arrowTarget,
+                    annotation.ConnectionStyle, annotation.ConnectionRad);
+                Ctx.DrawPath(connPath, null, arrowColor, 1);
+
+                // Arrowhead at target
+                double dx = arrowTarget.X - textPos.X;
+                double dy = arrowTarget.Y - textPos.Y;
+                double len = Math.Sqrt(dx * dx + dy * dy);
+                if (len > 0)
                 {
-                    // Small triangular arrowhead at target
-                    double dx = arrowTarget.X - textPos.X;
-                    double dy = arrowTarget.Y - textPos.Y;
-                    double len = Math.Sqrt(dx * dx + dy * dy);
-                    if (len > 0)
-                    {
-                        double ux = dx / len, uy = dy / len;
-                        double nx = -uy, ny = ux; // perpendicular
-                        const double headLen = 8, headHalf = 4;
-                        var tip = arrowTarget;
-                        var left  = new Point(tip.X - ux * headLen + nx * headHalf, tip.Y - uy * headLen + ny * headHalf);
-                        var right = new Point(tip.X - ux * headLen - nx * headHalf, tip.Y - uy * headLen - ny * headHalf);
-                        Ctx.DrawPolygon([tip, left, right], arrowColor, null, 0);
-                    }
+                    double ux = dx / len, uy = dy / len;
+                    var headPolygon = ArrowHeadBuilder.BuildPolygon(arrowTarget, ux, uy,
+                        annotation.ArrowStyle, annotation.ArrowHeadSize);
+                    if (headPolygon.Count > 0)
+                        Ctx.DrawPolygon([.. headPolygon], arrowColor, null, 0);
+
+                    var headPath = ArrowHeadBuilder.BuildPath(arrowTarget, ux, uy,
+                        annotation.ArrowStyle, annotation.ArrowHeadSize);
+                    if (headPath is { Count: > 0 })
+                        Ctx.DrawPath(headPath, null, arrowColor, 1);
                 }
             }
         }

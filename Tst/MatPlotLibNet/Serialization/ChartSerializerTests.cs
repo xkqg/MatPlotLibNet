@@ -871,4 +871,67 @@ public class ChartSerializerTests
         Assert.DoesNotContain("insets", json);
         Assert.DoesNotContain("insetBounds", json);
     }
+
+    /// <summary>Verifies that annotation ConnectionStyle round-trips through serialization.</summary>
+    [Fact]
+    public void RoundTrip_PreservesAnnotation_ConnectionStyle()
+    {
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        ax.Plot([0.0, 3.0], [0.0, 3.0]);
+        var ann = ax.Annotate("label", 1.0, 1.0);
+        ann.ArrowTargetX = 2.0;
+        ann.ArrowTargetY = 2.0;
+        ann.ConnectionStyle = MatPlotLibNet.Models.ConnectionStyle.Arc3;
+        ann.ConnectionRad = 0.5;
+
+        string json = ChartServices.Serializer.ToJson(figure);
+        var restored = ChartServices.Serializer.FromJson(json);
+
+        var restoredAnn = restored.SubPlots[0].Annotations[0];
+        Assert.Equal(MatPlotLibNet.Models.ConnectionStyle.Arc3, restoredAnn.ConnectionStyle);
+        Assert.Equal(0.5, restoredAnn.ConnectionRad);
+    }
+
+    /// <summary>Verifies that annotation BoxStyle round-trips through serialization.</summary>
+    [Fact]
+    public void RoundTrip_PreservesAnnotation_BoxStyle()
+    {
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        ax.Plot([0.0, 3.0], [0.0, 3.0]);
+        var ann = ax.Annotate("label", 1.5, 1.5);
+        ann.BoxStyle = MatPlotLibNet.Models.BoxStyle.Round;
+        ann.BoxPadding = 6;
+        ann.BoxCornerRadius = 8;
+
+        string json = ChartServices.Serializer.ToJson(figure);
+        var restored = ChartServices.Serializer.FromJson(json);
+
+        var restoredAnn = restored.SubPlots[0].Annotations[0];
+        Assert.Equal(MatPlotLibNet.Models.BoxStyle.Round, restoredAnn.BoxStyle);
+        Assert.Equal(6.0, restoredAnn.BoxPadding);
+        Assert.Equal(8.0, restoredAnn.BoxCornerRadius);
+    }
+
+    /// <summary>Verifies that SpanRegion border and label round-trip through serialization.</summary>
+    [Fact]
+    public void RoundTrip_PreservesSpanRegion_BorderAndLabel()
+    {
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        ax.Plot([0.0, 3.0], [0.0, 3.0]);
+        var span = ax.AxHSpan(1.0, 2.0);
+        span.LineStyle = LineStyle.Dashed;
+        span.LineWidth = 2.0;
+        span.Label = "support";
+
+        string json = ChartServices.Serializer.ToJson(figure);
+        var restored = ChartServices.Serializer.FromJson(json);
+
+        var restoredSpan = restored.SubPlots[0].Spans[0];
+        Assert.Equal(LineStyle.Dashed, restoredSpan.LineStyle);
+        Assert.Equal(2.0, restoredSpan.LineWidth);
+        Assert.Equal("support", restoredSpan.Label);
+    }
 }

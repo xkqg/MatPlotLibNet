@@ -73,7 +73,13 @@ public sealed class ChartSerializer : IChartSerializer
         Annotations = axes.Annotations.Count > 0 ? axes.Annotations.Select(a => new AnnotationDto
         {
             Text = a.Text, X = a.X, Y = a.Y,
-            ArrowTargetX = a.ArrowTargetX, ArrowTargetY = a.ArrowTargetY
+            ArrowTargetX = a.ArrowTargetX, ArrowTargetY = a.ArrowTargetY,
+            ConnectionStyle = a.ConnectionStyle != Models.ConnectionStyle.Straight ? a.ConnectionStyle.ToString().ToLowerInvariant() : null,
+            ConnectionRad = a.ConnectionRad != 0.3 ? a.ConnectionRad : null,
+            ArrowHeadSize = a.ArrowHeadSize != 8 ? a.ArrowHeadSize : null,
+            BoxStyle = a.BoxStyle != Models.BoxStyle.None ? a.BoxStyle.ToString().ToLowerInvariant() : null,
+            BoxPadding = a.BoxPadding != 4 ? a.BoxPadding : null,
+            BoxCornerRadius = a.BoxCornerRadius != 5 ? a.BoxCornerRadius : null,
         }).ToList() : null,
         ReferenceLines = axes.ReferenceLines.Count > 0 ? axes.ReferenceLines.Select(r => new ReferenceLineDto
         {
@@ -85,7 +91,10 @@ public sealed class ChartSerializer : IChartSerializer
         Spans = axes.Spans.Count > 0 ? axes.Spans.Select(s => new SpanRegionDto
         {
             Min = s.Min, Max = s.Max, Orientation = s.Orientation.ToString().ToLowerInvariant(),
-            Alpha = s.Alpha
+            Alpha = s.Alpha,
+            LineStyle = s.LineStyle != LineStyle.None ? s.LineStyle.ToString().ToLowerInvariant() : null,
+            LineWidth = s.LineWidth != 1.0 ? s.LineWidth : null,
+            Label = s.Label,
         }).ToList() : null,
         InsetBounds = axes.InsetBounds is { } ib ? new InsetBoundsDto
         {
@@ -198,6 +207,14 @@ public sealed class ChartSerializer : IChartSerializer
                 var ann = axes.Annotate(aDto.Text ?? "", aDto.X, aDto.Y);
                 ann.ArrowTargetX = aDto.ArrowTargetX;
                 ann.ArrowTargetY = aDto.ArrowTargetY;
+                if (aDto.ConnectionStyle is not null && Enum.TryParse<Models.ConnectionStyle>(aDto.ConnectionStyle, true, out var cs))
+                    ann.ConnectionStyle = cs;
+                if (aDto.ConnectionRad.HasValue) ann.ConnectionRad = aDto.ConnectionRad.Value;
+                if (aDto.ArrowHeadSize.HasValue) ann.ArrowHeadSize = aDto.ArrowHeadSize.Value;
+                if (aDto.BoxStyle is not null && Enum.TryParse<Models.BoxStyle>(aDto.BoxStyle, true, out var bs))
+                    ann.BoxStyle = bs;
+                if (aDto.BoxPadding.HasValue) ann.BoxPadding = aDto.BoxPadding.Value;
+                if (aDto.BoxCornerRadius.HasValue) ann.BoxCornerRadius = aDto.BoxCornerRadius.Value;
             }
 
             foreach (var rDto in axDto.ReferenceLines ?? [])
@@ -232,6 +249,10 @@ public sealed class ChartSerializer : IChartSerializer
                 var orient = sDto.Orientation is "vertical" ? Orientation.Vertical : Orientation.Horizontal;
                 var sp = orient == Orientation.Horizontal ? axes.AxHSpan(sDto.Min, sDto.Max) : axes.AxVSpan(sDto.Min, sDto.Max);
                 sp.Alpha = sDto.Alpha;
+                if (sDto.LineStyle is not null && Enum.TryParse<LineStyle>(sDto.LineStyle, true, out var ls))
+                    sp.LineStyle = ls;
+                if (sDto.LineWidth.HasValue) sp.LineWidth = sDto.LineWidth.Value;
+                sp.Label = sDto.Label;
             }
 
             // Restore insets recursively
@@ -672,6 +693,12 @@ internal sealed record AnnotationDto
     public double Y { get; init; }
     public double? ArrowTargetX { get; init; }
     public double? ArrowTargetY { get; init; }
+    public string? ConnectionStyle { get; init; }
+    public double? ConnectionRad { get; init; }
+    public double? ArrowHeadSize { get; init; }
+    public string? BoxStyle { get; init; }
+    public double? BoxPadding { get; init; }
+    public double? BoxCornerRadius { get; init; }
 }
 
 /// <summary>Data-transfer object for a horizontal or vertical reference line drawn across a subplot.</summary>
@@ -691,6 +718,9 @@ internal sealed record SpanRegionDto
     public double Max { get; init; }
     public string? Orientation { get; init; }
     public double Alpha { get; init; }
+    public string? LineStyle { get; init; }
+    public double? LineWidth { get; init; }
+    public string? Label { get; init; }
 }
 
 /// <summary>Data-transfer object for an axis configuration (label, limits, and scale).</summary>

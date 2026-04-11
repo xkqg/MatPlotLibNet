@@ -141,6 +141,17 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Adds a text annotation with an arrow pointing to the given target coordinates.</summary>
+    public AxesBuilder Annotate(string text, double x, double y, double arrowX, double arrowY,
+        Action<Annotation>? configure = null)
+    {
+        var annotation = _axes.Annotate(text, x, y);
+        annotation.ArrowTargetX = arrowX;
+        annotation.ArrowTargetY = arrowY;
+        configure?.Invoke(annotation);
+        return this;
+    }
+
     /// <summary>Adds a horizontal reference line at the specified Y value.</summary>
     public AxesBuilder AxHLine(double y, Action<ReferenceLine>? configure = null)
     {

@@ -33,6 +33,24 @@ public sealed class Annotation
 
     public Color? BackgroundColor { get; set; }
 
+    public ConnectionStyle ConnectionStyle { get; set; } = ConnectionStyle.Straight;
+
+    public double ConnectionRad { get; set; } = 0.3;
+
+    public double ArrowHeadSize { get; set; } = 8;
+
+    public BoxStyle BoxStyle { get; set; } = BoxStyle.None;
+
+    public double BoxPadding { get; set; } = 4;
+
+    public double BoxCornerRadius { get; set; } = 5;
+
+    public Color? BoxFaceColor { get; set; }
+
+    public Color? BoxEdgeColor { get; set; }
+
+    public double BoxLineWidth { get; set; } = 1;
+
     /// <summary>Creates a new annotation at the given data coordinates.</summary>
     /// <param name="text">The annotation text to display.</param>
     /// <param name="x">The X data coordinate of the annotation.</param>

@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Blazor</PackageId>
-    <Version>0.8.6</Version>
+    <Version>0.8.7</Version>
     <Description>Blazor components for MatPlotLibNet charting library. Renders charts as inline SVG.</Description>
     <PackageTags>blazor;charting;plotting;svg;components</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
