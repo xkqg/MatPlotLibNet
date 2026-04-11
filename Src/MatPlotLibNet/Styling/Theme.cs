@@ -158,6 +158,55 @@ public sealed class Theme
         defaultFont: new Font { Size = 14 },
         defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#CBCBCB") });
 
+    private static readonly Color[] ColorBlindSafeCycleColors =
+    [
+        Color.FromHex("#E69F00"), // orange
+        Color.FromHex("#56B4E9"), // sky blue
+        Color.FromHex("#009E73"), // bluish green
+        Color.FromHex("#F0E442"), // yellow
+        Color.FromHex("#0072B2"), // blue
+        Color.FromHex("#D55E00"), // vermillion
+        Color.FromHex("#CC79A7"), // reddish purple
+        Color.FromHex("#000000"), // black
+    ];
+
+    /// <summary>
+    /// Okabe-Ito color-blind safe theme — safe for all three common forms of color vision deficiency.
+    /// </summary>
+    public static Theme ColorBlindSafe { get; } = new(
+        name: "colorblind-safe",
+        background: Colors.White,
+        foregroundText: Colors.Black,
+        axesBackground: Colors.White,
+        cycleColors: ColorBlindSafeCycleColors,
+        defaultFont: new Font(),
+        defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#B0B0B0"), LineStyle = LineStyle.Solid, LineWidth = 0.8 });
+
+    private static readonly Color[] HighContrastCycleColors =
+    [
+        Color.FromHex("#0000FF"), // pure blue
+        Color.FromHex("#FF0000"), // pure red
+        Color.FromHex("#00AA00"), // strong green
+        Color.FromHex("#FF8800"), // strong orange
+        Color.FromHex("#AA00FF"), // strong purple
+        Color.FromHex("#00CCCC"), // strong cyan
+        Color.FromHex("#CC0088"), // strong magenta
+        Color.FromHex("#666600"), // dark olive
+    ];
+
+    /// <summary>
+    /// High-contrast theme targeting WCAG AAA (7:1 contrast ratio). Pure white background, pure black text,
+    /// bold font at 13pt, and a thick dark grid.
+    /// </summary>
+    public static Theme HighContrast { get; } = new(
+        name: "high-contrast",
+        background: Colors.White,
+        foregroundText: Colors.Black,
+        axesBackground: Colors.White,
+        cycleColors: HighContrastCycleColors,
+        defaultFont: new Font { Size = 13, Weight = FontWeight.Bold },
+        defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#666666"), LineStyle = LineStyle.Solid, LineWidth = 1.5 });
+
     /// <summary>
     /// Creates a <see cref="ThemeBuilder"/> initialized from the specified base theme.
     /// </summary>

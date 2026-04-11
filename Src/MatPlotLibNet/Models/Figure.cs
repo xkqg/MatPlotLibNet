@@ -10,6 +10,12 @@ public sealed class Figure
 {
     public string? Title { get; set; }
 
+    /// <summary>Short alternative text for the chart, rendered as the SVG <c>&lt;title&gt;</c> element (falls back to <see cref="Title"/>).</summary>
+    public string? AltText { get; set; }
+
+    /// <summary>Longer description rendered as the SVG <c>&lt;desc&gt;</c> element and linked via <c>aria-describedby</c>.</summary>
+    public string? Description { get; set; }
+
     public double Width { get; set; } = 800;
 
     public double Height { get; set; } = 600;

@@ -41,6 +41,8 @@ public sealed class ChartSerializer : IChartSerializer
     private static FigureDto FigureToDto(Figure figure) => new()
     {
         Title = figure.Title,
+        AltText = figure.AltText,
+        Description = figure.Description,
         Width = figure.Width,
         Height = figure.Height,
         Dpi = figure.Dpi,
@@ -165,6 +167,8 @@ public sealed class ChartSerializer : IChartSerializer
         var figure = new Figure
         {
             Title = dto.Title,
+            AltText = dto.AltText,
+            Description = dto.Description,
             Width = dto.Width,
             Height = dto.Height,
             Dpi = dto.Dpi,
@@ -609,6 +613,8 @@ public sealed class ChartSerializer : IChartSerializer
 internal sealed record FigureDto
 {
     public string? Title { get; init; }
+    public string? AltText { get; init; }
+    public string? Description { get; init; }
     public double Width { get; init; }
     public double Height { get; init; }
     public double Dpi { get; init; }

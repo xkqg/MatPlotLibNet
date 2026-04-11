@@ -152,4 +152,20 @@ public static class QualitativeColorMaps
         Color.FromHex("#FFFF99"),
         Color.FromHex("#B15928"),
     ]);
+
+    /// <summary>
+    /// Okabe-Ito 8-color palette — designed to be distinguishable under all three common forms
+    /// of color vision deficiency (deuteranopia, protanopia, tritanopia).
+    /// </summary>
+    public static IColorMap OkabeIto { get; } = new ListedColorMap("okabe_ito",
+    [
+        Color.FromHex("#E69F00"), // orange
+        Color.FromHex("#56B4E9"), // sky blue
+        Color.FromHex("#009E73"), // bluish green
+        Color.FromHex("#F0E442"), // yellow
+        Color.FromHex("#0072B2"), // blue
+        Color.FromHex("#D55E00"), // vermillion
+        Color.FromHex("#CC79A7"), // reddish purple
+        Color.FromHex("#000000"), // black
+    ]);
 }

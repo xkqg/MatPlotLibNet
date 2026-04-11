@@ -29,7 +29,7 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         double plotAreaTop = Renderer.RenderBackground(figure, bgCtx);
 
         if (figure.SubPlots.Count == 0)
-            return BuildSvgDocument(w, h, sb => bgCtx.WriteTo(sb));
+            return BuildSvgDocument(w, h, figure, sb => bgCtx.WriteTo(sb));
 
         // Compute subplot layout
         var plotAreas = Renderer.ComputeSubPlotLayout(figure, plotAreaTop);
@@ -57,7 +57,7 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
             Renderer.RenderFigureColorBar(figure, plotAreas, cb, figCbCtx);
         }
 
-        return BuildSvgDocument(w, h, sb =>
+        return BuildSvgDocument(w, h, figure, sb =>
         {
             bgCtx.WriteTo(sb);
             foreach (var ctx in subplotContexts)
@@ -84,13 +84,36 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         output.Write(bytes, 0, bytes.Length);
     }
 
-    private static string BuildSvgDocument(string w, string h, Action<StringBuilder> writeBody)
+    private static string BuildSvgDocument(string w, string h, Figure figure, Action<StringBuilder> writeBody)
     {
         var sb = new StringBuilder(512);
+
+        // Determine alt-text: prefer AltText, fall back to Title, then nothing (empty title still written)
+        string altText = figure.AltText ?? figure.Title ?? string.Empty;
+        bool hasDescription = figure.Description is not null;
+
         sb.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ")
           .Append(w).Append(' ').Append(h)
           .Append("\" width=\"").Append(w)
-          .Append("\" height=\"").Append(h).AppendLine("\">");
+          .Append("\" height=\"").Append(h)
+          .Append("\" role=\"img\"")
+          .Append(" aria-labelledby=\"chart-title\"");
+        if (hasDescription)
+            sb.Append(" aria-describedby=\"chart-desc\"");
+        sb.AppendLine(">");
+
+        // SVG title (always emitted for role="img" accessibility)
+        sb.Append("<title id=\"chart-title\">")
+          .Append(SvgXmlHelper.EscapeXml(altText))
+          .AppendLine("</title>");
+
+        if (hasDescription)
+        {
+            sb.Append("<desc id=\"chart-desc\">")
+              .Append(SvgXmlHelper.EscapeXml(figure.Description!))
+              .AppendLine("</desc>");
+        }
+
         writeBody(sb);
         sb.AppendLine("</svg>");
         return sb.ToString();

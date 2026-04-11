@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.8.6)
+# MatPlotLibNet Core -- Architecture (v0.8.8)
 
 ## Package dependency graph
 
@@ -258,13 +258,14 @@ MatPlotLibNet/
 
     Svg/
       ISvgRenderer.cs                 interface: Render(Figure) -> string (backward compat)
-      SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission; BeginDataGroup(cssClass, idx), BeginLegendItemGroup(idx)
+      SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission; BeginDataGroup(cssClass, idx, ariaLabel?), BeginLegendItemGroup(idx, ariaLabel?), BeginAccessibleGroup(cssClass, ariaLabel); EscapeXml delegates to SvgXmlHelper
+      SvgXmlHelper.cs                 internal static: EscapeXml(string) — DRY XML escaping shared by SvgRenderContext and SvgTransform (new v0.8.8)
       SvgSeriesRenderer.cs            thin visitor dispatcher to SeriesRenderer<T> instances
-      SvgInteractivityScript.cs       embedded JavaScript for zoom/pan via viewBox manipulation
-      SvgLegendToggleScript.cs        embedded JS: click data-legend-index → toggle data-series-index display
-      SvgCustomTooltipScript.cs       embedded JS: styled floating div tooltip from <title> text
-      SvgHighlightScript.cs           embedded JS: mouseenter dims siblings to 0.3 opacity, mouseleave restores
-      SvgSelectionScript.cs           embedded JS: Shift+drag selection rect, dispatches mpl:selection CustomEvent
+      SvgInteractivityScript.cs       embedded JS: zoom/pan via viewBox; tabindex + aria-roledescription; keyboard +/-/arrows/Home (new v0.8.8)
+      SvgLegendToggleScript.cs        embedded JS: click/Enter/Space on data-legend-index; role=button, aria-pressed, tabindex (new v0.8.8)
+      SvgCustomTooltipScript.cs       embedded JS: styled floating div tooltip; role=tooltip, aria-live=polite, focus/blur listeners (new v0.8.8)
+      SvgHighlightScript.cs           embedded JS: mouseenter/focus dims siblings; tabindex, blur restores (new v0.8.8)
+      SvgSelectionScript.cs           embedded JS: Shift+drag selection rect; Escape cancels; aria-label on rect (new v0.8.8)
 
   Numerics/
     LeastSquares.cs                   public static: PolyFit (normal equations), PolyEval (Horner), ConfidenceBand (t-distribution leverage)
@@ -299,7 +300,7 @@ MatPlotLibNet/
                                       Color constants: Tab10Blue, Tab10Orange, Tab10Green, GridGray,
                                       EdgeGray, Amber, FibonacciOrange (replace magic hex strings)
     Font.cs                           sealed record (Family, Size, Weight, Slant, Color)
-    Theme.cs                          6 built-in themes + GridStyle sealed record + PropCycler? property
+    Theme.cs                          8 built-in themes (+ ColorBlindSafe Okabe-Ito, HighContrast WCAG AAA) + GridStyle sealed record + PropCycler? property (new v0.8.8)
     LineStyle.cs                      enum: Solid, Dashed, Dotted, DashDot, None
     MarkerStyle.cs                    enum: None, Circle, Square, Triangle, Diamond, etc.
     DashPatterns.cs                   canonical dash ratios shared by SVG + MAUI + Skia renderers
@@ -321,9 +322,9 @@ MatPlotLibNet/
       DivergingColorMaps.cs           9 diverging: RdBu, RdYlGn, RdYlBu, BrBG, PiYG, Spectral, PuOr,
                                         Seismic, Bwr
       CyclicColorMaps.cs              3 cyclic (start≈end): Twilight, TwilightShifted, Hsv
-      QualitativeColorMaps.cs         10 qualitative: Tab10, Tab20, Set1, Set2, Set3, Pastel1, Pastel2,
-                                        Dark2, Accent, Paired
-                                      Total: 52 base colormaps × 2 (+ _r reversed) = 104 registered names
+      QualitativeColorMaps.cs         11 qualitative: Tab10, Tab20, Set1, Set2, Set3, Pastel1, Pastel2,
+                                        Dark2, Accent, Paired, OkabeIto (new v0.8.8 — color-blind safe)
+                                      Total: 53 base colormaps × 2 (+ _r reversed) = 106 registered names
 ```
 
 ## Data flow

@@ -70,7 +70,8 @@ public abstract class AxesRenderer
     /// <summary>Renders all series on these axes through the visitor pattern.</summary>
     protected void RenderSeries()
     {
-        var svgCtx = Axes.EnableInteractiveAttributes ? Ctx as SvgRenderContext : null;
+        var svgCtx = Ctx as SvgRenderContext;
+        var interactiveSvgCtx = Axes.EnableInteractiveAttributes ? svgCtx : null;
         // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
         var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
         foreach (var (series, i) in ordered)
@@ -78,12 +79,12 @@ public abstract class AxesRenderer
             if (!series.Visible) continue;
             var cycledProps  = Theme.PropCycler?[i];
             var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
-            svgCtx?.BeginDataGroup("series", i);
+            bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
             var renderer = new SvgSeriesRenderer(
                 new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
-            if (svgCtx is not null) Ctx.EndGroup();
+            if (openedGroup) Ctx.EndGroup();
         }
     }
 
@@ -91,7 +92,8 @@ public abstract class AxesRenderer
     /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
     protected void RenderSeries(DataTransform transform)
     {
-        var svgCtx = Axes.EnableInteractiveAttributes ? Ctx as SvgRenderContext : null;
+        var svgCtx = Ctx as SvgRenderContext;
+        var interactiveSvgCtx = Axes.EnableInteractiveAttributes ? svgCtx : null;
         // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
         var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
         foreach (var (series, i) in ordered)
@@ -99,12 +101,29 @@ public abstract class AxesRenderer
             if (!series.Visible) continue;
             var cycledProps  = Theme.PropCycler?[i];
             var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
-            svgCtx?.BeginDataGroup("series", i);
+            bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
             var renderer = new SvgSeriesRenderer(transform, Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
-            if (svgCtx is not null) Ctx.EndGroup();
+            if (openedGroup) Ctx.EndGroup();
         }
+    }
+
+    /// <summary>Opens the appropriate SVG group for a series: interactive group with data attributes, or accessible group with aria-label.</summary>
+    /// <returns><see langword="true"/> if a group was opened and must be closed.</returns>
+    private static bool BeginSeriesGroup(SvgRenderContext? svgCtx, SvgRenderContext? interactiveSvgCtx, ISeries series, int index)
+    {
+        if (interactiveSvgCtx is not null)
+        {
+            interactiveSvgCtx.BeginDataGroup("series", index, series.Label);
+            return true;
+        }
+        if (svgCtx is not null && !string.IsNullOrEmpty(series.Label))
+        {
+            svgCtx.BeginAccessibleGroup("series", series.Label);
+            return true;
+        }
+        return false;
     }
 
     /// <summary>Renders the legend if any series have labels.</summary>
@@ -197,7 +216,10 @@ public abstract class AxesRenderer
             Ctx.DrawRectangle(new Rect(boxX, boxY, boxWidth, boxHeight), bgColor, edgeColor, 0.5);
         }
 
-        Ctx.BeginGroup("legend");
+        if (Ctx is SvgRenderContext svgCtxLegendGroup)
+            svgCtxLegendGroup.BeginAccessibleGroup("legend", "Chart legend");
+        else
+            Ctx.BeginGroup("legend");
 
         // Title
         if (!string.IsNullOrEmpty(legend.Title))
@@ -221,7 +243,7 @@ public abstract class AxesRenderer
 
             double entryY = boxY + padding + titleHeight + row * lineHeight;
 
-            svgCtxLegend?.BeginLegendItemGroup(i);
+            svgCtxLegend?.BeginLegendItemGroup(i, label);
             Ctx.DrawRectangle(new Rect(colX, entryY, swatchSize, swatchSize), color, null, 0);
             Ctx.DrawText(label, new Point(colX + swatchSize + swatchGap, entryY + swatchSize - 1), font, TextAlignment.Left);
             if (svgCtxLegend is not null) Ctx.EndGroup();
@@ -253,7 +275,10 @@ public abstract class AxesRenderer
         bool extendMin = cb.Extend is ColorBarExtend.Min or ColorBarExtend.Both;
         bool extendMax = cb.Extend is ColorBarExtend.Max or ColorBarExtend.Both;
 
-        Ctx.BeginGroup("colorbar");
+        if (Ctx is SvgRenderContext svgCtxColorBar)
+            svgCtxColorBar.BeginAccessibleGroup("colorbar", "Color bar");
+        else
+            Ctx.BeginGroup("colorbar");
 
         if (cb.Orientation == ColorBarOrientation.Horizontal)
         {

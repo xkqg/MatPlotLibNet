@@ -89,6 +89,7 @@ public static class ColorMapRegistry
         RegisterBuiltIn(QualitativeColorMaps.Dark2);
         RegisterBuiltIn(QualitativeColorMaps.Accent);
         RegisterBuiltIn(QualitativeColorMaps.Paired);
+        RegisterBuiltIn(QualitativeColorMaps.OkabeIto);
     }
 
     /// <summary>Registers a colormap and its reversed variant.</summary>

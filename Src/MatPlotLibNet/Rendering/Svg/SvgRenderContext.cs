@@ -245,6 +245,13 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.Append("<g class=\"").Append(cssClass).AppendLine("\">");
     }
 
+    /// <summary>Opens an SVG group with a CSS class and <c>aria-label</c> for accessibility.</summary>
+    internal void BeginAccessibleGroup(string cssClass, string ariaLabel)
+    {
+        _sb.Append("<g class=\"").Append(cssClass)
+           .Append("\" aria-label=\"").Append(EscapeXml(ariaLabel)).AppendLine("\">");
+    }
+
     /// <summary>Closes the current SVG group element.</summary>
     public void EndGroup()
     {
@@ -266,17 +273,23 @@ public sealed class SvgRenderContext : IRenderContext
             _sb.Append(" stroke=\"").Append(stroke.Value.ToHex()).Append("\" stroke-width=\"").Append(F(strokeThickness)).Append('"');
     }
 
-    /// <summary>Opens an SVG group with a CSS class and <c>data-series-index</c> attribute for JS interactivity.</summary>
-    internal void BeginDataGroup(string cssClass, int seriesIndex)
+    /// <summary>Opens an SVG group with a CSS class and <c>data-series-index</c> attribute for JS interactivity, with optional <c>aria-label</c>.</summary>
+    internal void BeginDataGroup(string cssClass, int seriesIndex, string? ariaLabel = null)
     {
         _sb.Append("<g class=\"").Append(cssClass)
-           .Append("\" data-series-index=\"").Append(seriesIndex).AppendLine("\">");
+           .Append("\" data-series-index=\"").Append(seriesIndex).Append('"');
+        if (!string.IsNullOrEmpty(ariaLabel))
+            _sb.Append(" aria-label=\"").Append(EscapeXml(ariaLabel)).Append('"');
+        _sb.AppendLine(">");
     }
 
-    /// <summary>Opens an SVG group for a legend entry with a <c>data-legend-index</c> attribute.</summary>
-    internal void BeginLegendItemGroup(int legendIndex)
+    /// <summary>Opens an SVG group for a legend entry with a <c>data-legend-index</c> attribute and optional <c>aria-label</c>.</summary>
+    internal void BeginLegendItemGroup(int legendIndex, string? ariaLabel = null)
     {
-        _sb.Append("<g data-legend-index=\"").Append(legendIndex).AppendLine("\" style=\"cursor:pointer\">");
+        _sb.Append("<g data-legend-index=\"").Append(legendIndex).Append("\" style=\"cursor:pointer\"");
+        if (!string.IsNullOrEmpty(ariaLabel))
+            _sb.Append(" aria-label=\"").Append(EscapeXml(ariaLabel)).Append('"');
+        _sb.AppendLine(">");
     }
 
     /// <summary>Opens an SVG group containing a <c>&lt;title&gt;</c> element for native browser hover tooltips.</summary>
@@ -308,22 +321,5 @@ public sealed class SvgRenderContext : IRenderContext
 
     private static string F(double value) => value.ToString("G", Inv);
 
-    private static string EscapeXml(string text)
-    {
-        // Fast path: no escaping needed for most labels
-        if (text.AsSpan().IndexOfAny('&', '<', '>') < 0) return text;
-
-        var sb = new StringBuilder(text.Length + 8);
-        foreach (var ch in text)
-        {
-            switch (ch)
-            {
-                case '&': sb.Append("&amp;"); break;
-                case '<': sb.Append("&lt;"); break;
-                case '>': sb.Append("&gt;"); break;
-                default: sb.Append(ch); break;
-            }
-        }
-        return sb.ToString();
-    }
+    private static string EscapeXml(string text) => SvgXmlHelper.EscapeXml(text);
 }

@@ -10,6 +10,8 @@ internal static class SvgSelectionScript
     /// Returns a <c>&lt;script&gt;</c> block that activates a selection rectangle on Shift+mousedown.
     /// On mouseup, a <c>CustomEvent('mpl:selection', { detail: { x1, y1, x2, y2 } })</c> is dispatched
     /// on the SVG element, allowing host applications to react to user-defined data regions.
+    /// <kbd>Escape</kbd> cancels an active selection without dispatching the event.
+    /// The selection rect carries <c>aria-label="Data selection area"</c>.
     /// </summary>
     internal static string GetScript() => """
         <script type="text/ecmascript"><![CDATA[
@@ -27,6 +29,7 @@ internal static class SvgSelectionScript
                 rect.setAttribute('fill', 'rgba(100,149,237,0.25)');
                 rect.setAttribute('stroke', '#6495ED');
                 rect.setAttribute('stroke-width', '1');
+                rect.setAttribute('aria-label', 'Data selection area');
                 rect.setAttribute('x', startPt.x);
                 rect.setAttribute('y', startPt.y);
                 rect.setAttribute('width', '0');
@@ -54,6 +57,12 @@ internal static class SvgSelectionScript
                 }, bubbles: true }));
                 svg.removeChild(rect);
                 rect = null; startPt = null;
+            });
+            svg.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && rect) {
+                    svg.removeChild(rect);
+                    rect = null; startPt = null;
+                }
             });
         })();
         ]]></script>

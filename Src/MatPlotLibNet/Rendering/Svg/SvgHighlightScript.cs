@@ -8,21 +8,30 @@ internal static class SvgHighlightScript
 {
     /// <summary>
     /// Returns a <c>&lt;script&gt;</c> block that dims sibling series groups (to 30% opacity)
-    /// when the cursor enters a group with a <c>data-series-index</c> attribute, restoring all on mouse-leave.
+    /// when the cursor enters (or keyboard focus reaches) a group with a <c>data-series-index</c> attribute,
+    /// restoring all on mouse-leave or blur.
+    /// Each series group receives <c>tabindex="0"</c> for keyboard reachability.
     /// </summary>
     internal static string GetScript() => """
         <script type="text/ecmascript"><![CDATA[
         (function() {
             var groups = document.querySelectorAll('[data-series-index]');
             groups.forEach(function(g) {
-                g.addEventListener('mouseenter', function() {
+                g.setAttribute('tabindex', '0');
+
+                function highlight() {
                     groups.forEach(function(s) {
                         s.style.opacity = s === g ? '1' : '0.3';
                     });
-                });
-                g.addEventListener('mouseleave', function() {
+                }
+                function restore() {
                     groups.forEach(function(s) { s.style.opacity = '1'; });
-                });
+                }
+
+                g.addEventListener('mouseenter', highlight);
+                g.addEventListener('mouseleave', restore);
+                g.addEventListener('focus', highlight);
+                g.addEventListener('blur', restore);
             });
         })();
         ]]></script>

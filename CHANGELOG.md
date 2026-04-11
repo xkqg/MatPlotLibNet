@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.8] - 2026-04-11
+
+### Added
+
+**Phase E — Accessibility (5 sub-phases)**
+
+- **SVG semantic structure** — all SVG exports now carry `role="img"` on the root `<svg>` element; `<title id="chart-title">` is always emitted (alt text → figure title → empty fallback); `<desc id="chart-desc">` is emitted when `Figure.Description` is set; `aria-labelledby="chart-title"` always present; `aria-describedby="chart-desc"` when description is set
+- **`Figure.AltText`** (`string?`) — short alternative text for the chart; takes priority over `Figure.Title` as the `<title>` content
+- **`Figure.Description`** (`string?`) — longer description rendered as the SVG `<desc>` element
+- **`FigureBuilder.WithAltText(string)`** / **`WithDescription(string)`** — fluent builder methods (same pattern as `WithTitle`)
+- **`SvgXmlHelper`** internal static helper — `EscapeXml(string)` extracted from `SvgRenderContext` (DRY); used by both `SvgRenderContext` and `SvgTransform`
+- **ARIA groups** — `SvgRenderContext.BeginAccessibleGroup(cssClass, ariaLabel)` emits `<g class="..." aria-label="...">`; `BeginDataGroup` and `BeginLegendItemGroup` accept optional `ariaLabel` parameter; legend group uses `aria-label="Chart legend"`, colorbar group uses `aria-label="Color bar"`, labeled series always wrapped in accessible group (even without JS interactivity enabled)
+- **Keyboard navigation in all 5 JS scripts** — **legend toggle**: `role="button"`, `tabindex="0"`, `aria-pressed` per entry, `keydown` Enter/Space handler; **highlight**: `tabindex="0"` + `focus`/`blur` listeners mirror mouse enter/leave; **zoom/pan**: `tabindex="0"`, `aria-roledescription="interactive chart"`, keyboard `+`/`=` zoom in, `-` zoom out, `ArrowLeft/Right/Up/Down` pan, `Home` reset; **selection**: `Escape` key cancels active selection; **tooltip**: `role="tooltip"` + `aria-live="polite"` on tooltip div, `focus`/`blur` listeners
+- **`QualitativeColorMaps.OkabeIto`** — 8-color palette safe for deuteranopia, protanopia, and tritanopia; registered as `"okabe_ito"` and `"okabe_ito_r"`
+- **`Theme.ColorBlindSafe`** — white background, black text, Okabe-Ito 8-color cycle, `"colorblind-safe"` name
+- **`Theme.HighContrast`** — white background, black text, bold 13pt font, 1.5px dark (`#666666`) grid, 8-color high-chroma cycle; WCAG AAA target (pure white/black = 21:1 contrast ratio), `"high-contrast"` name
+- **Serialization** — `FigureDto.AltText?` + `FigureDto.Description?`; `FigureToDto` + `DtoToFigure` updated; full JSON round-trip
+
+### Tests: 2880 → 2940 (+60)
+
 ## [0.8.7] - 2026-04-11
 
 ### Added

@@ -11,6 +11,8 @@ namespace MatPlotLibNet;
 public sealed class FigureBuilder
 {
     private string? _title;
+    private string? _altText;
+    private string? _description;
     private double _width = 800;
     private double _height = 600;
     private double _dpi = 96;
@@ -22,6 +24,12 @@ public sealed class FigureBuilder
 
     /// <summary>Sets the figure title.</summary>
     public FigureBuilder WithTitle(string title) { _title = title; return this; }
+
+    /// <summary>Sets the short alternative text rendered as the SVG <c>&lt;title&gt;</c> element.</summary>
+    public FigureBuilder WithAltText(string altText) { _altText = altText; return this; }
+
+    /// <summary>Sets the longer description rendered as the SVG <c>&lt;desc&gt;</c> element.</summary>
+    public FigureBuilder WithDescription(string description) { _description = description; return this; }
 
     /// <summary>Sets the figure dimensions in pixels.</summary>
     public FigureBuilder WithSize(double width, double height) { _width = width; _height = height; return this; }
@@ -299,6 +307,8 @@ public sealed class FigureBuilder
         var figure = new Figure
         {
             Title = _title,
+            AltText = _altText,
+            Description = _description,
             Width = _width,
             Height = _height,
             Dpi = _dpi,

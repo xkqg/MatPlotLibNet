@@ -358,4 +358,41 @@ Plt.Create()
     .Save("prop_cycler.svg");
 Console.WriteLine("Saved prop_cycler.svg");
 
+// --- 21. Accessibility — color-blind safe theme + alt text + high-contrast ---
+double[] ax = Enumerable.Range(0, 12).Select(i => (double)i).ToArray();
+double[] revenue = [1.2, 1.5, 1.3, 1.8, 2.1, 2.0, 2.4, 2.7, 2.5, 3.0, 3.2, 3.5];
+double[] cost    = [0.9, 1.1, 1.0, 1.3, 1.5, 1.4, 1.6, 1.9, 1.8, 2.1, 2.2, 2.4];
+
+Plt.Create()
+    .WithTitle("Monthly Revenue vs Cost (2025)")
+    .WithAltText("Line chart: revenue and cost trends over 12 months of 2025")
+    .WithDescription("Revenue grew from $1.2M to $3.5M. Cost grew from $0.9M to $2.4M. Margin expanded each quarter.")
+    .WithTheme(Theme.ColorBlindSafe)
+    .WithSize(900, 450)
+    .AddSubPlot(1, 1, 1, a =>
+    {
+        a.SetXLabel("Month").SetYLabel("$ M");
+        a.Plot(ax, revenue, s => { s.Label = "Revenue"; s.LineWidth = 2.5; });
+        a.Plot(ax, cost,    s => { s.Label = "Cost";    s.LineWidth = 2.5; s.LineStyle = LineStyle.Dashed; });
+        a.WithLegend(LegendPosition.UpperLeft);
+    })
+    .TightLayout()
+    .Save("accessibility_colorblind.svg");
+Console.WriteLine("Saved accessibility_colorblind.svg");
+
+Plt.Create()
+    .WithTitle("High-Contrast: Revenue Trend")
+    .WithAltText("High-contrast line chart showing monthly revenue for 2025")
+    .WithTheme(Theme.HighContrast)
+    .WithSize(900, 450)
+    .AddSubPlot(1, 1, 1, a =>
+    {
+        a.SetXLabel("Month").SetYLabel("$ M");
+        a.Plot(ax, revenue, s => { s.Label = "Revenue"; s.LineWidth = 3.0; });
+        a.WithLegend(LegendPosition.UpperLeft);
+    })
+    .TightLayout()
+    .Save("accessibility_highcontrast.svg");
+Console.WriteLine("Saved accessibility_highcontrast.svg");
+
 Console.WriteLine("Done!");
