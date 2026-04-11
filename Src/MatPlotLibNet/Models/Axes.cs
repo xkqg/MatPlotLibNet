@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Geo.GeoJson;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
@@ -826,6 +827,27 @@ public sealed class Axes
         var span = new SpanRegion(xMin, xMax, Orientation.Vertical);
         _spans.Add(span);
         return span;
+    }
+
+    /// <summary>Adds a map series rendering GeoJSON geometry (polygons, lines, points).</summary>
+    /// <param name="geoData">The GeoJSON document to render. May be null for a blank map.</param>
+    /// <returns>The newly created <see cref="MapSeries"/> for further configuration.</returns>
+    public MapSeries Map(GeoJsonDocument? geoData = null)
+    {
+        var series = new MapSeries(geoData);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a choropleth series that colors each feature by a data value.</summary>
+    /// <param name="geoData">The GeoJSON document whose features are colored by <paramref name="values"/>.</param>
+    /// <param name="values">One data value per feature; mapped to fill color via the series colormap.</param>
+    /// <returns>The newly created <see cref="ChoroplethSeries"/> for further configuration.</returns>
+    public ChoroplethSeries Choropleth(GeoJsonDocument geoData, double[] values)
+    {
+        var series = new ChoroplethSeries(geoData, values);
+        _series.Add(series);
+        return series;
     }
 
     private static void ValidateMatchingLengths(int a, int b)

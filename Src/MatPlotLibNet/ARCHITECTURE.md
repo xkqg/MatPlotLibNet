@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.8.8)
+# MatPlotLibNet Core -- Architecture (v0.8.9)
 
 ## Package dependency graph
 
@@ -61,7 +61,7 @@ MatPlotLibNet/
     InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
 
-    Series/                           60 series types across 14 families
+    Series/                           62 series types across 15 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
       ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
       IHasDataRange.cs                interface: series that expose their own data bounds
@@ -141,6 +141,19 @@ MatPlotLibNet/
       BarbsSeries.cs                  Vec X, Y, Speed, Direction, BarbLength, Color — meteorological wind barbs (Field/)
       Stem3DSeries.cs                 Vec X, Y, Z, Color, MarkerSize, I3DPointSeries — vertical stems (ThreeD/)
       Bar3DSeries.cs                  Vec X, Y, Z (heights), BarWidth, Color, I3DPointSeries — 3D bar prisms (ThreeD/)
+      MapSeries.cs                    GeoData (GeoJsonDocument), Projection (IMapProjection), FaceColor?, EdgeColor?, LineWidth (Geo/)
+      ChoroplethSeries.cs             MapSeries: Values[], ColorMap, Normalizer, VMin?, VMax? — per-feature fill from colormap (Geo/)
+
+  Geo/                               geographic projection and GeoJSON support (Phase F, v0.8.9)
+    Projections/
+      IMapProjection.cs               interface: Project(lon, lat)→(nx, ny) in [0,1]²; Bounds property
+      EquirectangularProjection.cs    plate carrée: linear lon/lat → normalized xy
+      MercatorProjection.cs           Web Mercator; latitude clamped to ±85.0511°
+      MapProjections.cs               static factory: Equirectangular(...) / Mercator(...)
+    GeoJson/
+      GeoJsonDocument.cs              record types: GeoJsonDocument, GeoJsonFeatureCollection, GeoJsonFeature, GeoJsonGeometry; GeoJsonGeometryType enum
+      GeoJsonReader.cs                FromJson(string) / FromFile(string) — parses GeoJSON via System.Text.Json
+      GeoJsonWriter.cs                ToJson(GeoJsonDocument) — compact GeoJSON serializer
 
   Indicators/                           stacked base classes: IIndicator → Indicator → Indicator<T> → CandleIndicator<T> / PriceIndicator<T>
     IIndicator.cs                       interface: Apply(Axes)

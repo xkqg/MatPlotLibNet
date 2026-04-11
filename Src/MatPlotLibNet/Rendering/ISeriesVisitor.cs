@@ -5,6 +5,7 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Rendering;
 
+
 /// <summary>Visitor interface for rendering each series type through the visitor pattern.</summary>
 public interface ISeriesVisitor
 {
@@ -187,4 +188,14 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a 3D bar series.</summary>
     void Visit(Bar3DSeries series, RenderArea area);
+
+    // ── Phase F — Geo series (default no-ops for ISP compatibility) ──
+
+    /// <summary>Renders a map series (GeoJSON geometry). Default is a no-op so existing
+    /// implementations remain source-compatible when new geo series are added.</summary>
+    void Visit(MapSeries series, RenderArea area) { }
+
+    /// <summary>Renders a choropleth series (GeoJSON geometry with value-mapped fill colors).
+    /// Default is a no-op for ISP compatibility.</summary>
+    void Visit(ChoroplethSeries series, RenderArea area) { }
 }

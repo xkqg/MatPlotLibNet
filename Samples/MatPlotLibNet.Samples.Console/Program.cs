@@ -395,4 +395,62 @@ Plt.Create()
     .Save("accessibility_highcontrast.svg");
 Console.WriteLine("Saved accessibility_highcontrast.svg");
 
+// --- Phase F: Geo / Map Projections ---
+
+// Inline GeoJSON for a minimal two-polygon world sample
+const string miniWorldJson = """
+    {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [[[-10,-10],[10,-10],[10,10],[-10,10],[-10,-10]]]
+          },
+          "properties": { "name": "Region A" }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [[[20,-10],[40,-10],[40,10],[20,10],[20,-10]]]
+          },
+          "properties": { "name": "Region B" }
+        }
+      ]
+    }
+    """;
+
+var miniWorld = MatPlotLibNet.Geo.GeoJson.GeoJsonReader.FromJson(miniWorldJson);
+
+// Plain equirectangular map
+Plt.Create()
+    .WithTitle("Equirectangular Map")
+    .WithSize(800, 450)
+    .Map(miniWorld, s =>
+    {
+        s.FaceColor = MatPlotLibNet.Styling.Color.FromHex("#D9EAD3");
+        s.EdgeColor = MatPlotLibNet.Styling.Color.FromHex("#666666");
+        s.LineWidth = 1.0;
+    })
+    .Save("geo_equirectangular.svg");
+Console.WriteLine("Saved geo_equirectangular.svg");
+
+// Choropleth with Viridis colormap
+double[] regionValues = [25.0, 75.0];
+Plt.Create()
+    .WithTitle("Choropleth Map — Region Values")
+    .WithSize(800, 450)
+    .Choropleth(miniWorld, regionValues, s =>
+    {
+        s.ColorMap = ColorMaps.Viridis;
+        s.VMin = 0;
+        s.VMax = 100;
+        s.EdgeColor = MatPlotLibNet.Styling.Colors.White;
+        s.LineWidth = 0.5;
+    })
+    .Save("geo_choropleth.svg");
+Console.WriteLine("Saved geo_choropleth.svg");
+
 Console.WriteLine("Done!");

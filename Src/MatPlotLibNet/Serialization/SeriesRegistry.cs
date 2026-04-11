@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using System.Collections.Concurrent;
+using MatPlotLibNet.Geo.GeoJson;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 
@@ -245,6 +246,31 @@ public static class SeriesRegistry
             var s = axes.Bar3D(dto.XData ?? [], dto.YData ?? [], dto.ZData ?? []);
             if (dto.BarWidth.HasValue) s.BarWidth = dto.BarWidth.Value;
             if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            return s;
+        });
+
+        // v0.8.9 Phase F — Geo
+        Register("map", (axes, dto) =>
+        {
+            var geoData = dto.GeoJson is not null ? Geo.GeoJson.GeoJsonReader.FromJson(dto.GeoJson) : null;
+            var s = axes.Map(geoData);
+            s.Projection = Models.Series.MapSeries.ProjectionFromName(dto.Projection);
+            if (dto.Color.HasValue) s.EdgeColor = dto.Color.Value;
+            if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+            s.FaceColor = dto.FillColor;
+            return s;
+        });
+        Register("choropleth", (axes, dto) =>
+        {
+            var geoData = dto.GeoJson is not null ? Geo.GeoJson.GeoJsonReader.FromJson(dto.GeoJson) : null;
+            var s = axes.Choropleth(geoData ?? new Geo.GeoJson.GeoJsonDocument("FeatureCollection",
+                new Geo.GeoJson.GeoJsonFeatureCollection([])), dto.Values ?? []);
+            s.Projection = Models.Series.MapSeries.ProjectionFromName(dto.Projection);
+            if (dto.ColorMapName is not null) s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+            s.VMin = dto.VMin;
+            s.VMax = dto.VMax;
+            if (dto.Color.HasValue) s.EdgeColor = dto.Color.Value;
+            if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
             return s;
         });
     }

@@ -1,0 +1,17 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+
+namespace MatPlotLibNet.Geo.Projections;
+
+/// <summary>Maps geographic coordinates (longitude/latitude in degrees) to
+/// normalized screen coordinates in [0, 1]².</summary>
+public interface IMapProjection
+{
+    /// <summary>Projects a geographic point to normalized coordinates.
+    /// Returns (Nx, Ny) where Nx=0 is left, Nx=1 is right, Ny=0 is top, Ny=1 is bottom.</summary>
+    (double Nx, double Ny) Project(double lon, double lat);
+
+    /// <summary>The valid geographic bounding box for this projection:
+    /// (LonMin, LonMax, LatMin, LatMax) in degrees.</summary>
+    (double LonMin, double LonMax, double LatMin, double LatMax) Bounds { get; }
+}

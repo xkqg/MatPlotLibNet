@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.8.9] - 2026-04-11
+
+### Added
+
+**Phase F — Geo / Map Projections (7 sub-phases)**
+
+- **`IMapProjection`** interface — `Project(lon, lat) → (Nx, Ny)` in [0,1]²; `Bounds` property returns valid lon/lat extent
+- **`EquirectangularProjection`** — plate carrée: longitude and latitude mapped linearly; parameterizable center meridian, lon/lat extent
+- **`MercatorProjection`** — Web Mercator (EPSG:3857); latitude clamped to ±85.0511° to avoid pole singularity
+- **`MapProjections`** static factory — `Equirectangular(...)` / `Mercator(...)` convenience constructors
+- **GeoJSON support** — `GeoJsonDocument`, `GeoJsonFeatureCollection`, `GeoJsonFeature`, `GeoJsonGeometry` record types; `GeoJsonGeometryType` enum (Point, MultiPoint, LineString, MultiLineString, Polygon, MultiPolygon, GeometryCollection); `GeoJsonReader.FromJson(string)` / `FromFile(string)`; `GeoJsonWriter.ToJson(document)`
+- **`MapSeries`** — renders GeoJSON geometry (Polygon, MultiPolygon, LineString, MultiLineString, GeometryCollection) on a projected map; `GeoData`, `Projection`, `FaceColor?`, `EdgeColor?`, `LineWidth` properties; `Axes.Map()` / `FigureBuilder.Map()` builder methods
+- **`ChoroplethSeries : MapSeries`** — fills each GeoJSON feature with a color derived from `Values[i]` mapped through `ColorMap` / `Normalizer` / `VMin` / `VMax`; `Axes.Choropleth()` / `FigureBuilder.Choropleth()` builder methods
+- **`MapSeriesRenderer`** — projects polygon rings and line strings to pixel coordinates using `IMapProjection`; uses `IRenderContext.DrawPolygon` for fill + stroke
+- **`ChoroplethSeriesRenderer`** — extends `MapSeriesRenderer`; per-feature fill color from colormap (default: Viridis)
+- **`ISeriesVisitor`** — two new default (no-op) overloads: `Visit(MapSeries)` / `Visit(ChoroplethSeries)`; existing implementations remain source-compatible
+- **Serialization** — `SeriesDto.GeoJson?` (compact JSON payload) + `SeriesDto.Projection?`; `SeriesRegistry` entries for `"map"` and `"choropleth"`; full JSON round-trip for both series types
+- **`Axes.Map()` / `FigureBuilder.Map()`** + **`Axes.Choropleth()` / `FigureBuilder.Choropleth()`** builder entry points
+
+### Tests: 2,940 → 3,001 (+61)
+
 ## [0.8.8] - 2026-04-11
 
 ### Added

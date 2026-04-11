@@ -260,6 +260,14 @@ public sealed class FigureBuilder
     public FigureBuilder Barbs(double[] x, double[] y, double[] speed, double[] direction, Action<BarbsSeries>? configure = null) =>
         AddSeries(ax => ax.Barbs(x, y, speed, direction), configure);
 
+    /// <summary>Adds a map series rendering GeoJSON geometry to the default axes.</summary>
+    public FigureBuilder Map(Geo.GeoJson.GeoJsonDocument geo, Action<Models.Series.MapSeries>? configure = null) =>
+        AddSeries(ax => ax.Map(geo), configure);
+
+    /// <summary>Adds a choropleth series to the default axes.</summary>
+    public FigureBuilder Choropleth(Geo.GeoJson.GeoJsonDocument geo, double[] values, Action<Models.Series.ChoroplethSeries>? configure = null) =>
+        AddSeries(ax => ax.Choropleth(geo, values), configure);
+
     /// <summary>Sets the grid specification for advanced subplot layouts with ratios and spanning.</summary>
     public FigureBuilder WithGridSpec(int rows, int cols, double[]? heightRatios = null, double[]? widthRatios = null)
     {

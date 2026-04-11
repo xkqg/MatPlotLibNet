@@ -290,4 +290,12 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(Stem3DSeries s, RenderArea a) => (_stem3D ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(Bar3DSeries s, RenderArea a) => (_bar3D ??= new(_context)).Render(s);
+
+    // Phase F additions — Geo
+    private MapSeriesRenderer? _map;
+    private ChoroplethSeriesRenderer? _choropleth;
+    /// <inheritdoc />
+    public void Visit(MapSeries s, RenderArea a) => (_map ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(ChoroplethSeries s, RenderArea a) => (_choropleth ??= new(_context)).Render(s);
 }
