@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Notebooks</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Description>Polyglot Notebooks / Jupyter support for MatPlotLibNet. Renders Figure inline as SVG in notebook cells.</Description>
     <PackageTags>notebooks;jupyter;polyglot;interactive;charting;svg</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <!-- PrivateAssets: the Polyglot runtime provides this at runtime; don't expose as a transitive dependency -->
-    <PackageReference Include="Microsoft.DotNet.Interactive" Version="1.0.0-beta.*" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.DotNet.Interactive" Version="1.0.1-beta.*" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

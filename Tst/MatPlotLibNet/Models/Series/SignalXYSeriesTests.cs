@@ -178,7 +178,7 @@ public class SignalXYSeriesTests
     {
         var s = new SignalXYSeries(X5, Y5);
         var spy = new VisitorSpy();
-        s.Accept(spy, default);
+        s.Accept(spy, default!);
         Assert.True(spy.VisitedSignalXY);
     }
 

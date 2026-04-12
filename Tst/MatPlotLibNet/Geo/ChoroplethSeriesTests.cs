@@ -39,7 +39,7 @@ public class ChoroplethSeriesTests
     {
         var s = new ChoroplethSeries(MakePolygonDoc(), [0.5, 0.7]);
         var visitor = new ChoroplethTrackingVisitor();
-        s.Accept(visitor, default);
+        s.Accept(visitor, default!);
         Assert.True(visitor.ChoroplethVisited);
     }
 

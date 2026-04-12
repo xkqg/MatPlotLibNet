@@ -4,7 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [1.0.0] — 2026-04-12
+## [1.0.1] — 2026-04-12
+
+Dependency update release — all NuGet packages bumped to latest stable versions.
+
+### Changed
+
+- `Microsoft.SourceLink.GitHub` `8.*` → `10.*`
+- `System.Numerics.Tensors` `9.*` → `10.*` (aligned with .NET 10)
+- `Microsoft.Data.Analysis` `0.22.*` → `0.23.*`
+- `BenchmarkDotNet` `0.14.*` → `0.15.*`
+- `HotChocolate.AspNetCore` `14.*` → `15.*`
+- `Microsoft.Maui.Controls` / `Microsoft.Maui.Graphics` `10.0.20` → `10.0.51`
+- `xunit.v3` `1.*` → `3.*`
+
+---
 
 High-performance signal series, `IEnumerable<T>` fluent extensions, DataFrame package, faceting OO layer, QuickPlot façade, and OO maintenance polish (named records, capability interfaces, XML docs, DataFrame indicator/numerics bridges).
 

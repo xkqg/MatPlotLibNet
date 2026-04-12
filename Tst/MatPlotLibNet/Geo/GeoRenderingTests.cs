@@ -95,7 +95,7 @@ public class GeoRenderingTests
     {
         // With null GeoData, no polygon/polyline should appear in the SVG
         var svg = Plt.Create()
-            .Map(null)
+            .Map(null!)
             .ToSvg();
         Assert.DoesNotContain("<polygon", svg);
         Assert.DoesNotContain("<polyline", svg);
