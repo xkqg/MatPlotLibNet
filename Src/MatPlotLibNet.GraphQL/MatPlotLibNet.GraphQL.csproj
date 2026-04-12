@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.GraphQL</PackageId>
-    <Version>0.9.0</Version>
+    <Version>0.9.1</Version>
     <Description>GraphQL integration for MatPlotLibNet using HotChocolate. Queries and subscriptions for real-time chart updates.</Description>
     <PackageTags>graphql;hotchocolate;charting;realtime;subscriptions</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

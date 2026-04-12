@@ -208,6 +208,20 @@ public sealed class Theme
         defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#666666"), LineStyle = LineStyle.Solid, LineWidth = 1.5 });
 
     /// <summary>
+    /// Matplotlib classic (pre-2.0) look — white background, the iconic <c>bgrcmyk</c> 7-color
+    /// cycle, and grid hidden by default. Faithful to the matplotlib style every scientific
+    /// paper printed up to 2017.
+    /// </summary>
+    public static Theme MatplotlibClassic { get; } = Themes.MatplotlibThemeFactory.CreateClassic();
+
+    /// <summary>
+    /// Matplotlib v2.0+ default look (since 2017) — white background, soft-black <c>#262626</c>
+    /// text, the modern <c>tab10</c> 10-color cycle, and grid hidden by default. The look every
+    /// Jupyter notebook ships with today.
+    /// </summary>
+    public static Theme MatplotlibV2 { get; } = Themes.MatplotlibThemeFactory.CreateV2();
+
+    /// <summary>
     /// Creates a <see cref="ThemeBuilder"/> initialized from the specified base theme.
     /// </summary>
     /// <param name="baseTheme">The theme to use as a starting point.</param>

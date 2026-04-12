@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.9.1] - 2026-04-12
+
+### Added
+
+**Matplotlib Theme Pack — visually faithful matplotlib styling in pure .NET**
+
+- **`Theme.MatplotlibClassic`** — mimics matplotlib's pre-2.0 default look: white background, pure-black text, the iconic `bgrcmyk` 7-color cycle (`#0000FF`, `#008000`, `#FF0000`, `#00BFBF`, `#BF00BF`, `#BFBF00`, `#000000`), DejaVu Sans 12pt, grid hidden by default. The look every scientific paper printed up to 2017
+- **`Theme.MatplotlibV2`** — mimics matplotlib's modern default (since 2017): white background, soft-black `#262626` text, the `tab10` 10-color cycle, DejaVu Sans 10pt, grid hidden by default. The look every Jupyter notebook ships with today
+- **`MatplotlibThemeFactory`** (internal) — DRY helper that builds both themes from a shared `Build(...)` method, isolating only what the two themes actually disagree on (color cycle, font size, foreground text)
+- **`MatplotlibFontStack`** (internal `record struct`) — captures the matplotlib font stack (primary CSS family + base/tick/title sizes) as a named value type instead of a positional tuple
+
+### Tests: 3,042 → 3,074 (+32)
+
 ## [0.9.0] - 2026-04-11
 
 ### Added

@@ -49,6 +49,8 @@ Plt.Create()
 
 **Accessibility** — SVG exports carry `role="img"`, `<title>`/`<desc>`, and ARIA labels on all structural groups; all 5 interactive JS features are keyboard-navigable; Okabe-Ito color-blind safe palette (`Theme.ColorBlindSafe`); WCAG AAA high-contrast theme (`Theme.HighContrast`).
 
+**Matplotlib look-alike themes** — `Theme.MatplotlibClassic` mimics matplotlib's pre-2.0 default (white background, the iconic `bgrcmyk` cycle, DejaVu Sans 12pt). `Theme.MatplotlibV2` mimics the modern matplotlib default since 2017 (white background, soft-black text, the `tab10` 10-color cycle, DejaVu Sans 10pt). Drop-in matplotlib look in pure .NET — no Python runtime required.
+
 ---
 
 ## Documentation
@@ -61,6 +63,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 - [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 62 series with examples
 - [Geo / Map Projections](https://github.com/xkqg/MatPlotLibNet/wiki/GeoProjections) — map projections, GeoJSON, MapSeries, ChoroplethSeries
 - [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling) — themes, colormaps, PropCycler
+- [Matplotlib Themes](https://github.com/xkqg/MatPlotLibNet/wiki/MatplotlibThemes) — `Theme.MatplotlibClassic` and `Theme.MatplotlibV2` look-alikes
 - [Accessibility](https://github.com/xkqg/MatPlotLibNet/wiki/Accessibility) — SVG semantics, keyboard navigation, color-blind palette, high-contrast theme
 - [Advanced](https://github.com/xkqg/MatPlotLibNet/wiki/Advanced) — date axes, math text, animations, GIF, real-time
 - [Benchmarks](https://github.com/xkqg/MatPlotLibNet/wiki/Benchmarks) — SVG rendering, SIMD transforms, indicators
