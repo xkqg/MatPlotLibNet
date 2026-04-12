@@ -24,8 +24,9 @@ internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
         // Build weighted counts (double[] to allow density and weights).
         double[] heights = BuildHeights(series, bins);
 
-        double edgeWidth = series.EdgeColor.HasValue ? 0.5 : 0;
-        Color? edgeColor = series.EdgeColor ?? Colors.White;
+        // Use series-level EdgeColor if set; otherwise fall back to theme PatchEdgeColor (e.g. black in MatplotlibClassic).
+        Color? edgeColor = series.EdgeColor ?? Context.Theme?.PatchEdgeColor;
+        double edgeWidth = edgeColor.HasValue ? 0.5 : 0;
 
         if (series.HistType == HistType.Bar)
         {

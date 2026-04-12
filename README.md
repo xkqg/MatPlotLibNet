@@ -4,7 +4,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
-[![Version](https://img.shields.io/badge/version-1.1.1-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.2-blue)](CHANGELOG.md)
 
 ---
 

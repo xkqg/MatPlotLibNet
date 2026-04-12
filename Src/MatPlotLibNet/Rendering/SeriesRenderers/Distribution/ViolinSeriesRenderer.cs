@@ -15,7 +15,13 @@ internal sealed class ViolinSeriesRenderer : SeriesRenderer<ViolinSeries>
     /// <inheritdoc />
     public override void Render(ViolinSeries series)
     {
-        var color = ResolveColor(series.Color);
+        // Body fill: theme ViolinBodyColor if set (e.g. 'y'=#BFBF00 in MatplotlibClassic),
+        // otherwise fall back to the normal series cycle color.
+        var bodyColor  = Context.Theme?.ViolinBodyColor  ?? ResolveColor(series.Color);
+        // Stats lines: theme ViolinStatsColor if set (e.g. 'r'=#FF0000 in MatplotlibClassic),
+        // otherwise fall back to the series cycle color.
+        var statsColor = Context.Theme?.ViolinStatsColor ?? ResolveColor(series.Color);
+
         for (int i = 0; i < series.Datasets.Length; i++)
         {
             var data = series.Datasets[i].OrderBy(v => v).ToArray();
@@ -38,14 +44,18 @@ internal sealed class ViolinSeriesRenderer : SeriesRenderer<ViolinSeries>
             }
             right.Reverse();
             var outline = new List<Point>(); outline.AddRange(left); outline.AddRange(right);
-            Ctx.DrawPolygon(outline, ApplyAlpha(color, series.Alpha), color, 1);
+            Ctx.DrawPolygon(outline, ApplyAlpha(bodyColor, series.Alpha), bodyColor, 1);
 
-            // ShowExtrema: draw lines at min and max
+            // ShowExtrema: draw vertical bar + horizontal ticks at min/max using stats color.
             if (series.ShowExtrema)
             {
                 double extHalfW = series.Widths * 0.3;
-                Ctx.DrawLine(Transform.DataToPixel(pos - extHalfW, min), Transform.DataToPixel(pos + extHalfW, min), color, 1.5, LineStyle.Solid);
-                Ctx.DrawLine(Transform.DataToPixel(pos - extHalfW, max), Transform.DataToPixel(pos + extHalfW, max), color, 1.5, LineStyle.Solid);
+                // Vertical center bar spanning min→max
+                Ctx.DrawLine(Transform.DataToPixel(pos, min), Transform.DataToPixel(pos, max), statsColor, 1.5, LineStyle.Solid);
+                // Horizontal tick at min
+                Ctx.DrawLine(Transform.DataToPixel(pos - extHalfW, min), Transform.DataToPixel(pos + extHalfW, min), statsColor, 1.5, LineStyle.Solid);
+                // Horizontal tick at max
+                Ctx.DrawLine(Transform.DataToPixel(pos - extHalfW, max), Transform.DataToPixel(pos + extHalfW, max), statsColor, 1.5, LineStyle.Solid);
             }
 
             // ShowMedians: draw median line across full width

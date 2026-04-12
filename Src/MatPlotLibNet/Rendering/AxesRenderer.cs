@@ -85,9 +85,16 @@ public abstract class AxesRenderer
             if (!series.Visible) continue;
             var cycledProps  = Theme.PropCycler?[i];
             var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
+            // Pie: pre-populate per-wedge colors from the cycle when the series has no explicit Colors.
+            // Matches matplotlib behaviour where each wedge picks the next colour from the cycle.
+            if (series is Models.Series.PieSeries pie && pie.Colors is null)
+                pie.Colors = Enumerable.Range(0, pie.Sizes.Length)
+                    .Select(j => Theme.CycleColors[j % Theme.CycleColors.Length])
+                    .ToArray();
             bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
             var renderer = new SvgSeriesRenderer(
-                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea);
+                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea,
+                theme: Theme);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             if (openedGroup) Ctx.EndGroup();
@@ -111,7 +118,7 @@ public abstract class AxesRenderer
             bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
             var renderer = new SvgSeriesRenderer(
                 new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps,
-                Axes.EnableTooltips, PlotArea, projection, lightSource, emit3D);
+                Axes.EnableTooltips, PlotArea, projection, lightSource, emit3D, theme: Theme);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             if (openedGroup) Ctx.EndGroup();
@@ -122,6 +129,29 @@ public abstract class AxesRenderer
     /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
     protected void RenderSeries(DataTransform transform)
     {
+        // Bar grouping: when multiple vertical non-stacked bar series share the same categories,
+        // assign offsets so bars sit side-by-side (matching matplotlib grouped bar behaviour).
+        var barGroups = Axes.Series
+            .OfType<Models.Series.BarSeries>()
+            .Where(b => b.Orientation == Models.Series.BarOrientation.Vertical && b.StackBaseline is null)
+            .ToList();
+        if (barGroups.Count > 1)
+        {
+            // Total group width = 0.7 (same as matplotlib default bar width 0.8 but snug for groups).
+            double groupW = 0.7;
+            double barW   = groupW / barGroups.Count;
+            for (int bi = 0; bi < barGroups.Count; bi++)
+            {
+                barGroups[bi].BarGroupOffset = (bi - (barGroups.Count - 1) / 2.0) * barW;
+                barGroups[bi].BarGroupWidth  = barW;
+            }
+        }
+        else if (barGroups.Count == 1)
+        {
+            barGroups[0].BarGroupOffset = 0;
+            barGroups[0].BarGroupWidth  = null; // use series.BarWidth
+        }
+
         var svgCtx = Ctx as SvgRenderContext;
         var interactiveSvgCtx = Axes.EnableInteractiveAttributes ? svgCtx : null;
         // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
@@ -131,8 +161,14 @@ public abstract class AxesRenderer
             if (!series.Visible) continue;
             var cycledProps  = Theme.PropCycler?[i];
             var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
+            // Pie: pre-populate per-wedge colors from the cycle when the series has no explicit Colors.
+            if (series is Models.Series.PieSeries pie && pie.Colors is null)
+                pie.Colors = Enumerable.Range(0, pie.Sizes.Length)
+                    .Select(j => Theme.CycleColors[j % Theme.CycleColors.Length])
+                    .ToArray();
             bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
-            var renderer = new SvgSeriesRenderer(transform, Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea);
+            var renderer = new SvgSeriesRenderer(transform, Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea,
+                theme: Theme);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             if (openedGroup) Ctx.EndGroup();

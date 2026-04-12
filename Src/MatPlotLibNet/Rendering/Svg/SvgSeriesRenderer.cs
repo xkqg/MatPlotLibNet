@@ -131,9 +131,11 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     /// <param name="projection">Unified 3D projection to pass through to 3D series renderers.</param>
     /// <param name="lightSource">Optional light source for per-face lighting on 3D surfaces.</param>
     /// <param name="emit3DData">When true, 3D renderers emit data-v3d attributes for interactive rotation.</param>
+    /// <param name="theme">The active visual theme, forwarded to per-series renderers for theme-specific defaults.</param>
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor,
         CycledProperties? cycledProps = null, bool tooltipsEnabled = false, Rect plotArea = default,
-        Projection3D? projection = null, ILightSource? lightSource = null, bool emit3DData = false)
+        Projection3D? projection = null, ILightSource? lightSource = null, bool emit3DData = false,
+        Styling.Theme? theme = null)
     {
         _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(plotArea, ctx))
         {
@@ -141,7 +143,8 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
             CycledProps     = cycledProps,
             Projection3D    = projection,
             LightSource     = lightSource,
-            Emit3DData      = emit3DData
+            Emit3DData      = emit3DData,
+            Theme           = theme,
         };
     }
 

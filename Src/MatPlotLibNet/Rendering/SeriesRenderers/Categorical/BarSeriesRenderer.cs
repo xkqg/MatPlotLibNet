@@ -28,16 +28,17 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
             // Center alignment: body centered at i+0.5.
             // Edge alignment: bar left edge at i, right edge at i + barWidth.
             double slotStart = i;
-            double halfW = series.BarWidth / 2;
+            double effectiveBarWidth = series.BarGroupWidth ?? series.BarWidth;
+            double halfW = effectiveBarWidth / 2;
             double barLeft, barRight;
             if (series.Align == BarAlignment.Edge)
             {
-                barLeft = slotStart;
-                barRight = slotStart + series.BarWidth;
+                barLeft = slotStart + series.BarGroupOffset;
+                barRight = slotStart + series.BarGroupOffset + effectiveBarWidth;
             }
             else
             {
-                double center = slotStart + 0.5;
+                double center = slotStart + 0.5 + series.BarGroupOffset;
                 barLeft = center - halfW;
                 barRight = center + halfW;
             }

@@ -24,9 +24,39 @@ public sealed class Theme
 
     public PropCycler? PropCycler { get; init; }
 
+    /// <summary>
+    /// Optional default subplot spacing for this theme.  When non-<see langword="null"/> and the
+    /// figure's own <see cref="Models.SubPlotSpacing"/> has not been explicitly overridden, the
+    /// renderer uses this spacing instead of the library default.  Supports fractional margins via
+    /// <see cref="Models.SubPlotSpacing.FromFractions"/>.
+    /// </summary>
+    public Models.SubPlotSpacing? DefaultSpacing { get; init; }
+
+    /// <summary>
+    /// Default edge (outline) color for patch-based series (histogram bars, filled areas).
+    /// Mirrors <c>patch.edgecolor</c> in matplotlib style sheets.
+    /// <see langword="null"/> means no edge is drawn unless the series specifies one explicitly.
+    /// </summary>
+    public Color? PatchEdgeColor { get; init; }
+
+    /// <summary>
+    /// Override body fill color for violin plots.  When set, <see cref="ViolinSeriesRenderer"/>
+    /// uses this color instead of the normal series cycle color, matching matplotlib themes that
+    /// assign a fixed body color (e.g. classic uses <c>'y'</c> = <c>#BFBF00</c>).
+    /// <see langword="null"/> falls back to the normal cycle color.
+    /// </summary>
+    public Color? ViolinBodyColor { get; init; }
+
+    /// <summary>
+    /// Override color for violin plot stats lines (extrema bars, whiskers, cbars/cmins/cmaxes).
+    /// <see langword="null"/> falls back to the series cycle color.
+    /// </summary>
+    public Color? ViolinStatsColor { get; init; }
+
     /// <summary>Initializes a new <see cref="Theme"/> with all visual properties.</summary>
     internal Theme(string name, Color background, Color foregroundText, Color axesBackground,
-        Color[] cycleColors, Font defaultFont, GridStyle defaultGrid, PropCycler? propCycler = null)
+        Color[] cycleColors, Font defaultFont, GridStyle defaultGrid, PropCycler? propCycler = null,
+        Models.SubPlotSpacing? defaultSpacing = null)
     {
         Name = name;
         Background = background;
@@ -36,6 +66,7 @@ public sealed class Theme
         DefaultFont = defaultFont;
         DefaultGrid = defaultGrid;
         PropCycler = propCycler;
+        DefaultSpacing = defaultSpacing;
     }
 
     /// <summary>Creates a <see cref="StyleSheet"/> that mirrors this theme's visual settings as rcParam keys.</summary>

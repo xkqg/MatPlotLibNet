@@ -692,6 +692,14 @@ public sealed class AxesBuilder
     public AxesBuilder Barbs(double[] x, double[] y, double[] speed, double[] direction, Action<BarbsSeries>? configure = null)
         => AddSeries(ax => ax.Barbs(x, y, speed, direction), configure);
 
+    /// <summary>Adds a <see cref="SignalSeries"/> with uniform sample rate to the axes.</summary>
+    public AxesBuilder Signal(double[] y, double sampleRate = 1.0, double xStart = 0.0, Action<SignalSeries>? configure = null)
+        => AddSeries(ax => ax.Signal(y, sampleRate, xStart), configure);
+
+    /// <summary>Adds a <see cref="SignalXYSeries"/> with monotonically ascending X values to the axes.</summary>
+    public AxesBuilder SignalXY(double[] x, double[] y, Action<SignalXYSeries>? configure = null)
+        => AddSeries(ax => ax.SignalXY(x, y), configure);
+
     private AxesBuilder AddSeries<T>(Func<Axes, T> factory, Action<T>? configure) where T : ISeries
     {
         var series = factory(_axes);
@@ -777,6 +785,16 @@ public sealed class AxesBuilder
         var indicator = new Indicators.ParabolicSar(high, low, step, max);
         if (IsBarSlotContext()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Applies any <see cref="Indicators.IIndicator"/> to the current axes.</summary>
+    /// <remarks>Generic entry point for indicators that don't have a dedicated shortcut
+    /// (e.g. <c>Macd</c>, <c>Stochastic</c>, <c>Atr</c>, <c>Ichimoku</c>). The indicator instance
+    /// is constructed by the caller and this method simply invokes its <see cref="Indicators.IIndicator.Apply"/>.</remarks>
+    public AxesBuilder Indicator(Indicators.IIndicator indicator)
+    {
         indicator.Apply(_axes);
         return this;
     }

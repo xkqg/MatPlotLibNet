@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!-- Embed the Matplotlib fixture PNGs and JSONs as content so tests can resolve them relative to the output dir -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="3.*" />
+    <PackageReference Include="SkiaSharp" Version="3.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!-- Copy fixture images to output directory so tests can find them at runtime -->
+  <ItemGroup>
+    <Content Include="Fixtures\Matplotlib\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Fixtures\Matplotlib\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

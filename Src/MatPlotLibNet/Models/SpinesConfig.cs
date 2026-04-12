@@ -27,7 +27,7 @@ public sealed record SpineConfig
 
     public double PositionValue { get; init; }
 
-    public double LineWidth { get; init; } = 1.0;
+    public double LineWidth { get; init; } = 0.8;
 
     public Color? Color { get; init; }
 

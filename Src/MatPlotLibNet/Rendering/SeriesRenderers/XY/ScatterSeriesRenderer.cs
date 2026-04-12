@@ -41,11 +41,17 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
         for (int i = 0; i < pts.Length; i++)
         {
             BeginTooltip($"x={data.X[i]:G5}, y={data.Y[i]:G5}");
-            double size = series.Sizes is not null ? Math.Sqrt(series.Sizes[i]) : Math.Sqrt(series.MarkerSize);
+            // matplotlib scatter: s is marker AREA in points².  radius = sqrt(s/π) × (dpi/72).
+            // At 100 DPI, (100/72) ≈ 1.389 — converts pt to px at the standard render DPI.
+            double s_pt2  = series.Sizes is not null ? series.Sizes[i] : series.MarkerSize;
+            double radius  = Math.Sqrt(s_pt2 / Math.PI) * (100.0 / 72.0);
             var c = ResolvePointColor(series, i, defaultColor, normalizer, cMin, cMax);
             var edgeColor = series.EdgeColors is not null && i < series.EdgeColors.Length ? series.EdgeColors[i] : (Color?)null;
             var edgeWidth = series.LineWidths is not null && i < series.LineWidths.Length ? series.LineWidths[i] : 0.0;
-            Ctx.DrawCircle(pts[i], size / 2, c, edgeColor, edgeWidth);
+            if (series.Marker == MarkerStyle.Square)
+                Ctx.DrawRectangle(new Rect(pts[i].X - radius, pts[i].Y - radius, 2 * radius, 2 * radius), c, edgeColor, edgeWidth);
+            else
+                Ctx.DrawCircle(pts[i], radius, c, edgeColor, edgeWidth);
             EndTooltip();
         }
     }

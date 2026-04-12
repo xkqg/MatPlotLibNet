@@ -43,27 +43,55 @@ internal static class MatplotlibThemeFactory
     private static readonly MatplotlibFontStack V2FontStack =
         new("DejaVu Sans, sans-serif", BaseSize: 10.0, TickSize: 10.0, TitleSize: 12.0);
 
+    // Matplotlib default subplot params: left=0.125, right=0.9 (absolute, so right margin=0.1),
+    // top=0.88 (absolute, so top margin=0.12), bottom=0.11.
+    // These match `rcParams['figure.subplot.*']` in matplotlib classic style.
+    private static readonly Models.SubPlotSpacing MatplotlibSpacing =
+        Models.SubPlotSpacing.FromFractions(left: 0.125, right: 0.10, top: 0.12, bottom: 0.11);
+
+    // Matplotlib classic style sets `figure.facecolor = 0.75`, which is RGB(191,191,191) = #BFBFBF.
+    // Axes background (axes.facecolor) remains white in classic style.
+    private static readonly Color ClassicFigureBackground = Color.FromHex("#BFBFBF");
+
+    // matplotlib classic: patch.edgecolor=k, violin bodies use 'y' (#BFBF00) at alpha=0.3,
+    // violin stats lines use 'r' (#FF0000) — empirically confirmed against matplotlib 3.10.8.
+    private static readonly Color ClassicPatchEdge   = Color.FromHex("#000000"); // 'k'
+    private static readonly Color ClassicViolinBody  = Color.FromHex("#BFBF00"); // 'y'
+    private static readonly Color ClassicViolinStats = Color.FromHex("#FF0000"); // 'r'
+
     internal static Theme CreateClassic() => Build(
         name: "matplotlib-classic",
+        background: ClassicFigureBackground,
         foreground: Colors.Black,
         cycleColors: ClassicCycleColors,
-        fontStack: ClassicFontStack);
+        fontStack: ClassicFontStack,
+        patchEdgeColor: ClassicPatchEdge,
+        violinBodyColor: ClassicViolinBody,
+        violinStatsColor: ClassicViolinStats);
 
     internal static Theme CreateV2() => Build(
         name: "matplotlib-v2",
+        background: Colors.White,
         foreground: Color.FromHex("#262626"),
         cycleColors: Tab10CycleColors,
         fontStack: V2FontStack);
 
-    private static Theme Build(string name, Color foreground, Color[] cycleColors, MatplotlibFontStack fontStack) =>
+    private static Theme Build(string name, Color background, Color foreground, Color[] cycleColors, MatplotlibFontStack fontStack,
+        Color? patchEdgeColor = null, Color? violinBodyColor = null, Color? violinStatsColor = null) =>
         new(
             name: name,
-            background: Colors.White,
+            background: background,
             foregroundText: foreground,
             axesBackground: Colors.White,
             cycleColors: cycleColors,
             defaultFont: BuildFont(fontStack, foreground),
-            defaultGrid: BuildHiddenGrid());
+            defaultGrid: BuildHiddenGrid(),
+            defaultSpacing: MatplotlibSpacing)
+        {
+            PatchEdgeColor   = patchEdgeColor,
+            ViolinBodyColor  = violinBodyColor,
+            ViolinStatsColor = violinStatsColor,
+        };
 
     private static Font BuildFont(MatplotlibFontStack stack, Color color) => new()
     {

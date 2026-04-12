@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models;
 
@@ -59,5 +60,31 @@ public class AxisTests
         Assert.Equal(10, axis.Max);
         Assert.Equal(AxisScale.Log, axis.Scale);
         Assert.True(axis.Inverted);
+    }
+
+    // --- TickConfig defaults (v1.1.2 matplotlib-fidelity fixes) ---
+
+    /// <summary>Verifies that the default tick length matches matplotlib's xtick.major.size (3.5 pt).</summary>
+    [Fact]
+    public void TickConfig_DefaultLength_MatchesMatplotlib()
+    {
+        var tc = new TickConfig();
+        Assert.Equal(3.5, tc.Length);
+    }
+
+    /// <summary>Verifies that the default tick width matches matplotlib's xtick.major.width (0.8 pt).</summary>
+    [Fact]
+    public void TickConfig_DefaultWidth_MatchesMatplotlib()
+    {
+        var tc = new TickConfig();
+        Assert.Equal(0.8, tc.Width);
+    }
+
+    /// <summary>Verifies that the default tick direction is Out (matches matplotlib's xtick.direction).</summary>
+    [Fact]
+    public void TickConfig_DefaultDirection_IsOut()
+    {
+        var tc = new TickConfig();
+        Assert.Equal(TickDirection.Out, tc.Direction);
     }
 }

@@ -18,12 +18,12 @@ public class ViolinSeriesTests
         Assert.Equal(datasets, series.Datasets);
     }
 
-    /// <summary>Verifies that Alpha defaults to 0.7.</summary>
+    /// <summary>Verifies that Alpha defaults to 0.3 (matplotlib violinplot default).</summary>
     [Fact]
-    public void DefaultAlpha_Is0Point7()
+    public void DefaultAlpha_Is0Point3()
     {
         var series = new ViolinSeries([[1.0]]);
-        Assert.Equal(0.7, series.Alpha);
+        Assert.Equal(0.3, series.Alpha);
     }
 
     /// <summary>Verifies that Color defaults to null.</summary>

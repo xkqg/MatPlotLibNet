@@ -28,4 +28,7 @@ public record SeriesRenderContext(
     public ILightSource? LightSource { get; init; }
 
     public bool Emit3DData { get; init; }
+
+    /// <summary>The active visual theme, used by renderers for theme-specific defaults (e.g. matplotlib patch edge color).</summary>
+    public Styling.Theme? Theme { get; init; }
 }

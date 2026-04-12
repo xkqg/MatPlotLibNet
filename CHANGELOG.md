@@ -4,6 +4,77 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.2] — 2026-04-12
+
+Matplotlib fidelity audit: visible margin / tick / spine corrections, a new perceptual-diff test harness, and 57 fidelity tests anchoring every renderable series that has a matplotlib reference.
+
+### Added
+
+- **`Tst/MatPlotLibNet.Fidelity/` test project** — new xunit v3 Exe project ([.NET 10](https://learn.microsoft.com/dotnet/core/whats-new/dotnet-10)) mirroring the convention of `MatPlotLibNet.Tests`. Contains `FidelityTest` base (fixture loading, render-to-png, side-by-side diff emission on failure), `FidelityToleranceAttribute` (per-test RMS/SSIM/ΔE overrides), and `PerceptualDiff` — a pure-C# diff implementation (RMS + block-SSIM + ΔE*76 top-5 color match, ~150 LOC, no new NuGet deps; reuses `SkiaSharp` for RGBA decode).
+- **`tools/mpl_reference/generate.py`** — Python reference generator pinned to `matplotlib==3.10.*`, `seaborn==0.13.*`, `squarify==0.4.*`. Fixed seed (42), fixed figsize (8 × 6 in), fixed DPI (100 → 800 × 600 px). One `fig_*` function per fixture; emits `{name}.png` + `{name}.json` metadata pair. CLI `--all` and `--chart {names…}`. **Not run in CI** — developers regenerate locally and commit the PNGs.
+- **57 matplotlib reference fixtures** under `Tst/MatPlotLibNet.Fidelity/Fixtures/Matplotlib/` — 12 core + 45 Phase 5, covering every library series that has a matplotlib or seaborn/squarify/matplotlib.sankey equivalent.
+- **72 C# fidelity tests** under `Tst/MatPlotLibNet.Fidelity/Charts/`, organised by family:
+  - `CoreChartFidelityTests.cs` — line, scatter, bar, hist, pie, box, violin, heatmap, contourf, polar, candlestick, errorbar (12)
+  - `XyChartFidelityTests.cs` — area, stacked-area, step, bubble, regression, residual, ecdf, signal, signalxy, sparkline (10)
+  - `GridChartFidelityTests.cs` — contour (lines), hexbin, hist2d, pcolormesh, image, spectrogram, tricontour, tripcolor (8)
+  - `FieldChartFidelityTests.cs` — quiver, streamplot, barbs, stem (4)
+  - `PolarChartFidelityTests.cs` — polar_scatter, polar_bar, polar_heatmap (3)
+  - `CategoricalChartFidelityTests.cs` — broken_barh, eventplot, gantt, waterfall (4)
+  - `DistributionChartFidelityTests.cs` — kde, rugplot, stripplot, swarmplot, pointplot, countplot (6, seaborn refs)
+  - `ThreeDChartFidelityTests.cs` — scatter3d, bar3d, surface, wireframe, stem3d (5, mpl_toolkits.mplot3d refs)
+  - `FinancialChartFidelityTests.cs` — ohlc_bar (1)
+  - `SpecialChartFidelityTests.cs` — sankey, table, treemap, radar (4)
+  - `IndicatorFidelityTests.cs` — **Phase 6: 15 technical indicators against `pandas_ta` references**: SMA, EMA, Bollinger Bands, VWAP, Keltner Channels, Ichimoku, Parabolic SAR, RSI, MACD, Stochastic, ATR, ADX, CCI, Williams %R, OBV. Uses a closed-form (no-RNG) synthetic OHLC formula so Python and C# produce byte-identical price data — `close = 100 + 5·sin(2πi/25) + 3·sin(2πi/7)` — making the line math deterministic across the two runtimes (Python PCG64 ≠ C# `System.Random`).
+- **Theme plumbing to `SeriesRenderer`** — `SeriesRenderContext.Theme` init property, threaded through `SvgSeriesRenderer` and all three `AxesRenderer.RenderSeries` overloads. Lets any renderer read theme-specific defaults like `PatchEdgeColor` without knowing about the figure tree.
+- **`Theme.PatchEdgeColor`, `Theme.ViolinBodyColor`, `Theme.ViolinStatsColor`** — three new nullable init properties. `MatplotlibClassic` sets them to `#000000` (black patch edges, `rcParams['patch.edgecolor']='k'`), `#BFBF00` (yellow violin body, matplotlib classic `'y'`), and `#FF0000` (red violin stats lines, classic `'r'`) — all empirically confirmed against matplotlib 3.10.8.
+- **`SubPlotSpacing.FromFractions(left, right, top, bottom)`** — fractional-margin factory. Stores `IsFractional=true` + `FractLeft/Right/Top/Bottom`; `Resolve(width, height)` converts to absolute pixels lazily at render time.
+- **`Theme.DefaultSpacing`** — nullable init property. `ChartRenderer` resolves the spacing chain as `figure.Spacing ?? theme.DefaultSpacing ?? SubPlotSpacing.Default`, applying fractional-to-absolute conversion using the figure size.
+- **`AxesBuilder.Signal(y, sampleRate, xStart)` / `SignalXY(x, y)`** — fluent methods filling an API parity gap (these previously lived only on `FigureBuilder`; every other series has both entrypoints).
+- **`AxesBuilder.Indicator(IIndicator indicator)`** — generic fluent entry point for any `IIndicator` that doesn't have a dedicated shortcut (e.g. `Macd`, `Stochastic`, `Atr`, `Adx`, `Ichimoku`, `KeltnerChannels`, `Vwap`, `FibonacciRetracement`, `DrawDown`, `ProfitLoss`, `EquityCurve`). Surfaced during Phase 6 indicator fidelity testing.
+- **`pandas==3.*` / `pandas-ta>=0.3.14b`** pinned in [`tools/mpl_reference/requirements.txt`](tools/mpl_reference/requirements.txt) for the new indicator reference fixtures.
+
+### Changed
+
+- **Matplotlib-theme margins now use matplotlib's `figure.subplot.*` defaults** — `MatplotlibClassic` and `MatplotlibV2` both ship `DefaultSpacing = FromFractions(left: 0.125, right: 0.10, top: 0.12, bottom: 0.11)`. At 800 × 600 that's `100, 80, 72, 66` px — previously hardcoded `60, 20, 40, 50`. Fixes a visible ~40-px leftward drift of the plot origin relative to matplotlib. **Non-breaking for users on the default theme** (unchanged); affects only `Theme.Matplotlib*`.
+- **`SpinesConfig.LineWidth` default `1.0 → 0.8`** — matches matplotlib's `axes.linewidth = 0.8`.
+- **`Axis.TickLength` default `5.0 → 3.5`** — matches matplotlib's `xtick.major.size = 3.5`.
+- **`CartesianAxesRenderer.DrawTickMark`** — when `direction == TickDirection.Out`, the tick's inner endpoint is now extended by half the spine width so the tick visually overlaps the spine centerline. Closes the subpixel tick/spine gap that was visible at certain plot-area y-coordinate parities.
+- **`HistogramSeries.Alpha` default `0.7 → 1.0`** — matplotlib histogram bars are opaque.
+- **`ViolinSeries.Alpha` default `0.7 → 0.3`** — matplotlib violin body alpha is 0.3.
+- **`HistogramSeriesRenderer`** — patch edge color now falls back to `Context.Theme?.PatchEdgeColor` when `EdgeColor` is unset (gives black 0.5-pt edges under `MatplotlibClassic`).
+- **`ViolinSeriesRenderer`** — body and stats colors now resolve from `Context.Theme?.ViolinBodyColor` / `ViolinStatsColor` first, falling back to `ResolveColor(series.Color)`.
+- **`ScatterSeriesRenderer` marker radius** — now computed as `sqrt(s / π) × (dpi / 72)` where `s` is the marker area in pt² (matplotlib's convention for `scatter(s=…)`). Previously used `sqrt(s) / 2`, which gave ~33 % smaller markers at 100 DPI.
+- **Scatter dispatch for `MarkerStyle.Square`** — renders via `DrawRectangle` centered on the point (previously fell through to `DrawCircle`).
+
+### Fixed
+
+- **`PcolormeshSeriesRenderer` out-of-bounds crash** when `X.Length == cols` and `Y.Length == rows` (same-sized X/Y/Z). The renderer documents a corner-grid convention (`X.Length == cols + 1`, `Y.Length == rows + 1`); test fixtures now pass correctly-shaped `C` arrays. No renderer code change — the bug is documented, not hidden.
+
+### Test suites
+
+- **3 378 unit tests** green (`dotnet run --project Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj`).
+- **72 fidelity tests** green (`dotnet run --project Tst/MatPlotLibNet.Fidelity/MatPlotLibNet.Fidelity.Tests.csproj`) — 12 core + 45 Phase 5 + 15 Phase 6 indicators, every one under `Theme.MatplotlibClassic` against pinned matplotlib 3.10.8 / `pandas_ta` references. Each tolerance override carries a one-line justification comment (e.g. *"AA grey text vs matplotlib crisp black"*, *"tab10 cycle vs bgrcmyk — pure colors don't appear in our top-5"*, *"half-cell spatial offset — ΔE confirms colormap is correct"*, *"2 thin lines — pure #0000FF AA-diffuses below top-5 pixel threshold"*).
+
+### Series without matplotlib fidelity coverage
+
+These series have no matplotlib, seaborn, matplotlib.sankey, or squarify equivalent to diff against, so they remain **out of scope for Phase 5 fidelity testing**. They still have regular unit tests and render correctly via `Theme.MatplotlibClassic`.
+
+- `GaugeSeries` — BI/dashboard primitive; no matplotlib idiom.
+- `SunburstSeries` — Plotly idiom; no matplotlib equivalent.
+- `FunnelSeries` — Plotly idiom.
+- `ProgressBarSeries` — UI widget, not statistical viz.
+- `DonutSeries` — variant of `PieSeries`; effectively covered by the core pie test.
+- `ChoroplethSeries` — requires `geopandas` for reference PNG generation; heavy native dep skipped to keep `tools/mpl_reference/` cross-platform.
+
+### Test convention updates
+
+- `ViolinSeriesTests.DefaultAlpha_Is0Point3` (was `_Is0Point7`) — aligns with new matplotlib-matching default.
+- `HistogramSeriesTests.DefaultAlpha_Is1Point0` (was `_Is0Point7`) — ditto.
+- `MatplotlibClassicThemeTests.MatplotlibClassic_HasGreyFigureBackground` (was `_HasWhiteBackground`) — matplotlib classic's `figure.facecolor = 0.75` = `#BFBFBF`, not white.
+- `ThemeTests.MatplotlibClassic_Spacing_ResolvesCorrectly_At800x600` — expected `MarginBottom` corrected from `72` to `66` (matches matplotlib's `bottom = 0.11`, not `0.12`).
+
+---
+
 ## [1.1.1] — 2026-04-12
 
 NumPy-style numerics, polar heatmap series, broken/discontinuous axis, and inset axes constrained-layout fix.

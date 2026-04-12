@@ -1,0 +1,218 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 550" width="700" height="550" role="img" aria-labelledby="chart-title">
+<title id="chart-title">3D Bar Chart — Interactive rotation</title>
+<rect x="0" y="0" width="700" height="550" fill="#FFFFFF" />
+<text x="350" y="25" font-family="sans-serif" font-size="17" text-anchor="middle" font-weight="bold" fill="#000000">3D Bar Chart — Interactive rotation</text>
+<rect x="60" y="70" width="620" height="430" fill="#FFFFFF" />
+<line x1="88.18181818181819" y1="70" x2="88.18181818181819" y2="500" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="200.90909090909093" y1="70" x2="200.90909090909093" y2="500" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="313.6363636363636" y1="70" x2="313.6363636363636" y2="500" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="426.3636363636364" y1="70" x2="426.3636363636364" y2="500" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="539.0909090909091" y1="70" x2="539.0909090909091" y2="500" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="651.8181818181818" y1="70" x2="651.8181818181818" y2="500" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="480.45454545454544" x2="680" y2="480.45454545454544" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="402.27272727272725" x2="680" y2="402.27272727272725" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="324.09090909090907" x2="680" y2="324.09090909090907" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="245.90909090909093" x2="680" y2="245.90909090909093" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="167.7272727272727" x2="680" y2="167.7272727272727" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="89.54545454545456" x2="680" y2="89.54545454545456" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="88.18181818181819" y1="499.6" x2="88.18181818181819" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<text x="88.18181818181819" y="519.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">0</text>
+<line x1="200.90909090909093" y1="499.6" x2="200.90909090909093" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<text x="200.90909090909093" y="519.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">0.2</text>
+<line x1="313.6363636363636" y1="499.6" x2="313.6363636363636" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<text x="313.6363636363636" y="519.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">0.4</text>
+<line x1="426.3636363636364" y1="499.6" x2="426.3636363636364" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<text x="426.3636363636364" y="519.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">0.6</text>
+<line x1="539.0909090909091" y1="499.6" x2="539.0909090909091" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<text x="539.0909090909091" y="519.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">0.8</text>
+<line x1="651.8181818181818" y1="499.6" x2="651.8181818181818" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<text x="651.8181818181818" y="519.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">1</text>
+<line x1="65.63636363636364" y1="499.6" x2="65.63636363636364" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="110.72727272727273" y1="499.6" x2="110.72727272727273" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="133.27272727272728" y1="499.6" x2="133.27272727272728" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="155.8181818181818" y1="499.6" x2="155.8181818181818" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="178.36363636363637" y1="499.6" x2="178.36363636363637" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="223.45454545454544" y1="499.6" x2="223.45454545454544" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="246.00000000000003" y1="499.6" x2="246.00000000000003" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="268.54545454545456" y1="499.6" x2="268.54545454545456" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="291.0909090909091" y1="499.6" x2="291.0909090909091" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="336.1818181818182" y1="499.6" x2="336.1818181818182" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="358.7272727272727" y1="499.6" x2="358.7272727272727" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="381.2727272727273" y1="499.6" x2="381.2727272727273" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="403.81818181818187" y1="499.6" x2="403.81818181818187" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="448.90909090909093" y1="499.6" x2="448.90909090909093" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="471.4545454545455" y1="499.6" x2="471.4545454545455" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="494" y1="499.6" x2="494" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="516.5454545454545" y1="499.6" x2="516.5454545454545" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="561.6363636363636" y1="499.6" x2="561.6363636363636" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="584.1818181818182" y1="499.6" x2="584.1818181818182" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="606.7272727272727" y1="499.6" x2="606.7272727272727" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="629.2727272727273" y1="499.6" x2="629.2727272727273" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="674.3636363636365" y1="499.6" x2="674.3636363636365" y2="503.5" stroke="#000000" stroke-width="0.8" />
+<line x1="476.95454545454544" y1="60" x2="480.8545454545454" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="484.45454545454544" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">0</text>
+<line x1="398.77272727272725" y1="60" x2="402.67272727272723" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="406.27272727272725" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">0.2</text>
+<line x1="320.59090909090907" y1="60" x2="324.49090909090904" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="328.09090909090907" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">0.4</text>
+<line x1="242.40909090909093" y1="60" x2="246.30909090909094" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="249.90909090909093" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">0.6</text>
+<line x1="164.2272727272727" y1="60" x2="168.1272727272727" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="171.7272727272727" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">0.8</text>
+<line x1="86.04545454545456" y1="60" x2="89.94545454545457" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="93.54545454545456" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">1</text>
+<line x1="492.59090909090907" y1="60" x2="496.49090909090904" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="461.3181818181818" y1="60" x2="465.2181818181818" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="445.6818181818182" y1="60" x2="449.58181818181816" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="430.0454545454545" y1="60" x2="433.9454545454545" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="414.4090909090909" y1="60" x2="418.30909090909086" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="383.1363636363636" y1="60" x2="387.0363636363636" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="367.5" y1="60" x2="371.4" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="351.8636363636364" y1="60" x2="355.76363636363635" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="336.22727272727275" y1="60" x2="340.1272727272727" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="304.95454545454544" y1="60" x2="308.8545454545454" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="289.3181818181818" y1="60" x2="293.2181818181818" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="273.6818181818182" y1="60" x2="277.58181818181816" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="258.0454545454545" y1="60" x2="261.9454545454545" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="226.77272727272728" y1="60" x2="230.6727272727273" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="211.13636363636363" y1="60" x2="215.03636363636363" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="195.5" y1="60" x2="199.4" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="179.86363636363637" y1="60" x2="183.76363636363638" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="148.59090909090912" y1="60" x2="152.49090909090913" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="132.95454545454544" y1="60" x2="136.85454545454544" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="117.31818181818181" y1="60" x2="121.21818181818182" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="101.68181818181819" y1="60" x2="105.58181818181819" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="70.40909090909093" y1="60" x2="74.30909090909094" y2="60" stroke="#000000" stroke-width="0.8" />
+<g class="spine">
+<line x1="60" y1="500" x2="680" y2="500" stroke="#000000" stroke-width="0.8" />
+</g>
+<g class="spine">
+<line x1="60" y1="70" x2="680" y2="70" stroke="#000000" stroke-width="0.8" />
+</g>
+<g class="spine">
+<line x1="60" y1="70" x2="60" y2="500" stroke="#000000" stroke-width="0.8" />
+</g>
+<g class="spine">
+<line x1="680" y1="70" x2="680" y2="500" stroke="#000000" stroke-width="0.8" />
+</g>
+<rect x="60" y="70" width="620" height="430" fill="#FFFFFF" />
+<line x1="-53.46787517317604" y1="431.8477309068272" x2="256.5321248268241" y2="618.0431927204814" stroke="#666666" stroke-width="0.5" />
+<line x1="256.5321248268241" y1="618.0431927204814" x2="793.467875173176" y2="510.54319272048144" stroke="#666666" stroke-width="0.5" />
+<line x1="793.467875173176" y1="510.54319272048144" x2="483.4678751731759" y2="324.34773090682717" stroke="#666666" stroke-width="0.5" />
+<line x1="483.4678751731759" y1="324.34773090682717" x2="-53.46787517317604" y2="431.8477309068272" stroke="#666666" stroke-width="0.5" />
+<line x1="-53.46787517317604" y1="59.45680727951853" x2="256.5321248268241" y2="245.65226909317283" stroke="#666666" stroke-width="0.5" />
+<line x1="256.5321248268241" y1="245.65226909317283" x2="793.467875173176" y2="138.15226909317278" stroke="#666666" stroke-width="0.5" />
+<line x1="793.467875173176" y1="138.15226909317278" x2="483.4678751731759" y2="-48.04319272048147" stroke="#666666" stroke-width="0.5" />
+<line x1="483.4678751731759" y1="-48.04319272048147" x2="-53.46787517317604" y2="59.45680727951853" stroke="#666666" stroke-width="0.5" />
+<line x1="-53.46787517317604" y1="431.8477309068272" x2="-53.46787517317604" y2="59.45680727951853" stroke="#666666" stroke-width="0.5" />
+<line x1="256.5321248268241" y1="618.0431927204814" x2="256.5321248268241" y2="245.65226909317283" stroke="#666666" stroke-width="0.5" />
+<line x1="793.467875173176" y1="510.54319272048144" x2="793.467875173176" y2="138.15226909317278" stroke="#666666" stroke-width="0.5" />
+<line x1="483.4678751731759" y1="324.34773090682717" x2="483.4678751731759" y2="-48.04319272048147" stroke="#666666" stroke-width="0.5" />
+<g class="mpl-3d-scene" data-elevation="30" data-azimuth="-60" data-plot-x="60" data-plot-y="70" data-plot-w="620" data-plot-h="430">
+<g class="series" data-series-index="0">
+<polygon points="48.95139972291845,547.8856887229715 141.95139972291844,603.7443272670679 464.1128499307296,539.2443272670679 371.1128499307296,483.3856887229716" fill="#FF6347" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="48.95139972291845,696.8420581738951 141.95139972291844,752.7006967179914 141.95139972291844,603.7443272670679 48.95139972291845,547.8856887229715" fill="#FF6347" fill-opacity="0.8470588235294118" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="141.95139972291844,752.7006967179914 464.1128499307296,688.2006967179913 464.1128499307296,539.2443272670679 141.95139972291844,603.7443272670679" fill="#FF6347" fill-opacity="0.6980392156862745" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="-106.04860027708162,231.35340363975925 -13.048600277081533,287.2120421838555 309.1128499307296,222.71204218385554 216.1128499307296,166.85340363975928" fill="#FF6347" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="-106.04860027708162,603.7443272670679 -13.048600277081533,659.6029658111643 -13.048600277081533,287.2120421838555 -106.04860027708162,231.35340363975925" fill="#FF6347" fill-opacity="0.8470588235294118" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="-13.048600277081533,659.6029658111643 309.1128499307296,595.1029658111643 309.1128499307296,222.71204218385554 -13.048600277081533,287.2120421838555" fill="#FF6347" fill-opacity="0.6980392156862745" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="585.8871500692704,142.47294982112467 678.8871500692703,198.33158836522094 1001.0486002770815,133.83158836522094 908.0486002770816,77.97294982112466" fill="#FF6347" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="585.8871500692704,589.3420581738951 678.8871500692703,645.2006967179914 678.8871500692703,198.33158836522094 585.8871500692704,142.47294982112467" fill="#FF6347" fill-opacity="0.8470588235294118" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="678.8871500692703,645.2006967179914 1001.0486002770815,580.7006967179913 1001.0486002770815,133.83158836522094 678.8871500692703,198.33158836522094" fill="#FF6347" fill-opacity="0.6980392156862745" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="-261.04860027708156,287.2120421838556 -168.0486002770816,343.07068072795187 154.11284993072962,278.57068072795187 61.11284993072957,222.71204218385554" fill="#FF6347" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="-261.04860027708156,510.64659636024084 -168.0486002770816,566.5052349043372 -168.0486002770816,343.07068072795187 -261.04860027708156,287.2120421838556" fill="#FF6347" fill-opacity="0.8470588235294118" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="-168.0486002770816,566.5052349043372 154.11284993072962,502.00523490433704 154.11284993072962,278.57068072795187 -168.0486002770816,343.07068072795187" fill="#FF6347" fill-opacity="0.6980392156862745" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="430.8871500692703,421.7661425416062 523.8871500692703,477.62478108570247 846.0486002770815,413.12478108570247 753.0486002770816,357.2661425416062" fill="#FF6347" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="430.8871500692703,496.2443272670679 523.8871500692703,552.1029658111643 523.8871500692703,477.62478108570247 430.8871500692703,421.7661425416062" fill="#FF6347" fill-opacity="0.8470588235294118" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="523.8871500692703,552.1029658111643 846.0486002770815,487.60296581116415 846.0486002770815,413.12478108570247 523.8871500692703,477.62478108570247" fill="#FF6347" fill-opacity="0.6980392156862745" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="275.8871500692703,105.23385745839391 368.8871500692703,161.09249600249012 691.0486002770815,96.59249600249014 598.0486002770815,40.73385745839386" fill="#FF6347" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="275.8871500692703,403.14659636024084 368.8871500692703,459.00523490433704 368.8871500692703,161.09249600249012 275.8871500692703,105.23385745839391" fill="#FF6347" fill-opacity="0.8470588235294118" stroke="#FF6347" stroke-width="0.5" />
+<polygon points="368.8871500692703,459.00523490433704 691.0486002770815,394.50523490433704 691.0486002770815,96.59249600249014 368.8871500692703,161.09249600249012" fill="#FF6347" fill-opacity="0.6980392156862745" stroke="#FF6347" stroke-width="0.5" />
+</g>
+</g>
+<script type="text/ecmascript"><![CDATA[
+(function() {
+    'use strict';
+    var scenes = document.querySelectorAll('.mpl-3d-scene');
+    scenes.forEach(function(scene) {
+        var elevation = parseFloat(scene.getAttribute('data-elevation') || '30');
+        var azimuth   = parseFloat(scene.getAttribute('data-azimuth')   || '-60');
+        var distance  = scene.hasAttribute('data-distance') ? parseFloat(scene.getAttribute('data-distance')) : null;
+        var plotX     = parseFloat(scene.getAttribute('data-plot-x') || '0');
+        var plotY     = parseFloat(scene.getAttribute('data-plot-y') || '0');
+        var plotW     = parseFloat(scene.getAttribute('data-plot-w') || '400');
+        var plotH     = parseFloat(scene.getAttribute('data-plot-h') || '300');
+
+        var initEl = elevation, initAz = azimuth;
+        var dragging = false, lastX = 0, lastY = 0;
+
+        function degToRad(d) { return d * Math.PI / 180; }
+
+        function project(nx, ny, nz) {
+            var azRad = degToRad(azimuth), elRad = degToRad(elevation);
+            var cosAz = Math.cos(azRad), sinAz = Math.sin(azRad);
+            var cosEl = Math.cos(elRad), sinEl = Math.sin(elRad);
+            var rx = nx * cosAz - ny * sinAz;
+            var ry = nx * sinAz + ny * cosAz;
+            var rz = nz;
+            var pz = ry * sinEl + rz * cosEl;
+            if (distance !== null) {
+                var viewDepth = ry * cosEl - rz * sinEl;
+                var scale = distance / (distance - viewDepth);
+                rx *= scale; pz *= scale;
+            }
+            var px = plotX + plotW * (rx + 1) / 2;
+            var py = plotY + plotH * (1 - (pz + 1) / 2);
+            return [px, py];
+        }
+
+        function reprojectAll() {
+            var polys = scene.querySelectorAll('[data-v3d]');
+            polys.forEach(function(el) {
+                var raw = el.getAttribute('data-v3d');
+                var pts = raw.trim().split(' ');
+                var points = pts.map(function(p) {
+                    var c = p.split(',');
+                    return project(parseFloat(c[0]), parseFloat(c[1]), parseFloat(c[2]));
+                });
+                if (el.tagName === 'polygon' || el.tagName === 'polyline') {
+                    el.setAttribute('points', points.map(function(p) { return p[0].toFixed(2) + ',' + p[1].toFixed(2); }).join(' '));
+                } else if (el.tagName === 'circle' && points.length > 0) {
+                    el.setAttribute('cx', points[0][0].toFixed(2));
+                    el.setAttribute('cy', points[0][1].toFixed(2));
+                }
+            });
+        }
+
+        scene.addEventListener('mousedown', function(e) { dragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault(); });
+        document.addEventListener('mousemove', function(e) {
+            if (!dragging) return;
+            azimuth   += (e.clientX - lastX) * 0.5;
+            elevation -= (e.clientY - lastY) * 0.5;
+            elevation = Math.max(-90, Math.min(90, elevation));
+            lastX = e.clientX; lastY = e.clientY;
+            reprojectAll();
+        });
+        document.addEventListener('mouseup', function() { dragging = false; });
+
+        scene.setAttribute('style', 'cursor:grab');
+        scene.addEventListener('keydown', function(e) {
+            switch(e.key) {
+                case 'ArrowLeft':  azimuth   -= 5; break;
+                case 'ArrowRight': azimuth   += 5; break;
+                case 'ArrowUp':    elevation += 5; break;
+                case 'ArrowDown':  elevation -= 5; break;
+                case '+': if (distance !== null) distance = Math.max(2, distance - 0.5); break;
+                case '-': if (distance !== null) distance = distance + 0.5; break;
+                case 'Home': elevation = initEl; azimuth = initAz; break;
+                default: return;
+            }
+            elevation = Math.max(-90, Math.min(90, elevation));
+            reprojectAll();
+            e.preventDefault();
+        });
+        scene.setAttribute('tabindex', '0');
+    });
+})();
+]]></script>
+</svg>

@@ -18,7 +18,7 @@ public sealed class HistogramSeries : ChartSeries, IHasColor, IHasAlpha, IHasEdg
 
     public Color? EdgeColor { get; set; }
 
-    public double Alpha { get; set; } = 0.7;
+    public double Alpha { get; set; } = 1.0;
 
     public bool Density { get; set; } = false;
 

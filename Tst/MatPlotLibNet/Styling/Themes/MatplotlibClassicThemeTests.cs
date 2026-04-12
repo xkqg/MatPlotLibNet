@@ -21,9 +21,10 @@ public class MatplotlibClassicThemeTests
     }
 
     [Fact]
-    public void MatplotlibClassic_HasWhiteBackground()
+    public void MatplotlibClassic_HasGreyFigureBackground()
     {
-        Assert.Equal(Colors.White, Theme.MatplotlibClassic.Background);
+        // matplotlib classic style: figure.facecolor=0.75 → RGB(191,191,191) = #BFBFBF
+        Assert.Equal(Color.FromHex("#BFBFBF"), Theme.MatplotlibClassic.Background);
     }
 
     [Fact]

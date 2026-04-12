@@ -16,6 +16,22 @@ public sealed class ChartRenderer : IChartRenderer
     private const double TitleHeight = 30;
     private Figure? _figure;
 
+    // Sentinel used to detect when the caller has not explicitly set a spacing on the figure.
+    private static readonly SubPlotSpacing DefaultFigureSpacing = new();
+
+    /// <summary>
+    /// Resolves the effective <see cref="SubPlotSpacing"/> for a figure.
+    /// Priority: figure.Spacing (if overridden by user) → theme.DefaultSpacing → library default.
+    /// Fractional values are expanded to absolute pixels using the figure dimensions.
+    /// </summary>
+    private static SubPlotSpacing ResolveSpacing(Figure figure)
+    {
+        var sp = figure.Spacing == DefaultFigureSpacing && figure.Theme.DefaultSpacing is not null
+            ? figure.Theme.DefaultSpacing
+            : figure.Spacing;
+        return sp.Resolve(figure.Width, figure.Height);
+    }
+
     /// <inheritdoc />
     public void Render(Figure figure, IRenderContext ctx)
     {
@@ -24,32 +40,34 @@ public sealed class ChartRenderer : IChartRenderer
         if (figure.Spacing.TightLayout || figure.Spacing.ConstrainedLayout)
             figure.Spacing = new ConstrainedLayoutEngine().Compute(figure, ctx);
 
-        double plotAreaTop = RenderBackground(figure, ctx);
+        var resolvedSpacing = ResolveSpacing(figure);
+        double plotAreaTop = RenderBackground(figure, ctx, resolvedSpacing);
 
         if (figure.SubPlots.Count == 0) return;
 
-        var plotAreas = ComputeSubPlotLayout(figure, plotAreaTop);
+        var plotAreas = ComputeSubPlotLayout(figure, plotAreaTop, resolvedSpacing);
 
         for (int i = 0; i < figure.SubPlots.Count; i++)
             RenderAxes(figure.SubPlots[i], plotAreas[i], ctx, figure.Theme);
 
         // Figure-level colorbar — rendered after all subplots
         if (figure.FigureColorBar is { Visible: true } cb)
-            RenderFigureColorBar(figure, plotAreas, cb, ctx);
+            RenderFigureColorBar(figure, plotAreas, cb, ctx, resolvedSpacing);
     }
 
     /// <summary>Renders the figure background and title, returning the top Y coordinate for subplots.</summary>
-    internal double RenderBackground(Figure figure, IRenderContext ctx)
+    internal double RenderBackground(Figure figure, IRenderContext ctx, SubPlotSpacing? spacing = null)
     {
+        var sp = spacing ?? ResolveSpacing(figure);
         var theme = figure.Theme;
         var bgColor = figure.BackgroundColor ?? theme.Background;
 
         ctx.DrawRectangle(new Rect(0, 0, figure.Width, figure.Height), bgColor, null, 0);
 
-        double plotAreaTop = figure.Spacing.MarginTop;
+        double plotAreaTop = sp.MarginTop;
         if (figure.Title is not null)
         {
-            var titlePoint = new Point(figure.Width / 2, figure.Spacing.MarginTop / 2 + 5);
+            var titlePoint = new Point(figure.Width / 2, sp.MarginTop / 2 + 5);
             var titleFont  = TitleFont(theme);
             if (MathTextParser.ContainsMath(figure.Title))
                 ctx.DrawRichText(MathTextParser.Parse(figure.Title), titlePoint, titleFont, TextAlignment.Center);
@@ -62,17 +80,17 @@ public sealed class ChartRenderer : IChartRenderer
     }
 
     /// <summary>Computes subplot layout positions from grid metadata and spacing.</summary>
-    public List<Rect> ComputeSubPlotLayout(Figure figure, double plotAreaTop)
+    public List<Rect> ComputeSubPlotLayout(Figure figure, double plotAreaTop, SubPlotSpacing? spacing = null)
     {
+        var sp = spacing ?? ResolveSpacing(figure);
         if (figure.GridSpec is not null)
-            return ComputeGridSpecLayout(figure, figure.GridSpec, plotAreaTop);
+            return ComputeGridSpecLayout(figure, figure.GridSpec, plotAreaTop, sp);
 
-        return ComputeLegacyLayout(figure, plotAreaTop);
+        return ComputeLegacyLayout(figure, plotAreaTop, sp);
     }
 
-    private List<Rect> ComputeGridSpecLayout(Figure figure, GridSpec gs, double plotAreaTop)
+    private List<Rect> ComputeGridSpecLayout(Figure figure, GridSpec gs, double plotAreaTop, SubPlotSpacing sp)
     {
-        var sp = figure.Spacing;
         double totalWidth = figure.Width - sp.MarginLeft - sp.MarginRight;
         double totalHeight = figure.Height - plotAreaTop - sp.MarginBottom;
 
@@ -140,9 +158,8 @@ public sealed class ChartRenderer : IChartRenderer
         return sizes;
     }
 
-    private List<Rect> ComputeLegacyLayout(Figure figure, double plotAreaTop)
+    private List<Rect> ComputeLegacyLayout(Figure figure, double plotAreaTop, SubPlotSpacing sp)
     {
-        var sp = figure.Spacing;
         double totalWidth = figure.Width - sp.MarginLeft - sp.MarginRight;
         double totalHeight = figure.Height - plotAreaTop - sp.MarginBottom;
 
@@ -217,8 +234,10 @@ public sealed class ChartRenderer : IChartRenderer
     }
 
     /// <summary>Renders a figure-level color bar placed outside all subplot areas.</summary>
-    internal void RenderFigureColorBar(Figure figure, List<Rect> plotAreas, ColorBar cb, IRenderContext ctx)
+    internal void RenderFigureColorBar(Figure figure, List<Rect> plotAreas, ColorBar cb, IRenderContext ctx,
+        SubPlotSpacing? spacing = null)
     {
+        var sp = spacing ?? ResolveSpacing(figure);
         // Find first IColorBarDataProvider across all subplots
         IColorBarDataProvider? provider = null;
         IColorMap colorMap = cb.ColorMap ?? ColorMaps.Viridis;
@@ -239,10 +258,10 @@ public sealed class ChartRenderer : IChartRenderer
         if (Math.Abs(max - min) < 1e-10) { min = 0; max = 1; }
 
         // Compute bounding rect of all subplot plot areas
-        double allLeft   = plotAreas.Count > 0 ? plotAreas.Min(r => r.X)             : figure.Spacing.MarginLeft;
-        double allTop    = plotAreas.Count > 0 ? plotAreas.Min(r => r.Y)             : figure.Spacing.MarginTop;
-        double allRight  = plotAreas.Count > 0 ? plotAreas.Max(r => r.X + r.Width)   : figure.Width - figure.Spacing.MarginRight;
-        double allBottom = plotAreas.Count > 0 ? plotAreas.Max(r => r.Y + r.Height)  : figure.Height - figure.Spacing.MarginBottom;
+        double allLeft   = plotAreas.Count > 0 ? plotAreas.Min(r => r.X)             : sp.MarginLeft;
+        double allTop    = plotAreas.Count > 0 ? plotAreas.Min(r => r.Y)             : sp.MarginTop;
+        double allRight  = plotAreas.Count > 0 ? plotAreas.Max(r => r.X + r.Width)   : figure.Width  - sp.MarginRight;
+        double allBottom = plotAreas.Count > 0 ? plotAreas.Max(r => r.Y + r.Height)  : figure.Height - sp.MarginBottom;
 
         var theme = figure.Theme;
         var tickFont = new Font { Family = theme.DefaultFont.Family, Size = theme.DefaultFont.Size - 2, Color = theme.ForegroundText };

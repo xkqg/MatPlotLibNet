@@ -9,6 +9,9 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders <see cref="PieSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
 internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
 {
+    // Number of line segments used to approximate each arc. 120 gives smooth circles at typical sizes.
+    private const int ArcSteps = 120;
+
     /// <inheritdoc />
     public PieSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
@@ -23,8 +26,10 @@ internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
         double radius = series.Radius.HasValue
             ? series.Radius.Value * Math.Min(Area.PlotBounds.Width, Area.PlotBounds.Height) / 2
             : baseRadius;
+        // matplotlib default: start at top (90°) sweeping clockwise in screen coords.
+        // We store angles in radians, Y-axis flipped (screen Y grows downward).
         double startAngle = series.StartAngle * Math.PI / 180;
-        double direction = series.CounterClockwise ? -1 : 1;
+        double direction = series.CounterClockwise ? 1 : -1; // screen-Y: CW = negative-sin
 
         for (int i = 0; i < series.Sizes.Length; i++)
         {
@@ -33,6 +38,7 @@ internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
             double explode = series.Explode is not null && i < series.Explode.Length ? series.Explode[i] : 0.0;
             double sliceCx = cx + explode * radius * Math.Cos(midAngle);
             double sliceCy = cy - explode * radius * Math.Sin(midAngle);
+            double endAngle = startAngle + sweep;
 
             // Shadow: draw offset gray slice before the main slice
             if (series.Shadow)
@@ -40,23 +46,15 @@ internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
                 double shadowOffset = radius * 0.03;
                 double scx = sliceCx + shadowOffset;
                 double scy = sliceCy + shadowOffset;
-                double endAngleShadow = startAngle + sweep;
-                Ctx.DrawPath([
-                    new MoveToSegment(new Point(scx, scy)),
-                    new LineToSegment(new Point(scx + radius * Math.Cos(startAngle), scy - radius * Math.Sin(startAngle))),
-                    new ArcSegment(new Point(scx + radius * Math.Cos(endAngleShadow), scy - radius * Math.Sin(endAngleShadow)), radius, radius, startAngle, endAngleShadow),
-                    new CloseSegment()
-                ], new Color(0, 0, 0, 80), null, 0);
+                Ctx.DrawPath(
+                    BuildSlicePath(scx, scy, radius, startAngle, endAngle),
+                    new Color(0, 0, 0, 80), null, 0);
             }
 
-            double endAngle = startAngle + sweep;
             var sliceColor = series.Colors is not null && i < series.Colors.Length ? series.Colors[i] : SeriesColor;
-            Ctx.DrawPath([
-                new MoveToSegment(new Point(sliceCx, sliceCy)),
-                new LineToSegment(new Point(sliceCx + radius * Math.Cos(startAngle), sliceCy - radius * Math.Sin(startAngle))),
-                new ArcSegment(new Point(sliceCx + radius * Math.Cos(endAngle), sliceCy - radius * Math.Sin(endAngle)), radius, radius, startAngle, endAngle),
-                new CloseSegment()
-            ], sliceColor, Colors.White, 1);
+            Ctx.DrawPath(
+                BuildSlicePath(sliceCx, sliceCy, radius, startAngle, endAngle),
+                sliceColor, Colors.White, 1);
 
             // AutoPct: draw percentage text at the centroid of the slice
             if (series.AutoPct is not null)
@@ -72,5 +70,28 @@ internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
 
             startAngle = endAngle;
         }
+    }
+
+    /// <summary>Builds a pie-slice path using line-segment polygon approximation so it works correctly
+    /// in both Skia (PNG) and SVG renderers regardless of how each backend handles arc commands.</summary>
+    private static PathSegment[] BuildSlicePath(double cx, double cy, double radius,
+        double startAngle, double endAngle)
+    {
+        double sweep = endAngle - startAngle;
+        int steps = Math.Max(3, (int)Math.Ceiling(Math.Abs(sweep) / (2 * Math.PI) * ArcSteps));
+        var segments = new PathSegment[2 + steps + 1]; // MoveTo + Line + arc steps + Close
+        segments[0] = new MoveToSegment(new Point(cx, cy));
+        segments[1] = new LineToSegment(new Point(
+            cx + radius * Math.Cos(startAngle),
+            cy - radius * Math.Sin(startAngle)));
+        for (int s = 1; s <= steps; s++)
+        {
+            double a = startAngle + sweep * s / steps;
+            segments[2 + s - 1] = new LineToSegment(new Point(
+                cx + radius * Math.Cos(a),
+                cy - radius * Math.Sin(a)));
+        }
+        segments[2 + steps] = new CloseSegment();
+        return segments;
     }
 }

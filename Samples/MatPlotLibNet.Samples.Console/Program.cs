@@ -460,14 +460,14 @@ Console.WriteLine("Saved geo_choropleth.svg");
 // 1. Surface plot with perspective camera + directional lighting
 {
     int n = 30;
-    double[] x = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
-    double[] y = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
-    double[,] z = new double[n, n];
+    double[] sx = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
+    double[] sy = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
+    double[,] sz = new double[n, n];
     for (int i = 0; i < n; i++)
         for (int j = 0; j < n; j++)
         {
-            double r = Math.Sqrt(x[i] * x[i] + y[j] * y[j]);
-            z[i, j] = r < 1e-10 ? 1.0 : Math.Sin(r) / r;
+            double r = Math.Sqrt(sx[i] * sx[i] + sy[j] * sy[j]);
+            sz[i, j] = r < 1e-10 ? 1.0 : Math.Sin(r) / r;
         }
 
     Plt.Create()
@@ -476,7 +476,7 @@ Console.WriteLine("Saved geo_choropleth.svg");
         .WithCamera(elevation: 35, azimuth: -50, distance: 6.0)
         .WithLighting(dx: 0.5, dy: -0.5, dz: 1.0, ambient: 0.3, diffuse: 0.7)
         .AddSubPlot(1, 1, 1, ax => ax
-            .Surface(x, y, z, s =>
+            .Surface(sx, sy, sz, s =>
             {
                 s.ColorMap = ColorMaps.Plasma;
                 s.ShowWireframe = false;
@@ -488,10 +488,10 @@ Console.WriteLine("Saved geo_choropleth.svg");
 
 // 2. Scatter3D with custom elevation/azimuth
 {
-    var rng = new Random(42);
-    double[] xs = Enumerable.Range(0, 100).Select(_ => rng.NextDouble() * 4 - 2).ToArray();
-    double[] ys = Enumerable.Range(0, 100).Select(_ => rng.NextDouble() * 4 - 2).ToArray();
-    double[] zs = xs.Zip(ys, (xi, yi) => xi * xi + yi * yi + rng.NextDouble() * 0.5).ToArray();
+    var srng = new Random(42);
+    double[] xs = Enumerable.Range(0, 100).Select(_ => srng.NextDouble() * 4 - 2).ToArray();
+    double[] ys = Enumerable.Range(0, 100).Select(_ => srng.NextDouble() * 4 - 2).ToArray();
+    double[] zs = xs.Zip(ys, (xi, yi) => xi * xi + yi * yi + srng.NextDouble() * 0.5).ToArray();
 
     Plt.Create()
         .WithTitle("3D Scatter — Paraboloid with noise")

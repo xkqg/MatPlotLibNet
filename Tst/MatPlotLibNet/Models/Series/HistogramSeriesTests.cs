@@ -26,12 +26,12 @@ public class HistogramSeriesTests
         Assert.Equal(10, series.Bins);
     }
 
-    /// <summary>Verifies that Alpha defaults to 0.7.</summary>
+    /// <summary>Verifies that Alpha defaults to 1.0 (matplotlib hist bars are fully opaque).</summary>
     [Fact]
-    public void DefaultAlpha_Is0Point7()
+    public void DefaultAlpha_Is1Point0()
     {
         var series = new HistogramSeries([1.0]);
-        Assert.Equal(0.7, series.Alpha);
+        Assert.Equal(1.0, series.Alpha);
     }
 
     /// <summary>Verifies that Color defaults to null.</summary>

@@ -23,11 +23,12 @@ public class SpinesConfigTests
         Assert.Equal(SpinePosition.Edge, spine.Position);
     }
 
+    /// <summary>Verifies that the default spine line width is 0.8 — matching matplotlib's axes.linewidth.</summary>
     [Fact]
-    public void SpineConfig_Default_LineWidthIsOne()
+    public void SpineConfig_Default_LineWidthIsPointEight()
     {
         var spine = new SpineConfig();
-        Assert.Equal(1.0, spine.LineWidth);
+        Assert.Equal(0.8, spine.LineWidth);
     }
 
     [Fact]

@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 450" width="900" height="450" role="img" aria-labelledby="chart-title" aria-describedby="chart-desc">
+<title id="chart-title">Line chart: revenue and cost trends over 12 months of 2025</title>
+<desc id="chart-desc">Revenue grew from $1.2M to $3.5M. Cost grew from $0.9M to $2.4M. Margin expanded each quarter.</desc>
+<rect x="0" y="0" width="900" height="450" fill="#FFFFFF" />
+<text x="450" y="25" font-family="sans-serif" font-size="17" text-anchor="middle" font-weight="bold" fill="#000000">Monthly Revenue vs Cost (2025)</text>
+<rect x="60" y="70" width="820" height="330" fill="#FFFFFF" />
+<line x1="97.27272727272727" y1="70" x2="97.27272727272727" y2="400" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="232.80991735537185" y1="70" x2="232.80991735537185" y2="400" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="368.34710743801645" y1="70" x2="368.34710743801645" y2="400" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="503.88429752066105" y1="70" x2="503.88429752066105" y2="400" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="639.4214876033056" y1="70" x2="639.4214876033056" y2="400" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="774.9586776859503" y1="70" x2="774.9586776859503" y2="400" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="373.46153846153845" x2="880" y2="373.46153846153845" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="315.7692307692308" x2="880" y2="315.7692307692308" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="258.0769230769231" x2="880" y2="258.0769230769231" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="200.38461538461542" x2="880" y2="200.38461538461542" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="142.69230769230768" x2="880" y2="142.69230769230768" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="60" y1="85" x2="880" y2="85" stroke="#B0B0B0" stroke-width="0.8" />
+<line x1="97.27272727272727" y1="399.6" x2="97.27272727272727" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<text x="97.27272727272727" y="419.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">0</text>
+<line x1="232.80991735537185" y1="399.6" x2="232.80991735537185" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<text x="232.80991735537185" y="419.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">2</text>
+<line x1="368.34710743801645" y1="399.6" x2="368.34710743801645" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<text x="368.34710743801645" y="419.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">4</text>
+<line x1="503.88429752066105" y1="399.6" x2="503.88429752066105" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<text x="503.88429752066105" y="419.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">6</text>
+<line x1="639.4214876033056" y1="399.6" x2="639.4214876033056" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<text x="639.4214876033056" y="419.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">8</text>
+<line x1="774.9586776859503" y1="399.6" x2="774.9586776859503" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<text x="774.9586776859503" y="419.5" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">10</text>
+<line x1="70.16528925619835" y1="399.6" x2="70.16528925619835" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="124.38016528925618" y1="399.6" x2="124.38016528925618" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="151.48760330578511" y1="399.6" x2="151.48760330578511" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="178.59504132231402" y1="399.6" x2="178.59504132231402" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="205.70247933884295" y1="399.6" x2="205.70247933884295" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="259.9173553719008" y1="399.6" x2="259.9173553719008" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="287.0247933884297" y1="399.6" x2="287.0247933884297" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="314.13223140495865" y1="399.6" x2="314.13223140495865" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="341.2396694214876" y1="399.6" x2="341.2396694214876" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="395.4545454545454" y1="399.6" x2="395.4545454545454" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="422.56198347107426" y1="399.6" x2="422.56198347107426" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="449.66942148760324" y1="399.6" x2="449.66942148760324" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="476.7768595041321" y1="399.6" x2="476.7768595041321" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="530.99173553719" y1="399.6" x2="530.99173553719" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="558.0991735537189" y1="399.6" x2="558.0991735537189" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="585.2066115702479" y1="399.6" x2="585.2066115702479" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="612.3140495867767" y1="399.6" x2="612.3140495867767" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="666.5289256198346" y1="399.6" x2="666.5289256198346" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="693.6363636363635" y1="399.6" x2="693.6363636363635" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="720.7438016528923" y1="399.6" x2="720.7438016528923" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="747.8512396694213" y1="399.6" x2="747.8512396694213" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="802.0661157024792" y1="399.6" x2="802.0661157024792" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="829.1735537190082" y1="399.6" x2="829.1735537190082" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="856.280991735537" y1="399.6" x2="856.280991735537" y2="403.5" stroke="#000000" stroke-width="0.8" />
+<line x1="369.96153846153845" y1="60" x2="373.86153846153843" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="377.46153846153845" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">1</text>
+<line x1="312.2692307692308" y1="60" x2="316.16923076923075" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="319.7692307692308" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">1.5</text>
+<line x1="254.5769230769231" y1="60" x2="258.4769230769231" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="262.0769230769231" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">2</text>
+<line x1="196.88461538461542" y1="60" x2="200.78461538461542" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="204.38461538461542" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">2.5</text>
+<line x1="139.19230769230768" y1="60" x2="143.09230769230768" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="146.69230769230768" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">3</text>
+<line x1="81.5" y1="60" x2="85.4" y2="60" stroke="#000000" stroke-width="0.8" />
+<text x="53.5" y="89" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">3.5</text>
+<line x1="393.03846153846155" y1="60" x2="396.9384615384615" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="381.5" y1="60" x2="385.4" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="358.4230769230769" y1="60" x2="362.3230769230769" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="346.8846153846154" y1="60" x2="350.7846153846154" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="335.34615384615387" y1="60" x2="339.24615384615385" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="323.8076923076924" y1="60" x2="327.70769230769235" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="300.7307692307692" y1="60" x2="304.6307692307692" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="289.19230769230774" y1="60" x2="293.0923076923077" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="277.6538461538462" y1="60" x2="281.55384615384617" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="266.11538461538464" y1="60" x2="270.0153846153846" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="243.03846153846155" y1="60" x2="246.93846153846155" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="231.5" y1="60" x2="235.4" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="219.9615384615385" y1="60" x2="223.86153846153852" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="208.42307692307696" y1="60" x2="212.32307692307697" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="185.34615384615387" y1="60" x2="189.24615384615387" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="173.80769230769232" y1="60" x2="177.70769230769233" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="162.26923076923083" y1="60" x2="166.16923076923084" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="150.73076923076928" y1="60" x2="154.6307692307693" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="127.65384615384613" y1="60" x2="131.55384615384614" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="116.11538461538458" y1="60" x2="120.01538461538459" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="104.5769230769231" y1="60" x2="108.4769230769231" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="93.03846153846155" y1="60" x2="96.93846153846155" y2="60" stroke="#000000" stroke-width="0.8" />
+<line x1="69.96153846153845" y1="60" x2="73.86153846153846" y2="60" stroke="#000000" stroke-width="0.8" />
+<g class="series" aria-label="Revenue">
+<polyline points="97.27272727272727,350.3846153846154 165.04132231404958,315.7692307692308 232.80991735537185,338.84615384615387 300.5785123966942,281.1538461538462 368.34710743801645,246.53846153846155 436.1157024793388,258.0769230769231 503.88429752066105,211.92307692307696 571.6528925619833,177.3076923076923 639.4214876033056,200.38461538461542 707.190082644628,142.6923076923077 774.9586776859503,119.61538461538461 842.7272727272725,85.00000000000001" fill="none" stroke="#E69F00" stroke-width="2.5" />
+</g>
+<g class="series" aria-label="Cost">
+<polyline points="97.27272727272727,385 165.04132231404958,361.9230769230769 232.80991735537185,373.46153846153845 300.5785123966942,338.84615384615387 368.34710743801645,315.7692307692308 436.1157024793388,327.3076923076923 503.88429752066105,304.2307692307692 571.6528925619833,269.61538461538464 639.4214876033056,281.1538461538462 707.190082644628,246.53846153846155 774.9586776859503,235 842.7272727272725,211.92307692307696" fill="none" stroke="#56B4E9" stroke-width="2.5" stroke-dasharray="5,2" />
+</g>
+<g class="spine">
+<line x1="60" y1="400" x2="880" y2="400" stroke="#000000" stroke-width="0.8" />
+</g>
+<g class="spine">
+<line x1="60" y1="70" x2="880" y2="70" stroke="#000000" stroke-width="0.8" />
+</g>
+<g class="spine">
+<line x1="60" y1="70" x2="60" y2="400" stroke="#000000" stroke-width="0.8" />
+</g>
+<g class="spine">
+<line x1="880" y1="70" x2="880" y2="400" stroke="#000000" stroke-width="0.8" />
+</g>
+<rect x="70" y="80" width="86.52000000000001" height="46.5" fill="#FFFFFF" fill-opacity="0.8" stroke="#000000" stroke-width="0.5" />
+<g class="legend" aria-label="Chart legend">
+<rect x="78" y="88" width="12" height="12" fill="#E69F00" />
+<text x="96" y="99" font-family="sans-serif" font-size="13" text-anchor="start" fill="#000000">Revenue</text>
+<rect x="78" y="106.5" width="12" height="12" fill="#56B4E9" />
+<text x="96" y="117.5" font-family="sans-serif" font-size="13" text-anchor="start" fill="#000000">Cost</text>
+</g>
+<text x="470" y="435" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">Month</text>
+<text x="15" y="235" font-family="sans-serif" font-size="13" text-anchor="middle" transform="rotate(-90,15,235)" fill="#000000">$ M</text>
+</svg>

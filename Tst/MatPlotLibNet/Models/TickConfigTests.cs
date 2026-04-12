@@ -9,12 +9,13 @@ namespace MatPlotLibNet.Tests.Models;
 /// <summary>Verifies <see cref="TickConfig"/> expanded properties and <see cref="TickDirection"/> enum (sub-phase 2D).</summary>
 public class TickConfigTests
 {
+    /// <summary>Verifies that tick direction defaults to Out and length defaults to 3.5 — matching matplotlib's xtick.direction and xtick.major.size.</summary>
     [Fact]
-    public void TickConfig_Defaults_Direction_Out_Length5()
+    public void TickConfig_Defaults_Direction_Out_Length3Point5()
     {
         var tc = new TickConfig();
         Assert.Equal(TickDirection.Out, tc.Direction);
-        Assert.Equal(5.0, tc.Length);
+        Assert.Equal(3.5, tc.Length);
     }
 
     [Fact]

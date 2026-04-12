@@ -63,7 +63,7 @@ public sealed record TickConfig
 
     public TickDirection Direction { get; init; } = TickDirection.Out;
 
-    public double Length { get; init; } = 5.0;
+    public double Length { get; init; } = 3.5;
 
     public double Width { get; init; } = 0.8;
 

@@ -12,7 +12,7 @@ public sealed class ViolinSeries : DatasetSeries, IHasColor, IHasAlpha
 {
     public Color? Color { get; set; }
 
-    public double Alpha { get; set; } = 0.7;
+    public double Alpha { get; set; } = 0.3;
 
     public bool ShowMeans { get; set; }
 

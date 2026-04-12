@@ -449,10 +449,11 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         {
             var xFormatter = Axes.XAxis.TickFormatter;
             double xAxisY = PlotArea.Y + PlotArea.Height;
+            double xSpineHalf = Axes.Spines.Bottom.LineWidth / 2.0;
             foreach (var tick in xTicks)
             {
                 var pt = transform.DataToPixel(tick, yMin);
-                DrawTickMark(pt.X, xAxisY, isVertical: true, xTickLength, xTickColor, xTickWidth, xMajor.Direction);
+                DrawTickMark(pt.X, xAxisY, isVertical: true, xTickLength, xTickColor, xTickWidth, xMajor.Direction, xSpineHalf);
                 double labelY = xAxisY + xTickLength + xMajor.Pad + xLabelFont.Size;
                 Ctx.DrawText(xFormatter?.Format(tick) ?? FormatTick(tick),
                     new Point(pt.X, labelY),
@@ -474,7 +475,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                     if (Array.Exists(xTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
                     var pt = transform.DataToPixel(mt, yMin);
                     if (pt.X < PlotArea.X || pt.X > PlotArea.X + PlotArea.Width) continue;
-                    DrawTickMark(pt.X, xAxisY, isVertical: true, minorLength, xMinorColor, xMinor.Width, xMinor.Direction);
+                    DrawTickMark(pt.X, xAxisY, isVertical: true, minorLength, xMinorColor, xMinor.Width, xMinor.Direction, xSpineHalf);
                 }
             }
         }
@@ -484,12 +485,13 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         var yTickLength = yMajor.Length;
         var yTickWidth  = yMajor.Width;
         double yAxisX = PlotArea.X;
+        double ySpineHalf = Axes.Spines.Left.LineWidth / 2.0;
 
         var yFormatter = Axes.YAxis.TickFormatter;
         foreach (var tick in yTicks)
         {
             var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, tick);
-            DrawTickMark(yAxisX, pt.Y, isVertical: false, yTickLength, yTickColor, yTickWidth, yMajor.Direction);
+            DrawTickMark(yAxisX, pt.Y, isVertical: false, yTickLength, yTickColor, yTickWidth, yMajor.Direction, ySpineHalf);
             double labelX = yAxisX - yTickLength - yMajor.Pad;
             Ctx.DrawText(yFormatter?.Format(tick) ?? FormatTick(tick),
                 new Point(labelX, pt.Y + 4),
@@ -512,7 +514,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 if (Array.Exists(yTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
                 var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, mt);
                 if (pt.Y < PlotArea.Y || pt.Y > PlotArea.Y + PlotArea.Height) continue;
-                DrawTickMark(yAxisX, pt.Y, isVertical: false, minorLength, yMinorColor, yMinor.Width, yMinor.Direction);
+                DrawTickMark(yAxisX, pt.Y, isVertical: false, minorLength, yMinorColor, yMinor.Width, yMinor.Direction, ySpineHalf);
             }
         }
     }
@@ -521,27 +523,52 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     /// Draws a single tick mark at the given axis edge position.
     /// For vertical ticks (X-axis): tickX is the data pixel position, axisEdge is the axis Y coordinate.
     /// For horizontal ticks (Y-axis): axisEdge is the axis X coordinate, tickY is the data pixel position.
+    /// <para>
+    /// <paramref name="spineHalfWidth"/> is half the spine stroke width; the tick is extended
+    /// inward by this amount so it visually touches (overlaps) the spine regardless of subpixel
+    /// rounding — matching matplotlib's behaviour where ticks are drawn through the spine line.
+    /// </para>
     /// </summary>
     private void DrawTickMark(double tickPos, double axisEdge, bool isVertical,
-        double length, Color color, double width, TickDirection direction)
+        double length, Color color, double width, TickDirection direction, double spineHalfWidth = 0.0)
     {
         if (isVertical)
         {
-            // X-axis tick: drawn vertically downward (Out) or upward (In) from axisEdge
-            double outEnd = axisEdge + (direction is TickDirection.Out or TickDirection.InOut ? length : 0);
-            double inEnd  = axisEdge - (direction is TickDirection.In  or TickDirection.InOut ? length : 0);
-            double startY = direction is TickDirection.InOut ? inEnd : (direction is TickDirection.In ? inEnd : axisEdge);
-            double endY   = direction is TickDirection.InOut ? outEnd : (direction is TickDirection.Out ? outEnd : axisEdge);
+            // X-axis tick: axisEdge is the bottom spine Y.
+            // Out → extends downward (Y+); the inward end is pulled up into the spine stroke.
+            // In  → extends upward (Y-); the inward end is pushed down into the spine stroke.
+            double startY = direction switch
+            {
+                TickDirection.In    => axisEdge - length,
+                TickDirection.InOut => axisEdge - length,
+                _                   => axisEdge - spineHalfWidth, // Out: start inside spine
+            };
+            double endY = direction switch
+            {
+                TickDirection.In    => axisEdge + spineHalfWidth,  // In: end inside spine
+                TickDirection.InOut => axisEdge + length,
+                _                   => axisEdge + length,           // Out
+            };
             if (Math.Abs(endY - startY) > 0.1)
                 Ctx.DrawLine(new Point(tickPos, startY), new Point(tickPos, endY), color, width, LineStyle.Solid);
         }
         else
         {
-            // Y-axis tick: drawn horizontally leftward (Out) or rightward (In) from axisEdge
-            double outEnd = axisEdge - (direction is TickDirection.Out or TickDirection.InOut ? length : 0);
-            double inEnd  = axisEdge + (direction is TickDirection.In  or TickDirection.InOut ? length : 0);
-            double startX = direction is TickDirection.InOut ? outEnd : (direction is TickDirection.Out ? outEnd : axisEdge);
-            double endX   = direction is TickDirection.InOut ? inEnd  : (direction is TickDirection.In  ? inEnd  : axisEdge);
+            // Y-axis tick: axisEdge is the left spine X.
+            // Out → extends leftward (X-); the inward end is pulled right into the spine stroke.
+            // In  → extends rightward (X+); the inward end is pushed left into the spine stroke.
+            double startX = direction switch
+            {
+                TickDirection.In    => axisEdge + spineHalfWidth,  // In: start inside spine
+                TickDirection.InOut => axisEdge - length,
+                _                   => axisEdge - length,           // Out
+            };
+            double endX = direction switch
+            {
+                TickDirection.In    => axisEdge + length,
+                TickDirection.InOut => axisEdge + length,
+                _                   => axisEdge + spineHalfWidth,  // Out: end inside spine
+            };
             if (Math.Abs(endX - startX) > 0.1)
                 Ctx.DrawLine(new Point(startX, tickPos), new Point(endX, tickPos), color, width, LineStyle.Solid);
         }

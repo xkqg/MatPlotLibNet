@@ -51,6 +51,12 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
 
     public Color? HatchColor { get; set; }
 
+    /// <summary>Pixel-space X offset within the slot applied when multiple bar series share categories (set by renderer, not user).</summary>
+    internal double BarGroupOffset { get; set; }
+
+    /// <summary>Override for bar width when rendering as part of a group (set by renderer, not user).</summary>
+    internal double? BarGroupWidth { get; set; }
+
     /// <summary>Initializes a new instance of <see cref="BarSeries"/> with the specified categories and values.</summary>
     /// <param name="categories">The category labels for each bar.</param>
     /// <param name="values">The numeric values for each bar.</param>

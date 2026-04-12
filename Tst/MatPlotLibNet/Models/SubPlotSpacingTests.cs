@@ -68,4 +68,60 @@ public class SubPlotSpacingTests
         Assert.Equal(100, figure.Spacing.MarginLeft);
         Assert.Equal(20, figure.Spacing.HorizontalGap);
     }
+
+    // --- Fractional support (v1.1.2) ---
+
+    /// <summary>Verifies that FromFractions creates a fractional sentinel.</summary>
+    [Fact]
+    public void FromFractions_SetsFractionalFlag()
+    {
+        var sp = SubPlotSpacing.FromFractions(0.125, 0.10, 0.12, 0.12);
+        Assert.True(sp.IsFractional);
+    }
+
+    /// <summary>Verifies that FromFractions stores the supplied fraction values.</summary>
+    [Fact]
+    public void FromFractions_StoresFractions()
+    {
+        var sp = SubPlotSpacing.FromFractions(0.125, 0.10, 0.12, 0.12, horizontalGap: 30, verticalGap: 25);
+        Assert.Equal(0.125, sp.FractLeft);
+        Assert.Equal(0.10,  sp.FractRight);
+        Assert.Equal(0.12,  sp.FractTop);
+        Assert.Equal(0.12,  sp.FractBottom);
+        Assert.Equal(30,    sp.HorizontalGap);
+        Assert.Equal(25,    sp.VerticalGap);
+    }
+
+    /// <summary>Verifies that Resolve converts fractional margins to absolute pixel values.</summary>
+    [Fact]
+    public void Resolve_FractionalSpacing_ComputesAbsoluteValues()
+    {
+        var sp = SubPlotSpacing.FromFractions(0.125, 0.10, 0.12, 0.12);
+        var resolved = sp.Resolve(800, 600);
+
+        Assert.False(resolved.IsFractional);
+        Assert.Equal(Math.Round(800 * 0.125), resolved.MarginLeft);
+        Assert.Equal(Math.Round(800 * 0.10),  resolved.MarginRight);
+        Assert.Equal(Math.Round(600 * 0.12),  resolved.MarginTop);
+        Assert.Equal(Math.Round(600 * 0.12),  resolved.MarginBottom);
+    }
+
+    /// <summary>Verifies that Resolve on a non-fractional spacing returns itself unchanged.</summary>
+    [Fact]
+    public void Resolve_AbsoluteSpacing_ReturnsSelf()
+    {
+        var sp = new SubPlotSpacing { MarginLeft = 60 };
+        var resolved = sp.Resolve(800, 600);
+        Assert.Same(sp, resolved);
+    }
+
+    /// <summary>Verifies that Resolve preserves gap values from the fractional sentinel.</summary>
+    [Fact]
+    public void Resolve_PreservesGapValues()
+    {
+        var sp = SubPlotSpacing.FromFractions(0.1, 0.1, 0.1, 0.1, horizontalGap: 30, verticalGap: 25);
+        var resolved = sp.Resolve(800, 600);
+        Assert.Equal(30, resolved.HorizontalGap);
+        Assert.Equal(25, resolved.VerticalGap);
+    }
 }
