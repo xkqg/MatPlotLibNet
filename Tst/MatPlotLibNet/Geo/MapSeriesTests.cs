@@ -57,7 +57,7 @@ public class MapSeriesTests
     {
         var s = new MapSeries(MakePolygonDoc());
         var visitor = new TrackingVisitor();
-        s.Accept(visitor, default);
+        s.Accept(visitor, default!);
         Assert.True(visitor.MapSeriesVisited);
     }
 

@@ -13,6 +13,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 | Package | Install | What it does |
 |---|---|---|
 | **MatPlotLibNet** | `dotnet add package MatPlotLibNet` | Core: models, fluent API, SVG rendering, JSON, transforms |
+| **[MatPlotLibNet.DataFrame](https://www.nuget.org/packages/MatPlotLibNet.DataFrame)** | `dotnet add package MatPlotLibNet.DataFrame` | `Microsoft.Data.Analysis.DataFrame` extension methods — plot, indicators (SMA/EMA/RSI/MACD/…), and polynomial regression from named columns |
 | **MatPlotLibNet.Skia** | `dotnet add package MatPlotLibNet.Skia` | PNG, PDF, and animated GIF export via SkiaSharp |
 | **MatPlotLibNet.Blazor** | `dotnet add package MatPlotLibNet.Blazor` | `MplChart` + `MplLiveChart` Razor components with SignalR |
 | **MatPlotLibNet.AspNetCore** | `dotnet add package MatPlotLibNet.AspNetCore` | REST endpoints, SignalR hub, `IChartPublisher` |
@@ -63,6 +64,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 
 - [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started) — installation, output formats, subplots
 - [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all packages in detail
+- [DataFrame](https://github.com/xkqg/MatPlotLibNet/wiki/DataFrame) — `MatPlotLibNet.DataFrame`: charting, indicators, and regression from `Microsoft.Data.Analysis.DataFrame`
 - [Notebooks](https://github.com/xkqg/MatPlotLibNet/wiki/Notebooks) — Polyglot Notebooks + Jupyter inline rendering
 - [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 62 series with examples
 - [Geo / Map Projections](https://github.com/xkqg/MatPlotLibNet/wiki/GeoProjections) — map projections, GeoJSON, MapSeries, ChoroplethSeries

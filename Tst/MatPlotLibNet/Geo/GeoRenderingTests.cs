@@ -43,7 +43,7 @@ public class GeoRenderingTests
     public void MapSeries_Render_EmptyGeoData_NoException()
     {
         var svg = Plt.Create()
-            .Map(null)
+            .Map(null!)
             .ToSvg();
         Assert.Contains("<svg", svg);
     }

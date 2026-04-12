@@ -9,8 +9,8 @@ namespace MatPlotLibNet.Models.Series;
 
 /// <summary>
 /// A line series optimised for large datasets with monotonically ascending (but non-uniform) X values.
-/// Uses two <see cref="Array.BinarySearch"/> calls to find the visible index range in O(log n),
-/// avoiding the O(n) scan of <see cref="ViewportCuller"/>.
+/// Uses two <c>Array.BinarySearch</c> calls to find the visible index range in O(log n),
+/// avoiding the O(n) scan of <see cref="T:MatPlotLibNet.Rendering.Downsampling.ViewportCuller"/>.
 /// </summary>
 public sealed class SignalXYSeries : XYSeries, XY.IMonotonicXY, IHasColor
 {

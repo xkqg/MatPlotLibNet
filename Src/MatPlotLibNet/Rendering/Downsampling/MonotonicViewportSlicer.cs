@@ -7,8 +7,8 @@ namespace MatPlotLibNet.Rendering.Downsampling;
 
 /// <summary>
 /// Stateless helper that slices a monotonic-X series to the visible viewport and optionally
-/// downsamples the result via LTTB. Used by <see cref="SignalSeriesRenderer"/> and
-/// <see cref="SignalXYSeriesRenderer"/> in place of the linear-scan <see cref="ViewportCuller"/>.
+/// downsamples the result via LTTB. Used by <see cref="T:MatPlotLibNet.Rendering.SeriesRenderers.XY.SignalSeriesRenderer"/> and
+/// <see cref="T:MatPlotLibNet.Rendering.SeriesRenderers.XY.SignalXYSeriesRenderer"/> in place of the linear-scan <see cref="ViewportCuller"/>.
 /// </summary>
 public static class MonotonicViewportSlicer
 {

@@ -1,5 +1,7 @@
 # MatPlotLibNet.DataFrame
 
+[![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet.DataFrame)](https://www.nuget.org/packages/MatPlotLibNet.DataFrame)
+
 `Microsoft.Data.Analysis.DataFrame` extension methods for [MatPlotLibNet](../../README.md) — plot
 directly from typed DataFrames with optional hue grouping and full fluent API support.
 
