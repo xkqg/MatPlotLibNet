@@ -95,11 +95,11 @@ internal class MapSeriesRenderer : SeriesRenderer<MapSeries>
         {
             double lon = ring[i].Length > 0 ? ring[i][0] : 0;
             double lat = ring[i].Length > 1 ? ring[i][1] : 0;
-            var (nx, ny) = proj.Project(lon, lat);
+            var np = proj.Project(lon, lat);
             // Map normalized [0,1] to pixel coords within plot area
             pts[i] = new Point(
-                Area.PlotBounds.X + nx * Area.PlotBounds.Width,
-                Area.PlotBounds.Y + ny * Area.PlotBounds.Height);
+                Area.PlotBounds.X + np.Nx * Area.PlotBounds.Width,
+                Area.PlotBounds.Y + np.Ny * Area.PlotBounds.Height);
         }
         return pts;
     }

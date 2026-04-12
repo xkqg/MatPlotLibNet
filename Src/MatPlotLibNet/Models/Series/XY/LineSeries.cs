@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a line chart series connecting data points with a line.</summary>
-public sealed class LineSeries : XYSeries
+public sealed class LineSeries : XYSeries, IHasColor
 {
     public Color? Color { get; set; }
 

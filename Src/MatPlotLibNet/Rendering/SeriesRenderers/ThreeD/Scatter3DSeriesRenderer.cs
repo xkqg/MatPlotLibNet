@@ -52,8 +52,8 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
 
             if (emitV3d)
             {
-                var (nx, ny, nz) = proj.Normalize(xi, yi, zi);
-                Ctx.SetNextElementData("v3d", FormattableString.Invariant($"{nx:G4},{ny:G4},{nz:G4}"));
+                var n = proj.Normalize(xi, yi, zi);
+                Ctx.SetNextElementData("v3d", FormattableString.Invariant($"{n.Nx:G4},{n.Ny:G4},{n.Nz:G4}"));
             }
             Ctx.DrawCircle(pt, radius, color, null, 0);
         }

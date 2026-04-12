@@ -8,6 +8,34 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet;
 
 /// <summary>Fluent builder for constructing a <see cref="Models.Figure"/> with a chainable API.</summary>
+/// <example>
+/// Two-panel financial dashboard with interactive zoom/pan and tooltips:
+/// <code>
+/// string svg = Plt.Create()
+///     .WithSize(900, 500)
+///     .WithZoomPan()
+///     .WithRichTooltips()
+///     .AddSubPlot(2, 1, 1, ax =>
+///     {
+///         ax.Candlestick(open, high, low, close)
+///           .BollingerBands(20, 2.0)
+///           .SetYLabel("Price");
+///     })
+///     .AddSubPlot(2, 1, 2, ax =>
+///         ax.Bar(labels, volume).SetYLabel("Volume"))
+///     .WithTitle("OHLC Dashboard")
+///     .ToSvg();
+/// </code>
+/// 3-D surface with perspective camera and interactive rotation:
+/// <code>
+/// string svg = Plt.Create()
+///     .Surface(x, y, z)
+///     .WithCamera(elevation: 35, azimuth: -55, distance: 8)
+///     .WithLighting(0.5, 0.5, 1.0)
+///     .With3DRotation()
+///     .ToSvg();
+/// </code>
+/// </example>
 public sealed class FigureBuilder
 {
     private string? _title;
@@ -50,6 +78,14 @@ public sealed class FigureBuilder
     /// <summary>Adds a scatter series to the default axes.</summary>
     public FigureBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null) =>
         AddSeries(ax => ax.Scatter(x, y), configure);
+
+    /// <summary>Adds a <see cref="SignalXYSeries"/> with monotonically ascending X values to the default axes.</summary>
+    public FigureBuilder SignalXY(double[] x, double[] y, Action<SignalXYSeries>? configure = null) =>
+        AddSeries(ax => ax.SignalXY(x, y), configure);
+
+    /// <summary>Adds a <see cref="SignalSeries"/> with uniform sample rate to the default axes.</summary>
+    public FigureBuilder Signal(double[] y, double sampleRate = 1.0, double xStart = 0.0, Action<SignalSeries>? configure = null) =>
+        AddSeries(ax => ax.Signal(y, sampleRate, xStart), configure);
 
     /// <summary>Adds a line series with DateTime X values to the default axes; automatically activates the date X-axis.</summary>
     public FigureBuilder Plot(DateTime[] dates, double[] y, Action<LineSeries>? configure = null)
@@ -133,7 +169,7 @@ public sealed class FigureBuilder
     public FigureBuilder ConstrainedLayout() { _spacing = _spacing with { ConstrainedLayout = true }; return this; }
 
     /// <summary>Configures custom subplot spacing (margins and gaps).</summary>
-    public FigureBuilder WithSubPlotSpacing(Func<SubPlotSpacing, SubPlotSpacing> configure) { _spacing = configure(_spacing); return this; }
+    public FigureBuilder WithSubPlotSpacing(Func<SubPlotSpacing, SubPlotSpacing>? configure = null) { if (configure is not null) _spacing = configure(_spacing); return this; }
     private SubPlotSpacing _spacing = new();
 
     /// <summary>Adds an error bar series to the default axes.</summary>
@@ -304,6 +340,10 @@ public sealed class FigureBuilder
         AddSeries(ax => ax.Choropleth(geo, values), configure);
 
     /// <summary>Sets the grid specification for advanced subplot layouts with ratios and spanning.</summary>
+    /// <param name="rows">Number of rows in the grid.</param>
+    /// <param name="cols">Number of columns in the grid.</param>
+    /// <param name="heightRatios">Relative row heights (length must equal <paramref name="rows"/>); <see langword="null"/> gives equal heights.</param>
+    /// <param name="widthRatios">Relative column widths (length must equal <paramref name="cols"/>); <see langword="null"/> gives equal widths.</param>
     public FigureBuilder WithGridSpec(int rows, int cols, double[]? heightRatios = null, double[]? widthRatios = null)
     {
         _gridSpec = new GridSpec { Rows = rows, Cols = cols, HeightRatios = heightRatios, WidthRatios = widthRatios };
@@ -314,7 +354,7 @@ public sealed class FigureBuilder
     /// <param name="configure">Optional function to customise the color bar (label, orientation, shrink, etc.).</param>
     public FigureBuilder WithColorBar(Func<ColorBar, ColorBar>? configure = null)
     {
-        var cb = new ColorBar { Visible = true };
+        var cb = _figureColorBar ?? new ColorBar { Visible = true };
         if (configure is not null) cb = configure(cb);
         _figureColorBar = cb;
         return this;

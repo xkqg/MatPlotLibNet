@@ -273,6 +273,10 @@ public static class SeriesRegistry
             return s;
         });
 
+        // v1.0 Signal series
+        Register("signal-xy", ChartSerializer.CreateSignalXY);
+        Register("signal",    ChartSerializer.CreateSignal);
+
         // v0.8.9 Phase F — Geo
         Register("map", (axes, dto) =>
         {

@@ -22,15 +22,15 @@ public sealed class EquirectangularProjection : IMapProjection
     }
 
     /// <inheritdoc />
-    public (double Nx, double Ny) Project(double lon, double lat)
+    public NormalizedPoint Project(double lon, double lat)
     {
         double nx = (lon - _centerLon + _lonExtent / 2.0) / _lonExtent;
         double ny = 1.0 - (lat + _latExtent / 2.0) / _latExtent;
-        return (nx, ny);
+        return new(nx, ny);
     }
 
     /// <inheritdoc />
-    public (double LonMin, double LonMax, double LatMin, double LatMax) Bounds =>
-        (_centerLon - _lonExtent / 2.0, _centerLon + _lonExtent / 2.0,
-         -_latExtent / 2.0, _latExtent / 2.0);
+    public GeoBounds Bounds =>
+        new(_centerLon - _lonExtent / 2.0, _centerLon + _lonExtent / 2.0,
+            -_latExtent / 2.0, _latExtent / 2.0);
 }

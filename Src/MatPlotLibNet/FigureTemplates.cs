@@ -122,37 +122,8 @@ public static class FigureTemplates
     /// <param name="y">Y data values.</param>
     /// <param name="title">Optional figure title.</param>
     /// <param name="bins">Number of histogram bins for the marginal distributions (default 30).</param>
-    public static FigureBuilder JointPlot(double[] x, double[] y, string? title = null, int bins = 30)
-    {
-        var builder = Plt.Create()
-            .WithGridSpec(2, 2, heightRatios: [1.0, 4.0], widthRatios: [4.0, 1.0]);
-
-        if (title is not null) builder.WithTitle(title);
-
-        // Top marginal: X distribution
-        builder.AddSubPlot(new GridPosition(0, 1, 0, 1), ax =>
-        {
-            ax.Hist(x, bins);
-            ax.HideTopSpine();
-            ax.HideRightSpine();
-        });
-
-        // Center: joint scatter
-        builder.AddSubPlot(new GridPosition(1, 2, 0, 1), ax =>
-        {
-            ax.Scatter(x, y);
-        });
-
-        // Right marginal: Y distribution
-        builder.AddSubPlot(new GridPosition(1, 2, 1, 2), ax =>
-        {
-            ax.Hist(y, bins);
-            ax.HideTopSpine();
-            ax.HideRightSpine();
-        });
-
-        return builder;
-    }
+    public static FigureBuilder JointPlot(double[] x, double[] y, string? title = null, int bins = 30) =>
+        new JointPlotFigure(x, y) { Title = title, Bins = bins }.Build();
 
     /// <summary>Creates a vertically stacked sparkline dashboard with one row per series.</summary>
     /// <param name="series">Array of (label, values) tuples. Each tuple becomes one subplot row.</param>
@@ -187,43 +158,8 @@ public static class FigureTemplates
     /// <param name="columns">Array of data columns (each is one variable).</param>
     /// <param name="columnNames">Optional variable names for axis labels.</param>
     /// <param name="bins">Number of histogram bins for diagonal panels (default 20).</param>
-    public static FigureBuilder PairPlot(double[][] columns, string[]? columnNames = null, int bins = 20)
-    {
-        int n = columns.Length;
-        if (n == 0) return Plt.Create();
-
-        var builder = Plt.Create()
-            .WithSize(200 * n, 200 * n)
-            .WithGridSpec(n, n);
-
-        for (int row = 0; row < n; row++)
-        for (int col = 0; col < n; col++)
-        {
-            int r = row, c = col;
-            builder.AddSubPlot(GridPosition.Single(r, c), ax =>
-            {
-                if (r == c)
-                {
-                    ax.Hist(columns[r], bins);
-                }
-                else
-                {
-                    ax.Scatter(columns[c], columns[r]);
-                }
-
-                if (columnNames is not null)
-                {
-                    if (c == 0) ax.SetYLabel(columnNames[r]);
-                    if (r == n - 1) ax.SetXLabel(columnNames[c]);
-                }
-
-                ax.HideTopSpine();
-                ax.HideRightSpine();
-            });
-        }
-
-        return builder;
-    }
+    public static FigureBuilder PairPlot(double[][] columns, string[]? columnNames = null, int bins = 20) =>
+        new PairPlotFigure(columns) { ColumnNames = columnNames, Bins = bins }.Build();
 
     /// <summary>Creates a facet grid: one subplot per unique category, grouped into columns.</summary>
     /// <param name="x">X values for all observations.</param>
@@ -232,38 +168,8 @@ public static class FigureTemplates
     /// <param name="plotFunc">Action that adds the series to each subplot, receiving filtered X and Y for the category.</param>
     /// <param name="cols">Maximum number of columns in the grid (default 3).</param>
     public static FigureBuilder FacetGrid(double[] x, double[] y, string[] category,
-        Action<AxesBuilder, double[], double[]> plotFunc, int cols = 3)
-    {
-        var categories = category.Distinct().Order().ToArray();
-        int numCats = categories.Length;
-        int numCols = Math.Min(cols, numCats);
-        int numRows = (numCats + numCols - 1) / numCols;
-
-        var builder = Plt.Create()
-            .WithSize(300 * numCols, 250 * numRows)
-            .WithGridSpec(numRows, numCols);
-
-        for (int i = 0; i < numCats; i++)
-        {
-            int idx = i;
-            string cat = categories[idx];
-            int row = idx / numCols;
-            int col = idx % numCols;
-
-            var filteredX = x.Where((_, j) => category[j] == cat).ToArray();
-            var filteredY = y.Where((_, j) => category[j] == cat).ToArray();
-
-            builder.AddSubPlot(GridPosition.Single(row, col), ax =>
-            {
-                plotFunc(ax, filteredX, filteredY);
-                ax.WithTitle(cat);
-                ax.HideTopSpine();
-                ax.HideRightSpine();
-            });
-        }
-
-        return builder;
-    }
+        Action<AxesBuilder, double[], double[]> plotFunc, int cols = 3) =>
+        new FacetGridFigure(x, y, category, plotFunc) { MaxCols = cols }.Build();
 
     /// <summary>Creates a clustermap: a heatmap with hierarchical dendrograms on the row and column margins.</summary>
     /// <param name="data">The N×M data matrix to cluster and display.</param>

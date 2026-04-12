@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a strip plot series that draws randomly jittered dots per category to show individual data points.</summary>
-public sealed class StripplotSeries : DatasetSeries
+public sealed class StripplotSeries : DatasetSeries, IHasColor, IHasAlpha
 {
     public double Jitter { get; set; } = 0.2;
 

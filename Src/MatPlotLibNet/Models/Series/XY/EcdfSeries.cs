@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents an empirical cumulative distribution function (ECDF) step-function series.</summary>
-public sealed class EcdfSeries : ChartSeries
+public sealed class EcdfSeries : ChartSeries, IHasColor
 {
     public double[] Data { get; }
 

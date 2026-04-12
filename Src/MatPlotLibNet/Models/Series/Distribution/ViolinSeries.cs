@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a violin plot series displaying kernel density estimations for datasets.</summary>
-public sealed class ViolinSeries : DatasetSeries
+public sealed class ViolinSeries : DatasetSeries, IHasColor, IHasAlpha
 {
     public Color? Color { get; set; }
 

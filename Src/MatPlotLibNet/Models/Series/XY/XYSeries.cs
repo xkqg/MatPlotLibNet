@@ -6,7 +6,7 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Base class for series plotted on Cartesian X/Y coordinates.</summary>
 public abstract class XYSeries : ChartSeries, IPriceSeries
 {
-    public double[] XData { get; }
+    public virtual double[] XData { get; }
 
     public double[] YData { get; }
 

@@ -8,10 +8,9 @@ namespace MatPlotLibNet.Geo.Projections;
 public interface IMapProjection
 {
     /// <summary>Projects a geographic point to normalized coordinates.
-    /// Returns (Nx, Ny) where Nx=0 is left, Nx=1 is right, Ny=0 is top, Ny=1 is bottom.</summary>
-    (double Nx, double Ny) Project(double lon, double lat);
+    /// Returns a <see cref="NormalizedPoint"/> where Nx=0 is left, Nx=1 is right, Ny=0 is top, Ny=1 is bottom.</summary>
+    NormalizedPoint Project(double lon, double lat);
 
-    /// <summary>The valid geographic bounding box for this projection:
-    /// (LonMin, LonMax, LatMin, LatMax) in degrees.</summary>
-    (double LonMin, double LonMax, double LatMin, double LatMax) Bounds { get; }
+    /// <summary>The valid geographic bounding box for this projection in degrees.</summary>
+    GeoBounds Bounds { get; }
 }

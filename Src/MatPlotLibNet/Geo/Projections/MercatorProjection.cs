@@ -31,18 +31,18 @@ public sealed class MercatorProjection : IMapProjection
     }
 
     /// <inheritdoc />
-    public (double Nx, double Ny) Project(double lon, double lat)
+    public NormalizedPoint Project(double lon, double lat)
     {
         double nx = (lon - _centerLon + _lonExtent / 2.0) / _lonExtent;
         double clampedLat = Math.Clamp(lat, -MaxLat, MaxLat);
         double y = MercatorY(clampedLat);
         double ny = 1.0 - (y - _yMax) / (_yMin - _yMax);
-        return (nx, ny);
+        return new(nx, ny);
     }
 
     /// <inheritdoc />
-    public (double LonMin, double LonMax, double LatMin, double LatMax) Bounds =>
-        (_centerLon - _lonExtent / 2.0, _centerLon + _lonExtent / 2.0, -MaxLat, MaxLat);
+    public GeoBounds Bounds =>
+        new(_centerLon - _lonExtent / 2.0, _centerLon + _lonExtent / 2.0, -MaxLat, MaxLat);
 
     private static double MercatorY(double latDeg)
     {

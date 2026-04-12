@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D bar chart series — rectangular prisms rising from the XY-plane.</summary>
-public sealed class Bar3DSeries : ChartSeries, I3DPointSeries
+public sealed class Bar3DSeries : ChartSeries, I3DPointSeries, IHasColor
 {
     public Vec X { get; }
 

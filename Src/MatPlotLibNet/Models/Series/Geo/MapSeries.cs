@@ -10,7 +10,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Renders GeoJSON geometry (polygons, lines, points) on a projected map.</summary>
-public class MapSeries : ChartSeries
+public class MapSeries : ChartSeries, IHasEdgeColor
 {
     /// <summary>The GeoJSON document supplying the geometry to render.</summary>
     public GeoJsonDocument? GeoData { get; set; }

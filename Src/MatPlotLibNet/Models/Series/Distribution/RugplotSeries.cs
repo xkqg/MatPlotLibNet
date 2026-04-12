@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a rug plot series that draws short tick marks along an axis to show the distribution of individual values.</summary>
-public sealed class RugplotSeries : ChartSeries
+public sealed class RugplotSeries : ChartSeries, IHasColor, IHasAlpha
 {
     public Vec Data { get; }
 

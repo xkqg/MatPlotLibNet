@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Maui</PackageId>
-    <Version>0.9.1</Version>
+    <Version>1.0.0</Version>
     <Description>MAUI controls for MatPlotLibNet charting library. Renders charts via Microsoft.Maui.Graphics.</Description>
     <PackageTags>maui;charting;plotting;mobile;cross-platform</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

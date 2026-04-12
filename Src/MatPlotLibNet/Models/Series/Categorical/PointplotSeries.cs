@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a point plot series that shows the mean ± confidence interval for each category.</summary>
-public sealed class PointplotSeries : DatasetSeries
+public sealed class PointplotSeries : DatasetSeries, IHasColor
 {
     public string[]? Categories { get; set; }
 

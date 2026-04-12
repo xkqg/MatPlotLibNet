@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a kernel density estimation (KDE) series that draws a smooth density curve for a data sample.</summary>
-public sealed class KdeSeries : ChartSeries
+public sealed class KdeSeries : ChartSeries, IHasColor, IHasAlpha
 {
     public double[] Data { get; }
 

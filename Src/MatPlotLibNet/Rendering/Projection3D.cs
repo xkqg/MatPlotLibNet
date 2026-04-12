@@ -45,19 +45,22 @@ public sealed class Projection3D
         _cosAz = Math.Cos(azRad); _sinAz = Math.Sin(azRad);
     }
 
-    /// <summary>Normalizes data coordinates to the [-1, 1] cube.</summary>
-    public (double Nx, double Ny, double Nz) Normalize(double x, double y, double z)
+    /// <summary>Normalizes data coordinates to the [−1, 1]³ cube.</summary>
+    /// <remarks>Primarily called by 3-D series renderers; consumer code should prefer the renderer
+    /// pipeline rather than calling this method directly.</remarks>
+    public Normalized3DPoint Normalize(double x, double y, double z)
     {
         double nx = _xMax > _xMin ? 2 * (x - _xMin) / (_xMax - _xMin) - 1 : 0;
         double ny = _yMax > _yMin ? 2 * (y - _yMin) / (_yMax - _yMin) - 1 : 0;
         double nz = _zMax > _zMin ? 2 * (z - _zMin) / (_zMax - _zMin) - 1 : 0;
-        return (nx, ny, nz);
+        return new(nx, ny, nz);
     }
 
     /// <summary>Projects a 3D point to 2D pixel coordinates.</summary>
     public Point Project(double x, double y, double z)
     {
-        var (nx, ny, nz) = Normalize(x, y, z);
+        var n = Normalize(x, y, z);
+        double nx = n.Nx, ny = n.Ny, nz = n.Nz;
 
         // Rotate by azimuth (around Z axis)
         double rx = nx * _cosAz - ny * _sinAz;
@@ -86,9 +89,9 @@ public sealed class Projection3D
     /// <summary>Returns a depth value for sorting (higher = further from viewer).</summary>
     public double Depth(double x, double y, double z)
     {
-        var (nx, ny, nz) = Normalize(x, y, z);
-        double rx = nx * _cosAz - ny * _sinAz;
-        double ry = nx * _sinAz + ny * _cosAz;
-        return ry * _cosEl - nz * _sinEl; // view-space Y = depth
+        var n = Normalize(x, y, z);
+        double rx = n.Nx * _cosAz - n.Ny * _sinAz;
+        double ry = n.Nx * _sinAz + n.Ny * _cosAz;
+        return ry * _cosEl - n.Nz * _sinEl; // view-space Y = depth
     }
 }

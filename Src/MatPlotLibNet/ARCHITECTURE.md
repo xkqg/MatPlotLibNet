@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v0.9.1)
+# MatPlotLibNet Core -- Architecture (v1.0.0)
 
 ## Package dependency graph
 
@@ -74,6 +74,10 @@ MatPlotLibNet/
       ICategoryLabeled.cs             interface: CategoryLabels for polymorphic tick-label rendering
       IColorBarDataProvider.cs        interface: GetColorBarRange() + ColorMap for colorbar auto-detection
       IStackable.cs                   interface: StackBaseline for bar stacking offset computation
+      IHasColor.cs                    interface: Color? Color — polymorphic color access (~20 series)
+      IHasAlpha.cs                    interface: double Alpha — polymorphic alpha access (~7 series)
+      IHasEdgeColor.cs                interface: Color? EdgeColor — polymorphic edge-color access (~3 series)
+      ILabelable.cs                   interface: bool ShowLabels; string? LabelFormat — series with data-point labels
       ChartSeries.cs                  abstract base: implements ISeries + ISeriesSerializable
       XYSeries.cs                     generic base: XData, YData, MaxDisplayPoints (Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Stem, Ecdf)
       OhlcSeries.cs                   financial base: Open, High, Low, Close, DateLabels, UpColor, DownColor, PriceData (Candlestick, OhlcBar)
@@ -154,7 +158,9 @@ MatPlotLibNet/
 
   Geo/                               geographic projection and GeoJSON support (Phase F, v0.8.9)
     Projections/
-      IMapProjection.cs               interface: Project(lon, lat)→(nx, ny) in [0,1]²; Bounds property
+      IMapProjection.cs               interface: Project(lon, lat)→NormalizedPoint; Bounds → GeoBounds
+      NormalizedPoint.cs              readonly record struct(Nx, Ny) — normalized [0,1]² coordinate returned by IMapProjection.Project
+      GeoBounds.cs                    readonly record struct(LonMin, LonMax, LatMin, LatMax) + LonCenter/LatCenter — returned by IMapProjection.Bounds
       EquirectangularProjection.cs    plate carrée: linear lon/lat → normalized xy
       MercatorProjection.cs           Web Mercator; latitude clamped to ±85.0511°
       MapProjections.cs               static factory: Equirectangular(...) / Mercator(...)
@@ -173,6 +179,7 @@ MatPlotLibNet/
     SignalResult.cs                     single-line result (SMA, EMA, RSI, ATR, etc.) with implicit double[] conversion
     BandsResult.cs                      band result (Bollinger Bands, Keltner Channels): Middle, Upper, Lower
     MacdResult.cs                       MACD result: MacdLine, SignalLine, Histogram
+    AdxResult.cs                        sealed record: Adx[], PlusDi[], MinusDi[] — returned by Adx.ComputeFull()
     StochasticResult.cs                 Stochastic result: K, D
     IchimokuResult.cs                   Ichimoku result: TenkanSen, KijunSen, SenkouSpanA, SenkouSpanB, ChikouSpan
     PriceSource.cs                      enum (Close/Open/HL2/HLC3/OHLC4) + PriceSources resolver
@@ -265,6 +272,7 @@ MatPlotLibNet/
     SeriesRenderers/                    generic SeriesRenderer<T> per series type
       SeriesRenderContext.cs            record: Transform + Ctx + Color + Area + options
       SeriesRenderer.cs                 abstract base: ResolveColor(), ApplyAlpha(), ApplyDownsampling() + generic SeriesRenderer<T>
+      DrawStyleInterpolation.cs         internal static: Apply(x, y, style) — shared step-mode interpolation; eliminates duplication between LineSeriesRenderer and AreaSeriesRenderer
       XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band), Residual (LeastSquares residuals + optional zero line)
       Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
       Circular/                         Pie, Radar, Donut, Gauge
@@ -288,8 +296,15 @@ MatPlotLibNet/
       SvgHighlightScript.cs           embedded JS: mouseenter/focus dims siblings; tabindex, blur restores (new v0.8.8)
       SvgSelectionScript.cs           embedded JS: Shift+drag selection rect; Escape cancels; aria-label on rect (new v0.8.8)
 
+  Models/Series/XY/
+    IndexRange.cs                     readonly record struct(StartInclusive, EndExclusive) + Count/IsEmpty — returned by IMonotonicXY.IndexRangeFor
+
+  Rendering/
+    Normalized3DPoint.cs              readonly record struct(Nx, Ny, Nz) — returned by Projection3D.Normalize()
+
   Numerics/
     LeastSquares.cs                   public static: PolyFit (normal equations), PolyEval (Horner), ConfidenceBand (t-distribution leverage)
+    ConfidenceBand.cs                 sealed record(Upper[], Lower[]) — returned by LeastSquares.ConfidenceBand()
     Vec.cs                            readonly record struct: Data[], Length, Min/Max/Mean/Std/Sum/Percentile(p)/Quantile(q), element-wise ops, implicit double[] conversions
     Fft.cs                            public static: Forward (Cooley-Tukey radix-2, Hann window, zero-pad to power-of-2), Stft (sliding window FFT → StftResult)
                                         StftResult: double[,] Magnitudes, double[] Frequencies, double[] Times
@@ -460,7 +475,7 @@ ChartHub               routes to SignalR group by chartId
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
 | Registry | SeriesRegistry (ConcurrentDictionary) | thread-safe deserialization type lookup |
 | Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries | DRY shared properties across series families |
-| Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable | narrow contracts for cross-cutting concerns |
+| Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable, IHasColor, IHasAlpha, IHasEdgeColor, ILabelable | narrow contracts for cross-cutting concerns |
 | DI interfaces | IFigureTransform, IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |
 | SRP extension methods | FigureExtensions (Save, Transform, ToSvg, RegisterTransform) | builder only builds; output is separate |
 | Static defaults | ChartServices | non-DI usage for console apps |
@@ -472,3 +487,45 @@ ChartHub               routes to SignalR group by chartId
 | Default interface method | IRenderContext.DrawRichText | all backends get plain-text fallback; SVG overrides with tspan emission |
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
+| Named record types | IndexRange, NormalizedPoint, GeoBounds, Normalized3DPoint, AdxResult, ConfidenceBand | replace anonymous/named tuples in public API for discoverability and structural equality |
+
+---
+
+## MatPlotLibNet.DataFrame package
+
+Thin extension-method bridge that funnels `Microsoft.Data.Analysis.DataFrame` column names
+into the core charting, indicator, and regression APIs. Zero new logic — all data processing
+happens inside the core library.
+
+```
+MatPlotLibNet.DataFrame/
+  DataFrameColumnReader.cs           static: ToDoubleArray / ToStringArray — type-safe column materialisation
+  DataFrameToHueGroups.cs            static: ToHueGroups — resolves x/y/hue columns → HueGroup[]
+  DataFrameFigureExtensions.cs       Line / Scatter / Hist — delegates to EnumerableFigureExtensions
+  DataFrameIndicatorExtensions.cs    16 indicator bridge methods — delegates to core indicator types
+  DataFrameNumericsExtensions.cs     PolyFit / PolyEval / ConfidenceBand — delegates to LeastSquares
+```
+
+### Column resolution
+
+Every extension method calls an internal `Col(df, name)` helper that throws
+`ArgumentException` with the column name in the message when a column is not found.
+All column access funnels through `DataFrameColumnReader.ToDoubleArray` / `ToStringArray`.
+
+### Indicator bridge
+
+`DataFrameIndicatorExtensions` covers all 16 core indicators:
+
+| Group | Methods |
+|---|---|
+| Price | `Sma`, `Ema`, `Rsi`, `BollingerBands`, `Obv`, `Macd`, `DrawDown` |
+| Candle | `Adx` (scalar), `AdxFull` (→ `AdxResult`), `Atr`, `Cci`, `WilliamsR`, `Stochastic`, `ParabolicSar`, `KeltnerChannels`, `Vwap` |
+
+`Vwap` pre-computes the typical price `(H+L+C)/3` before delegating to the core `Vwap` indicator.
+`ParabolicSar` returns `.Sar` from `ParabolicSarResult`.
+
+### Regression bridge
+
+`DataFrameNumericsExtensions` wraps `LeastSquares` static methods:
+`PolyFit(xCol, yCol, degree)` → coefficients; `PolyEval(xCol, coeffs)` → fitted Y;
+`ConfidenceBand(xCol, yCol, coeffs, evalX, level)` → `ConfidenceBand(Upper[], Lower[])`.

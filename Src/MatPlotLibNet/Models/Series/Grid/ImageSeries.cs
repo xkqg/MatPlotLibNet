@@ -11,7 +11,7 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents an image series that renders a 2D data matrix as colored pixels using a colormap (imshow).</summary>
 /// <remarks>Unlike <see cref="HeatmapSeries"/>, ImageSeries uses pixel-coordinate axes (0 to width, 0 to height)
 /// and supports explicit VMin/VMax for color scaling.</remarks>
-public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
+public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable, IHasAlpha
 {
     public double[,] Data { get; }
 

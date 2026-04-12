@@ -18,7 +18,7 @@ public enum BarOrientation
 }
 
 /// <summary>Represents a bar chart series displaying categorical data as rectangular bars.</summary>
-public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable
+public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasColor, IHasAlpha, IHasEdgeColor, ILabelable
 {
     public string[] Categories { get; }
 

@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a box plot series displaying statistical distribution summaries.</summary>
-public sealed class BoxSeries : DatasetSeries
+public sealed class BoxSeries : DatasetSeries, IHasColor
 {
     public Color? Color { get; set; }
 

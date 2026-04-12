@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a filled contour plot that fills the regions between iso-levels using a painter's algorithm.</summary>
-public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable, IColorBarDataProvider
+public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable, IColorBarDataProvider, IHasAlpha
 {
     public double[] XData { get; }
 

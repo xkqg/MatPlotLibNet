@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a vector field (quiver) series with arrows at each grid point.</summary>
-public sealed class QuiverSeries : ChartSeries
+public sealed class QuiverSeries : ChartSeries, IHasColor
 {
     public double[] XData { get; }
 

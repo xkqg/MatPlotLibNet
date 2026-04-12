@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- NuGet Package Properties -->
+    <PackageId>MatPlotLibNet.DataFrame</PackageId>
+    <Version>1.0.0</Version>
+    <Description>Microsoft.Data.Analysis.DataFrame extensions for MatPlotLibNet — plot directly from typed DataFrames with optional hue grouping.</Description>
+    <PackageTags>matplotlib charts dataframe plotting visualization</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <InternalsVisibleTo>MatPlotLibNet.DataFrame.Tests</InternalsVisibleTo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Analysis" Version="0.22.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MatPlotLibNet\MatPlotLibNet.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

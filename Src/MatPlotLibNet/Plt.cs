@@ -7,6 +7,25 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet;
 
 /// <summary>Top-level entry point for creating figures, modeled after matplotlib's pyplot interface.</summary>
+/// <example>
+/// Quickstart — line + scatter, then save:
+/// <code>
+/// double[] x = [1, 2, 3, 4, 5];
+/// double[] y = [1.2, 2.4, 1.8, 3.1, 2.7];
+/// Plt.Create()
+///     .Plot(x, y, s => s.Label = "Signal")
+///     .Scatter(x, y, s => s.Label = "Points")
+///     .WithTitle("Demo")
+///     .Save("demo.svg");
+/// </code>
+/// Apply a style for the lifetime of a block:
+/// <code>
+/// using (Plt.Style.Context("dark_background"))
+/// {
+///     Plt.Create().Plot(x, y).Save("dark.svg");
+/// }
+/// </code>
+/// </example>
 public static class Plt
 {
     /// <summary>Creates a new <see cref="Models.Figure"/> with the specified dimensions.</summary>

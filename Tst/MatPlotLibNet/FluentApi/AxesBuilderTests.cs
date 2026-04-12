@@ -424,4 +424,36 @@ public class AxesBuilderTests
         Assert.Equal(0.6, inset.InsetBounds.Value.X);
         Assert.Equal(0.35, inset.InsetBounds.Value.Width);
     }
+
+    // ── Sub-phase E: configure baseline accumulation ─────────────────────────
+
+    [Fact]
+    public void WithTitle_CalledTwice_AccumulatesStyle()
+    {
+        // Second call builds on top of the first rather than discarding it
+        var axes = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithTitle("T", s => s with { FontSize = 14 })
+                .WithTitle("T", s => s with { FontWeight = MatPlotLibNet.Styling.FontWeight.Bold }))
+            .Build().SubPlots[0];
+
+        Assert.NotNull(axes.TitleStyle);
+        Assert.Equal(14, axes.TitleStyle!.FontSize);
+        Assert.Equal(MatPlotLibNet.Styling.FontWeight.Bold, axes.TitleStyle!.FontWeight);
+    }
+
+    [Fact]
+    public void WithColorBar_CalledTwice_AccumulatesSettings()
+    {
+        var axes = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Heatmap(new double[,] { { 1 }, { 2 } })
+                .WithColorBar(cb => cb with { Label = "First" })
+                .WithColorBar(cb => cb with { Visible = true }))
+            .Build().SubPlots[0];
+
+        Assert.NotNull(axes.ColorBar);
+        Assert.True(axes.ColorBar!.Visible);
+        Assert.Equal("First", axes.ColorBar!.Label);
+    }
 }

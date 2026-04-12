@@ -2,6 +2,7 @@
 // Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models.Series.XY;
 using MatPlotLibNet.Rendering.Downsampling;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
@@ -74,6 +75,12 @@ internal abstract class SeriesRenderer
         if (culled.X.Length <= maxPoints.Value) return culled;
         return new LttbDownsampler().Downsample(culled.X, culled.Y, maxPoints.Value);
     }
+
+    /// <summary>Slices a monotonic-X series to the visible viewport via O(1)/O(log n) index arithmetic,
+    /// then applies LTTB downsampling when the slice exceeds <paramref name="maxPoints"/>.</summary>
+    protected XYData ApplyMonotonicDownsampling<T>(T src, int? maxPoints)
+        where T : IMonotonicXY =>
+        MonotonicViewportSlicer.Slice(src, Transform.DataXMin, Transform.DataXMax, maxPoints);
 }
 
 /// <summary>Generic typed series renderer. Each concrete renderer handles exactly one <typeparamref name="T"/> series type.</summary>

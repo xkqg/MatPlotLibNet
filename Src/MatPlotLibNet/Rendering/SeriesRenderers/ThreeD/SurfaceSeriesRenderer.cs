@@ -77,12 +77,12 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
                 string? v3d = null;
                 if (emitV3d)
                 {
-                    var (n0x, n0y, n0z) = proj.Normalize(x0, y0, z00);
-                    var (n1x, n1y, n1z) = proj.Normalize(x1, y0, z01);
-                    var (n2x, n2y, n2z) = proj.Normalize(x1, y1, z11);
-                    var (n3x, n3y, n3z) = proj.Normalize(x0, y1, z10);
+                    var n0 = proj.Normalize(x0, y0, z00);
+                    var n1 = proj.Normalize(x1, y0, z01);
+                    var n2 = proj.Normalize(x1, y1, z11);
+                    var n3 = proj.Normalize(x0, y1, z10);
                     v3d = FormattableString.Invariant(
-                        $"{n0x:G4},{n0y:G4},{n0z:G4} {n1x:G4},{n1y:G4},{n1z:G4} {n2x:G4},{n2y:G4},{n2z:G4} {n3x:G4},{n3y:G4},{n3z:G4}");
+                        $"{n0.Nx:G4},{n0.Ny:G4},{n0.Nz:G4} {n1.Nx:G4},{n1.Ny:G4},{n1.Nz:G4} {n2.Nx:G4},{n2.Ny:G4},{n2.Nz:G4} {n3.Nx:G4},{n3.Ny:G4},{n3.Nz:G4}");
                 }
 
                 quads.Add((avgDepth, vertices, avgZ, nx, ny, nz, v3d));

@@ -117,6 +117,10 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private QuiverKeySeriesRenderer? _quiverKey;
     private BarbsSeriesRenderer? _barbs;
 
+    // Signal v1.0
+    private SignalXYSeriesRenderer? _signalXY;
+    private SignalSeriesRenderer? _signal;
+
     /// <summary>Initializes a new <see cref="SvgSeriesRenderer"/> for a single render pass.</summary>
     /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
     /// <param name="ctx">The drawing target for this render pass.</param>
@@ -306,4 +310,10 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(MapSeries s, RenderArea a) => (_map ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(ChoroplethSeries s, RenderArea a) => (_choropleth ??= new(_context)).Render(s);
+
+    // Signal v1.0
+    /// <inheritdoc />
+    public void Visit(SignalXYSeries s, RenderArea a) => (_signalXY ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(SignalSeries s, RenderArea a) => (_signal ??= new(_context)).Render(s);
 }

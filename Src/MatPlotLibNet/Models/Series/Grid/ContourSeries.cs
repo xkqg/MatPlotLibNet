@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a contour plot series displaying iso-lines or filled regions for 3D surface data.</summary>
-public sealed class ContourSeries : ChartSeries, IColormappable
+public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
 {
     public double[] XData { get; }
 

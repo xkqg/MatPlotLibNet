@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents an error bar series showing uncertainty at each data point.</summary>
-public sealed class ErrorBarSeries : XYSeries
+public sealed class ErrorBarSeries : XYSeries, IHasColor
 {
     public double[] YErrorLow { get; }
 

@@ -19,46 +19,74 @@ internal static class VectorMath
     // -------------------------------------------------------------------------
 
     /// <summary>Element-wise addition: <c>dst[i] = x[i] + y[i]</c>.</summary>
+    /// <param name="x">Left operand.</param>
+    /// <param name="y">Right operand — same length as <paramref name="x"/>.</param>
+    /// <param name="dst">Destination span — same length as <paramref name="x"/>.</param>
     internal static void Add(ReadOnlySpan<double> x, ReadOnlySpan<double> y, Span<double> dst) =>
         TensorPrimitives.Add(x, y, dst);
 
     /// <summary>Scalar addition: <c>dst[i] = x[i] + scalar</c>.</summary>
+    /// <param name="x">Input span.</param>
+    /// <param name="scalar">Value added to every element.</param>
+    /// <param name="dst">Destination span — same length as <paramref name="x"/>.</param>
     internal static void Add(ReadOnlySpan<double> x, double scalar, Span<double> dst) =>
         TensorPrimitives.Add(x, scalar, dst);
 
     /// <summary>Element-wise subtraction: <c>dst[i] = x[i] - y[i]</c>.</summary>
+    /// <param name="x">Minuend.</param>
+    /// <param name="y">Subtrahend — same length as <paramref name="x"/>.</param>
+    /// <param name="dst">Destination span — same length as <paramref name="x"/>.</param>
     internal static void Subtract(ReadOnlySpan<double> x, ReadOnlySpan<double> y, Span<double> dst) =>
         TensorPrimitives.Subtract(x, y, dst);
 
     /// <summary>Element-wise multiplication: <c>dst[i] = x[i] * y[i]</c>.</summary>
+    /// <param name="x">First factor.</param>
+    /// <param name="y">Second factor — same length as <paramref name="x"/>.</param>
+    /// <param name="dst">Destination span — same length as <paramref name="x"/>.</param>
     internal static void Multiply(ReadOnlySpan<double> x, ReadOnlySpan<double> y, Span<double> dst) =>
         TensorPrimitives.Multiply(x, y, dst);
 
     /// <summary>Scalar multiplication: <c>dst[i] = x[i] * scalar</c>.</summary>
+    /// <param name="x">Input span.</param>
+    /// <param name="scalar">Multiplier applied to every element.</param>
+    /// <param name="dst">Destination span — same length as <paramref name="x"/>.</param>
     internal static void Multiply(ReadOnlySpan<double> x, double scalar, Span<double> dst) =>
         TensorPrimitives.Multiply(x, scalar, dst);
 
     /// <summary>Scalar division: <c>dst[i] = x[i] / scalar</c>.</summary>
+    /// <param name="x">Input span.</param>
+    /// <param name="scalar">Divisor applied to every element.</param>
+    /// <param name="dst">Destination span — same length as <paramref name="x"/>.</param>
     internal static void Divide(ReadOnlySpan<double> x, double scalar, Span<double> dst) =>
         TensorPrimitives.Divide(x, scalar, dst);
 
     /// <summary>Returns the sum of all elements.</summary>
+    /// <param name="x">Input span.</param>
+    /// <returns>Sum of all values in <paramref name="x"/>.</returns>
     internal static double Sum(ReadOnlySpan<double> x) =>
         TensorPrimitives.Sum(x);
 
     /// <summary>Returns the minimum element value.</summary>
+    /// <param name="x">Input span.</param>
+    /// <returns>Smallest value in <paramref name="x"/>.</returns>
     internal static double Min(ReadOnlySpan<double> x) =>
         TensorPrimitives.Min(x);
 
     /// <summary>Returns the maximum element value.</summary>
+    /// <param name="x">Input span.</param>
+    /// <returns>Largest value in <paramref name="x"/>.</returns>
     internal static double Max(ReadOnlySpan<double> x) =>
         TensorPrimitives.Max(x);
 
     /// <summary>Element-wise absolute value: <c>dst[i] = |x[i]|</c>.</summary>
+    /// <param name="x">Input span.</param>
+    /// <param name="dst">Destination span — same length as <paramref name="x"/>.</param>
     internal static void Abs(ReadOnlySpan<double> x, Span<double> dst) =>
         TensorPrimitives.Abs(x, dst);
 
     /// <summary>Element-wise negation: <c>dst[i] = -x[i]</c>.</summary>
+    /// <param name="x">Input span.</param>
+    /// <param name="dst">Destination span — same length as <paramref name="x"/>.</param>
     internal static void Negate(ReadOnlySpan<double> x, Span<double> dst) =>
         TensorPrimitives.Negate(x, dst);
 

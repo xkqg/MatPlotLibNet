@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a wind barb series using meteorological notation to show speed and direction.</summary>
-public sealed class BarbsSeries : ChartSeries
+public sealed class BarbsSeries : ChartSeries, IHasColor
 {
     public Vec X { get; }
 

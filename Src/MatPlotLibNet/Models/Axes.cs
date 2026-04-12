@@ -866,6 +866,28 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a <see cref="SignalXYSeries"/> with monotonically ascending X values.</summary>
+    /// <param name="x">Monotonically ascending X values. Must match the length of <paramref name="y"/>.</param>
+    /// <param name="y">Y values parallel to <paramref name="x"/>.</param>
+    public SignalXYSeries SignalXY(double[] x, double[] y)
+    {
+        ValidateMatchingLengths(x.Length, y.Length);
+        var series = new SignalXYSeries(x, y);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a <see cref="SignalSeries"/> with uniform sample rate.</summary>
+    /// <param name="y">Y values sampled at <paramref name="sampleRate"/> Hz starting at <paramref name="xStart"/>.</param>
+    /// <param name="sampleRate">Samples per X-unit (e.g., Hz for time-domain data). Defaults to 1.</param>
+    /// <param name="xStart">X value of the first sample. Defaults to 0.</param>
+    public SignalSeries Signal(double[] y, double sampleRate = 1.0, double xStart = 0.0)
+    {
+        var series = new SignalSeries(y, sampleRate, xStart);
+        _series.Add(series);
+        return series;
+    }
+
     private static void ValidateMatchingLengths(int a, int b)
     {
         if (a != b)

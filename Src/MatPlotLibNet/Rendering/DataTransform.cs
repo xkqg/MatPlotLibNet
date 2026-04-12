@@ -85,6 +85,8 @@ public sealed class DataTransform
 
     /// <summary>Batch-transforms Y data coordinates to pixel Y values using SIMD MultiplyAdd.
     /// Note: Y axis is inverted — larger data values map to smaller pixel Y.</summary>
+    /// <remarks>When <c>axis.Inverted == true</c> the scale is negated here; downstream renderers
+    /// receive already-inverted pixel coordinates and must not apply a second inversion.</remarks>
     /// <param name="yData">Data-space Y values.</param>
     /// <returns>Pixel-space Y values, one per input element.</returns>
     public double[] TransformY(ReadOnlySpan<double> yData)

@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a stacked area (stackplot) series where multiple Y datasets are stacked vertically with filled areas.</summary>
-public sealed class StackedAreaSeries : ChartSeries
+public sealed class StackedAreaSeries : ChartSeries, IHasAlpha
 {
     public double[] X { get; }
 

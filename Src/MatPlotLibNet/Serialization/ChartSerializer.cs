@@ -335,6 +335,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="LineSeries"/> from the DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static LineSeries CreateLine(Axes axes, SeriesDto dto)
     {
         var s = axes.Plot(dto.XData ?? [], dto.YData ?? []);
@@ -343,6 +346,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="ScatterSeries"/> from the DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static ScatterSeries CreateScatter(Axes axes, SeriesDto dto)
     {
         var s = axes.Scatter(dto.XData ?? [], dto.YData ?? []);
@@ -352,6 +358,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="BarSeries"/> from the DTO, including orientation, and adds it to the axes.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static BarSeries CreateBar(Axes axes, SeriesDto dto)
     {
         var s = axes.Bar(dto.Categories ?? [], dto.Values ?? []);
@@ -362,6 +371,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="HistogramSeries"/> from the DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static HistogramSeries CreateHistogram(Axes axes, SeriesDto dto)
     {
         var s = axes.Hist(dto.Data ?? [], dto.Bins ?? 10);
@@ -370,6 +382,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="LineSeries"/> on the secondary Y-axis from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static LineSeries CreateSecondaryLine(Axes axes, SeriesDto dto)
     {
         var s = axes.PlotSecondary(dto.XData ?? [], dto.YData ?? []);
@@ -378,6 +393,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="ScatterSeries"/> on the secondary Y-axis from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static ScatterSeries CreateSecondaryScatter(Axes axes, SeriesDto dto)
     {
         var s = axes.ScatterSecondary(dto.XData ?? [], dto.YData ?? []);
@@ -387,6 +405,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="RadarSeries"/> from the DTO, including fill color and max value.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static RadarSeries CreateRadar(Axes axes, SeriesDto dto)
     {
         var s = axes.Radar(dto.Categories ?? [], dto.Values ?? []);
@@ -399,6 +420,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="QuiverSeries"/> from the DTO, including scale and arrowhead size.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static QuiverSeries CreateQuiver(Axes axes, SeriesDto dto)
     {
         var s = axes.Quiver(dto.XData ?? [], dto.YData ?? [], dto.UData ?? [], dto.VData ?? []);
@@ -409,6 +433,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="StreamplotSeries"/> from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static StreamplotSeries CreateStreamplot(Axes axes, SeriesDto dto)
     {
         var s = axes.Streamplot(dto.XData ?? [], dto.YData ?? [], From2DList(dto.HeatmapData), From2DList(dto.VFieldData));
@@ -418,6 +445,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="CandlestickSeries"/> from the DTO, including up/down colors and date labels.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static CandlestickSeries CreateCandlestick(Axes axes, SeriesDto dto)
     {
         var s = axes.Candlestick(dto.Open ?? [], dto.High ?? [], dto.Low ?? [], dto.Close ?? [], dto.DateLabels);
@@ -428,6 +458,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs an <see cref="ErrorBarSeries"/> from the DTO, including optional X error bars.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static ErrorBarSeries CreateErrorBar(Axes axes, SeriesDto dto)
     {
         var s = axes.ErrorBar(dto.XData ?? [], dto.YData ?? [], dto.YErrorLow ?? [], dto.YErrorHigh ?? []);
@@ -440,6 +473,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs an <see cref="EcdfSeries"/> from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static EcdfSeries CreateEcdf(Axes axes, SeriesDto dto)
     {
         var s = axes.Ecdf(dto.Data ?? []);
@@ -450,6 +486,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs an <see cref="ImageSeries"/> from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static ImageSeries CreateImage(Axes axes, SeriesDto dto)
     {
         var s = axes.Image(ChartSerializer.From2DList(dto.HeatmapData));
@@ -462,6 +501,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="Histogram2DSeries"/> from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static Histogram2DSeries CreateHistogram2D(Axes axes, SeriesDto dto)
     {
         var s = axes.Histogram2D(dto.XData ?? [], dto.YData ?? [], dto.Bins ?? 20);
@@ -472,6 +514,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="StackedAreaSeries"/> from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static StackedAreaSeries CreateStackedArea(Axes axes, SeriesDto dto)
     {
         var s = axes.StackPlot(dto.XData ?? [], dto.Datasets ?? []);
@@ -481,6 +526,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="StepSeries"/> from the DTO, including step position.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static StepSeries CreateStep(Axes axes, SeriesDto dto)
     {
         var s = axes.Step(dto.XData ?? [], dto.YData ?? []);
@@ -492,6 +540,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs an <see cref="AreaSeries"/> from the DTO, including optional second Y dataset for fill-between.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static AreaSeries CreateArea(Axes axes, SeriesDto dto)
     {
         var s = axes.FillBetween(dto.XData ?? [], dto.YData ?? [], dto.YData2);
@@ -503,6 +554,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="DonutSeries"/> from the DTO, including inner radius and center text.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static DonutSeries CreateDonut(Axes axes, SeriesDto dto)
     {
         var s = axes.Donut(dto.Sizes ?? [], dto.PieLabels);
@@ -513,6 +567,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="BubbleSeries"/> from the DTO, including alpha transparency.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static BubbleSeries CreateBubble(Axes axes, SeriesDto dto)
     {
         var s = axes.Bubble(dto.XData ?? [], dto.YData ?? [], dto.Sizes ?? []);
@@ -522,6 +579,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs an <see cref="OhlcBarSeries"/> from the DTO, including up/down colors and tick width.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static OhlcBarSeries CreateOhlcBar(Axes axes, SeriesDto dto)
     {
         var s = axes.OhlcBar(dto.Open ?? [], dto.High ?? [], dto.Low ?? [], dto.Close ?? [], dto.DateLabels);
@@ -532,6 +592,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="WaterfallSeries"/> from the DTO, including increase/decrease/total colors.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static WaterfallSeries CreateWaterfall(Axes axes, SeriesDto dto)
     {
         var s = axes.Waterfall(dto.Categories ?? [], dto.Values ?? []);
@@ -543,6 +606,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="FunnelSeries"/> from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static FunnelSeries CreateFunnel(Axes axes, SeriesDto dto)
     {
         var s = axes.Funnel(dto.PieLabels ?? [], dto.Values ?? []);
@@ -550,6 +616,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="GanttSeries"/> from the DTO, including bar height.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static GanttSeries CreateGantt(Axes axes, SeriesDto dto)
     {
         var s = axes.Gantt(dto.Tasks ?? [], dto.Starts ?? [], dto.Ends ?? []);
@@ -559,6 +628,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="GaugeSeries"/> from the DTO, including min/max range and needle color.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static GaugeSeries CreateGauge(Axes axes, SeriesDto dto)
     {
         var s = axes.Gauge(dto.GaugeValue ?? 0);
@@ -569,6 +641,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="ProgressBarSeries"/> from the DTO, including fill and track colors.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static ProgressBarSeries CreateProgressBar(Axes axes, SeriesDto dto)
     {
         var s = axes.ProgressBar(dto.GaugeValue ?? 0);
@@ -579,6 +654,9 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Reconstructs a <see cref="SparklineSeries"/> from the DTO, including color and line width.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static SparklineSeries CreateSparkline(Axes axes, SeriesDto dto)
     {
         var s = axes.Sparkline(dto.Values ?? []);
@@ -589,14 +667,18 @@ public sealed class ChartSerializer : IChartSerializer
 
     /// <summary>Parses a string to an enum value and applies it via the <paramref name="setter"/> delegate if successful.</summary>
     /// <remarks>Uses case-insensitive parsing. No-ops when <paramref name="value"/> is null or not a valid enum member.</remarks>
+    /// <param name="value">The string to parse; ignored when <see langword="null"/> or unrecognised.</param>
+    /// <param name="setter">The action invoked with the parsed enum value on success.</param>
     internal static void ApplyEnum<T>(string? value, Action<T> setter) where T : struct, Enum
     {
         if (value is not null && Enum.TryParse<T>(value, true, out var parsed))
             setter(parsed);
     }
 
-    /// <summary>Applies the common line series properties (color, width, style) from a DTO to a <see cref="LineSeries"/>.</summary>
+    /// <summary>Applies the common line series properties (color, width, style) from a DTO to a <see cref="T:MatPlotLibNet.Models.Series.XY.LineSeries"/>.</summary>
     /// <remarks>Shared between primary and secondary line series deserialization to avoid duplication.</remarks>
+    /// <param name="s">The <see cref="T:MatPlotLibNet.Models.Series.XY.LineSeries"/> to configure.</param>
+    /// <param name="dto">The DTO whose color, line-width, and line-style values are applied.</param>
     internal static void ApplyLineProperties(LineSeries s, SeriesDto dto)
     {
         s.Color = dto.Color;
@@ -604,7 +686,35 @@ public sealed class ChartSerializer : IChartSerializer
         ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
     }
 
+    /// <summary>Reconstructs a <see cref="SignalXYSeries"/> from the DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static SignalXYSeries CreateSignalXY(Axes axes, SeriesDto dto)
+    {
+        var s = axes.SignalXY(dto.XData ?? [], dto.YData ?? []);
+        s.Color = dto.Color;
+        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+        if (dto.LineStyle is not null && Enum.TryParse<LineStyle>(dto.LineStyle, true, out var ls)) s.LineStyle = ls;
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="SignalSeries"/> from the DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static SignalSeries CreateSignal(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Signal(dto.YData ?? [], dto.SignalSampleRate ?? 1.0, dto.SignalXStart ?? 0.0);
+        s.Color = dto.Color;
+        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+        if (dto.LineStyle is not null && Enum.TryParse<LineStyle>(dto.LineStyle, true, out var ls)) s.LineStyle = ls;
+        return s;
+    }
+
     /// <summary>Converts a rectangular 2D array to a jagged list-of-lists for JSON serialization.</summary>
+    /// <param name="data">The source rectangular 2D array.</param>
+    /// <returns>A jagged list representation suitable for JSON serialization.</returns>
     internal static List<List<double>>? To2DList(double[,] data)
     {
         int rows = data.GetLength(0), cols = data.GetLength(1);
@@ -619,6 +729,8 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>Converts a JSON jagged list-of-lists back to a rectangular 2D array.</summary>
+    /// <param name="data">The jagged list from JSON; returns an empty array when <see langword="null"/> or empty.</param>
+    /// <returns>A rectangular <c>double[rows, cols]</c> array.</returns>
     internal static double[,] From2DList(List<List<double>>? data)
     {
         if (data is null || data.Count == 0) return new double[0, 0];
@@ -886,6 +998,10 @@ public sealed record SeriesDto
     public bool? ShowWireframe { get; init; }
     public int? RowStride { get; init; }
     public int? ColStride { get; init; }
+
+    // v1.0 Signal series (distinct from int? SampleRate used by SpectrogramSeries)
+    public double? SignalSampleRate { get; init; }
+    public double? SignalXStart { get; init; }
 }
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>

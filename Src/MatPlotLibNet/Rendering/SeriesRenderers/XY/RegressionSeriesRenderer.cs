@@ -33,14 +33,14 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
 
         if (series.ShowConfidence)
         {
-            var (upper, lower) = LeastSquares.ConfidenceBand(series.XData, series.YData, coeff, evalX, series.ConfidenceLevel);
+            var band = LeastSquares.ConfidenceBand(series.XData, series.YData, coeff, evalX, series.ConfidenceLevel);
             var bandColor = series.BandColor ?? color;
 
             var polygon = new List<Point>(NumEvalPoints * 2);
             for (int i = 0; i < NumEvalPoints; i++)
-                polygon.Add(Transform.DataToPixel(evalX[i], upper[i]));
+                polygon.Add(Transform.DataToPixel(evalX[i], band.Upper[i]));
             for (int i = NumEvalPoints - 1; i >= 0; i--)
-                polygon.Add(Transform.DataToPixel(evalX[i], lower[i]));
+                polygon.Add(Transform.DataToPixel(evalX[i], band.Lower[i]));
             Ctx.DrawPolygon(polygon, ApplyAlpha(bandColor, series.BandAlpha), null, 0);
         }
 

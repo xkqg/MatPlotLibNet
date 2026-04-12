@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D scatter plot rendered as projected circles.</summary>
-public sealed class Scatter3DSeries : ChartSeries, I3DPointSeries
+public sealed class Scatter3DSeries : ChartSeries, I3DPointSeries, IHasColor
 {
     public double[] X { get; }
 

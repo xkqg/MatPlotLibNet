@@ -9,6 +9,35 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet;
 
 /// <summary>Fluent builder for configuring an <see cref="Models.Axes"/> instance within a subplot.</summary>
+/// <example>
+/// Dual-axis chart: candlestick + Bollinger bands on the left, volume bar on secondary Y:
+/// <code>
+/// string svg = Plt.Create()
+///     .AddSubPlot(1, 1, 1, ax =>
+///     {
+///         ax.Candlestick(open, high, low, close)
+///           .BollingerBands(20, 2.0)
+///           .AxHLine(support, r => r.Color = Color.Red)
+///           .SetYLabel("Price")
+///           .WithSecondaryYAxis(y2 =>
+///               y2.Bar(labels, volume).SetYLabel("Volume"));
+///     })
+///     .ToSvg();
+/// </code>
+/// Geo choropleth with per-feature colour mapping:
+/// <code>
+/// string svg = Plt.Create()
+///     .AddSubPlot(1, 1, 1, ax =>
+///     {
+///         ax.Choropleth(geoDoc, gdpValues)
+///           .WithColorMap("YlOrRd")
+///           .WithColorBar()
+///           .SetXLabel("Longitude")
+///           .SetYLabel("Latitude");
+///     })
+///     .ToSvg();
+/// </code>
+/// </example>
 public sealed class AxesBuilder
 {
     private readonly Axes _axes = new();
@@ -20,10 +49,12 @@ public sealed class AxesBuilder
     public AxesBuilder WithTitle(string title) { _axes.Title = title; return this; }
 
     /// <summary>Sets the axes title with an optional text style override.</summary>
+    /// <param name="title">The title text.</param>
+    /// <param name="configure">Function that receives the current <see cref="TextStyle"/> and returns a modified copy; <see langword="null"/> leaves the style unchanged.</param>
     public AxesBuilder WithTitle(string title, Func<TextStyle, TextStyle>? configure)
     {
         _axes.Title = title;
-        if (configure is not null) _axes.TitleStyle = configure(new TextStyle());
+        if (configure is not null) _axes.TitleStyle = configure(_axes.TitleStyle ?? new TextStyle());
         return this;
     }
 
@@ -31,10 +62,12 @@ public sealed class AxesBuilder
     public AxesBuilder SetXLabel(string label) { _axes.XAxis.Label = label; return this; }
 
     /// <summary>Sets the X-axis label with an optional text style override.</summary>
+    /// <param name="label">The axis label text.</param>
+    /// <param name="configure">Function that receives the current <see cref="TextStyle"/> and returns a modified copy; <see langword="null"/> leaves the style unchanged.</param>
     public AxesBuilder SetXLabel(string label, Func<TextStyle, TextStyle>? configure)
     {
         _axes.XAxis.Label = label;
-        if (configure is not null) _axes.XAxis.LabelStyle = configure(new TextStyle());
+        if (configure is not null) _axes.XAxis.LabelStyle = configure(_axes.XAxis.LabelStyle ?? new TextStyle());
         return this;
     }
 
@@ -42,10 +75,12 @@ public sealed class AxesBuilder
     public AxesBuilder SetYLabel(string label) { _axes.YAxis.Label = label; return this; }
 
     /// <summary>Sets the Y-axis label with an optional text style override.</summary>
+    /// <param name="label">The axis label text.</param>
+    /// <param name="configure">Function that receives the current <see cref="TextStyle"/> and returns a modified copy; <see langword="null"/> leaves the style unchanged.</param>
     public AxesBuilder SetYLabel(string label, Func<TextStyle, TextStyle>? configure)
     {
         _axes.YAxis.Label = label;
-        if (configure is not null) _axes.YAxis.LabelStyle = configure(new TextStyle());
+        if (configure is not null) _axes.YAxis.LabelStyle = configure(_axes.YAxis.LabelStyle ?? new TextStyle());
         return this;
     }
 
@@ -61,6 +96,8 @@ public sealed class AxesBuilder
     /// <summary>Marks this panel as using bar-slot X coordinates (slot [i, i+1], centre at i+0.5).
     /// All subsequently added indicators will automatically apply a +0.5 offset so their points
     /// align with bar centres rather than the left edge of each bar slot.</summary>
+    /// <remarks>Must be called <em>before</em> adding any indicator series; the bar-slot X mapping
+    /// is fixed at subplot construction time and cannot be applied retroactively.</remarks>
     public AxesBuilder UseBarSlotX() { _isBarSlotContext = true; return this; }
 
     /// <summary>Sets the auto-scale margin on each side of the Y axis (default 0.05).</summary>
@@ -326,7 +363,7 @@ public sealed class AxesBuilder
     /// <summary>Enables a color bar alongside the plot area. Auto-detects colormap and range from heatmap/contour series.</summary>
     public AxesBuilder WithColorBar(Func<ColorBar, ColorBar>? configure = null)
     {
-        var cb = new ColorBar { Visible = true };
+        var cb = _axes.ColorBar ?? new ColorBar { Visible = true };
         if (configure is not null) cb = configure(cb);
         _axes.ColorBar = cb;
         return this;

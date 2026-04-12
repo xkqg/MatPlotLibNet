@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a bar chart in polar coordinates with wedge-shaped bars.</summary>
-public sealed class PolarBarSeries : PolarSeries
+public sealed class PolarBarSeries : PolarSeries, IHasColor, IHasAlpha
 {
     public double BarWidth { get; set; } = 0.3;
 

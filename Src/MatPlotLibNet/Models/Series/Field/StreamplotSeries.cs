@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a streamline plot through a 2D vector field (U, V components on a grid).</summary>
-public sealed class StreamplotSeries : ChartSeries
+public sealed class StreamplotSeries : ChartSeries, IHasColor
 {
     public double[] X { get; }
 

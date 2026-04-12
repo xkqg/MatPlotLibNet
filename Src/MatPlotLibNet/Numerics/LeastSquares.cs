@@ -10,6 +10,8 @@ public static class LeastSquares
     /// Fits a polynomial of the specified <paramref name="degree"/> to the data using the normal equations.
     /// Coefficients are returned as [a₀, a₁, …, aₙ] so that y = a₀ + a₁x + a₂x² + … + aₙxⁿ.
     /// </summary>
+    /// <remarks>Numerical stability degrades above degree ~10 due to Vandermonde matrix conditioning;
+    /// prefer degree ≤ 6 for well-behaved results.</remarks>
     /// <param name="x">X data values.</param>
     /// <param name="y">Y data values (same length as <paramref name="x"/>).</param>
     /// <param name="degree">Polynomial degree (0–10).</param>
@@ -73,8 +75,10 @@ public static class LeastSquares
     /// <param name="coefficients">Fitted polynomial coefficients from <see cref="PolyFit"/>.</param>
     /// <param name="evalX">X values at which to compute the band.</param>
     /// <param name="level">Confidence level (default 0.95).</param>
-    /// <returns>Tuple of upper and lower confidence bound arrays.</returns>
-    public static (double[] Upper, double[] Lower) ConfidenceBand(
+    /// <returns>A <see cref="ConfidenceBand"/> containing upper and lower bound arrays.</returns>
+    /// <remarks>Confidence intervals assume normally distributed residuals; accuracy degrades
+    /// for heavy-tailed or heteroscedastic data.</remarks>
+    public static ConfidenceBand ConfidenceBand(
         double[] x, double[] y, double[] coefficients, double[] evalX, double level = 0.95)
     {
         int n = x.Length;
@@ -122,7 +126,7 @@ public static class LeastSquares
             upper[j] = yEval[j] + margin;
             lower[j] = yEval[j] - margin;
         }
-        return (upper, lower);
+        return new(upper, lower);
     }
 
     // --- Internal helpers ---

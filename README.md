@@ -4,7 +4,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPLv3-blue.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
-[![Version](https://img.shields.io/badge/version-0.9.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](CHANGELOG.md)
 
 ---
 
@@ -50,6 +50,10 @@ Plt.Create()
 **Accessibility** — SVG exports carry `role="img"`, `<title>`/`<desc>`, and ARIA labels on all structural groups; all 5 interactive JS features are keyboard-navigable; Okabe-Ito color-blind safe palette (`Theme.ColorBlindSafe`); WCAG AAA high-contrast theme (`Theme.HighContrast`).
 
 **Matplotlib look-alike themes** — `Theme.MatplotlibClassic` mimics matplotlib's pre-2.0 default (white background, the iconic `bgrcmyk` cycle, DejaVu Sans 12pt). `Theme.MatplotlibV2` mimics the modern matplotlib default since 2017 (white background, soft-black text, the `tab10` 10-color cycle, DejaVu Sans 10pt). Drop-in matplotlib look in pure .NET — no Python runtime required.
+
+**Series capability interfaces** — `IHasColor`, `IHasAlpha`, `IHasEdgeColor`, `ILabelable` allow polymorphic access to common series properties without casting; enables generic theming and rendering utilities.
+
+**DataFrame indicator + regression bridges** — `MatPlotLibNet.DataFrame` now includes `DataFrameIndicatorExtensions` (16 methods: SMA, EMA, RSI, Bollinger, OBV, MACD, DrawDown, ADX, ATR, CCI, WilliamsR, Stochastic, ParabolicSar, KeltnerChannels, VWAP) and `DataFrameNumericsExtensions` (PolyFit, PolyEval, ConfidenceBand) — compute indicators and polynomial regressions directly from named DataFrame columns.
 
 ---
 

@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a quiver key (reference arrow) series showing the scale of a quiver field.</summary>
-public sealed class QuiverKeySeries : ChartSeries
+public sealed class QuiverKeySeries : ChartSeries, IHasColor
 {
     public double X { get; set; }
 

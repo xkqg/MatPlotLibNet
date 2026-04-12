@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a filled area series, rendering the region between a line and a baseline (or between two Y datasets).</summary>
-public sealed class AreaSeries : XYSeries
+public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
 {
     public double[]? YData2 { get; set; }
 

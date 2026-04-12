@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D wireframe plot rendered as grid lines on a surface.</summary>
-public sealed class WireframeSeries : GridSeries3D
+public sealed class WireframeSeries : GridSeries3D, IHasColor
 {
     public Color? Color { get; set; }
 

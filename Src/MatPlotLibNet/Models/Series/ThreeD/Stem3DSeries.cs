@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D stem series — vertical lines from the XY-plane to each (X, Y, Z) data point.</summary>
-public sealed class Stem3DSeries : ChartSeries, I3DPointSeries
+public sealed class Stem3DSeries : ChartSeries, I3DPointSeries, IHasColor
 {
     public Vec X { get; }
 

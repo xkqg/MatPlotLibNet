@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a residual plot series that displays regression residuals as a scatter plot with an optional zero line.</summary>
-public sealed class ResidualSeries : ChartSeries
+public sealed class ResidualSeries : ChartSeries, IHasColor
 {
     public Vec XData { get; }
 

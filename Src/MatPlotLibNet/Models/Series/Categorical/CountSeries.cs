@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a count plot series that draws a bar chart from the frequency of raw categorical values.</summary>
-public sealed class CountSeries : ChartSeries, ICategoryLabeled
+public sealed class CountSeries : ChartSeries, ICategoryLabeled, IHasColor
 {
     public string[] Values { get; }
 

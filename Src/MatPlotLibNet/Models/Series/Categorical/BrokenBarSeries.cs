@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a broken bar series that draws horizontal bars with gaps, one row per set of time ranges.</summary>
-public sealed class BrokenBarSeries : ChartSeries
+public sealed class BrokenBarSeries : ChartSeries, IHasColor
 {
     public (double Start, double Width)[][] Ranges { get; }
 

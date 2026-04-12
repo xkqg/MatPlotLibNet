@@ -6,6 +6,22 @@ namespace MatPlotLibNet.Styling;
 /// <summary>
 /// Provides a fluent API for creating customized themes from an existing base theme.
 /// </summary>
+/// <example>
+/// Build a custom light theme with a bespoke colour cycle and dotted grid, then apply it:
+/// <code>
+/// Theme myTheme = new ThemeBuilder(Theme.Light)
+///     .WithBackground(Color.FromRgb(245, 245, 245))
+///     .WithCycleColors(Color.Blue, Color.Orange, Color.Green, Color.Purple)
+///     .WithGrid(g => g with { Visible = true, LineStyle = LineStyle.Dotted })
+///     .Build();
+///
+/// string svg = Plt.Create()
+///     .WithTheme(myTheme)
+///     .Plot(x, y, s => s.Label = "Series A")
+///     .WithTitle("Custom Theme")
+///     .ToSvg();
+/// </code>
+/// </example>
 public sealed class ThemeBuilder
 {
     private Color _background;

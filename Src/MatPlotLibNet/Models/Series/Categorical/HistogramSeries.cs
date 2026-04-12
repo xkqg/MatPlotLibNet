@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a histogram series that bins continuous data into discrete intervals.</summary>
-public sealed class HistogramSeries : ChartSeries
+public sealed class HistogramSeries : ChartSeries, IHasColor, IHasAlpha, IHasEdgeColor
 {
     public double[] Data { get; }
 

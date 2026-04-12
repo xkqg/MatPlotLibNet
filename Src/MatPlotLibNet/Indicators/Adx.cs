@@ -29,14 +29,15 @@ public sealed class Adx : CandleIndicator<SignalResult>
     /// <inheritdoc />
     public override SignalResult Compute()
     {
-        var (adx, _, _) = ComputeFull();
-        return adx;
+        var r = ComputeFull();
+        return r.Adx;
     }
 
     /// <inheritdoc />
     public override void Apply(Axes axes)
     {
-        var (adx, plusDi, minusDi) = ComputeFull();
+        var r = ComputeFull();
+        double[] adx = r.Adx, plusDi = r.PlusDi, minusDi = r.MinusDi;
         int offset = _period * 2;
         PlotSignal(axes, adx, offset);
         if (plusDi.Length == adx.Length)
@@ -48,11 +49,13 @@ public sealed class Adx : CandleIndicator<SignalResult>
         axes.YAxis.Max = 100;
     }
 
-    /// <summary>Computes ADX, +DI, and -DI.</summary>
-    public (double[] Adx, double[] PlusDi, double[] MinusDi) ComputeFull()
+    /// <summary>Computes ADX, +DI, and −DI in a single pass.</summary>
+    /// <remarks>Returns all three ADX signals (<c>Adx</c>, <c>PlusDi</c>, <c>MinusDi</c>) in one pass.
+    /// Use <see cref="Compute"/> when only the scalar ADX line is needed.</remarks>
+    public AdxResult ComputeFull()
     {
         int n = Close.Length;
-        if (n <= _period * 2) return ([], [], []);
+        if (n <= _period * 2) return new([], [], []);
 
         var tr = new double[n - 1];
         var plusDm = new double[n - 1];
@@ -76,7 +79,7 @@ public sealed class Adx : CandleIndicator<SignalResult>
         }
 
         int resultLen = n - _period * 2;
-        if (resultLen <= 0) return ([], [], []);
+        if (resultLen <= 0) return new([], [], []);
 
         var dx = new double[n - _period - 1];
         int dxIdx = 0;
@@ -108,6 +111,6 @@ public sealed class Adx : CandleIndicator<SignalResult>
             minusDiValues[i] = 50;
         }
 
-        return (adxValues, plusDiValues, minusDiValues);
+        return new(adxValues, plusDiValues, minusDiValues);
     }
 }

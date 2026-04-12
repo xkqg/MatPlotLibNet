@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a line plot in polar coordinates (r, theta).</summary>
-public sealed class PolarLineSeries : PolarSeries
+public sealed class PolarLineSeries : PolarSeries, IHasColor
 {
     public Color? Color { get; set; }
 

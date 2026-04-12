@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a Gantt chart showing task durations as horizontal bars on a timeline.</summary>
-public sealed class GanttSeries : ChartSeries
+public sealed class GanttSeries : ChartSeries, IHasColor
 {
     public string[] Tasks { get; }
     public double[] Starts { get; }

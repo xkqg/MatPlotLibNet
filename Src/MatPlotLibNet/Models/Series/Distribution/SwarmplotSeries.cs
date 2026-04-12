@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a swarm plot series that draws non-overlapping dots per category using beeswarm layout.</summary>
-public sealed class SwarmplotSeries : DatasetSeries
+public sealed class SwarmplotSeries : DatasetSeries, IHasColor, IHasAlpha
 {
     public double MarkerSize { get; set; } = 5;
 

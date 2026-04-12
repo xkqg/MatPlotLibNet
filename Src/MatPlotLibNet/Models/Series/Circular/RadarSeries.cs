@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a radar (spider) chart series displaying multi-axis categorical data.</summary>
-public sealed class RadarSeries : ChartSeries
+public sealed class RadarSeries : ChartSeries, IHasColor, IHasAlpha
 {
     public string[] Categories { get; }
 

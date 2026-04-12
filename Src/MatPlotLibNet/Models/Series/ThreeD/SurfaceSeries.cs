@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D surface plot rendered as colored quadrilaterals with optional wireframe.</summary>
-public sealed class SurfaceSeries : GridSeries3D, IColormappable, INormalizable
+public sealed class SurfaceSeries : GridSeries3D, IColormappable, INormalizable, IHasAlpha, IHasEdgeColor
 {
     public IColorMap? ColorMap { get; set; }
 

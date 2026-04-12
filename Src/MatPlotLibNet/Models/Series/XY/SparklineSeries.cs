@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a sparkline — a tiny, word-sized line chart with no axes, labels, or decorations.</summary>
 /// <remarks>Designed for inline dashboard use. Renders only the line within the full plot bounds.</remarks>
-public sealed class SparklineSeries : ChartSeries
+public sealed class SparklineSeries : ChartSeries, IHasColor
 {
     public double[] Values { get; }
 

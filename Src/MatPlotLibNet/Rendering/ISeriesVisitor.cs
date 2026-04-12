@@ -198,4 +198,12 @@ public interface ISeriesVisitor
     /// <summary>Renders a choropleth series (GeoJSON geometry with value-mapped fill colors).
     /// Default is a no-op for ISP compatibility.</summary>
     void Visit(ChoroplethSeries series, RenderArea area) { }
+
+    // ── v1.0 Signal series (default no-ops for ISP compatibility) ──
+
+    /// <summary>Renders a monotonic-XY signal series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(SignalXYSeries series, RenderArea area) { }
+
+    /// <summary>Renders a uniform-sample-rate signal series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(SignalSeries series, RenderArea area) { }
 }

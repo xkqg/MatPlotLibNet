@@ -21,7 +21,7 @@ public enum StepPosition
 }
 
 /// <summary>Represents a step-function line series.</summary>
-public sealed class StepSeries : XYSeries
+public sealed class StepSeries : XYSeries, IHasColor
 {
     public StepPosition StepPosition { get; set; } = StepPosition.Post;
 

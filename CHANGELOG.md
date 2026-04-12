@@ -4,7 +4,80 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.0] — 2026-04-12
+
+High-performance signal series, `IEnumerable<T>` fluent extensions, DataFrame package, faceting OO layer, QuickPlot façade, and OO maintenance polish (named records, capability interfaces, XML docs, DataFrame indicator/numerics bridges).
+
+### Added
+
+**Phase 0 — `IEnumerable<T>` figure extensions with hue grouping**
+
+- `HueGroup` record — carries `X[]`, `Y[]`, `Label`, `Color` for one group
+- `HueGrouper.GroupBy<T,TKey>` — partitions any sequence into colour-coded `HueGroup` instances
+- `EnumerableFigureExtensions.Line<T>` / `Scatter<T>` / `Hist<T>` — fluent plotting from any `IEnumerable<T>` with optional `hue` and `palette` parameters
+
+### Tests: 3,074 → 3,097 (+23, core)
+
+**Phase 1 — `SignalSeries` + `SignalXYSeries` — high-performance large-dataset rendering**
+
+- `IMonotonicXY` interface — `IndexRangeFor(xMin, xMax)` contract for O(1)/O(log n) viewport slicing
+- `MonotonicViewportSlicer.Slice<T>` — unified slice + optional LTTB downsampling helper
+- `SignalXYSeries` — non-uniform ascending X, O(log n) via two `Array.BinarySearch` calls with guard-point extension
+- `SignalSeries` — uniform sample rate, O(1) arithmetic `IndexRangeFor`, lazy `XData` materialisation
+- `FigureBuilder.SignalXY(x[], y[], configure?)` / `Signal(y[], sampleRate, xStart, configure?)` builder methods
+- `SignalXYSeriesRenderer` / `SignalSeriesRenderer` — delegate to `MonotonicViewportSlicer` then LTTB
+- `ISeriesVisitor` default no-op overloads (`Visit(SignalXYSeries)`, `Visit(SignalSeries)`) — source-compatible extension
+- JSON round-trip: `SeriesDto.SignalSampleRate?` / `SignalXStart?`; `SeriesRegistry` factories for `"signal-xy"` / `"signal"`
+- `SignalSeriesBenchmarks` — 7 BenchmarkDotNet benchmarks (narrow + wide viewports, 100k / 1M / 10M points)
+
+### Tests: 3,097 → 3,158 (+61, core)
+
+**Phase 2 — `MatPlotLibNet.DataFrame` NuGet package (9th subpackage)**
+
+- New package `MatPlotLibNet.DataFrame` targeting `net10.0;net8.0`
+- `DataFrameColumnReader.ToDoubleArray` — converts any `DataFrameColumn` to `double[]` (null → NaN, DateTime → OADate)
+- `DataFrameColumnReader.ToStringArray` — converts any `DataFrameColumn` to `string[]` (null → "")
+- `DataFrameFigureExtensions.Line` / `Scatter` / `Hist` — extension methods on `Microsoft.Data.Analysis.DataFrame`; delegate all grouping logic to `EnumerableFigureExtensions` via private `readonly record struct` row carriers (`Xy`, `Xyh`, `Vh`)
+- Hue grouping, palette cycling, and alpha blending inherit from Phase 0 — zero duplication
+
+### Tests: +24 (MatPlotLibNet.DataFrame.Tests runner)
+
+**Phase 4 — `QuickPlot` one-liner façade**
+
+- `QuickPlot.Line` / `Scatter` / `Hist` / `Signal` / `SignalXY` — single-call shortcuts that return a chainable `FigureBuilder`; optional `title:` parameter shortcuts `.WithTitle(...)`
+- `QuickPlot.Svg(Action<FigureBuilder>)` — generic escape hatch for arbitrary one-liner chains returning an SVG string; throws `ArgumentNullException` on null configure
+- Pure delegation layer — zero duplicated logic, zero state, ~40 LoC in `QuickPlot.cs`
+
+### Tests: 3,158 → 3,178 (+20, core)
+
+**Phase 3 — Faceting OO layer**
+
+- `FacetedFigure` abstract base (no "Base" suffix) — shared shell (title, size, palette), `ConfigurePanelDefaults` helper, hue-aware `AddScatters` / `AddLines` / `AddHistograms` helpers that delegate all grouping to `HueGrouper.GroupBy`; private nested `readonly record struct HueRow` replaces tuple-based grouping
+- `JointPlotFigure` sealed — 2×2 grid with top X-marginal + center scatter + right Y-marginal; init-only `Bins` (30) and `Hue`; all series add routes through base helpers
+- `PairPlotFigure` sealed — N×N grid: diagonal Hist, off-diagonal Scatter; init-only `ColumnNames`, `Bins` (20), `Hue`
+- `FacetGridFigure` sealed — one panel per category, column-wrapped; init-only `MaxCols` (3), `Hue` (forward-compatible hook; richer `plotFunc` overload deferred to v1.1)
+- `FigureTemplates.JointPlot` / `PairPlot` / `FacetGrid` static methods refactored into 1-line delegations onto the new OO types — **public API unchanged**, existing callers unaffected; file shrinks ~140 LoC
+- Zero new grouping logic — all hue partitioning delegates to Phase 0's `HueGrouper`
+
+### Tests: 3,178 → 3,199 (+21, core)
+
+**OO Maintenance — pre-release polish (sub-phases A–G)**
+
+- **A — Tuple → named record types** — six public APIs replaced with `readonly record struct` / `sealed record` types: `IndexRange(StartInclusive, EndExclusive)` + computed `Count`/`IsEmpty`; `NormalizedPoint(Nx, Ny)`; `GeoBounds(LonMin, LonMax, LatMin, LatMax)` + computed `LonCenter`/`LatCenter`; `Normalized3DPoint(Nx, Ny, Nz)`; `AdxResult(Adx[], PlusDi[], MinusDi[])`; `ConfidenceBand(Upper[], Lower[])`; all call sites updated to named-member access
+- **B — `DrawStyleInterpolation` DRY** — extracted `DrawStyleInterpolation.Apply(x, y, style)` internal utility; eliminated 38-line duplication between `LineSeriesRenderer.ApplyDrawStyle()` and `AreaSeriesRenderer.ApplyStepMode()`
+- **C — Series capability interfaces** — four new marker interfaces: `IHasColor { Color? Color }`, `IHasAlpha { double Alpha }`, `IHasEdgeColor { Color? EdgeColor }`, `ILabelable { bool ShowLabels; string? LabelFormat }`; ~20 existing series gain the relevant interface(s) on their `class` declaration lines — no new properties, no behaviour change
+- **D — `<example>` XML doc blocks** — added concise usage examples to `Plt`, `FigureBuilder`, `AxesBuilder`, `ThemeBuilder`, `FacetedFigure` (abstract base), and all three `MatPlotLibNet.DataFrame` extension classes (`DataFrameFigureExtensions`, `DataFrameIndicatorExtensions`, `DataFrameNumericsExtensions`)
+- **E — `Func<T,T>` configure methods use existing state** — `AxesBuilder.WithTitle`, `SetXLabel`, `SetYLabel`, `WithColorBar` and `FigureBuilder.WithColorBar` now pass the existing property value (rather than `new T()`) to the configure delegate, making repeated calls idempotent and composable; `FigureBuilder.WithSubPlotSpacing` parameter made optional (`Func<>? configure = null`)
+- **F — XML documentation sweep** — `<param>`/`<returns>` tags on all ~15 `VectorMath` internal methods and ~28 `ChartSerializer` factory methods; `<remarks>` blocks added to: `Projection3D` (camera distance clamping), `LeastSquares.PolyFit` (Vandermonde stability), `LeastSquares.ConfidenceBand` (normal-residual assumption), `AxesBuilder.UseBarSlotX` (call-before-series rule), `HueGrouper.GroupBy` (first-seen ordering), `DataTransform.TransformY` (inversion timing), `IMonotonicXY.IndexRangeFor` (guard-point requirement), `FacetGridFigure.Hue` (v1.0 no-op note), `Adx.ComputeFull` (vs scalar `Compute()`)
+- **G — DataFrame indicator + numerics bridges** — `DataFrameIndicatorExtensions`: 16 extension methods on `Microsoft.Data.Analysis.DataFrame` for SMA, EMA, RSI, BollingerBands, OBV, MACD, DrawDown, ADX (scalar + full AdxResult), ATR, CCI, WilliamsR, Stochastic, ParabolicSar, KeltnerChannels, VWAP; `DataFrameNumericsExtensions`: `PolyFit`, `PolyEval`, `ConfidenceBand` delegating to `LeastSquares`; all column resolution funnelled through a shared `Col()` helper with friendly `ArgumentException` on unknown names
+
+### Tests: 3,199 → 3,201 (+2, core); 24 → 54 (+30, DataFrame) — **total 3,255**
+
+---
+
 ## [0.9.1] - 2026-04-12
+
+Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2` — drop-in matplotlib styling in pure .NET.
 
 ### Added
 
