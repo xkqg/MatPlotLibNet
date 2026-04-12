@@ -1,11 +1,13 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using BenchmarkDotNet.Attributes;
 using MatPlotLibNet;
+using MatPlotLibNet.Geo.GeoJson;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Benchmarks;
 
@@ -20,6 +22,9 @@ public class SvgRenderingBenchmarks
     private Figure _sankey = default!;
     private Figure _polar = default!;
     private Figure _surface3D = default!;
+    private Figure _surface3DLit = default!;
+    private Figure _geoMap = default!;
+    private Figure _choropleth = default!;
     private Figure _legendChart = default!;
     private Figure _largeLine10K = default!;
     private Figure _largeLine100K = default!;
@@ -90,6 +95,27 @@ public class SvgRenderingBenchmarks
                 sz[i, j] = Math.Sin(i * 0.5) * Math.Cos(j * 0.5);
         _surface3D = Plt.Create().Surface(sx, sy, sz).Build();
 
+        _surface3DLit = Plt.Create()
+            .Surface(sx, sy, sz)
+            .WithLighting(0.5, 0.5, 1.0)
+            .Build();
+
+        // Minimal multi-feature GeoJSON: 4 polygons approximating world quadrants
+        var geoJson = GeoJsonReader.FromJson("""
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[-180,0],[0,0],[0,90],[-180,90],[-180,0]]]},"properties":{}},
+              {"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[0,0],[180,0],[180,90],[0,90],[0,0]]]},"properties":{}},
+              {"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[-180,-90],[0,-90],[0,0],[-180,0],[-180,-90]]]},"properties":{}},
+              {"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[0,-90],[180,-90],[180,0],[0,0],[0,-90]]]},"properties":{}}
+            ]}
+            """);
+
+        _geoMap = Plt.Create().Map(geoJson).Build();
+
+        _choropleth = Plt.Create()
+            .Choropleth(geoJson, [10.0, 40.0, 25.0, 70.0], c => c.ColorMap = ColorMaps.Viridis)
+            .Build();
+
         _legendChart = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot(x, y, s => s.Label = "Line 1")
@@ -134,6 +160,15 @@ public class SvgRenderingBenchmarks
 
     [Benchmark]
     public string Surface3D() => _surface3D.ToSvg();
+
+    [Benchmark]
+    public string Surface3D_WithLighting() => _surface3DLit.ToSvg();
+
+    [Benchmark]
+    public string GeoMap_Equirectangular() => _geoMap.ToSvg();
+
+    [Benchmark]
+    public string Choropleth_Viridis() => _choropleth.ToSvg();
 
     [Benchmark]
     public string WithLegend() => _legendChart.ToSvg();

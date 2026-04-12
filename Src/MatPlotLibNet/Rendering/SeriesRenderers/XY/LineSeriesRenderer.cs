@@ -1,7 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.Downsampling;
 using MatPlotLibNet.Styling;
 
@@ -22,7 +23,12 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
         // Apply DrawStyle step interpolation before transforming
         var drawn = DrawStyleInterpolation.Apply(data.X, data.Y, series.DrawStyle);
 
-        var points = new List<Point>(Transform.TransformBatch(drawn.X, drawn.Y));
+        // Apply monotone-cubic smoothing if requested (after step interpolation, before markers)
+        double[] drawX = drawn.X, drawY = drawn.Y;
+        if (series.Smooth && drawX.Length >= 3)
+            (drawX, drawY) = MonotoneCubicSpline.Interpolate(drawX, drawY, series.SmoothResolution);
+
+        var points = new List<Point>(Transform.TransformBatch(drawX, drawY));
         Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);
 
         if (series.Marker is not null && series.Marker != MarkerStyle.None)

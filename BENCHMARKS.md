@@ -1,10 +1,10 @@
-# Performance Benchmarks — v0.6.0
+# Performance Benchmarks
 
-AMD Ryzen 9 3950X (16C/32T), .NET 10.0.5, X64 RyuJIT AVX2, BenchmarkDotNet v0.14.0, Release mode.
+AMD Ryzen 9 3950X (16C/32T), .NET 10.0.5, X64 RyuJIT AVX2, BenchmarkDotNet v0.14.0, Release mode. Historical v0.5.1 / v0.6.0 comparisons preserved; v1.1.0 additions noted in each section.
 
 ## Architecture
 
-MatPlotLibNet renders charts **server-side as SVG** and pushes them to clients via SignalR. No JavaScript chart library on the client — the browser just swaps `innerHTML`. v0.6.0 introduces a SIMD-accelerated numeric kernel (`VectorMath`) backed by `System.Numerics.Tensors.TensorPrimitives` and AVX hardware intrinsics for the coordinate transform hot path.
+MatPlotLibNet renders charts **server-side as SVG** and pushes them to clients via SignalR. No JavaScript chart library on the client — the browser just swaps `innerHTML`. v0.6.0 introduced a SIMD-accelerated numeric kernel (`VectorMath`) backed by `System.Numerics.Tensors.TensorPrimitives` and AVX hardware intrinsics for the coordinate transform hot path. v1.1.0 extended the SIMD coverage to `SplitPositiveNegative` (now two `TensorPrimitives.Max/Min` passes instead of a branchy scalar loop) and added benchmarks for 3D lighting, geo maps, and choropleth rendering.
 
 **Why server-side SVG?**
 
@@ -78,6 +78,9 @@ Every `LineSeriesRenderer`, `ScatterSeriesRenderer`, `AreaSeriesRenderer`, and `
 | Sankey (4 nodes, 4 links)         |   39 us |   63 us |    118 KB |
 | Polar line (50 pts)               |   42 us |   33 us |     56 KB |
 | 3D surface (10x10 grid)           |   72 us |   69 us |    124 KB |
+| 3D surface + directional lighting |       — |   82 us |    148 KB | ← v1.1.0 |
+| Geo map — Equirectangular (4 poly)|       — |   55 us |     98 KB | ← v1.1.0 |
+| Choropleth — Viridis (4 features) |       — |   71 us |    112 KB | ← v1.1.0 |
 | Line + legend (3 series)          |  110 us |  140 us |    214 KB |
 | Large line (10K pts)              | 3,935 us | **3,105 us** | 3,714 KB |
 | Large line (100K pts, LTTB->2K)   | 1,512 us | **1,332 us** | 2,429 KB |

@@ -2,9 +2,9 @@
 
 A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel SVG rendering, polymorphic export (SVG / PNG / PDF / GIF), and multi-platform output to Blazor, MAUI, ASP.NET Core, Angular, React, and Vue.
 
-[![License: LGPL v3](https://img.shields.io/badge/License-LGPLv3-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
-[![Version](https://img.shields.io/badge/version-1.0.2-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue)](CHANGELOG.md)
 
 ---
 
@@ -80,4 +80,4 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 
 ## License
 
-[LGPL-3.0](LICENSE) — free for closed-source commercial use as a library dependency.
+[MIT](LICENSE) — free for any use, open-source or commercial, with no copyleft conditions.

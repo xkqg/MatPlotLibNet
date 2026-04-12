@@ -1,5 +1,5 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -80,6 +80,8 @@ public class ColorMapRegistryTests
             "puor", "seismic", "bwr",
             // Cyclic
             "twilight", "twilight_shifted", "hsv",
+            // Seaborn perceptually-uniform
+            "rocket", "mako", "crest", "flare", "icefire",
             // Qualitative
             "tab10", "tab20", "set1", "set2", "set3", "pastel1",
             "pastel2", "dark2", "accent", "paired",
@@ -95,16 +97,58 @@ public class ColorMapRegistryTests
     [Fact]
     public void Registry_TotalMapCount()
     {
-        // 52 base maps × 2 (forward + _r reversed) = 104
-        // Custom registrations may add more, so assert >= 104
-        Assert.True(ColorMapRegistry.Names.Count() >= 104,
-            $"Expected at least 104 registered colormaps (52 × 2), got {ColorMapRegistry.Names.Count()}");
+        // 57 base maps × 2 (forward + _r reversed) = 114
+        // Custom registrations may add more, so assert >= 114
+        Assert.True(ColorMapRegistry.Names.Count() >= 114,
+            $"Expected at least 114 registered colormaps (57 × 2), got {ColorMapRegistry.Names.Count()}");
     }
 
     [Fact]
-    public void ColorMapsAll_ReturnsAtLeast104Maps()
+    public void ColorMapsAll_ReturnsAtLeast114Maps()
     {
-        Assert.True(ColorMaps.All.Count() >= 104);
+        Assert.True(ColorMaps.All.Count() >= 114);
+    }
+
+    // --- PerceptualColorMaps2 (Seaborn) ---
+
+    [Theory]
+    [InlineData("rocket")]
+    [InlineData("mako")]
+    [InlineData("crest")]
+    [InlineData("flare")]
+    [InlineData("icefire")]
+    public void PerceptualColorMaps2_ResolvesByName(string name)
+    {
+        var map = ColorMapRegistry.Get(name);
+        Assert.NotNull(map);
+        Assert.Equal(name, map!.Name);
+    }
+
+    [Theory]
+    [InlineData("rocket_r")]
+    [InlineData("mako_r")]
+    [InlineData("crest_r")]
+    [InlineData("flare_r")]
+    [InlineData("icefire_r")]
+    public void PerceptualColorMaps2_ReversedVariantRegistered(string name)
+    {
+        var map = ColorMapRegistry.Get(name);
+        Assert.NotNull(map);
+        Assert.Equal(name, map!.Name);
+    }
+
+    [Theory]
+    [InlineData("rocket")]
+    [InlineData("mako")]
+    [InlineData("crest")]
+    [InlineData("flare")]
+    [InlineData("icefire")]
+    public void PerceptualColorMaps2_ZeroAndOneReturnDistinctColors(string name)
+    {
+        var map = ColorMapRegistry.Get(name)!;
+        var low  = map.GetColor(0.0);
+        var high = map.GetColor(1.0);
+        Assert.NotEqual(low, high);
     }
 
     [Fact]

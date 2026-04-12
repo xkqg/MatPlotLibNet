@@ -1,5 +1,5 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
@@ -30,6 +30,12 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
 
     public DrawStyle StepMode { get; set; } = DrawStyle.Default;
 
+    /// <summary>When <see langword="true"/>, applies Fritsch-Carlson monotone cubic interpolation to the top edge before filling.</summary>
+    public bool Smooth { get; set; }
+
+    /// <summary>Number of interpolated sub-points per input interval when <see cref="Smooth"/> is <see langword="true"/>. Default 10.</summary>
+    public int SmoothResolution { get; set; } = 10;
+
     /// <summary>Creates a new area series from the given X and Y data.</summary>
     /// <remarks>ZOrder defaults to -1 so fills render behind all other series (ZOrder 0).</remarks>
     public AreaSeries(double[] xData, double[] yData) : base(xData, yData) { ZOrder = -1; }
@@ -54,7 +60,9 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
         XData = XData, YData = YData, YData2 = YData2,
         Color = Color, Alpha = Alpha,
         LineStyle = LineStyle.ToString().ToLowerInvariant(),
-        LineWidth = LineWidth
+        LineWidth = LineWidth,
+        Smooth = Smooth ? true : null,
+        SmoothResolution = Smooth && SmoothResolution != 10 ? SmoothResolution : null
     };
 
     /// <inheritdoc />

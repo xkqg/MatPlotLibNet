@@ -1,5 +1,5 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -550,6 +550,8 @@ public sealed class ChartSerializer : IChartSerializer
         if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
         s.LineWidth = dto.LineWidth ?? 1.5;
         ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
+        if (dto.Smooth == true) s.Smooth = true;
+        if (dto.SmoothResolution.HasValue) s.SmoothResolution = dto.SmoothResolution.Value;
         return s;
     }
 
@@ -684,6 +686,8 @@ public sealed class ChartSerializer : IChartSerializer
         s.Color = dto.Color;
         s.LineWidth = dto.LineWidth ?? 1.5;
         ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
+        if (dto.Smooth == true) s.Smooth = true;
+        if (dto.SmoothResolution.HasValue) s.SmoothResolution = dto.SmoothResolution.Value;
     }
 
     /// <summary>Reconstructs a <see cref="SignalXYSeries"/> from the DTO and adds it to the axes.</summary>
@@ -1002,6 +1006,10 @@ public sealed record SeriesDto
     // v1.0 Signal series (distinct from int? SampleRate used by SpectrogramSeries)
     public double? SignalSampleRate { get; init; }
     public double? SignalXStart { get; init; }
+
+    // v1.1 Spline smoothing (LineSeries, AreaSeries)
+    public bool? Smooth { get; init; }
+    public int? SmoothResolution { get; init; }
 }
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>

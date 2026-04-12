@@ -1,7 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.Downsampling;
 using MatPlotLibNet.Styling;
 
@@ -24,6 +25,13 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
 
         // Apply step interpolation to the top edge if requested
         var top = DrawStyleInterpolation.Apply(data.X, data.Y, series.StepMode);
+
+        // Apply monotone-cubic smoothing to the top edge if requested
+        if (series.Smooth && top.X.Length >= 3)
+        {
+            var (sx, sy) = MonotoneCubicSpline.Interpolate(top.X, top.Y, series.SmoothResolution);
+            top = new XYData(sx, sy);
+        }
 
         // Batch-transform the top edge; reuse pixel X for the reverse bottom edge
         var topPts = Transform.TransformBatch(top.X, top.Y);

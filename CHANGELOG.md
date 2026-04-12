@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] — 2026-04-12
+
+Feature release adding perceptual colormaps, user-defined gradients, spline smoothing, mosaic subplot layouts, and performance improvements.
+
+### Added
+
+- **Perceptual colormaps** (2-A): `rocket`, `mako`, `crest`, `flare`, `icefire` — all from Seaborn's perceptually-uniform palette set. Each registers automatically with its `_r` reversed variant (10 new named colormaps total). `cividis` was already present; no change.
+- **`LinearColorMap.FromList`** (2-B): Factory for user-defined gradients from `(double Position, Color Color)` pairs. Auto-normalizes positions to [0,1] and auto-registers under the given name (+ `_r`).
+- **Spline smoothing for `LineSeries` / `AreaSeries`** (2-C): Set `Smooth = true` and optionally `SmoothResolution` (default 10) on either series. The renderer applies Fritsch-Carlson monotone-cubic interpolation — no overshoot, preserves monotonicity. Both properties round-trip via JSON serialization.
+- **`Plt.Mosaic` / `SubplotMosaic` string-pattern layout** (2-D): `Plt.Mosaic("AAB\nCCB", m => { ... })` parses a string pattern into a grid layout. Repeated characters span multiple cells. Validates rectangular regions; throws `ArgumentException` for holes or non-rectangular spans. `MosaicFigureBuilder` exposes `Panel(label, configure)`, `Build()`, `ToSvg()`, and `Save()`.
+- **Benchmark coverage** (2-E): `Surface3D_WithLighting`, `GeoMap_Equirectangular`, and `Choropleth_Viridis` benchmarks added to `SvgRenderingBenchmarks`. Benchmark table in wiki updated with v1.1.0 rows.
+
+### Changed
+
+- **`VectorMath.SplitPositiveNegative`** (2-E): Replaced per-element branching with two `TensorPrimitives.Max/Min` SIMD passes — faster for spans > ~16 elements.
+- **`VectorMath.CumulativeSum`**: Added `<remarks>` confirming that `TensorPrimitives` has no prefix-sum in .NET 10; scalar sequential loop is correct.
+
+---
+
+## [1.0.3] — 2026-04-12
+
+Relicensed from LGPL-3.0 to MIT — no copyleft conditions. Free to use in any project, open-source or commercial, with no restrictions beyond keeping the copyright notice.
+
+### Changed
+
+- License: LGPL-3.0 → MIT across all 9 NuGet packages, `LICENSE` file, and all source file headers
+- All `.csproj` files: `<PackageLicenseFile>` → `<PackageLicenseExpression>MIT</PackageLicenseExpression>`
+
+---
+
 ## [1.0.2] — 2026-04-12
 
 Pipeline fix — `MatPlotLibNet.DataFrame` added to the CI publish pipeline so all 9 packages release automatically on every tagged release.

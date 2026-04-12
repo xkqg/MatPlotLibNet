@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Styling;
 
@@ -38,6 +39,18 @@ public static class Plt
     /// <summary>Creates a new <see cref="FigureBuilder"/> for fluent figure construction (e.g., <c>Plt.Create().WithTitle("My Chart").Plot(x, y).Build()</c>).</summary>
     /// <returns>A new fluent figure builder.</returns>
     public static FigureBuilder Create() => new();
+
+    /// <summary>Creates a <see cref="MosaicFigureBuilder"/> for string-pattern subplot layouts.</summary>
+    /// <param name="pattern">Mosaic string (rows separated by <c>\n</c>, each character = one panel label).
+    /// Repeated characters span multiple cells. Example: <c>"AAB\nCCB"</c>.</param>
+    /// <param name="configure">Optional action to configure panels on the returned builder.</param>
+    /// <returns>A <see cref="MosaicFigureBuilder"/> ready for <see cref="MosaicFigureBuilder.Panel"/> calls.</returns>
+    public static MosaicFigureBuilder Mosaic(string pattern, Action<MosaicFigureBuilder>? configure = null)
+    {
+        var builder = new MosaicFigureBuilder(pattern);
+        configure?.Invoke(builder);
+        return builder;
+    }
 
     /// <summary>
     /// Entry point for global style configuration, modeled after <c>matplotlib.pyplot.style</c>.

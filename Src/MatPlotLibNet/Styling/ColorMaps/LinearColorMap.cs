@@ -1,5 +1,5 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 namespace MatPlotLibNet.Styling.ColorMaps;
 
@@ -29,6 +29,40 @@ public sealed class LinearColorMap : IColorMap
         Name = name;
         _stops = stops;
         _positions = positions;
+    }
+
+    /// <summary>Creates a colormap from a list of (position, color) pairs and auto-registers it in
+    /// <see cref="ColorMapRegistry"/> under <paramref name="name"/> and its reversed variant
+    /// (<c>{name}_r</c>). Positions are auto-normalized to [0, 1] if the range is not already [0, 1].</summary>
+    /// <param name="name">Registry name. Must be unique; existing registrations with the same name are overwritten.</param>
+    /// <param name="colors">At least 2 (position, color) pairs. Positions need not start at 0 or end at 1 —
+    /// they are normalized automatically. Must be strictly increasing.</param>
+    /// <returns>The newly created <see cref="LinearColorMap"/>.</returns>
+    /// <exception cref="ArgumentException">Fewer than 2 stops, non-increasing positions, or <paramref name="name"/> is null/empty.</exception>
+    public static LinearColorMap FromList(string name, IReadOnlyList<(double Position, Color Color)> colors)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Name must not be empty.", nameof(name));
+        if (colors.Count < 2)
+            throw new ArgumentException("At least 2 stops required.", nameof(colors));
+
+        double minPos = colors[0].Position;
+        double maxPos = colors[colors.Count - 1].Position;
+
+        for (int i = 1; i < colors.Count; i++)
+            if (colors[i].Position <= colors[i - 1].Position)
+                throw new ArgumentException("Positions must be strictly increasing.", nameof(colors));
+
+        double range = maxPos - minPos;
+
+        double[] positions = range == 0
+            ? colors.Select((_, i) => (double)i / (colors.Count - 1)).ToArray()
+            : colors.Select(c => (c.Position - minPos) / range).ToArray();
+
+        Color[] stops = colors.Select(c => c.Color).ToArray();
+        var map = new LinearColorMap(name, stops, positions);
+        ColorMapRegistry.RegisterBuiltIn(map);
+        return map;
     }
 
     /// <summary>Creates a colormap with explicitly positioned stops. Positions must be strictly increasing in [0, 1].</summary>

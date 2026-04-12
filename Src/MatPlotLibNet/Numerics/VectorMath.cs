@@ -1,5 +1,5 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Numerics.Tensors;
 using System.Runtime.CompilerServices;
@@ -196,6 +196,9 @@ internal static class VectorMath
     }
 
     /// <summary>Running cumulative sum: <c>dst[i] = source[0] + ... + source[i]</c>.</summary>
+    /// <remarks><c>TensorPrimitives</c> does not expose a prefix-sum (scan) operation in .NET 10 —
+    /// only reductions such as <c>Sum</c> are available. The sequential scalar loop is therefore
+    /// the correct implementation here; there is no vectorisable alternative.</remarks>
     internal static void CumulativeSum(ReadOnlySpan<double> source, Span<double> dst)
     {
         double running = 0;
@@ -229,15 +232,14 @@ internal static class VectorMath
     /// <param name="source">Input data (e.g. profit/loss returns).</param>
     /// <param name="pos">Receives positive values; 0 elsewhere.</param>
     /// <param name="neg">Receives negative values; 0 elsewhere.</param>
+    /// <remarks>Implemented as two <c>TensorPrimitives</c> SIMD passes:
+    /// <c>Max(source, 0)</c> for the positive clip and <c>Min(source, 0)</c> for the negative clip.
+    /// This is faster than a branchy scalar loop for all spans longer than ~16 elements because
+    /// the JIT can emit AVX2 / SSE4.1 vector-compare instructions for both passes simultaneously.</remarks>
     internal static void SplitPositiveNegative(ReadOnlySpan<double> source, Span<double> pos, Span<double> neg)
     {
-        for (int i = 0; i < source.Length; i++)
-        {
-            double v = source[i];
-            if (v > 0) { pos[i] = v; neg[i] = 0; }
-            else if (v < 0) { pos[i] = 0; neg[i] = v; }
-            else { pos[i] = 0; neg[i] = 0; }
-        }
+        TensorPrimitives.Max(source, 0.0, pos);
+        TensorPrimitives.Min(source, 0.0, neg);
     }
 
     // -------------------------------------------------------------------------

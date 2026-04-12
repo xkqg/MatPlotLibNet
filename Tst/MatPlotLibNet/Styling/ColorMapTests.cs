@@ -1,5 +1,5 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -1027,5 +1027,71 @@ public class ColorMapTests
         };
         IColorMap reversed = new ReversedColorMap(inner);
         Assert.Equal(new Color(128, 128, 128), reversed.GetBadColor());
+    }
+
+    // --- LinearColorMap.FromList ---
+
+    [Fact]
+    public void FromList_TwoStops_EndpointsExact()
+    {
+        var red  = new Color(255, 0, 0);
+        var blue = new Color(0, 0, 255);
+        var map  = LinearColorMap.FromList("fl_test_two",
+            [(0.0, red), (1.0, blue)]);
+        Assert.Equal(red,  map.GetColor(0.0));
+        Assert.Equal(blue, map.GetColor(1.0));
+    }
+
+    [Fact]
+    public void FromList_ThreeStops_MidpointInterpolates()
+    {
+        var black = new Color(0,   0,   0);
+        var white = new Color(255, 255, 255);
+        var red   = new Color(255, 0,   0);
+        // stops at 0, 0.5, 1 — midpoint between black and red is at value=0.25
+        var map = LinearColorMap.FromList("fl_test_three",
+            [(0.0, black), (0.5, red), (1.0, white)]);
+        var c = map.GetColor(0.25);
+        Assert.InRange(c.R, (byte)125, (byte)129);
+        Assert.Equal((byte)0, c.G);
+        Assert.Equal((byte)0, c.B);
+    }
+
+    [Fact]
+    public void FromList_AutoNormalizes_WhenRangeNot01()
+    {
+        var black = new Color(0,   0,   0);
+        var white = new Color(255, 255, 255);
+        // positions 10 and 20 should be normalized to 0 and 1
+        var map = LinearColorMap.FromList("fl_test_norm",
+            [(10.0, black), (20.0, white)]);
+        Assert.Equal(black, map.GetColor(0.0));
+        Assert.Equal(white, map.GetColor(1.0));
+    }
+
+    [Fact]
+    public void FromList_AutoRegisters_InRegistry()
+    {
+        LinearColorMap.FromList("fl_test_reg",
+            [(0.0, new Color(0, 0, 0)), (1.0, new Color(255, 255, 255))]);
+        Assert.NotNull(ColorMapRegistry.Get("fl_test_reg"));
+        Assert.NotNull(ColorMapRegistry.Get("fl_test_reg_r"));
+    }
+
+    [Fact]
+    public void FromList_SingleStop_Throws()
+    {
+        var c = new Color(0, 0, 0);
+        Assert.Throws<ArgumentException>(() =>
+            LinearColorMap.FromList("fl_test_single", [(0.0, c)]));
+    }
+
+    [Fact]
+    public void FromList_NonIncreasingPositions_Throws()
+    {
+        var c = new Color(0, 0, 0);
+        Assert.Throws<ArgumentException>(() =>
+            LinearColorMap.FromList("fl_test_nonincr",
+                [(0.0, c), (0.0, c), (1.0, c)]));
     }
 }

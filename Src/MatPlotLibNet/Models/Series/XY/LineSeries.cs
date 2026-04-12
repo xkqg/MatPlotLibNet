@@ -1,5 +1,5 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
@@ -30,6 +30,14 @@ public sealed class LineSeries : XYSeries, IHasColor
 
     public int? MarkEvery { get; set; }
 
+    /// <summary>When <see langword="true"/>, the renderer applies Fritsch-Carlson monotone cubic
+    /// interpolation before drawing. Produces a smooth curve that never overshoots.</summary>
+    public bool Smooth { get; set; }
+
+    /// <summary>Number of interpolated sub-points per input interval when <see cref="Smooth"/> is <see langword="true"/>.
+    /// Default 10. Higher values produce smoother curves at the cost of larger SVG output.</summary>
+    public int SmoothResolution { get; set; } = 10;
+
     /// <summary>Initializes a new instance of <see cref="LineSeries"/> with the specified data.</summary>
     /// <param name="xData">The X-axis data values.</param>
     /// <param name="yData">The Y-axis data values.</param>
@@ -41,7 +49,9 @@ public sealed class LineSeries : XYSeries, IHasColor
         Type = "line",
         XData = XData, YData = YData, Color = Color,
         LineStyle = LineStyle.ToString().ToLowerInvariant(),
-        LineWidth = LineWidth
+        LineWidth = LineWidth,
+        Smooth = Smooth ? true : null,
+        SmoothResolution = Smooth && SmoothResolution != 10 ? SmoothResolution : null
     };
 
     /// <inheritdoc />

@@ -1,5 +1,5 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
-// Licensed under the GNU LGPL-v3 License. See LICENSE file in the project root for full license information.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Collections.Concurrent;
 
@@ -77,6 +77,13 @@ public static class ColorMapRegistry
         RegisterBuiltIn(AdditionalColorMaps.Ocean);
         RegisterBuiltIn(AdditionalColorMaps.Terrain);
         RegisterBuiltIn(AdditionalColorMaps.CMRmap);
+
+        // Seaborn perceptually-uniform
+        RegisterBuiltIn(PerceptualColorMaps2.Rocket);
+        RegisterBuiltIn(PerceptualColorMaps2.Mako);
+        RegisterBuiltIn(PerceptualColorMaps2.Crest);
+        RegisterBuiltIn(PerceptualColorMaps2.Flare);
+        RegisterBuiltIn(PerceptualColorMaps2.Icefire);
 
         // Qualitative
         RegisterBuiltIn(QualitativeColorMaps.Tab10);
