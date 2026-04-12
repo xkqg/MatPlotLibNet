@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.2] — 2026-04-12
+
+Pipeline fix — `MatPlotLibNet.DataFrame` added to the CI publish pipeline so all 9 packages release automatically on every tagged release.
+
+### Fixed
+
+- `MatPlotLibNet.DataFrame` missing from `MatPlotLibNet.CI.slnf` — it was never built, tested, or packed by the publish workflow
+- `publish.yml` Test step did not run `MatPlotLibNet.DataFrame` tests before publishing
+- Added `Src/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.csproj` and `Tst/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.Tests.csproj` to the CI solution filter
+
+---
+
 ## [1.0.1] — 2026-04-12
 
 Dependency update release — all NuGet packages bumped to latest stable versions.
