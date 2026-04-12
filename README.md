@@ -4,7 +4,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue)](CHANGELOG.md)
 
 ---
 
@@ -44,7 +44,7 @@ Plt.Create()
     .Save("chart.svg");
 ```
 
-**62 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, 3D surface, radar, waterfall, funnel, gauge, and more.
+**65 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, radar, waterfall, funnel, gauge, and more.
 
 **Geo / Map Projections** — `MapSeries` renders GeoJSON polygons and lines using equirectangular or Mercator projection; `ChoroplethSeries` fills each feature by data value via colormap; `GeoJsonReader` / `GeoJsonWriter` for round-trip GeoJSON support.
 
@@ -53,6 +53,10 @@ Plt.Create()
 **Matplotlib look-alike themes** — `Theme.MatplotlibClassic` mimics matplotlib's pre-2.0 default (white background, the iconic `bgrcmyk` cycle, DejaVu Sans 12pt). `Theme.MatplotlibV2` mimics the modern matplotlib default since 2017 (white background, soft-black text, the `tab10` 10-color cycle, DejaVu Sans 10pt). Drop-in matplotlib look in pure .NET — no Python runtime required.
 
 **Series capability interfaces** — `IHasColor`, `IHasAlpha`, `IHasEdgeColor`, `ILabelable` allow polymorphic access to common series properties without casting; enables generic theming and rendering utilities.
+
+**NumPy-style numerics** — `Mat` matrix type with SIMD operators, `Linalg` (Solve/Inv/Det/Eigh/Svd), `NpStats` (Diff/Median/Histogram/Argsort/Unique/Cov/Corrcoef), `NpRandom` (Normal/Uniform/Lognormal/Integers), and `Fft.Inverse`/`Frequencies`/`Shift` — all zero new dependencies, pure C# + TensorPrimitives.
+
+**Broken / discontinuous axis** — `AxisBreak` + `BreakStyle` (`Zigzag`, `Straight`, `None`); `WithXBreak` / `WithYBreak` on the fluent builder; visual markers drawn at break boundaries.
 
 **DataFrame indicator + regression bridges** — `MatPlotLibNet.DataFrame` now includes `DataFrameIndicatorExtensions` (16 methods: SMA, EMA, RSI, Bollinger, OBV, MACD, DrawDown, ADX, ATR, CCI, WilliamsR, Stochastic, ParabolicSar, KeltnerChannels, VWAP) and `DataFrameNumericsExtensions` (PolyFit, PolyEval, ConfidenceBand) — compute indicators and polynomial regressions directly from named DataFrame columns.
 

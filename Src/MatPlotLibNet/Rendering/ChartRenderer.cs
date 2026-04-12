@@ -14,10 +14,12 @@ namespace MatPlotLibNet.Rendering;
 public sealed class ChartRenderer : IChartRenderer
 {
     private const double TitleHeight = 30;
+    private Figure? _figure;
 
     /// <inheritdoc />
     public void Render(Figure figure, IRenderContext ctx)
     {
+        _figure = figure;
         // Adjust margins based on actual text extents when TightLayout or ConstrainedLayout is enabled.
         if (figure.Spacing.TightLayout || figure.Spacing.ConstrainedLayout)
             figure.Spacing = new ConstrainedLayoutEngine().Compute(figure, ctx);
@@ -189,19 +191,26 @@ public sealed class ChartRenderer : IChartRenderer
     /// <summary>Renders a single <see cref="Axes"/> subplot, including all series, decorations, and nested insets.</summary>
     internal void RenderAxes(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme, int depth = 0)
     {
-        AxesRenderer.Create(axes, plotArea, ctx, theme).Render();
+        var axesRenderer = AxesRenderer.Create(axes, plotArea, ctx, theme);
+        axesRenderer.Render();
 
         // Render inset axes recursively (max depth guard)
         if (depth < 3)
         {
+            // When constrained layout is active, position insets within the inner data area
+            // to avoid overlapping with axis labels and ticks.
+            var referenceArea = (_figure?.Spacing.ConstrainedLayout == true)
+                ? axesRenderer.ComputeInnerBounds()
+                : plotArea;
+
             foreach (var inset in axes.Insets)
             {
                 if (inset.InsetBounds is not { } bounds) continue;
                 var insetRect = new Rect(
-                    plotArea.X + bounds.X * plotArea.Width,
-                    plotArea.Y + bounds.Y * plotArea.Height,
-                    bounds.Width * plotArea.Width,
-                    bounds.Height * plotArea.Height);
+                    referenceArea.X + bounds.X * referenceArea.Width,
+                    referenceArea.Y + bounds.Y * referenceArea.Height,
+                    bounds.Width * referenceArea.Width,
+                    bounds.Height * referenceArea.Height);
                 RenderAxes(inset, insetRect, ctx, theme, depth + 1);
             }
         }

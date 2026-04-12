@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.1] — 2026-04-12
+
+NumPy-style numerics, polar heatmap series, broken/discontinuous axis, and inset axes constrained-layout fix.
+
+### Added
+
+- **NumPy-style numeric core** — zero new dependencies, pure C# + existing `TensorPrimitives`:
+  - **`Mat`** (`readonly record struct`) — 2-D matrix with element-wise operators (`+`, `−`, `*`), scalar multiply, transpose (`T`), row/col slices, `FromRows` factory, `Identity`; inner multiply via `TensorPrimitives.Dot` on `RowSpan`.
+  - **`Linalg`** — `Solve` (LU + partial-pivot Doolittle), `Inv`, `Det`, `Eigh` (Jacobi symmetric eigendecomposition), `Svd` (one-sided Jacobi thin SVD); results in `EighResult` / `SvdResult` named records.
+  - **`NpStats`** — `Diff(n)`, `Median`, `Histogram`, `Argsort`, `Unique`, `Cov`, `Corrcoef`; results in `HistogramResult` / `UniqueResult` named records.
+  - **`NpRandom`** — seeded instance-based sampler: `Normal` (Box-Muller), `Uniform`, `Lognormal`, `Integers`.
+  - **`Fft.Inverse`, `Fft.Frequencies`, `Fft.Shift`** — added as `partial` extension to existing `Fft` class.
+- **`PolarHeatmapSeries`** — wedge/sector cells on a polar grid (wind rose, circular heatmap). 12-segment arc polygon per cell; `IColormappable`, `INormalizable`, `IColorBarDataProvider`. Fluent entry points: `Axes.PolarHeatmap`, `AxesBuilder.PolarHeatmap`. Full JSON round-trip via `"polarheatmap"` type discriminator.
+- **Broken / discontinuous axis** — `AxisBreak` sealed record + `BreakStyle` enum (`Zigzag`, `Straight`, `None`). `Axes.AddXBreak` / `AddYBreak`; `AxesBuilder.WithXBreak` / `WithYBreak`. `AxisBreakMapper` compresses the `DataTransform` range and draws visual markers. Serializes via `AxesDto.XBreaks` / `YBreaks`.
+- **`Axes.InsetAxes`** — alias for `AddInset`, matching the matplotlib API surface.
+- **`FigureBuilder.AddInset`** — add and configure an inset on any subplot by index.
+- **Inset axes constrained-layout fix** — `AxesRenderer.ComputeInnerBounds()` (virtual, overridden in `CartesianAxesRenderer`) returns the post-margin inner plot area; `ChartRenderer.RenderAxes` uses it to position insets inside the data area when constrained layout is active, eliminating overlap with axis labels and ticks.
+
+### Changed
+
+- All public methods in `Linalg`, `NpStats`, `NpRandom`, `FftExtensions`, `AxisBreakMapper`, `Axes.InsetAxes`, and `AxesBuilder.WithXBreak`/`WithYBreak` now carry complete `<param>` and `<returns>` XML documentation.
+
+---
+
 ## [1.1.0] — 2026-04-12
 
 Feature release adding perceptual colormaps, user-defined gradients, spline smoothing, mosaic subplot layouts, and performance improvements.

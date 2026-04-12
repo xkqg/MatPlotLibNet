@@ -2,9 +2,15 @@
 
 AMD Ryzen 9 3950X (16C/32T), .NET 10.0.5, X64 RyuJIT AVX2, BenchmarkDotNet v0.14.0, Release mode. Historical v0.5.1 / v0.6.0 comparisons preserved; v1.1.0 additions noted in each section.
 
+## What changed in v1.1.1
+
+v1.1.1 adds `PolarHeatmapSeries`, `AxisBreak`, and NumPy-style numerics (`Mat`, `Linalg`, `NpStats`, `NpRandom`, `Fft` extensions). No benchmark changes were required — these are new capabilities, not hot-path optimizations. The `DataFrameBenchmarks` suite (added in v1.1.1) is documented in the section below.
+
+---
+
 ## Architecture
 
-MatPlotLibNet renders charts **server-side as SVG** and pushes them to clients via SignalR. No JavaScript chart library on the client — the browser just swaps `innerHTML`. v0.6.0 introduced a SIMD-accelerated numeric kernel (`VectorMath`) backed by `System.Numerics.Tensors.TensorPrimitives` and AVX hardware intrinsics for the coordinate transform hot path. v1.1.0 extended the SIMD coverage to `SplitPositiveNegative` (now two `TensorPrimitives.Max/Min` passes instead of a branchy scalar loop) and added benchmarks for 3D lighting, geo maps, and choropleth rendering.
+MatPlotLibNet renders charts **server-side as SVG** and pushes them to clients via SignalR. No JavaScript chart library on the client — the browser just swaps `innerHTML`. v0.6.0 introduced a SIMD-accelerated numeric kernel (`VectorMath`) backed by `System.Numerics.Tensors.TensorPrimitives` and AVX hardware intrinsics for the coordinate transform hot path. v1.1.0 extended the SIMD coverage to `SplitPositiveNegative` (now two `TensorPrimitives.Max/Min` passes instead of a branchy scalar loop) and added benchmarks for 3D lighting, geo maps, and choropleth rendering. v1.1.1 added `DataFrameBenchmarks` (27 benchmarks across column reader, 16 financial indicators, polynomial numerics, and figure builders with hue grouping).
 
 **Why server-side SVG?**
 

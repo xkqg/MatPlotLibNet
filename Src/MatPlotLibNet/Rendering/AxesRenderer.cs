@@ -41,6 +41,11 @@ public abstract class AxesRenderer
     /// <summary>Renders the complete axes: background, grid, series, decorations, legend, colorbar, title, labels.</summary>
     public abstract void Render();
 
+    /// <summary>Returns the inner data-plot bounds (after axis-label and tick reservations).
+    /// Used by <see cref="ChartRenderer"/> to position inset axes within the data area.
+    /// The default implementation returns the full <see cref="PlotArea"/>.</summary>
+    public virtual Rect ComputeInnerBounds() => PlotArea;
+
     private static readonly ConcurrentDictionary<CoordinateSystem, Func<Axes, Rect, IRenderContext, Theme, AxesRenderer>>
         RendererFactories = new()
     {

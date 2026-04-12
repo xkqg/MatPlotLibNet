@@ -109,7 +109,9 @@ public sealed class ChartSerializer : IChartSerializer
         CameraDistance = axes.CameraDistance,
         LightSourceType = axes.LightSource is Rendering.Lighting.DirectionalLight dl
             ? $"directional:{dl.Dx},{dl.Dy},{dl.Dz},{dl.Ambient},{dl.Diffuse}"
-            : null
+            : null,
+        XBreaks = axes.XBreaks.Count > 0 ? axes.XBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null,
+        YBreaks = axes.YBreaks.Count > 0 ? axes.YBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null
     };
 
     private static AxisDto AxisToDto(Axis axis) => new()
@@ -295,6 +297,18 @@ public sealed class ChartSerializer : IChartSerializer
                 if (insetDto.Spines is not null) inset.Spines = DtoToSpines(insetDto.Spines);
                 foreach (var sDto in insetDto.Series ?? [])
                     AddSeriesFromDto(inset, sDto);
+            }
+
+            // Restore axis breaks
+            foreach (var bDto in axDto.XBreaks ?? [])
+            {
+                var style = bDto.Style is not null && Enum.TryParse<Models.BreakStyle>(bDto.Style, true, out var bs) ? bs : Models.BreakStyle.Zigzag;
+                axes.AddXBreak(bDto.From, bDto.To, style);
+            }
+            foreach (var bDto in axDto.YBreaks ?? [])
+            {
+                var style = bDto.Style is not null && Enum.TryParse<Models.BreakStyle>(bDto.Style, true, out var bs) ? bs : Models.BreakStyle.Zigzag;
+                axes.AddYBreak(bDto.From, bDto.To, style);
             }
         }
 
@@ -826,7 +840,13 @@ internal sealed record AxesDto
     public double? Azimuth { get; init; }
     public double? CameraDistance { get; init; }
     public string? LightSourceType { get; init; }
+    // v1.1.1 Axis breaks
+    public List<AxisBreakDto>? XBreaks { get; init; }
+    public List<AxisBreakDto>? YBreaks { get; init; }
 }
+
+/// <summary>Data-transfer object for an <see cref="Models.AxisBreak"/>.</summary>
+internal sealed record AxisBreakDto(double From, double To, string? Style);
 
 /// <summary>Data-transfer object for an inset axes bounding box expressed in figure-normalized coordinates (0–1).</summary>
 internal sealed record InsetBoundsDto
@@ -1010,6 +1030,10 @@ public sealed record SeriesDto
     // v1.1 Spline smoothing (LineSeries, AreaSeries)
     public bool? Smooth { get; init; }
     public int? SmoothResolution { get; init; }
+
+    // v1.1.1 PolarHeatmapSeries
+    public int? ThetaBins { get; init; }
+    public int? RBins { get; init; }
 }
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>

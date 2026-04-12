@@ -446,6 +446,16 @@ public sealed class FigureBuilder
                 axes.ShareYWith = yTarget;
         }
 
+        // Apply pending insets
+        foreach (var (subplotIndex, x, y, w, h, configure) in _pendingInsets)
+        {
+            if (subplotIndex >= 0 && subplotIndex < figure.SubPlots.Count)
+            {
+                var inset = figure.SubPlots[subplotIndex].AddInset(x, y, w, h);
+                configure?.Invoke(inset);
+            }
+        }
+
         return figure;
     }
 
@@ -519,6 +529,24 @@ public sealed class FigureBuilder
         configure?.Invoke(series);
         return this;
     }
+
+    /// <summary>Adds an inset axes to the subplot at the given zero-based index.
+    /// The bounds are fractional positions within the parent subplot (0–1).</summary>
+    /// <param name="subplotIndex">Zero-based index of the parent subplot.</param>
+    /// <param name="x">Horizontal position as a fraction of parent width.</param>
+    /// <param name="y">Vertical position as a fraction of parent height.</param>
+    /// <param name="width">Width as a fraction of parent width.</param>
+    /// <param name="height">Height as a fraction of parent height.</param>
+    /// <param name="configure">Optional action to configure the inset axes.</param>
+    public FigureBuilder AddInset(int subplotIndex, double x, double y, double width, double height,
+        Action<Axes>? configure = null)
+    {
+        _pendingInsets.Add((subplotIndex, x, y, width, height, configure));
+        return this;
+    }
+
+    private readonly List<(int SubplotIndex, double X, double Y, double Width, double Height, Action<Axes>? Configure)>
+        _pendingInsets = [];
 
     private Axes EnsureDefaultAxes() => _defaultAxes ??= new Axes();
 }

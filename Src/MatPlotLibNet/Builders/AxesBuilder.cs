@@ -386,6 +386,26 @@ public sealed class AxesBuilder
     /// <summary>Toggles grid line visibility on the axes.</summary>
     public AxesBuilder ShowGrid(bool visible = true) { _axes.Grid = _axes.Grid with { Visible = visible }; return this; }
 
+    /// <summary>Adds a discontinuous region to the X-axis.</summary>
+    /// <param name="from">Data-space start of the hidden region (inclusive).</param>
+    /// <param name="to">Data-space end of the hidden region (inclusive).</param>
+    /// <param name="style">Visual marker style at the break boundaries (default <see cref="BreakStyle.Zigzag"/>).</param>
+    public AxesBuilder WithXBreak(double from, double to, BreakStyle style = BreakStyle.Zigzag)
+    {
+        _axes.AddXBreak(from, to, style);
+        return this;
+    }
+
+    /// <summary>Adds a discontinuous region to the Y-axis.</summary>
+    /// <param name="from">Data-space start of the hidden region (inclusive).</param>
+    /// <param name="to">Data-space end of the hidden region (inclusive).</param>
+    /// <param name="style">Visual marker style at the break boundaries (default <see cref="BreakStyle.Zigzag"/>).</param>
+    public AxesBuilder WithYBreak(double from, double to, BreakStyle style = BreakStyle.Zigzag)
+    {
+        _axes.AddYBreak(from, to, style);
+        return this;
+    }
+
     /// <summary>Configures the grid style using a transform function, preserving all other properties.</summary>
     public AxesBuilder WithGrid(Func<GridStyle, GridStyle> configure)
     {
@@ -524,6 +544,10 @@ public sealed class AxesBuilder
     /// <summary>Adds a polar bar series to the axes.</summary>
     public AxesBuilder PolarBar(double[] r, double[] theta, Action<PolarBarSeries>? configure = null)
         => AddSeries(ax => ax.PolarBar(r, theta), configure);
+
+    /// <summary>Adds a polar heatmap series to the axes.</summary>
+    public AxesBuilder PolarHeatmap(double[,] data, int thetaBins, int rBins, Action<PolarHeatmapSeries>? configure = null)
+        => AddSeries(ax => ax.PolarHeatmap(data, thetaBins, rBins), configure);
 
     /// <summary>Adds a 3D surface series to the axes.</summary>
     public AxesBuilder Surface(double[] x, double[] y, double[,] z, Action<SurfaceSeries>? configure = null)

@@ -206,4 +206,9 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a uniform-sample-rate signal series. Default is a no-op for ISP compatibility.</summary>
     void Visit(SignalSeries series, RenderArea area) { }
+
+    // ── v1.1.1 Polar heatmap (default no-op for ISP compatibility) ──
+
+    /// <summary>Renders a polar heatmap series (wedge/sector cells). Default is a no-op for ISP compatibility.</summary>
+    void Visit(PolarHeatmapSeries series, RenderArea area) { }
 }

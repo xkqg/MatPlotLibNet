@@ -25,7 +25,16 @@ public sealed class CartesianAxesRenderer : AxesRenderer
 
         // Compute data ranges
         var range = ComputeDataRanges();
-        var transform = new DataTransform(range.XMin, range.XMax, range.YMin, range.YMax, PlotArea);
+
+        // Apply axis breaks: compress the visible range by removing break gaps
+        var (cXMin, cXMax) = Axes.XBreaks.Count > 0
+            ? AxisBreakMapper.CompressedRange(Axes.XBreaks, range.XMin, range.XMax)
+            : (range.XMin, range.XMax);
+        var (cYMin, cYMax) = Axes.YBreaks.Count > 0
+            ? AxisBreakMapper.CompressedRange(Axes.YBreaks, range.YMin, range.YMax)
+            : (range.YMin, range.YMax);
+
+        var transform = new DataTransform(cXMin, cXMax, cYMin, cYMax, PlotArea);
 
         // Auto-apply AutoDateLocator + AutoDateFormatter when scale is Date but no locator is set
         // (handles legacy SetXDateFormat() calls that only set scale + formatter, not a locator)
@@ -156,6 +165,10 @@ public sealed class CartesianAxesRenderer : AxesRenderer
 
         // Series
         RenderSeries(transform);
+
+        // Axis break markers (drawn on top of series, overlaying the break region)
+        if (Axes.XBreaks.Count > 0) RenderBreakMarkers(Axes.XBreaks, transform, isXAxis: true);
+        if (Axes.YBreaks.Count > 0) RenderBreakMarkers(Axes.YBreaks, transform, isXAxis: false);
 
         // Secondary Y-axis series
         if (Axes.SecondaryYAxis is not null && Axes.SecondarySeries.Count > 0)
@@ -748,5 +761,108 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         Ctx.BeginGroup("spine");
         Ctx.DrawLine(p1, p2, color, lineWidth, lineStyle);
         Ctx.EndGroup();
+    }
+
+    private void RenderBreakMarkers(IReadOnlyList<Models.AxisBreak> breaks, DataTransform transform, bool isXAxis)
+    {
+        const double MarkerHalfSize = 6.0;
+        const double MarkerThickness = 1.5;
+        var markerColor = Theme.ForegroundText;
+        var bgColor = Theme.AxesBackground;
+
+        foreach (var b in breaks)
+        {
+            if (b.Style == Models.BreakStyle.None) continue;
+
+            if (isXAxis)
+            {
+                double compressedX = AxisBreakMapper.Remap(breaks, b.From, transform.DataXMin, transform.DataXMax);
+                if (double.IsNaN(compressedX)) continue;
+                var pt = transform.DataToPixel(compressedX, transform.DataYMin);
+                DrawAxisBreakMark(b.Style, markerColor, bgColor, MarkerHalfSize, MarkerThickness,
+                    pt.X, PlotArea.Y, PlotArea.Y + PlotArea.Height, horizontal: true);
+            }
+            else
+            {
+                double compressedY = AxisBreakMapper.Remap(breaks, b.From, transform.DataYMin, transform.DataYMax);
+                if (double.IsNaN(compressedY)) continue;
+                var pt = transform.DataToPixel(transform.DataXMin, compressedY);
+                DrawAxisBreakMark(b.Style, markerColor, bgColor, MarkerHalfSize, MarkerThickness,
+                    pt.Y, PlotArea.X, PlotArea.X + PlotArea.Width, horizontal: false);
+            }
+        }
+    }
+
+    private void DrawAxisBreakMark(
+        Models.BreakStyle style, Color lineColor, Color bgColor,
+        double halfSize, double thickness,
+        double pos, double edgeA, double edgeB, bool horizontal)
+    {
+        // Draw a small white rectangle to "erase" the axis spine at the break position
+        const double GapHalf = 4.0;
+        if (horizontal)
+        {
+            Ctx.DrawRectangle(
+                new Rect(pos - GapHalf, edgeA, GapHalf * 2, edgeB - edgeA),
+                bgColor, null, 0);
+        }
+        else
+        {
+            Ctx.DrawRectangle(
+                new Rect(edgeA, pos - GapHalf, edgeB - edgeA, GapHalf * 2),
+                bgColor, null, 0);
+        }
+
+        if (style == Models.BreakStyle.Zigzag)
+        {
+            // Draw 3-point zigzag crossing the axis at the break boundary
+            if (horizontal)
+            {
+                // Zigzag across the spine on both sides
+                Ctx.DrawLine(new Point(pos - halfSize, edgeA + (edgeB - edgeA) * 0.4),
+                    new Point(pos, edgeA + (edgeB - edgeA) * 0.5),
+                    lineColor, thickness, LineStyle.Solid);
+                Ctx.DrawLine(new Point(pos, edgeA + (edgeB - edgeA) * 0.5),
+                    new Point(pos + halfSize, edgeA + (edgeB - edgeA) * 0.6),
+                    lineColor, thickness, LineStyle.Solid);
+                Ctx.DrawLine(new Point(pos - halfSize, edgeB - (edgeB - edgeA) * 0.6),
+                    new Point(pos, edgeB - (edgeB - edgeA) * 0.5),
+                    lineColor, thickness, LineStyle.Solid);
+                Ctx.DrawLine(new Point(pos, edgeB - (edgeB - edgeA) * 0.5),
+                    new Point(pos + halfSize, edgeB - (edgeB - edgeA) * 0.4),
+                    lineColor, thickness, LineStyle.Solid);
+            }
+            else
+            {
+                Ctx.DrawLine(new Point(edgeA + (edgeB - edgeA) * 0.4, pos - halfSize),
+                    new Point(edgeA + (edgeB - edgeA) * 0.5, pos),
+                    lineColor, thickness, LineStyle.Solid);
+                Ctx.DrawLine(new Point(edgeA + (edgeB - edgeA) * 0.5, pos),
+                    new Point(edgeA + (edgeB - edgeA) * 0.6, pos + halfSize),
+                    lineColor, thickness, LineStyle.Solid);
+            }
+        }
+        else if (style == Models.BreakStyle.Straight)
+        {
+            // Two short diagonal parallel lines (//)
+            if (horizontal)
+            {
+                Ctx.DrawLine(new Point(pos - halfSize * 0.5, edgeA + (edgeB - edgeA) * 0.3),
+                    new Point(pos + halfSize * 0.5, edgeA + (edgeB - edgeA) * 0.7),
+                    lineColor, thickness, LineStyle.Solid);
+                Ctx.DrawLine(new Point(pos - halfSize * 0.5 + halfSize * 0.6, edgeA + (edgeB - edgeA) * 0.3),
+                    new Point(pos + halfSize * 0.5 + halfSize * 0.6, edgeA + (edgeB - edgeA) * 0.7),
+                    lineColor, thickness, LineStyle.Solid);
+            }
+            else
+            {
+                Ctx.DrawLine(new Point(edgeA + (edgeB - edgeA) * 0.3, pos - halfSize * 0.5),
+                    new Point(edgeA + (edgeB - edgeA) * 0.7, pos + halfSize * 0.5),
+                    lineColor, thickness, LineStyle.Solid);
+                Ctx.DrawLine(new Point(edgeA + (edgeB - edgeA) * 0.3, pos - halfSize * 0.5 + halfSize * 0.6),
+                    new Point(edgeA + (edgeB - edgeA) * 0.7, pos + halfSize * 0.5 + halfSize * 0.6),
+                    lineColor, thickness, LineStyle.Solid);
+            }
+        }
     }
 }

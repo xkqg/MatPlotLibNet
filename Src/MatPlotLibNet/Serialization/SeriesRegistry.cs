@@ -277,6 +277,16 @@ public static class SeriesRegistry
         Register("signal-xy", ChartSerializer.CreateSignalXY);
         Register("signal",    ChartSerializer.CreateSignal);
 
+        // v1.1.1 PolarHeatmapSeries
+        Register("polarheatmap", (axes, dto) =>
+        {
+            var s = axes.PolarHeatmap(ChartSerializer.From2DList(dto.HeatmapData),
+                dto.ThetaBins ?? 8, dto.RBins ?? 4);
+            if (dto.ColorMapName is not null)
+                s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+            return s;
+        });
+
         // v0.8.9 Phase F — Geo
         Register("map", (axes, dto) =>
         {

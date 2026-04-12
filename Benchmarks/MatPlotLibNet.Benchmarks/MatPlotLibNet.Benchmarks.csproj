@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.DataFrame\MatPlotLibNet.DataFrame.csproj" />
   </ItemGroup>
 
 </Project>

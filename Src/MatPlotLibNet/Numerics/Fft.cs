@@ -12,7 +12,7 @@ namespace MatPlotLibNet.Numerics;
 public sealed record StftResult(double[,] Magnitudes, double[] Frequencies, double[] Times);
 
 /// <summary>Fast Fourier transform utilities using Cooley-Tukey radix-2 DIT algorithm.</summary>
-public static class Fft
+public static partial class Fft
 {
     /// <summary>Computes the forward DFT of a real-valued signal.</summary>
     /// <param name="signal">Input signal values.</param>

@@ -316,4 +316,9 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(SignalXYSeries s, RenderArea a) => (_signalXY ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(SignalSeries s, RenderArea a) => (_signal ??= new(_context)).Render(s);
+
+    // Polar heatmap v1.1.1
+    private PolarHeatmapSeriesRenderer? _polarHeatmap;
+    /// <inheritdoc />
+    public void Visit(PolarHeatmapSeries s, RenderArea a) => (_polarHeatmap ??= new(_context)).Render(s);
 }

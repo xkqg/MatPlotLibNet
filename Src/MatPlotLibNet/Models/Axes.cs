@@ -100,6 +100,30 @@ public sealed class Axes
     public IReadOnlyList<Axes> Insets => _insets;
     private readonly List<Axes> _insets = [];
 
+    /// <summary>Gets the axis break regions on the X-axis.</summary>
+    public IReadOnlyList<AxisBreak> XBreaks => _xBreaks;
+    private readonly List<AxisBreak> _xBreaks = [];
+
+    /// <summary>Gets the axis break regions on the Y-axis.</summary>
+    public IReadOnlyList<AxisBreak> YBreaks => _yBreaks;
+    private readonly List<AxisBreak> _yBreaks = [];
+
+    /// <summary>Adds a discontinuous (broken) region to the X-axis, hiding data between
+    /// <paramref name="from"/> and <paramref name="to"/> and compressing the scale.</summary>
+    public Axes AddXBreak(double from, double to, BreakStyle style = BreakStyle.Zigzag)
+    {
+        _xBreaks.Add(new AxisBreak(from, to, style));
+        return this;
+    }
+
+    /// <summary>Adds a discontinuous (broken) region to the Y-axis, hiding data between
+    /// <paramref name="from"/> and <paramref name="to"/> and compressing the scale.</summary>
+    public Axes AddYBreak(double from, double to, BreakStyle style = BreakStyle.Zigzag)
+    {
+        _yBreaks.Add(new AxisBreak(from, to, style));
+        return this;
+    }
+
     public InsetBounds? InsetBounds { get; internal set; }
 
     /// <summary>Adds an inset axes at the specified fractional position within this axes.</summary>
@@ -122,6 +146,16 @@ public sealed class Axes
         _insets.Add(inset);
         return inset;
     }
+
+    /// <summary>Adds an inset axes at the given fractional position. Alias for
+    /// <see cref="AddInset(double,double,double,double)"/>.</summary>
+    /// <param name="x">Left edge of the inset as a fraction of the parent axes width [0, 1].</param>
+    /// <param name="y">Bottom edge of the inset as a fraction of the parent axes height [0, 1].</param>
+    /// <param name="width">Width of the inset as a fraction of the parent axes width [0, 1].</param>
+    /// <param name="height">Height of the inset as a fraction of the parent axes height [0, 1].</param>
+    /// <returns>The new inset <see cref="Axes"/> instance.</returns>
+    public Axes InsetAxes(double x, double y, double width, double height)
+        => AddInset(x, y, width, height);
 
     public Axis? SecondaryYAxis { get; private set; }
 
@@ -598,6 +632,19 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.Polar;
         var series = new PolarBarSeries(r, theta);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a polar heatmap series and sets coordinate system to Polar.
+    /// Each cell is a wedge defined by a theta bin and a radial bin.</summary>
+    /// <param name="data">2D data matrix [thetaBins, rBins].</param>
+    /// <param name="thetaBins">Number of angular divisions.</param>
+    /// <param name="rBins">Number of radial divisions.</param>
+    public PolarHeatmapSeries PolarHeatmap(double[,] data, int thetaBins, int rBins)
+    {
+        CoordinateSystem = CoordinateSystem.Polar;
+        var series = new PolarHeatmapSeries(data, thetaBins, rBins);
         _series.Add(series);
         return series;
     }
