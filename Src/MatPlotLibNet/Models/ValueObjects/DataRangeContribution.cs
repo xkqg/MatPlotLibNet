@@ -8,4 +8,11 @@ namespace MatPlotLibNet.Models.Series;
 /// <param name="XMax">Maximum X value contributed, or null.</param>
 /// <param name="YMin">Minimum Y value contributed, or null.</param>
 /// <param name="YMax">Maximum Y value contributed, or null.</param>
-public readonly record struct DataRangeContribution(double? XMin, double? XMax, double? YMin, double? YMax);
+/// <param name="StickyXMin">Sticky-edge X minimum — if set, `axes.xmargin` expansion will not push the computed xMin below this value. Mirrors matplotlib's <c>Artist.sticky_edges.x</c>.</param>
+/// <param name="StickyXMax">Sticky-edge X maximum. Analogous to <paramref name="StickyXMin"/>.</param>
+/// <param name="StickyYMin">Sticky-edge Y minimum — matplotlib's <c>BarContainer</c> sets this to <c>0</c> so the y-axis never pads below the bar baseline.</param>
+/// <param name="StickyYMax">Sticky-edge Y maximum.</param>
+public readonly record struct DataRangeContribution(
+    double? XMin, double? XMax, double? YMin, double? YMax,
+    double? StickyXMin = null, double? StickyXMax = null,
+    double? StickyYMin = null, double? StickyYMax = null);

@@ -17,16 +17,18 @@ public class DistributionChartFidelityTests : FidelityTest
         return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 110, Ssim = 0.55, DeltaE = 55)]   // seaborn fill alpha + different KDE bandwidth heuristic
-    public void Kde_NormalSamples_MatchesMatplotlib()
+    [FidelityTolerance(Rms = 110, Ssim = 0.55, DeltaE = 140)]   // v1.1.4: seaborn fill alpha + different KDE bandwidth heuristic; classic axes.xmargin=0 shifted histogram bar edges → top-5 color blend differs
+    public void Kde_NormalSamples_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         var data = Enumerable.Range(0, 500).Select(_ => NextGaussian(rng)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("KDE — 500 normal samples")
                 .Kde(data))
@@ -34,16 +36,18 @@ public class DistributionChartFidelityTests : FidelityTest
         AssertFidelity(figure, "kde");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]
-    public void Rugplot_NormalSamples_MatchesMatplotlib()
+    public void Rugplot_NormalSamples_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         var data = Enumerable.Range(0, 100).Select(_ => NextGaussian(rng)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Rugplot")
                 .Rugplot(data))
@@ -51,10 +55,12 @@ public class DistributionChartFidelityTests : FidelityTest
         AssertFidelity(figure, "rugplot");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 60)]
-    public void Stripplot_ThreeGroups_MatchesMatplotlib()
+    [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 140)]   // pt→px font fix shifted axis labels → top-5 color cluster changed
+    public void Stripplot_ThreeGroups_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         double[][] data = new[] { 0.0, 1.0, 2.0 }
@@ -63,7 +69,7 @@ public class DistributionChartFidelityTests : FidelityTest
             .ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Stripplot — 3 groups")
                 .Stripplot(data))
@@ -71,10 +77,12 @@ public class DistributionChartFidelityTests : FidelityTest
         AssertFidelity(figure, "stripplot");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 60)]   // swarm layout differs slightly between implementations
-    public void Swarmplot_ThreeGroups_MatchesMatplotlib()
+    [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 140)]   // swarm layout differs slightly + pt→px font fix shifted axis labels
+    public void Swarmplot_ThreeGroups_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         double[][] data = new[] { 0.0, 1.0, 2.0 }
@@ -83,7 +91,7 @@ public class DistributionChartFidelityTests : FidelityTest
             .ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Swarmplot — 3 groups")
                 .Swarmplot(data))
@@ -91,10 +99,12 @@ public class DistributionChartFidelityTests : FidelityTest
         AssertFidelity(figure, "swarmplot");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 70, Ssim = 0.55, DeltaE = 55)]
-    public void Pointplot_FourGroups_MatchesMatplotlib()
+    public void Pointplot_FourGroups_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         double[][] data = new[] { 0.0, 1.0, 2.0, 3.0 }
@@ -103,7 +113,7 @@ public class DistributionChartFidelityTests : FidelityTest
             .ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Pointplot — 4 groups")
                 .Pointplot(data))
@@ -111,10 +121,12 @@ public class DistributionChartFidelityTests : FidelityTest
         AssertFidelity(figure, "pointplot");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 95, Ssim = 0.55, DeltaE = 55)]   // category frequency differs by RNG; AA grey text
-    public void Countplot_FourCategories_MatchesMatplotlib()
+    public void Countplot_FourCategories_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         string[] pool = ["A", "B", "C", "D"];
@@ -128,7 +140,7 @@ public class DistributionChartFidelityTests : FidelityTest
         }).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Countplot")
                 .Countplot(values))

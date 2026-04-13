@@ -1,70 +1,87 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-labelledby="chart-title">
 <title id="chart-title"></title>
 <rect x="0" y="0" width="800" height="600" fill="#FFFFFF" />
-<rect x="60" y="40" width="720" height="510" fill="#FFFFFF" />
-<line x1="92.72727272727272" y1="40" x2="92.72727272727272" y2="550" stroke="#B0B0B0" stroke-width="0.8" />
-<line x1="256.3636363636364" y1="40" x2="256.3636363636364" y2="550" stroke="#B0B0B0" stroke-width="0.8" />
-<line x1="420" y1="40" x2="420" y2="550" stroke="#B0B0B0" stroke-width="0.8" />
-<line x1="583.6363636363636" y1="40" x2="583.6363636363636" y2="550" stroke="#B0B0B0" stroke-width="0.8" />
-<line x1="747.2727272727273" y1="40" x2="747.2727272727273" y2="550" stroke="#B0B0B0" stroke-width="0.8" />
-<line x1="60" y1="526.8181818181819" x2="780" y2="526.8181818181819" stroke="#B0B0B0" stroke-width="0.8" />
-<line x1="60" y1="393.58934169279" x2="780" y2="393.58934169279" stroke="#B0B0B0" stroke-width="0.8" />
-<line x1="60" y1="260.36050156739816" x2="780" y2="260.36050156739816" stroke="#B0B0B0" stroke-width="0.8" />
-<line x1="60" y1="127.1316614420063" x2="780" y2="127.1316614420063" stroke="#B0B0B0" stroke-width="0.8" />
-<text x="174.54545454545453" y="565" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">Alpha</text>
-<text x="338.18181818181813" y="565" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">Beta</text>
-<text x="501.81818181818176" y="565" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">Gamma</text>
-<text x="665.4545454545455" y="565" font-family="sans-serif" font-size="13" text-anchor="middle" fill="#000000">Delta</text>
-<line x1="523.3181818181819" y1="60" x2="527.2181818181818" y2="60" stroke="#000000" stroke-width="0.8" />
-<text x="53.5" y="530.8181818181819" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">0</text>
-<line x1="390.08934169279" y1="60" x2="393.98934169279" y2="60" stroke="#000000" stroke-width="0.8" />
-<text x="53.5" y="397.58934169279" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">10k</text>
-<line x1="256.86050156739816" y1="60" x2="260.76050156739814" y2="60" stroke="#000000" stroke-width="0.8" />
-<text x="53.5" y="264.36050156739816" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">20k</text>
-<line x1="123.6316614420063" y1="60" x2="127.53166144200631" y2="60" stroke="#000000" stroke-width="0.8" />
-<text x="53.5" y="131.1316614420063" font-family="sans-serif" font-size="13" text-anchor="end" fill="#000000">30k</text>
-<line x1="496.6724137931035" y1="60" x2="500.57241379310346" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="470.0266457680251" y1="60" x2="473.9266457680251" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="443.3808777429468" y1="60" x2="447.28087774294676" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="416.7351097178684" y1="60" x2="420.6351097178684" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="363.4435736677117" y1="60" x2="367.34357366771167" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="336.7978056426333" y1="60" x2="340.6978056426333" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="310.1520376175549" y1="60" x2="314.0520376175549" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="283.50626959247654" y1="60" x2="287.4062695924765" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="230.21473354231978" y1="60" x2="234.11473354231978" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="203.56896551724145" y1="60" x2="207.46896551724146" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="176.92319749216307" y1="60" x2="180.82319749216308" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="150.2774294670847" y1="60" x2="154.1774294670847" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="96.98589341692792" y1="60" x2="100.88589341692793" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="70.3401253918496" y1="60" x2="74.2401253918496" y2="60" stroke="#000000" stroke-width="0.8" />
-<line x1="43.694357366771214" y1="60" x2="47.59435736677121" y2="60" stroke="#000000" stroke-width="0.8" />
+<rect x="100" y="72" width="620" height="462" fill="#FFFFFF" />
+<line x1="187.51196172248805" y1="533.6" x2="187.51196172248805" y2="538.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="187.51196172248805" y="549" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">Alpha</text>
+<line x1="335.83732057416273" y1="533.6" x2="335.83732057416273" y2="538.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="335.83732057416273" y="549" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">Beta</text>
+<line x1="484.1626794258374" y1="533.6" x2="484.1626794258374" y2="538.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="484.1626794258374" y="549" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">Gamma</text>
+<line x1="632.488038277512" y1="533.6" x2="632.488038277512" y2="538.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="632.488038277512" y="549" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">Delta</text>
+<line x1="95.13888888888889" y1="534" x2="100.4" y2="534" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="90.27777777777777" y="538" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#262626">0</text>
+<line x1="95.13888888888889" y1="470.7816091954023" x2="100.4" y2="470.7816091954023" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="90.27777777777777" y="474.7816091954023" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#262626">5 k</text>
+<line x1="95.13888888888889" y1="407.5632183908046" x2="100.4" y2="407.5632183908046" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="90.27777777777777" y="411.5632183908046" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#262626">10 k</text>
+<line x1="95.13888888888889" y1="344.34482758620686" x2="100.4" y2="344.34482758620686" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="90.27777777777777" y="348.34482758620686" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#262626">15 k</text>
+<line x1="95.13888888888889" y1="281.1264367816092" x2="100.4" y2="281.1264367816092" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="90.27777777777777" y="285.1264367816092" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#262626">20 k</text>
+<line x1="95.13888888888889" y1="217.9080459770115" x2="100.4" y2="217.9080459770115" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="90.27777777777777" y="221.9080459770115" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#262626">25 k</text>
+<line x1="95.13888888888889" y1="154.68965517241378" x2="100.4" y2="154.68965517241378" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="90.27777777777777" y="158.68965517241378" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#262626">30 k</text>
+<line x1="95.13888888888889" y1="91.4712643678161" x2="100.4" y2="91.4712643678161" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="90.27777777777777" y="95.4712643678161" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#262626">35 k</text>
+<line x1="95.13888888888889" y1="521.3563218390805" x2="100.4" y2="521.3563218390805" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="508.71264367816093" x2="100.4" y2="508.71264367816093" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="496.0689655172414" x2="100.4" y2="496.0689655172414" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="483.42528735632186" x2="100.4" y2="483.42528735632186" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="458.1379310344828" x2="100.4" y2="458.1379310344828" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="445.49425287356325" x2="100.4" y2="445.49425287356325" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="432.85057471264366" x2="100.4" y2="432.85057471264366" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="420.2068965517241" x2="100.4" y2="420.2068965517241" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="394.91954022988506" x2="100.4" y2="394.91954022988506" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="382.2758620689655" x2="100.4" y2="382.2758620689655" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="369.632183908046" x2="100.4" y2="369.632183908046" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="356.98850574712645" x2="100.4" y2="356.98850574712645" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="331.7011494252873" x2="100.4" y2="331.7011494252873" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="319.0574712643678" x2="100.4" y2="319.0574712643678" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="306.41379310344826" x2="100.4" y2="306.41379310344826" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="293.7701149425287" x2="100.4" y2="293.7701149425287" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="268.48275862068965" x2="100.4" y2="268.48275862068965" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="255.83908045977012" x2="100.4" y2="255.83908045977012" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="243.19540229885058" x2="100.4" y2="243.19540229885058" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="230.55172413793105" x2="100.4" y2="230.55172413793105" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="205.26436781609198" x2="100.4" y2="205.26436781609198" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="192.62068965517244" x2="100.4" y2="192.62068965517244" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="179.9770114942529" x2="100.4" y2="179.9770114942529" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="167.33333333333331" x2="100.4" y2="167.33333333333331" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="142.04597701149424" x2="100.4" y2="142.04597701149424" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="129.4022988505747" x2="100.4" y2="129.4022988505747" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="116.75862068965517" x2="100.4" y2="116.75862068965517" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="104.11494252873564" x2="100.4" y2="104.11494252873564" stroke="#262626" stroke-width="1.1111111111111112" />
+<line x1="95.13888888888889" y1="78.82758620689657" x2="100.4" y2="78.82758620689657" stroke="#262626" stroke-width="1.1111111111111112" />
 <g class="series" aria-label="Q1 Sales">
-<rect x="109.09090909090908" y="360.28213166144207" width="130.90909090909093" height="166.5360501567398" fill="#1F77B4" />
-<text x="174.54545454545453" y="356.28213166144207" font-family="sans-serif" font-size="11" text-anchor="middle">12500</text>
-<rect x="272.72727272727275" y="63.181818181818244" width="130.90909090909088" height="463.6363636363636" fill="#1F77B4" />
-<text x="338.1818181818182" y="59.181818181818244" font-family="sans-serif" font-size="11" text-anchor="middle">34800</text>
-<rect x="436.3636363636364" y="417.57053291536056" width="130.90909090909088" height="109.24764890282131" fill="#1F77B4" />
-<text x="501.8181818181818" y="413.57053291536056" font-family="sans-serif" font-size="11" text-anchor="middle">8200</text>
-<rect x="600" y="159.10658307210036" width="130.90909090909088" height="367.7115987460815" fill="#1F77B4" />
-<text x="665.4545454545455" y="155.10658307210036" font-family="sans-serif" font-size="11" text-anchor="middle">27600</text>
+<rect x="128.1818181818182" y="375.95402298850576" width="118.66028708133973" height="158.04597701149424" fill="#1F77B4" />
+<text x="187.51196172248805" y="371.95402298850576" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">12500</text>
+<rect x="276.5071770334929" y="94" width="118.66028708133967" height="440" fill="#1F77B4" />
+<text x="335.83732057416273" y="90" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">34800</text>
+<rect x="424.83253588516754" y="430.32183908045977" width="118.66028708133967" height="103.67816091954023" fill="#1F77B4" />
+<text x="484.1626794258374" y="426.32183908045977" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">8200</text>
+<rect x="573.1578947368422" y="185.0344827586207" width="118.66028708133967" height="348.9655172413793" fill="#1F77B4" />
+<text x="632.488038277512" y="181.0344827586207" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">27600</text>
 </g>
 <g class="spine">
-<line x1="60" y1="550" x2="780" y2="550" stroke="#000000" stroke-width="0.8" />
+<line x1="100" y1="534" x2="720" y2="534" stroke="#262626" stroke-width="0.8" />
 </g>
 <g class="spine">
-<line x1="60" y1="40" x2="780" y2="40" stroke="#000000" stroke-width="0.8" />
+<line x1="100" y1="72" x2="720" y2="72" stroke="#262626" stroke-width="0.8" />
 </g>
 <g class="spine">
-<line x1="60" y1="40" x2="60" y2="550" stroke="#000000" stroke-width="0.8" />
+<line x1="100" y1="72" x2="100" y2="534" stroke="#262626" stroke-width="0.8" />
 </g>
 <g class="spine">
-<line x1="780" y1="40" x2="780" y2="550" stroke="#000000" stroke-width="0.8" />
+<line x1="720" y1="72" x2="720" y2="534" stroke="#262626" stroke-width="0.8" />
 </g>
-<rect x="681.92" y="50" width="88.08" height="28" fill="#FFFFFF" fill-opacity="0.8" stroke="#000000" stroke-width="0.5" />
+<rect x="597.3333333333334" y="82" width="112.66666666666667" height="25.72222222222222" fill="#FFFFFF" fill-opacity="0.8" stroke="#CCCCCC" stroke-width="0.5" />
 <g class="legend" aria-label="Chart legend">
-<rect x="689.92" y="58" width="12" height="12" fill="#1F77B4" />
-<text x="707.92" y="69" font-family="sans-serif" font-size="13" text-anchor="start" fill="#000000">Q1 Sales</text>
+<rect x="605.3333333333334" y="90" width="27.77777777777778" height="9.722222222222221" fill="#1F77B4" />
+<text x="644.2222222222223" y="98.72222222222223" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#262626">Q1 Sales</text>
 </g>
-<text x="420" y="32" font-family="sans-serif" font-size="15" text-anchor="middle" font-weight="bold" fill="#000000">Sales by Product</text>
-<text x="15" y="295" font-family="sans-serif" font-size="13" text-anchor="middle" transform="rotate(-90,15,295)" fill="#000000">Revenue ($)</text>
+<text x="410" y="64" font-family="DejaVu Sans, sans-serif" font-size="15.88888888888889" text-anchor="middle" font-weight="bold" fill="#262626">Sales by Product</text>
+<text x="49.666666666666664" y="303" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" transform="rotate(-90,49.666666666666664,303)" fill="#262626">Revenue ($)</text>
 </svg>

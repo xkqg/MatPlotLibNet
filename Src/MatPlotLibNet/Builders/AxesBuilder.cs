@@ -818,15 +818,17 @@ public sealed class AxesBuilder
 
     private double[] GetPriceData()
     {
-        // Prefer dedicated OHLC price series (candlestick, OHLC bar) over generic XY series,
-        // so that indicators chained after other indicators (e.g. BB then SMA) still resolve
-        // the original price data rather than the last indicator's output.
-        var canonical = _axes.Series.LastOrDefault(s => s is CandlestickSeries or OhlcBarSeries);
-        if (canonical is IPriceSeries ohlc) return ohlc.PriceData;
+        // Prefer the most recently added price series. This lets users *chain* indicators:
+        //   .Plot(x, close).Sma(20).Sma(5)
+        // computes SMA(5) over the SMA(20) output, not over the raw close again.
+        // If no prior line/area series exists, fall back to the last OHLC price series so
+        // `.Candlestick(o,h,l,c).Sma(20)` still resolves to close.
+        var last = _axes.Series.LastOrDefault(s => s is IPriceSeries);
+        if (last is IPriceSeries price) return price.PriceData;
 
-        var last = _axes.Series.LastOrDefault();
-        return last is IPriceSeries price
-            ? price.PriceData
+        var ohlc = _axes.Series.LastOrDefault(s => s is CandlestickSeries or OhlcBarSeries);
+        return ohlc is IPriceSeries canonical
+            ? canonical.PriceData
             : throw new InvalidOperationException("No price data found. Add a series with Y data before calling indicator shortcuts.");
     }
 

@@ -16,16 +16,17 @@ public class EngFormatterTests
         Assert.NotNull(formatter);
     }
 
-    /// <summary>Verifies SI prefix mapping for common engineering values.</summary>
+    /// <summary>Verifies SI prefix mapping for common engineering values. Default <see cref="EngFormatter.Sep"/>
+    /// is a single space (matching matplotlib), so the expected outputs include a space before the prefix.</summary>
     [Theory]
-    [InlineData(1e12, "1T")]
-    [InlineData(1e9, "1G")]
-    [InlineData(1e6, "1M")]
-    [InlineData(1e3, "1k")]
+    [InlineData(1e12, "1 T")]
+    [InlineData(1e9, "1 G")]
+    [InlineData(1e6, "1 M")]
+    [InlineData(1e3, "1 k")]
     [InlineData(1.0, "1")]
-    [InlineData(1e-3, "1m")]
-    [InlineData(1e-6, "1µ")]
-    [InlineData(1e-9, "1n")]
+    [InlineData(1e-3, "1 m")]
+    [InlineData(1e-6, "1 µ")]
+    [InlineData(1e-9, "1 n")]
     public void Format_SiPrefixes(double value, string expected)
     {
         var formatter = new EngFormatter();
@@ -40,12 +41,21 @@ public class EngFormatterTests
         Assert.Equal("0", formatter.Format(0));
     }
 
-    /// <summary>Verifies that 1500 formats as "1.5k".</summary>
+    /// <summary>Verifies that 1500 formats as "1.5 k" (matplotlib default separator).</summary>
     [Fact]
     public void Format_15Hundred_Returns1Point5k()
     {
         var formatter = new EngFormatter();
+        Assert.Equal("1.5 k", formatter.Format(1500));
+    }
+
+    /// <summary>Verifies that setting <see cref="EngFormatter.Sep"/> to empty gives the compact form.</summary>
+    [Fact]
+    public void Format_EmptySep_CompactForm()
+    {
+        var formatter = new EngFormatter { Sep = "" };
         Assert.Equal("1.5k", formatter.Format(1500));
+        Assert.Equal("30k", formatter.Format(30_000));
     }
 
     /// <summary>Verifies that 1,234,567 formats with M suffix.</summary>

@@ -25,6 +25,14 @@ public abstract class AxesRenderer
 
     protected Theme Theme { get; }
 
+    /// <summary>Maximum rendered width of Y-axis tick labels. Set by subclasses during tick rendering;
+    /// consumed by <see cref="RenderAxisLabels"/> to place the Y-axis label clear of the widest tick label.</summary>
+    protected double MeasuredYTickMaxWidth { get; set; }
+
+    /// <summary>Maximum rendered height of X-axis tick labels. Set by subclasses during tick rendering;
+    /// reserved for future use by <see cref="RenderAxisLabels"/>.</summary>
+    protected double MeasuredXTickMaxHeight { get; set; }
+
     /// <summary>Initializes the renderer with the rendering context.</summary>
     /// <param name="axes">The axes model to render.</param>
     /// <param name="plotArea">The pixel-space rectangle that bounds the plot.</param>
@@ -198,14 +206,14 @@ public abstract class AxesRenderer
         if (!Axes.Legend.Visible) return;
 
         var legend = Axes.Legend;
-        var entries = new List<(string Label, Color Color)>();
+        var entries = new List<(string Label, Color Color, Models.Series.ISeries Series)>();
         for (int i = 0; i < Axes.Series.Count; i++)
         {
             var series = Axes.Series[i];
             if (string.IsNullOrEmpty(series.Label)) continue;
             var cycleColor = Theme.PropCycler?[i].Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
             var seriesColor = series.GetType().GetProperty("Color")?.GetValue(series) as Color?;
-            entries.Add((series.Label, seriesColor ?? cycleColor));
+            entries.Add((series.Label, seriesColor ?? cycleColor, series));
         }
 
         if (entries.Count == 0) return;
@@ -214,8 +222,14 @@ public abstract class AxesRenderer
         var baseFont = TickFont();
         var font = legend.FontSize.HasValue ? baseFont with { Size = legend.FontSize.Value } : baseFont;
 
-        double swatchSize = 12 * legend.MarkerScale;
-        double swatchGap = 6;
+        // matplotlib legend handles use `handlelength = 2.0 em` × `handleheight = 0.7 em`
+        // where 1 em = legend font size. For patch-type series (bar/hist/area) this produces
+        // a WIDE RECTANGLE, not a square. Line series also use this width but with a line handle.
+        double handleWidth  = font.Size * 2.0 * legend.MarkerScale;   // ~27.8 px at 13.89 px font
+        double handleHeight = font.Size * 0.7 * legend.MarkerScale;   // ~9.72 px at 13.89 px font
+        double swatchSize   = handleHeight;                            // legacy name — height only
+        double maxSwatchW   = handleWidth;                              // width is uniform across entries now
+        double swatchGap    = font.Size * 0.8;                          // matplotlib handletextpad = 0.8 em
         double padding = 8;
         // LabelSpacing: em-based multiplier on line height (1em ≈ font size)
         double lineHeight = swatchSize + Math.Max(0, legend.LabelSpacing * font.Size);
@@ -223,18 +237,20 @@ public abstract class AxesRenderer
         int nCols = Math.Max(1, legend.NCols);
         int nRows = (int)Math.Ceiling((double)entries.Count / nCols);
 
-        // Measure column widths
+        // Measure column widths — parse mathtext so $\alpha$ decay measures as "α decay", not the raw LaTeX
         var colMaxWidths = new double[nCols];
         for (int i = 0; i < entries.Count; i++)
         {
             int col = i % nCols;
-            var size = Ctx.MeasureText(entries[i].Label, font);
+            var size = MathTextParser.ContainsMath(entries[i].Label)
+                ? Ctx.MeasureRichText(MathTextParser.Parse(entries[i].Label), font)
+                : Ctx.MeasureText(entries[i].Label, font);
             if (size.Width > colMaxWidths[col]) colMaxWidths[col] = size.Width;
         }
 
         double colSpacingPx = legend.ColumnSpacing * font.Size;
-        double totalContentWidth = swatchSize + swatchGap + colMaxWidths.Sum()
-            + (nCols - 1) * (swatchSize + swatchGap + colSpacingPx);
+        double totalContentWidth = maxSwatchW + swatchGap + colMaxWidths.Sum()
+            + (nCols - 1) * (maxSwatchW + swatchGap + colSpacingPx);
 
         // Title height
         var titleFont = legend.TitleFontSize.HasValue
@@ -268,7 +284,9 @@ public abstract class AxesRenderer
             var faceColor = legend.FaceColor ?? Theme.Background;
             var bgAlpha = (byte)(legend.FrameAlpha * 255);
             var bgColor = faceColor.WithAlpha(bgAlpha);
-            var edgeColor = legend.EdgeColor ?? Theme.ForegroundText;
+            // matplotlib v2 default `legend.edgecolor = '0.8'` = #CCCCCC (light grey).
+            // Falls back to the theme foreground only if no override is set.
+            var edgeColor = legend.EdgeColor ?? Color.FromHex("#CCCCCC");
 
             if (legend.Shadow)
             {
@@ -300,22 +318,117 @@ public abstract class AxesRenderer
         {
             int row = i / nCols;
             int col = i % nCols;
-            var (label, color) = entries[i];
+            var (label, color, seriesRef) = entries[i];
 
             // X offset for this column
             double colX = boxX + padding;
             for (int c = 0; c < col; c++)
-                colX += swatchSize + swatchGap + colMaxWidths[c] + colSpacingPx;
+                colX += maxSwatchW + swatchGap + colMaxWidths[c] + colSpacingPx;
 
             double entryY = boxY + padding + titleHeight + row * lineHeight;
 
             svgCtxLegend?.BeginLegendItemGroup(i, label);
-            Ctx.DrawRectangle(new Rect(colX, entryY, swatchSize, swatchSize), color, null, 0);
-            Ctx.DrawText(label, new Point(colX + swatchSize + swatchGap, entryY + swatchSize - 1), font, TextAlignment.Left);
+
+            // Swatch dispatch: line segment for line-type series, marker for scatter,
+            // line+caps for error bar, filled rectangle for patches (bar/hist/area/violin/pie).
+            DrawLegendSwatch(seriesRef, colX, entryY, maxSwatchW, swatchSize, color);
+
+            // Text anchor sits just past the swatch.
+            var textPoint = new Point(colX + maxSwatchW + swatchGap, entryY + swatchSize - 1);
+            if (MathTextParser.ContainsMath(label))
+                Ctx.DrawRichText(MathTextParser.Parse(label), textPoint, font, TextAlignment.Left);
+            else
+                Ctx.DrawText(label, textPoint, font, TextAlignment.Left);
             if (svgCtxLegend is not null) Ctx.EndGroup();
         }
 
         Ctx.EndGroup();
+    }
+
+    /// <summary>Line-type series get a wider swatch (horizontal segment) in the legend; patch-type
+    /// series (bar/hist/area/violin/pie) get a square filled rectangle. Mirrors matplotlib's
+    /// default `HandlerLine2D` / `HandlerPatch` dispatch.</summary>
+    private static bool IsLineTypeSeries(Models.Series.ISeries series) => series switch
+    {
+        Models.Series.LineSeries           => true,
+        Models.Series.SignalSeries         => true,
+        Models.Series.SignalXYSeries       => true,
+        Models.Series.SparklineSeries      => true,
+        Models.Series.EcdfSeries           => true,
+        Models.Series.RegressionSeries     => true,
+        Models.Series.StepSeries           => true,
+        Models.Series.ScatterSeries        => false,  // marker, not line
+        Models.Series.ErrorBarSeries       => true,   // drawn as line + caps
+        _                                  => false,
+    };
+
+    /// <summary>Draws a type-appropriate legend handle at (x, y): line segment for line series,
+    /// single centred marker for scatter, line+caps for error bar, filled rectangle for patches.</summary>
+    private void DrawLegendSwatch(Models.Series.ISeries series, double x, double y, double wMax, double h, Color color)
+    {
+        double midY = y + h / 2;
+
+        switch (series)
+        {
+            case Models.Series.LineSeries ls:
+            {
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, ls.LineWidth, ls.LineStyle);
+                if (ls.Marker.HasValue)
+                    DrawLegendMarker(x + wMax / 2, midY, ls.Marker.Value, ls.MarkerSize, color);
+                break;
+            }
+            case Models.Series.SignalSeries ss:
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, ss.LineWidth, ss.LineStyle);
+                break;
+            case Models.Series.SignalXYSeries sxy:
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, sxy.LineWidth, sxy.LineStyle);
+                break;
+            case Models.Series.SparklineSeries sp:
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, sp.LineWidth, LineStyle.Solid);
+                break;
+            case Models.Series.EcdfSeries ec:
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, ec.LineWidth, ec.LineStyle);
+                break;
+            case Models.Series.RegressionSeries rs:
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, rs.LineWidth, rs.LineStyle);
+                break;
+            case Models.Series.StepSeries stp:
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, 1.5, LineStyle.Solid);
+                break;
+            case Models.Series.ScatterSeries sc:
+            {
+                // matplotlib legend marker size ≈ series point size, scaled down slightly.
+                double radius = Math.Min(h / 2 - 1, Math.Sqrt(sc.MarkerSize / Math.PI) * (100.0 / 72.0));
+                DrawLegendMarker(x + h / 2, midY, sc.Marker, radius * radius * Math.PI, color);
+                break;
+            }
+            case Models.Series.ErrorBarSeries eb:
+            {
+                Ctx.DrawLine(new Point(x + 2, midY), new Point(x + wMax - 2, midY), color, eb.LineWidth, LineStyle.Solid);
+                Ctx.DrawLine(new Point(x + 2, midY - 3), new Point(x + 2, midY + 3), color, eb.LineWidth, LineStyle.Solid);
+                Ctx.DrawLine(new Point(x + wMax - 2, midY - 3), new Point(x + wMax - 2, midY + 3), color, eb.LineWidth, LineStyle.Solid);
+                break;
+            }
+            default:
+            {
+                // Patch-like: bar/hist/area/violin/pie/etc → filled RECTANGLE (matplotlib uses
+                // handlelength × handleheight; our wMax carries handlelength, h carries handleheight).
+                // Previous `Math.Min(wMax, h)` clamped it to a square which matplotlib never does.
+                Ctx.DrawRectangle(new Rect(x, y, wMax, h), color, null, 0);
+                break;
+            }
+        }
+    }
+
+    /// <summary>Draws a single legend marker at (cx, cy). Mirrors the subset of markers that
+    /// <c>ScatterSeriesRenderer</c> actually renders (circle + square).</summary>
+    private void DrawLegendMarker(double cx, double cy, MarkerStyle marker, double size_pt2, Color color)
+    {
+        double radius = Math.Sqrt(Math.Max(size_pt2, 1) / Math.PI) * (100.0 / 72.0);
+        if (marker == MarkerStyle.Square)
+            Ctx.DrawRectangle(new Rect(cx - radius, cy - radius, 2 * radius, 2 * radius), color, null, 0);
+        else
+            Ctx.DrawCircle(new Point(cx, cy), radius, color, null, 0);
     }
 
     /// <summary>Renders a color bar gradient alongside the plot area if configured.</summary>
@@ -500,7 +613,15 @@ public abstract class AxesRenderer
         {
             var font = Axes.YAxis.LabelStyle?.ApplyTo(baseFont) ?? baseFont;
             double padOffset = Axes.YAxis.LabelStyle?.Pad ?? 0;
-            var point = new Point(PlotArea.X - 45 - padOffset, PlotArea.Y + PlotArea.Height / 2);
+            // Compute y-label x dynamically: tick mark + pad + widest rendered tick label + gap.
+            // Falls back to the legacy fixed 45-px offset when no tick widths were measured
+            // (non-Cartesian renderers or empty axes).
+            var yMajor = Axes.YAxis.MajorTicks;
+            double yLabelGap = 12;
+            double dynamicOffset = MeasuredYTickMaxWidth > 0
+                ? yMajor.Length + yMajor.Pad + MeasuredYTickMaxWidth + yLabelGap
+                : 45;
+            var point = new Point(PlotArea.X - dynamicOffset - padOffset, PlotArea.Y + PlotArea.Height / 2);
             if (MathTextParser.ContainsMath(Axes.YAxis.Label))
                 Ctx.DrawRichText(MathTextParser.Parse(Axes.YAxis.Label), point, font, TextAlignment.Center, 90);
             else
@@ -566,8 +687,8 @@ public abstract class AxesRenderer
     /// <summary>Computes aesthetically-spaced tick values using the default nice-number algorithm.</summary>
     /// <param name="min">The minimum value of the visible data range.</param>
     /// <param name="max">The maximum value of the visible data range.</param>
-    /// <param name="targetCount">The desired number of tick intervals; the algorithm snaps to a nearby nice number.</param>
-    protected static double[] ComputeTickValues(double min, double max, int targetCount = 5)
+    /// <param name="targetCount">The desired number of tick intervals; the algorithm snaps to a nearby nice number. Defaults to 8 to match matplotlib's <c>MaxNLocator(nbins='auto')</c>.</param>
+    protected static double[] ComputeTickValues(double min, double max, int targetCount = 8)
     {
         double range = max - min;
         if (range <= 0) return [min];

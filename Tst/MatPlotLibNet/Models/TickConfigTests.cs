@@ -9,13 +9,14 @@ namespace MatPlotLibNet.Tests.Models;
 /// <summary>Verifies <see cref="TickConfig"/> expanded properties and <see cref="TickDirection"/> enum (sub-phase 2D).</summary>
 public class TickConfigTests
 {
-    /// <summary>Verifies that tick direction defaults to Out and length defaults to 3.5 — matching matplotlib's xtick.direction and xtick.major.size.</summary>
+    /// <summary>Verifies that tick direction defaults to Out and length defaults to matplotlib's
+    /// 3.5 POINTS pre-converted to pixels at 100 DPI (3.5 × 100/72 ≈ 4.861 px).</summary>
     [Fact]
-    public void TickConfig_Defaults_Direction_Out_Length3Point5()
+    public void TickConfig_Defaults_Direction_Out_Length3Point5Points()
     {
         var tc = new TickConfig();
         Assert.Equal(TickDirection.Out, tc.Direction);
-        Assert.Equal(3.5, tc.Length);
+        Assert.Equal(3.5 * 100.0 / 72.0, tc.Length, 3);
     }
 
     [Fact]
@@ -34,10 +35,11 @@ public class TickConfigTests
     }
 
     [Fact]
-    public void TickConfig_Width_DefaultsToPointEight()
+    public void TickConfig_Width_DefaultsToMatplotlibPointEightPoints()
     {
         var tc = new TickConfig();
-        Assert.Equal(0.8, tc.Width);
+        // matplotlib `xtick.major.width = 0.8` POINTS → at 100 DPI = 1.111 px
+        Assert.Equal(0.8 * 100.0 / 72.0, tc.Width, 3);
     }
 
     [Fact]
@@ -70,10 +72,11 @@ public class TickConfigTests
     }
 
     [Fact]
-    public void TickConfig_Pad_DefaultsTo3()
+    public void TickConfig_Pad_DefaultsToMatplotlib3Point5Points()
     {
         var tc = new TickConfig();
-        Assert.Equal(3.0, tc.Pad);
+        // matplotlib `xtick.major.pad = 3.5` POINTS → at 100 DPI = 4.861 px
+        Assert.Equal(3.5 * 100.0 / 72.0, tc.Pad, 3);
     }
 
     [Fact]

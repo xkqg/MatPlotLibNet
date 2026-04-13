@@ -24,10 +24,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <!-- Copy fixture images to output directory so tests can find them at runtime -->
+  <!-- Copy fixture images (recursive: classic/ and v2/ subdirs) to output directory so tests can find them at runtime -->
   <ItemGroup>
-    <Content Include="Fixtures\Matplotlib\*.png" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Fixtures\Matplotlib\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Fixtures\Matplotlib\**\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Fixtures\Matplotlib\**\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

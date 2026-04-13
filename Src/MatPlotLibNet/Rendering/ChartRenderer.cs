@@ -13,7 +13,9 @@ namespace MatPlotLibNet.Rendering;
 /// <summary>Renders a complete <see cref="Figure"/> including subplots, axes, grids, and series onto an <see cref="IRenderContext"/>.</summary>
 public sealed class ChartRenderer : IChartRenderer
 {
-    private const double TitleHeight = 30;
+    // Padding above and below the figure-level suptitle (px). Title height is measured dynamically.
+    private const double SupTitleTopPad    = 8;
+    private const double SupTitleBottomPad = 12;
     private Figure? _figure;
 
     // Sentinel used to detect when the caller has not explicitly set a spacing on the figure.
@@ -67,13 +69,21 @@ public sealed class ChartRenderer : IChartRenderer
         double plotAreaTop = sp.MarginTop;
         if (figure.Title is not null)
         {
-            var titlePoint = new Point(figure.Width / 2, sp.MarginTop / 2 + 5);
-            var titleFont  = TitleFont(theme);
+            var titleFont = TitleFont(theme);
+            // Measure dynamically — hardcoded 30px previously truncated multi-line and oversized titles.
+            double titleH = MathTextParser.ContainsMath(figure.Title)
+                ? ctx.MeasureRichText(MathTextParser.Parse(figure.Title), titleFont).Height
+                : ctx.MeasureText(figure.Title, titleFont).Height;
+            var titlePoint = new Point(figure.Width / 2, SupTitleTopPad + titleH * 0.75);
             if (MathTextParser.ContainsMath(figure.Title))
                 ctx.DrawRichText(MathTextParser.Parse(figure.Title), titlePoint, titleFont, TextAlignment.Center);
             else
                 ctx.DrawText(figure.Title, titlePoint, titleFont, TextAlignment.Center);
-            plotAreaTop += TitleHeight;
+            // The layout engine has already widened MarginTop to account for the suptitle, so plotAreaTop
+            // already includes the reserved suptitle band. Only push down further when MarginTop wasn't
+            // expanded (e.g. user supplied a hard MarginTop smaller than the title needs).
+            double needed = SupTitleTopPad + titleH + SupTitleBottomPad;
+            if (sp.MarginTop < needed) plotAreaTop = needed;
         }
 
         return plotAreaTop;

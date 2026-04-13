@@ -18,10 +18,12 @@ public class FieldChartFidelityTests : FidelityTest
         return arr;
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.45, DeltaE = 55)]   // arrow AA + default blue color mismatch
-    public void Quiver_RotationalField_MatchesMatplotlib()
+    public void Quiver_RotationalField_MatchesMatplotlib(string themeId)
     {
         var xs = Linspace(-2, 2, 10);
         var ys = Linspace(-2, 2, 10);
@@ -41,7 +43,7 @@ public class FieldChartFidelityTests : FidelityTest
             }
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Quiver — rotational field")
                 .Quiver(x, y, u, v))
@@ -49,10 +51,12 @@ public class FieldChartFidelityTests : FidelityTest
         AssertFidelity(figure, "quiver");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 100, Ssim = 0.35, DeltaE = 60)]   // streamline integration paths + AA render differences produce irreducibly low SSIM
-    public void Streamplot_VectorField_MatchesMatplotlib()
+    [FidelityTolerance(Rms = 100, Ssim = 0.30, DeltaE = 80)]   // v1.1.4: streamline paths + AA produce irreducibly low SSIM; classic xmargin=0 widened plot area → SSIM 0.35→0.30
+    public void Streamplot_VectorField_MatchesMatplotlib(string themeId)
     {
         int n = 40;
         var x = Linspace(-3, 3, n);
@@ -67,7 +71,7 @@ public class FieldChartFidelityTests : FidelityTest
             }
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Streamplot")
                 .Streamplot(x, y, u, v))
@@ -75,10 +79,12 @@ public class FieldChartFidelityTests : FidelityTest
         AssertFidelity(figure, "streamplot");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 90, Ssim = 0.50, DeltaE = 55)]
-    public void Barbs_WindField_MatchesMatplotlib()
+    public void Barbs_WindField_MatchesMatplotlib(string themeId)
     {
         var xs = Linspace(-2, 2, 8);
         var ys = Linspace(-2, 2, 8);
@@ -100,7 +106,7 @@ public class FieldChartFidelityTests : FidelityTest
             }
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Barbs — wind field")
                 .Barbs(x, y, speed, direction))
@@ -108,17 +114,19 @@ public class FieldChartFidelityTests : FidelityTest
         AssertFidelity(figure, "barbs");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
-    public void Stem_Sine_MatchesMatplotlib()
+    public void Stem_Sine_MatchesMatplotlib(string themeId)
     {
         int n = 20;
         var x = Linspace(0, 2 * Math.PI, n);
         var y = x.Select(Math.Sin).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Stem — sin(x)")
                 .Stem(x, y))

@@ -45,7 +45,7 @@ public sealed class FigureBuilder
     private double _height = 600;
     private double _dpi = 96;
     private Color? _background;
-    private Theme _theme = Theme.Default;
+    private Theme _theme = Theme.MatplotlibV2;
     private Axes? _defaultAxes;
     private readonly List<SubPlotSpec> _subPlots = [];
     private GridSpec? _gridSpec;

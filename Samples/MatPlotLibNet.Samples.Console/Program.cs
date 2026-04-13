@@ -12,6 +12,20 @@ using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Transforms;
 
+// Resolves a sample output filename to the canonical `images/` directory at the repo root,
+// regardless of where the samples binary is invoked from. Walks upward from the binary
+// directory until it finds the `MatPlotLibNet.CI.slnf` solution-filter sentinel, then
+// writes into <repo>/images/<name>. Falls back to the cwd-relative `images/` directory.
+static string SamplesPath(string name)
+{
+    var dir = AppContext.BaseDirectory;
+    while (dir is not null && !File.Exists(Path.Combine(dir, "MatPlotLibNet.CI.slnf")))
+        dir = Path.GetDirectoryName(dir);
+    var imagesDir = dir is not null ? Path.Combine(dir, "images") : "images";
+    Directory.CreateDirectory(imagesDir);
+    return Path.Combine(imagesDir, name);
+}
+
 // --- 1. Simple line chart -> SVG ---
 double[] x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 double[] y = [2.1, 4.5, 3.2, 6.8, 5.1, 7.3, 6.5, 8.9, 7.2, 9.4];
@@ -23,12 +37,12 @@ var figure = Plt.Create()
     .Plot(x, y, line => { line.Color = Colors.Blue; line.Label = "Revenue"; })
     .Build();
 
-figure.Transform(new SvgTransform()).ToFile("chart.svg");
+figure.Transform(new SvgTransform()).ToFile(SamplesPath("chart.svg"));
 Console.WriteLine("Saved chart.svg");
 
 // --- 2. PNG and PDF export (via Skia) ---
-figure.Transform(new PngTransform()).ToFile("chart.png");
-figure.Transform(new PdfTransform()).ToFile("chart.pdf");
+figure.Transform(new PngTransform()).ToFile(SamplesPath("chart.png"));
+figure.Transform(new PdfTransform()).ToFile(SamplesPath("chart.pdf"));
 Console.WriteLine("Saved chart.png and chart.pdf");
 
 // --- 3. Multi-subplot figure ---
@@ -43,7 +57,7 @@ var multiChart = Plt.Create()
     .AddSubPlot(1, 2, 2, ax => ax.Hist(histData, 6))
     .Build();
 
-multiChart.Transform(new SvgTransform()).ToFile("dashboard.svg");
+multiChart.Transform(new SvgTransform()).ToFile(SamplesPath("dashboard.svg"));
 Console.WriteLine("Saved dashboard.svg");
 
 // --- 4. JSON round-trip ---
@@ -65,7 +79,7 @@ Plt.Create()
         .Heatmap(matrix)
         .WithColorMap("plasma")
         .WithColorBar(cb => cb with { Label = "Intensity" }))
-    .Save("heatmap_colormap.svg");
+    .Save(SamplesPath("heatmap_colormap.svg"));
 Console.WriteLine("Saved heatmap_colormap.svg");
 
 // --- 6. Colormap comparison (2x2 grid) ---
@@ -84,7 +98,7 @@ for (int i = 0; i < maps.Length; i++)
         .WithColorBar());
 }
 
-cmpBuilder.Save("colormap_comparison.svg");
+cmpBuilder.Save(SamplesPath("colormap_comparison.svg"));
 Console.WriteLine("Saved colormap_comparison.svg");
 
 // --- 7. GridSpec layout ---
@@ -96,7 +110,7 @@ Plt.Create()
     .AddSubPlot(GridPosition.Single(0, 0), ax => ax.Plot(x, y).WithTitle("Main plot"))
     .AddSubPlot(GridPosition.Single(0, 1), ax => ax.Scatter(x, y).WithTitle("Scatter"))
     .AddSubPlot(new GridPosition(1, 2, 0, 2), ax => ax.Bar(categories2, catValues).WithTitle("Wide bar"))
-    .Save("gridspec_layout.svg");
+    .Save(SamplesPath("gridspec_layout.svg"));
 Console.WriteLine("Saved gridspec_layout.svg");
 
 // --- 8. Custom tick locators ---
@@ -112,7 +126,7 @@ Plt.Create()
         .SetYTickFormatter(new EngFormatter())           // e.g. "100k", "50k"
         .SetXTickLocator(new MultipleLocator(25))        // ticks every 25 samples
         .WithMinorTicks())
-    .Save("tick_locators.svg");
+    .Save(SamplesPath("tick_locators.svg"));
 Console.WriteLine("Saved tick_locators.svg");
 
 // --- 9. Bar labels ---
@@ -126,7 +140,7 @@ Plt.Create()
         .Bar(products, sales, bar => { bar.Color = Colors.Tab10Blue; bar.Label = "Q1 Sales"; })
         .WithBarLabels("F0")                            // integer labels above bars
         .SetYTickFormatter(new EngFormatter()))
-    .Save("bar_labels.svg");
+    .Save(SamplesPath("bar_labels.svg"));
 Console.WriteLine("Saved bar_labels.svg");
 
 // --- 10. LTTB downsampling for large dataset ---
@@ -140,7 +154,7 @@ Plt.Create()
         .SetYLabel("Amplitude")
         .Plot(largeX, largeY, line => { line.Label = "Signal"; })
         .WithDownsampling(500))                         // LTTB to 500 points
-    .Save("lttb_downsampling.svg");
+    .Save(SamplesPath("lttb_downsampling.svg"));
 Console.WriteLine("Saved lttb_downsampling.svg");
 
 // --- 11. Rotated + background annotation ---
@@ -160,7 +174,7 @@ Plt.Create()
             ann.Rotation  = -30;
             ann.Alignment = MatPlotLibNet.Rendering.TextAlignment.Center;
         }))
-    .Save("annotations_enhanced.svg");
+    .Save(SamplesPath("annotations_enhanced.svg"));
 Console.WriteLine("Saved annotations_enhanced.svg");
 
 // =====================================================================
@@ -214,7 +228,7 @@ FigureTemplates.FinancialDashboard(
             .AxHLine(70, l => { l.Color = Colors.Red;   l.LineStyle = LineStyle.Dashed; l.Label = "Overbought"; })
             .AxHLine(20, l => { l.Color = Colors.Green; l.LineStyle = LineStyle.Dashed; l.Label = "Oversold"; }))
     .WithSize(1200, 900)
-    .Save("financial_dashboard.svg");
+    .Save(SamplesPath("financial_dashboard.svg"));
 Console.WriteLine("Saved financial_dashboard.svg");
 
 // --- 14. New indicators: WilliamsR, OBV, CCI, ParabolicSAR ---
@@ -243,7 +257,7 @@ Plt.Create()
         ax.Cci(high, low, close, 20);
         ax.WithTitle("CCI(20)");
     })
-    .Save("phase_f_indicators.svg");
+    .Save(SamplesPath("phase_f_indicators.svg"));
 Console.WriteLine("Saved phase_f_indicators.svg");
 
 // --- 15. Contour with labels ---
@@ -264,12 +278,12 @@ Plt.Create()
             s.LabelFontSize = 9;
         })
         .WithColorMap("coolwarm"))
-    .Save("contour_labels.svg");
+    .Save(SamplesPath("contour_labels.svg"));
 Console.WriteLine("Saved contour_labels.svg");
 
 // --- 16. Scientific paper template (150 DPI, hidden top/right spines, tight layout) ---
 FigureTemplates.ScientificPaper(1, 1, title: "Damped Oscillation")
-    .Save("scientific_paper.svg");
+    .Save(SamplesPath("scientific_paper.svg"));
 Console.WriteLine("Saved scientific_paper.svg");
 
 // --- 17. Sparkline dashboard ---
@@ -280,7 +294,7 @@ FigureTemplates.SparklineDashboard(
         ("Disk I/O", Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 500).ToArray()),
     ],
     title: "Server Metrics — Last 60s")
-    .Save("sparkline_dashboard.svg");
+    .Save(SamplesPath("sparkline_dashboard.svg"));
 Console.WriteLine("Saved sparkline_dashboard.svg");
 
 // =====================================================================
@@ -306,7 +320,7 @@ Plt.Create()
         .SetYLabel("Price ($)")
         .Plot(dates, price2, line => { line.Color = Colors.Tab10Blue; line.Label = "ACME"; })
         .WithLegend(LegendPosition.UpperRight))
-    .Save("date_axis.svg");
+    .Save(SamplesPath("date_axis.svg"));
 Console.WriteLine("Saved date_axis.svg");
 
 // --- 19. Math text labels — Greek letters and super/subscript in titles and axes ---
@@ -330,7 +344,7 @@ Plt.Create()
         .Plot(tMs, noise, line => { line.Color = Colors.Orange; line.Label = "$\\beta$ noise"; })
         .WithLegend(LegendPosition.UpperRight))
     .TightLayout()
-    .Save("math_text.svg");
+    .Save(SamplesPath("math_text.svg"));
 Console.WriteLine("Saved math_text.svg");
 
 // --- 20. PropCycler — multi-series chart with custom color + linestyle cycling ---
@@ -355,7 +369,7 @@ Plt.Create()
         ax.WithLegend(LegendPosition.UpperRight);
     })
     .TightLayout()
-    .Save("prop_cycler.svg");
+    .Save(SamplesPath("prop_cycler.svg"));
 Console.WriteLine("Saved prop_cycler.svg");
 
 // --- 21. Accessibility — color-blind safe theme + alt text + high-contrast ---
@@ -377,7 +391,7 @@ Plt.Create()
         a.WithLegend(LegendPosition.UpperLeft);
     })
     .TightLayout()
-    .Save("accessibility_colorblind.svg");
+    .Save(SamplesPath("accessibility_colorblind.svg"));
 Console.WriteLine("Saved accessibility_colorblind.svg");
 
 Plt.Create()
@@ -392,7 +406,7 @@ Plt.Create()
         a.WithLegend(LegendPosition.UpperLeft);
     })
     .TightLayout()
-    .Save("accessibility_highcontrast.svg");
+    .Save(SamplesPath("accessibility_highcontrast.svg"));
 Console.WriteLine("Saved accessibility_highcontrast.svg");
 
 // --- Phase F: Geo / Map Projections ---
@@ -434,7 +448,7 @@ Plt.Create()
         s.EdgeColor = MatPlotLibNet.Styling.Color.FromHex("#666666");
         s.LineWidth = 1.0;
     })
-    .Save("geo_equirectangular.svg");
+    .Save(SamplesPath("geo_equirectangular.svg"));
 Console.WriteLine("Saved geo_equirectangular.svg");
 
 // Choropleth with Viridis colormap
@@ -450,7 +464,7 @@ Plt.Create()
         s.EdgeColor = MatPlotLibNet.Styling.Colors.White;
         s.LineWidth = 0.5;
     })
-    .Save("geo_choropleth.svg");
+    .Save(SamplesPath("geo_choropleth.svg"));
 Console.WriteLine("Saved geo_choropleth.svg");
 
 // =====================================================================
@@ -482,7 +496,7 @@ Console.WriteLine("Saved geo_choropleth.svg");
                 s.ShowWireframe = false;
                 s.Alpha = 1.0;
             }))
-        .Save("threed_surface_sinc.svg");
+        .Save(SamplesPath("threed_surface_sinc.svg"));
     Console.WriteLine("Saved threed_surface_sinc.svg");
 }
 
@@ -503,7 +517,7 @@ Console.WriteLine("Saved geo_choropleth.svg");
                 s.Color = Colors.CornflowerBlue;
                 s.MarkerSize = 5;
             }))
-        .Save("threed_scatter3d_paraboloid.svg");
+        .Save(SamplesPath("threed_scatter3d_paraboloid.svg"));
     Console.WriteLine("Saved threed_scatter3d_paraboloid.svg");
 }
 
@@ -525,7 +539,7 @@ Console.WriteLine("Saved geo_choropleth.svg");
                 s.Color = Colors.Tomato;
                 s.BarWidth = 0.6;
             }))
-        .Save("threed_bar3d_interactive.svg");
+        .Save(SamplesPath("threed_bar3d_interactive.svg"));
     Console.WriteLine("Saved threed_bar3d_interactive.svg");
 }
 

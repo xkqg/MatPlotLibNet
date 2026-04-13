@@ -26,10 +26,12 @@ public class GridChartFidelityTests : FidelityTest
         return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 90, Ssim = 0.55, DeltaE = 55)]   // contour labels + AA text
-    public void ContourLines_Peaks_MatchesMatplotlib()
+    public void ContourLines_Peaks_MatchesMatplotlib(string themeId)
     {
         int n = 100;
         var x = Linspace(-3, 3, n);
@@ -41,7 +43,7 @@ public class GridChartFidelityTests : FidelityTest
                              * Math.Exp(-x[ix] * x[ix] - y[iy] * y[iy]);
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Contour lines — peaks function")
                 .Contour(x, y, z))
@@ -49,10 +51,12 @@ public class GridChartFidelityTests : FidelityTest
         AssertFidelity(figure, "contour_lines");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 110, Ssim = 0.35, DeltaE = 55)]   // different RNG → different cell occupancy; sparse cells lower SSIM
-    public void Hexbin_Gaussian_MatchesMatplotlib()
+    public void Hexbin_Gaussian_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int n = 2000;
@@ -60,7 +64,7 @@ public class GridChartFidelityTests : FidelityTest
         var y = Enumerable.Range(0, n).Select(_ => NextGaussian(rng)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Hexbin — 2000 samples")
                 .Hexbin(x, y, s => s.ColorMap = ColorMaps.Viridis))
@@ -68,10 +72,12 @@ public class GridChartFidelityTests : FidelityTest
         AssertFidelity(figure, "hexbin");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]   // different RNG
-    public void Histogram2D_Gaussian_MatchesMatplotlib()
+    public void Histogram2D_Gaussian_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int n = 5000;
@@ -79,7 +85,7 @@ public class GridChartFidelityTests : FidelityTest
         var y = Enumerable.Range(0, n).Select(_ => NextGaussian(rng)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("2D histogram")
                 .Histogram2D(x, y, 30, s => s.ColorMap = ColorMaps.Viridis))
@@ -87,10 +93,12 @@ public class GridChartFidelityTests : FidelityTest
         AssertFidelity(figure, "hist2d");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 75, Ssim = 0.40, DeltaE = 55)]   // half-cell spatial offset vs matplotlib (corner vs center) lowers SSIM; ΔE=17 confirms colormap is correct
-    public void Pcolormesh_SinCos_MatchesMatplotlib()
+    public void Pcolormesh_SinCos_MatchesMatplotlib(string themeId)
     {
         int n = 30;
         var x = Linspace(0, 10, n);
@@ -103,7 +111,7 @@ public class GridChartFidelityTests : FidelityTest
                 z[iy, ix] = Math.Sin(x[ix]) * Math.Cos(y[iy]);
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Pcolormesh — sin(x)·cos(y)")
                 .Pcolormesh(x, y, z, s => s.ColorMap = ColorMaps.Viridis))
@@ -111,10 +119,12 @@ public class GridChartFidelityTests : FidelityTest
         AssertFidelity(figure, "pcolormesh");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 90, Ssim = 0.30, DeltaE = 60)]   // random noise: SSIM is inherently low (no structure)
-    public void Image_RandomRgb_MatchesMatplotlib()
+    public void Image_RandomRgb_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         var data = new double[30, 40];
@@ -123,7 +133,7 @@ public class GridChartFidelityTests : FidelityTest
                 data[r, c] = rng.NextDouble();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("RGB image")
                 .Image(data))
@@ -131,10 +141,12 @@ public class GridChartFidelityTests : FidelityTest
         AssertFidelity(figure, "image");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 100, Ssim = 0.40, DeltaE = 80)]   // FFT-of-random-noise differs by RNG
-    public void Spectrogram_Sine50Hz_MatchesMatplotlib()
+    public void Spectrogram_Sine50Hz_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int fs = 1000;
@@ -147,7 +159,7 @@ public class GridChartFidelityTests : FidelityTest
         }
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Spectrogram — 50 Hz + noise")
                 .Spectrogram(signal, fs))
@@ -155,10 +167,12 @@ public class GridChartFidelityTests : FidelityTest
         AssertFidelity(figure, "spectrogram");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]   // different RNG scatter positions
-    public void Tricontour_GaussianBump_MatchesMatplotlib()
+    public void Tricontour_GaussianBump_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int n = 200;
@@ -167,7 +181,7 @@ public class GridChartFidelityTests : FidelityTest
         var z = x.Zip(y, (xi, yi) => Math.Exp(-(xi * xi + yi * yi) / 2)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Tricontour — gaussian bump")
                 .Tricontour(x, y, z))
@@ -175,10 +189,12 @@ public class GridChartFidelityTests : FidelityTest
         AssertFidelity(figure, "tricontour");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]   // different RNG
-    public void Tripcolor_GaussianBump_MatchesMatplotlib()
+    public void Tripcolor_GaussianBump_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int n = 200;
@@ -187,7 +203,7 @@ public class GridChartFidelityTests : FidelityTest
         var z = x.Zip(y, (xi, yi) => Math.Exp(-(xi * xi + yi * yi) / 2)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Tripcolor — gaussian bump")
                 .Tripcolor(x, y, z, s => s.ColorMap = ColorMaps.Viridis))

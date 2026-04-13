@@ -1,0 +1,11 @@
+{
+  "chart": "tricontour",
+  "mpl_version": "3.10.8",
+  "figsize": [
+    8,
+    6
+  ],
+  "dpi": 100,
+  "style": "default",
+  "seed": 42
+}

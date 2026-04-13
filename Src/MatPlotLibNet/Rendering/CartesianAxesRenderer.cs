@@ -488,15 +488,19 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         double ySpineHalf = Axes.Spines.Left.LineWidth / 2.0;
 
         var yFormatter = Axes.YAxis.TickFormatter;
+        double maxYTickWidth = 0;
         foreach (var tick in yTicks)
         {
             var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, tick);
-            DrawTickMark(yAxisX, pt.Y, isVertical: false, yTickLength, yTickColor, yTickWidth, yMajor.Direction, ySpineHalf);
+            // tickPos = Y of the tick; axisEdge = X of the spine.
+            DrawTickMark(pt.Y, yAxisX, isVertical: false, yTickLength, yTickColor, yTickWidth, yMajor.Direction, ySpineHalf);
             double labelX = yAxisX - yTickLength - yMajor.Pad;
-            Ctx.DrawText(yFormatter?.Format(tick) ?? FormatTick(tick),
-                new Point(labelX, pt.Y + 4),
-                yLabelFont, TextAlignment.Right);
+            var labelText = yFormatter?.Format(tick) ?? FormatTick(tick);
+            var w = Ctx.MeasureText(labelText, yLabelFont).Width;
+            if (w > maxYTickWidth) maxYTickWidth = w;
+            Ctx.DrawText(labelText, new Point(labelX, pt.Y + 4), yLabelFont, TextAlignment.Right);
         }
+        MeasuredYTickMaxWidth = maxYTickWidth;
 
         // Minor Y ticks (no labels, shorter mark)
         var yMinor = Axes.YAxis.MinorTicks;
@@ -514,7 +518,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 if (Array.Exists(yTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
                 var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, mt);
                 if (pt.Y < PlotArea.Y || pt.Y > PlotArea.Y + PlotArea.Height) continue;
-                DrawTickMark(yAxisX, pt.Y, isVertical: false, minorLength, yMinorColor, yMinor.Width, yMinor.Direction, ySpineHalf);
+                DrawTickMark(pt.Y, yAxisX, isVertical: false, minorLength, yMinorColor, yMinor.Width, yMinor.Direction, ySpineHalf);
             }
         }
     }
@@ -578,10 +582,20 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     private void RenderCategoryLabels(string[] labels, double yMin, DataTransform transform)
     {
         var tickFont = TickFont();
+        // Draw an x-axis tick MARK at each category centre (matplotlib draws tick marks on the
+        // bottom spine even for categorical bar charts — they anchor each label to the spine).
+        var xMajor = Axes.XAxis.MajorTicks;
+        var xTickColor  = xMajor.Color ?? Theme.ForegroundText;
+        var xTickLength = xMajor.Length;
+        var xTickWidth  = xMajor.Width;
+        double xAxisY = PlotArea.Y + PlotArea.Height;
+        double xSpineHalf = Axes.Spines.Bottom.LineWidth / 2.0;
+
         for (int i = 0; i < labels.Length; i++)
         {
             // Bar slot [i, i+1] has its center at i+0.5 — place the label there.
             var pt = transform.DataToPixel(i + 0.5, yMin);
+            DrawTickMark(pt.X, xAxisY, isVertical: true, xTickLength, xTickColor, xTickWidth, xMajor.Direction, xSpineHalf);
             Ctx.DrawText(labels[i],
                 new Point(pt.X, PlotArea.Y + PlotArea.Height + 15),
                 tickFont, TextAlignment.Center);
@@ -629,13 +643,35 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         if (Math.Abs(xMax - xMin) < 1e-10) { xMin -= 0.5; xMax += 0.5; }
         if (Math.Abs(yMax - yMin) < 1e-10) { yMin -= 0.5; yMax += 0.5; }
 
-        double xPadding = (xMax - xMin) * Axes.XAxis.Margin;
-        double yPadding = (yMax - yMin) * Axes.YAxis.Margin;
+        // Resolve axis margin: user-set on Axis takes priority; otherwise inherit from theme.
+        // matplotlib classic → 0.0, v2+ → 0.05.
+        double xMargin = Axes.XAxis.Margin ?? Theme.AxisXMargin;
+        double yMargin = Axes.YAxis.Margin ?? Theme.AxisYMargin;
+        double xPadding = (xMax - xMin) * xMargin;
+        double yPadding = (yMax - yMin) * yMargin;
 
         if (!Axes.XAxis.Min.HasValue) xMin -= xPadding;
         if (!Axes.XAxis.Max.HasValue) xMax += xPadding;
         if (!Axes.YAxis.Min.HasValue) yMin -= yPadding;
         if (!Axes.YAxis.Max.HasValue) yMax += yPadding;
+
+        // Sticky-edge clamp — matplotlib's `sticky_edges` prevent margin expansion from
+        // crossing series-registered boundaries. Canonical example: BarSeries registers
+        // StickyYMin=0 so the y-axis never pads below the bar baseline, giving bars that
+        // touch the bottom spine exactly.
+        var context = new AxesContextAdapter(Axes);
+        foreach (var series in Axes.Series)
+        {
+            var c = series.ComputeDataRange(context);
+            if (c.StickyXMin.HasValue && xMin < c.StickyXMin.Value && !Axes.XAxis.Min.HasValue)
+                xMin = c.StickyXMin.Value;
+            if (c.StickyXMax.HasValue && xMax > c.StickyXMax.Value && !Axes.XAxis.Max.HasValue)
+                xMax = c.StickyXMax.Value;
+            if (c.StickyYMin.HasValue && yMin < c.StickyYMin.Value && !Axes.YAxis.Min.HasValue)
+                yMin = c.StickyYMin.Value;
+            if (c.StickyYMax.HasValue && yMax > c.StickyYMax.Value && !Axes.YAxis.Max.HasValue)
+                yMax = c.StickyYMax.Value;
+        }
 
         return new DataRange(xMin, xMax, yMin, yMax);
     }

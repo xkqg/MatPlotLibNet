@@ -7,7 +7,9 @@ namespace MatPlotLibNet.Rendering.TickFormatters;
 
 /// <summary>
 /// Formats tick values using SI engineering prefixes (k, M, G, T for large values;
-/// m, µ, n for small values). Equivalent to matplotlib's <c>EngFormatter</c>.
+/// m, µ, n for small values). Equivalent to matplotlib's <c>EngFormatter</c> — including
+/// the default single-space separator between the number and the unit prefix
+/// (e.g. <c>"30 k"</c>, matching <c>matplotlib.ticker.EngFormatter().format_eng</c>).
 /// </summary>
 public sealed class EngFormatter : ITickFormatter
 {
@@ -23,6 +25,11 @@ public sealed class EngFormatter : ITickFormatter
         (1e-9, "n"),
     ];
 
+    /// <summary>Separator inserted between the number and the prefix. Defaults to a single space
+    /// to match matplotlib's <c>EngFormatter(sep=" ")</c>. Set to <see cref="string.Empty"/> for
+    /// the compact form (e.g. <c>"30k"</c>).</summary>
+    public string Sep { get; set; } = " ";
+
     /// <inheritdoc />
     public string Format(double value)
     {
@@ -37,7 +44,10 @@ public sealed class EngFormatter : ITickFormatter
             {
                 double scaled = abs / factor;
                 string number = FormatScaled(scaled);
-                return negative ? $"-{number}{prefix}" : $"{number}{prefix}";
+                // Omit the separator when there's no prefix (e.g. plain "1", "42") so the
+                // no-prefix case renders as "42", not "42 ".
+                string sepToUse = prefix.Length == 0 ? string.Empty : Sep;
+                return negative ? $"-{number}{sepToUse}{prefix}" : $"{number}{sepToUse}{prefix}";
             }
         }
 

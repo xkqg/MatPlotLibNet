@@ -37,9 +37,20 @@ internal sealed class ConstrainedLayoutEngine
         double bottom = figure.Spacing.MarginBottom;
         double top    = figure.Spacing.MarginTop;
         double right  = figure.Spacing.MarginRight;
+        double hGap   = figure.Spacing.HorizontalGap;
+        double vGap   = figure.Spacing.VerticalGap;
 
         int maxRows = GetMaxRows(figure);
         int maxCols = GetMaxCols(figure);
+
+        // Figure-level suptitle reserves additional top margin so subplot titles don't collide with it.
+        if (figure.Title is not null)
+        {
+            var supTitleFont = SupTitleFont(theme);
+            double supH = ctx.MeasureText(figure.Title, supTitleFont).Height;
+            double supReserved = supH + SupTitleTopPad + SupTitleBottomPad;
+            if (supReserved > top) top = supReserved;
+        }
 
         foreach (var axes in figure.SubPlots)
         {
@@ -51,17 +62,29 @@ internal sealed class ConstrainedLayoutEngine
             if (pos.RowEnd   >= maxRows  && m.BottomNeeded > bottom) bottom = m.BottomNeeded;
             if (pos.RowStart == 0        && m.TopNeeded    > top)    top    = m.TopNeeded;
             if (pos.ColEnd   >= maxCols  && m.RightNeeded  > right)  right  = m.RightNeeded;
+
+            // Interior subplots widen the inter-subplot gutter: a non-leftmost subplot
+            // needs horizontal space for its y-tick labels + y-axis label; a non-topmost
+            // subplot needs vertical space for its axes title + secondary x-axis.
+            if (pos.ColStart > 0 && m.LeftNeeded > hGap) hGap = m.LeftNeeded;
+            if (pos.RowStart > 0 && m.TopNeeded  > vGap) vGap = m.TopNeeded;
         }
 
         // Clamp to sane bounds
         return figure.Spacing with
         {
-            MarginLeft   = Math.Clamp(left,   30, 120),
-            MarginBottom = Math.Clamp(bottom, 30, 100),
-            MarginTop    = Math.Clamp(top,    20, 80),
-            MarginRight  = Math.Clamp(right,  10, 60),
+            MarginLeft     = Math.Clamp(left,   30, 120),
+            MarginBottom   = Math.Clamp(bottom, 30, 100),
+            MarginTop      = Math.Clamp(top,    20, 120),
+            MarginRight    = Math.Clamp(right,  10, 60),
+            HorizontalGap  = Math.Clamp(hGap,   0, 150),
+            VerticalGap    = Math.Clamp(vGap,   0, 120),
         };
     }
+
+    // Suptitle reservation constants — mirror ChartRenderer.RenderBackground padding.
+    private const double SupTitleTopPad    = 8;
+    private const double SupTitleBottomPad = 12;
 
     // ── Grid position helpers ────────────────────────────────────────────────
 
@@ -118,15 +141,22 @@ internal sealed class ConstrainedLayoutEngine
     private LayoutMetrics Measure(Axes axes, IRenderContext ctx, Font tickFont, Font labelFont, Font titleFont)
     {
         // --- Left margin: Y-tick labels + optional Y-axis label ---
+        // Use the same dynamic formula CartesianAxesRenderer.RenderAxisLabels uses, so the
+        // layout reserves exactly the space the renderer needs (no clipping, no waste).
+        // Tick mark length + tick label pad mirror Axis.MajorTicks defaults from the active theme.
+        var yMajor = axes.YAxis.MajorTicks;
         string yTickProbe = EstimateYTickLabel(axes, tickFont);
         double maxYTickWidth = ctx.MeasureText(yTickProbe, tickFont).Width;
-        double leftNeeded = maxYTickWidth + YTickRightGap + PadLeft;
+        double leftNeeded = yMajor.Length + yMajor.Pad + maxYTickWidth + PadLeft;
 
         if (axes.YAxis.Label is not null)
         {
-            // Y-label is drawn centre-aligned at PlotArea.X - YLabelLeftPos
-            double halfLabelWidth = ctx.MeasureText(axes.YAxis.Label, labelFont).Width / 2;
-            leftNeeded = Math.Max(leftNeeded, YLabelLeftPos + halfLabelWidth + PadLeft);
+            // Rotated y-label: its horizontal footprint is the LABEL HEIGHT (font size), not the text width.
+            // Renderer formula: x = PlotArea.X - tickLength - tickPad - maxTickWidth - YLabelGap(12)
+            // We add labelHeight + PadLeft so the rotated text fits inside the figure left margin.
+            const double YLabelGap = 12;
+            double labelHeight = ctx.MeasureText(axes.YAxis.Label, labelFont).Height;
+            leftNeeded = yMajor.Length + yMajor.Pad + maxYTickWidth + YLabelGap + labelHeight + PadLeft;
         }
 
         // --- Bottom margin: X-tick labels + optional X-axis label ---
@@ -198,6 +228,15 @@ internal sealed class ConstrainedLayoutEngine
     {
         Family = theme.DefaultFont.Family,
         Size   = theme.DefaultFont.Size + 2,
+        Weight = FontWeight.Bold,
+        Color  = theme.ForegroundText,
+    };
+
+    // Figure-level suptitle — mirrors ChartRenderer.TitleFont(+4 size offset).
+    private static Font SupTitleFont(Theme theme) => new()
+    {
+        Family = theme.DefaultFont.Family,
+        Size   = theme.DefaultFont.Size + 4,
         Weight = FontWeight.Bold,
         Color  = theme.ForegroundText,
     };

@@ -45,9 +45,11 @@ public class MatplotlibV2ThemeTests
     }
 
     [Fact]
-    public void MatplotlibV2_FontSizeIsTen()
+    public void MatplotlibV2_FontSizeIsTenPointsInPixels()
     {
-        Assert.Equal(10.0, Theme.MatplotlibV2.DefaultFont.Size);
+        // matplotlib v2 font.size = 10 pt; our Font.Size is in pixels, so we pre-convert
+        // at 100 DPI: 10 * 100/72 ≈ 13.89 px. See MatplotlibThemeFactory.PtToPx.
+        Assert.Equal(10.0 * 100.0 / 72.0, Theme.MatplotlibV2.DefaultFont.Size, 3);
     }
 
     [Fact]

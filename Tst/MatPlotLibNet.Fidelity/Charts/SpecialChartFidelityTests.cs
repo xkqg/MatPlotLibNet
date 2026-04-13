@@ -10,10 +10,12 @@ namespace MatPlotLibNet.Tests.Fidelity.Charts;
 /// <summary>Phase 5 Special-family fidelity tests (Sankey, Table, Treemap, Radar).</summary>
 public class SpecialChartFidelityTests : FidelityTest
 {
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 110, Ssim = 0.40, DeltaE = 90)]   // matplotlib.sankey uses polygonal arrows; ours is rectangular
-    public void Sankey_Flows_MatchesMatplotlib()
+    public void Sankey_Flows_MatchesMatplotlib(string themeId)
     {
         SankeyNode[] nodes =
         [
@@ -35,7 +37,7 @@ public class SpecialChartFidelityTests : FidelityTest
         ];
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Sankey diagram")
                 .Sankey(nodes, links))
@@ -43,10 +45,12 @@ public class SpecialChartFidelityTests : FidelityTest
         AssertFidelity(figure, "sankey");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 70)]   // table cell layout / AA text
-    public void Table_LossTable_MatchesMatplotlib()
+    public void Table_LossTable_MatchesMatplotlib(string themeId)
     {
         string[][] cellText =
         [
@@ -58,7 +62,7 @@ public class SpecialChartFidelityTests : FidelityTest
         ];
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Loss table")
                 .Table(cellText))
@@ -66,10 +70,12 @@ public class SpecialChartFidelityTests : FidelityTest
         AssertFidelity(figure, "table");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 110, Ssim = 0.45, DeltaE = 70)]   // squarify vs our treemap layout differs; tab10 vs bgrcmyk
-    public void Treemap_SevenRegions_MatchesMatplotlib()
+    public void Treemap_SevenRegions_MatchesMatplotlib(string themeId)
     {
         double[] sizes = [500, 300, 200, 150, 100, 80, 60];
         string[] labels = ["A", "B", "C", "D", "E", "F", "G"];
@@ -80,7 +86,7 @@ public class SpecialChartFidelityTests : FidelityTest
         };
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Treemap")
                 .Treemap(root))
@@ -88,16 +94,18 @@ public class SpecialChartFidelityTests : FidelityTest
         AssertFidelity(figure, "treemap");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 85, Ssim = 0.50, DeltaE = 80)]   // our radar uses tab10 fill, matplotlib recipe uses C0 (blue)
-    public void Radar_FiveAxes_MatchesMatplotlib()
+    public void Radar_FiveAxes_MatchesMatplotlib(string themeId)
     {
         string[] categories = ["Speed", "Power", "Range", "Accuracy", "Cost"];
         double[] values = [0.8, 0.6, 0.7, 0.9, 0.5];
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Radar — 5 axes")
                 .Radar(categories, values))

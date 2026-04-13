@@ -19,10 +19,18 @@ api/
 ## Benchmark artifacts
 BenchmarkDotNet.Artifacts/
 
-## Sample output
+## Sample output — samples write to <repo>/images/ via SamplesPath helper.
+## Anything that escapes to repo root or Samples/ from a stale build is ignored.
+## images/ is whitelisted via the explicit !/images/** rule below.
 Samples/**/*.svg
 Samples/**/*.png
 Samples/**/*.pdf
+Samples/**/*.gif
+/*.svg
+/*.png
+/*.pdf
+/*.gif
+!/images/**
 
 ## Test coverage
 TestResults/

@@ -24,7 +24,7 @@ public sealed class Figure
 
     public Color? BackgroundColor { get; set; }
 
-    public Theme Theme { get; set; } = Theme.Default;
+    public Theme Theme { get; set; } = Theme.MatplotlibV2;
 
     public SubPlotSpacing Spacing { get; set; } = new();
 

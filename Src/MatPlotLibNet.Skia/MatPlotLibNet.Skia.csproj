@@ -4,7 +4,7 @@
     <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.1.2</Version>
+    <Version>1.1.3</Version>
     <PackageId>MatPlotLibNet.Skia</PackageId>
     <Description>PNG and PDF export for MatPlotLibNet charts using SkiaSharp.</Description>
     <PackageTags>charting;plotting;charts;png;pdf;export;skiasharp</PackageTags>
@@ -24,6 +24,17 @@
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!-- Bundle DejaVu Sans TTF files (copied from matplotlib's mpl-data/fonts/ttf/) so
+       Skia text rendering uses the IDENTICAL font matplotlib uses, regardless of
+       what the host OS has installed. Without this, on Windows Skia falls back to
+       Arial, which has different metrics and produces visibly smaller text. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Fonts\DejaVuSans.ttf" />
+    <EmbeddedResource Include="Fonts\DejaVuSans-Bold.ttf" />
+    <EmbeddedResource Include="Fonts\DejaVuSans-Oblique.ttf" />
+    <EmbeddedResource Include="Fonts\DejaVuSans-BoldOblique.ttf" />
   </ItemGroup>
 
 </Project>

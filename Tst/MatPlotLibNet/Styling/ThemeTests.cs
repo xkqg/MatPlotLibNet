@@ -194,12 +194,16 @@ public class ThemeTests
 
     /// <summary>
     /// Verifies that ChartRenderer keeps the compact default margins when the figure
-    /// uses the default (non-matplotlib) theme.
+    /// uses the legacy library theme (explicitly opted into via <c>WithTheme(Theme.Default)</c>).
+    /// v1.1.4 changed the library's default theme to <c>Theme.MatplotlibV2</c>, which ships
+    /// fractional matplotlib spacing (MarginLeft=100 at 800px), so this test must pin the
+    /// old theme explicitly to keep asserting against the legacy 60/20/40/50 margins.
     /// </summary>
     [Fact]
     public void ChartRenderer_UsesDefaultSpacing_WhenThemeHasNoDefaultSpacing()
     {
         var figure = Plt.Create().WithSize(800, 600)
+            .WithTheme(Theme.Default)
             .Plot([1.0, 2.0], [1.0, 2.0])
             .Build();
 

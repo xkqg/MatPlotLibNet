@@ -29,10 +29,12 @@ public class ThreeDChartFidelityTests : FidelityTest
         return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 80)]   // camera projection + different RNG
-    public void Scatter3D_Random_MatchesMatplotlib()
+    public void Scatter3D_Random_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int n = 60;
@@ -41,7 +43,7 @@ public class ThreeDChartFidelityTests : FidelityTest
         var z = Enumerable.Range(0, n).Select(_ => NextGaussian(rng)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Scatter 3D")
                 .Scatter3D(x, y, z)
@@ -50,10 +52,12 @@ public class ThreeDChartFidelityTests : FidelityTest
         AssertFidelity(figure, "scatter3d");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 120, Ssim = 0.35, DeltaE = 90)]   // 3D bar face shading + projection angle differences
-    public void Bar3D_Grid_MatchesMatplotlib()
+    public void Bar3D_Grid_MatchesMatplotlib(string themeId)
     {
         int n = 16;
         var x = new double[n];
@@ -69,7 +73,7 @@ public class ThreeDChartFidelityTests : FidelityTest
             }
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Bar 3D")
                 .Bar3D(x, y, z)
@@ -78,10 +82,12 @@ public class ThreeDChartFidelityTests : FidelityTest
         AssertFidelity(figure, "bar3d");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 100, Ssim = 0.40, DeltaE = 90)]   // surface colormap + shading
-    public void Surface_SinR_MatchesMatplotlib()
+    public void Surface_SinR_MatchesMatplotlib(string themeId)
     {
         int n = 40;
         var x = Linspace(-3, 3, n);
@@ -92,7 +98,7 @@ public class ThreeDChartFidelityTests : FidelityTest
                 z[iy, ix] = Math.Sin(Math.Sqrt(x[ix] * x[ix] + y[iy] * y[iy]));
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Surface — sin(r)")
                 .Surface(x, y, z, s => s.ColorMap = ColorMaps.Viridis)
@@ -101,10 +107,12 @@ public class ThreeDChartFidelityTests : FidelityTest
         AssertFidelity(figure, "surface");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 100, Ssim = 0.40, DeltaE = 80)]
-    public void Wireframe_SinR_MatchesMatplotlib()
+    public void Wireframe_SinR_MatchesMatplotlib(string themeId)
     {
         int n = 20;
         var x = Linspace(-3, 3, n);
@@ -115,7 +123,7 @@ public class ThreeDChartFidelityTests : FidelityTest
                 z[iy, ix] = Math.Sin(Math.Sqrt(x[ix] * x[ix] + y[iy] * y[iy]));
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Wireframe — sin(r)")
                 .Wireframe(x, y, z)
@@ -124,10 +132,12 @@ public class ThreeDChartFidelityTests : FidelityTest
         AssertFidelity(figure, "wireframe");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 90, Ssim = 0.45, DeltaE = 80)]
-    public void Stem3D_Spiral_MatchesMatplotlib()
+    public void Stem3D_Spiral_MatchesMatplotlib(string themeId)
     {
         int n = 20;
         var theta = Linspace(0, 2 * Math.PI, n);
@@ -136,7 +146,7 @@ public class ThreeDChartFidelityTests : FidelityTest
         var z = theta;
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Stem 3D — spiral")
                 .Stem3D(x, y, z)

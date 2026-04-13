@@ -61,6 +61,24 @@ public interface IRenderContext
     /// <returns>The computed size of the text bounding box.</returns>
     Size MeasureText(string text, Font font);
 
+    /// <summary>
+    /// Measures a <see cref="RichText"/> value by summing per-span widths at their effective font sizes.
+    /// Default implementation measures each span independently and uses the max single-span height.
+    /// </summary>
+    Size MeasureRichText(RichText richText, Font font)
+    {
+        double totalWidth = 0;
+        double maxHeight = 0;
+        foreach (var span in richText.Spans)
+        {
+            var spanFont = span.FontSizeScale == 1.0 ? font : font with { Size = font.Size * span.FontSizeScale };
+            var size = MeasureText(span.Text, spanFont);
+            totalWidth += size.Width;
+            if (size.Height > maxHeight) maxHeight = size.Height;
+        }
+        return new Size(totalWidth, maxHeight);
+    }
+
     /// <summary>Sets the global opacity for subsequent drawing operations.</summary>
     void SetOpacity(double opacity);
 

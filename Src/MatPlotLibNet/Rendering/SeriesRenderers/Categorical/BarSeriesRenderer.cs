@@ -18,7 +18,13 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
     {
         var baseColor = ResolveColor(series.Color);
         var fillColor = ApplyAlpha(baseColor, series.Alpha);
-        var labelFont = new Font { Family = "sans-serif", Size = 11 };
+        // Bar value labels inherit the theme's default font so they pick up MatplotlibV2/Classic
+        // sizes (matplotlib uses font.size = 10 pt for v2). Falls back to a system 11-px font
+        // if no theme is in scope.
+        var themeFont = Context?.Theme?.DefaultFont;
+        var labelFont = themeFont is not null
+            ? new Font { Family = themeFont.Family, Size = themeFont.Size, Color = themeFont.Color }
+            : new Font { Family = "sans-serif", Size = 11 };
         double edgeWidth = series.LineWidth > 0 ? series.LineWidth : (series.EdgeColor.HasValue ? 1 : 0);
         Color? edgeColor = series.LineWidth > 0 ? (series.EdgeColor ?? baseColor) : series.EdgeColor;
 

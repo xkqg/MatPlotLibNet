@@ -54,12 +54,12 @@ public class FigureTests
         Assert.Equal(2, ax2.GridIndex);
     }
 
-    /// <summary>Verifies that the Theme defaults to Theme.Default.</summary>
+    /// <summary>Verifies that the Theme defaults to Theme.MatplotlibV2 (changed from Theme.Default in v1.1.4).</summary>
     [Fact]
-    public void Theme_DefaultsToDefault()
+    public void Theme_DefaultsToMatplotlibV2()
     {
         var fig = new Figure();
-        Assert.Same(Theme.Default, fig.Theme);
+        Assert.Same(Theme.MatplotlibV2, fig.Theme);
     }
 
     /// <summary>Verifies that all figure properties can be set and retrieved.</summary>

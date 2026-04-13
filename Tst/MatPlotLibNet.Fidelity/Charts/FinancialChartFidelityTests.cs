@@ -17,10 +17,12 @@ public class FinancialChartFidelityTests : FidelityTest
         return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 110)]   // thin red/green OHLC ticks fall below top-5 pixel count threshold (same pattern as core violin)
-    public void OhlcBar_20Bars_MatchesMatplotlib()
+    public void OhlcBar_20Bars_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int n = 20;
@@ -39,7 +41,7 @@ public class FinancialChartFidelityTests : FidelityTest
         }
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("OHLC bars — 20 bars")
                 .OhlcBar(open, high, low, close)

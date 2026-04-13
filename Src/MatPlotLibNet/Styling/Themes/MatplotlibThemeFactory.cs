@@ -37,11 +37,29 @@ internal static class MatplotlibThemeFactory
         Color.FromHex("#17becf"), // cyan
     ];
 
+    // matplotlib font sizes are specified in POINTS; our renderers interpret Font.Size as PIXELS.
+    // At the standard 100-DPI render path, 1 pt = 100/72 ≈ 1.389 px, so matplotlib's 10 pt renders
+    // as ~14 px. Previously the font stacks passed raw pt values into Skia/SVG, yielding text that
+    // was ~28% too small. The sizes below are pre-converted to pixels at 100 DPI so text scale
+    // matches matplotlib exactly in PNG/PDF/GIF and SVG output.
+    //
+    //   classic rcParams: font.size = 12 pt            → 16.67 px
+    //                     axes.titlesize = 'large'     → 14.4 pt → 20 px
+    //   v2 (default):     font.size = 10 pt            → 13.89 px
+    //                     axes.titlesize = 'large'     → 12 pt → 16.67 px
+    private const double PtToPx = 100.0 / 72.0;
+
     private static readonly MatplotlibFontStack ClassicFontStack =
-        new("DejaVu Sans, Bitstream Vera Sans, sans-serif", BaseSize: 12.0, TickSize: 12.0, TitleSize: 14.0);
+        new("DejaVu Sans, Bitstream Vera Sans, sans-serif",
+            BaseSize:  12.0 * PtToPx,
+            TickSize:  12.0 * PtToPx,
+            TitleSize: 14.0 * PtToPx);
 
     private static readonly MatplotlibFontStack V2FontStack =
-        new("DejaVu Sans, sans-serif", BaseSize: 10.0, TickSize: 10.0, TitleSize: 12.0);
+        new("DejaVu Sans, sans-serif",
+            BaseSize:  10.0 * PtToPx,
+            TickSize:  10.0 * PtToPx,
+            TitleSize: 12.0 * PtToPx);
 
     // Matplotlib default subplot params: left=0.125, right=0.9 (absolute, so right margin=0.1),
     // top=0.88 (absolute, so top margin=0.12), bottom=0.11.
@@ -67,17 +85,25 @@ internal static class MatplotlibThemeFactory
         fontStack: ClassicFontStack,
         patchEdgeColor: ClassicPatchEdge,
         violinBodyColor: ClassicViolinBody,
-        violinStatsColor: ClassicViolinStats);
+        violinStatsColor: ClassicViolinStats,
+        // matplotlib classic style: axes.xmargin = 0, axes.ymargin = 0
+        // — data touches the left/right spines exactly.
+        axisXMargin: 0.0,
+        axisYMargin: 0.0);
 
     internal static Theme CreateV2() => Build(
         name: "matplotlib-v2",
         background: Colors.White,
         foreground: Color.FromHex("#262626"),
         cycleColors: Tab10CycleColors,
-        fontStack: V2FontStack);
+        fontStack: V2FontStack,
+        // matplotlib v2+ default: axes.xmargin = 0.05, axes.ymargin = 0.05
+        axisXMargin: 0.05,
+        axisYMargin: 0.05);
 
     private static Theme Build(string name, Color background, Color foreground, Color[] cycleColors, MatplotlibFontStack fontStack,
-        Color? patchEdgeColor = null, Color? violinBodyColor = null, Color? violinStatsColor = null) =>
+        Color? patchEdgeColor = null, Color? violinBodyColor = null, Color? violinStatsColor = null,
+        double axisXMargin = 0.05, double axisYMargin = 0.05) =>
         new(
             name: name,
             background: background,
@@ -91,6 +117,8 @@ internal static class MatplotlibThemeFactory
             PatchEdgeColor   = patchEdgeColor,
             ViolinBodyColor  = violinBodyColor,
             ViolinStatsColor = violinStatsColor,
+            AxisXMargin      = axisXMargin,
+            AxisYMargin      = axisYMargin,
         };
 
     private static Font BuildFont(MatplotlibFontStack stack, Color color) => new()

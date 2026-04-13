@@ -25,16 +25,18 @@ public class XyChartFidelityTests : FidelityTest
         return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 55)]   // AA grey text vs matplotlib black
-    public void Area_FillBetween_MatchesMatplotlib()
+    public void Area_FillBetween_MatchesMatplotlib(string themeId)
     {
         var x = Linspace(0, 10, 100);
         var y = x.Select(v => Math.Sin(v) + 1.2).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Area — fill_between")
                 .FillBetween(x, y)
@@ -44,10 +46,12 @@ public class XyChartFidelityTests : FidelityTest
         AssertFidelity(figure, "area");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 115, Ssim = 0.50, DeltaE = 125)]   // tab10 (ours) vs bgrcmyk (matplotlib classic) — pure blue/red/green don't appear in our top-5
-    public void StackedArea_StackPlot_MatchesMatplotlib()
+    public void StackedArea_StackPlot_MatchesMatplotlib(string themeId)
     {
         var x = Linspace(0, 10, 50);
         var y1 = x.Select(v => Math.Sin(v) + 2).ToArray();
@@ -55,7 +59,7 @@ public class XyChartFidelityTests : FidelityTest
         var y3 = x.Select(v => Math.Sin(v + 1) + 2).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Stacked area")
                 .StackPlot(x, [y1, y2, y3], s => s.Labels = ["A", "B", "C"])
@@ -64,16 +68,18 @@ public class XyChartFidelityTests : FidelityTest
         AssertFidelity(figure, "stacked_area");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
-    public void Step_Function_MatchesMatplotlib()
+    public void Step_Function_MatchesMatplotlib(string themeId)
     {
         var x = Enumerable.Range(0, 20).Select(i => (double)i).ToArray();
         var y = Enumerable.Range(1, 20).Select(i => (double)i).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Step function")
                 .Step(x, y)
@@ -83,10 +89,12 @@ public class XyChartFidelityTests : FidelityTest
         AssertFidelity(figure, "step");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.50, DeltaE = 55)]   // different RNG
-    public void Bubble_Scatter_MatchesMatplotlib()
+    public void Bubble_Scatter_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int n = 40;
@@ -95,7 +103,7 @@ public class XyChartFidelityTests : FidelityTest
         var sizes = Enumerable.Range(0, n).Select(_ => 50 + rng.NextDouble() * 450).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Bubble chart")
                 .Bubble(x, y, sizes, s => s.Alpha = 0.5))
@@ -103,17 +111,19 @@ public class XyChartFidelityTests : FidelityTest
         AssertFidelity(figure, "bubble");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
-    public void Regression_LinearFit_MatchesMatplotlib()
+    public void Regression_LinearFit_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         var x = Linspace(0, 10, 30);
         var y = x.Select(xi => 2 * xi + 1 + NextGaussian(rng) * 1.5).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Linear regression")
                 .Regression(x, y)
@@ -122,17 +132,19 @@ public class XyChartFidelityTests : FidelityTest
         AssertFidelity(figure, "regression");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
-    public void Residual_ScatterZero_MatchesMatplotlib()
+    public void Residual_ScatterZero_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         var x = Linspace(0, 10, 30);
         var y = x.Select(_ => NextGaussian(rng)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Residual plot")
                 .Residplot(x, y)
@@ -142,16 +154,18 @@ public class XyChartFidelityTests : FidelityTest
         AssertFidelity(figure, "residual");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
-    public void Ecdf_NormalSamples_MatchesMatplotlib()
+    public void Ecdf_NormalSamples_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         var data = Enumerable.Range(0, 100).Select(_ => NextGaussian(rng)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("ECDF")
                 .Ecdf(data)
@@ -161,10 +175,12 @@ public class XyChartFidelityTests : FidelityTest
         AssertFidelity(figure, "ecdf");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
-    public void Signal_SineSum_MatchesMatplotlib()
+    public void Signal_SineSum_MatchesMatplotlib(string themeId)
     {
         double sampleRate = 100.0;
         int n = 200;
@@ -176,7 +192,7 @@ public class XyChartFidelityTests : FidelityTest
             .ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Signal — 3 Hz + 10 Hz")
                 .Signal(y, sampleRate)
@@ -186,17 +202,19 @@ public class XyChartFidelityTests : FidelityTest
         AssertFidelity(figure, "signal");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
-    public void SignalXY_IrregularX_MatchesMatplotlib()
+    public void SignalXY_IrregularX_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         var x = Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 10).OrderBy(v => v).ToArray();
         var y = x.Select(xi => Math.Sin(xi) + 0.1 * NextGaussian(rng)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Signal — irregular X")
                 .SignalXY(x, y)
@@ -206,17 +224,19 @@ public class XyChartFidelityTests : FidelityTest
         AssertFidelity(figure, "signalxy");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.45, DeltaE = 55)]   // sparkline has minimal chrome; small diffs dominate
-    public void Sparkline_RandomWalk_MatchesMatplotlib()
+    public void Sparkline_RandomWalk_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         double sum = 0;
         var y = Enumerable.Range(0, 50).Select(_ => sum += NextGaussian(rng)).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Sparkline")
                 .Sparkline(y))

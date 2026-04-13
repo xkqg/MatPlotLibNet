@@ -69,8 +69,13 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        double xMin = context.XAxisMin ?? 0;
-        double xMax = context.XAxisMax ?? Categories.Length;
+        // Report the union of actual bar EDGES, not the slot indices [0, N].
+        // matplotlib contributes [first_bar_left, last_bar_right]; so should we.
+        // This removes ~14 px of extra whitespace on each side of the bar group
+        // (matches matplotlib's `axes.bar(...)` contribution to `DataLim`).
+        double halfW = BarWidth / 2.0;
+        double xMin = context.XAxisMin ?? (0.5 - halfW);
+        double xMax = context.XAxisMax ?? (Categories.Length - 0.5 + halfW);
         double yMin = 0, yMax = double.MinValue;
 
         if (context.BarMode == BarMode.Stacked)
@@ -91,7 +96,10 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
             yMax = Values.Max();
         }
 
-        return new(xMin, xMax, yMin, yMax);
+        // Sticky edges: matplotlib's BarContainer registers `sticky_edges.y = [0]` so that
+        // `axes.ymargin` never pads below the bar baseline. Mirror that here — yMin=0 is a
+        // hard floor the margin-expansion pass in CartesianAxesRenderer will not cross.
+        return new(xMin, xMax, yMin, yMax, StickyYMin: 0);
     }
 
     /// <inheritdoc />

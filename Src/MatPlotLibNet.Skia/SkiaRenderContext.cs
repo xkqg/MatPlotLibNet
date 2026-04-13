@@ -107,20 +107,91 @@ public sealed class SkiaRenderContext : IRenderContext
 
     /// <inheritdoc />
     public void DrawText(string text, Point position, Font font, TextAlignment alignment)
+        => DrawText(text, position, font, alignment, rotation: 0);
+
+    /// <inheritdoc />
+    public void DrawText(string text, Point position, Font font, TextAlignment alignment, double rotation)
     {
-        var typeface = SKTypeface.FromFamilyName(font.Family,
+        var typeface = FigureSkiaExtensions.ResolveTypeface(font.Family,
             font.Weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-            SKFontStyleWidth.Normal,
             font.Slant == FontSlant.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
         using var skFont = new SKFont(typeface, (float)font.Size);
         using var paint  = new SKPaint { Color = ToSkColor(font.Color ?? Colors.Black), IsAntialias = true };
 
-        float x = (float)position.X;
         float textWidth = skFont.MeasureText(text);
-        if (alignment == TextAlignment.Center) x -= textWidth / 2;
-        else if (alignment == TextAlignment.Right) x -= textWidth;
+        float dx = alignment switch
+        {
+            TextAlignment.Center => -textWidth / 2,
+            TextAlignment.Right  => -textWidth,
+            _                    => 0,
+        };
 
-        _canvas.DrawText(text, x, (float)position.Y, skFont, paint);
+        if (rotation == 0)
+        {
+            _canvas.DrawText(text, (float)position.X + dx, (float)position.Y, skFont, paint);
+        }
+        else
+        {
+            _canvas.Save();
+            // Rotate around the anchor point (matches SVG transform="rotate(angle, x, y)").
+            // Note: matplotlib/SVG positive rotation is counter-clockwise; Skia's RotateDegrees is clockwise.
+            _canvas.RotateDegrees(-(float)rotation, (float)position.X, (float)position.Y);
+            _canvas.DrawText(text, (float)position.X + dx, (float)position.Y, skFont, paint);
+            _canvas.Restore();
+        }
+    }
+
+    /// <inheritdoc />
+    public void DrawRichText(MatPlotLibNet.Rendering.MathText.RichText richText, Point position, Font font, TextAlignment alignment)
+        => DrawRichText(richText, position, font, alignment, rotation: 0);
+
+    /// <inheritdoc />
+    public void DrawRichText(MatPlotLibNet.Rendering.MathText.RichText richText, Point position, Font font, TextAlignment alignment, double rotation)
+    {
+        // Concatenate spans for total width measurement (sub/super render at 0.7 scale).
+        var typeface = FigureSkiaExtensions.ResolveTypeface(font.Family,
+            font.Weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            font.Slant == FontSlant.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+        using var paint = new SKPaint { Color = ToSkColor(font.Color ?? Colors.Black), IsAntialias = true };
+
+        // Measure total width with per-span scaling.
+        float totalWidth = 0;
+        foreach (var span in richText.Spans)
+        {
+            using var f = new SKFont(typeface, (float)(font.Size * span.FontSizeScale));
+            totalWidth += f.MeasureText(span.Text);
+        }
+
+        float dx = alignment switch
+        {
+            TextAlignment.Center => -totalWidth / 2,
+            TextAlignment.Right  => -totalWidth,
+            _                    => 0,
+        };
+
+        if (rotation != 0)
+        {
+            _canvas.Save();
+            _canvas.RotateDegrees(-(float)rotation, (float)position.X, (float)position.Y);
+        }
+
+        float cursorX = (float)position.X + dx;
+        float baseY   = (float)position.Y;
+        foreach (var span in richText.Spans)
+        {
+            using var f = new SKFont(typeface, (float)(font.Size * span.FontSizeScale));
+            float spanY = span.Kind switch
+            {
+                MatPlotLibNet.Rendering.MathText.TextSpanKind.Superscript => baseY - (float)(font.Size * 0.40),
+                MatPlotLibNet.Rendering.MathText.TextSpanKind.Subscript   => baseY + (float)(font.Size * 0.20),
+                _                                                          => baseY,
+            };
+            _canvas.DrawText(span.Text, cursorX, spanY, f, paint);
+            cursorX += f.MeasureText(span.Text);
+        }
+
+        if (rotation != 0)
+            _canvas.Restore();
     }
 
     /// <inheritdoc />
@@ -162,7 +233,10 @@ public sealed class SkiaRenderContext : IRenderContext
     /// <inheritdoc />
     public Size MeasureText(string text, Font font)
     {
-        using var skFont = new SKFont(SKTypeface.FromFamilyName(font.Family), (float)font.Size);
+        var typeface = FigureSkiaExtensions.ResolveTypeface(font.Family,
+            font.Weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            font.Slant == FontSlant.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+        using var skFont = new SKFont(typeface, (float)font.Size);
         return new Size(skFont.MeasureText(text), font.Size * 1.2);
     }
 

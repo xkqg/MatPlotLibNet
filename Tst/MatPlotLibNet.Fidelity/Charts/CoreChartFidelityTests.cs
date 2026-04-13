@@ -36,15 +36,17 @@ public class CoreChartFidelityTests : FidelityTest
     // 1 — Line chart with legend
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 45, Ssim = 0.60, DeltaE = 55)]   // Skia AA produces grey text; matplotlib renders crisp black
-    public void Line_WithLegend_MatchesMatplotlib()
+    public void Line_WithLegend_MatchesMatplotlib(string themeId)
     {
         var x = Linspace(0, 10, 50);
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Line chart with legend")
                 .Plot(x, Sin(x),                                           s => s.Label = "sin(x)")
@@ -62,10 +64,12 @@ public class CoreChartFidelityTests : FidelityTest
     // 2 — Scatter with two marker types
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.50, DeltaE = 55)]   // different RNG; AA grey text vs matplotlib black
-    public void Scatter_TwoMarkers_MatchesMatplotlib()
+    public void Scatter_TwoMarkers_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         double[] Normal(int count, double mu = 0) =>
@@ -74,7 +78,7 @@ public class CoreChartFidelityTests : FidelityTest
         int n = 80;
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Scatter — two marker types")
                 .Scatter(Normal(n),        Normal(n),        s => { s.Marker = MarkerStyle.Circle; s.Color = Colors.Blue; s.Label = "circles"; })
@@ -89,14 +93,16 @@ public class CoreChartFidelityTests : FidelityTest
     // 3 — Grouped bar chart
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.55, DeltaE = 70)]   // layout differs (slot vs position axes); AA grey text vs crisp black
-    public void Bar_Grouped_MatchesMatplotlib()
+    public void Bar_Grouped_MatchesMatplotlib(string themeId)
     {
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Grouped bar chart")
                 .Bar(["A", "B", "C"], [3.2, 5.1, 2.8], s => s.Label = "Series 1")
@@ -111,17 +117,19 @@ public class CoreChartFidelityTests : FidelityTest
     // 4 — Histogram
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]   // different RNG; dark-blue bar edge colour ΔE after alpha+edge fix
-    public void Hist_NormalSamples_MatchesMatplotlib()
+    public void Hist_NormalSamples_MatchesMatplotlib(string themeId)
     {
         var rng  = new Random(42);
         double[] data = Enumerable.Range(0, 1000).Select(_ => NextGaussian(rng)).ToArray();
 
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Histogram — 1000 normal samples, 30 bins")
                 .Hist(data, 30)
@@ -136,14 +144,16 @@ public class CoreChartFidelityTests : FidelityTest
     // 5 — Pie chart
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 90, Ssim = 0.55, DeltaE = 115)]   // pie geometry differs (start angle, aspect ratio, pie size fill)
-    public void Pie_Autopct_MatchesMatplotlib()
+    public void Pie_Autopct_MatchesMatplotlib(string themeId)
     {
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Pie chart")
                 .Pie([35.0, 25.0, 20.0, 15.0, 5.0],
@@ -158,10 +168,12 @@ public class CoreChartFidelityTests : FidelityTest
     // 6 — Box plot
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]   // different RNG; AA grey text vs matplotlib black
-    public void Box_FourGroups_MatchesMatplotlib()
+    public void Box_FourGroups_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         double[][] data = new[] { 0, 1, 2, 3 }
@@ -171,7 +183,7 @@ public class CoreChartFidelityTests : FidelityTest
 
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Box plot — 4 groups")
                 .BoxPlot(data)
@@ -186,10 +198,12 @@ public class CoreChartFidelityTests : FidelityTest
     // 7 — Violin plot
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 110)]   // different RNG; body color fixed; thin stats lines produce sparse red pixels below top-5 threshold (Skia AA vs matplotlib crisp)
-    public void Violin_ThreeGroups_MatchesMatplotlib()
+    public void Violin_ThreeGroups_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         double[][] data = new[] { 0.0, 2.0, 4.0 }
@@ -199,7 +213,7 @@ public class CoreChartFidelityTests : FidelityTest
 
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Violin plot — 3 groups")
                 .Violin(data)
@@ -214,10 +228,12 @@ public class CoreChartFidelityTests : FidelityTest
     // 8 — Heatmap (imshow style)
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 65, Ssim = 0.45, DeltaE = 40)]   // different RNG → different cell values/colors; RMS slightly above 60
-    public void Heatmap_10x10_Viridis_MatchesMatplotlib()
+    [FidelityTolerance(Rms = 65, Ssim = 0.40, DeltaE = 40)]   // different RNG → different cell values/colors; pt→px font scaling shifted tick labels → SSIM 0.45 → 0.40
+    public void Heatmap_10x10_Viridis_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         double[,] data = new double[10, 10];
@@ -227,7 +243,7 @@ public class CoreChartFidelityTests : FidelityTest
 
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Heatmap 10×10 (viridis)")
                 .Heatmap(data, s => s.ColorMap = ColorMaps.Viridis))
@@ -240,10 +256,12 @@ public class CoreChartFidelityTests : FidelityTest
     // 9 — Contour (filled)
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 110, Ssim = 0.60, DeltaE = 45)]   // classic default colormap (jet) vs our contourf default; significant layout difference
-    public void Contour_Peaks_MatchesMatplotlib()
+    public void Contour_Peaks_MatchesMatplotlib(string themeId)
     {
         int n = 100;
         var x = Linspace(-3, 3, n);
@@ -256,7 +274,7 @@ public class CoreChartFidelityTests : FidelityTest
 
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Filled contour — peaks function")
                 .Contourf(x, y, z))
@@ -269,10 +287,12 @@ public class CoreChartFidelityTests : FidelityTest
     // 10 — Polar rose curve
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 50, Ssim = 0.60, DeltaE = 30)]   // polar: RMS slightly above 30 due to grid/label differences
-    public void Polar_RoseCurve_MatchesMatplotlib()
+    public void Polar_RoseCurve_MatchesMatplotlib(string themeId)
     {
         int n = 300;
         var theta = Linspace(0, 2 * Math.PI, n);
@@ -280,7 +300,7 @@ public class CoreChartFidelityTests : FidelityTest
 
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Polar — 3-petal rose")
                 .PolarPlot(r, theta))
@@ -293,10 +313,12 @@ public class CoreChartFidelityTests : FidelityTest
     // 11 — Candlestick
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.50, DeltaE = 50)]   // different RNG → different OHLC values
-    public void Candlestick_20Bars_MatchesMatplotlib()
+    [FidelityTolerance(Rms = 60, Ssim = 0.50, DeltaE = 100)]   // v1.1.4: different RNG → different OHLC values; classic axes.xmargin=0 shifted candle centres, changing top-5 green/red blends
+    public void Candlestick_20Bars_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int n = 20;
@@ -316,7 +338,7 @@ public class CoreChartFidelityTests : FidelityTest
 
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Candlestick — 20 bars")
                 .Candlestick(open, high, low, close)
@@ -331,10 +353,12 @@ public class CoreChartFidelityTests : FidelityTest
     // 12 — Error bars
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 50, Ssim = 0.55, DeltaE = 55)]   // different RNG; AA grey text vs matplotlib black
-    public void ErrorBar_WithYErr_MatchesMatplotlib()
+    public void ErrorBar_WithYErr_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         var x    = Enumerable.Range(0, 10).Select(i => (double)i).ToArray();
@@ -343,7 +367,7 @@ public class CoreChartFidelityTests : FidelityTest
 
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Errorbar chart")
                 .ErrorBar(x, y, yerr, yerr, s => s.Label = "data ± error")

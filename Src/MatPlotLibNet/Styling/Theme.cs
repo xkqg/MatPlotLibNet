@@ -53,6 +53,20 @@ public sealed class Theme
     /// </summary>
     public Color? ViolinStatsColor { get; init; }
 
+    /// <summary>
+    /// Default X-axis margin (data padding as a fraction of the data range). Matches
+    /// matplotlib's <c>axes.xmargin</c> rcParam — classic style uses <c>0.0</c>, v2+ uses <c>0.05</c>.
+    /// Consumed by <c>CartesianAxesRenderer.ComputeDataRanges</c> when <see cref="Models.Axis.Margin"/>
+    /// is <see langword="null"/>.
+    /// </summary>
+    public double AxisXMargin { get; init; } = 0.05;
+
+    /// <summary>
+    /// Default Y-axis margin (data padding as a fraction of the data range). Matches matplotlib's
+    /// <c>axes.ymargin</c> rcParam. Classic style uses <c>0.0</c>, v2+ uses <c>0.05</c>.
+    /// </summary>
+    public double AxisYMargin { get; init; } = 0.05;
+
     /// <summary>Initializes a new <see cref="Theme"/> with all visual properties.</summary>
     internal Theme(string name, Color background, Color foregroundText, Color axesBackground,
         Color[] cycleColors, Font defaultFont, GridStyle defaultGrid, PropCycler? propCycler = null,

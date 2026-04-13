@@ -26,7 +26,13 @@ public sealed class Axis
 
     public bool Inverted { get; set; }
 
-    public double Margin { get; set; } = 0.05;
+    /// <summary>
+    /// Data padding as a fraction of the data range (matplotlib <c>axes.xmargin</c>/<c>ymargin</c>).
+    /// When <see langword="null"/> (the default), the renderer inherits the value from
+    /// <see cref="Styling.Theme.AxisXMargin"/> / <see cref="Styling.Theme.AxisYMargin"/>:
+    /// <c>MatplotlibClassic</c> → 0.0 (data touches spines), <c>MatplotlibV2</c>/<c>Default</c> → 0.05.
+    /// </summary>
+    public double? Margin { get; set; }
 
     public ITickFormatter? TickFormatter { get; set; }
 
@@ -63,9 +69,12 @@ public sealed record TickConfig
 
     public TickDirection Direction { get; init; } = TickDirection.Out;
 
-    public double Length { get; init; } = 3.5;
+    // matplotlib `xtick.major.size = 3.5` POINTS → at 100 DPI = 4.861 px.
+    // We store in pixels (the unit Skia and SVG render in), pre-converted.
+    public double Length { get; init; } = 3.5 * 100.0 / 72.0;
 
-    public double Width { get; init; } = 0.8;
+    // matplotlib `xtick.major.width = 0.8` POINTS → at 100 DPI = 1.111 px.
+    public double Width { get; init; } = 0.8 * 100.0 / 72.0;
 
     public Color? Color { get; init; }
 
@@ -73,5 +82,6 @@ public sealed record TickConfig
 
     public Color? LabelColor { get; init; }
 
-    public double Pad { get; init; } = 3.0;
+    // matplotlib `xtick.major.pad = 3.5` POINTS → at 100 DPI = 4.861 px.
+    public double Pad { get; init; } = 3.5 * 100.0 / 72.0;
 }

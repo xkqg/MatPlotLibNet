@@ -46,9 +46,11 @@ public class MatplotlibClassicThemeTests
     }
 
     [Fact]
-    public void MatplotlibClassic_FontSizeIsTwelve()
+    public void MatplotlibClassic_FontSizeIsTwelvePointsInPixels()
     {
-        Assert.Equal(12.0, Theme.MatplotlibClassic.DefaultFont.Size);
+        // matplotlib classic font.size = 12 pt; our Font.Size is in pixels, so we pre-convert
+        // at 100 DPI: 12 * 100/72 ≈ 16.67 px. See MatplotlibThemeFactory.PtToPx.
+        Assert.Equal(12.0 * 100.0 / 72.0, Theme.MatplotlibClassic.DefaultFont.Size, 3);
     }
 
     [Fact]

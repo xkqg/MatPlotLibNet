@@ -55,10 +55,22 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  (side-effect: registers 3
 FIGSIZE = (8, 6)
 DPI = 100
 SEED = 42
+
+# STYLE is mutated by main() per --style flag.
+# Allowed values: "classic" (matplotlib pre-2.0) or "default" (modern matplotlib v2+).
+# Each fig_* function reads this module-level constant via plt.style.context(STYLE).
 STYLE = "classic"
 
-OUT_DIR = Path(__file__).parent.parent.parent / "Tst" / "MatPlotLibNet.Fidelity" / "Fixtures" / "Matplotlib"
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+# Output subdir name per style (matches Tst/.../Fixtures/Matplotlib/{classic|v2}/).
+STYLE_DIR = {"classic": "classic", "default": "v2"}
+
+FIXTURES_ROOT = Path(__file__).parent.parent.parent / "Tst" / "MatPlotLibNet.Fidelity" / "Fixtures" / "Matplotlib"
+
+
+def out_dir() -> Path:
+    d = FIXTURES_ROOT / STYLE_DIR[STYLE]
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 def meta(name: str) -> dict:
@@ -73,10 +85,11 @@ def meta(name: str) -> dict:
 
 
 def save(fig: plt.Figure, name: str) -> None:
-    path = OUT_DIR / f"{name}.png"
+    od = out_dir()
+    path = od / f"{name}.png"
     fig.savefig(path, dpi=DPI)
     plt.close(fig)
-    (OUT_DIR / f"{name}.json").write_text(json.dumps(meta(name), indent=2))
+    (od / f"{name}.json").write_text(json.dumps(meta(name), indent=2))
     print(f"  wrote {path}")
 
 
@@ -1151,6 +1164,35 @@ def fig_ind_psar():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Composition fixtures (multi-subplot, suptitle, mathtext)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def fig_comp_mathtext_two_subplots():
+    """Two side-by-side subplots with a figure-level suptitle, mathtext labels, and mathtext legend.
+    Regression guard for v1.1.3 — exercises legend mathtext, interior y-label gutter, and suptitle clearance."""
+    t_ms = np.linspace(0, 50, 500)
+    decay = np.exp(-t_ms * 0.08) * np.cos(t_ms * 0.4)
+    noise = np.sin(t_ms * 1.3) * 0.3
+    with plt.style.context(STYLE):
+        fig = plt.figure(figsize=FIGSIZE, dpi=DPI)
+        fig.suptitle(r"$\alpha$ decay and $\beta$ noise — $\omega = 0.4$ rad/ms", fontsize=14, fontweight="bold")
+        ax1 = fig.add_subplot(1, 2, 1)
+        ax1.set_title(r"R$^{2}$ = 0.97")
+        ax1.set_xlabel(r"$\Delta t$ (ms)")
+        ax1.set_ylabel(r"$\sigma$ (normalised)")
+        ax1.plot(t_ms, decay, color="#1f77b4", label=r"$\alpha$ decay")
+        ax1.legend(loc="upper right")
+        ax2 = fig.add_subplot(1, 2, 2)
+        ax2.set_title(r"Noise — $\mu \pm 2\sigma$")
+        ax2.set_xlabel(r"$\Delta t$ (ms)")
+        ax2.set_ylabel(r"Amplitude")
+        ax2.plot(t_ms, noise, color="#ff7f0e", label=r"$\beta$ noise")
+        ax2.legend(loc="upper right")
+        fig.tight_layout(rect=[0, 0, 1, 0.93])
+    return fig
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Registry
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -1238,6 +1280,8 @@ CHARTS: dict[str, callable] = {
     "ind_keltner":   fig_ind_keltner,
     "ind_ichimoku":  fig_ind_ichimoku,
     "ind_psar":      fig_ind_psar,
+    # v1.1.3 — Composition (multi-subplot suptitle + mathtext)
+    "comp_mathtext_two_subplots": fig_comp_mathtext_two_subplots,
 }
 
 
@@ -1246,23 +1290,31 @@ CHARTS: dict[str, callable] = {
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
+    global STYLE
     parser = argparse.ArgumentParser(description="Generate matplotlib reference PNGs for MatPlotLibNet fidelity tests")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--all", action="store_true", help="Generate all fixtures")
     group.add_argument("--chart", nargs="+", metavar="NAME",
                        choices=list(CHARTS.keys()),
                        help=f"Generate specific chart(s). Choices: {', '.join(CHARTS)}")
+    parser.add_argument("--style", choices=["classic", "v2", "both"], default="both",
+                        help="matplotlib style: 'classic' (pre-2.0), 'v2' (modern default), or 'both'")
     args = parser.parse_args()
 
     charts = list(CHARTS.keys()) if args.all else args.chart
-    print(f"matplotlib {matplotlib.__version__}, generating {len(charts)} fixture(s) -> {OUT_DIR}")
-    for name in charts:
-        try:
-            fig = CHARTS[name]()
-            save(fig, name)
-        except Exception as exc:
-            print(f"  ERROR generating {name}: {exc}", file=sys.stderr)
-            sys.exit(1)
+    styles = ["classic", "default"] if args.style == "both" else \
+             (["classic"] if args.style == "classic" else ["default"])
+
+    for style in styles:
+        STYLE = style
+        print(f"matplotlib {matplotlib.__version__} [{STYLE_DIR[style]}], generating {len(charts)} fixture(s) -> {out_dir()}")
+        for name in charts:
+            try:
+                fig = CHARTS[name]()
+                save(fig, name)
+            except Exception as exc:
+                print(f"  ERROR generating {name} [{style}]: {exc}", file=sys.stderr)
+                sys.exit(1)
     print("Done.")
 
 

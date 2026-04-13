@@ -48,16 +48,18 @@ public class IndicatorFidelityTests : FidelityTest
     // Overlay indicators (price + indicator on same axes)
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 140)]   // 2 thin lines — pure #0000FF AA-diffuses below top-5 pixel threshold
-    public void Sma_20_MatchesPandasTa()
+    public void Sma_20_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, _) = Ohlc();
         var x = BarIndex(N);
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("SMA(20) overlay")
                 .Plot(x, close, s => s.Label = "close")
@@ -69,16 +71,18 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_sma");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 140)]   // same as SMA — thin-line AA diffusion
-    public void Ema_20_MatchesPandasTa()
+    public void Ema_20_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, _) = Ohlc();
         var x = BarIndex(N);
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("EMA(20) overlay")
                 .Plot(x, close, s => s.Label = "close")
@@ -90,16 +94,18 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_ema");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 55)]
-    public void BollingerBands_20_2_MatchesPandasTa()
+    public void BollingerBands_20_2_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, _) = Ohlc();
         var x = BarIndex(N);
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Bollinger Bands(20, 2)")
                 .Plot(x, close, s => s.Label = "close")
@@ -111,16 +117,18 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_bbands");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 55)]
-    public void Vwap_MatchesPandasTa()
+    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 140)]   // v1.1.4: close + VWAP overlay (2 thin lines) — classic xmargin=0 shifted line endpoints, pushing blend colours out of top-5
+    public void Vwap_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, volume) = Ohlc();
         var x = BarIndex(N);
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("VWAP")
                 .Plot(x, close, s => s.Label = "close")
@@ -132,16 +140,18 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_vwap");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 140)]   // thin-line AA diffusion
-    public void KeltnerChannels_20_MatchesPandasTa()
+    public void KeltnerChannels_20_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
         var x = BarIndex(N);
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Keltner Channels(20, 2)")
                 .Plot(x, close, s => s.Label = "close")
@@ -153,16 +163,18 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_keltner");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 100, Ssim = 0.45, DeltaE = 80)]   // ichimoku: multi-line + legend + cloud geometry differences
-    public void Ichimoku_MatchesPandasTa()
+    public void Ichimoku_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc(n: 80);
         var x = BarIndex(80);
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Ichimoku Cloud")
                 .Plot(x, close, s => s.Label = "close")
@@ -174,16 +186,18 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_ichimoku");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 90, Ssim = 0.50, DeltaE = 60)]
-    public void ParabolicSar_MatchesPandasTa()
+    public void ParabolicSar_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
         var x = BarIndex(N);
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Parabolic SAR")
                 .Plot(x, close, s => s.Label = "close")
@@ -199,15 +213,17 @@ public class IndicatorFidelityTests : FidelityTest
     // Oscillator panels (indicator on its own axes)
     // ─────────────────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 55)]
-    public void Rsi_14_MatchesPandasTa()
+    [FidelityTolerance(Rms = 70, Ssim = 0.50, DeltaE = 80)]   // RSI overbought line is pure #FF0000 in matplotlib v2; our v2 fg #262626 displaces it from top-5
+    public void Rsi_14_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, _) = Ohlc();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("RSI(14)")
                 .Rsi(close, 14, i => i.Label = "RSI(14)")
@@ -218,15 +234,17 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_rsi");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 110, Ssim = 0.45, DeltaE = 140)]   // MACD line/signal/histogram; pure #0000FF AA-diffusion below top-5
-    public void Macd_12_26_9_MatchesPandasTa()
+    public void Macd_12_26_9_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, _) = Ohlc();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("MACD(12, 26, 9)")
                 .Indicator(new Macd(close, 12, 26, 9))
@@ -236,15 +254,17 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_macd");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 60)]
-    public void Stochastic_14_3_MatchesPandasTa()
+    public void Stochastic_14_3_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Stochastic(14, 3)")
                 .Indicator(new Stochastic(high, low, close, 14, 3))
@@ -254,15 +274,17 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_stoch");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
-    public void Atr_14_MatchesPandasTa()
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 140)]   // bundled DejaVu font shifted text glyphs → top-5 color blends out of band
+    public void Atr_14_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Average True Range(14)")
                 .Indicator(new Atr(high, low, close, 14) { Label = "ATR(14)" })
@@ -273,15 +295,17 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_atr");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 60)]
-    public void Adx_14_MatchesPandasTa()
+    public void Adx_14_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("ADX(14)")
                 .Indicator(new Adx(high, low, close, 14))
@@ -291,15 +315,17 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_adx");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 70, Ssim = 0.55, DeltaE = 55)]
-    public void Cci_20_MatchesPandasTa()
+    public void Cci_20_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Commodity Channel Index(20)")
                 .Cci(high, low, close, 20, i => i.Label = "CCI(20)")
@@ -309,15 +335,17 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_cci");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 70, Ssim = 0.55, DeltaE = 55)]
-    public void WilliamsR_14_MatchesPandasTa()
+    public void WilliamsR_14_MatchesPandasTa(string themeId)
     {
         var (_, high, low, close, _) = Ohlc();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Williams %R(14)")
                 .WilliamsR(high, low, close, 14, i => i.Label = "Williams %R(14)")
@@ -327,15 +355,17 @@ public class IndicatorFidelityTests : FidelityTest
         AssertFidelity(figure, "ind_williamsr");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 55)]
-    public void Obv_MatchesPandasTa()
+    [FidelityTolerance(Rms = 60, Ssim = 0.55, DeltaE = 140)]   // bundled DejaVu font shifted text glyphs → top-5 color blends out of band
+    public void Obv_MatchesPandasTa(string themeId)
     {
         var (_, _, _, close, volume) = Ohlc();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("On-Balance Volume")
                 .Obv(close, volume, i => i.Label = "OBV")

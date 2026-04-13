@@ -64,20 +64,20 @@ public class AxisTests
 
     // --- TickConfig defaults (v1.1.2 matplotlib-fidelity fixes) ---
 
-    /// <summary>Verifies that the default tick length matches matplotlib's xtick.major.size (3.5 pt).</summary>
+    /// <summary>Verifies that the default tick length matches matplotlib's xtick.major.size (3.5 pt) pre-converted to pixels at 100 DPI.</summary>
     [Fact]
     public void TickConfig_DefaultLength_MatchesMatplotlib()
     {
         var tc = new TickConfig();
-        Assert.Equal(3.5, tc.Length);
+        Assert.Equal(3.5 * 100.0 / 72.0, tc.Length, 3);
     }
 
-    /// <summary>Verifies that the default tick width matches matplotlib's xtick.major.width (0.8 pt).</summary>
+    /// <summary>Verifies that the default tick width matches matplotlib's xtick.major.width (0.8 pt) pre-converted to pixels at 100 DPI.</summary>
     [Fact]
     public void TickConfig_DefaultWidth_MatchesMatplotlib()
     {
         var tc = new TickConfig();
-        Assert.Equal(0.8, tc.Width);
+        Assert.Equal(0.8 * 100.0 / 72.0, tc.Width, 3);
     }
 
     /// <summary>Verifies that the default tick direction is Out (matches matplotlib's xtick.direction).</summary>

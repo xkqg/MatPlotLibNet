@@ -11,10 +11,12 @@ namespace MatPlotLibNet.Tests.Fidelity.Charts;
 /// <summary>Phase 5 Polar-family fidelity tests (polar scatter, polar bar, polar heatmap).</summary>
 public class PolarChartFidelityTests : FidelityTest
 {
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 80, Ssim = 0.50, DeltaE = 55)]   // polar grid labels + different RNG
-    public void PolarScatter_RandomPoints_MatchesMatplotlib()
+    public void PolarScatter_RandomPoints_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int n = 60;
@@ -22,7 +24,7 @@ public class PolarChartFidelityTests : FidelityTest
         var r     = Enumerable.Range(0, n).Select(_ => rng.NextDouble()).ToArray();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Polar scatter")
                 .PolarScatter(r, theta))
@@ -30,17 +32,19 @@ public class PolarChartFidelityTests : FidelityTest
         AssertFidelity(figure, "polar_scatter");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 85, Ssim = 0.55, DeltaE = 80)]   // our blue wedge fill is ~25% lighter; no dark saturated blue in our top-5
-    public void PolarBar_Wedges_MatchesMatplotlib()
+    public void PolarBar_Wedges_MatchesMatplotlib(string themeId)
     {
         int n = 12;
         var theta = Enumerable.Range(0, n).Select(i => i * 2 * Math.PI / n).ToArray();
         double[] r = [3, 5, 2, 6, 4, 7, 3, 5, 4, 6, 3, 5];
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Polar bar")
                 .PolarBar(r, theta))
@@ -48,10 +52,12 @@ public class PolarChartFidelityTests : FidelityTest
         AssertFidelity(figure, "polar_bar");
     }
 
-    [Fact]
+    [Theory]
+    [InlineData("classic")]
+    [InlineData("v2")]
     [Trait("Category", "Fidelity")]
     [FidelityTolerance(Rms = 85, Ssim = 0.50, DeltaE = 90)]   // different RNG → different cell colors; viridis extremes drift
-    public void PolarHeatmap_Random_MatchesMatplotlib()
+    public void PolarHeatmap_Random_MatchesMatplotlib(string themeId)
     {
         var rng = new Random(42);
         int nr = 10, ntheta = 24;
@@ -61,7 +67,7 @@ public class PolarChartFidelityTests : FidelityTest
                 data[ir, it] = rng.NextDouble();
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(Theme.MatplotlibClassic)
+            .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Polar heatmap")
                 .PolarHeatmap(data, ntheta, nr, s => s.ColorMap = ColorMaps.Viridis))

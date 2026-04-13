@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -143,7 +144,9 @@ public class GridSpecLayoutTests
     [Fact]
     public void ComputeLayout_SpanningFullWidth_MatchesFigureWidth()
     {
-        var fig = new Figure { Width = 800, Height = 600 };
+        // Pin to the legacy library default theme so the expected widths (computed from the old
+        // hardcoded 60/20/40/50 margins) remain stable against the v1.1.4 default-theme change.
+        var fig = new Figure { Width = 800, Height = 600, Theme = Theme.Default };
         var gs = new GridSpec { Rows = 2, Cols = 3 };
         fig.GridSpec = gs;
         fig.AddSubPlot(gs, new GridPosition(0, 1, 0, 3)); // full width
@@ -179,7 +182,9 @@ public class GridSpecLayoutTests
     [Fact]
     public void ComputeLayout_WidthRatios_WithSpanning_CorrectWidth()
     {
-        var fig = new Figure { Width = 800, Height = 600 };
+        // Same pin as ComputeLayout_SpanningFullWidth_MatchesFigureWidth — the expected 520
+        // derives from the legacy 60/20/40/50 margins, not matplotlib-v2 fractional margins.
+        var fig = new Figure { Width = 800, Height = 600, Theme = Theme.Default };
         var gs = new GridSpec { Rows = 1, Cols = 3, WidthRatios = [1, 2, 1] };
         fig.GridSpec = gs;
         fig.AddSubPlot(gs, new GridPosition(0, 1, 0, 2)); // span cols 0+1 (ratios 1+2=3)
