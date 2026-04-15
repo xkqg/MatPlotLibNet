@@ -32,6 +32,19 @@ public sealed class Figure
 
     public ColorBar? FigureColorBar { get; set; }
 
+    /// <summary>Optional chart identifier used by the bidirectional SignalR interaction pipeline.
+    /// When set together with <see cref="ServerInteraction"/>, the dispatcher script embedded in
+    /// the SVG output routes interaction events back to the server for this id via the
+    /// <c>MatPlotLibNet.AspNetCore.FigureRegistry</c> service. Null for pure static output
+    /// (the default).</summary>
+    public string? ChartId { get; set; }
+
+    /// <summary>When <see langword="true"/>, the SVG output embeds the SignalR interaction
+    /// dispatcher script instead of the local client-side <c>Svg*Script</c> IIFEs, so zoom / pan /
+    /// reset / legend-toggle events flow to the server for authoritative mutation + re-render.
+    /// Default <see langword="false"/> — existing behaviour is byte-identical.</summary>
+    public bool ServerInteraction { get; set; }
+
     public bool EnableZoomPan { get; set; }
 
     public bool EnableLegendToggle { get; set; }
@@ -59,7 +72,7 @@ public sealed class Figure
     public bool EnableSankeyHover { get; set; }
 
     /// <summary>Returns <see langword="true"/> if any interactive JS feature is enabled.</summary>
-    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || Enable3DRotation || EnableTreemapDrilldown || EnableSankeyHover;
+    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || Enable3DRotation || EnableTreemapDrilldown || EnableSankeyHover || ServerInteraction;
 
     /// <summary>Gets the collection of subplot axes contained in this figure.</summary>
     public IReadOnlyList<Axes> SubPlots => _subPlots;

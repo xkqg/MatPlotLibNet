@@ -60,4 +60,4 @@ Benchmarks/   BenchmarkDotNet performance suite
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [GPL-3.0 License](LICENSE).
+By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).

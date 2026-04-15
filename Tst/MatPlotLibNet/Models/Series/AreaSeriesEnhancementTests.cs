@@ -30,24 +30,13 @@ public class AreaSeriesEnhancementTests
         Assert.Equal(DrawStyle.Default, s.StepMode);
     }
 
-    [Fact]
-    public void AreaSeries_StepMode_CanBeSetToStepsPre()
+    [Theory]
+    [InlineData(DrawStyle.StepsPre)]
+    [InlineData(DrawStyle.StepsMid)]
+    [InlineData(DrawStyle.StepsPost)]
+    public void AreaSeries_StepMode_CanBeSetToEachStepVariant(DrawStyle mode)
     {
-        var s = new AreaSeries([1.0], [1.0]) { StepMode = DrawStyle.StepsPre };
-        Assert.Equal(DrawStyle.StepsPre, s.StepMode);
-    }
-
-    [Fact]
-    public void AreaSeries_StepMode_CanBeSetToStepsMid()
-    {
-        var s = new AreaSeries([1.0], [1.0]) { StepMode = DrawStyle.StepsMid };
-        Assert.Equal(DrawStyle.StepsMid, s.StepMode);
-    }
-
-    [Fact]
-    public void AreaSeries_StepMode_CanBeSetToStepsPost()
-    {
-        var s = new AreaSeries([1.0], [1.0]) { StepMode = DrawStyle.StepsPost };
-        Assert.Equal(DrawStyle.StepsPost, s.StepMode);
+        var s = new AreaSeries([1.0], [1.0]) { StepMode = mode };
+        Assert.Equal(mode, s.StepMode);
     }
 }

@@ -15,17 +15,8 @@ namespace MatPlotLibNet.Models.Series;
 /// Use this when you want multiple rows of bars stacked on Y planes with alpha compositing,
 /// instead of solid rectangular prisms (use <see cref="Bar3DSeries"/> for the cuboid variant).
 /// </summary>
-public sealed class PlanarBar3DSeries : ChartSeries, I3DPointSeries, IHasColor, IHasAlpha, IHasEdgeColor
+public sealed class PlanarBar3DSeries : XYZSeries, IHasColor, IHasAlpha, IHasEdgeColor
 {
-    /// <summary>X position of each bar's left edge.</summary>
-    public Vec X { get; }
-
-    /// <summary>Y plane each bar sits on. Constant within a "row".</summary>
-    public Vec Y { get; }
-
-    /// <summary>Bar height along Z.</summary>
-    public Vec Z { get; }
-
     /// <summary>Width of each bar along X. Default 0.8 (matplotlib's <c>ax.bar</c> default).</summary>
     public double BarWidth { get; set; } = 0.8;
 
@@ -54,16 +45,8 @@ public sealed class PlanarBar3DSeries : ChartSeries, I3DPointSeries, IHasColor, 
     /// </remarks>
     public Color[]? Colors { get; set; }
 
-    // I3DPointSeries explicit implementations
-    double[] I3DPointSeries.X => X;
-    double[] I3DPointSeries.Y => Y;
-    double[] I3DPointSeries.Z => Z;
-
     /// <summary>Initializes a new instance of <see cref="PlanarBar3DSeries"/>.</summary>
-    public PlanarBar3DSeries(Vec x, Vec y, Vec z)
-    {
-        X = x; Y = y; Z = z;
-    }
+    public PlanarBar3DSeries(Vec x, Vec y, Vec z) : base(x, y, z) { }
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
@@ -71,13 +54,11 @@ public sealed class PlanarBar3DSeries : ChartSeries, I3DPointSeries, IHasColor, 
         if (X.Length == 0) return new(null, null, null, null);
         // Planar bars: X spans [X[i], X[i]+BarWidth]; Y is a POINT (no width, the bar
         // is flat in that dimension); Z spans [0, Z[i]] with sticky-zero baseline.
-        double xLo = X.Min(), xHi = X.Max() + BarWidth;
-        double yLo = Y.Min(), yHi = Y.Max();
-        double zLo = Math.Min(0, Z.Min());
-        double zHi = Math.Max(0, Z.Max());
-        return new(xLo, xHi, yLo, yHi,
-            StickyZMin: 0,
-            ZMin: zLo, ZMax: zHi);
+        return new Box3D(
+            X: new(X.Min(), X.Max() + BarWidth),
+            Y: new(Y.Min(), Y.Max()),
+            Z: new(Math.Min(0, Z.Min()), Math.Max(0, Z.Max()))
+        ).ToContribution(stickyZMin: 0);
     }
 
     /// <inheritdoc />

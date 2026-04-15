@@ -80,10 +80,19 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
             foreach (var ctx in subplotContexts)
                 ctx.WriteTo(sb);
             figCbCtx?.WriteTo(sb);
-            if (figure.EnableZoomPan)
-                sb.AppendLine(SvgInteractivityScript.GetZoomPanScript());
-            if (figure.EnableLegendToggle)
-                sb.AppendLine(SvgLegendToggleScript.GetScript());
+            // ServerInteraction routes zoom/pan/legend-toggle through SignalR instead of the
+            // local client-side IIFEs — the SignalR dispatcher replaces both scripts below.
+            if (figure.ServerInteraction)
+            {
+                sb.AppendLine(SvgSignalRInteractionScript.GetScript());
+            }
+            else
+            {
+                if (figure.EnableZoomPan)
+                    sb.AppendLine(SvgInteractivityScript.GetZoomPanScript());
+                if (figure.EnableLegendToggle)
+                    sb.AppendLine(SvgLegendToggleScript.GetScript());
+            }
             if (figure.EnableRichTooltips)
                 sb.AppendLine(SvgCustomTooltipScript.GetScript());
             if (figure.EnableHighlight)
@@ -123,6 +132,8 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
           .Append(" aria-labelledby=\"chart-title\"");
         if (hasDescription)
             sb.Append(" aria-describedby=\"chart-desc\"");
+        if (figure.ServerInteraction && figure.ChartId is { } chartId)
+            sb.Append(" data-chart-id=\"").Append(SvgXmlHelper.EscapeXml(chartId)).Append('"');
         sb.AppendLine(">");
 
         // SVG title (always emitted for role="img" accessibility)

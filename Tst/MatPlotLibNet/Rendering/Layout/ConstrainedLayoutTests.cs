@@ -5,6 +5,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.Layout;
 
@@ -198,5 +199,129 @@ public class ConstrainedLayoutTests
         // TightLayout must not produce zero-size plot areas (i.e., the engine completed)
         var svg = withTight.ToSvg();
         Assert.NotEmpty(svg);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Gap coverage added April 2026 — branches that existed since v1.0 but were
+    // never formally asserted. The suptitle stacking path in particular was
+    // load-bearing for multi-panel dashboards and had no regression guard.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Figure-level suptitle stacks ABOVE the top-row subplot title (<c>supReserved + topNeeded</c>)
+    /// — not <c>max</c>. A figure with both must reserve enough top margin for both to fit.
+    /// </summary>
+    [Fact]
+    public void Engine_Suptitle_StacksAboveSubplotTitle()
+    {
+        var ctx = MakeCtx();
+        var withBoth = new FigureBuilder()
+            .WithTitle("Figure-level suptitle")
+            .AddSubPlot(1, 1, 1, ax => { ax.Plot([1.0, 2.0], [1.0, 2.0]); ax.WithTitle("Subplot title"); })
+            .Build();
+        var withTitleOnly = new FigureBuilder()
+            .AddSubPlot(1, 1, 1, ax => { ax.Plot([1.0, 2.0], [1.0, 2.0]); ax.WithTitle("Subplot title"); })
+            .Build();
+
+        var bothSpacing  = new ConstrainedLayoutEngine().Compute(withBoth, ctx);
+        var titleSpacing = new ConstrainedLayoutEngine().Compute(withTitleOnly, ctx);
+
+        Assert.True(bothSpacing.MarginTop > titleSpacing.MarginTop,
+            $"Suptitle must stack on top of subplot title; got both={bothSpacing.MarginTop}, titleOnly={titleSpacing.MarginTop}");
+    }
+
+    /// <summary>
+    /// A figure with only a suptitle (no subplot title) still reserves top space — the
+    /// <c>if (supReserved > top) top = supReserved</c> floor branch in the engine.
+    /// </summary>
+    [Fact]
+    public void Engine_Suptitle_Only_SetsTopFloor()
+    {
+        var ctx = MakeCtx();
+        var withSup = new FigureBuilder()
+            .WithTitle("Figure suptitle with no subplot title")
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .Build();
+        var bare = new FigureBuilder()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .Build();
+
+        var supSpacing  = new ConstrainedLayoutEngine().Compute(withSup, ctx);
+        var bareSpacing = new ConstrainedLayoutEngine().Compute(bare, ctx);
+
+        Assert.True(supSpacing.MarginTop > bareSpacing.MarginTop,
+            $"Suptitle alone must widen top margin; got sup={supSpacing.MarginTop}, bare={bareSpacing.MarginTop}");
+    }
+
+    /// <summary>
+    /// A vertical color bar on the axes widens the right margin — the engine must reserve
+    /// padding + bar width + tick label + label height for the colorbar geometry.
+    /// </summary>
+    [Fact]
+    public void Engine_VerticalColorBar_WidensRightMargin()
+    {
+        var ctx = MakeCtx();
+        var withCb = new FigureBuilder()
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot([1.0, 2.0], [1.0, 2.0]);
+                ax.WithColorBar(cb => cb with { Visible = true, Orientation = ColorBarOrientation.Vertical, Label = "Intensity" });
+            })
+            .Build();
+        var withoutCb = SimpleFigure();
+
+        var cbSpacing   = new ConstrainedLayoutEngine().Compute(withCb, ctx);
+        var bareSpacing = new ConstrainedLayoutEngine().Compute(withoutCb, ctx);
+
+        Assert.True(cbSpacing.MarginRight > bareSpacing.MarginRight,
+            $"Vertical colorbar must widen right margin; got cb={cbSpacing.MarginRight}, bare={bareSpacing.MarginRight}");
+    }
+
+    /// <summary>
+    /// A secondary Y-axis label (twinX) widens the right margin — the engine branch that
+    /// handles <c>axes.SecondaryYAxis?.Label</c> on the right side.
+    /// </summary>
+    [Fact]
+    public void Engine_SecondaryYAxisLabel_WidensRightMargin()
+    {
+        var ctx = MakeCtx();
+        var withSecondary = new FigureBuilder()
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot([1.0, 2.0], [1.0, 2.0]);
+                ax.WithSecondaryYAxis(y2 => y2.SetYLabel("Secondary axis label"));
+            })
+            .Build();
+
+        var secSpacing  = new ConstrainedLayoutEngine().Compute(withSecondary, ctx);
+        var bareSpacing = new ConstrainedLayoutEngine().Compute(SimpleFigure(), ctx);
+
+        Assert.True(secSpacing.MarginRight > bareSpacing.MarginRight,
+            $"Secondary Y label must widen right margin; got sec={secSpacing.MarginRight}, bare={bareSpacing.MarginRight}");
+    }
+
+    /// <summary>
+    /// In a 2×1 grid the vertical inter-subplot gap must be wide enough to fit the upper
+    /// row's bottom-axis content AND the lower row's top-title content stacked together
+    /// (<c>stackedV = maxNonBottomBottom + maxNonTopTop</c> branch).
+    /// </summary>
+    [Fact]
+    public void Engine_MultiRow_VerticalGap_StacksUpperBottomAndLowerTop()
+    {
+        var ctx = MakeCtx();
+        var withContent = new FigureBuilder()
+            .AddSubPlot(2, 1, 1, ax => { ax.Plot([1.0, 2.0], [1.0, 2.0]); ax.SetXLabel("Upper row X label"); })
+            .AddSubPlot(2, 1, 2, ax => { ax.Plot([1.0, 2.0], [1.0, 2.0]); ax.WithTitle("Lower row title"); })
+            .Build();
+        var bare = new FigureBuilder()
+            .AddSubPlot(2, 1, 1, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .AddSubPlot(2, 1, 2, ax => ax.Plot([1.0, 2.0], [1.0, 2.0]))
+            .Build();
+
+        var withSpacing = new ConstrainedLayoutEngine().Compute(withContent, ctx);
+        var bareSpacing = new ConstrainedLayoutEngine().Compute(bare, ctx);
+
+        Assert.True(withSpacing.VerticalGap > bareSpacing.VerticalGap,
+            $"Stacking upper-row X label + lower-row title must widen VGap; got with={withSpacing.VerticalGap}, bare={bareSpacing.VerticalGap}");
     }
 }

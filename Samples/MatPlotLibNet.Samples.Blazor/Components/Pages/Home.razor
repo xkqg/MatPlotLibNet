@@ -15,7 +15,7 @@
         .WithTitle("Quarterly Revenue")
         .WithTheme(Theme.Seaborn)
         .Bar(["Q1", "Q2", "Q3", "Q4"], [120.0, 340, 250, 410],
-            bar => { bar.Color = Color.Blue; bar.Label = "Revenue ($k)"; })
+            bar => { bar.Color = Colors.Blue; bar.Label = "Revenue ($k)"; })
         .Build();
 
     private Figure _scatterChart = Plt.Create()
@@ -23,6 +23,6 @@
         .WithTheme(Theme.FiveThirtyEight)
         .Scatter([15, 18, 21, 24, 27, 30, 33, 36],
                  [50, 65, 80, 95, 120, 150, 170, 200],
-            s => { s.Color = Color.Orange; s.Label = "Sales"; })
+            s => { s.Color = Colors.Orange; s.Label = "Sales"; })
         .Build();
 }

@@ -625,172 +625,52 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         }
     }
 
-    /// <summary>Computes the combined X and Y data ranges across all series on the axes,
-    /// including shared axes ranges when sharex/sharey is configured.</summary>
-    private DataRange ComputeDataRanges()
+    /// <summary>
+    /// Computes the combined X and Y data ranges across all series on the axes, including
+    /// shared axes' ranges when <c>sharex</c>/<c>sharey</c> is configured. The heavy lifting
+    /// lives in <see cref="Range1D"/> (pipeline methods) and <see cref="AxesRangeExtensions"/>
+    /// (aggregation helpers). Exposed as <c>internal</c> so regression tests can assert the
+    /// padding / sticky-edge / nice-bound interaction without rendering to SVG.
+    /// </summary>
+    internal DataRange ComputeDataRanges()
     {
-        double xMin = Axes.XAxis.Min ?? double.MaxValue;
-        double xMax = Axes.XAxis.Max ?? double.MinValue;
-        double yMin = Axes.YAxis.Min ?? double.MaxValue;
-        double yMax = Axes.YAxis.Max ?? double.MinValue;
+        // === 1. Aggregate — seed from axis-level limits, fold in own + shared series ===
+        var xRange = Axes.AggregateXRangeWithSharedAxes(Range1D.FromAxis(Axes.XAxis));
+        var yRange = Axes.AggregateYRangeWithSharedAxes(Range1D.FromAxis(Axes.YAxis));
 
-        // Aggregate from this axes' series
-        AggregateSeriesRanges(Axes, ref xMin, ref xMax, ref yMin, ref yMax);
+        // === 2. Normalize — handle empty / lopsided / zero-width inputs before any math ===
+        xRange = xRange.Normalized();
+        yRange = yRange.Normalized();
 
-        // Aggregate from shared axes' series (walk chain, guard against cycles)
-        if (Axes.ShareXWith is not null)
+        // === 3. Snapshot contributions once, then drive padding + sticky + nice-bound ===
+        // Calling ComputeDataRange per series is expensive (Histogram rebuilds bins each call),
+        // so the legacy code's "iterate three times" pattern is replaced by one snapshot.
+        var contribs = Axes.SnapshotContributions();
+
+        // The unpadded snapshot is captured BEFORE padding so sticky clamp can distinguish
+        // "padding pushed past the sticky" (snap back) from "another series has data past the
+        // sticky" (preserve, an overlay's sticky must not clip a wider underlying series).
+        var xUnpadded = xRange;
+        var yUnpadded = yRange;
+
+        xRange = xRange.Padded(Axes.XAxis.Margin ?? Theme.AxisXMargin, Axes.XAxis);
+        yRange = yRange.Padded(Axes.YAxis.Margin ?? Theme.AxisYMargin, Axes.YAxis);
+
+        foreach (var c in contribs)
         {
-            var visited = new HashSet<Axes> { Axes };
-            var current = Axes.ShareXWith;
-            while (current is not null && visited.Add(current))
-            {
-                AggregateSeriesXRange(current, ref xMin, ref xMax);
-                current = current.ShareXWith;
-            }
+            xRange = xRange.ClampSticky(c.StickyXMin, c.StickyXMax, xUnpadded, Axes.XAxis);
+            yRange = yRange.ClampSticky(c.StickyYMin, c.StickyYMax, yUnpadded, Axes.YAxis);
         }
 
-        if (Axes.ShareYWith is not null)
-        {
-            var visited = new HashSet<Axes> { Axes };
-            var current = Axes.ShareYWith;
-            while (current is not null && visited.Add(current))
-            {
-                AggregateSeriesYRange(current, ref yMin, ref yMax);
-                current = current.ShareYWith;
-            }
-        }
+        var locator = new MatPlotLibNet.Rendering.TickLocators.AutoLocator();
+        xRange = xRange.ExpandedToNiceBoundsIfAuto(Axes.XAxis, xUnpadded, contribs.HasAnyStickyX(), locator);
+        yRange = yRange.ExpandedToNiceBoundsIfAuto(Axes.YAxis, yUnpadded, contribs.HasAnyStickyY(), locator);
 
-        // Add padding
-        if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
-        if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
-        // Guard: a series that reports yMin (e.g. 0 baseline) without reporting yMax would leave
-        // yMax at double.MinValue and the 5% padding would produce ~±1e307 labels. Fall back to
-        // yMin+1 in that case; real series should report both bounds, but this prevents catastrophic
-        // rendering when they don't.
-        if (xMax == double.MinValue) xMax = xMin + 1;
-        if (yMax == double.MinValue) yMax = yMin + 1;
-        if (Math.Abs(xMax - xMin) < 1e-10) { xMin -= 0.5; xMax += 0.5; }
-        if (Math.Abs(yMax - yMin) < 1e-10) { yMin -= 0.5; yMax += 0.5; }
-
-        // Capture the raw aggregated data range BEFORE padding so the sticky-edge clamp
-        // below can distinguish "padding pushed past the sticky" (clamp back, preserving
-        // the tight-edge intent) from "another series has data past the sticky" (DO NOT
-        // clamp — an overlay with a narrower X range must not hide the underlying data).
-        double unpaddedXMin = xMin, unpaddedXMax = xMax;
-        double unpaddedYMin = yMin, unpaddedYMax = yMax;
-
-        // Resolve axis margin: user-set on Axis takes priority; otherwise inherit from theme.
-        // matplotlib classic → 0.0, v2+ → 0.05.
-        double xMargin = Axes.XAxis.Margin ?? Theme.AxisXMargin;
-        double yMargin = Axes.YAxis.Margin ?? Theme.AxisYMargin;
-        double xPadding = (xMax - xMin) * xMargin;
-        double yPadding = (yMax - yMin) * yMargin;
-
-        if (!Axes.XAxis.Min.HasValue) xMin -= xPadding;
-        if (!Axes.XAxis.Max.HasValue) xMax += xPadding;
-        if (!Axes.YAxis.Min.HasValue) yMin -= yPadding;
-        if (!Axes.YAxis.Max.HasValue) yMax += yPadding;
-
-        // Sticky-edge clamp — matplotlib's `sticky_edges` prevent margin expansion from
-        // crossing series-registered boundaries. Canonical example: BarSeries registers
-        // StickyYMin=0 so the y-axis never pads below the bar baseline, giving bars that
-        // touch the bottom spine exactly.
-        //
-        // The guard `unpadded >= sticky` (resp. `<=` for Max) ensures we only clamp the
-        // PADDING: when the raw aggregated range from all series was already past the
-        // sticky edge, another series has legitimate data there and the sticky must not
-        // override it. Without this guard, a FillBetween/BarSeries overlay with a narrow
-        // X range would clip the underlying full-range series (see financial_dashboard:
-        // Bollinger fill x=[19..49] was clamping candlestick's x=[0..49] to x=[19..49]).
-        var context = new AxesContextAdapter(Axes);
-        foreach (var series in Axes.Series)
-        {
-            var c = series.ComputeDataRange(context);
-            if (c.StickyXMin.HasValue && xMin < c.StickyXMin.Value
-                && unpaddedXMin >= c.StickyXMin.Value && !Axes.XAxis.Min.HasValue)
-                xMin = c.StickyXMin.Value;
-            if (c.StickyXMax.HasValue && xMax > c.StickyXMax.Value
-                && unpaddedXMax <= c.StickyXMax.Value && !Axes.XAxis.Max.HasValue)
-                xMax = c.StickyXMax.Value;
-            if (c.StickyYMin.HasValue && yMin < c.StickyYMin.Value
-                && unpaddedYMin >= c.StickyYMin.Value && !Axes.YAxis.Min.HasValue)
-                yMin = c.StickyYMin.Value;
-            if (c.StickyYMax.HasValue && yMax > c.StickyYMax.Value
-                && unpaddedYMax <= c.StickyYMax.Value && !Axes.YAxis.Max.HasValue)
-                yMax = c.StickyYMax.Value;
-        }
-
-        // Nice-number view-limit expansion: when the axis is fully auto (no user-set
-        // min/max, no custom TickLocator, no series-reported sticky edges on that axis),
-        // round the computed range OUTWARD to the nearest nice tick boundary. Matches
-        // matplotlib's `MaxNLocator.view_limits` behaviour so charts like eventplot
-        // (data extent [-0.5, 3.5] with 4 rows) align to [-1, 4] instead of a 9-tick
-        // half-step axis. Skipped when any series has sticky X/Y edges: sticky means
-        // "data touches the spine exactly" and expansion would violate that promise
-        // (bars would gain empty space to their left/right, etc.).
-        bool hasStickyX = false, hasStickyY = false;
-        foreach (var series in Axes.Series)
-        {
-            var c = series.ComputeDataRange(context);
-            if (c.StickyXMin.HasValue || c.StickyXMax.HasValue) hasStickyX = true;
-            if (c.StickyYMin.HasValue || c.StickyYMax.HasValue) hasStickyY = true;
-        }
-        var niceLocator = new MatPlotLibNet.Rendering.TickLocators.AutoLocator();
-        if (!hasStickyX && !Axes.XAxis.Min.HasValue && !Axes.XAxis.Max.HasValue
-            && Axes.XAxis.TickLocator is null && xMax > xMin)
-        {
-            var (nLo, nHi) = niceLocator.ExpandToNiceBounds(xMin, xMax);
-            if (nLo <= xMin && nHi >= xMax && (nHi - nLo) <= (xMax - xMin) * 2.0)
-            { xMin = nLo; xMax = nHi; }
-        }
-        if (!hasStickyY && !Axes.YAxis.Min.HasValue && !Axes.YAxis.Max.HasValue
-            && Axes.YAxis.TickLocator is null && yMax > yMin)
-        {
-            var (nLo, nHi) = niceLocator.ExpandToNiceBounds(yMin, yMax);
-            if (nLo <= yMin && nHi >= yMax && (nHi - nLo) <= (yMax - yMin) * 2.0)
-            { yMin = nLo; yMax = nHi; }
-        }
-
-        return new DataRange(xMin, xMax, yMin, yMax);
-    }
-
-    private static void AggregateSeriesRanges(Axes axes, ref double xMin, ref double xMax, ref double yMin, ref double yMax)
-    {
-        var context = new AxesContextAdapter(axes);
-        foreach (var series in axes.Series)
-        {
-            var c = series.ComputeDataRange(context);
-            if (c.XMin.HasValue && c.XMin.Value < xMin) xMin = c.XMin.Value;
-            if (c.XMax.HasValue && c.XMax.Value > xMax) xMax = c.XMax.Value;
-            if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
-            if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
-        }
-    }
-
-    private static void AggregateSeriesXRange(Axes axes, ref double xMin, ref double xMax)
-    {
-        var context = new AxesContextAdapter(axes);
-        foreach (var series in axes.Series)
-        {
-            var c = series.ComputeDataRange(context);
-            if (c.XMin.HasValue && c.XMin.Value < xMin) xMin = c.XMin.Value;
-            if (c.XMax.HasValue && c.XMax.Value > xMax) xMax = c.XMax.Value;
-        }
-    }
-
-    private static void AggregateSeriesYRange(Axes axes, ref double yMin, ref double yMax)
-    {
-        var context = new AxesContextAdapter(axes);
-        foreach (var series in axes.Series)
-        {
-            var c = series.ComputeDataRange(context);
-            if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
-            if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
-        }
+        return new DataRange(xRange.Lo, xRange.Hi, yRange.Lo, yRange.Hi);
     }
 
     /// <summary>Computes the Y data range for series plotted against the secondary Y-axis.</summary>
-    private DataRange ComputeSecondaryDataRanges(double xMin, double xMax)
+    internal DataRange ComputeSecondaryDataRanges(double xMin, double xMax)
     {
         double yMin = Axes.SecondaryYAxis?.Min ?? double.MaxValue;
         double yMax = Axes.SecondaryYAxis?.Max ?? double.MinValue;
@@ -817,7 +697,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     }
 
     /// <summary>Computes the X data range for series plotted against the secondary X-axis.</summary>
-    private DataRange ComputeSecondaryXDataRanges(double yMin, double yMax)
+    internal DataRange ComputeSecondaryXDataRanges(double yMin, double yMax)
     {
         double xMin = Axes.SecondaryXAxis?.Min ?? double.MaxValue;
         double xMax = Axes.SecondaryXAxis?.Max ?? double.MinValue;

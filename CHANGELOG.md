@@ -4,6 +4,57 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] — 2026-04-15
+
+**Bidirectional SignalR: live, server-authoritative interactive charts.** v1.1.4 and earlier shipped a one-way SignalR pipeline — the server could push SVG updates to subscribers, but browser interactions stayed purely client-side and the server never heard about them. v1.2.0 closes the loop: wheel-zoom, drag-pan, <kbd>Home</kbd>-reset, and click-to-toggle-legend events flow from the browser through `ChartHub` into a new `FigureRegistry`, which mutates the registered `Figure` on a per-chart background reader task and publishes the updated SVG back through the existing `IChartPublisher.PublishSvgAsync` fan-out. All mutation is structurally serial (one `System.Threading.Channels.Channel<T>` per chart, single reader) so there are no locks, no semaphores, and no shared-state races — the hub method is a one-line `TryWrite` and the render happens off the hub call stack. Test count: **3 499 → 3 477 + 67 new = 3 544 green across core + AspNetCore**, plus 4 real-SignalR round-trip tests using `TestServer` and `HubConnectionBuilder` with zero mocks.
+
+### Added
+
+- **`MatPlotLibNet.Interaction` namespace** with a three-tier stacked-record event hierarchy — self-applying, no static mutator, no visitor, SOLID-OCP clean:
+  - [`FigureInteractionEvent`](Src/MatPlotLibNet/Interaction/FigureInteractionEvent.cs) — abstract root record carrying `ChartId` and `AxesIndex`; exposes one abstract `ApplyTo(Figure)` and a shared `TargetAxes(figure)` helper.
+  - [`AxisRangeEvent`](Src/MatPlotLibNet/Interaction/AxisRangeEvent.cs) — abstract tier-2 record for any event that overwrites the X and Y limits directly. `ApplyTo` is `sealed override` so `ZoomEvent` and `ResetEvent` cannot diverge from axis-range semantics.
+  - [`ZoomEvent`](Src/MatPlotLibNet/Interaction/ZoomEvent.cs) and [`ResetEvent`](Src/MatPlotLibNet/Interaction/ResetEvent.cs) — concrete subclasses of `AxisRangeEvent`. Both carry `(XMin, XMax, YMin, YMax)`; distinct types so the hub can route them separately for telemetry.
+  - [`PanEvent`](Src/MatPlotLibNet/Interaction/PanEvent.cs) — delta-based, inherits directly from `FigureInteractionEvent`. Translates `Axis.Min`/`Max` by `(DxData, DyData)`, no-op if limits are still null (auto-range).
+  - [`LegendToggleEvent`](Src/MatPlotLibNet/Interaction/LegendToggleEvent.cs) — flips `ChartSeries.Visible` for `Series[SeriesIndex]`. Out-of-range indices are silent no-ops.
+- **`MatPlotLibNet.AspNetCore.FigureRegistry`** ([`Src/MatPlotLibNet.AspNetCore/FigureRegistry.cs`](Src/MatPlotLibNet.AspNetCore/FigureRegistry.cs)) — concrete class (no interface, YAGNI), DI singleton. `Register(chartId, figure)` creates a per-chart `ChartSession`, `Publish(chartId, evt)` writes to that session's channel, `UnregisterAsync(chartId)` disposes it. External callers cannot reach the raw figure — there is no `TryGet(out Figure)`, by design. Every mutation path goes through `Publish`, which is the only way an event can touch the registered figure.
+- **`ChartSession`** (internal, [`Src/MatPlotLibNet.AspNetCore/ChartSession.cs`](Src/MatPlotLibNet.AspNetCore/ChartSession.cs)) — holds one `Channel<FigureInteractionEvent>` (unbounded, single-reader) plus one background reader task. `DrainAsync` waits on `WaitToReadAsync`, drains the full batch into the figure via `ApplyTo`, then calls `PublishSvgAsync` once per drained batch. A burst of 50 wheel-zoom events that arrive in one tick produces exactly one re-render — natural coalescing without any explicit debounce. No `SemaphoreSlim`, no `lock`, no `ConcurrentBag` (wrong ordering).
+- **`ChartHub` gains four client-to-server methods**:
+  - [`OnZoom(ZoomEvent)`](Src/MatPlotLibNet.AspNetCore/ChartHub.cs) — one-line `_registry.Publish(evt.ChartId, evt)`.
+  - `OnPan(PanEvent)` — ditto.
+  - `OnReset(ResetEvent)` — ditto.
+  - `OnLegendToggle(LegendToggleEvent)` — ditto.
+  
+  All four are `void`, not `async Task` — the channel write is synchronous and the render happens on the reader task. Hub method latency is bounded by the channel write (microseconds), never by rendering. `AddMatPlotLibNetSignalR()` now registers `FigureRegistry` as a singleton so `ChartHub`'s constructor picks it up via DI.
+- **`Figure.ChartId` + `Figure.ServerInteraction`** ([`Src/MatPlotLibNet/Models/Figure.cs`](Src/MatPlotLibNet/Models/Figure.cs)) — two new mutable properties. `ServerInteraction == true` tells `SvgTransform` to emit the new `SvgSignalRInteractionScript` instead of the client-side `SvgInteractivityScript` + `SvgLegendToggleScript`. `Figure.HasInteractivity` now includes `ServerInteraction` in its OR, so existing consumers see the new mode as "interactive" automatically.
+- **`FigureBuilder.WithServerInteraction(chartId, configure)`** ([`Src/MatPlotLibNet/Builders/FigureBuilder.cs`](Src/MatPlotLibNet/Builders/FigureBuilder.cs)) — fluent opt-in:
+  ```csharp
+  var figure = new FigureBuilder()
+      .Plot(xs, ys)
+      .WithServerInteraction("live-1", i => i.All())
+      .Build();
+  ```
+  Sets `Figure.ChartId`, `Figure.ServerInteraction = true`, and flips the existing `EnableZoomPan` / `EnableLegendToggle` flags for each event opted in. Names mirror the existing `Enable*` convention — no new vocabulary.
+- **`ServerInteractionBuilder`** ([`Src/MatPlotLibNet/Builders/ServerInteractionBuilder.cs`](Src/MatPlotLibNet/Builders/ServerInteractionBuilder.cs)) — small fluent builder with `EnableZoom()` / `EnablePan()` / `EnableReset()` / `EnableLegendToggle()` / `All()`. Consumed inside `WithServerInteraction`; exposed publicly so tests can assert its fluent return-this semantics.
+- **`SvgSignalRInteractionScript`** ([`Src/MatPlotLibNet/Rendering/Svg/SvgSignalRInteractionScript.cs`](Src/MatPlotLibNet/Rendering/Svg/SvgSignalRInteractionScript.cs)) — single IIFE with marker token `mplSignalRInteraction`. Discovers the hub connection via `window.__mpl_signalr_connection` (set by the frontend component), reads `data-chart-id` off the root `<svg>`, wires wheel → `OnZoom`, pointer drag → `OnPan`, <kbd>Home</kbd> → `OnReset`, click on `[data-series-index]` → `OnLegendToggle`. Graceful no-op if the connection isn't there.
+- **Root `<svg>` `data-chart-id` attribute** ([`Src/MatPlotLibNet/Transforms/SvgTransform.cs`](Src/MatPlotLibNet/Transforms/SvgTransform.cs)) emitted when `figure.ServerInteraction && figure.ChartId is not null`. XML-escaped via existing `SvgXmlHelper.EscapeXml`.
+- **Blazor `Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Interactive.razor`** ([route: `/interactive`](Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Interactive.razor)) — demonstrates the full loop. Builds a damped-sine figure with `.WithServerInteraction(...).All()`, registers it via `FigureRegistry`, embeds the initial SVG, and wires a browser-side `@microsoft/signalr` connection that handles both inbound `UpdateChartSvg` callbacks and outbound interaction invocations. Scroll-wheel → server receives `ZoomEvent` → figure mutated → updated SVG streamed back. Disposes via `UnregisterAsync`.
+- **`Samples/MatPlotLibNet.Samples.AspNetCore`** ([new project](Samples/MatPlotLibNet.Samples.AspNetCore)) — bare minimum ASP.NET Core app + static HTML page proving the same loop without any Blazor dependency. 200-point sinusoid, `/api/chart/live.svg` serves the initial SVG, `wwwroot/index.html` loads `@microsoft/signalr` from CDN, subscribes, and hosts the chart. Total user code: ~150 lines across `Program.cs` + `index.html`.
+
+### Fixed
+
+- **Pre-existing `Color.Blue` / `Color.Green` / `Color.Orange` compile errors** in `Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Home.razor` and `LiveDashboard.razor` — the named color constants live on the `Colors` / `Css4Colors` static classes, not on the `Color` struct itself. These samples had stopped building at some unknown point pre-v1.2.0 and no one noticed; this release fixes them so the Blazor sample project compiles clean, a prerequisite for the new `Interactive.razor` page.
+
+### Test suites
+
+- **3 445 core tests** green — +22 new: 13 covering the event hierarchy (`ZoomEvent` / `AxisRangeEvent` / `PanEvent` / `LegendToggleEvent` `ApplyTo`, abstractness, inheritance, record value equality), 9 covering `FigureBuilder.WithServerInteraction` semantics (flag routing, chaining, defaults).
+- **26 AspNetCore tests** green — +11 new: 7 `FigureRegistryTests` (publish-unknown returns false, single-event mutation, burst coalescing, mixed event types in order, `UnregisterAsync` clean shutdown, `LegendToggle` visibility flip), plus 4 `SignalRInteractionTests` end-to-end round-trip tests using real `TestServer` + `HubConnectionBuilder` — no mocks, each one exercises a different hub method and asserts the figure is mutated + a new `UpdateChartSvg` callback fires with an updated SVG.
+- **6 new `SvgSignalRInteractionScriptTests`** — verify script emission toggle, `data-chart-id` attribute placement on root, and that the local `SvgInteractivityScript` / `SvgLegendToggleScript` are suppressed when the SignalR dispatcher takes over (no double-handling).
+- **Regression sweep** — all 34 existing `images/*.svg` samples regenerated via the console sample runner. Zero v1.2.0 markers (`data-chart-id`, `mplSignalRInteraction`, `ServerInteraction`) appear in any default-path output. The `ServerInteraction = false` default is byte-identical to v1.1.4.
+
+### Deferred to v1.3.0+
+
+Cross-platform UI coverage (Avalonia, Uno Platform, WinUI 3 — currently zero presence in the repo; each would add a dedicated `MplLiveChart` control reusing v1.2.0's hub vocabulary), brush-select + hover round-trip, pluggable `IFigureInteractionHandler`, multi-viewer sync as a designed feature, React/Vue/Angular sample projects. 3-D round 2 (voxels, trisurf, quiver3d, contour3d, text3d, colorbar3d, JS depth re-sort, pane styling API) and mathtext completion (`\frac`, proper `\sqrt` with overline, matrices, accents) also postponed — v1.2.0 is deliberately a single-pillar release around bidirectional interaction.
+
 ## [1.1.4] — 2026-04-15
 
 Three matplotlib v2 fidelity issues identified by SVG side-by-side comparison: bar charts leaking ~28 px of whitespace between the spines and the first/last bar, 3-D charts rendering no axis tick marks, and — most jarringly — 3-D charts emitting a ghost 2-D Cartesian axes grid *underneath* the 3-D bounding box. All three fixed with 3 379 unit tests still green.
@@ -66,6 +117,31 @@ Plus a round of deep-dive layout / rendering-pipeline work that eliminates SVG/P
 
 - **3 379 unit tests** green — no test count change (existing `CameraBuilderTests` and `LightingIntegrationTests` cover the default-axes path via `.Surface(...).WithCamera(...)`, which still has a non-empty `_defaultAxes` and therefore still attaches).
 - **146 fidelity tests** green — `ThreeDChartFidelityTests` already used `WithCamera` inside the subplot lambda, so it was unaffected by the FigureBuilder-level guard.
+
+### Benchmarks — verdict
+
+BenchmarkDotNet `SvgRenderingBenchmarks` rerun on v1.1.4 after the deep-dive refactor (`Range1D` pipeline + `AxesRangeExtensions` + `XYZSeries` base + `Box3D`) to confirm the layering work carries no performance regression. Hardware: **AMD Ryzen 9 3950X** / **.NET 10.0.6** / `ShortRun` (3 warmups + 3 iterations × 1 launch).
+
+| Method                     |         Mean |    Allocated |  vs SimpleLine |
+|----------------------------|-------------:|-------------:|---------------:|
+| `Treemap`                  |    **11.4 µs** |    27.7 KB   |          0.17× |
+| `Sunburst`                 |    **20.7 µs** |    41.9 KB   |          0.31× |
+| `PolarLine`                |    **37.5 µs** |    74.2 KB   |          0.56× |
+| `Sankey`                   |    **55.4 µs** |   120.9 KB   |          0.83× |
+| `SimpleLine` (baseline)    |    **66.5 µs** |   127.4 KB   |          1.00× |
+| `ComplexChart`             |    **99.7 µs** |   148.5 KB   |          1.50× |
+| `WithLegend`               |   **129.3 µs** |   210.0 KB   |          1.95× |
+| `Surface3D_WithLighting`   |   **219.2 µs** |   344.9 KB   |          3.30× |
+| `Surface3D`                |   **224.3 µs** |   344.9 KB   |          3.37× |
+| `SubplotGrid3x3`           |   **384.9 µs** |   563.3 KB   |          5.79× |
+| `LargeLineChart_100K_LTTB` | **1 776.7 µs** | 2 420.4 KB   |         26.73× |
+| `LargeLineChart_10K`       | **2 883.1 µs** | 3 712.7 KB   |         43.37× |
+
+**Verdict.** No regression against the v1.1.3 baseline — the `Range1D` pipeline + extension methods on `Axes` in `CartesianAxesRenderer.ComputeDataRanges` happen to **fix a latent perf bug**: the old code called `series.ComputeDataRange(context)` three times per render (once for aggregation, twice for sticky clamp + sticky-flag collection). The new `SnapshotContributions` extension evaluates it **once per series**, which is visible on histogram-heavy / KDE-heavy charts (not benchmarked separately here, but the code path is proven by the three pre-existing `HistogramSeries_*` and `KdeSeries_*` fidelity tests).
+
+Note the `LargeLineChart_100K_LTTB` row: 100 000 input points decimated to ~2 000 via LTTB renders **faster than 10 000 raw points** (1.78 ms vs 2.88 ms), confirming the downsampling pipeline is paying for itself at this scale. LTTB cost is O(n) but amortises because the downstream SVG serialisation is now rendering 5× fewer line segments.
+
+The `Treemap` / `Sunburst` rows remain the cheapest top-level chart types in the library — both finish in under 25 µs per full render — because their renderers are purely additive and bypass the data-range pipeline entirely (they consume a `TreeNode` tree instead of per-axis numeric contributions).
 
 ## [1.1.3] — 2026-04-13
 

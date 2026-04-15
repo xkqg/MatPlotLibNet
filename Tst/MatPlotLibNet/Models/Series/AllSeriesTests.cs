@@ -52,7 +52,7 @@ public class AllSeriesTests
         { new PolarBarSeries([5.0, 10.0], [0.0, 1.57]), nameof(PolarBarSeries) },
         { new SurfaceSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(SurfaceSeries) },
         { new WireframeSeries([1.0, 2.0], [1.0, 2.0], new double[,] { { 1, 2 }, { 3, 4 } }), nameof(WireframeSeries) },
-        { new Scatter3DSeries([1.0], [2.0], [3.0]), nameof(Scatter3DSeries) },
+        { new Scatter3DSeries(new double[] { 1.0 }, new double[] { 2.0 }, new double[] { 3.0 }), nameof(Scatter3DSeries) },
         { new RugplotSeries(new double[] { 1.0, 2.0, 3.0 }), nameof(RugplotSeries) },
         { new StripplotSeries([[1.0, 2.0], [3.0, 4.0]]), nameof(StripplotSeries) },
         { new EventplotSeries([[1.0, 2.0], [3.0]]), nameof(EventplotSeries) },

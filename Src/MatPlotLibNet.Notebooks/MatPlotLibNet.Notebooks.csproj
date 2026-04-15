@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Notebooks</PackageId>
-    <Version>1.1.4</Version>
+    <Version>1.2.0</Version>
     <Description>Polyglot Notebooks / Jupyter support for MatPlotLibNet. Renders Figure inline as SVG in notebook cells.</Description>
     <PackageTags>notebooks;jupyter;polyglot;interactive;charting;svg</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

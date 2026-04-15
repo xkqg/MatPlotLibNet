@@ -26,7 +26,7 @@
                 .WithTitle($"Sensor Reading ({DateTime.Now:HH:mm:ss})")
                 .WithTheme(Theme.Dark)
                 .Plot(Enumerable.Range(1, 8).Select(i => (double)i).ToArray(), data,
-                    line => { line.Color = Color.Green; line.Label = "Value"; })
+                    line => { line.Color = Colors.Green; line.Label = "Value"; })
                 .Build();
             await Publisher.PublishSvgAsync("blazor-live", figure);
         }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3));

@@ -2,7 +2,7 @@
   "name": "@matplotlibnet/vue",
   "version": "0.3.2",
   "description": "Vue 3 components for MatPlotLibNet charting library with SignalR live updates",
-  "license": "GPL-3.0-only",
+  "license": "MIT",
   "author": "H.P. Gansevoort",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

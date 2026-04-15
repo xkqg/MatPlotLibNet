@@ -4,7 +4,9 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
-[![Version](https://img.shields.io/badge/version-1.1.4-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](CHANGELOG.md)
+
+> **v1.2.0 — Bidirectional SignalR interactive charts.** Browser wheel-zoom, drag-pan, reset, and legend-toggle now round-trip through `ChartHub` to a server-authoritative `Figure` that is mutated on a per-chart channel-drained background task and re-published through the existing SignalR fan-out. Pure .NET, no JavaScript charting library, server stays the source of truth. See [MatPlotLibNet.AspNetCore README](Src/MatPlotLibNet.AspNetCore/README.md#bidirectional-signalr-v120) or the `Samples/MatPlotLibNet.Samples.AspNetCore` + `Interactive.razor` demos.
 
 ---
 
@@ -44,7 +46,9 @@ Plt.Create()
     .Save("chart.svg");
 ```
 
-**61 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, **PlanarBar3D** (new in v1.1.4 — flat translucent "2D bars in different Y planes" / skyscraper plot), radar, waterfall, funnel, gauge, and more.
+**61 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, radar, waterfall, funnel, gauge, and more.
+
+**Bidirectional SignalR** (v1.2.0) — `FigureBuilder.WithServerInteraction("chart-id", i => i.All())` opts a figure into server-authoritative interaction. The embedded dispatcher script invokes `ChartHub.OnZoom` / `OnPan` / `OnReset` / `OnLegendToggle`, a `FigureRegistry`-owned background reader task mutates the figure through a stacked-record event hierarchy (`ZoomEvent : AxisRangeEvent : FigureInteractionEvent`), and the updated SVG streams back through the existing publish fan-out. Natural coalescing — bursts of wheel events produce exactly one re-render per batch. Works with any `@microsoft/signalr` host page; first-class Blazor sample ships in `Samples/MatPlotLibNet.Samples.Blazor`.
 
 **Accessibility** — SVG exports carry `role="img"`, `<title>`/`<desc>`, and ARIA labels on all structural groups; all 5 interactive JS features are keyboard-navigable; Okabe-Ito color-blind safe palette (`Theme.ColorBlindSafe`); WCAG AAA high-contrast theme (`Theme.HighContrast`).
 

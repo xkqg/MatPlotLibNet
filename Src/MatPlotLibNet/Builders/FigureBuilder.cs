@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
@@ -159,6 +160,28 @@ public sealed class FigureBuilder
     /// <summary>Enables Shift+drag rectangular data selection in SVG output.</summary>
     public FigureBuilder WithSelection(bool enabled = true) { _enableSelection = enabled; return this; }
     private bool _enableSelection;
+
+    private string? _chartId;
+    private bool _serverInteraction;
+
+    /// <summary>Opts the figure into bidirectional SignalR interaction under the supplied
+    /// <paramref name="chartId"/>. Interaction events (zoom, pan, reset, legend-toggle) selected
+    /// in <paramref name="configure"/> are routed through the ChartHub to the server's
+    /// <c>FigureRegistry</c>, which mutates the registered figure and re-publishes the updated
+    /// SVG. When this method is called, the SVG output embeds the SignalR dispatcher script
+    /// instead of the local client-side IIFE scripts.</summary>
+    public FigureBuilder WithServerInteraction(string chartId, Action<ServerInteractionBuilder> configure)
+    {
+        _chartId = chartId;
+        _serverInteraction = true;
+        var builder = new ServerInteractionBuilder();
+        configure(builder);
+        if (builder.Zoom || builder.Pan || builder.Reset)
+            _enableZoomPan = true;
+        if (builder.LegendToggle)
+            _enableLegendToggle = true;
+        return this;
+    }
 
     private bool _enable3DRotation;
 
@@ -409,6 +432,8 @@ public sealed class FigureBuilder
             Dpi = _dpi,
             BackgroundColor = _background,
             Theme = _theme,
+            ChartId = _chartId,
+            ServerInteraction = _serverInteraction,
             EnableZoomPan = _enableZoomPan,
             EnableLegendToggle = _enableLegendToggle,
             EnableRichTooltips = _enableRichTooltips,

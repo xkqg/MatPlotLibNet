@@ -9,14 +9,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D stem series — vertical lines from the XY-plane to each (X, Y, Z) data point.</summary>
-public sealed class Stem3DSeries : ChartSeries, I3DPointSeries, IHasColor
+public sealed class Stem3DSeries : XYZSeries, IHasColor
 {
-    public Vec X { get; }
-
-    public Vec Y { get; }
-
-    public Vec Z { get; }
-
     public Color? Color { get; set; }
 
     public double MarkerSize { get; set; } = 6;
@@ -29,20 +23,8 @@ public sealed class Stem3DSeries : ChartSeries, I3DPointSeries, IHasColor
     /// so a single-colour theme override works as expected.</summary>
     public Color? BaseLineColor { get; set; }
 
-    // I3DPointSeries explicit implementations (Vec casts to double[] via implicit operator)
-    double[] I3DPointSeries.X => X;
-    double[] I3DPointSeries.Y => Y;
-    double[] I3DPointSeries.Z => Z;
-
     /// <summary>Initializes a new instance of <see cref="Stem3DSeries"/>.</summary>
-    public Stem3DSeries(Vec x, Vec y, Vec z)
-    {
-        X = x; Y = y; Z = z;
-    }
-
-    /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context)
-        => new(null, null, null, null);
+    public Stem3DSeries(Vec x, Vec y, Vec z) : base(x, y, z) { }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

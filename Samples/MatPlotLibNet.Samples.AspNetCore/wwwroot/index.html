@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MatPlotLibNet — Bidirectional SignalR Demo</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 2rem; background: #fafafa; color: #222; }
+        h1 { margin-bottom: 0.25rem; }
+        p.hint { margin-top: 0; color: #666; font-size: 0.9rem; }
+        #chart-host { border: 1px solid #ddd; border-radius: 4px; background: white; padding: 1rem; display: inline-block; }
+        #chart-host svg { display: block; max-width: 100%; }
+        #status { font-family: monospace; font-size: 0.85rem; color: #444; margin-top: 1rem; min-height: 1.5rem; }
+    </style>
+</head>
+<body>
+    <h1>Bidirectional SignalR Demo</h1>
+    <p class="hint">
+        Scroll wheel on the chart to zoom. Drag to pan. Focus the chart (click it) and press <kbd>Home</kbd> to reset.
+        Every gesture round-trips to the .NET server, which mutates the authoritative Figure and pushes back a re-rendered SVG.
+    </p>
+    <div id="chart-host">loading&hellip;</div>
+    <div id="status"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        const chartId = 'live-1';
+        const host = document.getElementById('chart-host');
+        const status = document.getElementById('status');
+
+        function log(msg) {
+            status.textContent = new Date().toISOString().slice(11, 19) + '  ' + msg;
+        }
+
+        async function main() {
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl('/charts-hub')
+                .withAutomaticReconnect()
+                .build();
+
+            // Expose globally so the embedded SvgSignalRInteractionScript can find it.
+            window.__mpl_signalr_connection = connection;
+
+            connection.on('UpdateChartSvg', (id, svg) => {
+                if (id !== chartId) return;
+                host.innerHTML = svg;
+                window.__mpl_signalr_connection = connection;  // re-expose after DOM swap
+                log('received UpdateChartSvg (' + svg.length + ' bytes)');
+            });
+
+            await connection.start();
+            await connection.invoke('Subscribe', chartId);
+            log('connected and subscribed to ' + chartId);
+
+            // Fetch the initial SVG and embed it.
+            const resp = await fetch('/api/chart/live.svg');
+            host.innerHTML = await resp.text();
+            log('initial SVG loaded — interact with the chart to round-trip events');
+        }
+
+        main().catch(e => log('error: ' + (e && e.message || e)));
+    </script>
+</body>
+</html>

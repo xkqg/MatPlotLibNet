@@ -1,0 +1,72 @@
+@page "/interactive"
+@using MatPlotLibNet.AspNetCore
+@using MatPlotLibNet.Rendering.Svg
+@using MatPlotLibNet.Transforms
+@inject FigureRegistry Registry
+@inject IChartPublisher Publisher
+@implements IDisposable
+
+<h1>Bidirectional SignalR Demo</h1>
+<p>
+    Scroll wheel over the chart to zoom. Drag to pan. Click the chart and press
+    <kbd>Home</kbd> to reset. Every gesture round-trips to the .NET server via
+    <code>ChartHub.OnZoom</code> / <code>OnPan</code> / <code>OnReset</code>, which mutates the
+    authoritative <code>Figure</code> via <code>FigureRegistry</code> and publishes the updated
+    SVG back through the existing broadcast pipeline.
+</p>
+
+<div id="mpl-interactive-host">@((MarkupString)_svg)</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+    (function () {
+        if (window.__mplBootstrapped) return;
+        window.__mplBootstrapped = true;
+        var conn = new signalR.HubConnectionBuilder()
+            .withUrl('/charts-hub')
+            .withAutomaticReconnect()
+            .build();
+        window.__mpl_signalr_connection = conn;
+        conn.on('UpdateChartSvg', function (id, svg) {
+            if (id !== 'blazor-interactive') return;
+            var host = document.getElementById('mpl-interactive-host');
+            if (host) host.innerHTML = svg;
+            window.__mpl_signalr_connection = conn; // re-expose after DOM swap
+        });
+        conn.start().then(function () { return conn.invoke('Subscribe', 'blazor-interactive'); });
+    })();
+</script>
+
+@code {
+    private const string ChartId = "blazor-interactive";
+    private string _svg = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        var xs = Enumerable.Range(0, 150).Select(i => i * 0.05).ToArray();
+        var ys = xs.Select(x => Math.Sin(x) * Math.Exp(-0.1 * x)).ToArray();
+
+        var figure = Plt.Create()
+            .WithTitle("Damped sine — server-authoritative zoom/pan")
+            .WithSize(900, 450)
+            .WithTheme(Theme.MatplotlibV2)
+            .Plot(xs, ys, line => { line.Color = Css4Colors.Crimson; line.Label = "sin(x)·e^(-0.1x)"; })
+            .WithServerInteraction(ChartId, i => i.All())
+            .Build();
+
+        figure.SubPlots[0].XAxis.Min = xs[0];
+        figure.SubPlots[0].XAxis.Max = xs[^1];
+        figure.SubPlots[0].YAxis.Min = -1.0;
+        figure.SubPlots[0].YAxis.Max = 1.0;
+
+        Registry.Register(ChartId, figure);
+
+        var renderer = new SvgTransform();
+        _svg = renderer.Render(figure);
+    }
+
+    public void Dispose()
+    {
+        _ = Registry.UnregisterAsync(ChartId);
+    }
+}

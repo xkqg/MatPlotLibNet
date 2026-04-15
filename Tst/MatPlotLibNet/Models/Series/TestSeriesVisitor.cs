@@ -71,4 +71,5 @@ internal sealed class TestSeriesVisitor : ISeriesVisitor
     public void Visit(BarbsSeries series, RenderArea area) => LastVisited = nameof(BarbsSeries);
     public void Visit(Stem3DSeries series, RenderArea area) => LastVisited = nameof(Stem3DSeries);
     public void Visit(Bar3DSeries series, RenderArea area) => LastVisited = nameof(Bar3DSeries);
+    public void Visit(PlanarBar3DSeries series, RenderArea area) => LastVisited = nameof(PlanarBar3DSeries);
 }

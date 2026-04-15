@@ -76,33 +76,19 @@ public class ColorTests
         Assert.StartsWith("rgba(255,128,0,", rgba);
     }
 
-    /// <summary>Verifies that Colors.Red matches the expected RGB values.</summary>
-    [Fact]
-    public void NamedColor_Red_IsCorrect()
+    /// <summary>Verifies that primary named colours in <see cref="Colors"/> match their expected RGB values.</summary>
+    public static TheoryData<Color, byte, byte, byte> NamedColorCases => new()
     {
-        Assert.Equal(new Color(255, 0, 0), Colors.Red);
-    }
+        { Colors.Red,   255,   0,   0 },
+        { Colors.Blue,    0,   0, 255 },
+        { Colors.White, 255, 255, 255 },
+        { Colors.Black,   0,   0,   0 },
+    };
 
-    /// <summary>Verifies that Colors.Blue matches the expected RGB values.</summary>
-    [Fact]
-    public void NamedColor_Blue_IsCorrect()
-    {
-        Assert.Equal(new Color(0, 0, 255), Colors.Blue);
-    }
-
-    /// <summary>Verifies that Colors.White matches the expected RGB values.</summary>
-    [Fact]
-    public void NamedColor_White_IsCorrect()
-    {
-        Assert.Equal(new Color(255, 255, 255), Colors.White);
-    }
-
-    /// <summary>Verifies that Colors.Black matches the expected RGB values.</summary>
-    [Fact]
-    public void NamedColor_Black_IsCorrect()
-    {
-        Assert.Equal(new Color(0, 0, 0), Colors.Black);
-    }
+    [Theory]
+    [MemberData(nameof(NamedColorCases))]
+    public void NamedColor_HasExpectedRgb(Color actual, byte r, byte g, byte b)
+        => Assert.Equal(new Color(r, g, b), actual);
 
     /// <summary>Verifies that FromRgba normalizes 0.0-1.0 double values to 0-255 byte range.</summary>
     [Fact]

@@ -9,28 +9,14 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a 3D bar chart series — rectangular prisms rising from the XY-plane.</summary>
-public sealed class Bar3DSeries : ChartSeries, I3DPointSeries, IHasColor
+public sealed class Bar3DSeries : XYZSeries, IHasColor
 {
-    public Vec X { get; }
-
-    public Vec Y { get; }
-
-    public Vec Z { get; }
-
     public double BarWidth { get; set; } = 0.5;
 
     public Color? Color { get; set; }
 
-    // I3DPointSeries explicit implementations
-    double[] I3DPointSeries.X => X;
-    double[] I3DPointSeries.Y => Y;
-    double[] I3DPointSeries.Z => Z;
-
     /// <summary>Initializes a new instance of <see cref="Bar3DSeries"/>.</summary>
-    public Bar3DSeries(Vec x, Vec y, Vec z)
-    {
-        X = x; Y = y; Z = z;
-    }
+    public Bar3DSeries(Vec x, Vec y, Vec z) : base(x, y, z) { }
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
@@ -39,13 +25,11 @@ public sealed class Bar3DSeries : ChartSeries, I3DPointSeries, IHasColor
         // matplotlib bar3d convention: X[i] / Y[i] are the LEFT-FRONT corner of the bar,
         // not the centre. Bar spans [X, X+BarWidth] × [Y, Y+BarWidth] × [0, Z]. This aligns
         // X/Y tick labels with bar edges instead of centres.
-        double xLo = X.Min(), xHi = X.Max() + BarWidth;
-        double yLo = Y.Min(), yHi = Y.Max() + BarWidth;
-        double zLo = Math.Min(0, Z.Min());
-        double zHi = Math.Max(0, Z.Max());
-        return new(xLo, xHi, yLo, yHi,
-            StickyZMin: 0,
-            ZMin: zLo, ZMax: zHi);
+        return new Box3D(
+            X: new(X.Min(), X.Max() + BarWidth),
+            Y: new(Y.Min(), Y.Max() + BarWidth),
+            Z: new(Math.Min(0, Z.Min()), Math.Max(0, Z.Max()))
+        ).ToContribution(stickyZMin: 0);
     }
 
     /// <inheritdoc />
