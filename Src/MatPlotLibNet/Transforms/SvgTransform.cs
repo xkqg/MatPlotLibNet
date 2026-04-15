@@ -80,11 +80,17 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
             foreach (var ctx in subplotContexts)
                 ctx.WriteTo(sb);
             figCbCtx?.WriteTo(sb);
-            // ServerInteraction routes zoom/pan/legend-toggle through SignalR instead of the
-            // local client-side IIFEs — the SignalR dispatcher replaces both scripts below.
+            // ServerInteraction routes browser events through SignalR instead of the local
+            // client-side IIFEs — the SignalR dispatcher replaces all four local scripts
+            // (zoom/pan, legend-toggle, selection/brush, tooltip) with one unified branch
+            // that invokes ChartHub methods. Opted-in branches are included; others are
+            // omitted for size. Emission order is preserved from v1.2.1 so existing static
+            // figures produce byte-identical SVG output.
             if (figure.ServerInteraction)
             {
-                sb.AppendLine(SvgSignalRInteractionScript.GetScript());
+                sb.AppendLine(SvgSignalRInteractionScript.GetScript(
+                    enableBrushSelect: figure.EnableSelection,
+                    enableHover: figure.EnableRichTooltips));
             }
             else
             {
@@ -93,11 +99,15 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
                 if (figure.EnableLegendToggle)
                     sb.AppendLine(SvgLegendToggleScript.GetScript());
             }
-            if (figure.EnableRichTooltips)
+            // v1.2.0 preserved order: RichTooltips / Highlight / Selection are always
+            // emitted after the zoom/pan/legend block for static figures. v1.2.2 skips
+            // RichTooltips and Selection for ServerInteraction figures (the dispatcher
+            // replaces them) but keeps Highlight emission unchanged.
+            if (!figure.ServerInteraction && figure.EnableRichTooltips)
                 sb.AppendLine(SvgCustomTooltipScript.GetScript());
             if (figure.EnableHighlight)
                 sb.AppendLine(SvgHighlightScript.GetScript());
-            if (figure.EnableSelection)
+            if (!figure.ServerInteraction && figure.EnableSelection)
                 sb.AppendLine(SvgSelectionScript.GetScript());
             if (figure.Enable3DRotation)
                 sb.AppendLine(Svg3DRotationScript.GetScript());

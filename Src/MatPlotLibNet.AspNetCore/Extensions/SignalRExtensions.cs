@@ -23,6 +23,7 @@ public static class SignalRExtensions
         services.AddSingleton<IChartRenderer, ChartRenderer>();
         services.AddSingleton<ISvgRenderer, SvgTransform>();
         services.AddSingleton<IChartPublisher, ChartPublisher>();
+        services.AddSingleton<ICallerPublisher, CallerPublisher>();
         services.AddSingleton<FigureRegistry>();
         return services;
     }

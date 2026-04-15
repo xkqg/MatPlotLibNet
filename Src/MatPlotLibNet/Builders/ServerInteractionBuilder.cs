@@ -14,6 +14,8 @@ public sealed class ServerInteractionBuilder
     internal bool Pan { get; private set; }
     internal bool Reset { get; private set; }
     internal bool LegendToggle { get; private set; }
+    internal bool BrushSelect { get; private set; }
+    internal bool Hover { get; private set; }
 
     /// <summary>Opt in to <c>ZoomEvent</c> round-trips.</summary>
     public ServerInteractionBuilder EnableZoom() { Zoom = true; return this; }
@@ -27,13 +29,24 @@ public sealed class ServerInteractionBuilder
     /// <summary>Opt in to <c>LegendToggleEvent</c> round-trips.</summary>
     public ServerInteractionBuilder EnableLegendToggle() { LegendToggle = true; return this; }
 
-    /// <summary>Opt in to all four event types.</summary>
+    /// <summary>Opt in to <c>BrushSelectEvent</c> round-trips (v1.2.2). Shift+drag in the browser
+    /// becomes a server-side notification delivered to the chart's brush-select handler.</summary>
+    public ServerInteractionBuilder EnableBrushSelect() { BrushSelect = true; return this; }
+
+    /// <summary>Opt in to <c>HoverEvent</c> round-trips (v1.2.2). Cursor movement over the plot
+    /// becomes a server-side query whose response is delivered as tooltip HTML to the
+    /// originating client only.</summary>
+    public ServerInteractionBuilder EnableHover() { Hover = true; return this; }
+
+    /// <summary>Opt in to every event type (v1.2.0 + v1.2.2).</summary>
     public ServerInteractionBuilder All()
     {
         Zoom = true;
         Pan = true;
         Reset = true;
         LegendToggle = true;
+        BrushSelect = true;
+        Hover = true;
         return this;
     }
 }

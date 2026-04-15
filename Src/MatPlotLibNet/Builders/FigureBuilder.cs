@@ -180,6 +180,10 @@ public sealed class FigureBuilder
             _enableZoomPan = true;
         if (builder.LegendToggle)
             _enableLegendToggle = true;
+        if (builder.BrushSelect)
+            _enableSelection = true;
+        if (builder.Hover)
+            _enableRichTooltips = true;
         return this;
     }
 

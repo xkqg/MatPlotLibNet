@@ -11,22 +11,65 @@ namespace MatPlotLibNet.AspNetCore;
 /// pub/sub pipeline. Each registered chart gets one <see cref="ChartSession"/> with its own
 /// unbounded channel and single reader task, so hub methods simply publish events (microseconds)
 /// and return — mutation + re-render happens off the hub call stack. No locks, no semaphores,
-/// no shared mutable state exposed to callers.</summary>
+/// no shared mutable state exposed to callers.
+///
+/// v1.2.2 adds the <see cref="Register(string, Figure, Action{ChartSessionOptions})"/> overload
+/// for per-chart notification handlers (brush-select, hover). The parameterless-options
+/// overload stays backward-compatible for v1.2.0 users.</summary>
 public sealed class FigureRegistry
 {
     private readonly ConcurrentDictionary<string, ChartSession> _sessions = new();
     private readonly IChartPublisher _publisher;
+    private readonly ICallerPublisher _callerPublisher;
 
-    public FigureRegistry(IChartPublisher publisher) => _publisher = publisher;
+    /// <summary>v1.2.2 primary constructor — used by DI. <see cref="ICallerPublisher"/> is
+    /// registered alongside <see cref="IChartPublisher"/> by
+    /// <c>SignalRExtensions.AddMatPlotLibNetSignalR</c>.</summary>
+    public FigureRegistry(IChartPublisher publisher, ICallerPublisher callerPublisher)
+    {
+        _publisher = publisher;
+        _callerPublisher = callerPublisher;
+    }
+
+    /// <summary>v1.2.0 compatibility constructor — used when the caller has no need for
+    /// per-caller responses (e.g. unit tests that don't exercise <see cref="Interaction.HoverEvent"/>).
+    /// Installs a no-op <see cref="ICallerPublisher"/> that silently drops tooltip sends.</summary>
+    public FigureRegistry(IChartPublisher publisher)
+        : this(publisher, NullCallerPublisher.Instance)
+    {
+    }
+
+    private sealed class NullCallerPublisher : ICallerPublisher
+    {
+        public static readonly NullCallerPublisher Instance = new();
+        public Task SendTooltipAsync(string connectionId, string chartId, string html,
+            CancellationToken ct = default) => Task.CompletedTask;
+    }
 
     /// <summary>Registers a figure under <paramref name="chartId"/> and starts its reader task.
-    /// If a session already exists for the id, the previous session is disposed first.</summary>
-    public void Register(string chartId, Figure figure)
+    /// No notification handlers attached — use the <see cref="Register(string, Figure, Action{ChartSessionOptions})"/>
+    /// overload if you want brush-select or hover callbacks. If a session already exists for
+    /// the id, the previous session is disposed first.</summary>
+    public void Register(string chartId, Figure figure) =>
+        RegisterCore(chartId, figure, new ChartSessionOptions());
+
+    /// <summary>Registers a figure with per-chart notification handlers (v1.2.2). Use the
+    /// <paramref name="configure"/> action to attach brush-select and hover callbacks via
+    /// <see cref="ChartSessionOptions.OnBrushSelect"/> and <see cref="ChartSessionOptions.OnHover"/>.</summary>
+    public void Register(string chartId, Figure figure, Action<ChartSessionOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        var options = new ChartSessionOptions();
+        configure(options);
+        RegisterCore(chartId, figure, options);
+    }
+
+    private void RegisterCore(string chartId, Figure figure, ChartSessionOptions options)
     {
         if (_sessions.TryRemove(chartId, out var existing))
             _ = existing.DisposeAsync();
 
-        _sessions[chartId] = new ChartSession(chartId, figure, _publisher);
+        _sessions[chartId] = new ChartSession(chartId, figure, _publisher, _callerPublisher, options);
     }
 
     /// <summary>Disposes the session for <paramref name="chartId"/>. Safe to call with an unknown id.</summary>

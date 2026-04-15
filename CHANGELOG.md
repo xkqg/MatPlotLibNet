@@ -4,6 +4,76 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.2] — 2026-04-15
+
+**Brush-select + hover round-trip — the deferred v1.2.0 items.** v1.2.0 shipped four mutation events (Zoom, Pan, Reset, LegendToggle) that rewrite the authoritative `Figure` on the server and broadcast the updated SVG to every group subscriber. v1.2.2 introduces the first two **notification events** — `BrushSelectEvent` and `HoverEvent` — that observe the user's gesture, route it to a per-chart handler in .NET code, and optionally return a caller-only response. Pure .NET round-trip, no mutation, no broadcast. The bidirectional SignalR pipeline now covers observation and request-response alongside the existing mutation flow.
+
+The critical architectural insight: **every v1.2.0 event mutates the figure.** Brush-select and hover don't — they ask the user's code to observe (selection) or respond (tooltip). v1.2.2 treats this as a proper subsystem extension: a new tier-2 abstract record `FigureNotificationEvent` that both new events stack under, mirroring how `AxisRangeEvent` stacks `ZoomEvent` and `ResetEvent`. The bug class "a notification event accidentally mutates the figure" is structurally impossible because `FigureNotificationEvent.ApplyTo` is `sealed override` and a no-op — concrete subclasses cannot override it.
+
+### Added
+
+- **[`MatPlotLibNet.Interaction.FigureNotificationEvent`](Src/MatPlotLibNet/Interaction/FigureNotificationEvent.cs)** — abstract tier-2 record for non-mutating events. Sibling to `AxisRangeEvent` (the tier-2 record for axis-limit mutations). `ApplyTo` is `sealed override` and empty — notification events observe, they do not mutate. Adding a new notification type is a new sealed record inheriting from this tier, no existing code changes.
+- **[`BrushSelectEvent`](Src/MatPlotLibNet/Interaction/BrushSelectEvent.cs)** — carries the data-space rectangle `(X1, Y1) → (X2, Y2)` of a Shift+drag brush selection. Fire-and-forget: the server routes it to a registered handler that observes the selection (log, filter, trigger downstream work). The figure is never re-rendered from a brush-select.
+- **[`HoverEvent`](Src/MatPlotLibNet/Interaction/HoverEvent.cs)** — carries `(X, Y)` in data space plus a server-stamped `CallerConnectionId`. Request-response: the handler returns an HTML fragment delivered to the **originating client only** via `IChartHubClient.ReceiveTooltipContent`, not broadcast to the group. Enables rich, server-computed tooltips with access to live application state, authenticated lookups, async queries.
+- **[`ChartSessionOptions`](Src/MatPlotLibNet.AspNetCore/ChartSessionOptions.cs)** — fluent options bag for per-chart handler registration. Pass to the new `FigureRegistry.Register(chartId, figure, configure)` overload:
+  ```csharp
+  registry.Register("live-1", figure, opts => opts
+      .OnBrushSelect(evt => { /* log, filter, trigger */ return default; })
+      .OnHover(evt => ValueTask.FromResult($"<b>x={evt.X},y={evt.Y}</b>")));
+  ```
+  Each chart can register its own handlers; different figures can compute different tooltips or react differently to selections. Handlers are stored on the `ChartSession` and fired from the session's drain task — same thread-model guarantee as mutation events (one session, one reader, no locking).
+- **[`ICallerPublisher`](Src/MatPlotLibNet.AspNetCore/ICallerPublisher.cs) + [`CallerPublisher`](Src/MatPlotLibNet.AspNetCore/CallerPublisher.cs)** — the first per-connection send pattern in the library. v1.2.0 only had `Clients.Group` broadcast; `CallerPublisher.SendTooltipAsync(connectionId, chartId, html)` uses `Clients.Client(connectionId).ReceiveTooltipContent(...)` to target the originating caller. Registered as a singleton in `AddMatPlotLibNetSignalR()`.
+- **[`ChartHub.OnBrushSelect`](Src/MatPlotLibNet.AspNetCore/ChartHub.cs)** — one-line client→server method. Routes to `FigureRegistry.Publish`, which routes through `ChartSession` to the user's handler. Fire-and-forget, no broadcast.
+- **[`ChartHub.OnHover`](Src/MatPlotLibNet.AspNetCore/ChartHub.cs)** — accepts a [`HoverEventPayload`](Src/MatPlotLibNet.AspNetCore/HoverEventPayload.cs) DTO from the client (the four data-space fields, no connection ID), stamps `Context.ConnectionId` server-side into a full `HoverEvent`, and routes to the hover handler. Clients cannot spoof the connection ID — the hub always overwrites.
+- **[`FigureBuilder.WithServerInteraction`](Src/MatPlotLibNet/Builders/ServerInteractionBuilder.cs)** gains two new flags via the existing fluent builder: `EnableBrushSelect()` and `EnableHover()`. Both are additive — opt-in per figure. `.All()` now includes them.
+- **SVG dispatcher extension** — [`SvgSignalRInteractionScript`](Src/MatPlotLibNet/Rendering/Svg/SvgSignalRInteractionScript.cs) gains two new branches (marker tokens `mplBrushSelect` and `mplHoverRoundtrip`) appended inline to the v1.2.0 IIFE only when the respective flags are set. Shift+drag draws a rubber-band rectangle and invokes `OnBrushSelect` with the data-space rect on mouseup. Mousemove invokes `OnHover` (coalesced via a `pending` flag — at most one in-flight request, queued latest point on overlap). Server responses via `ReceiveTooltipContent` render a styled fixed-position overlay near the cursor with `role="tooltip"` + `aria-live="polite"`.
+
+### Tests
+
+- **`FigureNotificationEventTests`** — 13 tests covering abstractness, inheritance chain, sealed no-op `ApplyTo`, positional record equality including `CallerConnectionId`, and the `BrushSelectEvent`/`HoverEvent` concrete shapes.
+- **`ChartSessionHandlerTests`** — 6 tests with fake `IChartPublisher` + `ICallerPublisher` test doubles. Covers: brush-select handler fires without republish, hover handler routes content to the caller publisher, hover handler returning `null` does not invoke the caller, notification events with no handler are silent no-ops, mutation events after notifications still fire one publish per batch, and v1.2.0 `Register(chartId, figure)` backward-compat still works.
+- **`SignalRInteractionTestsV122`** — 4 real SignalR end-to-end round-trip tests using `Microsoft.AspNetCore.TestHost.TestServer` + `HubConnectionBuilder` — no mocks. Includes the **first caller-only test** in the library: two connected clients, client A invokes `OnHover`, only A receives `ReceiveTooltipContent`, client B does not. Also verifies v1.2.0 `OnZoom` still broadcasts (regression guard).
+- **`SvgSignalRInteractionScriptV122Tests`** — 7 tests: brush-select branch emitted / omitted on flag toggle, hover branch emitted / omitted, both branches emitted with `.All()`, static figure has neither, and v1.2.0 markers still present when only v1.2.2 flags are set.
+- **`FigureBuilderServerInteractionTests`** — 3 new tests for `EnableBrushSelect` / `EnableHover` flag routing and the updated `All()` behaviour.
+
+**Test counts:** core `3 460 → 3 483` (+23), AspNetCore `26 → 36` (+10), total **3 519 tests green** across 7 test projects.
+
+### Fixed (carried over from v1.2.1 regeneration)
+
+- **Dense-Y-axis sample images regenerated** — v1.2.1's `ThemedFontProvider` fix widened Y-tick labels (12 pt instead of 10 pt), which shifted the left margin by ~7 px on figures with wide numeric labels (`scientific_paper`, `phase_f_indicators`, `financial_dashboard`, `heatmap_colormap`, etc.). The v1.2.1 release note claimed layout was byte-identical for every non-legend figure, but 22 samples were actually affected and their regenerated output was not committed. v1.2.2 catches up: all 34 sample images now reflect the post-`ThemedFontProvider` layout. No actual bug — correct behaviour all along, just missing artefacts.
+
+### Files created
+- `Src/MatPlotLibNet/Interaction/FigureNotificationEvent.cs`
+- `Src/MatPlotLibNet/Interaction/BrushSelectEvent.cs`
+- `Src/MatPlotLibNet/Interaction/HoverEvent.cs`
+- `Src/MatPlotLibNet.AspNetCore/ChartSessionOptions.cs`
+- `Src/MatPlotLibNet.AspNetCore/ICallerPublisher.cs`
+- `Src/MatPlotLibNet.AspNetCore/CallerPublisher.cs`
+- `Src/MatPlotLibNet.AspNetCore/HoverEventPayload.cs`
+- `Tst/MatPlotLibNet/Interaction/FigureNotificationEventTests.cs`
+- `Tst/MatPlotLibNet.AspNetCore/ChartSessionHandlerTests.cs`
+- `Tst/MatPlotLibNet.AspNetCore/SignalRInteractionTestsV122.cs`
+- `Tst/MatPlotLibNet/Rendering/Svg/SvgSignalRInteractionScriptV122Tests.cs`
+
+### Files modified
+- `Src/MatPlotLibNet.AspNetCore/FigureRegistry.cs` — new `Register(chartId, figure, Action<ChartSessionOptions>)` overload, `ICallerPublisher` dependency, v1.2.0 compat constructor with `NullCallerPublisher`.
+- `Src/MatPlotLibNet.AspNetCore/ChartSession.cs` — drain loop type-switches between mutation and notification events; hover path routes through `ICallerPublisher`.
+- `Src/MatPlotLibNet.AspNetCore/ChartHub.cs` — adds `OnBrushSelect` + `OnHover` methods.
+- `Src/MatPlotLibNet.AspNetCore/IChartHubClient.cs` — adds `ReceiveTooltipContent`.
+- `Src/MatPlotLibNet.AspNetCore/Extensions/SignalRExtensions.cs` — registers `ICallerPublisher`.
+- `Src/MatPlotLibNet/Builders/ServerInteractionBuilder.cs` — new `EnableBrushSelect` / `EnableHover` methods, updated `All()`.
+- `Src/MatPlotLibNet/Builders/FigureBuilder.cs` — `WithServerInteraction` forwards the two new flags to `Figure.EnableSelection` / `Figure.EnableRichTooltips`.
+- `Src/MatPlotLibNet/Rendering/Svg/SvgSignalRInteractionScript.cs` — `GetScript(enableBrushSelect, enableHover)` signature; two new inline branches.
+- `Src/MatPlotLibNet/Transforms/SvgTransform.cs` — skips `SvgCustomTooltipScript` + `SvgSelectionScript` when `ServerInteraction = true` (the dispatcher replaces them), preserves emission order for static figures.
+- All 9 × `.csproj` `<Version>` → `1.2.2`.
+
+### Deferred (still — unchanged from v1.2.1 out-of-scope list)
+
+- **Pluggable `IFigureInteractionHandler`** — v1.2.2 adds per-chart callbacks via `ChartSessionOptions`, but not a registerable "handle any event type" interface.
+- **Multi-viewer sync as a designed feature** — still a side-effect of SignalR group fan-out.
+- **Avalonia / Uno / WinUI 3 UI packages** — planned as v1.3.0 "Cross-Platform UI Coverage", reusing the v1.2.2 hub vocabulary unchanged.
+- **3-D round 2**, **mathtext completion** (`\frac`, proper `\sqrt`, matrices, accents), **2-D series gaps** (`fill_betweenx`, `matshow`, `spy`), **geo/map subsystem rebuild** — deferred as in v1.2.0/v1.2.1.
+
 ## [1.2.1] — 2026-04-15
 
 **Font-factory subsystem fix + CI warning sweep.** A small follow-up to v1.2.0 that fixes the root cause of the outside-legend clipping bug, wipes every warning off every non-MAUI project, and unblocks two sample projects that had stopped compiling.

@@ -108,6 +108,47 @@ public class FigureBuilderServerInteractionTests
         Assert.Same(b, b.EnablePan());
         Assert.Same(b, b.EnableReset());
         Assert.Same(b, b.EnableLegendToggle());
+        Assert.Same(b, b.EnableBrushSelect());
+        Assert.Same(b, b.EnableHover());
         Assert.Same(b, b.All());
+    }
+
+    // ── v1.2.2 additions ──────────────────────────────────────────────────
+
+    [Fact]
+    public void WithServerInteraction_EnableBrushSelect_FlipsEnableSelectionFlag()
+    {
+        var figure = Plt.Create()
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .WithServerInteraction("c", i => i.EnableBrushSelect())
+            .Build();
+
+        Assert.True(figure.EnableSelection);
+    }
+
+    [Fact]
+    public void WithServerInteraction_EnableHover_FlipsEnableRichTooltipsFlag()
+    {
+        var figure = Plt.Create()
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .WithServerInteraction("c", i => i.EnableHover())
+            .Build();
+
+        Assert.True(figure.EnableRichTooltips);
+    }
+
+    [Fact]
+    public void WithServerInteraction_All_IncludesBrushSelectAndHover()
+    {
+        var figure = Plt.Create()
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .WithServerInteraction("c", i => i.All())
+            .Build();
+
+        Assert.True(figure.ServerInteraction);
+        Assert.True(figure.EnableZoomPan);
+        Assert.True(figure.EnableLegendToggle);
+        Assert.True(figure.EnableSelection);
+        Assert.True(figure.EnableRichTooltips);
     }
 }
