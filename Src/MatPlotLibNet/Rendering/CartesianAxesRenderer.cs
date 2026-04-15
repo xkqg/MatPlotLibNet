@@ -45,12 +45,14 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             Axes.XAxis.TickFormatter ??= new AutoDateFormatter(autoLocator);
         }
 
-        // Compute tick values once for grid + ticks (respects TickLocator / Spacing)
-        var xTicks = ComputeTickValues(range.XMin, range.XMax, Axes.XAxis);
-        var yTicks = ComputeTickValues(range.YMin, range.YMax, Axes.YAxis);
+        // Compute tick values once for grid + ticks (respects TickLocator / Spacing / plot size)
+        var xTicks = ComputeTickValues(range.XMin, range.XMax, Axes.XAxis, PlotArea.Width);
+        var yTicks = ComputeTickValues(range.YMin, range.YMax, Axes.YAxis, PlotArea.Height);
 
-        // Skip standard grid/ticks/frame for radar-only axes
-        bool radarOnly = Axes.Series.Count > 0 && Axes.Series.All(s => s is RadarSeries);
+        // Skip standard grid/ticks/frame for axis-less series (radar, pie, treemap, table).
+        // These fill the plot area and don't use a Cartesian coordinate system.
+        bool radarOnly = Axes.Series.Count > 0 && Axes.Series.All(s =>
+            s is RadarSeries or PieSeries or HierarchicalSeries or TableSeries);
         if (!radarOnly)
         {
             // Grid — axes-level setting overrides theme when explicitly set (Visible=true);
@@ -190,13 +192,14 @@ public sealed class CartesianAxesRenderer : AxesRenderer
 
             // Right-side Y-axis ticks
             var tickFont = TickFont();
+            var secYUniformFormat = BuildUniformTickFormatter(secYTicks);
             foreach (var tick in secYTicks)
             {
                 var pt = secTransform.DataToPixel(secRange.XMax, tick);
                 Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, pt.Y),
                     new Point(PlotArea.X + PlotArea.Width + 5, pt.Y),
                     Theme.ForegroundText, 1, LineStyle.Solid);
-                Ctx.DrawText(Axes.SecondaryYAxis!.TickFormatter?.Format(tick) ?? FormatTick(tick),
+                Ctx.DrawText(Axes.SecondaryYAxis!.TickFormatter?.Format(tick) ?? secYUniformFormat(tick),
                     new Point(PlotArea.X + PlotArea.Width + 8, pt.Y + 4),
                     tickFont, TextAlignment.Left);
             }
@@ -229,13 +232,14 @@ public sealed class CartesianAxesRenderer : AxesRenderer
 
             // Top-edge X-axis ticks
             var tickFont = TickFont();
+            var secXUniformFormat = BuildUniformTickFormatter(secXTicks);
             foreach (var tick in secXTicks)
             {
                 var pt = secXTransform.DataToPixel(tick, secXRange.YMax);
                 Ctx.DrawLine(new Point(pt.X, PlotArea.Y),
                     new Point(pt.X, PlotArea.Y - 5),
                     Theme.ForegroundText, 1, LineStyle.Solid);
-                Ctx.DrawText(Axes.SecondaryXAxis!.TickFormatter?.Format(tick) ?? FormatTick(tick),
+                Ctx.DrawText(Axes.SecondaryXAxis!.TickFormatter?.Format(tick) ?? secXUniformFormat(tick),
                     new Point(pt.X, PlotArea.Y - 8),
                     tickFont, TextAlignment.Center);
             }
@@ -440,25 +444,40 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         if (yMajor.LabelSize.HasValue)  yLabelFont = yLabelFont with { Size  = yMajor.LabelSize.Value };
         if (yMajor.LabelColor.HasValue) yLabelFont = yLabelFont with { Color = yMajor.LabelColor };
 
-        var categoryLabeled = Axes.Series.OfType<ICategoryLabeled>().FirstOrDefault(s => s.CategoryLabels is not null);
+        // Don't treat a BarSeries with numeric XCoordinate as categorical — it opts into a
+        // continuous X axis and shares it with companion line series (e.g. MACD histogram
+        // alongside MACD/signal lines).
+        var categoryLabeled = Axes.Series
+            .OfType<ICategoryLabeled>()
+            .Where(s => s is not BarSeries b || b.XCoordinate is null)
+            .FirstOrDefault(s => s.CategoryLabels is not null);
         // When a custom TickLocator is set it takes priority — use the standard tick path so the
         // locator controls spacing (e.g. MultipleLocator(5,0.5) for bar charts with many bars).
         if (categoryLabeled?.CategoryLabels is not null && Axes.XAxis.TickLocator is null)
             RenderCategoryLabels(categoryLabeled.CategoryLabels, yMin, transform);
+        else if (!xMajor.Visible)
+        {
+            // HideAllAxes / explicit TickConfig.Visible=false → draw no tick marks or labels.
+            MeasuredXTickMaxHeight = 0;
+        }
         else
         {
             var xFormatter = Axes.XAxis.TickFormatter;
+            var xUniformFormat = BuildUniformTickFormatter(xTicks);
             double xAxisY = PlotArea.Y + PlotArea.Height;
             double xSpineHalf = Axes.Spines.Bottom.LineWidth / 2.0;
+            double maxXTickHeight = 0;
             foreach (var tick in xTicks)
             {
                 var pt = transform.DataToPixel(tick, yMin);
                 DrawTickMark(pt.X, xAxisY, isVertical: true, xTickLength, xTickColor, xTickWidth, xMajor.Direction, xSpineHalf);
                 double labelY = xAxisY + xTickLength + xMajor.Pad + xLabelFont.Size;
-                Ctx.DrawText(xFormatter?.Format(tick) ?? FormatTick(tick),
-                    new Point(pt.X, labelY),
-                    xLabelFont, TextAlignment.Center);
+                var labelText = xFormatter?.Format(tick) ?? xUniformFormat(tick);
+                var h = Ctx.MeasureText(labelText, xLabelFont).Height;
+                if (h > maxXTickHeight) maxXTickHeight = h;
+                Ctx.DrawText(labelText, new Point(pt.X, labelY), xLabelFont, TextAlignment.Center);
             }
+            MeasuredXTickMaxHeight = maxXTickHeight;
 
             // Minor X ticks (no labels, shorter mark)
             if (xMinor.Visible && xTicks.Length >= 2)
@@ -488,17 +507,21 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         double ySpineHalf = Axes.Spines.Left.LineWidth / 2.0;
 
         var yFormatter = Axes.YAxis.TickFormatter;
+        var yUniformFormat = BuildUniformTickFormatter(yTicks);
         double maxYTickWidth = 0;
-        foreach (var tick in yTicks)
+        if (yMajor.Visible)
         {
-            var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, tick);
-            // tickPos = Y of the tick; axisEdge = X of the spine.
-            DrawTickMark(pt.Y, yAxisX, isVertical: false, yTickLength, yTickColor, yTickWidth, yMajor.Direction, ySpineHalf);
-            double labelX = yAxisX - yTickLength - yMajor.Pad;
-            var labelText = yFormatter?.Format(tick) ?? FormatTick(tick);
-            var w = Ctx.MeasureText(labelText, yLabelFont).Width;
-            if (w > maxYTickWidth) maxYTickWidth = w;
-            Ctx.DrawText(labelText, new Point(labelX, pt.Y + 4), yLabelFont, TextAlignment.Right);
+            foreach (var tick in yTicks)
+            {
+                var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, tick);
+                // tickPos = Y of the tick; axisEdge = X of the spine.
+                DrawTickMark(pt.Y, yAxisX, isVertical: false, yTickLength, yTickColor, yTickWidth, yMajor.Direction, ySpineHalf);
+                double labelX = yAxisX - yTickLength - yMajor.Pad;
+                var labelText = yFormatter?.Format(tick) ?? yUniformFormat(tick);
+                var w = Ctx.MeasureText(labelText, yLabelFont).Width;
+                if (w > maxYTickWidth) maxYTickWidth = w;
+                Ctx.DrawText(labelText, new Point(labelX, pt.Y + 4), yLabelFont, TextAlignment.Right);
+            }
         }
         MeasuredYTickMaxWidth = maxYTickWidth;
 
@@ -640,8 +663,21 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         // Add padding
         if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
         if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
+        // Guard: a series that reports yMin (e.g. 0 baseline) without reporting yMax would leave
+        // yMax at double.MinValue and the 5% padding would produce ~±1e307 labels. Fall back to
+        // yMin+1 in that case; real series should report both bounds, but this prevents catastrophic
+        // rendering when they don't.
+        if (xMax == double.MinValue) xMax = xMin + 1;
+        if (yMax == double.MinValue) yMax = yMin + 1;
         if (Math.Abs(xMax - xMin) < 1e-10) { xMin -= 0.5; xMax += 0.5; }
         if (Math.Abs(yMax - yMin) < 1e-10) { yMin -= 0.5; yMax += 0.5; }
+
+        // Capture the raw aggregated data range BEFORE padding so the sticky-edge clamp
+        // below can distinguish "padding pushed past the sticky" (clamp back, preserving
+        // the tight-edge intent) from "another series has data past the sticky" (DO NOT
+        // clamp — an overlay with a narrower X range must not hide the underlying data).
+        double unpaddedXMin = xMin, unpaddedXMax = xMax;
+        double unpaddedYMin = yMin, unpaddedYMax = yMax;
 
         // Resolve axis margin: user-set on Axis takes priority; otherwise inherit from theme.
         // matplotlib classic → 0.0, v2+ → 0.05.
@@ -659,18 +695,60 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         // crossing series-registered boundaries. Canonical example: BarSeries registers
         // StickyYMin=0 so the y-axis never pads below the bar baseline, giving bars that
         // touch the bottom spine exactly.
+        //
+        // The guard `unpadded >= sticky` (resp. `<=` for Max) ensures we only clamp the
+        // PADDING: when the raw aggregated range from all series was already past the
+        // sticky edge, another series has legitimate data there and the sticky must not
+        // override it. Without this guard, a FillBetween/BarSeries overlay with a narrow
+        // X range would clip the underlying full-range series (see financial_dashboard:
+        // Bollinger fill x=[19..49] was clamping candlestick's x=[0..49] to x=[19..49]).
         var context = new AxesContextAdapter(Axes);
         foreach (var series in Axes.Series)
         {
             var c = series.ComputeDataRange(context);
-            if (c.StickyXMin.HasValue && xMin < c.StickyXMin.Value && !Axes.XAxis.Min.HasValue)
+            if (c.StickyXMin.HasValue && xMin < c.StickyXMin.Value
+                && unpaddedXMin >= c.StickyXMin.Value && !Axes.XAxis.Min.HasValue)
                 xMin = c.StickyXMin.Value;
-            if (c.StickyXMax.HasValue && xMax > c.StickyXMax.Value && !Axes.XAxis.Max.HasValue)
+            if (c.StickyXMax.HasValue && xMax > c.StickyXMax.Value
+                && unpaddedXMax <= c.StickyXMax.Value && !Axes.XAxis.Max.HasValue)
                 xMax = c.StickyXMax.Value;
-            if (c.StickyYMin.HasValue && yMin < c.StickyYMin.Value && !Axes.YAxis.Min.HasValue)
+            if (c.StickyYMin.HasValue && yMin < c.StickyYMin.Value
+                && unpaddedYMin >= c.StickyYMin.Value && !Axes.YAxis.Min.HasValue)
                 yMin = c.StickyYMin.Value;
-            if (c.StickyYMax.HasValue && yMax > c.StickyYMax.Value && !Axes.YAxis.Max.HasValue)
+            if (c.StickyYMax.HasValue && yMax > c.StickyYMax.Value
+                && unpaddedYMax <= c.StickyYMax.Value && !Axes.YAxis.Max.HasValue)
                 yMax = c.StickyYMax.Value;
+        }
+
+        // Nice-number view-limit expansion: when the axis is fully auto (no user-set
+        // min/max, no custom TickLocator, no series-reported sticky edges on that axis),
+        // round the computed range OUTWARD to the nearest nice tick boundary. Matches
+        // matplotlib's `MaxNLocator.view_limits` behaviour so charts like eventplot
+        // (data extent [-0.5, 3.5] with 4 rows) align to [-1, 4] instead of a 9-tick
+        // half-step axis. Skipped when any series has sticky X/Y edges: sticky means
+        // "data touches the spine exactly" and expansion would violate that promise
+        // (bars would gain empty space to their left/right, etc.).
+        bool hasStickyX = false, hasStickyY = false;
+        foreach (var series in Axes.Series)
+        {
+            var c = series.ComputeDataRange(context);
+            if (c.StickyXMin.HasValue || c.StickyXMax.HasValue) hasStickyX = true;
+            if (c.StickyYMin.HasValue || c.StickyYMax.HasValue) hasStickyY = true;
+        }
+        var niceLocator = new MatPlotLibNet.Rendering.TickLocators.AutoLocator();
+        if (!hasStickyX && !Axes.XAxis.Min.HasValue && !Axes.XAxis.Max.HasValue
+            && Axes.XAxis.TickLocator is null && xMax > xMin)
+        {
+            var (nLo, nHi) = niceLocator.ExpandToNiceBounds(xMin, xMax);
+            if (nLo <= xMin && nHi >= xMax && (nHi - nLo) <= (xMax - xMin) * 2.0)
+            { xMin = nLo; xMax = nHi; }
+        }
+        if (!hasStickyY && !Axes.YAxis.Min.HasValue && !Axes.YAxis.Max.HasValue
+            && Axes.YAxis.TickLocator is null && yMax > yMin)
+        {
+            var (nLo, nHi) = niceLocator.ExpandToNiceBounds(yMin, yMax);
+            if (nLo <= yMin && nHi >= yMax && (nHi - nLo) <= (yMax - yMin) * 2.0)
+            { yMin = nLo; yMax = nHi; }
         }
 
         return new DataRange(xMin, xMax, yMin, yMax);

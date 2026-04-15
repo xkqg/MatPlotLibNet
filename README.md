@@ -4,7 +4,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
-[![Version](https://img.shields.io/badge/version-1.1.3-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.4-blue)](CHANGELOG.md)
 
 ---
 
@@ -44,9 +44,7 @@ Plt.Create()
     .Save("chart.svg");
 ```
 
-**65 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, radar, waterfall, funnel, gauge, and more.
-
-**Geo / Map Projections** — `MapSeries` renders GeoJSON polygons and lines using equirectangular or Mercator projection; `ChoroplethSeries` fills each feature by data value via colormap; `GeoJsonReader` / `GeoJsonWriter` for round-trip GeoJSON support.
+**61 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, **PlanarBar3D** (new in v1.1.4 — flat translucent "2D bars in different Y planes" / skyscraper plot), radar, waterfall, funnel, gauge, and more.
 
 **Accessibility** — SVG exports carry `role="img"`, `<title>`/`<desc>`, and ARIA labels on all structural groups; all 5 interactive JS features are keyboard-navigable; Okabe-Ito color-blind safe palette (`Theme.ColorBlindSafe`); WCAG AAA high-contrast theme (`Theme.HighContrast`).
 
@@ -70,8 +68,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 - [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all packages in detail
 - [DataFrame](https://github.com/xkqg/MatPlotLibNet/wiki/DataFrame) — `MatPlotLibNet.DataFrame`: charting, indicators, and regression from `Microsoft.Data.Analysis.DataFrame`
 - [Notebooks](https://github.com/xkqg/MatPlotLibNet/wiki/Notebooks) — Polyglot Notebooks + Jupyter inline rendering
-- [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 62 series with examples
-- [Geo / Map Projections](https://github.com/xkqg/MatPlotLibNet/wiki/GeoProjections) — map projections, GeoJSON, MapSeries, ChoroplethSeries
+- [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 61 series with examples
 - [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling) — themes, colormaps, PropCycler
 - [Matplotlib Themes](https://github.com/xkqg/MatPlotLibNet/wiki/MatplotlibThemes) — `Theme.MatplotlibClassic` and `Theme.MatplotlibV2` look-alikes
 - [Accessibility](https://github.com/xkqg/MatPlotLibNet/wiki/Accessibility) — SVG semantics, keyboard navigation, color-blind palette, high-contrast theme

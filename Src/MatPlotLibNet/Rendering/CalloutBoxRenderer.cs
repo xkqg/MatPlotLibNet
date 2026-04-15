@@ -6,9 +6,18 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
 
-/// <summary>Draws background boxes (FancyBBoxPatch equivalents) for annotated text callouts.</summary>
+/// <summary>Draws background boxes (FancyBBoxPatch equivalents) for annotated text callouts,
+/// plus leader lines connecting an anchor point to a displaced label.</summary>
 internal static class CalloutBoxRenderer
 {
+    /// <summary>
+    /// Draws a thin leader line from <paramref name="from"/> to <paramref name="to"/> — used by
+    /// <see cref="Layout.LabelLayoutEngine"/> consumers (pie, sankey, sunburst) to connect a
+    /// label's original anchor to its collision-adjusted final position.
+    /// </summary>
+    public static void DrawLeaderLine(IRenderContext ctx, Point from, Point to, Color color, double width = 0.5)
+        => ctx.DrawLine(from, to, color, width, LineStyle.Solid);
+
     /// <summary>Draws a padded box around <paramref name="textBounds"/> using the specified style.</summary>
     public static void Draw(IRenderContext ctx, Rect textBounds, BoxStyle style,
         double padding, double cornerRadius, Color? faceColor, Color? edgeColor, double edgeWidth)

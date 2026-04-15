@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -31,6 +32,16 @@ internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
         double startAngle = series.StartAngle * Math.PI / 180;
         double direction = series.CounterClockwise ? 1 : -1; // screen-Y: CW = negative-sin
 
+        // Collect outer-label candidates during the slice pass so LabelLayoutEngine can
+        // resolve collisions in one batch at the end. Small wedges would otherwise draw
+        // their labels on top of each other — matplotlib pies have the same issue.
+        var labelFont = Context?.Theme?.DefaultFont is { } f
+            ? new Font { Family = f.Family, Size = f.Size, Color = f.Color }
+            : new Font { Size = 12 };
+        var outerCandidates = new List<LabelCandidate>();
+        var outerAnchors = new List<Point>();
+        var outerAlignments = new List<TextAlignment>();
+
         for (int i = 0; i < series.Sizes.Length; i++)
         {
             double sweep = direction * series.Sizes[i] / total * 2 * Math.PI;
@@ -56,7 +67,9 @@ internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
                 BuildSlicePath(sliceCx, sliceCy, radius, startAngle, endAngle),
                 sliceColor, Colors.White, 1);
 
-            // AutoPct: draw percentage text at the centroid of the slice
+            // AutoPct: draw percentage text at the centroid of the slice (inside the wedge).
+            // Not collision-handled — interior labels are constrained to their own wedges and
+            // rarely collide; if a wedge is too small for its AutoPct, the label just clips.
             if (series.AutoPct is not null)
             {
                 double pct = series.Sizes[i] / total * 100;
@@ -68,7 +81,38 @@ internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
                 Ctx.DrawText(label, new Point(tx, ty), new Font { Size = 10, Color = Colors.White }, TextAlignment.Center);
             }
 
+            // Collect the outer label for the collision pass — do not draw yet.
+            if (series.Labels is not null && i < series.Labels.Length && series.Labels[i] is { } sliceLabel)
+            {
+                double textAngle = startAngle + sweep / 2;
+                double textR = radius * 1.1;
+                double tx = sliceCx + textR * Math.Cos(textAngle);
+                double ty = sliceCy - textR * Math.Sin(textAngle);
+                double cosA = Math.Cos(textAngle);
+                var align = cosA > 0.1 ? TextAlignment.Left : cosA < -0.1 ? TextAlignment.Right : TextAlignment.Center;
+                outerCandidates.Add(new LabelCandidate(new Point(tx, ty), sliceLabel, labelFont, align));
+                outerAnchors.Add(new Point(tx, ty));
+                outerAlignments.Add(align);
+            }
+
             startAngle = endAngle;
+        }
+
+        // Resolve outer-label collisions in one batch, then draw.
+        if (outerCandidates.Count > 0)
+        {
+            var placements = LabelLayoutEngine.Place(
+                outerCandidates,
+                Area.PlotBounds,
+                ChartServices.FontMetrics);
+            for (int i = 0; i < placements.Count; i++)
+            {
+                var p = placements[i];
+                if (p.LeaderLineStart is { } anchor)
+                    CalloutBoxRenderer.DrawLeaderLine(Ctx, anchor, p.FinalPoint,
+                        Context?.Theme?.ForegroundText ?? Colors.Black);
+                Ctx.DrawText(p.Text, p.FinalPoint, p.Font, p.Alignment);
+            }
         }
     }
 

@@ -99,7 +99,12 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
             if (Context.LightSource is { } light)
             {
                 double intensity = light.ComputeIntensity(nx, ny, nz);
-                color = LightingHelper.ModulateColor(color, intensity);
+                // Surface uses the per-quad average normal; matplotlib shade formula expects
+                // raw dot so we read the light direction directly from DirectionalLight.
+                if (Context.LightSource is DirectionalLight dl)
+                    color = LightingHelper.ShadeColor(color, nx, ny, nz, dl.Dx, dl.Dy, dl.Dz);
+                else
+                    color = LightingHelper.ModulateColor(color, intensity);
             }
             if (v3d is not null)
                 Ctx.SetNextElementData("v3d", v3d);

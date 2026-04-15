@@ -29,6 +29,13 @@ public record SeriesRenderContext(
 
     public bool Emit3DData { get; init; }
 
+    /// <summary>
+    /// Optional shared depth sink. When set, 3-D series renderers must push their
+    /// drawable primitives into this queue instead of calling <c>Ctx.Draw*</c> directly,
+    /// so the axes renderer can sort across all 3-D series before painting.
+    /// </summary>
+    public DepthQueue3D? DepthQueue { get; init; }
+
     /// <summary>The active visual theme, used by renderers for theme-specific defaults (e.g. matplotlib patch edge color).</summary>
     public Styling.Theme? Theme { get; init; }
 }

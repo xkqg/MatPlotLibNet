@@ -145,8 +145,6 @@ MatPlotLibNet/
       BarbsSeries.cs                  Vec X, Y, Speed, Direction, BarbLength, Color — meteorological wind barbs (Field/)
       Stem3DSeries.cs                 Vec X, Y, Z, Color, MarkerSize, I3DPointSeries — vertical stems (ThreeD/)
       Bar3DSeries.cs                  Vec X, Y, Z (heights), BarWidth, Color, I3DPointSeries — 3D bar prisms (ThreeD/)
-      MapSeries.cs                    GeoData (GeoJsonDocument), Projection (IMapProjection), FaceColor?, EdgeColor?, LineWidth (Geo/)
-      ChoroplethSeries.cs             MapSeries: Values[], ColorMap, Normalizer, VMin?, VMax? — per-feature fill from colormap (Geo/)
 
   Rendering/
     Lighting/                         per-face 3D lighting model (Phase G, v0.9.0)
@@ -155,19 +153,6 @@ MatPlotLibNet/
       LightingHelper.cs               static: ComputeFaceNormal() (cross product) + ModulateColor(color, intensity)
     Svg/
       Svg3DRotationScript.cs          embedded JS for mouse/keyboard interactive 3D rotation
-
-  Geo/                               geographic projection and GeoJSON support (Phase F, v0.8.9)
-    Projections/
-      IMapProjection.cs               interface: Project(lon, lat)→NormalizedPoint; Bounds → GeoBounds
-      NormalizedPoint.cs              readonly record struct(Nx, Ny) — normalized [0,1]² coordinate returned by IMapProjection.Project
-      GeoBounds.cs                    readonly record struct(LonMin, LonMax, LatMin, LatMax) + LonCenter/LatCenter — returned by IMapProjection.Bounds
-      EquirectangularProjection.cs    plate carrée: linear lon/lat → normalized xy
-      MercatorProjection.cs           Web Mercator; latitude clamped to ±85.0511°
-      MapProjections.cs               static factory: Equirectangular(...) / Mercator(...)
-    GeoJson/
-      GeoJsonDocument.cs              record types: GeoJsonDocument, GeoJsonFeatureCollection, GeoJsonFeature, GeoJsonGeometry; GeoJsonGeometryType enum
-      GeoJsonReader.cs                FromJson(string) / FromFile(string) — parses GeoJSON via System.Text.Json
-      GeoJsonWriter.cs                ToJson(GeoJsonDocument) — compact GeoJSON serializer
 
   Indicators/                           stacked base classes: IIndicator → Indicator → Indicator<T> → CandleIndicator<T> / PriceIndicator<T>
     IIndicator.cs                       interface: Apply(Axes)
@@ -487,7 +472,7 @@ ChartHub               routes to SignalR group by chartId
 | Default interface method | IRenderContext.DrawRichText | all backends get plain-text fallback; SVG overrides with tspan emission |
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
-| Named record types | IndexRange, NormalizedPoint, GeoBounds, Normalized3DPoint, AdxResult, ConfidenceBand | replace anonymous/named tuples in public API for discoverability and structural equality |
+| Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand | replace anonymous/named tuples in public API for discoverability and structural equality |
 
 ---
 

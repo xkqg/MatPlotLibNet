@@ -256,6 +256,26 @@ public sealed class FigureBuilder
         return this;
     }
 
+    /// <summary>Enables click-to-drill-down on treemap rectangles in the SVG output.
+    /// Click a rect to zoom into its subtree, Escape to zoom out, with smooth transitions.
+    /// Requires a <c>TreemapSeries</c> on the figure.</summary>
+    public FigureBuilder WithTreemapDrilldown(bool enabled = true)
+    {
+        _enableTreemapDrilldown = enabled;
+        return this;
+    }
+    private bool _enableTreemapDrilldown;
+
+    /// <summary>Enables Sankey hover emphasis in the SVG output: hovering a node dims every
+    /// link not reachable upstream or downstream from it (ECharts <c>focus: adjacency</c>).
+    /// Requires a <c>SankeySeries</c> on the figure.</summary>
+    public FigureBuilder WithSankeyHover(bool enabled = true)
+    {
+        _enableSankeyHover = enabled;
+        return this;
+    }
+    private bool _enableSankeyHover;
+
     /// <summary>Attaches a directional light source for per-face shading on 3D surfaces and bars on the default axes.</summary>
     /// <param name="dx">X component of the light direction.</param>
     /// <param name="dy">Y component of the light direction.</param>
@@ -331,14 +351,6 @@ public sealed class FigureBuilder
     public FigureBuilder Barbs(double[] x, double[] y, double[] speed, double[] direction, Action<BarbsSeries>? configure = null) =>
         AddSeries(ax => ax.Barbs(x, y, speed, direction), configure);
 
-    /// <summary>Adds a map series rendering GeoJSON geometry to the default axes.</summary>
-    public FigureBuilder Map(Geo.GeoJson.GeoJsonDocument geo, Action<Models.Series.MapSeries>? configure = null) =>
-        AddSeries(ax => ax.Map(geo), configure);
-
-    /// <summary>Adds a choropleth series to the default axes.</summary>
-    public FigureBuilder Choropleth(Geo.GeoJson.GeoJsonDocument geo, double[] values, Action<Models.Series.ChoroplethSeries>? configure = null) =>
-        AddSeries(ax => ax.Choropleth(geo, values), configure);
-
     /// <summary>Sets the grid specification for advanced subplot layouts with ratios and spanning.</summary>
     /// <param name="rows">Number of rows in the grid.</param>
     /// <param name="cols">Number of columns in the grid.</param>
@@ -403,12 +415,19 @@ public sealed class FigureBuilder
             EnableHighlight = _enableHighlight,
             EnableSelection = _enableSelection,
             Enable3DRotation = _enable3DRotation,
+            EnableTreemapDrilldown = _enableTreemapDrilldown,
+            EnableSankeyHover = _enableSankeyHover,
             Spacing = _spacing,
             GridSpec = _gridSpec,
             FigureColorBar = _figureColorBar
         };
 
-        if (_defaultAxes is not null)
+        // Only add the default axes when it carries actual series OR when no subplots were
+        // defined. FigureBuilder-level helpers (WithCamera, WithLighting, …) call
+        // EnsureDefaultAxes() as a convenience side-effect, leaving an empty Cartesian axes
+        // in the model that would otherwise be rendered as ghost 2-D ticks on top of 3-D plots.
+        if (_defaultAxes is not null &&
+            (_defaultAxes.Series.Count > 0 || _subPlots.Count == 0))
             figure.AddAxes(_defaultAxes);
 
         var keyedAxes = new Dictionary<string, Axes>();

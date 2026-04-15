@@ -107,16 +107,21 @@ public class ContourfSeriesTests
         Assert.Equal(nameof(ContourfSeries), visitor.LastVisited);
     }
 
-    /// <summary>ComputeDataRange returns null extents (contour fills don't define axis range).</summary>
+    /// <summary>ComputeDataRange returns the grid extent with sticky edges on all four sides
+    /// so the 5 % axis margin doesn't push whitespace between the fill and the spines.</summary>
     [Fact]
-    public void ComputeDataRange_ReturnsNullExtents()
+    public void ComputeDataRange_ReturnsGridExtentWithStickyEdges()
     {
         var series = new ContourfSeries(X, Y, Z);
         var range = series.ComputeDataRange(null!);
-        Assert.Null(range.XMin);
-        Assert.Null(range.XMax);
-        Assert.Null(range.YMin);
-        Assert.Null(range.YMax);
+        Assert.Equal(X.Min(), range.XMin);
+        Assert.Equal(X.Max(), range.XMax);
+        Assert.Equal(Y.Min(), range.YMin);
+        Assert.Equal(Y.Max(), range.YMax);
+        Assert.Equal(X.Min(), range.StickyXMin);
+        Assert.Equal(X.Max(), range.StickyXMax);
+        Assert.Equal(Y.Min(), range.StickyYMin);
+        Assert.Equal(Y.Max(), range.StickyYMax);
     }
 
     /// <summary>ToSeriesDto returns type "contourf" and contains X, Y, Z data.</summary>

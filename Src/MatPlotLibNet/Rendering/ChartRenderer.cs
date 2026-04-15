@@ -16,7 +16,11 @@ public sealed class ChartRenderer : IChartRenderer
     // Padding above and below the figure-level suptitle (px). Title height is measured dynamically.
     private const double SupTitleTopPad    = 8;
     private const double SupTitleBottomPad = 12;
-    private Figure? _figure;
+    // _figure removed — figure is now threaded explicitly through RenderAxes so that
+    // SvgTransform (which bypasses ChartRenderer.Render and calls RenderAxes directly in a
+    // Parallel.For) gets the same FigureSize path as PngTransform. Previously _figure was
+    // only set in Render(), so the SVG path saw figSize=null → 3D cube used PlotArea directly
+    // instead of matplotlib's square cube → different projection than PNG → mismatched ticks.
 
     // Sentinel used to detect when the caller has not explicitly set a spacing on the figure.
     private static readonly SubPlotSpacing DefaultFigureSpacing = new();
@@ -37,12 +41,7 @@ public sealed class ChartRenderer : IChartRenderer
     /// <inheritdoc />
     public void Render(Figure figure, IRenderContext ctx)
     {
-        _figure = figure;
-        // Adjust margins based on actual text extents when TightLayout or ConstrainedLayout is enabled.
-        if (figure.Spacing.TightLayout || figure.Spacing.ConstrainedLayout)
-            figure.Spacing = new ConstrainedLayoutEngine().Compute(figure, ctx);
-
-        var resolvedSpacing = ResolveSpacing(figure);
+        var resolvedSpacing = PrepareSpacing(figure, ctx);
         double plotAreaTop = RenderBackground(figure, ctx, resolvedSpacing);
 
         if (figure.SubPlots.Count == 0) return;
@@ -50,11 +49,32 @@ public sealed class ChartRenderer : IChartRenderer
         var plotAreas = ComputeSubPlotLayout(figure, plotAreaTop, resolvedSpacing);
 
         for (int i = 0; i < figure.SubPlots.Count; i++)
-            RenderAxes(figure.SubPlots[i], plotAreas[i], ctx, figure.Theme);
+            RenderAxes(figure, figure.SubPlots[i], plotAreas[i], ctx, figure.Theme);
 
         // Figure-level colorbar — rendered after all subplots
         if (figure.FigureColorBar is { Visible: true } cb)
             RenderFigureColorBar(figure, plotAreas, cb, ctx, resolvedSpacing);
+    }
+
+    /// <summary>
+    /// Resolves the effective <see cref="SubPlotSpacing"/> for rendering <paramref name="figure"/>.
+    /// When <see cref="SubPlotSpacing.TightLayout"/> or <see cref="SubPlotSpacing.ConstrainedLayout"/>
+    /// is enabled, runs <see cref="ConstrainedLayoutEngine.Compute"/> to auto-size margins from
+    /// measured text extents. Otherwise falls back to the theme's default spacing via
+    /// <see cref="ResolveSpacing"/>.
+    /// </summary>
+    /// <remarks>
+    /// Pure function — does NOT mutate <paramref name="figure"/>. The returned spacing is used
+    /// LOCALLY by the caller, so repeated renders of the same figure (e.g. saving as both SVG
+    /// and PNG) each compute their own spacing without observing each other's side effects.
+    /// Both <see cref="Render"/> (serial) and <see cref="Transforms.SvgTransform.Render"/>
+    /// (parallel per-subplot) call this method so SVG and PNG outputs share the same layout.
+    /// </remarks>
+    internal SubPlotSpacing PrepareSpacing(Figure figure, IRenderContext measureCtx)
+    {
+        if (figure.Spacing.TightLayout || figure.Spacing.ConstrainedLayout)
+            return new ConstrainedLayoutEngine().Compute(figure, measureCtx);
+        return ResolveSpacing(figure);
     }
 
     /// <summary>Renders the figure background and title, returning the top Y coordinate for subplots.</summary>
@@ -216,9 +236,11 @@ public sealed class ChartRenderer : IChartRenderer
     }
 
     /// <summary>Renders a single <see cref="Axes"/> subplot, including all series, decorations, and nested insets.</summary>
-    internal void RenderAxes(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme, int depth = 0)
+    internal void RenderAxes(Figure figure, Axes axes, Rect plotArea, IRenderContext ctx, Theme theme, int depth = 0)
     {
-        var axesRenderer = AxesRenderer.Create(axes, plotArea, ctx, theme);
+        // Pass figure size through so 3-D renderer can compute matplotlib's exact square bbox.
+        var figSize = ((double W, double H)?)(figure.Width, figure.Height);
+        var axesRenderer = AxesRenderer.Create(axes, plotArea, ctx, theme, figSize);
         axesRenderer.Render();
 
         // Render inset axes recursively (max depth guard)
@@ -226,7 +248,7 @@ public sealed class ChartRenderer : IChartRenderer
         {
             // When constrained layout is active, position insets within the inner data area
             // to avoid overlapping with axis labels and ticks.
-            var referenceArea = (_figure?.Spacing.ConstrainedLayout == true)
+            var referenceArea = figure.Spacing.ConstrainedLayout
                 ? axesRenderer.ComputeInnerBounds()
                 : plotArea;
 
@@ -238,7 +260,7 @@ public sealed class ChartRenderer : IChartRenderer
                     referenceArea.Y + bounds.Y * referenceArea.Height,
                     bounds.Width * referenceArea.Width,
                     bounds.Height * referenceArea.Height);
-                RenderAxes(inset, insetRect, ctx, theme, depth + 1);
+                RenderAxes(figure, inset, insetRect, ctx, theme, depth + 1);
             }
         }
     }

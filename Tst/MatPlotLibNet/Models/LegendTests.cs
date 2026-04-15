@@ -115,7 +115,7 @@ public class LegendTests
     public void LegendPosition_HasAllExpectedValues()
     {
         var values = Enum.GetValues<LegendPosition>();
-        Assert.Equal(11, values.Length);
+        Assert.Equal(15, values.Length);
         Assert.Contains(LegendPosition.Best, values);
         Assert.Contains(LegendPosition.UpperRight, values);
         Assert.Contains(LegendPosition.UpperLeft, values);
@@ -127,6 +127,10 @@ public class LegendTests
         Assert.Contains(LegendPosition.LowerCenter, values);
         Assert.Contains(LegendPosition.UpperCenter, values);
         Assert.Contains(LegendPosition.Center, values);
+        Assert.Contains(LegendPosition.OutsideRight, values);
+        Assert.Contains(LegendPosition.OutsideLeft, values);
+        Assert.Contains(LegendPosition.OutsideTop, values);
+        Assert.Contains(LegendPosition.OutsideBottom, values);
     }
 
     [Fact]

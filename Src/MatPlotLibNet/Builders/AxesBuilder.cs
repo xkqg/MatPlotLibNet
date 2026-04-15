@@ -24,19 +24,6 @@ namespace MatPlotLibNet;
 ///     })
 ///     .ToSvg();
 /// </code>
-/// Geo choropleth with per-feature colour mapping:
-/// <code>
-/// string svg = Plt.Create()
-///     .AddSubPlot(1, 1, 1, ax =>
-///     {
-///         ax.Choropleth(geoDoc, gdpValues)
-///           .WithColorMap("YlOrRd")
-///           .WithColorBar()
-///           .SetXLabel("Longitude")
-///           .SetYLabel("Latitude");
-///     })
-///     .ToSvg();
-/// </code>
 /// </example>
 public sealed class AxesBuilder
 {
@@ -90,6 +77,12 @@ public sealed class AxesBuilder
     /// <summary>Sets the Y-axis data range limits.</summary>
     public AxesBuilder SetYLim(double min, double max) { _axes.YAxis.Min = min; _axes.YAxis.Max = max; return this; }
 
+    /// <summary>Sets the Z-axis label (3D charts only).</summary>
+    public AxesBuilder SetZLabel(string label) { _axes.ZAxis.Label = label; return this; }
+
+    /// <summary>Sets the Z-axis data range limits (3D charts only).</summary>
+    public AxesBuilder SetZLim(double min, double max) { _axes.ZAxis.Min = min; _axes.ZAxis.Max = max; return this; }
+
     /// <summary>Sets the auto-scale margin on each side of the X axis (default 0.05). Use 0 for bar/candlestick charts that already include half-bar-width padding.</summary>
     public AxesBuilder SetXMargin(double margin) { _axes.XAxis.Margin = margin; return this; }
 
@@ -134,6 +127,25 @@ public sealed class AxesBuilder
 
     /// <summary>Hides the right spine.</summary>
     public AxesBuilder HideRightSpine() { _axes.Spines = _axes.Spines with { Right = _axes.Spines.Right with { Visible = false } }; return this; }
+
+    /// <summary>Hides every spine, tick and tick label on both the X and Y axis — turns the plot
+    /// area into a bare canvas. Useful for non-coordinate charts like Sankey, Treemap, or Sunburst
+    /// where the default cartesian axes decoration has no meaning and only adds visual clutter.</summary>
+    public AxesBuilder HideAllAxes()
+    {
+        _axes.Spines = _axes.Spines with
+        {
+            Top = _axes.Spines.Top with { Visible = false },
+            Bottom = _axes.Spines.Bottom with { Visible = false },
+            Left = _axes.Spines.Left with { Visible = false },
+            Right = _axes.Spines.Right with { Visible = false },
+        };
+        _axes.XAxis.MajorTicks = _axes.XAxis.MajorTicks with { Visible = false };
+        _axes.XAxis.MinorTicks = _axes.XAxis.MinorTicks with { Visible = false };
+        _axes.YAxis.MajorTicks = _axes.YAxis.MajorTicks with { Visible = false };
+        _axes.YAxis.MinorTicks = _axes.YAxis.MinorTicks with { Visible = false };
+        return this;
+    }
 
     /// <summary>Shares the X axis with the axes identified by the given key.</summary>
     public AxesBuilder ShareX(string key) { _shareXKey = key; return this; }
@@ -529,6 +541,20 @@ public sealed class AxesBuilder
     public AxesBuilder Sunburst(TreeNode root, Action<SunburstSeries>? configure = null)
         => AddSeries(ax => ax.Sunburst(root), configure);
 
+    /// <summary>
+    /// Adds a nested pie series — inner filled disc showing top-level categories, outer ring
+    /// showing each category's sub-breakdown. Convenience wrapper around <see cref="Sunburst"/>
+    /// with <see cref="SunburstSeries.InnerRadius"/> pinned at 0. Expects a 2-level
+    /// <see cref="TreeNode"/> (root → categories → sub-items); deeper trees still render but
+    /// add more concentric rings.
+    /// </summary>
+    public AxesBuilder NestedPie(TreeNode root, Action<SunburstSeries>? configure = null)
+        => Sunburst(root, s =>
+        {
+            s.InnerRadius = 0;
+            configure?.Invoke(s);
+        });
+
     /// <summary>Adds a Sankey diagram series to the axes.</summary>
     public AxesBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null)
         => AddSeries(ax => ax.Sankey(nodes, links), configure);
@@ -568,6 +594,12 @@ public sealed class AxesBuilder
     /// <summary>Adds a 3D bar series to the axes.</summary>
     public AxesBuilder Bar3D(double[] x, double[] y, double[] z, Action<Bar3DSeries>? configure = null)
         => AddSeries(ax => ax.Bar3D(x, y, z), configure);
+
+    /// <summary>Adds a planar 3D bar series — flat translucent rectangles placed on Y planes.
+    /// Reproduces matplotlib's <c>ax.bar(xs, heights, zs=y, zdir='y')</c> pattern
+    /// (also known as "2D bars in different planes" or a "skyscraper plot").</summary>
+    public AxesBuilder PlanarBar3D(double[] x, double[] y, double[] z, Action<PlanarBar3DSeries>? configure = null)
+        => AddSeries(ax => ax.PlanarBar3D(x, y, z), configure);
 
     /// <summary>Sets the 3D projection angles for ThreeD coordinate system axes.</summary>
     public AxesBuilder WithProjection(double elevation = 30, double azimuth = -60)

@@ -24,10 +24,10 @@ public class EventplotSeriesTests
     }
 
     [Fact]
-    public void LineLength_DefaultsTo0p8()
+    public void LineLength_DefaultsTo1()
     {
         var series = new EventplotSeries([]);
-        Assert.Equal(0.8, series.LineLength);
+        Assert.Equal(1.0, series.LineLength);
     }
 
     [Fact]

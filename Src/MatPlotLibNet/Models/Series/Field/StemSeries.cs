@@ -35,10 +35,17 @@ public sealed class StemSeries : ChartSeries
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        double yMin = YData.Min(), yMax = YData.Max();
+        double rawMin = YData.Min(), rawMax = YData.Max();
+        double yMin = rawMin, yMax = rawMax;
         if (0 < yMin) yMin = 0;
         if (0 > yMax) yMax = 0;
-        return new(XData.Min(), XData.Max(), yMin, yMax);
+        // Stems anchor to the y=0 baseline. Matches matplotlib's StemContainer sticky edge.
+        double? stickyYMin = rawMin >= 0 ? 0 : null;
+        double? stickyYMax = rawMax <= 0 ? 0 : null;
+        double xMin = XData.Min(), xMax = XData.Max();
+        return new(xMin, xMax, yMin, yMax,
+            StickyXMin: xMin, StickyXMax: xMax,
+            StickyYMin: stickyYMin, StickyYMax: stickyYMax);
     }
 
     /// <inheritdoc />

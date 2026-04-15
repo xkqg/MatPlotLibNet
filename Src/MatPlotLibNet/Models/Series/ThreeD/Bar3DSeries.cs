@@ -34,7 +34,19 @@ public sealed class Bar3DSeries : ChartSeries, I3DPointSeries, IHasColor
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
-        => new(null, null, null, null);
+    {
+        if (X.Length == 0) return new(null, null, null, null);
+        // matplotlib bar3d convention: X[i] / Y[i] are the LEFT-FRONT corner of the bar,
+        // not the centre. Bar spans [X, X+BarWidth] × [Y, Y+BarWidth] × [0, Z]. This aligns
+        // X/Y tick labels with bar edges instead of centres.
+        double xLo = X.Min(), xHi = X.Max() + BarWidth;
+        double yLo = Y.Min(), yHi = Y.Max() + BarWidth;
+        double zLo = Math.Min(0, Z.Min());
+        double zHi = Math.Max(0, Z.Max());
+        return new(xLo, xHi, yLo, yHi,
+            StickyZMin: 0,
+            ZMin: zLo, ZMax: zHi);
+    }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

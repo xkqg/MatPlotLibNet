@@ -16,7 +16,7 @@ public sealed class EventplotSeries : ChartSeries
 
     public Color[]? Colors { get; set; }
 
-    public double LineLength { get; set; } = 0.8;
+    public double LineLength { get; set; } = 1.0;
 
     /// <summary>Initializes a new instance of <see cref="EventplotSeries"/> with the specified position sets.</summary>
     /// <param name="positions">An array of event position sets, one per row.</param>
@@ -32,7 +32,17 @@ public sealed class EventplotSeries : ChartSeries
         var allPos = Positions.SelectMany(p => p).ToArray();
         double xMin = allPos.Length > 0 ? allPos.Min() : 0;
         double xMax = allPos.Length > 0 ? allPos.Max() : 1;
-        return new(xMin, xMax, 0, Positions.Length);
+        // Each row i draws tick lines from y = i - LineLength/2 to y = i + LineLength/2.
+        // Report the enlarged Y-bbox to the auto-limiter so it rounds out to nice tick
+        // boundaries (e.g. [-0.5, 3.5] rounds to [-1, 4] for 4 rows at linelength=1).
+        // Deliberately NO sticky-Y: event rows don't semantically "touch" a spine the way
+        // bar baselines do, and sticky would block the auto-limiter from expanding to the
+        // nice range. Sticky-X is kept because event positions are the data X range.
+        double halfLen = LineLength / 2.0;
+        double yMin = -halfLen;
+        double yMax = (Positions.Length - 1) + halfLen;
+        return new(xMin, xMax, yMin, yMax,
+            StickyXMin: xMin, StickyXMax: xMax);
     }
 
     /// <inheritdoc />

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
@@ -39,7 +40,14 @@ public sealed class KdeSeries : ChartSeries, IHasColor, IHasAlpha
         double range = max - min;
         if (range == 0) range = 1.0;
         double padding = range * 0.3;
-        return new(min - padding, max + padding, 0, null);
+        // Evaluate the actual KDE to find the density peak so the Y axis covers the full curve.
+        // Without this, reporting yMax=null leaves the aggregator's yMax at double.MinValue and
+        // the 5 % margin pass produces axis labels around ±1e307.
+        var sorted = Data.OrderBy(v => v).ToArray();
+        double bw = Bandwidth ?? GaussianKde.SilvermanBandwidth(sorted);
+        var (_, density) = GaussianKde.Evaluate(sorted, bw);
+        double yMax = density.Length > 0 ? density.Max() * 1.05 : 1.0;
+        return new(min - padding, max + padding, 0, yMax);
     }
 
     /// <inheritdoc />

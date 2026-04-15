@@ -146,13 +146,40 @@ public sealed record BezierSegment(Point Control1, Point Control2, Point End) : 
         $"C {F(Control1.X)} {F(Control1.Y)} {F(Control2.X)} {F(Control2.Y)} {F(End.X)} {F(End.Y)} ";
 }
 
-/// <summary>A path segment that draws an elliptical arc.</summary>
+/// <summary>
+/// A path segment that draws an elliptical arc. Angles are in degrees, screen-Y-down
+/// convention (0° = +X / 3 o'clock, positive angles sweep clockwise on screen).
+/// </summary>
+/// <remarks>
+/// The arc's START point is implicit — it must equal the current path point (the end of
+/// the previous segment). The caller normally emits a <see cref="MoveToSegment"/> or
+/// <see cref="LineToSegment"/> to position at the perimeter at <paramref name="StartAngle"/>
+/// before this arc. The end point (passed to the SVG <c>A</c> command) is computed here
+/// from <paramref name="Center"/>, <paramref name="RadiusX"/>, and
+/// <paramref name="EndAngle"/>.
+/// </remarks>
 public sealed record ArcSegment(Point Center, double RadiusX, double RadiusY,
     double StartAngle, double EndAngle) : PathSegment
 {
     /// <inheritdoc />
-    public override string ToSvgPathData() =>
-        $"A {F(RadiusX)} {F(RadiusY)} 0 0 1 {F(Center.X)} {F(Center.Y)} ";
+    public override string ToSvgPathData()
+    {
+        // Compute the actual end point of the arc (on the perimeter at EndAngle). The
+        // earlier implementation emitted (Center.X, Center.Y) which caused the arc to
+        // sweep back to the center, producing petal-shaped wedges in SunburstSeries.
+        double endRad = EndAngle * Math.PI / 180.0;
+        double endX = Center.X + RadiusX * Math.Cos(endRad);
+        double endY = Center.Y + RadiusY * Math.Sin(endRad);
+
+        // large-arc-flag: 1 if the angular sweep is greater than 180°.
+        int large = Math.Abs(EndAngle - StartAngle) > 180.0 ? 1 : 0;
+        // sweep-flag: 1 = clockwise on screen (positive sweep in screen-Y-down), 0 = CCW.
+        // The sunburst renderer uses reverse direction for the inner arc (EndAngle < StartAngle)
+        // to close the wedge polygon, so we must respect the sign.
+        int sweep = EndAngle >= StartAngle ? 1 : 0;
+
+        return $"A {F(RadiusX)} {F(RadiusY)} 0 {large} {sweep} {F(endX)} {F(endY)} ";
+    }
 }
 
 /// <summary>A path segment that closes the current sub-path by drawing a line back to its start.</summary>

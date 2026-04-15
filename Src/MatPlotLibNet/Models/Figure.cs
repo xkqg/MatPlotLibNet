@@ -45,8 +45,21 @@ public sealed class Figure
     /// <summary>When true, embeds a JavaScript 3D rotation handler in the SVG output.</summary>
     public bool Enable3DRotation { get; set; }
 
+    /// <summary>When true, embeds a JavaScript drilldown handler so clicking a treemap
+    /// rectangle zooms into its subtree; Escape zooms out. Data attributes are emitted on
+    /// every treemap rect so the script can navigate the hierarchy.</summary>
+    public bool EnableTreemapDrilldown { get; set; }
+
+    /// <summary>When true, embeds the Sankey hover emphasis script in the SVG output.
+    /// Hovering a node dims every link not reachable upstream or downstream from that node
+    /// (mirrors ECharts' <c>focus: adjacency</c> behaviour). <see cref="SeriesRenderers.SankeySeriesRenderer"/>
+    /// emits <c>data-sankey-node-id</c>, <c>data-sankey-link-source</c>, and
+    /// <c>data-sankey-link-target</c> attributes so the script can traverse the topology
+    /// without re-parsing the SVG structure.</summary>
+    public bool EnableSankeyHover { get; set; }
+
     /// <summary>Returns <see langword="true"/> if any interactive JS feature is enabled.</summary>
-    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || Enable3DRotation;
+    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || Enable3DRotation || EnableTreemapDrilldown || EnableSankeyHover;
 
     /// <summary>Gets the collection of subplot axes contained in this figure.</summary>
     public IReadOnlyList<Axes> SubPlots => _subPlots;

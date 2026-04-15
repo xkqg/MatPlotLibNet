@@ -12,7 +12,13 @@ namespace MatPlotLibNet.Models.Series;
 /// <param name="StickyXMax">Sticky-edge X maximum. Analogous to <paramref name="StickyXMin"/>.</param>
 /// <param name="StickyYMin">Sticky-edge Y minimum — matplotlib's <c>BarContainer</c> sets this to <c>0</c> so the y-axis never pads below the bar baseline.</param>
 /// <param name="StickyYMax">Sticky-edge Y maximum.</param>
+/// <param name="StickyZMin">Sticky-edge Z minimum (3-D only) — <see cref="Bar3DSeries"/> sets this to <c>0</c> so the z-axis never pads below the floor the bars rise from.</param>
+/// <param name="StickyZMax">Sticky-edge Z maximum (3-D only).</param>
+/// <param name="ZMin">Minimum Z value contributed (3-D only), or null.</param>
+/// <param name="ZMax">Maximum Z value contributed (3-D only), or null.</param>
 public readonly record struct DataRangeContribution(
     double? XMin, double? XMax, double? YMin, double? YMax,
     double? StickyXMin = null, double? StickyXMax = null,
-    double? StickyYMin = null, double? StickyYMax = null);
+    double? StickyYMin = null, double? StickyYMax = null,
+    double? StickyZMin = null, double? StickyZMax = null,
+    double? ZMin = null, double? ZMax = null);

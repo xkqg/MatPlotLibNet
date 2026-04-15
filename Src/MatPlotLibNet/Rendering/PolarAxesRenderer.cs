@@ -37,6 +37,11 @@ public sealed class PolarAxesRenderer : AxesRenderer
         var labelFont = TickFont();
 
         // Draw concentric circle grid
+        // Collect tick values first so BuildUniformTickFormatter can size all labels consistently.
+        var ringTicks = new double[5];
+        for (int ring = 1; ring <= 5; ring++) ringTicks[ring - 1] = rMax * (ring / 5.0);
+        var ringUniformFormat = BuildUniformTickFormatter(ringTicks);
+
         for (int ring = 1; ring <= 5; ring++)
         {
             double frac = ring / 5.0;
@@ -47,7 +52,7 @@ public sealed class PolarAxesRenderer : AxesRenderer
 
             // Tick label on right side (respects custom formatter if set)
             double tickValue = rMax * frac;
-            string tickLabel = Axes.YAxis.TickFormatter?.Format(tickValue) ?? FormatTick(tickValue);
+            string tickLabel = Axes.YAxis.TickFormatter?.Format(tickValue) ?? ringUniformFormat(tickValue);
             Ctx.DrawText(tickLabel,
                 new Point(transform.CenterX + r + 4, transform.CenterY + 4),
                 labelFont, TextAlignment.Left);

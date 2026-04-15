@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models;
 
 /// <summary>Represents the configuration of a single axis (X or Y) on an axes.</summary>
-public sealed class Axis
+public class Axis
 {
     public string? Label { get; set; }
 
@@ -22,7 +22,14 @@ public sealed class Axis
 
     public TickConfig MajorTicks { get; set; } = new();
 
-    public TickConfig MinorTicks { get; set; } = new();
+    // matplotlib minor tick defaults: xtick.minor.size = 2.0 pt, xtick.minor.width = 0.6 pt,
+    // and minor ticks are OFF by default (ax.minorticks_on() / WithMinorTicks() enables them).
+    public TickConfig MinorTicks { get; set; } = new TickConfig
+    {
+        Visible = false,
+        Length  = 2.0 * 100.0 / 72.0,   // 2.0 pt → ~2.78 px at 100 DPI
+        Width   = 0.6 * 100.0 / 72.0,   // 0.6 pt → ~0.83 px at 100 DPI
+    };
 
     public bool Inverted { get; set; }
 
@@ -38,6 +45,11 @@ public sealed class Axis
 
     public ITickLocator? TickLocator { get; set; }
 }
+
+/// <summary>Represents the configuration of the Z axis on a 3D axes. Inherits all standard axis
+/// properties (<see cref="Axis.Label"/>, <see cref="Axis.Min"/>/<see cref="Axis.Max"/>,
+/// <see cref="Axis.MajorTicks"/>, etc.) and may be extended with 3D-specific properties.</summary>
+public sealed class Axis3D : Axis { }
 
 /// <summary>Specifies the scale type used for an axis.</summary>
 public enum AxisScale

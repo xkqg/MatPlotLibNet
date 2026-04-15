@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using System.Text;
+using MatPlotLibNet;
 using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
@@ -100,6 +101,7 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.Append("<rect x=\"").Append(F(rect.X)).Append("\" y=\"").Append(F(rect.Y))
            .Append("\" width=\"").Append(F(rect.Width)).Append("\" height=\"").Append(F(rect.Height)).Append('"');
         AppendFillStroke(fill, stroke, strokeThickness);
+        FlushPendingData();
         _sb.AppendLine(" />");
     }
 
@@ -111,52 +113,91 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.Append("<ellipse cx=\"").Append(F(cx)).Append("\" cy=\"").Append(F(cy))
            .Append("\" rx=\"").Append(F(bounds.Width / 2)).Append("\" ry=\"").Append(F(bounds.Height / 2)).Append('"');
         AppendFillStroke(fill, stroke, strokeThickness);
+        FlushPendingData();
         _sb.AppendLine(" />");
     }
 
     /// <inheritdoc />
     public void DrawText(string text, Point position, Font font, TextAlignment alignment)
+        => DrawText(text, position, font, alignment, rotation: 0);
+
+    /// <inheritdoc />
+    public void DrawText(string text, Point position, Font font, TextAlignment alignment, double rotation)
+    {
+        // Path mode (preferred): when a glyph path provider is registered (happens
+        // automatically when MatPlotLibNet.Skia loads), emit the text as vector glyph
+        // outlines rather than <text> elements. That makes the SVG self-contained —
+        // it renders identically in any viewer regardless of installed fonts, and the
+        // layout matches the PNG pipeline byte-for-byte because both backends use the
+        // same DejaVu Sans glyph metrics.
+        var provider = ChartServices.GlyphPathProvider;
+        if (provider is not null)
+        {
+            string? d = provider.GetPathData(text, font);
+            if (d is not null)
+            {
+                EmitGlyphPath(d, text, position, font, alignment, rotation);
+                return;
+            }
+        }
+
+        // Legacy <text> fallback: used when no glyph path provider is installed (pure-
+        // managed consumers without the Skia package). The browser draws the glyphs
+        // using whichever font it can resolve from the font-family stack; layout may
+        // not match PNG exactly in that configuration.
+        EmitTextElement(text, position, font, alignment, rotation);
+    }
+
+    private void EmitTextElement(string text, Point position, Font font, TextAlignment alignment, double rotation)
     {
         string anchor = alignment switch
         {
-            TextAlignment.Left => "start",
+            TextAlignment.Left   => "start",
             TextAlignment.Center => "middle",
-            TextAlignment.Right => "end",
-            _ => "start"
+            TextAlignment.Right  => "end",
+            _                    => "start",
         };
 
         _sb.Append("<text x=\"").Append(F(position.X)).Append("\" y=\"").Append(F(position.Y))
            .Append("\" font-family=\"").Append(font.Family).Append("\" font-size=\"").Append(F(font.Size))
            .Append("\" text-anchor=\"").Append(anchor).Append('"');
+        if (rotation != 0)
+        {
+            // SVG rotation: negative because SVG y-axis is flipped vs. mathematical convention
+            _sb.Append(" transform=\"rotate(").Append(F(-rotation)).Append(',')
+               .Append(F(position.X)).Append(',').Append(F(position.Y)).Append(")\"");
+        }
         if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
         if (font.Weight == FontWeight.Bold) _sb.Append(" font-weight=\"bold\"");
         if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
         _sb.Append('>').Append(EscapeXml(text)).AppendLine("</text>");
     }
 
-    /// <inheritdoc />
-    public void DrawText(string text, Point position, Font font, TextAlignment alignment, double rotation)
+    private void EmitGlyphPath(string d, string textForMeasure, Point position, Font font, TextAlignment alignment, double rotation)
     {
-        if (rotation == 0) { DrawText(text, position, font, alignment); return; }
-
-        string anchor = alignment switch
+        // Compute the horizontal offset needed to realise the requested alignment.
+        // We measure width via ChartServices.FontMetrics — same source Skia used when
+        // it generated the glyph path, so the alignment math matches the glyph layout.
+        double width = ChartServices.FontMetrics.Measure(textForMeasure, font).Width;
+        double alignOffset = alignment switch
         {
-            TextAlignment.Left => "start",
-            TextAlignment.Center => "middle",
-            TextAlignment.Right => "end",
-            _ => "start"
+            TextAlignment.Center => -width / 2.0,
+            TextAlignment.Right  => -width,
+            _                    => 0.0,
         };
 
-        // SVG rotation: negative because SVG y-axis is flipped vs. mathematical convention
-        _sb.Append("<text x=\"").Append(F(position.X)).Append("\" y=\"").Append(F(position.Y))
-           .Append("\" font-family=\"").Append(font.Family).Append("\" font-size=\"").Append(F(font.Size))
-           .Append("\" text-anchor=\"").Append(anchor).Append('"')
-           .Append(" transform=\"rotate(").Append(F(-rotation)).Append(',')
-           .Append(F(position.X)).Append(',').Append(F(position.Y)).Append(")\"");
-        if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
-        if (font.Weight == FontWeight.Bold) _sb.Append(" font-weight=\"bold\"");
+        _sb.Append("<path d=\"").Append(d).Append('"');
         if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
-        _sb.Append('>').Append(EscapeXml(text)).AppendLine("</text>");
+        // Transform composition is applied right-to-left: first move the glyph origin
+        // by the alignment offset along the UNROTATED baseline, then rotate around the
+        // anchor, then translate to the anchor itself. Gives the correct result for
+        // rotated text with any alignment (e.g. Y-axis labels rotated 90° and centred).
+        _sb.Append(" transform=\"translate(").Append(F(position.X)).Append(',').Append(F(position.Y)).Append(')');
+        if (rotation != 0)
+            _sb.Append(" rotate(").Append(F(-rotation)).Append(')');
+        if (alignOffset != 0)
+            _sb.Append(" translate(").Append(F(alignOffset)).Append(",0)");
+        _sb.Append('"').AppendLine(" />");
     }
 
     /// <inheritdoc />
@@ -188,15 +229,7 @@ public sealed class SvgRenderContext : IRenderContext
     }
 
     /// <inheritdoc />
-    public Size MeasureText(string text, Font font)
-    {
-        double width = 0;
-        foreach (var c in text)
-            width += CharacterWidthTable.GetWidth(c);
-        width *= font.Size;
-        double height = font.Size * 1.2;
-        return new Size(width, height);
-    }
+    public Size MeasureText(string text, Font font) => ChartServices.FontMetrics.Measure(text, font);
 
     /// <inheritdoc />
     public void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment)
@@ -291,6 +324,60 @@ public sealed class SvgRenderContext : IRenderContext
 
         if (stroke.HasValue)
             _sb.Append(" stroke=\"").Append(stroke.Value.ToHex()).Append("\" stroke-width=\"").Append(F(strokeThickness)).Append('"');
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Linear gradient defs — used by SankeySeriesRenderer for source→target link
+    // colour blends. Gradients are SVG-specific so there's no IRenderContext surface;
+    // the Sankey renderer checks `if (Ctx is SvgRenderContext svg)` before calling these.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    private int _gradientId;
+
+    /// <summary>Emits a <c>&lt;linearGradient&gt;</c> into the SVG <c>&lt;defs&gt;</c> stream
+    /// with two stops (<paramref name="from"/> at 0 %, <paramref name="to"/> at 100 %) and
+    /// returns a unique gradient ID suitable for <c>fill="url(#id)"</c> references. The
+    /// gradient direction is controlled by <paramref name="x1"/>/<paramref name="y1"/>/
+    /// <paramref name="x2"/>/<paramref name="y2"/> in user space units (SVG
+    /// <c>gradientUnits="userSpaceOnUse"</c>), so Sankey links can anchor the gradient to
+    /// the link's bounding box without the browser re-applying a percentage-based transform.</summary>
+    public string DefineLinearGradient(Color from, Color to,
+        double x1, double y1, double x2, double y2)
+    {
+        int id = _gradientId++;
+        string refId = $"grad-{id}";
+        _sb.Append("<defs><linearGradient id=\"").Append(refId)
+           .Append("\" gradientUnits=\"userSpaceOnUse\" x1=\"").Append(F(x1))
+           .Append("\" y1=\"").Append(F(y1)).Append("\" x2=\"").Append(F(x2))
+           .Append("\" y2=\"").Append(F(y2)).Append("\">");
+        AppendGradientStop(0, from);
+        AppendGradientStop(1, to);
+        _sb.AppendLine("</linearGradient></defs>");
+        return refId;
+    }
+
+    private void AppendGradientStop(double offset, Color color)
+    {
+        _sb.Append("<stop offset=\"").Append(F(offset))
+           .Append("\" stop-color=\"").Append(color.ToHex()).Append('"');
+        if (color.A < 255)
+            _sb.Append(" stop-opacity=\"").Append(F(color.A / 255.0)).Append('"');
+        _sb.Append(" />");
+    }
+
+    /// <summary>Draws a filled path whose fill references a previously-defined gradient
+    /// (see <see cref="DefineLinearGradient"/>). Used by the Sankey renderer to emit
+    /// source→target colour blends for every link.</summary>
+    public void DrawPathWithGradientFill(IReadOnlyList<PathSegment> segments, string gradientId,
+        Color? stroke, double strokeThickness)
+    {
+        _sb.Append("<path d=\"");
+        foreach (var seg in segments) _sb.Append(seg.ToSvgPathData());
+        _sb.Append("\" fill=\"url(#").Append(gradientId).Append(")\"");
+        if (stroke.HasValue)
+            _sb.Append(" stroke=\"").Append(stroke.Value.ToHex())
+               .Append("\" stroke-width=\"").Append(F(strokeThickness)).Append('"');
+        _sb.AppendLine(" />");
     }
 
     /// <summary>Opens an SVG group with a CSS class and <c>data-series-index</c> attribute for JS interactivity, with optional <c>aria-label</c>.</summary>

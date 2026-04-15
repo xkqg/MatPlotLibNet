@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 
@@ -69,10 +70,12 @@ public sealed class Macd : PriceIndicator<MacdResult>
         int signalOffset = offset + _signalPeriod - 1;
         PlotSignal(axes, result.MacdLine, offset);
         PlotSignal(axes, result.SignalLine, signalOffset, "Signal", SignalColor ?? Colors.Tab10Orange);
-        var histLabels = new string[result.Histogram.Length];
-        for (int i = 0; i < result.Histogram.Length; i++) histLabels[i] = (signalOffset + i).ToString();
-        var histSeries = axes.Bar(histLabels, result.Histogram);
-        histSeries.Label = "Histogram";
-        histSeries.BarWidth = 0.6;
+
+        // Histogram shares the numeric X axis with the two line series above — use BarSeries'
+        // numeric-X constructor so they align.
+        double[] histX = new double[result.Histogram.Length];
+        for (int i = 0; i < histX.Length; i++) histX[i] = signalOffset + i;
+        var histSeries = new BarSeries(histX, result.Histogram) { Label = "Histogram", BarWidth = 0.6 };
+        axes.AddSeries(histSeries);
     }
 }

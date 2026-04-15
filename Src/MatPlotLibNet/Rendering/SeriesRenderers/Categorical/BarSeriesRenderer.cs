@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -28,16 +29,27 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
         double edgeWidth = series.LineWidth > 0 ? series.LineWidth : (series.EdgeColor.HasValue ? 1 : 0);
         Color? edgeColor = series.LineWidth > 0 ? (series.EdgeColor ?? baseColor) : series.EdgeColor;
 
+        // Collect label candidates during the bar loop; placing them in one batch after all
+        // bars draw lets LabelLayoutEngine shift the few that would otherwise overlap
+        // neighbouring bars (dense category axes, narrow bars, long labels).
+        var labelCandidates = series.ShowLabels ? new List<LabelCandidate>() : null;
+
+        bool useNumericX = series.XCoordinate is { Length: > 0 };
         for (int i = 0; i < series.Categories.Length; i++)
         {
-            // Bar i occupies slot [i, i+1].
-            // Center alignment: body centered at i+0.5.
-            // Edge alignment: bar left edge at i, right edge at i + barWidth.
-            double slotStart = i;
+            // Default (categorical): bar i occupies slot [i, i+1]. Centered body at i+0.5.
+            // Numeric X (XCoordinate set): bar center placed at XCoordinate[i], regardless of slot.
+            double slotStart = useNumericX ? series.XCoordinate![i] - 0.5 : i;
             double effectiveBarWidth = series.BarGroupWidth ?? series.BarWidth;
             double halfW = effectiveBarWidth / 2;
             double barLeft, barRight;
-            if (series.Align == BarAlignment.Edge)
+            if (useNumericX)
+            {
+                double center = series.XCoordinate![i] + series.BarGroupOffset;
+                barLeft = center - halfW;
+                barRight = center + halfW;
+            }
+            else if (series.Align == BarAlignment.Edge)
             {
                 barLeft = slotStart + series.BarGroupOffset;
                 barRight = slotStart + series.BarGroupOffset + effectiveBarWidth;
@@ -56,11 +68,12 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
                 var br = Transform.DataToPixel(barRight, baseline + Math.Min(series.Values[i], 0));
                 Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), fillColor, edgeColor, edgeWidth);
 
-                if (series.ShowLabels)
+                if (labelCandidates is not null)
                 {
                     string label = FormatValue(series.Values[i], series.LabelFormat);
                     double barCenterX = (tl.X + br.X) / 2;
-                    Ctx.DrawText(label, new Point(barCenterX, tl.Y - 4), labelFont, TextAlignment.Center);
+                    labelCandidates.Add(new LabelCandidate(
+                        new Point(barCenterX, tl.Y - 4), label, labelFont, TextAlignment.Center));
                 }
             }
             else
@@ -69,12 +82,28 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
                 var br = Transform.DataToPixel(baseline + Math.Max(series.Values[i], 0), barLeft);
                 Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), fillColor, edgeColor, edgeWidth);
 
-                if (series.ShowLabels)
+                if (labelCandidates is not null)
                 {
                     string label = FormatValue(series.Values[i], series.LabelFormat);
                     double barCenterY = (tl.Y + br.Y) / 2;
-                    Ctx.DrawText(label, new Point(br.X + 4, barCenterY + 4), labelFont, TextAlignment.Left);
+                    labelCandidates.Add(new LabelCandidate(
+                        new Point(br.X + 4, barCenterY + 4), label, labelFont, TextAlignment.Left));
                 }
+            }
+        }
+
+        if (labelCandidates is { Count: > 0 })
+        {
+            var placements = LabelLayoutEngine.Place(
+                labelCandidates,
+                Context.Area.PlotBounds,
+                ChartServices.FontMetrics);
+            var leaderColor = Context?.Theme?.ForegroundText ?? Colors.Black;
+            foreach (var p in placements)
+            {
+                if (p.LeaderLineStart is { } anchor)
+                    CalloutBoxRenderer.DrawLeaderLine(Ctx, anchor, p.FinalPoint, leaderColor);
+                Ctx.DrawText(p.Text, p.FinalPoint, p.Font, p.Alignment);
             }
         }
     }

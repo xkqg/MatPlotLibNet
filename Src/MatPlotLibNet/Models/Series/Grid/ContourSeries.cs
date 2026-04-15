@@ -43,8 +43,17 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
     }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(null, null, null, null);
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        if (XData.Length == 0 || YData.Length == 0)
+            return new(null, null, null, null);
+        double xMin = XData.Min(), xMax = XData.Max();
+        double yMin = YData.Min(), yMax = YData.Max();
+        // Contour grids occupy the full [xMin,xMax] × [yMin,yMax] rectangle — margin
+        // expansion would push whitespace between the grid edge and the spines.
+        return new(xMin, xMax, yMin, yMax,
+            StickyXMin: xMin, StickyXMax: xMax, StickyYMin: yMin, StickyYMax: yMax);
+    }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

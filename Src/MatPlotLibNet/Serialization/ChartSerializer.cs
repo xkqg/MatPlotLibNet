@@ -1001,10 +1001,6 @@ public sealed record SeriesDto
     public int? WindowSize { get; init; }
     public int? Overlap { get; init; }
 
-    // v0.8.9 Phase F — Geo
-    public string? GeoJson { get; init; }
-    public string? Projection { get; init; }
-
     // v0.8.0 Phase C
     public double[]? ZData { get; init; }
     public int? Levels { get; init; }

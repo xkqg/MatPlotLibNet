@@ -21,8 +21,12 @@ public sealed class OhlcBarSeries : OhlcSeries
         : base(open, high, low, close) { }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(context.XAxisMin ?? -0.5, context.XAxisMax ?? (Open.Length - 0.5), Low.Min(), High.Max());
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        double ohlcXMin = context.XAxisMin ?? -0.5;
+        double ohlcXMax = context.XAxisMax ?? (Open.Length - 0.5);
+        return new(ohlcXMin, ohlcXMax, Low.Min(), High.Max(), StickyXMin: ohlcXMin, StickyXMax: ohlcXMax);
+    }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

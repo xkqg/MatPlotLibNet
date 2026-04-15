@@ -38,8 +38,18 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
     }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(null, null, null, null);
+    /// <remarks>Heatmaps fill their plot rectangle exactly (cells of <c>cols × rows</c>).
+    /// Report the grid extent with sticky edges on all four sides so the axes show
+    /// meaningful row/column indices instead of the default <c>[0, 1]</c> fallback, and
+    /// so the 5 % axis margin never introduces whitespace between the cells and the spines.</remarks>
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        int rows = Data.GetLength(0);
+        int cols = Data.GetLength(1);
+        if (rows == 0 || cols == 0) return new(null, null, null, null);
+        return new(0, cols, 0, rows,
+            StickyXMin: 0, StickyXMax: cols, StickyYMin: 0, StickyYMax: rows);
+    }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new() { Type = "heatmap", HeatmapData = ChartSerializer.To2DList(Data), ColorMapName = ColorMap?.Name };

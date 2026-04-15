@@ -22,7 +22,7 @@ internal sealed class ConstrainedLayoutEngine
     // Fixed offsets that CartesianAxesRenderer hard-codes (do NOT change here — mirrors the renderer).
     private const double YTickRightGap   = 8;   // PlotArea.X - 8 for right-aligned Y tick labels
     private const double XTickBottomGap  = 15;  // PlotArea.Y + Height + 15 for X tick label baseline
-    private const double XLabelBottomGap = 35;  // PlotArea.Y + Height + 35 for X axis label baseline
+    private const double XLabelGap       = 6;   // gap between X tick-label cell and X-axis label cell
     private const double YLabelLeftPos   = 45;  // PlotArea.X - 45 for Y axis label centre
 
     /// <summary>Computes optimal <see cref="SubPlotSpacing"/> margins for the figure.</summary>
@@ -43,13 +43,15 @@ internal sealed class ConstrainedLayoutEngine
         int maxRows = GetMaxRows(figure);
         int maxCols = GetMaxCols(figure);
 
-        // Figure-level suptitle reserves additional top margin so subplot titles don't collide with it.
+        // Figure-level suptitle reservation — stacked ABOVE any subplot title, not maxed
+        // with it. A figure with both a suptitle and subplot titles needs space for both
+        // to coexist, so we add the suptitle height on top of whatever the subplots need.
+        double supReserved = 0;
         if (figure.Title is not null)
         {
             var supTitleFont = SupTitleFont(theme);
             double supH = ctx.MeasureText(figure.Title, supTitleFont).Height;
-            double supReserved = supH + SupTitleTopPad + SupTitleBottomPad;
-            if (supReserved > top) top = supReserved;
+            supReserved = supH + SupTitleTopPad + SupTitleBottomPad;
         }
 
         foreach (var axes in figure.SubPlots)
@@ -60,23 +62,77 @@ internal sealed class ConstrainedLayoutEngine
             // Only edge subplots contribute to the margin on that edge
             if (pos.ColStart == 0        && m.LeftNeeded   > left)   left   = m.LeftNeeded;
             if (pos.RowEnd   >= maxRows  && m.BottomNeeded > bottom) bottom = m.BottomNeeded;
-            if (pos.RowStart == 0        && m.TopNeeded    > top)    top    = m.TopNeeded;
+            // Top row subplots: stack the suptitle reservation + the subplot's TopNeeded.
+            if (pos.RowStart == 0        && supReserved + m.TopNeeded > top) top = supReserved + m.TopNeeded;
             if (pos.ColEnd   >= maxCols  && m.RightNeeded  > right)  right  = m.RightNeeded;
 
-            // Interior subplots widen the inter-subplot gutter: a non-leftmost subplot
-            // needs horizontal space for its y-tick labels + y-axis label; a non-topmost
-            // subplot needs vertical space for its axes title + secondary x-axis.
+            // Interior subplots widen the inter-subplot gutter. The vertical gap between
+            // two adjacent rows must accommodate BOTH the upper row's BottomNeeded (x-tick
+            // labels + optional x-axis label) AND the lower row's TopNeeded (subplot title).
+            // Same logic for horizontal gaps.
             if (pos.ColStart > 0 && m.LeftNeeded > hGap) hGap = m.LeftNeeded;
+            if (pos.ColEnd   < maxCols && m.RightNeeded > hGap) hGap = m.RightNeeded;
             if (pos.RowStart > 0 && m.TopNeeded  > vGap) vGap = m.TopNeeded;
+            if (pos.RowEnd   < maxRows && m.BottomNeeded > vGap) vGap = m.BottomNeeded;
         }
 
-        // Clamp to sane bounds
+        // Stack the upper-row BottomNeeded with the lower-row TopNeeded — both must fit
+        // inside vGap. We don't know which exact pair of rows are adjacent, so use the
+        // worst-case sum: max non-bottom BottomNeeded + max non-top TopNeeded.
+        double maxNonBottomBottom = 0, maxNonTopTop = 0;
+        double maxNonRightRight = 0, maxNonLeftLeft = 0;
+        foreach (var axes in figure.SubPlots)
+        {
+            var m = Measure(axes, ctx, tickFont, labelFont, titleFont);
+            var pos = GetEffectivePosition(axes, figure);
+            if (pos.RowEnd   < maxRows && m.BottomNeeded > maxNonBottomBottom) maxNonBottomBottom = m.BottomNeeded;
+            if (pos.RowStart > 0       && m.TopNeeded    > maxNonTopTop)       maxNonTopTop = m.TopNeeded;
+            if (pos.ColEnd   < maxCols && m.RightNeeded  > maxNonRightRight)   maxNonRightRight = m.RightNeeded;
+            if (pos.ColStart > 0       && m.LeftNeeded   > maxNonLeftLeft)     maxNonLeftLeft = m.LeftNeeded;
+        }
+        double stackedV = maxNonBottomBottom + maxNonTopTop;
+        double stackedH = maxNonRightRight + maxNonLeftLeft;
+        if (stackedV > vGap) vGap = stackedV;
+        if (stackedH > hGap) hGap = stackedH;
+
+        // If the suptitle reservation is larger than whatever top-row subplots asked for,
+        // honour it as the floor (handles figures with a suptitle but no subplot titles).
+        if (supReserved > top) top = supReserved;
+
+        // Upper-clamp bounds — the defaults are tuned for figures without outside legends.
+        // When an outside legend is present on a given edge, the corresponding clamp has to
+        // allow for the full legend width/height; otherwise the legend clips at the figure
+        // boundary and the whole point of the reservation is defeated.
+        double maxLeft = 120, maxBottom = 100, maxTop = 120, maxRight = 140;
+        foreach (var axes in figure.SubPlots)
+        {
+            if (!axes.Legend.Visible) continue;
+            if (!LegendMeasurer.IsOutsidePosition(axes.Legend.Position)) continue;
+            var legendBox = LegendMeasurer.MeasureBox(axes, ctx, tickFont);
+            if (legendBox.Width <= 0 || legendBox.Height <= 0) continue;
+            switch (axes.Legend.Position)
+            {
+                case LegendPosition.OutsideRight:
+                    maxRight = Math.Max(maxRight, (int)legendBox.Width + 40);
+                    break;
+                case LegendPosition.OutsideLeft:
+                    maxLeft = Math.Max(maxLeft, (int)legendBox.Width + 40);
+                    break;
+                case LegendPosition.OutsideTop:
+                    maxTop = Math.Max(maxTop, (int)legendBox.Height + 40);
+                    break;
+                case LegendPosition.OutsideBottom:
+                    maxBottom = Math.Max(maxBottom, (int)legendBox.Height + 40);
+                    break;
+            }
+        }
+
         return figure.Spacing with
         {
-            MarginLeft     = Math.Clamp(left,   30, 120),
-            MarginBottom   = Math.Clamp(bottom, 30, 100),
-            MarginTop      = Math.Clamp(top,    20, 120),
-            MarginRight    = Math.Clamp(right,  10, 60),
+            MarginLeft     = Math.Clamp(left,   30, maxLeft),
+            MarginBottom   = Math.Clamp(bottom, 30, maxBottom),
+            MarginTop      = Math.Clamp(top,    20, maxTop),
+            MarginRight    = Math.Clamp(right,  10, maxRight),
             HorizontalGap  = Math.Clamp(hGap,   0, 150),
             VerticalGap    = Math.Clamp(vGap,   0, 120),
         };
@@ -160,13 +216,19 @@ internal sealed class ConstrainedLayoutEngine
         }
 
         // --- Bottom margin: X-tick labels + optional X-axis label ---
-        double tickH = ctx.MeasureText("0", tickFont).Height;  // single line height
+        // Mirrors AxesRenderer.RenderAxisLabels exactly:
+        //   tickCellBottom = tickLength + tickPad + tickLabelHeight
+        //   xLabelBaseline = tickCellBottom + gap + labelAscent (≈ 0.8 × labelFont.Size)
+        //   xLabelBottom   = xLabelBaseline + labelDescent (≈ 0.2 × labelFont.Size)
+        var xMajor = axes.XAxis.MajorTicks;
+        double tickH = ctx.MeasureText("0", tickFont).Height;
+        double tickCellBottom = xMajor.Length + xMajor.Pad + tickH;
         double bottomNeeded = XTickBottomGap + tickH + PadBottom;
 
         if (axes.XAxis.Label is not null)
         {
             double xLabelH = ctx.MeasureText(axes.XAxis.Label, labelFont).Height;
-            double xLabelBottom = XLabelBottomGap + xLabelH;
+            double xLabelBottom = tickCellBottom + XLabelGap + xLabelH;
             bottomNeeded = Math.Max(bottomNeeded, xLabelBottom + PadBottom);
         }
 
@@ -184,12 +246,50 @@ internal sealed class ConstrainedLayoutEngine
             topNeeded = Math.Max(topNeeded, 28 + secLabelH + PadTop);
         }
 
-        // --- Right margin: minimal; widen if secondary Y-axis label present ---
+        // --- Right margin: minimal; widen if secondary Y-axis label or vertical colorbar present ---
         double rightNeeded = 0;
         if (axes.SecondaryYAxis?.Label is not null)
         {
             double halfSecWidth = ctx.MeasureText(axes.SecondaryYAxis.Label, labelFont).Width / 2;
             rightNeeded = 45 + halfSecWidth + PadRight;
+        }
+        if (axes.ColorBar is { Visible: true, Orientation: ColorBarOrientation.Vertical } cb)
+        {
+            // Reserve: padding gap + bar width + 4-px gap + widest tick label + 8-px gap +
+            // (rotated) label height + PadRight. Tick label width estimated from worst-case 8-char number.
+            double tickLabelW = ctx.MeasureText("0.0000", tickFont).Width;
+            double labelH = cb.Label is not null ? ctx.MeasureText(cb.Label, labelFont).Height : 0;
+            double cbWidth = cb.Padding + cb.Width + 4 + tickLabelW + 8 + labelH + PadRight;
+            if (cbWidth > rightNeeded) rightNeeded = cbWidth;
+        }
+
+        // --- Outside legend reservation: measure the legend box via the shared LegendMeasurer
+        // (same formulas the renderer uses) and add its width/height to the appropriate edge
+        // when the legend's Position is one of the Outside* values. This is the concrete
+        // constrained-layout improvement over the previous engine, which ignored legend
+        // geometry entirely and let outside legends fall off the figure. ---
+        if (axes.Legend.Visible && LegendMeasurer.IsOutsidePosition(axes.Legend.Position))
+        {
+            var legendBox = LegendMeasurer.MeasureBox(axes, ctx, tickFont);
+            if (legendBox.Width > 0 && legendBox.Height > 0)
+            {
+                const double LegendOuterGap = 16;  // 8 px past the spine + 8 px past the box
+                switch (axes.Legend.Position)
+                {
+                    case LegendPosition.OutsideRight:
+                        rightNeeded = Math.Max(rightNeeded, legendBox.Width + LegendOuterGap);
+                        break;
+                    case LegendPosition.OutsideLeft:
+                        leftNeeded = Math.Max(leftNeeded, leftNeeded + legendBox.Width + LegendOuterGap);
+                        break;
+                    case LegendPosition.OutsideTop:
+                        topNeeded = Math.Max(topNeeded, topNeeded + legendBox.Height + LegendOuterGap);
+                        break;
+                    case LegendPosition.OutsideBottom:
+                        bottomNeeded = Math.Max(bottomNeeded, bottomNeeded + legendBox.Height + LegendOuterGap);
+                        break;
+                }
+            }
         }
 
         return new LayoutMetrics(leftNeeded, bottomNeeded, topNeeded, rightNeeded);

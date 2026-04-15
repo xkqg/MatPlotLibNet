@@ -35,6 +35,18 @@ public static class FigureSkiaExtensions
         global::MatPlotLibNet.FigureExtensions.RegisterTransform(".png", Png);
         global::MatPlotLibNet.FigureExtensions.RegisterTransform(".pdf", Pdf);
         LoadBundledFonts();
+
+        // Install Skia-backed font metrics — same DejaVu Sans glyph widths as the PNG
+        // pipeline, so layout (margins, tick positions, legend sizing) is identical
+        // across SVG and PNG outputs.
+        global::MatPlotLibNet.ChartServices.FontMetrics = new SkiaFontMetrics();
+
+        // Install Skia-backed glyph path provider — when the SVG backend writes text,
+        // it emits a <path> element with vector glyph outlines generated from the
+        // SAME font Skia uses for PNG rendering. The SVG becomes self-contained: it
+        // renders identically regardless of whether the viewer has DejaVu Sans
+        // installed. Matches matplotlib's default svg.fonttype='path' behaviour.
+        global::MatPlotLibNet.ChartServices.GlyphPathProvider = new SkiaGlyphPathProvider();
     }
 
     private static void LoadBundledFonts()

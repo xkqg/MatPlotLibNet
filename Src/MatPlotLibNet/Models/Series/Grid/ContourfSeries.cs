@@ -62,8 +62,18 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
     }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(null, null, null, null);
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        if (XData.Length == 0 || YData.Length == 0)
+            return new(null, null, null, null);
+        double xMin = XData.Min(), xMax = XData.Max();
+        double yMin = YData.Min(), yMax = YData.Max();
+        // Filled contour grids fill their [xMin,xMax] × [yMin,yMax] rectangle — sticky edges
+        // on all four sides keep the 5 % margin from pushing whitespace between the fill and
+        // the spines, matching ContourSeries.
+        return new(xMin, xMax, yMin, yMax,
+            StickyXMin: xMin, StickyXMax: xMax, StickyYMin: yMin, StickyYMax: yMax);
+    }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

@@ -3,6 +3,7 @@
 
 using MatPlotLibNet;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Samples.Console;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
@@ -25,6 +26,7 @@ static string SamplesPath(string name)
     Directory.CreateDirectory(imagesDir);
     return Path.Combine(imagesDir, name);
 }
+
 
 // --- 1. Simple line chart -> SVG ---
 double[] x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -58,6 +60,7 @@ var multiChart = Plt.Create()
     .Build();
 
 multiChart.Transform(new SvgTransform()).ToFile(SamplesPath("dashboard.svg"));
+multiChart.Transform(new PngTransform()).ToFile(SamplesPath("dashboard.png"));
 Console.WriteLine("Saved dashboard.svg");
 
 // --- 4. JSON round-trip ---
@@ -79,7 +82,8 @@ Plt.Create()
         .Heatmap(matrix)
         .WithColorMap("plasma")
         .WithColorBar(cb => cb with { Label = "Intensity" }))
-    .Save(SamplesPath("heatmap_colormap.svg"));
+    .TightLayout()
+    .SaveSvgAndPng(SamplesPath("heatmap_colormap.svg"));
 Console.WriteLine("Saved heatmap_colormap.svg");
 
 // --- 6. Colormap comparison (2x2 grid) ---
@@ -98,7 +102,7 @@ for (int i = 0; i < maps.Length; i++)
         .WithColorBar());
 }
 
-cmpBuilder.Save(SamplesPath("colormap_comparison.svg"));
+cmpBuilder.TightLayout().SaveSvgAndPng(SamplesPath("colormap_comparison.svg"));
 Console.WriteLine("Saved colormap_comparison.svg");
 
 // --- 7. GridSpec layout ---
@@ -110,7 +114,8 @@ Plt.Create()
     .AddSubPlot(GridPosition.Single(0, 0), ax => ax.Plot(x, y).WithTitle("Main plot"))
     .AddSubPlot(GridPosition.Single(0, 1), ax => ax.Scatter(x, y).WithTitle("Scatter"))
     .AddSubPlot(new GridPosition(1, 2, 0, 2), ax => ax.Bar(categories2, catValues).WithTitle("Wide bar"))
-    .Save(SamplesPath("gridspec_layout.svg"));
+    .TightLayout()
+    .SaveSvgAndPng(SamplesPath("gridspec_layout.svg"));
 Console.WriteLine("Saved gridspec_layout.svg");
 
 // --- 8. Custom tick locators ---
@@ -126,7 +131,7 @@ Plt.Create()
         .SetYTickFormatter(new EngFormatter())           // e.g. "100k", "50k"
         .SetXTickLocator(new MultipleLocator(25))        // ticks every 25 samples
         .WithMinorTicks())
-    .Save(SamplesPath("tick_locators.svg"));
+    .SaveSvgAndPng(SamplesPath("tick_locators.svg"));
 Console.WriteLine("Saved tick_locators.svg");
 
 // --- 9. Bar labels ---
@@ -140,7 +145,7 @@ Plt.Create()
         .Bar(products, sales, bar => { bar.Color = Colors.Tab10Blue; bar.Label = "Q1 Sales"; })
         .WithBarLabels("F0")                            // integer labels above bars
         .SetYTickFormatter(new EngFormatter()))
-    .Save(SamplesPath("bar_labels.svg"));
+    .SaveSvgAndPng(SamplesPath("bar_labels.svg"));
 Console.WriteLine("Saved bar_labels.svg");
 
 // --- 10. LTTB downsampling for large dataset ---
@@ -154,7 +159,7 @@ Plt.Create()
         .SetYLabel("Amplitude")
         .Plot(largeX, largeY, line => { line.Label = "Signal"; })
         .WithDownsampling(500))                         // LTTB to 500 points
-    .Save(SamplesPath("lttb_downsampling.svg"));
+    .SaveSvgAndPng(SamplesPath("lttb_downsampling.svg"));
 Console.WriteLine("Saved lttb_downsampling.svg");
 
 // --- 11. Rotated + background annotation ---
@@ -174,7 +179,7 @@ Plt.Create()
             ann.Rotation  = -30;
             ann.Alignment = MatPlotLibNet.Rendering.TextAlignment.Center;
         }))
-    .Save(SamplesPath("annotations_enhanced.svg"));
+    .SaveSvgAndPng(SamplesPath("annotations_enhanced.svg"));
 Console.WriteLine("Saved annotations_enhanced.svg");
 
 // =====================================================================
@@ -228,7 +233,7 @@ FigureTemplates.FinancialDashboard(
             .AxHLine(70, l => { l.Color = Colors.Red;   l.LineStyle = LineStyle.Dashed; l.Label = "Overbought"; })
             .AxHLine(20, l => { l.Color = Colors.Green; l.LineStyle = LineStyle.Dashed; l.Label = "Oversold"; }))
     .WithSize(1200, 900)
-    .Save(SamplesPath("financial_dashboard.svg"));
+    .SaveSvgAndPng(SamplesPath("financial_dashboard.svg"));
 Console.WriteLine("Saved financial_dashboard.svg");
 
 // --- 14. New indicators: WilliamsR, OBV, CCI, ParabolicSAR ---
@@ -236,6 +241,9 @@ Plt.Create()
     .WithTitle("Phase F Indicators")
     .WithSize(1000, 800)
     .WithGridSpec(2, 2)
+    .TightLayout()   // required so the vertical gap between rows is measured from the
+                     // top-row X-labels + bottom-row subplot titles — without it, the
+                     // theme default gap is too small and labels collide with titles.
     .AddSubPlot(new GridPosition(0, 1, 0, 1), ax =>
     {
         ax.Plot(Enumerable.Range(0, close.Length).Select(i => (double)i).ToArray(), close);
@@ -257,7 +265,7 @@ Plt.Create()
         ax.Cci(high, low, close, 20);
         ax.WithTitle("CCI(20)");
     })
-    .Save(SamplesPath("phase_f_indicators.svg"));
+    .SaveSvgAndPng(SamplesPath("phase_f_indicators.svg"));
 Console.WriteLine("Saved phase_f_indicators.svg");
 
 // --- 15. Contour with labels ---
@@ -278,13 +286,23 @@ Plt.Create()
             s.LabelFontSize = 9;
         })
         .WithColorMap("coolwarm"))
-    .Save(SamplesPath("contour_labels.svg"));
+    .SaveSvgAndPng(SamplesPath("contour_labels.svg"));
 Console.WriteLine("Saved contour_labels.svg");
 
 // --- 16. Scientific paper template (150 DPI, hidden top/right spines, tight layout) ---
-FigureTemplates.ScientificPaper(1, 1, title: "Damped Oscillation")
-    .Save(SamplesPath("scientific_paper.svg"));
-Console.WriteLine("Saved scientific_paper.svg");
+{
+    double[] tSP = Enumerable.Range(0, 200).Select(i => i * 0.1).ToArray();
+    double[] ySP = tSP.Select(t => Math.Exp(-0.15 * t) * Math.Cos(2 * t)).ToArray();
+    FigureTemplates.ScientificPaper(
+        ax => ax
+            .Plot(tSP, ySP, s => { s.Label = "e^{-0.15t} cos(2t)"; s.LineWidth = 1.2; })
+            .SetXLabel("t (s)")
+            .SetYLabel("Amplitude")
+            .WithLegend(LegendPosition.UpperRight),
+        title: "Damped Oscillation")
+    .SaveSvgAndPng(SamplesPath("scientific_paper.svg"));
+    Console.WriteLine("Saved scientific_paper.svg");
+}
 
 // --- 17. Sparkline dashboard ---
 FigureTemplates.SparklineDashboard(
@@ -294,7 +312,7 @@ FigureTemplates.SparklineDashboard(
         ("Disk I/O", Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 500).ToArray()),
     ],
     title: "Server Metrics — Last 60s")
-    .Save(SamplesPath("sparkline_dashboard.svg"));
+    .SaveSvgAndPng(SamplesPath("sparkline_dashboard.svg"));
 Console.WriteLine("Saved sparkline_dashboard.svg");
 
 // =====================================================================
@@ -320,7 +338,7 @@ Plt.Create()
         .SetYLabel("Price ($)")
         .Plot(dates, price2, line => { line.Color = Colors.Tab10Blue; line.Label = "ACME"; })
         .WithLegend(LegendPosition.UpperRight))
-    .Save(SamplesPath("date_axis.svg"));
+    .SaveSvgAndPng(SamplesPath("date_axis.svg"));
 Console.WriteLine("Saved date_axis.svg");
 
 // --- 19. Math text labels — Greek letters and super/subscript in titles and axes ---
@@ -344,7 +362,7 @@ Plt.Create()
         .Plot(tMs, noise, line => { line.Color = Colors.Orange; line.Label = "$\\beta$ noise"; })
         .WithLegend(LegendPosition.UpperRight))
     .TightLayout()
-    .Save(SamplesPath("math_text.svg"));
+    .SaveSvgAndPng(SamplesPath("math_text.svg"));
 Console.WriteLine("Saved math_text.svg");
 
 // --- 20. PropCycler — multi-series chart with custom color + linestyle cycling ---
@@ -369,7 +387,7 @@ Plt.Create()
         ax.WithLegend(LegendPosition.UpperRight);
     })
     .TightLayout()
-    .Save(SamplesPath("prop_cycler.svg"));
+    .SaveSvgAndPng(SamplesPath("prop_cycler.svg"));
 Console.WriteLine("Saved prop_cycler.svg");
 
 // --- 21. Accessibility — color-blind safe theme + alt text + high-contrast ---
@@ -391,7 +409,7 @@ Plt.Create()
         a.WithLegend(LegendPosition.UpperLeft);
     })
     .TightLayout()
-    .Save(SamplesPath("accessibility_colorblind.svg"));
+    .SaveSvgAndPng(SamplesPath("accessibility_colorblind.svg"));
 Console.WriteLine("Saved accessibility_colorblind.svg");
 
 Plt.Create()
@@ -406,66 +424,8 @@ Plt.Create()
         a.WithLegend(LegendPosition.UpperLeft);
     })
     .TightLayout()
-    .Save(SamplesPath("accessibility_highcontrast.svg"));
+    .SaveSvgAndPng(SamplesPath("accessibility_highcontrast.svg"));
 Console.WriteLine("Saved accessibility_highcontrast.svg");
-
-// --- Phase F: Geo / Map Projections ---
-
-// Inline GeoJSON for a minimal two-polygon world sample
-const string miniWorldJson = """
-    {
-      "type": "FeatureCollection",
-      "features": [
-        {
-          "type": "Feature",
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[[-10,-10],[10,-10],[10,10],[-10,10],[-10,-10]]]
-          },
-          "properties": { "name": "Region A" }
-        },
-        {
-          "type": "Feature",
-          "geometry": {
-            "type": "Polygon",
-            "coordinates": [[[20,-10],[40,-10],[40,10],[20,10],[20,-10]]]
-          },
-          "properties": { "name": "Region B" }
-        }
-      ]
-    }
-    """;
-
-var miniWorld = MatPlotLibNet.Geo.GeoJson.GeoJsonReader.FromJson(miniWorldJson);
-
-// Plain equirectangular map
-Plt.Create()
-    .WithTitle("Equirectangular Map")
-    .WithSize(800, 450)
-    .Map(miniWorld, s =>
-    {
-        s.FaceColor = MatPlotLibNet.Styling.Color.FromHex("#D9EAD3");
-        s.EdgeColor = MatPlotLibNet.Styling.Color.FromHex("#666666");
-        s.LineWidth = 1.0;
-    })
-    .Save(SamplesPath("geo_equirectangular.svg"));
-Console.WriteLine("Saved geo_equirectangular.svg");
-
-// Choropleth with Viridis colormap
-double[] regionValues = [25.0, 75.0];
-Plt.Create()
-    .WithTitle("Choropleth Map — Region Values")
-    .WithSize(800, 450)
-    .Choropleth(miniWorld, regionValues, s =>
-    {
-        s.ColorMap = ColorMaps.Viridis;
-        s.VMin = 0;
-        s.VMax = 100;
-        s.EdgeColor = MatPlotLibNet.Styling.Colors.White;
-        s.LineWidth = 0.5;
-    })
-    .Save(SamplesPath("geo_choropleth.svg"));
-Console.WriteLine("Saved geo_choropleth.svg");
 
 // =====================================================================
 // --- Phase G: True 3-D samples ---
@@ -487,16 +447,16 @@ Console.WriteLine("Saved geo_choropleth.svg");
     Plt.Create()
         .WithTitle("3D Surface — sinc(r) with perspective + lighting")
         .WithSize(800, 600)
-        .WithCamera(elevation: 35, azimuth: -50, distance: 6.0)
-        .WithLighting(dx: 0.5, dy: -0.5, dz: 1.0, ambient: 0.3, diffuse: 0.7)
         .AddSubPlot(1, 1, 1, ax => ax
+            .WithCamera(elevation: 35, azimuth: -50, distance: 6.0)
+            .WithLighting(dx: 0.5, dy: -0.5, dz: 1.0, ambient: 0.3, diffuse: 0.7)
             .Surface(sx, sy, sz, s =>
             {
                 s.ColorMap = ColorMaps.Plasma;
                 s.ShowWireframe = false;
                 s.Alpha = 1.0;
             }))
-        .Save(SamplesPath("threed_surface_sinc.svg"));
+        .SaveSvgAndPng(SamplesPath("threed_surface_sinc.svg"));
     Console.WriteLine("Saved threed_surface_sinc.svg");
 }
 
@@ -510,14 +470,14 @@ Console.WriteLine("Saved geo_choropleth.svg");
     Plt.Create()
         .WithTitle("3D Scatter — Paraboloid with noise")
         .WithSize(700, 600)
-        .WithCamera(elevation: 25, azimuth: -70)
         .AddSubPlot(1, 1, 1, ax => ax
+            .WithCamera(elevation: 25, azimuth: -70)
             .Scatter3D(xs, ys, zs, s =>
             {
                 s.Color = Colors.CornflowerBlue;
                 s.MarkerSize = 5;
             }))
-        .Save(SamplesPath("threed_scatter3d_paraboloid.svg"));
+        .SaveSvgAndPng(SamplesPath("threed_scatter3d_paraboloid.svg"));
     Console.WriteLine("Saved threed_scatter3d_paraboloid.svg");
 }
 
@@ -530,17 +490,586 @@ Console.WriteLine("Saved geo_choropleth.svg");
     Plt.Create()
         .WithTitle("3D Bar Chart — Interactive rotation")
         .WithSize(700, 550)
-        .WithCamera(elevation: 30, azimuth: -55)
-        .WithLighting(dx: 0.3, dy: -0.6, dz: 0.8)
         .With3DRotation()
         .AddSubPlot(1, 1, 1, ax => ax
+            .WithCamera(elevation: 25, azimuth: -60)
+            // Light tilted so the three visible faces (front, top, right) have widely
+            // separated dot products — needed because matplotlib's _shade_colors formula
+            // k = 0.65 + 0.35·dot has a narrow [0.3, 1.0] range; on a light base colour
+            // like tomato the differences are subtle unless the light spans most of the
+            // dot range. Chosen direction puts front≈+0.8 / top≈+0.45 / right≈-0.4 →
+            // k values 0.93 / 0.81 / 0.51, visibly distinct.
+            .WithLighting(dx: -0.4, dy: -0.8, dz: 0.45)
+            .SetXLabel("X-axis")
+            .SetYLabel("Y-axis")
+            .SetZLabel("Z-axis")
             .Bar3D(bx, by, bz, s =>
             {
                 s.Color = Colors.Tomato;
-                s.BarWidth = 0.6;
+                s.BarWidth = 0.5;
             }))
-        .Save(SamplesPath("threed_bar3d_interactive.svg"));
+        .SaveSvgAndPng(SamplesPath("threed_bar3d_interactive.svg"));
     Console.WriteLine("Saved threed_bar3d_interactive.svg");
+}
+
+// 4. Grouped 3D Bar — matplotlib-style "skyscraper" plot: one coloured row per Y,
+// thin bars along the X axis. Demonstrates that multiple Bar3D series stack on the
+// same axes and participate in shared depth sorting + auto data-range detection.
+{
+    var grng = new Random(7);
+    const int BarsPerRow = 20;
+    double[] xs = Enumerable.Range(0, BarsPerRow).Select(i => (double)i).ToArray();
+    // Rows can be added in any order — the 3-D axes renderer runs a single shared
+    // back-to-front depth sort across all Bar3D series so insertion order doesn't
+    // matter. This is the fix that matplotlib still lacks for repeated ax.bar3d().
+    (double Y, Color Color)[] rows =
+    [
+        (0, Colors.Red),
+        (1, Colors.Green),
+        (2, Colors.Blue),
+        (3, Colors.Cyan),
+        (4, Colors.Gold),
+    ];
+
+    var plt = Plt.Create()
+        .WithTitle("3D Bar Chart — Grouped rows (skyscraper)")
+        .WithSize(780, 620)
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            ax.WithCamera(elevation: 25, azimuth: -60)
+              .WithLighting(dx: -0.4, dy: -0.8, dz: 0.45)
+              .SetXLabel("X")
+              .SetYLabel("Y")
+              .SetZLabel("Z");
+            foreach (var (y, color) in rows)
+            {
+                double[] ys = Enumerable.Repeat(y, BarsPerRow).ToArray();
+                double[] zs = Enumerable.Range(0, BarsPerRow).Select(_ => grng.NextDouble()).ToArray();
+                ax.Bar3D(xs, ys, zs, s =>
+                {
+                    s.Color = color;
+                    s.BarWidth = 0.4;
+                });
+            }
+        });
+    plt.SaveSvgAndPng(SamplesPath("threed_bar3d_grouped.svg"));
+    Console.WriteLine("Saved threed_bar3d_grouped.svg");
+}
+
+// 5. Planar 3D bars — matplotlib's "Create 2D bar graphs in different planes". Each row is a
+// PlanarBar3D series of flat translucent rectangles stacked on discrete Y planes. Demonstrates
+// the three colour-lookup modes (per-Y via single Color, per-X via Colors[], and combined).
+{
+    var pprng = new Random(7);
+    const int PBarsPerRow = 20;
+    double[] pxs = Enumerable.Range(0, PBarsPerRow).Select(i => (double)i).ToArray();
+    (double Y, Color PlaneColor)[] prows =
+    [
+        (0, Colors.Red),
+        (1, Colors.Green),
+        (2, Colors.Blue),
+        (3, Colors.Cyan),
+        (4, Colors.Gold),
+    ];
+
+    var pplt = Plt.Create()
+        .WithTitle("Planar 3D Bars — 2D bars in different Y planes (translucent)")
+        .WithSize(780, 620)
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            ax.WithCamera(elevation: 25, azimuth: -60)
+              .SetXLabel("X").SetYLabel("Y").SetZLabel("Z");
+            foreach (var (y, planeColor) in prows)
+            {
+                double[] pys = Enumerable.Repeat(y, PBarsPerRow).ToArray();
+                double[] pzs = Enumerable.Range(0, PBarsPerRow).Select(_ => pprng.NextDouble()).ToArray();
+                ax.PlanarBar3D(pxs, pys, pzs, s =>
+                {
+                    s.Color    = planeColor;      // per-Y base colour
+                    s.BarWidth = 0.8;
+                    s.Alpha    = 0.8;             // matplotlib default translucency
+                    // Per-X override on the blue plane only: bars at x>=10 become gold,
+                    // demonstrating that Colors[] composes with the per-plane Color.
+                    if (y == 2)
+                        s.Colors = pxs.Select(x => x >= 10 ? Colors.Gold : planeColor).ToArray();
+                });
+            }
+        });
+    pplt.SaveSvgAndPng(SamplesPath("threed_planar_bars.svg"));
+    Console.WriteLine("Saved threed_planar_bars.svg");
+}
+
+// 6. Planar 3D bars with per-X highlight — all bars at x=0 are dark cyan regardless of
+// which plane they sit on. Same per-Y base colours, but Colors[0] is overridden on every
+// plane to show how per-X lookup composes across the whole chart.
+{
+    var phrng = new Random(7);
+    const int PhBarsPerRow = 20;
+    double[] phxs = Enumerable.Range(0, PhBarsPerRow).Select(i => (double)i).ToArray();
+    var darkCyan = Color.FromHex("#008B8B");
+    (double Y, Color PlaneColor)[] phrows =
+    [
+        (0, Colors.Red),
+        (1, Colors.Green),
+        (2, Colors.Blue),
+        (3, Colors.Cyan),
+        (4, Colors.Gold),
+    ];
+
+    var phplt = Plt.Create()
+        .WithTitle("Planar 3D Bars — x=0 highlighted dark cyan across all planes")
+        .WithSize(780, 620)
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            ax.WithCamera(elevation: 25, azimuth: -60)
+              .SetXLabel("X").SetYLabel("Y").SetZLabel("Z");
+            foreach (var (y, planeColor) in phrows)
+            {
+                double[] phys = Enumerable.Repeat(y, PhBarsPerRow).ToArray();
+                double[] phzs = Enumerable.Range(0, PhBarsPerRow).Select(_ => phrng.NextDouble()).ToArray();
+                ax.PlanarBar3D(phxs, phys, phzs, s =>
+                {
+                    s.Color    = planeColor;
+                    s.BarWidth = 0.8;
+                    s.Alpha    = 0.8;
+                    // Per-X override: every bar where x == 0 becomes dark cyan,
+                    // all other bars inherit the plane colour via Colors fallback.
+                    s.Colors = phxs.Select(x => x == 0 ? darkCyan : planeColor).ToArray();
+                });
+            }
+        });
+    phplt.SaveSvgAndPng(SamplesPath("threed_planar_bars_x0_highlight.svg"));
+    Console.WriteLine("Saved threed_planar_bars_x0_highlight.svg");
+}
+
+// 7. Nested pie — inner disc of departments + outer ring of product breakdown.
+// Uses the new AxesBuilder.NestedPie() wrapper (thin alias for Sunburst with InnerRadius=0).
+{
+    static TreeNode Leaf(string label, double value, string hex) =>
+        new() { Label = label, Value = value, Color = Color.FromHex(hex) };
+    static TreeNode Branch(string label, string hex, params TreeNode[] children) =>
+        new() { Label = label, Color = Color.FromHex(hex), Children = children };
+
+    var departments = new TreeNode
+    {
+        Label = "Revenue",
+        Children = new[]
+        {
+            Branch("Electronics", "#4E79A7",
+                Leaf("Phones",  42, "#6A95C1"),
+                Leaf("Laptops", 28, "#80A8CE"),
+                Leaf("Audio",   14, "#98BBDB")),
+            Branch("Apparel", "#F28E2B",
+                Leaf("Men",   22, "#F4A455"),
+                Leaf("Women", 26, "#F6B97F"),
+                Leaf("Kids",  12, "#F8CCA9")),
+            Branch("Home & Garden", "#59A14F",
+                Leaf("Furniture", 18, "#77B56F"),
+                Leaf("Tools",     11, "#94C78F"),
+                Leaf("Plants",     7, "#B2D9AF")),
+            Branch("Grocery", "#E15759",
+                Leaf("Fresh",  31, "#E77778"),
+                Leaf("Pantry", 24, "#ED9798"),
+                Leaf("Frozen", 13, "#F3B7B8")),
+        },
+    };
+
+    Plt.Create()
+        .WithTitle("Nested Pie — Revenue by department and product")
+        .WithSize(720, 720)
+        .AddSubPlot(1, 1, 1, ax => ax.NestedPie(departments))
+        .SaveSvgAndPng(SamplesPath("nested_pie.svg"));
+    Console.WriteLine("Saved nested_pie.svg");
+}
+
+// 8. Interactive treemap with drilldown — 3 levels deep, click a rect to zoom in.
+{
+    static TreeNode Leaf(string label, double value, string hex) =>
+        new() { Label = label, Value = value, Color = Color.FromHex(hex) };
+    static TreeNode Branch(string label, string hex, params TreeNode[] children) =>
+        new() { Label = label, Color = Color.FromHex(hex), Children = children };
+
+    var catalogue = new TreeNode
+    {
+        Label = "Catalogue",
+        Children = new[]
+        {
+            Branch("Electronics", "#4E79A7",
+                Branch("Phones", "#4E79A7",
+                    Leaf("Flagship",  45, "#4E79A7"),
+                    Leaf("Mid-range", 32, "#6A95C1"),
+                    Leaf("Budget",    18, "#80A8CE")),
+                Branch("Laptops", "#4E79A7",
+                    Leaf("Gaming",       22, "#4E79A7"),
+                    Leaf("Ultrabook",    29, "#6A95C1"),
+                    Leaf("Workstation",  14, "#80A8CE"))),
+            Branch("Apparel", "#F28E2B",
+                Branch("Men", "#F28E2B",
+                    Leaf("Shirts", 18, "#F28E2B"),
+                    Leaf("Pants",  15, "#F4A455"),
+                    Leaf("Shoes",  12, "#F6B97F")),
+                Branch("Women", "#F28E2B",
+                    Leaf("Dresses", 24, "#F28E2B"),
+                    Leaf("Tops",    21, "#F4A455"),
+                    Leaf("Shoes",   17, "#F6B97F"))),
+            Branch("Grocery", "#E15759",
+                Branch("Fresh", "#E15759",
+                    Leaf("Produce",   28, "#E15759"),
+                    Leaf("Bakery",    14, "#E77778"),
+                    Leaf("Dairy",     19, "#ED9798")),
+                Branch("Pantry", "#E15759",
+                    Leaf("Canned",    11, "#E15759"),
+                    Leaf("Dry goods", 13, "#E77778"),
+                    Leaf("Snacks",    16, "#ED9798"))),
+        },
+    };
+
+    Plt.Create()
+        .WithTitle("Treemap — click a rectangle to drill down (Escape to zoom out)")
+        .WithSize(900, 620)
+        .WithTreemapDrilldown()
+        .AddSubPlot(1, 1, 1, ax => ax.Treemap(catalogue, s => s.ShowLabels = true))
+        .SaveSvgAndPng(SamplesPath("treemap_drilldown.svg"));
+    Console.WriteLine("Saved treemap_drilldown.svg");
+}
+
+// 9. Sankey — process-industry product distribution (5-column cascade)
+//    Raw materials → primary processing → intermediate products → warehousing → customers.
+//    Demonstrates multi-column cascade, gradient link colouring, iterative relaxation
+//    (20 passes here), and sub-labels carrying per-node tonnage.
+{
+    static SankeyNode N(string label, string ton, string hex) =>
+        new(label, Color.FromHex(hex), SubLabel: ton);
+
+    var nodes = new[]
+    {
+        // Column 0 — raw materials
+        /* 0 */ N("Crude A",     "120 kt", "#6B8E23"),
+        /* 1 */ N("Crude B",     "80 kt",  "#556B2F"),
+        // Column 1 — primary processing
+        /* 2 */ N("Distillation", "140 kt", "#1F77B4"),
+        /* 3 */ N("Cracking",     "60 kt",  "#2E86AB"),
+        // Column 2 — intermediate products
+        /* 4 */ N("Gasoline",    "90 kt",  "#F4A261"),
+        /* 5 */ N("Diesel",      "70 kt",  "#E76F51"),
+        /* 6 */ N("Jet Fuel",    "40 kt",  "#2A9D8F"),
+        // Column 3 — warehousing
+        /* 7 */ N("North Hub",   "100 kt", "#8D99AE"),
+        /* 8 */ N("South Hub",   "100 kt", "#2B2D42"),
+        // Column 4 — customers
+        /* 9 */ N("Automotive",  "90 kt",  "#EF476F"),
+        /* 10 */ N("Aviation",   "40 kt",  "#06A0A7"),
+        /* 11 */ N("Industrial", "70 kt",  "#FFD166"),
+    };
+    var links = new[]
+    {
+        new SankeyLink(0, 2, 100), new SankeyLink(0, 3, 20),
+        new SankeyLink(1, 2, 40), new SankeyLink(1, 3, 40),
+        new SankeyLink(2, 4, 70), new SankeyLink(2, 5, 50), new SankeyLink(2, 6, 20),
+        new SankeyLink(3, 4, 20), new SankeyLink(3, 5, 20), new SankeyLink(3, 6, 20),
+        new SankeyLink(4, 7, 50), new SankeyLink(4, 8, 40),
+        new SankeyLink(5, 7, 30), new SankeyLink(5, 8, 40),
+        new SankeyLink(6, 7, 20), new SankeyLink(6, 8, 20),
+        new SankeyLink(7, 9, 50), new SankeyLink(7, 10, 20), new SankeyLink(7, 11, 30),
+        new SankeyLink(8, 9, 40), new SankeyLink(8, 10, 20), new SankeyLink(8, 11, 40),
+    };
+    Plt.Create()
+        .WithTitle("Sankey — Process industry product distribution (hover a node to isolate)")
+        .WithSize(1000, 600)
+        .WithSankeyHover()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .HideAllAxes()
+            .Sankey(nodes, links, s =>
+            {
+                s.NodeWidth = 24;
+                s.NodePadding = 14;
+                s.Iterations = 20;
+                s.LinkColorMode = SankeyLinkColorMode.Gradient;
+            }))
+        .SaveSvgAndPng(SamplesPath("sankey_process_distribution.svg"));
+    Console.WriteLine("Saved sankey_process_distribution.svg");
+}
+
+// 10. Sankey — J&J-style Q1 income statement flow
+//     Product lines → aggregated categories → Revenue → Gross profit / Cost → Net profit / Tax.
+//     Demonstrates sub-labels for Y/Y change indicators coloured green (profit chain) and
+//     red (cost chain) via SankeyNode.SubLabelColor. LinkColorMode = Source so flows inherit
+//     the semantic colour of the node they originate from.
+{
+    var green = Color.FromHex("#2A9D55");
+    var red = Color.FromHex("#D62828");
+    static SankeyNode Profit(string label, string amount, string yoy, Color color) =>
+        new(label, color, SubLabel: $"{amount}  {yoy}", SubLabelColor: Color.FromHex("#2A9D55"));
+    static SankeyNode Cost(string label, string amount, string yoy, Color color) =>
+        new(label, color, SubLabel: $"{amount}  {yoy}", SubLabelColor: Color.FromHex("#D62828"));
+
+    var nodes = new SankeyNode[]
+    {
+        /* 0 */ Profit("Immunology",    "$4.6B",  "+2%",  green),
+        /* 1 */ Profit("Oncology",      "$4.9B",  "+15%", green),
+        /* 2 */ Profit("Neuroscience",  "$1.9B",  "+5%",  green),
+        /* 3 */ Profit("Med Devices",   "$8.0B",  "+4%",  green),
+        /* 4 */ Profit("Pharma",        "$11.4B", "+8%",  green),
+        /* 5 */ Profit("MedTech",       "$8.0B",  "+4%",  green),
+        /* 6 */ Profit("Revenue",       "$21.4B", "+2%",  green),
+        /* 7 */ Profit("Gross Profit",  "$14.9B", "+3%",  green),
+        /* 8 */ Cost  ("Cost of Sales", "$6.5B",  "+1%",  red),
+        /* 9 */ Profit("Net Profit",    "$3.8B",  "+0%",  green),
+        /* 10 */ Cost ("R&D",           "$3.5B",  "+0%",  red),
+        /* 11 */ Cost ("SG&A",          "$5.6B",  "+5%",  red),
+        /* 12 */ Cost ("Tax",           "$0.6B",  "-10%", red),
+        /* 13 */ Cost ("Other",         "$1.4B",  "+3%",  red),
+    };
+    var links = new[]
+    {
+        // Product lines → Pharma
+        new SankeyLink(0, 4, 4.6), new SankeyLink(1, 4, 4.9), new SankeyLink(2, 4, 1.9),
+        // Med devices → MedTech
+        new SankeyLink(3, 5, 8.0),
+        // Categories → Revenue
+        new SankeyLink(4, 6, 11.4), new SankeyLink(5, 6, 8.0),
+        // Revenue → Gross Profit + Cost of Sales
+        new SankeyLink(6, 7, 14.9), new SankeyLink(6, 8, 6.5),
+        // Gross Profit → Net Profit + R&D + SG&A + Tax + Other
+        new SankeyLink(7, 9, 3.8), new SankeyLink(7, 10, 3.5),
+        new SankeyLink(7, 11, 5.6), new SankeyLink(7, 12, 0.6),
+        new SankeyLink(7, 13, 1.4),
+    };
+    Plt.Create()
+        .WithTitle("Sankey — Johnson & Johnson Q1 FY25 income statement")
+        .WithSize(1100, 640)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .HideAllAxes()
+            .Sankey(nodes, links, s =>
+            {
+                s.NodeWidth = 22;
+                s.NodePadding = 16;
+                s.Iterations = 20;
+                s.LinkColorMode = SankeyLinkColorMode.Source;
+            }))
+        .SaveSvgAndPng(SamplesPath("sankey_income_statement.svg"));
+    Console.WriteLine("Saved sankey_income_statement.svg");
+}
+
+// 11. Sankey — customer-journey alluvial with explicit column pinning
+//     Four time-steps (Home → Step 2 → Step 3 → Purchase), with the same page labels
+//     reappearing across columns. Uses SankeyNode.Column to pin each node to its semantic
+//     timestep regardless of link topology — needed because a direct Home → Home skip
+//     link would otherwise make BFS put both at column 0.
+{
+    static SankeyNode S(string label, int col, string hex) =>
+        new(label, Color.FromHex(hex), Column: col);
+
+    var nodes = new[]
+    {
+        /* 0 */ S("Home",     0, "#1F77B4"),
+        /* 1 */ S("Product",  1, "#FF7F0E"),
+        /* 2 */ S("Category", 1, "#2CA02C"),
+        /* 3 */ S("Home",     1, "#1F77B4"),
+        /* 4 */ S("Cart",     2, "#D62728"),
+        /* 5 */ S("Product",  2, "#FF7F0E"),
+        /* 6 */ S("Home",     2, "#1F77B4"),
+        /* 7 */ S("Purchase", 3, "#9467BD"),
+        /* 8 */ S("Cart",     3, "#D62728"),
+        /* 9 */ S("Home",     3, "#1F77B4"),
+    };
+    var links = new[]
+    {
+        // Home → Step 2 fan-out
+        new SankeyLink(0, 1, 45), new SankeyLink(0, 2, 25), new SankeyLink(0, 3, 30),
+        // Step 2 → Step 3
+        new SankeyLink(1, 4, 22), new SankeyLink(1, 5, 15), new SankeyLink(1, 6, 8),
+        new SankeyLink(2, 5, 12), new SankeyLink(2, 6, 13),
+        new SankeyLink(3, 6, 20), new SankeyLink(3, 4, 10),
+        // Step 3 → Step 4
+        new SankeyLink(4, 7, 24), new SankeyLink(4, 8, 8),
+        new SankeyLink(5, 7, 14), new SankeyLink(5, 8, 13),
+        new SankeyLink(6, 9, 30), new SankeyLink(6, 7, 11),
+    };
+    Plt.Create()
+        .WithTitle("Sankey — Customer journey alluvial (4 timesteps)")
+        .WithSize(1000, 600)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .HideAllAxes()
+            .Sankey(nodes, links, s =>
+            {
+                s.NodeWidth = 20;
+                s.NodePadding = 12;
+                s.Iterations = 12;
+                s.LinkColorMode = SankeyLinkColorMode.Gradient;
+            }))
+        .SaveSvgAndPng(SamplesPath("sankey_customer_journey.svg"));
+    Console.WriteLine("Saved sankey_customer_journey.svg");
+}
+
+// 12. Sankey — UN expense categories → agencies (2-column baseline)
+//     Minimal 2-column Sankey: an expense category splits into the UN bodies that receive
+//     the funds. Demonstrates outside labels, gradient links, and a clean
+//     HideAllAxes() canvas for a presentation-quality figure.
+{
+    static SankeyNode C(string label, string hex) => new(label, Color.FromHex(hex));
+    var nodes = new[]
+    {
+        /* 0 */ C("Peacekeeping",     "#4472C4"),
+        /* 1 */ C("Dev. Assistance",  "#70AD47"),
+        /* 2 */ C("Humanitarian",     "#ED7D31"),
+        /* 3 */ C("Administration",   "#A5A5A5"),
+        /* 4 */ C("Climate",          "#2A9D8F"),
+        // column 1 — agencies
+        /* 5 */ C("DPO",     "#2B4CBA"),
+        /* 6 */ C("UNDP",    "#5B9E3F"),
+        /* 7 */ C("UNHCR",   "#C96420"),
+        /* 8 */ C("Secretariat", "#7F7F7F"),
+        /* 9 */ C("UNEP",    "#1C7A70"),
+        /* 10 */ C("WFP",    "#D14A50"),
+    };
+    var links = new[]
+    {
+        new SankeyLink(0, 5, 6.5),
+        new SankeyLink(1, 6, 5.0),
+        new SankeyLink(1, 5, 1.2),
+        new SankeyLink(2, 7, 3.8),
+        new SankeyLink(2, 10, 2.4),
+        new SankeyLink(3, 8, 2.6),
+        new SankeyLink(4, 9, 1.9),
+        new SankeyLink(4, 6, 0.6),
+    };
+    Plt.Create()
+        .WithTitle("Sankey — UN expense categories → agencies")
+        .WithSize(1000, 560)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .HideAllAxes()
+            .Sankey(nodes, links, s =>
+            {
+                s.NodeWidth = 22;
+                s.NodePadding = 18;
+                s.Iterations = 12;
+                s.LinkColorMode = SankeyLinkColorMode.Gradient;
+            }))
+        .SaveSvgAndPng(SamplesPath("sankey_un_expenses.svg"));
+    Console.WriteLine("Saved sankey_un_expenses.svg");
+}
+
+// 13. Sankey — severity-cascade state transitions (4-column cascade)
+//     Patient severity states over four time points. Dense many-to-many transitions
+//     where relaxation iterations really earn their keep by minimising crossings.
+{
+    static SankeyNode S(string label, string hex) => new(label, Color.FromHex(hex));
+    var nodes = new[]
+    {
+        // T0
+        /* 0 */ S("Mild T0",    "#4CAF50"),
+        /* 1 */ S("Mod T0",     "#FFC107"),
+        /* 2 */ S("Severe T0",  "#F44336"),
+        // T1
+        /* 3 */ S("Mild T1",    "#4CAF50"),
+        /* 4 */ S("Mod T1",     "#FFC107"),
+        /* 5 */ S("Severe T1",  "#F44336"),
+        /* 6 */ S("Recover T1", "#2196F3"),
+        // T2
+        /* 7 */ S("Mild T2",    "#4CAF50"),
+        /* 8 */ S("Mod T2",     "#FFC107"),
+        /* 9 */ S("Severe T2",  "#F44336"),
+        /* 10 */ S("Recover T2","#2196F3"),
+        // T3
+        /* 11 */ S("Recover T3","#2196F3"),
+        /* 12 */ S("Mod T3",    "#FFC107"),
+        /* 13 */ S("Severe T3", "#F44336"),
+    };
+    var links = new[]
+    {
+        // T0 → T1
+        new SankeyLink(0, 3, 40), new SankeyLink(0, 4, 8),  new SankeyLink(0, 6, 12),
+        new SankeyLink(1, 3, 6),  new SankeyLink(1, 4, 22), new SankeyLink(1, 5, 7), new SankeyLink(1, 6, 5),
+        new SankeyLink(2, 4, 4),  new SankeyLink(2, 5, 14), new SankeyLink(2, 6, 2),
+        // T1 → T2
+        new SankeyLink(3, 7, 30), new SankeyLink(3, 8, 6),  new SankeyLink(3, 10, 10),
+        new SankeyLink(4, 7, 8),  new SankeyLink(4, 8, 14), new SankeyLink(4, 9, 5),  new SankeyLink(4, 10, 7),
+        new SankeyLink(5, 8, 4),  new SankeyLink(5, 9, 11), new SankeyLink(5, 10, 6),
+        new SankeyLink(6, 10, 19),
+        // T2 → T3
+        new SankeyLink(7, 11, 35), new SankeyLink(7, 12, 3),
+        new SankeyLink(8, 11, 10), new SankeyLink(8, 12, 12), new SankeyLink(8, 13, 2),
+        new SankeyLink(9, 12, 6),  new SankeyLink(9, 13, 10),
+        new SankeyLink(10, 11, 42),
+    };
+    Plt.Create()
+        .WithTitle("Sankey — Severity cascade across four timepoints")
+        .WithSize(1100, 640)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .HideAllAxes()
+            .Sankey(nodes, links, s =>
+            {
+                s.NodeWidth = 18;
+                s.NodePadding = 10;
+                s.Iterations = 24;
+                s.LinkColorMode = SankeyLinkColorMode.Gradient;
+            }))
+        .SaveSvgAndPng(SamplesPath("sankey_severity_cascade.svg"));
+    Console.WriteLine("Saved sankey_severity_cascade.svg");
+}
+
+// 13b. Sankey — vertical orientation (flow top→bottom)
+{
+    static SankeyNode V(string label, string hex) => new(label, Color.FromHex(hex));
+    var nodes = new[]
+    {
+        /* 0 */ V("Website",   "#1F77B4"),
+        /* 1 */ V("Search",    "#FF7F0E"),
+        /* 2 */ V("Social",    "#2CA02C"),
+        /* 3 */ V("Signup",    "#D62728"),
+        /* 4 */ V("Trial",     "#9467BD"),
+        /* 5 */ V("Paid",      "#8C564B"),
+    };
+    var links = new[]
+    {
+        new SankeyLink(0, 3, 40),
+        new SankeyLink(1, 3, 25),
+        new SankeyLink(2, 3, 15),
+        new SankeyLink(3, 4, 60),
+        new SankeyLink(4, 5, 30),
+    };
+    Plt.Create()
+        .WithTitle("Sankey — Vertical orientation (top→bottom conversion funnel)")
+        .WithSize(700, 850)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .HideAllAxes()
+            .Sankey(nodes, links, s =>
+            {
+                s.Orient = SankeyOrientation.Vertical;
+                s.NodeWidth = 18;
+                s.NodePadding = 14;
+                s.Iterations = 12;
+                s.LinkColorMode = SankeyLinkColorMode.Gradient;
+            }))
+        .SaveSvgAndPng(SamplesPath("sankey_vertical.svg"));
+    Console.WriteLine("Saved sankey_vertical.svg");
+}
+
+// 14. Outside legend — the constrained-layout engine now measures the legend box via
+//     LegendMeasurer and reserves right-margin space for LegendPosition.OutsideRight (and
+//     the three other outside positions). Without TightLayout() the legend would clip at
+//     the figure edge; with it the margin expands to host the full box.
+{
+    double[] xo = Enumerable.Range(0, 100).Select(i => i * 10.0 / 99).ToArray();
+    Plt.Create()
+        .WithTitle("Outside legend — constrained layout reserves right margin")
+        .WithSize(900, 500)
+        .TightLayout()
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            ax.Plot(xo, xo.Select(v => Math.Sin(v)).ToArray(), s => s.Label = "sin(x)");
+            ax.Plot(xo, xo.Select(v => Math.Cos(v)).ToArray(), s => s.Label = "cos(x)");
+            ax.Plot(xo, xo.Select(v => 0.5 * Math.Sin(2 * v)).ToArray(),
+                s => s.Label = "½ sin(2x)");
+            ax.Plot(xo, xo.Select(v => Math.Exp(-v / 5) * Math.Cos(v)).ToArray(),
+                s => s.Label = "exp(-x/5)·cos(x)");
+            ax.SetXLabel("x");
+            ax.SetYLabel("f(x)");
+            ax.WithLegend(l => l with { Position = LegendPosition.OutsideRight, Title = "Series" });
+        })
+        .SaveSvgAndPng(SamplesPath("legend_outside.svg"));
+    Console.WriteLine("Saved legend_outside.svg");
 }
 
 Console.WriteLine("Done!");

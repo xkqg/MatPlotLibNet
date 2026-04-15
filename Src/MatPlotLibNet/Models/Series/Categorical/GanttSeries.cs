@@ -26,9 +26,15 @@ public sealed class GanttSeries : ChartSeries, IHasColor
     }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(Math.Min(Starts.Min(), Ends.Min()), Math.Max(Starts.Max(), Ends.Max()),
-            context.YAxisMin ?? -0.5, context.YAxisMax ?? (Tasks.Length - 0.5));
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        double xMin = Math.Min(Starts.Min(), Ends.Min());
+        double xMax = Math.Max(Starts.Max(), Ends.Max());
+        double yMin = context.YAxisMin ?? -0.5;
+        double yMax = context.YAxisMax ?? (Tasks.Length - 0.5);
+        return new(xMin, xMax, yMin, yMax,
+            StickyXMin: xMin, StickyXMax: xMax, StickyYMin: yMin, StickyYMax: yMax);
+    }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

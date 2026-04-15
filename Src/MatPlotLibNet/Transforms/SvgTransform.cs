@@ -24,15 +24,24 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         var w = figure.Width.ToString("G", CultureInfo.InvariantCulture);
         var h = figure.Height.ToString("G", CultureInfo.InvariantCulture);
 
-        // Render background + title sequentially
+        // Resolve the effective spacing via the shared PrepareSpacing helper. This runs
+        // ConstrainedLayoutEngine.Compute when the figure has TightLayout or
+        // ConstrainedLayout enabled — the SAME logic ChartRenderer.Render uses for the
+        // PNG/PDF paths. Previously SvgTransform skipped this step entirely, so tight-
+        // and constrained-layout figures had broken SVG margins (axis labels overlapping
+        // data, colorbars clipped) while their PNGs rendered correctly.
         var bgCtx = new SvgRenderContext();
-        double plotAreaTop = Renderer.RenderBackground(figure, bgCtx);
+        var resolvedSpacing = Renderer.PrepareSpacing(figure, bgCtx);
+
+        // Render background + title sequentially into the bgCtx fragment.
+        double plotAreaTop = Renderer.RenderBackground(figure, bgCtx, resolvedSpacing);
 
         if (figure.SubPlots.Count == 0)
             return BuildSvgDocument(w, h, figure, sb => bgCtx.WriteTo(sb));
 
-        // Compute subplot layout
-        var plotAreas = Renderer.ComputeSubPlotLayout(figure, plotAreaTop);
+        // Compute subplot layout with the resolved spacing — guarantees margins and
+        // gutters match the PNG pipeline.
+        var plotAreas = Renderer.ComputeSubPlotLayout(figure, plotAreaTop, resolvedSpacing);
         var theme = figure.Theme;
 
         // Propagate interactivity flags to each axes before rendering
@@ -46,21 +55,23 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
                 if (axes.CoordinateSystem == CoordinateSystem.ThreeD)
                     axes.Emit3DVertexData = true;
 
-        // Render subplots in parallel (each gets its own context)
+        // Render subplots in parallel (each gets its own context). We pass `figure` explicitly
+        // so the 3-D square-cube layout is applied — matches PngTransform's full-Render path.
         var subplotContexts = new SvgRenderContext[figure.SubPlots.Count];
         Parallel.For(0, figure.SubPlots.Count, i =>
         {
             var ctx = new SvgRenderContext();
-            Renderer.RenderAxes(figure.SubPlots[i], plotAreas[i], ctx, theme);
+            Renderer.RenderAxes(figure, figure.SubPlots[i], plotAreas[i], ctx, theme);
             subplotContexts[i] = ctx;
         });
 
-        // Render figure-level colorbar (if present) after all subplots
+        // Render figure-level colorbar (if present) after all subplots — pass the
+        // resolved spacing so colorbar positioning matches PNG exactly.
         SvgRenderContext? figCbCtx = null;
         if (figure.FigureColorBar is { Visible: true } cb)
         {
             figCbCtx = new SvgRenderContext();
-            Renderer.RenderFigureColorBar(figure, plotAreas, cb, figCbCtx);
+            Renderer.RenderFigureColorBar(figure, plotAreas, cb, figCbCtx, resolvedSpacing);
         }
 
         return BuildSvgDocument(w, h, figure, sb =>
@@ -81,6 +92,10 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
                 sb.AppendLine(SvgSelectionScript.GetScript());
             if (figure.Enable3DRotation)
                 sb.AppendLine(Svg3DRotationScript.GetScript());
+            if (figure.EnableTreemapDrilldown)
+                sb.AppendLine(SvgTreemapDrilldownScript.GetScript());
+            if (figure.EnableSankeyHover)
+                sb.AppendLine(SvgSankeyHoverScript.GetScript());
         });
     }
 

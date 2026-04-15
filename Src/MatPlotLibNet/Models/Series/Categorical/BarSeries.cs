@@ -57,6 +57,16 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
     /// <summary>Override for bar width when rendering as part of a group (set by renderer, not user).</summary>
     internal double? BarGroupWidth { get; set; }
 
+    /// <summary>
+    /// Optional numeric X positions for bars, enabling bars on a continuous X axis instead
+    /// of categorical slot indices. Matches matplotlib's <c>ax.bar(x, heights)</c> where
+    /// <c>x</c> is a numeric array. When set, <see cref="Categories"/> is used only for
+    /// tooltip labels and <see cref="BarSeriesRenderer"/> positions each bar at
+    /// <c>XCoordinate[i] - BarWidth/2</c>. Used e.g. by the MACD histogram so it shares a
+    /// numeric X axis with the MACD and signal line series drawn in the same panel.
+    /// </summary>
+    public double[]? XCoordinate { get; init; }
+
     /// <summary>Initializes a new instance of <see cref="BarSeries"/> with the specified categories and values.</summary>
     /// <param name="categories">The category labels for each bar.</param>
     /// <param name="values">The numeric values for each bar.</param>
@@ -64,6 +74,20 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
     {
         Categories = categories;
         Values = values;
+    }
+
+    /// <summary>Initializes a bar series with numeric X positions — bars render on a continuous
+    /// X axis instead of categorical slot indices. Categories are auto-generated as numeric
+    /// strings so <see cref="ICategoryLabeled"/> still works for mixed usage.</summary>
+    public BarSeries(double[] x, double[] values)
+    {
+        if (x.Length != values.Length)
+            throw new ArgumentException($"x length ({x.Length}) must match values length ({values.Length}).");
+        Categories = new string[x.Length];
+        for (int i = 0; i < x.Length; i++)
+            Categories[i] = x[i].ToString(System.Globalization.CultureInfo.InvariantCulture);
+        Values = values;
+        XCoordinate = x;
     }
 
     /// <inheritdoc />
@@ -74,8 +98,17 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         // This removes ~14 px of extra whitespace on each side of the bar group
         // (matches matplotlib's `axes.bar(...)` contribution to `DataLim`).
         double halfW = BarWidth / 2.0;
-        double xMin = context.XAxisMin ?? (0.5 - halfW);
-        double xMax = context.XAxisMax ?? (Categories.Length - 0.5 + halfW);
+        double xMin, xMax;
+        if (XCoordinate is { Length: > 0 } xc)
+        {
+            xMin = context.XAxisMin ?? (xc.Min() - halfW);
+            xMax = context.XAxisMax ?? (xc.Max() + halfW);
+        }
+        else
+        {
+            xMin = context.XAxisMin ?? (0.5 - halfW);
+            xMax = context.XAxisMax ?? (Categories.Length - 0.5 + halfW);
+        }
         double yMin = 0, yMax = double.MinValue;
 
         if (context.BarMode == BarMode.Stacked)
@@ -94,12 +127,14 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         else
         {
             yMax = Values.Max();
+            double vMin = Values.Min();
+            if (vMin < yMin) yMin = vMin;   // allow negative bars (e.g. MACD histogram)
         }
 
         // Sticky edges: matplotlib's BarContainer registers `sticky_edges.y = [0]` so that
         // `axes.ymargin` never pads below the bar baseline. Mirror that here — yMin=0 is a
         // hard floor the margin-expansion pass in CartesianAxesRenderer will not cross.
-        return new(xMin, xMax, yMin, yMax, StickyYMin: 0);
+        return new(xMin, xMax, yMin, yMax, StickyXMin: xMin, StickyXMax: xMax, StickyYMin: 0);
     }
 
     /// <inheritdoc />

@@ -27,21 +27,32 @@ internal sealed class Stem3DSeriesRenderer : SeriesRenderer<Stem3DSeries>
         var proj = Context.Projection3D
             ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
 
+        // Project every base (z=0) once — used by the stem lines AND the baseline polyline
+        // so we only call Projection3D.Project once per point per layer.
+        var basePts = new Point[series.X.Length];
         for (int i = 0; i < series.X.Length; i++)
         {
             double xi = series.X.Data[i];
             double yi = series.Y.Data[i];
             double zi = series.Z.Data[i];
 
-            // Project base (on XY-plane, z=0) and tip
-            var basePt = proj.Project(xi, yi, 0);
+            basePts[i] = proj.Project(xi, yi, 0);
             var tipPt = proj.Project(xi, yi, zi);
 
-            // Draw stem line
-            Ctx.DrawLine(basePt, tipPt, color, 1.0, Styling.LineStyle.Solid);
+            // Draw stem line at matplotlib's default 1.5 px width (rcParams.lines.linewidth)
+            // so the blue pixel density matches the reference.
+            Ctx.DrawLine(basePts[i], tipPt, color, 2.5, Styling.LineStyle.Solid);
 
             // Draw marker at tip
             Ctx.DrawCircle(tipPt, series.MarkerSize / 2.0, color, null, 0);
         }
+
+        // Baseline polyline through all stem base points at z=0, matching matplotlib's
+        // `ax.stem()` StemContainer.baseline Line3D. Drawn AFTER stems so it appears on
+        // top of any overlap. Colour defaults to the stem colour; callers can override
+        // via Stem3DSeries.BaseLineColor.
+        var baselineColor = series.BaseLineColor ?? color;
+        if (basePts.Length >= 2)
+            Ctx.DrawLines(basePts, baselineColor, 2.5, Styling.LineStyle.Solid);
     }
 }

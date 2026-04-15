@@ -54,6 +54,10 @@ public abstract class AxesRenderer
     /// The default implementation returns the full <see cref="PlotArea"/>.</summary>
     public virtual Rect ComputeInnerBounds() => PlotArea;
 
+    /// <summary>Optional figure size (pixels) for renderers that need the whole figure dimensions
+    /// to reproduce matplotlib's layout exactly. Set by the factory when available; null otherwise.</summary>
+    protected (double Width, double Height)? FigureSize { get; set; }
+
     private static readonly ConcurrentDictionary<CoordinateSystem, Func<Axes, Rect, IRenderContext, Theme, AxesRenderer>>
         RendererFactories = new()
     {
@@ -73,11 +77,17 @@ public abstract class AxesRenderer
     /// <param name="plotArea">The pixel-space rectangle that bounds the plot.</param>
     /// <param name="ctx">The drawing surface to emit primitives onto.</param>
     /// <param name="theme">The active visual theme.</param>
+    /// <param name="figureSize">Optional figure size; set for 3-D renderers that need the matplotlib-compatible square layout.</param>
     /// <returns>An <see cref="AxesRenderer"/> instance for the axes' coordinate system.</returns>
-    public static AxesRenderer Create(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme) =>
-        RendererFactories.TryGetValue(axes.CoordinateSystem, out var factory)
+    public static AxesRenderer Create(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme, (double W, double H)? figureSize = null)
+    {
+        var renderer = RendererFactories.TryGetValue(axes.CoordinateSystem, out var factory)
             ? factory(axes, plotArea, ctx, theme)
             : new CartesianAxesRenderer(axes, plotArea, ctx, theme);
+        if (figureSize.HasValue)
+            renderer.FigureSize = (figureSize.Value.W, figureSize.Value.H);
+        return renderer;
+    }
 
     // --- Shared rendering helpers (available to all subclasses) ---
 
@@ -112,7 +122,8 @@ public abstract class AxesRenderer
     /// <summary>Renders all series using a unified 3D projection (for ThreeD axes).</summary>
     /// <param name="projection">The shared projection used by all 3D series renderers.</param>
     /// <param name="lightSource">Optional light source for per-face lighting.</param>
-    protected void RenderSeries(Projection3D projection, ILightSource? lightSource = null)
+    protected void RenderSeries(Projection3D projection, ILightSource? lightSource = null,
+        DepthQueue3D? depthQueue = null)
     {
         var svgCtx = Ctx as SvgRenderContext;
         var interactiveSvgCtx = Axes.EnableInteractiveAttributes ? svgCtx : null;
@@ -126,7 +137,8 @@ public abstract class AxesRenderer
             bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
             var renderer = new SvgSeriesRenderer(
                 new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps,
-                Axes.EnableTooltips, PlotArea, projection, lightSource, emit3D, theme: Theme);
+                Axes.EnableTooltips, PlotArea, projection, lightSource, emit3D, theme: Theme,
+                depthQueue: depthQueue);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             if (openedGroup) Ctx.EndGroup();
@@ -262,6 +274,12 @@ public abstract class AxesRenderer
         double boxHeight = padding + titleHeight + nRows * lineHeight - (lineHeight - swatchSize) + padding;
 
         double inset = 10;
+        // Outside legend positions are placed just past the plot-area edge. The 8 px offset
+        // keeps the legend clear of the spine + tick marks; the constrained-layout engine
+        // pre-reserved enough margin on that edge to host the full box (see
+        // `ConstrainedLayoutEngine.Compute` / `LegendMeasurer`), so drawing past the spine
+        // won't fall off the figure.
+        const double OutsideGap = 8;
         double centerX = PlotArea.X + PlotArea.Width / 2;
         double centerY = PlotArea.Y + PlotArea.Height / 2;
         var (boxX, boxY) = legend.Position switch
@@ -275,6 +293,10 @@ public abstract class AxesRenderer
             LegendPosition.LowerCenter  => (centerX - boxWidth / 2, PlotArea.Y + PlotArea.Height - boxHeight - inset),
             LegendPosition.UpperCenter  => (centerX - boxWidth / 2, PlotArea.Y + inset),
             LegendPosition.Center       => (centerX - boxWidth / 2, centerY - boxHeight / 2),
+            LegendPosition.OutsideRight => (PlotArea.X + PlotArea.Width + OutsideGap, centerY - boxHeight / 2),
+            LegendPosition.OutsideLeft  => (PlotArea.X - boxWidth - OutsideGap, centerY - boxHeight / 2),
+            LegendPosition.OutsideTop   => (centerX - boxWidth / 2, PlotArea.Y - boxHeight - OutsideGap),
+            LegendPosition.OutsideBottom => (centerX - boxWidth / 2, PlotArea.Y + PlotArea.Height + OutsideGap),
             _                           => (PlotArea.X + PlotArea.Width - boxWidth - inset, PlotArea.Y + inset) // Best / UpperRight
         };
 
@@ -501,11 +523,14 @@ public abstract class AxesRenderer
 
             var tickFont = TickFont();
             double labelY = barY + barH + 4 + tickFont.Size;
+            var hCbTicks = new double[6];
+            for (int i = 0; i <= 5; i++) hCbTicks[i] = min + ((double)i / 5) * (max - min);
+            var hCbFormat = BuildUniformTickFormatter(hCbTicks);
             for (int i = 0; i <= 5; i++)
             {
                 double frac = (double)i / 5;
                 double value = min + frac * (max - min);
-                Ctx.DrawText(FormatTick(value), new Point(gradX + gradW * frac, labelY), tickFont, TextAlignment.Center);
+                Ctx.DrawText(hCbFormat(value), new Point(gradX + gradW * frac, labelY), tickFont, TextAlignment.Center);
             }
 
             if (cb.Label is not null)
@@ -550,15 +575,29 @@ public abstract class AxesRenderer
 
             var tickFont = TickFont();
             double labelX = barX + barW + 4;
+            double maxTickWidth = 0;
+            var vCbTicks = new double[6];
+            for (int i = 0; i <= 5; i++) vCbTicks[i] = max - ((double)i / 5) * (max - min);
+            var vCbFormat = BuildUniformTickFormatter(vCbTicks);
             for (int i = 0; i <= 5; i++)
             {
                 double frac = (double)i / 5;
                 double value = max - frac * (max - min);
-                Ctx.DrawText(FormatTick(value), new Point(labelX, barY + fullH * frac + 4), tickFont, TextAlignment.Left);
+                var tickText = vCbFormat(value);
+                Ctx.DrawText(tickText, new Point(labelX, barY + fullH * frac + 4), tickFont, TextAlignment.Left);
+                var w = Ctx.MeasureText(tickText, tickFont).Width;
+                if (w > maxTickWidth) maxTickWidth = w;
             }
 
             if (cb.Label is not null)
-                Ctx.DrawText(cb.Label, new Point(labelX + 30, barY + fullH / 2), LabelFont(), TextAlignment.Center);
+            {
+                // Rotate the label 90° (vertical, reading bottom-to-top) so it sits in a
+                // narrow gutter beside the colorbar instead of sprawling horizontally and
+                // getting clipped by the figure right edge. Matches matplotlib defaults.
+                var labelFont = LabelFont();
+                double labelGutter = labelX + maxTickWidth + 8;
+                Ctx.DrawText(cb.Label, new Point(labelGutter, barY + fullH / 2), labelFont, TextAlignment.Center, rotation: 90);
+            }
         }
 
         Ctx.EndGroup();
@@ -603,7 +642,20 @@ public abstract class AxesRenderer
         {
             var font = Axes.XAxis.LabelStyle?.ApplyTo(baseFont) ?? baseFont;
             double padOffset = Axes.XAxis.LabelStyle?.Pad ?? 0;
-            var point = new Point(PlotArea.X + PlotArea.Width / 2, PlotArea.Y + PlotArea.Height + 35 + padOffset);
+            // Dynamic offset: the x-label baseline sits a clear gap below the tick-label cell.
+            //   dynamicOffset = tickLength + tickPad + tickLabelCellHeight + gap + labelAscent
+            // where labelAscent ≈ 0.8 × label.Size. Previously hardcoded to 35 px, which
+            // placed the baseline ~11 px ABOVE the tick-label bottom under the v2 theme
+            // (tick cell ≈ 26 px), causing date labels like "Feb 10" to collide with the
+            // x-axis label.
+            var xMajor = Axes.XAxis.MajorTicks;
+            const double xLabelGap = 6;
+            double labelAscent = font.Size * 0.8;
+            double dynamicOffset = MeasuredXTickMaxHeight > 0
+                ? xMajor.Length + xMajor.Pad + MeasuredXTickMaxHeight + xLabelGap + labelAscent
+                : 35;
+            var point = new Point(PlotArea.X + PlotArea.Width / 2,
+                PlotArea.Y + PlotArea.Height + dynamicOffset + padOffset);
             if (MathTextParser.ContainsMath(Axes.XAxis.Label))
                 Ctx.DrawRichText(MathTextParser.Parse(Axes.XAxis.Label), point, font, TextAlignment.Center);
             else
@@ -671,6 +723,45 @@ public abstract class AxesRenderer
     /// <summary>Internal wrapper for <see cref="FormatTick"/> used by the layout engine.</summary>
     internal static string FormatTickValue(double value) => FormatTick(value);
 
+    /// <summary>
+    /// Builds a closure that formats every tick in <paramref name="ticks"/> with the SAME
+    /// decimal precision, matching matplotlib's <c>ScalarFormatter</c> behaviour. When the
+    /// step size between ticks has one decimal place (e.g. 0.1, 0.5, 2.5), every returned
+    /// label will have exactly that one decimal place: <c>"0.0", "0.5", "1.0"</c> instead of
+    /// the mixed <c>"0", "0.5", "1"</c> that a per-tick <c>G5</c> format produces.
+    /// </summary>
+    /// <remarks>
+    /// Called once before a tick-draw loop; the returned <see cref="Func{Double, String}"/>
+    /// is invoked per tick. Falls back to <see cref="FormatTick"/> when <paramref name="ticks"/>
+    /// has fewer than two values (no step to measure).
+    /// </remarks>
+    protected static Func<double, string> BuildUniformTickFormatter(double[] ticks)
+    {
+        if (ticks is null || ticks.Length < 2) return FormatTick;
+        double step = Math.Abs(ticks[1] - ticks[0]);
+        int decimals = RequiredDecimalPlaces(step);
+        string format = $"F{decimals}";
+        return v =>
+        {
+            if (Math.Abs(v) < 1e-10) v = 0;  // avoid "-0.0"
+            return v.ToString(format, CultureInfo.InvariantCulture);
+        };
+    }
+
+    /// <summary>Returns the minimum number of decimal places needed so that multiplying
+    /// <paramref name="step"/> by 10^decimals yields an integer (within tolerance). Gives 0
+    /// for integer steps (1, 2, 10), 1 for 0.5/0.1/2.5, 2 for 0.25/0.01, etc.</summary>
+    private static int RequiredDecimalPlaces(double step)
+    {
+        if (step <= 0 || !double.IsFinite(step)) return 0;
+        for (int d = 0; d <= 10; d++)
+        {
+            double scaled = step * Math.Pow(10, d);
+            if (Math.Abs(scaled - Math.Round(scaled)) < 1e-9) return d;
+        }
+        return 0;
+    }
+
     /// <summary>Expands min/max to include all values in the data array.</summary>
     /// <param name="data">The data values to scan.</param>
     /// <param name="min">The current minimum; updated if any value is smaller.</param>
@@ -689,29 +780,7 @@ public abstract class AxesRenderer
     /// <param name="max">The maximum value of the visible data range.</param>
     /// <param name="targetCount">The desired number of tick intervals; the algorithm snaps to a nearby nice number. Defaults to 8 to match matplotlib's <c>MaxNLocator(nbins='auto')</c>.</param>
     protected static double[] ComputeTickValues(double min, double max, int targetCount = 8)
-    {
-        double range = max - min;
-        if (range <= 0) return [min];
-
-        double rawStep = range / targetCount;
-        double magnitude = Math.Pow(10, Math.Floor(Math.Log10(rawStep)));
-        double normalized = rawStep / magnitude;
-
-        double step = normalized switch
-        {
-            < 1.5 => magnitude,
-            < 3.5 => 2 * magnitude,
-            < 7.5 => 5 * magnitude,
-            _ => 10 * magnitude
-        };
-
-        double first = Math.Ceiling(min / step) * step;
-        var ticks = new List<double>();
-        for (double t = first; t <= max + step * 0.01; t += step)
-            ticks.Add(Math.Round(t, 10));
-
-        return ticks.ToArray();
-    }
+        => new TickLocators.AutoLocator(targetCount).Locate(min, max);
 
     /// <summary>
     /// Computes tick values respecting any <see cref="Axis.TickLocator"/> or <see cref="TickConfig.Spacing"/>
@@ -738,5 +807,28 @@ public abstract class AxesRenderer
             return new TickLocators.MultipleLocator(axis.MajorTicks.Spacing.Value).Locate(min, max);
 
         return ComputeTickValues(min, max);
+    }
+
+    /// <summary>
+    /// Like <see cref="ComputeTickValues(double, double, Axis)"/> but scales the target tick
+    /// count to the available pixel dimension so short plot areas (sparklines, multi-panel
+    /// dashboards) don't cram eight labels into 80 pixels.
+    /// </summary>
+    /// <param name="min">Visible range min.</param>
+    /// <param name="max">Visible range max.</param>
+    /// <param name="axis">Axis config (locator / spacing / formatter).</param>
+    /// <param name="plotPixels">Length of the plot area along the tick direction, in pixels.
+    /// Plots with at least 240 px get the matplotlib-default 8 ticks; smaller plots
+    /// (sparklines, multi-panel dashboards) downscale to 1 tick per ≈ 30 px so labels
+    /// don't stack vertically.</param>
+    protected static double[] ComputeTickValues(double min, double max, Axis axis, double plotPixels)
+    {
+        if (axis.TickLocator is not null) return axis.TickLocator.Locate(min, max);
+        if (axis.MajorTicks.Spacing.HasValue)
+            return new TickLocators.MultipleLocator(axis.MajorTicks.Spacing.Value).Locate(min, max);
+        // Preserve the default 8-tick density for normal-sized plots so existing fidelity
+        // tests stay green; only downscale for short rows where labels would otherwise overlap.
+        int target = plotPixels >= 240 ? 8 : Math.Clamp((int)Math.Round(plotPixels / 30), 2, 6);
+        return ComputeTickValues(min, max, target);
     }
 }

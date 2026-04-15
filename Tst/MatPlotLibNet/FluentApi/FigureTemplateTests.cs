@@ -62,7 +62,7 @@ public class FigureTemplateTests
     [Fact]
     public void ScientificPaper_ReturnsFigureBuilder()
     {
-        var builder = FigureTemplates.ScientificPaper();
+        var builder = FigureTemplates.ScientificPaper(ax => ax.Plot([1.0, 2, 3], [4.0, 5, 6]));
         Assert.NotNull(builder);
     }
 
@@ -70,16 +70,44 @@ public class FigureTemplateTests
     [Fact]
     public void ScientificPaper_AppliesDpi150()
     {
-        var figure = FigureTemplates.ScientificPaper().Build();
+        var figure = FigureTemplates.ScientificPaper(ax => ax.Plot([1.0, 2, 3], [4.0, 5, 6])).Build();
         Assert.Equal(150, figure.Dpi);
     }
 
-    /// <summary>ScientificPaper produces the requested number of subplots.</summary>
+    /// <summary>ScientificPaper produces the requested number of subplots in the multi-panel overload.</summary>
     [Fact]
     public void ScientificPaper_HasCorrectSubplotCount()
     {
-        var figure = FigureTemplates.ScientificPaper(rows: 2, cols: 2).Build();
+        var figure = FigureTemplates.ScientificPaper(
+            rows: 2, cols: 2,
+            configures: [
+                ax => ax.Plot([1.0, 2, 3], [4.0, 5, 6]),
+                ax => ax.Plot([1.0, 2, 3], [4.0, 5, 6]),
+                ax => ax.Plot([1.0, 2, 3], [4.0, 5, 6]),
+                ax => ax.Plot([1.0, 2, 3], [4.0, 5, 6])
+            ]).Build();
         Assert.Equal(4, figure.SubPlots.Count);
+    }
+
+    /// <summary>ScientificPaper's single-subplot overload invokes the configure callback with the subplot axes.</summary>
+    [Fact]
+    public void ScientificPaper_SingleSubplot_InvokesConfigureCallback()
+    {
+        bool invoked = false;
+        var figure = FigureTemplates.ScientificPaper(ax => { invoked = true; ax.Plot([0.0, 1], [0.0, 1]); }).Build();
+        Assert.True(invoked);
+        Assert.Single(figure.SubPlots);
+        Assert.Single(figure.SubPlots[0].Series);
+    }
+
+    /// <summary>ScientificPaper throws when the configures array length doesn't match rows*cols.</summary>
+    [Fact]
+    public void ScientificPaper_MultiSubplot_ThrowsOnLengthMismatch()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            FigureTemplates.ScientificPaper(
+                rows: 2, cols: 2,
+                configures: [ax => ax.Plot([1.0], [1.0])]));
     }
 
     // --- SparklineDashboard ---

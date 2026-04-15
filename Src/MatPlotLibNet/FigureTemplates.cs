@@ -37,7 +37,8 @@ public static class FigureTemplates
         for (int i = 0; i < n; i++) labels[i] = i.ToString();
 
         var builder = Plt.Create()
-            .WithGridSpec(3, 1, heightRatios: [0.60, 0.15, 0.25]);
+            .WithGridSpec(3, 1, heightRatios: [0.60, 0.15, 0.25])
+            .TightLayout();   // gives each panel its own tick + label gutters
 
         if (title is not null) builder.WithTitle(title);
 
@@ -83,14 +84,14 @@ public static class FigureTemplates
         return builder;
     }
 
-    /// <summary>Creates a clean scientific-paper figure: 150 DPI, tight layout, hidden top/right spines.</summary>
-    /// <param name="rows">Number of subplot rows (default 1).</param>
-    /// <param name="cols">Number of subplot columns (default 1).</param>
+    /// <summary>Creates a clean single-panel scientific-paper figure:
+    /// 150 DPI, tight layout, hidden top/right spines, caller-supplied data via <paramref name="configure"/>.</summary>
+    /// <param name="configure">Callback that receives the subplot's <see cref="AxesBuilder"/> for plotting data, setting labels, etc.</param>
     /// <param name="title">Optional figure title.</param>
     /// <param name="width">Figure width in pixels (default 800).</param>
     /// <param name="height">Figure height in pixels (default 600).</param>
     public static FigureBuilder ScientificPaper(
-        int rows = 1, int cols = 1,
+        Action<AxesBuilder> configure,
         string? title = null,
         double width = 800, double height = 600)
     {
@@ -101,13 +102,49 @@ public static class FigureTemplates
 
         if (title is not null) builder.WithTitle(title);
 
-        for (int i = 1; i <= rows * cols; i++)
+        builder.AddSubPlot(1, 1, 1, ax =>
+        {
+            ax.HideTopSpine();
+            ax.HideRightSpine();
+            configure(ax);
+        });
+
+        return builder;
+    }
+
+    /// <summary>Creates a multi-panel scientific-paper figure: one configure callback per subplot (row-major).</summary>
+    /// <param name="rows">Number of subplot rows.</param>
+    /// <param name="cols">Number of subplot columns.</param>
+    /// <param name="configures">One callback per subplot, in row-major order (length must equal <c>rows*cols</c>).</param>
+    /// <param name="title">Optional figure title.</param>
+    /// <param name="width">Figure width in pixels (default 800).</param>
+    /// <param name="height">Figure height in pixels (default 600).</param>
+    public static FigureBuilder ScientificPaper(
+        int rows, int cols,
+        Action<AxesBuilder>[] configures,
+        string? title = null,
+        double width = 800, double height = 600)
+    {
+        if (configures.Length != rows * cols)
+            throw new ArgumentException(
+                $"ScientificPaper expects {rows * cols} configure callbacks (one per subplot), got {configures.Length}.",
+                nameof(configures));
+
+        var builder = Plt.Create()
+            .WithSize(width, height)
+            .WithDpi(150)
+            .TightLayout();
+
+        if (title is not null) builder.WithTitle(title);
+
+        for (int i = 0; i < rows * cols; i++)
         {
             int idx = i;
-            builder.AddSubPlot(rows, cols, idx, ax =>
+            builder.AddSubPlot(rows, cols, idx + 1, ax =>
             {
                 ax.HideTopSpine();
                 ax.HideRightSpine();
+                configures[idx](ax);
             });
         }
 

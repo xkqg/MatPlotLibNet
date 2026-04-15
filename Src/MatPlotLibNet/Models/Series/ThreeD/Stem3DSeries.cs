@@ -21,6 +21,14 @@ public sealed class Stem3DSeries : ChartSeries, I3DPointSeries, IHasColor
 
     public double MarkerSize { get; set; } = 6;
 
+    /// <summary>Colour of the baseline polyline drawn at <c>z = 0</c> through every stem
+    /// base point in sequence order. Matches matplotlib's <c>ax.stem(basefmt='C2-')</c>
+    /// behaviour, where the stem container includes a <c>baseline</c> Line3D alongside the
+    /// vertical stem lines and markers. Set to <see langword="null"/> to suppress the
+    /// baseline entirely. Defaults to the same colour as the stem line (<see cref="Color"/>)
+    /// so a single-colour theme override works as expected.</summary>
+    public Color? BaseLineColor { get; set; }
+
     // I3DPointSeries explicit implementations (Vec casts to double[] via implicit operator)
     double[] I3DPointSeries.X => X;
     double[] I3DPointSeries.Y => Y;

@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using MatPlotLibNet.Geo.GeoJson;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Lighting;
@@ -21,6 +20,8 @@ public sealed class Axes
     public Axis XAxis { get; } = new();
 
     public Axis YAxis { get; } = new();
+
+    public Axis3D ZAxis { get; } = new();
 
     public Legend Legend { get; set; } = new();
 
@@ -694,6 +695,16 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a planar 3D bar series (flat translucent rectangles in Y-planes —
+    /// matplotlib's "2D bars in different planes" pattern) and sets coordinate system to ThreeD.</summary>
+    public PlanarBar3DSeries PlanarBar3D(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new PlanarBar3DSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
     // -------------------------------------------------------------------------
     // v0.8.0 series
     // -------------------------------------------------------------------------
@@ -892,27 +903,6 @@ public sealed class Axes
         return span;
     }
 
-    /// <summary>Adds a map series rendering GeoJSON geometry (polygons, lines, points).</summary>
-    /// <param name="geoData">The GeoJSON document to render. May be null for a blank map.</param>
-    /// <returns>The newly created <see cref="MapSeries"/> for further configuration.</returns>
-    public MapSeries Map(GeoJsonDocument? geoData = null)
-    {
-        var series = new MapSeries(geoData);
-        _series.Add(series);
-        return series;
-    }
-
-    /// <summary>Adds a choropleth series that colors each feature by a data value.</summary>
-    /// <param name="geoData">The GeoJSON document whose features are colored by <paramref name="values"/>.</param>
-    /// <param name="values">One data value per feature; mapped to fill color via the series colormap.</param>
-    /// <returns>The newly created <see cref="ChoroplethSeries"/> for further configuration.</returns>
-    public ChoroplethSeries Choropleth(GeoJsonDocument geoData, double[] values)
-    {
-        var series = new ChoroplethSeries(geoData, values);
-        _series.Add(series);
-        return series;
-    }
-
     /// <summary>Adds a <see cref="SignalXYSeries"/> with monotonically ascending X values.</summary>
     /// <param name="x">Monotonically ascending X values. Must match the length of <paramref name="y"/>.</param>
     /// <param name="y">Y values parallel to <paramref name="x"/>.</param>
@@ -1011,6 +1001,24 @@ public enum LegendPosition
 
     /// <summary>Place the legend at the center of the plot area.</summary>
     Center,
+
+    /// <summary>Place the legend OUTSIDE the plot area, to the right of it. The
+    /// constrained-layout engine reserves enough right margin on the figure to fit the
+    /// legend box; without <c>TightLayout()</c> or <c>ConstrainedLayout()</c> the legend
+    /// may be clipped by the figure edge.</summary>
+    OutsideRight,
+
+    /// <summary>Place the legend OUTSIDE the plot area, to the left of it. Requires
+    /// <c>TightLayout()</c> / <c>ConstrainedLayout()</c> for the engine to reserve left margin.</summary>
+    OutsideLeft,
+
+    /// <summary>Place the legend OUTSIDE the plot area, above it (below the subplot title).
+    /// Requires <c>TightLayout()</c> / <c>ConstrainedLayout()</c> for the engine to reserve top margin.</summary>
+    OutsideTop,
+
+    /// <summary>Place the legend OUTSIDE the plot area, below the X-axis labels. Requires
+    /// <c>TightLayout()</c> / <c>ConstrainedLayout()</c> for the engine to reserve bottom margin.</summary>
+    OutsideBottom,
 }
 
 /// <summary>Specifies how multiple bar series on the same axes are displayed.</summary>

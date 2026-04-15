@@ -51,7 +51,10 @@ public sealed class HistogramSeries : ChartSeries, IHasColor, IHasAlpha, IHasEdg
             if (bins.Counts.Length > 0)
                 yMax = bins.Counts.Max();
         }
-        return new(Data.Length > 0 ? Data.Min() : 0, Data.Length > 0 ? Data.Max() : 1, yMin, yMax);
+        double xMin = Data.Length > 0 ? Data.Min() : 0;
+        double xMax = Data.Length > 0 ? Data.Max() : 1;
+        return new(xMin, xMax, yMin, yMax,
+            StickyXMin: xMin, StickyXMax: xMax, StickyYMin: 0);
     }
 
     /// <inheritdoc />

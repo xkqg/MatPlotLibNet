@@ -38,7 +38,7 @@ public sealed class CountSeries : ChartSeries, ICategoryLabeled, IHasColor
         if (Values.Length == 0) return new(0, 1, 0, 1);
         int maxCount = Values.GroupBy(v => v).Max(g => g.Count());
         int catCount = Values.Distinct().Count();
-        return new(-0.5, catCount - 0.5, 0, maxCount);
+        return new(-0.5, catCount - 0.5, 0, maxCount, StickyXMin: -0.5, StickyXMax: catCount - 0.5);
     }
 
     /// <inheritdoc />

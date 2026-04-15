@@ -25,6 +25,14 @@ public abstract class FidelityTest
     private static readonly string FailureDir =
         Path.Combine(AppContext.BaseDirectory, "fidelity-failures");
 
+    // Where rendered PNGs are dumped when MPL_FIDELITY_DUMP=1. Each render is written to
+    // fidelity-renders/{classic|v2}/{name}.png alongside the matplotlib reference so a
+    // human can eyeball all 146 side-by-side without having to fail the suite.
+    private static readonly string DumpDir =
+        Path.Combine(AppContext.BaseDirectory, "fidelity-renders");
+    private static readonly bool DumpEnabled =
+        string.Equals(Environment.GetEnvironmentVariable("MPL_FIDELITY_DUMP"), "1", StringComparison.Ordinal);
+
     /// <summary>Resolves the matplotlib fixture subdirectory name for a theme. Defaults to "classic".</summary>
     protected static string FixtureSubdir(Theme theme) =>
         theme.Name == "matplotlib-v2" ? "v2" : "classic";
@@ -79,6 +87,16 @@ public abstract class FidelityTest
 
         byte[] actual    = RenderToPng(figure);
         byte[] reference = LoadFixture(subdir, fixtureName);
+
+        // MPL_FIDELITY_DUMP=1 writes the rendered PNG to fidelity-renders/{subdir}/{name}.png
+        // without affecting the pass/fail decision. Used to get a full gallery of our output
+        // alongside the matplotlib references for visual inspection.
+        if (DumpEnabled)
+        {
+            string dumpSub = Path.Combine(DumpDir, subdir);
+            Directory.CreateDirectory(dumpSub);
+            File.WriteAllBytes(Path.Combine(dumpSub, $"{fixtureName}.png"), actual);
+        }
 
         var result = PerceptualDiff.Compare(reference, actual);
         if (!result.Passed(rmsThreshold, ssimThreshold, deltaEThreshold))

@@ -44,13 +44,20 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         double yMin = YData.Min(), yMax = YData.Max();
+        double? stickyYMin = null;
         if (YData2 is not null)
         {
             yMin = Math.Min(yMin, YData2.Min());
             yMax = Math.Max(yMax, YData2.Max());
         }
-        else if (0 < yMin) yMin = 0;
-        return new(XData.Min(), XData.Max(), yMin, yMax);
+        else if (0 <= yMin)
+        {
+            yMin = 0;
+            stickyYMin = 0;  // fill_between with y2=0 and non-negative y1: sticky floor
+        }
+        double xMin = XData.Min(), xMax = XData.Max();
+        return new(xMin, xMax, yMin, yMax,
+            StickyXMin: xMin, StickyXMax: xMax, StickyYMin: stickyYMin);
     }
 
     /// <inheritdoc />

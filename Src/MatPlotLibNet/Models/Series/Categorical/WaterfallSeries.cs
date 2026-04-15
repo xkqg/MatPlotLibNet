@@ -39,7 +39,8 @@ public sealed class WaterfallSeries : ChartSeries
             if (cum > yMax) yMax = cum;
         }
         if (0 < yMin) yMin = 0;
-        return new(xMin, xMax, yMin, yMax);
+        return new(xMin, xMax, yMin, yMax,
+            StickyXMin: xMin, StickyXMax: xMax, StickyYMin: 0);
     }
 
     /// <inheritdoc />

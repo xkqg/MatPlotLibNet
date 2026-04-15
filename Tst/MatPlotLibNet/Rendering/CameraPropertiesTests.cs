@@ -74,20 +74,24 @@ public class CameraPropertiesTests
     [Fact]
     public void Projection3D_Perspective_ParallaxEffect()
     {
-        // Two points at different depths should have different 2D separation than orthographic
-        var ortho = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10);
-        var persp = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10, distance: 3.0);
+        // Two projections sharing the same camera angles and data bounds but different
+        // camera distances must produce visibly different screen-space separations for
+        // a diagonal 3-D line. Distance 10 (default) places the camera far enough that
+        // near/far points project at nearly the same scale; distance 3 brings the camera
+        // close enough that the far point foreshortens noticeably, widening the gap.
+        var farCam  = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10);
+        var nearCam = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10, distance: 3.0);
 
-        var p1Ortho = ortho.Project(0, 0, 0);
-        var p2Ortho = ortho.Project(10, 10, 10);
-        var p1Persp = persp.Project(0, 0, 0);
-        var p2Persp = persp.Project(10, 10, 10);
+        var p1Far  = farCam.Project(0, 0, 0);
+        var p2Far  = farCam.Project(10, 10, 10);
+        var p1Near = nearCam.Project(0, 0, 0);
+        var p2Near = nearCam.Project(10, 10, 10);
 
-        double distOrtho = Math.Sqrt(Math.Pow(p2Ortho.X - p1Ortho.X, 2) + Math.Pow(p2Ortho.Y - p1Ortho.Y, 2));
-        double distPersp = Math.Sqrt(Math.Pow(p2Persp.X - p1Persp.X, 2) + Math.Pow(p2Persp.Y - p1Persp.Y, 2));
+        double distFar  = Math.Sqrt(Math.Pow(p2Far.X - p1Far.X, 2) + Math.Pow(p2Far.Y - p1Far.Y, 2));
+        double distNear = Math.Sqrt(Math.Pow(p2Near.X - p1Near.X, 2) + Math.Pow(p2Near.Y - p1Near.Y, 2));
 
-        // Perspective projection should produce different spread
-        Assert.NotEqual(distOrtho, distPersp, 1.0);
+        // Bringing the camera closer should visibly change the projected diagonal length.
+        Assert.NotEqual(distFar, distNear, 1.0);
     }
 
     [Fact]

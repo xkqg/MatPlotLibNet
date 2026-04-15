@@ -32,7 +32,9 @@ public sealed class RugplotSeries : ChartSeries, IHasColor, IHasAlpha
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (Data.Length == 0) return new(0, 1, 0, 1);
-        return new(Data.Min(), Data.Max(), 0, null);
+        // Rugs are always drawn within [0, Height] on the Y axis — that's the extent a standalone
+        // rugplot needs. When overlaid on a KDE/hist the axis scaler will widen from there.
+        return new(Data.Min(), Data.Max(), 0, Math.Max(Height, 1.0));
     }
 
     /// <inheritdoc />

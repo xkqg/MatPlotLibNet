@@ -63,7 +63,10 @@ public sealed class StackedAreaSeries : ChartSeries, IHasAlpha
         if (yMin == double.MaxValue) yMin = 0;
         if (yMax == double.MinValue) yMax = 1;
 
-        return new(xMin, xMax, yMin, yMax);
+        // Stack baseline (Zero) is a hard floor iff all stacked values are non-negative.
+        double? stickyYMin = Baseline == StackedBaseline.Zero && yMin >= 0 ? 0 : null;
+        return new(xMin, xMax, yMin, yMax,
+            StickyXMin: xMin, StickyXMax: xMax, StickyYMin: stickyYMin);
     }
 
     /// <inheritdoc />

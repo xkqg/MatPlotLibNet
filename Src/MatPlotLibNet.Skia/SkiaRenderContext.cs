@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet;
 using SkiaSharp;
 
 namespace MatPlotLibNet.Skia;
@@ -11,6 +12,14 @@ namespace MatPlotLibNet.Skia;
 public sealed class SkiaRenderContext : IRenderContext
 {
     private readonly SKCanvas _canvas;
+
+    // Current group opacity applied to subsequent Draw* calls. Kept as instance state
+    // rather than as a Skia SaveLayer because SetOpacity/SetOpacity(1.0) is called
+    // pairwise in series renderers (e.g. SurfaceSeriesRenderer) without an intervening
+    // Restore, so layer-based implementation would drop every polygon between the
+    // two calls. Each CreateFillPaint/CreateStrokePaint multiplies the alpha of its
+    // color by this field.
+    private double _opacity = 1.0;
 
     /// <summary>Creates a new SkiaSharp render context wrapping the given canvas.</summary>
     public SkiaRenderContext(SKCanvas canvas) => _canvas = canvas;
@@ -231,28 +240,21 @@ public sealed class SkiaRenderContext : IRenderContext
     public void PopClip() => _canvas.Restore();
 
     /// <inheritdoc />
-    public Size MeasureText(string text, Font font)
-    {
-        var typeface = FigureSkiaExtensions.ResolveTypeface(font.Family,
-            font.Weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-            font.Slant == FontSlant.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
-        using var skFont = new SKFont(typeface, (float)font.Size);
-        return new Size(skFont.MeasureText(text), font.Size * 1.2);
-    }
+    public Size MeasureText(string text, Font font) => ChartServices.FontMetrics.Measure(text, font);
 
     /// <inheritdoc />
-    public void SetOpacity(double opacity) => _canvas.SaveLayer(new SKPaint { Color = new SKColor(255, 255, 255, (byte)(opacity * 255)) });
+    public void SetOpacity(double opacity) => _opacity = Math.Clamp(opacity, 0.0, 1.0);
 
-    /// <summary>Creates a filled SKPaint from the given color.</summary>
-    private static SKPaint CreateFillPaint(Color color) => new()
+    /// <summary>Creates a filled SKPaint from the given color, modulated by the current group opacity.</summary>
+    private SKPaint CreateFillPaint(Color color) => new()
     {
         Color = ToSkColor(color),
         Style = SKPaintStyle.Fill,
         IsAntialias = true
     };
 
-    /// <summary>Creates a stroke SKPaint with optional dash pattern based on the line style.</summary>
-    private static SKPaint CreateStrokePaint(Color color, double thickness, LineStyle style)
+    /// <summary>Creates a stroke SKPaint with optional dash pattern, modulated by the current group opacity.</summary>
+    private SKPaint CreateStrokePaint(Color color, double thickness, LineStyle style)
     {
         var paint = new SKPaint
         {
@@ -272,6 +274,10 @@ public sealed class SkiaRenderContext : IRenderContext
         return paint;
     }
 
-    /// <summary>Converts a MatPlotLibNet Color to a SkiaSharp SKColor.</summary>
-    private static SKColor ToSkColor(Color c) => new(c.R, c.G, c.B, c.A);
+    /// <summary>Converts a MatPlotLibNet Color to a SkiaSharp SKColor, applying the current <see cref="_opacity"/>.</summary>
+    private SKColor ToSkColor(Color c)
+    {
+        byte a = (byte)Math.Round(c.A * _opacity);
+        return new SKColor(c.R, c.G, c.B, a);
+    }
 }

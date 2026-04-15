@@ -10,6 +10,8 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Renders a <see cref="Bar3DSeries"/> as depth-sorted rectangular prisms projected from 3D to 2D.</summary>
 internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
 {
+    private enum FaceKind { Top, Bottom, FrontY, BackY, LeftX, RightX }
+
     /// <inheritdoc />
     public Bar3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
@@ -30,77 +32,108 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
             ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
         double hw = series.BarWidth / 2.0;
 
-        // Build bars with depth for painter's algorithm
-        var bars = new List<(double Depth, Point[] Top, Point[] Front, Point[] Side)>(series.X.Length);
+        // matplotlib draws 3-D bar edges in solid black so prism geometry pops against the
+        // fill colour. Match that.
+        var strokeColor = Colors.Black;
 
-        for (int i = 0; i < series.X.Length; i++)
+        // Per-face fill colours. We want to match matplotlib's bar3d shading exactly
+        // (art3d._shade_colors), which is NOT Lambertian — it maps the raw signed dot
+        // product to [0.3, 1.0]. Two colours are enough because opposite faces share a
+        // shade value (matplotlib draws all 6, same pattern).
+        Color topColor, bottomColor;
+        Color frontColor, backColor;
+        Color leftColor, rightColor;
+        if (Context.LightSource is DirectionalLight dl)
         {
-            double cx = series.X.Data[i];
-            double cy = series.Y.Data[i];
-            double h = series.Z.Data[i];
-
-            // 8 corners of the prism
-            double x0 = cx - hw, x1 = cx + hw;
-            double y0 = cy - hw, y1 = cy + hw;
-
-            // Top face (z = h)
-            var top = new[]
-            {
-                proj.Project(x0, y0, h),
-                proj.Project(x1, y0, h),
-                proj.Project(x1, y1, h),
-                proj.Project(x0, y1, h)
-            };
-
-            // Front face (y = y0, z from 0 to h)
-            var front = new[]
-            {
-                proj.Project(x0, y0, 0),
-                proj.Project(x1, y0, 0),
-                proj.Project(x1, y0, h),
-                proj.Project(x0, y0, h)
-            };
-
-            // Right face (x = x1, z from 0 to h)
-            var side = new[]
-            {
-                proj.Project(x1, y0, 0),
-                proj.Project(x1, y1, 0),
-                proj.Project(x1, y1, h),
-                proj.Project(x1, y0, h)
-            };
-
-            double depth = proj.Depth(cx, cy, h / 2.0);
-            bars.Add((depth, top, front, side));
-        }
-
-        // Sort back-to-front (painter's algorithm)
-        bars.Sort((a, b) => a.Depth.CompareTo(b.Depth));
-
-        var strokeColor = baseColor.WithAlpha(80);
-
-        Color topColor, frontColor, sideColor;
-
-        if (Context.LightSource is { } light)
-        {
-            // Per-face lighting using fixed normals for top, front, and right faces
-            topColor   = LightingHelper.ModulateColor(baseColor, light.ComputeIntensity(0, 0, 1));
-            frontColor = LightingHelper.ModulateColor(baseColor, light.ComputeIntensity(0, -1, 0));
-            sideColor  = LightingHelper.ModulateColor(baseColor, light.ComputeIntensity(1, 0, 0));
+            double lx = dl.Dx, ly = dl.Dy, lz = dl.Dz;
+            topColor    = LightingHelper.ShadeColor(baseColor,  0,  0,  1, lx, ly, lz);
+            bottomColor = LightingHelper.ShadeColor(baseColor,  0,  0, -1, lx, ly, lz);
+            frontColor  = LightingHelper.ShadeColor(baseColor,  0, -1,  0, lx, ly, lz);
+            backColor   = LightingHelper.ShadeColor(baseColor,  0,  1,  0, lx, ly, lz);
+            leftColor   = LightingHelper.ShadeColor(baseColor, -1,  0,  0, lx, ly, lz);
+            rightColor  = LightingHelper.ShadeColor(baseColor,  1,  0,  0, lx, ly, lz);
         }
         else
         {
-            // Legacy alpha-based shading (backward compatible)
-            topColor   = baseColor;
-            frontColor = baseColor.WithAlpha((byte)(baseColor.A * 0.85));
-            sideColor  = baseColor.WithAlpha((byte)(baseColor.A * 0.70));
+            topColor    = baseColor;
+            bottomColor = baseColor.WithAlpha((byte)(baseColor.A * 0.60));
+            frontColor  = baseColor.WithAlpha((byte)(baseColor.A * 0.85));
+            backColor   = frontColor;
+            leftColor   = baseColor.WithAlpha((byte)(baseColor.A * 0.70));
+            rightColor  = leftColor;
         }
 
-        foreach (var (_, top, front, side) in bars)
+        // Build every face of every bar and sort them individually by centroid depth.
+        // Drawing all 6 faces per prism and letting per-face depth sorting handle occlusion
+        // is robust to any camera angle — we don't have to hard-code which 3 faces are
+        // front-facing for the current rotation.
+        var faces = new List<(double Depth, Point[] Vertices, Color Fill)>(series.X.Length * 6);
+
+        for (int i = 0; i < series.X.Length; i++)
         {
-            Ctx.DrawPolygon(top, topColor, strokeColor, 0.5);
-            Ctx.DrawPolygon(front, frontColor, strokeColor, 0.5);
-            Ctx.DrawPolygon(side, sideColor, strokeColor, 0.5);
+            // matplotlib bar3d convention: X[i] / Y[i] are the LEFT-FRONT corner of the
+            // bar, not the centre. Bar spans [X, X+BarWidth] × [Y, Y+BarWidth] × [0, Z].
+            // This makes X/Y tick labels line up with the bar edges instead of centres.
+            double cx = series.X.Data[i];
+            double cy = series.Y.Data[i];
+            double h  = series.Z.Data[i];
+
+            double x0 = cx, x1 = cx + series.BarWidth;
+            double y0 = cy, y1 = cy + series.BarWidth;
+
+            AddFace(faces, proj, topColor,
+                (x0, y0, h), (x1, y0, h), (x1, y1, h), (x0, y1, h));
+            AddFace(faces, proj, bottomColor,
+                (x0, y0, 0d), (x0, y1, 0d), (x1, y1, 0d), (x1, y0, 0d));
+            AddFace(faces, proj, frontColor,
+                (x0, y0, 0d), (x1, y0, 0d), (x1, y0, h), (x0, y0, h));
+            AddFace(faces, proj, backColor,
+                (x1, y1, 0d), (x0, y1, 0d), (x0, y1, h), (x1, y1, h));
+            AddFace(faces, proj, leftColor,
+                (x0, y1, 0d), (x0, y0, 0d), (x0, y0, h), (x0, y1, h));
+            AddFace(faces, proj, rightColor,
+                (x1, y0, 0d), (x1, y1, 0d), (x1, y1, h), (x1, y0, h));
         }
+
+        // If a shared cross-series depth queue is available on the context, push each
+        // face as a deferred draw so the axes renderer can sort across ALL 3-D series
+        // (including other Bar3D rows) before painting. Otherwise fall back to the
+        // local back-to-front sort — correct for a single-series render.
+        if (Context.DepthQueue is { } queue)
+        {
+            foreach (var (depth, verts, fill) in faces)
+            {
+                // Capture-by-value — avoid foreach-variable aliasing in the closure.
+                var vLocal = verts; var fLocal = fill; var sLocal = strokeColor;
+                queue.Add(depth, () => Ctx.DrawPolygon(vLocal, fLocal, sLocal, 0.5));
+            }
+        }
+        else
+        {
+            faces.Sort((a, b) => a.Depth.CompareTo(b.Depth));
+            foreach (var (_, verts, fill) in faces)
+                Ctx.DrawPolygon(verts, fill, strokeColor, 0.5);
+        }
+    }
+
+    private static void AddFace(
+        List<(double Depth, Point[] Vertices, Color Fill)> sink,
+        Projection3D proj, Color fill,
+        (double x, double y, double z) c0,
+        (double x, double y, double z) c1,
+        (double x, double y, double z) c2,
+        (double x, double y, double z) c3)
+    {
+        var pts = new[]
+        {
+            proj.Project(c0.x, c0.y, c0.z),
+            proj.Project(c1.x, c1.y, c1.z),
+            proj.Project(c2.x, c2.y, c2.z),
+            proj.Project(c3.x, c3.y, c3.z),
+        };
+        double cx = (c0.x + c1.x + c2.x + c3.x) / 4.0;
+        double cy = (c0.y + c1.y + c2.y + c3.y) / 4.0;
+        double cz = (c0.z + c1.z + c2.z + c3.z) / 4.0;
+        sink.Add((proj.Depth(cx, cy, cz), pts, fill));
     }
 }

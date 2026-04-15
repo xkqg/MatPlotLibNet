@@ -249,7 +249,7 @@ public sealed class Theme
         foregroundText: Colors.Black,
         axesBackground: Colors.White,
         cycleColors: HighContrastCycleColors,
-        defaultFont: new Font { Size = 13, Weight = FontWeight.Bold },
+        defaultFont: new Font { Family = "DejaVu Sans, sans-serif", Size = 13, Weight = FontWeight.Bold },
         defaultGrid: new GridStyle { Visible = true, Color = Color.FromHex("#666666"), LineStyle = LineStyle.Solid, LineWidth = 1.5 });
 
     /// <summary>

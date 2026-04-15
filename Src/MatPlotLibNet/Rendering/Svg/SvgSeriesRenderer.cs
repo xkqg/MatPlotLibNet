@@ -135,7 +135,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor,
         CycledProperties? cycledProps = null, bool tooltipsEnabled = false, Rect plotArea = default,
         Projection3D? projection = null, ILightSource? lightSource = null, bool emit3DData = false,
-        Styling.Theme? theme = null)
+        Styling.Theme? theme = null, DepthQueue3D? depthQueue = null)
     {
         _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(plotArea, ctx))
         {
@@ -145,6 +145,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
             LightSource     = lightSource,
             Emit3DData      = emit3DData,
             Theme           = theme,
+            DepthQueue      = depthQueue,
         };
     }
 
@@ -301,18 +302,13 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     // Phase D additions
     private Stem3DSeriesRenderer? _stem3D;
     private Bar3DSeriesRenderer? _bar3D;
+    private PlanarBar3DSeriesRenderer? _planarBar3D;
     /// <inheritdoc />
     public void Visit(Stem3DSeries s, RenderArea a) => (_stem3D ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(Bar3DSeries s, RenderArea a) => (_bar3D ??= new(_context)).Render(s);
-
-    // Phase F additions — Geo
-    private MapSeriesRenderer? _map;
-    private ChoroplethSeriesRenderer? _choropleth;
     /// <inheritdoc />
-    public void Visit(MapSeries s, RenderArea a) => (_map ??= new(_context)).Render(s);
-    /// <inheritdoc />
-    public void Visit(ChoroplethSeries s, RenderArea a) => (_choropleth ??= new(_context)).Render(s);
+    public void Visit(PlanarBar3DSeries s, RenderArea a) => (_planarBar3D ??= new(_context)).Render(s);
 
     // Signal v1.0
     /// <inheritdoc />

@@ -29,4 +29,28 @@ public static class LightingHelper
             (byte)(color.B * intensity),
             color.A);
     }
+
+    /// <summary>
+    /// Shades a base colour using matplotlib's exact <c>mpl_toolkits.mplot3d.art3d._shade_colors</c>
+    /// formula: <c>k = 0.65 + 0.35·dot(n̂, l̂)</c>, mapping the raw dot product from [−1, 1] to
+    /// [0.3, 1.0]. No Lambertian <c>max(0, dot)</c> clamp — back-facing faces get 0.3× brightness
+    /// (matplotlib's ambient floor) while front-facing faces get 1.0×. Hue is preserved.
+    /// Both <paramref name="nx"/>/<paramref name="ny"/>/<paramref name="nz"/> and the light
+    /// direction are normalised internally.
+    /// </summary>
+    public static Color ShadeColor(Color baseColor,
+        double nx, double ny, double nz,
+        double lx, double ly, double lz)
+    {
+        double nLen = Math.Sqrt(nx * nx + ny * ny + nz * nz);
+        double lLen = Math.Sqrt(lx * lx + ly * ly + lz * lz);
+        if (nLen < 1e-10 || lLen < 1e-10) return baseColor;
+        double dot = (nx * lx + ny * ly + nz * lz) / (nLen * lLen);
+        double k = Math.Clamp(0.65 + 0.35 * dot, 0.3, 1.0);
+        return new Color(
+            (byte)Math.Round(baseColor.R * k),
+            (byte)Math.Round(baseColor.G * k),
+            (byte)Math.Round(baseColor.B * k),
+            baseColor.A);
+    }
 }

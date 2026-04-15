@@ -32,7 +32,9 @@ public sealed class BrokenBarSeries : ChartSeries, IHasColor
         var allRanges = Ranges.SelectMany(r => r).ToArray();
         double xMin = allRanges.Length > 0 ? allRanges.Min(r => r.Start) : 0;
         double xMax = allRanges.Length > 0 ? allRanges.Max(r => r.Start + r.Width) : 1;
-        return new(xMin, xMax, -0.5, Ranges.Length - 0.5);
+        double yMin = -0.5, yMax = Ranges.Length - 0.5;
+        return new(xMin, xMax, yMin, yMax,
+            StickyXMin: xMin, StickyXMax: xMax, StickyYMin: yMin, StickyYMax: yMax);
     }
 
     /// <inheritdoc />

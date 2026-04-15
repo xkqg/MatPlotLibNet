@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
@@ -26,12 +27,34 @@ internal sealed class SunburstSeriesRenderer : SeriesRenderer<SunburstSeries>
         if (maxDepth == 0) return;
 
         double ringWidth = (maxRadius - series.InnerRadius * maxRadius) / maxDepth;
-        RenderRing(series.Root, cx, cy, 0, 360, 0, series, ringWidth, maxRadius);
+
+        // Collected label candidates — placed in one collision-resolution batch after
+        // all ring segments have drawn, so labels on dense rings don't overlap.
+        var labelCandidates = series.ShowLabels ? new List<LabelCandidate>() : null;
+
+        RenderRing(series.Root, cx, cy, 0, 360, 0, series, ringWidth, maxRadius, labelCandidates);
+
+        // Place + draw collected labels.
+        if (labelCandidates is { Count: > 0 })
+        {
+            var placements = LabelLayoutEngine.Place(
+                labelCandidates,
+                bounds,
+                ChartServices.FontMetrics);
+            var leaderColor = Context?.Theme?.ForegroundText ?? Colors.Black;
+            foreach (var p in placements)
+            {
+                if (p.LeaderLineStart is { } anchor)
+                    CalloutBoxRenderer.DrawLeaderLine(Ctx, anchor, p.FinalPoint, leaderColor);
+                Ctx.DrawText(p.Text, p.FinalPoint, p.Font, p.Alignment);
+            }
+        }
     }
 
     private void RenderRing(TreeNode node, double cx, double cy,
         double startAngle, double sweepAngle, int depth,
-        SunburstSeries series, double ringWidth, double maxRadius)
+        SunburstSeries series, double ringWidth, double maxRadius,
+        List<LabelCandidate>? labelCandidates)
     {
         if (node.Children.Count == 0) return;
 
@@ -39,6 +62,15 @@ internal sealed class SunburstSeriesRenderer : SeriesRenderer<SunburstSeries>
         double outerR = innerR + ringWidth;
         double total = node.TotalValue;
         if (total <= 0) return;
+
+        // Reuse the cached label font so every ring uses the same metrics, and so the
+        // text-size measurement inside the LabelLayoutEngine matches what the renderer
+        // will eventually draw (both go through ChartServices.FontMetrics).
+        var labelFont = labelCandidates is null
+            ? null
+            : Context?.Theme?.DefaultFont is { } f
+                ? new Font { Family = f.Family, Size = Math.Max(9, f.Size - 1), Color = Colors.White }
+                : new Font { Size = 10, Color = Colors.White };
 
         double currentAngle = startAngle;
         foreach (var child in node.Children)
@@ -61,8 +93,20 @@ internal sealed class SunburstSeriesRenderer : SeriesRenderer<SunburstSeries>
             };
             Ctx.DrawPath(segments, color, Colors.White, 1);
 
+            // Collect a label for this ring segment when labels are enabled and the wedge
+            // is wide enough to plausibly host one. Anchor at the radial+angular midpoint.
+            if (labelCandidates is not null && labelFont is not null
+                && childSweep >= series.MinLabelSweepDegrees
+                && !string.IsNullOrEmpty(child.Label))
+            {
+                double midAngle = (currentAngle + childSweep / 2) * Math.PI / 180.0;
+                double midR = (innerR + outerR) / 2.0;
+                var anchor = new Point(cx + midR * Math.Cos(midAngle), cy + midR * Math.Sin(midAngle));
+                labelCandidates.Add(new LabelCandidate(anchor, child.Label, labelFont, TextAlignment.Center));
+            }
+
             // Recurse
-            RenderRing(child, cx, cy, currentAngle, childSweep, depth + 1, series, ringWidth, maxRadius);
+            RenderRing(child, cx, cy, currentAngle, childSweep, depth + 1, series, ringWidth, maxRadius, labelCandidates);
             currentAngle += childSweep;
         }
     }
