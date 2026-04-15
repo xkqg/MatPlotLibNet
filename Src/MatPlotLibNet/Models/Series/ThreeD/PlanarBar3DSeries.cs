@@ -30,7 +30,7 @@ public sealed class PlanarBar3DSeries : XYZSeries, IHasColor, IHasAlpha, IHasEdg
     public Color? EdgeColor { get; set; }
 
     /// <summary>
-    /// Per-bar fill colours, parallel to <see cref="X"/>/<see cref="Y"/>/<see cref="Z"/>.
+    /// Per-bar fill colours, parallel to the inherited <c>X</c>/<c>Y</c>/<c>Z</c> arrays.
     /// When set, overrides <see cref="Color"/> on a per-bar basis. Bars past the array length
     /// fall back to <see cref="Color"/>. Matches the parallel-array convention used by
     /// <see cref="ScatterSeries"/>, <see cref="PieSeries"/>, <see cref="DonutSeries"/>, etc.

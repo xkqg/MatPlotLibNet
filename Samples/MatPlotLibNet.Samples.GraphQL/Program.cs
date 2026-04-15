@@ -20,7 +20,7 @@ builder.Services.AddMatPlotLibNetGraphQL(chartId =>
         .WithTitle($"Chart: {chartId}")
         .WithTheme(Theme.FiveThirtyEight)
         .Plot([1, 2, 3, 4, 5], [10, 25, 15, 30, 20],
-            line => { line.Color = Color.Orange; line.Label = chartId; })
+            line => { line.Color = Colors.Orange; line.Label = chartId; })
         .Build());
 
 var app = builder.Build();
@@ -38,7 +38,7 @@ _ = Task.Run(async () =>
         var data = Enumerable.Range(1, 5).Select(_ => random.NextDouble() * 50).ToArray();
         var figure = Plt.Create()
             .WithTitle($"Live ({DateTime.Now:HH:mm:ss})")
-            .Plot([1, 2, 3, 4, 5], data, line => { line.Color = Color.Blue; })
+            .Plot([1, 2, 3, 4, 5], data, line => { line.Color = Colors.Blue; })
             .Build();
         await publisher.PublishSvgAsync("live-sensor", figure);
         await Task.Delay(5000);

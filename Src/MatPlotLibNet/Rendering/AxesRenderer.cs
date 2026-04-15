@@ -122,6 +122,7 @@ public abstract class AxesRenderer
     /// <summary>Renders all series using a unified 3D projection (for ThreeD axes).</summary>
     /// <param name="projection">The shared projection used by all 3D series renderers.</param>
     /// <param name="lightSource">Optional light source for per-face lighting.</param>
+    /// <param name="depthQueue">Optional shared depth queue for cross-series back-to-front compositing.</param>
     protected void RenderSeries(Projection3D projection, ILightSource? lightSource = null,
         DepthQueue3D? depthQueue = null)
     {
@@ -607,7 +608,7 @@ public abstract class AxesRenderer
     protected void RenderTitle()
     {
         if (Axes.Title is null) return;
-        var baseFont = TitleFont(2);
+        var baseFont = TitleFont();
         var font = Axes.TitleStyle?.ApplyTo(baseFont) ?? baseFont;
 
         // Horizontal alignment based on TitleLoc; Pad shifts the Y position when set
@@ -682,32 +683,19 @@ public abstract class AxesRenderer
     }
 
     // --- Font factories ---
+    // All themed fonts delegate to ThemedFontProvider, the single source of truth shared
+    // with ConstrainedLayoutEngine + LegendMeasurer. These thin protected wrappers exist
+    // only so existing parameterless call sites continue to compile; add a new font role
+    // in ThemedFontProvider, not here.
 
-    /// <summary>Creates a title font from the theme.</summary>
-    /// <param name="sizeOffset">Points added to the theme's default font size; defaults to 4.</param>
-    protected Font TitleFont(int sizeOffset = 4) => new()
-    {
-        Family = Theme.DefaultFont.Family,
-        Size = Theme.DefaultFont.Size + sizeOffset,
-        Weight = FontWeight.Bold,
-        Color = Theme.ForegroundText
-    };
+    /// <summary>Creates a title font from the theme (axes title — 2 pt larger than labels).</summary>
+    protected Font TitleFont() => ThemedFontProvider.TitleFont(Theme);
 
-    /// <summary>Creates a tick label font from the theme.</summary>
-    protected Font TickFont() => new()
-    {
-        Family = Theme.DefaultFont.Family,
-        Size = Theme.DefaultFont.Size,   // same as axis labels — matches matplotlib's default
-        Color = Theme.ForegroundText
-    };
+    /// <summary>Creates a tick label font from the theme (same size as axis labels — matches matplotlib).</summary>
+    protected Font TickFont() => ThemedFontProvider.TickFont(Theme);
 
     /// <summary>Creates an axis label font from the theme.</summary>
-    protected Font LabelFont() => new()
-    {
-        Family = Theme.DefaultFont.Family,
-        Size = Theme.DefaultFont.Size,
-        Color = Theme.ForegroundText
-    };
+    protected Font LabelFont() => ThemedFontProvider.LabelFont(Theme);
 
     /// <summary>Formats a tick value for display.</summary>
     /// <param name="value">The numeric tick value to format.</param>

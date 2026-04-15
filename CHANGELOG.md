@@ -4,6 +4,51 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.1] — 2026-04-15
+
+**Font-factory subsystem fix + CI warning sweep.** A small follow-up to v1.2.0 that fixes the root cause of the outside-legend clipping bug, wipes every warning off every non-MAUI project, and unblocks two sample projects that had stopped compiling.
+
+### The bug, diagnosed properly
+
+v1.1.4's CHANGELOG claimed the new `LegendMeasurer` made outside-legend margin reservation pixel-accurate. It didn't — the `legend_outside` sample in v1.2.0 was still chopping the `exp(-x/5)·cos(x)` label off the right edge of the figure. Root cause: **two duplicate `TickFont()` factories that had silently drifted.**
+
+- [`AxesRenderer.TickFont()`](Src/MatPlotLibNet/Rendering/AxesRenderer.cs) built `Size = Theme.DefaultFont.Size` (12 pt) and was used at draw time by `RenderLegend`, `RenderTicks`, `RenderColorBar`.
+- `ConstrainedLayoutEngine.TickFont(theme)` built `Size = theme.DefaultFont.Size - 2` (10 pt) and was used by `PerAxesMetrics.Measure` to reserve left / bottom / right margin and by `LegendMeasurer.MeasureBox`.
+
+The measurer reported a **140 × 84** legend box at 10 pt while the renderer drew a **161 × 94** box at 12 pt — 20.88 px of under-reservation, enough to clip the fourth entry. The first fix (landed in the working tree) made `LegendMeasurer` derive its font directly from `Theme`, but that only patched the legend path. Three more `TickFont`-dependent measurements (Y-tick width, X-tick height, colorbar tick labels) were still under-reserving. `ColorBar.TitleFont`, `ChartRenderer.TitleFont(theme, sizeOffset)`, and four methods on `ConstrainedLayoutEngine` were all maintaining their own copy of "the formula for the font at role X". Eight duplicate font factories across three files. The bug class is **duplicate formulas that drift**, and point-patching each call site would leave the next one waiting to bite.
+
+### The subsystem fix
+
+- **New [`ThemedFontProvider`](Src/MatPlotLibNet/Rendering/ThemedFontProvider.cs)** — one `internal static` class, four methods (`TickFont`, `LabelFont`, `TitleFont`, `SupTitleFont`), each taking only a `Theme`. Single source of truth for every themed font in the render pipeline. Size formulas live in one place: tick/label = `DefaultFont.Size`, axes title = `DefaultFont.Size + 2`, suptitle = `DefaultFont.Size + 4`. Adding a new font role is a new method here; no call site can diverge because there is no formula anywhere else.
+- **Deleted eight duplicate font factories**:
+  - `AxesRenderer.TitleFont(int sizeOffset)` — replaced by parameterless `TitleFont()` that delegates to the provider.
+  - `AxesRenderer.TickFont()` / `LabelFont()` — delegate to provider.
+  - `ChartRenderer.TitleFont(theme, int sizeOffset)` — deleted entirely; the suptitle call site reads `ThemedFontProvider.SupTitleFont(theme)` directly.
+  - `ConstrainedLayoutEngine.TickFont(theme)` / `LabelFont(theme)` / `TitleFont(theme)` / `SupTitleFont(theme)` — all four deleted; `Measure` now takes `(Axes, IRenderContext, Theme)` and pulls fonts from the provider internally.
+  - `LegendMeasurer.LegendFont` keeps its name but its body is now one line delegating to `ThemedFontProvider.TickFont(theme)` (then applying the optional `Legend.FontSize` override).
+- **Drift regression-test battery** in [`Tst/MatPlotLibNet/Rendering/Layout/LegendMeasurerDriftTests.cs`](Tst/MatPlotLibNet/Rendering/Layout/LegendMeasurerDriftTests.cs) — renamed class `MeasurerRendererDriftTests` with seven semantic invariants: legend box doesn't clip, Y-tick labels fit inside `MarginLeft`, X-tick labels fit inside `MarginBottom`, colorbar tick labels fit inside `MarginRight`, axes title fits inside `MarginTop`, suptitle fits inside `MarginTop`, secondary-X-axis label fits inside `MarginTop`. Each test asserts the full rendered geometry, not an intermediate font size, so it survives the refactor and serves as a permanent guard against the whole bug class.
+- **Regression check** — regenerated all 34 `images/*.svg` samples via the console runner. `git diff images/` shows zero changes beyond `legend_outside.{svg,png}` (which were the v1.2.1 legend fix itself). The refactor is byte-identical for every figure that wasn't affected by the bug.
+
+### CI warning sweep — every non-MAUI project at 0 warnings, 0 errors
+
+- **5 × CS0117 compile errors** in `Samples/MatPlotLibNet.Samples.WebApi/Program.cs` and `Samples/MatPlotLibNet.Samples.GraphQL/Program.cs` — both referenced the stale `Color.Blue` / `Color.Orange` API. Replaced with `Colors.Blue` / `Colors.Orange`. Both sample projects compile again.
+- **1 × CS0105** duplicate `using Microsoft.AspNetCore.Components.Web` in [`Samples/MatPlotLibNet.Samples.Blazor/Components/_Imports.razor`](Samples/MatPlotLibNet.Samples.Blazor/Components/_Imports.razor) — removed.
+- **1 × CS8625** null-literal-to-non-nullable in [`Tst/MatPlotLibNet/Models/Series/Polar/PolarHeatmapSeriesTests.cs:120`](Tst/MatPlotLibNet/Models/Series/Polar/PolarHeatmapSeriesTests.cs#L120) — `default` for `RenderArea` (a reference type) was being interpreted as a null literal. Fixed by constructing a real `RenderArea` with a `Rect` and an `SvgRenderContext`.
+- **16 × xUnit1051** across three test files — every `Task.Delay` / `HttpClient.GetAsync` / `HubConnection.StartAsync` / `HubConnection.InvokeAsync` / `IChartPublisher.PublishSvgAsync` / `Task.WaitAsync` call now passes `TestContext.Current.CancellationToken`. 14 edits in [`Tst/MatPlotLibNet.Interactive/ChartServerTests.cs`](Tst/MatPlotLibNet.Interactive/ChartServerTests.cs), 1 in `Tst/MatPlotLibNet/Rendering/CartesianAxesRendererRangeTests.cs`, 1 in `Tst/MatPlotLibNet.AspNetCore/FigureRegistryTests.cs`. Tests now cancel responsively under a failing xUnit cancellation token. No `#pragma warning disable` and no `NoWarn` — the warning is gone because the hazard was fixed.
+
+### Test counts
+
+- `MatPlotLibNet.Tests` — **3 460** (was 3 454 in v1.2.0 working tree; +6 = 5 new drift tests + 1 from the previous session that was sitting uncounted in the suite after the v1.2.0 wrap-up).
+- `MatPlotLibNet.AspNetCore.Tests` — **26** (unchanged)
+- Other test projects — `DataFrame 54`, `GraphQL 12`, `Skia 40`, `Interactive 27+1 skipped`, `Blazor 22` (all unchanged).
+- Combined: **3 641 passing**, 0 failures across all 7 test projects. Every non-MAUI library builds at **0 warnings / 0 errors**.
+
+### Not in this release
+
+- **MAUI** — can't build locally without `dotnet workload restore android`. Unaffected by the font-factory refactor. Covered by CI.
+- **Secondary-X-axis baseline bug** flagged by the drift audit — turned out to be a false positive. The engine's `28 + labelHeight` reservation is sufficient; the regression test is kept as a guard.
+- **`AxesRenderer.TitleFont(int sizeOffset = 4)` default-parameter latent bomb** — gone entirely because the method no longer takes a parameter after the refactor.
+
 ## [1.2.0] — 2026-04-15
 
 **Bidirectional SignalR: live, server-authoritative interactive charts.** v1.1.4 and earlier shipped a one-way SignalR pipeline — the server could push SVG updates to subscribers, but browser interactions stayed purely client-side and the server never heard about them. v1.2.0 closes the loop: wheel-zoom, drag-pan, <kbd>Home</kbd>-reset, and click-to-toggle-legend events flow from the browser through `ChartHub` into a new `FigureRegistry`, which mutates the registered `Figure` on a per-chart background reader task and publishes the updated SVG back through the existing `IChartPublisher.PublishSvgAsync` fan-out. All mutation is structurally serial (one `System.Threading.Channels.Channel<T>` per chart, single reader) so there are no locks, no semaphores, and no shared-state races — the hub method is a one-line `TryWrite` and the render happens off the hub call stack. Test count: **3 499 → 3 477 + 67 new = 3 544 green across core + AspNetCore**, plus 4 real-SignalR round-trip tests using `TestServer` and `HubConnectionBuilder` with zero mocks.

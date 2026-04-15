@@ -61,7 +61,7 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
     /// Optional numeric X positions for bars, enabling bars on a continuous X axis instead
     /// of categorical slot indices. Matches matplotlib's <c>ax.bar(x, heights)</c> where
     /// <c>x</c> is a numeric array. When set, <see cref="Categories"/> is used only for
-    /// tooltip labels and <see cref="BarSeriesRenderer"/> positions each bar at
+    /// tooltip labels and <c>BarSeriesRenderer</c> positions each bar at
     /// <c>XCoordinate[i] - BarWidth/2</c>. Used e.g. by the MACD histogram so it shares a
     /// numeric X axis with the MACD and signal line series drawn in the same panel.
     /// </summary>

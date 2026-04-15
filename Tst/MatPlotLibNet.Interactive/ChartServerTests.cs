@@ -75,7 +75,8 @@ public class ChartServerTests : IAsyncDisposable
         var chartId = Guid.NewGuid().ToString("N");
         _figures[chartId] = figure;
 
-        var response = await _httpClient.GetAsync($"/chart/{chartId}");
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _httpClient.GetAsync($"/chart/{chartId}", ct);
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -87,7 +88,8 @@ public class ChartServerTests : IAsyncDisposable
         var chartId = Guid.NewGuid().ToString("N");
         _figures[chartId] = figure;
 
-        var response = await _httpClient.GetAsync($"/chart/{chartId}");
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _httpClient.GetAsync($"/chart/{chartId}", ct);
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
     }
 
@@ -99,7 +101,8 @@ public class ChartServerTests : IAsyncDisposable
         var chartId = Guid.NewGuid().ToString("N");
         _figures[chartId] = figure;
 
-        var html = await _httpClient.GetStringAsync($"/chart/{chartId}");
+        var ct = TestContext.Current.CancellationToken;
+        var html = await _httpClient.GetStringAsync($"/chart/{chartId}", ct);
         Assert.Contains("<svg", html);
         Assert.Contains("Svg Test", html);
     }
@@ -108,7 +111,8 @@ public class ChartServerTests : IAsyncDisposable
     [Fact]
     public async Task GetChartPage_UnknownId_Returns404()
     {
-        var response = await _httpClient.GetAsync("/chart/unknown-id");
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _httpClient.GetAsync("/chart/unknown-id", ct);
         Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -116,7 +120,8 @@ public class ChartServerTests : IAsyncDisposable
     [Fact]
     public async Task GetSignalRJs_ReturnsOk()
     {
-        var response = await _httpClient.GetAsync("/js/signalr.min.js");
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _httpClient.GetAsync("/js/signalr.min.js", ct);
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -124,7 +129,8 @@ public class ChartServerTests : IAsyncDisposable
     [Fact]
     public async Task GetSignalRJs_ReturnsJavaScript()
     {
-        var response = await _httpClient.GetAsync("/js/signalr.min.js");
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _httpClient.GetAsync("/js/signalr.min.js", ct);
         Assert.Equal("application/javascript", response.Content.Headers.ContentType?.MediaType);
     }
 
@@ -132,8 +138,9 @@ public class ChartServerTests : IAsyncDisposable
     [Fact]
     public async Task ChartHub_IsReachable()
     {
+        var ct = TestContext.Current.CancellationToken;
         var connection = CreateHubConnection();
-        await connection.StartAsync();
+        await connection.StartAsync(ct);
         Assert.Equal(HubConnectionState.Connected, connection.State);
         await connection.DisposeAsync();
     }
@@ -150,14 +157,15 @@ public class ChartServerTests : IAsyncDisposable
             tcs.SetResult((id, svg));
         });
 
-        await connection.StartAsync();
-        await connection.InvokeAsync("Subscribe", "live-chart");
+        var ct = TestContext.Current.CancellationToken;
+        await connection.StartAsync(ct);
+        await connection.InvokeAsync("Subscribe", "live-chart", ct);
 
         var publisher = _host.Services.GetRequiredService<IChartPublisher>();
         var figure = Plt.Create().WithTitle("Live Update").Plot([1.0], [2.0]).Build();
-        await publisher.PublishSvgAsync("live-chart", figure);
+        await publisher.PublishSvgAsync("live-chart", figure, ct);
 
-        var result = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var result = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
         Assert.Equal("live-chart", result.chartId);
         Assert.Contains("<svg", result.svg);
         Assert.Contains("Live Update", result.svg);
@@ -174,14 +182,15 @@ public class ChartServerTests : IAsyncDisposable
 
         connection.On<string, string>("UpdateChartSvg", (_, _) => received = true);
 
-        await connection.StartAsync();
-        await connection.InvokeAsync("Subscribe", "temp-chart");
-        await connection.InvokeAsync("Unsubscribe", "temp-chart");
+        var ct = TestContext.Current.CancellationToken;
+        await connection.StartAsync(ct);
+        await connection.InvokeAsync("Subscribe", "temp-chart", ct);
+        await connection.InvokeAsync("Unsubscribe", "temp-chart", ct);
 
         var publisher = _host.Services.GetRequiredService<IChartPublisher>();
-        await publisher.PublishSvgAsync("temp-chart", Plt.Create().Build());
+        await publisher.PublishSvgAsync("temp-chart", Plt.Create().Build(), ct);
 
-        await Task.Delay(500);
+        await Task.Delay(500, ct);
         Assert.False(received);
 
         await connection.DisposeAsync();

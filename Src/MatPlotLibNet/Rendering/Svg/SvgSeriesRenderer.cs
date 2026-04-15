@@ -132,6 +132,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     /// <param name="lightSource">Optional light source for per-face lighting on 3D surfaces.</param>
     /// <param name="emit3DData">When true, 3D renderers emit data-v3d attributes for interactive rotation.</param>
     /// <param name="theme">The active visual theme, forwarded to per-series renderers for theme-specific defaults.</param>
+    /// <param name="depthQueue">Optional shared depth queue for cross-series back-to-front compositing on 3D axes.</param>
     public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor,
         CycledProperties? cycledProps = null, bool tooltipsEnabled = false, Rect plotArea = default,
         Projection3D? projection = null, ILightSource? lightSource = null, bool emit3DData = false,

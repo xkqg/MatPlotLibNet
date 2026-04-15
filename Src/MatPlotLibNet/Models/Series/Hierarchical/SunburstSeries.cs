@@ -13,7 +13,7 @@ namespace MatPlotLibNet.Models.Series;
 /// With <see cref="InnerRadius"/> set to 0 (the default) and a 2-level <see cref="TreeNode"/>,
 /// a sunburst renders as a <b>nested pie</b>: the inner disc shows the root's children as pie
 /// sectors and the outer ring shows their grandchildren inheriting the parent's angle range.
-/// Use <see cref="Builders.AxesBuilder.NestedPie"/> for the convenience wrapper when that's the
+/// Use <c>AxesBuilder.NestedPie</c> for the convenience wrapper when that's the
 /// layout you want.
 /// </remarks>
 public sealed class SunburstSeries : HierarchicalSeries

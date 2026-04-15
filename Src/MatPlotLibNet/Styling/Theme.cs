@@ -40,7 +40,7 @@ public sealed class Theme
     public Color? PatchEdgeColor { get; init; }
 
     /// <summary>
-    /// Override body fill color for violin plots.  When set, <see cref="ViolinSeriesRenderer"/>
+    /// Override body fill color for violin plots.  When set, <c>ViolinSeriesRenderer</c>
     /// uses this color instead of the normal series cycle color, matching matplotlib themes that
     /// assign a fixed body color (e.g. classic uses <c>'y'</c> = <c>#BFBF00</c>).
     /// <see langword="null"/> falls back to the normal cycle color.

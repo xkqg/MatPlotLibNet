@@ -156,7 +156,7 @@ public class CartesianAxesRendererRangeTests
         // Race ComputeDataRanges against a 2-second timeout — a regression would hang the
         // method and the delay task would win, failing the assertion.
         var work = Task.Run(() => BuildRenderer(ax2).ComputeDataRanges());
-        var timeout = Task.Delay(TimeSpan.FromSeconds(2));
+        var timeout = Task.Delay(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
         var finished = await Task.WhenAny(work, timeout);
         Assert.Same(work, finished);
 

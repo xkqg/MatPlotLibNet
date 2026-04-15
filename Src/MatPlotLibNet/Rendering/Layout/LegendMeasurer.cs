@@ -18,20 +18,38 @@ namespace MatPlotLibNet.Rendering.Layout;
 /// dimensions — if they drifted, outside legends would either clip (layout under-reserved)
 /// or leave a gap (layout over-reserved). The measurement formulas here MUST stay in sync
 /// with <see cref="AxesRenderer.RenderLegend"/>'s own layout math.
+///
+/// Historical bug: v1.1.4 introduced this class but the layout engine passed it a tick
+/// font built with <c>Size = theme.DefaultFont.Size - 2</c> while
+/// <see cref="AxesRenderer.RenderLegend"/> was drawing at <c>Size = theme.DefaultFont.Size</c>.
+/// The measurer underreported by ~20 px on a 4-entry legend — enough to clip the box on
+/// the <c>legend_outside</c> sample. v1.2.0 fixes this by making the measurer build the
+/// font internally from the theme so callers cannot pass the wrong size.
 /// </remarks>
 internal static class LegendMeasurer
 {
     /// <summary>Padding inside the legend frame, in pixels.</summary>
     internal const double FramePadding = 8;
 
+    /// <summary>Returns the font the renderer uses for legend entries. Delegates to
+    /// <see cref="ThemedFontProvider.TickFont"/> (the single source of truth shared with
+    /// <see cref="AxesRenderer.RenderLegend"/>), then applies any explicit
+    /// <see cref="Legend.FontSize"/> override.</summary>
+    internal static Font LegendFont(Axes axes, Theme theme)
+    {
+        var tickFont = ThemedFontProvider.TickFont(theme);
+        var legend = axes.Legend;
+        return legend.FontSize.HasValue ? tickFont with { Size = legend.FontSize.Value } : tickFont;
+    }
+
     /// <summary>Measures the legend box for an axes, returning zero if the legend is hidden
     /// or has no labelled series. The returned width / height are already in pixels and
     /// include frame padding on all sides.</summary>
     /// <param name="axes">The axes whose legend should be measured.</param>
     /// <param name="ctx">Render context used for <see cref="IRenderContext.MeasureText"/>.</param>
-    /// <param name="tickFont">The base tick font — the same font the renderer uses when
-    /// the legend has no explicit <see cref="Legend.FontSize"/> override.</param>
-    internal static Size MeasureBox(Axes axes, IRenderContext ctx, Font tickFont)
+    /// <param name="theme">The active theme — used to derive the same legend font
+    /// <see cref="AxesRenderer.RenderLegend"/> will use at draw time.</param>
+    internal static Size MeasureBox(Axes axes, IRenderContext ctx, Theme theme)
     {
         if (!axes.Legend.Visible) return Size.Empty;
 
@@ -46,7 +64,7 @@ internal static class LegendMeasurer
         if (labels.Count == 0) return Size.Empty;
 
         var legend = axes.Legend;
-        var font = legend.FontSize.HasValue ? tickFont with { Size = legend.FontSize.Value } : tickFont;
+        var font = LegendFont(axes, theme);
 
         // Handle geometry — matches AxesRenderer.RenderLegend lines 240-247
         double handleWidth  = font.Size * 2.0 * legend.MarkerScale;

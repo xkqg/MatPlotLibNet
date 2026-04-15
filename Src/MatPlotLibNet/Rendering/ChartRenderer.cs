@@ -89,7 +89,7 @@ public sealed class ChartRenderer : IChartRenderer
         double plotAreaTop = sp.MarginTop;
         if (figure.Title is not null)
         {
-            var titleFont = TitleFont(theme);
+            var titleFont = ThemedFontProvider.SupTitleFont(theme);
             // Measure dynamically — hardcoded 30px previously truncated multi-line and oversized titles.
             double titleH = MathTextParser.ContainsMath(figure.Title)
                 ? ctx.MeasureRichText(MathTextParser.Parse(figure.Title), titleFont).Height
@@ -364,12 +364,4 @@ public sealed class ChartRenderer : IChartRenderer
         ctx.EndGroup();
     }
 
-    /// <summary>Creates a bold title font for the figure title.</summary>
-    private static Font TitleFont(Theme theme, int sizeOffset = 4) => new()
-    {
-        Family = theme.DefaultFont.Family,
-        Size = theme.DefaultFont.Size + sizeOffset,
-        Weight = FontWeight.Bold,
-        Color = theme.ForegroundText
-    };
 }

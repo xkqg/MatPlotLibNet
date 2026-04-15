@@ -28,7 +28,10 @@ public static class FigureSkiaExtensions
     /// global `FigureExtensions.TransformRegistry` so that <c>figure.Save("chart.png")</c>
     /// routes through the Skia backend automatically when this assembly is referenced.
     /// Also loads the bundled DejaVu Sans TTFs into <see cref="BundledTypefaces"/>.
+    /// This is the advertised entry point for the library package — CA2255 (the intended
+    /// use of <c>ModuleInitializer</c> is app code only) is suppressed deliberately.
     /// </summary>
+#pragma warning disable CA2255
     [ModuleInitializer]
     public static void Initialize()
     {
@@ -48,6 +51,7 @@ public static class FigureSkiaExtensions
         // installed. Matches matplotlib's default svg.fonttype='path' behaviour.
         global::MatPlotLibNet.ChartServices.GlyphPathProvider = new SkiaGlyphPathProvider();
     }
+#pragma warning restore CA2255
 
     private static void LoadBundledFonts()
     {

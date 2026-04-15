@@ -8,9 +8,9 @@ using SkiaSharp;
 namespace MatPlotLibNet.Skia;
 
 /// <summary>
-/// Skia-backed <see cref="IGlyphPathProvider"/>: walks <paramref name="text"/> one glyph
-/// at a time using <see cref="SKFont.GetGlyphs(string)"/>, composes the per-glyph outlines
-/// from <see cref="SKFont.GetGlyphPath(ushort)"/> into a single <see cref="SKPath"/>, and
+/// Skia-backed <see cref="IGlyphPathProvider"/>: walks the supplied text one glyph
+/// at a time using <c>SKFont.GetGlyphs</c>, composes the per-glyph outlines
+/// from <c>SKFont.GetGlyphPath</c> into a single <see cref="SKPath"/>, and
 /// returns the result via <see cref="SKPath.ToSvgPathData"/>. This gives the SVG backend
 /// vector shapes that match exactly what Skia draws into the PNG/PDF outputs — no
 /// browser-font dependency, no metric divergence.

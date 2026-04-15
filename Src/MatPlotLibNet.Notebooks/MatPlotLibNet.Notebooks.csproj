@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Notebooks</PackageId>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Description>Polyglot Notebooks / Jupyter support for MatPlotLibNet. Renders Figure inline as SVG in notebook cells.</Description>
     <PackageTags>notebooks;jupyter;polyglot;interactive;charting;svg</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -15,8 +15,9 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <!-- Place DLL in interactive-extensions/dotnet so Polyglot Notebooks auto-discovers the kernel extension -->
     <BuildOutputTargetFolder>interactive-extensions/dotnet</BuildOutputTargetFolder>
-    <!-- NU5100: DLL intentionally outside lib/ for Polyglot Notebooks auto-discovery -->
-    <NoWarn>$(NoWarn);NU5100</NoWarn>
+    <!-- NU5100 + NU5128: DLL intentionally outside lib/ for Polyglot Notebooks auto-discovery,
+         so the usual lib/<tfm>/ folder is empty by design -->
+    <NoWarn>$(NoWarn);NU5100;NU5128</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

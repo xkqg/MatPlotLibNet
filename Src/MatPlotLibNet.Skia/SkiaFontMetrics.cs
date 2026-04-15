@@ -10,7 +10,7 @@ namespace MatPlotLibNet.Skia;
 
 /// <summary>
 /// Skia-backed <see cref="IFontMetrics"/> implementation. Uses the exact same
-/// <see cref="SKFont.MeasureText(string)"/> call path as <see cref="SkiaRenderContext"/>'s
+/// <c>SKFont.MeasureText</c> call path as <see cref="SkiaRenderContext"/>'s
 /// draw operations, so every text width/height returned during layout exactly matches
 /// what gets painted in both the SVG and PNG outputs.
 /// </summary>

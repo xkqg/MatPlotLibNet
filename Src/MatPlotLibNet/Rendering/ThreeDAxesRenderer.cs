@@ -215,7 +215,6 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         var majorColor = grid.Color;
         double majorWidth = Math.Max(1.0, grid.LineWidth);
         var minorColor = majorColor.WithAlpha(140);
-        const double minorWidth = 0.6;
 
         double zMin = Axes.ZAxis.Min ?? z0;
         double zMax = Axes.ZAxis.Max ?? z1;
@@ -402,7 +401,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
 
     /// <summary>
     /// Renders tick marks and numeric labels on the three visible bounding-box edges that
-    /// matplotlib's mpl_toolkits.mplot3d uses for its default view (elev≥0, -90° < azim < 0°):
+    /// matplotlib's mpl_toolkits.mplot3d uses for its default view (elev≥0, -90° &lt; azim &lt; 0°):
     ///   • X axis along y=y_min, z=z_min (front-bottom edge)
     ///   • Y axis along x=x_max, z=z_min (right-bottom edge)
     ///   • Z axis along x=x_max, y=y_min (front-right vertical edge)

@@ -26,7 +26,7 @@ public class FigureRegistryTests
             new ZoomEvent("does-not-exist", 0, 0, 1, 0, 1));
 
         Assert.False(ok);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         Assert.Empty(publisher.Calls);
     }
 

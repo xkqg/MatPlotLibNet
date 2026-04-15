@@ -24,8 +24,7 @@ public class OutsideLegendLayoutTests
     {
         var axes = new Axes();
         axes.Plot([1.0, 2.0], [1.0, 2.0]);  // series with no label
-        var size = LegendMeasurer.MeasureBox(axes, new SvgRenderContext(),
-            new Font { Family = "sans-serif", Size = 12 });
+        var size = LegendMeasurer.MeasureBox(axes, new SvgRenderContext(), Theme.MatplotlibV2);
         Assert.Equal(Size.Empty, size);
     }
 
@@ -38,9 +37,8 @@ public class OutsideLegendLayoutTests
         longAxes.Plot([1.0, 2.0], [1.0, 2.0]).Label = "A very long descriptive label indeed";
 
         var ctx = new SvgRenderContext();
-        var font = new Font { Family = "sans-serif", Size = 12 };
-        var shortBox = LegendMeasurer.MeasureBox(shortAxes, ctx, font);
-        var longBox = LegendMeasurer.MeasureBox(longAxes, ctx, font);
+        var shortBox = LegendMeasurer.MeasureBox(shortAxes, ctx, Theme.MatplotlibV2);
+        var longBox = LegendMeasurer.MeasureBox(longAxes, ctx, Theme.MatplotlibV2);
 
         Assert.True(longBox.Width > shortBox.Width,
             $"Expected long label to widen box; got short={shortBox.Width}, long={longBox.Width}");

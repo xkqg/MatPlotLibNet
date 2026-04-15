@@ -16,7 +16,7 @@ app.MapChartEndpoint("/api/chart/sales", _ =>
         .WithTitle("Monthly Sales")
         .WithTheme(Theme.Seaborn)
         .Plot([1, 2, 3, 4, 5, 6], [120, 340, 250, 410, 380, 520],
-            line => { line.Color = Color.Blue; line.Label = "Revenue ($k)"; })
+            line => { line.Color = Colors.Blue; line.Label = "Revenue ($k)"; })
         .Build());
 
 // Static chart endpoint (SVG)
@@ -25,7 +25,7 @@ app.MapChartSvgEndpoint("/api/chart/sales.svg", _ =>
         .WithTitle("Monthly Sales")
         .WithTheme(Theme.Seaborn)
         .Plot([1, 2, 3, 4, 5, 6], [120, 340, 250, 410, 380, 520],
-            line => { line.Color = Color.Blue; line.Label = "Revenue ($k)"; })
+            line => { line.Color = Colors.Blue; line.Label = "Revenue ($k)"; })
         .Build());
 
 // SignalR hub for real-time updates
@@ -43,7 +43,7 @@ _ = Task.Run(async () =>
         var figure = Plt.Create()
             .WithTitle($"Live Sensor Data ({DateTime.Now:HH:mm:ss})")
             .Plot(Enumerable.Range(1, 10).Select(i => (double)i).ToArray(), data,
-                line => { line.Color = Color.Orange; })
+                line => { line.Color = Colors.Orange; })
             .Build();
         await publisher.PublishSvgAsync("sensor-1", figure);
         await Task.Delay(5000);

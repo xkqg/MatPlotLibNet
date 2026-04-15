@@ -571,7 +571,7 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
         {
             var placements = LabelLayoutEngine.Place(
                 outerCandidates,
-                Context.Area.PlotBounds,
+                Context!.Area.PlotBounds,
                 ChartServices.FontMetrics);
             var leaderColor = Context?.Theme?.ForegroundText ?? Colors.Black;
             for (int k = 0; k < placements.Count; k++)

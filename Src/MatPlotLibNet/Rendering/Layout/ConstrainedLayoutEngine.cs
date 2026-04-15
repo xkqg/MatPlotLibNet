@@ -28,10 +28,7 @@ internal sealed class ConstrainedLayoutEngine
     /// <summary>Computes optimal <see cref="SubPlotSpacing"/> margins for the figure.</summary>
     internal SubPlotSpacing Compute(Figure figure, IRenderContext ctx)
     {
-        var theme     = figure.Theme;
-        var tickFont  = TickFont(theme);
-        var labelFont = LabelFont(theme);
-        var titleFont = TitleFont(theme);
+        var theme = figure.Theme;
 
         double left   = figure.Spacing.MarginLeft;
         double bottom = figure.Spacing.MarginBottom;
@@ -49,14 +46,13 @@ internal sealed class ConstrainedLayoutEngine
         double supReserved = 0;
         if (figure.Title is not null)
         {
-            var supTitleFont = SupTitleFont(theme);
-            double supH = ctx.MeasureText(figure.Title, supTitleFont).Height;
+            double supH = ctx.MeasureText(figure.Title, ThemedFontProvider.SupTitleFont(theme)).Height;
             supReserved = supH + SupTitleTopPad + SupTitleBottomPad;
         }
 
         foreach (var axes in figure.SubPlots)
         {
-            var m   = Measure(axes, ctx, tickFont, labelFont, titleFont);
+            var m   = Measure(axes, ctx, theme);
             var pos = GetEffectivePosition(axes, figure);
 
             // Only edge subplots contribute to the margin on that edge
@@ -83,7 +79,7 @@ internal sealed class ConstrainedLayoutEngine
         double maxNonRightRight = 0, maxNonLeftLeft = 0;
         foreach (var axes in figure.SubPlots)
         {
-            var m = Measure(axes, ctx, tickFont, labelFont, titleFont);
+            var m = Measure(axes, ctx, theme);
             var pos = GetEffectivePosition(axes, figure);
             if (pos.RowEnd   < maxRows && m.BottomNeeded > maxNonBottomBottom) maxNonBottomBottom = m.BottomNeeded;
             if (pos.RowStart > 0       && m.TopNeeded    > maxNonTopTop)       maxNonTopTop = m.TopNeeded;
@@ -108,7 +104,7 @@ internal sealed class ConstrainedLayoutEngine
         {
             if (!axes.Legend.Visible) continue;
             if (!LegendMeasurer.IsOutsidePosition(axes.Legend.Position)) continue;
-            var legendBox = LegendMeasurer.MeasureBox(axes, ctx, tickFont);
+            var legendBox = LegendMeasurer.MeasureBox(axes, ctx, theme);
             if (legendBox.Width <= 0 || legendBox.Height <= 0) continue;
             switch (axes.Legend.Position)
             {
@@ -194,14 +190,23 @@ internal sealed class ConstrainedLayoutEngine
         return max;
     }
 
-    private LayoutMetrics Measure(Axes axes, IRenderContext ctx, Font tickFont, Font labelFont, Font titleFont)
+    private LayoutMetrics Measure(Axes axes, IRenderContext ctx, Theme theme)
     {
+        // All themed fonts come from ThemedFontProvider — the single source of truth shared
+        // with AxesRenderer / CartesianAxesRenderer / LegendMeasurer. Pre-1.2.1 this engine
+        // maintained its own duplicate factories with a drifted -2 tick-font size formula,
+        // which caused the outside-legend clipping bug. The provider guarantees measurer
+        // and renderer cannot disagree.
+        var tickFont  = ThemedFontProvider.TickFont(theme);
+        var labelFont = ThemedFontProvider.LabelFont(theme);
+        var titleFont = ThemedFontProvider.TitleFont(theme);
+
         // --- Left margin: Y-tick labels + optional Y-axis label ---
         // Use the same dynamic formula CartesianAxesRenderer.RenderAxisLabels uses, so the
         // layout reserves exactly the space the renderer needs (no clipping, no waste).
         // Tick mark length + tick label pad mirror Axis.MajorTicks defaults from the active theme.
         var yMajor = axes.YAxis.MajorTicks;
-        string yTickProbe = EstimateYTickLabel(axes, tickFont);
+        string yTickProbe = EstimateYTickLabel(axes);
         double maxYTickWidth = ctx.MeasureText(yTickProbe, tickFont).Width;
         double leftNeeded = yMajor.Length + yMajor.Pad + maxYTickWidth + PadLeft;
 
@@ -270,7 +275,7 @@ internal sealed class ConstrainedLayoutEngine
         // geometry entirely and let outside legends fall off the figure. ---
         if (axes.Legend.Visible && LegendMeasurer.IsOutsidePosition(axes.Legend.Position))
         {
-            var legendBox = LegendMeasurer.MeasureBox(axes, ctx, tickFont);
+            var legendBox = LegendMeasurer.MeasureBox(axes, ctx, theme);
             if (legendBox.Width > 0 && legendBox.Height > 0)
             {
                 const double LegendOuterGap = 16;  // 8 px past the spine + 8 px past the box
@@ -297,7 +302,7 @@ internal sealed class ConstrainedLayoutEngine
 
     /// <summary>Returns a representative Y-tick label string for width estimation.
     /// Uses the configured axis bounds when available; falls back to a worst-case proxy.</summary>
-    private static string EstimateYTickLabel(Axes axes, Font tickFont)
+    private static string EstimateYTickLabel(Axes axes)
     {
         if (axes.YAxis.Max.HasValue)
             return AxesRenderer.FormatTickValue(axes.YAxis.Max.Value);
@@ -307,37 +312,4 @@ internal sealed class ConstrainedLayoutEngine
         // Conservative fallback: 7-char string representative of "−9.999"
         return "\u22129.999";
     }
-
-    // --- Font factories that mirror AxesRenderer ---
-
-    private static Font TickFont(Theme theme) => new()
-    {
-        Family = theme.DefaultFont.Family,
-        Size   = theme.DefaultFont.Size - 2,
-        Color  = theme.ForegroundText,
-    };
-
-    private static Font LabelFont(Theme theme) => new()
-    {
-        Family = theme.DefaultFont.Family,
-        Size   = theme.DefaultFont.Size,
-        Color  = theme.ForegroundText,
-    };
-
-    private static Font TitleFont(Theme theme) => new()
-    {
-        Family = theme.DefaultFont.Family,
-        Size   = theme.DefaultFont.Size + 2,
-        Weight = FontWeight.Bold,
-        Color  = theme.ForegroundText,
-    };
-
-    // Figure-level suptitle — mirrors ChartRenderer.TitleFont(+4 size offset).
-    private static Font SupTitleFont(Theme theme) => new()
-    {
-        Family = theme.DefaultFont.Family,
-        Size   = theme.DefaultFont.Size + 4,
-        Weight = FontWeight.Bold,
-        Color  = theme.ForegroundText,
-    };
 }

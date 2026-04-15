@@ -4,9 +4,11 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
-[![Version](https://img.shields.io/badge/version-1.2.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.1-blue)](CHANGELOG.md)
 
-> **v1.2.0 — Bidirectional SignalR interactive charts.** Browser wheel-zoom, drag-pan, reset, and legend-toggle now round-trip through `ChartHub` to a server-authoritative `Figure` that is mutated on a per-chart channel-drained background task and re-published through the existing SignalR fan-out. Pure .NET, no JavaScript charting library, server stays the source of truth. See [MatPlotLibNet.AspNetCore README](Src/MatPlotLibNet.AspNetCore/README.md#bidirectional-signalr-v120) or the `Samples/MatPlotLibNet.Samples.AspNetCore` + `Interactive.razor` demos.
+> **v1.2.1 — Font-factory subsystem fix + zero-warning CI sweep.** The outside-legend clipping bug that v1.1.4's changelog claimed to have fixed turned out to have a deeper root cause: eight duplicate themed-font factories across `AxesRenderer`, `ChartRenderer`, `ConstrainedLayoutEngine`, and `LegendMeasurer` had silently drifted (engine used `DefaultFont.Size − 2`, renderer used `DefaultFont.Size`). v1.2.1 consolidates them into one `ThemedFontProvider` — a single source of truth that makes the drift bug class structurally impossible. Seven new drift-regression tests cover every measurer/renderer pair. Every non-MAUI library now builds at **0 warnings / 0 errors** (21 warnings cleared, 5 stale `Color.Blue/Orange` references fixed in WebApi + GraphQL samples, 16 xUnit1051 warnings refactored to `TestContext.Current.CancellationToken`). **3 641 tests green** across 7 test projects.
+>
+> **v1.2.0 — Bidirectional SignalR interactive charts.** Browser wheel-zoom, drag-pan, reset, and legend-toggle round-trip through `ChartHub` to a server-authoritative `Figure` that is mutated on a per-chart channel-drained background task and re-published through the existing SignalR fan-out. Pure .NET, no JavaScript charting library, server stays the source of truth. See [MatPlotLibNet.AspNetCore README](Src/MatPlotLibNet.AspNetCore/README.md#bidirectional-signalr-v120) or the `Samples/MatPlotLibNet.Samples.AspNetCore` + `Interactive.razor` demos.
 
 ---
 

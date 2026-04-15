@@ -96,7 +96,7 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
         {
             var placements = LabelLayoutEngine.Place(
                 labelCandidates,
-                Context.Area.PlotBounds,
+                Context!.Area.PlotBounds,
                 ChartServices.FontMetrics);
             var leaderColor = Context?.Theme?.ForegroundText ?? Colors.Black;
             foreach (var p in placements)

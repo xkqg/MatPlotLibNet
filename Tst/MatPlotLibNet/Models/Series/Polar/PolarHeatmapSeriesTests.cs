@@ -117,7 +117,7 @@ public class PolarHeatmapSeriesTests
     {
         var s = new PolarHeatmapSeries(MakeData(), 4, 3);
         var visitor = new RecordingVisitor();
-        s.Accept(visitor, default);
+        s.Accept(visitor, new RenderArea(new Rect(0, 0, 100, 100), new MatPlotLibNet.Rendering.Svg.SvgRenderContext()));
         Assert.True(visitor.WasCalled);
     }
 

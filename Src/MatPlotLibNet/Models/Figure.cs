@@ -65,7 +65,7 @@ public sealed class Figure
 
     /// <summary>When true, embeds the Sankey hover emphasis script in the SVG output.
     /// Hovering a node dims every link not reachable upstream or downstream from that node
-    /// (mirrors ECharts' <c>focus: adjacency</c> behaviour). <see cref="SeriesRenderers.SankeySeriesRenderer"/>
+    /// (mirrors ECharts' <c>focus: adjacency</c> behaviour). <c>SankeySeriesRenderer</c>
     /// emits <c>data-sankey-node-id</c>, <c>data-sankey-link-source</c>, and
     /// <c>data-sankey-link-target</c> attributes so the script can traverse the topology
     /// without re-parsing the SVG structure.</summary>
