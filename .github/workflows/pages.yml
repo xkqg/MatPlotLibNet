@@ -36,7 +36,7 @@ jobs:
           dotnet build MatPlotLibNet.CI.slnf --no-restore --configuration Release
 
       - name: Generate sample images
-        run: dotnet run --project Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj --no-build --configuration Release
+        run: dotnet run --project Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj --configuration Release
 
       - name: Copy images to docs
         run: cp -r images docs/images
