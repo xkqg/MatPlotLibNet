@@ -14,8 +14,10 @@ public sealed class VoxelSeries : ChartSeries, IHasColor, IHasAlpha
     /// Dimensions are [X, Y, Z] with ranges derived from array dimensions.</summary>
     public bool[,,] Filled { get; }
 
+    /// <summary>Fill color for the rendered cube faces.</summary>
     public Color? Color { get; set; }
 
+    /// <summary>Opacity of the cube faces. Range [0, 1], default 0.8.</summary>
     public double Alpha { get; set; } = 0.8;
 
     /// <summary>Initializes a new voxel series with the specified 3D boolean mask.</summary>

@@ -16,8 +16,10 @@ public sealed class Text3DSeries : ChartSeries, IHasColor
     /// <summary>The text annotations to render in 3D space.</summary>
     public List<Text3DAnnotation> Annotations { get; }
 
+    /// <summary>Font size in points for the annotation text. Default 10.</summary>
     public double FontSize { get; set; } = 10;
 
+    /// <summary>Text color for the annotations.</summary>
     public Color? Color { get; set; }
 
     /// <summary>Initializes a new 3D text series with the specified annotations.</summary>

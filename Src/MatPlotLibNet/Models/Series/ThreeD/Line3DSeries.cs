@@ -11,10 +11,13 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a 3D polyline connecting data points in three-dimensional space.</summary>
 public sealed class Line3DSeries : XYZSeries, IHasColor
 {
+    /// <summary>Line color. When <c>null</c> the theme's prop-cycler assigns one automatically.</summary>
     public Color? Color { get; set; }
 
+    /// <summary>Line width in pixels. Default 1.5.</summary>
     public double LineWidth { get; set; } = 1.5;
 
+    /// <summary>Dash pattern for the line. Default <see cref="Styling.LineStyle.Solid"/>.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
     /// <summary>Initializes a new 3D line series with the specified data.</summary>

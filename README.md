@@ -9,7 +9,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 > **v1.3.0 — Cross-platform native UI controls + MathText completion + 3-D round 2.** Three headline features:
 >
 > 1. **Native controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) (Avalonia 12) and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) (Uno Platform) render charts natively via SkiaSharp — no browser, no WebView, no SignalR. `IsInteractive="True"` enables local pan / zoom / reset / brush-select with rubber-band overlay, legend-toggle hit-testing, and hover tooltips via `NearestPointFinder`. `.WithServerInteraction(hubConnection)` bridges native controls to a SignalR hub. Two new NuGet packages: [`MatPlotLibNet.Avalonia`](https://www.nuget.org/packages/MatPlotLibNet.Avalonia) and [`MatPlotLibNet.Uno`](https://www.nuget.org/packages/MatPlotLibNet.Uno).
-> 2. **MathText completion** — `\frac{a}{b}`, `\sqrt{x}`, `\sqrt[n]{x}`, accents (`\hat`, `\bar`, `\vec`, `\tilde`, `\dot`), font variants (`\mathrm`, `\mathbf`, `\mathit`, `\mathcal`, `\mathbb`), `\text{}`, spacing (`\,`, `\:`, `\;`, `\quad`), scaling delimiters (`\left(...\right)`), and 45+ new symbol mappings (blackboard bold, arrows, relations, set operators).
+> 2. **MathText completion** — `\frac{a}{b}`, `\sqrt{x}`, `\sqrt[n]{x}`, accents (`\hat`, `\bar`, `\vec`, `\tilde`, `\dot`), font variants (`\mathrm`, `\mathbf`, `\mathit`, `\mathcal`, `\mathbb`), `\text{}`, spacing (`\,`, `\:`, `\;`, `\quad`), scaling delimiters (`\left(...\right)`), and 96 symbol mappings total (Greek, math operators, arrows, relations, set/logic, blackboard bold).
 > 3. **3-D round 2** — six new series: `Line3D`, `Trisurf3D` (Delaunay), `Contour3D` (marching squares), `Quiver3D` (vector field), `Voxels` (face-culled cubes), `Text3D` (3D annotations). Series count: 61 → 67.
 >
 > **4 028 tests green** across 11 test projects. The managed interaction layer in core (six `IInteractionModifier` implementations, `InteractionController`, `ChartLayout`) is shared between desktop controls and SignalR — one vocabulary, two transports.
@@ -90,7 +90,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 
 - [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started) — installation, output formats, subplots
 - [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet) — one-page reference for `Plt` / `FigureBuilder` / `AxesBuilder`
-- [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all 12 NuGet + 3 npm packages in detail
+- [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all 11 NuGet + 3 npm packages in detail
 - [DataFrame](https://github.com/xkqg/MatPlotLibNet/wiki/DataFrame) — charting, 16 indicators, and polynomial regression from `Microsoft.Data.Analysis.DataFrame`
 - [Notebooks](https://github.com/xkqg/MatPlotLibNet/wiki/Notebooks) — Polyglot Notebooks + Jupyter inline rendering
 - [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 67 series with code examples

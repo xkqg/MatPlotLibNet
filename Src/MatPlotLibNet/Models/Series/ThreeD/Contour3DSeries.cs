@@ -11,12 +11,16 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents 3D contour lines projected into three-dimensional space from grid data.</summary>
 public sealed class Contour3DSeries : GridSeries3D, IColormappable, IHasColor
 {
+    /// <summary>Number of contour levels to compute. Default 10.</summary>
     public int Levels { get; set; } = 10;
 
+    /// <summary>Colormap applied to the contour levels. Each level gets a distinct color from the map.</summary>
     public IColorMap? ColorMap { get; set; }
 
+    /// <summary>Width of the contour lines in pixels. Default 1.0.</summary>
     public double LineWidth { get; set; } = 1.0;
 
+    /// <summary>Uniform color for all contour lines. Overridden by <see cref="ColorMap"/> when set.</summary>
     public Color? Color { get; set; }
 
     /// <summary>Initializes a new 3D contour series with the specified grid data.</summary>

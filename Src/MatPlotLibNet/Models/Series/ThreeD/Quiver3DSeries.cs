@@ -30,8 +30,10 @@ public sealed class Quiver3DSeries : ChartSeries, I3DPointSeries, IHasColor
     /// <summary>Z components of the arrow direction vectors.</summary>
     public Vec W { get; }
 
+    /// <summary>Scale factor applied to arrow direction vectors. Default 1.0.</summary>
     public double ArrowLength { get; set; } = 1.0;
 
+    /// <summary>Arrow color. When <c>null</c> the theme's prop-cycler assigns one automatically.</summary>
     public Color? Color { get; set; }
 
     // Explicit I3DPointSeries dispatch

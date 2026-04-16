@@ -12,14 +12,19 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a triangulated surface from unstructured (x, y, z) point data.</summary>
 public sealed class Trisurf3DSeries : XYZSeries, IColormappable, INormalizable, IHasAlpha, IHasEdgeColor, IHasColor
 {
+    /// <summary>Colormap applied to the Z values of each triangle face. Overrides <see cref="Color"/> when set.</summary>
     public IColorMap? ColorMap { get; set; }
 
+    /// <summary>Opacity of the surface faces. Range [0, 1], default 0.8.</summary>
     public double Alpha { get; set; } = 0.8;
 
+    /// <summary>When <c>true</c> (default), draw wireframe edges between triangles.</summary>
     public bool ShowWireframe { get; set; } = true;
 
+    /// <summary>Color of the wireframe edges. When <c>null</c>, a slightly darkened face color is used.</summary>
     public Color? EdgeColor { get; set; }
 
+    /// <summary>Normalizer for mapping Z values to the colormap range.</summary>
     public INormalizer? Normalizer { get; set; }
 
     /// <summary>Fallback solid color when no colormap is assigned.</summary>
