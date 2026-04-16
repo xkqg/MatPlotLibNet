@@ -86,4 +86,16 @@ public class BarSeriesTests
         series.LineWidth = 1.5;
         Assert.Equal(1.5, series.LineWidth);
     }
+
+    /// <summary>Verifies that multiple BarSeries can share the same categories (prerequisite for grouped layout).</summary>
+    [Fact]
+    public void MultipleSeries_ShareCategories()
+    {
+        string[] cats = ["A", "B", "C"];
+        var s1 = new BarSeries(cats, [1, 2, 3]);
+        var s2 = new BarSeries(cats, [4, 5, 6]);
+        Assert.Same(s1.Categories, s2.Categories);
+        Assert.Equal(3, s1.Values.Length);
+        Assert.Equal(3, s2.Values.Length);
+    }
 }

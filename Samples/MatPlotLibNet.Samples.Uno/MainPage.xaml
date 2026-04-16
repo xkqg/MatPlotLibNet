@@ -1,0 +1,10 @@
+<Page
+    x:Class="MatPlotLibNet.Samples.Uno.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mpl="using:MatPlotLibNet.Uno">
+    <Grid ColumnDefinitions="*,*">
+        <mpl:MplChartElement x:Name="StaticChart" Grid.Column="0" />
+        <mpl:MplChartElement x:Name="InteractiveChart" Grid.Column="1" IsInteractive="True" />
+    </Grid>
+</Page>

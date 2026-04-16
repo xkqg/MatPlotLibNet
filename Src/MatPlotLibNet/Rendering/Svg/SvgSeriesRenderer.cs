@@ -321,4 +321,24 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private PolarHeatmapSeriesRenderer? _polarHeatmap;
     /// <inheritdoc />
     public void Visit(PolarHeatmapSeries s, RenderArea a) => (_polarHeatmap ??= new(_context)).Render(s);
+
+    // ThreeD v1.3.0
+    private Line3DSeriesRenderer? _line3D;
+    private Trisurf3DSeriesRenderer? _trisurf3D;
+    private Contour3DSeriesRenderer? _contour3D;
+    private Quiver3DSeriesRenderer? _quiver3D;
+    private VoxelSeriesRenderer? _voxel;
+    private Text3DSeriesRenderer? _text3D;
+    /// <inheritdoc />
+    public void Visit(Line3DSeries s, RenderArea a) => (_line3D ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(Trisurf3DSeries s, RenderArea a) => (_trisurf3D ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(Contour3DSeries s, RenderArea a) => (_contour3D ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(Quiver3DSeries s, RenderArea a) => (_quiver3D ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(VoxelSeries s, RenderArea a) => (_voxel ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(Text3DSeries s, RenderArea a) => (_text3D ??= new(_context)).Render(s);
 }

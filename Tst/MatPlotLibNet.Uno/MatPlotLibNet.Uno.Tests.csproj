@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Uno depends on WinUI/Windows types; test on the Windows target only.
+         The Uno source files are included directly (same approach as MAUI tests)
+         so we avoid pulling the full multi-target build into CI. -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!-- MrtCore.PriGen.targets (via WindowsAppSDK 1.4) injects win10-* when RuntimeIdentifiers is empty.
+         Pre-set new-style RIDs so the injection condition never fires on .NET 10. -->
+    <RuntimeIdentifiers>win-x64;win-x86;win-arm64</RuntimeIdentifiers>
+    <!-- Disable AppxPackage/PRI generation: MrtCore.PriGen.targets calls VS-only tasks
+         (Microsoft.Build.AppxPackage.dll) that are unavailable in the dotnet CLI. -->
+    <!-- WindowsAppSDK 1.4 ships MrtCore.PriGen.targets which invokes VS-only tasks unavailable
+         on dotnet CLI. WindowsAppSDK 1.8+ dropped MrtCore.PriGen.targets entirely. -->
+    <WindowsPackageType>None</WindowsPackageType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="3.*" />
+    <PackageReference Include="NSubstitute" Version="5.*" />
+    <PackageReference Include="Uno.WinUI" Version="5.*" />
+    <PackageReference Include="SkiaSharp.Views.Uno.WinUI" Version="3.*" />
+    <!-- Force WindowsAppSDK >= 1.8 to avoid MrtCore.PriGen.targets VS-only task dependency
+         present in 1.4 which Uno.WinUI 5.x would otherwise resolve to. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
+  </ItemGroup>
+
+  <!-- Include only UnoInputAdapter — MplChartElement.cs inherits SKCanvasElement which is
+       a source-generated type provided by Uno's build pipeline; it has no pre-compiled DLL
+       for Windows targets so it cannot be included in a simple test project. -->
+  <ItemGroup>
+    <Compile Include="..\..\Src\MatPlotLibNet.Uno\UnoInputAdapter.cs" LinkBase="UnoSrc" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

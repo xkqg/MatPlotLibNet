@@ -705,6 +705,60 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a 3D line (polyline) series and sets coordinate system to ThreeD.</summary>
+    public Line3DSeries Plot3D(double[] x, double[] y, double[] z)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new Line3DSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a triangulated surface series and sets coordinate system to ThreeD.</summary>
+    public Trisurf3DSeries Trisurf(double[] x, double[] y, double[] z)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new Trisurf3DSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a 3D contour series and sets coordinate system to ThreeD.</summary>
+    public Contour3DSeries Contour3D(double[] x, double[] y, double[,] z)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new Contour3DSeries(x, y, z);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a 3D quiver (vector field) series and sets coordinate system to ThreeD.</summary>
+    public Quiver3DSeries Quiver3D(double[] x, double[] y, double[] z, double[] u, double[] v, double[] w)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new Quiver3DSeries(x, y, z, u, v, w);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a voxel series and sets coordinate system to ThreeD.</summary>
+    public VoxelSeries Voxels(bool[,,] filled)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new VoxelSeries(filled);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a single 3D text annotation and sets coordinate system to ThreeD.</summary>
+    public Text3DSeries Text3D(double x, double y, double z, string text)
+    {
+        CoordinateSystem = CoordinateSystem.ThreeD;
+        var series = new Text3DSeries([new Text3DAnnotation(x, y, z, text)]);
+        _series.Add(series);
+        return series;
+    }
+
     // -------------------------------------------------------------------------
     // v0.8.0 series
     // -------------------------------------------------------------------------

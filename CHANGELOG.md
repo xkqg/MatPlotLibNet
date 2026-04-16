@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] — 2026-04-16
+
+**Cross-platform native UI controls, full interaction polish, 3-D round 2, MathText completion.** Two new NuGet packages (`MatPlotLibNet.Avalonia`, `MatPlotLibNet.Uno`) let desktop .NET developers render and interact with charts natively — no browser, no WebView, no SignalR. The managed interaction layer in core gained full legend-toggle activation, rubber-band selection visuals, hover tooltips with nearest-point lookup, and a server-mode SignalR adapter. Six new 3-D series types (Line3D, Trisurf, Contour3D, Quiver3D, Voxels, Text3D) and a substantially expanded MathText parser round out the release. **3 842 tests green** across 9 test projects.
+
+### Added — Native controls + interaction layer
+
+- **`MatPlotLibNet.Avalonia`** (new package) — `MplChartControl : Control` with `Figure` and `IsInteractive` styled properties. Renders via `SkiaRenderContext` through Avalonia 12's `ISkiaSharpApiLeaseFeature`. Targets .NET 10 + .NET 8.
+- **`MatPlotLibNet.Uno`** (new package) — `MplChartElement : SKCanvasElement` with `Figure` and `IsInteractive` dependency properties. Targets Windows (WinUI 3), Android, iOS, macCatalyst via `Uno.WinUI 5.x`.
+- **`InteractionController`** (core) — composes six `IInteractionModifier` implementations in priority order. `CreateLocal(figure, layout)` for in-process mutation; `Create(figure, layout, sink)` for custom event routing (e.g. SignalR). `UpdateLayout` rebuilds modifiers after each render.
+- **6 concrete modifiers** — `PanModifier` (left-drag), `ZoomModifier` (scroll, 15%/notch, cursor-centred), `ResetModifier` (double-click or Home/Escape), `BrushSelectModifier` (Shift+drag with rubber-band visual), `HoverModifier` (move, no button), `LegendToggleModifier` (click legend item → toggles series visibility).
+- **`ChartLayout`** (core) — pixel↔data coordinate transform. `HitTestAxes`, `PixelToData`, `GetDataRange`, `HitTestLegendItem` (fully functional — legend bounds exposed from `AxesRenderer` via `LayoutResult`).
+- **`LayoutResult`** + **`LegendItemBounds`** — `ComputeLayout` now returns plot areas + per-subplot legend item bounds, enabling legend hit-testing in native controls.
+- **`BrushSelectState`** — during Shift+drag, a semi-transparent blue selection rectangle is drawn on the Skia canvas in both Avalonia and Uno controls.
+- **`NearestPointFinder`** + **`HoverTooltipContent`** — local nearest-point lookup across all visible `XYSeries`; native tooltip shown at cursor position in Avalonia (`ToolTip.SetTip`) and Uno (`ToolTipService`).
+- **`SignalREventSink`** — platform-neutral helper that dispatches `FigureInteractionEvent` to named hub methods via `Func<string, object, Task>`.
+- **`WithServerInteraction`** extensions for Avalonia and Uno — opt-in server mode that routes events to a SignalR `HubConnection` instead of mutating locally.
+- **5 platform-neutral input arg types** — `PointerInputArgs`, `ScrollInputArgs`, `KeyInputArgs`, `PointerButton`, `ModifierKeys`.
+- **`AvaloniaInputAdapter`** / **`UnoInputAdapter`** — convert native pointer/scroll/key events to the neutral records.
+- **Sample apps** — `Samples/MatPlotLibNet.Samples.Avalonia` (desktop, static + interactive charts) and `Samples/MatPlotLibNet.Samples.Uno` (WinUI, same pattern).
+
+### Added — MathText completion
+
+- **Fractions** — `\frac{num}{den}` parsed into `FractionNumerator` / `FractionDenominator` spans at 70% size.
+- **Square roots** — `\sqrt{x}` and `\sqrt[n]{x}` with `Radical` span kind.
+- **Accents** — `\hat`, `\bar`, `\overline`, `\tilde`, `\dot`, `\ddot`, `\vec`, `\check`, `\breve` via Unicode combining characters.
+- **Font variants** — `\mathrm{}`, `\mathbf{}`, `\mathit{}`, `\mathcal{}`, `\mathbb{}` with `FontVariant` enum.
+- **Text mode** — `\text{...}` for upright text inside math mode.
+- **Spacing commands** — `\,` (thin), `\:` (medium), `\;` (thick), `\quad`, `\qquad`, `\!` (negative thin).
+- **Scaling delimiters** — `\left( ... \right)` parsed and emitted.
+- **~45 new symbols** — blackboard bold (ℝ ℂ ℤ ℕ ℚ), double arrows (⇒ ⇐ ⇔), relations (≪ ≫ ≅ ≃), binary operators (⊗ ⊕ ∗ ∙ ∓ †), set operators (∅ ∖), miscellaneous (ℏ ℓ ℜ ℑ ℵ ℘ ′ ″).
+
+### Added — 3-D round 2
+
+- **`Line3DSeries`** — 3-D polyline with depth-sorted segments.
+- **`Trisurf3DSeries`** — triangulated surface from unstructured (x, y, z) clouds with colormap, alpha, wireframe overlay.
+- **`Contour3DSeries`** — full marching-squares contour lines projected to 3-D at each level; colormap per level.
+- **`Quiver3DSeries`** — 3-D vector field with arrow shafts + arrowhead barbs; (x, y, z) + (u, v, w) data.
+- **`VoxelSeries`** — filled cubic voxels on a `bool[,,]` mask grid with per-face shading and `DepthQueue3D` compositing.
+- **`Text3DSeries`** — 3-D text annotations projected to 2-D at configurable font size.
+- Builder methods: `.Plot3D()`, `.Trisurf()`, `.Contour3D()`, `.Quiver3D()`, `.Voxels()`, `.Text3D()`.
+
+### Added — 2-D gaps
+
+- **Scatter3D colormap** — `Scatter3DSeries` implements `IColormappable` + `INormalizable`; renderer maps Z values through colormap when set.
+- **`IHasMarkerStyle`** interface + `MarkerStyle` integration on `ScatterSeries` and `Scatter3DSeries`.
+- **`AreaSeries.Where`** — `Func<double, double, bool>?` predicate for conditional fill (matplotlib `fill_between(where=...)`).
+
+### Infrastructure
+
+- `MatPlotLibNet.CI.slnf` — Skia + Avalonia added to the Linux CI filter.
+- `publish.yml` — Uno build/test/pack in Windows platform job; Avalonia packed by Linux core job.
+- All 11 `.csproj` files at `<Version>1.3.0</Version>`.
+
+
 ## [1.2.2] — 2026-04-15
 
 **Brush-select + hover round-trip — the deferred v1.2.0 items.** v1.2.0 shipped four mutation events (Zoom, Pan, Reset, LegendToggle) that rewrite the authoritative `Figure` on the server and broadcast the updated SVG to every group subscriber. v1.2.2 introduces the first two **notification events** — `BrushSelectEvent` and `HoverEvent` — that observe the user's gesture, route it to a per-chart handler in .NET code, and optionally return a caller-only response. Pure .NET round-trip, no mutation, no broadcast. The bidirectional SignalR pipeline now covers observation and request-response alongside the existing mutation flow.

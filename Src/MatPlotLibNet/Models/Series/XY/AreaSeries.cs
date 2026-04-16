@@ -30,6 +30,10 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
 
     public DrawStyle StepMode { get; set; } = DrawStyle.Default;
 
+    /// <summary>Optional predicate <c>(x, y) => condition</c> that masks which regions get filled.
+    /// Segments where the predicate returns <see langword="false"/> are skipped.</summary>
+    public Func<double, double, bool>? Where { get; set; }
+
     /// <summary>When <see langword="true"/>, applies Fritsch-Carlson monotone cubic interpolation to the top edge before filling.</summary>
     public bool Smooth { get; set; }
 

@@ -10,4 +10,11 @@ public interface IChartRenderer
 {
     /// <summary>Renders the entire figure including background, title, and all subplots.</summary>
     void Render(Figure figure, IRenderContext ctx);
+
+    /// <summary>
+    /// Computes the pixel-space plot areas and legend item bounds for all subplots without
+    /// rendering any visuals. Used by interactive controls to construct an
+    /// <see cref="Interaction.IChartLayout"/> after a render pass.
+    /// </summary>
+    LayoutResult ComputeLayout(Figure figure, IRenderContext measureCtx);
 }

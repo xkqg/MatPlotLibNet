@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Version>1.3.0</Version>
+    <PackageId>MatPlotLibNet.Avalonia</PackageId>
+    <Description>Avalonia 12 chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/reset/brush-select interaction.</Description>
+    <PackageTags>charting;plotting;charts;avalonia;skiasharp;cross-platform;interactive</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <!-- Avalonia 12 — Skia backend is the default on all platforms.
+       ISkiaSharpApiLeaseFeature is in the separate Avalonia.Skia package.
+       Avalonia.Skia 12.x requires SkiaSharp >= 3.119.3-preview; pin explicitly to resolve
+       the version conflict with MatPlotLibNet.Skia's floating SkiaSharp 3.* reference. -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.*" />
+    <PackageReference Include="Avalonia.Skia" Version="12.*" />
+    <PackageReference Include="SkiaSharp" Version="3.119.3-preview.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

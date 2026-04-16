@@ -205,4 +205,24 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a polar heatmap series (wedge/sector cells). Default is a no-op for ISP compatibility.</summary>
     void Visit(PolarHeatmapSeries series, RenderArea area) { }
+
+    // ── v1.3.0 3D series enhancements (default no-ops for ISP compatibility) ──
+
+    /// <summary>Renders a 3D polyline series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(Line3DSeries series, RenderArea area) { }
+
+    /// <summary>Renders a triangulated surface series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(Trisurf3DSeries series, RenderArea area) { }
+
+    /// <summary>Renders a 3D contour series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(Contour3DSeries series, RenderArea area) { }
+
+    /// <summary>Renders a 3D quiver (vector field) series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(Quiver3DSeries series, RenderArea area) { }
+
+    /// <summary>Renders a voxel series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(VoxelSeries series, RenderArea area) { }
+
+    /// <summary>Renders a 3D text annotation series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(Text3DSeries series, RenderArea area) { }
 }

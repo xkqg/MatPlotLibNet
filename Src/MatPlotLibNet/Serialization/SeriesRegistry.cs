@@ -286,5 +286,79 @@ public static class SeriesRegistry
             return s;
         });
 
+        // v1.3.0 ThreeD series
+        Register("line3d", (axes, dto) =>
+        {
+            var s = axes.Plot3D(dto.XData ?? [0.0], dto.YData ?? [0.0], dto.ZData ?? [0.0]);
+            if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+            if (dto.LineStyle is not null && Enum.TryParse<Styling.LineStyle>(dto.LineStyle, true, out var ls)) s.LineStyle = ls;
+            return s;
+        });
+        Register("trisurf", (axes, dto) =>
+        {
+            var s = axes.Trisurf(dto.XData ?? [0.0], dto.YData ?? [0.0], dto.ZData ?? [0.0]);
+            if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            if (dto.ShowWireframe.HasValue) s.ShowWireframe = dto.ShowWireframe.Value;
+            if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
+            if (dto.ColorMapName is not null) s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+            return s;
+        });
+        Register("contour3d", (axes, dto) =>
+        {
+            var s = axes.Contour3D(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.ZGridData));
+            if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            if (dto.Levels.HasValue) s.Levels = dto.Levels.Value;
+            if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+            if (dto.ColorMapName is not null) s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+            return s;
+        });
+        Register("quiver3d", (axes, dto) =>
+        {
+            var s = axes.Quiver3D(dto.XData ?? [], dto.YData ?? [], dto.ZData ?? [],
+                dto.UData ?? [], dto.VData ?? [], dto.WData ?? []);
+            if (dto.ArrowLength.HasValue) s.ArrowLength = dto.ArrowLength.Value;
+            if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            return s;
+        });
+        Register("voxels", (axes, dto) =>
+        {
+            var filled = VoxelDataToArray(dto.VoxelData);
+            var s = axes.Voxels(filled);
+            if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
+            return s;
+        });
+        Register("text3d", (axes, dto) =>
+        {
+            var annotations = dto.Text3DAnnotations?
+                .Select(a => new Text3DAnnotation(a.X, a.Y, a.Z, a.Text))
+                .ToList() ?? [];
+            var s = new Text3DSeries(annotations);
+            if (dto.MarkerSize.HasValue) s.FontSize = dto.MarkerSize.Value;
+            if (dto.Color.HasValue) s.Color = dto.Color.Value;
+            axes.AddSeries(s);
+            axes.CoordinateSystem = CoordinateSystem.ThreeD;
+            return s;
+        });
+
+    }
+
+    private static bool[,,] VoxelDataToArray(List<List<List<bool>>>? data)
+    {
+        if (data is null || data.Count == 0)
+            return new bool[1, 1, 1];
+
+        int xDim = data.Count;
+        int yDim = data[0].Count;
+        int zDim = yDim > 0 ? data[0][0].Count : 0;
+
+        var result = new bool[xDim, yDim, zDim];
+        for (int x = 0; x < xDim; x++)
+            for (int y = 0; y < yDim; y++)
+                for (int z = 0; z < zDim; z++)
+                    result[x, y, z] = data[x][y][z];
+
+        return result;
     }
 }

@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -18,7 +19,7 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
         if (series.X.Length == 0) return;
 
         var bounds = Area.PlotBounds;
-        var color = ResolveColor(series.Color);
+        var fallbackColor = ResolveColor(series.Color);
 
         double xMin = series.X.Min(), xMax = series.X.Max();
         double yMin = series.Y.Min(), yMax = series.Y.Max();
@@ -26,6 +27,10 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
 
         var proj = Context.Projection3D
             ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+
+        // Colormap support: when a colormap is set, map each Z value to a color
+        var cmap = series.ColorMap;
+        var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
 
         // Build indexed depth list for sorting
         var indexed = new List<(int Index, double Depth)>(series.X.Length);
@@ -49,6 +54,11 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
             // Vary size by depth for perspective effect: closer points are larger
             double depthFrac = depthRange > 0 ? (depth - indexed[0].Depth) / depthRange : 0.5;
             double radius = series.MarkerSize / 2 * (0.5 + 0.5 * depthFrac);
+
+            // Resolve color: colormap Z-mapping takes priority over flat color
+            var color = cmap is not null
+                ? cmap.GetColor(normalizer.Normalize(zi, zMin, zMax))
+                : fallbackColor;
 
             if (emitV3d)
             {

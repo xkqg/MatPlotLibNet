@@ -1030,7 +1030,16 @@ public sealed record SeriesDto
     // v1.1.1 PolarHeatmapSeries
     public int? ThetaBins { get; init; }
     public int? RBins { get; init; }
+
+    // v1.3.0 3D series enhancements
+    public double[]? WData { get; init; }
+    public double? ArrowLength { get; init; }
+    public List<List<List<bool>>>? VoxelData { get; init; }
+    public List<Text3DAnnotationDto>? Text3DAnnotations { get; init; }
 }
+
+/// <summary>DTO for a single 3D text annotation positioned at (X, Y, Z).</summary>
+public sealed record Text3DAnnotationDto(double X, double Y, double Z, string Text);
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>
 internal sealed class ColorJsonConverter : JsonConverter<Color>

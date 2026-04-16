@@ -66,4 +66,23 @@ public class AreaSeriesTests
         var series = new AreaSeries([1.0], [2.0]);
         Assert.Null(series.FillColor);
     }
+
+    /// <summary>Verifies that Where predicate defaults to null.</summary>
+    [Fact]
+    public void DefaultWhere_IsNull()
+    {
+        var series = new AreaSeries([1.0], [2.0]);
+        Assert.Null(series.Where);
+    }
+
+    /// <summary>Verifies that Where predicate can be assigned and evaluated.</summary>
+    [Fact]
+    public void Where_CanBeSet()
+    {
+        var series = new AreaSeries([1.0, 2.0, 3.0], [10.0, 20.0, 30.0]);
+        series.Where = (x, y) => y > 15;
+        Assert.NotNull(series.Where);
+        Assert.False(series.Where(1.0, 10.0));
+        Assert.True(series.Where(2.0, 20.0));
+    }
 }

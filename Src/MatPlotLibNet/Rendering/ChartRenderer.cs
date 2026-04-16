@@ -109,6 +109,37 @@ public sealed class ChartRenderer : IChartRenderer
         return plotAreaTop;
     }
 
+    /// <inheritdoc />
+    public LayoutResult ComputeLayout(Figure figure, IRenderContext measureCtx)
+    {
+        var sp = PrepareSpacing(figure, measureCtx);
+        double plotAreaTop = sp.MarginTop;
+        if (figure.Title is not null)
+        {
+            var titleFont = ThemedFontProvider.SupTitleFont(figure.Theme);
+            double titleH = MathTextParser.ContainsMath(figure.Title)
+                ? measureCtx.MeasureRichText(MathTextParser.Parse(figure.Title), titleFont).Height
+                : measureCtx.MeasureText(figure.Title, titleFont).Height;
+            double needed = SupTitleTopPad + titleH + SupTitleBottomPad;
+            if (sp.MarginTop < needed) plotAreaTop = needed;
+        }
+
+        var plotAreas = ComputeSubPlotLayout(figure, plotAreaTop, sp);
+
+        // Compute per-subplot legend item bounds for interactive hit-testing.
+        var legendItems = new List<IReadOnlyList<LegendItemBounds>>(plotAreas.Count);
+        for (int i = 0; i < figure.SubPlots.Count; i++)
+        {
+            var axes = figure.SubPlots[i];
+            var plotArea = i < plotAreas.Count ? plotAreas[i] : new Rect(0, 0, 0, 0);
+            var axesRenderer = AxesRenderer.Create(axes, plotArea, measureCtx, figure.Theme);
+            axesRenderer.ComputeLegendBounds();
+            legendItems.Add(axesRenderer.LegendBounds.ToList());
+        }
+
+        return new LayoutResult(plotAreas, legendItems);
+    }
+
     /// <summary>Computes subplot layout positions from grid metadata and spacing.</summary>
     public List<Rect> ComputeSubPlotLayout(Figure figure, double plotAreaTop, SubPlotSpacing? spacing = null)
     {

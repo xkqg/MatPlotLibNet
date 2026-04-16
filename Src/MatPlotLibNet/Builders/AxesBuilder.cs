@@ -601,6 +601,30 @@ public sealed class AxesBuilder
     public AxesBuilder PlanarBar3D(double[] x, double[] y, double[] z, Action<PlanarBar3DSeries>? configure = null)
         => AddSeries(ax => ax.PlanarBar3D(x, y, z), configure);
 
+    /// <summary>Adds a 3D line (polyline) series to the axes.</summary>
+    public AxesBuilder Plot3D(double[] x, double[] y, double[] z, Action<Line3DSeries>? configure = null)
+        => AddSeries(ax => ax.Plot3D(x, y, z), configure);
+
+    /// <summary>Adds a triangulated surface series to the axes.</summary>
+    public AxesBuilder Trisurf(double[] x, double[] y, double[] z, Action<Trisurf3DSeries>? configure = null)
+        => AddSeries(ax => ax.Trisurf(x, y, z), configure);
+
+    /// <summary>Adds a 3D contour series to the axes.</summary>
+    public AxesBuilder Contour3D(double[] x, double[] y, double[,] z, Action<Contour3DSeries>? configure = null)
+        => AddSeries(ax => ax.Contour3D(x, y, z), configure);
+
+    /// <summary>Adds a 3D quiver (vector field) series to the axes.</summary>
+    public AxesBuilder Quiver3D(double[] x, double[] y, double[] z, double[] u, double[] v, double[] w, Action<Quiver3DSeries>? configure = null)
+        => AddSeries(ax => ax.Quiver3D(x, y, z, u, v, w), configure);
+
+    /// <summary>Adds a voxel series to the axes.</summary>
+    public AxesBuilder Voxels(bool[,,] filled, Action<VoxelSeries>? configure = null)
+        => AddSeries(ax => ax.Voxels(filled), configure);
+
+    /// <summary>Adds a 3D text annotation series to the axes.</summary>
+    public AxesBuilder Text3D(double x, double y, double z, string text, Action<Text3DSeries>? configure = null)
+        => AddSeries(ax => ax.Text3D(x, y, z, text), configure);
+
     /// <summary>Sets the 3D projection angles for ThreeD coordinate system axes.</summary>
     public AxesBuilder WithProjection(double elevation = 30, double azimuth = -60)
     {

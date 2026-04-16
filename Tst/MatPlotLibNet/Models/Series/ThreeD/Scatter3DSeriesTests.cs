@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -37,5 +39,57 @@ public class Scatter3DSeriesTests
     {
         var series = new Scatter3DSeries(Single, Single, Single);
         Assert.Equal(6, series.MarkerSize);
+    }
+
+    /// <summary>Verifies that ColorMap defaults to null.</summary>
+    [Fact]
+    public void DefaultColorMap_IsNull()
+    {
+        var series = new Scatter3DSeries(Single, Single, Single);
+        Assert.Null(series.ColorMap);
+    }
+
+    /// <summary>Verifies that ColorMap can be assigned.</summary>
+    [Fact]
+    public void ColorMap_CanBeSet()
+    {
+        var series = new Scatter3DSeries(Single, Single, Single);
+        series.ColorMap = ColorMaps.Viridis;
+        Assert.NotNull(series.ColorMap);
+        Assert.Equal("viridis", series.ColorMap.Name);
+    }
+
+    /// <summary>Verifies that Normalizer defaults to null.</summary>
+    [Fact]
+    public void DefaultNormalizer_IsNull()
+    {
+        var series = new Scatter3DSeries(Single, Single, Single);
+        Assert.Null(series.Normalizer);
+    }
+
+    /// <summary>Verifies that MarkerStyle defaults to Circle.</summary>
+    [Fact]
+    public void DefaultMarkerStyle_IsCircle()
+    {
+        var series = new Scatter3DSeries(Single, Single, Single);
+        Assert.Equal(MarkerStyle.Circle, series.MarkerStyle);
+    }
+
+    /// <summary>Verifies that ToSeriesDto includes ColorMapName when set.</summary>
+    [Fact]
+    public void ToSeriesDto_IncludesColorMapName_WhenSet()
+    {
+        var series = new Scatter3DSeries(X, Y, Z) { ColorMap = ColorMaps.Viridis };
+        var dto = series.ToSeriesDto();
+        Assert.Equal("viridis", dto.ColorMapName);
+    }
+
+    /// <summary>Verifies that ToSeriesDto has null ColorMapName when no colormap is set.</summary>
+    [Fact]
+    public void ToSeriesDto_ColorMapNameNull_WhenNotSet()
+    {
+        var series = new Scatter3DSeries(X, Y, Z);
+        var dto = series.ToSeriesDto();
+        Assert.Null(dto.ColorMapName);
     }
 }

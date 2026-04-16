@@ -175,4 +175,258 @@ public class MathTextParserTests
         Assert.Contains("^", allText);
         Assert.DoesNotContain(result.Spans, s => s.Kind == TextSpanKind.Superscript);
     }
+
+    // --- v1.3.0: Fractions ---
+
+    [Fact]
+    public void Parse_Fraction_ProducesNumeratorAndDenominatorSpans()
+    {
+        var result = MathTextParser.Parse(@"$\frac{a}{b}$");
+        var num = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.FractionNumerator);
+        var den = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.FractionDenominator);
+        Assert.NotNull(num);
+        Assert.NotNull(den);
+        Assert.Equal("a", num!.Text);
+        Assert.Equal("b", den!.Text);
+    }
+
+    [Fact]
+    public void Parse_Fraction_FontSizeScale_IsReduced()
+    {
+        var result = MathTextParser.Parse(@"$\frac{x+1}{y-1}$");
+        var num = result.Spans.First(s => s.Kind == TextSpanKind.FractionNumerator);
+        Assert.True(num.FontSizeScale < 1.0);
+    }
+
+    [Fact]
+    public void Parse_Fraction_WithGreekInside()
+    {
+        var result = MathTextParser.Parse(@"$\frac{\alpha}{\beta}$");
+        var num = result.Spans.First(s => s.Kind == TextSpanKind.FractionNumerator);
+        Assert.Equal("\u03B1", num.Text); // α
+    }
+
+    // --- v1.3.0: Square roots ---
+
+    [Fact]
+    public void Parse_Sqrt_ProducesRadicalSpan()
+    {
+        var result = MathTextParser.Parse(@"$\sqrt{x}$");
+        var rad = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Radical);
+        Assert.NotNull(rad);
+        Assert.Equal("x", rad!.Text);
+    }
+
+    [Fact]
+    public void Parse_SqrtWithIndex_ProducesIndexAndRadical()
+    {
+        var result = MathTextParser.Parse(@"$\sqrt[3]{x}$");
+        // Index '3' emitted as superscript-sized prefix
+        var idx = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Superscript && s.Text == "3");
+        var rad = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Radical);
+        Assert.NotNull(idx);
+        Assert.NotNull(rad);
+        Assert.Equal("x", rad!.Text);
+    }
+
+    [Fact]
+    public void Parse_Sqrt_WithExpression()
+    {
+        var result = MathTextParser.Parse(@"$\sqrt{x^2+y^2}$");
+        var rad = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Radical);
+        Assert.NotNull(rad);
+        Assert.Contains("x", rad!.Text);
+    }
+
+    // --- v1.3.0: Accents ---
+
+    [Fact]
+    public void Parse_Hat_ProducesAccentSpan()
+    {
+        var result = MathTextParser.Parse(@"$\hat{x}$");
+        var accent = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Accent);
+        Assert.NotNull(accent);
+        Assert.Equal('x', accent!.Text[0]);
+        Assert.True(accent.Text.Contains("\u0302", StringComparison.Ordinal)); // combining circumflex
+    }
+
+    [Fact]
+    public void Parse_Bar_ProducesAccentSpan()
+    {
+        var result = MathTextParser.Parse(@"$\bar{y}$");
+        var accent = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Accent);
+        Assert.NotNull(accent);
+        Assert.Equal('y', accent!.Text[0]);
+    }
+
+    [Fact]
+    public void Parse_Vec_ProducesAccentSpan()
+    {
+        var result = MathTextParser.Parse(@"$\vec{v}$");
+        var accent = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Accent);
+        Assert.NotNull(accent);
+        Assert.Equal('v', accent!.Text[0]);
+        Assert.True(accent.Text.Contains("\u20D7", StringComparison.Ordinal)); // combining right arrow above
+    }
+
+    [Fact]
+    public void Parse_Tilde_ProducesAccentSpan()
+    {
+        var result = MathTextParser.Parse(@"$\tilde{x}$");
+        var accent = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Accent);
+        Assert.NotNull(accent);
+        Assert.True(accent!.Text.Contains("\u0303", StringComparison.Ordinal)); // combining tilde
+    }
+
+    [Fact]
+    public void Parse_Dot_ProducesAccentSpan()
+    {
+        var result = MathTextParser.Parse(@"$\dot{x}$");
+        var accent = result.Spans.FirstOrDefault(s => s.Kind == TextSpanKind.Accent);
+        Assert.NotNull(accent);
+        Assert.True(accent!.Text.Contains("\u0307", StringComparison.Ordinal)); // combining dot above
+    }
+
+    // --- v1.3.0: Font variants ---
+
+    [Fact]
+    public void Parse_Mathrm_ProducesRomanFontSpan()
+    {
+        var result = MathTextParser.Parse(@"$\mathrm{sin}$");
+        var roman = result.Spans.FirstOrDefault(s => s.Variant == FontVariant.Roman);
+        Assert.NotNull(roman);
+        Assert.Equal("sin", roman!.Text);
+    }
+
+    [Fact]
+    public void Parse_Mathbf_ProducesBoldFontSpan()
+    {
+        var result = MathTextParser.Parse(@"$\mathbf{F}$");
+        var bold = result.Spans.FirstOrDefault(s => s.Variant == FontVariant.Bold);
+        Assert.NotNull(bold);
+        Assert.Equal("F", bold!.Text);
+    }
+
+    [Fact]
+    public void Parse_Text_ProducesRomanFontSpan()
+    {
+        var result = MathTextParser.Parse(@"$x = 1 \text{ if } y > 0$");
+        var text = result.Spans.FirstOrDefault(s => s.Variant == FontVariant.Roman);
+        Assert.NotNull(text);
+        Assert.Equal(" if ", text!.Text);
+    }
+
+    [Fact]
+    public void Parse_Mathcal_ProducesCalligraphicSpan()
+    {
+        var result = MathTextParser.Parse(@"$\mathcal{L}$");
+        var cal = result.Spans.FirstOrDefault(s => s.Variant == FontVariant.Calligraphic);
+        Assert.NotNull(cal);
+        Assert.Equal("L", cal!.Text);
+    }
+
+    // --- v1.3.0: Spacing ---
+
+    [Fact]
+    public void Parse_Quad_InsertsEmSpace()
+    {
+        var result = MathTextParser.Parse(@"$a\quad b$");
+        var allText = string.Concat(result.Spans.Select(s => s.Text));
+        Assert.Contains("\u2003", allText); // em space
+    }
+
+    [Fact]
+    public void Parse_ThinSpace_InsertsUnicodeSpace()
+    {
+        var result = MathTextParser.Parse(@"$a\,b$");
+        var allText = string.Concat(result.Spans.Select(s => s.Text));
+        Assert.Contains("\u2009", allText); // thin space
+    }
+
+    [Fact]
+    public void Parse_MediumSpace_InsertsUnicodeSpace()
+    {
+        var result = MathTextParser.Parse(@"$a\:b$");
+        var allText = string.Concat(result.Spans.Select(s => s.Text));
+        Assert.Contains("\u2005", allText); // medium mathematical space
+    }
+
+    [Fact]
+    public void Parse_ThickSpace_InsertsUnicodeSpace()
+    {
+        var result = MathTextParser.Parse(@"$a\;b$");
+        var allText = string.Concat(result.Spans.Select(s => s.Text));
+        Assert.Contains("\u2004", allText); // thick mathematical space
+    }
+
+    // --- v1.3.0: Additional symbols ---
+
+    [Fact]
+    public void Parse_BlackboardBoldR_ReturnsUnicode()
+    {
+        var result = MathTextParser.Parse(@"$\mathbb{R}$");
+        // \mathbb{R} is handled as font variant OR as a direct symbol lookup
+        var allText = string.Concat(result.Spans.Select(s => s.Text));
+        Assert.True(
+            allText.Contains("\u211D") || // ℝ from symbol map
+            result.Spans.Any(s => s.Variant == FontVariant.BlackboardBold)); // font variant
+    }
+
+    [Fact]
+    public void Parse_Rightarrow_ReturnsUnicode()
+    {
+        var result = MathTextParser.Parse(@"$\Rightarrow$");
+        Assert.Contains(result.Spans, s => s.Text == "\u21D2"); // ⇒
+    }
+
+    [Fact]
+    public void Parse_Otimes_ReturnsUnicode()
+    {
+        var result = MathTextParser.Parse(@"$\otimes$");
+        Assert.Contains(result.Spans, s => s.Text == "\u2297"); // ⊗
+    }
+
+    [Fact]
+    public void Parse_Emptyset_ReturnsUnicode()
+    {
+        var result = MathTextParser.Parse(@"$\emptyset$");
+        Assert.Contains(result.Spans, s => s.Text == "\u2205"); // ∅
+    }
+
+    // --- v1.3.0: Scaling delimiters ---
+
+    [Fact]
+    public void Parse_LeftRight_Parens_EmitsParens()
+    {
+        var result = MathTextParser.Parse(@"$\left(x+1\right)$");
+        var allText = string.Concat(result.Spans.Select(s => s.Text));
+        Assert.Contains("(", allText);
+        Assert.Contains(")", allText);
+        Assert.Contains("x+1", allText);
+    }
+
+    // --- v1.3.0: Nested superscript ---
+
+    [Fact]
+    public void Parse_NestedSuperscript_ContainsCommand()
+    {
+        // x^{\alpha} — superscript body contains a \command
+        var result = MathTextParser.Parse(@"$x^{\alpha}$");
+        var sup = result.Spans.First(s => s.Kind == TextSpanKind.Superscript);
+        Assert.Equal("\u03B1", sup.Text); // α (substituted inside super)
+    }
+
+    // --- v1.3.0: ContainsMath ---
+
+    [Fact]
+    public void ContainsMath_SingleDollar_ReturnsFalse()
+    {
+        Assert.False(MathTextParser.ContainsMath("Revenue ($)"));
+    }
+
+    [Fact]
+    public void ContainsMath_TwoDollars_ReturnsTrue()
+    {
+        Assert.True(MathTextParser.ContainsMath("$\\alpha$ = 0.05"));
+    }
 }

@@ -27,6 +27,7 @@ jobs:
         run: |
           dotnet run --project Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj --no-build --configuration Release
+          dotnet run --project Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.Tests.csproj --no-build --configuration Release
@@ -50,8 +51,8 @@ jobs:
           dotnet-version: '10.0.x'
           dotnet-quality: 'preview'
 
-      - name: Install MAUI workload
-        run: dotnet workload install maui
+      - name: Install platform workloads
+        run: dotnet workload install maui android ios maccatalyst
 
       - name: Build Skia
         run: dotnet build Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj --configuration Release
@@ -59,11 +60,23 @@ jobs:
       - name: Build MAUI
         run: dotnet build Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --configuration Release
 
+      - name: Build Uno
+        run: dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --configuration Release
+
+      - name: Test MAUI
+        run: dotnet run --project Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj --no-build --configuration Release
+
+      - name: Test Uno
+        run: dotnet run --project Tst/MatPlotLibNet.Uno/MatPlotLibNet.Uno.Tests.csproj --no-build --configuration Release
+
       - name: Pack Skia
         run: dotnet pack Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj --no-build --configuration Release --output nupkgs
 
       - name: Pack MAUI
         run: dotnet pack Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --no-build --configuration Release --output nupkgs
+
+      - name: Pack Uno
+        run: dotnet pack Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-build --configuration Release --output nupkgs
 
       - name: Push to NuGet
         run: |

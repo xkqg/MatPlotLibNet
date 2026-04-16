@@ -3,6 +3,8 @@
     "path": "MatPlotLibNet.slnx",
     "projects": [
       "Src/MatPlotLibNet/MatPlotLibNet.csproj",
+      "Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj",
+      "Src/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.csproj",
       "Src/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.csproj",
       "Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj",
       "Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj",
@@ -11,6 +13,7 @@
       "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj",
       "Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj",
       "Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj",
+      "Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj",
       "Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj",
       "Tst/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.Tests.csproj",
       "Tst/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.Tests.csproj",

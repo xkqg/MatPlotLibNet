@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="3.*" />
+    <PackageReference Include="NSubstitute" Version="5.*" />
+    <PackageReference Include="Avalonia" Version="12.*" />
+    <PackageReference Include="Avalonia.Skia" Version="12.*" />
+    <PackageReference Include="SkiaSharp" Version="3.119.3-preview.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
+  </ItemGroup>
+
+  <!-- Include Avalonia source files directly to avoid multi-target dependency -->
+  <ItemGroup>
+    <Compile Include="..\..\Src\MatPlotLibNet.Avalonia\*.cs" LinkBase="AvaloniaSrc" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

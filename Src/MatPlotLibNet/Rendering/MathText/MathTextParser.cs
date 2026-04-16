@@ -18,6 +18,43 @@ namespace MatPlotLibNet.Rendering.MathText;
 public static class MathTextParser
 {
     private const double SuperSubScale = 0.70;
+    private const double FractionScale = 0.70;
+
+    // Spacing commands → Unicode whitespace
+    private static readonly Dictionary<string, string> SpacingCommands = new()
+    {
+        ["!"]     = "",            // negative thin space (collapse)
+        [","]     = "\u2009",      // thin space
+        [":"]     = "\u2005",      // medium mathematical space
+        [";"]     = "\u2004",      // thick mathematical space
+        ["quad"]  = "\u2003",      // em space
+        ["qquad"] = "\u2003\u2003", // double em space
+    };
+
+    // Accent commands → Unicode accent characters
+    private static readonly Dictionary<string, string> AccentCommands = new()
+    {
+        ["hat"]      = "\u0302", // combining circumflex
+        ["bar"]      = "\u0304", // combining macron
+        ["overline"] = "\u0305", // combining overline
+        ["tilde"]    = "\u0303", // combining tilde
+        ["dot"]      = "\u0307", // combining dot above
+        ["ddot"]     = "\u0308", // combining diaeresis
+        ["vec"]      = "\u20D7", // combining right arrow above
+        ["check"]    = "\u030C", // combining caron
+        ["breve"]    = "\u0306", // combining breve
+    };
+
+    // Font-switch commands → FontVariant
+    private static readonly Dictionary<string, FontVariant> FontCommands = new()
+    {
+        ["mathrm"]  = FontVariant.Roman,
+        ["text"]    = FontVariant.Roman,
+        ["mathbf"]  = FontVariant.Bold,
+        ["mathit"]  = FontVariant.Italic,
+        ["mathcal"] = FontVariant.Calligraphic,
+        ["mathbb"]  = FontVariant.BlackboardBold,
+    };
 
     /// <summary>Parses the input string into a <see cref="RichText"/> span list.</summary>
     public static RichText Parse(string text)
@@ -57,10 +94,99 @@ public static class MathTextParser
             {
                 Flush(spans, buf);
                 i++;
+
+                // Single-character spacing commands: \, \: \; \!
+                if (i < text.Length && SpacingCommands.TryGetValue(text[i].ToString(), out var sp))
+                {
+                    i++;
+                    if (sp.Length > 0) spans.Add(new TextSpan(sp));
+                    continue;
+                }
+
                 int start = i;
                 while (i < text.Length && char.IsLetter(text[i])) i++;
                 string cmd = text[start..i];
 
+                // Spacing commands (word-form): \quad, \qquad
+                if (SpacingCommands.TryGetValue(cmd, out var spacing))
+                {
+                    spans.Add(new TextSpan(spacing));
+                    continue;
+                }
+
+                // Fraction: \frac{num}{den}
+                if (cmd == "frac")
+                {
+                    string num = ReadBraceGroup(text, ref i);
+                    string den = ReadBraceGroup(text, ref i);
+                    num = SubstituteCommands(num);
+                    den = SubstituteCommands(den);
+                    spans.Add(new TextSpan(num, TextSpanKind.FractionNumerator, FractionScale));
+                    spans.Add(new TextSpan(den, TextSpanKind.FractionDenominator, FractionScale));
+                    continue;
+                }
+
+                // Square root: \sqrt{content} or \sqrt[n]{content}
+                if (cmd == "sqrt")
+                {
+                    // Optional index: \sqrt[n]
+                    if (i < text.Length && text[i] == '[')
+                    {
+                        i++; // skip '['
+                        int end = text.IndexOf(']', i);
+                        if (end < 0) end = text.Length;
+                        string idx = text[i..end];
+                        i = end < text.Length ? end + 1 : text.Length;
+                        // Emit index as superscript-sized prefix
+                        spans.Add(new TextSpan(idx, TextSpanKind.Superscript, SuperSubScale));
+                    }
+
+                    string content = ReadBraceGroup(text, ref i);
+                    content = SubstituteCommands(content);
+                    spans.Add(new TextSpan(content, TextSpanKind.Radical));
+                    continue;
+                }
+
+                // Accent commands: \hat{x}, \bar{y}, etc.
+                if (AccentCommands.TryGetValue(cmd, out var accent))
+                {
+                    string content = ReadBraceGroup(text, ref i);
+                    content = SubstituteCommands(content);
+                    // Emit the base content + combining accent character
+                    spans.Add(new TextSpan(content + accent, TextSpanKind.Accent));
+                    continue;
+                }
+
+                // Font-switch commands: \mathrm{text}, \mathbf{text}, \text{text}, etc.
+                if (FontCommands.TryGetValue(cmd, out var variant))
+                {
+                    string content = ReadBraceGroup(text, ref i);
+                    content = SubstituteCommands(content);
+                    spans.Add(new TextSpan(content, TextSpanKind.Normal, 1.0, variant));
+                    continue;
+                }
+
+                // Scaling delimiters: \left( ... \right)
+                if (cmd == "left")
+                {
+                    if (i < text.Length)
+                    {
+                        spans.Add(new TextSpan(text[i].ToString()));
+                        i++;
+                    }
+                    continue;
+                }
+                if (cmd == "right")
+                {
+                    if (i < text.Length)
+                    {
+                        spans.Add(new TextSpan(text[i].ToString()));
+                        i++;
+                    }
+                    continue;
+                }
+
+                // Standard substitution: Greek letters and math symbols
                 string? substitute = GreekLetters.TryGet(cmd) ?? MathSymbols.TryGet(cmd);
                 spans.Add(new TextSpan(substitute ?? $"\\{cmd}"));
                 continue;
@@ -76,11 +202,7 @@ public static class MathTextParser
                 string content;
                 if (i < text.Length && text[i] == '{')
                 {
-                    i++; // skip '{'
-                    int end = text.IndexOf('}', i);
-                    if (end < 0) end = text.Length;
-                    content = text[i..end];
-                    i = end < text.Length ? end + 1 : text.Length;
+                    content = ReadBraceGroup(text, ref i);
                 }
                 else if (i < text.Length && text[i] != '$')
                 {
@@ -120,6 +242,27 @@ public static class MathTextParser
     }
 
     // --- Helpers ---
+
+    /// <summary>Reads a <c>{...}</c> brace group starting at position <paramref name="i"/>,
+    /// advancing <paramref name="i"/> past the closing brace. Handles nested braces.</summary>
+    private static string ReadBraceGroup(string text, ref int i)
+    {
+        if (i >= text.Length || text[i] != '{')
+            return i < text.Length ? text[i++].ToString() : string.Empty;
+
+        i++; // skip opening '{'
+        int depth = 1;
+        int start = i;
+        while (i < text.Length && depth > 0)
+        {
+            if (text[i] == '{') depth++;
+            else if (text[i] == '}') depth--;
+            if (depth > 0) i++;
+        }
+        string content = text[start..i];
+        if (i < text.Length) i++; // skip closing '}'
+        return content;
+    }
 
     private static void Flush(List<TextSpan> spans, StringBuilder buf)
     {

@@ -1,0 +1,10 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mpl="clr-namespace:MatPlotLibNet.Avalonia;assembly=MatPlotLibNet.Avalonia"
+        x:Class="MatPlotLibNet.Samples.Avalonia.MainWindow"
+        Title="MatPlotLibNet - Avalonia Sample" Width="1200" Height="700">
+    <Grid ColumnDefinitions="*,*">
+        <mpl:MplChartControl x:Name="StaticChart" Grid.Column="0" />
+        <mpl:MplChartControl x:Name="InteractiveChart" Grid.Column="1" IsInteractive="True" />
+    </Grid>
+</Window>

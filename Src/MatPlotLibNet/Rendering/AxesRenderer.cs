@@ -33,6 +33,11 @@ public abstract class AxesRenderer
     /// reserved for future use by <see cref="RenderAxisLabels"/>.</summary>
     protected double MeasuredXTickMaxHeight { get; set; }
 
+    /// <summary>Per-entry legend item bounds captured during <see cref="RenderLegend"/> or
+    /// <see cref="ComputeLegendBounds"/>. Each entry maps a series index to its pixel-space
+    /// bounding rectangle. Empty when the legend is hidden or has no labelled entries.</summary>
+    internal List<LegendItemBounds> LegendBounds { get; } = [];
+
     /// <summary>Initializes the renderer with the rendering context.</summary>
     /// <param name="axes">The axes model to render.</param>
     /// <param name="plotArea">The pixel-space rectangle that bounds the plot.</param>
@@ -219,14 +224,14 @@ public abstract class AxesRenderer
         if (!Axes.Legend.Visible) return;
 
         var legend = Axes.Legend;
-        var entries = new List<(string Label, Color Color, Models.Series.ISeries Series)>();
+        var entries = new List<(string Label, Color Color, Models.Series.ISeries Series, int OriginalIndex)>();
         for (int i = 0; i < Axes.Series.Count; i++)
         {
             var series = Axes.Series[i];
             if (string.IsNullOrEmpty(series.Label)) continue;
             var cycleColor = Theme.PropCycler?[i].Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
             var seriesColor = series.GetType().GetProperty("Color")?.GetValue(series) as Color?;
-            entries.Add((series.Label, seriesColor ?? cycleColor, series));
+            entries.Add((series.Label, seriesColor ?? cycleColor, series, i));
         }
 
         if (entries.Count == 0) return;
@@ -336,12 +341,13 @@ public abstract class AxesRenderer
                 titleFont, TextAlignment.Center);
         }
 
+        LegendBounds.Clear();
         var svgCtxLegend = Axes.EnableInteractiveAttributes ? Ctx as SvgRenderContext : null;
         for (int i = 0; i < entries.Count; i++)
         {
             int row = i / nCols;
             int col = i % nCols;
-            var (label, color, seriesRef) = entries[i];
+            var (label, color, seriesRef, originalIndex) = entries[i];
 
             // X offset for this column
             double colX = boxX + padding;
@@ -349,6 +355,10 @@ public abstract class AxesRenderer
                 colX += maxSwatchW + swatchGap + colMaxWidths[c] + colSpacingPx;
 
             double entryY = boxY + padding + titleHeight + row * lineHeight;
+
+            // Capture hit-test bounds for this legend entry (swatch + label)
+            double itemWidth = maxSwatchW + swatchGap + colMaxWidths[col];
+            LegendBounds.Add(new LegendItemBounds(originalIndex, new Rect(colX, entryY, itemWidth, lineHeight)));
 
             svgCtxLegend?.BeginLegendItemGroup(i, label);
 
@@ -366,6 +376,98 @@ public abstract class AxesRenderer
         }
 
         Ctx.EndGroup();
+    }
+
+    /// <summary>Computes legend item bounds without rendering any visuals. Called by
+    /// <see cref="ChartRenderer.ComputeLayout"/> to populate <see cref="LayoutResult.LegendItems"/>
+    /// for interactive hit-testing.</summary>
+    internal void ComputeLegendBounds()
+    {
+        LegendBounds.Clear();
+        if (!Axes.Legend.Visible) return;
+
+        var legend = Axes.Legend;
+        var entries = new List<(string Label, int OriginalIndex)>();
+        for (int i = 0; i < Axes.Series.Count; i++)
+        {
+            var series = Axes.Series[i];
+            if (string.IsNullOrEmpty(series.Label)) continue;
+            entries.Add((series.Label, i));
+        }
+
+        if (entries.Count == 0) return;
+
+        var baseFont = TickFont();
+        var font = legend.FontSize.HasValue ? baseFont with { Size = legend.FontSize.Value } : baseFont;
+
+        double handleWidth  = font.Size * 2.0 * legend.MarkerScale;
+        double handleHeight = font.Size * 0.7 * legend.MarkerScale;
+        double swatchSize   = handleHeight;
+        double maxSwatchW   = handleWidth;
+        double swatchGap    = font.Size * 0.8;
+        double padding = 8;
+        double lineHeight = swatchSize + Math.Max(0, legend.LabelSpacing * font.Size);
+
+        int nCols = Math.Max(1, legend.NCols);
+        int nRows = (int)Math.Ceiling((double)entries.Count / nCols);
+
+        var colMaxWidths = new double[nCols];
+        for (int i = 0; i < entries.Count; i++)
+        {
+            int col = i % nCols;
+            var size = MathTextParser.ContainsMath(entries[i].Label)
+                ? Ctx.MeasureRichText(MathTextParser.Parse(entries[i].Label), font)
+                : Ctx.MeasureText(entries[i].Label, font);
+            if (size.Width > colMaxWidths[col]) colMaxWidths[col] = size.Width;
+        }
+
+        double colSpacingPx = legend.ColumnSpacing * font.Size;
+        double totalContentWidth = maxSwatchW + swatchGap + colMaxWidths.Sum()
+            + (nCols - 1) * (maxSwatchW + swatchGap + colSpacingPx);
+
+        var titleFont = legend.TitleFontSize.HasValue
+            ? baseFont with { Size = legend.TitleFontSize.Value, Weight = FontWeight.Bold }
+            : baseFont with { Size = baseFont.Size + 1, Weight = FontWeight.Bold };
+        double titleHeight = !string.IsNullOrEmpty(legend.Title) ? titleFont.Size + 4 : 0;
+
+        double boxWidth = padding + totalContentWidth + padding;
+        double boxHeight = padding + titleHeight + nRows * lineHeight - (lineHeight - swatchSize) + padding;
+
+        double inset = 10;
+        const double OutsideGap = 8;
+        double centerX = PlotArea.X + PlotArea.Width / 2;
+        double centerY = PlotArea.Y + PlotArea.Height / 2;
+        var (boxX, boxY) = legend.Position switch
+        {
+            LegendPosition.UpperLeft    => (PlotArea.X + inset, PlotArea.Y + inset),
+            LegendPosition.LowerRight   => (PlotArea.X + PlotArea.Width - boxWidth - inset, PlotArea.Y + PlotArea.Height - boxHeight - inset),
+            LegendPosition.LowerLeft    => (PlotArea.X + inset, PlotArea.Y + PlotArea.Height - boxHeight - inset),
+            LegendPosition.Right        => (PlotArea.X + PlotArea.Width - boxWidth - inset, centerY - boxHeight / 2),
+            LegendPosition.CenterLeft   => (PlotArea.X + inset, centerY - boxHeight / 2),
+            LegendPosition.CenterRight  => (PlotArea.X + PlotArea.Width - boxWidth - inset, centerY - boxHeight / 2),
+            LegendPosition.LowerCenter  => (centerX - boxWidth / 2, PlotArea.Y + PlotArea.Height - boxHeight - inset),
+            LegendPosition.UpperCenter  => (centerX - boxWidth / 2, PlotArea.Y + inset),
+            LegendPosition.Center       => (centerX - boxWidth / 2, centerY - boxHeight / 2),
+            LegendPosition.OutsideRight => (PlotArea.X + PlotArea.Width + OutsideGap, centerY - boxHeight / 2),
+            LegendPosition.OutsideLeft  => (PlotArea.X - boxWidth - OutsideGap, centerY - boxHeight / 2),
+            LegendPosition.OutsideTop   => (centerX - boxWidth / 2, PlotArea.Y - boxHeight - OutsideGap),
+            LegendPosition.OutsideBottom => (centerX - boxWidth / 2, PlotArea.Y + PlotArea.Height + OutsideGap),
+            _                           => (PlotArea.X + PlotArea.Width - boxWidth - inset, PlotArea.Y + inset)
+        };
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            int row = i / nCols;
+            int col = i % nCols;
+
+            double colX = boxX + padding;
+            for (int c = 0; c < col; c++)
+                colX += maxSwatchW + swatchGap + colMaxWidths[c] + colSpacingPx;
+
+            double entryY = boxY + padding + titleHeight + row * lineHeight;
+            double itemWidth = maxSwatchW + swatchGap + colMaxWidths[col];
+            LegendBounds.Add(new LegendItemBounds(entries[i].OriginalIndex, new Rect(colX, entryY, itemWidth, lineHeight)));
+        }
     }
 
     /// <summary>Line-type series get a wider swatch (horizontal segment) in the legend; patch-type

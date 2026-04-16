@@ -1,8 +1,11 @@
 <Solution>
   <Folder Name="/Src/">
     <Project Path="Src/MatPlotLibNet/MatPlotLibNet.csproj" />
+    <Project Path="Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj" />
     <Project Path="Src/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.csproj" />
     <Project Path="Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj" />
+    <Project Path="Src/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.csproj" />
+    <Project Path="Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj" />
     <Project Path="Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj" />
     <Project Path="Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj" />
     <Project Path="Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj" />
@@ -13,6 +16,8 @@
     <Project Path="Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Uno/MatPlotLibNet.Uno.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.Tests.csproj" />
@@ -23,6 +28,8 @@
     <Project Path="Samples/MatPlotLibNet.Samples.Blazor/MatPlotLibNet.Samples.Blazor.csproj" />
     <Project Path="Samples/MatPlotLibNet.Samples.WebApi/MatPlotLibNet.Samples.WebApi.csproj" />
     <Project Path="Samples/MatPlotLibNet.Samples.GraphQL/MatPlotLibNet.Samples.GraphQL.csproj" />
+    <Project Path="Samples/MatPlotLibNet.Samples.Avalonia/MatPlotLibNet.Samples.Avalonia.csproj" />
+    <Project Path="Samples/MatPlotLibNet.Samples.Uno/MatPlotLibNet.Samples.Uno.csproj" />
   </Folder>
   <Folder Name="/Benchmarks/">
     <Project Path="Benchmarks/MatPlotLibNet.Benchmarks/MatPlotLibNet.Benchmarks.csproj" />

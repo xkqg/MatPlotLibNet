@@ -5,7 +5,7 @@ using Microsoft.Maui.Graphics;
 using NSubstitute;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
-using MplColor = MatPlotLibNet.Styling.Color;
+using MplColor = MatPlotLibNet.Styling.Colors;
 using MplFont = MatPlotLibNet.Styling.Font;
 using MplPoint = MatPlotLibNet.Rendering.Point;
 using MplRect = MatPlotLibNet.Rendering.Rect;
