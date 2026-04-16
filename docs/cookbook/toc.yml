@@ -1,0 +1,30 @@
+- name: Overview
+  href: index.md
+- name: Line Charts
+  href: line-charts.md
+- name: Bar Charts
+  href: bar-charts.md
+- name: Heatmaps & Colormaps
+  href: heatmaps.md
+- name: Subplots & GridSpec
+  href: subplots.md
+- name: Contour Plots
+  href: contour.md
+- name: Financial Charts
+  href: financial.md
+- name: Sankey Diagrams
+  href: sankey.md
+- name: Treemaps & Hierarchical
+  href: treemaps.md
+- name: 3D Charts
+  href: threed.md
+- name: Math Text
+  href: mathtext.md
+- name: Accessibility
+  href: accessibility.md
+- name: Styling & Themes
+  href: styling.md
+- name: Annotations
+  href: annotations.md
+- name: Tick Formatting
+  href: tick-formatting.md

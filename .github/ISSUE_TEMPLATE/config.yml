@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/xkqg/MatPlotLibNet/discussions/new?category=q-a
+    about: Use Discussions for questions — issues are for bugs and feature requests only
+  - name: Documentation & Wiki
+    url: https://github.com/xkqg/MatPlotLibNet/wiki
+    about: Check the wiki for guides, API reference, and the fluent cheatsheet
+  - name: Cookbook & Examples
+    url: https://xkqg.github.io/MatPlotLibNet/cookbook/
+    about: Browse the cookbook for runnable code examples with rendered images

@@ -1,0 +1,26 @@
+title: "[Q&A] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for using MatPlotLibNet! Before asking, please check the [wiki](https://github.com/xkqg/MatPlotLibNet/wiki) and [cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/).
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What would you like to know?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: MatPlotLibNet version
+      description: Which version are you using?
+      placeholder: e.g., 1.3.0
+  - type: textarea
+    id: code
+    attributes:
+      label: Code sample (optional)
+      description: If your question involves code, paste a minimal example here.
+      render: csharp

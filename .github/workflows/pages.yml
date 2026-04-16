@@ -1,0 +1,62 @@
+name: GitHub Pages — Cookbook + API Reference
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Install DocFx
+        run: dotnet tool install -g docfx
+
+      - name: Restore & Build
+        run: |
+          dotnet restore MatPlotLibNet.CI.slnf
+          dotnet build MatPlotLibNet.CI.slnf --no-restore --configuration Release
+
+      - name: Generate sample images
+        run: dotnet run --project Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj --no-build --configuration Release
+
+      - name: Copy images to docs
+        run: cp -r images docs/images
+
+      - name: Build DocFx site
+        run: docfx docs/docfx.json
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

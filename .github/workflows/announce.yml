@@ -1,0 +1,106 @@
+name: Announce Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Extract release info
+        id: info
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "url=${{ github.event.release.html_url }}" >> "$GITHUB_OUTPUT"
+
+      # ---------------------------------------------------------------
+      # Bluesky — set BLUESKY_HANDLE and BLUESKY_APP_PASSWORD secrets
+      # ---------------------------------------------------------------
+      - name: Post to Bluesky
+        if: ${{ secrets.BLUESKY_HANDLE != '' }}
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: |
+          TAG="${{ steps.info.outputs.tag }}"
+          URL="${{ steps.info.outputs.url }}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 67 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed. ${URL}"
+
+          # Authenticate
+          SESSION=$(curl -s -X POST https://bsky.social/xrpc/com.atproto.server.createSession \
+            -H "Content-Type: application/json" \
+            -d "{\"identifier\":\"${BLUESKY_HANDLE}\",\"password\":\"${BLUESKY_APP_PASSWORD}\"}")
+          DID=$(echo "$SESSION" | jq -r '.did')
+          TOKEN=$(echo "$SESSION" | jq -r '.accessJwt')
+
+          # Post
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+          curl -s -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"repo\": \"${DID}\",
+              \"collection\": \"app.bsky.feed.post\",
+              \"record\": {
+                \"\$type\": \"app.bsky.feed.post\",
+                \"text\": \"${TEXT}\",
+                \"createdAt\": \"${NOW}\"
+              }
+            }"
+
+      # ---------------------------------------------------------------
+      # Mastodon — set MASTODON_ACCESS_TOKEN and MASTODON_INSTANCE secrets
+      # (e.g., MASTODON_INSTANCE=dotnet.social)
+      # ---------------------------------------------------------------
+      - name: Post to Mastodon
+        if: ${{ secrets.MASTODON_ACCESS_TOKEN != '' }}
+        env:
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
+        run: |
+          TAG="${{ steps.info.outputs.tag }}"
+          URL="${{ steps.info.outputs.url }}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 67 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.
+
+          ${URL}
+
+          #dotnet #csharp #dataviz #charting #opensource"
+
+          curl -s -X POST "https://${MASTODON_INSTANCE}/api/v1/statuses" \
+            -H "Authorization: Bearer ${MASTODON_ACCESS_TOKEN}" \
+            -F "status=${TEXT}" \
+            -F "visibility=public"
+
+      # ---------------------------------------------------------------
+      # LinkedIn — set LINKEDIN_ACCESS_TOKEN and LINKEDIN_PERSON_URN secrets
+      # (e.g., LINKEDIN_PERSON_URN=urn:li:person:XXXXXXXXXX)
+      # ---------------------------------------------------------------
+      - name: Post to LinkedIn
+        if: ${{ secrets.LINKEDIN_ACCESS_TOKEN != '' }}
+        env:
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_PERSON_URN: ${{ secrets.LINKEDIN_PERSON_URN }}
+        run: |
+          TAG="${{ steps.info.outputs.tag }}"
+          URL="${{ steps.info.outputs.url }}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 67 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.\n\n${URL}"
+
+          curl -s -X POST "https://api.linkedin.com/v2/ugcPosts" \
+            -H "Authorization: Bearer ${LINKEDIN_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"author\": \"${LINKEDIN_PERSON_URN}\",
+              \"lifecycleState\": \"PUBLISHED\",
+              \"specificContent\": {
+                \"com.linkedin.ugc.ShareContent\": {
+                  \"shareCommentary\": { \"text\": \"${TEXT}\" },
+                  \"shareMediaCategory\": \"NONE\"
+                }
+              },
+              \"visibility\": { \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\" }
+            }"

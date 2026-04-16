@@ -1,0 +1,8 @@
+- name: Cookbook
+  href: cookbook/
+- name: API Reference
+  href: api/
+- name: Wiki
+  href: https://github.com/xkqg/MatPlotLibNet/wiki
+- name: GitHub
+  href: https://github.com/xkqg/MatPlotLibNet

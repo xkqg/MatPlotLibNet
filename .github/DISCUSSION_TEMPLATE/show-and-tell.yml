@@ -1,0 +1,20 @@
+title: "[Show] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Built something with MatPlotLibNet? Share it here! Screenshots, code snippets, and links are all welcome.
+  - type: textarea
+    id: description
+    attributes:
+      label: What did you build?
+      description: Describe your project or use case.
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Code or screenshots
+      description: Share the code, rendered charts, or a link to your project.
+      render: csharp
