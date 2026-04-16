@@ -27,24 +27,16 @@ jobs:
           dotnet-version: '10.0.x'
           dotnet-quality: 'preview'
 
-      - name: Install native dependencies
-        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
-
       - name: Install DocFx
         run: dotnet tool install -g docfx
 
       - name: Restore & Build
         run: |
           dotnet restore MatPlotLibNet.CI.slnf
-          dotnet restore Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj
           dotnet build MatPlotLibNet.CI.slnf --no-restore --configuration Release
 
-      - name: Publish sample runner
-        run: dotnet publish Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj -c Release -r linux-x64 --self-contained false -o sample-runner
-
-      - name: Generate sample images
-        run: ./sample-runner/MatPlotLibNet.Samples.Console
-
+      # Sample images are committed in images/ (generated locally where SkiaSharp
+      # native libraries are available). No need to regenerate on CI.
       - name: Copy images to docs
         run: cp -r images docs/images
 
