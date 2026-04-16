@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.3.0] — 2026-04-16
 
-**Cross-platform native UI controls, full interaction polish, 3-D round 2, MathText completion.** Two new NuGet packages (`MatPlotLibNet.Avalonia`, `MatPlotLibNet.Uno`) let desktop .NET developers render and interact with charts natively — no browser, no WebView, no SignalR. The managed interaction layer in core gained full legend-toggle activation, rubber-band selection visuals, hover tooltips with nearest-point lookup, and a server-mode SignalR adapter. Six new 3-D series types (Line3D, Trisurf, Contour3D, Quiver3D, Voxels, Text3D) and a substantially expanded MathText parser round out the release. **3 842 tests green** across 9 test projects.
+**Cross-platform native UI controls, full interaction polish, 3-D round 2, MathText completion.** Two new NuGet packages (`MatPlotLibNet.Avalonia`, `MatPlotLibNet.Uno`) let desktop .NET developers render and interact with charts natively — no browser, no WebView, no SignalR. The managed interaction layer in core gained full legend-toggle activation, rubber-band selection visuals, hover tooltips with nearest-point lookup, and a server-mode SignalR adapter. Six new 3-D series types (Line3D, Trisurf, Contour3D, Quiver3D, Voxels, Text3D) and a substantially expanded MathText parser round out the release. **4 028 tests green** across 11 test projects.
 
 ### Added — Native controls + interaction layer
 

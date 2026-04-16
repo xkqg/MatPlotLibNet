@@ -60,23 +60,20 @@ jobs:
       - name: Build MAUI
         run: dotnet build Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --configuration Release
 
-      - name: Build Uno
-        run: dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --configuration Release
+      # Uno Platform requires the Uno SDK (source generators for SKCanvasElement).
+      # No dotnet workload exists for Uno — it installs via VS extension or Uno.Templates.
+      # Build and pack the Uno package locally where the SDK is installed, then push manually.
+      # TODO: add Uno CI support when Uno ships a dotnet workload or the Uno.Sdk becomes
+      #       available via NuGet restore alone.
 
       - name: Test MAUI
         run: dotnet run --project Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj --no-build --configuration Release
-
-      - name: Test Uno
-        run: dotnet run --project Tst/MatPlotLibNet.Uno/MatPlotLibNet.Uno.Tests.csproj --no-build --configuration Release
 
       - name: Pack Skia
         run: dotnet pack Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj --no-build --configuration Release --output nupkgs
 
       - name: Pack MAUI
         run: dotnet pack Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --no-build --configuration Release --output nupkgs
-
-      - name: Pack Uno
-        run: dotnet pack Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-build --configuration Release --output nupkgs
 
       - name: Push to NuGet
         run: |

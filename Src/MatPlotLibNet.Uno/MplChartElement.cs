@@ -72,7 +72,7 @@ public sealed class MplChartElement : SKCanvasElement
     }
 
     /// <inheritdoc />
-    protected override void RenderOverride(SKCanvas canvas, Size area)
+    protected override void RenderOverride(SKCanvas canvas, Windows.Foundation.Size area)
     {
         var figure = Figure;
         if (figure is null) return;

@@ -42,7 +42,7 @@ public sealed class MplChartControl : Control
     /// <summary>
     /// Gets or sets whether local pan / zoom / reset interaction is enabled.
     /// When <c>true</c> the control captures pointer and keyboard events and mutates
-    /// the figure's axis limits directly, then calls <see cref="Control.InvalidateVisual"/>.
+    /// the figure's axis limits directly, then calls <c>InvalidateVisual</c>.
     /// </summary>
     public bool IsInteractive
     {

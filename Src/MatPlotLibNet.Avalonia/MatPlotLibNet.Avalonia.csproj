@@ -11,6 +11,9 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <!-- NU5104: Avalonia 12 requires SkiaSharp 3.x which is still in preview — suppress
+         "stable release should not have a prerelease dependency" until SkiaSharp 3 goes GA. -->
+    <NoWarn>$(NoWarn);NU5104</NoWarn>
   </PropertyGroup>
 
   <!-- Avalonia 12 — Skia backend is the default on all platforms.
