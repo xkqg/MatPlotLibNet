@@ -39,8 +39,11 @@ jobs:
           dotnet restore Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj
           dotnet build MatPlotLibNet.CI.slnf --no-restore --configuration Release
 
+      - name: Publish sample runner
+        run: dotnet publish Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj -c Release -r linux-x64 --self-contained false -o sample-runner
+
       - name: Generate sample images
-        run: dotnet run --project Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj --configuration Release
+        run: ./sample-runner/MatPlotLibNet.Samples.Console
 
       - name: Copy images to docs
         run: cp -r images docs/images
