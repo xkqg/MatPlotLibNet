@@ -642,6 +642,189 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     Console.WriteLine("Saved threed_planar_bars_x0_highlight.svg");
 }
 
+// =====================================================================
+// v1.3.0 — 6 new 3-D series + MathText completion
+// =====================================================================
+
+// 22. Line3D — helix polyline
+{
+    double[] t = Enumerable.Range(0, 200).Select(i => i * 0.1).ToArray();
+    double[] lx = t.Select(v => Math.Cos(v)).ToArray();
+    double[] ly = t.Select(v => Math.Sin(v)).ToArray();
+    double[] lz = t.Select(v => v * 0.15).ToArray();
+
+    Plt.Create()
+        .WithTitle("Line3D — Helix")
+        .WithSize(700, 600)
+        .With3DRotation()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot3D(lx, ly, lz, s => { s.Color = Colors.Tab10Blue; s.LineWidth = 1.5; })
+            .SetXLabel("X").SetYLabel("Y").SetZLabel("Z")
+            .WithCamera(elevation: 25, azimuth: -60))
+        .SaveSvgAndPng(SamplesPath("threed_line3d_helix.svg"));
+    Console.WriteLine("Saved threed_line3d_helix.svg");
+}
+
+// 23. Trisurf3D — Delaunay triangulated surface from scattered points
+{
+    var trng = new Random(42);
+    int np = 200;
+    double[] tx = Enumerable.Range(0, np).Select(_ => trng.NextDouble() * 4 - 2).ToArray();
+    double[] ty = Enumerable.Range(0, np).Select(_ => trng.NextDouble() * 4 - 2).ToArray();
+    double[] tz = tx.Zip(ty, (xi, yi) => Math.Sin(xi * xi + yi * yi)).ToArray();
+
+    Plt.Create()
+        .WithTitle("Trisurf3D — Delaunay triangulated surface")
+        .WithSize(700, 600)
+        .With3DRotation()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Trisurf(tx, ty, tz, s =>
+            {
+                s.ColorMap = ColorMaps.Viridis;
+                s.Alpha = 0.9;
+                s.ShowWireframe = true;
+            })
+            .SetXLabel("X").SetYLabel("Y").SetZLabel("Z")
+            .WithCamera(elevation: 30, azimuth: -45))
+        .SaveSvgAndPng(SamplesPath("threed_trisurf.svg"));
+    Console.WriteLine("Saved threed_trisurf.svg");
+}
+
+// 24. Contour3D — marching-squares contour lines in 3-D
+{
+    int cn = 30;
+    double[] ccx = Enumerable.Range(0, cn).Select(i => -3.0 + 6.0 * i / (cn - 1)).ToArray();
+    double[] ccy = Enumerable.Range(0, cn).Select(i => -3.0 + 6.0 * i / (cn - 1)).ToArray();
+    var ccz = new double[cn, cn];
+    for (int i = 0; i < cn; i++)
+        for (int j = 0; j < cn; j++)
+        {
+            double r = Math.Sqrt(ccx[i] * ccx[i] + ccy[j] * ccy[j]);
+            ccz[i, j] = r < 1e-10 ? 1.0 : Math.Sin(r) / r;
+        }
+
+    Plt.Create()
+        .WithTitle("Contour3D — sinc(r) contour lines")
+        .WithSize(700, 600)
+        .With3DRotation()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Contour3D(ccx, ccy, ccz, s =>
+            {
+                s.Levels = 12;
+                s.ColorMap = ColorMaps.Coolwarm;
+                s.LineWidth = 1.5;
+            })
+            .SetXLabel("X").SetYLabel("Y").SetZLabel("Z")
+            .WithCamera(elevation: 35, azimuth: -55))
+        .SaveSvgAndPng(SamplesPath("threed_contour3d.svg"));
+    Console.WriteLine("Saved threed_contour3d.svg");
+}
+
+// 25. Quiver3D — 3-D vector field
+{
+    var qpts = new List<(double x, double y, double z, double u, double v, double w)>();
+    for (int i = -1; i <= 1; i++)
+        for (int j = -1; j <= 1; j++)
+            for (int k = -1; k <= 1; k++)
+                qpts.Add((i, j, k, -i * 0.3, -j * 0.3, k * 0.5));
+
+    Plt.Create()
+        .WithTitle("Quiver3D — 3-D vector field")
+        .WithSize(700, 600)
+        .With3DRotation()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Quiver3D(
+                qpts.Select(p => p.x).ToArray(),
+                qpts.Select(p => p.y).ToArray(),
+                qpts.Select(p => p.z).ToArray(),
+                qpts.Select(p => p.u).ToArray(),
+                qpts.Select(p => p.v).ToArray(),
+                qpts.Select(p => p.w).ToArray(),
+                s => { s.Color = Colors.Red; s.ArrowLength = 0.25; })
+            .SetXLabel("X").SetYLabel("Y").SetZLabel("Z")
+            .WithCamera(elevation: 25, azimuth: -60))
+        .SaveSvgAndPng(SamplesPath("threed_quiver3d.svg"));
+    Console.WriteLine("Saved threed_quiver3d.svg");
+}
+
+// 26. Voxels — volumetric cubes with face culling
+{
+    int vs = 6;
+    var filled = new bool[vs, vs, vs];
+    // Create an L-shaped structure
+    for (int i = 0; i < vs; i++)
+        for (int j = 0; j < vs; j++)
+        {
+            filled[i, j, 0] = true;       // base layer
+            if (i < 2) filled[i, j, 1] = true;  // short wall along x=0..1
+        }
+    // Add a pillar
+    for (int k = 0; k < vs; k++)
+        filled[0, 0, k] = true;
+
+    Plt.Create()
+        .WithTitle("Voxels — face-culled cubes")
+        .WithSize(700, 600)
+        .With3DRotation()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Voxels(filled, s => { s.Color = Colors.Orange; s.Alpha = 0.85; })
+            .SetXLabel("X").SetYLabel("Y").SetZLabel("Z")
+            .WithCamera(elevation: 30, azimuth: -50))
+        .SaveSvgAndPng(SamplesPath("threed_voxels.svg"));
+    Console.WriteLine("Saved threed_voxels.svg");
+}
+
+// 27. Text3D — 3-D annotations on a surface
+{
+    int tn = 20;
+    double[] tsx = Enumerable.Range(0, tn).Select(i => -2.0 + 4.0 * i / (tn - 1)).ToArray();
+    double[] tsy = Enumerable.Range(0, tn).Select(i => -2.0 + 4.0 * i / (tn - 1)).ToArray();
+    double[,] tsz = new double[tn, tn];
+    for (int i = 0; i < tn; i++)
+        for (int j = 0; j < tn; j++)
+            tsz[i, j] = Math.Cos(tsx[i]) * Math.Sin(tsy[j]);
+
+    Plt.Create()
+        .WithTitle("Text3D — annotations on a surface")
+        .WithSize(800, 600)
+        .With3DRotation()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Surface(tsx, tsy, tsz, s => { s.ColorMap = ColorMaps.Plasma; s.Alpha = 0.7; })
+            .Text3D(0, 0, 1.0, "Peak", s => { s.Color = Colors.Red; s.FontSize = 14; })
+            .Text3D(-2, -2, -0.5, "Valley", s => { s.Color = Colors.Blue; s.FontSize = 12; })
+            .SetXLabel("X").SetYLabel("Y").SetZLabel("Z")
+            .WithCamera(elevation: 35, azimuth: -55))
+        .SaveSvgAndPng(SamplesPath("threed_text3d.svg"));
+    Console.WriteLine("Saved threed_text3d.svg");
+}
+
+// 28. MathText — v1.3.0 features: fractions, sqrt, accents, font variants
+{
+    double[] mx = Enumerable.Range(0, 100).Select(i => i * 0.1).ToArray();
+    double[] my1 = mx.Select(v => Math.Sin(v) * Math.Exp(-v / 10)).ToArray();
+    double[] my2 = mx.Select(v => Math.Cos(v) * Math.Exp(-v / 10)).ToArray();
+
+    Plt.Create()
+        .WithTitle(@"MathText — $\frac{d}{dx}\sqrt{x^2+1}$ and $\hat{\alpha} \cdot \vec{F}$")
+        .WithSize(1000, 500)
+        .AddSubPlot(1, 2, 1, ax => ax
+            .WithTitle(@"$\mathbf{y} = \frac{\mathrm{sin}(x)}{e^{x/10}}$")
+            .SetXLabel(@"$\Delta t$ (s)")
+            .SetYLabel(@"$\hat{y}$ (normalised)")
+            .Plot(mx, my1, s => { s.Color = Colors.Tab10Blue; s.Label = @"$\mathrm{sin}$"; })
+            .Plot(mx, my2, s => { s.Color = Colors.Orange; s.Label = @"$\mathrm{cos}$"; })
+            .WithLegend(LegendPosition.UpperRight))
+        .AddSubPlot(1, 2, 2, ax => ax
+            .WithTitle(@"$\sqrt{x^2 + y^2} \leq \mathbb{R}$")
+            .SetXLabel(@"$x \in \mathbb{R}$")
+            .SetYLabel(@"$\bar{y} \pm \sigma$")
+            .Plot(mx, my1, s => { s.Color = Colors.Green; s.Label = @"$\vec{v}$"; })
+            .WithLegend(LegendPosition.UpperRight))
+        .TightLayout()
+        .SaveSvgAndPng(SamplesPath("math_text_v130.svg"));
+    Console.WriteLine("Saved math_text_v130.svg");
+}
+
 // 7. Nested pie — inner disc of departments + outer ring of product breakdown.
 // Uses the new AxesBuilder.NestedPie() wrapper (thin alias for Sunburst with InnerRadius=0).
 {
