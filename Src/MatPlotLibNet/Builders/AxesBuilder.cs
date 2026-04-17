@@ -142,6 +142,10 @@ public sealed class AxesBuilder
     /// <summary>Configures the spine (border line) display for this axes.</summary>
     public AxesBuilder WithSpines(Func<SpinesConfig, SpinesConfig> configure) { _axes.Spines = configure(_axes.Spines); return this; }
 
+    /// <summary>Configures the 3D axes pane colors (floor, left wall, right wall).
+    /// Set <c>Visible = false</c> to hide all panes for a transparent 3D background.</summary>
+    public AxesBuilder WithPane3D(Func<Pane3DConfig, Pane3DConfig> configure) { _axes.Pane3D = configure(_axes.Pane3D); return this; }
+
     /// <summary>Hides the top spine.</summary>
     public AxesBuilder HideTopSpine() { _axes.Spines = _axes.Spines with { Top = _axes.Spines.Top with { Visible = false } }; return this; }
 

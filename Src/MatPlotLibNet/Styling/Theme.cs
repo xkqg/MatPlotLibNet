@@ -67,6 +67,11 @@ public sealed class Theme
     /// </summary>
     public double AxisYMargin { get; init; } = 0.05;
 
+    /// <summary>Default background color for 3D axes panes (floor, left wall, right wall).
+    /// When <c>null</c>, the renderer uses <c>#F5F5F5</c>. Override in custom themes for
+    /// dark-mode 3D charts.</summary>
+    public Color? Pane3DColor { get; init; }
+
     /// <summary>Initializes a new <see cref="Theme"/> with all visual properties.</summary>
     internal Theme(string name, Color background, Color foregroundText, Color axesBackground,
         Color[] cycleColors, Font defaultFont, GridStyle defaultGrid, PropCycler? propCycler = null,

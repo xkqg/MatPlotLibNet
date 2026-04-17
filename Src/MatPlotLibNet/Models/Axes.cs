@@ -53,6 +53,9 @@ public sealed class Axes
 
     public Projection3D? Projection { get; set; }
 
+    /// <summary>Configuration for the three back-facing cube panes (floor, left wall, right wall) in 3D plots.</summary>
+    public Pane3DConfig Pane3D { get; set; } = new();
+
     /// <summary>Camera elevation above the XY plane in degrees. Default is 30.</summary>
     public double Elevation { get; set; } = 30;
 

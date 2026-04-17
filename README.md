@@ -8,18 +8,13 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.4.1 — Interactive Polish.** Closes the interactivity gap with matplotlib:
+> **v1.5.0 — 3-D Enhancements.** Three polish items completing the 3D pipeline:
 >
-> 1. **Native 3D rotation** — right-drag on 3D axes rotates the camera. Arrow keys ±5°. Home resets. Works on Avalonia, Uno, MAUI — no browser needed.
-> 2. **Rectangle zoom** — Ctrl+drag draws a zoom box, release zooms to rectangle.
-> 3. **Crosshair cursor** — vertical + horizontal lines at mouse position, snapped to data coordinates.
-> 4. **Span selector** — Alt+drag selects a horizontal X-range, fires notification event.
-> 5. **View history** — back/forward through zoom/pan history (50-entry stack per axes).
-> 6. **Data cursor** — click near a data point to pin an annotation callout.
-> 7. **Toolbar state model** — `InteractionToolbar` with Pan/Zoom/Rotate3D/Home/DataCursor buttons. Platform-agnostic.
-> 8. **Axis polish** — `.WithYTicksMirrored()` draws Y ticks on both sides. `.WithTightMargins()` removes data padding.
+> 1. **Pane3D styling** — configurable colors for floor, left wall, and right wall via `Pane3DConfig`. Builder: `.WithPane3D(p => p with { FloorColor = Colors.Black })`. Theme-level `Pane3DColor` for dark-mode 3D.
+> 2. **3D colorbar** — Surface, Scatter3D, and other colormapped 3D series now render a gradient legend strip with `.WithColorBar()`.
+> 3. **JS depth re-sort** — interactive SVG rotation re-sorts polygon DOM order for correct occlusion at all angles. No more face-crossing artifacts when rotating beyond 180°.
 >
-> **4 234 tests green** across 11 test projects. 9 interaction modifiers (was 6).
+> **4 246 tests green** across 11 test projects.
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 
@@ -98,7 +93,7 @@ Plt.Create()
 
 **MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
 
-**3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). Full `Projection3D` pipeline, `DepthQueue3D` painter's algorithm, `LightingHelper` shading, and `Svg3DRotationScript` client-side rotation.
+**3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). Full `Projection3D` pipeline, `DepthQueue3D` painter's algorithm, `LightingHelper` shading, `Svg3DRotationScript` client-side rotation with depth re-sorting, configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
 
 **Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries`, `StreamingCandlestickSeries` backed by `DoubleRingBuffer` with `AppendPoint(x, y)`. `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 11 streaming indicators (SMA, EMA, RSI, Bollinger, MACD, OBV, ATR, Stochastic, WilliamsR, CCI, VWAP) auto-attach to candlestick data. Streaming controls for Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. SVG diff engine for bandwidth optimization. Rx `IObservable<T>` adapter.
 

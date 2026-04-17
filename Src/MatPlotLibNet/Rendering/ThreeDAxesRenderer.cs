@@ -163,6 +163,9 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         // Legend
         RenderLegend();
 
+        // ColorBar (v1.5.0 — was previously skipped for 3D axes)
+        RenderColorBar();
+
         // Title
         RenderTitle();
     }
@@ -181,25 +184,31 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
     private void Render3DPanes(Projection3D proj,
         double x0, double x1, double y0, double y1, double z0, double z1)
     {
-        var paneColor = Color.FromHex("#F5F5F5");
+        var pane = Axes.Pane3D;
+        if (!pane.Visible) return;
+
+        var defaultColor = Theme.Pane3DColor ?? Color.FromHex("#F5F5F5");
+        var floorColor = pane.FloorColor ?? defaultColor;
+        var leftColor = pane.LeftWallColor ?? defaultColor;
+        var rightColor = pane.RightWallColor ?? defaultColor;
 
         // Bottom floor: z = z0, winding in XY plane.
         Ctx.DrawPolygon(
             [proj.Project(x0, y0, z0), proj.Project(x1, y0, z0),
              proj.Project(x1, y1, z0), proj.Project(x0, y1, z0)],
-            paneColor, null, 0);
+            floorColor, null, 0);
 
         // Back-left wall: x = x0, winding in YZ plane.
         Ctx.DrawPolygon(
             [proj.Project(x0, y0, z0), proj.Project(x0, y1, z0),
              proj.Project(x0, y1, z1), proj.Project(x0, y0, z1)],
-            paneColor, null, 0);
+            leftColor, null, 0);
 
         // Back-right wall: y = y1, winding in XZ plane.
         Ctx.DrawPolygon(
             [proj.Project(x0, y1, z0), proj.Project(x1, y1, z0),
              proj.Project(x1, y1, z1), proj.Project(x0, y1, z1)],
-            paneColor, null, 0);
+            rightColor, null, 0);
     }
 
     /// <summary>

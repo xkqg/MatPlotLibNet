@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.0] — 2026-04-17
+
+**3-D Enhancements.** Three polish items for the 3D charting pipeline: configurable pane colors, 3D colorbar support, and correct depth sorting during interactive SVG rotation. **4 246 tests green** across 11 test projects.
+
+### Added
+
+- **`Pane3DConfig`** — `sealed record` configuring the three back-facing cube panes (floor, left wall, right wall). Properties: `FloorColor`, `LeftWallColor`, `RightWallColor`, `Alpha` (default 0.8), `Visible` (default true). Axes property: `Axes.Pane3D`. Builder: `.WithPane3D(p => p with { FloorColor = Colors.Black })`.
+- **`Theme.Pane3DColor`** — theme-level default pane color. Override for dark-mode 3D charts.
+- **3D colorbar** — `ThreeDAxesRenderer` now calls `RenderColorBar()` after rendering 3D series. Surface, Scatter3D, and other colormapped 3D series with `.WithColorBar()` display a gradient legend strip.
+- **JS depth re-sort on rotation** — `Svg3DRotationScript` now includes `resortDepth()` and `avgViewZ()` functions. After each interactive rotation (mouse drag or arrow keys), polygon DOM elements are re-sorted by view-space depth for correct painter's algorithm occlusion at all angles.
+
 ## [1.4.1] — 2026-04-17
 
 **Interactive Polish.** Closes the interactivity gap with matplotlib: native 3D rotation, rectangle zoom, crosshair cursor, span selector, view history, data cursor, toolbar state model, tick mirroring, and tight margins. **4 234 tests green** across 11 test projects.

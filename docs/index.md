@@ -24,8 +24,8 @@ Plt.Create()
 | Section | Description |
 |---|---|
 | [Playground](https://xkqg.github.io/MatPlotLibNet/playground/) | Try charts live in the browser — pick an example, tweak, see the SVG update |
-| [Cookbook](cookbook/) | Code examples with rendered images — copy, paste, chart |
-| [API Reference](api/) | Full API documentation generated from XML doc comments |
+| [Cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/) | Code examples with rendered images — copy, paste, chart |
+| [API Reference](https://xkqg.github.io/MatPlotLibNet/api/) | Full API documentation generated from XML doc comments |
 | [Wiki](https://github.com/xkqg/MatPlotLibNet/wiki) | Guides, tutorials, and architecture documentation |
 | [NuGet](https://www.nuget.org/packages/MatPlotLibNet) | Install via `dotnet add package MatPlotLibNet` |
 
