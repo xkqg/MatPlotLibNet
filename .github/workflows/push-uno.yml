@@ -1,0 +1,31 @@
+name: Push Uno NuGet Package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install Uno templates
+        run: dotnet new install Uno.Templates
+
+      - name: Restore
+        run: dotnet restore Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj
+
+      - name: Build
+        run: dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-restore -c Release
+
+      - name: Pack
+        run: dotnet pack Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-build -c Release -o nupkgs
+
+      - name: Push to NuGet
+        run: dotnet nuget push "nupkgs/MatPlotLibNet.Uno.*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
