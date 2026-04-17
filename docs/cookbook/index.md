@@ -22,4 +22,14 @@ Code examples with rendered output. Every example uses the fluent `Plt.Create()`
 | [Styling & Themes](styling.md) | PropCycler, matplotlib themes, custom themes |
 | [Annotations](annotations.md) | Arrows, rotated text, backgrounds |
 | [Streaming & Realtime](streaming.md) | Live data append, ring buffers, streaming indicators, axis scaling |
+| [Pie & Donut](pie-donut.md) | Pie chart, donut chart, nested pie (sunburst) |
+| [Distribution](distribution.md) | Histogram, box plot, violin plot, KDE |
+| [Polar Charts](polar.md) | Polar line, radar chart, polar bar |
+| [Error Bars](error-bars.md) | Symmetric and asymmetric error bars |
+| [Broken Axes](broken-axes.md) | Discontinuous axes with zigzag/straight break markers |
+| [Symlog Axis](symlog.md) | Symmetric logarithmic scale for positive + negative data |
+| [Geographic Maps](geographic.md) | World maps, globe view, 13 projections, coastlines, borders |
+| [Themes](themes.md) | 26 built-in themes: Nord, Dracula, Cyberpunk, Monokai, and more |
+| [Interactive SVG](interactive-svg.md) | Browser pan/zoom/tooltips/legend toggle with zero .NET code |
+| [Animation](animation.md) | FuncAnimation GIF, multi-page PDF, individual frame export |
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators |

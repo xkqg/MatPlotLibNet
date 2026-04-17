@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.7.0] — 2026-04-17
+
+**MathText Extended + Geographic Parity + Themes + WPF + Browser Interactivity.** MathText operator limits (`\int_a^b`, `\sum`, matrices), 13 map projections with embedded Natural Earth data, 26 theme presets, WPF control (13th NuGet), browser-interactive SVG, and 3D origin tick fix. **4 276 tests green** across 13 NuGet packages.
+
+### Added
+
+- **MathText operator limits** — `\int_a^b`, `\sum_{i=0}^n`, `\prod`, `\lim` with limits positioned above/below. New `TextSpanKind.LargeOperator/OperatorSubscript/OperatorSuperscript`. `\iint`, `\iiint`, `\oint` symbols. Text operators: `\lim`, `\max`, `\min`, `\log`, `\sin`, `\cos`, `\tan`.
+- **Matrix environments** — `\begin{pmatrix} a & b \\ c & d \end{pmatrix}` with 4 styles (matrix, pmatrix, bmatrix, vmatrix).
+- **Natural Earth 110m embedded** — coastlines (140KB), countries (839KB), lakes (37KB) in `MatPlotLibNet.Geo`.
+- **8 new projections** (→13 total) — Mollweide, Sinusoidal, AlbersEqualArea, AzimuthalEquidistant, Stereographic, TransverseMercator, NaturalEarth, EqualEarth.
+- **Edge handling** — `GeoClipping`: dateline splitting, NaN filtering, boundary clipping.
+- **16 new themes** (→26 total) — Cyberpunk, Nord, Dracula, Monokai, Catppuccin, Gruvbox, OneDark, GitHub, Solarize, Grayscale, Paper, Presentation, Poster, Minimal, Retro, Neon.
+- **`MatPlotLibNet.Wpf`** — 13th NuGet. Native WPF chart control via SkiaSharp with all 9 interaction modifiers.
+- **Browser-interactive SVG** — `.WithBrowserInteraction()` embeds pan/zoom/tooltip/legend-toggle JS. No .NET runtime on client.
+- **10 new cookbook pages** (→25 total) — geographic, themes, interactive SVG, pie/donut, distribution, polar, error bars, broken axes, animation, symlog.
+- **v1.7.0 benchmarks** — RingBuffer 40M/sec, MathText 473K/sec, SVG 1.12ms, 13 projections 6-83M/sec.
+
+### Fixed
+
+- **3D origin tick missing** — `_rawZMin` cached before `ComputeDataRange` fold; z=0 tick filtered out on bar charts. Fixed by moving cache after contributions.
+
 ## [1.6.0] — 2026-04-17
 
 **Polish + Geographic Projections.** Multi-page PDF, declarative animation API, data-aware crosshair, symlog axis scale, and a new `MatPlotLibNet.Geo` package (12th NuGet) with 5 map projections and Natural Earth data support. **4 246 tests green** across 11 test projects.

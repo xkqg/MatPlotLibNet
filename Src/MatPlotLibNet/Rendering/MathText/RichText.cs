@@ -26,6 +26,31 @@ public enum TextSpanKind
 
     /// <summary>An accent (hat, bar, tilde, dot, vec) drawn above the preceding character.</summary>
     Accent,
+
+    /// <summary>A large operator symbol (∫, Σ, Π, lim) rendered at increased size.</summary>
+    LargeOperator,
+
+    /// <summary>Lower limit positioned centered below the preceding large operator.</summary>
+    OperatorSubscript,
+
+    /// <summary>Upper limit positioned centered above the preceding large operator.</summary>
+    OperatorSuperscript,
+
+    /// <summary>Marks the start of a matrix environment. <see cref="TextSpan.Text"/> holds the delimiter
+    /// style: "matrix" (none), "pmatrix" (parentheses), "bmatrix" (brackets), "vmatrix" (bars).</summary>
+    MatrixStart,
+
+    /// <summary>A single cell in a matrix row. Cells are separated by MatrixCellSeparator.</summary>
+    MatrixCell,
+
+    /// <summary>Separator between matrix cells (the &amp; column separator).</summary>
+    MatrixCellSeparator,
+
+    /// <summary>Row separator in a matrix (the \\\\ row break).</summary>
+    MatrixRowSeparator,
+
+    /// <summary>Marks the end of a matrix environment.</summary>
+    MatrixEnd,
 }
 
 /// <summary>Font variant for mixed-font math mode (<c>\mathrm</c>, <c>\mathbf</c>, etc.).</summary>

@@ -8,15 +8,16 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.6.0 — Polish + Geographic Projections.** Five features completing the matplotlib parity story:
+> **v1.7.0 — MathText + Geographic Parity + Themes + WPF + Browser Interactivity.**
 >
-> 1. **MatPlotLibNet.Geo** — 12th NuGet package with 5 map projections (PlateCarree, Mercator, Robinson, Orthographic, LambertConformal), GeoJSON parser, Natural Earth 110m data, and cartopy-like API: `.WithProjection(Robinson).Coastlines().Borders()`.
-> 2. **Multi-page PDF** — `PdfTransform.TransformMultiPage(figures, "report.pdf")` renders multiple figures as pages.
-> 3. **FuncAnimation** — declarative animation: `new FuncAnimation(60, i => BuildFrame(i)).Save("wave.gif")`.
-> 4. **Symlog axis** — symmetric logarithmic scale: `.WithSymlogYScale(linthresh: 1.0)`. Linear near zero, logarithmic outside.
-> 5. **Data-aware crosshair** — crosshair snaps to nearest data point with value callout.
+> 1. **MathText extended** — `\int_a^b`, `\sum_{i=0}^n`, `\lim`, `\begin{pmatrix}` matrices. Operator limits positioned above/below.
+> 2. **Geographic parity** — 13 map projections (Mollweide, Sinusoidal, Albers, +8 more), Natural Earth 110m embedded (coastlines, countries, lakes), edge handling (dateline, NaN, clipping).
+> 3. **26 themes** — Nord, Dracula, Cyberpunk, Monokai, Catppuccin, Gruvbox, OneDark, GitHub, and 18 more.
+> 4. **MatPlotLibNet.Wpf** — 13th NuGet. Native WPF chart control with all 9 interaction modifiers.
+> 5. **Browser-interactive SVG** — `.WithBrowserInteraction()` embeds pan/zoom/tooltip/legend JS. Zero .NET on client.
+> 6. **25 cookbook pages** — geographic maps, themes, interactive SVG, pie/donut, distribution, polar, error bars, broken axes, animation, symlog.
 >
-> **4 246 tests green** across 11 test projects. **12 NuGet packages.**
+> **4 276 tests green** across 13 NuGet packages.
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 
@@ -36,7 +37,8 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 | **MatPlotLibNet.Maui** | `dotnet add package MatPlotLibNet.Maui` | Native `MplChartView` via Microsoft.Maui.Graphics |
 | **MatPlotLibNet.Avalonia** | `dotnet add package MatPlotLibNet.Avalonia` | Native `MplChartControl` for Avalonia 12 — Skia backend, optional local interaction |
 | **MatPlotLibNet.Uno** | `dotnet add package MatPlotLibNet.Uno` | Native `MplChartElement` for Uno Platform (WinUI 3 / Android / iOS / macCatalyst) |
-| **MatPlotLibNet.Geo** | `dotnet add package MatPlotLibNet.Geo` | Geographic projections (Mercator, Robinson, etc.), GeoJSON, Natural Earth data, choropleth |
+| **MatPlotLibNet.Wpf** | `dotnet add package MatPlotLibNet.Wpf` | Native WPF `MplChartControl` via SkiaSharp — all 9 interaction modifiers |
+| **MatPlotLibNet.Geo** | `dotnet add package MatPlotLibNet.Geo` | 13 map projections, GeoJSON parser, Natural Earth 110m data, geographic polygons |
 | **MatPlotLibNet.Notebooks** | `#r "nuget: MatPlotLibNet.Notebooks"` | Inline SVG in Polyglot / Jupyter notebooks |
 | **@matplotlibnet/angular** | `npm install @matplotlibnet/angular` | Angular components + TypeScript SignalR client |
 | **@matplotlibnet/react** | `npm install @matplotlibnet/react` | React hooks + components + TypeScript SignalR client |
@@ -53,7 +55,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 - [API Reference](https://xkqg.github.io/MatPlotLibNet/api/) — full API documentation from source
 - [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started) — installation, output formats, subplots
 - [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet) — one-page reference for `Plt` / `FigureBuilder` / `AxesBuilder`
-- [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all 12 NuGet + 3 npm packages in detail
+- [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all 13 NuGet + 3 npm packages in detail
 - [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 74 series with code examples
 - [Streaming & Realtime](https://github.com/xkqg/MatPlotLibNet/wiki/Streaming) — ring buffers, StreamingFigure, axis scaling, 11 streaming indicators, platform controls
 - [Interactive Controls](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) — Avalonia + Uno native controls, managed interaction layer

@@ -3,37 +3,39 @@
 
 namespace MatPlotLibNet.Rendering.Svg;
 
-/// <summary>Provides the embedded JavaScript for SVG legend-toggle interactivity.</summary>
+/// <summary>Embedded JavaScript for click-to-toggle legend items in SVG output.
+/// Includes ARIA attributes (role="button", aria-pressed, tabindex) for accessibility.
+/// Also supports keyboard activation (Enter/Space) per WCAG 2.1.</summary>
 internal static class SvgLegendToggleScript
 {
-    /// <summary>
-    /// Returns a <c>&lt;script&gt;</c> block that makes clicking (or keyboard-activating) a legend entry toggle
-    /// the corresponding series group's visibility. Legend entries carry <c>data-legend-index</c>
-    /// and series groups carry <c>data-series-index</c>.
-    /// Keyboard: <kbd>Enter</kbd> or <kbd>Space</kbd> on a focused legend entry triggers toggle.
-    /// ARIA: each entry receives <c>role="button"</c>, <c>tabindex="0"</c>, and <c>aria-pressed</c>.
-    /// </summary>
     internal static string GetScript() => """
         <script type="text/ecmascript"><![CDATA[
         (function() {
-            document.querySelectorAll('[data-legend-index]').forEach(function(entry) {
-                entry.setAttribute('tabindex', '0');
-                entry.setAttribute('role', 'button');
-                entry.setAttribute('aria-pressed', 'false');
+            'use strict';
+            var svg = document.querySelector('svg');
+            if (!svg) return;
+            var legendItems = svg.querySelectorAll('[data-legend-index]');
+            legendItems.forEach(function(item) {
+                item.style.cursor = 'pointer';
+                item.setAttribute('tabindex', '0');
+                item.setAttribute('role', 'button');
+                item.setAttribute('aria-pressed', 'false');
 
                 function toggle() {
-                    var idx = entry.getAttribute('data-legend-index');
-                    var seriesGroup = document.querySelector('[data-series-index="' + idx + '"]');
-                    if (!seriesGroup) return;
-                    var hidden = seriesGroup.style.display === 'none';
-                    seriesGroup.style.display = hidden ? '' : 'none';
-                    entry.style.opacity = hidden ? '1' : '0.4';
-                    entry.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+                    var idx = item.getAttribute('data-legend-index');
+                    var series = svg.querySelectorAll('[data-series-index="' + idx + '"]');
+                    var hidden = false;
+                    series.forEach(function(s) {
+                        hidden = s.style.display === 'none';
+                        s.style.display = hidden ? '' : 'none';
+                    });
+                    item.style.opacity = hidden ? '1' : '0.3';
+                    item.setAttribute('aria-pressed', hidden ? 'false' : 'true');
                 }
 
-                entry.addEventListener('click', toggle);
-                entry.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+                item.addEventListener('click', toggle);
+                item.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') { toggle(); e.preventDefault(); }
                 });
             });
         })();

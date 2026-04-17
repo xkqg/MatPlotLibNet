@@ -472,6 +472,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
         .WithSize(700, 600)
         .AddSubPlot(1, 1, 1, ax => ax
             .WithCamera(elevation: 25, azimuth: -70)
+            .SetXLabel("X").SetYLabel("Y").SetZLabel("Z")
             .Scatter3D(xs, ys, zs, s =>
             {
                 s.Color = Colors.CornflowerBlue;

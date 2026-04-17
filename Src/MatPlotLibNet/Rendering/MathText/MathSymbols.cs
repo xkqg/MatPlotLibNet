@@ -28,6 +28,9 @@ public static class MathSymbols
         ["sum"]     = "\u2211", // Σ (display)
         ["prod"]    = "\u220F", // Π (display)
         ["int"]     = "\u222B", // ∫
+        ["iint"]    = "\u222C", // ∬
+        ["iiint"]   = "\u222D", // ∭
+        ["oint"]    = "\u222E", // ∮
         ["partial"] = "\u2202", // ∂
         ["nabla"]   = "\u2207", // ∇
         ["forall"]  = "\u2200", // ∀

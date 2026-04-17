@@ -271,6 +271,41 @@ public sealed class Theme
     /// </summary>
     public static Theme MatplotlibV2 { get; } = Themes.MatplotlibThemeFactory.CreateV2();
 
+    // ── v1.7.0 theme presets (21 new) ──
+
+    /// <summary>Solarized palette — cream background with blue/orange tones.</summary>
+    public static Theme Solarize { get; } = ThemePresets.CommunityThemes.Solarize();
+    /// <summary>Grayscale only — print-friendly, no color.</summary>
+    public static Theme Grayscale { get; } = ThemePresets.CommunityThemes.Grayscale();
+    /// <summary>Academic paper — minimal, clean, thin lines.</summary>
+    public static Theme Paper { get; } = ThemePresets.CommunityThemes.Paper();
+    /// <summary>Presentation/slides — large fonts, bold colors.</summary>
+    public static Theme Presentation { get; } = ThemePresets.CommunityThemes.Presentation();
+    /// <summary>Conference poster — extra-large fonts, high contrast.</summary>
+    public static Theme Poster { get; } = ThemePresets.CommunityThemes.Poster();
+    /// <summary>Cyberpunk — neon green on deep purple/black.</summary>
+    public static Theme Cyberpunk { get; } = ThemePresets.CommunityThemes.Cyberpunk();
+    /// <summary>Nord palette — arctic blues and greens on dark.</summary>
+    public static Theme Nord { get; } = ThemePresets.CommunityThemes.Nord();
+    /// <summary>Dracula palette — purple/pink/cyan on dark.</summary>
+    public static Theme Dracula { get; } = ThemePresets.CommunityThemes.Dracula();
+    /// <summary>Monokai palette — developer-favorite dark theme.</summary>
+    public static Theme Monokai { get; } = ThemePresets.CommunityThemes.Monokai();
+    /// <summary>Catppuccin — warm pastels on dark.</summary>
+    public static Theme Catppuccin { get; } = ThemePresets.CommunityThemes.Catppuccin();
+    /// <summary>Gruvbox — retro warm tones on dark.</summary>
+    public static Theme Gruvbox { get; } = ThemePresets.CommunityThemes.Gruvbox();
+    /// <summary>Atom One Dark — subtle dark with muted colors.</summary>
+    public static Theme OneDark { get; } = ThemePresets.CommunityThemes.OneDark();
+    /// <summary>GitHub — clean white with blue accents.</summary>
+    public static Theme GitHub { get; } = ThemePresets.CommunityThemes.GitHub();
+    /// <summary>Edward Tufte minimal — maximum data-ink ratio, no grid.</summary>
+    public static Theme Minimal { get; } = ThemePresets.CommunityThemes.Minimal();
+    /// <summary>Vintage — warm yellows/browns, retro feel.</summary>
+    public static Theme Retro { get; } = ThemePresets.CommunityThemes.Retro();
+    /// <summary>Bright neon on black — cyberpunk variant.</summary>
+    public static Theme Neon { get; } = ThemePresets.CommunityThemes.Neon();
+
     /// <summary>
     /// Creates a <see cref="ThemeBuilder"/> initialized from the specified base theme.
     /// </summary>

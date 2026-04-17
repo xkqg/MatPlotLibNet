@@ -186,8 +186,57 @@ public static class MathTextParser
                     continue;
                 }
 
+                // Matrix environments: \begin{pmatrix} a & b \\ c & d \end{pmatrix}
+                if (cmd == "begin")
+                {
+                    string envName = ReadBraceGroup(text, ref i);
+                    spans.Add(new TextSpan(envName, TextSpanKind.MatrixStart));
+
+                    // Find matching \end{envName}
+                    string endMarker = $"\\end{{{envName}}}";
+                    int endPos = text.IndexOf(endMarker, i, StringComparison.Ordinal);
+                    if (endPos < 0) endPos = text.Length;
+                    string body = text[i..endPos];
+                    i = endPos + endMarker.Length;
+
+                    // Parse rows (separated by \\) and cells (separated by &)
+                    var rows = body.Split(@"\\");
+                    foreach (var row in rows)
+                    {
+                        var cells = row.Split('&');
+                        foreach (var cell in cells)
+                        {
+                            string cellContent = SubstituteCommands(cell.Trim());
+                            spans.Add(new TextSpan(cellContent, TextSpanKind.MatrixCell, FractionScale));
+                            spans.Add(new TextSpan("", TextSpanKind.MatrixCellSeparator));
+                        }
+                        spans.Add(new TextSpan("", TextSpanKind.MatrixRowSeparator));
+                    }
+
+                    spans.Add(new TextSpan(envName, TextSpanKind.MatrixEnd));
+                    continue;
+                }
+                if (cmd == "end")
+                {
+                    ReadBraceGroup(text, ref i); // consume the {envName} — already handled by \begin
+                    continue;
+                }
+
+                // Text-form operators: \lim, \max, \min, \sup, \inf
+                if (cmd is "lim" or "max" or "min" or "sup" or "inf" or "log" or "ln" or "sin" or "cos" or "tan")
+                {
+                    spans.Add(new TextSpan(cmd, TextSpanKind.LargeOperator, 1.0, FontVariant.Roman));
+                    continue;
+                }
+
                 // Standard substitution: Greek letters and math symbols
                 string? substitute = GreekLetters.TryGet(cmd) ?? MathSymbols.TryGet(cmd);
+                // Large operators: ∫, Σ, Π and variants — render at increased size
+                if (cmd is "int" or "iint" or "iiint" or "oint" or "sum" or "prod")
+                {
+                    spans.Add(new TextSpan(substitute ?? $"\\{cmd}", TextSpanKind.LargeOperator, 1.4));
+                    continue;
+                }
                 spans.Add(new TextSpan(substitute ?? $"\\{cmd}"));
                 continue;
             }
@@ -216,7 +265,23 @@ public static class MathTextParser
 
                 // Content of super/subscript may itself contain \command substitutions
                 content = SubstituteCommands(content);
-                spans.Add(new TextSpan(content, kind, SuperSubScale));
+
+                // If a recent span is a large operator (may have sub already between), emit as operator limit
+                bool hasRecentOperator = spans.Count > 0 &&
+                    (spans[^1].Kind == TextSpanKind.LargeOperator ||
+                     spans[^1].Kind == TextSpanKind.OperatorSubscript ||
+                     spans[^1].Kind == TextSpanKind.OperatorSuperscript);
+                if (hasRecentOperator)
+                {
+                    var opKind = c == '^'
+                        ? TextSpanKind.OperatorSuperscript
+                        : TextSpanKind.OperatorSubscript;
+                    spans.Add(new TextSpan(content, opKind, SuperSubScale));
+                }
+                else
+                {
+                    spans.Add(new TextSpan(content, kind, SuperSubScale));
+                }
                 continue;
             }
 

@@ -938,6 +938,32 @@
             return [px, py];
         }
 
+        function viewZ(nx, ny, nz) {
+            var azRad = degToRad(azimuth), elRad = degToRad(elevation);
+            var cosAz = Math.cos(azRad), sinAz = Math.sin(azRad);
+            var cosEl = Math.cos(elRad), sinEl = Math.sin(elRad);
+            var ry = nx * sinAz + ny * cosAz;
+            return ry * cosEl - nz * sinEl;
+        }
+
+        function avgViewZ(el) {
+            var raw = el.getAttribute('data-v3d');
+            if (!raw) return 0;
+            var pts = raw.trim().split(' ');
+            var sum = 0;
+            for (var i = 0; i < pts.length; i++) {
+                var c = pts[i].split(',');
+                sum += viewZ(parseFloat(c[0]), parseFloat(c[1]), parseFloat(c[2]));
+            }
+            return sum / pts.length;
+        }
+
+        function resortDepth() {
+            var children = Array.from(scene.children).filter(function(c) { return c.hasAttribute('data-v3d'); });
+            children.sort(function(a, b) { return avgViewZ(a) - avgViewZ(b); });
+            children.forEach(function(c) { scene.appendChild(c); });
+        }
+
         function reprojectAll() {
             var polys = scene.querySelectorAll('[data-v3d]');
             polys.forEach(function(el) {
@@ -954,6 +980,7 @@
                     el.setAttribute('cy', points[0][1].toFixed(2));
                 }
             });
+            resortDepth();
         }
 
         scene.addEventListener('mousedown', function(e) { dragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault(); });

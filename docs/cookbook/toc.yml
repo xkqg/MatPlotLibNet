@@ -26,6 +26,26 @@
   href: styling.md
 - name: Annotations
   href: annotations.md
+- name: Pie & Donut
+  href: pie-donut.md
+- name: Distribution
+  href: distribution.md
+- name: Polar Charts
+  href: polar.md
+- name: Error Bars
+  href: error-bars.md
+- name: Broken Axes
+  href: broken-axes.md
+- name: Symlog Axis
+  href: symlog.md
+- name: Geographic Maps
+  href: geographic.md
+- name: Themes
+  href: themes.md
+- name: Interactive SVG
+  href: interactive-svg.md
+- name: Animation
+  href: animation.md
 - name: Streaming & Realtime
   href: streaming.md
 - name: Tick Formatting

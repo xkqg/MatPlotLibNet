@@ -591,12 +591,8 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             }
         }
 
-        // Cache the RAW series minimums (before margin / widening) so we can filter
-        // tick labels below them — matplotlib hides tick labels that fall outside the
-        // data range when the data is all non-negative (visible in bar3d reference).
-        _rawXMin = xMin != double.MaxValue ? xMin : 0;
-        _rawYMin = yMin != double.MaxValue ? yMin : 0;
-        _rawZMin = zMin != double.MaxValue ? zMin : 0;
+        // _rawXMin/_rawYMin/_rawZMin are set AFTER ComputeDataRange contributions
+        // below, so they include Bar3D's ZMin=0 floor and widened X/Y edges.
 
         // 2. Fold in series-reported X/Y/Z contributions. Bar3DSeries widens X/Y by
         //    BarWidth/2 here so the cube-face positions reflect bar EDGES, not bar
@@ -615,6 +611,13 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             if (c.ZMin.HasValue && c.ZMin.Value < zMin) zMin = c.ZMin.Value;
             if (c.ZMax.HasValue && c.ZMax.Value > zMax) zMax = c.ZMax.Value;
         }
+
+        // Cache label-floor minimums AFTER ComputeDataRange contributions so they
+        // include Bar3D's ZMin=0 floor and widened X/Y edges. This ensures the z=0
+        // tick label is visible when bars start at z=0.
+        _rawXMin = xMin != double.MaxValue ? xMin : 0;
+        _rawYMin = yMin != double.MaxValue ? yMin : 0;
+        _rawZMin = zMin != double.MaxValue ? zMin : 0;
 
         // 3. Degenerate-range fallbacks.
         if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }

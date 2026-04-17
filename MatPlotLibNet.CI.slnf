@@ -11,6 +11,7 @@
       "Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj",
       "Src/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.csproj",
       "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj",
+      "Src/MatPlotLibNet.Geo/MatPlotLibNet.Geo.csproj",
       "Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj",
       "Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj",
       "Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj",

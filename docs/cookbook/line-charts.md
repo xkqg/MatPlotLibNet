@@ -1,5 +1,7 @@
 # Line Charts
 
+> **Tips:** Try `.WithBrowserInteraction()` to make your line chart zoomable in the browser. Use `.WithSymlogYScale()` for data spanning large ranges. Switch themes with `.WithTheme(Theme.Nord)`.
+
 ## Simple line chart
 
 ```csharp

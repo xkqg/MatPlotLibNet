@@ -8,6 +8,7 @@
     <Project Path="Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj" />
     <Project Path="Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj" />
     <Project Path="Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj" />
+    <Project Path="Src/MatPlotLibNet.Geo/MatPlotLibNet.Geo.csproj" />
     <Project Path="Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj" />
     <Project Path="Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj" />
     <Project Path="Src/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.csproj" />

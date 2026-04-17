@@ -66,6 +66,9 @@ jobs:
       # TODO: add Uno CI support when Uno ships a dotnet workload or the Uno.Sdk becomes
       #       available via NuGet restore alone.
 
+      - name: Build WPF
+        run: dotnet build Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj --configuration Release
+
       - name: Test MAUI
         run: dotnet run --project Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj --configuration Release
 
@@ -74,6 +77,9 @@ jobs:
 
       - name: Pack MAUI
         run: dotnet pack Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --no-build --configuration Release --output nupkgs
+
+      - name: Pack WPF
+        run: dotnet pack Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj --no-build --configuration Release --output nupkgs
 
       - name: Push to NuGet
         run: |
