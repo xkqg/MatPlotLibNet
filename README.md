@@ -8,13 +8,15 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.5.0 — 3-D Enhancements.** Three polish items completing the 3D pipeline:
+> **v1.6.0 — Polish + Geographic Projections.** Five features completing the matplotlib parity story:
 >
-> 1. **Pane3D styling** — configurable colors for floor, left wall, and right wall via `Pane3DConfig`. Builder: `.WithPane3D(p => p with { FloorColor = Colors.Black })`. Theme-level `Pane3DColor` for dark-mode 3D.
-> 2. **3D colorbar** — Surface, Scatter3D, and other colormapped 3D series now render a gradient legend strip with `.WithColorBar()`.
-> 3. **JS depth re-sort** — interactive SVG rotation re-sorts polygon DOM order for correct occlusion at all angles. No more face-crossing artifacts when rotating beyond 180°.
+> 1. **MatPlotLibNet.Geo** — 12th NuGet package with 5 map projections (PlateCarree, Mercator, Robinson, Orthographic, LambertConformal), GeoJSON parser, Natural Earth 110m data, and cartopy-like API: `.WithProjection(Robinson).Coastlines().Borders()`.
+> 2. **Multi-page PDF** — `PdfTransform.TransformMultiPage(figures, "report.pdf")` renders multiple figures as pages.
+> 3. **FuncAnimation** — declarative animation: `new FuncAnimation(60, i => BuildFrame(i)).Save("wave.gif")`.
+> 4. **Symlog axis** — symmetric logarithmic scale: `.WithSymlogYScale(linthresh: 1.0)`. Linear near zero, logarithmic outside.
+> 5. **Data-aware crosshair** — crosshair snaps to nearest data point with value callout.
 >
-> **4 246 tests green** across 11 test projects.
+> **4 246 tests green** across 11 test projects. **12 NuGet packages.**
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 
@@ -34,6 +36,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 | **MatPlotLibNet.Maui** | `dotnet add package MatPlotLibNet.Maui` | Native `MplChartView` via Microsoft.Maui.Graphics |
 | **MatPlotLibNet.Avalonia** | `dotnet add package MatPlotLibNet.Avalonia` | Native `MplChartControl` for Avalonia 12 — Skia backend, optional local interaction |
 | **MatPlotLibNet.Uno** | `dotnet add package MatPlotLibNet.Uno` | Native `MplChartElement` for Uno Platform (WinUI 3 / Android / iOS / macCatalyst) |
+| **MatPlotLibNet.Geo** | `dotnet add package MatPlotLibNet.Geo` | Geographic projections (Mercator, Robinson, etc.), GeoJSON, Natural Earth data, choropleth |
 | **MatPlotLibNet.Notebooks** | `#r "nuget: MatPlotLibNet.Notebooks"` | Inline SVG in Polyglot / Jupyter notebooks |
 | **@matplotlibnet/angular** | `npm install @matplotlibnet/angular` | Angular components + TypeScript SignalR client |
 | **@matplotlibnet/react** | `npm install @matplotlibnet/react` | React hooks + components + TypeScript SignalR client |
@@ -50,7 +53,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 - [API Reference](https://xkqg.github.io/MatPlotLibNet/api/) — full API documentation from source
 - [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started) — installation, output formats, subplots
 - [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet) — one-page reference for `Plt` / `FigureBuilder` / `AxesBuilder`
-- [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all 11 NuGet + 3 npm packages in detail
+- [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all 12 NuGet + 3 npm packages in detail
 - [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 74 series with code examples
 - [Streaming & Realtime](https://github.com/xkqg/MatPlotLibNet/wiki/Streaming) — ring buffers, StreamingFigure, axis scaling, 11 streaming indicators, platform controls
 - [Interactive Controls](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) — Avalonia + Uno native controls, managed interaction layer
@@ -96,6 +99,8 @@ Plt.Create()
 **3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). Full `Projection3D` pipeline, `DepthQueue3D` painter's algorithm, `LightingHelper` shading, `Svg3DRotationScript` client-side rotation with depth re-sorting, configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
 
 **Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries`, `StreamingCandlestickSeries` backed by `DoubleRingBuffer` with `AppendPoint(x, y)`. `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 11 streaming indicators (SMA, EMA, RSI, Bollinger, MACD, OBV, ATR, Stochastic, WilliamsR, CCI, VWAP) auto-attach to candlestick data. Streaming controls for Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. SVG diff engine for bandwidth optimization. Rx `IObservable<T>` adapter.
+
+**Geographic projections** — `MatPlotLibNet.Geo` package with 5 map projections (PlateCarree, Mercator, Robinson, Orthographic, LambertConformal), GeoJSON parser, Natural Earth 110m embedded data, and `GeoPolygonSeries` for coastlines/borders/choropleth. Symlog axis scale for data spanning positive and negative ranges.
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). Stacked-record event hierarchy, natural coalescing, per-caller hover responses.
 

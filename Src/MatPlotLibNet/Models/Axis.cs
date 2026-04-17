@@ -20,6 +20,10 @@ public class Axis
 
     public AxisScale Scale { get; set; } = AxisScale.Linear;
 
+    /// <summary>Linear threshold for <see cref="AxisScale.SymLog"/>. Values within
+    /// [-SymLogLinThresh, SymLogLinThresh] are mapped linearly. Default 1.0.</summary>
+    public double SymLogLinThresh { get; set; } = 1.0;
+
     public TickConfig MajorTicks { get; set; } = new();
 
     // matplotlib minor tick defaults: xtick.minor.size = 2.0 pt, xtick.minor.width = 0.6 pt,

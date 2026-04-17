@@ -4,32 +4,26 @@
     <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-
-    <!-- NuGet Package Properties -->
-    <PackageId>MatPlotLibNet.AspNetCore</PackageId>
     <Version>1.6.0</Version>
-    <Description>ASP.NET Core endpoint helpers for MatPlotLibNet. Serves chart JSON specs for Angular and other SPA frameworks.</Description>
-    <PackageTags>aspnetcore;charting;api;angular;json</PackageTags>
+    <PackageId>MatPlotLibNet.Geo</PackageId>
+    <Description>Geographic projections and map rendering for MatPlotLibNet. Includes Natural Earth 110m coastlines, country borders, and 5 map projections (PlateCarree, Mercator, Robinson, Orthographic, LambertConformal). Choropleth maps with colormap support.</Description>
+    <PackageTags>charting;plotting;charts;geographic;map;projection;mercator;robinson;choropleth;geojson;natural-earth</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\MatPlotLibNet\MatPlotLibNet.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MatPlotLibNet\MatPlotLibNet.csproj" />
+    <EmbeddedResource Include="Data\*.geojson" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.202" />
   </ItemGroup>
 
 </Project>

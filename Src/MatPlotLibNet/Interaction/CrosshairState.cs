@@ -13,7 +13,10 @@ namespace MatPlotLibNet.Interaction;
 /// <param name="DataY">Data-space Y coordinate.</param>
 /// <param name="AxesIndex">Index of the axes the mouse is over.</param>
 /// <param name="PlotArea">Pixel-space plot area for clipping the crosshair lines.</param>
+/// <param name="SnappedPoint">When non-null, the crosshair snaps to this nearest data point
+/// and controls should draw a highlight marker + value callout.</param>
 public readonly record struct CrosshairState(
     double PixelX, double PixelY,
     double DataX, double DataY,
-    int AxesIndex, Rect PlotArea);
+    int AxesIndex, Rect PlotArea,
+    NearestPointResult? SnappedPoint = null);

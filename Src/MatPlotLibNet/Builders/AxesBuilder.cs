@@ -122,6 +122,26 @@ public sealed class AxesBuilder
     /// <summary>Sets the Y-axis scale type (e.g., linear or logarithmic).</summary>
     public AxesBuilder SetYScale(AxisScale scale) { _axes.YAxis.Scale = scale; return this; }
 
+    /// <summary>Sets the Y-axis to symmetric logarithmic scale with the specified linear threshold.
+    /// Linear within [-linthresh, linthresh], logarithmic outside.</summary>
+    /// <param name="linthresh">Linear threshold. Default 1.0.</param>
+    public AxesBuilder WithSymlogYScale(double linthresh = 1.0)
+    {
+        _axes.YAxis.Scale = AxisScale.SymLog;
+        _axes.YAxis.SymLogLinThresh = linthresh;
+        _axes.YAxis.TickLocator = new MatPlotLibNet.Rendering.TickLocators.SymlogLocator(linthresh);
+        return this;
+    }
+
+    /// <summary>Sets the X-axis to symmetric logarithmic scale with the specified linear threshold.</summary>
+    public AxesBuilder WithSymlogXScale(double linthresh = 1.0)
+    {
+        _axes.XAxis.Scale = AxisScale.SymLog;
+        _axes.XAxis.SymLogLinThresh = linthresh;
+        _axes.XAxis.TickLocator = new MatPlotLibNet.Rendering.TickLocators.SymlogLocator(linthresh);
+        return this;
+    }
+
     /// <summary>Adds a buy or sell signal marker at the specified data coordinates.</summary>
     public AxesBuilder AddSignal(double x, double y, SignalDirection direction, Action<SignalMarker>? configure = null)
     {

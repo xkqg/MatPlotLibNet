@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.6.0] — 2026-04-17
+
+**Polish + Geographic Projections.** Multi-page PDF, declarative animation API, data-aware crosshair, symlog axis scale, and a new `MatPlotLibNet.Geo` package (12th NuGet) with 5 map projections and Natural Earth data support. **4 246 tests green** across 11 test projects.
+
+### Added — Multi-page PDF
+
+- **`PdfTransform.TransformMultiPage(figures, path)`** — renders multiple figures as pages in a single PDF. Each page uses its figure's own width/height. Overloads for stream and file path.
+
+### Added — FuncAnimation
+
+- **`FuncAnimation`** — declarative animation: `new FuncAnimation(60, i => BuildFrame(i)).Save("wave.gif")`. Wraps existing `GifTransform`. Also supports `SaveFrames(directory)` for individual PNGs.
+
+### Added — Symlog axis scale
+
+- **`SymlogTransform`** — symmetric logarithmic transform: linear within [-linthresh, linthresh], logarithmic outside. `Forward`, `Inverse`, `ForwardArray`.
+- **`SymlogLocator`** — tick locator for symlog axes: powers of 10 outside threshold, linear ticks inside.
+- **`AxesBuilder.WithSymlogYScale(linthresh)`** / `.WithSymlogXScale(linthresh)` — fluent builder.
+- **`Axis.SymLogLinThresh`** — per-axis linear threshold property.
+
+### Added — Data-aware crosshair
+
+- **`CrosshairState.SnappedPoint`** — optional `NearestPointResult?` field. When non-null, the crosshair snaps to the nearest data point and controls render a highlight marker + value callout.
+
+### Added — MatPlotLibNet.Geo (new package)
+
+- **`MatPlotLibNet.Geo`** — 12th NuGet package for geographic map rendering.
+- **5 map projections** — `PlateCarree` (equirectangular), `Mercator` (web standard), `Robinson` (world maps), `Orthographic` (globe view), `LambertConformal` (mid-latitude conic).
+- **`IGeoProjection`** interface — `Forward(lat, lon)` → `(X, Y)`, `Inverse(x, y)`, `Bounds`.
+- **`GeoJsonReader`** — parses GeoJSON FeatureCollections via `System.Text.Json`.
+- **`GeoFeature`** / `GeoGeometry` — record types for parsed geographic data.
+- **`GeoPolygonSeries`** — self-rendering series that projects and draws geographic polygons.
+- **`NaturalEarth110m`** — embedded resource loader for coastlines and country borders.
+- **`GeoAxesExtensions`** — `.WithProjection()`, `.Coastlines()`, `.Borders()`, `.Ocean()`, `.Land()`.
+
 ## [1.5.0] — 2026-04-17
 
 **3-D Enhancements.** Three polish items for the 3D charting pipeline: configurable pane colors, 3D colorbar support, and correct depth sorting during interactive SVG rotation. **4 246 tests green** across 11 test projects.

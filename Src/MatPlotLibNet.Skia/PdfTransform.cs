@@ -31,4 +31,38 @@ public sealed class PdfTransform : FigureTransform
         document.EndPage();
         document.Close();
     }
+
+    /// <summary>Renders multiple figures as pages in a single PDF document.</summary>
+    /// <param name="figures">The figures to render, one per page.</param>
+    /// <param name="output">The output stream to write the PDF to.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="figures"/> is empty.</exception>
+    public void TransformMultiPage(IReadOnlyList<Figure> figures, Stream output)
+    {
+        if (figures.Count == 0)
+            throw new ArgumentException("At least one figure is required.", nameof(figures));
+
+        using var document = SKDocument.CreatePdf(output);
+
+        foreach (var figure in figures)
+        {
+            float width = (float)figure.Width;
+            float height = (float)figure.Height;
+
+            using var canvas = document.BeginPage(width, height);
+            var ctx = new MatPlotLibNet.Skia.SkiaRenderContext(canvas);
+            Renderer.Render(figure, ctx);
+            document.EndPage();
+        }
+
+        document.Close();
+    }
+
+    /// <summary>Renders multiple figures as pages in a single PDF file.</summary>
+    /// <param name="figures">The figures to render, one per page.</param>
+    /// <param name="filePath">The output PDF file path.</param>
+    public void TransformMultiPage(IReadOnlyList<Figure> figures, string filePath)
+    {
+        using var stream = File.Create(filePath);
+        TransformMultiPage(figures, stream);
+    }
 }
