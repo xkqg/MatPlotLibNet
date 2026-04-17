@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
+using Uno.WinUI.Graphics2DSK;
 using Windows.Foundation;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
@@ -68,7 +69,13 @@ public sealed class MplChartElement : SKCanvasElement
     /// <summary>Initializes a new chart element.</summary>
     public MplChartElement()
     {
-        IsTabStop = true;
+        // SKCanvasElement extends FrameworkElement, not Control, so input events
+        // are wired as handlers rather than overrides.
+        PointerPressed += OnElementPointerPressed;
+        PointerMoved += OnElementPointerMoved;
+        PointerReleased += OnElementPointerReleased;
+        PointerWheelChanged += OnElementPointerWheelChanged;
+        KeyDown += OnElementKeyDown;
     }
 
     /// <inheritdoc />
@@ -125,20 +132,16 @@ public sealed class MplChartElement : SKCanvasElement
         });
     }
 
-    /// <inheritdoc />
-    protected override void OnPointerPressed(PointerRoutedEventArgs e)
+    private void OnElementPointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        base.OnPointerPressed(e);
         if (_controller is null || !IsInteractive) return;
         _controller.HandlePointerPressed(UnoInputAdapter.ToPointerArgs(e, this));
         e.Handled = true;
         Focus(FocusState.Pointer);
     }
 
-    /// <inheritdoc />
-    protected override void OnPointerMoved(PointerRoutedEventArgs e)
+    private void OnElementPointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        base.OnPointerMoved(e);
         if (_controller is null || !IsInteractive) return;
         _controller.HandlePointerMoved(UnoInputAdapter.ToPointerArgs(e, this));
 
@@ -146,27 +149,21 @@ public sealed class MplChartElement : SKCanvasElement
         ToolTipService.SetToolTip(this, tooltip?.Text);
     }
 
-    /// <inheritdoc />
-    protected override void OnPointerReleased(PointerRoutedEventArgs e)
+    private void OnElementPointerReleased(object sender, PointerRoutedEventArgs e)
     {
-        base.OnPointerReleased(e);
         if (_controller is null || !IsInteractive) return;
         _controller.HandlePointerReleased(UnoInputAdapter.ToPointerArgs(e, this));
     }
 
-    /// <inheritdoc />
-    protected override void OnPointerWheelChanged(PointerRoutedEventArgs e)
+    private void OnElementPointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
-        base.OnPointerWheelChanged(e);
         if (_controller is null || !IsInteractive) return;
         _controller.HandleScroll(UnoInputAdapter.ToScrollArgs(e, this));
         e.Handled = true;
     }
 
-    /// <inheritdoc />
-    protected override void OnKeyDown(KeyRoutedEventArgs e)
+    private void OnElementKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        base.OnKeyDown(e);
         if (_controller is null || !IsInteractive) return;
         _controller.HandleKeyDown(UnoInputAdapter.ToKeyArgs(e));
     }
