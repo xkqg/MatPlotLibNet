@@ -246,21 +246,21 @@
 
     private LineStyle GetLineStyle() => _lineStyle switch
     {
-        "Dashed" => Rendering.LineStyle.Dashed,
-        "Dotted" => Rendering.LineStyle.Dotted,
-        "DashDot" => Rendering.LineStyle.DashDot,
-        _ => Rendering.LineStyle.Solid,
+        "Dashed" => Styling.LineStyle.Dashed,
+        "Dotted" => Styling.LineStyle.Dotted,
+        "DashDot" => Styling.LineStyle.DashDot,
+        _ => Styling.LineStyle.Solid,
     };
 
     private MarkerStyle? GetMarker() => _markerStyle switch
     {
-        "Circle" => Rendering.MarkerStyle.Circle,
-        "Square" => Rendering.MarkerStyle.Square,
-        "Triangle" => Rendering.MarkerStyle.Triangle,
-        "Diamond" => Rendering.MarkerStyle.Diamond,
-        "Star" => Rendering.MarkerStyle.Star,
-        "Cross" => Rendering.MarkerStyle.Cross,
-        "Plus" => Rendering.MarkerStyle.Plus,
+        "Circle" => Styling.MarkerStyle.Circle,
+        "Square" => Styling.MarkerStyle.Square,
+        "Triangle" => Styling.MarkerStyle.Triangle,
+        "Diamond" => Styling.MarkerStyle.Diamond,
+        "Star" => Styling.MarkerStyle.Star,
+        "Cross" => Styling.MarkerStyle.Cross,
+        "Plus" => Styling.MarkerStyle.Plus,
         _ => null,
     };
 
@@ -532,9 +532,9 @@
         var fig = ApplyGlobal(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
             {
-                ax.Violin(groups, ["Group A", "Group B", "Group C"], s =>
+                ax.Violin(groups, s =>
                 {
-                    s.Color = Colors.MediumPurple; s.Alpha = 0.6;
+                    s.Color = Colors.RebeccaPurple; s.Alpha = 0.6;
                 });
                 ApplyAxes(ax);
             }).Build();
@@ -584,7 +584,7 @@
                 new() { Label = "Electronics", Value = 42, Color = Colors.Blue },
                 new() { Label = "Apparel", Value = 28, Color = Colors.Orange },
                 new() { Label = "Grocery", Value = 30, Color = Colors.Green },
-                new() { Label = "Home", Value = 18, Color = Colors.Purple },
+                new() { Label = "Home", Value = 18, Color = Colors.RebeccaPurple },
             ]
         };
 
@@ -602,12 +602,11 @@
         var fig = ApplyGlobal(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
             {
-                ax.SetPolar();
-                ax.PolarPlot(theta, r, s => { s.Color = Colors.Blue; s.LineWidth = 2; s.Label = "r = 1 + cos(3θ)"; });
+                ax.PolarPlot(r, theta, s => { s.Color = Colors.Blue; s.LineWidth = 2; s.Label = "r = 1 + cos(3θ)"; });
                 if (_showLegend) ax.WithLegend();
             }).Build();
 
-        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .SetPolar()\n        .PolarPlot(theta, r, s => {{\n            s.Color = Colors.Blue;\n            s.LineWidth = 2;\n            s.Label = \"r = 1 + cos(3θ)\";\n        }})\n        .WithLegend())\n    .Save(\"polar.svg\");");
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .PolarPlot(theta, r, s => {{\n            s.Color = Colors.Blue;\n            s.LineWidth = 2;\n            s.Label = \"r = 1 + cos(3θ)\";\n        }})\n        .WithLegend())\n    .Save(\"polar.svg\");");
     }
 
     private (Figure, string) BuildMulti()
