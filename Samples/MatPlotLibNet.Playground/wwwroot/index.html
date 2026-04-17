@@ -58,6 +58,10 @@
         }
         .param-group input[type="color"] { height: 36px; padding: 2px; cursor: pointer; }
         .param-group input[type="range"] { padding: 0; }
+        .param-group input[type="checkbox"] { width: auto; margin-right: 6px; accent-color: var(--accent); }
+        .param-group label:has(input[type="checkbox"]) { display: flex; align-items: center; font-size: 0.9rem; color: var(--text); cursor: pointer; }
+        .example-select optgroup { color: var(--muted); font-style: normal; }
+        .example-select option { color: var(--text); }
 
         .code-block {
             position: relative; margin-top: 16px;

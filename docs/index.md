@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-**matplotlib for .NET** — 74 series types, 104 colormaps, 12 3D chart types, native Avalonia + Uno controls, SignalR interactivity, and publication-quality SVG/PNG/PDF output.
+**matplotlib for .NET** — 74 series types, 104 colormaps, 13 map projections, 26 themes, native Avalonia + Uno + WPF + MAUI controls, SignalR interactivity, streaming, and publication-quality SVG/PNG/PDF output. 13 NuGet packages.
 
 ## Quick start
 
@@ -43,4 +43,6 @@ Plt.Create()
 | `MatPlotLibNet.Avalonia` | Native Avalonia 12 control |
 | `MatPlotLibNet.Uno` | Native Uno Platform control |
 | `MatPlotLibNet.DataFrame` | DataFrame indicators + regression |
+| `MatPlotLibNet.Wpf` | Native WPF chart control via SkiaSharp |
+| `MatPlotLibNet.Geo` | 13 map projections, GeoJSON, Natural Earth 110m data |
 | `MatPlotLibNet.Notebooks` | Polyglot / Jupyter inline SVG |

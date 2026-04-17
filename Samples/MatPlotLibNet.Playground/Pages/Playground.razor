@@ -12,11 +12,11 @@
         <select class="example-select" @onchange="OnExampleChanged">
             @foreach (var name in ExampleNames)
             {
-                <option value="@name">@name</option>
+                <option value="@name" selected="@(_selectedExample == name)">@name</option>
             }
         </select>
 
-        <div class="section-title">Parameters</div>
+        <div class="section-title">Figure</div>
 
         <div class="param-group">
             <label>Title</label>
@@ -26,13 +26,38 @@
         <div class="param-group">
             <label>Theme</label>
             <select @bind="_themeName" @bind:after="Rebuild">
-                <option>Default</option>
-                <option>Dark</option>
-                <option>Seaborn</option>
-                <option>ColorBlindSafe</option>
-                <option>HighContrast</option>
-                <option>MatplotlibClassic</option>
-                <option>MatplotlibV2</option>
+                <optgroup label="Light">
+                    <option>Default</option>
+                    <option>Seaborn</option>
+                    <option>Ggplot</option>
+                    <option>FiveThirtyEight</option>
+                    <option>Bmh</option>
+                    <option>Solarize</option>
+                    <option>Grayscale</option>
+                    <option>Paper</option>
+                    <option>Presentation</option>
+                    <option>Poster</option>
+                    <option>GitHub</option>
+                    <option>Minimal</option>
+                    <option>Retro</option>
+                    <option>MatplotlibClassic</option>
+                    <option>MatplotlibV2</option>
+                </optgroup>
+                <optgroup label="Dark">
+                    <option>Dark</option>
+                    <option>Cyberpunk</option>
+                    <option>Nord</option>
+                    <option>Dracula</option>
+                    <option>Monokai</option>
+                    <option>Catppuccin</option>
+                    <option>Gruvbox</option>
+                    <option>OneDark</option>
+                    <option>Neon</option>
+                </optgroup>
+                <optgroup label="Accessibility">
+                    <option>ColorBlindSafe</option>
+                    <option>HighContrast</option>
+                </optgroup>
             </select>
         </div>
 
@@ -45,6 +70,106 @@
             <label>Height: @_height px</label>
             <input type="range" min="300" max="900" step="50" @bind="_height" @bind:event="oninput" @bind:after="Rebuild" />
         </div>
+
+        <div class="section-title">Axes</div>
+
+        <div class="param-group">
+            <label>
+                <input type="checkbox" @bind="_showLegend" @bind:after="Rebuild" /> Show legend
+            </label>
+        </div>
+
+        <div class="param-group">
+            <label>
+                <input type="checkbox" @bind="_showGrid" @bind:after="Rebuild" /> Show grid
+            </label>
+        </div>
+
+        <div class="param-group">
+            <label>
+                <input type="checkbox" @bind="_hideTopSpine" @bind:after="Rebuild" /> Hide top spine
+            </label>
+        </div>
+
+        <div class="param-group">
+            <label>
+                <input type="checkbox" @bind="_hideRightSpine" @bind:after="Rebuild" /> Hide right spine
+            </label>
+        </div>
+
+        <div class="param-group">
+            <label>
+                <input type="checkbox" @bind="_tightLayout" @bind:after="Rebuild" /> Tight layout
+            </label>
+        </div>
+
+        @if (_selectedExample is "Line Chart" or "Scatter Plot" or "Multi-Series")
+        {
+            <div class="section-title">Series</div>
+
+            <div class="param-group">
+                <label>Line style</label>
+                <select @bind="_lineStyle" @bind:after="Rebuild">
+                    <option>Solid</option>
+                    <option>Dashed</option>
+                    <option>Dotted</option>
+                    <option>DashDot</option>
+                </select>
+            </div>
+
+            <div class="param-group">
+                <label>Line width: @_lineWidth</label>
+                <input type="range" min="0.5" max="5" step="0.5" @bind="_lineWidth" @bind:event="oninput" @bind:after="Rebuild" />
+            </div>
+
+            <div class="param-group">
+                <label>Marker</label>
+                <select @bind="_markerStyle" @bind:after="Rebuild">
+                    <option>None</option>
+                    <option>Circle</option>
+                    <option>Square</option>
+                    <option>Triangle</option>
+                    <option>Diamond</option>
+                    <option>Star</option>
+                    <option>Cross</option>
+                    <option>Plus</option>
+                </select>
+            </div>
+
+            @if (_markerStyle != "None")
+            {
+                <div class="param-group">
+                    <label>Marker size: @_markerSize</label>
+                    <input type="range" min="2" max="16" step="1" @bind="_markerSize" @bind:event="oninput" @bind:after="Rebuild" />
+                </div>
+            }
+        }
+
+        @if (_selectedExample is "Heatmap" or "Contour Plot")
+        {
+            <div class="section-title">Colormap</div>
+
+            <div class="param-group">
+                <label>Colormap</label>
+                <select @bind="_colorMap" @bind:after="Rebuild">
+                    <option>viridis</option>
+                    <option>plasma</option>
+                    <option>inferno</option>
+                    <option>magma</option>
+                    <option>turbo</option>
+                    <option>coolwarm</option>
+                    <option>greys</option>
+                    <option>hot</option>
+                    <option>jet</option>
+                </select>
+            </div>
+
+            <div class="param-group">
+                <label>
+                    <input type="checkbox" @bind="_showColorBar" @bind:after="Rebuild" /> Show colorbar
+                </label>
+            </div>
+        }
 
         <div class="section-title">Code</div>
         <div class="code-block">
@@ -62,8 +187,10 @@
 @code {
     private static readonly string[] ExampleNames =
     [
-        "Line Chart", "Bar Chart", "Scatter Plot", "Heatmap",
-        "Pie Chart", "Multi-Subplot", "Histogram", "Contour Plot", "3D Surface"
+        "Line Chart", "Bar Chart", "Scatter Plot", "Multi-Series",
+        "Heatmap", "Pie Chart", "Histogram", "Contour Plot",
+        "3D Surface", "Radar Chart", "Violin Plot", "Candlestick",
+        "Treemap", "Polar Line", "Multi-Subplot"
     ];
 
     private string _title = "Line Chart";
@@ -73,6 +200,17 @@
     private string _svg = "";
     private string _code = "";
     private string _selectedExample = "Line Chart";
+    private bool _showLegend = true;
+    private bool _showGrid = true;
+    private bool _hideTopSpine = false;
+    private bool _hideRightSpine = false;
+    private bool _tightLayout = false;
+    private string _lineStyle = "Solid";
+    private double _lineWidth = 1.5;
+    private string _markerStyle = "None";
+    private int _markerSize = 6;
+    private string _colorMap = "viridis";
+    private bool _showColorBar = true;
 
     protected override void OnInitialized() => Rebuild();
 
@@ -84,7 +222,46 @@
         "HighContrast" => Theme.HighContrast,
         "MatplotlibClassic" => Theme.MatplotlibClassic,
         "MatplotlibV2" => Theme.MatplotlibV2,
+        "Ggplot" => Theme.Ggplot,
+        "FiveThirtyEight" => Theme.FiveThirtyEight,
+        "Bmh" => Theme.Bmh,
+        "Solarize" => Theme.Solarize,
+        "Grayscale" => Theme.Grayscale,
+        "Paper" => Theme.Paper,
+        "Presentation" => Theme.Presentation,
+        "Poster" => Theme.Poster,
+        "GitHub" => Theme.GitHub,
+        "Minimal" => Theme.Minimal,
+        "Retro" => Theme.Retro,
+        "Cyberpunk" => Theme.Cyberpunk,
+        "Nord" => Theme.Nord,
+        "Dracula" => Theme.Dracula,
+        "Monokai" => Theme.Monokai,
+        "Catppuccin" => Theme.Catppuccin,
+        "Gruvbox" => Theme.Gruvbox,
+        "OneDark" => Theme.OneDark,
+        "Neon" => Theme.Neon,
         _ => Theme.Default,
+    };
+
+    private LineStyle GetLineStyle() => _lineStyle switch
+    {
+        "Dashed" => Rendering.LineStyle.Dashed,
+        "Dotted" => Rendering.LineStyle.Dotted,
+        "DashDot" => Rendering.LineStyle.DashDot,
+        _ => Rendering.LineStyle.Solid,
+    };
+
+    private MarkerStyle? GetMarker() => _markerStyle switch
+    {
+        "Circle" => Rendering.MarkerStyle.Circle,
+        "Square" => Rendering.MarkerStyle.Square,
+        "Triangle" => Rendering.MarkerStyle.Triangle,
+        "Diamond" => Rendering.MarkerStyle.Diamond,
+        "Star" => Rendering.MarkerStyle.Star,
+        "Cross" => Rendering.MarkerStyle.Cross,
+        "Plus" => Rendering.MarkerStyle.Plus,
+        _ => null,
     };
 
     private void OnExampleChanged(ChangeEventArgs e)
@@ -103,12 +280,18 @@
                 "Line Chart" => BuildLine(),
                 "Bar Chart" => BuildBar(),
                 "Scatter Plot" => BuildScatter(),
+                "Multi-Series" => BuildMultiSeries(),
                 "Heatmap" => BuildHeatmap(),
                 "Pie Chart" => BuildPie(),
-                "Multi-Subplot" => BuildMulti(),
                 "Histogram" => BuildHist(),
                 "Contour Plot" => BuildContour(),
                 "3D Surface" => BuildSurface(),
+                "Radar Chart" => BuildRadar(),
+                "Violin Plot" => BuildViolin(),
+                "Candlestick" => BuildCandlestick(),
+                "Treemap" => BuildTreemap(),
+                "Polar Line" => BuildPolar(),
+                "Multi-Subplot" => BuildMulti(),
                 _ => BuildLine(),
             };
             _svg = figure.ToSvg();
@@ -120,46 +303,112 @@
         }
     }
 
+    private FigureBuilder ApplyGlobal(FigureBuilder b)
+    {
+        b = b.WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height);
+        if (_tightLayout) b = b.TightLayout();
+        return b;
+    }
+
+    private AxesBuilder ApplyAxes(AxesBuilder ax)
+    {
+        if (_showGrid) ax = ax.ShowGrid();
+        if (_hideTopSpine) ax = ax.HideTopSpine();
+        if (_hideRightSpine) ax = ax.HideRightSpine();
+        if (_showLegend) ax = ax.WithLegend();
+        return ax;
+    }
+
     private async Task CopyCode() => await JS.InvokeVoidAsync("copyToClipboard", _code);
 
     private (Figure, string) BuildLine()
     {
         double[] x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         double[] y = [2.1, 4.5, 3.2, 6.8, 5.1, 7.3, 6.5, 8.9, 7.2, 9.4];
-        Action<LineSeries> cfg = s => { s.Color = Colors.Blue; s.Label = "Revenue"; };
+        var marker = GetMarker();
 
-        var fig = Plt.Create()
-            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
-            .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, cfg).WithLegend()).Build();
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot(x, y, s =>
+                {
+                    s.Color = Colors.Blue;
+                    s.Label = "Revenue";
+                    s.LineStyle = GetLineStyle();
+                    s.LineWidth = _lineWidth;
+                    if (marker.HasValue) { s.Marker = marker.Value; s.MarkerSize = _markerSize; }
+                });
+                ApplyAxes(ax);
+            }).Build();
 
-        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .WithTheme(Theme." + _themeName + ")\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Plot(x, y, s => { s.Color = Colors.Blue; s.Label = \"Revenue\"; })\n        .WithLegend())\n    .Save(\"chart.svg\");");
+        return (fig, $"Plt.Create()\n    .WithTitle(\"{_title}\")\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Plot(x, y, s => {{\n            s.Color = Colors.Blue;\n            s.LineStyle = LineStyle.{_lineStyle};\n            s.LineWidth = {_lineWidth};\n        }})\n        .WithLegend())\n    .Save(\"chart.svg\");");
     }
 
     private (Figure, string) BuildBar()
     {
         string[] cats = ["Q1", "Q2", "Q3", "Q4"];
         double[] vals = [23, 45, 12, 67];
-        Action<BarSeries> cfg = s => { s.Color = Colors.Orange; s.Label = "Units"; };
 
-        var fig = Plt.Create()
-            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
-            .AddSubPlot(1, 1, 1, ax => ax.Bar(cats, vals, cfg).WithLegend()).Build();
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Bar(cats, vals, s => { s.Color = Colors.Orange; s.Label = "Units"; });
+                ax.WithBarLabels();
+                ApplyAxes(ax);
+            }).Build();
 
-        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .WithTheme(Theme." + _themeName + ")\n    .Bar(categories, values, s => { s.Color = Colors.Orange; })\n    .Save(\"bar.svg\");");
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .Bar(categories, values, s => {{ s.Color = Colors.Orange; }})\n    .WithBarLabels()\n    .Save(\"bar.svg\");");
     }
 
     private (Figure, string) BuildScatter()
     {
         var rng = new Random(42);
         double[] x = Enumerable.Range(0, 50).Select(_ => rng.NextDouble() * 10).ToArray();
-        double[] y = x.Select(v => v * 0.8 + new Random(42).NextDouble() * 3).ToArray();
-        Action<ScatterSeries> cfg = s => { s.Color = Colors.CornflowerBlue; s.MarkerSize = 6; s.Label = "Data"; };
+        double[] y = x.Select(v => v * 0.8 + rng.NextDouble() * 3).ToArray();
+        var marker = GetMarker();
 
-        var fig = Plt.Create()
-            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
-            .AddSubPlot(1, 1, 1, ax => ax.Scatter(x, y, cfg).WithLegend()).Build();
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Scatter(x, y, s =>
+                {
+                    s.Color = Colors.CornflowerBlue;
+                    s.MarkerSize = marker.HasValue ? _markerSize : 6;
+                    s.Label = "Data";
+                });
+                ApplyAxes(ax);
+            }).Build();
 
-        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .Scatter(x, y, s => { s.Color = Colors.CornflowerBlue; s.MarkerSize = 6; })\n    .Save(\"scatter.svg\");");
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .Scatter(x, y, s => {{ s.Color = Colors.CornflowerBlue; s.MarkerSize = 6; }})\n    .Save(\"scatter.svg\");");
+    }
+
+    private (Figure, string) BuildMultiSeries()
+    {
+        double[] x = Enumerable.Range(0, 50).Select(i => i * 0.2).ToArray();
+        var marker = GetMarker();
+
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot(x, x.Select(v => Math.Sin(v)).ToArray(), s =>
+                {
+                    s.Label = "sin(x)"; s.LineStyle = GetLineStyle(); s.LineWidth = _lineWidth;
+                    if (marker.HasValue) { s.Marker = marker.Value; s.MarkerSize = _markerSize; s.MarkEvery = 5; }
+                });
+                ax.Plot(x, x.Select(v => Math.Cos(v)).ToArray(), s =>
+                {
+                    s.Label = "cos(x)"; s.LineWidth = _lineWidth;
+                    if (marker.HasValue) { s.Marker = marker.Value; s.MarkerSize = _markerSize; s.MarkEvery = 5; }
+                });
+                ax.Plot(x, x.Select(v => Math.Sin(v) * Math.Cos(v)).ToArray(), s =>
+                {
+                    s.Label = "sin·cos"; s.LineWidth = _lineWidth;
+                    if (marker.HasValue) { s.Marker = marker.Value; s.MarkerSize = _markerSize; s.MarkEvery = 5; }
+                });
+                ApplyAxes(ax);
+            }).Build();
+
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => {{\n        ax.Plot(x, sin, s => s.Label = \"sin(x)\");\n        ax.Plot(x, cos, s => s.Label = \"cos(x)\");\n        ax.Plot(x, sincos, s => s.Label = \"sin·cos\");\n        ax.WithLegend();\n    }})\n    .Save(\"multi.svg\");");
     }
 
     private (Figure, string) BuildHeatmap()
@@ -169,12 +418,15 @@
             for (int c = 0; c < 10; c++)
                 matrix[r, c] = Math.Sin(r * 0.5) * Math.Cos(c * 0.5);
 
-        var fig = Plt.Create()
-            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
-            .AddSubPlot(1, 1, 1, ax => ax.Heatmap(matrix).WithColorMap("plasma").WithColorBar())
-            .TightLayout().Build();
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Heatmap(matrix).WithColorMap(_colorMap);
+                if (_showColorBar) ax.WithColorBar(cb => cb with { Label = "Intensity" });
+                ApplyAxes(ax);
+            }).Build();
 
-        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Heatmap(matrix)\n        .WithColorMap(\"plasma\")\n        .WithColorBar())\n    .TightLayout()\n    .Save(\"heatmap.svg\");");
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Heatmap(matrix)\n        .WithColorMap(\"{_colorMap}\")\n        .WithColorBar())\n    .Save(\"heatmap.svg\");");
     }
 
     private (Figure, string) BuildPie()
@@ -182,25 +434,14 @@
         string[] labels = ["Python", "C#", "Java", "Go", "Rust"];
         double[] sizes = [35, 25, 20, 12, 8];
 
-        var fig = Plt.Create()
-            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
-            .Pie(sizes, labels).Build();
+        var fig = ApplyGlobal(Plt.Create())
+            .Pie(sizes, labels, s =>
+            {
+                s.AutoPct = "%.0f%%";
+                s.Shadow = true;
+            }).Build();
 
-        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .Pie(sizes, labels)\n    .Save(\"pie.svg\");");
-    }
-
-    private (Figure, string) BuildMulti()
-    {
-        double[] x = [1, 2, 3, 4, 5, 6, 7, 8];
-        double[] y1 = [2, 4, 3, 5, 4, 6, 5, 7];
-        string[] cats = ["A", "B", "C", "D"];
-        double[] vals = [15, 42, 28, 37];
-
-        var fig = Plt.Create()
-            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
-            .Plot(x, y1).AddSubPlot(1, 2, 2, ax => ax.Bar(cats, vals)).Build();
-
-        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .Plot(x, y1)\n    .AddSubPlot(1, 2, 2, ax => ax.Bar(categories, values))\n    .Save(\"multi.svg\");");
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .Pie(sizes, labels, s => {{\n        s.AutoPct = \"%.0f%%\";\n        s.Shadow = true;\n    }})\n    .Save(\"pie.svg\");");
     }
 
     private (Figure, string) BuildHist()
@@ -208,11 +449,14 @@
         var rng = new Random(42);
         double[] data = Enumerable.Range(0, 500).Select(_ => rng.NextDouble() * 6 + rng.NextDouble() * 6).ToArray();
 
-        var fig = Plt.Create()
-            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
-            .AddSubPlot(1, 1, 1, ax => ax.Hist(data, 20)).Build();
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Hist(data, 20, s => { s.Color = Colors.Teal; s.EdgeColor = Colors.White; s.Label = "Distribution"; });
+                ApplyAxes(ax);
+            }).Build();
 
-        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .AddSubPlot(1, 1, 1, ax => ax.Hist(data, 20))\n    .Save(\"hist.svg\");");
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Hist(data, 20, s => {{\n            s.Color = Colors.Teal;\n            s.EdgeColor = Colors.White;\n        }}))\n    .Save(\"hist.svg\");");
     }
 
     private (Figure, string) BuildContour()
@@ -225,11 +469,15 @@
             for (int c = 0; c < n; c++)
                 cz[r, c] = Math.Sin(cx[c]) * Math.Cos(cy[r]);
 
-        var fig = Plt.Create()
-            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
-            .AddSubPlot(1, 1, 1, ax => ax.Contour(cx, cy, cz).WithColorMap("coolwarm")).Build();
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Contour(cx, cy, cz, s => { s.ShowLabels = true; s.LabelFormat = "F2"; }).WithColorMap(_colorMap);
+                if (_showColorBar) ax.WithColorBar();
+                ApplyAxes(ax);
+            }).Build();
 
-        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Contour(x, y, z)\n        .WithColorMap(\"coolwarm\"))\n    .Save(\"contour.svg\");");
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Contour(x, y, z, s => {{\n            s.ShowLabels = true;\n            s.LabelFormat = \"F2\";\n        }})\n        .WithColorMap(\"{_colorMap}\")\n        .WithColorBar())\n    .Save(\"contour.svg\");");
     }
 
     private (Figure, string) BuildSurface()
@@ -245,12 +493,144 @@
                 sz[i, j] = r < 1e-10 ? 1.0 : Math.Sin(r) / r;
             }
 
-        Action<SurfaceSeries> cfg = s => { s.ColorMap = ColorMaps.Plasma; s.ShowWireframe = false; };
-        var fig = Plt.Create()
-            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
-            .AddSubPlot(1, 1, 1, ax => ax.WithCamera(elevation: 35, azimuth: -50).Surface(sx, sy, sz, cfg))
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithCamera(elevation: 35, azimuth: -50)
+                .WithLighting(dx: 0.5, dy: -0.5, dz: 1.0)
+                .Surface(sx, sy, sz, s => { s.ColorMap = ColorMaps.Plasma; s.ShowWireframe = false; }))
             .Build();
 
-        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .AddSubPlot(1, 1, 1, ax => ax\n        .WithCamera(elevation: 35, azimuth: -50)\n        .Surface(x, y, z, s => { s.ColorMap = ColorMaps.Plasma; }))\n    .Save(\"surface.svg\");");
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .WithCamera(elevation: 35, azimuth: -50)\n        .WithLighting(dx: 0.5, dy: -0.5, dz: 1.0)\n        .Surface(x, y, z, s => {{\n            s.ColorMap = ColorMaps.Plasma;\n            s.ShowWireframe = false;\n        }}))\n    .Save(\"surface.svg\");");
+    }
+
+    private (Figure, string) BuildRadar()
+    {
+        string[] categories = ["Speed", "Power", "Defense", "Range", "Accuracy"];
+        double[] v1 = [85, 70, 90, 60, 95];
+        double[] v2 = [70, 95, 60, 80, 75];
+
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Radar(categories, v1, s => { s.Color = Colors.Blue; s.Alpha = 0.2; s.Label = "Player 1"; });
+                ax.Radar(categories, v2, s => { s.Color = Colors.Red; s.Alpha = 0.2; s.Label = "Player 2"; });
+                if (_showLegend) ax.WithLegend();
+            }).Build();
+
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => {{\n        ax.Radar(categories, v1, s => {{ s.Color = Colors.Blue; s.Alpha = 0.2; s.Label = \"Player 1\"; }});\n        ax.Radar(categories, v2, s => {{ s.Color = Colors.Red; s.Alpha = 0.2; s.Label = \"Player 2\"; }});\n        ax.WithLegend();\n    }})\n    .Save(\"radar.svg\");");
+    }
+
+    private (Figure, string) BuildViolin()
+    {
+        var rng = new Random(42);
+        double[][] groups = [
+            Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 10).ToArray(),
+            Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 8 + 2).ToArray(),
+            Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 12 - 1).ToArray(),
+        ];
+
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Violin(groups, ["Group A", "Group B", "Group C"], s =>
+                {
+                    s.Color = Colors.MediumPurple; s.Alpha = 0.6;
+                });
+                ApplyAxes(ax);
+            }).Build();
+
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Violin(groups, labels, s => {{\n            s.Color = Colors.MediumPurple;\n            s.Alpha = 0.6;\n        }}))\n    .Save(\"violin.svg\");");
+    }
+
+    private (Figure, string) BuildCandlestick()
+    {
+        var rng = new Random(42);
+        double price = 100;
+        int n = 30;
+        double[] open = new double[n], high = new double[n], low = new double[n], close = new double[n];
+        string[] dates = new string[n];
+        for (int i = 0; i < n; i++)
+        {
+            open[i] = price;
+            double change = (rng.NextDouble() - 0.48) * 5;
+            close[i] = price + change;
+            high[i] = Math.Max(open[i], close[i]) + rng.NextDouble() * 3;
+            low[i] = Math.Min(open[i], close[i]) - rng.NextDouble() * 3;
+            dates[i] = new DateTime(2025, 1, 1).AddDays(i).ToString("MMM dd");
+            price = close[i];
+        }
+
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Candlestick(open, high, low, close, dates, s =>
+                {
+                    s.UpColor = Colors.Green;
+                    s.DownColor = Colors.Red;
+                });
+                ApplyAxes(ax);
+            }).Build();
+
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Candlestick(open, high, low, close, dates, s => {{\n            s.UpColor = Colors.Green;\n            s.DownColor = Colors.Red;\n        }}))\n    .Save(\"candlestick.svg\");");
+    }
+
+    private (Figure, string) BuildTreemap()
+    {
+        var root = new Models.TreeNode
+        {
+            Label = "Revenue",
+            Children =
+            [
+                new() { Label = "Electronics", Value = 42, Color = Colors.Blue },
+                new() { Label = "Apparel", Value = 28, Color = Colors.Orange },
+                new() { Label = "Grocery", Value = 30, Color = Colors.Green },
+                new() { Label = "Home", Value = 18, Color = Colors.Purple },
+            ]
+        };
+
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, s => s.ShowLabels = true).HideAllAxes()).Build();
+
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Treemap(root, s => s.ShowLabels = true)\n        .HideAllAxes())\n    .Save(\"treemap.svg\");");
+    }
+
+    private (Figure, string) BuildPolar()
+    {
+        double[] theta = Enumerable.Range(0, 100).Select(i => i * 2 * Math.PI / 100).ToArray();
+        double[] r = theta.Select(t => 1 + Math.Cos(3 * t)).ToArray();
+
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.SetPolar();
+                ax.PolarPlot(theta, r, s => { s.Color = Colors.Blue; s.LineWidth = 2; s.Label = "r = 1 + cos(3θ)"; });
+                if (_showLegend) ax.WithLegend();
+            }).Build();
+
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 1, 1, ax => ax\n        .SetPolar()\n        .PolarPlot(theta, r, s => {{\n            s.Color = Colors.Blue;\n            s.LineWidth = 2;\n            s.Label = \"r = 1 + cos(3θ)\";\n        }})\n        .WithLegend())\n    .Save(\"polar.svg\");");
+    }
+
+    private (Figure, string) BuildMulti()
+    {
+        double[] x = [1, 2, 3, 4, 5, 6, 7, 8];
+        double[] y1 = [2, 4, 3, 5, 4, 6, 5, 7];
+        string[] cats = ["A", "B", "C", "D"];
+        double[] vals = [15, 42, 28, 37];
+
+        var fig = ApplyGlobal(Plt.Create())
+            .AddSubPlot(1, 2, 1, ax =>
+            {
+                ax.Plot(x, y1, s => { s.Color = Colors.Blue; s.Label = "Line"; });
+                ax.WithTitle("Line");
+                ApplyAxes(ax);
+            })
+            .AddSubPlot(1, 2, 2, ax =>
+            {
+                ax.Bar(cats, vals, s => { s.Color = Colors.Orange; s.Label = "Bars"; });
+                ax.WithTitle("Bar");
+                ApplyAxes(ax);
+            }).Build();
+
+        return (fig, $"Plt.Create()\n    .WithTheme(Theme.{_themeName})\n    .AddSubPlot(1, 2, 1, ax => ax\n        .Plot(x, y, s => s.Label = \"Line\")\n        .WithTitle(\"Line\")\n        .WithLegend())\n    .AddSubPlot(1, 2, 2, ax => ax\n        .Bar(cats, vals, s => s.Label = \"Bars\")\n        .WithTitle(\"Bar\")\n        .WithLegend())\n    .Save(\"multi.svg\");");
     }
 }

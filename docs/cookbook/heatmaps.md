@@ -44,3 +44,106 @@ builder.TightLayout().Save("colormap_comparison.svg");
 ```
 
 ![Colormap comparison](../images/colormap_comparison.png)
+
+## Colorbar customization
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Heatmap(matrix)
+        .WithColorMap("viridis")
+        .WithColorBar(cb => cb with
+        {
+            Label = "Temperature (°C)",
+            Orientation = ColorBarOrientation.Horizontal,
+        }))
+    .TightLayout()
+    .Save("colorbar_custom.svg");
+```
+
+## Color normalization
+
+Control how data values map to colors:
+
+```csharp
+// Log normalization — useful when data spans orders of magnitude
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Heatmap(logData)
+        .WithColorMap("plasma")
+        .WithNormalizer(Normalizer.Log())
+        .WithColorBar(cb => cb with { Label = "Log scale" }))
+    .Save("heatmap_log.svg");
+
+// Two-slope normalization — center on zero
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Heatmap(divergingData)
+        .WithColorMap("coolwarm")
+        .WithNormalizer(Normalizer.TwoSlope(vCenter: 0))
+        .WithColorBar(cb => cb with { Label = "Anomaly" }))
+    .Save("heatmap_twoslope.svg");
+```
+
+## Heatmap with custom series config
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Heatmap(matrix, s =>
+        {
+            s.ColorMap = ColorMaps.Turbo;
+        })
+        .WithColorBar())
+    .Save("heatmap_series.svg");
+```
+
+## Image (imshow)
+
+Display 2D arrays as images:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Image(matrix)
+        .WithColorMap("gray")
+        .WithColorBar())
+    .Save("imshow.svg");
+```
+
+## 2D histogram (density)
+
+```csharp
+var rng = new Random(42);
+double[] x = Enumerable.Range(0, 5000).Select(_ => rng.NextGaussian(0, 1)).ToArray();
+double[] y = Enumerable.Range(0, 5000).Select(_ => rng.NextGaussian(0, 1)).ToArray();
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Histogram2D(x, y, bins: 30)
+        .WithColorMap("viridis")
+        .WithColorBar(cb => cb with { Label = "Count" }))
+    .Save("hist2d.svg");
+```
+
+## Pseudocolor mesh
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Pcolormesh(xEdges, yEdges, data)
+        .WithColorMap("inferno")
+        .WithColorBar())
+    .Save("pcolormesh.svg");
+```
+
+## Popular colormaps
+
+| Category | Colormaps |
+|---|---|
+| Perceptual | viridis, plasma, inferno, magma, cividis |
+| Sequential | greys, purples, blues, greens, oranges, reds |
+| Diverging | coolwarm, RdBu, PiYG, PRGn, BrBG, seismic |
+| Cyclic | twilight, hsv |
+| Qualitative | tab10, tab20, Set1, Set2, Set3, Pastel1, Paired |
+| Other | turbo, jet, hot, cool, spring, summer, autumn, winter |

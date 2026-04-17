@@ -18,6 +18,151 @@ Plt.Create()
 
 ![Line chart](../images/chart.png)
 
+## Line styles, markers, and width
+
+Customize every aspect of the line via the configure lambda:
+
+```csharp
+Plt.Create()
+    .WithTitle("Line Styles")
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        ax.Plot(x, y1, s =>
+        {
+            s.Color = Colors.Blue;
+            s.LineStyle = LineStyle.Solid;
+            s.LineWidth = 2.0;
+            s.Label = "Solid (2px)";
+        });
+        ax.Plot(x, y2, s =>
+        {
+            s.Color = Colors.Red;
+            s.LineStyle = LineStyle.Dashed;
+            s.LineWidth = 1.5;
+            s.Label = "Dashed";
+        });
+        ax.Plot(x, y3, s =>
+        {
+            s.Color = Colors.Green;
+            s.LineStyle = LineStyle.DashDot;
+            s.LineWidth = 1.0;
+            s.Marker = MarkerStyle.Circle;
+            s.MarkerSize = 6;
+            s.MarkEvery = 2;  // marker every 2nd point
+            s.Label = "DashDot + markers";
+        });
+        ax.WithLegend(LegendPosition.UpperLeft);
+    })
+    .Save("line_styles.svg");
+```
+
+## Smooth interpolation
+
+Fritsch-Carlson cubic spline for smooth curves:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s =>
+        {
+            s.Smooth = true;
+            s.SmoothResolution = 20;  // 20 sub-points per interval
+            s.Color = Colors.Purple;
+            s.Label = "Smoothed";
+        })
+        .Scatter(x, y, s =>
+        {
+            s.Color = Colors.Red;
+            s.MarkerSize = 8;
+            s.Label = "Data points";
+        })
+        .WithLegend())
+    .Save("smooth_line.svg");
+```
+
+## Step functions
+
+Control step placement with `DrawStyle`:
+
+```csharp
+Plt.Create()
+    .WithSize(900, 400)
+    .AddSubPlot(1, 3, 1, ax => ax
+        .Plot(x, y, s => { s.DrawStyle = DrawStyle.Steps; s.Label = "Steps"; })
+        .WithTitle("Steps").WithLegend())
+    .AddSubPlot(1, 3, 2, ax => ax
+        .Plot(x, y, s => { s.DrawStyle = DrawStyle.StepPre; s.Label = "StepPre"; })
+        .WithTitle("StepPre").WithLegend())
+    .AddSubPlot(1, 3, 3, ax => ax
+        .Plot(x, y, s => { s.DrawStyle = DrawStyle.StepMid; s.Label = "StepMid"; })
+        .WithTitle("StepMid").WithLegend())
+    .TightLayout()
+    .Save("step_styles.svg");
+```
+
+## Marker customization
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s =>
+        {
+            s.Marker = MarkerStyle.Diamond;
+            s.MarkerSize = 10;
+            s.MarkerFaceColor = Colors.Gold;
+            s.MarkerEdgeColor = Colors.DarkRed;
+            s.MarkerEdgeWidth = 1.5;
+            s.Color = Colors.DarkRed;
+            s.Label = "Diamond markers";
+        })
+        .WithLegend())
+    .Save("marker_custom.svg");
+```
+
+## Grid and spine control
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s => s.Label = "Data")
+        // Grid styling
+        .WithGrid(g => g with
+        {
+            Color = Colors.LightGray,
+            LineStyle = LineStyle.Dotted,
+            LineWidth = 0.5,
+            Alpha = 0.8
+        })
+        // Hide top and right spines (matplotlib style)
+        .HideTopSpine()
+        .HideRightSpine()
+        // Axis ranges
+        .SetXLim(0, 12)
+        .SetYLim(0, 12)
+        .SetXLabel("Time (s)")
+        .SetYLabel("Amplitude")
+        .WithLegend())
+    .Save("grid_spines.svg");
+```
+
+## Secondary Y-axis
+
+Plot two datasets with different scales on the same axes:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, temperature, s => { s.Color = Colors.Red; s.Label = "Temperature (°C)"; })
+        .SetYLabel("Temperature (°C)")
+        .WithSecondaryYAxis(sec =>
+        {
+            sec.Plot(x, pressure, s => { s.Color = Colors.Blue; s.Label = "Pressure (hPa)"; });
+            sec.SetYLabel("Pressure (hPa)");
+        })
+        .WithLegend())
+    .Save("dual_axis.svg");
+```
+
 ## PropCycler — automatic color + line style cycling
 
 When plotting multiple series, `PropCycler` automatically assigns distinct colors and line styles:
@@ -83,3 +228,45 @@ Plt.Create()
 ```
 
 ![Outside legend](../images/legend_outside.png)
+
+## Legend customization
+
+```csharp
+ax.WithLegend(l => l with
+{
+    Position = LegendPosition.UpperRight,
+    NCols = 2,               // two-column layout
+    FontSize = 10,
+    Title = "Metrics",
+    TitleFontSize = 12,
+    FrameOn = true,
+    FancyBox = true,          // rounded corners
+    Shadow = true,
+    FaceColor = Colors.AliceBlue,
+    EdgeColor = Colors.SteelBlue,
+    FrameAlpha = 0.9,
+    MarkerScale = 1.5,
+    LabelSpacing = 0.4,
+    ColumnSpacing = 1.5,
+});
+```
+
+## Fluent API reference — LineSeries
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `Color` | `Color` | auto | Line color |
+| `LineStyle` | `LineStyle` | `Solid` | Solid, Dashed, Dotted, DashDot |
+| `LineWidth` | `double` | `1.5` | Line width in pixels |
+| `Marker` | `MarkerStyle` | none | Circle, Square, Triangle, Diamond, Star, Cross, Plus, ... |
+| `MarkerSize` | `double` | `6` | Marker diameter |
+| `MarkerFaceColor` | `Color` | auto | Marker fill color |
+| `MarkerEdgeColor` | `Color` | auto | Marker edge color |
+| `MarkerEdgeWidth` | `double` | `1` | Marker edge width |
+| `MarkEvery` | `int` | `1` | Show marker every N points |
+| `DrawStyle` | `DrawStyle` | `Default` | Default, Steps, StepPre, StepMid, StepPost |
+| `Smooth` | `bool` | `false` | Fritsch-Carlson cubic interpolation |
+| `SmoothResolution` | `int` | `10` | Sub-points per interval when smoothing |
+| `Label` | `string` | none | Legend label |
+| `Visible` | `bool` | `true` | Show/hide series |
+| `ZOrder` | `int` | `0` | Render order (higher = on top) |

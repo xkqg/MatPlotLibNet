@@ -1,15 +1,16 @@
 # Themes
 
-## 26 built-in themes
+## Applying a theme
 
 ```csharp
-// Use any theme with .WithTheme()
 Plt.Create()
     .WithTheme(Theme.Dracula)
     .Plot(x, y, s => s.Label = "Data")
     .WithLegend()
     .Save("dracula.svg");
 ```
+
+## 26 built-in themes
 
 ### Light themes
 
@@ -55,15 +56,109 @@ Plt.Create()
 ## Theme comparison
 
 ```csharp
-// Same data, different themes
-string[] themes = ["Default", "Dark", "Nord", "Dracula", "Cyberpunk"];
+string[] themes = ["Default", "Dark", "Nord", "Dracula", "Cyberpunk",
+                   "Monokai", "Catppuccin", "Gruvbox", "OneDark", "Neon"];
+
 foreach (var name in themes)
 {
     var theme = typeof(Theme).GetProperty(name)!.GetValue(null) as Theme;
     Plt.Create()
         .WithTheme(theme!)
         .WithTitle(name)
-        .Plot(x, y)
+        .Plot(x, y, s => s.Label = "sin(x)")
+        .WithLegend()
         .Save($"theme_{name}.svg");
 }
 ```
+
+## Custom theme with ThemeBuilder
+
+Build your own theme from scratch or derive from an existing one:
+
+```csharp
+var custom = Theme.CreateFrom(Theme.Dark)
+    .WithBackground(Color.FromHex("#1e1e2e"))
+    .WithForegroundText(Colors.White)
+    .WithAxesBackground(Color.FromHex("#282a36"))
+    .WithCycleColors(Colors.Cyan, Colors.Pink, Colors.Green, Colors.Yellow)
+    .WithFont(f => f with { Family = "JetBrains Mono", Size = 11 })
+    .WithGrid(g => g with
+    {
+        Color = Color.FromHex("#44475a"),
+        LineStyle = LineStyle.Dotted,
+        Alpha = 0.5
+    })
+    .Build();
+
+Plt.Create()
+    .WithTheme(custom)
+    .WithTitle("Custom Theme")
+    .Plot(x, y1, s => s.Label = "Series 1")
+    .Plot(x, y2, s => s.Label = "Series 2")
+    .WithLegend()
+    .Save("custom_theme.svg");
+```
+
+## Custom PropCycler
+
+Control color + line style cycling for multi-series plots:
+
+```csharp
+var cycler = new PropCyclerBuilder()
+    .WithColors(Colors.Cyan, Colors.Magenta, Colors.Gold, Colors.LimeGreen)
+    .WithLineStyles(LineStyle.Solid, LineStyle.Dashed, LineStyle.DashDot, LineStyle.Dotted)
+    .Build();
+
+var theme = Theme.CreateFrom(Theme.Dark)
+    .WithPropCycler(cycler)
+    .Build();
+```
+
+## Theme with 3D pane colors
+
+```csharp
+var theme3d = Theme.CreateFrom(Theme.Dark)
+    .WithBackground(Color.FromHex("#1a1a2e"))
+    .WithForegroundText(Colors.White)
+    .Build();
+
+Plt.Create()
+    .WithTheme(theme3d)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Surface(x, y, z)
+        .WithPane3D(p => p with
+        {
+            FloorColor = Color.FromHex("#2A2A2A"),
+            LeftWallColor = Color.FromHex("#222222"),
+            RightWallColor = Color.FromHex("#333333"),
+            Alpha = 0.8,
+        })
+        .WithCamera(elevation: 30, azimuth: -50))
+    .Save("themed_3d.svg");
+```
+
+## Theme background shortcut
+
+```csharp
+// Quick way to set just the background
+Plt.Create()
+    .WithBackground(Color.FromHex("#f5f5dc"))  // beige
+    .WithTheme(Theme.Paper)
+    .Plot(x, y)
+    .Save("paper_bg.svg");
+```
+
+## Fluent API reference
+
+| Method | Description |
+|---|---|
+| `.WithTheme(Theme preset)` | Apply a built-in or custom theme |
+| `.WithBackground(Color)` | Override figure background |
+| `Theme.CreateFrom(base)` | Start a ThemeBuilder from existing theme |
+| `.WithForegroundText(Color)` | Text/foreground color |
+| `.WithAxesBackground(Color)` | Axes area background |
+| `.WithCycleColors(params Color[])` | Color cycle for series |
+| `.WithFont(Func<Font, Font>)` | Default font (family, size, weight) |
+| `.WithGrid(Func<GridStyle, GridStyle>)` | Grid appearance |
+| `.WithPropCycler(PropCycler)` | Multi-property cycler |
+| `.Build()` | Return customized Theme |
