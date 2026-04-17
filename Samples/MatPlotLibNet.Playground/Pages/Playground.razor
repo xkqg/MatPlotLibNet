@@ -1,0 +1,256 @@
+@page "/"
+@using MatPlotLibNet
+@using MatPlotLibNet.Models
+@using MatPlotLibNet.Styling
+@using MatPlotLibNet.Styling.ColorMaps
+@using MatPlotLibNet.Models.Series
+@using MatPlotLibNet.Rendering
+@inject IJSRuntime JS
+
+<div class="playground-layout">
+    <div class="panel panel-controls">
+        <select class="example-select" @onchange="OnExampleChanged">
+            @foreach (var name in ExampleNames)
+            {
+                <option value="@name">@name</option>
+            }
+        </select>
+
+        <div class="section-title">Parameters</div>
+
+        <div class="param-group">
+            <label>Title</label>
+            <input type="text" @bind="_title" @bind:event="oninput" @bind:after="Rebuild" />
+        </div>
+
+        <div class="param-group">
+            <label>Theme</label>
+            <select @bind="_themeName" @bind:after="Rebuild">
+                <option>Default</option>
+                <option>Dark</option>
+                <option>Seaborn</option>
+                <option>ColorBlindSafe</option>
+                <option>HighContrast</option>
+                <option>MatplotlibClassic</option>
+                <option>MatplotlibV2</option>
+            </select>
+        </div>
+
+        <div class="param-group">
+            <label>Width: @_width px</label>
+            <input type="range" min="400" max="1200" step="50" @bind="_width" @bind:event="oninput" @bind:after="Rebuild" />
+        </div>
+
+        <div class="param-group">
+            <label>Height: @_height px</label>
+            <input type="range" min="300" max="900" step="50" @bind="_height" @bind:event="oninput" @bind:after="Rebuild" />
+        </div>
+
+        <div class="section-title">Code</div>
+        <div class="code-block">
+            <button class="copy-btn" @onclick="CopyCode">Copy</button>@_code
+        </div>
+    </div>
+
+    <div class="panel panel-preview">
+        <div class="chart-preview">
+            @((MarkupString)_svg)
+        </div>
+    </div>
+</div>
+
+@code {
+    private static readonly string[] ExampleNames =
+    [
+        "Line Chart", "Bar Chart", "Scatter Plot", "Heatmap",
+        "Pie Chart", "Multi-Subplot", "Histogram", "Contour Plot", "3D Surface"
+    ];
+
+    private string _title = "Line Chart";
+    private string _themeName = "Default";
+    private int _width = 800;
+    private int _height = 500;
+    private string _svg = "";
+    private string _code = "";
+    private string _selectedExample = "Line Chart";
+
+    protected override void OnInitialized() => Rebuild();
+
+    private Theme GetTheme() => _themeName switch
+    {
+        "Dark" => Theme.Dark,
+        "Seaborn" => Theme.Seaborn,
+        "ColorBlindSafe" => Theme.ColorBlindSafe,
+        "HighContrast" => Theme.HighContrast,
+        "MatplotlibClassic" => Theme.MatplotlibClassic,
+        "MatplotlibV2" => Theme.MatplotlibV2,
+        _ => Theme.Default,
+    };
+
+    private void OnExampleChanged(ChangeEventArgs e)
+    {
+        _selectedExample = e.Value?.ToString() ?? "Line Chart";
+        _title = _selectedExample;
+        Rebuild();
+    }
+
+    private void Rebuild()
+    {
+        try
+        {
+            var (figure, code) = _selectedExample switch
+            {
+                "Line Chart" => BuildLine(),
+                "Bar Chart" => BuildBar(),
+                "Scatter Plot" => BuildScatter(),
+                "Heatmap" => BuildHeatmap(),
+                "Pie Chart" => BuildPie(),
+                "Multi-Subplot" => BuildMulti(),
+                "Histogram" => BuildHist(),
+                "Contour Plot" => BuildContour(),
+                "3D Surface" => BuildSurface(),
+                _ => BuildLine(),
+            };
+            _svg = figure.ToSvg();
+            _code = code;
+        }
+        catch (Exception ex)
+        {
+            _svg = "<p style='color:red;padding:20px'>" + ex.Message + "</p>";
+        }
+    }
+
+    private async Task CopyCode() => await JS.InvokeVoidAsync("copyToClipboard", _code);
+
+    private (Figure, string) BuildLine()
+    {
+        double[] x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        double[] y = [2.1, 4.5, 3.2, 6.8, 5.1, 7.3, 6.5, 8.9, 7.2, 9.4];
+        Action<LineSeries> cfg = s => { s.Color = Colors.Blue; s.Label = "Revenue"; };
+
+        var fig = Plt.Create()
+            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
+            .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, cfg).WithLegend()).Build();
+
+        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .WithTheme(Theme." + _themeName + ")\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Plot(x, y, s => { s.Color = Colors.Blue; s.Label = \"Revenue\"; })\n        .WithLegend())\n    .Save(\"chart.svg\");");
+    }
+
+    private (Figure, string) BuildBar()
+    {
+        string[] cats = ["Q1", "Q2", "Q3", "Q4"];
+        double[] vals = [23, 45, 12, 67];
+        Action<BarSeries> cfg = s => { s.Color = Colors.Orange; s.Label = "Units"; };
+
+        var fig = Plt.Create()
+            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
+            .AddSubPlot(1, 1, 1, ax => ax.Bar(cats, vals, cfg).WithLegend()).Build();
+
+        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .WithTheme(Theme." + _themeName + ")\n    .Bar(categories, values, s => { s.Color = Colors.Orange; })\n    .Save(\"bar.svg\");");
+    }
+
+    private (Figure, string) BuildScatter()
+    {
+        var rng = new Random(42);
+        double[] x = Enumerable.Range(0, 50).Select(_ => rng.NextDouble() * 10).ToArray();
+        double[] y = x.Select(v => v * 0.8 + new Random(42).NextDouble() * 3).ToArray();
+        Action<ScatterSeries> cfg = s => { s.Color = Colors.CornflowerBlue; s.MarkerSize = 6; s.Label = "Data"; };
+
+        var fig = Plt.Create()
+            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
+            .AddSubPlot(1, 1, 1, ax => ax.Scatter(x, y, cfg).WithLegend()).Build();
+
+        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .Scatter(x, y, s => { s.Color = Colors.CornflowerBlue; s.MarkerSize = 6; })\n    .Save(\"scatter.svg\");");
+    }
+
+    private (Figure, string) BuildHeatmap()
+    {
+        var matrix = new double[10, 10];
+        for (int r = 0; r < 10; r++)
+            for (int c = 0; c < 10; c++)
+                matrix[r, c] = Math.Sin(r * 0.5) * Math.Cos(c * 0.5);
+
+        var fig = Plt.Create()
+            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
+            .AddSubPlot(1, 1, 1, ax => ax.Heatmap(matrix).WithColorMap("plasma").WithColorBar())
+            .TightLayout().Build();
+
+        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Heatmap(matrix)\n        .WithColorMap(\"plasma\")\n        .WithColorBar())\n    .TightLayout()\n    .Save(\"heatmap.svg\");");
+    }
+
+    private (Figure, string) BuildPie()
+    {
+        string[] labels = ["Python", "C#", "Java", "Go", "Rust"];
+        double[] sizes = [35, 25, 20, 12, 8];
+
+        var fig = Plt.Create()
+            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
+            .Pie(sizes, labels).Build();
+
+        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .Pie(sizes, labels)\n    .Save(\"pie.svg\");");
+    }
+
+    private (Figure, string) BuildMulti()
+    {
+        double[] x = [1, 2, 3, 4, 5, 6, 7, 8];
+        double[] y1 = [2, 4, 3, 5, 4, 6, 5, 7];
+        string[] cats = ["A", "B", "C", "D"];
+        double[] vals = [15, 42, 28, 37];
+
+        var fig = Plt.Create()
+            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
+            .Plot(x, y1).AddSubPlot(1, 2, 2, ax => ax.Bar(cats, vals)).Build();
+
+        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .Plot(x, y1)\n    .AddSubPlot(1, 2, 2, ax => ax.Bar(categories, values))\n    .Save(\"multi.svg\");");
+    }
+
+    private (Figure, string) BuildHist()
+    {
+        var rng = new Random(42);
+        double[] data = Enumerable.Range(0, 500).Select(_ => rng.NextDouble() * 6 + rng.NextDouble() * 6).ToArray();
+
+        var fig = Plt.Create()
+            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
+            .AddSubPlot(1, 1, 1, ax => ax.Hist(data, 20)).Build();
+
+        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .AddSubPlot(1, 1, 1, ax => ax.Hist(data, 20))\n    .Save(\"hist.svg\");");
+    }
+
+    private (Figure, string) BuildContour()
+    {
+        int n = 20;
+        double[] cx = Enumerable.Range(0, n).Select(i => i * 0.5 - 5.0).ToArray();
+        double[] cy = Enumerable.Range(0, n).Select(i => i * 0.5 - 5.0).ToArray();
+        var cz = new double[n, n];
+        for (int r = 0; r < n; r++)
+            for (int c = 0; c < n; c++)
+                cz[r, c] = Math.Sin(cx[c]) * Math.Cos(cy[r]);
+
+        var fig = Plt.Create()
+            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
+            .AddSubPlot(1, 1, 1, ax => ax.Contour(cx, cy, cz).WithColorMap("coolwarm")).Build();
+
+        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .AddSubPlot(1, 1, 1, ax => ax\n        .Contour(x, y, z)\n        .WithColorMap(\"coolwarm\"))\n    .Save(\"contour.svg\");");
+    }
+
+    private (Figure, string) BuildSurface()
+    {
+        int n = 20;
+        double[] sx = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
+        double[] sy = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
+        var sz = new double[n, n];
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+            {
+                double r = Math.Sqrt(sx[i] * sx[i] + sy[j] * sy[j]);
+                sz[i, j] = r < 1e-10 ? 1.0 : Math.Sin(r) / r;
+            }
+
+        Action<SurfaceSeries> cfg = s => { s.ColorMap = ColorMaps.Plasma; s.ShowWireframe = false; };
+        var fig = Plt.Create()
+            .WithTitle(_title).WithTheme(GetTheme()).WithSize(_width, _height)
+            .AddSubPlot(1, 1, 1, ax => ax.WithCamera(elevation: 35, azimuth: -50).Surface(sx, sy, sz, cfg))
+            .Build();
+
+        return (fig, "Plt.Create()\n    .WithTitle(\"" + _title + "\")\n    .AddSubPlot(1, 1, 1, ax => ax\n        .WithCamera(elevation: 35, azimuth: -50)\n        .Surface(x, y, z, s => { s.ColorMap = ColorMaps.Plasma; }))\n    .Save(\"surface.svg\");");
+    }
+}

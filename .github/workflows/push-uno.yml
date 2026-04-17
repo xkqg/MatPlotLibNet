@@ -25,7 +25,7 @@ jobs:
         run: dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-restore -c Release
 
       - name: Pack
-        run: dotnet pack Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-build -c Release -o nupkgs
+        run: dotnet pack Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj -c Release -o nupkgs
 
       - name: Push to NuGet
         run: dotnet nuget push "nupkgs/MatPlotLibNet.Uno.*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
