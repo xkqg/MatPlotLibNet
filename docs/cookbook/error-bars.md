@@ -35,6 +35,8 @@ Plt.Create()
     .Save("asymmetric_errors.svg");
 ```
 
+![Error bars](../images/error_bars.png)
+
 ## Error bars with styling
 
 ```csharp

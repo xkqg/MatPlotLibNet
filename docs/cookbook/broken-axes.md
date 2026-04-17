@@ -16,6 +16,8 @@ Plt.Create()
     .Save("broken_y.svg");
 ```
 
+![Broken Y-axis](../images/broken_y.png)
+
 ## X-axis break
 
 ```csharp

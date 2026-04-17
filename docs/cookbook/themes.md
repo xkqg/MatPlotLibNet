@@ -71,6 +71,8 @@ foreach (var name in themes)
 }
 ```
 
+![Theme comparison](../images/theme_comparison.png)
+
 ## Custom theme with ThemeBuilder
 
 Build your own theme from scratch or derive from an existing one:

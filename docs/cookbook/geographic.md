@@ -19,6 +19,8 @@ Plt.Create()
     .Save("world_robinson.svg");
 ```
 
+![World map — Robinson](../images/geo_robinson.png)
+
 ## Globe view (Orthographic)
 
 Center the globe on any point with `OrthographicAt(lat, lon)`:
@@ -37,6 +39,8 @@ Plt.Create()
         .Borders(proj, Colors.Gray, lineWidth: 0.3))
     .Save("globe.svg");
 ```
+
+![Globe — Orthographic](../images/geo_globe.png)
 
 ## Full-featured world map (Mollweide)
 

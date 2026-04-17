@@ -12,6 +12,8 @@ using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Transforms;
+using MatPlotLibNet.Geo;
+using MatPlotLibNet.Geo.Projections;
 
 // Resolves a sample output filename to the canonical `images/` directory at the repo root,
 // regardless of where the samples binary is invoked from. Walks upward from the binary
@@ -1254,6 +1256,196 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
         })
         .SaveSvgAndPng(SamplesPath("legend_outside.svg"));
     Console.WriteLine("Saved legend_outside.svg");
+}
+
+// --- 15. Cookbook images — pie, donut ---
+{
+    double[] sizes = [35, 25, 20, 12, 8];
+    string[] labels = ["Python", "C#", "Java", "Go", "Rust"];
+    Plt.Create()
+        .WithTitle("Language Popularity")
+        .WithSize(600, 600)
+        .Pie(sizes, labels, s => { s.AutoPct = "%.0f%%"; s.Shadow = true; })
+        .SaveSvgAndPng(SamplesPath("pie_chart.svg"));
+    Console.WriteLine("Saved pie_chart");
+
+    Plt.Create()
+        .WithTitle("Revenue Split")
+        .WithSize(600, 600)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Donut(sizes, labels, s => { s.InnerRadius = 0.4; }))
+        .SaveSvgAndPng(SamplesPath("donut_chart.svg"));
+    Console.WriteLine("Saved donut_chart");
+}
+
+// --- 16. Cookbook images — distribution ---
+{
+    var rngDist = new Random(42);
+    double[] data = Enumerable.Range(0, 1000)
+        .Select(_ => rngDist.NextDouble() * 6 + rngDist.NextDouble() * 6).ToArray();
+    double[][] groups = [
+        Enumerable.Range(0, 60).Select(_ => rngDist.NextDouble() * 10).ToArray(),
+        Enumerable.Range(0, 60).Select(_ => rngDist.NextDouble() * 8 + 2).ToArray(),
+        Enumerable.Range(0, 60).Select(_ => rngDist.NextDouble() * 12 - 1).ToArray(),
+    ];
+
+    Plt.Create()
+        .WithTitle("Histogram")
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Hist(data, 30, s => { s.Color = Colors.Teal; s.EdgeColor = Colors.White; s.Label = "Distribution"; })
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("histogram.svg"));
+    Console.WriteLine("Saved histogram");
+
+    Plt.Create()
+        .WithTitle("Box Plot")
+        .AddSubPlot(1, 1, 1, ax => ax.BoxPlot(groups, s => s.Color = Colors.CornflowerBlue))
+        .SaveSvgAndPng(SamplesPath("boxplot.svg"));
+    Console.WriteLine("Saved boxplot");
+
+    Plt.Create()
+        .WithTitle("Violin Plot")
+        .AddSubPlot(1, 1, 1, ax => ax.Violin(groups, s => { s.Color = Colors.RebeccaPurple; s.Alpha = 0.6; }))
+        .SaveSvgAndPng(SamplesPath("violin.svg"));
+    Console.WriteLine("Saved violin");
+}
+
+// --- 17. Cookbook images — polar ---
+{
+    double[] theta = Enumerable.Range(0, 100).Select(i => i * 2 * Math.PI / 100).ToArray();
+    double[] r = theta.Select(t => 1 + Math.Cos(3 * t)).ToArray();
+
+    Plt.Create()
+        .WithTitle("Polar Line")
+        .WithSize(600, 600)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .PolarPlot(r, theta, s => { s.Color = Colors.Blue; s.LineWidth = 2; s.Label = "r = 1 + cos(3θ)"; })
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("polar_line.svg"));
+    Console.WriteLine("Saved polar_line");
+
+    string[] cats = ["Speed", "Power", "Defense", "Range", "Accuracy"];
+    double[] v1 = [85, 70, 90, 60, 95];
+    double[] v2 = [70, 95, 60, 80, 75];
+    Plt.Create()
+        .WithTitle("Radar Comparison")
+        .WithSize(600, 600)
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            ax.Radar(cats, v1, s => { s.Color = Colors.Blue; s.Alpha = 0.2; s.Label = "Player 1"; });
+            ax.Radar(cats, v2, s => { s.Color = Colors.Red; s.Alpha = 0.2; s.Label = "Player 2"; });
+            ax.WithLegend();
+        })
+        .SaveSvgAndPng(SamplesPath("radar_comparison.svg"));
+    Console.WriteLine("Saved radar_comparison");
+}
+
+// --- 18. Cookbook images — error bars ---
+{
+    double[] xe = [1, 2, 3, 4, 5];
+    double[] ye = [2.1, 4.5, 3.2, 6.8, 5.1];
+    double[] yerrLow = [0.3, 0.2, 0.5, 0.3, 0.4];
+    double[] yerrHigh = [0.8, 0.5, 1.0, 0.6, 0.9];
+
+    Plt.Create()
+        .WithTitle("Asymmetric Error Bars")
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Scatter(xe, ye, s => { s.Color = Colors.Red; s.MarkerSize = 10; s.Label = "Data"; })
+            .ErrorBar(xe, ye, yerrLow, yerrHigh, s => { s.Color = Colors.Gray; s.CapSize = 5; })
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("error_bars.svg"));
+    Console.WriteLine("Saved error_bars");
+}
+
+// --- 19. Cookbook images — broken axes ---
+{
+    double[] xb = Enumerable.Range(0, 20).Select(i => (double)i).ToArray();
+    double[] yb = xb.Select(v => v < 10 ? v * 2 : v * 2 + 80).ToArray();
+
+    Plt.Create()
+        .WithTitle("Broken Y-Axis")
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot(xb, yb, s => { s.Color = Colors.Blue; s.Label = "Data"; })
+            .WithYBreak(25, 85)
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("broken_y.svg"));
+    Console.WriteLine("Saved broken_y");
+}
+
+// --- 20. Cookbook images — symlog ---
+{
+    double[] xs = Enumerable.Range(-50, 101).Select(i => (double)i).ToArray();
+    double[] ys = xs.Select(v => v * v * v).ToArray();
+
+    Plt.Create()
+        .WithTitle("Symlog Y-Axis — x³")
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot(xs, ys, s => { s.Color = Colors.Blue; s.Label = "x³"; })
+            .WithSymlogYScale(linthresh: 100)
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("symlog.svg"));
+    Console.WriteLine("Saved symlog");
+}
+
+// --- 21. Cookbook images — themes comparison ---
+{
+    double[] xt = Enumerable.Range(0, 50).Select(i => i * 0.2).ToArray();
+    double[] yt1 = xt.Select(v => Math.Sin(v)).ToArray();
+    double[] yt2 = xt.Select(v => Math.Cos(v)).ToArray();
+
+    var themes = new (string Name, Theme T)[]
+    {
+        ("Default", Theme.Default), ("Dark", Theme.Dark),
+        ("Nord", Theme.Nord), ("Dracula", Theme.Dracula),
+        ("Cyberpunk", Theme.Cyberpunk), ("Monokai", Theme.Monokai),
+    };
+
+    var builder = Plt.Create()
+        .WithTitle("Theme Comparison")
+        .WithSize(1200, 800);
+
+    for (int i = 0; i < themes.Length; i++)
+    {
+        var (name, theme) = themes[i];
+        // Each subplot uses the same data but we annotate the theme name as the subplot title
+        builder.AddSubPlot(2, 3, i + 1, ax =>
+        {
+            ax.Plot(xt, yt1, s => s.Label = "sin(x)");
+            ax.Plot(xt, yt2, s => s.Label = "cos(x)");
+            ax.WithTitle(name);
+            ax.WithLegend(LegendPosition.UpperRight);
+        });
+    }
+    builder.TightLayout().SaveSvgAndPng(SamplesPath("theme_comparison.svg"));
+    Console.WriteLine("Saved theme_comparison");
+}
+
+// --- 22. Cookbook images — geographic ---
+{
+    var proj = GeoProjection.Robinson;
+    Plt.Create()
+        .WithTitle("World Map — Robinson")
+        .WithSize(1000, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .WithProjection(proj)
+            .Ocean(proj, Color.FromHex("#1a3a5c"))
+            .Land(proj, Color.FromHex("#2d5a27"))
+            .Coastlines(proj, Colors.White, lineWidth: 0.5)
+            .Borders(proj, Color.FromHex("#888888"), lineWidth: 0.2))
+        .SaveSvgAndPng(SamplesPath("geo_robinson.svg"));
+    Console.WriteLine("Saved geo_robinson");
+
+    var globe = GeoProjection.OrthographicAt(45, -30);
+    Plt.Create()
+        .WithTitle("Globe — 45°N, 30°W")
+        .WithSize(600, 600)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .WithProjection(globe)
+            .Ocean(globe, Color.FromHex("#87CEEB"))
+            .Land(globe, Color.FromHex("#90EE90"))
+            .Coastlines(globe, Colors.Navy, lineWidth: 0.8))
+        .SaveSvgAndPng(SamplesPath("geo_globe.svg"));
+    Console.WriteLine("Saved geo_globe");
 }
 
 Console.WriteLine("Done!");

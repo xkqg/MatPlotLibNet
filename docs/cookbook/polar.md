@@ -21,6 +21,8 @@ Plt.Create()
     .Save("polar_line.svg");
 ```
 
+![Polar line](../images/polar_line.png)
+
 ## Multi-series polar
 
 ```csharp
@@ -62,6 +64,8 @@ Plt.Create()
         .WithLegend())
     .Save("radar_comparison.svg");
 ```
+
+![Radar comparison](../images/radar_comparison.png)
 
 ## Polar bar
 

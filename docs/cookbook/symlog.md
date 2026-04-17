@@ -16,6 +16,8 @@ Plt.Create()
     .Save("symlog.svg");
 ```
 
+![Symlog Y-axis](../images/symlog.png)
+
 ## Financial P&L
 
 ```csharp

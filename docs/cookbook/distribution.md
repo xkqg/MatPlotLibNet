@@ -15,6 +15,8 @@ Plt.Create()
     .Save("histogram.svg");
 ```
 
+![Histogram](../images/histogram.png)
+
 ## Histogram with density normalization
 
 ```csharp
@@ -103,6 +105,8 @@ Plt.Create()
     .Save("boxplot.svg");
 ```
 
+![Box plot](../images/boxplot.png)
+
 ## Violin plot
 
 ```csharp
@@ -116,6 +120,8 @@ Plt.Create()
         }))
     .Save("violin.svg");
 ```
+
+![Violin plot](../images/violin.png)
 
 ## KDE (Kernel Density Estimation)
 

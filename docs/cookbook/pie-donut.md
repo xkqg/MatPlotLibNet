@@ -12,6 +12,8 @@ Plt.Create()
     .Save("pie.svg");
 ```
 
+![Pie chart](../images/pie_chart.png)
+
 ## Pie with explode, shadow, and percentage labels
 
 ```csharp
@@ -41,6 +43,8 @@ Plt.Create()
     })
     .Save("pie_styled.svg");
 ```
+
+![Donut chart](../images/donut_chart.png)
 
 ## Donut chart
 
