@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series.Streaming;
 
-/// <summary>A streaming candlestick series that accepts OHLC bars via <see cref="AppendBar"/>,
+/// <summary>A streaming candlestick series that accepts OHLC bars via <see cref="AppendBar(OhlcBar)"/>,
 /// backed by four parallel ring buffers. Supports indicator auto-attachment via the
 /// <see cref="BarAppended"/> event.</summary>
 public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeries, IHasColor

@@ -21,9 +21,9 @@ namespace MatPlotLibNet.Avalonia;
 internal sealed class MplChartDrawOperation : ICustomDrawOperation
 {
     private readonly Figure _figure;
-    private readonly MplChartControl _owner;
+    private readonly MplChartControl? _owner;
 
-    internal MplChartDrawOperation(Rect bounds, Figure figure, MplChartControl owner)
+    internal MplChartDrawOperation(Rect bounds, Figure figure, MplChartControl? owner)
     {
         Bounds = bounds;
         _figure = figure;
@@ -54,14 +54,14 @@ internal sealed class MplChartDrawOperation : ICustomDrawOperation
         var skiaCtx = new SkiaRenderContext(lease.SkCanvas);
         MatPlotLibNet.ChartServices.Renderer.Render(_figure, skiaCtx);
 
-        if (_owner.IsInteractive)
+        if (_owner is { IsInteractive: true })
         {
             var layoutResult = MatPlotLibNet.ChartServices.Renderer.ComputeLayout(_figure, skiaCtx);
             _owner.OnRenderCompleted(_figure, layoutResult);
         }
 
         // Draw rubber-band selection rectangle if a brush select drag is in progress.
-        var brushState = _owner.ActiveBrushSelect;
+        var brushState = _owner?.ActiveBrushSelect;
         if (brushState is { } bs)
         {
             var rect = new SKRect(

@@ -53,7 +53,7 @@ public sealed class StreamingCandlestickSeriesTests
         s.AppendBar(100, 110, 95, 105);
         var snap = s.CreateOhlcSnapshot();
         s.AppendBar(200, 220, 190, 210);
-        Assert.Equal(1, snap.Open.Length); // snapshot not affected
+        Assert.Single(snap.Open); // snapshot not affected
     }
 
     [Fact]

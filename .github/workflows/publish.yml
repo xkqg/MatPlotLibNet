@@ -67,7 +67,7 @@ jobs:
       #       available via NuGet restore alone.
 
       - name: Test MAUI
-        run: dotnet run --project Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj --no-build --configuration Release
+        run: dotnet run --project Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj --configuration Release
 
       - name: Pack Skia
         run: dotnet pack Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj --no-build --configuration Release --output nupkgs

@@ -64,7 +64,7 @@ public sealed class StreamingFigureTests
         series.AppendPoint(1, 2);
 
         // Should fire within 200ms (throttle is 50ms)
-        var completed = await Task.WhenAny(tcs.Task, Task.Delay(2000));
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(2000, TestContext.Current.CancellationToken));
         Assert.Equal(tcs.Task, completed);
         sf.Dispose();
     }
@@ -79,7 +79,7 @@ public sealed class StreamingFigureTests
         sf.RenderRequested += () => fired = true;
 
         // Wait longer than throttle without appending data
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         Assert.False(fired);
         sf.Dispose();
     }

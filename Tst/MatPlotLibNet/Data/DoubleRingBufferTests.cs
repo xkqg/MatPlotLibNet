@@ -198,30 +198,31 @@ public sealed class DoubleRingBufferTests
     }
 
     [Fact]
-    public void ConcurrentAppendAndSnapshot_DoesNotThrow()
+    public async Task ConcurrentAppendAndSnapshot_DoesNotThrow()
     {
         var buf = new DoubleRingBuffer(1000);
-        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        var ct = cts.Token;
 
         var writer = Task.Run(() =>
         {
             double v = 0;
-            while (!cts.Token.IsCancellationRequested)
+            while (!ct.IsCancellationRequested)
                 buf.Append(v++);
-        });
+        }, ct);
 
         var reader = Task.Run(() =>
         {
-            while (!cts.Token.IsCancellationRequested)
+            while (!ct.IsCancellationRequested)
             {
                 var arr = buf.ToArray();
-                // Verify order: each element should be <= the next
                 for (int i = 1; i < arr.Length; i++)
                     Assert.True(arr[i] >= arr[i - 1], $"Out of order at index {i}: {arr[i - 1]} > {arr[i]}");
             }
-        });
+        }, ct);
 
-        Task.WhenAll(writer, reader).Wait();
+        try { await Task.WhenAll(writer, reader); }
+        catch (OperationCanceledException) { /* expected */ }
     }
 
     [Fact]
