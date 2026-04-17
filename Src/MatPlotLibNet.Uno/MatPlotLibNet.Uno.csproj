@@ -1,29 +1,40 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Target net8.0 (Uno Platform Skia desktop backend). SKCanvasElement is provided by
-         Uno.WinUI.Graphics2DSK and is only available on the Skia rendering path, not on
-         the native WinUI 3 Windows target (net*-windows*). The net8.0 TFM matches what
-         Uno 5.x packages ship and works on Windows/macOS/Linux via the Skia backend. -->
+    <!-- net8.0 targets the Uno Platform Skia desktop backend. SKCanvasElement
+         (from Uno.WinUI.Graphics2DSK) is only available on the Skia rendering path.
+         Builds on all platforms (CLI + VS). -->
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Version>1.3.0</Version>
     <PackageId>MatPlotLibNet.Uno</PackageId>
-    <Description>Uno Platform (WinUI 3) chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/reset interaction. Windows TFM out of the box; add Android/iOS/macCatalyst TFMs when building from source with the Uno workload.</Description>
+    <Description>Uno Platform chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/reset interaction.</Description>
     <PackageTags>charting;plotting;charts;uno;winui;skiasharp;cross-platform;interactive</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <WindowsPackageType>None</WindowsPackageType>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Uno.WinUI: WinUI 3 XAML runtime on all supported platforms -->
     <PackageReference Include="Uno.WinUI" Version="5.*" />
-    <!-- Uno.WinUI.Graphics2DSK: provides SKCanvasElement base class -->
     <PackageReference Include="Uno.WinUI.Graphics2DSK" Version="5.*" />
-    <!-- SkiaSharp.Views.Uno.WinUI: SkiaSharp integration for Uno -->
     <PackageReference Include="SkiaSharp.Views.Uno.WinUI" Version="3.*" />
+    <!-- Suppress ALL WindowsAppSDK sub-package build targets. On net8.0 (Skia backend)
+         these targets assume a Windows TFM and crash on empty TargetPlatformVersion.
+         Uno handles platform abstraction — WindowsAppSDK targets are only needed for native WinUI. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Base" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.DWrite" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
