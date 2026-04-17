@@ -1,3 +1,5 @@
+- name: Playground
+  href: https://xkqg.github.io/MatPlotLibNet/playground/
 - name: Cookbook
   href: cookbook/
   homepage: cookbook/index.md

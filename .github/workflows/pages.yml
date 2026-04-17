@@ -24,7 +24,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: |
+            8.0.x
+            10.0.x
           dotnet-quality: 'preview'
 
       - name: Install DocFx
@@ -42,6 +44,12 @@ jobs:
 
       - name: Build DocFx site
         run: docfx docs/docfx.json
+
+      - name: Publish Blazor WASM Playground
+        run: dotnet publish Samples/MatPlotLibNet.Playground/MatPlotLibNet.Playground.csproj -c Release -o playground-out
+
+      - name: Copy Playground to site
+        run: cp -r playground-out/wwwroot docs/_site/playground
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
