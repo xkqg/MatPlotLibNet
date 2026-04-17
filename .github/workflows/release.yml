@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Create GitHub Release
+        id: create_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -23,3 +24,85 @@ jobs:
           gh release create "$TAG" \
             --title "$TAG" \
             --generate-notes
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          RELEASE_URL=$(gh release view "$TAG" --json url --jq '.url')
+          echo "url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
+
+      # ---------------------------------------------------------------
+      # Social media announcements — each step is gated by its secrets.
+      # Configure in repo Settings > Secrets > Actions.
+      # ---------------------------------------------------------------
+
+      - name: Post to Bluesky
+        if: ${{ secrets.BLUESKY_HANDLE != '' }}
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+        run: |
+          TAG="${{ steps.create_release.outputs.tag }}"
+          URL="${{ steps.create_release.outputs.url }}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 67 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed. ${URL}"
+
+          SESSION=$(curl -s -X POST https://bsky.social/xrpc/com.atproto.server.createSession \
+            -H "Content-Type: application/json" \
+            -d "{\"identifier\":\"${BLUESKY_HANDLE}\",\"password\":\"${BLUESKY_APP_PASSWORD}\"}")
+          DID=$(echo "$SESSION" | jq -r '.did')
+          TOKEN=$(echo "$SESSION" | jq -r '.accessJwt')
+
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+          curl -s -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"repo\": \"${DID}\",
+              \"collection\": \"app.bsky.feed.post\",
+              \"record\": {
+                \"\$type\": \"app.bsky.feed.post\",
+                \"text\": \"${TEXT}\",
+                \"createdAt\": \"${NOW}\"
+              }
+            }"
+
+      - name: Post to Mastodon
+        if: ${{ secrets.MASTODON_ACCESS_TOKEN != '' }}
+        env:
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
+        run: |
+          TAG="${{ steps.create_release.outputs.tag }}"
+          URL="${{ steps.create_release.outputs.url }}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 67 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.
+
+          ${URL}
+
+          #dotnet #csharp #dataviz #charting #opensource"
+
+          curl -s -X POST "https://${MASTODON_INSTANCE}/api/v1/statuses" \
+            -H "Authorization: Bearer ${MASTODON_ACCESS_TOKEN}" \
+            -F "status=${TEXT}" \
+            -F "visibility=public"
+
+      - name: Post to LinkedIn
+        if: ${{ secrets.LINKEDIN_ACCESS_TOKEN != '' }}
+        env:
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_PERSON_URN: ${{ secrets.LINKEDIN_PERSON_URN }}
+        run: |
+          TAG="${{ steps.create_release.outputs.tag }}"
+          URL="${{ steps.create_release.outputs.url }}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 67 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.\n\n${URL}"
+
+          curl -s -X POST "https://api.linkedin.com/v2/ugcPosts" \
+            -H "Authorization: Bearer ${LINKEDIN_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"author\": \"${LINKEDIN_PERSON_URN}\",
+              \"lifecycleState\": \"PUBLISHED\",
+              \"specificContent\": {
+                \"com.linkedin.ugc.ShareContent\": {
+                  \"shareCommentary\": { \"text\": \"${TEXT}\" },
+                  \"shareMediaCategory\": \"NONE\"
+                }
+              },
+              \"visibility\": { \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\" }
+            }"
