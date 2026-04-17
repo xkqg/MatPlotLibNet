@@ -8,15 +8,18 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.4.0 — Streaming & Realtime.** First-class live data support for dashboards and telemetry:
+> **v1.4.1 — Interactive Polish.** Closes the interactivity gap with matplotlib:
 >
-> 1. **Streaming series** — four new series types (`StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries`, `StreamingCandlestickSeries`) backed by `DoubleRingBuffer` with `AppendPoint(x, y)` / `AppendBar(o, h, l, c)`. Thread-safe snapshot pattern for render isolation. Series count: 70 → 74.
-> 2. **StreamingFigure** — wraps `Figure` with render throttling (configurable 16ms–1000ms), data version tracking, and auto-scaling axes via `AxisScaleMode` (`Fixed`, `AutoScale`, `SlidingWindow`, `StickyRight`). `BuildStreaming()` on the fluent builder.
-> 3. **11 streaming indicators** — `StreamingSma`, `StreamingEma`, `StreamingRsi`, `StreamingBollinger`, `StreamingMacd`, `StreamingObv`, `StreamingAtr`, `StreamingStochastic`, `StreamingWilliamsR`, `StreamingCci`, `StreamingVwap`. All O(1) per append, auto-attach to candlestick via `BarAppended` event.
-> 4. **5 platform streaming controls** — `MplStreamingChartControl` (Avalonia), `MplStreamingChartElement` (Uno), `MplStreamingChartView` (MAUI), `MplStreamingChart` (Blazor), `StreamingChartSession` (ASP.NET Core server push).
-> 5. **SVG diff engine** + **Rx `IObservable<T>` adapter** for bandwidth optimization and reactive pipelines.
+> 1. **Native 3D rotation** — right-drag on 3D axes rotates the camera. Arrow keys ±5°. Home resets. Works on Avalonia, Uno, MAUI — no browser needed.
+> 2. **Rectangle zoom** — Ctrl+drag draws a zoom box, release zooms to rectangle.
+> 3. **Crosshair cursor** — vertical + horizontal lines at mouse position, snapped to data coordinates.
+> 4. **Span selector** — Alt+drag selects a horizontal X-range, fires notification event.
+> 5. **View history** — back/forward through zoom/pan history (50-entry stack per axes).
+> 6. **Data cursor** — click near a data point to pin an annotation callout.
+> 7. **Toolbar state model** — `InteractionToolbar` with Pan/Zoom/Rotate3D/Home/DataCursor buttons. Platform-agnostic.
+> 8. **Axis polish** — `.WithYTicksMirrored()` draws Y ticks on both sides. `.WithTightMargins()` removes data padding.
 >
-> **4 183 tests green** across 11 test projects.
+> **4 234 tests green** across 11 test projects. 9 interaction modifiers (was 6).
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 
@@ -91,7 +94,7 @@ Plt.Create()
 
 **74 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, streaming line/scatter/signal/candlestick, and more.
 
-**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp — no browser, no WebView, no SignalR required. Set `IsInteractive="True"` for local pan / zoom / reset / brush-select. Connect to a SignalR hub with `.WithServerInteraction(hubConnection)` for server-authoritative mode.
+**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp — no browser, no WebView, no SignalR required. 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. Toolbar state model, view history (back/forward), data cursor (click-to-pin), tick mirroring, tight margins.
 
 **MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
 

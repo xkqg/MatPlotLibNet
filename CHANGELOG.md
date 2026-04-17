@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.1] — 2026-04-17
+
+**Interactive Polish.** Closes the interactivity gap with matplotlib: native 3D rotation, rectangle zoom, crosshair cursor, span selector, view history, data cursor, toolbar state model, tick mirroring, and tight margins. **4 234 tests green** across 11 test projects.
+
+### Added — Interaction modifiers (v1.4.1)
+
+- **`Rotate3DModifier`** — right-drag on 3D axes rotates the camera (azimuth/elevation). Arrow keys ±5°, Home resets to default (30°, -60°). `Rotate3DEvent : FigureInteractionEvent` mutates `Axes.Azimuth`/`Elevation` and nulls `Projection` to force rebuild.
+- **`RectangleZoomModifier`** — Ctrl+left-drag draws a zoom box. `RectangleZoomEvent : AxisRangeEvent` — sealed `ApplyTo` sets axis limits. `RectangleZoomState` overlay (dashed blue rectangle).
+- **`CrosshairModifier`** — passive modifier tracking mouse position. `CrosshairState` with pixel + data coordinates and plot area for clipping vertical/horizontal lines.
+- **`SpanSelectModifier`** — Alt+left-drag selects a horizontal X-range. `SpanSelectEvent : FigureNotificationEvent` (non-mutating). `SpanSelectState` overlay (full-height shaded band).
+- **`ViewHistoryManager`** — per-axes stack of axis limit snapshots. Push on zoom/pan, `Back()`/`Forward()` navigation. Capped at 50 entries.
+- **`DataCursorEvent`** + **`PinnedAnnotation`** — click-to-pin data point annotation with series label and coordinates.
+- **`InteractionToolbar`** — platform-agnostic toolbar state model: `ToolMode` enum (Pan, Zoom, Rotate3D, DataCursor, SpanSelect), `ToolbarButton` records, `ToolbarState` snapshot for overlay rendering. `CreateDefault(figure)` auto-configures buttons including Rotate3D for 3D figures.
+
+### Added — Axis polish (v1.4.1)
+
+- **`TickConfig.Mirror`** — when `true`, ticks and labels are drawn on both sides of the axes (e.g. Y ticks on left AND right spines). Builder: `.WithYTicksMirrored()`, `.WithXTicksMirrored()`.
+- **`AxesBuilder.WithTightMargins()`** — convenience for `SetXMargin(0).SetYMargin(0)`, data touches axis spines directly.
+
+### Changed
+
+- **`InteractionController.BuildModifiers`** — expanded from 6 to 9 modifiers in priority order: LegendToggle > Reset > Rotate3D > RectangleZoom > BrushSelect > SpanSelect > Pan > Zoom > Hover.
+- **`MplChartDrawOperation`** (Avalonia) — `_owner` made nullable to support `MplStreamingChartControl` without brush-select overlay.
+
 ## [1.4.0] — 2026-04-17
 
 **Streaming & Realtime.** First-class live data support: dashboards and telemetry feeds can append data points without rebuilding the figure. Ring-buffer-backed streaming series, throttled re-rendering, auto-scaling axes, 11 incremental technical indicators, and streaming controls for all 5 UI hosts. **4 183 tests green** across 11 test projects.

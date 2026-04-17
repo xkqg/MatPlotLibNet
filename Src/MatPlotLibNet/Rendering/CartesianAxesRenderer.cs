@@ -525,6 +525,21 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         }
         MeasuredYTickMaxWidth = maxYTickWidth;
 
+        // Mirrored Y ticks on right spine (v1.4.1)
+        if (yMajor.Mirror && yMajor.Visible)
+        {
+            double rightAxisX = PlotArea.X + PlotArea.Width;
+            double rightSpineHalf = Axes.Spines.Right.LineWidth / 2.0;
+            foreach (var tick in yTicks)
+            {
+                var pt = transform.DataToPixel(Axes.XAxis.Min ?? 0, tick);
+                DrawTickMark(pt.Y, rightAxisX, isVertical: false, yTickLength, yTickColor, yTickWidth, yMajor.Direction, -rightSpineHalf);
+                double labelX = rightAxisX + yTickLength + yMajor.Pad;
+                var labelText = yFormatter?.Format(tick) ?? yUniformFormat(tick);
+                Ctx.DrawText(labelText, new Point(labelX, pt.Y + 4), yLabelFont, TextAlignment.Left);
+            }
+        }
+
         // Minor Y ticks (no labels, shorter mark)
         var yMinor = Axes.YAxis.MinorTicks;
         if (yMinor.Visible && yTicks.Length >= 2)

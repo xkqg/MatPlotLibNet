@@ -96,4 +96,9 @@ public sealed record TickConfig
 
     // matplotlib `xtick.major.pad = 3.5` POINTS → at 100 DPI = 4.861 px.
     public double Pad { get; init; } = 3.5 * 100.0 / 72.0;
+
+    /// <summary>When <c>true</c>, ticks and labels are drawn on both sides of the axes
+    /// (e.g. Y ticks on both left and right spines). Equivalent to matplotlib's
+    /// <c>ax.tick_params(right=True, labelright=True)</c>. Default <c>false</c>.</summary>
+    public bool Mirror { get; init; } = false;
 }

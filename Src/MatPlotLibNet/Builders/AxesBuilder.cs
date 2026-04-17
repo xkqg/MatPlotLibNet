@@ -97,6 +97,25 @@ public sealed class AxesBuilder
     /// <summary>Sets the auto-scale margin on each side of the Y axis (default 0.05).</summary>
     public AxesBuilder SetYMargin(double margin) { _axes.YAxis.Margin = margin; return this; }
 
+    /// <summary>Removes all data padding — data touches the axis spines directly.
+    /// Equivalent to <c>SetXMargin(0).SetYMargin(0)</c>.</summary>
+    public AxesBuilder WithTightMargins() { _axes.XAxis.Margin = 0; _axes.YAxis.Margin = 0; return this; }
+
+    /// <summary>Mirrors Y-axis ticks and labels on both left and right spines.
+    /// Useful for wide figures where reading the Y scale from the right side is more convenient.</summary>
+    public AxesBuilder WithYTicksMirrored()
+    {
+        _axes.YAxis.MajorTicks = _axes.YAxis.MajorTicks with { Mirror = true };
+        return this;
+    }
+
+    /// <summary>Mirrors X-axis ticks and labels on both top and bottom spines.</summary>
+    public AxesBuilder WithXTicksMirrored()
+    {
+        _axes.XAxis.MajorTicks = _axes.XAxis.MajorTicks with { Mirror = true };
+        return this;
+    }
+
     /// <summary>Sets the X-axis scale type (e.g., linear or logarithmic).</summary>
     public AxesBuilder SetXScale(AxisScale scale) { _axes.XAxis.Scale = scale; return this; }
 

@@ -52,7 +52,7 @@ public sealed class InteractionController : IInteractionController
         _figure    = figure;
         _layout    = layout;
         _sink      = sink;
-        _modifiers = BuildModifiers(figure.ChartId ?? string.Empty, layout, sink);
+        _modifiers = BuildModifiers(figure.ChartId ?? string.Empty, layout, sink, figure);
     }
 
     /// <summary>Creates a controller in local mode: events are applied directly to the figure
@@ -84,7 +84,7 @@ public sealed class InteractionController : IInteractionController
     public void UpdateLayout(IChartLayout layout)
     {
         _layout = layout;
-        _modifiers = BuildModifiers(_figure.ChartId ?? string.Empty, layout, _sink);
+        _modifiers = BuildModifiers(_figure.ChartId ?? string.Empty, layout, _sink, _figure);
     }
 
     /// <inheritdoc />
@@ -188,20 +188,28 @@ public sealed class InteractionController : IInteractionController
     private static IReadOnlyList<IInteractionModifier> BuildModifiers(
         string chartId,
         IChartLayout layout,
-        Action<FigureInteractionEvent> sink)
+        Action<FigureInteractionEvent> sink,
+        Figure figure)
     {
-        // Order matters:
+        // Order matters — first modifier whose Handles* returns true claims the event:
         //   1. LegendToggle: click on legend item (specific hit-test, highest priority for clicks)
         //   2. Reset: double-click wins before Pan (both claim left-button; ClickCount distinguishes)
-        //   3. BrushSelect: Shift+drag before Pan (Shift distinguishes)
-        //   4. Pan: plain left-drag
-        //   5. Zoom: scroll wheel
-        //   6. Hover: passive, always last
+        //   3. Rotate3D: right-drag on 3D axes, arrow keys/Home for 3D (v1.4.1)
+        //   4. RectangleZoom: Ctrl+drag draws zoom box (v1.4.1)
+        //   5. BrushSelect: Shift+drag before Pan (Shift distinguishes)
+        //   6. SpanSelect: Alt+drag selects X-range (v1.4.1)
+        //   7. Pan: plain left-drag
+        //   8. Zoom: scroll wheel
+        //   9. Crosshair: passive — every move (v1.4.1)
+        //  10. Hover: passive, always last
         return
         [
             new LegendToggleModifier(chartId, layout, sink),
             new ResetModifier(chartId, layout, sink),
+            new Rotate3DModifier(chartId, layout, sink, figure),
+            new RectangleZoomModifier(chartId, layout, sink),
             new BrushSelectModifier(chartId, layout, sink),
+            new SpanSelectModifier(chartId, layout, sink),
             new PanModifier(chartId, layout, sink),
             new ZoomModifier(chartId, layout, sink),
             new HoverModifier(chartId, layout, sink),
