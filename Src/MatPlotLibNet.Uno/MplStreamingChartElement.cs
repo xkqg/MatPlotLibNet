@@ -37,7 +37,7 @@ public sealed class MplStreamingChartElement : SKCanvasElement
     }
 
     /// <inheritdoc />
-    protected override void RenderOverride(SKCanvas canvas, Size area)
+    protected override void RenderOverride(SKCanvas canvas, Windows.Foundation.Size area)
     {
         var sf = StreamingFigure;
         if (sf is null) return;
