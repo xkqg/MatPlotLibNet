@@ -12,7 +12,7 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | `FigureBuilder` | Top-level builder: title, theme, size, subplots, export |
 | `AxesBuilder` | Per-subplot builder: series, labels, legends, ticks, camera |
 | `Figure` | Immutable chart model — the output of `.Build()` |
-| `ChartSeries` | Abstract base for all 67 series types |
+| `ChartSeries` | Abstract base for all 74 series types |
 | `Theme` | Theme presets and custom theme builder |
 | `ColorMaps` | 104 colormap presets |
 

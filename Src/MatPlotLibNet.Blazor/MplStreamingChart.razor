@@ -1,0 +1,68 @@
+@* Copyright (c) 2026 H.P. Gansevoort. All rights reserved. *@
+@* Licensed under the MIT License. See LICENSE file in the project root for full license information. *@
+
+@namespace MatPlotLibNet.Blazor
+@implements IDisposable
+
+<div class="mpl-chart mpl-streaming @CssClass">
+    @((MarkupString)_svgContent)
+</div>
+
+@code {
+    /// <summary>The streaming figure to render. Re-renders automatically when data arrives.</summary>
+    [Parameter] public MatPlotLibNet.Models.Streaming.StreamingFigure? StreamingFigure { get; set; }
+
+    /// <summary>Optional CSS class for the container div.</summary>
+    [Parameter] public string? CssClass { get; set; }
+
+    private string _svgContent = string.Empty;
+    private MatPlotLibNet.Models.Streaming.StreamingFigure? _subscribedFigure;
+
+    protected override void OnParametersSet()
+    {
+        if (_subscribedFigure != StreamingFigure)
+        {
+            Unsubscribe();
+            if (StreamingFigure is not null)
+                Subscribe(StreamingFigure);
+        }
+
+        RenderChart();
+    }
+
+    private void Subscribe(MatPlotLibNet.Models.Streaming.StreamingFigure sf)
+    {
+        _subscribedFigure = sf;
+        sf.RenderRequested += OnRenderRequested;
+    }
+
+    private void Unsubscribe()
+    {
+        if (_subscribedFigure is not null)
+        {
+            _subscribedFigure.RenderRequested -= OnRenderRequested;
+            _subscribedFigure = null;
+        }
+    }
+
+    private void OnRenderRequested()
+    {
+        InvokeAsync(() =>
+        {
+            RenderChart();
+            StateHasChanged();
+        });
+    }
+
+    private void RenderChart()
+    {
+        if (StreamingFigure is null) { _svgContent = string.Empty; return; }
+        StreamingFigure.ApplyAxisScaling();
+        _svgContent = ChartServices.SvgRenderer.Render(StreamingFigure.Figure);
+    }
+
+    public void Dispose()
+    {
+        Unsubscribe();
+    }
+}

@@ -4,6 +4,64 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.0] — 2026-04-17
+
+**Streaming & Realtime.** First-class live data support: dashboards and telemetry feeds can append data points without rebuilding the figure. Ring-buffer-backed streaming series, throttled re-rendering, auto-scaling axes, 11 incremental technical indicators, and streaming controls for all 5 UI hosts. **4 183 tests green** across 11 test projects.
+
+### Added — Streaming infrastructure
+
+- **`DoubleRingBuffer`** (core, `MatPlotLibNet.Data`) — fixed-capacity circular buffer with `ReaderWriterLockSlim` for concurrent single-writer / multi-reader. `Append`, `AppendRange`, `CopyTo`, `ToArray`, `Min`, `Max`, `Clear`. Never allocates on append.
+- **`StreamingSnapshot` / `OhlcStreamingSnapshot`** — immutable point-in-time copies for render-thread safety.
+- **`IStreamingSeries`** — contract: `AppendPoint(x, y)`, `AppendPoints`, `Clear`, `Version`, `Count`, `Capacity`, `CreateSnapshot()`.
+- **`IStreamingOhlcSeries`** — contract: `AppendBar(o, h, l, c)`, `CreateOhlcSnapshot()`, `BarAppended` event.
+- **`StreamingSeriesBase`** — abstract base with twin ring buffers (X, Y), monotonic version counter, `ComputeDataRange` from live buffers.
+
+### Added — 4 streaming series types (74 total)
+
+- **`StreamingLineSeries`** — ring-buffer-backed line with `Color`, `LineStyle`, `LineWidth`. Default capacity 10,000.
+- **`StreamingScatterSeries`** — ring-buffer-backed scatter with `Color`, `Alpha`, `MarkerSize`. Default capacity 10,000.
+- **`StreamingSignalSeries`** — Y-only storage, X computed from `SampleRate` + offset. Optimized for oscilloscope/audio data. Default capacity 100,000.
+- **`StreamingCandlestickSeries`** — four parallel ring buffers (O/H/L/C) with `BarAppended` event for indicator auto-attach. Default capacity 5,000.
+
+### Added — StreamingFigure + axis scaling
+
+- **`StreamingFigure`** — wraps `Figure` with render timer, data version tracking, `ApplyAxisScaling()`, `RenderRequested` event. `IDisposable`. Default throttle 33ms (~30fps).
+- **`AxisScaleMode`** — sealed record hierarchy: `Fixed`, `AutoScale`, `SlidingWindow(windowSize)`, `StickyRight(windowSize)`.
+- **`StreamingAxesConfig`** — per-axes X/Y scale mode. Default: sliding window on X, auto-scale on Y.
+- **`FigureBuilder.BuildStreaming()`** — wraps `Build()` output in `StreamingFigure`.
+- **`AxesBuilder.StreamingPlot() / StreamingScatter() / StreamingSignal() / StreamingCandlestick()`** — fluent builder methods returning the series for data append.
+
+### Added — 11 streaming technical indicators
+
+All O(1) per append. Auto-attach to `StreamingCandlestickSeries` via `BarAppended` event. Each indicator owns its own `StreamingLineSeries` output — zero renderer changes.
+
+- **`StreamingSma`** — rolling sum / period.
+- **`StreamingEma`** — α * new + (1-α) * prev.
+- **`StreamingRsi`** — Wilder's smoothed gain/loss.
+- **`StreamingBollinger`** — SMA + Welford's rolling variance. 3 output series (mid, upper, lower).
+- **`StreamingMacd`** — two EMAs + signal EMA. 3 output series (MACD, signal, histogram).
+- **`StreamingObv`** — cumulative volume direction.
+- **`StreamingAtr`** — Wilder's smoothed true range.
+- **`StreamingStochastic`** — rolling min/max deque. 2 output series (%K, %D).
+- **`StreamingWilliamsR`** — rolling min/max.
+- **`StreamingCci`** — rolling mean deviation.
+- **`StreamingVwap`** — cumulative price*volume / volume.
+- **Fluent API:** `.WithStreamingSma(axes, 20)`, `.WithStreamingBollinger(axes, 20, 2)`, etc. on `StreamingCandlestickSeries`.
+
+### Added — Platform streaming controls
+
+- **`MplStreamingChartControl`** (Avalonia) — `StreamingFigure` styled property, subscribes to `RenderRequested`, marshals via `Dispatcher.UIThread`.
+- **`MplStreamingChartElement`** (Uno) — same pattern via `DispatcherQueue.TryEnqueue`.
+- **`MplStreamingChartView`** (MAUI) — same pattern via `MainThread.BeginInvokeOnMainThread`.
+- **`MplStreamingChart`** (Blazor) — same pattern via `InvokeAsync` + `StateHasChanged`.
+- **`StreamingChartSession`** (ASP.NET Core) — server-side session subscribing to `RenderRequested`, publishes SVG via `IChartPublisher` for remote clients.
+- **`FigureRegistry.RegisterStreaming()`** — registers a streaming figure for server-push live updates.
+
+### Added — SVG diff + Rx adapter
+
+- **`SvgDiffEngine`** — compares previous/current SVG, produces minimal `SvgPatch` (replace changed series groups only). Typically 10x smaller than full SVG for streaming updates.
+- **`StreamingSeriesExtensions.SubscribeTo(IObservable<T>)`** — Rx adapter connecting `IObservable<(double, double)>`, `IObservable<OhlcBar>`, and `IObservable<double>` to streaming series. No System.Reactive dependency.
+
 ## [1.3.0] — 2026-04-16
 
 **Cross-platform native UI controls, full interaction polish, 3-D round 2, MathText completion.** Two new NuGet packages (`MatPlotLibNet.Avalonia`, `MatPlotLibNet.Uno`) let desktop .NET developers render and interact with charts natively — no browser, no WebView, no SignalR. The managed interaction layer in core gained full legend-toggle activation, rubber-band selection visuals, hover tooltips with nearest-point lookup, and a server-mode SignalR adapter. Six new 3-D series types (Line3D, Trisurf, Contour3D, Quiver3D, Voxels, Text3D) and a substantially expanded MathText parser round out the release. **4 028 tests green** across 11 test projects.

@@ -22,7 +22,7 @@
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="3.*" />
     <PackageReference Include="NSubstitute" Version="5.*" />
-    <PackageReference Include="Uno.WinUI" Version="5.*" />
+    <PackageReference Include="Uno.WinUI" Version="6.5.153" />
     <PackageReference Include="SkiaSharp.Views.Uno.WinUI" Version="3.*" />
     <!-- Force WindowsAppSDK >= 1.8 to avoid MrtCore.PriGen.targets VS-only task dependency
          present in 1.4 which Uno.WinUI 5.x would otherwise resolve to. -->

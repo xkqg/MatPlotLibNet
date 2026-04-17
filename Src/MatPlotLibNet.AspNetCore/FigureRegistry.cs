@@ -4,6 +4,7 @@
 using System.Collections.Concurrent;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Streaming;
 
 namespace MatPlotLibNet.AspNetCore;
 
@@ -19,6 +20,7 @@ namespace MatPlotLibNet.AspNetCore;
 public sealed class FigureRegistry
 {
     private readonly ConcurrentDictionary<string, ChartSession> _sessions = new();
+    private readonly ConcurrentDictionary<string, StreamingChartSession> _streamingSessions = new();
     private readonly IChartPublisher _publisher;
     private readonly ICallerPublisher _callerPublisher;
 
@@ -62,6 +64,17 @@ public sealed class FigureRegistry
         var options = new ChartSessionOptions();
         configure(options);
         RegisterCore(chartId, figure, options);
+    }
+
+    /// <summary>Registers a streaming figure for server-push live updates. The streaming figure's
+    /// <see cref="StreamingFigure.RenderRequested"/> event triggers automatic SVG publishing to
+    /// all connected clients via <see cref="IChartPublisher"/>.</summary>
+    public void RegisterStreaming(string chartId, StreamingFigure streamingFigure)
+    {
+        if (_streamingSessions.TryRemove(chartId, out var existing))
+            _ = existing.DisposeAsync();
+
+        _streamingSessions[chartId] = new StreamingChartSession(chartId, streamingFigure, _publisher);
     }
 
     private void RegisterCore(string chartId, Figure figure, ChartSessionOptions options)

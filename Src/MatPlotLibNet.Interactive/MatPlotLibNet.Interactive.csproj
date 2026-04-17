@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Interactive</PackageId>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
     <Description>Interactive display for MatPlotLibNet. Show charts in a browser popup with live SignalR updates.</Description>
     <PackageTags>interactive;charting;browser;signalr;kestrel</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -34,6 +34,10 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="MatPlotLibNet.Interactive.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.202" />
   </ItemGroup>
 
 </Project>

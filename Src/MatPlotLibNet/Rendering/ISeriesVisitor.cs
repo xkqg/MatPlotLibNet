@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models.Series.Streaming;
 
 namespace MatPlotLibNet.Rendering;
 
@@ -225,4 +226,18 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a 3D text annotation series. Default is a no-op for ISP compatibility.</summary>
     void Visit(Text3DSeries series, RenderArea area) { }
+
+    // ── v1.4.0 Streaming series (default no-ops for ISP compatibility) ──
+
+    /// <summary>Renders a streaming line series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(StreamingLineSeries series, RenderArea area) { }
+
+    /// <summary>Renders a streaming scatter series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(StreamingScatterSeries series, RenderArea area) { }
+
+    /// <summary>Renders a streaming signal series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(StreamingSignalSeries series, RenderArea area) { }
+
+    /// <summary>Renders a streaming candlestick series. Default is a no-op for ISP compatibility.</summary>
+    void Visit(StreamingCandlestickSeries series, RenderArea area) { }
 }

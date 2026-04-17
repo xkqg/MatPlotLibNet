@@ -4,6 +4,7 @@
 using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models.Streaming;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet;
@@ -420,6 +421,18 @@ public sealed class FigureBuilder
     {
         _subPlots.Add(new SubPlotSpec(position, configure));
         return this;
+    }
+
+    /// <summary>Builds the figure and wraps it in a <see cref="StreamingFigure"/> for live data.
+    /// Use this when the figure contains streaming series that receive data via <c>AppendPoint</c>.</summary>
+    /// <param name="renderInterval">Minimum time between renders. Default 33ms (~30fps).</param>
+    /// <returns>A <see cref="StreamingFigure"/> managing render throttling and axis scaling.</returns>
+    public StreamingFigure BuildStreaming(TimeSpan? renderInterval = null)
+    {
+        var sf = new StreamingFigure(Build());
+        if (renderInterval is not null)
+            sf.MinRenderInterval = renderInterval.Value;
+        return sf;
     }
 
     /// <summary>Builds and returns the configured <see cref="Models.Figure"/> instance.</summary>

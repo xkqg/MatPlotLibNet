@@ -8,13 +8,15 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.3.0 — Cross-platform native UI controls + MathText completion + 3-D round 2.** Three headline features:
+> **v1.4.0 — Streaming & Realtime.** First-class live data support for dashboards and telemetry:
 >
-> 1. **Native controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) (Avalonia 12) and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) (Uno Platform) render charts natively via SkiaSharp — no browser, no WebView, no SignalR. `IsInteractive="True"` enables local pan / zoom / reset / brush-select with rubber-band overlay, legend-toggle hit-testing, and hover tooltips via `NearestPointFinder`. `.WithServerInteraction(hubConnection)` bridges native controls to a SignalR hub. Two new NuGet packages: [`MatPlotLibNet.Avalonia`](https://www.nuget.org/packages/MatPlotLibNet.Avalonia) and [`MatPlotLibNet.Uno`](https://www.nuget.org/packages/MatPlotLibNet.Uno).
-> 2. **MathText completion** — `\frac{a}{b}`, `\sqrt{x}`, `\sqrt[n]{x}`, accents (`\hat`, `\bar`, `\vec`, `\tilde`, `\dot`), font variants (`\mathrm`, `\mathbf`, `\mathit`, `\mathcal`, `\mathbb`), `\text{}`, spacing (`\,`, `\:`, `\;`, `\quad`), scaling delimiters (`\left(...\right)`), and 96 symbol mappings total (Greek, math operators, arrows, relations, set/logic, blackboard bold).
-> 3. **3-D round 2** — six new series: `Line3D`, `Trisurf3D` (Delaunay), `Contour3D` (marching squares), `Quiver3D` (vector field), `Voxels` (face-culled cubes), `Text3D` (3D annotations). Series count: 61 → 67.
+> 1. **Streaming series** — four new series types (`StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries`, `StreamingCandlestickSeries`) backed by `DoubleRingBuffer` with `AppendPoint(x, y)` / `AppendBar(o, h, l, c)`. Thread-safe snapshot pattern for render isolation. Series count: 70 → 74.
+> 2. **StreamingFigure** — wraps `Figure` with render throttling (configurable 16ms–1000ms), data version tracking, and auto-scaling axes via `AxisScaleMode` (`Fixed`, `AutoScale`, `SlidingWindow`, `StickyRight`). `BuildStreaming()` on the fluent builder.
+> 3. **11 streaming indicators** — `StreamingSma`, `StreamingEma`, `StreamingRsi`, `StreamingBollinger`, `StreamingMacd`, `StreamingObv`, `StreamingAtr`, `StreamingStochastic`, `StreamingWilliamsR`, `StreamingCci`, `StreamingVwap`. All O(1) per append, auto-attach to candlestick via `BarAppended` event.
+> 4. **5 platform streaming controls** — `MplStreamingChartControl` (Avalonia), `MplStreamingChartElement` (Uno), `MplStreamingChartView` (MAUI), `MplStreamingChart` (Blazor), `StreamingChartSession` (ASP.NET Core server push).
+> 5. **SVG diff engine** + **Rx `IObservable<T>` adapter** for bandwidth optimization and reactive pipelines.
 >
-> **4 028 tests green** across 11 test projects. The managed interaction layer in core (six `IInteractionModifier` implementations, `InteractionController`, `ChartLayout`) is shared between desktop controls and SignalR — one vocabulary, two transports.
+> **4 183 tests green** across 11 test projects.
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 
@@ -51,7 +53,8 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 - [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started) — installation, output formats, subplots
 - [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet) — one-page reference for `Plt` / `FigureBuilder` / `AxesBuilder`
 - [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all 11 NuGet + 3 npm packages in detail
-- [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 67 series with code examples
+- [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 74 series with code examples
+- [Streaming & Realtime](https://github.com/xkqg/MatPlotLibNet/wiki/Streaming) — ring buffers, StreamingFigure, axis scaling, 11 streaming indicators, platform controls
 - [Interactive Controls](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) — Avalonia + Uno native controls, managed interaction layer
 - [Bidirectional SignalR](https://github.com/xkqg/MatPlotLibNet/wiki/Bidirectional-SignalR) — server-authoritative interactive charts, event hierarchy, hub wiring
 - [DataFrame](https://github.com/xkqg/MatPlotLibNet/wiki/DataFrame) — indicators, polynomial regression from `Microsoft.Data.Analysis.DataFrame`
@@ -86,13 +89,15 @@ Plt.Create()
 
 ## Features
 
-**67 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, and more.
+**74 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, streaming line/scatter/signal/candlestick, and more.
 
 **Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp — no browser, no WebView, no SignalR required. Set `IsInteractive="True"` for local pan / zoom / reset / brush-select. Connect to a SignalR hub with `.WithServerInteraction(hubConnection)` for server-authoritative mode.
 
 **MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
 
 **3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). Full `Projection3D` pipeline, `DepthQueue3D` painter's algorithm, `LightingHelper` shading, and `Svg3DRotationScript` client-side rotation.
+
+**Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries`, `StreamingCandlestickSeries` backed by `DoubleRingBuffer` with `AppendPoint(x, y)`. `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 11 streaming indicators (SMA, EMA, RSI, Bollinger, MACD, OBV, ATR, Stochastic, WilliamsR, CCI, VWAP) auto-attach to candlestick data. Streaming controls for Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. SVG diff engine for bandwidth optimization. Rx `IObservable<T>` adapter.
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). Stacked-record event hierarchy, natural coalescing, per-caller hover responses.
 

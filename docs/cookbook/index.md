@@ -21,4 +21,5 @@ Code examples with rendered output. Every example uses the fluent `Plt.Create()`
 | [Accessibility](accessibility.md) | Color-blind safe palette, high-contrast theme |
 | [Styling & Themes](styling.md) | PropCycler, matplotlib themes, custom themes |
 | [Annotations](annotations.md) | Arrows, rotated text, backgrounds |
+| [Streaming & Realtime](streaming.md) | Live data append, ring buffers, streaming indicators, axis scaling |
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators |

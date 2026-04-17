@@ -4,6 +4,7 @@
 using MatPlotLibNet.Indicators;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet;
@@ -755,6 +756,44 @@ public sealed class AxesBuilder
     /// <summary>Adds a <see cref="SignalXYSeries"/> with monotonically ascending X values to the axes.</summary>
     public AxesBuilder SignalXY(double[] x, double[] y, Action<SignalXYSeries>? configure = null)
         => AddSeries(ax => ax.SignalXY(x, y), configure);
+
+    // --- Streaming series (v1.4.0) ---
+
+    /// <summary>Adds a streaming line series backed by a ring buffer.</summary>
+    /// <param name="capacity">Maximum data points retained. Default 10,000.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>The created <see cref="StreamingLineSeries"/> for appending data.</returns>
+    public StreamingLineSeries StreamingPlot(int capacity = 10_000, Action<StreamingLineSeries>? configure = null)
+        => AddStreamingSeries(new StreamingLineSeries(capacity), configure);
+
+    /// <summary>Adds a streaming scatter series backed by a ring buffer.</summary>
+    /// <param name="capacity">Maximum data points retained. Default 10,000.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>The created <see cref="StreamingScatterSeries"/> for appending data.</returns>
+    public StreamingScatterSeries StreamingScatter(int capacity = 10_000, Action<StreamingScatterSeries>? configure = null)
+        => AddStreamingSeries(new StreamingScatterSeries(capacity), configure);
+
+    /// <summary>Adds a streaming signal series (uniform sample rate, Y-only storage).</summary>
+    /// <param name="capacity">Maximum samples retained. Default 100,000.</param>
+    /// <param name="sampleRate">Samples per X-unit. Default 1.0.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>The created <see cref="StreamingSignalSeries"/> for appending samples.</returns>
+    public StreamingSignalSeries StreamingSignal(int capacity = 100_000, double sampleRate = 1.0, Action<StreamingSignalSeries>? configure = null)
+        => AddStreamingSeries(new StreamingSignalSeries(capacity, sampleRate), configure);
+
+    /// <summary>Adds a streaming candlestick series backed by four parallel ring buffers.</summary>
+    /// <param name="capacity">Maximum bars retained. Default 5,000.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>The created <see cref="StreamingCandlestickSeries"/> for appending OHLC bars.</returns>
+    public StreamingCandlestickSeries StreamingCandlestick(int capacity = 5_000, Action<StreamingCandlestickSeries>? configure = null)
+        => AddStreamingSeries(new StreamingCandlestickSeries(capacity), configure);
+
+    private T AddStreamingSeries<T>(T series, Action<T>? configure) where T : ChartSeries
+    {
+        configure?.Invoke(series);
+        _axes.AddSeries(series);
+        return series;
+    }
 
     private AxesBuilder AddSeries<T>(Func<Axes, T> factory, Action<T>? configure) where T : ISeries
     {

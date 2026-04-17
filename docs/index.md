@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-**matplotlib for .NET** — 67 series types, 104 colormaps, 12 3D chart types, native Avalonia + Uno controls, SignalR interactivity, and publication-quality SVG/PNG/PDF output.
+**matplotlib for .NET** — 74 series types, 104 colormaps, 12 3D chart types, native Avalonia + Uno controls, SignalR interactivity, and publication-quality SVG/PNG/PDF output.
 
 ## Quick start
 
