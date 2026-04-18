@@ -107,9 +107,9 @@ public class AnimationControllerTests
         var anim = new SimpleAnimation { Interval = TimeSpan.FromMilliseconds(100) };
         var controller = new AnimationController<int>(anim, (_, _) => Task.CompletedTask);
         // Fire-and-forget Play, then immediately Stop on the same thread
-        var playTask = controller.PlayAsync();
+        var playTask = controller.PlayAsync(TestContext.Current.CancellationToken);
         // Give the controller a tick to set _cts
-        await Task.Delay(20);
+        await Task.Delay(20, TestContext.Current.CancellationToken);
         controller.Stop();
         await playTask; // cancellation propagates and PlayAsync returns
         Assert.Equal(AnimationPlaybackState.Stopped, controller.State);
