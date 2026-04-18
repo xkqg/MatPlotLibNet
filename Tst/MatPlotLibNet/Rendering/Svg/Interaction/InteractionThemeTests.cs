@@ -40,4 +40,28 @@ public class InteractionThemeTests
         var svg = Plt.Create().WithHighlight().Plot([1.0, 2.0], [3.0, 4.0]).ToSvg();
         Assert.Contains("data-mpl-highlight-opacity", svg);
     }
+
+    /// <summary>Phase 7 of v1.7.2 — every non-default token must round-trip through the
+    /// SVG opening tag as a <c>data-mpl-*</c> attribute. Theory covers the five remaining
+    /// branches in <c>SvgTransform.BuildSvgDocument</c> (HighlightOpacity is already covered
+    /// by <see cref="CustomTheme_EmitsHighlightOpacityAttribute"/>).</summary>
+    [Theory]
+    [MemberData(nameof(NonDefaultTokenCases))]
+    public void CustomTheme_EmitsEachTokenAttribute_WhenNonDefault(string attributeName, InteractionTheme theme, string expectedValueFragment)
+    {
+        var svg = Plt.Create()
+            .WithInteractionTheme(theme)
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .ToSvg();
+        Assert.Matches(@"<svg[^>]*\b" + attributeName + "=\"" + expectedValueFragment + "\"", svg);
+    }
+
+    public static IEnumerable<object[]> NonDefaultTokenCases() =>
+    [
+        ["data-mpl-sankey-link-opacity",   new InteractionTheme(SankeyDimLinkOpacity: 0.5),  "0.5"],
+        ["data-mpl-sankey-node-opacity",   new InteractionTheme(SankeyDimNodeOpacity: 0.5),  "0.5"],
+        ["data-mpl-treemap-transition-ms", new InteractionTheme(TreemapTransitionMs: 600),   "600"],
+        ["data-mpl-tooltip-offset-x",      new InteractionTheme(TooltipOffsetX: 20),         "20"],
+        ["data-mpl-tooltip-offset-y",      new InteractionTheme(TooltipOffsetY: -10),        "-10"],
+    ];
 }

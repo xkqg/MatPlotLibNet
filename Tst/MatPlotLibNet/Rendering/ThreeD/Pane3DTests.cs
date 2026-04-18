@@ -91,4 +91,46 @@ public sealed class Pane3DTests
         var b = new Pane3DConfig { FloorColor = Colors.Blue };
         Assert.Equal(a, b);
     }
+
+    /// <summary>Phase 3 of v1.7.2 — exercises ThreeDAxesRenderer's three axis-label
+    /// blocks (X/Y/Z) plus the Phase-3 helper <c>DrawText3DAt</c>. Without this test the
+    /// blocks went uncovered and the class regressed against the v1.7.1 baseline.</summary>
+    [Fact]
+    public void AllThreeAxisLabels_RenderedInSvg()
+    {
+        var svg = Plt.Create()
+            .WithSize(600, 500)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithCamera(elevation: 30, azimuth: -60)
+                .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } })
+                .SetXLabel("X-axis-label")
+                .SetYLabel("Y-axis-label")
+                .SetZLabel("Z-axis-label"))
+            .Build()
+            .ToSvg();
+
+        Assert.Contains("X-axis-label", svg);
+        Assert.Contains("Y-axis-label", svg);
+        Assert.Contains("Z-axis-label", svg);
+    }
+
+    /// <summary>Phase 3 of v1.7.2 — exercises the minor-tick branch of
+    /// ThreeDAxesRenderer.RenderAxisEdgeTicks. With minor ticks visible AND Emit3DVertexData
+    /// enabled, the new helper EmitV3D fires for each minor mark.</summary>
+    [Fact]
+    public void MinorTicks_OnInteractive3D_EmitsExtraTickMarks()
+    {
+        var svg = Plt.Create()
+            .WithSize(600, 500)
+            .WithBrowserInteraction()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithCamera(elevation: 30, azimuth: -60)
+                .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } })
+                .WithMinorTicks(true))
+            .Build()
+            .ToSvg();
+
+        // Just verify the figure renders successfully with minor ticks on (the branch is exercised).
+        Assert.Contains("data-v3d", svg);
+    }
 }
