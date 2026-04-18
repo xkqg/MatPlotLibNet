@@ -119,6 +119,23 @@ Plt.Create()
     .Save("marker_custom.svg");
 ```
 
+### All marker shapes (v1.7.2 Phase M)
+
+`MarkerStyle` exposes 13 shapes, every one drawn by the shared `MarkerRenderer`:
+
+| Shape | SVG primitive | Notes |
+|---|---|---|
+| `Circle` | `<circle>` | Default. Radius = `MarkerSize / 2`. |
+| `Square` | `<rect>` | Edge = `MarkerSize`. |
+| `Triangle` / `TriangleDown` / `TriangleLeft` / `TriangleRight` | `<polygon>` (3 vertices) | Equilateral; orientation as named. |
+| `Diamond` | `<polygon>` (4 vertices) | Square rotated 45°. |
+| `Pentagon` / `Hexagon` | `<polygon>` (5 / 6 vertices) | Regular N-gon, flat-top-up variant. |
+| `Star` | `<polygon>` (10 vertices) | 5-point star, inner radius ≈ 0.38 × outer (matplotlib parity). |
+| `Cross` / `Plus` | `<line>` × 2 | Outline-only (no fill). Stroke thickness falls back to `MarkerSize / 8` when `MarkerEdgeWidth` is zero. |
+| `None` | — | No marker drawn. |
+
+Prior to v1.7.2 Phase M, line charts drew every marker as a circle and scatter plots honoured only `Square`; all other shapes silently collapsed to circles. The shared `MarkerRenderer` dispatches all shapes uniformly across both series types.
+
 ## Grid and spine control
 
 ```csharp

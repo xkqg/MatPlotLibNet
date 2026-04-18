@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.7.2] — 2026-04-18
 
+### Fixed — Phase M follow-on (2 user-reported defects, 1 deeper bug surfaced)
+
+> Post-Phase-L user testing surfaced three defects sharing two root causes.
+>
+> - **M.1 — "Open in new tab" HTML wrap.** Playground's "↗ Open in new tab" button passed bare SVG to `Blob(type='image/svg+xml')`, opening the chart as a standalone SVG document. In that context embedded pan/zoom/tooltip scripts don't execute reliably **and** the `style="max-width:100%;height:auto"` (Phase L.2) doesn't force the chart to fill the viewport — the intrinsic pixel size wins. `OpenInNewTab` now reuses `SvgIframeWrapper.WrapForIframe` (same wrapper as the L.7 iframe preview); the JS blob MIME flips to `text/html`. Both interactions AND viewport-fill now work in the new tab. 2 new regression tests in `PlaygroundNewTabTests.cs`.
+> - **M.2 — MarkerRenderer covers all 13 shapes.** `MarkerStyle` has 13 members (Circle / Square / Triangle / TriangleDown / TriangleLeft / TriangleRight / Diamond / Cross / Plus / Star / Pentagon / Hexagon / None), but pre-fix **`LineSeriesRenderer` drew every marker as a circle** (one unconditional `DrawCircle` call) and **`ScatterSeriesRenderer` honoured only Square vs a catch-all circle** — 10 shapes on scatter and 11 on line charts silently collapsed to circles. Phase L.6's scatter marker wiring fix was correct but insufficient because the renderers never contained the shape code. New `Src/MatPlotLibNet/Rendering/MarkerRenderer.cs` — internal static helper with 13-way dispatch over `DrawCircle` / `DrawRectangle` / `DrawPolygon` / `DrawLine` primitives. Both renderers delegate via one call each. 19 new tests in `MarkerRendererTests.cs` pin the SVG primitive per shape (`<rect>` for Square, `<polygon>` for triangle-family / diamond / pentagon / hexagon / star, `<line>` ×2 for Cross / Plus, `<circle>` for Circle).
+
 ### Fixed — Phase L follow-on (responsive SVG, playground polish, tick rotation, contour colormap, interaction regression)
 
 > Seven user-reported defects + one tight-margins bug, all diagnosed read-only and fixed with TDD red→green.

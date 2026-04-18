@@ -45,7 +45,8 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
             for (int i = 0; i < markerPoints.Count; i++)
             {
                 if (series.MarkEvery is not null && i % series.MarkEvery.Value != 0) continue;
-                Ctx.DrawCircle(markerPoints[i], series.MarkerSize / 2, markerFill, markerStroke, markerStrokeWidth);
+                MarkerRenderer.Draw(Ctx, series.Marker ?? MarkerStyle.Circle,
+                    markerPoints[i], series.MarkerSize, markerFill, markerStroke, markerStrokeWidth);
             }
         }
     }

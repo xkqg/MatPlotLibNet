@@ -48,10 +48,7 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
             var c = ResolvePointColor(series, i, defaultColor, normalizer, cMin, cMax);
             var edgeColor = series.EdgeColors is not null && i < series.EdgeColors.Length ? series.EdgeColors[i] : (Color?)null;
             var edgeWidth = series.LineWidths is not null && i < series.LineWidths.Length ? series.LineWidths[i] : 0.0;
-            if (series.Marker == MarkerStyle.Square)
-                Ctx.DrawRectangle(new Rect(pts[i].X - radius, pts[i].Y - radius, 2 * radius, 2 * radius), c, edgeColor, edgeWidth);
-            else
-                Ctx.DrawCircle(pts[i], radius, c, edgeColor, edgeWidth);
+            MarkerRenderer.Draw(Ctx, series.Marker, pts[i], 2 * radius, c, edgeColor, edgeWidth);
             EndTooltip();
         }
     }

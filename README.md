@@ -8,7 +8,11 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.7.2 — Browser-interaction subsystem hardened end-to-end (13-phase TDD plan + matplotlib-parity follow-on + full 4-layer interaction closure) + Phase L defect closure + bug fixes + coverage uplift + CI hardening.** Continuation of the v1.7.1 stabilisation track. **Now the stable release.**
+> **v1.7.2 — Browser-interaction subsystem hardened end-to-end (13-phase TDD plan + matplotlib-parity follow-on + full 4-layer interaction closure) + Phase L defect closure + Phase M marker-renderer + new-tab-wrap closure + bug fixes + coverage uplift + CI hardening.** Continuation of the v1.7.1 stabilisation track. **Now the stable release.**
+>
+> **Phase M (v1.7.2 follow-on — 2 defects closed + 1 deeper bug surfaced, 21 new tests):**
+> - **M.1 — Playground "Open in new tab" HTML wrap.** Chart now **fills the browser viewport AND pan/zoom/tooltips work** in the new tab. Pre-fix bare SVG blob landed in a standalone-SVG context where `max-width:100%` had no effect and embedded `<script>` elements didn't execute reliably. `OpenInNewTab` now reuses the L.7 `SvgIframeWrapper.WrapForIframe` helper; blob MIME flipped to `text/html`.
+> - **M.2 — Shared `MarkerRenderer` fixes 11 silently-broken marker shapes.** `MarkerStyle` has 13 members, but pre-fix `LineSeriesRenderer` drew every marker as a circle and `ScatterSeriesRenderer` honoured only Square. New internal `Src/MatPlotLibNet/Rendering/MarkerRenderer.cs` dispatches all 13 shapes (Circle / Square / Triangle / TriangleDown / TriangleLeft / TriangleRight / Diamond / Cross / Plus / Star / Pentagon / Hexagon / None) over `DrawCircle` / `DrawRectangle` / `DrawPolygon` / `DrawLine` primitives. Both renderers delegate via one call each (DRY). 19 Theory cases pin the SVG primitive per shape.
 >
 > **Phase L (v1.7.2 follow-on — 7 user-reported defects closed, 41 new tests):**
 > - **L.1 / L.2 — Responsive SVG by default.** SVG root now carries `style="max-width:100%;height:auto"` so figures resize fluidly with their container while `viewBox` preserves aspect. Pixel `width`/`height` attributes stay on the element so `naturalWidth` (client-side PNG export) still works. Opt out with `FigureBuilder.WithResponsiveSvg(false)`.
@@ -27,7 +31,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 > 5. **6-batch coverage uplift (Phases A-F) + Phase-9 dedup** — +1 192 tests, sub-90/90 class count 241 → **154**, 14 documented exemptions added for sample / interface / JS-template code.
 > 6. **CI hardening** — Skia tests now ship `SkiaSharp.NativeAssets.{Linux.NoDependencies, Win32, macOS}` so `libSkiaSharp.so` actually loads on Linux runners.
 >
-> **5 693 tests green** across 9 test projects covering 13 NuGet packages (was 5 594 pre-Phase L, 4 275 at v1.7.1, 3 967 in v1.7.0).
+> **5 714 tests green** across 9 test projects covering 13 NuGet packages (was 5 693 pre-Phase M, 5 594 pre-Phase L, 4 275 at v1.7.1, 3 967 in v1.7.0).
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 

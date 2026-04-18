@@ -134,10 +134,15 @@
         };
 
         // ── Open SVG in a new tab so the user can zoom/pan natively ────────
-        // Browser-interactive SVGs include embedded JS for pan/zoom/tooltips —
-        // opening them standalone gives the user the real "feel" of the chart.
-        window.openInNewTab = function(svgContent) {
-            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+        // Phase M.1: receives a FULL HTML DOCUMENT (wrapped by SvgIframeWrapper
+        // on the C# side) rather than bare SVG. Bare SVG loaded as
+        // image/svg+xml rendered as a standalone SVG document, where embedded
+        // <script> elements don't execute reliably AND the CSS max-width cap
+        // didn't force the chart to fill the viewport. A full HTML wrapper
+        // gives the browser a proper document context (scripts run, CSS
+        // cascade applies, SVG stretches to fill the window).
+        window.openInNewTab = function(htmlContent) {
+            const blob = new Blob([htmlContent], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             window.open(url, '_blank', 'noopener');
             // Don't revoke immediately — the new tab needs to load first.

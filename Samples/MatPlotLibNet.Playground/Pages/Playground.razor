@@ -298,7 +298,12 @@
     }
 
     private async Task CopyCode()       => await JS.InvokeVoidAsync("copyToClipboard", _code);
-    private async Task OpenInNewTab()   => await JS.InvokeVoidAsync("openInNewTab", _svg);
+    // Phase M.1 — wrap the SVG in a full HTML document before opening so the
+    // embedded pan/zoom/tooltip scripts execute and the chart stretches to fill
+    // the viewport (CSS from SvgIframeWrapper). Bare-SVG blob (image/svg+xml)
+    // landed in a standalone-SVG context where neither worked. Reuses the same
+    // wrapper used by the iframe preview (Phase L.7).
+    private async Task OpenInNewTab()   => await JS.InvokeVoidAsync("openInNewTab", SvgIframeWrapper.WrapForIframe(_svg));
     private async Task DownloadSvg()    => await JS.InvokeVoidAsync("downloadFile", _svg, FileName(".svg"), "image/svg+xml");
     private async Task DownloadPng()    => await JS.InvokeVoidAsync("downloadPng", _svg, FileName(".png"));
     private async Task DownloadCode()   => await JS.InvokeVoidAsync("downloadFile", _code, FileName(".cs"), "text/plain");
