@@ -4,6 +4,10 @@ on:
   release:
     types: [published]
 
+# Opt JS actions into Node 24 ahead of the Sept 2026 forced migration.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   publish-core:
     runs-on: ubuntu-latest
@@ -16,6 +20,15 @@ jobs:
         with:
           dotnet-version: '10.0.x'
           dotnet-quality: 'preview'
+
+      - name: Install Skia native deps
+        # SkiaSharp 3.x on Linux requires libfontconfig1 + libfreetype6. Both Skia
+        # tests AND Avalonia tests (which use Avalonia.Skia internally) need these.
+        # Without them: `libSkiaSharp.so: cannot open shared library` blocks the
+        # Test step, which blocks Pack, which blocks Push -- entire release fails.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libfontconfig1 libfreetype6
 
       - name: Restore
         run: dotnet restore MatPlotLibNet.CI.slnf

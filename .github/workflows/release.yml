@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
 
+# Opt JS actions into Node 24 ahead of the Sept 2026 forced migration.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 permissions:
   contents: write
 

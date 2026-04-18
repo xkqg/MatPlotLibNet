@@ -194,9 +194,25 @@
             <button @onclick="DownloadPng" title="Rasterise the chart to PNG and download">⬇ PNG</button>
             <button @onclick="DownloadCode" title="Save the C# code to a .cs file you can run">⬇ Code</button>
         </div>
-        <div class="chart-preview">
-            @((MarkupString)_svg)
-        </div>
+        @* Preview pane.
+           When BrowserInteraction is OFF, we inline the SVG via MarkupString -- this
+           is fast and lets CSS scale the SVG to fit. When BrowserInteraction is ON,
+           we wrap the SVG in <iframe srcdoc="..."> instead because browsers DO NOT
+           execute <script> tags inserted via innerHTML (a documented HTML5 security
+           rule). The iframe gets a fresh document parser, so the embedded pan/zoom
+           /tooltip /legend-toggle /highlight /selection scripts actually run. *@
+        @if (_browserInteraction)
+        {
+            <div class="chart-preview">
+                <iframe class="interactive-frame" srcdoc="@_svg" title="Interactive chart preview"></iframe>
+            </div>
+        }
+        else
+        {
+            <div class="chart-preview">
+                @((MarkupString)_svg)
+            </div>
+        }
     </div>
 </div>
 

@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+# Opt all JS-based actions into Node.js 24 ahead of GitHub's Sept 2026 forced
+# migration. Setting this now means we discover any incompatibility today (when
+# we can fix it) instead of when the runner switches automatically.
+# See https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -19,6 +26,15 @@ jobs:
           dotnet-version: '10.0.x'
           dotnet-quality: 'preview'
 
+      - name: Install Skia native deps
+        # SkiaSharp 3.x on Linux needs libfontconfig1 + libfreetype6 — without them
+        # `libSkiaSharp.so: cannot open shared library` blows up the Skia tests + any
+        # PNG/PDF/GIF render path. Installing here (before any Skia-touching step) so
+        # both build-and-test and the coverage job inherit working native libs.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libfontconfig1 libfreetype6
+
       - name: Restore
         run: dotnet restore MatPlotLibNet.CI.slnf
 
@@ -29,6 +45,10 @@ jobs:
         run: |
           dotnet run --project Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Geo/MatPlotLibNet.Geo.Tests.csproj --no-build --configuration Release
+          # Skia tests added here so cross-platform native-lib breakage surfaces in
+          # the FIRST CI job, not only in the coverage job. Previously discovered
+          # too late because Skia was only run via the coverage measurement.
+          dotnet run --project Tst/MatPlotLibNet.Skia/MatPlotLibNet.Skia.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj --no-build --configuration Release
@@ -51,6 +71,15 @@ jobs:
         run: |
           # Linux runners include pwsh by default; this ensures consistency
           pwsh --version
+
+      - name: Install Skia native deps
+        run: |
+          # SkiaSharp 3.x on Linux needs native libs that aren't on default Ubuntu
+          # runners. Skia tests crash with `libSkiaSharp.so: cannot open shared
+          # library` without these. Mirrors what the SkiaSharp NuGet docs prescribe
+          # for headless server scenarios.
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libfontconfig1 libfreetype6
 
       - name: Install coverage tools
         run: |

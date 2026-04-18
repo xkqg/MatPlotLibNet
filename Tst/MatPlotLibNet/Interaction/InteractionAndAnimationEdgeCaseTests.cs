@@ -98,7 +98,9 @@ public class InteractionAndAnimationEdgeCaseTests
             { Interval = TimeSpan.FromMilliseconds(1), Loop = false }),
             (_, _) => { frames++; return Task.CompletedTask; });
 
-        await ctrl.PlayAsync();
+        // Use TestContext.Current.CancellationToken (xUnit v3) so the test cancels
+        // promptly if the runner aborts -- avoids xUnit1051 warning.
+        await ctrl.PlayAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(3, frames);
         Assert.Equal(AnimationPlaybackState.Stopped, ctrl.State);
