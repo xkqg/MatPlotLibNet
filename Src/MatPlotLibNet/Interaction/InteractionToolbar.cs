@@ -11,18 +11,20 @@ namespace MatPlotLibNet.Interaction;
 public sealed class InteractionToolbar
 {
     /// <summary>Active tool modes.</summary>
+    /// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+    /// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
     public enum ToolMode
     {
         /// <summary>Default: left-drag pans, scroll zooms.</summary>
-        Pan,
+        Pan = 0,
         /// <summary>Ctrl+drag rectangle zoom is the primary gesture.</summary>
-        Zoom,
+        Zoom = 1,
         /// <summary>Right-drag rotates 3D view.</summary>
-        Rotate3D,
+        Rotate3D = 2,
         /// <summary>Click pins a data annotation.</summary>
-        DataCursor,
+        DataCursor = 3,
         /// <summary>Alt+drag selects an X-range.</summary>
-        SpanSelect,
+        SpanSelect = 4,
     }
 
     private readonly List<ToolbarButton> _buttons = [];

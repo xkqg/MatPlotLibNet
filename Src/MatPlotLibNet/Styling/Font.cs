@@ -19,32 +19,32 @@ public sealed record Font
     public Color? Color { get; init; }
 }
 
-/// <summary>
-/// Specifies the weight (boldness) of a font.
-/// </summary>
+/// <summary>Specifies the weight (boldness) of a font.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum FontWeight
 {
     /// <summary>A light font weight.</summary>
-    Light,
+    Light = 0,
 
     /// <summary>The normal (regular) font weight.</summary>
-    Normal,
+    Normal = 1,
 
     /// <summary>A bold font weight.</summary>
-    Bold
+    Bold = 2,
 }
 
-/// <summary>
-/// Specifies the slant style of a font.
-/// </summary>
+/// <summary>Specifies the slant style of a font.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum FontSlant
 {
     /// <summary>Upright text with no slant.</summary>
-    Normal,
+    Normal = 0,
 
     /// <summary>Italic text.</summary>
-    Italic,
+    Italic = 1,
 
     /// <summary>Oblique (slanted) text.</summary>
-    Oblique
+    Oblique = 2,
 }

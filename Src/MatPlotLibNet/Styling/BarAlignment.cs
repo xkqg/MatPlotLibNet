@@ -4,11 +4,13 @@
 namespace MatPlotLibNet.Styling;
 
 /// <summary>Specifies how bar positions are aligned relative to their X coordinate.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum BarAlignment
 {
     /// <summary>Bar is centered on the X coordinate.</summary>
-    Center,
+    Center = 0,
 
     /// <summary>Bar's left edge is at the X coordinate.</summary>
-    Edge
+    Edge = 1,
 }

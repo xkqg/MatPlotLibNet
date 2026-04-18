@@ -2,14 +2,16 @@
 @using MatPlotLibNet
 @using MatPlotLibNet.Models
 @using MatPlotLibNet.Playground
+@using MatPlotLibNet.Styling
+@using MatPlotLibNet.Styling.ColorMaps
 @inject IJSRuntime JS
 
 <div class="playground-layout">
     <div class="panel panel-controls">
-        <select class="example-select" @onchange="OnExampleChanged">
-            @foreach (var name in PlaygroundExamples.Names)
+        <select class="example-select" @bind="_selectedExample" @bind:after="OnExampleChanged">
+            @foreach (var example in PlaygroundExamples.Examples)
             {
-                <option value="@name" selected="@(_selectedExample == name)">@name</option>
+                <option value="@example">@example.DisplayName()</option>
             }
         </select>
 
@@ -22,38 +24,29 @@
 
         <div class="param-group">
             <label>Theme</label>
-            <select @bind="_themeName" @bind:after="Rebuild">
+            @* Phase N.1: @bind-value carries the Theme INDEX into ThemeChoices, not a magic
+               string name. OnThemeChanged resolves the index back to the typed Theme instance. *@
+            <select @onchange="OnThemeChanged">
                 <optgroup label="Light">
-                    <option>Default</option>
-                    <option>Seaborn</option>
-                    <option>Ggplot</option>
-                    <option>FiveThirtyEight</option>
-                    <option>Bmh</option>
-                    <option>Solarize</option>
-                    <option>Grayscale</option>
-                    <option>Paper</option>
-                    <option>Presentation</option>
-                    <option>Poster</option>
-                    <option>GitHub</option>
-                    <option>Minimal</option>
-                    <option>Retro</option>
-                    <option>MatplotlibClassic</option>
-                    <option>MatplotlibV2</option>
+                    @for (int i = 0; i < LightThemeChoices.Length; i++)
+                    {
+                        var idx = i;
+                        <option value="@idx" selected="@(ReferenceEquals(_theme, LightThemeChoices[idx]))">@LightThemeChoices[idx].Name</option>
+                    }
                 </optgroup>
                 <optgroup label="Dark">
-                    <option>Dark</option>
-                    <option>Cyberpunk</option>
-                    <option>Nord</option>
-                    <option>Dracula</option>
-                    <option>Monokai</option>
-                    <option>Catppuccin</option>
-                    <option>Gruvbox</option>
-                    <option>OneDark</option>
-                    <option>Neon</option>
+                    @for (int i = 0; i < DarkThemeChoices.Length; i++)
+                    {
+                        var idx = i + LightThemeChoices.Length;
+                        <option value="@idx" selected="@(ReferenceEquals(_theme, DarkThemeChoices[i]))">@DarkThemeChoices[i].Name</option>
+                    }
                 </optgroup>
                 <optgroup label="Accessibility">
-                    <option>ColorBlindSafe</option>
-                    <option>HighContrast</option>
+                    @for (int i = 0; i < AccessibilityThemeChoices.Length; i++)
+                    {
+                        var idx = i + LightThemeChoices.Length + DarkThemeChoices.Length;
+                        <option value="@idx" selected="@(ReferenceEquals(_theme, AccessibilityThemeChoices[i]))">@AccessibilityThemeChoices[i].Name</option>
+                    }
                 </optgroup>
             </select>
         </div>
@@ -125,10 +118,11 @@
                 <div class="param-group">
                     <label>Line style</label>
                     <select @bind="_lineStyle" @bind:after="Rebuild">
-                        <option>Solid</option>
-                        <option>Dashed</option>
-                        <option>Dotted</option>
-                        <option>DashDot</option>
+                        @foreach (var ls in Enum.GetValues<LineStyle>())
+                        {
+                            if (ls == LineStyle.None) continue;
+                            <option value="@ls">@ls</option>
+                        }
                     </select>
                 </div>
 
@@ -140,22 +134,19 @@
 
             @if (PlaygroundExamples.SupportsMarkerControls(_selectedExample))
             {
-                var isScatter = _selectedExample == "Scatter Plot";
+                var isScatter = _selectedExample == PlaygroundExample.ScatterPlot;
                 <div class="param-group">
                     <label>Marker</label>
-                    <select @bind="_markerStyle" @bind:after="Rebuild">
-                        @if (!isScatter) { <option>None</option> }
-                        <option>Circle</option>
-                        <option>Square</option>
-                        <option>Triangle</option>
-                        <option>Diamond</option>
-                        <option>Star</option>
-                        <option>Cross</option>
-                        <option>Plus</option>
+                    <select @bind="_marker" @bind:after="Rebuild">
+                        @foreach (var m in Enum.GetValues<MarkerStyle>())
+                        {
+                            if (isScatter && m == MarkerStyle.None) continue;
+                            <option value="@m">@m</option>
+                        }
                     </select>
                 </div>
 
-                @if (isScatter || _markerStyle != "None")
+                @if (isScatter || _marker != MarkerStyle.None)
                 {
                     <div class="param-group">
                         <label>Marker size: @_markerSize</label>
@@ -171,16 +162,12 @@
 
             <div class="param-group">
                 <label>Colormap</label>
-                <select @bind="_colorMap" @bind:after="Rebuild">
-                    <option>viridis</option>
-                    <option>plasma</option>
-                    <option>inferno</option>
-                    <option>magma</option>
-                    <option>turbo</option>
-                    <option>coolwarm</option>
-                    <option>greys</option>
-                    <option>hot</option>
-                    <option>jet</option>
+                <select @onchange="OnColorMapChanged">
+                    @for (int i = 0; i < ColorMapChoices.Length; i++)
+                    {
+                        var idx = i;
+                        <option value="@idx" selected="@(ReferenceEquals(_colorMap, ColorMapChoices[idx]))">@ColorMapChoices[idx].Name</option>
+                    }
                 </select>
             </div>
 
@@ -233,22 +220,55 @@
     private const int IntrinsicWidth  = 800;
     private const int IntrinsicHeight = 450;
 
-    private string _selectedExample = "Line Chart";
-    private string _title           = "Line Chart";
-    private string _themeName       = "Default";
-    private bool   _tightLayout;
-    private bool   _browserInteraction;
-    private bool   _showLegend      = true;
-    private bool   _showGrid        = true;
-    private bool   _hideTopSpine;
-    private bool   _hideRightSpine;
-    private bool   _tightMargins;
-    private string _lineStyle       = "Solid";
-    private double _lineWidth       = 1.5;
-    private string _markerStyle     = "None";
-    private int    _markerSize      = 6;
-    private string _colorMap        = "viridis";
-    private bool   _showColorBar    = true;
+    // Phase N.1 — typed choice arrays (no magic strings). The UI dropdowns iterate
+    // these arrays by INDEX so the <option value="..."> is an integer, never a
+    // free-form string. The typed instance is stored in _theme / _colorMap.
+    private static readonly Theme[] LightThemeChoices =
+    {
+        Theme.Default, Theme.Seaborn, Theme.Ggplot, Theme.FiveThirtyEight, Theme.Bmh,
+        Theme.Solarize, Theme.Grayscale, Theme.Paper, Theme.Presentation, Theme.Poster,
+        Theme.GitHub, Theme.Minimal, Theme.Retro, Theme.MatplotlibClassic, Theme.MatplotlibV2,
+    };
+
+    private static readonly Theme[] DarkThemeChoices =
+    {
+        Theme.Dark, Theme.Cyberpunk, Theme.Nord, Theme.Dracula, Theme.Monokai,
+        Theme.Catppuccin, Theme.Gruvbox, Theme.OneDark, Theme.Neon,
+    };
+
+    private static readonly Theme[] AccessibilityThemeChoices =
+    {
+        Theme.ColorBlindSafe, Theme.HighContrast,
+    };
+
+    private Theme[] AllThemeChoices =>
+        LightThemeChoices.Concat(DarkThemeChoices).Concat(AccessibilityThemeChoices).ToArray();
+
+    private static readonly IColorMap[] ColorMapChoices =
+    {
+        ColorMaps.Viridis, ColorMaps.Plasma, ColorMaps.Inferno, ColorMaps.Magma,
+        ColorMaps.Turbo, ColorMaps.Coolwarm,
+        MatPlotLibNet.Styling.ColorMaps.SequentialColorMaps.Greys,
+        MatPlotLibNet.Styling.ColorMaps.SequentialColorMaps.Hot,
+        ColorMaps.Jet,
+    };
+
+    private PlaygroundExample _selectedExample = PlaygroundExample.LineChart;
+    private string            _title           = PlaygroundExample.LineChart.DisplayName();
+    private Theme             _theme           = Theme.Default;
+    private bool              _tightLayout;
+    private bool              _browserInteraction;
+    private bool              _showLegend      = true;
+    private bool              _showGrid        = true;
+    private bool              _hideTopSpine;
+    private bool              _hideRightSpine;
+    private bool              _tightMargins;
+    private LineStyle         _lineStyle       = LineStyle.Solid;
+    private double            _lineWidth       = 1.5;
+    private MarkerStyle       _marker          = MarkerStyle.None;
+    private int               _markerSize      = 6;
+    private IColorMap         _colorMap        = ColorMaps.Viridis;
+    private bool              _showColorBar    = true;
 
     private string _svg  = "";
     private string _code = "";
@@ -258,7 +278,7 @@
     private PlaygroundOptions CurrentOptions => new()
     {
         Title              = _title,
-        ThemeName          = _themeName,
+        Theme              = _theme,
         Width              = IntrinsicWidth,
         Height             = IntrinsicHeight,
         TightLayout        = _tightLayout,
@@ -270,16 +290,35 @@
         TightMargins       = _tightMargins,
         LineStyle          = _lineStyle,
         LineWidth          = _lineWidth,
-        MarkerStyle        = _markerStyle,
+        Marker             = _marker,
         MarkerSize         = _markerSize,
         ColorMap           = _colorMap,
         ShowColorBar       = _showColorBar,
     };
 
-    private void OnExampleChanged(ChangeEventArgs e)
+    private void OnExampleChanged()
     {
-        _selectedExample = e.Value?.ToString() ?? "Line Chart";
-        _title = _selectedExample;
+        _title = _selectedExample.DisplayName();
+        Rebuild();
+    }
+
+    private void OnThemeChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int idx))
+        {
+            var all = AllThemeChoices;
+            if (idx >= 0 && idx < all.Length) _theme = all[idx];
+        }
+        Rebuild();
+    }
+
+    private void OnColorMapChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int idx)
+            && idx >= 0 && idx < ColorMapChoices.Length)
+        {
+            _colorMap = ColorMapChoices[idx];
+        }
         Rebuild();
     }
 
@@ -310,7 +349,7 @@
 
     private string FileName(string ext)
     {
-        var name = _selectedExample.ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
+        var name = _selectedExample.ToString().ToLowerInvariant();
         return $"matplotlibnet_{name}{ext}";
     }
 }

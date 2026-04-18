@@ -8,7 +8,17 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.7.2 — Browser-interaction subsystem hardened end-to-end (13-phase TDD plan + matplotlib-parity follow-on + full 4-layer interaction closure) + Phase L defect closure + Phase M marker-renderer + new-tab-wrap closure + bug fixes + coverage uplift + CI hardening.** Continuation of the v1.7.1 stabilisation track. **Now the stable release.**
+> **v1.7.2 — Browser-interaction subsystem hardened end-to-end (13-phase TDD plan + matplotlib-parity follow-on + full 4-layer interaction closure) + Phase L defect closure + Phase M marker-renderer + Phase N magic-string elimination + Phase O enum binary-compat hardening + bug fixes + coverage uplift + CI hardening.** Continuation of the v1.7.1 stabilisation track. **Now the stable release.**
+>
+> **Phase O (v1.7.2 follow-on — enum binary-compatibility hardening, 46 new tests):**
+> - **O.1 — Explicit ordinals on every public enum.** All 45 public enums now have `= N` on every member. Source reordering can no longer shift a consumer's compiled IL.
+> - **O.2 — `EnumOrdinalContractTests` CI gate.** Pinned `(name → ordinal)` snapshot for every public enum; Theory test fails on reorder/remove/renumber/rename. Discovery Fact detects any new public enum added without being registered.
+> - **O.3 — Append-only contract** documented in every enum's XML `<remarks>`.
+> - **O.4 — `JsonStringEnumConverter`** defensively registered in `ChartSerializer` so no integer ordinal leaks into persisted JSON even if a future DTO wires an enum-typed property directly.
+>
+> **Phase N (v1.7.2 follow-on — root-cause response to the Phase L/M bug-hunting loop, 19 new tests):**
+> - **N.1 — Magic-string elimination (playground).** `PlaygroundOptions` had four free-form string properties (`ThemeName` / `LineStyle` / `MarkerStyle` / `ColorMap`) with 25-/4-/8-case resolver switches; `PlaygroundExamples._builders` was a `Dictionary<string, Func<…>>` keyed by free-form strings ("Line Chart", "Scatter Plot", …). All replaced with **typed properties** (`Theme`, `LineStyle`, `MarkerStyle`, `IColorMap`) and a new **`PlaygroundExample` enum** (16 values with `[Description]` for display names). Razor page binds typed enums and iterates `Enum.GetValues<T>()`; a typo in the playground is now a compiler error, not a runtime silent fallback.
+> - **N.2 — Enum contract tests (generic Theory harness).** New `EnumOutputContract.EveryValueRendersDistinctOutput<TEnum>(...)` asserts every rendering-driving enum value produces byte-distinct SVG output — catches the Phase M.2 bug class ("advertised enum value silently collapsed to default") at CI time. Six high-risk enums covered: `TickDirection`, `HistType`, `BoxStyle`, `ConnectionStyle`, `ArrowStyle`, `AxisScale`. **First-run hit surfaced 3 more renderer bugs** — `ArrowStyle.CurveA`/`CurveB` render identical SVG, `ArrowStyle.BracketA`/`BracketB` render identical SVG, `AxisScale.Logit` collapses to `Linear`. Documented via `[Fact(Skip = …)]` markers that un-skip when the renderer is fixed.
 >
 > **Phase M (v1.7.2 follow-on — 2 defects closed + 1 deeper bug surfaced, 21 new tests):**
 > - **M.1 — Playground "Open in new tab" HTML wrap.** Chart now **fills the browser viewport AND pan/zoom/tooltips work** in the new tab. Pre-fix bare SVG blob landed in a standalone-SVG context where `max-width:100%` had no effect and embedded `<script>` elements didn't execute reliably. `OpenInNewTab` now reuses the L.7 `SvgIframeWrapper.WrapForIframe` helper; blob MIME flipped to `text/html`.
@@ -31,7 +41,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 > 5. **6-batch coverage uplift (Phases A-F) + Phase-9 dedup** — +1 192 tests, sub-90/90 class count 241 → **154**, 14 documented exemptions added for sample / interface / JS-template code.
 > 6. **CI hardening** — Skia tests now ship `SkiaSharp.NativeAssets.{Linux.NoDependencies, Win32, macOS}` so `libSkiaSharp.so` actually loads on Linux runners.
 >
-> **5 714 tests green** across 9 test projects covering 13 NuGet packages (was 5 693 pre-Phase M, 5 594 pre-Phase L, 4 275 at v1.7.1, 3 967 in v1.7.0).
+> **5 776 tests green (3 known-bug skips)** across 9 test projects covering 13 NuGet packages (was 5 730 pre-Phase O, 5 714 pre-Phase N, 5 693 pre-Phase M, 5 594 pre-Phase L, 4 275 at v1.7.1, 3 967 in v1.7.0).
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 

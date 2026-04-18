@@ -3,23 +3,23 @@
 
 namespace MatPlotLibNet.Styling;
 
-/// <summary>
-/// Specifies the dash pattern used to render a line.
-/// </summary>
+/// <summary>Specifies the dash pattern used to render a line.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum LineStyle
 {
     /// <summary>A continuous solid line.</summary>
-    Solid,
+    Solid = 0,
 
     /// <summary>A line composed of dashes.</summary>
-    Dashed,
+    Dashed = 1,
 
     /// <summary>A line composed of dots.</summary>
-    Dotted,
+    Dotted = 2,
 
     /// <summary>A line alternating between dashes and dots.</summary>
-    DashDot,
+    DashDot = 3,
 
     /// <summary>No line is drawn.</summary>
-    None
+    None = 4,
 }

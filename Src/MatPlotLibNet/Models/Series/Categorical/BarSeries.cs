@@ -8,13 +8,15 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Specifies the orientation of a bar chart.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum BarOrientation
 {
     /// <summary>Bars are drawn vertically.</summary>
-    Vertical,
+    Vertical = 0,
 
     /// <summary>Bars are drawn horizontally.</summary>
-    Horizontal
+    Horizontal = 1,
 }
 
 /// <summary>Represents a bar chart series displaying categorical data as rectangular bars.</summary>

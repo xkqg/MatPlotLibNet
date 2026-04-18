@@ -6,6 +6,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.7.2] — 2026-04-18
 
+### Fixed — Phase O (enum binary-compatibility hardening)
+
+> Follow-on to Phase N — user flagged the binary-compat risk inherent in
+> enums (reordering, insertion, deletion silently shift ordinals and
+> corrupt cross-assembly or persisted integer data). Phase O pins every
+> public enum's (name → ordinal) mapping as a CI-gated contract.
+>
+> - **O.1 — Explicit ordinals on every public enum.** All 45 public enums
+>   across `Src/MatPlotLibNet/` + `Samples/MatPlotLibNet.Playground/`
+>   (including the `PlaygroundExample` introduced in Phase N) now have
+>   explicit `= N` assignments on every member. `ModifierKeys` (already
+>   explicit `[Flags]`) and `BlendMode` (partial) got their remaining
+>   members filled in. Source reordering now has zero binary effect.
+> - **O.2 — `EnumOrdinalContractTests` (CI gate).** New internal
+>   `EnumOrdinalSnapshot.Pinned` dictionary declares the `(name, ordinal)`
+>   mapping for every public enum. A Theory test asserts the live reflection
+>   state matches. A discovery Fact reflects over the public assemblies
+>   to guarantee any new public enum added in the future must be registered.
+>   Removing / renaming / renumbering an existing member turns the build red
+>   with a clear message. **46 new tests** (45 Theory + 1 discovery Fact).
+> - **O.3 — Append-only contract in XML doc.** Every public enum's XML
+>   `<remarks>` documents the rule: "never reorder, remove, or renumber;
+>   new values get the next unused ordinal." Documentation is the first
+>   line of defence; the test is the second.
+> - **O.4 — Defensive `JsonStringEnumConverter` in `ChartSerializer`.**
+>   Current DTOs already string-convert enums manually — this registration
+>   adds a safety net: if a future DTO is added with an enum-typed property
+>   wired directly (not as a string), `JsonStringEnumConverter` catches it
+>   so no integer ordinal ever leaks into persisted JSON. Zero-byte
+>   behaviour change for current output.
+>
+> **Net result:** enums remain strongly typed (no magic-string regression),
+> but the ordinals are now a compile-checked, CI-gated, documented
+> contract. A new enum member requires a conscious two-step update
+> (source + snapshot), which is exactly the friction needed to prevent
+> silent drift. Solves the binary-compat concern flagged in the Phase N
+> retrospective.
+
+### Fixed — Phase N (magic-string elimination + enum contract tests surfacing 3 more silent-collapse bugs)
+
+> Root-cause response to the 8-hour Phase L/M bug-hunting loop: several of those bugs existed because (a) categorical values flowed through the code as free-form strings (typo = silent fallback) and (b) tests asserted "property was set" rather than "output honoured the value." Phase N addresses both at the source.
+>
+> - **N.1 — Magic-string elimination (playground-first).** New `PlaygroundExample` enum (16 values with `[Description]` for display names) replaces the `Dictionary<string, Func<…>>` keyed by free-form strings. `PlaygroundOptions.ThemeName` / `.LineStyle` / `.MarkerStyle` / `.ColorMap` went from 4 free-form strings + their resolver switches (25-/4-/8-case) to 4 typed properties: `Theme`, `LineStyle`, `MarkerStyle`, `IColorMap`. `SupportsLineControls` / `SupportsMarkerControls` / `SupportsColormap` / `Build` / `CodeFor` all take the enum now; the Razor page binds typed enum fields and dropdowns iterate `Enum.GetValues<T>()` so the UI can never drift from the enum. A typo in the playground is now a compiler error. 7 new tests in `PlaygroundExampleEnumTests.cs`.
+> - **N.2 — Enum contract tests (generic Theory harness).** New internal `EnumOutputContract.EveryValueRendersDistinctOutput<TEnum>(...)` asserts every enum value produces byte-distinct SVG output, catching the Phase M.2 "advertised-but-silently-collapsed" bug class. Six high-risk enums get contract tests in this phase: `TickDirection` (3), `HistType` (3), `BoxStyle` (5), `ConnectionStyle` (4), `ArrowStyle` (10), `AxisScale` (5). **First-run hit: the harness caught 3 more silent-collapse bugs in `ArrowHeadBuilder` / `CartesianAxesRenderer`:**
+>   - `ArrowStyle.CurveA` and `CurveB` render identical SVG (arrowhead renderer doesn't distinguish source-end vs target-end curves).
+>   - `ArrowStyle.BracketA` and `BracketB` render identical SVG (same pattern for bracket arrowheads).
+>   - `AxisScale.Logit` renders identically to `AxisScale.Linear` (logit transform not wired into `CartesianAxesRenderer.ScaleRange` / tick-locator pipeline).
+>
+>   Each known bug is documented via a `[Fact(Skip = "...")]` test (`..._BugFix_MustInvertThisTest`) that inverts the assertion — when the renderer is patched the skip can be removed and the test locks in the fix. The contract tests cover the remaining 7 ArrowStyles / 4 AxisScales and all 3 TickDirections / 3 HistTypes / 5 BoxStyles / 4 ConnectionStyles with green output-distinctness.
+
 ### Fixed — Phase M follow-on (2 user-reported defects, 1 deeper bug surfaced)
 
 > Post-Phase-L user testing surfaced three defects sharing two root causes.

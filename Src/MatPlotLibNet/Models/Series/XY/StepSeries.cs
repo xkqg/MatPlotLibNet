@@ -8,16 +8,18 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Specifies where the step transition occurs relative to adjacent data points.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum StepPosition
 {
     /// <summary>Step occurs before the data point (step at the beginning of the interval).</summary>
-    Pre,
+    Pre = 0,
 
     /// <summary>Step occurs at the midpoint between data points.</summary>
-    Mid,
+    Mid = 1,
 
     /// <summary>Step occurs after the data point (step at the end of the interval).</summary>
-    Post
+    Post = 2,
 }
 
 /// <summary>Represents a step-function line series.</summary>

@@ -2,20 +2,24 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Builders;
-using MatPlotLibNet.Models;
-using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Playground;
 
 /// <summary>Single source of truth for every Playground toggle/value. All playground
 /// examples receive an instance of this record and must respect its values consistently.
-/// New options should be added here so they apply uniformly across all examples.</summary>
+/// New options should be added here so they apply uniformly across all examples.
+/// <para>Phase N.1 of v1.7.2: every categorical property is now typed — the
+/// pre-Phase-N magic-string soup (<c>ThemeName</c> / <c>LineStyle</c> /
+/// <c>MarkerStyle</c> / <c>ColorMap</c> as free-form strings with 25-case /
+/// 4-case / 8-case resolver switches) was the root of several "advertised but
+/// silently collapsed" bugs. Typed properties make a typo unbuildable.</para></summary>
 public sealed record PlaygroundOptions
 {
     // --- Figure ---
     public string Title { get; init; } = "";
-    public string ThemeName { get; init; } = "Default";
+    public Theme Theme { get; init; } = Theme.Default;
     // 16:9 at 800 px natural width — Phase L.5 of the v1.7.2 plan dropped the
     // playground Width/Height sliders because the SVG is now responsive by default
     // (Phase L.2). These values drive the `viewBox` aspect ratio + the
@@ -33,66 +37,14 @@ public sealed record PlaygroundOptions
     public bool TightMargins { get; init; }
 
     // --- Series styling (line/scatter examples) ---
-    public string LineStyle { get; init; } = "Solid";
+    public LineStyle LineStyle { get; init; } = LineStyle.Solid;
     public double LineWidth { get; init; } = 1.5;
-    public string MarkerStyle { get; init; } = "None";
+    public MarkerStyle Marker { get; init; } = MarkerStyle.None;
     public int MarkerSize { get; init; } = 6;
 
     // --- Colormap (heatmap/contour examples) ---
-    public string ColorMap { get; init; } = "viridis";
+    public IColorMap ColorMap { get; init; } = ColorMaps.Viridis;
     public bool ShowColorBar { get; init; } = true;
-
-    // --- Resolved enum/instance helpers (avoid duplicating switch in every example) ---
-
-    public Theme Theme => ThemeName switch
-    {
-        "Dark" => Styling.Theme.Dark,
-        "Seaborn" => Styling.Theme.Seaborn,
-        "ColorBlindSafe" => Styling.Theme.ColorBlindSafe,
-        "HighContrast" => Styling.Theme.HighContrast,
-        "MatplotlibClassic" => Styling.Theme.MatplotlibClassic,
-        "MatplotlibV2" => Styling.Theme.MatplotlibV2,
-        "Ggplot" => Styling.Theme.Ggplot,
-        "FiveThirtyEight" => Styling.Theme.FiveThirtyEight,
-        "Bmh" => Styling.Theme.Bmh,
-        "Solarize" => Styling.Theme.Solarize,
-        "Grayscale" => Styling.Theme.Grayscale,
-        "Paper" => Styling.Theme.Paper,
-        "Presentation" => Styling.Theme.Presentation,
-        "Poster" => Styling.Theme.Poster,
-        "GitHub" => Styling.Theme.GitHub,
-        "Minimal" => Styling.Theme.Minimal,
-        "Retro" => Styling.Theme.Retro,
-        "Cyberpunk" => Styling.Theme.Cyberpunk,
-        "Nord" => Styling.Theme.Nord,
-        "Dracula" => Styling.Theme.Dracula,
-        "Monokai" => Styling.Theme.Monokai,
-        "Catppuccin" => Styling.Theme.Catppuccin,
-        "Gruvbox" => Styling.Theme.Gruvbox,
-        "OneDark" => Styling.Theme.OneDark,
-        "Neon" => Styling.Theme.Neon,
-        _ => Styling.Theme.Default,
-    };
-
-    public LineStyle ResolvedLineStyle => LineStyle switch
-    {
-        "Dashed"  => Styling.LineStyle.Dashed,
-        "Dotted"  => Styling.LineStyle.Dotted,
-        "DashDot" => Styling.LineStyle.DashDot,
-        _         => Styling.LineStyle.Solid,
-    };
-
-    public MarkerStyle? ResolvedMarker => MarkerStyle switch
-    {
-        "Circle"   => Styling.MarkerStyle.Circle,
-        "Square"   => Styling.MarkerStyle.Square,
-        "Triangle" => Styling.MarkerStyle.Triangle,
-        "Diamond"  => Styling.MarkerStyle.Diamond,
-        "Star"     => Styling.MarkerStyle.Star,
-        "Cross"    => Styling.MarkerStyle.Cross,
-        "Plus"     => Styling.MarkerStyle.Plus,
-        _          => null,
-    };
 
     /// <summary>Applies all FIGURE-level options (theme, size, title, browser interaction)
     /// EXCEPT TightLayout — which must be applied AFTER all subplots are added (call

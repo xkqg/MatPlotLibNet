@@ -4,19 +4,21 @@
 namespace MatPlotLibNet.Styling;
 
 /// <summary>Compositing blend mode for alpha-layered image rendering.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum BlendMode
 {
     /// <summary>Standard alpha compositing: src * α + dst * (1 − α).</summary>
     Normal = 0,
 
     /// <summary>Multiplies src and dst per-channel: src × dst.</summary>
-    Multiply,
+    Multiply = 1,
 
     /// <summary>Brightens by inverting multiplication: 1 − (1 − src) × (1 − dst).</summary>
-    Screen,
+    Screen = 2,
 
     /// <summary>Contrast-enhancing mode: Multiply for dark areas, Screen for light areas.</summary>
-    Overlay,
+    Overlay = 3,
 }
 
 /// <summary>Per-pixel compositing operations for <see cref="BlendMode"/> values.</summary>

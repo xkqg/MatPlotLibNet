@@ -1024,66 +1024,70 @@ public sealed record Legend
 }
 
 /// <summary>Specifies the position of a legend within the axes.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum LegendPosition
 {
     /// <summary>Automatically choose the best position to minimize overlap.</summary>
-    Best,
+    Best = 0,
 
     /// <summary>Place the legend in the upper-right corner.</summary>
-    UpperRight,
+    UpperRight = 1,
 
     /// <summary>Place the legend in the upper-left corner.</summary>
-    UpperLeft,
+    UpperLeft = 2,
 
     /// <summary>Place the legend in the lower-right corner.</summary>
-    LowerRight,
+    LowerRight = 3,
 
     /// <summary>Place the legend in the lower-left corner.</summary>
-    LowerLeft,
+    LowerLeft = 4,
 
     /// <summary>Place the legend along the right edge, vertically centered.</summary>
-    Right,
+    Right = 5,
 
     /// <summary>Place the legend along the left edge, vertically centered.</summary>
-    CenterLeft,
+    CenterLeft = 6,
 
     /// <summary>Place the legend along the right edge, vertically centered (alias for Right).</summary>
-    CenterRight,
+    CenterRight = 7,
 
     /// <summary>Place the legend along the bottom edge, horizontally centered.</summary>
-    LowerCenter,
+    LowerCenter = 8,
 
     /// <summary>Place the legend along the top edge, horizontally centered.</summary>
-    UpperCenter,
+    UpperCenter = 9,
 
     /// <summary>Place the legend at the center of the plot area.</summary>
-    Center,
+    Center = 10,
 
     /// <summary>Place the legend OUTSIDE the plot area, to the right of it. The
     /// constrained-layout engine reserves enough right margin on the figure to fit the
     /// legend box; without <c>TightLayout()</c> or <c>ConstrainedLayout()</c> the legend
     /// may be clipped by the figure edge.</summary>
-    OutsideRight,
+    OutsideRight = 11,
 
     /// <summary>Place the legend OUTSIDE the plot area, to the left of it. Requires
     /// <c>TightLayout()</c> / <c>ConstrainedLayout()</c> for the engine to reserve left margin.</summary>
-    OutsideLeft,
+    OutsideLeft = 12,
 
     /// <summary>Place the legend OUTSIDE the plot area, above it (below the subplot title).
     /// Requires <c>TightLayout()</c> / <c>ConstrainedLayout()</c> for the engine to reserve top margin.</summary>
-    OutsideTop,
+    OutsideTop = 13,
 
     /// <summary>Place the legend OUTSIDE the plot area, below the X-axis labels. Requires
     /// <c>TightLayout()</c> / <c>ConstrainedLayout()</c> for the engine to reserve bottom margin.</summary>
-    OutsideBottom,
+    OutsideBottom = 14,
 }
 
 /// <summary>Specifies how multiple bar series on the same axes are displayed.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum BarMode
 {
     /// <summary>Bars are placed side by side.</summary>
-    Grouped,
+    Grouped = 0,
 
     /// <summary>Bars are stacked on top of each other.</summary>
-    Stacked
+    Stacked = 1,
 }

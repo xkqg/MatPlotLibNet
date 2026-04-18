@@ -4,22 +4,24 @@
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>Specifies which price component to use as input for an indicator.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum PriceSource
 {
     /// <summary>Closing price.</summary>
-    Close,
+    Close = 0,
     /// <summary>Opening price.</summary>
-    Open,
+    Open = 1,
     /// <summary>Highest price.</summary>
-    High,
+    High = 2,
     /// <summary>Lowest price.</summary>
-    Low,
+    Low = 3,
     /// <summary>Average of high and low: (H + L) / 2.</summary>
-    HL2,
+    HL2 = 4,
     /// <summary>Average of high, low, and close: (H + L + C) / 3.</summary>
-    HLC3,
+    HLC3 = 5,
     /// <summary>Average of open, high, low, and close: (O + H + L + C) / 4.</summary>
-    OHLC4
+    OHLC4 = 6,
 }
 
 /// <summary>Resolves a <see cref="PriceSource"/> enum to a computed price array from OHLC data.</summary>

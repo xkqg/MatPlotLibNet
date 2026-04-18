@@ -6,16 +6,18 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models;
 
 /// <summary>Specifies how a spine is positioned relative to the axes.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum SpinePosition
 {
     /// <summary>Default position at the axes edge.</summary>
-    Edge,
+    Edge = 0,
 
     /// <summary>Position at a specific data coordinate.</summary>
-    Data,
+    Data = 1,
 
     /// <summary>Position at a fraction of the axes (0.0 = left/bottom, 1.0 = right/top).</summary>
-    Axes
+    Axes = 2,
 }
 
 /// <summary>Configures a single axis spine (border line).</summary>

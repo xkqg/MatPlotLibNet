@@ -12,7 +12,7 @@ namespace MatPlotLibNet.Playground;
 /// a <see cref="PlaygroundOptions"/> and returns a (Figure, code-snippet) pair.
 ///
 /// <para>Why a single static registry instead of one class per example?</para>
-/// 1. The Razor component just queries <see cref="Names"/> for the dropdown and calls
+/// 1. The Razor component just queries <see cref="Examples"/> for the dropdown and calls
 ///    <see cref="Build"/> on selection — no per-example wiring.
 /// 2. Tests can iterate every example to assert basic invariants (builds without throw,
 ///    respects toggles, contains expected SVG markers) — see PlaygroundExampleTests.
@@ -20,50 +20,56 @@ namespace MatPlotLibNet.Playground;
 ///    closed for modification of existing ones.</summary>
 public static class PlaygroundExamples
 {
-    public static IReadOnlyList<string> Names => _builders.Keys.ToList();
+    /// <summary>All playground examples in display order (Phase N.1 — backed by the
+    /// <see cref="PlaygroundExample"/> enum; display labels come from its
+    /// <see cref="System.ComponentModel.DescriptionAttribute"/>).</summary>
+    public static IReadOnlyList<PlaygroundExample> Examples =>
+        Enum.GetValues<PlaygroundExample>();
 
-    public static (Figure Figure, string Code) Build(string name, PlaygroundOptions opts)
+    public static (Figure Figure, string Code) Build(PlaygroundExample example, PlaygroundOptions opts)
     {
-        if (!_builders.TryGetValue(name, out var builder))
-            throw new ArgumentException($"Unknown example '{name}'. Available: {string.Join(", ", Names)}", nameof(name));
+        if (!_builders.TryGetValue(example, out var builder))
+            throw new ArgumentException(
+                $"No builder registered for {example}. This indicates a missing case after adding a new enum value.",
+                nameof(example));
         return builder(opts);
     }
 
     /// <summary>True if the example actually draws a line — i.e. Line-style / Line-width
     /// controls have a visible effect. Scatter plots are excluded because they don't draw
     /// a line (Phase L.6 of the v1.7.2 plan).</summary>
-    public static bool SupportsLineControls(string name) =>
-        name is "Line Chart" or "Multi-Series";
+    public static bool SupportsLineControls(PlaygroundExample example) =>
+        example is PlaygroundExample.LineChart or PlaygroundExample.MultiSeries;
 
     /// <summary>True if the example's primary series exposes a <c>MarkerStyle</c> /
     /// <c>MarkerSize</c> — i.e. the playground's Marker / Marker-size controls should be
     /// shown. Scatter (always-on markers) + Line families (optional per-point markers).</summary>
-    public static bool SupportsMarkerControls(string name) =>
-        name is "Line Chart" or "Scatter Plot" or "Multi-Series";
+    public static bool SupportsMarkerControls(PlaygroundExample example) =>
+        example is PlaygroundExample.LineChart or PlaygroundExample.ScatterPlot or PlaygroundExample.MultiSeries;
 
     /// <summary>True if the example exposes colormap / colorbar controls in the UI.</summary>
-    public static bool SupportsColormap(string name) =>
-        name is "Heatmap" or "Contour Plot";
+    public static bool SupportsColormap(PlaygroundExample example) =>
+        example is PlaygroundExample.Heatmap or PlaygroundExample.ContourPlot;
 
-    private static readonly Dictionary<string, Func<PlaygroundOptions, (Figure, string)>> _builders =
+    private static readonly Dictionary<PlaygroundExample, Func<PlaygroundOptions, (Figure, string)>> _builders =
         new()
         {
-            ["Line Chart"]    = BuildLine,
-            ["Bar Chart"]     = BuildBar,
-            ["Scatter Plot"]  = BuildScatter,
-            ["Multi-Series"]  = BuildMultiSeries,
-            ["Heatmap"]       = BuildHeatmap,
-            ["Pie Chart"]     = BuildPie,
-            ["Histogram"]     = BuildHist,
-            ["Contour Plot"]  = BuildContour,
-            ["3D Surface"]    = BuildSurface,
-            ["Radar Chart"]   = BuildRadar,
-            ["Violin Plot"]   = BuildViolin,
-            ["Candlestick"]   = BuildCandlestick,
-            ["Treemap"]       = BuildTreemap,
-            ["Sankey Flow"]   = BuildSankey,
-            ["Polar Line"]    = BuildPolar,
-            ["Multi-Subplot"] = BuildMulti,
+            [PlaygroundExample.LineChart]    = BuildLine,
+            [PlaygroundExample.BarChart]     = BuildBar,
+            [PlaygroundExample.ScatterPlot]  = BuildScatter,
+            [PlaygroundExample.MultiSeries]  = BuildMultiSeries,
+            [PlaygroundExample.Heatmap]      = BuildHeatmap,
+            [PlaygroundExample.PieChart]     = BuildPie,
+            [PlaygroundExample.Histogram]    = BuildHist,
+            [PlaygroundExample.ContourPlot]  = BuildContour,
+            [PlaygroundExample.Surface3D]    = BuildSurface,
+            [PlaygroundExample.RadarChart]   = BuildRadar,
+            [PlaygroundExample.ViolinPlot]   = BuildViolin,
+            [PlaygroundExample.Candlestick]  = BuildCandlestick,
+            [PlaygroundExample.Treemap]      = BuildTreemap,
+            [PlaygroundExample.SankeyFlow]   = BuildSankey,
+            [PlaygroundExample.PolarLine]    = BuildPolar,
+            [PlaygroundExample.MultiSubplot] = BuildMulti,
         };
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -74,7 +80,6 @@ public static class PlaygroundExamples
     {
         double[] x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         double[] y = [2.1, 4.5, 3.2, 6.8, 5.1, 7.3, 6.5, 8.9, 7.2, 9.4];
-        var marker = opts.ResolvedMarker;
 
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
@@ -83,14 +88,14 @@ public static class PlaygroundExamples
                 {
                     s.Color = Colors.Blue;
                     s.Label = "Revenue";
-                    s.LineStyle = opts.ResolvedLineStyle;
+                    s.LineStyle = opts.LineStyle;
                     s.LineWidth = opts.LineWidth;
-                    if (marker.HasValue) { s.Marker = marker.Value; s.MarkerSize = opts.MarkerSize; }
+                    if (opts.Marker != MarkerStyle.None) { s.Marker = opts.Marker; s.MarkerSize = opts.MarkerSize; }
                 });
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Line Chart", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.LineChart, opts));
     }
 
     private static (Figure, string) BuildBar(PlaygroundOptions opts)
@@ -106,7 +111,7 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Bar Chart", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.BarChart, opts));
     }
 
     private static (Figure, string) BuildScatter(PlaygroundOptions opts)
@@ -121,43 +126,43 @@ public static class PlaygroundExamples
                 ax.Scatter(x, y, s =>
                 {
                     s.Color = Colors.CornflowerBlue;
-                    s.Marker = opts.ResolvedMarker ?? Styling.MarkerStyle.Circle;
+                    s.Marker = opts.Marker == MarkerStyle.None ? MarkerStyle.Circle : opts.Marker;
                     s.MarkerSize = opts.MarkerSize;
                     s.Label = "Data";
                 });
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Scatter Plot", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ScatterPlot, opts));
     }
 
     private static (Figure, string) BuildMultiSeries(PlaygroundOptions opts)
     {
         double[] x = Enumerable.Range(0, 50).Select(i => i * 0.2).ToArray();
-        var marker = opts.ResolvedMarker;
+        bool hasMarker = opts.Marker != MarkerStyle.None;
 
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.Plot(x, x.Select(v => Math.Sin(v)).ToArray(), s =>
                 {
-                    s.Label = "sin(x)"; s.LineStyle = opts.ResolvedLineStyle; s.LineWidth = opts.LineWidth;
-                    if (marker.HasValue) { s.Marker = marker.Value; s.MarkerSize = opts.MarkerSize; s.MarkEvery = 5; }
+                    s.Label = "sin(x)"; s.LineStyle = opts.LineStyle; s.LineWidth = opts.LineWidth;
+                    if (hasMarker) { s.Marker = opts.Marker; s.MarkerSize = opts.MarkerSize; s.MarkEvery = 5; }
                 });
                 ax.Plot(x, x.Select(v => Math.Cos(v)).ToArray(), s =>
                 {
                     s.Label = "cos(x)"; s.LineWidth = opts.LineWidth;
-                    if (marker.HasValue) { s.Marker = marker.Value; s.MarkerSize = opts.MarkerSize; s.MarkEvery = 5; }
+                    if (hasMarker) { s.Marker = opts.Marker; s.MarkerSize = opts.MarkerSize; s.MarkEvery = 5; }
                 });
                 ax.Plot(x, x.Select(v => Math.Sin(v) * Math.Cos(v)).ToArray(), s =>
                 {
                     s.Label = "sin·cos"; s.LineWidth = opts.LineWidth;
-                    if (marker.HasValue) { s.Marker = marker.Value; s.MarkerSize = opts.MarkerSize; s.MarkEvery = 5; }
+                    if (hasMarker) { s.Marker = opts.Marker; s.MarkerSize = opts.MarkerSize; s.MarkEvery = 5; }
                 });
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Multi-Series", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MultiSeries, opts));
     }
 
     private static (Figure, string) BuildHeatmap(PlaygroundOptions opts)
@@ -175,7 +180,7 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Heatmap", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Heatmap, opts));
     }
 
     private static (Figure, string) BuildPie(PlaygroundOptions opts)
@@ -190,7 +195,7 @@ public static class PlaygroundExamples
                 s.Shadow = true;
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Pie Chart", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.PieChart, opts));
     }
 
     private static (Figure, string) BuildHist(PlaygroundOptions opts)
@@ -205,7 +210,7 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Histogram", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Histogram, opts));
     }
 
     private static (Figure, string) BuildContour(PlaygroundOptions opts)
@@ -218,14 +223,10 @@ public static class PlaygroundExamples
             for (int c = 0; c < n; c++)
                 cz[r, c] = Math.Sin(cx[c]) * Math.Cos(cy[r]);
 
-        // Phase L.9 — resolve the colormap up-front and set it inside the series lambda
-        // so the selection is applied to the contour series unambiguously. Previously
-        // `.Contour(...).WithColorMap(opts.ColorMap)` relied on AxesBuilder's "last series"
-        // heuristic; direct assignment is the least-surprising route.
-        var contourColorMap = ColorMapRegistry.Get(opts.ColorMap)
-            ?? throw new ArgumentException(
-                $"Unknown colormap '{opts.ColorMap}'. Registered: " + string.Join(", ", ColorMapRegistry.Names),
-                nameof(opts));
+        // Phase L.9 — colormap lives on the series directly (set inside the Contour lambda
+        // below). Phase N.1 further tightened this: opts.ColorMap is now a typed IColorMap
+        // instance, not a string; no registry lookup or exception throw needed at the
+        // call site.
 
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
@@ -234,13 +235,13 @@ public static class PlaygroundExamples
                 {
                     s.ShowLabels = true;
                     s.LabelFormat = "F2";
-                    s.ColorMap = contourColorMap;
+                    s.ColorMap = opts.ColorMap;
                 });
                 if (opts.ShowColorBar) ax.WithColorBar();
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Contour Plot", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ContourPlot, opts));
     }
 
     private static (Figure, string) BuildSurface(PlaygroundOptions opts)
@@ -262,7 +263,7 @@ public static class PlaygroundExamples
                 .WithLighting(dx: 0.5, dy: -0.5, dz: 1.0)
                 .Surface(sx, sy, sz, s => { s.ColorMap = ColorMaps.Plasma; s.ShowWireframe = false; }));
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("3D Surface", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Surface3D, opts));
     }
 
     private static (Figure, string) BuildRadar(PlaygroundOptions opts)
@@ -279,7 +280,7 @@ public static class PlaygroundExamples
                 if (opts.ShowLegend) ax.WithLegend();
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Radar Chart", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.RadarChart, opts));
     }
 
     private static (Figure, string) BuildViolin(PlaygroundOptions opts)
@@ -298,7 +299,7 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Violin Plot", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ViolinPlot, opts));
     }
 
     private static (Figure, string) BuildCandlestick(PlaygroundOptions opts)
@@ -330,7 +331,7 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Candlestick", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Candlestick, opts));
     }
 
     /// <summary>Phase G.7 of v1.7.2 follow-on — Sankey flow example with browser-side
@@ -358,7 +359,7 @@ public static class PlaygroundExamples
         };
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax => ax.Sankey(nodes, links).HideAllAxes());
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Sankey Flow", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.SankeyFlow, opts));
     }
 
     private static (Figure, string) BuildTreemap(PlaygroundOptions opts)
@@ -378,7 +379,7 @@ public static class PlaygroundExamples
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, s => s.ShowLabels = true).HideAllAxes());
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Treemap", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Treemap, opts));
     }
 
     private static (Figure, string) BuildPolar(PlaygroundOptions opts)
@@ -393,7 +394,7 @@ public static class PlaygroundExamples
                 if (opts.ShowLegend) ax.WithLegend();
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Polar Line", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.PolarLine, opts));
     }
 
     private static (Figure, string) BuildMulti(PlaygroundOptions opts)
@@ -417,41 +418,55 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Multi-Subplot", opts));
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MultiSubplot, opts));
     }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Code snippets — kept inline so users see the EXACT call chain to copy
     // ──────────────────────────────────────────────────────────────────────────
 
-    private static string CodeFor(string name, PlaygroundOptions opts)
+    /// <summary>Converts a colormap's registry-case name ("viridis") to the PascalCase
+    /// static-property name (<c>ColorMaps.Viridis</c>) used in the code-snippet generator.
+    /// Keeps the displayed C# valid for copy-paste.</summary>
+    private static string ColorMapName(Styling.ColorMaps.IColorMap map)
+    {
+        var n = map.Name;
+        if (n.Length == 0) return "Viridis";
+        return char.ToUpperInvariant(n[0]) + n.Substring(1);
+    }
+
+    private static string CodeFor(PlaygroundExample example, PlaygroundOptions opts)
     {
         // Snippet shows the active toggles so the user can copy a working repro.
         var lines = new List<string> { "Plt.Create()" };
         lines.Add($"    .WithTitle(\"{opts.Title}\")");
-        lines.Add($"    .WithTheme(Theme.{opts.ThemeName})");
+        lines.Add($"    .WithTheme(Theme.{opts.Theme.Name})");
         lines.Add($"    .WithSize({opts.Width}, {opts.Height})");
         if (opts.BrowserInteraction) lines.Add("    .WithBrowserInteraction()");
 
-        var body = name switch
+        // Phase N.1 — exhaustive enum switch with ArgumentOutOfRangeException default;
+        // a new PlaygroundExample member without a matching case fails loudly at runtime
+        // (eventually fails at compile time when C# adds required-exhaustive switches).
+        var body = example switch
         {
-            "Line Chart"    => "    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, s => { s.Color = Colors.Blue; s.LineStyle = LineStyle." + opts.LineStyle + "; s.LineWidth = " + opts.LineWidth + "; }))",
-            "Bar Chart"     => "    .AddSubPlot(1, 1, 1, ax => ax.Bar(cats, vals, s => s.Color = Colors.Orange).WithBarLabels())",
-            "Scatter Plot"  => "    .AddSubPlot(1, 1, 1, ax => ax.Scatter(x, y, s => s.Color = Colors.CornflowerBlue))",
-            "Multi-Series"  => "    .AddSubPlot(1, 1, 1, ax => { ax.Plot(x, sin); ax.Plot(x, cos); ax.Plot(x, sincos); ax.WithLegend(); })",
-            "Heatmap"       => "    .AddSubPlot(1, 1, 1, ax => ax.Heatmap(m).WithColorMap(\"" + opts.ColorMap + "\")" + (opts.ShowColorBar ? ".WithColorBar()" : "") + ")",
-            "Pie Chart"     => "    .Pie(sizes, labels, s => { s.AutoPct = \"%.0f%%\"; s.Shadow = true; })",
-            "Histogram"     => "    .AddSubPlot(1, 1, 1, ax => ax.Hist(data, 20, s => s.Color = Colors.Teal))",
-            "Contour Plot"  => "    .AddSubPlot(1, 1, 1, ax => ax.Contour(x, y, z).WithColorMap(\"" + opts.ColorMap + "\")" + (opts.ShowColorBar ? ".WithColorBar()" : "") + ")",
-            "3D Surface"    => "    .AddSubPlot(1, 1, 1, ax => ax.WithCamera(35, -50).Surface(x, y, z, s => s.ColorMap = ColorMaps.Plasma))",
-            "Radar Chart"   => "    .AddSubPlot(1, 1, 1, ax => { ax.Radar(cats, v1, s => { s.Alpha = 0.2; }); ax.Radar(cats, v2, s => { s.Alpha = 0.2; }); ax.WithLegend(); })",
-            "Violin Plot"   => "    .AddSubPlot(1, 1, 1, ax => ax.Violin(groups, s => { s.Color = Colors.RebeccaPurple; s.Alpha = 0.6; }))",
-            "Candlestick"   => "    .AddSubPlot(1, 1, 1, ax => ax.Candlestick(o, h, l, c, dates, s => { s.UpColor = Colors.Green; s.DownColor = Colors.Red; }))",
-            "Treemap"       => "    .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, s => s.ShowLabels = true).HideAllAxes())",
-            "Sankey Flow"   => "    .AddSubPlot(1, 1, 1, ax => ax.Sankey(nodes, links).HideAllAxes())",
-            "Polar Line"    => "    .AddSubPlot(1, 1, 1, ax => ax.PolarPlot(r, theta, s => { s.Color = Colors.Blue; s.LineWidth = 2; }))",
-            "Multi-Subplot" => "    .AddSubPlot(1, 2, 1, ax => ax.Plot(x, y).WithTitle(\"Line\"))\n    .AddSubPlot(1, 2, 2, ax => ax.Bar(cats, vals).WithTitle(\"Bar\"))",
-            _               => "    .Plot(x, y)",
+            PlaygroundExample.LineChart    => $"    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, s => {{ s.Color = Colors.Blue; s.LineStyle = LineStyle.{opts.LineStyle}; s.LineWidth = {opts.LineWidth}; }}))",
+            PlaygroundExample.BarChart     => "    .AddSubPlot(1, 1, 1, ax => ax.Bar(cats, vals, s => s.Color = Colors.Orange).WithBarLabels())",
+            PlaygroundExample.ScatterPlot  => "    .AddSubPlot(1, 1, 1, ax => ax.Scatter(x, y, s => s.Color = Colors.CornflowerBlue))",
+            PlaygroundExample.MultiSeries  => "    .AddSubPlot(1, 1, 1, ax => { ax.Plot(x, sin); ax.Plot(x, cos); ax.Plot(x, sincos); ax.WithLegend(); })",
+            PlaygroundExample.Heatmap      => $"    .AddSubPlot(1, 1, 1, ax => ax.Heatmap(m).WithColorMap(ColorMaps.{ColorMapName(opts.ColorMap)}){(opts.ShowColorBar ? ".WithColorBar()" : string.Empty)})",
+            PlaygroundExample.PieChart     => "    .Pie(sizes, labels, s => { s.AutoPct = \"%.0f%%\"; s.Shadow = true; })",
+            PlaygroundExample.Histogram    => "    .AddSubPlot(1, 1, 1, ax => ax.Hist(data, 20, s => s.Color = Colors.Teal))",
+            PlaygroundExample.ContourPlot  => $"    .AddSubPlot(1, 1, 1, ax => ax.Contour(x, y, z, s => s.ColorMap = ColorMaps.{ColorMapName(opts.ColorMap)}){(opts.ShowColorBar ? ".WithColorBar()" : string.Empty)})",
+            PlaygroundExample.Surface3D    => "    .AddSubPlot(1, 1, 1, ax => ax.WithCamera(35, -50).Surface(x, y, z, s => s.ColorMap = ColorMaps.Plasma))",
+            PlaygroundExample.RadarChart   => "    .AddSubPlot(1, 1, 1, ax => { ax.Radar(cats, v1, s => { s.Alpha = 0.2; }); ax.Radar(cats, v2, s => { s.Alpha = 0.2; }); ax.WithLegend(); })",
+            PlaygroundExample.ViolinPlot   => "    .AddSubPlot(1, 1, 1, ax => ax.Violin(groups, s => { s.Color = Colors.RebeccaPurple; s.Alpha = 0.6; }))",
+            PlaygroundExample.Candlestick  => "    .AddSubPlot(1, 1, 1, ax => ax.Candlestick(o, h, l, c, dates, s => { s.UpColor = Colors.Green; s.DownColor = Colors.Red; }))",
+            PlaygroundExample.Treemap      => "    .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, s => s.ShowLabels = true).HideAllAxes())",
+            PlaygroundExample.SankeyFlow   => "    .AddSubPlot(1, 1, 1, ax => ax.Sankey(nodes, links).HideAllAxes())",
+            PlaygroundExample.PolarLine    => "    .AddSubPlot(1, 1, 1, ax => ax.PolarPlot(r, theta, s => { s.Color = Colors.Blue; s.LineWidth = 2; }))",
+            PlaygroundExample.MultiSubplot => "    .AddSubPlot(1, 2, 1, ax => ax.Plot(x, y).WithTitle(\"Line\"))\n    .AddSubPlot(1, 2, 2, ax => ax.Bar(cats, vals).WithTitle(\"Bar\"))",
+            _                              => throw new ArgumentOutOfRangeException(nameof(example), example,
+                                                  $"CodeFor: no snippet registered for new enum value {example}; update the switch."),
         };
         lines.Add(body);
         if (opts.ShowLegend) lines.Add("    // .WithLegend() — already chained inside subplot");

@@ -4,32 +4,34 @@
 namespace MatPlotLibNet.Styling;
 
 /// <summary>Specifies the fill hatch pattern drawn inside a filled region.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum HatchPattern
 {
     /// <summary>No hatch — solid fill only.</summary>
-    None,
+    None = 0,
 
     /// <summary>Forward diagonal lines ( / ).</summary>
-    ForwardDiagonal,
+    ForwardDiagonal = 1,
 
     /// <summary>Back diagonal lines ( \ ).</summary>
-    BackDiagonal,
+    BackDiagonal = 2,
 
     /// <summary>Horizontal lines ( ─ ).</summary>
-    Horizontal,
+    Horizontal = 3,
 
     /// <summary>Vertical lines ( │ ).</summary>
-    Vertical,
+    Vertical = 4,
 
     /// <summary>Horizontal + vertical cross ( + ).</summary>
-    Cross,
+    Cross = 5,
 
     /// <summary>Forward + back diagonal cross ( × ).</summary>
-    DiagonalCross,
+    DiagonalCross = 6,
 
     /// <summary>Dot grid ( · ).</summary>
-    Dots,
+    Dots = 7,
 
     /// <summary>Star grid ( * ) — dots combined with diagonal crosses.</summary>
-    Stars,
+    Stars = 8,
 }

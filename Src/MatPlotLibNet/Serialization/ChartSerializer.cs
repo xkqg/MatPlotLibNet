@@ -20,7 +20,16 @@ public sealed class ChartSerializer : IChartSerializer
         WriteIndented = indented,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new ColorJsonConverter() }
+        Converters =
+        {
+            new ColorJsonConverter(),
+            // Phase O of v1.7.2 — defensive guard: any enum-typed DTO property added
+            // in the future serialises as a NAME (string), never an integer ordinal.
+            // Protects against silent binary-compat breakage when enums reorder across
+            // library versions. Existing DTOs already manually string-convert so this
+            // is additive-only (no byte change for today's output).
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
+        },
     };
 
     /// <inheritdoc />

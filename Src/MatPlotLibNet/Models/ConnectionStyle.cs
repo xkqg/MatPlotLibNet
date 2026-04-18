@@ -4,17 +4,19 @@
 namespace MatPlotLibNet.Models;
 
 /// <summary>Specifies the path style used to connect an annotation text to its arrow target.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum ConnectionStyle
 {
     /// <summary>A straight line directly from the annotation text position to the target point.</summary>
-    Straight,
+    Straight = 0,
 
     /// <summary>A cubic Bezier arc. The curvature is controlled by <see cref="Annotation.ConnectionRad"/>.</summary>
-    Arc3,
+    Arc3 = 1,
 
     /// <summary>A right-angle path: horizontal segment first, then vertical to the target.</summary>
-    Angle,
+    Angle = 2,
 
     /// <summary>A smoothed right-angle path using Bezier curves at the corner for a rounded elbow.</summary>
-    Angle3
+    Angle3 = 3,
 }

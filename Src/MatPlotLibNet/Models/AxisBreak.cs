@@ -4,14 +4,16 @@
 namespace MatPlotLibNet.Models;
 
 /// <summary>Visual style of the break marker drawn at axis discontinuities.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum BreakStyle
 {
     /// <summary>A small zigzag chevron crossing the axis spine.</summary>
-    Zigzag,
+    Zigzag = 0,
     /// <summary>Two short diagonal parallel lines (like //).</summary>
-    Straight,
+    Straight = 1,
     /// <summary>No visual marker; the gap is implicit.</summary>
-    None
+    None = 2,
 }
 
 /// <summary>Represents a discontinuous (broken) region on an axis where data is hidden and the scale is compressed.</summary>

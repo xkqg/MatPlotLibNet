@@ -3,47 +3,47 @@
 
 namespace MatPlotLibNet.Styling;
 
-/// <summary>
-/// Specifies the shape used to render data-point markers.
-/// </summary>
+/// <summary>Specifies the shape used to render data-point markers.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum MarkerStyle
 {
     /// <summary>No marker is drawn.</summary>
-    None,
+    None = 0,
 
     /// <summary>A circle marker.</summary>
-    Circle,
+    Circle = 1,
 
     /// <summary>A square marker.</summary>
-    Square,
+    Square = 2,
 
     /// <summary>An upward-pointing triangle marker.</summary>
-    Triangle,
+    Triangle = 3,
 
     /// <summary>A diamond marker.</summary>
-    Diamond,
+    Diamond = 4,
 
     /// <summary>An X-shaped cross marker.</summary>
-    Cross,
+    Cross = 5,
 
     /// <summary>A plus-sign marker.</summary>
-    Plus,
+    Plus = 6,
 
     /// <summary>A star marker.</summary>
-    Star,
+    Star = 7,
 
     /// <summary>A pentagon marker.</summary>
-    Pentagon,
+    Pentagon = 8,
 
     /// <summary>A hexagon marker.</summary>
-    Hexagon,
+    Hexagon = 9,
 
     /// <summary>A downward-pointing triangle marker.</summary>
-    TriangleDown,
+    TriangleDown = 10,
 
     /// <summary>A left-pointing triangle marker.</summary>
-    TriangleLeft,
+    TriangleLeft = 11,
 
     /// <summary>A right-pointing triangle marker.</summary>
-    TriangleRight
+    TriangleRight = 12,
 }

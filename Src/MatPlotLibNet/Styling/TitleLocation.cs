@@ -4,14 +4,16 @@
 namespace MatPlotLibNet.Styling;
 
 /// <summary>Specifies the horizontal alignment of an axes title.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum TitleLocation
 {
     /// <summary>Align the title to the left edge of the plot area.</summary>
-    Left,
+    Left = 0,
 
     /// <summary>Center the title above the plot area (default).</summary>
-    Center,
+    Center = 1,
 
     /// <summary>Align the title to the right edge of the plot area.</summary>
-    Right
+    Right = 2,
 }

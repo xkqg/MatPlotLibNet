@@ -8,59 +8,57 @@ namespace MatPlotLibNet.Tests.Samples;
 
 /// <summary>
 /// L.9 — every colormap offered in the Playground's dropdown must produce a
-/// visually distinct Contour rendering. Pre-fix only a subset of the nine
+/// visually distinct Contour rendering. Pre-L.9 only a subset of the nine
 /// colormap names actually took effect because <c>BuildContour</c> routed via
 /// <c>AxesBuilder.WithColorMap(string)</c> and the registry lookup could
 /// silently no-op on an unknown name. This file pins the behaviour end-to-end.
+/// <para>Phase N.1 — the Playground now passes typed <see cref="IColorMap"/>
+/// instances straight through; no registry lookup needed at the call site.</para>
 /// </summary>
 public class PlaygroundContourColormapTests
 {
-    private static PlaygroundOptions Defaults(string colorMap) =>
+    private static PlaygroundOptions Defaults(IColorMap colorMap) =>
         new() { Title = "Test", ColorMap = colorMap };
 
-    public static readonly string[] PlaygroundColormapNames =
-        { "viridis", "plasma", "inferno", "magma", "turbo", "coolwarm", "greys", "hot", "jet" };
+    public static readonly IColorMap[] PlaygroundColormaps =
+    {
+        ColorMaps.Viridis, ColorMaps.Plasma, ColorMaps.Inferno, ColorMaps.Magma,
+        ColorMaps.Turbo, ColorMaps.Coolwarm,
+        SequentialColorMaps.Greys, SequentialColorMaps.Hot,
+        ColorMaps.Jet,
+    };
 
     [Theory]
     [MemberData(nameof(PlaygroundColormapsTheory))]
-    public void Contour_AppliesSelectedColormap_ToSeries(string colorMap)
+    public void Contour_AppliesSelectedColormap_ToSeries(IColorMap colorMap)
     {
-        var fig = PlaygroundExamples.Build("Contour Plot", Defaults(colorMap)).Figure;
+        var fig = PlaygroundExamples.Build(PlaygroundExample.ContourPlot, Defaults(colorMap)).Figure;
         var contour = fig.SubPlots[0].Series
             .OfType<MatPlotLibNet.Models.Series.ContourSeries>()
             .First();
         Assert.NotNull(contour.ColorMap);
-        // Compare by the underlying instance the registry returned.
-        var expected = ColorMapRegistry.Get(colorMap);
-        Assert.Same(expected, contour.ColorMap);
+        // The typed instance flows through unchanged — no registry indirection.
+        Assert.Same(colorMap, contour.ColorMap);
     }
 
     [Fact]
     public void Contour_AllNineColormaps_ProduceDistinctSvgOutput()
     {
-        var svgs = PlaygroundColormapNames
-            .Select(cm => PlaygroundExamples.Build("Contour Plot", Defaults(cm)).Figure.ToSvg())
+        var svgs = PlaygroundColormaps
+            .Select(cm => PlaygroundExamples.Build(PlaygroundExample.ContourPlot, Defaults(cm)).Figure.ToSvg())
             .ToList();
 
         // Any pair of distinct colormaps must yield distinct SVG.
         for (int i = 0; i < svgs.Count; i++)
         for (int j = i + 1; j < svgs.Count; j++)
         {
-            Assert.NotEqual(svgs[i].Length, svgs[j].Length > 0 && svgs[j] == svgs[i] ? svgs[i].Length : -1);
             Assert.True(svgs[i] != svgs[j],
-                $"colormap '{PlaygroundColormapNames[i]}' produced byte-identical SVG to '{PlaygroundColormapNames[j]}' — routing bug resurfaced");
+                $"colormap '{PlaygroundColormaps[i].Name}' produced byte-identical SVG to '{PlaygroundColormaps[j].Name}' — routing bug resurfaced");
         }
     }
 
-    [Fact]
-    public void Contour_UnknownColormapName_Throws()
-    {
-        Assert.Throws<ArgumentException>(() =>
-            PlaygroundExamples.Build("Contour Plot", Defaults("definitely-not-a-real-colormap")));
-    }
-
     public static IEnumerable<object[]> PlaygroundColormapsTheory() =>
-        PlaygroundColormapNames.Select(n => new object[] { n });
+        PlaygroundColormaps.Select(n => new object[] { n });
 }
 
 /// <summary>L.9 — <c>AxesBuilder.WithColorMap(string)</c> throws on unknown

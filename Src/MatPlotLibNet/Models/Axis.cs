@@ -56,22 +56,24 @@ public class Axis
 public sealed class Axis3D : Axis { }
 
 /// <summary>Specifies the scale type used for an axis.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum AxisScale
 {
     /// <summary>Linear scale.</summary>
-    Linear,
+    Linear = 0,
 
     /// <summary>Logarithmic scale.</summary>
-    Log,
+    Log = 1,
 
     /// <summary>Symmetric logarithmic scale that handles values near zero.</summary>
-    SymLog,
+    SymLog = 2,
 
     /// <summary>Logit scale for probability data in the range (0, 1).</summary>
-    Logit,
+    Logit = 3,
 
     /// <summary>Date scale that interprets values as OLE Automation dates.</summary>
-    Date
+    Date = 4,
 }
 
 /// <summary>Configures the appearance and spacing of axis tick marks.</summary>

@@ -4,14 +4,16 @@
 namespace MatPlotLibNet.Styling;
 
 /// <summary>Specifies the direction in which tick marks are drawn relative to the axis line.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum TickDirection
 {
     /// <summary>Tick marks extend inward into the plot area.</summary>
-    In,
+    In = 0,
 
     /// <summary>Tick marks extend outward away from the plot area (default).</summary>
-    Out,
+    Out = 1,
 
     /// <summary>Tick marks extend both inward and outward, crossing the axis line.</summary>
-    InOut
+    InOut = 2,
 }

@@ -6,13 +6,15 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models;
 
 /// <summary>Specifies the direction of a trading signal.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum SignalDirection
 {
     /// <summary>A buy signal, rendered as an upward triangle below the price point.</summary>
-    Buy,
+    Buy = 0,
 
     /// <summary>A sell signal, rendered as a downward triangle above the price point.</summary>
-    Sell
+    Sell = 1,
 }
 
 /// <summary>Represents a buy or sell signal marker at a specific data coordinate on the chart.</summary>

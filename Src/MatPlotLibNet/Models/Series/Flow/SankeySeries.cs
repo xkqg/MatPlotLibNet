@@ -7,36 +7,42 @@ using MatPlotLibNet.Serialization;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Horizontal alignment strategy for Sankey node columns.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum SankeyNodeAlignment
 {
     /// <summary>Columns fill the plot width evenly (default, matches D3 <c>sankeyJustify</c>).</summary>
-    Justify,
+    Justify = 0,
     /// <summary>All nodes pulled as far left as their topology allows.</summary>
-    Left,
+    Left = 1,
     /// <summary>All nodes pulled as far right as their topology allows.</summary>
-    Right,
+    Right = 2,
     /// <summary>Nodes centred horizontally between their earliest and latest possible column.</summary>
-    Center,
+    Center = 3,
 }
 
 /// <summary>Colour resolution strategy for Sankey links.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum SankeyLinkColorMode
 {
     /// <summary>Link filled with the source node's colour (classic flat Sankey).</summary>
-    Source,
+    Source = 0,
     /// <summary>Link filled with the target node's colour.</summary>
-    Target,
+    Target = 1,
     /// <summary>Link filled with a horizontal <c>&lt;linearGradient&gt;</c> from source → target colour.</summary>
-    Gradient,
+    Gradient = 2,
 }
 
 /// <summary>Overall orientation of a Sankey diagram.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum SankeyOrientation
 {
     /// <summary>Columns span left-to-right, stems flow horizontally (default).</summary>
-    Horizontal,
+    Horizontal = 0,
     /// <summary>Columns span top-to-bottom, stems flow vertically.</summary>
-    Vertical,
+    Vertical = 1,
 }
 
 /// <summary>Represents a Sankey diagram that renders flows between nodes as curved links.</summary>

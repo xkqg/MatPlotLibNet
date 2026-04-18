@@ -4,14 +4,16 @@
 namespace MatPlotLibNet.Styling;
 
 /// <summary>Specifies the histogram rendering style.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum HistType
 {
     /// <summary>Traditional bar histogram.</summary>
-    Bar,
+    Bar = 0,
 
     /// <summary>Unfilled step outline.</summary>
-    Step,
+    Step = 1,
 
     /// <summary>Filled step outline.</summary>
-    StepFilled
+    StepFilled = 2,
 }

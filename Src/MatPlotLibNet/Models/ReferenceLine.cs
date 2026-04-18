@@ -6,13 +6,15 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models;
 
 /// <summary>Specifies the orientation of a reference line or span region.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum Orientation
 {
     /// <summary>Horizontal (constant Y value).</summary>
-    Horizontal,
+    Horizontal = 0,
 
     /// <summary>Vertical (constant X value).</summary>
-    Vertical
+    Vertical = 1,
 }
 
 /// <summary>Represents a horizontal or vertical reference line at a specific data value.</summary>

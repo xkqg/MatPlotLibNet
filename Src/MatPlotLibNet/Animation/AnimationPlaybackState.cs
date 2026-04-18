@@ -4,14 +4,16 @@
 namespace MatPlotLibNet.Animation;
 
 /// <summary>State machine states for animation playback.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
 public enum AnimationPlaybackState
 {
     /// <summary>Animation is stopped.</summary>
-    Stopped,
+    Stopped = 0,
 
     /// <summary>Animation is actively playing frames.</summary>
-    Playing,
+    Playing = 1,
 
     /// <summary>Animation is paused and can be resumed.</summary>
-    Paused
+    Paused = 2,
 }
