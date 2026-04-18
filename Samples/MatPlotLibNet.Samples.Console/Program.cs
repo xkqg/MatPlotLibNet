@@ -14,6 +14,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Transforms;
 using MatPlotLibNet.Geo;
 using MatPlotLibNet.Geo.Projections;
+using MatPlotLibNet.Skia;
 
 // Resolves a sample output filename to the canonical `images/` directory at the repo root,
 // regardless of where the samples binary is invoked from. Walks upward from the binary
@@ -1388,6 +1389,16 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 }
 
 // --- 21. Cookbook images — themes comparison ---
+//
+// Themes are figure-scoped (matplotlib rcParams parity), so one figure cannot mix six
+// themes. The previous version of this sample built six subplots in a single figure
+// and just labelled each with the theme name — every subplot rendered identically
+// because the theme was never applied (figure had no .WithTheme call). Result:
+// six "Default" charts pretending to be six different themes.
+//
+// Honest fix: render each theme as a SEPARATE small figure, then composite the six
+// images into a 2x3 grid SVG (and a matching PNG via SkiaSharp). Each tile is the
+// real per-theme rendering, so users see actual visual differences.
 {
     double[] xt = Enumerable.Range(0, 50).Select(i => i * 0.2).ToArray();
     double[] yt1 = xt.Select(v => Math.Sin(v)).ToArray();
@@ -1400,24 +1411,74 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
         ("Cyberpunk", Theme.Cyberpunk), ("Monokai", Theme.Monokai),
     };
 
-    var builder = Plt.Create()
-        .WithTitle("Theme Comparison")
-        .WithSize(1200, 800);
+    const int tileW = 400, tileH = 300;
+    const int titleH = 40;
+    const int cols = 3, rows = 2;
+    int gridW = cols * tileW;
+    int gridH = rows * tileH + titleH;
 
+    // Per-tile SVG body (raw <svg> markup) — captured for both the composite SVG
+    // and decoded back into bitmaps for the composite PNG.
+    var tiles = new (string Name, string Svg, byte[] Png)[themes.Length];
     for (int i = 0; i < themes.Length; i++)
     {
         var (name, theme) = themes[i];
-        // Each subplot uses the same data but we annotate the theme name as the subplot title
-        builder.AddSubPlot(2, 3, i + 1, ax =>
-        {
-            ax.Plot(xt, yt1, s => s.Label = "sin(x)");
-            ax.Plot(xt, yt2, s => s.Label = "cos(x)");
-            ax.WithTitle(name);
-            ax.WithLegend(LegendPosition.UpperRight);
-        });
+        var fb = Plt.Create()
+            .WithTitle(name)
+            .WithTheme(theme)
+            .WithSize(tileW, tileH)
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot(xt, yt1, s => s.Label = "sin(x)");
+                ax.Plot(xt, yt2, s => s.Label = "cos(x)");
+                ax.WithLegend(LegendPosition.UpperRight);
+            })
+            .TightLayout();
+        var fig = fb.Build();
+        tiles[i] = (name, fig.ToSvg(), fig.ToPng());
     }
-    builder.TightLayout().SaveSvgAndPng(SamplesPath("theme_comparison.svg"));
-    Console.WriteLine("Saved theme_comparison");
+
+    // Compose SVG: outer <svg> with title band + 6 nested <svg> at grid offsets.
+    // Each child <svg> carries its own viewport so the embedded coordinates stay valid.
+    var sb = new System.Text.StringBuilder();
+    sb.Append("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+    sb.Append($"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{gridW}\" height=\"{gridH}\" viewBox=\"0 0 {gridW} {gridH}\">");
+    sb.Append($"<rect width=\"{gridW}\" height=\"{gridH}\" fill=\"white\"/>");
+    sb.Append($"<text x=\"{gridW / 2}\" y=\"26\" text-anchor=\"middle\" font-family=\"sans-serif\" font-size=\"18\" font-weight=\"bold\">Theme Comparison</text>");
+    for (int i = 0; i < tiles.Length; i++)
+    {
+        int row = i / cols, col = i % cols;
+        int tx = col * tileW, ty = titleH + row * tileH;
+        // Strip the XML declaration from the tile SVG before embedding (otherwise the
+        // composite document is malformed). The rest of the <svg .../> element is kept
+        // verbatim and embedded inside a <g transform="translate(...)"> wrapper.
+        var tileSvg = System.Text.RegularExpressions.Regex.Replace(tiles[i].Svg, @"<\?xml[^>]*\?>", "").Trim();
+        sb.Append($"<g transform=\"translate({tx},{ty})\">");
+        sb.Append(tileSvg);
+        sb.Append("</g>");
+    }
+    sb.Append("</svg>");
+    File.WriteAllText(SamplesPath("theme_comparison.svg"), sb.ToString());
+
+    // PNG composite via SkiaSharp — decode each tile's PNG and draw into a single bitmap.
+    using var bitmap = new SkiaSharp.SKBitmap(gridW, gridH);
+    using (var canvas = new SkiaSharp.SKCanvas(bitmap))
+    {
+        canvas.Clear(SkiaSharp.SKColors.White);
+        using var titleFont = new SkiaSharp.SKFont { Size = 18, Embolden = true };
+        using var titlePaint = new SkiaSharp.SKPaint { Color = SkiaSharp.SKColors.Black, IsAntialias = true };
+        canvas.DrawText("Theme Comparison", gridW / 2f, 26, SkiaSharp.SKTextAlign.Center, titleFont, titlePaint);
+        for (int i = 0; i < tiles.Length; i++)
+        {
+            int row = i / cols, col = i % cols;
+            using var tileBmp = SkiaSharp.SKBitmap.Decode(tiles[i].Png);
+            canvas.DrawBitmap(tileBmp, col * tileW, titleH + row * tileH);
+        }
+    }
+    using var data = bitmap.Encode(SkiaSharp.SKEncodedImageFormat.Png, 90);
+    File.WriteAllBytes(SamplesPath("theme_comparison.png"), data.ToArray());
+
+    Console.WriteLine("Saved theme_comparison (6 actual themes, composited)");
 }
 
 // --- 22. Cookbook images — geographic ---

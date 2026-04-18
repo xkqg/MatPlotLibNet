@@ -8,16 +8,14 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.7.1 — Bug Fixes + Coverage Gate + Playground Polish + Coverage Uplift + Phase-9 Dedup.**
+> **v1.7.2 — Two bug fixes + 6-batch coverage uplift + Phase-9 dedup + CI hardening.** Continuation of the v1.7.1 stabilisation track. **Now the stable release.**
 >
-> 1. **5 silent-failure bugs fixed** — geo extensions silently dropped series, broken-axis didn't compress data, symlog didn't transform data, playground grid toggle was inverted, `SymlogTransform` threw on `NaN`. All v1.7.0 cookbook geo/symlog/broken-y images regenerated correctly.
-> 2. **`WithBrowserInteraction()` now actually exists** — was documented in v1.7.0 but never implemented. Convenience that enables ZoomPan + RichTooltips + LegendToggle + Highlight + Selection in one call.
-> 3. **Coverage gate** — ≥90% line + ≥90% branch enforced via CI per class, per-class baseline regression protection. See [`docs/COVERAGE.md`](docs/COVERAGE.md). 156 → **154** sub-90/90 classes after the post-1.7.1 uplift wave; default-mode regression check stays green.
-> 4. **Playground SOLID refactor** — `PlaygroundOptions` + `PlaygroundExamples` registry. Save SVG / PNG / Code buttons, "Open in new tab", browser-interactive toggle, tight-margins toggle, all 26 themes, 15 examples (was 9).
-> 5. **Cookbook enriched** — every page (25 of 25) gained full fluent API options sections + property tables. 13 new rendered images for previously-empty pages.
-> 6. **6-batch coverage uplift (Phases A-F) + Phase-9 dedup** — +1 192 tests added across the post-1.7.1 work (4 276 → **5 468 across 9 test projects**), 78 duplicate per-series default-property tests folded into the central `AllSeriesTests` Theory pattern, 17 zero-coverage SeriesRenderers + 5 streaming indicators + 11 misc classes graduated to ≥90/90, 13 documented exemptions added for sample / interface / JS-template code. Two real bugs surfaced for follow-up: `BaselineHelper.ComputeWiggle/ComputeWeightedWiggle` throw on empty input; `SymLogNormalizer.Normalize(NaN)` throws.
+> 1. **`FigureBuilder.WithBrowserInteraction()` now also enables 3D rotation, treemap drilldown, and sankey hover** — was documented as "ALL browser-side interactions" but only enabled the 2D-flavoured set. The playground 3D Surface example with Browser Interaction toggled on now responds to drag-to-rotate.
+> 2. **`Theme Comparison` cookbook image now actually shows six different themes** instead of six identical Default-theme renders. Themes are figure-scoped, so the new image renders six small figures and composites them into a 2×3 grid via SkiaSharp (PNG) and nested `<svg><g transform>` (SVG).
+> 3. **6-batch coverage uplift (Phases A-F) + Phase-9 dedup** — +1 192 tests added across 6 batches (NEAR-bucket polish, direct-invocation tests for 22 SeriesRenderers, 16 series added to the central `AllSeriesTests` Theory pool, 5 streaming indicators graduated, 8 ColorMap normalizer + 3 TickFormatter + 3 Geo edge-case test files, 11 misc long-tail classes graduated). Phase-9 then folded 78 per-series duplicates into one central Theory method (net +1 091 tests). Sub-90/90 class count went 241 → **154**. 14 documented exemptions added for sample / interface / JS-template code.
+> 4. **CI hardening** — Skia tests now ship `SkiaSharp.NativeAssets.{Linux.NoDependencies, Win32, macOS}` so `libSkiaSharp.so` actually loads on Linux runners. The v1.7.1 hotfix installed `libfontconfig1`/`libfreetype6` (font deps) but not the binary itself; CI was passing intermittently from cached transitive pulls.
 >
-> **5 468 tests green** across 9 test projects covering 13 NuGet packages (was 4 275 at the v1.7.1 cut).
+> **5 468 tests green** across 9 test projects covering 13 NuGet packages (was 4 275 at v1.7.1).
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 
@@ -25,12 +23,12 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 Stabilisation phase
 
-After eleven feature releases (v1.0 → v1.7.1) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators, native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
+After eleven feature releases (v1.0 → v1.7.2) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators, native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
 
-**v1.7.1 marks the start of a stabilisation period.** The focus shifts from "ship more features" to:
+**v1.7.1 started the stabilisation period; v1.7.2 continues it.** The focus shifts from "ship more features" to:
 
 - 🐛 **Bug fixes only** (no new public API), driven by community use and the `≥90/90` coverage gate
-- 🧪 **Test coverage uplift** (the eight-phase plan in [`docs/COVERAGE.md`](docs/COVERAGE.md)) — current baseline 85.2% line / 68.4% branch, target 94% / 90%
+- 🧪 **Test coverage uplift** (the eight-phase plan in [`docs/COVERAGE.md`](docs/COVERAGE.md)) — was 85.2% line / 68.4% branch at v1.7.0, now ≈90.9% line / 76.5% branch with 154 classes still below absolute 90/90; strict-mode flip is the next milestone
 - 📚 **Documentation polish** — cookbook examples, API XML doc completeness
 - 🌱 **Listening** — what should v2 be? Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next major direction will be guided by what real users need, not by a feature checklist.
 

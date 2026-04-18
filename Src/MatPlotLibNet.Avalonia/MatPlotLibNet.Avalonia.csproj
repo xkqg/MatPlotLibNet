@@ -4,7 +4,7 @@
     <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.7.1</Version>
+    <Version>1.7.2</Version>
     <PackageId>MatPlotLibNet.Avalonia</PackageId>
     <Description>Avalonia 12 chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/reset/brush-select interaction.</Description>
     <PackageTags>charting;plotting;charts;avalonia;skiasharp;cross-platform;interactive</PackageTags>
