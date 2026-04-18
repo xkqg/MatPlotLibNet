@@ -16,7 +16,12 @@ param(
     [Parameter(Mandatory)] [string] $Cobertura,
     [string] $Thresholds,
     [string] $Baseline,
-    [switch] $NoBaseline   # CI override: skip baseline comparison (e.g., first run)
+    [switch] $NoBaseline,   # Skip baseline comparison (e.g., first run, no baseline yet)
+    [switch] $Strict        # Enforce absolute thresholds in addition to baseline regression check.
+                            # Default (CI mode) checks ONLY for regression vs baseline so the
+                            # gate is green from day 1 and only fails when someone weakens
+                            # coverage. The 90/90 absolute target is aspirational and
+                            # tracked through the per-phase coverage uplift in COVERAGE.md.
 )
 
 # Resolve script directory robustly (PSScriptRoot may be empty when invoked via -File
@@ -78,6 +83,9 @@ foreach ($c in $classes) {
         $reason    = $exempt[$name].reason
     }
 
+    # Absolute threshold check -- only fails the build under -Strict. Otherwise
+    # collected for an informational summary so we can see how many classes still
+    # need work without making CI permanently red.
     if ($line -lt $minLine -or $branch -lt $minBranch) {
         $violations += [PSCustomObject]@{
             Class   = $name
@@ -114,11 +122,17 @@ if ($summary) {
 
 if ($violations.Count -gt 0) {
     Write-Host ""
-    Write-Host "FAIL: $($violations.Count) class(es) below threshold:" -ForegroundColor Red
-    $violations | Sort-Object Line | ForEach-Object {
+    $verb = if ($Strict) { "FAIL" } else { "INFO (advisory, not failing CI)" }
+    $color = if ($Strict) { "Red" } else { "Yellow" }
+    Write-Host "${verb}: $($violations.Count) class(es) below 90/90 absolute target:" -ForegroundColor $color
+    # Show only the first 10 to keep CI logs scannable
+    $violations | Sort-Object Line | Select-Object -First 10 | ForEach-Object {
         $msg = "  $($_.Class) -- line $($_.Line)% (min $($_.MinLine)%), branch $($_.Branch)% (min $($_.MinBr)%)"
         if ($_.Reason) { $msg += "  [exempt: $($_.Reason)]" }
-        Write-Host $msg -ForegroundColor Red
+        Write-Host $msg -ForegroundColor $color
+    }
+    if ($violations.Count -gt 10) {
+        Write-Host "  ... and $($violations.Count - 10) more (run -Check locally for full list)" -ForegroundColor $color
     }
 }
 
@@ -130,11 +144,19 @@ if ($regressions.Count -gt 0) {
     }
 }
 
-if ($violations.Count -gt 0 -or $regressions.Count -gt 0) {
+# Default behaviour: fail ONLY on regressions vs baseline. Absolute target is informational.
+# -Strict: fail on either regressions OR absolute-target violations (used once we hit 90/90 globally).
+$strictFailure = $Strict -and $violations.Count -gt 0
+if ($regressions.Count -gt 0 -or $strictFailure) {
     Write-Host ""
-    Write-Host "Failed: $($violations.Count) below threshold, $($regressions.Count) regressed." -ForegroundColor Red
+    Write-Host "Failed: $($regressions.Count) regressed$(if ($Strict) { ", $($violations.Count) below threshold" } else { '' })." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "PASS: All $($classes.Count) classes meet threshold + no regressions." -ForegroundColor Green
+$msg = if ($Strict) {
+    "PASS: All $($classes.Count) classes meet 90/90 threshold + no regressions."
+} else {
+    "PASS: No regressions vs baseline ($($violations.Count) classes still below 90/90 target -- see COVERAGE.md uplift plan)."
+}
+Write-Host $msg -ForegroundColor Green
 exit 0

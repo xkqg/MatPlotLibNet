@@ -23,11 +23,14 @@ Linux/macOS: replace `pwsh tools/coverage/run.ps1` with `bash tools/coverage/run
 
 ## What the gate checks
 
-The script in [`tools/coverage/check-thresholds.ps1`](../tools/coverage/check-thresholds.ps1) reads the merged Cobertura XML produced by `coverlet.console` + `dotnet-reportgenerator-globaltool` (both installed as global .NET tools) and verifies, for every class:
+The script in [`tools/coverage/check-thresholds.ps1`](../tools/coverage/check-thresholds.ps1) reads the merged Cobertura XML produced by `coverlet.console` + `dotnet-reportgenerator-globaltool` (both installed as global .NET tools).
 
-1. **Line coverage ≥ threshold** (default 90%, may be overridden in `thresholds.json`).
-2. **Branch coverage ≥ threshold** (default 90%).
-3. **No regression vs `tools/coverage/baseline.cobertura.xml`** — coverage may go up but never down. A class that was at 95% may not drop to 91% even though 91% > 90%, because a regression signals a test was deleted or made less strict.
+**Two modes:**
+
+- **Default (CI mode)** — fails ONLY on **regression vs baseline**. The 90/90 absolute target is informational. This keeps CI green from day 1 while we lift coverage incrementally through the multi-phase plan. A class that was at 95% may not drop to 91% even though 91% > 90% — that signals a deleted or weakened test.
+- **`-Strict` mode** — adds the absolute 90/90 line/branch check. Used locally to track uplift progress, and intended to become the CI default once the codebase reaches the 90/90 baseline globally.
+
+Per-class minimums and exemptions live in `thresholds.json`. The default in that file is 90/90; per-class entries can override (e.g., pure JS string templates are exempted to 0/0).
 
 ## Adding an exemption
 
