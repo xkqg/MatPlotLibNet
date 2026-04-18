@@ -3,10 +3,23 @@
     <CodeCoverage>
         <ModulePaths>
             <Include>
+                <!-- KEEP IN SYNC with MatPlotLibNet.CI.slnf test projects + run.ps1/run.sh.
+                     Every CI-gated production assembly must be listed so classes exercised
+                     by those projects appear in the coverage report. Missing an assembly
+                     here silently zero-measures every class it contains (Phase O follow-on
+                     2026-04-18: previously only core + Geo + Skia + Playground were
+                     measured — Blazor/Avalonia/AspNetCore/Interactive/DataFrame/GraphQL
+                     classes were invisible despite their test projects running). -->
                 <ModulePath>.*MatPlotLibNet\.dll$</ModulePath>
                 <ModulePath>.*MatPlotLibNet\.Geo\.dll$</ModulePath>
                 <ModulePath>.*MatPlotLibNet\.Skia\.dll$</ModulePath>
                 <ModulePath>.*MatPlotLibNet\.Playground\.dll$</ModulePath>
+                <ModulePath>.*MatPlotLibNet\.Blazor\.dll$</ModulePath>
+                <ModulePath>.*MatPlotLibNet\.Avalonia\.dll$</ModulePath>
+                <ModulePath>.*MatPlotLibNet\.AspNetCore\.dll$</ModulePath>
+                <ModulePath>.*MatPlotLibNet\.Interactive\.dll$</ModulePath>
+                <ModulePath>.*MatPlotLibNet\.DataFrame\.dll$</ModulePath>
+                <ModulePath>.*MatPlotLibNet\.GraphQL\.dll$</ModulePath>
             </Include>
             <Exclude>
                 <ModulePath>.*\.Tests\.dll$</ModulePath>

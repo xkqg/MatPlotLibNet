@@ -36,14 +36,30 @@ $cobertura  = Join-Path $outDir "coverage.cobertura.xml"
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
 # Test assemblies that contribute to coverage (built first below).
-# Add new test projects here as they are introduced (Phase 1 includes Geo + Skia).
+# KEEP IN SYNC with MatPlotLibNet.CI.slnf + run.sh. Any test project referenced by CI
+# must also be measured here — otherwise classes exercised only by those projects
+# appear uncovered in the baseline and the 90/90 gate reports false gaps.
+# (Phase O follow-on 2026-04-18: added Blazor, Avalonia, AspNetCore, Interactive,
+#  DataFrame, GraphQL — previously only Tests + Skia + Geo were measured, so the
+#  other 6 test projects' contributions were invisible to the coverage report.)
 $testProjects = @(
     "Tst\MatPlotLibNet\MatPlotLibNet.Tests.csproj",
     "Tst\MatPlotLibNet.Skia\MatPlotLibNet.Skia.Tests.csproj"
 )
-# Geo test project added by Phase 1.4 -- include only if it exists yet.
-$geoProj = "Tst\MatPlotLibNet.Geo\MatPlotLibNet.Geo.Tests.csproj"
-if (Test-Path (Join-Path $repoRoot $geoProj)) { $testProjects += $geoProj }
+# Additional CI-gated projects. Guard each with Test-Path so the script still runs
+# in earlier-version checkouts where a project doesn't exist yet.
+$optionalProjs = @(
+    "Tst\MatPlotLibNet.Geo\MatPlotLibNet.Geo.Tests.csproj",
+    "Tst\MatPlotLibNet.Blazor\MatPlotLibNet.Blazor.Tests.csproj",
+    "Tst\MatPlotLibNet.Avalonia\MatPlotLibNet.Avalonia.Tests.csproj",
+    "Tst\MatPlotLibNet.AspNetCore\MatPlotLibNet.AspNetCore.Tests.csproj",
+    "Tst\MatPlotLibNet.Interactive\MatPlotLibNet.Interactive.Tests.csproj",
+    "Tst\MatPlotLibNet.DataFrame\MatPlotLibNet.DataFrame.Tests.csproj",
+    "Tst\MatPlotLibNet.GraphQL\MatPlotLibNet.GraphQL.Tests.csproj"
+)
+foreach ($p in $optionalProjs) {
+    if (Test-Path (Join-Path $repoRoot $p)) { $testProjects += $p }
+}
 
 Write-Host "==> Building test projects ($Configuration)..." -ForegroundColor Cyan
 foreach ($proj in $testProjects) {

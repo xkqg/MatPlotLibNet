@@ -37,12 +37,27 @@ COBERTURA="$OUT_DIR/coverage.cobertura.xml"
 SETTINGS="$REPO_ROOT/tools/coverage/coverage.runsettings"
 mkdir -p "$OUT_DIR"
 
+# KEEP IN SYNC with MatPlotLibNet.CI.slnf + run.ps1. Any test project referenced by
+# CI must also be measured here — otherwise classes exercised only by those projects
+# appear uncovered in the baseline and the 90/90 gate reports false gaps.
+# (Phase O follow-on 2026-04-18: added Blazor, Avalonia, AspNetCore, Interactive,
+#  DataFrame, GraphQL — previously only Tests + Skia + Geo were measured.)
 TEST_PROJECTS=(
     "Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj"
     "Tst/MatPlotLibNet.Skia/MatPlotLibNet.Skia.Tests.csproj"
 )
-GEO_PROJ="Tst/MatPlotLibNet.Geo/MatPlotLibNet.Geo.Tests.csproj"
-[ -f "$REPO_ROOT/$GEO_PROJ" ] && TEST_PROJECTS+=("$GEO_PROJ")
+OPTIONAL_PROJS=(
+    "Tst/MatPlotLibNet.Geo/MatPlotLibNet.Geo.Tests.csproj"
+    "Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj"
+    "Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj"
+    "Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj"
+    "Tst/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.Tests.csproj"
+    "Tst/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.Tests.csproj"
+    "Tst/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.Tests.csproj"
+)
+for p in "${OPTIONAL_PROJS[@]}"; do
+    [ -f "$REPO_ROOT/$p" ] && TEST_PROJECTS+=("$p")
+done
 
 echo "==> Building test projects ($CFG)..."
 for proj in "${TEST_PROJECTS[@]}"; do
