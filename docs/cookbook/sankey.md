@@ -1,5 +1,11 @@
 # Sankey Diagrams
 
+`.WithSankeyHover()` enables ECharts-style `focus: adjacency`: hovering a node
+dims every link that isn't reachable upstream or downstream from it, so the
+selected flow chain stands out. Keyboard-accessible via `Tab` focus (each node
+has `tabindex="0"`). Dim opacities are themable via
+`WithInteractionTheme(new InteractionTheme(SankeyDimLinkOpacity: 0.04, SankeyDimNodeOpacity: 0.2))`.
+
 ## Process industry distribution (5-column cascade)
 
 ```csharp

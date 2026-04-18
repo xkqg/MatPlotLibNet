@@ -16,7 +16,11 @@ internal static class Svg3DRotationScript
             scenes.forEach(function(scene) {
                 var elevation = parseFloat(scene.getAttribute('data-elevation') || '30');
                 var azimuth   = parseFloat(scene.getAttribute('data-azimuth')   || '-60');
-                var distance  = scene.hasAttribute('data-distance') ? parseFloat(scene.getAttribute('data-distance')) : null;
+                // Phase F.3 of v1.7.2 follow-on — default to 10 (matches server's
+                // Projection3D.DefaultDist) when the attribute is missing, so wheel
+                // zoom works on every 3D chart, not just the ones where the caller
+                // explicitly set WithCamera(..., distance: N).
+                var distance  = scene.hasAttribute('data-distance') ? parseFloat(scene.getAttribute('data-distance')) : 10;
                 var plotX     = parseFloat(scene.getAttribute('data-plot-x') || '0');
                 var plotY     = parseFloat(scene.getAttribute('data-plot-y') || '0');
                 var plotW     = parseFloat(scene.getAttribute('data-plot-w') || '400');
@@ -138,8 +142,33 @@ internal static class Svg3DRotationScript
                             el.setAttribute('x2', points[1][0].toFixed(2));
                             el.setAttribute('y2', points[1][1].toFixed(2));
                         } else if (el.tagName === 'text' && points.length > 0) {
-                            el.setAttribute('x', points[0][0].toFixed(2));
-                            el.setAttribute('y', points[0][1].toFixed(2));
+                            // Phase F.2 of v1.7.2 follow-on — preserve perpendicular pad
+                            // that pushes tick-labels + axis-titles outside the cube.
+                            // Mirrors server PerpAwayFromCentroid: build 2D perpendicular
+                            // from the projected axis edge (data-v3d-edge), flip it away
+                            // from the plot centre, apply pad magnitude.
+                            var labelX = points[0][0], labelY = points[0][1];
+                            var edgeRaw = el.getAttribute('data-v3d-edge');
+                            var padRaw = el.getAttribute('data-pad');
+                            if (edgeRaw && padRaw) {
+                                var pad = parseFloat(padRaw);
+                                var epts = edgeRaw.trim().split(' ');
+                                var eA = epts[0].split(','), eB = epts[1].split(',');
+                                var pA = project(parseFloat(eA[0]), parseFloat(eA[1]), parseFloat(eA[2]), b, fit);
+                                var pB = project(parseFloat(eB[0]), parseFloat(eB[1]), parseFloat(eB[2]), b, fit);
+                                var ex = pB[0] - pA[0], ey = pB[1] - pA[1];
+                                var elen = Math.sqrt(ex*ex + ey*ey) || 1;
+                                var perpX = -ey / elen, perpY = ex / elen;
+                                var centreX = plotX + plotW / 2, centreY = plotY + plotH / 2;
+                                // Flip perp so it points AWAY from the plot centre.
+                                if (perpX * (centreX - labelX) + perpY * (centreY - labelY) > 0) {
+                                    perpX = -perpX; perpY = -perpY;
+                                }
+                                labelX += perpX * pad;
+                                labelY += perpY * pad;
+                            }
+                            el.setAttribute('x', labelX.toFixed(2));
+                            el.setAttribute('y', labelY.toFixed(2));
                         }
                     });
                     resortDepth(b);
@@ -190,7 +219,8 @@ internal static class Svg3DRotationScript
                 // i.e. orthographic projection — wheel doesn't promote to perspective silently).
                 // {passive:false} required so preventDefault overrides browser/iframe scroll.
                 scene.addEventListener('wheel', function(e) {
-                    if (distance === null) return;
+                    // Phase F.3 of v1.7.2 follow-on — no more bail on missing distance;
+                    // the init above defaults to 10 so this handler always does work.
                     e.preventDefault(); e.stopPropagation();
                     distance = Math.max(2, Math.min(100, distance + (e.deltaY > 0 ? 0.5 : -0.5)));
                     persistAngles();

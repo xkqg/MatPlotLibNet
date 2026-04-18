@@ -122,13 +122,20 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         // Axis title labels — must live on the SAME cube edges where the ticks are drawn.
         var labelFont = LabelFont();
         var cubeCentroidForLabels = proj.Project((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+        // Phase F.2 — axis-title labels use the same perpendicular-pad emission as tick
+        // labels so they stay outside the cube on interactive rotation. The pad constants
+        // below (42 for X, 60 for Y/Z) are the magnitudes originally passed to
+        // PerpAwayFromCentroid; EmitTextWithPerpPad + JS reproject reconstruct the
+        // per-frame direction from the axis edge endpoints, matching the server's
+        // PerpAwayFromCentroid output at the current camera angle.
         if (Axes.XAxis.Label is not null)
         {
             var a = proj.Project(x0, y0, z0);
             var b = proj.Project(x1, y0, z0);
             var mid = new Point((a.X + b.X) / 2, (a.Y + b.Y) / 2);
             var perp = PerpAwayFromCentroid(a, b, mid, cubeCentroidForLabels, 42.0);
-            DrawText3DAt(proj, (x0 + x1) * 0.5, y0, z0, Axes.XAxis.Label!, new Point(mid.X + perp.X, mid.Y + perp.Y), labelFont, TextAlignment.Center);
+            EmitTextWithPerpPad(proj, ((x0 + x1) * 0.5, y0, z0), (x0, y0, z0), (x1, y0, z0), 42.0);
+            Ctx.DrawText(Axes.XAxis.Label!, new Point(mid.X + perp.X, mid.Y + perp.Y), labelFont, TextAlignment.Center);
         }
         if (Axes.YAxis.Label is not null)
         {
@@ -136,7 +143,8 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             var b = proj.Project(x1, y1, z0);
             var mid = new Point(a.X + (b.X - a.X) * 0.65, a.Y + (b.Y - a.Y) * 0.65);
             var perp = PerpAwayFromCentroid(a, b, mid, cubeCentroidForLabels, 60.0);
-            DrawText3DAt(proj, x1, y0 + (y1 - y0) * 0.65, z0, Axes.YAxis.Label!, new Point(mid.X + perp.X, mid.Y + perp.Y), labelFont, TextAlignment.Center);
+            EmitTextWithPerpPad(proj, (x1, y0 + (y1 - y0) * 0.65, z0), (x1, y0, z0), (x1, y1, z0), 60.0);
+            Ctx.DrawText(Axes.YAxis.Label!, new Point(mid.X + perp.X, mid.Y + perp.Y), labelFont, TextAlignment.Center);
         }
         if (Axes.ZAxis.Label is not null)
         {
@@ -144,7 +152,8 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             var b = proj.Project(x1, y1, z1);
             var mid = new Point((a.X + b.X) / 2, (a.Y + b.Y) / 2);
             var perp = PerpAwayFromCentroid(a, b, mid, cubeCentroidForLabels, 60.0);
-            DrawText3DAt(proj, x1, y1, (z0 + z1) * 0.5, Axes.ZAxis.Label!, new Point(mid.X + perp.X, mid.Y + perp.Y), labelFont, TextAlignment.Center);
+            EmitTextWithPerpPad(proj, (x1, y1, (z0 + z1) * 0.5), (x1, y1, z0), (x1, y1, z1), 60.0);
+            Ctx.DrawText(Axes.ZAxis.Label!, new Point(mid.X + perp.X, mid.Y + perp.Y), labelFont, TextAlignment.Center);
         }
 
         // Phase F of v1.7.2 follow-on — close mpl-3d-back tier, open mpl-3d-data.
@@ -228,14 +237,32 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         Ctx.DrawLine(proj.Project(x0, y0, z0), proj.Project(x1, y1, z1), color, width, style);
     }
 
-    /// <summary>Text anchored at a 3D point — used for axis labels + tick labels.
-    /// The pixel-space position is pre-computed (the renderer biases axis labels
-    /// with PerpAwayFromCentroid); we just attach v3d so the JS can re-pin to the
-    /// SAME 3D anchor under rotation.</summary>
-    private void DrawText3DAt(Projection3D proj, double xData, double yData, double zData, string text, Point pixelPos, Font font, TextAlignment alignment)
+    /// <summary>Phase F.2 of v1.7.2 follow-on — emits <c>data-v3d</c> + <c>data-v3d-edge</c>
+    /// + <c>data-pad</c> so the JS reproject can preserve the perpendicular pad that
+    /// pushes tick labels and axis titles outside the cube silhouette. Without these
+    /// extra attrs the JS would set text x/y to the projected tick anchor only, and
+    /// labels would collapse onto the axis edge on every drag.</summary>
+    /// <param name="proj">Projection used to normalize points into centered-world coords.</param>
+    /// <param name="anchor">The tick's / label's 3D anchor (the point the label names).</param>
+    /// <param name="edgeA3D">One endpoint of the axis edge the label sits next to.</param>
+    /// <param name="edgeB3D">The other endpoint. <c>(edgeB - edgeA)</c> defines the direction;
+    /// JS takes the 2D screen perpendicular and flips it away from the plot centre.</param>
+    /// <param name="padPx">Pixel magnitude of the perpendicular offset (the server's
+    /// <c>labelOffset = tickLength + tick.Pad + threeDExtraPad</c>).</param>
+    private void EmitTextWithPerpPad(Projection3D proj,
+        (double x, double y, double z) anchor,
+        (double x, double y, double z) edgeA3D,
+        (double x, double y, double z) edgeB3D,
+        double padPx)
     {
-        EmitV3D(proj, (xData, yData, zData));
-        Ctx.DrawText(text, pixelPos, font, alignment);
+        if (!Axes.Emit3DVertexData || Ctx is not SvgRenderContext svgCtx) return;
+        EmitV3D(proj, anchor);
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var nA = proj.Normalize(edgeA3D.x, edgeA3D.y, edgeA3D.z);
+        var nB = proj.Normalize(edgeB3D.x, edgeB3D.y, edgeB3D.z);
+        var edge = string.Create(inv, $"{nA.Nx:G6},{nA.Ny:G6},{nA.Nz:G6} {nB.Nx:G6},{nB.Ny:G6},{nB.Nz:G6}");
+        svgCtx.SetNextElementData("v3d-edge", edge);
+        svgCtx.SetNextElementData("pad", padPx.ToString("G6", inv));
     }
 
     private void Render3DPanes(Projection3D proj,
@@ -497,18 +524,21 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         RenderAxisEdgeTicks(Axes.XAxis, x0, x1,
             t => proj.Project(t, y0, z0), t => (t, y0, z0), proj,
             proj.Project(x0, y0, z0), proj.Project(x1, y0, z0),
+            (x0, y0, z0), (x1, y0, z0),
             centroid, labelFloor: _rawXMin);
 
         // Y ticks: bottom-right edge (z=z0, x=x1), Y varies.
         RenderAxisEdgeTicks(Axes.YAxis, y0, y1,
             t => proj.Project(x1, t, z0), t => (x1, t, z0), proj,
             proj.Project(x1, y0, z0), proj.Project(x1, y1, z0),
+            (x1, y0, z0), (x1, y1, z0),
             centroid, labelFloor: _rawYMin);
 
         // Z ticks: back-right vertical edge (x=x1, y=y1), Z varies.
         RenderAxisEdgeTicks(Axes.ZAxis, zMin, zMax,
             t => proj.Project(x1, y1, t), t => (x1, y1, t), proj,
             proj.Project(x1, y1, z0), proj.Project(x1, y1, z1),
+            (x1, y1, z0), (x1, y1, z1),
             centroid, labelFloor: _rawZMin);
     }
 
@@ -520,7 +550,9 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
     /// </summary>
     private void RenderAxisEdgeTicks(Axis axis, double lo, double hi,
         Func<double, Point> projectTick, Func<double, (double x, double y, double z)> tickTo3D,
-        Projection3D proj, Point edgeA, Point edgeB, Point cubeCentroid,
+        Projection3D proj, Point edgeA, Point edgeB,
+        (double x, double y, double z) edgeA3D, (double x, double y, double z) edgeB3D,
+        Point cubeCentroid,
         double labelFloor = double.NegativeInfinity)
     {
         var major = axis.MajorTicks;
@@ -587,7 +619,11 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             var labelPos = new Point(
                 p.X + perp.X * labelOffset,
                 p.Y + perp.Y * labelOffset);
-            EmitV3D(proj, (xd, yd, zd));
+            // Phase F.2 of v1.7.2 follow-on — emit the perpendicular-pad contract so
+            // the JS reproject can preserve label-outside-cube on interactive rotation
+            // (was: JS wrote x/y = projected tick anchor only, dropping labelOffset →
+            // labels collapsed onto the axis edge after drag).
+            EmitTextWithPerpPad(proj, (xd, yd, zd), edgeA3D, edgeB3D, labelOffset);
             Ctx.DrawText(axis.TickFormatter?.Format(t) ?? uniformFormat(t),
                 labelPos, labelFont, TextAlignment.Center);
         }

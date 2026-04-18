@@ -137,13 +137,38 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         sb.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ")
           .Append(w).Append(' ').Append(h)
           .Append("\" width=\"").Append(w)
-          .Append("\" height=\"").Append(h)
-          .Append("\" role=\"img\"")
+          .Append("\" height=\"").Append(h);
+        if (figure.ResponsiveSvg)
+            sb.Append("\" style=\"max-width:100%;height:auto");
+        sb.Append("\" role=\"img\"")
           .Append(" aria-labelledby=\"chart-title\"");
         if (hasDescription)
             sb.Append(" aria-describedby=\"chart-desc\"");
         if (figure.ServerInteraction && figure.ChartId is { } chartId)
+        {
             sb.Append(" data-chart-id=\"").Append(SvgXmlHelper.EscapeXml(chartId)).Append('"');
+            // Phase G.8 of v1.7.2 follow-on plan — emit axis limits on the root SVG so
+            // the SignalR interaction script can read its initial view state AND the
+            // reset view (Home key target) without extra round-trips. Pre-fix the
+            // script read `data-xmin/xmax/ymin/ymax` + `data-reset-*` but nothing ever
+            // emitted them — so every wheel/pan/reset invoke() silently bailed on
+            // `if (!isFinite(xMin))`. Pull from the first subplot's data ranges.
+            if (figure.SubPlots.Count > 0)
+            {
+                var ax0 = figure.SubPlots[0];
+                double xmin = ax0.XAxis.Min ?? 0, xmax = ax0.XAxis.Max ?? 1;
+                double ymin = ax0.YAxis.Min ?? 0, ymax = ax0.YAxis.Max ?? 1;
+                var invA = System.Globalization.CultureInfo.InvariantCulture;
+                sb.Append(" data-xmin=\"").Append(xmin.ToString("G6", invA))
+                  .Append("\" data-xmax=\"").Append(xmax.ToString("G6", invA))
+                  .Append("\" data-ymin=\"").Append(ymin.ToString("G6", invA))
+                  .Append("\" data-ymax=\"").Append(ymax.ToString("G6", invA)).Append('"');
+                sb.Append(" data-reset-xmin=\"").Append(xmin.ToString("G6", invA))
+                  .Append("\" data-reset-xmax=\"").Append(xmax.ToString("G6", invA))
+                  .Append("\" data-reset-ymin=\"").Append(ymin.ToString("G6", invA))
+                  .Append("\" data-reset-ymax=\"").Append(ymax.ToString("G6", invA)).Append('"');
+            }
+        }
         // Phase 7 of v1.7.2 plan — emit non-default interaction-theme tokens as
         // data-mpl-* attributes so the embedded scripts can read them at runtime
         // without recompiling. Only non-default values are emitted (zero-config callers

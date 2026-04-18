@@ -16,8 +16,12 @@ public sealed record PlaygroundOptions
     // --- Figure ---
     public string Title { get; init; } = "";
     public string ThemeName { get; init; } = "Default";
+    // 16:9 at 800 px natural width — Phase L.5 of the v1.7.2 plan dropped the
+    // playground Width/Height sliders because the SVG is now responsive by default
+    // (Phase L.2). These values drive the `viewBox` aspect ratio + the
+    // `.WithSize(...)` line in the copyable code snippet, nothing else.
     public int Width { get; init; } = 800;
-    public int Height { get; init; } = 500;
+    public int Height { get; init; } = 450;
     public bool TightLayout { get; init; }
     public bool BrowserInteraction { get; init; }
 

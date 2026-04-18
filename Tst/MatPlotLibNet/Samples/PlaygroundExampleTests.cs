@@ -123,9 +123,24 @@ public class PlaygroundExampleTests
     [Fact]
     public void Size_PropagatesToFigure()
     {
+        // Phase L.5 dropped the Width/Height sliders from the playground — the SVG
+        // is responsive and fills its container. The PlaygroundOptions record still
+        // carries Width/Height for the code-snippet + intrinsic viewBox aspect;
+        // verify the property still flows through end-to-end for programmatic callers.
         var fig = PlaygroundExamples.Build("Line Chart", Defaults() with { Width = 1100, Height = 700 }).Figure;
         Assert.Equal(1100, fig.Width);
         Assert.Equal(700, fig.Height);
+    }
+
+    [Fact]
+    public void DefaultSize_Is_16By9_800x450()
+    {
+        // Phase L.5 — playground's default intrinsic size changed from 800×500 (8:5)
+        // to 800×450 (16:9 widescreen) for a more modern default aspect. This is the
+        // viewBox aspect the responsive SVG preserves as the container resizes.
+        var fig = PlaygroundExamples.Build("Line Chart", Defaults()).Figure;
+        Assert.Equal(800, fig.Width);
+        Assert.Equal(450, fig.Height);
     }
 
     // ── Code snippet reflects toggles (so users can copy a working repro) ────
@@ -154,19 +169,54 @@ public class PlaygroundExampleTests
     // ── Registry sanity ──────────────────────────────────────────────────────
 
     [Fact]
-    public void Names_Contains_FifteenExamples()
+    public void Names_Contains_SixteenExamples()
     {
-        Assert.Equal(15, PlaygroundExamples.Names.Count);
+        // Phase G.7 of v1.7.2 follow-on plan — "Sankey Flow" added (16th example)
+        // to exercise the browser-side Sankey hover script end-to-end.
+        Assert.Equal(16, PlaygroundExamples.Names.Count);
     }
 
     [Fact]
-    public void SupportsLineControls_IsTrueOnlyForLineFamilies()
+    public void SupportsLineControls_IsTrueOnlyForExamplesThatDrawALine()
     {
+        // L.6 of Phase L — scatter plots have NO line, so line-style / line-width
+        // controls make no visual difference on them. Exclude Scatter.
         Assert.True(PlaygroundExamples.SupportsLineControls("Line Chart"));
-        Assert.True(PlaygroundExamples.SupportsLineControls("Scatter Plot"));
         Assert.True(PlaygroundExamples.SupportsLineControls("Multi-Series"));
+        Assert.False(PlaygroundExamples.SupportsLineControls("Scatter Plot"));
         Assert.False(PlaygroundExamples.SupportsLineControls("Heatmap"));
         Assert.False(PlaygroundExamples.SupportsLineControls("Pie Chart"));
+    }
+
+    [Fact]
+    public void SupportsMarkerControls_IsTrueForLineScatterAndMulti()
+    {
+        // L.6 of Phase L — the playground's Marker / Marker-size controls apply to
+        // any example whose primary series exposes a MarkerStyle: Scatter (always-on)
+        // and the line families (optional per-point markers).
+        Assert.True(PlaygroundExamples.SupportsMarkerControls("Line Chart"));
+        Assert.True(PlaygroundExamples.SupportsMarkerControls("Scatter Plot"));
+        Assert.True(PlaygroundExamples.SupportsMarkerControls("Multi-Series"));
+        Assert.False(PlaygroundExamples.SupportsMarkerControls("Heatmap"));
+        Assert.False(PlaygroundExamples.SupportsMarkerControls("Pie Chart"));
+    }
+
+    [Fact]
+    public void Scatter_AppliesMarkerStyleFromOptions()
+    {
+        var opts = Defaults() with { MarkerStyle = "Square" };
+        var figure = PlaygroundExamples.Build("Scatter Plot", opts).Figure;
+        var series = (MatPlotLibNet.Models.Series.ScatterSeries)figure.SubPlots[0].Series[0];
+        Assert.Equal(MatPlotLibNet.Styling.MarkerStyle.Square, series.Marker);
+    }
+
+    [Fact]
+    public void Scatter_AppliesMarkerSizeFromOptions()
+    {
+        var opts = Defaults() with { MarkerStyle = "Circle", MarkerSize = 14 };
+        var figure = PlaygroundExamples.Build("Scatter Plot", opts).Figure;
+        var series = (MatPlotLibNet.Models.Series.ScatterSeries)figure.SubPlots[0].Series[0];
+        Assert.Equal(14, series.MarkerSize);
     }
 
     [Fact]

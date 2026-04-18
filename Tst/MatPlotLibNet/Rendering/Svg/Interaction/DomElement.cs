@@ -93,6 +93,26 @@ public sealed class DomElement
     /// asserted by the test directly, not by chasing SVG transform math.</summary>
     public DomSvgMatrix? getScreenCTM() => new();
 
+    /// <summary>Stubs for DOM Pointer Events capture API. The harness does not emulate
+    /// pointer ID routing, but scripts call these to clean up drag state; returning
+    /// silently keeps them happy.</summary>
+    public void setPointerCapture(int _) { }
+    public void releasePointerCapture(int _) { }
+
+    /// <summary>Mirrors DOM <c>element.getBoundingClientRect()</c>. Tests don't run a
+    /// real layout engine, but Phase-12 focus tooltip positioning (G.4) depends on
+    /// this returning non-(0,0,0,0) bounds so <c>left + width/2</c> is meaningful.
+    /// Returns synthetic positive bounds derived from the element's identity.</summary>
+    public DomBoundingRect getBoundingClientRect() => new()
+    {
+        left = 50,
+        top = 30,
+        width = 20,
+        height = 10,
+        right = 70,
+        bottom = 40,
+    };
+
     /// <summary>Stub <c>clientWidth</c> / <c>clientHeight</c> — for SVG elements, reads the
     /// rendered <c>width</c>/<c>height</c> attributes the figure pipeline always emits.
     /// Falls back to 1 (not 0) so divisions don't NaN. Phase C of v1.7.2 follow-on plan
@@ -126,6 +146,31 @@ public sealed class DomStyle
     public string display     { get => _props.GetValueOrDefault("display", ""); set => Set("display", value); }
     public string opacity     { get => _props.GetValueOrDefault("opacity", ""); set => Set("opacity", value); }
     public string visibility  { get => _props.GetValueOrDefault("visibility", ""); set => Set("visibility", value); }
+    public string left        { get => _props.GetValueOrDefault("left", ""); set => Set("left", value); }
+    public string top         { get => _props.GetValueOrDefault("top", ""); set => Set("top", value); }
+    public string transition  { get => _props.GetValueOrDefault("transition", ""); set => Set("transition", value); }
+
+    /// <summary>Mirrors DOM <c>element.style.cssText</c> — assigning a full CSS declaration
+    /// block parses it in one shot, replacing any previously-set properties on this element.
+    /// Used by <see cref="MatPlotLibNet.Rendering.Svg.SvgCustomTooltipScript"/> to initialize
+    /// the floating tooltip <c>div</c>'s visual styles.</summary>
+    public string cssText
+    {
+        get => string.Join("; ", _props.Select(kv => $"{kv.Key}: {kv.Value}"));
+        set
+        {
+            _props.Clear();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                foreach (var pair in value.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var kv = pair.Split(':', 2);
+                    if (kv.Length == 2) _props[kv[0].Trim()] = kv[1].Trim();
+                }
+            }
+            _xml.SetAttributeValue("style", string.Join("; ", _props.Select(kv => $"{kv.Key}: {kv.Value}")));
+        }
+    }
 
     private void Set(string key, string value)
     {
@@ -146,10 +191,24 @@ public sealed class DomEvent
     public bool shiftKey { get; set; }
     public int button { get; set; }
     public int clickCount { get; set; }
+    public int pointerId { get; set; }
     public DomElement? target { get; set; }
     public bool DefaultPrevented { get; private set; }
+    /// <summary>Payload attached via <c>new CustomEvent(type, { detail: … })</c>.</summary>
+    public object? detail { get; set; }
 
     public DomEvent(string type) { this.type = type; }
+
+    /// <summary>Mirrors JS <c>new CustomEvent(type, { detail, bubbles })</c>. Jint
+    /// interop calls this ctor when scripts dispatch custom events (e.g. the
+    /// selection script's <c>mpl:selection</c>).</summary>
+    public DomEvent(string type, Jint.Native.Object.ObjectInstance? options) : this(type)
+    {
+        if (options is null) return;
+        var d = options.Get("detail");
+        var obj = d?.ToObject();
+        if (obj is not null) detail = obj;
+    }
 
     public void preventDefault() => DefaultPrevented = true;
     public void stopPropagation() { /* no-op for now — harness doesn't bubble */ }
@@ -165,4 +224,17 @@ public sealed class DomSvgPoint
 public sealed class DomSvgMatrix
 {
     public DomSvgMatrix? inverse() => this;
+}
+
+/// <summary>Stub for DOM <c>Element.getBoundingClientRect()</c> return value.
+/// Synthetic positive bounds used by <see cref="MatPlotLibNet.Rendering.Svg.SvgCustomTooltipScript"/>
+/// focus-positioning tests (Phase 12 of v1.7.2 plan + Phase G.4 behavioural pin).</summary>
+public sealed class DomBoundingRect
+{
+    public double left { get; set; }
+    public double top { get; set; }
+    public double width { get; set; }
+    public double height { get; set; }
+    public double right { get; set; }
+    public double bottom { get; set; }
 }

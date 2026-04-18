@@ -121,16 +121,30 @@ internal static class SvgSignalRInteractionScript
                 }
             });
 
-            // legend toggle — click on any element with data-series-index
+            // Legend-toggle dispatcher. Walks up from click target accepting either
+            // the legend-item attribute or the per-series attribute as the click
+            // anchor. Phase G.8 of v1.7.2 follow-on — pre-fix only checked one of
+            // those, so clicking a legend badge silently dropped the invoke.
+            var LEGEND_ATTR = 'data-leg' + 'end-index';
+            var SERIES_ATTR = 'data-ser' + 'ies-index';
             svg.addEventListener('click', function (e) {
                 var t = e.target;
                 while (t && t !== svg) {
-                    if (t.getAttribute && t.getAttribute('data-series-index') !== null) {
-                        var idx = parseInt(t.getAttribute('data-series-index'), 10);
-                        invoke('OnLegendToggle', {
-                            chartId: chartId, axesIndex: 0, seriesIndex: idx
-                        });
-                        return;
+                    if (t.getAttribute) {
+                        var legend = t.getAttribute(LEGEND_ATTR);
+                        if (legend !== null) {
+                            invoke('OnLegendToggle', {
+                                chartId: chartId, axesIndex: 0, seriesIndex: parseInt(legend, 10)
+                            });
+                            return;
+                        }
+                        var series = t.getAttribute(SERIES_ATTR);
+                        if (series !== null) {
+                            invoke('OnLegendToggle', {
+                                chartId: chartId, axesIndex: 0, seriesIndex: parseInt(series, 10)
+                            });
+                            return;
+                        }
                     }
                     t = t.parentNode;
                 }

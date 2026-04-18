@@ -503,6 +503,12 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             double xAxisY = PlotArea.Y + PlotArea.Height;
             double xSpineHalf = Axes.Spines.Bottom.LineWidth / 2.0;
             double maxXTickHeight = 0;
+            // Phase L.8 — resolve effective X-label rotation. Manual setting wins; when
+            // no manual rotation and adjacent tick labels would overlap, default to 30°
+            // (matplotlib Figure.autofmt_xdate parity). We use label text + font width +
+            // spacing to detect the collision and only rotate when it matters.
+            double xRotation = ResolveXLabelRotation(xTicks, xMajor.LabelRotation, xFormatter, xUniformFormat, xLabelFont, transform, yMin);
+            var xAlign = xRotation == 0 ? TextAlignment.Center : TextAlignment.Right;
             foreach (var tick in xTicks)
             {
                 var pt = transform.DataToPixel(tick, yMin);
@@ -511,7 +517,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 var labelText = xFormatter?.Format(tick) ?? xUniformFormat(tick);
                 var h = Ctx.MeasureText(labelText, xLabelFont).Height;
                 if (h > maxXTickHeight) maxXTickHeight = h;
-                Ctx.DrawText(labelText, new Point(pt.X, labelY), xLabelFont, TextAlignment.Center);
+                Ctx.DrawText(labelText, new Point(pt.X, labelY), xLabelFont, xAlign, xRotation);
             }
             MeasuredXTickMaxHeight = maxXTickHeight;
 
@@ -556,7 +562,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 var labelText = yFormatter?.Format(tick) ?? yUniformFormat(tick);
                 var w = Ctx.MeasureText(labelText, yLabelFont).Width;
                 if (w > maxYTickWidth) maxYTickWidth = w;
-                Ctx.DrawText(labelText, new Point(labelX, pt.Y + 4), yLabelFont, TextAlignment.Right);
+                Ctx.DrawText(labelText, new Point(labelX, pt.Y + 4), yLabelFont, TextAlignment.Right, yMajor.LabelRotation);
             }
         }
         MeasuredYTickMaxWidth = maxYTickWidth;
@@ -650,6 +656,43 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             if (Math.Abs(endX - startX) > 0.1)
                 Ctx.DrawLine(new Point(startX, tickPos), new Point(endX, tickPos), color, width, LineStyle.Solid);
         }
+    }
+
+    /// <summary>
+    /// Phase L.8 — resolves the effective X-tick-label rotation. A non-zero user-set
+    /// <paramref name="manualRotation"/> always wins. Otherwise, if adjacent label
+    /// rectangles would overlap given the current tick positions and label widths,
+    /// returns 30° (matches matplotlib's <c>Figure.autofmt_xdate</c> auto-rotate
+    /// behaviour). Returns 0 when horizontal labels fit comfortably.
+    /// </summary>
+    private double ResolveXLabelRotation(
+        double[] xTicks, double manualRotation,
+        ITickFormatter? formatter, Func<double, string> uniformFormat,
+        Font font, DataTransform transform, double yMin)
+    {
+        if (manualRotation != 0) return manualRotation;
+        if (xTicks.Length < 2)   return 0;
+
+        // Measure every label once; find the max width, then check whether the
+        // tick-spacing in pixels is at least max-width + 4 px padding. If any pair
+        // collides we return 30°.
+        const double GapPx = 4;
+        double maxLabelWidth = 0;
+        var pixelXs = new double[xTicks.Length];
+        for (int i = 0; i < xTicks.Length; i++)
+        {
+            var labelText = formatter?.Format(xTicks[i]) ?? uniformFormat(xTicks[i]);
+            var w = Ctx.MeasureText(labelText, font).Width;
+            if (w > maxLabelWidth) maxLabelWidth = w;
+            pixelXs[i] = transform.DataToPixel(xTicks[i], yMin).X;
+        }
+
+        for (int i = 1; i < pixelXs.Length; i++)
+        {
+            double spacing = Math.Abs(pixelXs[i] - pixelXs[i - 1]);
+            if (spacing < maxLabelWidth + GapPx) return 30;
+        }
+        return 0;
     }
 
     /// <summary>Renders category labels centered below each category position on the X-axis.</summary>

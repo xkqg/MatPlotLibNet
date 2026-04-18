@@ -223,6 +223,10 @@ public sealed class SvgRenderContext : IRenderContext
             _sb.Append(seg.ToSvgPathData());
         _sb.Append('"');
         AppendFillStroke(fill, stroke, strokeThickness);
+        // Phase G.7 of v1.7.2 follow-on plan — missing flush here caused
+        // SetNextElementData pushes to leak across iterations (e.g. Sankey's
+        // per-link data-* attributes stacked onto every subsequent node).
+        FlushPendingData();
         _sb.AppendLine(" />");
     }
 
@@ -412,6 +416,9 @@ public sealed class SvgRenderContext : IRenderContext
         if (stroke.HasValue)
             _sb.Append(" stroke=\"").Append(stroke.Value.ToHex())
                .Append("\" stroke-width=\"").Append(F(strokeThickness)).Append('"');
+        // Phase G.7 of v1.7.2 follow-on plan — flush pending data (e.g. Sankey's
+        // data-sankey-link-source/target) onto the gradient-filled path too.
+        FlushPendingData();
         _sb.AppendLine(" />");
     }
 
@@ -434,8 +441,12 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.Append("<g class=\"mpl-3d-scene\"")
            .Append(" data-elevation=\"").Append(F(elevation)).Append('"')
            .Append(" data-azimuth=\"").Append(F(azimuth)).Append('"');
-        if (distance.HasValue)
-            _sb.Append(" data-distance=\"").Append(F(distance.Value)).Append('"');
+        // Phase F.3 of v1.7.2 follow-on plan — always emit data-distance so JS and server
+        // stay in lockstep. Projection3D always runs perspective with `dist = distance ?? 10`;
+        // without the attribute JS bailed on wheel zoom whenever the caller omitted
+        // `distance:` in WithCamera, producing the user-reported "zoom does not work in 3D"
+        // symptom. 10 matches Projection3D.DefaultDist.
+        _sb.Append(" data-distance=\"").Append(F(distance ?? 10.0)).Append('"');
         _sb.Append(" data-plot-x=\"").Append(F(plotBounds.X)).Append('"')
            .Append(" data-plot-y=\"").Append(F(plotBounds.Y)).Append('"')
            .Append(" data-plot-w=\"").Append(F(plotBounds.Width)).Append('"')

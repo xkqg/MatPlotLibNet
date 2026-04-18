@@ -16,13 +16,14 @@ Plt.Create()
 
 ## Treemap with drilldown
 
-Click a rectangle to zoom in; press Escape to zoom out. Three levels deep:
+Click a rectangle to zoom in (animated `viewBox` slide), press Escape to zoom out. The transition duration is themable (default 350 ms). Keyboard: focus a tile with `Tab`, then `Enter`/`Space` drills. Three levels deep:
 
 ```csharp
 Plt.Create()
     .WithTitle("Treemap — click to drill down (Escape to zoom out)")
     .WithSize(900, 620)
     .WithTreemapDrilldown()
+    .WithInteractionTheme(new InteractionTheme(TreemapTransitionMs: 500))  // optional: customise slide duration
     .AddSubPlot(1, 1, 1, ax => ax.Treemap(catalogue, s => s.ShowLabels = true))
     .Save("treemap_drilldown.svg");
 ```

@@ -105,4 +105,10 @@ public sealed record TickConfig
     /// (e.g. Y ticks on both left and right spines). Equivalent to matplotlib's
     /// <c>ax.tick_params(right=True, labelright=True)</c>. Default <c>false</c>.</summary>
     public bool Mirror { get; init; } = false;
+
+    /// <summary>Tick-label rotation in degrees (matplotlib's <c>ax.tick_params(labelrotation=...)</c>).
+    /// Zero means horizontal labels; positive tilts counter-clockwise. When 0, the renderer
+    /// may still auto-rotate X-axis labels to 30° if adjacent labels would overlap
+    /// (matches matplotlib <c>Figure.autofmt_xdate</c>). Default 0.</summary>
+    public double LabelRotation { get; init; } = 0;
 }

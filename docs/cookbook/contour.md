@@ -25,6 +25,8 @@ Plt.Create()
 
 ![Contour with labels](../images/contour_labels.png)
 
+> **v1.7.2 Phase L.9 — strict colormap lookup.** `AxesBuilder.WithColorMap(string)` throws `ArgumentException` with a list of registered names if the name is unknown (e.g. a typo like `"virdis"`). Pre-fix the call silently no-op'd and the renderer fell back to Viridis, masking the bug. For defensive lookup that doesn't throw, fetch the instance yourself via `ColorMapRegistry.Get(name)` and use the `WithColorMap(IColorMap)` overload only when non-null.
+
 ## Filled contour (contourf)
 
 ```csharp

@@ -29,8 +29,16 @@ public static class PlaygroundExamples
         return builder(opts);
     }
 
-    /// <summary>True if the example exposes line-style / marker controls in the UI.</summary>
+    /// <summary>True if the example actually draws a line — i.e. Line-style / Line-width
+    /// controls have a visible effect. Scatter plots are excluded because they don't draw
+    /// a line (Phase L.6 of the v1.7.2 plan).</summary>
     public static bool SupportsLineControls(string name) =>
+        name is "Line Chart" or "Multi-Series";
+
+    /// <summary>True if the example's primary series exposes a <c>MarkerStyle</c> /
+    /// <c>MarkerSize</c> — i.e. the playground's Marker / Marker-size controls should be
+    /// shown. Scatter (always-on markers) + Line families (optional per-point markers).</summary>
+    public static bool SupportsMarkerControls(string name) =>
         name is "Line Chart" or "Scatter Plot" or "Multi-Series";
 
     /// <summary>True if the example exposes colormap / colorbar controls in the UI.</summary>
@@ -53,6 +61,7 @@ public static class PlaygroundExamples
             ["Violin Plot"]   = BuildViolin,
             ["Candlestick"]   = BuildCandlestick,
             ["Treemap"]       = BuildTreemap,
+            ["Sankey Flow"]   = BuildSankey,
             ["Polar Line"]    = BuildPolar,
             ["Multi-Subplot"] = BuildMulti,
         };
@@ -105,7 +114,6 @@ public static class PlaygroundExamples
         var rng = new Random(42);
         double[] x = Enumerable.Range(0, 50).Select(_ => rng.NextDouble() * 10).ToArray();
         double[] y = x.Select(v => v * 0.8 + rng.NextDouble() * 3).ToArray();
-        var marker = opts.ResolvedMarker;
 
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
@@ -113,7 +121,8 @@ public static class PlaygroundExamples
                 ax.Scatter(x, y, s =>
                 {
                     s.Color = Colors.CornflowerBlue;
-                    s.MarkerSize = marker.HasValue ? opts.MarkerSize : 6;
+                    s.Marker = opts.ResolvedMarker ?? Styling.MarkerStyle.Circle;
+                    s.MarkerSize = opts.MarkerSize;
                     s.Label = "Data";
                 });
                 opts.ApplyToAxes(ax);
@@ -209,10 +218,24 @@ public static class PlaygroundExamples
             for (int c = 0; c < n; c++)
                 cz[r, c] = Math.Sin(cx[c]) * Math.Cos(cy[r]);
 
+        // Phase L.9 — resolve the colormap up-front and set it inside the series lambda
+        // so the selection is applied to the contour series unambiguously. Previously
+        // `.Contour(...).WithColorMap(opts.ColorMap)` relied on AxesBuilder's "last series"
+        // heuristic; direct assignment is the least-surprising route.
+        var contourColorMap = ColorMapRegistry.Get(opts.ColorMap)
+            ?? throw new ArgumentException(
+                $"Unknown colormap '{opts.ColorMap}'. Registered: " + string.Join(", ", ColorMapRegistry.Names),
+                nameof(opts));
+
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
             {
-                ax.Contour(cx, cy, cz, s => { s.ShowLabels = true; s.LabelFormat = "F2"; }).WithColorMap(opts.ColorMap);
+                ax.Contour(cx, cy, cz, s =>
+                {
+                    s.ShowLabels = true;
+                    s.LabelFormat = "F2";
+                    s.ColorMap = contourColorMap;
+                });
                 if (opts.ShowColorBar) ax.WithColorBar();
                 opts.ApplyToAxes(ax);
             });
@@ -310,6 +333,34 @@ public static class PlaygroundExamples
         return (opts.ApplyTightLayout(fb).Build(), CodeFor("Candlestick", opts));
     }
 
+    /// <summary>Phase G.7 of v1.7.2 follow-on — Sankey flow example with browser-side
+    /// hover emphasis. Hovering a node dims every link not reachable upstream or
+    /// downstream from that node (ECharts focus:adjacency parity). Keyboard users
+    /// get the same behaviour via Tab+focus.</summary>
+    private static (Figure, string) BuildSankey(PlaygroundOptions opts)
+    {
+        var nodes = new[]
+        {
+            new SankeyNode("Coal"),
+            new SankeyNode("Gas"),
+            new SankeyNode("Solar"),
+            new SankeyNode("Grid"),
+            new SankeyNode("Industry"),
+            new SankeyNode("Homes"),
+        };
+        var links = new[]
+        {
+            new SankeyLink(0, 3, 60),
+            new SankeyLink(1, 3, 40),
+            new SankeyLink(2, 3, 25),
+            new SankeyLink(3, 4, 70),
+            new SankeyLink(3, 5, 55),
+        };
+        var fb = opts.ApplyToFigure(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax => ax.Sankey(nodes, links).HideAllAxes());
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor("Sankey Flow", opts));
+    }
+
     private static (Figure, string) BuildTreemap(PlaygroundOptions opts)
     {
         var root = new TreeNode
@@ -397,6 +448,7 @@ public static class PlaygroundExamples
             "Violin Plot"   => "    .AddSubPlot(1, 1, 1, ax => ax.Violin(groups, s => { s.Color = Colors.RebeccaPurple; s.Alpha = 0.6; }))",
             "Candlestick"   => "    .AddSubPlot(1, 1, 1, ax => ax.Candlestick(o, h, l, c, dates, s => { s.UpColor = Colors.Green; s.DownColor = Colors.Red; }))",
             "Treemap"       => "    .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, s => s.ShowLabels = true).HideAllAxes())",
+            "Sankey Flow"   => "    .AddSubPlot(1, 1, 1, ax => ax.Sankey(nodes, links).HideAllAxes())",
             "Polar Line"    => "    .AddSubPlot(1, 1, 1, ax => ax.PolarPlot(r, theta, s => { s.Color = Colors.Blue; s.LineWidth = 2; }))",
             "Multi-Subplot" => "    .AddSubPlot(1, 2, 1, ax => ax.Plot(x, y).WithTitle(\"Line\"))\n    .AddSubPlot(1, 2, 2, ax => ax.Bar(cats, vals).WithTitle(\"Bar\"))",
             _               => "    .Plot(x, y)",

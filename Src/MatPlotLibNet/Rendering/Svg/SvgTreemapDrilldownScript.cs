@@ -42,7 +42,12 @@ internal static class SvgTreemapDrilldownScript
             var rects = svg.querySelectorAll('[data-treemap-node]');
             if (rects.length === 0) return;
             var initialViewBox = svg.getAttribute('viewBox');
-            svg.style.transition = 'all 0.35s ease-out';
+            // Phase G.6 of v1.7.2 follow-on plan — honour the themable
+            // InteractionTheme.TreemapTransitionMs token. Default 350 matches
+            // the pre-fix hard-coded value (zero behaviour change for callers
+            // who don't set a theme).
+            var transitionMs = parseInt(svg.getAttribute('data-mpl-treemap-transition-ms') || '350', 10);
+            svg.style.transition = 'all ' + transitionMs + 'ms ease-out';
 
             // Drill stack: each entry is the viewBox string we were at BEFORE drilling.
             var stack = [];

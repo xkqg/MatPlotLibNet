@@ -4,6 +4,7 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Jint;
+using Jint.Runtime.Interop;
 using MatPlotLibNet.Builders;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
@@ -91,6 +92,11 @@ public sealed class InteractionScriptHarness : IDisposable
         _engine.SetValue("window", new { });
         _engine.SetValue("console", new { log = (Action<object>)(o => System.Console.WriteLine(o)) });
         _engine.SetValue("location", new { hash = "" });
+        // Phase G.5 of v1.7.2 follow-on plan — CustomEvent is needed by the selection
+        // script's `svg.dispatchEvent(new CustomEvent('mpl:selection', { detail: {...} }))`.
+        // Jint's `new` requires a concrete function-value, so we register a factory that
+        // returns a DomEvent tagged with the detail object.
+        _engine.SetValue("CustomEvent", TypeReference.CreateTypeReference<DomEvent>(_engine));
     }
 
     private void RunEmbeddedScripts(string svgText)
@@ -160,5 +166,40 @@ public sealed class InteractionScriptHarness : IDisposable
         return null;
     }
 
+    /// <summary>Phase G.8 of the v1.7.2 follow-on plan — installs a mock SignalR
+    /// connection at <c>window.__mpl_signalr_connection</c>. The returned
+    /// <see cref="SignalRInvokeMock"/> records every
+    /// <c>invoke(method, payload)</c> call the embedded scripts make, so tests
+    /// can verify which hub methods got dispatched with which payload shapes.
+    /// The <see cref="SvgSignalRInteractionScript"/> reads <c>window</c> lazily
+    /// inside its <c>invoke()</c> helper, so wiring the mock AFTER harness
+    /// construction still takes effect on every subsequent event.</summary>
+    public SignalRInvokeMock WireSignalRMock()
+    {
+        var mock = new SignalRInvokeMock();
+        _engine.SetValue("window", new SignalRWindowStub(mock));
+        return mock;
+    }
+
     public void Dispose() => _engine.Dispose();
+}
+
+/// <summary>Test-owned wrapper for <c>window</c> that holds a SignalR connection
+/// mock so embedded scripts can <c>window.__mpl_signalr_connection.invoke(...)</c>.
+/// Additional fields can be added as scripts evolve; this stub never throws on
+/// missing members (Jint silently returns undefined).</summary>
+public sealed class SignalRWindowStub
+{
+    public SignalRInvokeMock __mpl_signalr_connection { get; }
+    public SignalRWindowStub(SignalRInvokeMock mock) { __mpl_signalr_connection = mock; }
+}
+
+/// <summary>Records every <c>invoke(method, payload)</c> call made by the
+/// <see cref="MatPlotLibNet.Rendering.Svg.SvgSignalRInteractionScript"/>. Tests
+/// inspect <see cref="Calls"/> to assert which hub methods the client would
+/// have dispatched under a given event sequence.</summary>
+public sealed class SignalRInvokeMock
+{
+    public List<(string Method, object? Payload)> Calls { get; } = new();
+    public void invoke(string method, object? payload) => Calls.Add((method, payload));
 }

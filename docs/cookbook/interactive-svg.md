@@ -15,11 +15,14 @@ Plt.Create()
 ```
 
 Open the SVG in any browser:
-- **Drag** to pan
-- **Scroll** to zoom
-- **Double-click** to reset view
-- **Click legend items** to show/hide series
-- **Hover data points** to see values
+- **Drag** to pan (hold <kbd>x</kbd> / <kbd>y</kbd> to lock an axis — matplotlib `_base.py:format_deltas` parity)
+- **Scroll** to zoom (`0.85^step` per wheel notch — matches matplotlib `NavigationToolbar2.scroll_handler`)
+- **Double-click** or <kbd>Home</kbd> to reset view
+- Arrow keys to nudge pan, <kbd>+</kbd>/<kbd>-</kbd> for keyboard zoom
+- **Click legend items** to show/hide series (<kbd>Enter</kbd>/<kbd>Space</kbd> keyboard-equivalent, WCAG 2.1.1 Level A)
+- **Hover data points** to see tooltips (focus via <kbd>Tab</kbd> for keyboard users — tooltip anchors at element bounds)
+
+See the [Keyboard Shortcuts wiki page](https://github.com/xkqg/MatPlotLibNet/wiki/Keyboard-Shortcuts) for the complete reference.
 
 ## Individual interaction toggles
 
@@ -55,7 +58,12 @@ Plt.Create()
 
 ## Interactive 3D with rotation
 
-Combine browser interaction with 3D rotation:
+Combine browser interaction with 3D rotation. Drag uses matplotlib's canonical
+formula (`dazim/delev = -(dx/w or dy/h) × 180` — full-axes drag = 180°). Wheel
+zoom works on every 3D chart (Phase F.3 of v1.7.2 removed the need for an
+explicit `distance:`). Labels keep their outside-cube perpendicular offset
+under rotation (Phase F.2). Back panes never paint over surface quads — the
+depth-sort is scoped to the `mpl-3d-data` tier group (Phase F).
 
 ```csharp
 Plt.Create()
@@ -66,6 +74,9 @@ Plt.Create()
         .Surface(x, y, z, s => s.ColorMap = ColorMaps.Viridis))
     .Save("interactive_3d.svg");
 ```
+
+Keyboard: arrow keys rotate ±5° (az / el), <kbd>+</kbd>/<kbd>-</kbd> change
+camera distance by 0.5, <kbd>Home</kbd> restores the initial camera state.
 
 ## Server-authoritative interaction (SignalR)
 
@@ -95,6 +106,19 @@ The SVG embeds self-contained JavaScript (no external dependencies):
 | Highlight | Dims sibling series on hover |
 | Selection | Shift+drag draws selection rectangle, fires callback |
 
+## Responsive sizing (v1.7.2 Phase L)
+
+By default the SVG root carries an inline `style="max-width:100%;height:auto"` declaration, so the chart scales fluidly with its container while the `viewBox` preserves aspect ratio. The pixel `width` / `height` attributes stay on the element so `naturalWidth` / `naturalHeight` — relied on by client-side PNG export paths — continue to report the intrinsic pixel size.
+
+If you need byte-identical pre-v1.7.2 SVG output (e.g. pixel-diff test fixtures), opt out:
+
+```csharp
+Plt.Create()
+    .WithResponsiveSvg(false)   // emits fixed pixel width/height with no inline style
+    .Plot(x, y)
+    .Save("fixed.svg");
+```
+
 ## Static vs Interactive
 
 ```csharp
@@ -111,13 +135,14 @@ The interaction scripts add ~3KB to the SVG file size.
 
 | Method | Description |
 |---|---|
-| `.WithBrowserInteraction()` | Enable all client-side interactions (pan, zoom, tooltips, legend toggle) |
-| `.WithZoomPan()` | Drag to pan, scroll to zoom |
-| `.WithRichTooltips()` | Styled HTML tooltips on hover |
-| `.WithLegendToggle()` | Click legend entries to toggle series visibility |
-| `.WithHighlight()` | Dim sibling series on hover |
-| `.WithSelection()` | Shift+drag rectangular data selection |
-| `.With3DRotation()` | Mouse/keyboard rotation for 3D charts |
-| `.WithTreemapDrilldown()` | Click-to-drill-down on treemaps |
-| `.WithSankeyHover()` | Node hover emphasis for Sankey diagrams |
-| `.WithServerInteraction(id, cfg)` | Bidirectional SignalR interaction |
+| `.WithBrowserInteraction()` | Enable all client-side interactions (pan, zoom, tooltips, legend toggle, 3D rotate, treemap drilldown, sankey hover) |
+| `.WithZoomPan()` | Drag to pan, scroll to zoom, `x`/`y` axis-lock modifiers, keyboard `+`/`-`/arrows/Home |
+| `.WithRichTooltips()` | Styled HTML tooltips on hover + focus (ARIA `role="tooltip"`, `aria-live="polite"`) |
+| `.WithLegendToggle()` | Click legend entries (or `Enter`/`Space` for keyboard) to toggle series visibility |
+| `.WithHighlight()` | Dim sibling series on hover; opacity themable via `WithInteractionTheme`; original opacity preserved across hover cycles |
+| `.WithSelection()` | Shift+drag rectangular data selection; `Escape` cancels without dispatching |
+| `.With3DRotation()` | Drag to rotate (matplotlib parity), arrow keys ±5°, `+`/`-` distance, wheel zoom, `Home` reset |
+| `.WithTreemapDrilldown()` | Click-to-drill (animated `viewBox` slide, duration via `InteractionTheme.TreemapTransitionMs`), `Escape` to pop stack |
+| `.WithSankeyHover()` | Node hover emphasises upstream + downstream flow (ECharts `focus: adjacency` parity), keyboard via `Tab` |
+| `.WithInteractionTheme(theme)` | Themable opacity / transition tokens (highlight opacity, sankey dim opacities, treemap transition ms, tooltip offset) |
+| `.WithServerInteraction(id, cfg)` | Bidirectional SignalR interaction (hub methods `OnZoom` / `OnPan` / `OnReset` / `OnLegendToggle` / `OnBrushSelect` / `OnHover`) |

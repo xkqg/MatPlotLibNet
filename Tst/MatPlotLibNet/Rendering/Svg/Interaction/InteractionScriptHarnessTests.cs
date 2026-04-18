@@ -63,4 +63,27 @@ public class InteractionScriptHarnessTests
         Assert.Equal("button", h.GetAttribute("[data-legend-index='0']", "role"));
         Assert.Equal("false", h.GetAttribute("[data-legend-index='0']", "aria-pressed"));
     }
+
+    /// <summary>Phase G.3 of v1.7.2 follow-on — ARIA-button keyboard parity
+    /// (WCAG 2.1 AA: Enter and Space must trigger the same action as click on
+    /// any element with <c>role="button"</c>). Pins the <c>keydown</c> branch
+    /// in <see cref="MatPlotLibNet.Rendering.Svg.SvgLegendToggleScript"/>.</summary>
+    [Theory]
+    [InlineData("Enter")]
+    [InlineData(" ")]
+    public void LegendToggle_EnterOrSpaceKey_HidesMatchingSeries(string key)
+    {
+        using var h = InteractionScriptHarness.FromBuilder(b => b
+            .WithLegendToggle()
+            .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A")
+            .Plot([1.0, 2.0], [5.0, 6.0], s => s.Label = "B"));
+
+        Assert.Null(h.GetStyle("[data-series-index='0']", "display"));
+
+        h.Simulate("[data-legend-index='0']", "keydown", e => { e.key = key; });
+
+        Assert.Equal("none", h.GetStyle("[data-series-index='0']", "display"));
+        Assert.Equal("true", h.GetAttribute("[data-legend-index='0']", "aria-pressed"));
+        Assert.NotEqual("none", h.GetStyle("[data-series-index='1']", "display"));
+    }
 }

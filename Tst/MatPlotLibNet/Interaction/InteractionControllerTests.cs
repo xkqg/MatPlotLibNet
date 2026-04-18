@@ -45,6 +45,39 @@ public class InteractionControllerTests
         Assert.Equal(10, figure.SubPlots[0].XAxis.Max);
     }
 
+    // ── crosshair (passive) ───────────────────────────────────────────────────
+    //
+    // Phase H.3 of v1.7.2 follow-on plan — CrosshairModifier used to be dead code
+    // (defined + unit-tested but never instantiated by the controller). These
+    // tests pin its wire-up: ActiveCrosshair is null at rest, populated during
+    // hover over the plot area, and reset to null when the cursor leaves.
+
+    [Fact]
+    public void ActiveCrosshair_NullAtRest_NonNullOnHoverInsidePlot()
+    {
+        var (ctrl, _, _) = MakeLocal();
+
+        Assert.Null(ctrl.ActiveCrosshair);
+
+        ctrl.HandlePointerMoved(new PointerInputArgs(60, 35, PointerButton.None, ModifierKeys.None));
+        Assert.NotNull(ctrl.ActiveCrosshair);
+        Assert.Equal(60, ctrl.ActiveCrosshair!.Value.PixelX);
+        Assert.Equal(35, ctrl.ActiveCrosshair.Value.PixelY);
+    }
+
+    [Fact]
+    public void ActiveCrosshair_Null_OnHoverOutsidePlot()
+    {
+        var (ctrl, _, _) = MakeLocal();
+        // First move inside — populate state.
+        ctrl.HandlePointerMoved(new PointerInputArgs(60, 35, PointerButton.None, ModifierKeys.None));
+        Assert.NotNull(ctrl.ActiveCrosshair);
+
+        // Now move outside the 10,10,100,50 plot rect → state clears.
+        ctrl.HandlePointerMoved(new PointerInputArgs(200, 200, PointerButton.None, ModifierKeys.None));
+        Assert.Null(ctrl.ActiveCrosshair);
+    }
+
     // ── drag → pan ─────────────────────────────────────────────────────────────
 
     [Fact]

@@ -44,6 +44,17 @@ public sealed class InteractionController : IInteractionController
     /// <inheritdoc />
     public HoverTooltipContent? ActiveTooltip => _activeTooltip;
 
+    /// <inheritdoc />
+    public CrosshairState? ActiveCrosshair
+    {
+        get
+        {
+            foreach (var m in _modifiers)
+                if (m is CrosshairModifier cm) return cm.ActiveCrosshair;
+            return null;
+        }
+    }
+
     private InteractionController(
         Figure figure,
         IChartLayout layout,
@@ -105,6 +116,12 @@ public sealed class InteractionController : IInteractionController
     /// <inheritdoc />
     public void HandlePointerMoved(PointerInputArgs args)
     {
+        // Phase H.3 of v1.7.2 follow-on plan — crosshair is passive and runs on every
+        // move regardless of which drag modifier (if any) is active. Kept in a dedicated
+        // pre-loop so any future modifier ordering changes don't silently drop it.
+        foreach (var m in _modifiers)
+            if (m is CrosshairModifier cm) cm.UpdatePosition(args.X, args.Y);
+
         // Active drag modifier gets priority; hover modifier always processes moves.
         _activeModifier?.OnPointerMoved(args);
 
@@ -210,8 +227,19 @@ public sealed class InteractionController : IInteractionController
             new RectangleZoomModifier(chartId, layout, sink),
             new BrushSelectModifier(chartId, layout, sink),
             new SpanSelectModifier(chartId, layout, sink),
+            // Phase H.4 of v1.7.2 follow-on plan — DataCursor claims plain left-click
+            // only when the cursor is within 10 px of an actual data point (via
+            // NearestPointFinder). Placed before PanModifier so hit-test wins; when
+            // the click misses, HandlesPointerPressed returns false and Pan takes over.
+            new DataCursorModifier(chartId, layout, figure, sink),
             new PanModifier(chartId, layout, sink),
             new ZoomModifier(chartId, layout, sink),
+            // Phase H.3 of v1.7.2 follow-on plan — Crosshair is passive (no
+            // HandlesPointerPressed), runs alongside all other modifiers.
+            // Controller calls CrosshairModifier.UpdatePosition in
+            // HandlePointerMoved to keep the state fresh without claiming the
+            // event for itself.
+            new CrosshairModifier(layout),
             new HoverModifier(chartId, layout, sink),
         ];
     }

@@ -101,6 +101,24 @@ public sealed class AxesBuilder
     /// Equivalent to <c>SetXMargin(0).SetYMargin(0)</c>.</summary>
     public AxesBuilder WithTightMargins() { _axes.XAxis.Margin = 0; _axes.YAxis.Margin = 0; return this; }
 
+    /// <summary>Rotates X-axis tick labels by <paramref name="degrees"/>. Matches matplotlib's
+    /// <c>ax.tick_params(axis='x', labelrotation=...)</c>. Pass 0 to restore horizontal labels
+    /// — at 0 the renderer auto-rotates to 30° if adjacent labels would overlap
+    /// (<c>Figure.autofmt_xdate</c> parity).</summary>
+    public AxesBuilder WithXTickLabelRotation(double degrees)
+    {
+        _axes.XAxis.MajorTicks = _axes.XAxis.MajorTicks with { LabelRotation = degrees };
+        return this;
+    }
+
+    /// <summary>Rotates Y-axis tick labels by <paramref name="degrees"/>. Matches matplotlib's
+    /// <c>ax.tick_params(axis='y', labelrotation=...)</c>.</summary>
+    public AxesBuilder WithYTickLabelRotation(double degrees)
+    {
+        _axes.YAxis.MajorTicks = _axes.YAxis.MajorTicks with { LabelRotation = degrees };
+        return this;
+    }
+
     /// <summary>Mirrors Y-axis ticks and labels on both left and right spines.
     /// Useful for wide figures where reading the Y scale from the right side is more convenient.</summary>
     public AxesBuilder WithYTicksMirrored()
@@ -394,12 +412,23 @@ public sealed class AxesBuilder
     /// <summary>Sets the bar mode (grouped or stacked) for multiple bar series.</summary>
     public AxesBuilder SetBarMode(BarMode mode) { _axes.BarMode = mode; return this; }
 
-    /// <summary>Sets the colormap on the last heatmap/contour/surface series by name (resolved from <see cref="Styling.ColorMaps.ColorMapRegistry"/>).</summary>
+    /// <summary>Sets the colormap on the last heatmap/contour/surface series by name (resolved
+    /// from <see cref="Styling.ColorMaps.ColorMapRegistry"/>).
+    /// <para>Throws <see cref="ArgumentException"/> if <paramref name="name"/> is not a
+    /// registered colormap name — surfacing typos or renamed colormaps instead of silently
+    /// falling back to the renderer default (Phase L.9 of the v1.7.2 plan). If you want a
+    /// defensive lookup that returns the builder unchanged on unknown names, call
+    /// <see cref="Styling.ColorMaps.ColorMapRegistry.Get"/> yourself and invoke the
+    /// <see cref="WithColorMap(Styling.ColorMaps.IColorMap)"/> overload conditionally.</para></summary>
+    /// <exception cref="ArgumentException">When <paramref name="name"/> is not registered.</exception>
     public AxesBuilder WithColorMap(string name)
     {
-        var map = Styling.ColorMaps.ColorMapRegistry.Get(name);
-        if (map is not null) return WithColorMap(map);
-        return this;
+        var map = Styling.ColorMaps.ColorMapRegistry.Get(name)
+            ?? throw new ArgumentException(
+                $"Unknown colormap '{name}'. Registered colormaps: " +
+                string.Join(", ", Styling.ColorMaps.ColorMapRegistry.Names),
+                nameof(name));
+        return WithColorMap(map);
     }
 
     /// <summary>Sets the colormap on the last colormappable series (heatmap, image, histogram2d, contour, surface, scatter, hierarchical).</summary>

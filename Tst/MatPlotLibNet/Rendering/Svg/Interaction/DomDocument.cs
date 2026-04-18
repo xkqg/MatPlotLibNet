@@ -78,6 +78,32 @@ public sealed class DomDocument
 
     public DomElement createElementNS(string ns, string tag) =>
         Wrap(new XElement(XName.Get(tag, ns)));
+
+    /// <summary>Mirrors DOM <c>document.addEventListener</c>. Some scripts attach
+    /// document-level keyboard listeners (e.g. the Treemap drilldown's global
+    /// Escape handler). The harness stores them and exposes
+    /// <see cref="FireDocumentEvent"/> so tests can dispatch.</summary>
+    private readonly Dictionary<string, List<Action<DomEvent>>> _docListeners = new();
+    public void addEventListener(string type, Action<DomEvent> handler, object? _ = null)
+    {
+        if (!_docListeners.TryGetValue(type, out var list))
+        {
+            list = new List<Action<DomEvent>>();
+            _docListeners[type] = list;
+        }
+        list.Add(handler);
+    }
+    public void removeEventListener(string type, Action<DomEvent> handler)
+    {
+        if (_docListeners.TryGetValue(type, out var list)) list.Remove(handler);
+    }
+    /// <summary>Test-side — fires a synthetic event on document-level listeners
+    /// (e.g. the Treemap script's global <c>document.addEventListener('keydown', …)</c>).</summary>
+    public void FireDocumentEvent(DomEvent ev)
+    {
+        if (_docListeners.TryGetValue(ev.type, out var list))
+            foreach (var h in list.ToArray()) h(ev);
+    }
 }
 
 /// <summary>CSS-selector → XElement matcher. Supports the subset the embedded scripts use:
@@ -152,10 +178,20 @@ internal static class DomSelector
             tagPart = "*";
         }
 
-        // Strip class selector (.foo) from the end if present
+        // Strip class selector (.foo) from the end if present.
+        // A dot is ONLY a class separator when it appears at the TOP level (not inside
+        // `[...]` brackets — e.g. `rect[data-treemap-node='0.0']` must NOT split at the
+        // inner dot). Walk right-to-left tracking bracket depth; first dot at depth 0
+        // is the class separator. If no top-level dot exists, there's no class selector.
         string? classNeeded = null;
-        var dotIdx = tagPart.LastIndexOf('.');
-        if (dotIdx >= 0 && !tagPart[..dotIdx].Contains(']'))
+        int dotIdx = -1, depth2 = 0;
+        for (int i = tagPart.Length - 1; i >= 0; i--)
+        {
+            if (tagPart[i] == ']') depth2++;
+            else if (tagPart[i] == '[') depth2--;
+            else if (tagPart[i] == '.' && depth2 == 0) { dotIdx = i; break; }
+        }
+        if (dotIdx >= 0)
         {
             classNeeded = tagPart[(dotIdx + 1)..];
             tagPart = tagPart[..dotIdx];

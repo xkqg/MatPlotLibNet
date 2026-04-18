@@ -112,7 +112,8 @@ public readonly record struct Range1D(double Lo, double Hi)
         Axis axis, Range1D unpadded, bool hasSticky, AutoLocator locator)
     {
         if (hasSticky || axis.Min.HasValue || axis.Max.HasValue
-            || axis.TickLocator is not null || unpadded.Hi <= unpadded.Lo)
+            || axis.TickLocator is not null || unpadded.Hi <= unpadded.Lo
+            || axis.Margin == 0)
             return this;
         var (nLo, nHi) = locator.ExpandToNiceBounds(unpadded.Lo, unpadded.Hi);
         return new(Math.Min(Lo, nLo), Math.Max(Hi, nHi));

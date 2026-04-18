@@ -32,6 +32,12 @@ public interface IInteractionController
     /// show a platform tooltip.</summary>
     HoverTooltipContent? ActiveTooltip { get; }
 
+    /// <summary>Returns the current crosshair state (pixel + data-space position on the
+    /// hovered axes), or <c>null</c> when the cursor is outside every plot area. Passive —
+    /// set by the crosshair modifier on every <see cref="HandlePointerMoved"/>. Phase H.3
+    /// of v1.7.2 follow-on plan wired up this previously-dead modifier.</summary>
+    CrosshairState? ActiveCrosshair { get; }
+
     /// <summary>Rebuilds the layout snapshot from the current figure state.
     /// Call after each render so modifiers have fresh axis limits and plot areas.</summary>
     void UpdateLayout(IChartLayout layout);

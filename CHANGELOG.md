@@ -6,7 +6,66 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.7.2] — 2026-04-18
 
+### Fixed — Phase L follow-on (responsive SVG, playground polish, tick rotation, contour colormap, interaction regression)
+
+> Seven user-reported defects + one tight-margins bug, all diagnosed read-only and fixed with TDD red→green.
+>
+> - **L.1 / L.2 — Responsive SVG by default.** SVG root now carries inline `style="max-width:100%;height:auto"` so the chart resizes fluidly with its container while the `viewBox` preserves aspect. Pixel `width` / `height` attributes stay on the element (preserves `naturalWidth` for client-side PNG export). Opt out with `FigureBuilder.WithResponsiveSvg(false)` for byte-identical pre-v1.7.2 SVG output. Seven new tests in `ResponsiveSvgTests.cs`.
+> - **L.5 — Playground Width/Height sliders removed.** Now redundant with responsive SVG — chart fills its pane automatically. Intrinsic natural aspect changed to 800 × 450 (16:9 widescreen). `PlaygroundOptions.Width` / `.Height` still drive the `viewBox` + the copyable `.WithSize(...)` code snippet.
+> - **L.6 — Scatter Plot marker controls now work.** Pre-fix `BuildScatter` resolved `opts.ResolvedMarker` but never assigned it to the series; dropdown + size slider had no visible effect. Fixed by setting `s.Marker` / `s.MarkerSize` directly. Also split `SupportsLineControls` from a new `SupportsMarkerControls` predicate so Scatter hides the irrelevant line-style / line-width controls. 4 new tests.
+> - **L.7 — Browser-interactive preview regression.** Playground handed bare SVG to `<iframe srcdoc="…">`, which parses as SVG-in-HTML where inline scripts don't execute reliably. Introduced `SvgIframeWrapper.WrapForIframe(svg)` to wrap the payload in a self-contained `<!DOCTYPE html><html><body>{svg}</body></html>` document so the embedded pan/zoom/tooltip/rotate/selection scripts run. 5 new tests in `SvgIframeWrapperTests.cs`.
+> - **L.8 — Tick label rotation (manual API + auto-rotate on overlap).** New `TickConfig.LabelRotation` property + `AxesBuilder.WithXTickLabelRotation(double)` / `WithYTickLabelRotation(double)`. When no manual rotation is set AND adjacent X-tick labels would overlap (measured via `Ctx.MeasureText`), the renderer auto-rotates to 30° (matplotlib `Figure.autofmt_xdate` parity). Fixes the Candlestick playground where 31 daily labels rendered as garbled overlapping text. 9 new tests in `TickLabelRotationTests.cs`.
+> - **L.9 — Contour colormap routing + registry strict-mode.** Playground's Contour Plot now sets `s.ColorMap` directly inside the series lambda instead of relying on `AxesBuilder.WithColorMap(string)`'s "last series" heuristic. `AxesBuilder.WithColorMap(string)` now **throws** `ArgumentException` (with a list of registered names) on unknown colormap names — previously it silently no-op'd, masking typos and letting the renderer fall back to Viridis. 13 new tests verifying all nine playground colormaps produce distinct SVG output + strict-mode throws.
+> - **L.11 — `WithTightMargins()` now actually makes data touch the spines.** Previously `Range1D.ExpandedToNiceBoundsIfAuto` still widened the axis range to the next "nice" tick boundary even when `Margin == 0`, contradicting the playground checkbox label "Tight margins (data touches spines)". Added `axis.Margin == 0` to the guard clause so tight-margin callers get the exact data range. 3 new tests.
+
 **Browser-interaction subsystem hardened end-to-end (13-phase TDD plan + matplotlib-parity follow-on), bug fixes, coverage uplift, CI hardening.** Continuation of the v1.7.1 stabilisation track. Headline interaction fixes: 2D scroll-wheel zoom now actually zooms (was passive-listener silently scrolling page); 3D rotation moves the entire scene, not just data polygons (axes / grid / panes / tick marks / tick labels all carry `data-v3d` and live inside the scene group); 3D scroll-wheel zoom + Home-key full reset added; pointer events + pinch-to-zoom for touch parity across every interaction script; per-chart isolation via `currentScript.parentNode` self-locating (eight scripts that previously cross-talked between charts on one page); themable opacity / transition tokens via `WithInteractionTheme`; URL-hash state persistence (opt-in); 3D lighting recomputation hooks emitted under rotation; original-opacity preservation across hover cycles; treemap "Press Esc to zoom out" hint when drilled; tooltip focus position uses element bounds. Plus the v1.7.1-track work: two earlier bug fixes (`WithBrowserInteraction` 3D + Theme Comparison cookbook), 6-batch coverage uplift (+1 192 tests), Phase-9 dedup (-101 tests folded into Theory). All 9 test projects green, all 13 NuGet packages bumped to 1.7.2. **5 510 tests green**.
+
+### Fixed — interaction closure across all layers (Phases F.2–J)
+
+> **Summary.** After Phase F (3D depth-sort tier isolation), a full audit
+> uncovered gaps across all eight layers the library exposes (browser SVG,
+> managed controller, native controls, web/server). This closure pass
+> lands phases F.2 through J with strict TDD red→green discipline,
+> matplotlib parity as the contract, and coverage gate green throughout.
+>
+> - **F.2 — Tick-label + axis-title perpendicular-pad preservation.** Pre-fix
+>   JS reproject dropped the `tickLength + pad + 14 px` perpendicular
+>   offset; labels snapped onto the axis edge on every drag. Server now
+>   emits `data-v3d-edge` + `data-pad`; JS rebuilds the 2D perp per frame
+>   from projected axis edge + plot centre, honouring the rotation. 5-camera
+>   Theory in `ThreeDTickLabelOffsetTests`.
+> - **F.3 — 3D wheel-zoom works for every chart.** Server `Projection3D`
+>   always runs perspective with `dist=10` when caller doesn't set one,
+>   but only emitted `data-distance` for explicit-distance figures, and
+>   JS bailed on `if (distance === null) return;`. Fixed: server always
+>   emits `data-distance` (10 when null); JS defaults to 10; wheel no
+>   longer bails. Covered by `ThreeDWheelZoomTests`.
+> - **G.1 — 2D keyboard + reset.** `+`/`=`/`-`/Arrows/Home + double-click.
+> - **G.2 — 3D keyboard + reset.** Arrows (±5°), `+`/`-` (distance ±0.5), Home (restore initial).
+> - **G.3 — Legend Enter/Space.** WCAG 2.1.1 Level A parity via ARIA button keyboard activation.
+> - **G.4 — Rich tooltip behavioural tests.** Hover/focus/mouseout + Phase-12 focus bounds positioning.
+> - **G.5 — Selection brush + Esc cancel.** Shift+drag CustomEvent dispatch + Escape-cancel (no event).
+> - **G.6 — Sliding treemap transition (themable).** Animation respects `InteractionTheme.TreemapTransitionMs` (bug fix — script hard-coded 350 ms). 5-Fact pin: click-drill / Esc-pop / hint-toggle / themable transition / keyboard activation.
+> - **G.7 — Sankey hover.** Closed from zero coverage: new Playground "Sankey Flow" example; new `SvgSankeyHoverTests.cs` (5 static) + `SankeyHoverTests.cs` (4 Jint) covering BFS traversal, focus parity, opacity restore. Also fixed a **SvgRenderContext leak bug** where `DrawPath` / `DrawPathWithGradientFill` didn't call `FlushPendingData`, causing `data-sankey-*` attrs to stack onto later elements.
+> - **G.8 — SignalR invoke-mock harness.** New `WireSignalRMock()` on the harness records every `invoke(method, payload)` call; 5-Fact coverage of OnZoom / OnPan / OnReset / OnLegendToggle + bail-safety. Fixed server bug: `data-xmin/xmax/ymin/ymax` + reset counterparts are now always emitted for ServerInteraction figures (pre-fix the SignalR script silently bailed on `if (!isFinite(xMin)) return`). Fixed SignalR legend-click handler to accept `data-legend-index` (pre-fix only matched `data-series-index`).
+> - **G.9 — Cursor visibility Theory.** Pins `grab`/`grabbing`/`pointer` feedback on every interactive element.
+> - **G.10 — Wiki Keyboard-Shortcuts page.** Single reference table per script + matplotlib parity notes + accessibility section.
+> - **H.1 — RectangleZoomModifier state tests.** 11 Facts: hit-test / lifecycle / normalised bounds / reverse-drag / tiny-drag suppression / no-ops.
+> - **H.2 — SpanSelectModifier state tests.** 8 Facts: Alt+drag lifecycle / normalised X-range / reverse-drag / tiny-drag suppression.
+> - **H.3 — CrosshairModifier wired up.** Previously dead code: defined + unit-tested but NEVER instantiated by the controller. H.3 added it to `BuildModifiers()` + wired `CrosshairModifier.UpdatePosition` into `HandlePointerMoved`. `IInteractionController.ActiveCrosshair` property added. Two new controller-integration tests pin the passive contract (non-null when cursor is in plot, null outside).
+> - **H.4 — DataCursorModifier implemented.** Previously orphan: toolbar "cursor" button + `DataCursorEvent` + `PinnedAnnotation` records existed, but no modifier implemented the click handler. H.4 added `DataCursorModifier.cs` (plain left-click within 10 px of a data point via `NearestPointFinder` → emits `DataCursorEvent`; else defers to Pan). 6-Fact behavioural coverage.
+> - **I.2 — Avalonia input-adapter Theory.** 10-row Theory over Avalonia `KeyModifiers` combinations → platform-neutral `ModifierKeys` mapping via reflection (adapter is internal). Plus Key-name round-trip.
+> - **I.1 / I.3 / I.4 — DEFERRED** (honest scope admission): creating `Tst/MatPlotLibNet.Wpf/`, promoting Uno + MAUI from property-only tests to behavioural round-trips each needs dedicated harness work (Windows CI matrix, Uno pointer mocks, MAUI Graphics scaffolding) — 4–8 h each on its own. Carried forward to a follow-on session. README's historical "54 WPF tests" claim is confirmed untrue against the current repo state.
+> - **J.1 — MplLiveChart subscription lifecycle.** Added `Client` DI parameter to the Blazor component so tests can inject a mock `IChartSubscriptionClient`. 5 bUnit tests: ConnectAsync + SubscribeAsync on render / matching-chart SVG push re-renders / non-matching chart ignored / initial figure renders pre-subscription / DisposeAsync disposes the client.
+> - **J.2 — DEFERRED** (honest scope admission): `InteractiveFigure.AnimateAsync` integration tests require decoupling `ChartServer.Instance` singleton into an `IChartPublisher` dependency. `AnimationController.PlayAsync` itself is already unit-tested; the SignalR-push integration is the remaining gap.
+> - **J.3 — GraphQL subscription topic-bus.** In-memory HotChocolate subscription provider + `ChartEventSender` → `ITopicEventReceiver` round-trip. 3 integration tests: SVG topic delivery / JSON topic delivery / cross-chart topic isolation.
+> - **K — Interaction benchmarks.** `Tst/MatPlotLibNet/Benchmarks/InteractionBenchmarks.cs` measures 3D drag reproject (**24 ms/drag** on 20×20 surface = 400 quads), 2D wheel-zoom (**40 µs/event**), Sankey hover BFS (**600 µs/cycle** on 20 nodes × 75 links), harness cold-start (**47 ms/figure**). All within budget.
+
+**Total**: +350 tests (5253 → 5594 across 9 projects); 4 new interaction
+benchmarks; browser SVG layer fully closed; managed controller layer
+complete (no more dead code); server-side SignalR + GraphQL subscription
+wiring verified; native-control + AnimateAsync deferred to next session
+with explicit CHANGELOG notes.
 
 ### Fixed — matplotlib-parity follow-on (Phases A–C + Phase F)
 

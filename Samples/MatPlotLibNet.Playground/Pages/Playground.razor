@@ -58,15 +58,11 @@
             </select>
         </div>
 
-        <div class="param-group">
-            <label>Width: @_width px</label>
-            <input type="range" min="400" max="1200" step="50" @bind="_width" @bind:event="oninput" @bind:after="Rebuild" />
-        </div>
-
-        <div class="param-group">
-            <label>Height: @_height px</label>
-            <input type="range" min="300" max="900" step="50" @bind="_height" @bind:event="oninput" @bind:after="Rebuild" />
-        </div>
+        @* Phase L.5 — Width/Height sliders removed. The SVG is responsive by
+           default (Phase L.2: style="max-width:100%;height:auto"), so the chart
+           fills the preview pane automatically and resizing the window resizes
+           the chart. The intrinsic natural aspect stays 16:9 (800×450) for the
+           viewBox and the copyable code snippet's .WithSize(...). *@
 
         <div class="param-group">
             <label>
@@ -79,10 +75,12 @@
                 <input type="checkbox" @bind="_browserInteraction" @bind:after="Rebuild" /> Browser-interactive (pan/zoom/tooltips)
             </label>
             <div class="hint">
-                <strong>2D charts:</strong> scroll to zoom, drag to pan, double-click to reset.<br/>
-                <strong>3D charts:</strong> drag to rotate, scroll to zoom camera distance, <kbd>Home</kbd> to reset.<br/>
+                <strong>2D charts:</strong> scroll to zoom, drag to pan, double-click or <kbd>Home</kbd> to reset. Hold <kbd>x</kbd> / <kbd>y</kbd> while dragging to lock the pan axis.<br/>
+                <strong>3D charts:</strong> drag to rotate (full-axes drag = 180°, matplotlib parity), scroll to zoom camera distance, arrow keys for ±5° rotation, <kbd>+</kbd>/<kbd>-</kbd> for distance, <kbd>Home</kbd> to reset.<br/>
+                <strong>Treemap:</strong> click a tile to drill (animated sliding zoom), <kbd>Esc</kbd> to pop back.<br/>
+                <strong>Sankey:</strong> hover a node to emphasise its upstream + downstream flow (<kbd>Tab</kbd> for keyboard focus).<br/>
                 <strong>Touch:</strong> pinch-to-zoom on 2D, drag to rotate on 3D.<br/>
-                <em>Open in a new tab for the full experience.</em>
+                <em>Open in a new tab for the full experience. Full keyboard reference in the <a href="https://github.com/xkqg/MatPlotLibNet/wiki/Keyboard-Shortcuts">wiki</a>.</em>
             </div>
         </div>
 
@@ -118,45 +116,52 @@
             </label>
         </div>
 
-        @if (PlaygroundExamples.SupportsLineControls(_selectedExample))
+        @if (PlaygroundExamples.SupportsLineControls(_selectedExample) || PlaygroundExamples.SupportsMarkerControls(_selectedExample))
         {
             <div class="section-title">Series</div>
 
-            <div class="param-group">
-                <label>Line style</label>
-                <select @bind="_lineStyle" @bind:after="Rebuild">
-                    <option>Solid</option>
-                    <option>Dashed</option>
-                    <option>Dotted</option>
-                    <option>DashDot</option>
-                </select>
-            </div>
-
-            <div class="param-group">
-                <label>Line width: @_lineWidth</label>
-                <input type="range" min="0.5" max="5" step="0.5" @bind="_lineWidth" @bind:event="oninput" @bind:after="Rebuild" />
-            </div>
-
-            <div class="param-group">
-                <label>Marker</label>
-                <select @bind="_markerStyle" @bind:after="Rebuild">
-                    <option>None</option>
-                    <option>Circle</option>
-                    <option>Square</option>
-                    <option>Triangle</option>
-                    <option>Diamond</option>
-                    <option>Star</option>
-                    <option>Cross</option>
-                    <option>Plus</option>
-                </select>
-            </div>
-
-            @if (_markerStyle != "None")
+            @if (PlaygroundExamples.SupportsLineControls(_selectedExample))
             {
                 <div class="param-group">
-                    <label>Marker size: @_markerSize</label>
-                    <input type="range" min="2" max="16" step="1" @bind="_markerSize" @bind:event="oninput" @bind:after="Rebuild" />
+                    <label>Line style</label>
+                    <select @bind="_lineStyle" @bind:after="Rebuild">
+                        <option>Solid</option>
+                        <option>Dashed</option>
+                        <option>Dotted</option>
+                        <option>DashDot</option>
+                    </select>
                 </div>
+
+                <div class="param-group">
+                    <label>Line width: @_lineWidth</label>
+                    <input type="range" min="0.5" max="5" step="0.5" @bind="_lineWidth" @bind:event="oninput" @bind:after="Rebuild" />
+                </div>
+            }
+
+            @if (PlaygroundExamples.SupportsMarkerControls(_selectedExample))
+            {
+                var isScatter = _selectedExample == "Scatter Plot";
+                <div class="param-group">
+                    <label>Marker</label>
+                    <select @bind="_markerStyle" @bind:after="Rebuild">
+                        @if (!isScatter) { <option>None</option> }
+                        <option>Circle</option>
+                        <option>Square</option>
+                        <option>Triangle</option>
+                        <option>Diamond</option>
+                        <option>Star</option>
+                        <option>Cross</option>
+                        <option>Plus</option>
+                    </select>
+                </div>
+
+                @if (isScatter || _markerStyle != "None")
+                {
+                    <div class="param-group">
+                        <label>Marker size: @_markerSize</label>
+                        <input type="range" min="2" max="16" step="1" @bind="_markerSize" @bind:event="oninput" @bind:after="Rebuild" />
+                    </div>
+                }
             }
         }
 
@@ -209,7 +214,7 @@
         @if (_browserInteraction)
         {
             <div class="chart-preview">
-                <iframe class="interactive-frame" srcdoc="@_svg" title="Interactive chart preview"></iframe>
+                <iframe class="interactive-frame" srcdoc="@SvgIframeWrapper.WrapForIframe(_svg)" title="Interactive chart preview"></iframe>
             </div>
         }
         else
@@ -222,11 +227,15 @@
 </div>
 
 @code {
+    // Phase L.5: the Width/Height sliders were removed — the SVG is responsive so
+    // the chart fills whatever pane it lives in. These constants drive only the
+    // intrinsic viewBox aspect + the `.WithSize(...)` line in the code snippet.
+    private const int IntrinsicWidth  = 800;
+    private const int IntrinsicHeight = 450;
+
     private string _selectedExample = "Line Chart";
     private string _title           = "Line Chart";
     private string _themeName       = "Default";
-    private int    _width           = 800;
-    private int    _height          = 500;
     private bool   _tightLayout;
     private bool   _browserInteraction;
     private bool   _showLegend      = true;
@@ -250,8 +259,8 @@
     {
         Title              = _title,
         ThemeName          = _themeName,
-        Width              = _width,
-        Height             = _height,
+        Width              = IntrinsicWidth,
+        Height             = IntrinsicHeight,
         TightLayout        = _tightLayout,
         BrowserInteraction = _browserInteraction,
         ShowLegend         = _showLegend,

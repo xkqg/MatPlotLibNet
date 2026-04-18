@@ -80,6 +80,16 @@ public sealed class Figure
     /// <c>FigureBuilder.WithInteractionTheme</c>.</summary>
     public InteractionTheme InteractionTheme { get; set; } = InteractionTheme.Default;
 
+    /// <summary>When <see langword="true"/> (default) the SVG root element carries an
+    /// inline <c>style="max-width:100%;height:auto"</c> declaration so the chart resizes
+    /// fluidly with its container while the <c>viewBox</c> preserves aspect ratio. The
+    /// pixel <c>width</c> / <c>height</c> attributes stay on the element so
+    /// <c>naturalWidth</c> / <c>naturalHeight</c> (needed for client-side PNG export)
+    /// remain accurate.
+    /// <para>Set to <see langword="false"/> for byte-identical pre-v1.7.2 SVG output —
+    /// e.g., test fixtures that pixel-diff the SVG string.</para></summary>
+    public bool ResponsiveSvg { get; set; } = true;
+
     /// <summary>Gets the collection of subplot axes contained in this figure.</summary>
     public IReadOnlyList<Axes> SubPlots => _subPlots;
     private readonly List<Axes> _subPlots = [];

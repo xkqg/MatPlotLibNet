@@ -162,6 +162,14 @@ public sealed class FigureBuilder
     public FigureBuilder WithSelection(bool enabled = true) { _enableSelection = enabled; return this; }
     private bool _enableSelection;
 
+    /// <summary>Controls whether the emitted SVG's root element carries an inline
+    /// <c>style="max-width:100%;height:auto"</c> declaration so the chart resizes
+    /// fluidly with its container. Default is <see langword="true"/>; set to
+    /// <see langword="false"/> for byte-identical pre-v1.7.2 output (e.g. pixel-diff
+    /// fixtures that pin the SVG string).</summary>
+    public FigureBuilder WithResponsiveSvg(bool enabled = true) { _responsiveSvg = enabled; return this; }
+    private bool _responsiveSvg = true;
+
     /// <summary>Convenience that enables ALL browser-side interactions in one call:
     /// <see cref="WithZoomPan"/>, <see cref="WithRichTooltips"/>, <see cref="WithLegendToggle"/>,
     /// <see cref="WithHighlight"/>, <see cref="WithSelection"/>, plus the chart-type-specific
@@ -493,6 +501,7 @@ public sealed class FigureBuilder
             EnableTreemapDrilldown = _enableTreemapDrilldown,
             EnableSankeyHover = _enableSankeyHover,
             InteractionTheme = _interactionTheme,
+            ResponsiveSvg = _responsiveSvg,
             Spacing = _spacing,
             GridSpec = _gridSpec,
             FigureColorBar = _figureColorBar
