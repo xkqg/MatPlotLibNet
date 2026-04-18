@@ -83,7 +83,11 @@ jobs:
 
       - name: Install coverage tools
         run: |
-          dotnet tool install --global coverlet.console
+          # dotnet-coverage is Microsoft's official cross-platform coverage collector
+          # for the Microsoft Testing Platform that xUnit v3 runs on. Replaced
+          # coverlet.console after its 10.0.0 release (2026-04-17) silently captured
+          # zero coverage on Ubuntu runners — see tools/coverage/run.sh header.
+          dotnet tool install --global dotnet-coverage
           dotnet tool install --global dotnet-reportgenerator-globaltool
           # Make global tools visible
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH

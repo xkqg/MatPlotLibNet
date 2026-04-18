@@ -9,8 +9,15 @@
 #
 # Why a custom script?
 # The project uses xunit v3 Exe pattern (dotnet run, not dotnet test) which doesn't
-# auto-trigger coverlet.msbuild. We use coverlet.console + dotnet-reportgenerator
-# (both installed as global tools) and stitch the multiple test assemblies together.
+# auto-trigger coverlet.msbuild. We use Microsoft's `dotnet-coverage` tool (the
+# official cross-platform coverage collector for the Microsoft Testing Platform that
+# xUnit v3 runs on) plus `dotnet-reportgenerator-globaltool` (both installed as
+# global tools) and stitch the multiple test assemblies together.
+#
+# Why not coverlet.console? coverlet.console 10.0.0 (released 2026-04-17) added MTP
+# integration but its attach path silently captures zero coverage on Ubuntu CI runners
+# — tests pass, the cobertura file is generated, but it has zero <class> entries.
+# dotnet-coverage is what xUnit v3 + Microsoft both recommend for v3 projects.
 
 [CmdletBinding()]
 param(
@@ -44,8 +51,10 @@ foreach ($proj in $testProjects) {
     if ($LASTEXITCODE -ne 0) { throw "Build failed: $proj" }
 }
 
-# Coverlet only collects coverage of one assembly per invocation. We run each test
-# project separately and merge the resulting Cobertura files via reportgenerator.
+# dotnet-coverage collects coverage of one process tree per invocation. We run each
+# test project separately and merge the resulting Cobertura files via reportgenerator.
+# Module include/exclude rules live in coverage.runsettings (DRY across run.sh/run.ps1).
+$settings = Join-Path $PSScriptRoot "coverage.runsettings"
 $partialFiles = @()
 foreach ($proj in $testProjects) {
     $projName = [System.IO.Path]::GetFileNameWithoutExtension($proj)
@@ -57,13 +66,10 @@ foreach ($proj in $testProjects) {
     $partial  = Join-Path $outDir "$projName.cobertura.xml"
     Write-Host "==> Coverage: $projName" -ForegroundColor Cyan
 
-    & coverlet $dll `
-        --target "dotnet" --targetargs $dll `
-        --format cobertura --output $partial `
-        --include "[MatPlotLibNet]*" --include "[MatPlotLibNet.Geo]*" `
-        --include "[MatPlotLibNet.Skia]*" --include "[MatPlotLibNet.Playground]*" `
-        --exclude "[*]MatPlotLibNet.Tests.*" --exclude "[xunit*]*" `
-        --exclude "[*]System.Text.RegularExpressions.Generated.*" `
+    & dotnet-coverage collect "dotnet exec $dll" `
+        --settings $settings `
+        --output $partial `
+        --output-format cobertura `
         | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "Coverage collection failed for $projName" }
     $partialFiles += $partial

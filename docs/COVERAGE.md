@@ -27,7 +27,7 @@ Linux/macOS: replace `pwsh tools/coverage/run.ps1` with `bash tools/coverage/run
 
 ## What the gate checks
 
-The script in [`tools/coverage/check-thresholds.ps1`](../tools/coverage/check-thresholds.ps1) reads the merged Cobertura XML produced by `coverlet.console` + `dotnet-reportgenerator-globaltool` (both installed as global .NET tools).
+The script in [`tools/coverage/check-thresholds.ps1`](../tools/coverage/check-thresholds.ps1) reads the merged Cobertura XML produced by `dotnet-coverage` + `dotnet-reportgenerator-globaltool` (both installed as global .NET tools). `dotnet-coverage` is Microsoft's official cross-platform coverage collector for the Microsoft Testing Platform that xUnit v3 runs on; it replaced `coverlet.console` in v1.7.2 after the latter's MTP attach path silently captured zero coverage on Ubuntu CI runners.
 
 **Two modes:**
 

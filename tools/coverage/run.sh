@@ -7,10 +7,13 @@
 #   --check       Run threshold gate after collection
 #   --baseline    Save current run as new baseline
 #
-# Why a wrapper?
-# CI may run on Linux even though local development is Windows. The two scripts MUST
-# stay in lock-step on which projects they cover; if you add a project to one, add it
-# to the other.
+# Why dotnet-coverage instead of coverlet.console?
+# xUnit v3 runs on Microsoft Testing Platform (MTP). coverlet.console 10.0.0
+# (released 2026-04-17) added MTP integration but its attach path silently captures
+# zero coverage on Ubuntu CI runners — tests pass, the cobertura file is generated,
+# but it contains zero <class> entries. Microsoft's own dotnet-coverage tool is
+# designed for MTP and works reliably across Windows/Linux/macOS, which is what xUnit
+# v3 + MTP teams recommend for v3 projects.
 
 set -euo pipefail
 
@@ -31,6 +34,7 @@ done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT_DIR="$REPO_ROOT/out/coverage"
 COBERTURA="$OUT_DIR/coverage.cobertura.xml"
+SETTINGS="$REPO_ROOT/tools/coverage/coverage.runsettings"
 mkdir -p "$OUT_DIR"
 
 TEST_PROJECTS=(
@@ -53,12 +57,10 @@ for proj in "${TEST_PROJECTS[@]}"; do
     [ -f "$DLL" ] || { echo "Skipping $NAME — $DLL not found"; continue; }
     PARTIAL="$OUT_DIR/$NAME.cobertura.xml"
     echo "==> Coverage: $NAME"
-    coverlet "$DLL" \
-        --target "dotnet" --targetargs "$DLL" \
-        --format cobertura --output "$PARTIAL" \
-        --include "[MatPlotLibNet]*" --include "[MatPlotLibNet.Geo]*" \
-        --include "[MatPlotLibNet.Skia]*" --include "[MatPlotLibNet.Playground]*" \
-        --exclude "[*]MatPlotLibNet.Tests.*" --exclude "[xunit*]*"
+    dotnet-coverage collect "dotnet exec $DLL" \
+        --settings "$SETTINGS" \
+        --output "$PARTIAL" \
+        --output-format cobertura
     PARTIALS+=("$PARTIAL")
 done
 
