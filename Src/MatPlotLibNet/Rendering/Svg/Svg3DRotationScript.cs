@@ -102,10 +102,18 @@ internal static class Svg3DRotationScript
                     return sum / pts.length;
                 }
 
+                // Phase F of v1.7.2 follow-on — depth-resort is scoped to the data tier
+                // only. Axis infrastructure (panes, edges, grid, labels, ticks) lives in
+                // separate mpl-3d-back / mpl-3d-front subgroups and stays in fixed DOM
+                // order — matches matplotlib's draw hierarchy (axes3d.py:458-470). Pre-F
+                // the resort mixed panes with series, and back-corner surface quads would
+                // get painted BEFORE the panes then covered by them on rotation.
                 function resortDepth(b) {
-                    var children = Array.from(scene.children).filter(function(c) { return c.hasAttribute('data-v3d'); });
+                    var dataGroup = scene.querySelector('.mpl-3d-data');
+                    if (!dataGroup) return;  // Backward-compat: figures without subgroups skip resort.
+                    var children = Array.from(dataGroup.children).filter(function(c) { return c.hasAttribute('data-v3d'); });
                     children.sort(function(a, b2) { return avgViewZ(a, b) - avgViewZ(b2, b); });
-                    children.forEach(function(c) { scene.appendChild(c); });
+                    children.forEach(function(c) { dataGroup.appendChild(c); });
                 }
 
                 function reprojectAll() {

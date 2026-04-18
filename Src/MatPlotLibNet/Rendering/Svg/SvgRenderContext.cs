@@ -17,6 +17,7 @@ public sealed class SvgRenderContext : IRenderContext
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
     private int _clipId;
     private List<(string Key, string Value)>? _pendingData;
+    private string? _pendingClass;
 
     /// <summary>Returns the accumulated SVG markup as a string.</summary>
     public string GetOutput() => _sb.ToString();
@@ -36,11 +37,22 @@ public sealed class SvgRenderContext : IRenderContext
 
     private void FlushPendingData()
     {
+        if (_pendingClass is not null)
+        {
+            _sb.Append(" class=\"").Append(_pendingClass).Append('"');
+            _pendingClass = null;
+        }
         if (_pendingData is null || _pendingData.Count == 0) return;
         foreach (var (key, value) in _pendingData)
             _sb.Append(" data-").Append(key).Append("=\"").Append(value).Append('"');
         _pendingData.Clear();
     }
+
+    /// <summary>Phase F of v1.7.2 follow-on plan — applies a <c>class</c> attribute
+    /// to the next drawn element. Used by <c>ThreeDAxesRenderer.Render3DPanes</c> to
+    /// tag panes with <c>class="mpl-pane"</c> so the JS depth-sort skips them and the
+    /// behavioural test can assert DOM order.</summary>
+    internal void SetNextElementClass(string className) => _pendingClass = className;
 
     /// <inheritdoc />
     public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style)
@@ -438,6 +450,23 @@ public sealed class SvgRenderContext : IRenderContext
                .Append(" data-light-diffuse=\"").Append(F(light.Diffuse)).Append('"');
         }
         _sb.AppendLine(">");
+    }
+
+    /// <summary>Phase F of v1.7.2 follow-on plan — subgroup wrapper inside the 3D scene
+    /// group. Three tiers mirror matplotlib's draw order (axes3d.py:458-470):
+    /// <c>mpl-3d-back</c> (panes, edges, grid, axis labels), <c>mpl-3d-data</c> (series
+    /// quads; depth-sorted by JS in place), <c>mpl-3d-front</c> (tick marks + labels).
+    /// Keeps axis-infrastructure OUT of the depth-sort pool so panes never paint over
+    /// back-corner surface quads on interactive rotation.</summary>
+    internal void Begin3DSubgroup(string className)
+    {
+        _sb.Append("<g class=\"").Append(className).AppendLine("\">");
+    }
+
+    /// <summary>Closes a subgroup opened by <see cref="Begin3DSubgroup"/>.</summary>
+    internal void End3DSubgroup()
+    {
+        _sb.AppendLine("</g>");
     }
 
     /// <summary>Opens an SVG group for a legend entry with a <c>data-legend-index</c> attribute and optional <c>aria-label</c>.</summary>

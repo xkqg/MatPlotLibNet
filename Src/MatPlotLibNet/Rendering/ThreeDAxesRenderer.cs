@@ -68,13 +68,21 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         // data-v3d attributes and re-project under interactive rotation. Pre-Phase-3
         // these were drawn outside the scene group and stayed static during drag.
         bool sceneGroup = Axes.Emit3DVertexData && Ctx is SvgRenderContext;
+        var svgCtx = Ctx as SvgRenderContext;
         if (sceneGroup)
             // Pass cubeBounds (the square inscribed in the subplot region) — NOT PlotArea —
             // because Projection3D was constructed with cubeBounds, so the JS reproject must
             // use the same rectangle for fit-to-plot. Phase B.4 of v1.7.2 follow-on plan.
-            ((SvgRenderContext)Ctx).Begin3DSceneGroup(
+            svgCtx!.Begin3DSceneGroup(
                 elevation, azimuth, distance, cubeBounds,
                 Axes.LightSource as Rendering.Lighting.DirectionalLight);
+
+        // Phase F of v1.7.2 follow-on plan — three-tier subgroup structure mirrors
+        // matplotlib's draw order (axes3d.py:458-470). Axis infra goes in mpl-3d-back,
+        // series in mpl-3d-data (the only tier the JS depth-resort touches), ticks in
+        // mpl-3d-front. Ensures back panes never paint over back-corner surface quads
+        // when the JS resort runs on interactive rotation.
+        if (sceneGroup) svgCtx!.Begin3DSubgroup("mpl-3d-back");
 
         // Light-grey background panes on the three back-facing cube faces — matches
         // matplotlib's default 3-D "shaded walls" look. Drawn BEFORE grid lines and edges
@@ -139,6 +147,9 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             DrawText3DAt(proj, x1, y1, (z0 + z1) * 0.5, Axes.ZAxis.Label!, new Point(mid.X + perp.X, mid.Y + perp.Y), labelFont, TextAlignment.Center);
         }
 
+        // Phase F of v1.7.2 follow-on — close mpl-3d-back tier, open mpl-3d-data.
+        if (sceneGroup) { svgCtx!.End3DSubgroup(); svgCtx.Begin3DSubgroup("mpl-3d-data"); }
+
         // Render series using unified projection and optional lighting. All 3-D series
         // push their drawable primitives into a shared depth queue instead of drawing
         // immediately; after the loop we flush the queue in one back-to-front sort so
@@ -148,11 +159,14 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         RenderSeries(proj, Axes.LightSource, depthQueue);
         depthQueue.Flush();
 
+        // Phase F — close mpl-3d-data, open mpl-3d-front for ticks.
+        if (sceneGroup) { svgCtx!.End3DSubgroup(); svgCtx.Begin3DSubgroup("mpl-3d-front"); }
+
         // Tick marks + tick labels — drawn LAST so they paint on top of the series.
         // Phase 3 of v1.7.2: now INSIDE the scene group so they reproject under rotation.
         Render3DAxisTicks(proj, x0, x1, y0, y1, z0, z1);
 
-        if (sceneGroup) Ctx.EndGroup();
+        if (sceneGroup) { svgCtx!.End3DSubgroup(); Ctx.EndGroup(); }
 
         // Legend
         RenderLegend();
@@ -235,8 +249,13 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         var leftColor = pane.LeftWallColor ?? defaultColor;
         var rightColor = pane.RightWallColor ?? defaultColor;
 
+        // Each pane is tagged class="mpl-pane" so (1) the JS depth-sort can skip
+        // them (Phase F.3), (2) the ThreeDPaneOcclusionTests can assert DOM order.
+        var svgCtx = Ctx as SvgRenderContext;
+
         // Bottom floor: z = z0, winding in XY plane.
         EmitV3D(proj, (x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0));
+        svgCtx?.SetNextElementClass("mpl-pane");
         Ctx.DrawPolygon(
             [proj.Project(x0, y0, z0), proj.Project(x1, y0, z0),
              proj.Project(x1, y1, z0), proj.Project(x0, y1, z0)],
@@ -244,6 +263,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
 
         // Back-left wall: x = x0, winding in YZ plane.
         EmitV3D(proj, (x0, y0, z0), (x0, y1, z0), (x0, y1, z1), (x0, y0, z1));
+        svgCtx?.SetNextElementClass("mpl-pane");
         Ctx.DrawPolygon(
             [proj.Project(x0, y0, z0), proj.Project(x0, y1, z0),
              proj.Project(x0, y1, z1), proj.Project(x0, y0, z1)],
@@ -251,6 +271,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
 
         // Back-right wall: y = y1, winding in XZ plane.
         EmitV3D(proj, (x0, y1, z0), (x1, y1, z0), (x1, y1, z1), (x0, y1, z1));
+        svgCtx?.SetNextElementClass("mpl-pane");
         Ctx.DrawPolygon(
             [proj.Project(x0, y1, z0), proj.Project(x1, y1, z0),
              proj.Project(x1, y1, z1), proj.Project(x0, y1, z1)],
