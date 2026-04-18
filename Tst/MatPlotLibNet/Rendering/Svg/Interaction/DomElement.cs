@@ -92,6 +92,15 @@ public sealed class DomElement
     /// <summary>Stub returning identity matrix — coordinate transformation in tests is
     /// asserted by the test directly, not by chasing SVG transform math.</summary>
     public DomSvgMatrix? getScreenCTM() => new();
+
+    /// <summary>Stub <c>clientWidth</c> / <c>clientHeight</c> — for SVG elements, reads the
+    /// rendered <c>width</c>/<c>height</c> attributes the figure pipeline always emits.
+    /// Falls back to 1 (not 0) so divisions don't NaN. Phase C of v1.7.2 follow-on plan
+    /// added matplotlib-style pan math that divides by clientWidth.</summary>
+    public double clientWidth => double.TryParse(Xml.Attribute("width")?.Value,
+        System.Globalization.CultureInfo.InvariantCulture, out var w) ? w : 1;
+    public double clientHeight => double.TryParse(Xml.Attribute("height")?.Value,
+        System.Globalization.CultureInfo.InvariantCulture, out var h) ? h : 1;
 }
 
 /// <summary>Wrapper for `element.style` — supports indexer-style writes the scripts use:

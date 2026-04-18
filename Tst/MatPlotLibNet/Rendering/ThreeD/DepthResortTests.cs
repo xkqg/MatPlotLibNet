@@ -51,8 +51,10 @@ public sealed class DepthResortTests
             .Build()
             .ToSvg();
 
-        // resortDepth() is called inside reprojectAll() body
-        Assert.Contains("resortDepth();", svg); // the call inside reprojectAll
-        Assert.Contains("function resortDepth()", svg); // the function definition
+        // resortDepth(b) is called inside reprojectAll() body — the basis arg `b` was
+        // added in Phase B.4 of v1.7.2 follow-on (full matplotlib projection port; viewZ
+        // now needs the camera basis to compute depth).
+        Assert.Contains("resortDepth(b);", svg); // the call inside reprojectAll
+        Assert.Contains("function resortDepth(b)", svg); // the function definition
     }
 }

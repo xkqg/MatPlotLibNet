@@ -69,8 +69,11 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         // these were drawn outside the scene group and stayed static during drag.
         bool sceneGroup = Axes.Emit3DVertexData && Ctx is SvgRenderContext;
         if (sceneGroup)
+            // Pass cubeBounds (the square inscribed in the subplot region) — NOT PlotArea —
+            // because Projection3D was constructed with cubeBounds, so the JS reproject must
+            // use the same rectangle for fit-to-plot. Phase B.4 of v1.7.2 follow-on plan.
             ((SvgRenderContext)Ctx).Begin3DSceneGroup(
-                elevation, azimuth, distance, PlotArea,
+                elevation, azimuth, distance, cubeBounds,
                 Axes.LightSource as Rendering.Lighting.DirectionalLight);
 
         // Light-grey background panes on the three back-facing cube faces — matches

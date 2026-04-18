@@ -20,6 +20,12 @@ internal static class SvgInteractivityScript
             // multi-chart pages don't cross-talk.
             var svg = (document.currentScript && document.currentScript.parentNode) || document.querySelector('svg');
             if (!svg || svg.tagName !== 'svg') return;
+            // Phase A.2 of v1.7.2 follow-on plan — when the SVG hosts a 3D scene, the 2D
+            // pan/zoom handler must NOT install. Pre-fix it stole pointer/wheel events from
+            // Svg3DRotationScript (last-call-wins on setPointerCapture; bubble order on
+            // wheel). matplotlib's NavigationToolbar2 disables Pan/Zoom on 3D axes for the
+            // same reason — viewBox-pan-on-rotating-cube is double-translation noise.
+            if (svg.querySelector('.mpl-3d-scene')) return;
             svg.setAttribute('tabindex', '0');
             svg.setAttribute('aria-roledescription', 'interactive chart');
             var vb = svg.getAttribute('viewBox').split(' ').map(Number);
@@ -94,9 +100,15 @@ internal static class SvgInteractivityScript
 
             // {passive:false} required: modern browsers default wheel listeners to passive,
             // which silently no-ops e.preventDefault() and lets the page scroll instead of zooming.
+            // Phase C.1 of v1.7.2 follow-on plan — matplotlib parity:
+            //   step = e.deltaY < 0 ? 1 : -1   (wheel up → +1 = zoom in)
+            //   scale = 0.85 ^ step            (matplotlib NavigationToolbar2.scroll_handler L2635)
+            // Pre-fix used 1.10/0.90 (~10% per notch); matplotlib's 0.85 (~15%) feels snappier
+            // and matches user muscle memory across tools.
             svg.addEventListener('wheel', function(e) {
                 e.preventDefault();
-                var scale = e.deltaY > 0 ? 1.1 : 0.9;
+                var step = e.deltaY < 0 ? 1 : -1;
+                var scale = Math.pow(0.85, step);
                 var pt = svg.createSVGPoint();
                 pt.x = e.clientX; pt.y = e.clientY;
                 var svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
@@ -106,6 +118,18 @@ internal static class SvgInteractivityScript
                 clampVB(vb);
                 svg.setAttribute('viewBox', vb.join(' '));
             }, { passive: false });
+
+            // Phase C.2 of v1.7.2 follow-on — axis-lock modifier keys (mirrors matplotlib's
+            // _base.py:format_deltas convention, axes3d.py L4492). Holding 'x' locks pan to
+            // the X axis; 'y' locks to Y. Modifier is sticky between keydown/keyup so the
+            // user can press-hold-drag (chord-style) without timing pressure.
+            var lockedAxis = null;
+            svg.addEventListener('keydown', function(e) {
+                if (e.key === 'x' || e.key === 'y') lockedAxis = e.key;
+            });
+            svg.addEventListener('keyup', function(e) {
+                if (e.key === lockedAxis) lockedAxis = null;
+            });
 
             // Phase 4 of v1.7.2 plan — Pointer Events API for touch + pen + mouse parity.
             // setPointerCapture binds the pointer to the SVG so mouse-up after dragging out of
@@ -158,6 +182,9 @@ internal static class SvgInteractivityScript
                 if (!isPanning) return;
                 var dx = (e.clientX - startX) * (vb[2] / svg.clientWidth);
                 var dy = (e.clientY - startY) * (vb[3] / svg.clientHeight);
+                // Phase C.2 — axis lock (matplotlib parity). x-modifier zeroes dy; y zeroes dx.
+                if (lockedAxis === 'x') dy = 0;
+                else if (lockedAxis === 'y') dx = 0;
                 vb[0] -= dx; vb[1] -= dy;
                 startX = e.clientX; startY = e.clientY;
                 svg.setAttribute('viewBox', vb.join(' '));
