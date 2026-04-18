@@ -112,15 +112,6 @@ public class PolarHeatmapSeriesTests
 
     // ---- Accept -------------------------------------------------------------
 
-    [Fact]
-    public void Accept_CallsVisitor()
-    {
-        var s = new PolarHeatmapSeries(MakeData(), 4, 3);
-        var visitor = new RecordingVisitor();
-        s.Accept(visitor, new RenderArea(new Rect(0, 0, 100, 100), new MatPlotLibNet.Rendering.Svg.SvgRenderContext()));
-        Assert.True(visitor.WasCalled);
-    }
-
     private sealed class RecordingVisitor : ISeriesVisitor
     {
         public bool WasCalled { get; private set; }

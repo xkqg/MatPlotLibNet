@@ -119,6 +119,18 @@ public class CalloutBoxRendererTests
         Assert.Contains("<path", svg);
     }
 
+    /// <summary>Undefined enum value falls through the switch's implicit default
+    /// arm — covers the otherwise-unreached branch.</summary>
+    [Fact]
+    public void UndefinedBoxStyle_FallsThroughSwitchDefault()
+    {
+        // (BoxStyle)99 is not None and not any defined case → switch matches no arm
+        var fig = CreateFigureWithBoxAnnotation((BoxStyle)99);
+        // Should not throw — we're testing the unreached default branch
+        var svg = fig.ToSvg();
+        Assert.NotNull(svg);
+    }
+
     private static int CountOccurrences(string text, string pattern)
     {
         int count = 0, index = 0;

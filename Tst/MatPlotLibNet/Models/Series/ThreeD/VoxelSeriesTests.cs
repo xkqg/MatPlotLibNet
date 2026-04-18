@@ -26,14 +26,6 @@ public class VoxelSeriesTests
         Assert.Equal(0.8, series.Alpha);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new VoxelSeries(Filled);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that ComputeDataRange returns 0..dim for each axis.</summary>
     [Fact]
     public void ComputeDataRange_Returns0ToDim()

@@ -35,13 +35,6 @@ public class ResidualSeriesTests
     }
 
     [Fact]
-    public void Color_DefaultsToNull()
-    {
-        var series = new ResidualSeries(X, Y);
-        Assert.Null(series.Color);
-    }
-
-    [Fact]
     public void ShowZeroLine_DefaultsToTrue()
     {
         var series = new ResidualSeries(X, Y);
@@ -62,12 +55,4 @@ public class ResidualSeriesTests
         Assert.Equal(2, series.ToSeriesDto().Degree);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new ResidualSeries(X, Y);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(ResidualSeries), visitor.LastVisited);
-    }
 }

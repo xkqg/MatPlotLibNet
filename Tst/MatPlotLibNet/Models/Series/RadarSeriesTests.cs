@@ -35,14 +35,6 @@ public class RadarSeriesTests
         Assert.Equal(2.0, series.LineWidth);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new RadarSeries(["A"], [1.0]);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that FillColor defaults to null.</summary>
     [Fact]
     public void DefaultFillColor_IsNull()

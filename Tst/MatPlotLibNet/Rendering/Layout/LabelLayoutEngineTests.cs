@@ -221,6 +221,38 @@ public class LabelLayoutEngineTests
         Assert.Null(placed[0].LeaderLineStart);
     }
 
+    /// <summary>Two labels overlapping mostly horizontally — covers the
+    /// `overlapX &lt; overlapY` arm that separates along the X axis. Existing tests
+    /// stack labels that overlap mostly in Y; this one inverts the geometry.</summary>
+    [Fact]
+    public void Place_LabelsOverlappingMostlyInX_SeparatesAlongX()
+    {
+        // Two single-char labels (10 px wide) at the same anchor — overlap in X is ~10 px,
+        // overlap in Y is ~14 px → overlapX < overlapY → separator picks the X axis.
+        var a = new LabelCandidate(new Point(500, 500), "A", TestFont);
+        var b = new LabelCandidate(new Point(500, 500), "B", TestFont);
+        var placed = LabelLayoutEngine.Place([a, b], BigBounds, Metrics);
+
+        // After separation, the X coordinates must differ; the Y coordinates may not.
+        Assert.NotEqual(placed[0].FinalPoint.X, placed[1].FinalPoint.X);
+    }
+
+    /// <summary>Low-priority labels weigh less than Normal — covers the otherwise-unhit
+    /// <c>LabelPriority.Low =&gt; 0.33</c> arm of <c>PriorityWeight</c>. Verified by
+    /// observing that a Low-priority label shifts further than a Normal one.</summary>
+    [Fact]
+    public void Place_LowPriorityLabel_ShiftsMoreThanNormal()
+    {
+        var low    = new LabelCandidate(new Point(500, 500), "LOWLOW",   TestFont, Priority: LabelPriority.Low);
+        var normal = new LabelCandidate(new Point(510, 500), "NORMNORM", TestFont, Priority: LabelPriority.Normal);
+        var placed = LabelLayoutEngine.Place([low, normal], BigBounds, Metrics);
+
+        double lowShift    = Distance(placed[0].FinalPoint, low.AnchorPoint);
+        double normalShift = Distance(placed[1].FinalPoint, normal.AnchorPoint);
+        Assert.True(lowShift > normalShift,
+            $"Low-priority should yield more (got low={lowShift:F2}, normal={normalShift:F2})");
+    }
+
     private static double Distance(Point a, Point b)
     {
         double dx = a.X - b.X;

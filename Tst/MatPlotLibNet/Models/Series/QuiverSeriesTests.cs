@@ -36,11 +36,4 @@ public class QuiverSeriesTests
         Assert.Equal(0.3, series.ArrowHeadSize);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new QuiverSeries([1.0], [2.0], [0.5], [0.5]);
-        Assert.Null(series.Color);
-    }
 }

@@ -165,4 +165,31 @@ public class MatTests
             for (int c = 0; c < m.Cols; c++)
                 Assert.Equal(m[r, c], tt[r, c]);
     }
+
+    /// <summary>Multiplying with mismatched inner dimensions must throw with an
+    /// informative shape message. Covers the dimension-mismatch arm of operator*.</summary>
+    [Fact]
+    public void Multiply_ShapeMismatch_Throws()
+    {
+        var a = Mat.FromRows([[1, 2, 3]]);    // 1x3
+        var b = Mat.FromRows([[1, 2], [3, 4]]); // 2x2 — a.Cols (3) != b.Rows (2)
+        var ex = Assert.Throws<ArgumentException>(() => { _ = a * b; });
+        Assert.Contains("1×3", ex.Message);
+        Assert.Contains("2×2", ex.Message);
+    }
+
+    /// <summary>Element-wise + and - must throw when shapes differ — covers the
+    /// AssertSameShape mismatch arm.</summary>
+    [Theory]
+    [InlineData("add")]
+    [InlineData("sub")]
+    public void AddOrSubtract_ShapeMismatch_Throws(string op)
+    {
+        var a = Mat.FromRows([[1, 2]]);      // 1x2
+        var b = Mat.FromRows([[1, 2, 3]]);   // 1x3
+        Assert.Throws<ArgumentException>(() =>
+        {
+            _ = op == "add" ? a + b : a - b;
+        });
+    }
 }

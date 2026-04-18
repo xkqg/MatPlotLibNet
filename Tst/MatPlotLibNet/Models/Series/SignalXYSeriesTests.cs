@@ -125,13 +125,6 @@ public class SignalXYSeriesTests
         Assert.Equal(1.5, s.LineWidth);
     }
 
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var s = new SignalXYSeries(X5, Y5);
-        Assert.Null(s.Color);
-    }
-
     // ── ComputeDataRange ─────────────────────────────────────────────────────
 
     [Fact]
@@ -172,15 +165,6 @@ public class SignalXYSeriesTests
     }
 
     // ── Visitor dispatch ─────────────────────────────────────────────────────
-
-    [Fact]
-    public void Accept_DispatchesToVisitSignalXY()
-    {
-        var s = new SignalXYSeries(X5, Y5);
-        var spy = new VisitorSpy();
-        s.Accept(spy, default!);
-        Assert.True(spy.VisitedSignalXY);
-    }
 
     private sealed class VisitorSpy : ISeriesVisitor
     {

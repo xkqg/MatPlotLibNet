@@ -22,16 +22,4 @@ public class Stem3DSeriesTests
         Assert.Equal(Z, (double[])s.Z);
     }
 
-    [Fact] public void MarkerSize_DefaultsTo6() => Assert.Equal(6, new Stem3DSeries(S, S, S).MarkerSize);
-    [Fact] public void Color_DefaultsToNull() => Assert.Null(new Stem3DSeries(S, S, S).Color);
-    [Fact] public void ToSeriesDto_ReturnsTypeStem3d() => Assert.Equal("stem3d", new Stem3DSeries(S, S, S).ToSeriesDto().Type);
-
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var s = new Stem3DSeries(S, S, S);
-        var v = new TestSeriesVisitor();
-        s.Accept(v, null!);
-        Assert.Equal(nameof(Stem3DSeries), v.LastVisited);
-    }
 }

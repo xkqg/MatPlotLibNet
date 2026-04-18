@@ -429,4 +429,32 @@ public class MathTextParserTests
     {
         Assert.True(MathTextParser.ContainsMath("$\\alpha$ = 0.05"));
     }
+
+    /// <summary>Explicit <c>\end{env}</c> consumes the brace group without crashing —
+    /// covers the <c>cmd == "end"</c> branch that ReadBraceGroup-then-continues.</summary>
+    [Fact]
+    public void Parse_BeginEnvWithExplicitEnd_DoesNotThrow()
+    {
+        var rt = MathTextParser.Parse(@"$\begin{matrix}1\end{matrix}$");
+        Assert.NotNull(rt);
+    }
+
+    /// <summary>Super/subscript with no following content (ends with $) — covers
+    /// the empty-string fallback branch in the super/subscript reader.</summary>
+    [Fact]
+    public void Parse_TrailingCaretWithNoContent_EmitsEmptySuperscript()
+    {
+        var rt = MathTextParser.Parse("$x^$");
+        Assert.NotNull(rt);
+    }
+
+    /// <summary>ReadBraceGroup called when the next char is NOT { — covers the
+    /// bare-character fallback branch.</summary>
+    [Fact]
+    public void Parse_EndWithoutBraces_DoesNotThrow()
+    {
+        // `\end x` — `\end` is followed by 'x' rather than `{...}`.
+        var rt = MathTextParser.Parse(@"$\end x$");
+        Assert.NotNull(rt);
+    }
 }

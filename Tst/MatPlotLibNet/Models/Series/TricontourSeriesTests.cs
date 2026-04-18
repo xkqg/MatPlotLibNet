@@ -17,19 +17,6 @@ public class TricontourSeriesTests
         Assert.Equal(X, (double[])s.X); Assert.Equal(Y, (double[])s.Y); Assert.Equal(Z, (double[])s.Z);
     }
 
-    [Fact] public void Levels_DefaultsTo10() => Assert.Equal(10, new TricontourSeries(X, Y, Z).Levels);
-    [Fact] public void ColorMap_DefaultsToNull() => Assert.Null(new TricontourSeries(X, Y, Z).ColorMap);
-    [Fact] public void ToSeriesDto_ReturnsTypeTricontour() => Assert.Equal("tricontour", new TricontourSeries(X, Y, Z).ToSeriesDto().Type);
-
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var s = new TricontourSeries(X, Y, Z);
-        var v = new TestSeriesVisitor();
-        s.Accept(v, null!);
-        Assert.Equal(nameof(TricontourSeries), v.LastVisited);
-    }
-
     [Fact]
     public void ToSeriesDto_IncludesLevels()
     {

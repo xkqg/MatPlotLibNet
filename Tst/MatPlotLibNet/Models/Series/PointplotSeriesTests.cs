@@ -38,25 +38,10 @@ public class PointplotSeriesTests
     }
 
     [Fact]
-    public void Color_DefaultsToNull()
-    {
-        var series = new PointplotSeries([]);
-        Assert.Null(series.Color);
-    }
-
-    [Fact]
     public void ToSeriesDto_ReturnsTypePointplot()
     {
         var series = new PointplotSeries([[1.0, 2.0]]);
         Assert.Equal("pointplot", series.ToSeriesDto().Type);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new PointplotSeries([[1.0, 2.0]]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(PointplotSeries), visitor.LastVisited);
-    }
 }

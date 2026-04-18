@@ -43,11 +43,4 @@ public class SunburstSeriesTests
         Assert.True(series.ShowLabels);
     }
 
-    /// <summary>Verifies that ColorMap defaults to null.</summary>
-    [Fact]
-    public void DefaultColorMap_IsNull()
-    {
-        var series = new SunburstSeries(SampleTree);
-        Assert.Null(series.ColorMap);
-    }
 }

@@ -31,25 +31,10 @@ public class SwarmplotSeriesTests
     }
 
     [Fact]
-    public void Color_DefaultsToNull()
-    {
-        var series = new SwarmplotSeries([]);
-        Assert.Null(series.Color);
-    }
-
-    [Fact]
     public void ToSeriesDto_ReturnsTypeSwarmplot()
     {
         var series = new SwarmplotSeries([[1.0, 2.0]]);
         Assert.Equal("swarmplot", series.ToSeriesDto().Type);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new SwarmplotSeries([[1.0, 2.0]]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(SwarmplotSeries), visitor.LastVisited);
-    }
 }

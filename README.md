@@ -8,15 +8,16 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.7.1 — Bug Fixes + Coverage Gate + Playground Polish.**
+> **v1.7.1 — Bug Fixes + Coverage Gate + Playground Polish + Coverage Uplift + Phase-9 Dedup.**
 >
 > 1. **5 silent-failure bugs fixed** — geo extensions silently dropped series, broken-axis didn't compress data, symlog didn't transform data, playground grid toggle was inverted, `SymlogTransform` threw on `NaN`. All v1.7.0 cookbook geo/symlog/broken-y images regenerated correctly.
 > 2. **`WithBrowserInteraction()` now actually exists** — was documented in v1.7.0 but never implemented. Convenience that enables ZoomPan + RichTooltips + LegendToggle + Highlight + Selection in one call.
-> 3. **Coverage gate** — ≥90% line + ≥90% branch enforced via CI per class, per-class baseline regression protection. See [`docs/COVERAGE.md`](docs/COVERAGE.md).
+> 3. **Coverage gate** — ≥90% line + ≥90% branch enforced via CI per class, per-class baseline regression protection. See [`docs/COVERAGE.md`](docs/COVERAGE.md). 156 → **154** sub-90/90 classes after the post-1.7.1 uplift wave; default-mode regression check stays green.
 > 4. **Playground SOLID refactor** — `PlaygroundOptions` + `PlaygroundExamples` registry. Save SVG / PNG / Code buttons, "Open in new tab", browser-interactive toggle, tight-margins toggle, all 26 themes, 15 examples (was 9).
 > 5. **Cookbook enriched** — every page (25 of 25) gained full fluent API options sections + property tables. 13 new rendered images for previously-empty pages.
+> 6. **6-batch coverage uplift (Phases A-F) + Phase-9 dedup** — +1 192 tests added across the post-1.7.1 work (4 276 → **5 468 across 9 test projects**), 78 duplicate per-series default-property tests folded into the central `AllSeriesTests` Theory pattern, 17 zero-coverage SeriesRenderers + 5 streaming indicators + 11 misc classes graduated to ≥90/90, 13 documented exemptions added for sample / interface / JS-template code. Two real bugs surfaced for follow-up: `BaselineHelper.ComputeWiggle/ComputeWeightedWiggle` throw on empty input; `SymLogNormalizer.Normalize(NaN)` throws.
 >
-> **4 275 tests green** across 13 NuGet packages (was 3 967 in v1.7.0).
+> **5 468 tests green** across 9 test projects covering 13 NuGet packages (was 4 275 at the v1.7.1 cut).
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 

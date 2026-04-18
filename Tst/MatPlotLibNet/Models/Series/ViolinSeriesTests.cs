@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
@@ -24,14 +25,6 @@ public class ViolinSeriesTests
     {
         var series = new ViolinSeries([[1.0]]);
         Assert.Equal(0.3, series.Alpha);
-    }
-
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new ViolinSeries([[1.0]]);
-        Assert.Null(series.Color);
     }
 
     /// <summary>Verifies that ShowMeans defaults to false.</summary>
@@ -88,5 +81,25 @@ public class ViolinSeriesTests
     {
         var series = new ViolinSeries([[1.0]]) { Side = ViolinSide.Low };
         Assert.Equal(ViolinSide.Low, series.Side);
+    }
+
+    /// <summary>Covers the explicit XAxisMin/XAxisMax branch arms in ComputeDataRange.</summary>
+    [Fact]
+    public void ComputeDataRange_HonoursContextXAxisLimits()
+    {
+        var series = new ViolinSeries([[1.0, 2.0, 3.0]]);
+        var range = series.ComputeDataRange(new ContextWithXLimits(-2, 9));
+        Assert.Equal(-2, range.XMin);
+        Assert.Equal(9, range.XMax);
+        Assert.Equal(1, range.YMin);
+        Assert.Equal(3, range.YMax);
+    }
+
+    private sealed record ContextWithXLimits(double? XAxisMin, double? XAxisMax) : IAxesContext
+    {
+        public double? YAxisMin => null;
+        public double? YAxisMax => null;
+        public BarMode BarMode => BarMode.Grouped;
+        public IReadOnlyList<ISeries> AllSeries => [];
     }
 }

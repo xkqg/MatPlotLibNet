@@ -38,14 +38,6 @@ public class Quiver3DSeriesTests
         Assert.Equal(1.0, series.ArrowLength);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new Quiver3DSeries(Single, Single, Single, SingleDir, SingleDir, SingleDir);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that ComputeDataRange includes arrow tips.</summary>
     [Fact]
     public void ComputeDataRange_IncludesArrowTips()

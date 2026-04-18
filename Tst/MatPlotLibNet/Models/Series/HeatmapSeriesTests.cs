@@ -17,11 +17,4 @@ public class HeatmapSeriesTests
         Assert.Equal(data, series.Data);
     }
 
-    /// <summary>Verifies that ColorMap defaults to null.</summary>
-    [Fact]
-    public void DefaultColorMap_IsNull()
-    {
-        var series = new HeatmapSeries(new double[,] { { 1 } });
-        Assert.Null(series.ColorMap);
-    }
 }

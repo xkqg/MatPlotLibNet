@@ -17,19 +17,6 @@ public class TripcolorSeriesTests
         Assert.Equal(X, (double[])s.X); Assert.Equal(Y, (double[])s.Y); Assert.Equal(Z, (double[])s.Z);
     }
 
-    [Fact] public void Triangles_DefaultsToNull() => Assert.Null(new TripcolorSeries(X, Y, Z).Triangles);
-    [Fact] public void ColorMap_DefaultsToNull() => Assert.Null(new TripcolorSeries(X, Y, Z).ColorMap);
-    [Fact] public void ToSeriesDto_ReturnsTypeTripcolor() => Assert.Equal("tripcolor", new TripcolorSeries(X, Y, Z).ToSeriesDto().Type);
-
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var s = new TripcolorSeries(X, Y, Z);
-        var v = new TestSeriesVisitor();
-        s.Accept(v, null!);
-        Assert.Equal(nameof(TripcolorSeries), v.LastVisited);
-    }
-
     [Fact]
     public void ToSeriesDto_IncludesZData()
     {

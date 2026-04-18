@@ -19,14 +19,6 @@ public class ScatterSeriesTests
         Assert.Equal(y, series.YData);
     }
 
-    /// <summary>Verifies that Marker defaults to Circle.</summary>
-    [Fact]
-    public void DefaultMarker_IsCircle()
-    {
-        var series = new ScatterSeries([1.0], [2.0]);
-        Assert.Equal(MarkerStyle.Circle, series.Marker);
-    }
-
     /// <summary>Verifies that Alpha defaults to 1.0.</summary>
     [Fact]
     public void DefaultAlpha_IsOne()
@@ -81,14 +73,6 @@ public class ScatterSeriesTests
     {
         var series = new ScatterSeries([1.0], [2.0]);
         Assert.Null(series.Normalizer);
-    }
-
-    /// <summary>Verifies that ScatterSeries implements INormalizable.</summary>
-    [Fact]
-    public void ImplementsINormalizable()
-    {
-        var series = new ScatterSeries([1.0], [2.0]);
-        Assert.IsAssignableFrom<INormalizable>(series);
     }
 
     /// <summary>Verifies that EdgeColors can be assigned and retrieved.</summary>

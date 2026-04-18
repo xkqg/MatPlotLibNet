@@ -39,6 +39,17 @@ public class AtrTests
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
+
+    /// <summary>Covers the early-return branch when bar count is at or below the period.</summary>
+    [Fact]
+    public void Compute_TooFewBars_ReturnsEmpty()
+    {
+        // 3 bars, period 14 → n &lt;= _period → empty
+        double[] h = [10, 11, 12];
+        double[] l = [8, 9, 10];
+        double[] c = [9, 10, 11];
+        Assert.Empty(new Atr(h, l, c, 14).Compute().Values);
+    }
 }
 
 /// <summary>Verifies <see cref="Adx"/> behavior.</summary>
@@ -71,6 +82,48 @@ public class AdxTests
         var axes = new Axes();
         new Adx(High, Low, Close, 5).Apply(axes);
         Assert.True(axes.Series.Count >= 1);
+    }
+
+    /// <summary>Covers the early-return branch when bar count is at or below 2*period.</summary>
+    [Fact]
+    public void Compute_TooFewBars_ReturnsEmpty()
+    {
+        // 5 bars, period 5 → n=5 &lt;= 10 → empty
+        double[] h = [10, 11, 12, 13, 14];
+        double[] l = [8, 9, 10, 11, 12];
+        double[] c = [9, 10, 11, 12, 13];
+        Assert.Empty(new Adx(h, l, c, 5).Compute().Values);
+    }
+
+    /// <summary>Apply with insufficient bars adds no DI lines (covers the plusDi.Length != adx.Length empty path).</summary>
+    [Fact]
+    public void Apply_TooFewBars_NoSeries()
+    {
+        // ComputeFull returns empty arrays for all three signals, so PlotSignal happens for empty adx
+        // (length 0 → still creates an axes line but with no points). The point of this test is to
+        // exercise the n &lt;= _period * 2 early-return branch through the Apply path.
+        var axes = new Axes();
+        double[] h = [10, 11, 12, 13, 14];
+        double[] l = [8, 9, 10, 11, 12];
+        double[] c = [9, 10, 11, 12, 13];
+        var ex = Record.Exception(() => new Adx(h, l, c, 5).Apply(axes));
+        Assert.Null(ex);
+    }
+
+    /// <summary>Covers custom +DI / -DI color overrides on Adx.</summary>
+    [Fact]
+    public void Apply_CustomDiColors_AppliedToSeries()
+    {
+        var axes = new Axes();
+        new Adx(High, Low, Close, 5)
+        {
+            PlusDiColor = MatPlotLibNet.Styling.Colors.Cyan,
+            MinusDiColor = MatPlotLibNet.Styling.Colors.Magenta
+        }.Apply(axes);
+        // Series 0 = ADX, 1 = +DI (Cyan), 2 = -DI (Magenta)
+        Assert.True(axes.Series.Count >= 3);
+        Assert.Equal(MatPlotLibNet.Styling.Colors.Cyan, ((LineSeries)axes.Series[1]).Color);
+        Assert.Equal(MatPlotLibNet.Styling.Colors.Magenta, ((LineSeries)axes.Series[2]).Color);
     }
 }
 

@@ -20,14 +20,6 @@ public class WireframeSeriesTests
         Assert.Equal(z, series.Z);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new WireframeSeries([1.0], [1.0], new double[,] { { 1 } });
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that LineWidth defaults to 0.5.</summary>
     [Fact]
     public void DefaultLineWidth_Is0Point5()

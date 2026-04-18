@@ -17,15 +17,6 @@ public class QuiverKeySeriesTests
     [Fact] public void ToSeriesDto_ReturnsTypeQuiverkey() => Assert.Equal("quiverkey", new QuiverKeySeries(0.5, 0.9, 1.0, "1 m/s").ToSeriesDto().Type);
 
     [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var s = new QuiverKeySeries(0.5, 0.9, 1.0, "1 m/s");
-        var v = new TestSeriesVisitor();
-        s.Accept(v, null!);
-        Assert.Equal(nameof(QuiverKeySeries), v.LastVisited);
-    }
-
-    [Fact]
     public void ComputeDataRange_ReturnsAllNulls()
     {
         var s = new QuiverKeySeries(0.5, 0.9, 1.0, "1 m/s");

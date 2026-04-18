@@ -34,14 +34,6 @@ public class HistogramSeriesTests
         Assert.Equal(1.0, series.Alpha);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new HistogramSeries([1.0]);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that ComputeBins returns valid counts, min, and bin width.</summary>
     [Fact]
     public void ComputeBins_ReturnsValidResult()

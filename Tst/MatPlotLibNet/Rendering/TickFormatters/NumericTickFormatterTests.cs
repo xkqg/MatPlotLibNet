@@ -40,4 +40,26 @@ public class NumericTickFormatterTests
         ITickFormatter formatter = new NumericTickFormatter();
         Assert.NotNull(formatter);
     }
+
+    /// <summary>Tiny non-zero values take the G3 branch — covers the
+    /// `Math.Abs(value) &lt; 0.01 &amp;&amp; value != 0` arm. We only assert the
+    /// formatter returns a non-empty result; the exact text format is the .NET
+    /// G3 contract and not what we're testing.</summary>
+    [Theory]
+    [InlineData(0.005)]
+    [InlineData(-0.005)]
+    [InlineData(1e-5)]
+    [InlineData(-1e-5)]
+    public void Format_TinyNonZero_ReturnsNonEmpty(double v)
+        => Assert.False(string.IsNullOrEmpty(new NumericTickFormatter().Format(v)));
+
+    /// <summary>Very small values that exceed double's negative exponent go scientific.</summary>
+    [Fact]
+    public void Format_VerySmall_UsesScientific()
+        => Assert.Contains("E", new NumericTickFormatter().Format(1e-7), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Negative large values also take the scientific branch.</summary>
+    [Fact]
+    public void Format_LargeNegative_UsesScientific()
+        => Assert.Contains("E", new NumericTickFormatter().Format(-2_500_000), StringComparison.OrdinalIgnoreCase);
 }

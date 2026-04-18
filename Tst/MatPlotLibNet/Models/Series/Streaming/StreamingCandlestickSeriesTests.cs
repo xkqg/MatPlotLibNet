@@ -96,8 +96,4 @@ public sealed class StreamingCandlestickSeriesTests
         s.Clear();
         Assert.Equal(0, s.Count);
     }
-
-    [Fact]
-    public void ImplementsIStreamingOhlcSeries() =>
-        Assert.IsAssignableFrom<IStreamingOhlcSeries>(new StreamingCandlestickSeries());
 }

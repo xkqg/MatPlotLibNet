@@ -24,14 +24,6 @@ public class Line3DSeriesTests
         Assert.Equal(Z, (double[])series.Z);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new Line3DSeries(Single, Single, Single);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that LineWidth defaults to 1.5.</summary>
     [Fact]
     public void DefaultLineWidth_Is1Point5()

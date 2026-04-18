@@ -77,6 +77,50 @@ public class MonotoneCubicSplineTests
         Assert.Same(y, oy);
     }
 
+    /// <summary>
+    /// Covers the Fritsch-Carlson overshoot enforcement branch (sq > 9).
+    /// A sharp peak (low → very high → low) creates secant slopes whose squared
+    /// alpha+beta exceed 9 at the apex, triggering the tau-scaling step that
+    /// caps the tangents to preserve monotonicity.
+    /// </summary>
+    [Fact]
+    public void Interpolate_SharpPeak_TriggersOvershootClipping()
+    {
+        // A sharp inverted-V peak — slopes around index 2 differ wildly in sign+magnitude
+        double[] x = [0, 1, 2, 3, 4];
+        double[] y = [0, 1, 1000, 1, 0];
+        var (ox, oy) = MonotoneCubicSpline.Interpolate(x, y, resolution: 8);
+
+        // Output should not overshoot the peak
+        Assert.True(oy.Max() <= 1000.0 + 1e-6,
+            $"Output overshoots input peak (max={oy.Max():F2})");
+        // Endpoints preserved
+        Assert.Equal(0, ox[0], 1e-9);
+        Assert.Equal(0, oy[0], 1e-9);
+        Assert.Equal(4, ox[^1], 1e-6);
+        Assert.Equal(0, oy[^1], 1e-6);
+    }
+
+    /// <summary>
+    /// Covers the <c>dx == 0</c> secant-slope branch where adjacent X values are equal.
+    /// This forces the secant slope to 0 (rather than dividing by zero), and the
+    /// monotonicity step then resets adjacent tangents to 0.
+    /// </summary>
+    [Fact]
+    public void Interpolate_DuplicateXValue_HandlesZeroSecantSlope()
+    {
+        // x[1] == x[2] forces dx=0 → secant slope d[1] = 0
+        double[] x = [0, 1, 1, 2];
+        double[] y = [0, 1, 5, 6];
+        var (ox, oy) = MonotoneCubicSpline.Interpolate(x, y, resolution: 4);
+
+        // Should not throw or produce NaN/Inf
+        Assert.All(oy, v => Assert.True(double.IsFinite(v), $"Non-finite value {v}"));
+        // First and last points preserved
+        Assert.Equal(0, oy[0], 1e-9);
+        Assert.Equal(6, oy[^1], 1e-6);
+    }
+
     [Fact]
     public void LineSeries_SmoothFalse_Default()
     {

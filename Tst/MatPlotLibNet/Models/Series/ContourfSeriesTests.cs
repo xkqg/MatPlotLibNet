@@ -57,54 +57,12 @@ public class ContourfSeriesTests
         Assert.Equal(0.5, series.LineWidth);
     }
 
-    /// <summary>ColorMap defaults to null.</summary>
-    [Fact]
-    public void DefaultColorMap_IsNull()
-    {
-        var series = new ContourfSeries(X, Y, Z);
-        Assert.Null(series.ColorMap);
-    }
-
     /// <summary>Normalizer defaults to null.</summary>
     [Fact]
     public void DefaultNormalizer_IsNull()
     {
         var series = new ContourfSeries(X, Y, Z);
         Assert.Null(series.Normalizer);
-    }
-
-    /// <summary>Implements IColormappable.</summary>
-    [Fact]
-    public void Implements_IColormappable()
-    {
-        var series = new ContourfSeries(X, Y, Z);
-        Assert.IsAssignableFrom<IColormappable>(series);
-    }
-
-    /// <summary>Implements INormalizable.</summary>
-    [Fact]
-    public void Implements_INormalizable()
-    {
-        var series = new ContourfSeries(X, Y, Z);
-        Assert.IsAssignableFrom<INormalizable>(series);
-    }
-
-    /// <summary>Implements IColorBarDataProvider.</summary>
-    [Fact]
-    public void Implements_IColorBarDataProvider()
-    {
-        var series = new ContourfSeries(X, Y, Z);
-        Assert.IsAssignableFrom<IColorBarDataProvider>(series);
-    }
-
-    /// <summary>Accept dispatches to Visit(ContourfSeries).</summary>
-    [Fact]
-    public void Accept_DispatchesToContourfSeriesVisit()
-    {
-        var visitor = new TestSeriesVisitor();
-        var series = new ContourfSeries(X, Y, Z);
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(ContourfSeries), visitor.LastVisited);
     }
 
     /// <summary>ComputeDataRange returns the grid extent with sticky edges on all four sides

@@ -27,14 +27,6 @@ public class StepSeriesTests
         Assert.Equal(StepPosition.Post, series.StepPosition);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new StepSeries([1.0], [2.0]);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that LineStyle defaults to Solid.</summary>
     [Fact]
     public void DefaultLineStyle_IsSolid()

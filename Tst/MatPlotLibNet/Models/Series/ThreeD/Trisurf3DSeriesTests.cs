@@ -39,14 +39,6 @@ public class Trisurf3DSeriesTests
         Assert.True(series.ShowWireframe);
     }
 
-    /// <summary>Verifies that ColorMap defaults to null.</summary>
-    [Fact]
-    public void DefaultColorMap_IsNull()
-    {
-        var series = new Trisurf3DSeries(Single, Single, Single);
-        Assert.Null(series.ColorMap);
-    }
-
     /// <summary>Verifies that ToSeriesDto sets type to "trisurf".</summary>
     [Fact]
     public void ToSeriesDto_TypeIsTrisurf()

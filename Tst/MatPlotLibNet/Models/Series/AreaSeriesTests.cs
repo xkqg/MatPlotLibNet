@@ -27,14 +27,6 @@ public class AreaSeriesTests
         Assert.Null(series.YData2);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new AreaSeries([1.0], [2.0]);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that Alpha defaults to 0.3.</summary>
     [Fact]
     public void DefaultAlpha_Is0Point3()

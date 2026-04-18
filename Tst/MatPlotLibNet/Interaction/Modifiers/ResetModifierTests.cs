@@ -94,4 +94,25 @@ public class ResetModifierTests
         Assert.Single(events);
         Assert.IsType<ResetEvent>(events[0]);
     }
+
+    /// <summary>OnPointerMoved/OnPointerReleased are no-ops — verify no event emitted.</summary>
+    [Fact]
+    public void OnPointerMoved_AndReleased_AreNoOps()
+    {
+        var (m, events) = Make();
+        m.OnPointerMoved(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 1));
+        m.OnPointerReleased(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 1));
+        Assert.Empty(events);
+    }
+
+    /// <summary>Scroll is not handled by ResetModifier — verify both API calls are inert.</summary>
+    [Fact]
+    public void Scroll_NotHandled_AndOnScrollIsNoOp()
+    {
+        var (m, events) = Make();
+        var args = new ScrollInputArgs(50, 30, 0, 1, ModifierKeys.None);
+        Assert.False(m.HandlesScroll(args));
+        m.OnScroll(args);
+        Assert.Empty(events);
+    }
 }

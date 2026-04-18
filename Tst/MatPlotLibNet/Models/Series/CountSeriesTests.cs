@@ -24,13 +24,6 @@ public class CountSeriesTests
     }
 
     [Fact]
-    public void Color_DefaultsToNull()
-    {
-        var series = new CountSeries([]);
-        Assert.Null(series.Color);
-    }
-
-    [Fact]
     public void Orientation_DefaultsToVertical()
     {
         var series = new CountSeries([]);
@@ -54,12 +47,4 @@ public class CountSeriesTests
         Assert.Equal("count", series.ToSeriesDto().Type);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new CountSeries(["a", "b"]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(CountSeries), visitor.LastVisited);
-    }
 }

@@ -134,20 +134,6 @@ public sealed class StreamingLineSeriesTests
     }
 
     [Fact]
-    public void ImplementsIStreamingSeries()
-    {
-        IStreamingSeries s = new StreamingLineSeries();
-        Assert.NotNull(s);
-    }
-
-    [Fact]
-    public void ImplementsIHasColor()
-    {
-        IHasColor s = new StreamingLineSeries();
-        Assert.NotNull(s);
-    }
-
-    [Fact]
     public void ToSeriesDto_TypeIsStreaming()
     {
         var s = new StreamingLineSeries { Label = "L1" };

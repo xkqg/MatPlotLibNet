@@ -34,11 +34,4 @@ public class PolarBarSeriesTests
         Assert.Equal(0.8, series.Alpha);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new PolarBarSeries([1.0], [0.0]);
-        Assert.Null(series.Color);
-    }
 }

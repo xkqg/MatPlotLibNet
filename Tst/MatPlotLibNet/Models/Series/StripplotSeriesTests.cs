@@ -38,25 +38,10 @@ public class StripplotSeriesTests
     }
 
     [Fact]
-    public void Color_DefaultsToNull()
-    {
-        var series = new StripplotSeries([]);
-        Assert.Null(series.Color);
-    }
-
-    [Fact]
     public void ToSeriesDto_ReturnsTypeStripplot()
     {
         var series = new StripplotSeries([[1.0, 2.0]]);
         Assert.Equal("stripplot", series.ToSeriesDto().Type);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new StripplotSeries([[1.0, 2.0]]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(StripplotSeries), visitor.LastVisited);
-    }
 }

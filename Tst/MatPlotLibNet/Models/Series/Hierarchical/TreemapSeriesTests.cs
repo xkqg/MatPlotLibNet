@@ -43,11 +43,4 @@ public class TreemapSeriesTests
         Assert.True(series.ShowLabels);
     }
 
-    /// <summary>Verifies that ColorMap defaults to null.</summary>
-    [Fact]
-    public void DefaultColorMap_IsNull()
-    {
-        var series = new TreemapSeries(SampleTree);
-        Assert.Null(series.ColorMap);
-    }
 }

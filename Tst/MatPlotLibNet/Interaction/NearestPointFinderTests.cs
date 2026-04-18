@@ -97,4 +97,46 @@ public class NearestPointFinderTests
         Assert.Equal("Close", result.SeriesLabel);
         Assert.Equal(1, result.SeriesIndex);
     }
+
+    /// <summary>Negative axesIndex is rejected — covers the lower bound of the
+    /// `axesIndex &lt; 0 || axesIndex &gt;= ...` guard.</summary>
+    [Fact]
+    public void ReturnsNull_WhenAxesIndexNegative()
+    {
+        var (figure, layout) = MakeFigure([5.0], [3.0]);
+        var result = NearestPointFinder.Find(figure, -1, 5.0, 3.0, layout);
+        Assert.Null(result);
+    }
+
+    /// <summary>Degenerate range (xMax == xMin) — covers the `xSpan == 0 || ySpan == 0`
+    /// early-return arm.</summary>
+    [Fact]
+    public void ReturnsNull_WhenXAxisHasZeroSpan()
+    {
+        var figure = Plt.Create().Plot([5.0], [3.0]).Build();
+        figure.SubPlots[0].XAxis.Min = 5;
+        figure.SubPlots[0].XAxis.Max = 5;       // zero span
+        figure.SubPlots[0].YAxis.Min = 0;
+        figure.SubPlots[0].YAxis.Max = 5;
+        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
+
+        var result = NearestPointFinder.Find(figure, 0, 5.0, 3.0, layout);
+        Assert.Null(result);
+    }
+
+    /// <summary>Series that is not an XYSeries (e.g. a PieSeries) is skipped — covers
+    /// the `is not XYSeries` filter arm.</summary>
+    [Fact]
+    public void IgnoresNonXYSeries()
+    {
+        var figure = Plt.Create().Build();
+        var ax = figure.SubPlots.Count > 0 ? figure.SubPlots[0] : figure.AddSubPlot();
+        ax.XAxis.Min = 0; ax.XAxis.Max = 10;
+        ax.YAxis.Min = 0; ax.YAxis.Max = 5;
+        ax.AddSeries(new PieSeries([30.0, 70.0]));         // not XYSeries
+        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
+
+        var result = NearestPointFinder.Find(figure, 0, 5.0, 3.0, layout);
+        Assert.Null(result);
+    }
 }

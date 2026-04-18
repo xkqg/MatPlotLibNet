@@ -35,14 +35,6 @@ public class LineSeriesTests
         Assert.Equal(1.5, series.LineWidth);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new LineSeries([1.0], [2.0]);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that Marker defaults to null.</summary>
     [Fact]
     public void DefaultMarker_IsNull()

@@ -129,4 +129,66 @@ public class SubplotMosaicTests
         }).ToSvg();
         Assert.NotEmpty(svg);
     }
+
+    /// <summary>Covers <see cref="MosaicFigureBuilder.Configure"/> — figure-level customisation.</summary>
+    [Fact]
+    public void Builder_Configure_AppliesToFigure()
+    {
+        var fb = Plt.Mosaic("AB")
+            .Configure(f => f.WithTitle("Mosaic Title").WithSize(800, 400))
+            .Build();
+
+        var figure = fb.Build();
+        Assert.Equal("Mosaic Title", figure.Title);
+        Assert.Equal(800, figure.Width);
+        Assert.Equal(400, figure.Height);
+    }
+
+    /// <summary>Covers <see cref="MosaicFigureBuilder.Save"/> — round-trips through the underlying
+    /// FigureBuilder.Save path. Writes to a temp file then asserts a non-empty SVG file exists.</summary>
+    [Fact]
+    public void Builder_Save_WritesFile()
+    {
+        string tmp = Path.Combine(Path.GetTempPath(), $"mpln_mosaic_{Guid.NewGuid():N}.svg");
+        try
+        {
+            Plt.Mosaic("AB").Save(tmp);
+            Assert.True(File.Exists(tmp));
+            Assert.True(new FileInfo(tmp).Length > 0);
+        }
+        finally
+        {
+            if (File.Exists(tmp)) File.Delete(tmp);
+        }
+    }
+
+    // --- Parser branch coverage ---
+
+    /// <summary>Covers the whitespace-only branch of <see cref="SubplotMosaicParser.Parse"/>.</summary>
+    [Fact]
+    public void Parser_WhitespaceOnly_Throws()
+    {
+        // string.IsNullOrWhiteSpace covers the early-exit branch differently from "" — exercise both
+        Assert.Throws<ArgumentException>(() => SubplotMosaicParser.Parse("   "));
+    }
+
+    /// <summary>Covers <see cref="SubplotMosaicParser.GetDimensions"/> empty/whitespace path
+    /// where rows.Length == 0 and the ternary returns 0 columns.</summary>
+    [Fact]
+    public void Parser_GetDimensions_EmptyPattern_ReturnsZeroZero()
+    {
+        var (rows, cols) = SubplotMosaicParser.GetDimensions("");
+        Assert.Equal(0, rows);
+        Assert.Equal(0, cols);
+    }
+
+    /// <summary>Covers <see cref="SubplotMosaicParser.GetDimensions"/> with whitespace-only rows
+    /// stripped by TrimEnd — verifies the row-count branch when only some rows survive.</summary>
+    [Fact]
+    public void Parser_GetDimensions_WhitespaceRowsStripped()
+    {
+        var (rows, cols) = SubplotMosaicParser.GetDimensions("AB   \n   \nCD   ");
+        Assert.Equal(2, rows); // middle whitespace-only row is dropped
+        Assert.Equal(2, cols);
+    }
 }

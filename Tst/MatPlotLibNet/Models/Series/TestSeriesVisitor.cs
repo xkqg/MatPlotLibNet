@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
@@ -72,4 +73,19 @@ internal sealed class TestSeriesVisitor : ISeriesVisitor
     public void Visit(Stem3DSeries series, RenderArea area) => LastVisited = nameof(Stem3DSeries);
     public void Visit(Bar3DSeries series, RenderArea area) => LastVisited = nameof(Bar3DSeries);
     public void Visit(PlanarBar3DSeries series, RenderArea area) => LastVisited = nameof(PlanarBar3DSeries);
+    public void Visit(Text3DSeries series, RenderArea area) => LastVisited = nameof(Text3DSeries);
+    public void Visit(Line3DSeries series, RenderArea area) => LastVisited = nameof(Line3DSeries);
+    public void Visit(Trisurf3DSeries series, RenderArea area) => LastVisited = nameof(Trisurf3DSeries);
+    public void Visit(Contour3DSeries series, RenderArea area) => LastVisited = nameof(Contour3DSeries);
+    public void Visit(Quiver3DSeries series, RenderArea area) => LastVisited = nameof(Quiver3DSeries);
+    public void Visit(VoxelSeries series, RenderArea area) => LastVisited = nameof(VoxelSeries);
+
+    // ── Batch C extension: 7 additional Visit overloads (2026-04-18) ─────────
+    public void Visit(PolarHeatmapSeries series, RenderArea area) => LastVisited = nameof(PolarHeatmapSeries);
+    public void Visit(SignalSeries series, RenderArea area) => LastVisited = nameof(SignalSeries);
+    public void Visit(SignalXYSeries series, RenderArea area) => LastVisited = nameof(SignalXYSeries);
+    public void Visit(StreamingLineSeries series, RenderArea area) => LastVisited = nameof(StreamingLineSeries);
+    public void Visit(StreamingScatterSeries series, RenderArea area) => LastVisited = nameof(StreamingScatterSeries);
+    public void Visit(StreamingSignalSeries series, RenderArea area) => LastVisited = nameof(StreamingSignalSeries);
+    public void Visit(StreamingCandlestickSeries series, RenderArea area) => LastVisited = nameof(StreamingCandlestickSeries);
 }

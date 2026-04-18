@@ -41,14 +41,6 @@ public class Contour3DSeriesTests
         Assert.Equal(1.0, series.LineWidth);
     }
 
-    /// <summary>Verifies that ColorMap defaults to null.</summary>
-    [Fact]
-    public void DefaultColorMap_IsNull()
-    {
-        var series = new Contour3DSeries(SingleX, SingleY, SingleZ);
-        Assert.Null(series.ColorMap);
-    }
-
     /// <summary>Verifies that ToSeriesDto sets type to "contour3d".</summary>
     [Fact]
     public void ToSeriesDto_TypeIsContour3D()

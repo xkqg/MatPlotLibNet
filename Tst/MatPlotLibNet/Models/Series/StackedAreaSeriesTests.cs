@@ -88,16 +88,6 @@ public class StackedAreaSeriesTests
         Assert.Contains("polygon", svg);
     }
 
-    /// <summary>Verifies that Accept calls the visitor's Visit method for StackedAreaSeries.</summary>
-    [Fact]
-    public void Accept_CallsVisitor()
-    {
-        var series = new StackedAreaSeries(X, YSets);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(StackedAreaSeries), visitor.LastVisited);
-    }
-
     /// <summary>Verifies that three layers produce the correct cumulative sums.</summary>
     [Fact]
     public void ThreeLayers_CumulativeIsCorrect()

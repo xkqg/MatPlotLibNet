@@ -156,4 +156,29 @@ public class NpStatsTests
         Assert.Equal(1.0, r[0, 0], Tol);
         Assert.Equal(1.0, r[1, 1], Tol);
     }
+
+    /// <summary>All-equal data has width=0 — covers the `width > 0 ? ... : 0`
+    /// ternary's false arm and the Math.Clamp behaviour.</summary>
+    [Fact]
+    public void Histogram_AllEqualValues_PutsAllInOneBin()
+    {
+        Vec v = new double[] { 5, 5, 5, 5 };
+        HistogramResult h = NpStats.Histogram(v, 4);
+        Assert.Equal(4, h.Counts.Sum());
+        Assert.Equal(4.0, h.Counts[0]);   // all in first (and only) bin
+    }
+
+    /// <summary>A zero-variance column makes std[i]=0 — covers the false arm of
+    /// the `std[i] &gt; 0 &amp;&amp; std[j] &gt; 0` guard in Corrcoef. Off-diagonal entries
+    /// must be 0; diagonal entries must remain 1.</summary>
+    [Fact]
+    public void Corrcoef_ZeroVarianceColumn_OffDiagonalIsZero()
+    {
+        double[][] cols = [[1, 1, 1], [1, 2, 3]];     // first column has zero variance
+        Mat r = NpStats.Corrcoef(cols);
+        Assert.Equal(0.0, r[0, 1], Tol);
+        Assert.Equal(0.0, r[1, 0], Tol);
+        Assert.Equal(1.0, r[0, 0], Tol);
+        Assert.Equal(1.0, r[1, 1], Tol);
+    }
 }

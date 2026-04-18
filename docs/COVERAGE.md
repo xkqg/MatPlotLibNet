@@ -2,9 +2,13 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (post v1.7.1 uplift wave + Phase-9 dedup):** **5 468 tests** across 9 test projects, **≈90.9% line / 76.5% branch**, **154 classes still below absolute 90/90** (down from 241). Default-mode regression gate **PASSES**. Strict-mode flip is the next coverage milestone — tracked sub-90/90 classes are listed by namespace below.
+
 ## Why 90/90 (not 80/80)
 
-Industry consensus is "80% is good enough"; we don't accept that. Branch coverage of 80% means 1 in 5 conditional paths is never tested — exactly where silent-failure bugs hide. v1.7.0 shipped four such bugs (geo extensions, broken-axis, symlog, playground grid) under a 3,967-test suite that was 85% line / 68% branch. The threshold lives in [`tools/coverage/thresholds.json`](../tools/coverage/thresholds.json).
+Industry consensus is "80% is good enough"; we don't accept that. Branch coverage of 80% means 1 in 5 conditional paths is never tested — exactly where silent-failure bugs hide. v1.7.0 shipped four such bugs (geo extensions, broken-axis, symlog, playground grid) under a 3 967-test suite that was 85% line / 68% branch. The threshold lives in [`tools/coverage/thresholds.json`](../tools/coverage/thresholds.json).
+
+Branch coverage continues to surface real bugs through the uplift wave — two found post-1.7.1 by edge-case Theories (`BaselineHelper.ComputeWiggle/ComputeWeightedWiggle` empty-input crash; `SymLogNormalizer.Normalize(NaN)` throws). Both tracked for source patch.
 
 ## Run coverage locally
 
@@ -99,5 +103,27 @@ Common edge-case data lives in [`Tst/MatPlotLibNet/TestFixtures/`](../Tst/MatPlo
 - `EdgeCaseData.cs` — `Empty`, `SinglePoint`, `AllNaN`, `MixedNaN`, `BoundaryDoubles`, `Ramp(n)`, `Sin(n)`, `Large(n)`, `Descending(n)`, `AllEqual(n)`
 - `SvgGeometry.cs` — `ExtractPolylinePoints(svg)`, `ExtractYAxisTickPositions(svg)`, `CountPolygons(svg)`, `CountScripts(svg)`, `AssertPointsInCanvas(...)`
 - `NumpyReference.cs` — pre-computed reference values for SymLog, Log10, Robinson projection, etc.
+- `Tst/MatPlotLibNet/Indicators/Streaming/StreamingTestData.cs` — synthetic OHLC fixtures (`RisingBars`, `FlatBars`, `ZigZagBars`) for streaming-indicator tests.
 
 Use these instead of inlining your own — keeps "what's an edge case" consistent across the suite.
+
+## Cross-cutting Theory pattern (DRY)
+
+For families of types that share a contract, **extend the central Theory** instead of cloning per-type tests. The canonical example is [`Tst/MatPlotLibNet/Models/Series/AllSeriesTests.cs`](../Tst/MatPlotLibNet/Models/Series/AllSeriesTests.cs), which exercises **every** `ISeries` (currently 75+ types in `AllSeriesInstances`) against the same 9 invariants:
+
+- `Label` defaults to `null`, can be set/read
+- `Visible` defaults to `true`, can be set to `false`
+- `ZOrder` has the correct default (`AreaSeries` → −1; everything else → 0), can be set
+- `Accept(visitor, area)` dispatches to the correct visitor method
+- `IHasColor.Color` defaults to `null` (interface-filtered)
+- `IColormappable.ColorMap` defaults to `null` (interface-filtered)
+- `IHasMarkerStyle.MarkerStyle` defaults to `Circle` (interface-filtered)
+- `IHasAlpha.Alpha` falls within `[0, 1]` (interface-filtered)
+- `IHasEdgeColor.EdgeColor` defaults to `null` (interface-filtered)
+- `XYSeries.XData/YData` are stored unchanged (XYSeries-filtered)
+- `ToSeriesDto()` round-trips with non-empty `Type` string
+- `ComputeDataRange(...)` produces finite numbers for non-empty data
+
+Adding a new series type requires **one line** in `AllSeriesInstances` plus the corresponding `Visit` overload in `TestSeriesVisitor.cs` — and that single addition runs ~12 conformance tests. The renderer-side equivalent is [`Tst/MatPlotLibNet/Rendering/SeriesRenderers/AllRenderersDirectInvocationTests.cs`](../Tst/MatPlotLibNet/Rendering/SeriesRenderers/AllRenderersDirectInvocationTests.cs) — direct-invocation Theory over every `SeriesRenderer<T>` to cover renderer code paths that the visitor dispatch hides from the static call graph.
+
+Phase-9 dedup (post-1.7.1) removed 78 per-series `[Fact]` duplicates of these Theory tests across 55 files — net delta 5 569 → 5 468 tests, zero coverage regression.

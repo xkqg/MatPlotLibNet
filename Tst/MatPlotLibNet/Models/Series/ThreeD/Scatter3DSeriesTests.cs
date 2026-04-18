@@ -25,28 +25,12 @@ public class Scatter3DSeriesTests
         Assert.Equal(Z, (double[])series.Z);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new Scatter3DSeries(Single, Single, Single);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that MarkerSize defaults to 6.</summary>
     [Fact]
     public void DefaultMarkerSize_Is6()
     {
         var series = new Scatter3DSeries(Single, Single, Single);
         Assert.Equal(6, series.MarkerSize);
-    }
-
-    /// <summary>Verifies that ColorMap defaults to null.</summary>
-    [Fact]
-    public void DefaultColorMap_IsNull()
-    {
-        var series = new Scatter3DSeries(Single, Single, Single);
-        Assert.Null(series.ColorMap);
     }
 
     /// <summary>Verifies that ColorMap can be assigned.</summary>
@@ -65,14 +49,6 @@ public class Scatter3DSeriesTests
     {
         var series = new Scatter3DSeries(Single, Single, Single);
         Assert.Null(series.Normalizer);
-    }
-
-    /// <summary>Verifies that MarkerStyle defaults to Circle.</summary>
-    [Fact]
-    public void DefaultMarkerStyle_IsCircle()
-    {
-        var series = new Scatter3DSeries(Single, Single, Single);
-        Assert.Equal(MarkerStyle.Circle, series.MarkerStyle);
     }
 
     /// <summary>Verifies that ToSeriesDto includes ColorMapName when set.</summary>

@@ -39,25 +39,10 @@ public class SpectrogramSeriesTests
     }
 
     [Fact]
-    public void ColorMap_DefaultsToNull()
-    {
-        var series = new SpectrogramSeries(Signal);
-        Assert.Null(series.ColorMap);
-    }
-
-    [Fact]
     public void ToSeriesDto_ReturnsTypeSpectrogram()
     {
         var series = new SpectrogramSeries(Signal);
         Assert.Equal("spectrogram", series.ToSeriesDto().Type);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new SpectrogramSeries(Signal);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(SpectrogramSeries), visitor.LastVisited);
-    }
 }

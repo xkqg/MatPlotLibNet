@@ -105,6 +105,14 @@ public class EmaTests
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
+
+    /// <summary>Covers the early-return branch when the input price array is shorter than the period.</summary>
+    [Fact]
+    public void Compute_TooFewPrices_ReturnsEmpty()
+    {
+        // 2 prices, period 5 → returns empty
+        Assert.Empty(new Ema([10, 20], 5).Compute().Values);
+    }
 }
 
 /// <summary>Verifies <see cref="BollingerBands"/> behavior.</summary>
@@ -178,6 +186,34 @@ public class FibonacciRetracementTests
         foreach (var line in axes.ReferenceLines)
         {
             Assert.InRange(line.Value, 100, 200);
+        }
+    }
+
+    /// <summary>Covers <see cref="FibonacciRetracement.Compute"/> — returns the five Fibonacci price levels.</summary>
+    [Fact]
+    public void Compute_ReturnsFiveLevels()
+    {
+        var result = new FibonacciRetracement(100, 200).Compute();
+        double[] arr = result;
+        Assert.Equal(5, arr.Length);
+        // Levels are at high - range * level, so:
+        Assert.Equal(200 - 100 * 0.236, arr[0], 1e-9);
+        Assert.Equal(200 - 100 * 0.382, arr[1], 1e-9);
+        Assert.Equal(200 - 100 * 0.5,   arr[2], 1e-9);
+        Assert.Equal(200 - 100 * 0.618, arr[3], 1e-9);
+        Assert.Equal(200 - 100 * 0.786, arr[4], 1e-9);
+    }
+
+    /// <summary>Covers the explicit-color branch in <see cref="FibonacciRetracement.Apply"/>.</summary>
+    [Fact]
+    public void Apply_CustomColor_AppliedToLines()
+    {
+        var axes = new Axes();
+        axes.Plot([0, 1], [100, 200]);
+        new FibonacciRetracement(100, 200) { Color = MatPlotLibNet.Styling.Colors.Cyan }.Apply(axes);
+        foreach (var line in axes.ReferenceLines)
+        {
+            Assert.Equal(MatPlotLibNet.Styling.Colors.Cyan, line.Color);
         }
     }
 }

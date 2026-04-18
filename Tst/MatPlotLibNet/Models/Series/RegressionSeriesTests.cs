@@ -59,14 +59,6 @@ public class RegressionSeriesTests
         Assert.Equal(0.2, series.BandAlpha);
     }
 
-    /// <summary>Color defaults to null.</summary>
-    [Fact]
-    public void Color_DefaultsToNull()
-    {
-        var series = new RegressionSeries([1.0], [1.0]);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>BandColor defaults to null.</summary>
     [Fact]
     public void BandColor_DefaultsToNull()
@@ -83,13 +75,4 @@ public class RegressionSeriesTests
         Assert.Equal("regression", series.ToSeriesDto().Type);
     }
 
-    /// <summary>Accept dispatches to the correct visitor method.</summary>
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new RegressionSeries([1.0, 2.0], [1.0, 2.0]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(RegressionSeries), visitor.LastVisited);
-    }
 }

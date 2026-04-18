@@ -98,4 +98,25 @@ public class DrawDownTests
         Assert.Single(axes.Series);
         Assert.IsType<AreaSeries>(axes.Series[0]);
     }
+
+    /// <summary>Covers the peak &lt;= 0 branch — when equity starts non-positive the
+    /// drawdown formula must short-circuit to 0 rather than divide by zero or produce
+    /// a non-finite value.</summary>
+    [Fact]
+    public void Compute_NonPositivePeak_ReturnsZero()
+    {
+        // Equity starts at 0, drops to -10, never goes positive → peak stays 0
+        double[] dd = new DrawDown([0, -5, -10, -3]).Compute();
+        Assert.All(dd, v => Assert.Equal(0, v));
+    }
+
+    /// <summary>Covers the explicit-color branch in <see cref="DrawDown.Apply"/>.</summary>
+    [Fact]
+    public void Apply_CustomColor_AppliedToAreaSeries()
+    {
+        var axes = new Axes();
+        new DrawDown([100, 110, 105]) { Color = MatPlotLibNet.Styling.Colors.Cyan }.Apply(axes);
+        var series = (AreaSeries)axes.Series[0];
+        Assert.Equal(MatPlotLibNet.Styling.Colors.Cyan, series.Color);
+    }
 }

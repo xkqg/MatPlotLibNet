@@ -46,22 +46,6 @@ public sealed class StreamingScatterSeriesTests
     }
 
     [Fact]
-    public void ImplementsIHasColor() => Assert.IsAssignableFrom<IHasColor>(new StreamingScatterSeries());
-
-    [Fact]
-    public void ImplementsIHasAlpha() => Assert.IsAssignableFrom<IHasAlpha>(new StreamingScatterSeries());
-
-    [Fact]
-    public void ImplementsIStreamingSeries() => Assert.IsAssignableFrom<IStreamingSeries>(new StreamingScatterSeries());
-
-    [Fact]
-    public void ComputeDataRange_Empty_ReturnsNulls()
-    {
-        var s = new StreamingScatterSeries();
-        Assert.Null(s.ComputeDataRange(null!).XMin);
-    }
-
-    [Fact]
     public void ComputeDataRange_WithData_ReturnsCorrectBounds()
     {
         var s = new StreamingScatterSeries();

@@ -139,4 +139,54 @@ public class BaselineHelperTests
         var range = s.ComputeDataRange(null!);
         Assert.True(range.YMin < 0, $"Expected YMin < 0 but got {range.YMin}");
     }
+
+    // ── Edge cases that exercise defensive ternaries (Phase A coverage uplift) ──
+
+    /// <summary>Empty ySets — covers the `layers &gt; 0 ? ... : 0` arms in Zero/Symmetric.
+    /// (Wiggle / WeightedWiggle would also be exercised but currently throw on empty input —
+    /// tracked as a follow-up rather than masked here.)</summary>
+    [Theory]
+    [InlineData(StackedBaseline.Zero)]
+    [InlineData(StackedBaseline.Symmetric)]
+    public void EmptyYSets_ReturnsEmptyBaselines(StackedBaseline baseline)
+    {
+        var baselines = BaselineHelper.ComputeBaselines([], baseline);
+        Assert.Empty(baselines);
+    }
+
+    /// <summary>WeightedWiggle with all-zero data → totalWeight is 0 → falls back to Wiggle.</summary>
+    [Fact]
+    public void WeightedWiggle_AllZeroData_FallsBackToWiggle()
+    {
+        double[][] ySets = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]];
+        var ww = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.WeightedWiggle);
+        var w  = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.Wiggle);
+        Assert.Equal(w[0], ww[0]);
+        Assert.Equal(w[1], ww[1]);
+    }
+
+    /// <summary>Layers with empty inner arrays — exercises the n=0 branch in WeightedWiggle.</summary>
+    [Fact]
+    public void EmptyInnerArrays_ProducesEmptyPerLayerBaselines()
+    {
+        double[][] ySets = [[], []];
+        var baselines = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.WeightedWiggle);
+        Assert.Equal(2, baselines.Length);
+        Assert.Empty(baselines[0]);
+        Assert.Empty(baselines[1]);
+    }
+
+    /// <summary>Layers with different lengths — exercises Value's bounds-check arm
+    /// (<c>j &lt; ySets[layer].Length ? ... : 0.0</c>).</summary>
+    [Fact]
+    public void RaggedLayers_OutOfBoundsValuesTreatedAsZero()
+    {
+        // Layer 1 is shorter than layer 0 — accessing index 2 in layer 1 must return 0
+        double[][] ySets = [[1, 2, 3], [10]];
+        var baselines = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.Zero);
+        // baselines[1][1] = baselines[0][1] (=0) + ySets[0][1] (=2) = 2
+        // baselines[1][2] = baselines[0][2] (=0) + ySets[0][2] (=3) = 3
+        Assert.Equal(2.0, baselines[1][1]);
+        Assert.Equal(3.0, baselines[1][2]);
+    }
 }

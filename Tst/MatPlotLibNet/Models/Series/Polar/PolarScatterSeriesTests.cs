@@ -26,11 +26,4 @@ public class PolarScatterSeriesTests
         Assert.Equal(6, series.MarkerSize);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new PolarScatterSeries([1.0], [0.0]);
-        Assert.Null(series.Color);
-    }
 }

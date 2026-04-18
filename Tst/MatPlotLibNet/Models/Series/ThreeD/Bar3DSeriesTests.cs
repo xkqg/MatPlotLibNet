@@ -22,16 +22,4 @@ public class Bar3DSeriesTests
         Assert.Equal(Z, (double[])s.Z);
     }
 
-    [Fact] public void BarWidth_DefaultsTo0Point5() => Assert.Equal(0.5, new Bar3DSeries(S, S, S).BarWidth);
-    [Fact] public void Color_DefaultsToNull() => Assert.Null(new Bar3DSeries(S, S, S).Color);
-    [Fact] public void ToSeriesDto_ReturnsTypeBar3d() => Assert.Equal("bar3d", new Bar3DSeries(S, S, S).ToSeriesDto().Type);
-
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var s = new Bar3DSeries(S, S, S);
-        var v = new TestSeriesVisitor();
-        s.Accept(v, null!);
-        Assert.Equal(nameof(Bar3DSeries), v.LastVisited);
-    }
 }

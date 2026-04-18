@@ -41,13 +41,6 @@ public class RugplotSeriesTests
     }
 
     [Fact]
-    public void Color_DefaultsToNull()
-    {
-        var series = new RugplotSeries(Single);
-        Assert.Null(series.Color);
-    }
-
-    [Fact]
     public void ToSeriesDto_ReturnsTypeRugplot()
     {
         var series = new RugplotSeries(Data);
@@ -61,12 +54,4 @@ public class RugplotSeriesTests
         Assert.Equal(0.1, series.ToSeriesDto().RugHeight);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new RugplotSeries(Data);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(RugplotSeries), visitor.LastVisited);
-    }
 }

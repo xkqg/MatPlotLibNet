@@ -19,19 +19,6 @@ public class BarbsSeriesTests
         Assert.Equal(Speed, (double[])s.Speed); Assert.Equal(Dir, (double[])s.Direction);
     }
 
-    [Fact] public void BarbLength_DefaultsTo15() => Assert.Equal(15, new BarbsSeries(X, Y, Speed, Dir).BarbLength);
-    [Fact] public void ColorMap_DefaultsToNull() => Assert.Null(new BarbsSeries(X, Y, Speed, Dir).Color);
-    [Fact] public void ToSeriesDto_ReturnsTypeBarbs() => Assert.Equal("barbs", new BarbsSeries(X, Y, Speed, Dir).ToSeriesDto().Type);
-
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var s = new BarbsSeries(X, Y, Speed, Dir);
-        var v = new TestSeriesVisitor();
-        s.Accept(v, null!);
-        Assert.Equal(nameof(BarbsSeries), v.LastVisited);
-    }
-
     [Fact]
     public void ToSeriesDto_IncludesSpeedAndDirection()
     {

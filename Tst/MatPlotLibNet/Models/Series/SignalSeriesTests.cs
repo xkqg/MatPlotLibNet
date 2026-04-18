@@ -179,13 +179,6 @@ public class SignalSeriesTests
         Assert.Equal(1.5, s.LineWidth);
     }
 
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var s = new SignalSeries(Y3);
-        Assert.Null(s.Color);
-    }
-
     // ── ComputeDataRange ─────────────────────────────────────────────────────
 
     [Fact]

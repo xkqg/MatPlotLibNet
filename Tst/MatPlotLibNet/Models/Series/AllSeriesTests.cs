@@ -3,13 +3,64 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
 /// <summary>Verifies common <see cref="ISeries"/> behavior across all series types.</summary>
 public class AllSeriesTests
 {
+    /// <summary>Minimal <see cref="IAxesContext"/> for series whose <c>ComputeDataRange</c>
+    /// reads context fields (e.g. CandlestickSeries, WaterfallSeries, GanttSeries).</summary>
+    private sealed class NullAxesContext : IAxesContext
+    {
+        public double? XAxisMin => null;
+        public double? XAxisMax => null;
+        public double? YAxisMin => null;
+        public double? YAxisMax => null;
+        public BarMode BarMode => BarMode.Grouped;
+        public IReadOnlyList<ISeries> AllSeries => [];
+    }
+
+    /// <summary>Helper: factory for a populated streaming line series (so its data range is non-null).</summary>
+    private static StreamingLineSeries MakeStreamingLine()
+    {
+        var s = new StreamingLineSeries(capacity: 16);
+        s.AppendPoint(0.0, 1.0);
+        s.AppendPoint(1.0, 2.0);
+        s.AppendPoint(2.0, 3.0);
+        return s;
+    }
+
+    /// <summary>Helper: factory for a populated streaming scatter series.</summary>
+    private static StreamingScatterSeries MakeStreamingScatter()
+    {
+        var s = new StreamingScatterSeries(capacity: 16);
+        s.AppendPoint(0.0, 1.0);
+        s.AppendPoint(1.0, 2.0);
+        return s;
+    }
+
+    /// <summary>Helper: factory for a populated streaming signal series.</summary>
+    private static StreamingSignalSeries MakeStreamingSignal()
+    {
+        var s = new StreamingSignalSeries(capacity: 16);
+        s.AppendSample(1.0);
+        s.AppendSample(2.0);
+        return s;
+    }
+
+    /// <summary>Helper: factory for a populated streaming candlestick series.</summary>
+    private static StreamingCandlestickSeries MakeStreamingCandlestick()
+    {
+        var s = new StreamingCandlestickSeries(capacity: 16);
+        s.AppendBar(10, 15, 8, 13);
+        s.AppendBar(13, 18, 11, 16);
+        return s;
+    }
+
     public static TheoryData<ISeries, string> AllSeriesInstances => new()
     {
         { new LineSeries([1.0], [2.0]), nameof(LineSeries) },
@@ -70,6 +121,23 @@ public class AllSeriesTests
         { new BarbsSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 10.0, 20.0 }, new double[] { 45.0, 90.0 }), nameof(BarbsSeries) },
         { new Stem3DSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 3.0, 4.0 }), nameof(Stem3DSeries) },
         { new Bar3DSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 3.0, 4.0 }), nameof(Bar3DSeries) },
+        // ── Batch C extension: 16 missing series types (2026-04-18) ───────────
+        { new ImageSeries(new double[,] { { 1, 2 }, { 3, 4 } }), nameof(ImageSeries) },
+        { new StackedAreaSeries([1.0, 2.0, 3.0], [[1.0, 2.0, 3.0], [2.0, 3.0, 1.0]]), nameof(StackedAreaSeries) },
+        { new PolarHeatmapSeries(new double[,] { { 1, 2 }, { 3, 4 } }, thetaBins: 2, rBins: 2), nameof(PolarHeatmapSeries) },
+        { new SignalSeries([1.0, 2.0, 3.0], sampleRate: 100.0), nameof(SignalSeries) },
+        { new SignalXYSeries([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]), nameof(SignalXYSeries) },
+        { new PlanarBar3DSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 3.0, 4.0 }), nameof(PlanarBar3DSeries) },
+        { new Text3DSeries([new Text3DAnnotation(1, 2, 3, "A"), new Text3DAnnotation(4, 5, 6, "B")]), nameof(Text3DSeries) },
+        { new Line3DSeries(new double[] { 1.0, 2.0 }, new double[] { 1.0, 2.0 }, new double[] { 3.0, 4.0 }), nameof(Line3DSeries) },
+        { new Trisurf3DSeries(new double[] { 0.0, 1.0, 0.5 }, new double[] { 0.0, 0.0, 1.0 }, new double[] { 1.0, 2.0, 3.0 }), nameof(Trisurf3DSeries) },
+        { new Contour3DSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 1.0 }, new double[,] { { 1, 2 }, { 3, 4 } }), nameof(Contour3DSeries) },
+        { new Quiver3DSeries(new double[] { 1.0 }, new double[] { 2.0 }, new double[] { 3.0 }, new double[] { 0.5 }, new double[] { 0.5 }, new double[] { 0.5 }), nameof(Quiver3DSeries) },
+        { new VoxelSeries(new bool[2, 2, 2] { { { true, false }, { false, true } }, { { false, true }, { true, false } } }), nameof(VoxelSeries) },
+        { MakeStreamingLine(), nameof(StreamingLineSeries) },
+        { MakeStreamingScatter(), nameof(StreamingScatterSeries) },
+        { MakeStreamingSignal(), nameof(StreamingSignalSeries) },
+        { MakeStreamingCandlestick(), nameof(StreamingCandlestickSeries) },
     };
 
     /// <summary>Verifies that Label defaults to null for every series type.</summary>
@@ -126,5 +194,124 @@ public class AllSeriesTests
     {
         series.ZOrder = 42;
         Assert.Equal(42, series.ZOrder);
+    }
+
+    // ── Consolidated property-default checks (Phase 9 dedup, 2026-04-18) ─────
+    // These three tests replace ~50 near-identical per-series test methods that
+    // each constructed one series and asserted the same default. The source of
+    // truth for "what defaults to null" is now ONE place. Per-series test files
+    // keep only TYPE-SPECIFIC behaviour (e.g. AreaSeries.YData2 default).
+
+    /// <summary>Every series implementing <see cref="IHasColor"/> must default to
+    /// <c>Color = null</c> so the theme cycler picks the actual colour at render time.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void IHasColor_DefaultsToNull(ISeries series, string _)
+    {
+        if (series is IHasColor hc) Assert.Null(hc.Color);
+    }
+
+    /// <summary>Every series implementing <see cref="IColormappable"/> must default to
+    /// <c>ColorMap = null</c> so the axes-level colormap propagates instead.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void IColormappable_DefaultColorMapIsNull(ISeries series, string _)
+    {
+        if (series is IColormappable cm) Assert.Null(cm.ColorMap);
+    }
+
+    /// <summary>Every <see cref="XYSeries"/>-derived series must store the X and Y
+    /// data passed to its constructor (i.e. no defensive cloning that breaks
+    /// downstream Append-style mutation).</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void XYSeries_StoresXAndYData(ISeries series, string _)
+    {
+        if (series is XYSeries xy)
+        {
+            Assert.NotNull(xy.XData);
+            Assert.NotNull(xy.YData);
+            Assert.Equal(xy.XData.Length, xy.YData.Length);
+        }
+    }
+
+    // ── Cross-cutting Theory tests added in Batch C (2026-04-18) ─────────────
+    // Replace dozens of per-series ToSeriesDto / DataRange / interface-default
+    // checks with a single Theory each. Keeps the source of truth in ONE place.
+
+    /// <summary>Every series' <see cref="ISeries.ToSeriesDto"/> must round-trip to a
+    /// non-null DTO with a non-empty <see cref="Serialization.SeriesDto.Type"/> string,
+    /// otherwise persistence and renderer dispatch break.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void ToSeriesDto_RoundTrips(ISeries series, string _)
+    {
+        var dto = series.ToSeriesDto();
+        Assert.NotNull(dto);
+        Assert.False(string.IsNullOrEmpty(dto.Type));
+    }
+
+    /// <summary>Every series with non-empty data must produce a finite (no NaN, no
+    /// infinity) <see cref="DataRangeContribution"/>. Members may be null when the
+    /// series legitimately doesn't contribute to that axis (polar series, voxel
+    /// series with empty mask, etc.) — those nulls are skipped, not failed on.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void ComputeDataRange_NonEmpty_ProducesFiniteRange(ISeries series, string _)
+    {
+        var range = series.ComputeDataRange(new NullAxesContext());
+        AssertFinite(range.XMin, nameof(range.XMin));
+        AssertFinite(range.XMax, nameof(range.XMax));
+        AssertFinite(range.YMin, nameof(range.YMin));
+        AssertFinite(range.YMax, nameof(range.YMax));
+        AssertFinite(range.ZMin, nameof(range.ZMin));
+        AssertFinite(range.ZMax, nameof(range.ZMax));
+        AssertFinite(range.StickyXMin, nameof(range.StickyXMin));
+        AssertFinite(range.StickyXMax, nameof(range.StickyXMax));
+        AssertFinite(range.StickyYMin, nameof(range.StickyYMin));
+        AssertFinite(range.StickyYMax, nameof(range.StickyYMax));
+        AssertFinite(range.StickyZMin, nameof(range.StickyZMin));
+        AssertFinite(range.StickyZMax, nameof(range.StickyZMax));
+
+        static void AssertFinite(double? v, string name)
+        {
+            if (v is null) return;          // null = no contribution → legitimate
+            Assert.False(double.IsNaN(v.Value), $"{name} is NaN");
+            Assert.False(double.IsInfinity(v.Value), $"{name} is infinite");
+        }
+    }
+
+    /// <summary>Every series implementing <see cref="IHasMarkerStyle"/> must default to
+    /// <c>MarkerStyle.Circle</c> — matplotlib's <c>scatter</c> default.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void IHasMarkerStyle_DefaultsToCircle(ISeries series, string _)
+    {
+        if (series is IHasMarkerStyle ms) Assert.Equal(MarkerStyle.Circle, ms.MarkerStyle);
+    }
+
+    /// <summary>Every series implementing <see cref="IHasAlpha"/> must have <c>Alpha</c>
+    /// in the valid <c>[0, 1]</c> range — defaults vary by series type (1.0 for opaque
+    /// scatter/bar, 0.3 for translucent KDE/area/violin, etc.) so the assertion is a
+    /// range check, not equality. The lower bound is exclusive of NaN; the upper bound
+    /// is inclusive of 1.0.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void IHasAlpha_DefaultsToValidRange(ISeries series, string _)
+    {
+        if (series is IHasAlpha ha)
+        {
+            Assert.False(double.IsNaN(ha.Alpha), "Alpha defaulted to NaN");
+            Assert.InRange(ha.Alpha, 0.0, 1.0);
+        }
+    }
+
+    /// <summary>Every series implementing <see cref="IHasEdgeColor"/> must default to
+    /// <c>EdgeColor = null</c> so the renderer's per-series default stroke is used.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void IHasEdgeColor_DefaultsToNull(ISeries series, string _)
+    {
+        if (series is IHasEdgeColor ec) Assert.Null(ec.EdgeColor);
     }
 }

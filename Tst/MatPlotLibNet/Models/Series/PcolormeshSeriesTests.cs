@@ -22,13 +22,6 @@ public class PcolormeshSeriesTests
     }
 
     [Fact]
-    public void ColorMap_DefaultsToNull()
-    {
-        var series = new PcolormeshSeries(X, Y, C);
-        Assert.Null(series.ColorMap);
-    }
-
-    [Fact]
     public void Normalizer_DefaultsToNull()
     {
         var series = new PcolormeshSeries(X, Y, C);
@@ -51,12 +44,4 @@ public class PcolormeshSeriesTests
         Assert.Equal("pcolormesh", series.ToSeriesDto().Type);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new PcolormeshSeries(X, Y, C);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(PcolormeshSeries), visitor.LastVisited);
-    }
 }

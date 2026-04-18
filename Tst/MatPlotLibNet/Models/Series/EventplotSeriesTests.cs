@@ -52,12 +52,4 @@ public class EventplotSeriesTests
         Assert.Equal(pos, series.ToSeriesDto().EventPositions);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new EventplotSeries([[1.0]]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(EventplotSeries), visitor.LastVisited);
-    }
 }

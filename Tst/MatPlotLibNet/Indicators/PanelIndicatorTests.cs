@@ -97,6 +97,26 @@ public class VolumeIndicatorTests
         new VolumeIndicator([1000, 1500]).Apply(axes);
         Assert.Equal(0, axes.YAxis.Min);
     }
+
+    /// <summary>Compute returns a SignalResult wrapping the original volumes — covers
+    /// the otherwise-unused <c>Compute()</c> method.</summary>
+    [Fact]
+    public void Compute_ReturnsVolumesAsSignalResult()
+    {
+        var volumes = new[] { 100.0, 200.0, 300.0 };
+        var result = new VolumeIndicator(volumes).Compute();
+        Assert.Equal(volumes, result.Values);
+    }
+
+    /// <summary>Custom labels propagate to the BarSeries categories.</summary>
+    [Fact]
+    public void Apply_WithExplicitLabels_UsesThemForCategories()
+    {
+        var axes = new Axes();
+        new VolumeIndicator([10, 20], ["Mon", "Tue"]).Apply(axes);
+        var bars = Assert.IsType<BarSeries>(axes.Series[0]);
+        Assert.Equal(["Mon", "Tue"], bars.Categories);
+    }
 }
 
 /// <summary>Verifies <see cref="Stochastic"/> behavior.</summary>

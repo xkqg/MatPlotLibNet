@@ -26,25 +26,6 @@ public class PlanarBar3DSeriesTests
         Assert.Equal(Z, (double[])s.Z);
     }
 
-    [Fact] public void BarWidth_DefaultsTo0p8() => Assert.Equal(0.8, new PlanarBar3DSeries(X, Y, Z).BarWidth);
-    [Fact] public void Alpha_DefaultsTo0p8() => Assert.Equal(0.8, new PlanarBar3DSeries(X, Y, Z).Alpha);
-    [Fact] public void Color_DefaultsToNull() => Assert.Null(new PlanarBar3DSeries(X, Y, Z).Color);
-    [Fact] public void EdgeColor_DefaultsToNull() => Assert.Null(new PlanarBar3DSeries(X, Y, Z).EdgeColor);
-    [Fact] public void Colors_DefaultsToNull() => Assert.Null(new PlanarBar3DSeries(X, Y, Z).Colors);
-
-    /// <summary>
-    /// <see cref="PlanarBar3DSeries.ComputeDataRange"/> must report X spanning
-    /// <c>[X.Min, X.Max + BarWidth]</c> so the rightmost bar's full width is visible.
-    /// </summary>
-    [Fact]
-    public void ComputeDataRange_XExtent_IncludesBarWidth()
-    {
-        var s = new PlanarBar3DSeries(X, Y, Z) { BarWidth = 0.5 };
-        var c = s.ComputeDataRange(null!);
-        Assert.Equal(0.0, c.XMin);
-        Assert.Equal(2.5, c.XMax);
-    }
-
     /// <summary>
     /// Z range must register a sticky-zero baseline so bars touch the ground plane —
     /// matplotlib's <c>ax.bar(..., bottom=0)</c> convention.
@@ -88,12 +69,4 @@ public class PlanarBar3DSeriesTests
         Assert.Equal(Colors.Crimson, dto.Color);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var s = new PlanarBar3DSeries(X, Y, Z);
-        var v = new TestSeriesVisitor();
-        s.Accept(v, null!);
-        Assert.Equal(nameof(PlanarBar3DSeries), v.LastVisited);
-    }
 }

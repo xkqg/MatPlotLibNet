@@ -35,14 +35,6 @@ public class HexbinSeriesTests
         Assert.Equal(1, series.MinCount);
     }
 
-    /// <summary>ColorMap defaults to null.</summary>
-    [Fact]
-    public void ColorMap_DefaultsToNull()
-    {
-        var series = new HexbinSeries([], []);
-        Assert.Null(series.ColorMap);
-    }
-
     /// <summary>ToSeriesDto returns type "hexbin".</summary>
     [Fact]
     public void ToSeriesDto_ReturnsTypeHexbin()
@@ -51,13 +43,4 @@ public class HexbinSeriesTests
         Assert.Equal("hexbin", series.ToSeriesDto().Type);
     }
 
-    /// <summary>Accept dispatches to the correct visitor method.</summary>
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new HexbinSeries([1.0, 2.0], [1.0, 2.0]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(HexbinSeries), visitor.LastVisited);
-    }
 }

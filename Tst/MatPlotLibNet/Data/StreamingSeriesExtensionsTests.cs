@@ -83,6 +83,52 @@ public sealed class StreamingSeriesExtensionsTests
         subject.OnCompleted(); // should not throw
     }
 
+    /// <summary>Covers <c>OhlcObserver.OnError</c> — the no-op error handler must not throw.</summary>
+    [Fact]
+    public void OhlcObserver_OnError_DoesNotThrow()
+    {
+        var series = new StreamingCandlestickSeries(100);
+        var subject = new TestSubject<OhlcBar>();
+        using var sub = series.SubscribeTo(subject);
+
+        subject.OnError(new InvalidOperationException("test"));
+        Assert.Equal(0, series.Count);
+    }
+
+    /// <summary>Covers <c>OhlcObserver.OnCompleted</c> — the no-op completion handler must not throw.</summary>
+    [Fact]
+    public void OhlcObserver_OnCompleted_DoesNotThrow()
+    {
+        var series = new StreamingCandlestickSeries(100);
+        var subject = new TestSubject<OhlcBar>();
+        using var sub = series.SubscribeTo(subject);
+
+        subject.OnCompleted();
+    }
+
+    /// <summary>Covers <c>SignalObserver.OnError</c> — the no-op error handler must not throw.</summary>
+    [Fact]
+    public void SignalObserver_OnError_DoesNotThrow()
+    {
+        var series = new StreamingSignalSeries(100);
+        var subject = new TestSubject<double>();
+        using var sub = series.SubscribeTo(subject);
+
+        subject.OnError(new InvalidOperationException("test"));
+        Assert.Equal(0, series.Count);
+    }
+
+    /// <summary>Covers <c>SignalObserver.OnCompleted</c> — the no-op completion handler must not throw.</summary>
+    [Fact]
+    public void SignalObserver_OnCompleted_DoesNotThrow()
+    {
+        var series = new StreamingSignalSeries(100);
+        var subject = new TestSubject<double>();
+        using var sub = series.SubscribeTo(subject);
+
+        subject.OnCompleted();
+    }
+
     /// <summary>Minimal IObservable implementation for testing without System.Reactive.</summary>
     private sealed class TestSubject<T> : IObservable<T>
     {

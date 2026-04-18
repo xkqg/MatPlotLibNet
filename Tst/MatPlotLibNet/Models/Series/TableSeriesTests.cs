@@ -66,12 +66,4 @@ public class TableSeriesTests
         Assert.Equal(Data, series.ToSeriesDto().TableCellData);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new TableSeries(Data);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(TableSeries), visitor.LastVisited);
-    }
 }

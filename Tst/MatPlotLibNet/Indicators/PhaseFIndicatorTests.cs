@@ -125,6 +125,42 @@ public class CciTests
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
+
+    /// <summary>Covers the early-return branch (len &lt;= 0) when bar count is below the period.</summary>
+    [Fact]
+    public void Compute_TooFewBars_ReturnsEmpty()
+    {
+        double[] h = [10, 11, 12];
+        double[] l = [8, 9, 10];
+        double[] c = [9, 10, 11];
+        Assert.Empty(new Cci(h, l, c, 14).Compute().Values);
+    }
+
+    /// <summary>Covers the meanDev == 0 ternary branch — when the typical price is constant
+    /// across the window the mean deviation is zero and CCI must return 0 rather than divide-by-zero.</summary>
+    [Fact]
+    public void Compute_ConstantPriceWindow_ReturnsZero()
+    {
+        // Constant TP across window → meanDev=0 → result must be 0 (not NaN/Inf)
+        double[] h = [10, 10, 10, 10, 10];
+        double[] l = [10, 10, 10, 10, 10];
+        double[] c = [10, 10, 10, 10, 10];
+        var result = new Cci(h, l, c, 3).Compute();
+        Assert.All(result.Values, v => Assert.Equal(0, v));
+    }
+
+    /// <summary>Covers the early-exit branch in Apply when Compute returns an empty array
+    /// (no series should be added to the axes).</summary>
+    [Fact]
+    public void Apply_TooFewBars_NoSeriesAdded()
+    {
+        var axes = new Axes();
+        double[] h = [10, 11];
+        double[] l = [8, 9];
+        double[] c = [9, 10];
+        new Cci(h, l, c, 14).Apply(axes);
+        Assert.Empty(axes.Series);
+    }
 }
 
 /// <summary>Verifies <see cref="ParabolicSar"/> behavior.</summary>

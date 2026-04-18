@@ -24,13 +24,6 @@ public class BrokenBarSeriesTests
     }
 
     [Fact]
-    public void Color_DefaultsToNull()
-    {
-        var series = new BrokenBarSeries([]);
-        Assert.Null(series.Color);
-    }
-
-    [Fact]
     public void Labels_DefaultsToNull()
     {
         var series = new BrokenBarSeries([]);
@@ -56,12 +49,4 @@ public class BrokenBarSeriesTests
         Assert.Equal([2.0, 3.0], dto.RangeWidths![0]);
     }
 
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new BrokenBarSeries([[(1.0, 2.0)]]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(BrokenBarSeries), visitor.LastVisited);
-    }
 }

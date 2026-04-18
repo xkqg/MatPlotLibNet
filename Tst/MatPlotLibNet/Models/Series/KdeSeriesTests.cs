@@ -58,14 +58,6 @@ public class KdeSeriesTests
         Assert.Equal(LineStyle.Solid, series.LineStyle);
     }
 
-    /// <summary>Color defaults to null.</summary>
-    [Fact]
-    public void Color_DefaultsToNull()
-    {
-        var series = new KdeSeries([1.0]);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Bandwidth can be set and read back.</summary>
     [Fact]
     public void Bandwidth_CanBeSet()
@@ -99,13 +91,4 @@ public class KdeSeriesTests
         Assert.Equal(0.7, series.ToSeriesDto().Bandwidth);
     }
 
-    /// <summary>Accept dispatches to the correct visitor method.</summary>
-    [Fact]
-    public void Accept_DispatchesToVisitor()
-    {
-        var series = new KdeSeries([1.0, 2.0, 3.0]);
-        var visitor = new TestSeriesVisitor();
-        series.Accept(visitor, null!);
-        Assert.Equal(nameof(KdeSeries), visitor.LastVisited);
-    }
 }

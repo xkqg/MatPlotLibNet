@@ -20,14 +20,6 @@ public class SurfaceSeriesTests
         Assert.Equal(z, series.Z);
     }
 
-    /// <summary>Verifies that ColorMap defaults to null.</summary>
-    [Fact]
-    public void DefaultColorMap_IsNull()
-    {
-        var series = new SurfaceSeries([1.0], [1.0], new double[,] { { 1 } });
-        Assert.Null(series.ColorMap);
-    }
-
     /// <summary>Verifies that Alpha defaults to 0.8.</summary>
     [Fact]
     public void DefaultAlpha_Is0Point8()

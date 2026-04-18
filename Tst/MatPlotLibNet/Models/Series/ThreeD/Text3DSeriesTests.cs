@@ -36,14 +36,6 @@ public class Text3DSeriesTests
         Assert.Equal(10, series.FontSize);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new Text3DSeries(SingleAnnotation);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that ComputeDataRange is derived from annotation positions.</summary>
     [Fact]
     public void ComputeDataRange_FromAnnotationPositions()
@@ -66,4 +58,30 @@ public class Text3DSeriesTests
         var dto = series.ToSeriesDto();
         Assert.Equal("text3d", dto.Type);
     }
+
+    /// <summary>Empty annotations must yield an all-null DataRangeContribution
+    /// (the early-return arm of ComputeDataRange).</summary>
+    [Fact]
+    public void ComputeDataRange_EmptyAnnotations_ReturnsAllNull()
+    {
+        var series = new Text3DSeries([]);
+        var range = series.ComputeDataRange(null!);
+        Assert.Null(range.XMin);
+        Assert.Null(range.XMax);
+        Assert.Null(range.YMin);
+        Assert.Null(range.YMax);
+    }
+
+    /// <summary>ToSeriesDto must serialise every annotation, propagate
+    /// non-default FontSize/Color/Label so all arms of the DTO initialiser fire.</summary>
+    [Fact]
+    public void ToSeriesDto_PopulatedSeries_RoundTripsAllFields()
+    {
+        var series = new Text3DSeries(Annotations) { FontSize = 14, Label = "lbl" };
+        var dto = series.ToSeriesDto();
+        Assert.Equal(3, dto.Text3DAnnotations!.Count);
+        Assert.Equal(14, dto.MarkerSize);
+        Assert.Equal("lbl", dto.Label);
+    }
+
 }

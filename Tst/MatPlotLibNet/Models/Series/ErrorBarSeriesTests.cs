@@ -52,14 +52,6 @@ public class ErrorBarSeriesTests
         Assert.Equal(1.5, series.LineWidth);
     }
 
-    /// <summary>Verifies that Color defaults to null.</summary>
-    [Fact]
-    public void DefaultColor_IsNull()
-    {
-        var series = new ErrorBarSeries([1.0], [2.0], [0.1], [0.1]);
-        Assert.Null(series.Color);
-    }
-
     /// <summary>Verifies that ELineWidth defaults to null.</summary>
     [Fact]
     public void DefaultELineWidth_IsNull()
