@@ -9,9 +9,23 @@ namespace MatPlotLibNet.Tests.Benchmarks;
 /// <summary>Phase K of the v1.7.2 follow-on plan — interaction-path benchmarks
 /// (user-requested). Sits alongside <see cref="V170Benchmarks"/> so the full
 /// interaction stack (server-side figure build → script emission → client-side
-/// reproject) has measured baselines going forward.</summary>
+/// reproject) has measured baselines going forward.
+/// <para>Thresholds are CI-aware: dev-machine budgets catch real regressions
+/// early, while shared GitHub-runners (2-core VMs, 2-3× slower than a dev
+/// laptop) use a generous 5× headroom to absorb scheduling jitter. The
+/// <c>GITHUB_ACTIONS</c> env var is set by every GitHub-Actions runner and
+/// is the canonical CI detector.</para></summary>
 public sealed class InteractionBenchmarks
 {
+    /// <summary>True when running on a shared CI runner (GitHub Actions).
+    /// Perf assertions use a looser threshold here because a 2-core VM
+    /// shared with other processes has unavoidable per-run jitter that
+    /// would otherwise produce flaky failures on a genuinely healthy code
+    /// path.</summary>
+    private static readonly bool IsCi =
+        !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"))
+        || string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>How long it takes to fully build the Jint harness for a 3D Surface:
     /// includes server render, SVG parse, script extraction + execution with the
     /// full matplotlib projection port (Phase B.4). This is the cold-start latency
@@ -44,7 +58,9 @@ public sealed class InteractionBenchmarks
         sw.Stop();
         double avgMs = sw.Elapsed.TotalMilliseconds / iterations;
         Console.WriteLine($"Harness 3D Surface cold-start: {avgMs:F1}ms/figure ({iterations} iterations)");
-        Assert.True(avgMs < 1500, $"harness cold-start should stay under 1.5s, got {avgMs:F1}ms");
+        double coldStartBudget = IsCi ? 7500 : 1500;
+        Assert.True(avgMs < coldStartBudget,
+            $"harness cold-start should stay under {coldStartBudget}ms, got {avgMs:F1}ms");
     }
 
     /// <summary>Per-drag latency: after cold-start, how long does one
@@ -82,7 +98,13 @@ public sealed class InteractionBenchmarks
         sw.Stop();
         double avgMs = sw.Elapsed.TotalMilliseconds / iterations;
         Console.WriteLine($"3D drag reproject (20x20 surface, 400 quads + axis infra): {avgMs:F2}ms/drag-cycle ({iterations} iterations)");
-        Assert.True(avgMs < 50, $"drag reproject should stay under 50ms (human frame budget ~16ms ideal, 50ms sluggish threshold), got {avgMs:F2}ms");
+        // Dev-machine budget: 50ms (16ms is ideal per-frame; 50ms is the "sluggish"
+        // threshold beyond which interactive feel breaks down). CI runners are
+        // 2-3× slower + jitter-prone, so use 5× headroom there — still catches
+        // a catastrophic regression (e.g. O(n²) resort slipping into the path).
+        double dragBudget = IsCi ? 250 : 50;
+        Assert.True(avgMs < dragBudget,
+            $"drag reproject should stay under {dragBudget}ms, got {avgMs:F2}ms");
     }
 
     /// <summary>2D wheel-zoom throughput — pure viewBox math, should be microseconds.</summary>
@@ -102,7 +124,9 @@ public sealed class InteractionBenchmarks
         sw.Stop();
         double avgUs = sw.Elapsed.TotalMicroseconds / iterations;
         Console.WriteLine($"2D wheel-zoom (1000-point line): {avgUs:F1}µs/wheel-event ({iterations} iterations)");
-        Assert.True(avgUs < 5000, $"wheel-zoom should stay under 5ms/event, got {avgUs:F1}µs");
+        double wheelBudgetUs = IsCi ? 25000 : 5000;
+        Assert.True(avgUs < wheelBudgetUs,
+            $"wheel-zoom should stay under {wheelBudgetUs}µs/event, got {avgUs:F1}µs");
     }
 
     /// <summary>Sankey hover BFS traversal — how fast does <c>highlight(nodeId)</c>
@@ -134,6 +158,8 @@ public sealed class InteractionBenchmarks
         sw.Stop();
         double avgUs = sw.Elapsed.TotalMicroseconds / iterations;
         Console.WriteLine($"Sankey hover + restore (20 nodes, ~75 links): {avgUs:F1}µs/cycle ({iterations} iterations)");
-        Assert.True(avgUs < 10000, $"Sankey hover should stay under 10ms/cycle, got {avgUs:F1}µs");
+        double sankeyBudgetUs = IsCi ? 50000 : 10000;
+        Assert.True(avgUs < sankeyBudgetUs,
+            $"Sankey hover should stay under {sankeyBudgetUs}µs/cycle, got {avgUs:F1}µs");
     }
 }
