@@ -286,10 +286,30 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.AppendLine("</text>");
     }
 
+    // Tracks whether SetOpacity has currently opened an <g opacity="..."> wrapper.
+    // SetOpacity is called PAIRWISE by renderers: once with the series alpha, then
+    // again with 1.0 to "reset". The Skia backend treats this as a state variable
+    // and does not need a wrapper. The SVG backend used to OPEN a fresh <g> on each
+    // call -- producing two unclosed wrappers and a malformed SVG that broke the
+    // browser XML parser (and silently disabled embedded interactivity scripts).
+    private bool _opacityGroupOpen;
+
     /// <inheritdoc />
     public void SetOpacity(double opacity)
     {
-        _sb.Append("<g opacity=\"").Append(F(opacity)).AppendLine("\">");
+        // Close any previously open opacity wrapper so the SVG stays balanced.
+        if (_opacityGroupOpen)
+        {
+            _sb.AppendLine("</g>");
+            _opacityGroupOpen = false;
+        }
+        // Only open a new wrapper when opacity actually differs from full opacity.
+        // Calling SetOpacity(1.0) acts as a clean RESET with no extra DOM noise.
+        if (opacity < 1.0)
+        {
+            _sb.Append("<g opacity=\"").Append(F(opacity)).AppendLine("\">");
+            _opacityGroupOpen = true;
+        }
     }
 
     /// <summary>Opens an SVG group element with a CSS class attribute.</summary>

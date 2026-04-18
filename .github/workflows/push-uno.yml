@@ -1,6 +1,16 @@
 name: Push Uno NuGet Package
 
+# Triggered automatically on every published GitHub Release (same hook as publish.yml
+# uses for the other 12 packages) so Uno cannot fall behind the version tag again.
+# workflow_dispatch is also kept so it can be re-run manually if a release fails.
+#
+# Why a separate workflow at all? Uno requires the Uno SDK source generators
+# (SKCanvasElement etc.) which are not part of any dotnet workload — they install
+# via Uno.Templates. So this job has its own Setup steps + cannot be merged into
+# publish.yml's matrix. See publish.yml comment lines 64-68.
 on:
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
