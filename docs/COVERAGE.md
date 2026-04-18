@@ -2,7 +2,7 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
-**Status (v1.7.2):** **5 536 tests** across 9 test projects (5 468 from coverage uplift + 42 from the 13-phase interaction-hardening behavioural test harness + 26 from the matplotlib-parity follow-on), **≈90.9% line / 76.5% branch**, **153 classes still below absolute 90/90** (down from 241 at the v1.7.1 tag). Default-mode regression gate **PASSES**. Strict-mode flip is the next coverage milestone — tracked sub-90/90 classes are listed by namespace below.
+**Status (v1.7.2):** **5 538 tests** across 9 test projects (5 468 from coverage uplift + 42 from the 13-phase interaction-hardening behavioural test harness + 28 from the matplotlib-parity follow-on incl. playground-data parity), **≈90.9% line / 76.5% branch**, **153 classes still below absolute 90/90** (down from 241 at the v1.7.1 tag). Default-mode regression gate **PASSES**. Strict-mode flip is the next coverage milestone — tracked sub-90/90 classes are listed by namespace below.
 
 ## Why 90/90 (not 80/80)
 

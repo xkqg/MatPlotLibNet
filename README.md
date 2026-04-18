@@ -8,8 +8,9 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.7.2 — Browser-interaction subsystem hardened end-to-end (13-phase TDD plan) + bug fixes + coverage uplift + CI hardening.** Continuation of the v1.7.1 stabilisation track. **Now the stable release.**
+> **v1.7.2 — Browser-interaction subsystem hardened end-to-end (13-phase TDD plan + matplotlib-parity follow-on) + bug fixes + coverage uplift + CI hardening.** Continuation of the v1.7.1 stabilisation track. **Now the stable release.**
 >
+> 0. **Matplotlib-parity follow-on (Phases A–C):** **3D drag now ROTATES the camera** (was hijacked by 2D pan via `setPointerCapture` last-call-wins; fixed via 3D-script `stopPropagation` + 2D-script bails on `.mpl-3d-scene`); **full matplotlib `Projection3D` ported to JS** for first-drag visual continuity (server vs. client agree to within 1 px under both axis-infrastructure polygons and surface data quads at the playground's 20×20 sinc + `[-3, 3]` ranges); **drag math = matplotlib `_on_move`** (`dazim/delev = ±dx/w·180`); **2D wheel-zoom rate = `0.85^step`** (matplotlib `NavigationToolbar2.scroll_handler`); **`x` / `y` modifier keys** lock pan axis.
 > 1. **2D scroll-wheel actually zooms** now (was passive-listener silently scrolling page); **3D rotation moves the entire scene** — axes, grid, panes, ticks, labels — not just data polygons; **3D scroll-wheel zoom** + Home-key full reset; **Pointer Events + pinch-to-zoom** for touch parity; **per-chart isolation** (eight scripts that previously cross-talked between charts on one page now self-locate via `currentScript.parentNode`).
 > 2. **`FigureBuilder.WithBrowserInteraction()` now also enables 3D rotation, treemap drilldown, and sankey hover** in addition to the 2D scripts. **`Theme Comparison` cookbook image** now renders six actual themes via SkiaSharp grid composite (was six identical Default-theme renders).
 > 3. **`WithInteractionTheme(InteractionTheme theme)` builder** — themable opacity / transition tokens; **URL-hash state persistence** (opt-in via `data-mpl-persist="true"`) — refresh keeps zoom/pan; **3D lighting recomputation hooks** under rotation; **original-opacity preservation** across hover cycles; **treemap "Press Esc to zoom out" hint** when drilled; **tooltip focus position** uses element bounds.
@@ -17,7 +18,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 > 5. **6-batch coverage uplift (Phases A-F) + Phase-9 dedup** — +1 192 tests, sub-90/90 class count 241 → **154**, 14 documented exemptions added for sample / interface / JS-template code.
 > 6. **CI hardening** — Skia tests now ship `SkiaSharp.NativeAssets.{Linux.NoDependencies, Win32, macOS}` so `libSkiaSharp.so` actually loads on Linux runners.
 >
-> **5 510 tests green** across 9 test projects covering 13 NuGet packages (was 4 275 at v1.7.1, 3 967 in v1.7.0).
+> **5 538 tests green** across 9 test projects covering 13 NuGet packages (was 4 275 at v1.7.1, 3 967 in v1.7.0).
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 
