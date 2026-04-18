@@ -164,8 +164,13 @@ public sealed class FigureBuilder
 
     /// <summary>Convenience that enables ALL browser-side interactions in one call:
     /// <see cref="WithZoomPan"/>, <see cref="WithRichTooltips"/>, <see cref="WithLegendToggle"/>,
-    /// <see cref="WithHighlight"/>, and <see cref="WithSelection"/>. The resulting SVG works
-    /// standalone in any browser — no .NET runtime needed on the client. Adds ~3KB of inline JS.</summary>
+    /// <see cref="WithHighlight"/>, <see cref="WithSelection"/>, plus the chart-type-specific
+    /// <see cref="With3DRotation"/> (drag to rotate 3D scenes), <see cref="WithTreemapDrilldown"/>
+    /// (click a tile to zoom), and <see cref="WithSankeyHover"/> (highlight upstream/downstream
+    /// flows). Each chart-type-specific script is inert when its element is absent, so a 2D line
+    /// chart with this convenience pays no runtime cost for the 3D / treemap / sankey scripts.
+    /// The resulting SVG works standalone in any browser — no .NET runtime needed on the client.
+    /// Adds ~5 KB of inline JS in total.</summary>
     public FigureBuilder WithBrowserInteraction(bool enabled = true)
     {
         _enableZoomPan = enabled;
@@ -173,6 +178,9 @@ public sealed class FigureBuilder
         _enableLegendToggle = enabled;
         _enableHighlight = enabled;
         _enableSelection = enabled;
+        _enable3DRotation = enabled;
+        _enableTreemapDrilldown = enabled;
+        _enableSankeyHover = enabled;
         return this;
     }
 
