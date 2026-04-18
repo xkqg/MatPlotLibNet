@@ -34,7 +34,19 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             ? AxisBreakMapper.CompressedRange(Axes.YBreaks, range.YMin, range.YMax)
             : (range.YMin, range.YMax);
 
-        var transform = new DataTransform(cXMin, cXMax, cYMin, cYMax, PlotArea);
+        // For non-linear scales (Log / SymLog), the displayed range must be in scaled space
+        // so that ticks at e.g. 100, 1000, 10000 land at evenly-spaced pixel positions.
+        var (txMin, txMax) = ScaleRange(cXMin, cXMax, Axes.XAxis.Scale, Axes.XAxis.SymLogLinThresh);
+        var (tyMin, tyMax) = ScaleRange(cYMin, cYMax, Axes.YAxis.Scale, Axes.YAxis.SymLogLinThresh);
+
+        var transform = (Axes.XBreaks.Count > 0 || Axes.YBreaks.Count > 0
+                         || Axes.XAxis.Scale is AxisScale.Log or AxisScale.SymLog
+                         || Axes.YAxis.Scale is AxisScale.Log or AxisScale.SymLog)
+            ? new DataTransform(txMin, txMax, tyMin, tyMax, PlotArea,
+                Axes.XBreaks, Axes.YBreaks,
+                range.XMin, range.XMax, range.YMin, range.YMax,
+                Axes.XAxis.Scale, Axes.YAxis.Scale, Axes.XAxis.SymLogLinThresh, Axes.YAxis.SymLogLinThresh)
+            : new DataTransform(cXMin, cXMax, cYMin, cYMax, PlotArea);
 
         // Auto-apply AutoDateLocator + AutoDateFormatter when scale is Date but no locator is set
         // (handles legacy SetXDateFormat() calls that only set scale + formatter, not a locator)
@@ -44,10 +56,23 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             Axes.XAxis.TickLocator = autoLocator;
             Axes.XAxis.TickFormatter ??= new AutoDateFormatter(autoLocator);
         }
+        // Auto-apply SymlogLocator when scale is SymLog but no explicit locator is set —
+        // matches matplotlib's set_yscale("symlog") which installs SymmetricalLogLocator.
+        if (Axes.YAxis.Scale == AxisScale.SymLog && Axes.YAxis.TickLocator is null)
+            Axes.YAxis.TickLocator = new SymlogLocator(Axes.YAxis.SymLogLinThresh);
+        if (Axes.XAxis.Scale == AxisScale.SymLog && Axes.XAxis.TickLocator is null)
+            Axes.XAxis.TickLocator = new SymlogLocator(Axes.XAxis.SymLogLinThresh);
 
         // Compute tick values once for grid + ticks (respects TickLocator / Spacing / plot size)
         var xTicks = ComputeTickValues(range.XMin, range.XMax, Axes.XAxis, PlotArea.Width);
         var yTicks = ComputeTickValues(range.YMin, range.YMax, Axes.YAxis, PlotArea.Height);
+
+        // Filter out ticks that fall strictly inside any break region — they would render
+        // in empty space (or on top of the break marker).
+        if (Axes.XBreaks.Count > 0)
+            xTicks = xTicks.Where(t => !AxisBreakMapper.IsInBreak(Axes.XBreaks, t)).ToArray();
+        if (Axes.YBreaks.Count > 0)
+            yTicks = yTicks.Where(t => !AxisBreakMapper.IsInBreak(Axes.YBreaks, t)).ToArray();
 
         // Skip standard grid/ticks/frame for axis-less series (radar, pie, treemap, table).
         // These fill the plot area and don't use a Cartesian coordinate system.
@@ -342,6 +367,17 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         // Axis labels
         RenderAxisLabels();
     }
+
+    /// <summary>Maps a (raw) data range through the axis scale's Forward function so the
+    /// resulting scaled range can be used by <see cref="DataTransform"/> for pixel scaling.
+    /// Linear scale is identity; SymLog applies <see cref="SymlogTransform.Forward"/>; Log
+    /// applies log10. Returns the scaled (min, max) pair.</summary>
+    private static (double Min, double Max) ScaleRange(double min, double max, AxisScale scale, double linthresh) => scale switch
+    {
+        AxisScale.SymLog => (SymlogTransform.Forward(min, linthresh), SymlogTransform.Forward(max, linthresh)),
+        AxisScale.Log    => (min > 0 ? Math.Log10(min) : double.NaN, max > 0 ? Math.Log10(max) : double.NaN),
+        _                => (min, max),
+    };
 
     /// <summary>Renders major grid lines behind the plot area at each tick position.</summary>
     private void RenderGrid(double[] xTicks, double[] yTicks, double yMin, DataTransform transform, GridStyle grid)

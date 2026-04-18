@@ -9,12 +9,15 @@
     <Project Path="Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj" />
     <Project Path="Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj" />
     <Project Path="Src/MatPlotLibNet.Geo/MatPlotLibNet.Geo.csproj" />
+    <Project Path="Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj" />
     <Project Path="Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj" />
     <Project Path="Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj" />
     <Project Path="Src/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.csproj" />
   </Folder>
   <Folder Name="/Tst/">
     <Project Path="Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Geo/MatPlotLibNet.Geo.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Skia/MatPlotLibNet.Skia.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj" />

@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root for full license information.
+#
+# Linux/macOS counterpart of run.ps1. Same flags:
+#   --report      Open HTML report (uses xdg-open / open)
+#   --check       Run threshold gate after collection
+#   --baseline    Save current run as new baseline
+#
+# Why a wrapper?
+# CI may run on Linux even though local development is Windows. The two scripts MUST
+# stay in lock-step on which projects they cover; if you add a project to one, add it
+# to the other.
+
+set -euo pipefail
+
+REPORT=0
+CHECK=0
+BASELINE=0
+CFG="Release"
+
+for arg in "$@"; do
+    case "$arg" in
+        --report)   REPORT=1 ;;
+        --check)    CHECK=1 ;;
+        --baseline) BASELINE=1 ;;
+        --debug)    CFG="Debug" ;;
+    esac
+done
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+OUT_DIR="$REPO_ROOT/out/coverage"
+COBERTURA="$OUT_DIR/coverage.cobertura.xml"
+mkdir -p "$OUT_DIR"
+
+TEST_PROJECTS=(
+    "Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj"
+    "Tst/MatPlotLibNet.Skia/MatPlotLibNet.Skia.Tests.csproj"
+)
+GEO_PROJ="Tst/MatPlotLibNet.Geo/MatPlotLibNet.Geo.Tests.csproj"
+[ -f "$REPO_ROOT/$GEO_PROJ" ] && TEST_PROJECTS+=("$GEO_PROJ")
+
+echo "==> Building test projects ($CFG)..."
+for proj in "${TEST_PROJECTS[@]}"; do
+    dotnet build "$REPO_ROOT/$proj" -c "$CFG" --nologo -v:q > /dev/null
+done
+
+PARTIALS=()
+for proj in "${TEST_PROJECTS[@]}"; do
+    NAME="$(basename "$proj" .csproj)"
+    DLL="$REPO_ROOT/${proj%.csproj}/bin/$CFG/net10.0/$NAME.dll"
+    [ -f "$DLL" ] || { echo "Skipping $NAME — $DLL not found"; continue; }
+    PARTIAL="$OUT_DIR/$NAME.cobertura.xml"
+    echo "==> Coverage: $NAME"
+    coverlet "$DLL" \
+        --target "dotnet" --targetargs "$DLL" \
+        --format cobertura --output "$PARTIAL" \
+        --include "[MatPlotLibNet]*" --include "[MatPlotLibNet.Geo]*" \
+        --include "[MatPlotLibNet.Skia]*" --include "[MatPlotLibNet.Playground]*" \
+        --exclude "[*]MatPlotLibNet.Tests.*" --exclude "[xunit*]*"
+    PARTIALS+=("$PARTIAL")
+done
+
+echo "==> Merging partials into $COBERTURA..."
+REPORTS_ARG=$(IFS=';'; echo "${PARTIALS[*]}")
+reportgenerator -reports:"$REPORTS_ARG" -targetdir:"$OUT_DIR" -reporttypes:Cobertura -verbosity:Warning > /dev/null
+[ -f "$OUT_DIR/Cobertura.xml" ] && mv "$OUT_DIR/Cobertura.xml" "$COBERTURA"
+
+if [ "$BASELINE" -eq 1 ]; then
+    cp "$COBERTURA" "$REPO_ROOT/tools/coverage/baseline.cobertura.xml"
+    echo "==> Baseline updated"
+fi
+
+if [ "$REPORT" -eq 1 ]; then
+    reportgenerator -reports:"$COBERTURA" -targetdir:"$OUT_DIR/report" -reporttypes:"Html_Light;TextSummary" -verbosity:Warning > /dev/null
+    head -25 "$OUT_DIR/report/Summary.txt"
+    if command -v xdg-open > /dev/null; then xdg-open "$OUT_DIR/report/index.html" &
+    elif command -v open > /dev/null; then open "$OUT_DIR/report/index.html" &
+    fi
+fi
+
+if [ "$CHECK" -eq 1 ]; then
+    pwsh "$REPO_ROOT/tools/coverage/check-thresholds.ps1" -Cobertura "$COBERTURA"
+fi
+
+echo "==> Done. Cobertura at: $COBERTURA"

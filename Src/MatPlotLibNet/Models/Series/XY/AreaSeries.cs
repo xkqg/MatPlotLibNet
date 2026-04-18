@@ -47,9 +47,13 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
+        // Empty data: no contribution to axis range. Without this guard, .Min()/.Max()
+        // throw "Sequence contains no elements" — caught by RendererEdgeCaseTests.
+        if (YData.Length == 0) return new DataRangeContribution(null, null, null, null);
+
         double yMin = YData.Min(), yMax = YData.Max();
         double? stickyYMin = null;
-        if (YData2 is not null)
+        if (YData2 is not null && YData2.Length > 0)
         {
             yMin = Math.Min(yMin, YData2.Min());
             yMax = Math.Max(yMax, YData2.Max());

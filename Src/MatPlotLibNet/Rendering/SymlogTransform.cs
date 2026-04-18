@@ -18,6 +18,9 @@ public static class SymlogTransform
     public static double Forward(double x, double linthresh = DefaultLinThresh)
     {
         if (linthresh <= 0) linthresh = DefaultLinThresh;
+        // NaN must propagate; ±Infinity goes via the log branch but Math.Sign(±∞)
+        // works correctly. Math.Sign(NaN) THROWS, hence the explicit guard.
+        if (double.IsNaN(x)) return double.NaN;
         if (Math.Abs(x) <= linthresh) return x;
         return Math.Sign(x) * (linthresh * (1 + Math.Log10(Math.Abs(x) / linthresh)));
     }
@@ -29,6 +32,7 @@ public static class SymlogTransform
     public static double Inverse(double y, double linthresh = DefaultLinThresh)
     {
         if (linthresh <= 0) linthresh = DefaultLinThresh;
+        if (double.IsNaN(y)) return double.NaN;
         if (Math.Abs(y) <= linthresh) return y;
         return Math.Sign(y) * linthresh * Math.Pow(10, Math.Abs(y) / linthresh - 1);
     }

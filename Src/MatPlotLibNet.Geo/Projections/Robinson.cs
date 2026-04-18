@@ -28,6 +28,10 @@ public sealed class Robinson : IGeoProjection
     /// <inheritdoc />
     public (double X, double Y) Forward(double latitude, double longitude)
     {
+        // Math.Sign(NaN) THROWS; explicit guard so NaN inputs propagate cleanly
+        // (matches matplotlib semantics — series with NaN render gaps, not crashes).
+        if (double.IsNaN(latitude) || double.IsNaN(longitude)) return (double.NaN, double.NaN);
+
         double absLat = Math.Min(Math.Abs(latitude), 90);
         int index = (int)(absLat / 5);
         if (index >= _plen.Length - 1) index = _plen.Length - 2;

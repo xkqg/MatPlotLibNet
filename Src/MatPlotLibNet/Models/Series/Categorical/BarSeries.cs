@@ -93,6 +93,8 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
+        // Empty bars contribute no range. Without this guard, Values.Max()/Min() throw.
+        if (Values.Length == 0) return new DataRangeContribution(null, null, null, null);
         // Report the union of actual bar EDGES, not the slot indices [0, N].
         // matplotlib contributes [first_bar_left, last_bar_right]; so should we.
         // This removes ~14 px of extra whitespace on each side of the bar group

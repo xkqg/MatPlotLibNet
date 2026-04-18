@@ -1193,6 +1193,82 @@ def fig_comp_mathtext_two_subplots():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# v1.7.0 additions — broken-axis, symlog, geographic
+# ──────────────────────────────────────────────────────────────────────────────
+
+def fig_broken_y():
+    """Y-axis break: data with low values 0..18 and high values 100..118.
+    Two stacked subplots that share the same X but cover disjoint Y ranges,
+    with diagonal break markers between them. Matches matplotlib's recommended
+    pattern from https://matplotlib.org/stable/gallery/subplots_axes_and_figures/broken_axis.html
+    """
+    x = np.arange(0, 20)
+    y = np.where(x < 10, x * 2, x * 2 + 80)
+
+    with plt.style.context(STYLE):
+        fig, (ax_top, ax_bot) = plt.subplots(2, 1, sharex=True, figsize=FIGSIZE,
+                                             gridspec_kw={"height_ratios": [1, 1]})
+        ax_top.plot(x, y, label="Data")
+        ax_bot.plot(x, y, label="Data")
+        ax_top.set_ylim(85, 125)   # high range
+        ax_bot.set_ylim(0, 25)     # low range
+        ax_top.spines.bottom.set_visible(False)
+        ax_bot.spines.top.set_visible(False)
+        ax_top.tick_params(labeltop=False, bottom=False)
+        ax_bot.xaxis.tick_bottom()
+        ax_top.set_title("Broken Y-Axis")
+        ax_bot.set_xlabel("x")
+        ax_bot.legend(loc="upper left")
+        # Diagonal break markers
+        d = .015
+        kwargs = dict(transform=ax_top.transAxes, color='k', clip_on=False)
+        ax_top.plot((-d, +d), (-d, +d), **kwargs)
+        ax_top.plot((1 - d, 1 + d), (-d, +d), **kwargs)
+        kwargs.update(transform=ax_bot.transAxes)
+        ax_bot.plot((-d, +d), (1 - d, 1 + d), **kwargs)
+        ax_bot.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)
+    return fig
+
+
+def fig_symlog():
+    """Symmetric log Y-axis with linthresh=100 — for cubic data x ∈ [-50, 50]
+    spanning ±125000. Validates that ticks are spaced (no overlap)."""
+    x = np.arange(-50, 51, 1.0)
+    y = x ** 3
+
+    with plt.style.context(STYLE):
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        ax.plot(x, y, label="x³")
+        ax.set_yscale("symlog", linthresh=100)
+        ax.set_title("Symlog Y-Axis — x³")
+        ax.set_xlabel("x")
+        ax.set_ylabel("x³ (symlog, linthresh=100)")
+        ax.legend(loc="upper left")
+    return fig
+
+
+def fig_geo_robinson():
+    """World map in Robinson projection with land + ocean + coastlines + borders.
+    Requires cartopy (optional). Skip if unavailable."""
+    try:
+        import cartopy.crs as ccrs
+        import cartopy.feature as cfeature
+    except ImportError:
+        print("  SKIP geo_robinson: cartopy not installed (pip install cartopy)", file=sys.stderr)
+        return None
+
+    with plt.style.context(STYLE):
+        fig = plt.figure(figsize=FIGSIZE)
+        ax = fig.add_subplot(1, 1, 1, projection=ccrs.Robinson())
+        ax.add_feature(cfeature.OCEAN, facecolor="#1a3a5c")
+        ax.add_feature(cfeature.LAND,  facecolor="#2d5a27")
+        ax.add_feature(cfeature.COASTLINE, edgecolor="white", linewidth=0.5)
+        ax.add_feature(cfeature.BORDERS,   edgecolor="#888888", linewidth=0.2)
+        ax.set_title("World Map — Robinson")
+    return fig
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Registry
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -1282,6 +1358,10 @@ CHARTS: dict[str, callable] = {
     "ind_psar":      fig_ind_psar,
     # v1.1.3 — Composition (multi-subplot suptitle + mathtext)
     "comp_mathtext_two_subplots": fig_comp_mathtext_two_subplots,
+    # v1.7.0 — Axis breaks, symlog, geographic
+    "broken_y":      fig_broken_y,
+    "symlog":        fig_symlog,
+    "geo_robinson":  fig_geo_robinson,   # requires cartopy
 }
 
 
@@ -1311,6 +1391,8 @@ def main():
         for name in charts:
             try:
                 fig = CHARTS[name]()
+                if fig is None:
+                    continue  # generator opted out (e.g. missing cartopy)
                 save(fig, name)
             except Exception as exc:
                 print(f"  ERROR generating {name} [{style}]: {exc}", file=sys.stderr)

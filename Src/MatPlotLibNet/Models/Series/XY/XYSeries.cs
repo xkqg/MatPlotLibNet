@@ -19,6 +19,11 @@ public abstract class XYSeries : ChartSeries, IPriceSeries
     protected XYSeries(double[] xData, double[] yData) { XData = xData; YData = yData; }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(XData.Min(), XData.Max(), YData.Min(), YData.Max());
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        // Empty series contributes no data range. Min()/Max() throw on empty.
+        if (XData.Length == 0 || YData.Length == 0)
+            return new DataRangeContribution(null, null, null, null);
+        return new(XData.Min(), XData.Max(), YData.Min(), YData.Max());
+    }
 }

@@ -26,6 +26,7 @@ jobs:
       - name: Test
         run: |
           dotnet run --project Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj --no-build --configuration Release
+          dotnet run --project Tst/MatPlotLibNet.Geo/MatPlotLibNet.Geo.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj --no-build --configuration Release

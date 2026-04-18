@@ -162,6 +162,20 @@ public sealed class FigureBuilder
     public FigureBuilder WithSelection(bool enabled = true) { _enableSelection = enabled; return this; }
     private bool _enableSelection;
 
+    /// <summary>Convenience that enables ALL browser-side interactions in one call:
+    /// <see cref="WithZoomPan"/>, <see cref="WithRichTooltips"/>, <see cref="WithLegendToggle"/>,
+    /// <see cref="WithHighlight"/>, and <see cref="WithSelection"/>. The resulting SVG works
+    /// standalone in any browser — no .NET runtime needed on the client. Adds ~3KB of inline JS.</summary>
+    public FigureBuilder WithBrowserInteraction(bool enabled = true)
+    {
+        _enableZoomPan = enabled;
+        _enableRichTooltips = enabled;
+        _enableLegendToggle = enabled;
+        _enableHighlight = enabled;
+        _enableSelection = enabled;
+        return this;
+    }
+
     private string? _chartId;
     private bool _serverInteraction;
 

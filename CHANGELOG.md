@@ -4,6 +4,53 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.7.1] — 2026-04-18
+
+**v1.7.0 follow-up: silent-failure bug fixes + coverage gate + playground polish + 8-phase coverage uplift.** Nine real bugs fixed (geo extensions silently dropped series, broken-axis didn't compress data, symlog didn't transform data, playground grid toggle was inverted, `SymlogTransform.Forward`/`Inverse` threw on NaN, `Robinson.Forward` threw on NaN, `AreaSeries`/`BarSeries`/`XYSeries.ComputeDataRange` threw on empty input). Coverage gate added: ≥90% line + ≥90% branch enforced via CI per class with baseline regression protection. Playground refactored with SOLID structure + save/download buttons. 8 new edge-case test files (Phases 2-8 of coverage uplift) covering math primitives, all 13 geo projections, renderers, series models, animation/interaction, builders, indicators. **4 275 tests green** across 13 NuGet packages (was 3 967).
+
+### Added
+
+- **`FigureBuilder.WithBrowserInteraction()`** — convenience that enables ZoomPan + RichTooltips + LegendToggle + Highlight + Selection in one call. Was documented in v1.7.0 cookbook but not implemented; cookbook examples now actually work.
+- **Coverage gate** — new `tools/coverage/` (`run.ps1`, `run.sh`, `check-thresholds.ps1`, `thresholds.json`, `baseline.cobertura.xml`). CI fails build at <90% line OR <90% branch on any class. Per-class baseline regression protection. See [`docs/COVERAGE.md`](docs/COVERAGE.md).
+- **`MatPlotLibNet.Geo.Tests`** — dedicated test project (was empty dir). Geo tests now report under their own assembly so per-module coverage rolls up cleanly.
+- **`coverlet.msbuild`** added to `Tst/MatPlotLibNet.Skia.Tests` so Skia is measured.
+- **Playground SOLID refactor** — extracted `PlaygroundOptions` (single source of truth) + `PlaygroundExamples` (registry). Razor component is now a thin shell. 46 unit tests verify every toggle.
+- **Playground new features** — Browser-interactive checkbox (high-priority user request), Tight margins toggle, "Open in new tab" / "Download SVG" / "Download PNG" / "Download Code" buttons. PNG export uses client-side canvas rasterisation.
+- **6 new playground examples** — Multi-Series, Radar Chart, Violin Plot, Candlestick, Treemap, Polar Line (15 total, up from 9).
+- **All 26 themes** in playground (was 7).
+- **Cookbook enriched** — every page (25 of 25) gained full fluent API options sections, configure-lambda property tables, advanced examples. Added 13 rendered images for previously-empty pages (pie, donut, histogram, boxplot, violin, polar, radar, error bars, broken axes, symlog, themes, geo robinson, geo globe).
+- **`DataTransform` scale + break awareness** — `SymLog` and `Log` axis scales now actually transform data (previously only ticks were placed at log positions; data was rendered linear, causing visual bunching). Break-aware `DataToPixel` + batch transforms apply `AxisBreakMapper.Remap` so series points stay within plot area.
+- **`AxesBuilder.AddSeries<T>(T)`** public method — lets extension packages (like `MatPlotLibNet.Geo`) attach their own series. Geo extensions now correctly add their `GeoPolygonSeries` to the axes.
+- **`GeoPolygonSeries.IsRawProjected`** — flag for background fills (Ocean) that already use projected coords.
+- **Auto-apply `SymlogLocator`** when `YAxis.Scale == SymLog` (matches matplotlib's `set_yscale("symlog")`).
+- **9 numpy-parity tests** for `SymlogTransform.Forward` against pre-computed reference values.
+- **23 visual regression tests** (`BrokenAxisVisualTests`, `SymlogTickTests`, `GeoExtensionRenderTests`) — assert SVG geometry stays within canvas, ticks don't overlap, polygons render.
+- **15 `DataTransform` unit tests** for break + scale combinations.
+- **Matplotlib fidelity fixtures** for `broken_y` and `symlog` (Python generator + reference PNGs in `Tst/MatPlotLibNet.Fidelity/Fixtures/`).
+- **`tools/mpl_reference/generate.py`** new generator functions — `fig_broken_y`, `fig_symlog`, `fig_geo_robinson` (cartopy-required).
+- **DRY test fixtures** — `Tst/MatPlotLibNet/TestFixtures/`: `EdgeCaseData` (Empty, SinglePoint, AllNaN, MixedNaN, BoundaryDoubles, Ramp, Sin, Large, Descending, AllEqual), `SvgGeometry` (ExtractPolylinePoints, ExtractYAxisTickPositions, AssertPointsInCanvas), `NumpyReference` (pre-computed SymLog/Log10 values).
+- **Phase 2 math edge-case tests** — `SymlogTransformEdgeCaseTests` (44, including NaN/±∞/boundary/round-trip), `MonotoneCubicSplineEdgeCaseTests` (5).
+
+### Fixed
+
+- **`SymlogTransform.Forward(NaN, ...)` no longer throws** — `Math.Sign(NaN)` raises `ArithmeticException`. Added explicit NaN guard so transform propagates NaN (matches matplotlib semantics). Same fix on `Inverse`.
+- **Geo extension methods** (`Coastlines`, `Borders`, `Land`, `Ocean`) now actually add their `GeoPolygonSeries` to the axes — previously they constructed the series and discarded it. Geo charts that used the cookbook examples rendered as blank white canvases. **All v1.7.0 cookbook geo images regenerated.**
+- **`WithYBreak()` / `WithXBreak()`** now actually compresses the data range — previously the break drew a marker but the line continued through the gap to off-canvas pixels (e.g., `y = -156` when plot top was `y = 72`). `DataTransform` now applies `AxisBreakMapper.Remap` in scalar + batch paths; ticks inside break regions are filtered.
+- **Symlog Y-axis** now applies `SymlogTransform.Forward` to data (not just to tick positions). v1.7.0 emitted ticks at `100`, `1000`, `10000` clustered near zero because data was rendered linear. Visual now matches matplotlib's decade-spaced symlog ticks.
+- **Playground "Show grid" checkbox** — was inverted: checked = faded grid, unchecked = thicker theme-default grid. Now: checked keeps theme default, unchecked explicitly hides.
+- **Playground TightLayout** — was applied BEFORE subplots were added (so layout calc had no data). Now applied LAST via `ApplyTightLayout()`.
+- **Playground build errors** — `LineStyle`/`MarkerStyle` namespace was wrong (`Rendering` → `Styling`), `Violin` overload had wrong arg count, `Colors.Purple` → `RebeccaPurple`, removed non-existent `SetPolar()`.
+- **3D origin tick** missing because `_rawZMin` was cached BEFORE `ComputeDataRange` fold (so Bar3D's ZMin=0 wasn't included). Moved caching to AFTER fold.
+- **Wiki + cookbook** — missing WPF + Geo packages in install tables, package map, count references.
+
+### Changed
+
+- **Test count: 3 967 → 4 049** across 3 test projects (main + Geo + Skia).
+- **Coverage**: 85.2% line / 68.4% branch (v1.7.0 baseline) — coverage uplift in progress; v1.7.1 ships the gate, follow-up patch releases close gaps to ≥90/90 across all 76 currently-below-threshold classes.
+- **`MatPlotLibNet.Geo.Tests`** project added — geo tests moved from main test project for clean per-module coverage rollup.
+- **`docs/index.md`** packages table fixed — was missing WPF and Geo.
+- CHANGELOG, README, wiki all updated to v1.7.1.
+
 ## [1.7.0] — 2026-04-17
 
 **MathText Extended + Geographic Parity + Themes + WPF + Browser Interactivity.** MathText operator limits (`\int_a^b`, `\sum`, matrices), 13 map projections with embedded Natural Earth data, 26 theme presets, WPF control (13th NuGet), browser-interactive SVG, and 3D origin tick fix. **4 276 tests green** across 13 NuGet packages.

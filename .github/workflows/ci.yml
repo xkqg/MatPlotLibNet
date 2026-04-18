@@ -28,8 +28,48 @@ jobs:
       - name: Test
         run: |
           dotnet run --project Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj --no-build --configuration Release
+          dotnet run --project Tst/MatPlotLibNet.Geo/MatPlotLibNet.Geo.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.Tests.csproj --no-build --configuration Release
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Setup PowerShell
+        run: |
+          # Linux runners include pwsh by default; this ensures consistency
+          pwsh --version
+
+      - name: Install coverage tools
+        run: |
+          dotnet tool install --global coverlet.console
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          # Make global tools visible
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Run coverage + threshold gate
+        run: |
+          # Builds, collects, merges, then check-thresholds.ps1 fails the job
+          # if any class is below 90% line/branch or regressed vs baseline.
+          chmod +x tools/coverage/run.sh
+          bash tools/coverage/run.sh --check
+
+      - name: Upload coverage report (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: out/coverage/
+          retention-days: 14

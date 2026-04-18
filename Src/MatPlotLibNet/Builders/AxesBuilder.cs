@@ -845,6 +845,19 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Adds a pre-constructed series to this axes. Used by extension packages
+    /// (e.g. <c>MatPlotLibNet.Geo</c>) that ship their own series types.</summary>
+    /// <typeparam name="T">A type implementing <see cref="ISeries"/>.</typeparam>
+    /// <param name="series">The series instance to add.</param>
+    /// <param name="configure">Optional configuration callback applied after the series is added.</param>
+    /// <returns>This <see cref="AxesBuilder"/> for fluent chaining.</returns>
+    public AxesBuilder AddSeries<T>(T series, Action<T>? configure = null) where T : ISeries
+    {
+        _axes.AddSeries(series);
+        configure?.Invoke(series);
+        return this;
+    }
+
     // --- Intuitive indicator shortcuts (auto-resolve price data from axes) ---
 
     /// <summary>Adds a Simple Moving Average overlay. Auto-extracts price data from the last series on the axes.</summary>

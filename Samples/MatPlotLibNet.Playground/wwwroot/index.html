@@ -77,13 +77,27 @@
         }
         .copy-btn:hover { background: var(--muted); }
 
+        .chart-toolbar {
+            display: flex; gap: 8px; padding: 6px 12px; background: var(--surface);
+            border-radius: 6px 6px 0 0; margin: 8px 8px 0 8px;
+        }
+        .chart-toolbar button {
+            background: var(--border); color: var(--text); border: none;
+            border-radius: 3px; padding: 6px 12px; font-size: 0.8rem; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .chart-toolbar button:hover { background: var(--muted); color: var(--bg); }
+        .chart-toolbar button.primary { background: var(--accent); color: var(--bg); font-weight: 600; }
+        .chart-toolbar button.primary:hover { background: #6cdcf0; }
+
         .chart-preview {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            background: white; border-radius: 6px; margin: 8px; min-height: 400px;
+            background: white; border-radius: 0 0 6px 6px; margin: 0 8px 8px 8px; min-height: 400px;
         }
         .chart-preview :deep(svg) { max-width: 100%; max-height: 100%; }
 
         .section-title { font-size: 0.9rem; color: var(--pink); margin: 16px 0 8px; }
+        .hint { font-size: 0.75rem; color: var(--muted); margin-top: 4px; font-style: italic; }
 
         #app { min-height: 100vh; }
         .loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--muted); }
@@ -96,8 +110,63 @@
 
     <script src="_framework/blazor.webassembly.js"></script>
     <script>
+        // ── Clipboard ──────────────────────────────────────────────────────
         window.copyToClipboard = function(text) {
             navigator.clipboard.writeText(text);
+        };
+
+        // ── Download a string as a file (used for SVG / .cs code) ──────────
+        // Creates an in-memory Blob, generates an object-URL, programmatically
+        // clicks an anchor with download=, then revokes the URL.
+        window.downloadFile = function(content, fileName, mimeType) {
+            const blob = new Blob([content], { type: mimeType || 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = fileName;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        };
+
+        // ── Open SVG in a new tab so the user can zoom/pan natively ────────
+        // Browser-interactive SVGs include embedded JS for pan/zoom/tooltips —
+        // opening them standalone gives the user the real "feel" of the chart.
+        window.openInNewTab = function(svgContent) {
+            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank', 'noopener');
+            // Don't revoke immediately — the new tab needs to load first.
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        };
+
+        // ── PNG export — rasterize the current SVG via canvas ──────────────
+        // Works fully client-side: load SVG into Image, draw onto canvas at the
+        // SVG's intrinsic size (or fall back to 800x600), then toBlob → download.
+        window.downloadPng = function(svgContent, fileName) {
+            const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width  = img.naturalWidth  || 800;
+                canvas.height = img.naturalHeight || 600;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(url);
+                canvas.toBlob(function(pngBlob) {
+                    const pngUrl = URL.createObjectURL(pngBlob);
+                    const a = document.createElement('a');
+                    a.href = pngUrl; a.download = fileName;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
+                }, 'image/png');
+            };
+            img.onerror = function() {
+                URL.revokeObjectURL(url);
+                console.error('Failed to load SVG for PNG conversion');
+            };
+            img.src = url;
         };
     </script>
 </body>

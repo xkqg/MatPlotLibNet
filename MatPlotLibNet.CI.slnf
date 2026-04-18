@@ -13,6 +13,7 @@
       "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj",
       "Src/MatPlotLibNet.Geo/MatPlotLibNet.Geo.csproj",
       "Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj",
+      "Tst/MatPlotLibNet.Geo/MatPlotLibNet.Geo.Tests.csproj",
       "Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj",
       "Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj",
       "Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj",

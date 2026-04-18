@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Geo\MatPlotLibNet.Geo.csproj" />
   </ItemGroup>
 
   <ItemGroup>

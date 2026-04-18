@@ -30,6 +30,11 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor
     /// <summary>Stroke width. Default 0.5.</summary>
     public double StrokeWidth { get; set; } = 0.5;
 
+    /// <summary>When true, ring coordinates are treated as already-projected (X, Y) values
+    /// instead of (lon, lat). Used by background fills like <c>Ocean</c> that span the
+    /// projection bounds rectangle directly.</summary>
+    public bool IsRawProjected { get; init; }
+
     public GeoPolygonSeries(List<GeoFeature> features, IGeoProjection projection)
     {
         Features = features;
@@ -61,7 +66,7 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor
                 var points = new List<Point>();
                 foreach (var (lon, lat) in ring)
                 {
-                    var (px, py) = Projection.Forward(lat, lon);
+                    var (px, py) = IsRawProjected ? (lon, lat) : Projection.Forward(lat, lon);
                     if (double.IsNaN(px) || double.IsNaN(py)) continue;
 
                     // Map projected coords to pixel space

@@ -8,18 +8,32 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.7.0 — MathText + Geographic Parity + Themes + WPF + Browser Interactivity.**
+> **v1.7.1 — Bug Fixes + Coverage Gate + Playground Polish.**
 >
-> 1. **MathText extended** — `\int_a^b`, `\sum_{i=0}^n`, `\lim`, `\begin{pmatrix}` matrices. Operator limits positioned above/below.
-> 2. **Geographic parity** — 13 map projections (Mollweide, Sinusoidal, Albers, +8 more), Natural Earth 110m embedded (coastlines, countries, lakes), edge handling (dateline, NaN, clipping).
-> 3. **26 themes** — Nord, Dracula, Cyberpunk, Monokai, Catppuccin, Gruvbox, OneDark, GitHub, and 18 more.
-> 4. **MatPlotLibNet.Wpf** — 13th NuGet. Native WPF chart control with all 9 interaction modifiers.
-> 5. **Browser-interactive SVG** — `.WithBrowserInteraction()` embeds pan/zoom/tooltip/legend JS. Zero .NET on client.
-> 6. **25 cookbook pages** — geographic maps, themes, interactive SVG, pie/donut, distribution, polar, error bars, broken axes, animation, symlog.
+> 1. **5 silent-failure bugs fixed** — geo extensions silently dropped series, broken-axis didn't compress data, symlog didn't transform data, playground grid toggle was inverted, `SymlogTransform` threw on `NaN`. All v1.7.0 cookbook geo/symlog/broken-y images regenerated correctly.
+> 2. **`WithBrowserInteraction()` now actually exists** — was documented in v1.7.0 but never implemented. Convenience that enables ZoomPan + RichTooltips + LegendToggle + Highlight + Selection in one call.
+> 3. **Coverage gate** — ≥90% line + ≥90% branch enforced via CI per class, per-class baseline regression protection. See [`docs/COVERAGE.md`](docs/COVERAGE.md).
+> 4. **Playground SOLID refactor** — `PlaygroundOptions` + `PlaygroundExamples` registry. Save SVG / PNG / Code buttons, "Open in new tab", browser-interactive toggle, tight-margins toggle, all 26 themes, 15 examples (was 9).
+> 5. **Cookbook enriched** — every page (25 of 25) gained full fluent API options sections + property tables. 13 new rendered images for previously-empty pages.
 >
-> **4 276 tests green** across 13 NuGet packages.
+> **4 275 tests green** across 13 NuGet packages (was 3 967 in v1.7.0).
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
+
+---
+
+## 🧭 Stabilisation phase
+
+After eleven feature releases (v1.0 → v1.7.1) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators, native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
+
+**v1.7.1 marks the start of a stabilisation period.** The focus shifts from "ship more features" to:
+
+- 🐛 **Bug fixes only** (no new public API), driven by community use and the `≥90/90` coverage gate
+- 🧪 **Test coverage uplift** (the eight-phase plan in [`docs/COVERAGE.md`](docs/COVERAGE.md)) — current baseline 85.2% line / 68.4% branch, target 94% / 90%
+- 📚 **Documentation polish** — cookbook examples, API XML doc completeness
+- 🌱 **Listening** — what should v2 be? Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next major direction will be guided by what real users need, not by a feature checklist.
+
+No timeline for v1.8.0 yet — when it ships, it will be community-driven.
 
 ---
 

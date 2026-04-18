@@ -10,11 +10,13 @@
 
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="3.*" />
+    <PackageReference Include="coverlet.msbuild" Version="6.*" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Geo\MatPlotLibNet.Geo.csproj" />
+    <ProjectReference Include="..\..\Samples\MatPlotLibNet.Playground\MatPlotLibNet.Playground.csproj" />
   </ItemGroup>
 
   <ItemGroup>

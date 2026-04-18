@@ -1,0 +1,34 @@
+{
+  "_doc": "Coverage thresholds enforced by tools/coverage/check-thresholds.ps1. Default applies to every class. Per-class overrides MUST include a 'reason' string; the check script prints these in the failure report so reviewers can audit why a class is exempt. NEVER add an entry without a reason — that defeats the purpose of the gate.",
+  "default": {
+    "line": 90,
+    "branch": 90
+  },
+  "exemptions": {
+    "MatPlotLibNet.Rendering.Svg.Svg3DRotationScript": {
+      "line": 0,
+      "branch": 0,
+      "reason": "Pure JS string template — no testable C# branches."
+    },
+    "MatPlotLibNet.Rendering.Svg.SvgPanZoomScript": {
+      "line": 0,
+      "branch": 0,
+      "reason": "Pure JS string template."
+    },
+    "MatPlotLibNet.Rendering.Svg.SvgTooltipScript": {
+      "line": 0,
+      "branch": 0,
+      "reason": "Pure JS string template."
+    },
+    "MatPlotLibNet.Rendering.Svg.SvgLegendToggleScript": {
+      "line": 0,
+      "branch": 0,
+      "reason": "Pure JS string template."
+    },
+    "MatPlotLibNet.Rendering.SeriesRenderers.DrawStyleInterpolation": {
+      "line": 90,
+      "branch": 80,
+      "reason": "Step interpolation has multiple symmetric branches per mode; 80% branch is achievable, 90% requires testing internal-equivalent code paths."
+    }
+  }
+}
