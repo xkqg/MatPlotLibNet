@@ -98,11 +98,14 @@ public sealed class InteractionBenchmarks
         sw.Stop();
         double avgMs = sw.Elapsed.TotalMilliseconds / iterations;
         Console.WriteLine($"3D drag reproject (20x20 surface, 400 quads + axis infra): {avgMs:F2}ms/drag-cycle ({iterations} iterations)");
-        // Dev-machine budget: 50ms (16ms is ideal per-frame; 50ms is the "sluggish"
-        // threshold beyond which interactive feel breaks down). CI runners are
-        // 2-3× slower + jitter-prone, so use 5× headroom there — still catches
-        // a catastrophic regression (e.g. O(n²) resort slipping into the path).
-        double dragBudget = IsCi ? 250 : 50;
+        // Typical runtime: ~24ms on a warm dev laptop, but observed 70–82ms under
+        // Windows scheduler jitter + other processes. The benchmark is meant to
+        // catch O(n²) / catastrophic regressions (5×+ slowdown), not regress on
+        // normal OS noise. Dev budget 150ms (6× typical) absorbs jitter while
+        // still tripping on a real 300 ms+ regression. CI uses 250 ms because
+        // shared 2-core VMs are inherently slower AND the coverage job
+        // collaborates with dotnet-coverage which adds overhead.
+        double dragBudget = IsCi ? 250 : 150;
         Assert.True(avgMs < dragBudget,
             $"drag reproject should stay under {dragBudget}ms, got {avgMs:F2}ms");
     }
