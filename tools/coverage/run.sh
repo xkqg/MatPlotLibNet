@@ -48,7 +48,8 @@ done
 PARTIALS=()
 for proj in "${TEST_PROJECTS[@]}"; do
     NAME="$(basename "$proj" .csproj)"
-    DLL="$REPO_ROOT/${proj%.csproj}/bin/$CFG/net10.0/$NAME.dll"
+    PROJ_DIR="$(dirname "$proj")"
+    DLL="$REPO_ROOT/$PROJ_DIR/bin/$CFG/net10.0/$NAME.dll"
     [ -f "$DLL" ] || { echo "Skipping $NAME — $DLL not found"; continue; }
     PARTIAL="$OUT_DIR/$NAME.cobertura.xml"
     echo "==> Coverage: $NAME"
