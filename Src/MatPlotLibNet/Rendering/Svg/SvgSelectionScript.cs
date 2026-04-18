@@ -16,12 +16,17 @@ internal static class SvgSelectionScript
     internal static string GetScript() => """
         <script type="text/ecmascript"><![CDATA[
         (function() {
-            var svg = document.querySelector('svg');
-            if (!svg) return;
+            // Per-chart isolation (Phase 2): self-locate via document.currentScript.
+            var svg = (document.currentScript && document.currentScript.parentNode) || document.querySelector('svg');
+            if (!svg || svg.tagName !== 'svg') return;
             var rect = null, startPt = null;
-            svg.addEventListener('mousedown', function(e) {
+            // Phase 4 — Pointer Events for touch + pen + mouse. setPointerCapture binds
+            // the pointer to the SVG so dragging out of the chart still releases cleanly.
+            function startSelection(e) {
                 if (!e.shiftKey) return;
                 e.preventDefault();
+                if (svg.setPointerCapture && e.pointerId !== undefined)
+                    try { svg.setPointerCapture(e.pointerId); } catch (_) {}
                 var pt = svg.createSVGPoint();
                 pt.x = e.clientX; pt.y = e.clientY;
                 startPt = pt.matrixTransform(svg.getScreenCTM().inverse());
@@ -35,8 +40,8 @@ internal static class SvgSelectionScript
                 rect.setAttribute('width', '0');
                 rect.setAttribute('height', '0');
                 svg.appendChild(rect);
-            });
-            svg.addEventListener('mousemove', function(e) {
+            }
+            function updateSelection(e) {
                 if (!rect || !startPt) return;
                 var pt = svg.createSVGPoint();
                 pt.x = e.clientX; pt.y = e.clientY;
@@ -45,8 +50,8 @@ internal static class SvgSelectionScript
                 var w = Math.abs(cur.x - startPt.x), h = Math.abs(cur.y - startPt.y);
                 rect.setAttribute('x', x); rect.setAttribute('y', y);
                 rect.setAttribute('width', w); rect.setAttribute('height', h);
-            });
-            svg.addEventListener('mouseup', function(e) {
+            }
+            function endSelection(e) {
                 if (!rect || !startPt) return;
                 var pt = svg.createSVGPoint();
                 pt.x = e.clientX; pt.y = e.clientY;
@@ -57,7 +62,14 @@ internal static class SvgSelectionScript
                 }, bubbles: true }));
                 svg.removeChild(rect);
                 rect = null; startPt = null;
-            });
+            }
+            svg.addEventListener('pointerdown', startSelection);
+            svg.addEventListener('pointermove', updateSelection);
+            svg.addEventListener('pointerup',   endSelection);
+            // Mouse fallback for pre-pointer-events runtimes.
+            svg.addEventListener('mousedown', startSelection);
+            svg.addEventListener('mousemove', updateSelection);
+            svg.addEventListener('mouseup',   endSelection);
             svg.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape' && rect) {
                     svg.removeChild(rect);

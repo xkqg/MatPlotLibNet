@@ -10,7 +10,9 @@ internal static class Svg3DRotationScript
         <script type="text/ecmascript"><![CDATA[
         (function() {
             'use strict';
-            var scenes = document.querySelectorAll('.mpl-3d-scene');
+            // Per-chart isolation (Phase 2): scope to THIS script's owning <svg>.
+            var svg = (document.currentScript && document.currentScript.parentNode) || document;
+            var scenes = svg.querySelectorAll('.mpl-3d-scene');
             scenes.forEach(function(scene) {
                 var elevation = parseFloat(scene.getAttribute('data-elevation') || '30');
                 var azimuth   = parseFloat(scene.getAttribute('data-azimuth')   || '-60');
@@ -20,7 +22,7 @@ internal static class Svg3DRotationScript
                 var plotW     = parseFloat(scene.getAttribute('data-plot-w') || '400');
                 var plotH     = parseFloat(scene.getAttribute('data-plot-h') || '300');
 
-                var initEl = elevation, initAz = azimuth;
+                var initEl = elevation, initAz = azimuth, initDistance = distance;
                 var dragging = false, lastX = 0, lastY = 0;
 
                 function degToRad(d) { return d * Math.PI / 180; }
@@ -83,21 +85,54 @@ internal static class Svg3DRotationScript
                         } else if (el.tagName === 'circle' && points.length > 0) {
                             el.setAttribute('cx', points[0][0].toFixed(2));
                             el.setAttribute('cy', points[0][1].toFixed(2));
+                        } else if (el.tagName === 'line' && points.length >= 2) {
+                            el.setAttribute('x1', points[0][0].toFixed(2));
+                            el.setAttribute('y1', points[0][1].toFixed(2));
+                            el.setAttribute('x2', points[1][0].toFixed(2));
+                            el.setAttribute('y2', points[1][1].toFixed(2));
+                        } else if (el.tagName === 'text' && points.length > 0) {
+                            el.setAttribute('x', points[0][0].toFixed(2));
+                            el.setAttribute('y', points[0][1].toFixed(2));
                         }
                     });
                     resortDepth();
                 }
 
-                scene.addEventListener('mousedown', function(e) { dragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault(); });
-                document.addEventListener('mousemove', function(e) {
+                // Phase 4 — Pointer Events. setPointerCapture binds the pointer to the
+                // scene so dragging out of the scene still releases cleanly. Mouse fallback
+                // kept for pre-pointer-events runtimes.
+                function startDrag(e) {
+                    dragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault();
+                    if (scene.setPointerCapture && e.pointerId !== undefined)
+                        try { scene.setPointerCapture(e.pointerId); } catch (_) {}
+                }
+                function moveDrag(e) {
                     if (!dragging) return;
                     azimuth   += (e.clientX - lastX) * 0.5;
                     elevation -= (e.clientY - lastY) * 0.5;
                     elevation = Math.max(-90, Math.min(90, elevation));
                     lastX = e.clientX; lastY = e.clientY;
                     reprojectAll();
-                });
-                document.addEventListener('mouseup', function() { dragging = false; });
+                }
+                function endDrag() { dragging = false; }
+                scene.addEventListener('pointerdown', startDrag);
+                scene.addEventListener('pointermove', moveDrag);
+                scene.addEventListener('pointerup',   endDrag);
+                scene.addEventListener('pointercancel', endDrag);
+                scene.addEventListener('mousedown', startDrag);
+                scene.addEventListener('mousemove', moveDrag);
+                scene.addEventListener('mouseup',   endDrag);
+                scene.addEventListener('mouseleave', endDrag);
+
+                // Scroll-wheel zoom: tracks data-distance directly (no-op when distance is null,
+                // i.e. orthographic projection — wheel doesn't promote to perspective silently).
+                // {passive:false} required so preventDefault overrides browser/iframe scroll.
+                scene.addEventListener('wheel', function(e) {
+                    if (distance === null) return;
+                    e.preventDefault();
+                    distance = Math.max(2, Math.min(100, distance + (e.deltaY > 0 ? 0.5 : -0.5)));
+                    reprojectAll();
+                }, { passive: false });
 
                 scene.setAttribute('style', 'cursor:grab');
                 scene.addEventListener('keydown', function(e) {
@@ -108,7 +143,7 @@ internal static class Svg3DRotationScript
                         case 'ArrowDown':  elevation -= 5; break;
                         case '+': if (distance !== null) distance = Math.max(2, distance - 0.5); break;
                         case '-': if (distance !== null) distance = distance + 0.5; break;
-                        case 'Home': elevation = initEl; azimuth = initAz; break;
+                        case 'Home': elevation = initEl; azimuth = initAz; distance = initDistance; break;
                         default: return;
                     }
                     elevation = Math.max(-90, Math.min(90, elevation));

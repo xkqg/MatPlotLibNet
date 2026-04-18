@@ -144,6 +144,25 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
             sb.Append(" aria-describedby=\"chart-desc\"");
         if (figure.ServerInteraction && figure.ChartId is { } chartId)
             sb.Append(" data-chart-id=\"").Append(SvgXmlHelper.EscapeXml(chartId)).Append('"');
+        // Phase 7 of v1.7.2 plan — emit non-default interaction-theme tokens as
+        // data-mpl-* attributes so the embedded scripts can read them at runtime
+        // without recompiling. Only non-default values are emitted (zero-config callers
+        // get byte-identical output to v1.7.1).
+        var t = figure.InteractionTheme;
+        var d = Models.InteractionTheme.Default;
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        if (t.HighlightOpacity != d.HighlightOpacity)
+            sb.Append(" data-mpl-highlight-opacity=\"").Append(t.HighlightOpacity.ToString("G6", inv)).Append('"');
+        if (t.SankeyDimLinkOpacity != d.SankeyDimLinkOpacity)
+            sb.Append(" data-mpl-sankey-link-opacity=\"").Append(t.SankeyDimLinkOpacity.ToString("G6", inv)).Append('"');
+        if (t.SankeyDimNodeOpacity != d.SankeyDimNodeOpacity)
+            sb.Append(" data-mpl-sankey-node-opacity=\"").Append(t.SankeyDimNodeOpacity.ToString("G6", inv)).Append('"');
+        if (t.TreemapTransitionMs != d.TreemapTransitionMs)
+            sb.Append(" data-mpl-treemap-transition-ms=\"").Append(t.TreemapTransitionMs).Append('"');
+        if (t.TooltipOffsetX != d.TooltipOffsetX)
+            sb.Append(" data-mpl-tooltip-offset-x=\"").Append(t.TooltipOffsetX.ToString("G6", inv)).Append('"');
+        if (t.TooltipOffsetY != d.TooltipOffsetY)
+            sb.Append(" data-mpl-tooltip-offset-y=\"").Append(t.TooltipOffsetY.ToString("G6", inv)).Append('"');
         sb.AppendLine(">");
 
         // SVG title (always emitted for role="img" accessibility)

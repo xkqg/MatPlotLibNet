@@ -12,8 +12,12 @@ internal static class SvgLegendToggleScript
         <script type="text/ecmascript"><![CDATA[
         (function() {
             'use strict';
-            var svg = document.querySelector('svg');
-            if (!svg) return;
+            // Per-chart isolation (Phase 2): find THIS script's owning <svg> via
+            // document.currentScript.parentNode so multi-chart pages don't cross-talk.
+            // Fallback to document.querySelector('svg') only for inline-runner environments
+            // where currentScript is unavailable (e.g. some test hosts).
+            var svg = (document.currentScript && document.currentScript.parentNode) || document.querySelector('svg');
+            if (!svg || svg.tagName !== 'svg') return;
             var legendItems = svg.querySelectorAll('[data-legend-index]');
             legendItems.forEach(function(item) {
                 item.style.cursor = 'pointer';
@@ -33,7 +37,19 @@ internal static class SvgLegendToggleScript
                     item.setAttribute('aria-pressed', hidden ? 'false' : 'true');
                 }
 
-                item.addEventListener('click', toggle);
+                // Phase 4 — pointerdown handles touch + pen + mouse uniformly. Click stays
+                // wired for legacy environments and as the test-fire path, but is suppressed
+                // when it directly follows a pointerdown (which synthesizes click as a sequel).
+                var pointerActivated = false;
+                item.addEventListener('pointerdown', function(e) {
+                    toggle();
+                    pointerActivated = true;
+                    e.preventDefault();
+                });
+                item.addEventListener('click', function() {
+                    if (pointerActivated) { pointerActivated = false; return; }
+                    toggle();
+                });
                 item.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' || e.key === ' ') { toggle(); e.preventDefault(); }
                 });

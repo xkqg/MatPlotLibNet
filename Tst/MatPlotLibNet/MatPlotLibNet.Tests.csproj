@@ -11,6 +11,10 @@
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="3.*" />
     <PackageReference Include="coverlet.msbuild" Version="6.*" PrivateAssets="all" />
+    <!-- Jint hosts the embedded browser-interaction JS scripts inside test-process for
+         behavioural assertions (Phase 1 of the v1.7.2 interaction-hardening plan).
+         MIT-licensed, pure managed code — no native deps. -->
+    <PackageReference Include="Jint" Version="4.*" />
   </ItemGroup>
 
   <ItemGroup>

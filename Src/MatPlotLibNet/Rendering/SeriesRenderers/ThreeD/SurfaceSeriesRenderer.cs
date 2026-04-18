@@ -95,12 +95,11 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
 
         foreach (var (_, vertices, avgZ, nx, ny, nz, v3d) in quads)
         {
-            var color = cmap.GetColor(normalizer.Normalize(avgZ, zMin, zMax));
+            var baseColor = cmap.GetColor(normalizer.Normalize(avgZ, zMin, zMax));
+            var color = baseColor;
             if (Context.LightSource is { } light)
             {
                 double intensity = light.ComputeIntensity(nx, ny, nz);
-                // Surface uses the per-quad average normal; matplotlib shade formula expects
-                // raw dot so we read the light direction directly from DirectionalLight.
                 if (Context.LightSource is DirectionalLight dl)
                     color = LightingHelper.ShadeColor(color, nx, ny, nz, dl.Dx, dl.Dy, dl.Dz);
                 else
@@ -108,6 +107,17 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
             }
             if (v3d is not null)
                 Ctx.SetNextElementData("v3d", v3d);
+            // Phase 6 of v1.7.2 plan — emit the un-shaded base color + face normal so the
+            // JS reproject can recompute shading on rotation. Skipped when there's no light
+            // (no shading to recompute).
+            if (Context.LightSource is DirectionalLight && v3d is not null)
+            {
+                Ctx.SetNextElementData("face-normal",
+                    $"{nx.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}," +
+                    $"{ny.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}," +
+                    $"{nz.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}");
+                Ctx.SetNextElementData("base-color", baseColor.ToHex());
+            }
             Color? stroke = series.ShowWireframe ? (series.EdgeColor ?? Colors.Black.WithAlpha(80)) : null;
             double strokeWidth = series.ShowWireframe ? 0.5 : 0;
             Ctx.DrawPolygon(vertices, color, stroke, strokeWidth);

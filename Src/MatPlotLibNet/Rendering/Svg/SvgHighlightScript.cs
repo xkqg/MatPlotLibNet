@@ -15,18 +15,44 @@ internal static class SvgHighlightScript
     internal static string GetScript() => """
         <script type="text/ecmascript"><![CDATA[
         (function() {
-            var groups = document.querySelectorAll('[data-series-index]');
+            // Per-chart isolation (Phase 2): scope query to THIS script's owning <svg>.
+            var svg = (document.currentScript && document.currentScript.parentNode) || document;
+            // Phase 7 of v1.7.2 plan — read themable opacity from data-mpl-highlight-opacity
+            // (set by FigureBuilder.WithInteractionTheme). Default 0.3 preserves v1.7.1 behaviour.
+            var dimOpacity = parseFloat(svg.getAttribute && svg.getAttribute('data-mpl-highlight-opacity')) || 0.3;
+            var groups = svg.querySelectorAll('[data-series-index]');
             groups.forEach(function(g) {
                 g.setAttribute('tabindex', '0');
 
                 function highlight() {
                     groups.forEach(function(s) {
-                        s.style.opacity = s === g ? '1' : '0.3';
+                        s.style.opacity = s === g ? '1' : String(dimOpacity);
                     });
                 }
                 function restore() {
-                    groups.forEach(function(s) { s.style.opacity = '1'; });
+                    // Phase 8 of v1.7.2 plan — restore each element to its data-mpl-opacity-base
+                    // (captured below on first dim) instead of forcing 1.0. Preserves explicit
+                    // opacity that callers set via series.Alpha or CSS overrides.
+                    groups.forEach(function(s) {
+                        var base = s.getAttribute('data-mpl-opacity-base');
+                        s.style.opacity = base !== null ? base : '1';
+                    });
                 }
+                // Capture original opacity once (lazy on first highlight) so restore is correct
+                // even when a series has explicit opacity="0.5" before any hover happens.
+                var captured = false;
+                function captureOnce() {
+                    if (captured) return;
+                    captured = true;
+                    groups.forEach(function(s) {
+                        if (s.getAttribute('data-mpl-opacity-base') === null) {
+                            var explicit = s.getAttribute('opacity');
+                            s.setAttribute('data-mpl-opacity-base', explicit !== null ? explicit : '1');
+                        }
+                    });
+                }
+                var origHighlight = highlight;
+                highlight = function() { captureOnce(); origHighlight(); };
 
                 g.addEventListener('mouseenter', highlight);
                 g.addEventListener('mouseleave', restore);

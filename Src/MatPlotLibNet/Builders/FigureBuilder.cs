@@ -326,6 +326,17 @@ public sealed class FigureBuilder
     }
     private bool _enableSankeyHover;
 
+    /// <summary>Configures opacity / transition tokens for the embedded browser-side
+    /// interaction scripts. Defaults match v1.7.1 hard-coded values, so calling this is
+    /// only necessary if you want different fade opacities, transition durations, or
+    /// tooltip offsets. Phase 7 of the v1.7.2 plan.</summary>
+    public FigureBuilder WithInteractionTheme(Models.InteractionTheme theme)
+    {
+        _interactionTheme = theme;
+        return this;
+    }
+    private Models.InteractionTheme _interactionTheme = Models.InteractionTheme.Default;
+
     /// <summary>Attaches a directional light source for per-face shading on 3D surfaces and bars on the default axes.</summary>
     /// <param name="dx">X component of the light direction.</param>
     /// <param name="dy">Y component of the light direction.</param>
@@ -481,6 +492,7 @@ public sealed class FigureBuilder
             Enable3DRotation = _enable3DRotation,
             EnableTreemapDrilldown = _enableTreemapDrilldown,
             EnableSankeyHover = _enableSankeyHover,
+            InteractionTheme = _interactionTheme,
             Spacing = _spacing,
             GridSpec = _gridSpec,
             FigureColorBar = _figureColorBar

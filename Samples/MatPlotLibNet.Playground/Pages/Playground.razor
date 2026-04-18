@@ -78,7 +78,12 @@
             <label>
                 <input type="checkbox" @bind="_browserInteraction" @bind:after="Rebuild" /> Browser-interactive (pan/zoom/tooltips)
             </label>
-            <div class="hint">Open in new tab to feel pan, zoom, hover, legend toggle.</div>
+            <div class="hint">
+                <strong>2D charts:</strong> scroll to zoom, drag to pan, double-click to reset.<br/>
+                <strong>3D charts:</strong> drag to rotate, scroll to zoom camera distance, <kbd>Home</kbd> to reset.<br/>
+                <strong>Touch:</strong> pinch-to-zoom on 2D, drag to rotate on 3D.<br/>
+                <em>Open in a new tab for the full experience.</em>
+            </div>
         </div>
 
         <div class="section-title">Axes</div>

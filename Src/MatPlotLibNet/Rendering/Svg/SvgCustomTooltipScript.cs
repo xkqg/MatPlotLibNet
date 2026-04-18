@@ -20,7 +20,9 @@ internal static class SvgCustomTooltipScript
             tip.setAttribute('aria-live', 'polite');
             tip.style.cssText = 'position:fixed;background:#333;color:#fff;padding:4px 8px;border-radius:4px;font-size:12px;pointer-events:none;display:none;z-index:9999;white-space:pre';
             document.body.appendChild(tip);
-            document.querySelectorAll('g > title').forEach(function(title) {
+            // Per-chart isolation (Phase 2): only attach to titles inside THIS script's owning <svg>.
+            var svg = (document.currentScript && document.currentScript.parentNode) || document;
+            svg.querySelectorAll('g > title').forEach(function(title) {
                 var parent = title.parentNode;
                 function showTip(x, y) {
                     tip.textContent = title.textContent;
@@ -36,7 +38,13 @@ internal static class SvgCustomTooltipScript
                     tip.style.top  = (e.clientY - 4)  + 'px';
                 });
                 parent.addEventListener('mouseout', hideTip);
-                parent.addEventListener('focus', function() { showTip(0, 0); });
+                // Phase 12 of v1.7.2 plan — focus tooltip uses the focused element's bounds,
+                // not (0, 0). Pre-Phase-12 the tooltip jumped to the top-left corner of the
+                // viewport on keyboard focus, often off-screen and inaccessible.
+                parent.addEventListener('focus', function(e) {
+                    var rect = (e.target.getBoundingClientRect && e.target.getBoundingClientRect()) || {left: 0, top: 0, width: 0, height: 0};
+                    showTip(rect.left + rect.width / 2, rect.top - 4);
+                });
                 parent.addEventListener('blur', hideTip);
             });
         })();

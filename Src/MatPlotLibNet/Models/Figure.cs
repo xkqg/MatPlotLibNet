@@ -74,6 +74,12 @@ public sealed class Figure
     /// <summary>Returns <see langword="true"/> if any interactive JS feature is enabled.</summary>
     public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || Enable3DRotation || EnableTreemapDrilldown || EnableSankeyHover || ServerInteraction;
 
+    /// <summary>Configurable opacity / transition tokens for the embedded interaction
+    /// scripts. Defaults to <see cref="InteractionTheme.Default"/> (identical to v1.7.1
+    /// hard-coded values). Phase 7 of the v1.7.2 plan exposes these through
+    /// <c>FigureBuilder.WithInteractionTheme</c>.</summary>
+    public InteractionTheme InteractionTheme { get; set; } = InteractionTheme.Default;
+
     /// <summary>Gets the collection of subplot axes contained in this figure.</summary>
     public IReadOnlyList<Axes> SubPlots => _subPlots;
     private readonly List<Axes> _subPlots = [];

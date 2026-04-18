@@ -53,4 +53,20 @@ public class SvgInteractivityTests
 
         Assert.Contains("wheel", svg);
     }
+
+    /// <summary>Phase 0.1 — root cause of the v1.7.2 "wheel scrolls page instead of zooming" bug.
+    /// Modern browsers (Chrome 56+, Firefox 31+, Safari 11+) treat wheel listeners as <c>{ passive: true }</c>
+    /// by default; calling <c>e.preventDefault()</c> in a passive listener is silently ignored.
+    /// The wheel listener MUST be registered with <c>{ passive: false }</c> for the zoom to actually
+    /// override the browser's default scroll behaviour.</summary>
+    [Fact]
+    public void ScriptContains_NonPassiveWheelListener()
+    {
+        string svg = Plt.Create()
+            .WithZoomPan()
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .ToSvg();
+
+        Assert.Contains("passive: false", svg);
+    }
 }

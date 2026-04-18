@@ -8,14 +8,16 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-> **v1.7.2 — Two bug fixes + 6-batch coverage uplift + Phase-9 dedup + CI hardening.** Continuation of the v1.7.1 stabilisation track. **Now the stable release.**
+> **v1.7.2 — Browser-interaction subsystem hardened end-to-end (13-phase TDD plan) + bug fixes + coverage uplift + CI hardening.** Continuation of the v1.7.1 stabilisation track. **Now the stable release.**
 >
-> 1. **`FigureBuilder.WithBrowserInteraction()` now also enables 3D rotation, treemap drilldown, and sankey hover** — was documented as "ALL browser-side interactions" but only enabled the 2D-flavoured set. The playground 3D Surface example with Browser Interaction toggled on now responds to drag-to-rotate.
-> 2. **`Theme Comparison` cookbook image now actually shows six different themes** instead of six identical Default-theme renders. Themes are figure-scoped, so the new image renders six small figures and composites them into a 2×3 grid via SkiaSharp (PNG) and nested `<svg><g transform>` (SVG).
-> 3. **6-batch coverage uplift (Phases A-F) + Phase-9 dedup** — +1 192 tests added across 6 batches (NEAR-bucket polish, direct-invocation tests for 22 SeriesRenderers, 16 series added to the central `AllSeriesTests` Theory pool, 5 streaming indicators graduated, 8 ColorMap normalizer + 3 TickFormatter + 3 Geo edge-case test files, 11 misc long-tail classes graduated). Phase-9 then folded 78 per-series duplicates into one central Theory method (net +1 091 tests). Sub-90/90 class count went 241 → **154**. 14 documented exemptions added for sample / interface / JS-template code.
-> 4. **CI hardening** — Skia tests now ship `SkiaSharp.NativeAssets.{Linux.NoDependencies, Win32, macOS}` so `libSkiaSharp.so` actually loads on Linux runners. The v1.7.1 hotfix installed `libfontconfig1`/`libfreetype6` (font deps) but not the binary itself; CI was passing intermittently from cached transitive pulls.
+> 1. **2D scroll-wheel actually zooms** now (was passive-listener silently scrolling page); **3D rotation moves the entire scene** — axes, grid, panes, ticks, labels — not just data polygons; **3D scroll-wheel zoom** + Home-key full reset; **Pointer Events + pinch-to-zoom** for touch parity; **per-chart isolation** (eight scripts that previously cross-talked between charts on one page now self-locate via `currentScript.parentNode`).
+> 2. **`FigureBuilder.WithBrowserInteraction()` now also enables 3D rotation, treemap drilldown, and sankey hover** in addition to the 2D scripts. **`Theme Comparison` cookbook image** now renders six actual themes via SkiaSharp grid composite (was six identical Default-theme renders).
+> 3. **`WithInteractionTheme(InteractionTheme theme)` builder** — themable opacity / transition tokens; **URL-hash state persistence** (opt-in via `data-mpl-persist="true"`) — refresh keeps zoom/pan; **3D lighting recomputation hooks** under rotation; **original-opacity preservation** across hover cycles; **treemap "Press Esc to zoom out" hint** when drilled; **tooltip focus position** uses element bounds.
+> 4. **Behavioural test harness** — Jint-backed DOM stub replaces static-emission-only test pattern with real event simulation + DOM-mutation assertions across **42 new behavioural tests**.
+> 5. **6-batch coverage uplift (Phases A-F) + Phase-9 dedup** — +1 192 tests, sub-90/90 class count 241 → **154**, 14 documented exemptions added for sample / interface / JS-template code.
+> 6. **CI hardening** — Skia tests now ship `SkiaSharp.NativeAssets.{Linux.NoDependencies, Win32, macOS}` so `libSkiaSharp.so` actually loads on Linux runners.
 >
-> **5 468 tests green** across 9 test projects covering 13 NuGet packages (was 4 275 at v1.7.1).
+> **5 510 tests green** across 9 test projects covering 13 NuGet packages (was 4 275 at v1.7.1, 3 967 in v1.7.0).
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 

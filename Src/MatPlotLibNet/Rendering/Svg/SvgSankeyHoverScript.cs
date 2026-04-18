@@ -29,9 +29,11 @@ internal static class SvgSankeyHoverScript
     internal static string GetScript() => """
         <script type="text/ecmascript"><![CDATA[
         (function() {
-            var nodes = document.querySelectorAll('[data-sankey-node-id]');
+            // Per-chart isolation (Phase 2): scope queries to THIS script's owning <svg>.
+            var svg = (document.currentScript && document.currentScript.parentNode) || document;
+            var nodes = svg.querySelectorAll('[data-sankey-node-id]');
             if (nodes.length === 0) return;
-            var links = document.querySelectorAll('[data-sankey-link-source]');
+            var links = svg.querySelectorAll('[data-sankey-link-source]');
             if (links.length === 0) return;
 
             // Build source→links and target→links adjacency tables for O(1) traversal.

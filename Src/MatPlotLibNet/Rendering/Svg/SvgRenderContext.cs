@@ -170,6 +170,7 @@ public sealed class SvgRenderContext : IRenderContext
         if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
         if (font.Weight == FontWeight.Bold) _sb.Append(" font-weight=\"bold\"");
         if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
+        FlushPendingData();
         _sb.Append('>').Append(EscapeXml(text)).AppendLine("</text>");
     }
 
@@ -197,7 +198,9 @@ public sealed class SvgRenderContext : IRenderContext
             _sb.Append(" rotate(").Append(F(-rotation)).Append(')');
         if (alignOffset != 0)
             _sb.Append(" translate(").Append(F(alignOffset)).Append(",0)");
-        _sb.Append('"').AppendLine(" />");
+        _sb.Append('"');
+        FlushPendingData();
+        _sb.AppendLine(" />");
     }
 
     /// <inheritdoc />
@@ -410,8 +413,11 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.AppendLine(">");
     }
 
-    /// <summary>Opens an SVG group for a 3D scene with camera parameters as data attributes for JS rotation.</summary>
-    internal void Begin3DSceneGroup(double elevation, double azimuth, double? distance, Rect plotBounds)
+    /// <summary>Opens an SVG group for a 3D scene with camera parameters as data attributes for JS rotation.
+    /// Optional <paramref name="light"/> emits data-light-dir/ambient/diffuse so the JS can recompute
+    /// face shading under rotation (Phase 6 of the v1.7.2 interaction-hardening plan).</summary>
+    internal void Begin3DSceneGroup(double elevation, double azimuth, double? distance, Rect plotBounds,
+        Lighting.DirectionalLight? light = null)
     {
         _sb.Append("<g class=\"mpl-3d-scene\"")
            .Append(" data-elevation=\"").Append(F(elevation)).Append('"')
@@ -421,8 +427,17 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.Append(" data-plot-x=\"").Append(F(plotBounds.X)).Append('"')
            .Append(" data-plot-y=\"").Append(F(plotBounds.Y)).Append('"')
            .Append(" data-plot-w=\"").Append(F(plotBounds.Width)).Append('"')
-           .Append(" data-plot-h=\"").Append(F(plotBounds.Height)).Append('"')
-           .AppendLine(">");
+           .Append(" data-plot-h=\"").Append(F(plotBounds.Height)).Append('"');
+        if (light is not null)
+        {
+            _sb.Append(" data-light-dir=\"")
+               .Append(F(light.Dx)).Append(',')
+               .Append(F(light.Dy)).Append(',')
+               .Append(F(light.Dz)).Append('"')
+               .Append(" data-light-ambient=\"").Append(F(light.Ambient)).Append('"')
+               .Append(" data-light-diffuse=\"").Append(F(light.Diffuse)).Append('"');
+        }
+        _sb.AppendLine(">");
     }
 
     /// <summary>Opens an SVG group for a legend entry with a <c>data-legend-index</c> attribute and optional <c>aria-label</c>.</summary>
