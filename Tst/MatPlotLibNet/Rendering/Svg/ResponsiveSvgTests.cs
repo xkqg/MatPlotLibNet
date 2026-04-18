@@ -4,16 +4,16 @@
 namespace MatPlotLibNet.Tests.Rendering.Svg;
 
 /// <summary>
-/// L.1 / L.2 — Responsive SVG by default.
+/// L.1 / L.2 + Phase P fix — Responsive SVG by default.
 ///
 /// <para>Rationale: without any CSS helper, the SVG's fixed pixel <c>width</c>
-/// and <c>height</c> attributes pin the element to its natural size even when
-/// the browser window or parent container is much wider. By emitting an inline
-/// <c>style="max-width:100%;height:auto"</c> we keep the <c>naturalWidth</c> /
-/// <c>naturalHeight</c> DOM properties intact (needed for client-side PNG
-/// export in the playground) while letting CSS govern the rendered box —
-/// the chart fluidly scales to its container while the <c>viewBox</c>
-/// preserves aspect ratio.</para>
+/// and <c>height</c> attributes pin the element to its natural size. Phase L.2
+/// first used <c>max-width:100%;height:auto</c> — that scaled only DOWN,
+/// which meant charts in a WIDER viewport stayed at their intrinsic pixel width
+/// with left/right whitespace. Phase P (2026-04-18) corrected this to
+/// <c>width:100%;height:auto</c> so the chart fills the container in BOTH
+/// directions. The pixel <c>width</c>/<c>height</c> HTML attributes are
+/// preserved for <c>naturalWidth</c> (PNG export reads the attribute, not CSS).</para>
 ///
 /// <para>Opt-out via <c>FigureBuilder.WithResponsiveSvg(false)</c> retains
 /// byte-identical pre-Phase-L output for callers that pin the raw SVG string
@@ -22,10 +22,14 @@ namespace MatPlotLibNet.Tests.Rendering.Svg;
 public class ResponsiveSvgTests
 {
     [Fact]
-    public void Default_EmitsInlineStyleWithMaxWidthAndAutoHeight()
+    public void Default_EmitsInlineStyle_ScalesInBothDirections()
     {
+        // Phase P: width:100% (not max-width:100%) so the chart also extends
+        // to fill a wider viewport — previously it stayed at intrinsic size
+        // with whitespace when the container was wider than the natural width.
         string svg = Plt.Create().Plot([0.0, 1.0], [0.0, 1.0]).ToSvg();
-        Assert.Contains("style=\"max-width:100%;height:auto\"", svg);
+        Assert.Contains("style=\"width:100%;height:auto\"", svg);
+        Assert.DoesNotContain("max-width:100%", svg);
     }
 
     [Fact]
@@ -56,7 +60,7 @@ public class ResponsiveSvgTests
             .WithResponsiveSvg(false)
             .Plot([0.0, 1.0], [0.0, 1.0])
             .ToSvg();
-        Assert.DoesNotContain("style=\"max-width:100%;height:auto\"", svg);
+        Assert.DoesNotContain("style=\"width:100%;height:auto\"", svg);
     }
 
     [Fact]
@@ -67,6 +71,6 @@ public class ResponsiveSvgTests
             .WithResponsiveSvg(true)
             .Plot([0.0, 1.0], [0.0, 1.0])
             .ToSvg();
-        Assert.Contains("style=\"max-width:100%;height:auto\"", svg);
+        Assert.Contains("style=\"width:100%;height:auto\"", svg);
     }
 }

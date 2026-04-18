@@ -31,21 +31,21 @@
                     @for (int i = 0; i < LightThemeChoices.Length; i++)
                     {
                         var idx = i;
-                        <option value="@idx" selected="@(ReferenceEquals(_theme, LightThemeChoices[idx]))">@LightThemeChoices[idx].Name</option>
+                        <option value="@idx" selected="@(ReferenceEquals(_theme, LightThemeChoices[idx].Theme))">@LightThemeChoices[idx].Label</option>
                     }
                 </optgroup>
                 <optgroup label="Dark">
                     @for (int i = 0; i < DarkThemeChoices.Length; i++)
                     {
                         var idx = i + LightThemeChoices.Length;
-                        <option value="@idx" selected="@(ReferenceEquals(_theme, DarkThemeChoices[i]))">@DarkThemeChoices[i].Name</option>
+                        <option value="@idx" selected="@(ReferenceEquals(_theme, DarkThemeChoices[i].Theme))">@DarkThemeChoices[i].Label</option>
                     }
                 </optgroup>
                 <optgroup label="Accessibility">
                     @for (int i = 0; i < AccessibilityThemeChoices.Length; i++)
                     {
                         var idx = i + LightThemeChoices.Length + DarkThemeChoices.Length;
-                        <option value="@idx" selected="@(ReferenceEquals(_theme, AccessibilityThemeChoices[i]))">@AccessibilityThemeChoices[i].Name</option>
+                        <option value="@idx" selected="@(ReferenceEquals(_theme, AccessibilityThemeChoices[i].Theme))">@AccessibilityThemeChoices[i].Label</option>
                     }
                 </optgroup>
             </select>
@@ -57,11 +57,12 @@
            the chart. The intrinsic natural aspect stays 16:9 (800×450) for the
            viewBox and the copyable code snippet's .WithSize(...). *@
 
-        <div class="param-group">
-            <label>
-                <input type="checkbox" @bind="_tightLayout" @bind:after="Rebuild" /> Tight layout
-            </label>
-        </div>
+        @* Phase P — "Tight layout" checkbox removed. The toggle had no visible
+           effect in the current playground layout because the responsive SVG
+           stretches the figure to the pane regardless of internal margins.
+           Tight layout stays ALWAYS-ON internally (_tightLayout default = true);
+           per the "functional-or-remove" rule, a non-functional UI control
+           gets removed rather than shown as a placeholder. *@
 
         <div class="param-group">
             <label>
@@ -91,23 +92,29 @@
             </label>
         </div>
 
-        <div class="param-group">
-            <label>
-                <input type="checkbox" @bind="_hideTopSpine" @bind:after="Rebuild" /> Hide top spine
-            </label>
-        </div>
+        @* Phase P — spine + tight-margin toggles are 2D-cartesian concepts; hide
+           them for 3D / polar / radar / pie / sankey / treemap where they have
+           no visible effect. *@
+        @if (PlaygroundExamples.HasCartesianSpines(_selectedExample))
+        {
+            <div class="param-group">
+                <label>
+                    <input type="checkbox" @bind="_hideTopSpine" @bind:after="Rebuild" /> Hide top spine
+                </label>
+            </div>
 
-        <div class="param-group">
-            <label>
-                <input type="checkbox" @bind="_hideRightSpine" @bind:after="Rebuild" /> Hide right spine
-            </label>
-        </div>
+            <div class="param-group">
+                <label>
+                    <input type="checkbox" @bind="_hideRightSpine" @bind:after="Rebuild" /> Hide right spine
+                </label>
+            </div>
 
-        <div class="param-group">
-            <label>
-                <input type="checkbox" @bind="_tightMargins" @bind:after="Rebuild" /> Tight margins (data touches spines)
-            </label>
-        </div>
+            <div class="param-group">
+                <label>
+                    <input type="checkbox" @bind="_tightMargins" @bind:after="Rebuild" /> Tight margins (data touches spines)
+                </label>
+            </div>
+        }
 
         @if (PlaygroundExamples.SupportsLineControls(_selectedExample) || PlaygroundExamples.SupportsMarkerControls(_selectedExample))
         {
@@ -220,28 +227,53 @@
     private const int IntrinsicWidth  = 800;
     private const int IntrinsicHeight = 450;
 
-    // Phase N.1 — typed choice arrays (no magic strings). The UI dropdowns iterate
-    // these arrays by INDEX so the <option value="..."> is an integer, never a
-    // free-form string. The typed instance is stored in _theme / _colorMap.
-    private static readonly Theme[] LightThemeChoices =
+    // Phase N.1 + Phase P fix — typed choice arrays paired with display labels.
+    // Phase N.1 introduced Theme instances keyed by index. Phase P (2026-04-18)
+    // discovered Theme.Name returns the same base string for all community-derived
+    // themes (e.g. Theme.Solarize.Name == "custom-default" because the factory
+    // creates solarize/grayscale/paper/… from the same base). Using .Name as the
+    // dropdown label therefore produced 12 duplicate "custom-default" entries
+    // (light) and 8 "custom-dark" entries (dark). The label must be sourced
+    // independently — same pattern as PlaygroundExample's [Description] attribute.
+    private static readonly (Theme Theme, string Label)[] LightThemeChoices =
     {
-        Theme.Default, Theme.Seaborn, Theme.Ggplot, Theme.FiveThirtyEight, Theme.Bmh,
-        Theme.Solarize, Theme.Grayscale, Theme.Paper, Theme.Presentation, Theme.Poster,
-        Theme.GitHub, Theme.Minimal, Theme.Retro, Theme.MatplotlibClassic, Theme.MatplotlibV2,
+        (Theme.Default,          "Default"),
+        (Theme.Seaborn,           "Seaborn"),
+        (Theme.Ggplot,            "Ggplot"),
+        (Theme.FiveThirtyEight,   "FiveThirtyEight"),
+        (Theme.Bmh,               "Bmh"),
+        (Theme.Solarize,          "Solarize"),
+        (Theme.Grayscale,         "Grayscale"),
+        (Theme.Paper,             "Paper"),
+        (Theme.Presentation,      "Presentation"),
+        (Theme.Poster,            "Poster"),
+        (Theme.GitHub,            "GitHub"),
+        (Theme.Minimal,           "Minimal"),
+        (Theme.Retro,             "Retro"),
+        (Theme.MatplotlibClassic, "MatplotlibClassic"),
+        (Theme.MatplotlibV2,      "MatplotlibV2"),
     };
 
-    private static readonly Theme[] DarkThemeChoices =
+    private static readonly (Theme Theme, string Label)[] DarkThemeChoices =
     {
-        Theme.Dark, Theme.Cyberpunk, Theme.Nord, Theme.Dracula, Theme.Monokai,
-        Theme.Catppuccin, Theme.Gruvbox, Theme.OneDark, Theme.Neon,
+        (Theme.Dark,       "Dark"),
+        (Theme.Cyberpunk,  "Cyberpunk"),
+        (Theme.Nord,       "Nord"),
+        (Theme.Dracula,    "Dracula"),
+        (Theme.Monokai,    "Monokai"),
+        (Theme.Catppuccin, "Catppuccin"),
+        (Theme.Gruvbox,    "Gruvbox"),
+        (Theme.OneDark,    "OneDark"),
+        (Theme.Neon,       "Neon"),
     };
 
-    private static readonly Theme[] AccessibilityThemeChoices =
+    private static readonly (Theme Theme, string Label)[] AccessibilityThemeChoices =
     {
-        Theme.ColorBlindSafe, Theme.HighContrast,
+        (Theme.ColorBlindSafe, "ColorBlindSafe"),
+        (Theme.HighContrast,   "HighContrast"),
     };
 
-    private Theme[] AllThemeChoices =>
+    private (Theme Theme, string Label)[] AllThemeChoices =>
         LightThemeChoices.Concat(DarkThemeChoices).Concat(AccessibilityThemeChoices).ToArray();
 
     private static readonly IColorMap[] ColorMapChoices =
@@ -256,8 +288,8 @@
     private PlaygroundExample _selectedExample = PlaygroundExample.LineChart;
     private string            _title           = PlaygroundExample.LineChart.DisplayName();
     private Theme             _theme           = Theme.Default;
-    private bool              _tightLayout;
-    private bool              _browserInteraction;
+    private bool              _tightLayout     = true;    // Phase P: on by default so charts fill the pane without the matplotlib-style whitespace frame
+    private bool              _browserInteraction = true;   // Phase P: on by default so pan/zoom works immediately
     private bool              _showLegend      = true;
     private bool              _showGrid        = true;
     private bool              _hideTopSpine;
@@ -307,7 +339,7 @@
         if (int.TryParse(e.Value?.ToString(), out int idx))
         {
             var all = AllThemeChoices;
-            if (idx >= 0 && idx < all.Length) _theme = all[idx];
+            if (idx >= 0 && idx < all.Length) _theme = all[idx].Theme;
         }
         Rebuild();
     }

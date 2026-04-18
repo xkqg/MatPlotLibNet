@@ -76,10 +76,24 @@ internal static class Svg3DRotationScript
                         if (n[1] > maxY) maxY = n[1];
                     }
                     var rangeX = maxX - minX, rangeY = maxY - minY;
+                    // Phase P fix (2026-04-18) — fit-to-plot was cancelling wheel-zoom.
+                    // Pre-fix scale was always Math.min(plotW/rangeX, plotH/rangeY), so
+                    // changing data-distance only perturbed perspective (subtle) but
+                    // kept the box the same apparent size — user reported "it moves a
+                    // little" instead of visible zoom. Multiply by (initDistance/distance)
+                    // so closer distance = larger scale = bigger chart on screen, matching
+                    // the user intuition "zoom is that I can look closer".
+                    // BOX_FILL (1.25) tightens the default margin around the 3D cube —
+                    // user explicitly approved "aggressive fill even if labels clip;
+                    // the user can zoom out if needed" (2026-04-18). Must stay in lockstep
+                    // with Projection3D.Project's 1.25 factor so the initial static render
+                    // matches the client-side reproject size byte-for-byte.
+                    var zoom = initDistance / distance;
+                    var BOX_FILL = 1.15;   // Phase P — 1.25 overlapped the axes title; 1.15 keeps the title row clear. Must match Projection3D.Project.
                     return {
                         cxFit: (minX + maxX) / 2,
                         cyFit: (minY + maxY) / 2,
-                        scale: Math.min(plotW / rangeX, plotH / rangeY)
+                        scale: Math.min(plotW / rangeX, plotH / rangeY) * zoom * BOX_FILL
                     };
                 }
 
@@ -221,8 +235,14 @@ internal static class Svg3DRotationScript
                 scene.addEventListener('wheel', function(e) {
                     // Phase F.3 of v1.7.2 follow-on — no more bail on missing distance;
                     // the init above defaults to 10 so this handler always does work.
+                    // Phase P fix (2026-04-18): was additive ±0.5 per notch = ~5% at
+                    // default distance=10 (user reported "see a little movement").
+                    // Matplotlib's axes3d._scroll_zoom uses MULTIPLICATIVE 1.1× per step;
+                    // matching that makes zoom feel responsive and scales correctly at
+                    // any distance (additive was only responsive near the MIN clamp).
                     e.preventDefault(); e.stopPropagation();
-                    distance = Math.max(2, Math.min(100, distance + (e.deltaY > 0 ? 0.5 : -0.5)));
+                    var scale = e.deltaY > 0 ? 1.1 : 1 / 1.1;
+                    distance = Math.max(2, Math.min(100, distance * scale));
                     persistAngles();
                     reprojectAll();
                 }, { passive: false });

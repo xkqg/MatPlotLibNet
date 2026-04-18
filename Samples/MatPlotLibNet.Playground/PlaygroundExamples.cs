@@ -51,6 +51,19 @@ public static class PlaygroundExamples
     public static bool SupportsColormap(PlaygroundExample example) =>
         example is PlaygroundExample.Heatmap or PlaygroundExample.ContourPlot;
 
+    /// <summary>True if the example renders 2D cartesian axes (and therefore the
+    /// "Hide top / right spine" and "Tight margins" toggles have a visible effect).
+    /// 3D / polar / radar / pie / sankey / treemap don't use 2D spines so the
+    /// playground hides the irrelevant checkboxes (Phase P, 2026-04-18).</summary>
+    public static bool HasCartesianSpines(PlaygroundExample example) =>
+        example is not (
+            PlaygroundExample.Surface3D
+            or PlaygroundExample.PolarLine
+            or PlaygroundExample.RadarChart
+            or PlaygroundExample.PieChart
+            or PlaygroundExample.SankeyFlow
+            or PlaygroundExample.Treemap);
+
     private static readonly Dictionary<PlaygroundExample, Func<PlaygroundOptions, (Figure, string)>> _builders =
         new()
         {
@@ -86,7 +99,6 @@ public static class PlaygroundExamples
             {
                 ax.Plot(x, y, s =>
                 {
-                    s.Color = Colors.Blue;
                     s.Label = "Revenue";
                     s.LineStyle = opts.LineStyle;
                     s.LineWidth = opts.LineWidth;
@@ -106,7 +118,7 @@ public static class PlaygroundExamples
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
             {
-                ax.Bar(cats, vals, s => { s.Color = Colors.Orange; s.Label = "Units"; });
+                ax.Bar(cats, vals, s => s.Label = "Units");
                 ax.WithBarLabels();
                 opts.ApplyToAxes(ax);
             });
@@ -125,7 +137,6 @@ public static class PlaygroundExamples
             {
                 ax.Scatter(x, y, s =>
                 {
-                    s.Color = Colors.CornflowerBlue;
                     s.Marker = opts.Marker == MarkerStyle.None ? MarkerStyle.Circle : opts.Marker;
                     s.MarkerSize = opts.MarkerSize;
                     s.Label = "Data";
@@ -206,7 +217,7 @@ public static class PlaygroundExamples
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
             {
-                ax.Hist(data, 20, s => { s.Color = Colors.Teal; s.EdgeColor = Colors.White; s.Label = "Distribution"; });
+                ax.Hist(data, 20, s => { s.EdgeColor = Colors.White; s.Label = "Distribution"; });
                 opts.ApplyToAxes(ax);
             });
 
@@ -258,10 +269,17 @@ public static class PlaygroundExamples
             }
 
         var fb = opts.ApplyToFigure(Plt.Create())
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithCamera(elevation: 35, azimuth: -50)
-                .WithLighting(dx: 0.5, dy: -0.5, dz: 1.0)
-                .Surface(sx, sy, sz, s => { s.ColorMap = ColorMaps.Plasma; s.ShowWireframe = false; }));
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                // Phase P — was elevation=35 (too top-down, user said "view less from
+                // the top"); 20° keeps the Y-axis clearly visible from the side while
+                // still showing the surface's 3D structure. Azimuth -60° matches
+                // matplotlib's Axes3D default (mpl_toolkits/mplot3d/axes3d.py:__init__).
+                ax.WithCamera(elevation: 20, azimuth: -60)
+                  .WithLighting(dx: 0.5, dy: -0.5, dz: 1.0)
+                  .Surface(sx, sy, sz, s => { s.ColorMap = ColorMaps.Plasma; s.ShowWireframe = false; });
+                opts.ApplyToAxes(ax);
+            });
 
         return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Surface3D, opts));
     }
@@ -277,7 +295,7 @@ public static class PlaygroundExamples
             {
                 ax.Radar(categories, v1, s => { s.Color = Colors.Blue; s.Alpha = 0.2; s.Label = "Player 1"; });
                 ax.Radar(categories, v2, s => { s.Color = Colors.Red; s.Alpha = 0.2; s.Label = "Player 2"; });
-                if (opts.ShowLegend) ax.WithLegend();
+                opts.ApplyToAxes(ax);
             });
 
         return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.RadarChart, opts));
@@ -295,7 +313,7 @@ public static class PlaygroundExamples
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
             {
-                ax.Violin(groups, s => { s.Color = Colors.RebeccaPurple; s.Alpha = 0.6; });
+                ax.Violin(groups, s => s.Alpha = 0.6);
                 opts.ApplyToAxes(ax);
             });
 
@@ -364,18 +382,62 @@ public static class PlaygroundExamples
 
     private static (Figure, string) BuildTreemap(PlaygroundOptions opts)
     {
+        // Phase P — expanded to a 3-level tree so the sliding drilldown animation
+        // has something to drill INTO. Pre-fix the tree was flat (root → 4 leaves),
+        // so WithTreemapDrilldown() had no sub-structure to zoom the viewBox into.
+        // Click a tile to drill in; Esc (or Home) pops back to the parent.
         var root = new TreeNode
         {
             Label = "Revenue",
             Children =
             [
-                new() { Label = "Electronics", Value = 42, Color = Colors.Blue },
-                new() { Label = "Apparel", Value = 28, Color = Colors.Orange },
-                new() { Label = "Grocery", Value = 30, Color = Colors.Green },
-                new() { Label = "Home", Value = 18, Color = Colors.RebeccaPurple },
+                new()
+                {
+                    Label = "Electronics", Value = 42, Color = Colors.Blue,
+                    Children =
+                    [
+                        new() { Label = "Phones",  Value = 22, Color = Colors.CornflowerBlue },
+                        new() { Label = "Laptops", Value = 14, Color = Colors.SteelBlue },
+                        new() { Label = "TVs",     Value = 6,  Color = Colors.RoyalBlue },
+                    ]
+                },
+                new()
+                {
+                    Label = "Apparel", Value = 28, Color = Colors.Orange,
+                    Children =
+                    [
+                        new() { Label = "Men's",   Value = 11, Color = Colors.Chocolate },
+                        new() { Label = "Women's", Value = 13, Color = Colors.Tomato },
+                        new() { Label = "Kids'",   Value = 4,  Color = Colors.Coral },
+                    ]
+                },
+                new()
+                {
+                    Label = "Grocery", Value = 30, Color = Colors.Green,
+                    Children =
+                    [
+                        new() { Label = "Fresh",   Value = 13, Color = Colors.ForestGreen },
+                        new() { Label = "Frozen",  Value = 9,  Color = Colors.Teal },
+                        new() { Label = "Pantry",  Value = 8,  Color = Colors.Tab10Green },
+                    ]
+                },
+                new()
+                {
+                    Label = "Home", Value = 18, Color = Colors.RebeccaPurple,
+                    Children =
+                    [
+                        new() { Label = "Furniture",  Value = 8, Color = Colors.Indigo },
+                        new() { Label = "Decor",      Value = 5, Color = Colors.Orchid },
+                        new() { Label = "Appliances", Value = 5, Color = Colors.Violet },
+                    ]
+                },
             ]
         };
 
+        // Default behaviour: WithBrowserInteraction enables the treemap interaction script.
+        // That script is now expand/collapse (click a parent to toggle its children)
+        // rather than drill-zoom, so initial view shows only the top-level parents and
+        // the user expands the ones they care about.
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, s => s.ShowLabels = true).HideAllAxes());
 
@@ -390,8 +452,8 @@ public static class PlaygroundExamples
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax =>
             {
-                ax.PolarPlot(r, theta, s => { s.Color = Colors.Blue; s.LineWidth = 2; s.Label = "r = 1 + cos(3θ)"; });
-                if (opts.ShowLegend) ax.WithLegend();
+                ax.PolarPlot(r, theta, s => { s.LineWidth = 2; s.Label = "r = 1 + cos(3θ)"; });
+                opts.ApplyToAxes(ax);
             });
 
         return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.PolarLine, opts));
@@ -407,13 +469,13 @@ public static class PlaygroundExamples
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 2, 1, ax =>
             {
-                ax.Plot(x, y1, s => { s.Color = Colors.Blue; s.Label = "Line"; });
+                ax.Plot(x, y1, s => s.Label = "Line");
                 ax.WithTitle("Line");
                 opts.ApplyToAxes(ax);
             })
             .AddSubPlot(1, 2, 2, ax =>
             {
-                ax.Bar(cats, vals, s => { s.Color = Colors.Orange; s.Label = "Bars"; });
+                ax.Bar(cats, vals, s => s.Label = "Bars");
                 ax.WithTitle("Bar");
                 opts.ApplyToAxes(ax);
             });
@@ -449,21 +511,21 @@ public static class PlaygroundExamples
         // (eventually fails at compile time when C# adds required-exhaustive switches).
         var body = example switch
         {
-            PlaygroundExample.LineChart    => $"    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, s => {{ s.Color = Colors.Blue; s.LineStyle = LineStyle.{opts.LineStyle}; s.LineWidth = {opts.LineWidth}; }}))",
-            PlaygroundExample.BarChart     => "    .AddSubPlot(1, 1, 1, ax => ax.Bar(cats, vals, s => s.Color = Colors.Orange).WithBarLabels())",
-            PlaygroundExample.ScatterPlot  => "    .AddSubPlot(1, 1, 1, ax => ax.Scatter(x, y, s => s.Color = Colors.CornflowerBlue))",
+            PlaygroundExample.LineChart    => $"    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, s => {{ s.LineStyle = LineStyle.{opts.LineStyle}; s.LineWidth = {opts.LineWidth}; }}))",
+            PlaygroundExample.BarChart     => "    .AddSubPlot(1, 1, 1, ax => ax.Bar(cats, vals).WithBarLabels())",
+            PlaygroundExample.ScatterPlot  => "    .AddSubPlot(1, 1, 1, ax => ax.Scatter(x, y))",
             PlaygroundExample.MultiSeries  => "    .AddSubPlot(1, 1, 1, ax => { ax.Plot(x, sin); ax.Plot(x, cos); ax.Plot(x, sincos); ax.WithLegend(); })",
             PlaygroundExample.Heatmap      => $"    .AddSubPlot(1, 1, 1, ax => ax.Heatmap(m).WithColorMap(ColorMaps.{ColorMapName(opts.ColorMap)}){(opts.ShowColorBar ? ".WithColorBar()" : string.Empty)})",
             PlaygroundExample.PieChart     => "    .Pie(sizes, labels, s => { s.AutoPct = \"%.0f%%\"; s.Shadow = true; })",
-            PlaygroundExample.Histogram    => "    .AddSubPlot(1, 1, 1, ax => ax.Hist(data, 20, s => s.Color = Colors.Teal))",
+            PlaygroundExample.Histogram    => "    .AddSubPlot(1, 1, 1, ax => ax.Hist(data, 20))",
             PlaygroundExample.ContourPlot  => $"    .AddSubPlot(1, 1, 1, ax => ax.Contour(x, y, z, s => s.ColorMap = ColorMaps.{ColorMapName(opts.ColorMap)}){(opts.ShowColorBar ? ".WithColorBar()" : string.Empty)})",
             PlaygroundExample.Surface3D    => "    .AddSubPlot(1, 1, 1, ax => ax.WithCamera(35, -50).Surface(x, y, z, s => s.ColorMap = ColorMaps.Plasma))",
             PlaygroundExample.RadarChart   => "    .AddSubPlot(1, 1, 1, ax => { ax.Radar(cats, v1, s => { s.Alpha = 0.2; }); ax.Radar(cats, v2, s => { s.Alpha = 0.2; }); ax.WithLegend(); })",
-            PlaygroundExample.ViolinPlot   => "    .AddSubPlot(1, 1, 1, ax => ax.Violin(groups, s => { s.Color = Colors.RebeccaPurple; s.Alpha = 0.6; }))",
+            PlaygroundExample.ViolinPlot   => "    .AddSubPlot(1, 1, 1, ax => ax.Violin(groups, s => s.Alpha = 0.6))",
             PlaygroundExample.Candlestick  => "    .AddSubPlot(1, 1, 1, ax => ax.Candlestick(o, h, l, c, dates, s => { s.UpColor = Colors.Green; s.DownColor = Colors.Red; }))",
             PlaygroundExample.Treemap      => "    .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, s => s.ShowLabels = true).HideAllAxes())",
             PlaygroundExample.SankeyFlow   => "    .AddSubPlot(1, 1, 1, ax => ax.Sankey(nodes, links).HideAllAxes())",
-            PlaygroundExample.PolarLine    => "    .AddSubPlot(1, 1, 1, ax => ax.PolarPlot(r, theta, s => { s.Color = Colors.Blue; s.LineWidth = 2; }))",
+            PlaygroundExample.PolarLine    => "    .AddSubPlot(1, 1, 1, ax => ax.PolarPlot(r, theta, s => s.LineWidth = 2))",
             PlaygroundExample.MultiSubplot => "    .AddSubPlot(1, 2, 1, ax => ax.Plot(x, y).WithTitle(\"Line\"))\n    .AddSubPlot(1, 2, 2, ax => ax.Bar(cats, vals).WithTitle(\"Bar\"))",
             _                              => throw new ArgumentOutOfRangeException(nameof(example), example,
                                                   $"CodeFor: no snippet registered for new enum value {example}; update the switch."),

@@ -22,12 +22,12 @@ Plt.Create()
 | `Theme.FiveThirtyEight` | Journalism | Bold, no spines |
 | `Theme.Bmh` | Academic | Teal/salmon cycle |
 | `Theme.Solarize` | Solarized palette | Cream bg |
-| `Theme.Grayscale` | Print-friendly | No color |
-| `Theme.Paper` | Academic papers | Minimal, thin lines |
-| `Theme.Presentation` | Slides | Large fonts |
-| `Theme.Poster` | Conference posters | Extra-large fonts |
-| `Theme.GitHub` | GitHub style | Clean white, blue accents |
-| `Theme.Minimal` | Tufte-inspired | Maximum data-ink ratio |
+| `Theme.Grayscale` | Print-friendly | Grayscale-only series palette (no hues) |
+| `Theme.Paper` | Academic papers | Serif font, size 11, no grid |
+| `Theme.Presentation` | Slides | Bold weight, size 16 |
+| `Theme.Poster` | Conference posters | Bold weight, size 20, thicker grid (1.5 linewidth) |
+| `Theme.GitHub` | GitHub style | GitHub brand palette (#0366D6, #28A745, #6F42C1, #D73A49, #E36209), subtle #E1E4E8 grid |
+| `Theme.Minimal` | Tufte-inspired | No grid, size 11 |
 | `Theme.Retro` | Vintage | Warm yellows/browns |
 | `Theme.MatplotlibClassic` | Pre-2.0 matplotlib | bgrcmyk cycle |
 | `Theme.MatplotlibV2` | Modern matplotlib | tab10, soft-black |

@@ -56,7 +56,7 @@ No timeline for v1.8.0 yet — when it ships, it will be community-driven.
 > 5. **6-batch coverage uplift (Phases A-F) + Phase-9 dedup** — +1 192 tests, sub-90/90 class count 241 → **154**, 14 documented exemptions added for sample / interface / JS-template code.
 > 6. **CI hardening** — Skia tests now ship `SkiaSharp.NativeAssets.{Linux.NoDependencies, Win32, macOS}` so `libSkiaSharp.so` actually loads on Linux runners.
 >
-> **5 776 tests green (3 known-bug skips)** across 9 test projects covering 13 NuGet packages (was 5 730 pre-Phase O, 5 714 pre-Phase N, 5 693 pre-Phase M, 5 594 pre-Phase L, 4 275 at v1.7.1, 3 967 in v1.7.0).
+> **5 385 tests green (3 known-bug skips)** across 9 test projects covering 13 NuGet packages (was 5 776 pre-Phase P, 5 730 pre-Phase O, 5 714 pre-Phase N, 5 693 pre-Phase M, 5 594 pre-Phase L, 4 275 at v1.7.1, 3 967 in v1.7.0). Phase P consolidated the treemap and playground interaction tests — fewer tests, each covering more of the collapse/expand + visually-distinct-themes surface area.
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
 

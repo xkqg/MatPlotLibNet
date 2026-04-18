@@ -257,10 +257,14 @@ public sealed class Projection3D
 
         double scaleX = _plotBounds.Width / rangeX;
         double scaleY = _plotBounds.Height / rangeY;
-        // Fill the plot area exactly (1.00). Matches matplotlib's rendered cube size
-        // within ±1 % on the bar3d reference scene when the plot bounds is close to
-        // matplotlib's 423.5 × 423.5 axes bbox.
-        double scale = Math.Min(scaleX, scaleY) * 1.00;
+        // Phase P fix (2026-04-18) — was *1.00 "fill the plot area exactly", which at
+        // typical camera angles (el=35, az=-50) leaves visible L/R whitespace because
+        // the projected cube's horizontal extent is narrower than its vertical extent.
+        // First iteration tried 1.25× (user approved "aggressive fill"); at that scale
+        // the cube top overlapped the axes title. 1.15 keeps most of the gained real
+        // estate while leaving the title row clear. Must stay in lockstep with
+        // Svg3DRotationScript's BOX_FILL constant.
+        double scale = Math.Min(scaleX, scaleY) * 1.15;
 
         double px = _plotBounds.X + _plotBounds.Width / 2 + (nx - cxFit) * scale;
         double pyScreen = _plotBounds.Y + _plotBounds.Height / 2 - (ny - cyFit) * scale;

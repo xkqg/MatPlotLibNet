@@ -35,7 +35,12 @@ public class ThreeDTickLabelOffsetTests
     /// "follow the axis as it rotates" behaviour, not a regression.
     /// 20-px threshold still fails by a wide margin on the pre-fix bug while
     /// tolerating the shallow-camera rescale envelope.</summary>
-    private const double MaxLabelDisplacementPx = 20.0;
+    // Phase P raised this from 20 → 25 after introducing the 1.15× BOX_FILL scale
+    // multiplier in Projection3D.Project / Svg3DRotationScript — the cube now
+    // renders 15% larger so the same 5° drag translates to proportionally larger
+    // label displacement. Pre-fix symptom (label collapses onto axis) still caught
+    // because those regressions produce 40+ px jumps, not 20–25.
+    private const double MaxLabelDisplacementPx = 25.0;
 
     public static IEnumerable<object[]> CameraAngles() =>
     [

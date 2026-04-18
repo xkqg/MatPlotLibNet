@@ -6,6 +6,86 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.7.2] — 2026-04-18
 
+### Fixed — Phase P (playground + treemap UX rework; 6 visually-distinct community themes)
+
+> Response to user-reported regressions after the Phase N Razor rewrite +
+> interactive-verification session ("check the stuff first localy before we
+> ship — 3 times in a row"). Every fix was driven by real-browser
+> reproduction and signed off by the user before shipping.
+>
+> - **P.1 — Playground interaction defaults corrected.** `BrowserInteraction`
+>   is now ON by default (was quietly off after Phase N). `ApplyToAxes`
+>   sets `ShowGrid` / `WithLegend` unconditionally in BOTH directions so
+>   toggling the checkbox produces a visible change (pre-fix the `false`
+>   path was a no-op, leaving the grid/legend at the theme default). The
+>   tight-layout checkbox was removed entirely (had no visible effect on
+>   responsive-SVG figures — functional-or-remove rule). Spine / tight-margin
+>   checkboxes are now hidden for non-Cartesian examples (3D, polar, radar,
+>   pie, sankey, treemap) via new `PlaygroundExamples.HasCartesianSpines`
+>   predicate — pre-fix they showed but did nothing for those examples.
+> - **P.2 — Theme dropdown shows labels, not factory names.** Pre-fix the
+>   26-theme dropdown rendered 12 entries as `custom-default` (the shared
+>   base name of community-derived themes) and 9 as `custom-dark`. New
+>   parallel `(Theme, string)` arrays in `Playground.razor` supply the
+>   human labels so every theme is visually identified.
+> - **P.3 — Six community themes now visually distinct.** `Grayscale` /
+>   `Paper` / `Presentation` / `Poster` / `GitHub` / `Minimal` previously
+>   differed only by foreground-text hex (`#111`/`#222`/`#333`/`#24292E`) —
+>   visually identical. Each now has a defining property: Grayscale uses
+>   a grayscale series palette; Paper uses serif font size 11 with no grid;
+>   Presentation uses bold size 16; Poster uses bold size 20 with thicker
+>   grid; GitHub uses the GitHub brand palette with a subtle `#E1E4E8`
+>   grid; Minimal has no grid at size 11. Playground examples were stripped
+>   of hard-coded `s.Color =` so the theme's cycle actually drives series
+>   colour.
+> - **P.4 — Responsive SVG scales up.** The Phase L.2 responsive style
+>   was `max-width:100%;height:auto` which only scaled DOWN. Fixed to
+>   `width:100%;height:auto` so the chart ALSO extends to fill wider
+>   viewports. `viewBox` preserves aspect ratio; natural `width`/`height`
+>   attrs preserved for client-side PNG rasterisation.
+> - **P.5 — Base href auto-detects localhost.** Pre-fix `index.html`'s
+>   `<base href>` pinned to the GitHub Pages subpath, breaking local
+>   `dotnet run`. Inline script now flips `base.href = "/"` when
+>   `location.hostname === 'localhost'` — zero-impact on the deployed site.
+> - **P.6 — 3D camera polish.** Default camera `WithCamera(elev=20,
+>   azim=-60)` matches matplotlib's `mplot3d` defaults (matplotlib parity).
+>   Wheel-zoom is now multiplicative `1.1× / 1/1.1×` per notch (was additive
+>   `±0.5`, barely perceptible). Cube rendering uses a 1.15× `BOX_FILL`
+>   multiplier in both `Projection3D.Project` and the JS reprojection
+>   `computeFit` so the 3D scene fills more of the plot area.
+> - **P.7 — Treemap renderer: nested hierarchical layout.** Pre-fix the
+>   renderer emitted invisible alpha-0 hit rects for interior nodes and
+>   painted every leaf on top at every depth — the user saw only a flat
+>   grid of leaves with no sense of hierarchy. Post-fix each interior node
+>   draws a visible coloured rect + label header at the top, and its
+>   children are squarified into a REDUCED rect below the header (parent
+>   colour visible as a frame). Depth-based font size (14 - depth × 1.5,
+>   floor 8) keeps deeper labels quieter. Matches the `flare.json` d3
+>   treemap reference the user supplied.
+> - **P.8 — Treemap interaction: expand/collapse per parent.**
+>   `SvgTreemapDrilldownScript` rewritten from drill-zoom + `setAttribute('viewBox', …)`
+>   to an expand/collapse toggle: initially only the top-level parents are
+>   shown; clicking a parent rect toggles visibility of its direct children;
+>   clicking again collapses them; multiple parents can be expanded
+>   simultaneously. The old drill stack, Escape-key pop, breadcrumb text,
+>   and RAF viewBox animation were retired after three iterations of UX
+>   rework that couldn't land. Clicks are delegated from the SVG root (the
+>   zoom/pan script's `setPointerCapture` redirects the synthetic click
+>   there); `findTreemapNode` walks up via `parentNode` to avoid depending
+>   on `Element.closest` or `document.elementFromPoint` (neither stubbed
+>   in the Jint test harness). Drag-suppression (pointer delta > 5 px)
+>   prevents accidental toggles during pan. Leaves aren't toggleable —
+>   only nodes whose children exist in the tree.
+> - **P.9 — `data-treemap-label` attribute.** Every tagged rect + text
+>   emits the node's human label alongside the path id, so interaction
+>   scripts can display the label directly without having to scrape the
+>   aria-label string.
+>
+> **Net result:** three user-reported playground regressions fixed, six
+> theme presets made genuinely distinctive, treemap UX completely
+> reworked to a nested view with expand/collapse interaction the user
+> explicitly signed off on in live browser testing.
+
 ### Fixed — Phase O (enum binary-compatibility hardening)
 
 > Follow-on to Phase N — user flagged the binary-compat risk inherent in

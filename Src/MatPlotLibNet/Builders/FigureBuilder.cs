@@ -174,11 +174,11 @@ public sealed class FigureBuilder
     /// <see cref="WithZoomPan"/>, <see cref="WithRichTooltips"/>, <see cref="WithLegendToggle"/>,
     /// <see cref="WithHighlight"/>, <see cref="WithSelection"/>, plus the chart-type-specific
     /// <see cref="With3DRotation"/> (drag to rotate 3D scenes), <see cref="WithTreemapDrilldown"/>
-    /// (click a tile to zoom), and <see cref="WithSankeyHover"/> (highlight upstream/downstream
-    /// flows). Each chart-type-specific script is inert when its element is absent, so a 2D line
-    /// chart with this convenience pays no runtime cost for the 3D / treemap / sankey scripts.
-    /// The resulting SVG works standalone in any browser — no .NET runtime needed on the client.
-    /// Adds ~5 KB of inline JS in total.</summary>
+    /// (click a parent tile to expand/collapse its children — Phase P rewrite), and
+    /// <see cref="WithSankeyHover"/> (highlight upstream/downstream flows). Each chart-type-specific
+    /// script is inert when its element is absent, so a 2D line chart with this convenience pays
+    /// no runtime cost for the 3D / treemap / sankey scripts. The resulting SVG works standalone
+    /// in any browser — no .NET runtime needed on the client. Adds ~5 KB of inline JS in total.</summary>
     public FigureBuilder WithBrowserInteraction(bool enabled = true)
     {
         _enableZoomPan = enabled;
@@ -314,9 +314,14 @@ public sealed class FigureBuilder
         return this;
     }
 
-    /// <summary>Enables click-to-drill-down on treemap rectangles in the SVG output.
-    /// Click a rect to zoom into its subtree, Escape to zoom out, with smooth transitions.
-    /// Requires a <c>TreemapSeries</c> on the figure.</summary>
+    /// <summary>Enables expand/collapse interaction on treemap rectangles in the SVG output.
+    /// Initially only the top-level parents are visible; clicking a parent rect toggles
+    /// visibility of its direct children; clicking again collapses them. Multiple parents
+    /// can be expanded simultaneously — the interaction is per-parent, not a drill stack.
+    /// Leaves are not toggleable. Requires a <c>TreemapSeries</c> on the figure.
+    /// <para>Phase P (v1.7.2) replaced the drill-zoom + Escape-pop model with expand/collapse
+    /// after three iterations of UX rework. The method name stayed <c>WithTreemapDrilldown</c>
+    /// for binary compatibility; the behaviour is now expand/collapse.</para></summary>
     public FigureBuilder WithTreemapDrilldown(bool enabled = true)
     {
         _enableTreemapDrilldown = enabled;

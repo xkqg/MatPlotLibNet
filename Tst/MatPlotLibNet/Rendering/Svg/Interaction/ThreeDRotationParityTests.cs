@@ -143,7 +143,10 @@ public class ThreeDRotationParityTests
             var ptsAfter = after[v3d];
             Assert.Equal(ptsBefore.Length, ptsAfter.Length);
             for (int i = 0; i < ptsBefore.Length; i++)
-                Assert.Equal(ptsBefore[i], ptsAfter[i], 0); // 0 dp tolerance — server vs client formatting differs but values match
+                // Tolerance 1.0 (pixels): server renders at full precision, client uses
+                // toFixed(2) on each axis; combined with the 1.15× BOX_FILL rescale a single
+                // pixel can land on either side of a rounding boundary (492.498 vs 492.510).
+                Assert.InRange(Math.Abs(ptsBefore[i] - ptsAfter[i]), 0.0, 1.0);
         }
     }
 

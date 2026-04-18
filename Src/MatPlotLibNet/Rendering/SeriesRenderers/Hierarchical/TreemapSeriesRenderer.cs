@@ -41,6 +41,11 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         IColorMap cmap, int depth, int indexInParent, int siblingCount,
         string nodeId, string parentId)
     {
+        // Depth-based font size: deeper nodes get smaller labels, matching the flare.json
+        // d3 hierarchical treemap reference. Top-level groups read prominently, leaf
+        // labels are quiet. Clamp to a floor so the very bottom doesn't vanish.
+        double fontSize = Math.Max(8.0, 14.0 - depth * 1.5);
+
         if (node.Children.Count == 0)
         {
             // Leaf: fill with node colour, or cmap sample at the sibling fraction.
@@ -49,38 +54,73 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
             Ctx.SetNextElementData("treemap-node", nodeId);
             Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Ctx.SetNextElementData("treemap-parent", parentId);
+            Ctx.SetNextElementData("treemap-label", node.Label ?? string.Empty);
             Ctx.DrawRectangle(bounds, color, Colors.White, 1);
             if (series.ShowLabels && !string.IsNullOrEmpty(node.Label))
             {
-                // Measure before drawing so labels only appear when they actually fit. This
-                // replaces the old fixed 20×14 threshold with a font-metrics–driven check
-                // that honours the caller's theme font size.
-                var font = new Font { Size = 10, Color = Colors.White };
+                var font = new Font { Size = fontSize, Color = Colors.White };
                 var size = ChartServices.FontMetrics.Measure(node.Label, font);
                 if (size.Width + 8 <= bounds.Width && size.Height + 4 <= bounds.Height)
-                    Ctx.DrawText(node.Label, new Point(bounds.X + 4, bounds.Y + 14),
+                {
+                    Ctx.SetNextElementData("treemap-node", nodeId);
+                    Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    Ctx.SetNextElementData("treemap-parent", parentId);
+                    Ctx.DrawText(node.Label, new Point(bounds.X + 4, bounds.Y + fontSize + 2),
                         font, TextAlignment.Left);
+                }
             }
             return;
         }
 
-        // Interior node: emit its own rect (as an invisible hit target with the same
-        // bounds) so clicking a group cell drills into it rather than the child rect.
-        // Browser click events on an SVG group are unreliable, so we use an explicit
-        // transparent rect with pointer-events. We only emit this when the node actually
-        // has children — leaves are drawn above.
+        // Interior node: draw the parent's colour as a BORDER/frame around its children
+        // (Shneiderman-style nested treemap, same layout as the d3 `flare.json` demo).
+        // Reserve a header strip at the top for the parent label and a thin padding on
+        // the remaining sides — children are squarified into the REDUCED bounds so the
+        // parent colour is visible as a frame. Pre-fix the parent rect was overlaid by
+        // children edge-to-edge, so the parent label collided with the first child's
+        // label and the hierarchy was invisible.
+        var interiorColor = node.Color
+            ?? cmap.GetColor(siblingCount > 1 ? indexInParent / (double)(siblingCount - 1) : 0.5);
         Ctx.SetNextElementData("treemap-node", nodeId);
         Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Ctx.SetNextElementData("treemap-parent", parentId);
-        // Invisible hit rect: zero stroke, zero fill alpha. Drilldown script still picks it up.
-        Ctx.DrawRectangle(bounds, Colors.Black.WithAlpha(0), null, 0);
+        Ctx.SetNextElementData("treemap-label", node.Label ?? string.Empty);
+        Ctx.DrawRectangle(bounds, interiorColor, Colors.White, 1);
 
-        // Squarify the children into the remaining bounds.
+        // Header strip sized to fit the depth-dependent font. Deeper groups get smaller
+        // headers so nested parents don't dominate the visual hierarchy.
+        double headerH = fontSize + 6;
+        double sidePad = 2.0;
+        Rect childBounds = bounds;
+        bool headerDrawn = false;
+        if (series.ShowLabels && !string.IsNullOrEmpty(node.Label)
+            && bounds.Height > headerH + 20 && bounds.Width > 40)
+        {
+            var font = new Font { Size = fontSize, Color = Colors.White };
+            var size = ChartServices.FontMetrics.Measure(node.Label, font);
+            if (size.Width + 8 <= bounds.Width)
+            {
+                Ctx.SetNextElementData("treemap-node", nodeId);
+                Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                Ctx.SetNextElementData("treemap-parent", parentId);
+                Ctx.DrawText(node.Label, new Point(bounds.X + 4, bounds.Y + headerH - 4),
+                    font, TextAlignment.Left);
+                headerDrawn = true;
+            }
+        }
+        if (headerDrawn)
+            childBounds = new Rect(
+                bounds.X + sidePad,
+                bounds.Y + headerH,
+                bounds.Width - sidePad * 2,
+                bounds.Height - headerH - sidePad);
+
+        // Squarify the children into the REDUCED bounds so the parent frame stays visible.
         var children = node.Children.OrderByDescending(c => c.TotalValue).ToList();
         double total = children.Sum(c => c.TotalValue);
         if (total <= 0) return;
 
-        var rects = Squarify(children, bounds, total, series.Padding);
+        var rects = Squarify(children, childBounds, total, series.Padding);
         for (int i = 0; i < children.Count; i++)
         {
             string childId = nodeId + "." + i.ToString(System.Globalization.CultureInfo.InvariantCulture);

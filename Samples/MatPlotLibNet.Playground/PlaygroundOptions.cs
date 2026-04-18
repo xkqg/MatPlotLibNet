@@ -61,18 +61,21 @@ public sealed record PlaygroundOptions
     public FigureBuilder ApplyTightLayout(FigureBuilder b)
         => TightLayout ? b.TightLayout() : b;
 
-    /// <summary>Applies all AXES-level options consistently. <see cref="ShowGrid"/>=true
-    /// keeps the THEME's default grid (which is theme-tuned); =false explicitly hides it.
-    /// We never call <c>ShowGrid(true)</c> because that overrides the theme's grid styling
-    /// with a generic faded default — that was the v1.7.0 playground bug where checking
-    /// "show grid" produced a thinner/lighter grid than the unchecked state.</summary>
+    /// <summary>Applies all AXES-level options consistently. Phase P fix (v1.7.2 follow-on,
+    /// 2026-04-18): ShowGrid and ShowLegend are now set EXPLICITLY in both directions so
+    /// toggling the playground checkbox produces a visible change. Pre-P the "skip the
+    /// call when toggle is off" pattern left <c>Axes.Legend</c> and <c>Axes.Grid</c> at
+    /// their default-visible state, making the "off" render identical to "on" — user
+    /// reported the checkboxes having no visual effect. <c>AxesBuilder.ShowGrid(bool)</c>
+    /// only toggles <c>Grid.Visible</c>; it does NOT override the theme's grid styling
+    /// (color/width/style), so the old "never call ShowGrid(true)" rule was stale.</summary>
     public AxesBuilder ApplyToAxes(AxesBuilder ax)
     {
-        if (!ShowGrid)       ax = ax.ShowGrid(false);
+        ax = ax.ShowGrid(ShowGrid);                      // explicit both ways
+        ax = ax.WithLegend(visible: ShowLegend);          // explicit both ways
         if (HideTopSpine)    ax = ax.HideTopSpine();
         if (HideRightSpine)  ax = ax.HideRightSpine();
         if (TightMargins)    ax = ax.WithTightMargins();
-        if (ShowLegend)      ax = ax.WithLegend();
         return ax;
     }
 }

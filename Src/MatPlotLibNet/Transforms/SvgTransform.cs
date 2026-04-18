@@ -139,7 +139,13 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
           .Append("\" width=\"").Append(w)
           .Append("\" height=\"").Append(h);
         if (figure.ResponsiveSvg)
-            sb.Append("\" style=\"max-width:100%;height:auto");
+            // Phase P fix (v1.7.2 follow-on, 2026-04-18) — was max-width:100% which only
+            // scaled DOWN. User wanted the chart to EXTEND to fill wider viewports too,
+            // not just shrink when narrow. width:100% + height:auto scales both
+            // directions while viewBox preserves aspect ratio. CSS width:100% does NOT
+            // affect naturalWidth (read from the width="..." HTML attribute), so PNG
+            // export via <img> still sees the intrinsic pixel size.
+            sb.Append("\" style=\"width:100%;height:auto");
         sb.Append("\" role=\"img\"")
           .Append(" aria-labelledby=\"chart-title\"");
         if (hasDescription)

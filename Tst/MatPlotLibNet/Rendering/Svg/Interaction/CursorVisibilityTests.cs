@@ -54,16 +54,24 @@ public class CursorVisibilityTests
     }
 
     [Fact]
-    public void TreemapDrilldown_SetsPointerCursor_OnTiles()
+    public void TreemapDrilldown_SetsPointerCursor_OnParentTiles()
     {
+        // Phase P: cursor=pointer is only set on PARENT rects (nodes with children) —
+        // leaves aren't toggleable, so giving them a pointer cursor would mislead.
+        // Nested tree: "0.0" (A) has children "0.0.0" and "0.0.1", so A is a parent.
         var root = new TreeNode { Label = "Root", Children = [
-            new() { Label = "A", Value = 10 },
+            new() { Label = "A", Value = 10, Children = [
+                new() { Label = "A1", Value = 6 },
+                new() { Label = "A2", Value = 4 },
+            ]},
             new() { Label = "B", Value = 5 },
         ]};
         using var h = InteractionScriptHarness.FromBuilder(b => b
             .WithTreemapDrilldown()
             .AddSubPlot(1, 1, 1, ax => ax.Treemap(root).HideAllAxes()));
+        // Parent "A" gets pointer; leaf "B" does NOT.
         Assert.Equal("pointer", h.GetStyle("rect[data-treemap-node='0.0']", "cursor"));
+        Assert.NotEqual("pointer", h.GetStyle("rect[data-treemap-node='0.1']", "cursor") ?? string.Empty);
     }
 
     [Fact]
