@@ -8,6 +8,21 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
+## 🧭 Stabilisation phase
+
+After eleven feature releases (v1.0 → v1.7.2) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators, native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
+
+**v1.7.1 started the stabilisation period; v1.7.2 continues it.** The focus shifts from "ship more features" to:
+
+- 🐛 **Bug fixes only** (no new public API), driven by community use and the `≥90/90` coverage gate
+- 🧪 **Test coverage uplift** (the eight-phase plan in [`docs/COVERAGE.md`](docs/COVERAGE.md)) — was 85.2% line / 68.4% branch at v1.7.0, now ≈90.9% line / 76.5% branch with 153 classes still below absolute 90/90; strict-mode flip is the next milestone
+- 📚 **Documentation polish** — cookbook examples, API XML doc completeness
+- 🌱 **Listening** — what should v2 be? Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next major direction will be guided by what real users need, not by a feature checklist.
+
+No timeline for v1.8.0 yet — when it ships, it will be community-driven.
+
+---
+
 > **v1.7.2 — Browser-interaction subsystem hardened end-to-end (13-phase TDD plan + matplotlib-parity follow-on + full 4-layer interaction closure) + Phase L defect closure + Phase M marker-renderer + Phase N magic-string elimination + Phase O enum binary-compat hardening + bug fixes + coverage uplift + CI hardening.** Continuation of the v1.7.1 stabilisation track. **Now the stable release.**
 >
 > **Phase O (v1.7.2 follow-on — enum binary-compatibility hardening, 46 new tests):**
@@ -44,21 +59,6 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 > **5 776 tests green (3 known-bug skips)** across 9 test projects covering 13 NuGet packages (was 5 730 pre-Phase O, 5 714 pre-Phase N, 5 693 pre-Phase M, 5 594 pre-Phase L, 4 275 at v1.7.1, 3 967 in v1.7.0).
 >
 > For earlier releases, see the [full CHANGELOG](CHANGELOG.md).
-
----
-
-## 🧭 Stabilisation phase
-
-After eleven feature releases (v1.0 → v1.7.2) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators, native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
-
-**v1.7.1 started the stabilisation period; v1.7.2 continues it.** The focus shifts from "ship more features" to:
-
-- 🐛 **Bug fixes only** (no new public API), driven by community use and the `≥90/90` coverage gate
-- 🧪 **Test coverage uplift** (the eight-phase plan in [`docs/COVERAGE.md`](docs/COVERAGE.md)) — was 85.2% line / 68.4% branch at v1.7.0, now ≈90.9% line / 76.5% branch with 154 classes still below absolute 90/90; strict-mode flip is the next milestone
-- 📚 **Documentation polish** — cookbook examples, API XML doc completeness
-- 🌱 **Listening** — what should v2 be? Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next major direction will be guided by what real users need, not by a feature checklist.
-
-No timeline for v1.8.0 yet — when it ships, it will be community-driven.
 
 ---
 
