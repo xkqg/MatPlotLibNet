@@ -97,7 +97,13 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
                 if (figure.EnableZoomPan)
                     sb.AppendLine(SvgInteractivityScript.GetZoomPanScript());
                 if (figure.EnableLegendToggle)
+                {
                     sb.AppendLine(SvgLegendToggleScript.GetScript());
+                    // Phase S — drag is co-emitted with toggle: they share the legend DOM
+                    // surface and must coordinate (drag suppresses the synthetic click that
+                    // would otherwise fire toggle on drop).
+                    sb.AppendLine(SvgLegendDragScript.GetScript());
+                }
             }
             // v1.2.0 preserved order: RichTooltips / Highlight / Selection are always
             // emitted after the zoom/pan/legend block for static figures. v1.2.2 skips

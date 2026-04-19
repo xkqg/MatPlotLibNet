@@ -159,4 +159,59 @@ public class TreemapDrilldownTests
         var electronics = h.Document.querySelector("rect[data-treemap-node='0.0']")!;
         Assert.Equal("pointer", electronics.style.cursor);
     }
+
+    /// <summary>Regression for the v1.7.2 Phase R second-layer click bug, surfaced by the
+    /// real-browser pixel-compare repro on 2026-04-19. The pan/zoom script
+    /// (<see cref="MatPlotLibNet.Rendering.Svg.SvgInteractivityScript"/>) calls
+    /// <c>svg.setPointerCapture(e.pointerId)</c> on every <c>pointerdown</c>. In
+    /// Chromium this redirects the synthetic <c>click</c> derived from <c>pointerup</c>
+    /// to the SVG root rather than the rect under the cursor. Pre-fix the treemap script
+    /// walked up from <c>e.target</c> only — finding no <c>data-treemap-node</c> on the
+    /// SVG root, it returned null and the toggle never fired. Fix: when the walk-up
+    /// returns null AND <c>document.elementFromPoint</c> is available, hit-test the
+    /// click coordinates to recover the real target.</summary>
+    [Fact]
+    public void Click_RedirectedToSvgRoot_FallsBackTo_ElementFromPoint()
+    {
+        using var h = BuildTreemap();
+        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var electronics = h.Document.querySelector("rect[data-treemap-node='0.0']")!;
+
+        // Stub elementFromPoint so any hit-test resolves to Electronics — simulates the
+        // physical click landed over the Electronics tile, then setPointerCapture
+        // retargeted the click event to the SVG root.
+        h.Document.StubElementFromPoint((x, y) => electronics);
+
+        // Click event with target=SVG (not the rect) — the post-redirection shape.
+        svg.Fire(new DomEvent("click") { target = svg, clientX = 200, clientY = 300 });
+
+        var phones = h.Document.querySelector("rect[data-treemap-node='0.0.0']")!;
+        Assert.NotEqual("none", phones.style.display);
+    }
+
+    /// <summary>Regression for the v1.7.2 Phase P click bug: a hover (pointermove without
+    /// any prior pointerdown) latched <c>pointerMoved=true</c> in the drag-suppression
+    /// flag, then the next click was dropped by <c>if (pointerMoved) return;</c>. Latent
+    /// in v1.7.2 since 2026-04-18; surfaced by user testing 2026-04-19. Root-fix gates the
+    /// move-threshold check on an <c>isPointerDown</c> flag that is only true between
+    /// <c>pointerdown</c> and <c>pointerup</c>/<c>pointercancel</c>.</summary>
+    [Fact]
+    public void HoverWithoutButtonDown_DoesNotPoisonClickHandler()
+    {
+        using var h = BuildTreemap();
+        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+        var electronics = h.Document.querySelector("rect[data-treemap-node='0.0']")!;
+
+        // Hover the SVG (pointermove without any prior pointerdown) — must NOT poison
+        // the drag-suppression flag. Two moves at >5 px from origin (0,0) so the buggy
+        // pre-fix threshold (dx*dx + dy*dy > 25 against initial pointerDownX=0) trips.
+        svg.Fire(new DomEvent("pointermove") { clientX = 200, clientY = 300 });
+        svg.Fire(new DomEvent("pointermove") { clientX = 250, clientY = 350 });
+
+        // Click the parent — toggle MUST fire even after the prior hovering.
+        svg.Fire(new DomEvent("click") { target = electronics });
+
+        var phones = h.Document.querySelector("rect[data-treemap-node='0.0.0']")!;
+        Assert.NotEqual("none", phones.style.display);
+    }
 }

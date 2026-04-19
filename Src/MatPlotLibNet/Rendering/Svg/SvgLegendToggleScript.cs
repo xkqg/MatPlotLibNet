@@ -37,19 +37,15 @@ internal static class SvgLegendToggleScript
                     item.setAttribute('aria-pressed', hidden ? 'false' : 'true');
                 }
 
-                // Phase 4 — pointerdown handles touch + pen + mouse uniformly. Click stays
-                // wired for legacy environments and as the test-fire path, but is suppressed
-                // when it directly follows a pointerdown (which synthesizes click as a sequel).
-                var pointerActivated = false;
-                item.addEventListener('pointerdown', function(e) {
-                    toggle();
-                    pointerActivated = true;
-                    e.preventDefault();
-                });
-                item.addEventListener('click', function() {
-                    if (pointerActivated) { pointerActivated = false; return; }
-                    toggle();
-                });
+                // Phase S — toggle fires ONLY on a real click (full press-and-release without
+                // drag). Pre-fix the script also fired toggle on pointerdown which (a) hid the
+                // series the instant the user pressed (single-series charts visibly emptied —
+                // user-reported "plot disappears" bug, 2026-04-19) and (b) made drag-to-reposition
+                // mechanically impossible because the data vanished before drag could engage. The
+                // companion SvgLegendDragScript suppresses the synthetic click that follows a
+                // real drag via capture-phase stopPropagation, so toggle-on-click coexists cleanly
+                // with drag.
+                item.addEventListener('click', function() { toggle(); });
                 item.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' || e.key === ' ') { toggle(); e.preventDefault(); }
                 });

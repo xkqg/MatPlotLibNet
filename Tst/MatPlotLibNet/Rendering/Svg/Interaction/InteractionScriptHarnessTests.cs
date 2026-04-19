@@ -64,6 +64,29 @@ public class InteractionScriptHarnessTests
         Assert.Equal("false", h.GetAttribute("[data-legend-index='0']", "aria-pressed"));
     }
 
+    /// <summary>Phase S regression for the v1.7.2 "plot disappears" bug
+    /// (2026-04-19, NOT specific to 3D). Pre-fix, <see cref="MatPlotLibNet.Rendering.Svg.SvgLegendToggleScript"/>
+    /// fired <c>toggle()</c> on <c>pointerdown</c> — the moment the user pressed a legend item, the matching
+    /// series hid before they could release. Single- or two-series charts visibly emptied; users couldn't even
+    /// hold-down to drag (Phase S feature) without losing data on screen. The fix moves toggle to <c>click</c>
+    /// only. This test pins the new contract: a bare <c>pointerdown</c> with NO subsequent <c>pointerup</c>
+    /// must leave every series untouched.</summary>
+    [Fact]
+    public void LegendItem_PointerdownAlone_DoesNotToggleSeries()
+    {
+        using var h = InteractionScriptHarness.FromBuilder(b => b
+            .WithLegendToggle()
+            .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A"));
+
+        Assert.Null(h.GetStyle("[data-series-index='0']", "display"));
+
+        // Press without ever releasing — must NOT trigger toggle.
+        h.Simulate("[data-legend-index='0']", "pointerdown", e => { e.clientX = 100; e.clientY = 50; });
+
+        Assert.NotEqual("none", h.GetStyle("[data-series-index='0']", "display") ?? "");
+        Assert.Equal("false", h.GetAttribute("[data-legend-index='0']", "aria-pressed"));
+    }
+
     /// <summary>Phase G.3 of v1.7.2 follow-on — ARIA-button keyboard parity
     /// (WCAG 2.1 AA: Enter and Space must trigger the same action as click on
     /// any element with <c>role="button"</c>). Pins the <c>keydown</c> branch

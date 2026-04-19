@@ -104,6 +104,23 @@ public sealed class DomDocument
         if (_docListeners.TryGetValue(ev.type, out var list))
             foreach (var h in list.ToArray()) h(ev);
     }
+
+    /// <summary>Mirrors browser <c>document.elementFromPoint(x, y)</c>. The harness
+    /// has no layout engine, so by default it returns <c>null</c> — matching how the
+    /// browser behaves when no element is under the coordinates. Tests that need a
+    /// specific element returned (e.g., to simulate <c>setPointerCapture</c>
+    /// click-target redirection) inject a lookup function via
+    /// <see cref="StubElementFromPoint"/>.</summary>
+    public DomElement? elementFromPoint(double x, double y) =>
+        _elementFromPointStub?.Invoke(x, y);
+
+    private Func<double, double, DomElement?>? _elementFromPointStub;
+    /// <summary>Test-side — installs a lookup that <see cref="elementFromPoint"/>
+    /// will dispatch to. Use to simulate hit-testing without a real layout engine.
+    /// Phase R (2026-04-19): used by treemap-redirect tests to repro
+    /// <c>setPointerCapture</c> retargeting <c>click</c> to the SVG root.</summary>
+    public void StubElementFromPoint(Func<double, double, DomElement?> stub) =>
+        _elementFromPointStub = stub;
 }
 
 /// <summary>CSS-selector → XElement matcher. Supports the subset the embedded scripts use:

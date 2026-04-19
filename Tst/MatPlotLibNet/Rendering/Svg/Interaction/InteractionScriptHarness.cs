@@ -26,6 +26,45 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// Assert.Contains("display: none", hidden);
 /// </code>
 /// </summary>
+/// <remarks>
+/// <para><b>What the harness DOES simulate</b>: element-scoped event dispatch via
+/// <c>DomElement.Fire</c> / <c>dispatchEvent</c>, synchronous listener invocation, attribute
+/// and style mutations visible to subsequent assertions, <c>querySelector(All)</c>,
+/// <c>parentNode</c> walks, <c>addEventListener</c> / <c>removeEventListener</c>,
+/// <c>document.currentScript</c>, SignalR mock wiring, and per-chart SVG isolation across
+/// multiple figures in one document.</para>
+///
+/// <para><b>What the harness DOES NOT simulate</b> (tests depending on these behaviours
+/// will silently pass against real bugs — Phase R, 2026-04-19, surfaced one such gap):</para>
+/// <list type="bullet">
+///   <item><description><b>Event bubbling.</b> <see cref="DomEvent.stopPropagation"/> is a no-op
+///     and events fire only on the literal target — there is no parent-chain propagation.
+///     Tests needing delegation must fire directly at the element that owns the listener.</description></item>
+///   <item><description><b>Capture phase.</b> The third argument to <c>addEventListener</c>
+///     (<c>useCapture</c> / <c>{ capture: true }</c>) is accepted but ignored — every listener
+///     fires in registration order regardless of phase. Cross-script ordering that the browser
+///     would resolve via capture-vs-bubble is NOT faithful here.</description></item>
+///   <item><description><b>Pointer capture target redirection.</b>
+///     <see cref="DomElement.setPointerCapture"/> / <see cref="DomElement.releasePointerCapture"/>
+///     are no-ops. In browsers, <c>setPointerCapture</c> causes subsequent
+///     <c>pointermove</c>/<c>pointerup</c>/<c>click</c> to target the capturing element rather
+///     than the element under the cursor; the harness does not model this.</description></item>
+///   <item><description><b>elementFromPoint.</b> Not stubbed. Scripts that fall back to
+///     <c>document.elementFromPoint(x, y)</c> to recover a target will fail/throw — use
+///     alternative resolution strategies in script code (e.g., walk up from <c>e.target</c>).</description></item>
+///   <item><description><b>Layout.</b> <see cref="DomElement.getBoundingClientRect"/> returns
+///     synthetic fixed bounds; clientWidth/clientHeight read the SVG width/height attributes
+///     verbatim with a 1-fallback to avoid NaN. Position math against real rendered geometry
+///     is not available.</description></item>
+///   <item><description><b>Pointer Event sequences.</b> The harness fires whatever event
+///     <c>type</c> the test asks for, in isolation. It does NOT synthesize the full
+///     <c>pointerdown → pointermove* → pointerup → click</c> sequence a real pointer produces.
+///     Scripts that interpret such sequences must be tested explicitly — firing each event
+///     in turn with realistic <c>clientX</c>/<c>clientY</c> values (see
+///     <c>TreemapDrilldownTests.HoverWithoutButtonDown_DoesNotPoisonClickHandler</c> for the
+///     pattern that caught the Phase P hover-poisoning bug).</description></item>
+/// </list>
+/// </remarks>
 public sealed class InteractionScriptHarness : IDisposable
 {
     private readonly Engine _engine;

@@ -50,7 +50,11 @@ public class CursorVisibilityTests
         using var h = InteractionScriptHarness.FromBuilder(b => b
             .WithLegendToggle()
             .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A"));
-        Assert.Equal("pointer", h.GetStyle("[data-legend-index='0']", "cursor"));
+        // Phase S: the toggle script sets cursor=pointer, then the co-emitted drag script
+        // overrides to cursor=grab — both click AND drag are valid affordances, and 'grab'
+        // is the canonical CSS cursor for draggable elements (mirrors the 3D-scene cursor
+        // above + every modern desktop UI's draggable-handle convention).
+        Assert.Equal("grab", h.GetStyle("[data-legend-index='0']", "cursor"));
     }
 
     [Fact]

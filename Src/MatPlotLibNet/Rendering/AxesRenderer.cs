@@ -306,6 +306,16 @@ public abstract class AxesRenderer
             _                           => (PlotArea.X + PlotArea.Width - boxWidth - inset, PlotArea.Y + inset) // Best / UpperRight
         };
 
+        // Open the legend group FIRST — frame, shadow, title, and entries all live inside
+        // it as siblings. Phase S (2026-04-19) — the legend-drag script applies a
+        // transform="translate(dx,dy)" to this <g class="legend">; the frame rect MUST be
+        // inside so it moves with the items it frames. Pre-Phase S the frame was emitted
+        // as a sibling of the group, leaving it stranded when the user dragged the legend.
+        if (Ctx is SvgRenderContext svgCtxLegendGroup)
+            svgCtxLegendGroup.BeginAccessibleGroup("legend", "Chart legend");
+        else
+            Ctx.BeginGroup("legend");
+
         // Frame background
         if (legend.FrameOn)
         {
@@ -327,11 +337,6 @@ public abstract class AxesRenderer
             // For now render normally; FancyBox is a visual hint recognised by advanced renderers.
             Ctx.DrawRectangle(new Rect(boxX, boxY, boxWidth, boxHeight), bgColor, edgeColor, 0.5);
         }
-
-        if (Ctx is SvgRenderContext svgCtxLegendGroup)
-            svgCtxLegendGroup.BeginAccessibleGroup("legend", "Chart legend");
-        else
-            Ctx.BeginGroup("legend");
 
         // Title
         if (!string.IsNullOrEmpty(legend.Title))

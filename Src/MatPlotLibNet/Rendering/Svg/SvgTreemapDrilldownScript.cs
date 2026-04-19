@@ -75,15 +75,26 @@ internal static class SvgTreemapDrilldownScript
                 applyVisibility();
             }
 
-            // Drag-vs-click suppression — if the pointer moved more than 5px, treat as pan.
-            var pointerDownX = 0, pointerDownY = 0, pointerMoved = false;
+            // Drag-vs-click suppression — if the pointer moved more than 5px BETWEEN
+            // pointerdown and pointerup, treat as pan and skip the click toggle.
+            // The isPointerDown gate is essential: without it, plain hover (pointermove
+            // with no button held) would latch pointerMoved=true on the very first
+            // mouse motion across the chart, then the click handler's
+            // `if (pointerMoved) return;` would suppress every subsequent click.
+            // Regression test: TreemapDrilldownTests.HoverWithoutButtonDown_DoesNotPoisonClickHandler
+            // (bug shipped in v1.7.2 / Phase P, surfaced 2026-04-19).
+            var pointerDownX = 0, pointerDownY = 0, pointerMoved = false, isPointerDown = false;
             svg.addEventListener('pointerdown', function(e) {
-                pointerDownX = e.clientX; pointerDownY = e.clientY; pointerMoved = false;
+                pointerDownX = e.clientX; pointerDownY = e.clientY;
+                pointerMoved = false; isPointerDown = true;
             }, true);
             svg.addEventListener('pointermove', function(e) {
+                if (!isPointerDown) return;             // hover does NOT poison the flag
                 var dx = e.clientX - pointerDownX, dy = e.clientY - pointerDownY;
                 if (dx*dx + dy*dy > 25) pointerMoved = true;
             }, true);
+            svg.addEventListener('pointerup', function(e) { isPointerDown = false; }, true);
+            svg.addEventListener('pointercancel', function(e) { isPointerDown = false; }, true);
 
             // Walk-up-from-target — avoids depending on Element.closest() or
             // document.elementFromPoint(), which the Jint test harness doesn't stub.
@@ -97,10 +108,21 @@ internal static class SvgTreemapDrilldownScript
             }
 
             // Event delegation at the SVG root — the pan/zoom script's setPointerCapture
-            // redirects the click to the SVG, so per-rect click listeners wouldn't fire.
+            // redirects pointerup AND the synthetic click to the SVG root rather than the
+            // rect under the cursor. Two-stage target resolution:
+            //   1. Walk up from e.target — works for unredirected clicks (most browsers
+            //      when no setPointerCapture is in flight, or when capture is on a child).
+            //   2. Fallback: hit-test (clientX, clientY) via document.elementFromPoint —
+            //      recovers the real rect when capture redirected the target to <svg>.
+            // Regression tests: TreemapDrilldownTests.HoverWithoutButtonDown_…
+            //                  TreemapDrilldownTests.Click_RedirectedToSvgRoot_FallsBackTo_…
             svg.addEventListener('click', function(e) {
                 if (pointerMoved) return;
                 var target = findTreemapNode(e.target);
+                if (!target && document.elementFromPoint) {
+                    var hit = document.elementFromPoint(e.clientX, e.clientY);
+                    target = findTreemapNode(hit);
+                }
                 if (!target) return;
                 var id = target.getAttribute('data-treemap-node');
                 if (hasChildren[id]) {
