@@ -383,11 +383,11 @@ public static class PlaygroundExamples
     private static (Figure, string) BuildTreemap(PlaygroundOptions opts)
     {
         // Phase W (v1.7.2, 2026-04-19) — actual depth-3 tree under Electronics → Phones
-        // (iPhone / Galaxy / Pixel). Other parents stay depth-2 leaves so the playground
-        // demonstrates mixed-depth rendering. Click Electronics to expand; click Phones
-        // to drill another level into iPhone/Galaxy/Pixel. Z-order paints deeper labels
-        // over shallower ones in any overlapping region. The Phase P comment that lived
-        // here previously claimed "3-level tree" but the data was depth-2 only — fixed.
+        // (iPhone / Galaxy / Pixel). Other parents stay depth-2 so the playground
+        // demonstrates mixed-depth rendering. Steady-pictures behaviour: every depth is
+        // visible on first paint (interactive view = static SVG); z-order paints deeper
+        // labels over shallower ones, so the visible label in any region is the deepest
+        // one. Clicking a parent COLLAPSES its subtree (focus); click again restores.
         var root = new TreeNode
         {
             Label = "Revenue",
@@ -446,9 +446,9 @@ public static class PlaygroundExamples
         };
 
         // Default behaviour: WithBrowserInteraction enables the treemap interaction script.
-        // That script is now expand/collapse (click a parent to toggle its children)
-        // rather than drill-zoom, so initial view shows only the top-level parents and
-        // the user expands the ones they care about.
+        // Steady-pictures default: every node visible initially (matches the static SVG
+        // pixel-for-pixel). Click a parent to COLLAPSE its subtree; click again to restore.
+        // No visual jump on first paint — only on user-initiated clicks.
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, s => s.ShowLabels = true).HideAllAxes());
 

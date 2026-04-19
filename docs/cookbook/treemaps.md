@@ -16,9 +16,9 @@ Plt.Create()
 
 ## Treemap with expand/collapse
 
-Each interior node renders as a coloured rectangle with a label header along the top; children are squarified into the reduced bounds below that header, so the parent colour visually frames its descendants (matches the d3 `flare.json` nested-treemap style). The initial view shows only top-level parent rectangles — clicking a parent toggles visibility of its direct children, and clicking again collapses them. Multiple parents can be expanded simultaneously with independent state. Leaves (nodes with no children) are not clickable, so the cursor stays default when hovering them.
+Each interior node renders as a coloured rectangle with a label header along the top; children are squarified into the reduced bounds below that header, so the parent colour visually frames its descendants (matches the d3 `flare.json` nested-treemap style). **The initial interactive view is identical to the static SVG — every node at every depth is visible on first paint** ("steady pictures": no visual jump when entering interactive mode). Clicking a parent rect *collapses* its descendants to focus on the surrounding context; clicking again re-expands. Multiple parents can be collapsed independently. Leaves are not clickable, so the cursor stays default when hovering them.
 
-Labels render at a single readable 12 pt size at every depth (v1.7.2 Phase W). Children paint OVER parents (Shneiderman z-order), so the deepest visible label is what the user sees in any overlapping region. For static SVG output with deep trees, call `.WithAutoSize(root)` on the `FigureBuilder` to pick a canvas big enough to fit every label cleanly without overflow; for interactive output, the user pans/zooms to read overflowing labels.
+Labels render at a single readable 12 pt size at every depth (v1.7.2 Phase W). Children paint OVER parents (Shneiderman z-order), so the deepest visible label is what the user sees in any overlapping region — the user reads the most-specific label without anything moving. For static SVG output with deep trees, call `.WithAutoSize(root)` on the `FigureBuilder` to pick a canvas big enough to fit every label cleanly without overflow; for interactive output, the user pans/zooms to read overflowing labels.
 
 ```csharp
 var catalogue = new TreeNode
@@ -63,7 +63,7 @@ var catalogue = new TreeNode
 };
 
 Plt.Create()
-    .WithTitle("Treemap — click a parent to expand; click Phones to drill into iPhone/Galaxy/Pixel")
+    .WithTitle("Treemap — every depth visible; click a parent to collapse its subtree, click again to restore")
     .WithAutoSize(catalogue)              // v1.7.2 Phase W — sizes the canvas to fit every label
     .WithTreemapDrilldown()
     .AddSubPlot(1, 1, 1, ax => ax.Treemap(catalogue, s => s.ShowLabels = true))

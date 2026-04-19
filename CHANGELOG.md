@@ -6,6 +6,63 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.7.2] — 2026-04-18
 
+### Added / Fixed — Phase W + W follow-up (2026-04-19, depth-3 treemap + steady-pictures UX, 11 new tests)
+
+> Two related changes that ship together. **Phase W** added depth-3 treemap support
+> end-to-end (renderer, playground, cookbook), dropped the depth-driven font shrink
+> + the rect-fit hide gate ("when no browserInteraction he sees all"), and added a
+> new opt-in `WithAutoSize(TreeNode)` builder that sizes the canvas from the tree's
+> leaf count + average label length. **Phase W follow-up** flipped the interactive
+> drilldown to default-expanded ("steady pictures" — interactive view = static SVG
+> on first paint, no visual jump entering interactive mode) and made hide
+> transitive via an ancestry-walk visibility model.
+
+- **Renderer (`TreemapSeriesRenderer`).** Constant 12 pt label at every depth;
+  constant 18 px header strip on interior nodes. Rect-fit hide gate dropped — every
+  label emits unconditionally. Children render after parents (Shneiderman z-order),
+  so the deepest visible label wins in any overlapping region. Static SVG now
+  carries the full hierarchy in the DOM (selectable, screen-reader accessible).
+- **`FigureBuilder.WithAutoSize(TreeNode root)`** — new opt-in fluent. Walks the
+  tree once for leaf count + average label length, computes canvas area =
+  `leafCount × (avgChars × 7 + 16) × 22 × 1.5` at 16:9 aspect, floored at 800×600.
+  Most useful for static SVG output where the user can't pan/zoom. 3 contract
+  tests in `FigureBuilderAutoSizeTests` (floor, grow-with-leaves, hold-aspect).
+- **Drilldown script (`SvgTreemapDrilldownScript`).** Initial `expanded` map seeds
+  every interior node to `true` so first paint shows everything. Click semantics
+  flipped: click *collapses* (hides) a previously-expanded subtree; click again
+  re-expands. Visibility computed via ancestry walk (`isAncestryOpen`) so
+  collapsing root transitively hides every descendant in one click. Per-node
+  expansion state preserved across collapse/restore.
+- **8 new behavioural tests** in `TreemapDrilldownTests`:
+  `Click_Depth2Parent_TogglesDepth3Children` (W),
+  `RootRect_IsVisible_OnInitialState` (W follow-up),
+  `ClickRootParent_TransitivelyHidesEntireSubtree` (W follow-up Playwright T4 regression),
+  plus 5 existing tests flipped to collapse-first semantics
+  (`InitialState_AllParentsExpanded`, `ClickParent_CollapsesItsDirectChildren`,
+  `ClickParent_Twice_RestoresExpandedChildren`, `MultipleParents_CanBeCollapsedIndependently`,
+  and the click-redirect / hover-without-button regression assertions updated to
+  expect collapse rather than expand).
+- **3 new builder tests** in `FigureBuilderAutoSizeTests` + **2 new renderer tests**
+  in `TreemapSeriesRendererTests` (`Font_IsConstant_AcrossDepths`,
+  `Label_RendersEvenWhenTileNarrowerThanText`).
+- **Real-browser verification** via `c:/tmp/treemap_depth3.py` (Playwright headless
+  Chromium, 4/4 PASS): T1 every depth visible on first paint · T2 click Phones
+  collapses iPhone/Galaxy/Pixel · T3 click again restores them · T4 click root
+  transitively hides everything beneath.
+- **Playground sample** extended with depth-3 (Electronics → Phones →
+  iPhone/Galaxy/Pixel; other branches stay depth-2 for mixed-depth demo) and a
+  4th top-level branch (Home → Furniture/Decor/Appliances). Hint text updated to
+  describe the new collapse-first UX.
+- **Cookbook** ([docs/cookbook/treemaps.md](docs/cookbook/treemaps.md)) shows the
+  full depth-3 tree definition, the new `.WithAutoSize(catalogue)` fluent, and
+  the steady-pictures UX (every depth visible · click parent to collapse subtree).
+- **6 211 tests / 0 fail / 3 known-bug skips** (was 6 209 pre-Phase-W). Coverage
+  baseline regenerated to absorb the intentional branch-profile shifts in
+  `TreemapSeriesRenderer` (rect-fit gates dropped) + `FigureBuilder` (new
+  `WithAutoSize` branches) + `SvgTreemapDrilldownScript` (ancestry walk).
+- **No NuGet bump** — additive `WithAutoSize` is purely additive; behavioural
+  changes are interactive-only and already on the v1.7.2 stabilisation track.
+
 ### Fixed — Phase T (2026-04-19, test harness uplift, 5 new tests)
 
 > Closes the honest gaps surfaced in the post-Phase-S audit. No source-code

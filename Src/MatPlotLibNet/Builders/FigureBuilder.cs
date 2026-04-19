@@ -353,13 +353,16 @@ public sealed class FigureBuilder
     }
 
     /// <summary>Enables expand/collapse interaction on treemap rectangles in the SVG output.
-    /// Initially only the top-level parents are visible; clicking a parent rect toggles
-    /// visibility of its direct children; clicking again collapses them. Multiple parents
-    /// can be expanded simultaneously — the interaction is per-parent, not a drill stack.
-    /// Leaves are not toggleable. Requires a <c>TreemapSeries</c> on the figure.
-    /// <para>Phase P (v1.7.2) replaced the drill-zoom + Escape-pop model with expand/collapse
-    /// after three iterations of UX rework. The method name stayed <c>WithTreemapDrilldown</c>
-    /// for binary compatibility; the behaviour is now expand/collapse.</para></summary>
+    /// <para>Phase W follow-up (v1.7.2, 2026-04-19, "steady pictures"): the initial interactive
+    /// view is pixel-identical to the static SVG — every node at every depth is visible on
+    /// first paint (z-order paints children over parents, so the deepest visible label wins
+    /// in any overlapping region). Clicking a parent rect now <em>collapses</em> its entire
+    /// subtree (transitively — descendants' own expansion state is preserved); clicking
+    /// again restores. Multiple subtrees can be collapsed independently. Leaves are not
+    /// toggleable. Requires a <c>TreemapSeries</c> on the figure.</para>
+    /// <para>Method name stayed <c>WithTreemapDrilldown</c> for binary compatibility through
+    /// Phase P (drill-zoom → expand/collapse) and Phase W (default-collapsed → default-expanded
+    /// + transitive hide).</para></summary>
     public FigureBuilder WithTreemapDrilldown(bool enabled = true)
     {
         _enableTreemapDrilldown = enabled;

@@ -8,23 +8,25 @@ internal static class SvgTreemapDrilldownScript
 {
     /// <summary>
     /// Returns a <c>&lt;script&gt;</c> block that makes every NON-LEAF treemap node
-    /// clickable to toggle visibility of its direct children. Multiple parents can be
-    /// expanded at once — the interaction model is expand/collapse (file-tree style),
-    /// not single-path drill-zoom.
+    /// clickable to collapse / restore its entire subtree. Default state on first paint
+    /// is everything-expanded (interactive view = static SVG, "steady pictures" — no
+    /// visual jump entering interactive mode). Multiple subtrees can be collapsed
+    /// independently.
     /// </summary>
     /// <remarks>
     /// <para>The renderer emits all nodes at all depths in the static SVG, tagged with
     /// <c>data-treemap-node</c> (path id like "0.1") and <c>data-treemap-parent</c>
-    /// (parent's id). On script init, every rect + text whose parent is not root "0"
-    /// is hidden via CSS. Clicking a parent's rect shows all nodes whose
-    /// <c>data-treemap-parent</c> equals that parent's id — i.e., the parent's direct
-    /// children. Clicking again hides them.</para>
+    /// (parent's id). On script init, every parent's <c>expanded</c> flag is set to
+    /// true so every rect renders. A click on a parent flips its flag to false; visibility
+    /// is then recomputed by an <em>ancestry walk</em> — an element is visible iff every
+    /// ancestor up to root is expanded — so collapsing a top-level rect transitively hides
+    /// everything beneath it in one click.</para>
     ///
     /// <para>Click dispatch: the zoom/pan script's <c>setPointerCapture</c> redirects
     /// the synthetic <c>click</c> to the SVG root, so this script uses event delegation
     /// at the root plus <c>elementFromPoint</c> as a fallback for the captured case.
-    /// Drag-suppression (pointermove threshold &gt; 5px) avoids toggling when the user
-    /// was panning.</para>
+    /// Drag-suppression (pointermove threshold &gt; 5px while button down) avoids
+    /// toggling when the user was panning.</para>
     /// </remarks>
     internal static string GetScript() => """
         <script type="text/ecmascript"><![CDATA[
@@ -41,21 +43,56 @@ internal static class SvgTreemapDrilldownScript
 
             // Classify: which nodes are rects (clickable parents potentially) vs text labels,
             // and which have children (non-leaves — clicking these toggles their children).
+            // Also build parentOf[id] so applyVisibility can walk ancestors transitively —
+            // collapsing an interior node must hide its ENTIRE subtree, not just its direct
+            // children (Phase W follow-up, 2026-04-19 — exposed by the Playwright T4 repro:
+            // clicking root collapsed depth-1 but depth-2+ stayed visible because their own
+            // parent's expanded flag was still true).
             var hasChildren = {};
+            var parentOf = {};
             all.forEach(function(el) {
+                var id = el.getAttribute('data-treemap-node');
                 var p = el.getAttribute('data-treemap-parent');
                 if (p) hasChildren[p] = true;
+                // First occurrence wins — an id may appear on both rect and text; both share
+                // the same parent so either is authoritative.
+                if (parentOf[id] === undefined) parentOf[id] = p;
             });
 
-            // Expansion state keyed by node id. Initially: only direct children of the
-            // root ("0") are visible. Their children (depth ≥ 2) are hidden until the
-            // user expands their parent by clicking.
-            var expanded = { '0': true };
+            // Expansion state keyed by node id. Phase W follow-up (2026-04-19, "steady
+            // pictures"): start with EVERY parent expanded so the initial interactive
+            // render is pixel-identical to the static SVG ("user sees all" in both
+            // modes — z-order means deeper labels paint over shallower ones, so the
+            // visible label in any region is always the deepest one). Click then
+            // becomes opt-in collapse: the user hides a subtree to focus, rather than
+            // having to expand to discover content. No visual jump on first paint;
+            // movement only when the user explicitly clicks. Regressions:
+            //   TreemapDrilldownTests.RootRect_IsVisible_OnInitialState
+            //   TreemapDrilldownTests.InitialState_AllParentsExpanded
+            var expanded = { '': true };
+            all.forEach(function(el) {
+                var id = el.getAttribute('data-treemap-node');
+                if (hasChildren[id]) expanded[id] = true;
+            });
+
+            // Element visible iff EVERY ancestor (its parent, grandparent, ... up to root)
+            // is in expanded[]. Walking ancestors makes hide transitive: collapsing root
+            // hides depth-1, depth-2 and depth-3 in one shot. Cost: O(depth) per element
+            // per applyVisibility(); trivial for any real treemap (depth typically < 10).
+            // Pre-fix the script only checked the immediate parent, leaving depth-2+
+            // visible after collapsing a depth-1 ancestor (Playwright T4 regression).
+            function isAncestryOpen(id) {
+                var p = parentOf[id];
+                while (p !== undefined && p !== '') {
+                    if (!expanded[p]) return false;
+                    p = parentOf[p];
+                }
+                return expanded[''] !== false;
+            }
             function applyVisibility() {
                 all.forEach(function(el) {
-                    var p = el.getAttribute('data-treemap-parent');
-                    // Element is visible iff its parent's expanded flag is true.
-                    el.style.display = expanded[p] ? '' : 'none';
+                    var id = el.getAttribute('data-treemap-node');
+                    el.style.display = isAncestryOpen(id) ? '' : 'none';
                 });
             }
             applyVisibility();

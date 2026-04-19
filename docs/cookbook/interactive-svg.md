@@ -148,7 +148,7 @@ The interaction scripts add ~3KB to the SVG file size.
 | `.WithHighlight()` | Dim sibling series on hover; opacity themable via `WithInteractionTheme`; original opacity preserved across hover cycles |
 | `.WithSelection()` | Shift+drag rectangular data selection; `Escape` cancels without dispatching |
 | `.With3DRotation()` | Drag to rotate (matplotlib parity), arrow keys ±5°, `+`/`-` distance, wheel zoom, `Home` reset |
-| `.WithTreemapDrilldown()` | Click-to-drill (animated `viewBox` slide, duration via `InteractionTheme.TreemapTransitionMs`), `Escape` to pop stack |
+| `.WithTreemapDrilldown()` | Every depth visible by default (interactive view = static SVG, "steady pictures"); click a parent rect to *collapse* its entire subtree (transitive — descendants' own state preserved); click again to restore. Multiple subtrees can be collapsed independently. Z-order paints children over parents so the deepest visible label wins. (v1.7.2 Phase W; was drill-zoom + Esc-pop in v1.x, expand-on-click in Phase P.) |
 | `.WithSankeyHover()` | Node hover emphasises upstream + downstream flow (ECharts `focus: adjacency` parity), keyboard via `Tab` |
 | `.WithInteractionTheme(theme)` | Themable opacity / transition tokens (highlight opacity, sankey dim opacities, treemap transition ms, tooltip offset) |
 | `.WithServerInteraction(id, cfg)` | Bidirectional SignalR interaction (hub methods `OnZoom` / `OnPan` / `OnReset` / `OnLegendToggle` / `OnBrushSelect` / `OnHover`) |
