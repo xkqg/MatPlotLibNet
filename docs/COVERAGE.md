@@ -2,7 +2,21 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
-**Status (v1.7.2):** **6 203 tests green (3 known-bug skips)** across 9 test projects (was 5 385 post-Phase-P; +18 came from Phases R/S/T regression guards + the harness-uplift unblocks; +800 came from the Phase Q close-out). Default-mode regression gate **PASSES**. **110 classes still below absolute 90/90** (was 169 pre-Phase-Q — Phase Q's 6-batch coverage uplift lifted 59 classes), tracked by namespace below; strict-mode flip remains the next coverage milestone. Phases R/S/T did not require a baseline regeneration — every new test exercises previously-uncovered branches without regressing any class.
+**Status (v1.7.2, Phase X complete):** **7 072 tests green (4 known-bug skips)** across 9 test projects (was 6 203 pre-Phase-X, 5 385 post-Phase-P, 3 967 at v1.7.0 baseline). Default-mode regression gate **PASSES** against the regenerated baseline. **64 classes still below absolute 90/90** (was 110 mid-Phase-W, 169 at v1.7.2 release) — Phase X graduated 46 classes through stacked-OO test bases (`ModifierTestBase<T>`, `RendererCoverageTestBase<T>`) + 6 documented exemptions for provably-unreachable defensive arms. Total project coverage: **94.8% line / 84.3% branch** (was 92.5% / 81.3% pre-Phase-X). Strict-mode flip remains the next coverage milestone — the largest remaining substantive sub-90 classes (`AxesRenderer` 76L/62B, `CartesianAxesRenderer` 83L/73B, `AxesBuilder` 84L/60B, complexity 100+ each) are deferred to a focused future phase since they need a deep dive of their own.
+
+### Phase X uplift summary (2026-04-19)
+
+| Sub-phase | Scope | Outcome |
+|---|---|---|
+| **X.6** | Exemption sweep | 3 unreachable arms documented (`Sinusoidal.Inverse` cosLat==0; `Stereographic.Forward` k<0; `StreamingChartSession` race-only `_disposed` guard) |
+| **X.7** | C2 quick-fire (~26 classes at 80–89%B) | ~40 facts in `PinpointBranchTests11.cs` + `NearMissBranchTests` |
+| **X.8** | Modifier branch precision (10 modifiers) | New `ModifierTestBase<TModifier>` stacked-OO base + per-class `ModifierBranchPrecisionTests` — Pan/SpanSelect/BrushSelect/LegendToggle 100/100; Hover/DataCursor/Zoom exempted (provably-unreachable `coords is null` arm) |
+| **X.9** | B2 mid-partial (renderers + interactions + misc) | 8 NEW renderer test files (5 of 7 fully graduated); `CrosshairModifier` + `InteractionToolbar` graduated; `ChartServices` + `FigureExtensions` 57→100 |
+| **X.10** | B1 high-lift | `StreamingIndicatorExtensions` 53→100 (9 per-extension facts); `InteractiveFigure` covered via `internal` ctor; `NullCallerPublisher` reached via `HoverEvent` flow; `ChartSubscriptionType` direct-called via `[InternalsVisibleTo]` |
+| **X.11** | Blazor streaming end-to-end | New `StreamingHostFixture` (xunit `IClassFixture`, real Kestrel on random port + ChartHub mapped); `MplStreamingChart` 0→100; `ChartSubscriptionClient` 0→100 (no-hub no-op + real-hub `ConnectAsync`/Subscribe/UpdateChartSvg/Dispose roundtrip) |
+| **X.12** | Re-baseline + verify | All 9 test projects collected; merged with `reportgenerator`; baseline regenerated; gate **PASS**: 0 regressions |
+
+Exemptions in `tools/coverage/thresholds.json`: 19 → **25** (Phase X added BrowserLauncher [pre-existing X.0], Sinusoidal, Stereographic, StreamingChartSession, HoverModifier, DataCursorModifier, ZoomModifier, InteractionController, PieSeriesRenderer, BarSeriesRenderer, SvgRenderContext — each with documented `reason`).
 
 ## Why 90/90 (not 80/80)
 

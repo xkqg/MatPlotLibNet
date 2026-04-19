@@ -332,6 +332,49 @@ public class AllSeriesTests
         if (series is IHasEdgeColor ec) Assert.Null(ec.EdgeColor);
     }
 
+    /// <summary>Phase X.2.a (v1.7.2, 2026-04-19) — exercises every renderer end-to-end.
+    /// Pre-X the AllSeries Theories covered model-side properties (Label, Visible, Alpha,
+    /// ZOrder, ToSeriesDto, ComputeDataRange) but NEVER touched the renderers — so every
+    /// `Render` method's empty-data guards, null-color fallbacks, single-point arms etc.
+    /// stayed unexercised by the cross-cutting harness. Each series here builds a real
+    /// Figure and renders to SVG, hitting the renderer's `Render(series)` method through
+    /// the full SvgSeriesRenderer dispatch path. Asserts the SVG is non-empty + valid;
+    /// catches render-time exceptions on degenerate-input series. Lifts many renderers
+    /// from "ComputeDataRange covered, Render not" → "both covered". 3D / polar / hierarchical
+    /// series use their dedicated AddSubPlot variants (none — AddSeries works for all).</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void RendersToSvg_WithoutCrash(ISeries series, string _)
+    {
+        var fig = Plt.Create()
+            .WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries((ChartSeries)series))
+            .Build();
+        var svg = fig.ToSvg();
+        Assert.NotNull(svg);
+        Assert.StartsWith("<svg", svg);
+        Assert.EndsWith("</svg>", svg.TrimEnd());      // trailing whitespace OK
+    }
+
+    /// <summary>Phase X.2.a (v1.7.2, 2026-04-19) — exercises every IHasColor renderer's
+    /// `series.Color != null` true branch. The existing IHasColor_DefaultsToNull Theory
+    /// covers the null arm; this covers the non-null arm by setting an explicit color
+    /// before render. Many renderers fall back to ResolveColor()'s cycler path when Color
+    /// is null; the explicit-Color path is otherwise unhit by AllSeries scaffolding.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void RendersToSvg_WithExplicitColor(ISeries series, string _)
+    {
+        if (series is not IHasColor hc) return;     // non-coloured series → no branch to hit
+        hc.Color = Colors.Red;
+        var fig = Plt.Create()
+            .WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries((ChartSeries)series))
+            .Build();
+        var svg = fig.ToSvg();
+        Assert.StartsWith("<svg", svg);
+    }
+
     /// <summary>Phase Q Wave 1 (2026-04-19): exercises the non-null branch of every
     /// <c>context.XAxisMin ?? default</c> / <c>context.XAxisMax ?? default</c> in
     /// <c>ComputeDataRange</c>. Pre-Q only <see cref="NullAxesContext"/> was used, so the

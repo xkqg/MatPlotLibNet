@@ -11,10 +11,17 @@
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="3.*" />
     <PackageReference Include="bunit" Version="2.*" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.*" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.*" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Blazor\MatPlotLibNet.Blazor.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.AspNetCore\MatPlotLibNet.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>

@@ -69,4 +69,37 @@ public class LightingHelperTests
         var result = LightingHelper.ModulateColor(color, 0.5);
         Assert.Equal(128, result.A);
     }
+
+    /// <summary>Phase X.2.b (v1.7.2, 2026-04-19) — ShadeColor's zero-length-vector
+    /// guard arm at line 47: degenerate normal OR light direction returns the unmodified
+    /// baseColor (matplotlib parity — no shading possible without a defined orientation).
+    /// Pre-X this branch was unhit (LightingHelper pinned at 100%L / 50%B).</summary>
+    [Theory]
+    [InlineData(0.0, 0.0, 0.0, 0.0, 0.0, 1.0)]   // zero normal (nLen == 0)
+    [InlineData(1.0, 0.0, 0.0, 0.0, 0.0, 0.0)]   // zero light direction (lLen == 0)
+    public void ShadeColor_DegenerateVector_ReturnsBaseColorUnchanged(
+        double nx, double ny, double nz, double lx, double ly, double lz)
+    {
+        var baseColor = new Color(200, 150, 100, 255);
+        var result = LightingHelper.ShadeColor(baseColor, nx, ny, nz, lx, ly, lz);
+        Assert.Equal(baseColor.R, result.R);
+        Assert.Equal(baseColor.G, result.G);
+        Assert.Equal(baseColor.B, result.B);
+        Assert.Equal(baseColor.A, result.A);
+    }
+
+    /// <summary>Phase X.2.b — ShadeColor's normal-shading path (line 48-54). Front-facing
+    /// normal (dot==1) → k = 1.0; back-facing (dot==-1) → k = 0.3 (matplotlib's ambient
+    /// floor); perpendicular (dot==0) → k = 0.65. Three points pin the linear
+    /// `0.65 + 0.35·dot` mapping at its endpoints + midpoint.</summary>
+    [Theory]
+    [InlineData(0.0, 0.0,  1.0, 1.0)]    // front-facing → k = 1.00
+    [InlineData(0.0, 0.0, -1.0, 0.3)]    // back-facing → k = 0.30
+    [InlineData(1.0, 0.0,  0.0, 0.65)]   // perpendicular → k = 0.65
+    public void ShadeColor_DotProduct_MapsToMatplotlibK(double nx, double ny, double nz, double expectedK)
+    {
+        var baseColor = new Color(200, 200, 200, 255);
+        var result = LightingHelper.ShadeColor(baseColor, nx, ny, nz, 0.0, 0.0, 1.0);
+        Assert.Equal((byte)Math.Round(200 * expectedK), result.R);
+    }
 }

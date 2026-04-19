@@ -93,4 +93,38 @@ public class ContourfSeriesTests
         Assert.Equal(Y, dto.YData);
         Assert.NotNull(dto.HeatmapData);
     }
+
+    // ── Phase X.4 follow-up (v1.7.2, 2026-04-19) — coverage uplift ──
+
+    /// <summary>GetColorBarRange traversal covers both `if (v &lt; min)` and
+    /// `if (v &gt; max)` arms (lines 58-59) — varied Z forces both branches.</summary>
+    [Fact]
+    public void GetColorBarRange_VariedZ_ReturnsCorrectMinMax()
+    {
+        var z = new double[,] { { 1.0, 5.0, 3.0 }, { 7.0, 2.0, 9.0 } };
+        var s = new ContourfSeries(X, Y, z);
+        var (min, max) = s.GetColorBarRange();
+        Assert.Equal(1.0, min);
+        Assert.Equal(9.0, max);
+    }
+
+    /// <summary>ComputeDataRange line 67: `XData.Length == 0 || YData.Length == 0`
+    /// short-circuit returns null sentinel range. First arm: empty XData.</summary>
+    [Fact]
+    public void ComputeDataRange_EmptyXData_ReturnsNullBounds()
+    {
+        var s = new ContourfSeries(Array.Empty<double>(), Y, new double[0, 2]);
+        var range = s.ComputeDataRange(null!);
+        Assert.Null(range.XMin);
+        Assert.Null(range.YMin);
+    }
+
+    /// <summary>Same shape, second arm: empty YData (XData populated).</summary>
+    [Fact]
+    public void ComputeDataRange_EmptyYData_ReturnsNullBounds()
+    {
+        var s = new ContourfSeries(X, Array.Empty<double>(), new double[2, 0]);
+        var range = s.ComputeDataRange(null!);
+        Assert.Null(range.XMin);
+    }
 }

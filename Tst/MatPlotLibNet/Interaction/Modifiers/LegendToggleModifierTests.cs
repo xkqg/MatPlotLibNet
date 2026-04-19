@@ -97,4 +97,46 @@ public class LegendToggleModifierTests
         var args = new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None);
         Assert.False(m.HandlesPointerPressed(args));
     }
+
+    /// <summary>Phase X.7 (v1.7.2, 2026-04-19) — line 37 `if (seriesIdx is null) return;`
+    /// true arm. OnPointerPressed called directly with click inside the axes BUT outside
+    /// the legend item bounds → HitTestLegendItem returns null → early-return without
+    /// emitting a LegendToggleEvent. Pre-X this arm was unhit (HandlesPointerPressed
+    /// short-circuits before OnPointerPressed gets there in normal flow).</summary>
+    [Fact]
+    public void OnPointerPressed_InAxesButOutsideLegend_NoEvent()
+    {
+        var legendRect = new Rect(150, 15, 50, 14);
+        var (m, events) = Make(legendRect);
+
+        // Click inside the plot area but well outside the legend item.
+        var args = new PointerInputArgs(50, 50, PointerButton.Left, ModifierKeys.None);
+        m.OnPointerPressed(args);
+        Assert.Empty(events);
+    }
+
+    /// <summary>Phase X.7 — invoke the no-op IInteractionModifier methods (lines 41-54)
+    /// to lift line coverage from 80% to 100%. Each method is empty/return-false.</summary>
+    [Fact]
+    public void NoOpMethods_DoNotThrow()
+    {
+        // KeyInputArgs.Key is currently a magic-string API (`string Key` taking values
+        // like "Escape", "Home"). Tracked finding for production-side stabilisation —
+        // should be an enum or typed-constants class. Local const here so the test
+        // doesn't propagate the magic-string pattern at the call site.
+        const string EscapeKey = "Escape";
+        var (m, events) = Make(new Rect(150, 15, 50, 14));
+        var pArgs = new PointerInputArgs(60, 35, PointerButton.None, ModifierKeys.None);
+        var sArgs = new ScrollInputArgs(60, 35, 0, -1);
+        var kArgs = new KeyInputArgs(EscapeKey, ModifierKeys.None);
+
+        m.OnPointerMoved(pArgs);
+        m.OnPointerReleased(pArgs);
+        Assert.False(m.HandlesScroll(sArgs));
+        m.OnScroll(sArgs);
+        Assert.False(m.HandlesKeyDown(kArgs));
+        m.OnKeyDown(kArgs);
+
+        Assert.Empty(events);   // no events from any of those calls
+    }
 }

@@ -43,4 +43,18 @@ public class StyleSheetTests
         Assert.NotNull(sheet);
         Assert.True(sheet.Parameters.ContainsKey(RcParamKeys.FontSize));
     }
+
+    /// <summary>Phase X.4 follow-up (v1.7.2, 2026-04-19) — `theme.DefaultFont.Family ?? "sans-serif"`
+    /// fallback arm at line 31. Pre-X StyleSheet was 100%L / 50%B because the Default theme
+    /// always carries a non-null Family; this constructs a theme with an explicitly null Family
+    /// so the ?? short-circuit's right arm runs.</summary>
+    [Fact]
+    public void FromTheme_NullFontFamily_FallsBackToSansSerif()
+    {
+        var themeWithNullFamily = Theme.CreateFrom(Theme.Default)
+            .WithFont(f => f with { Family = null })
+            .Build();
+        var sheet = StyleSheet.FromTheme(themeWithNullFamily);
+        Assert.Equal("sans-serif", sheet.Parameters[RcParamKeys.FontFamily]);
+    }
 }

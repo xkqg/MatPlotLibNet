@@ -56,4 +56,64 @@ public class PdfExportTests
 
         Assert.Equal((byte)'%', bytes[0]);
     }
+
+    // ── Phase X.4.f (v1.7.2, 2026-04-19) — lift PdfTransform from 38.5%L / 0%B → 90%L+ ──
+
+    /// <summary>Constructor with explicit renderer (line 14) — pre-X only the
+    /// parameterless ctor was tested.</summary>
+    [Fact]
+    public void PdfTransform_ExplicitRenderer_ConstructorIsCovered()
+    {
+        var transform = new PdfTransform(new MatPlotLibNet.Rendering.ChartRenderer());
+        Assert.IsAssignableFrom<FigureTransform>(transform);
+    }
+
+    /// <summary>TransformMultiPage(IReadOnlyList&lt;Figure&gt;, Stream) (line 39-58)
+    /// renders multiple figures as separate pages in one PDF document.</summary>
+    [Fact]
+    public void TransformMultiPage_StreamOverload_RendersMultiplePages()
+    {
+        var f1 = Plt.Create().WithTitle("P1").Plot([1.0, 2.0], [3.0, 4.0]).Build();
+        var f2 = Plt.Create().WithTitle("P2").Plot([5.0, 6.0], [7.0, 8.0]).Build();
+        var f3 = Plt.Create().WithTitle("P3").Plot([1.0, 3.0], [2.0, 5.0]).Build();
+        using var stream = new MemoryStream();
+
+        new PdfTransform().TransformMultiPage([f1, f2, f3], stream);
+
+        var bytes = stream.ToArray();
+        Assert.Equal((byte)'%', bytes[0]);
+        Assert.Equal((byte)'P', bytes[1]);
+        Assert.Equal((byte)'D', bytes[2]);
+        Assert.Equal((byte)'F', bytes[3]);
+        Assert.True(bytes.Length > 1000, "Multi-page PDF should be at least 1KB");
+    }
+
+    /// <summary>TransformMultiPage with empty list throws ArgumentException (line 41-42).</summary>
+    [Fact]
+    public void TransformMultiPage_EmptyList_ThrowsArgumentException()
+    {
+        using var stream = new MemoryStream();
+        Assert.Throws<ArgumentException>(() => new PdfTransform().TransformMultiPage(Array.Empty<MatPlotLibNet.Models.Figure>(), stream));
+    }
+
+    /// <summary>TransformMultiPage(IReadOnlyList&lt;Figure&gt;, string) (line 63-67)
+    /// writes a multi-page PDF to a file path.</summary>
+    [Fact]
+    public void TransformMultiPage_FilePathOverload_WritesValidPdf()
+    {
+        var f1 = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
+        var f2 = Plt.Create().Plot([5.0, 6.0], [7.0, 8.0]).Build();
+        var path = Path.GetTempFileName();
+        try
+        {
+            new PdfTransform().TransformMultiPage([f1, f2], path);
+            var bytes = File.ReadAllBytes(path);
+            Assert.Equal((byte)'%', bytes[0]);
+            Assert.True(bytes.Length > 500);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
 }

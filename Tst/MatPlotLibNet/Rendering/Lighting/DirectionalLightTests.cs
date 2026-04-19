@@ -42,4 +42,19 @@ public class DirectionalLightTests
         Assert.Equal(0.3, light.Ambient);
         Assert.Equal(0.7, light.Diffuse);
     }
+
+    /// <summary>Phase X.2.b (v1.7.2, 2026-04-19) — zero-length light-direction vector
+    /// trips the `lLen &lt; 1e-10` guard arm at line 21, returning Ambient + Diffuse.
+    /// Pre-X this branch was unhit (DirectionalLight pinned at 100%L / 50%B).</summary>
+    [Theory]
+    [InlineData(0.0, 0.0, 0.0, 1.0, 0.0, 0.0)]   // zero light direction (lLen == 0)
+    [InlineData(1.0, 0.0, 0.0, 0.0, 0.0, 0.0)]   // zero normal vector (nLen == 0)
+    [InlineData(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)]   // both zero — guard short-circuits on first
+    public void DirectionalLight_DegenerateVector_ReturnsAmbientPlusDiffuse(
+        double dx, double dy, double dz, double nx, double ny, double nz)
+    {
+        var light = new DirectionalLight(dx, dy, dz, Ambient: 0.3, Diffuse: 0.7);
+        double intensity = light.ComputeIntensity(nx, ny, nz);
+        Assert.Equal(1.0, intensity, 6);    // Ambient + Diffuse fallback
+    }
 }

@@ -77,4 +77,12 @@ public class HoverModifierTests
         var (m, _) = Make();
         Assert.False(m.HandlesScroll(new ScrollInputArgs(60, 35, 0, -1)));
     }
+
+    // Phase X.7 finding: HoverModifier line 38 `if (coords is null) return;` arm is
+    // provably unreachable through the public API. PixelToData returns null only when
+    // the pixel is outside the plot area bounds — but HitTestAxes uses the same bounds
+    // check above (line 35) and returns null in that case, triggering the line-36 early
+    // return BEFORE reaching line 38. Defensive guard kept; same pattern as Stereographic
+    // k<0 and Sinusoidal cosLat==0 (X.6 exemptions). Tracked for HoverModifier exemption
+    // if branch coverage stays at 83% after all other lifts.
 }
