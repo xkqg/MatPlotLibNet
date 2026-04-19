@@ -6,6 +6,105 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.7.2] — 2026-04-18
 
+### Fixed — Phase T (2026-04-19, test harness uplift, 5 new tests)
+
+> Closes the honest gaps surfaced in the post-Phase-S audit. No source-code
+> behavioural change; the harness can now pin contracts that were previously
+> infeasible to test, and the legend-drag script gains a viewport-clamp.
+
+- **T.4 — `DomElement.addEventListener` honours `useCapture`.** Capture-phase
+  listeners now fire BEFORE bubble-phase listeners (in registration order);
+  `stopPropagation()` actually halts dispatch (was a no-op);
+  `removeEventListener` accepts the optional third arg per the DOM contract.
+  Unblocks `LegendDragTests.DragThenRelease_SwallowsClick_DoesNotToggleSeries`,
+  which was harness-infeasible before the uplift. Cross-element capture/bubble
+  traversal is still NOT modelled — Fire walks listeners on the literal target.
+- **T.1 — Frame-inside-group regression test.**
+  `SvgLegendToggleTests.LegendFrameRect_IsInside_LegendGroup` pins the Phase S
+  `AxesRenderer` change so a future renderer refactor cannot re-strand the
+  legend frame outside `<g class="legend">` (where the drag-script transform
+  would leave it behind).
+- **T.2 — Drag bounds clamp** in `SvgLegendDragScript`. `clampDelta()` keeps
+  at least 20 % of the legend's bbox inside the chart viewBox in real browsers
+  (uses `getBBox`); falls back to a coarse `|dx| ≤ vbWidth, |dy| ≤ vbHeight`
+  cap when `getBBox` is unavailable (Jint test harness has no layout engine).
+  Regression test `Drag_PastFigureEdge_ClampsTranslationInsideViewBox`;
+  real-browser verified via `c:/tmp/legend_repro.py` (5/5 PASS, including
+  the runaway-drag check at 5000 px).
+- **T.3 — Per-chart isolation for legend drag.**
+  `MultiChartIsolationTests.LegendDrag_OnChart1_DoesNotTranslateLegendOnChart0`
+  pins that dragging a legend item on chart 1 only translates chart 1's
+  `<g class="legend">`, never chart 0's. Mirrors the Phase 2
+  `document.currentScript.parentNode` self-location pattern used by the other
+  scripts.
+
+### Fixed — Phase S (2026-04-19, legend drag + "plot disappears" bug, 5 new tests)
+
+> Real-browser repro that pinned a class of bug Jint can't see: the legend
+> toggle's `pointerdown` handler fired the series-toggle BEFORE the user
+> released the mouse, hiding the chart's data while they were trying to grab
+> the legend. Same fix lands a brand-new draggable-legend feature, gated on
+> the existing `WithBrowserInteraction()` switch — no new builder method.
+
+- **Plot disappeared on legend press.** `SvgLegendToggleScript` fired
+  `toggle()` on `pointerdown` (mouse-press) instead of `click` (full
+  press-and-release). Single- and two-series charts visibly emptied as
+  soon as the user pressed; press-and-hold to drag the legend was
+  mechanically impossible because the series hid before any drag could
+  engage. **Fix:** toggle now fires on `click` (and `Enter`/`Space` for
+  keyboard) only — never on `pointerdown`. Regression test
+  `LegendItem_PointerdownAlone_DoesNotToggleSeries`.
+- **New `SvgLegendDragScript`** (`internal static`, auto-emitted alongside
+  the toggle script when `EnableLegendToggle` is on). Press-and-hold any
+  legend item, drag the cursor, release to drop the entire
+  `<g class="legend">` group at the new position. Mirrors Phase R lessons
+  (`isPointerDown` gate so plain hover doesn't latch the drag flag, 5-px²
+  threshold separates click from drag). Coexists with pan/zoom (capture-phase
+  `stopPropagation` on pointerdown stops pan/zoom from racing for
+  `setPointerCapture` on the SVG root) and with the toggle script
+  (capture-phase one-shot click swallower after a real drag suppresses
+  the synthetic click that follows pointerup). Translation is client-only
+  (lost on full server re-render — persistence is a follow-on if needed).
+  `cursor: grab/grabbing`; `user-select: none` + `e.preventDefault()` block
+  native text-selection during the drag. **Hidden from the user** — no
+  new builder method, no new flag; turns on/off with the existing
+  `WithBrowserInteraction()` toggle. 4 new behavioural tests in
+  `LegendDragTests`; cursor-contract test updated to expect `grab`.
+- **`AxesRenderer`** — legend frame `<rect>` moved INSIDE
+  `<g class="legend">` so the drag script's `transform` translates the
+  frame together with the items it frames. Pre-fix the rect was a stranded
+  sibling of the group, and the user reported the frame staying put while
+  the labels moved (caught mid-session, fixed before commit).
+
+### Fixed — Phase R (2026-04-19, treemap parent-tile click bug, 2-layer fix, 2 new tests)
+
+> Two compounding bugs that left the treemap drilldown completely
+> unresponsive in real browsers (xUnit covered neither). Surfaced by the
+> user in the deployed Pages playground; reproduced end-to-end with a
+> fresh Playwright pixel-compare harness.
+
+- **(a) Hover poisoned the click.** `SvgTreemapDrilldownScript`'s
+  capture-phase `pointermove` listener latched `pointerMoved=true` on every
+  hover (no button required), so the click handler's `if (pointerMoved)
+  return;` then suppressed every subsequent click. **Fix:** gate the
+  move-threshold check on an explicit `isPointerDown` flag set in
+  `pointerdown` and cleared in `pointerup`/`pointercancel`. Regression test
+  `HoverWithoutButtonDown_DoesNotPoisonClickHandler`.
+- **(b) `setPointerCapture` redirected the click target.** The pan/zoom
+  script's `svg.setPointerCapture(pointerId)` on every `pointerdown`
+  redirects the synthetic `click` derived from `pointerup` to the SVG root
+  rather than the rect under the cursor. The treemap script's walk-up from
+  `e.target` then found nothing and returned null. **Fix:** two-stage target
+  resolution — walk up from `e.target` first; fall back to
+  `document.elementFromPoint(clientX, clientY)` to recover the real rect.
+  Regression test `Click_RedirectedToSvgRoot_FallsBackTo_ElementFromPoint`.
+- **Test harness uplift.** `DomDocument.StubElementFromPoint` lets Jint
+  tests model the redirect scenario without a real layout engine. Phase R
+  also added a `<remarks>` block on `InteractionScriptHarness` enumerating
+  what the harness does NOT simulate (no event bubbling, no capture-phase
+  ordering — later closed by Phase T —, no `setPointerCapture` target
+  redirection, no built-in `elementFromPoint`).
+
 ### Fixed — Phase P (playground + treemap UX rework; 6 visually-distinct community themes)
 
 > Response to user-reported regressions after the Phase N Razor rewrite +

@@ -31,4 +31,12 @@ Plt.Create()
 
 `WithBrowserInteraction()` also enables the same expand/collapse behaviour if you prefer the general-purpose fluent method.
 
+> **v1.7.2 Phase R — click delivery in real browsers fixed.** The expand/collapse model
+> itself (Phase P) is unchanged. Two compounding bugs in the click handler were fixed:
+> hover used to latch the drag-suppression flag (so any cursor motion killed the next
+> click), and the pan/zoom script's `setPointerCapture` redirected the synthetic click
+> target to the SVG root (so the rect-walk-up returned null). Now: the move-threshold
+> is gated on an `isPointerDown` flag, and the click handler falls back to
+> `document.elementFromPoint` when the walk-up misses.
+
 ![Treemap drilldown](../images/treemap_drilldown.png)

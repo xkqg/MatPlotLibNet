@@ -55,6 +55,35 @@ internal static class SvgLegendDragScript
                 legend.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');
             }
 
+            // Phase T (2026-04-19): clamp dx/dy so a runaway drag can't park the legend
+            // off-canvas where the user can't get it back. Uses the legend's resting bbox
+            // (real browser via getBBox) to keep at least 20% of the legend inside the
+            // viewBox; falls back to a coarse |dx|<=vbWidth, |dy|<=vbHeight cap when
+            // getBBox is unavailable (Jint test harness has no layout engine).
+            function clampDelta(nx, ny) {
+                var vbAttr = svg.getAttribute('viewBox') || '';
+                var vb = vbAttr.split(' ').map(Number);
+                if (vb.length < 4) return [nx, ny];
+                var vbX = vb[0], vbY = vb[1], vbW = vb[2], vbH = vb[3];
+                var bb = null;
+                if (legend.getBBox) try { bb = legend.getBBox(); } catch (_) {}
+                if (bb && bb.width > 0 && bb.height > 0) {
+                    var slack = 0.2;   // require at least 20% of legend inside chart
+                    var minDx = vbX - (bb.x + bb.width  * (1 - slack));
+                    var maxDx = vbX + vbW - (bb.x + bb.width  * slack);
+                    var minDy = vbY - (bb.y + bb.height * (1 - slack));
+                    var maxDy = vbY + vbH - (bb.y + bb.height * slack);
+                    if (nx < minDx) nx = minDx; else if (nx > maxDx) nx = maxDx;
+                    if (ny < minDy) ny = minDy; else if (ny > maxDy) ny = maxDy;
+                } else {
+                    // Coarse cap (harness fallback): can't translate more than one
+                    // viewBox-dimension in either direction.
+                    if (nx > vbW) nx = vbW; else if (nx < -vbW) nx = -vbW;
+                    if (ny > vbH) ny = vbH; else if (ny < -vbH) ny = -vbH;
+                }
+                return [nx, ny];
+            }
+
             // Per-item closures (Jint test harness doesn't bind `this` to the element on
             // listener invocation, so we capture `item` from the forEach closure instead).
             var items = svg.querySelectorAll('[data-legend-index]');
@@ -84,7 +113,8 @@ internal static class SvgLegendDragScript
                     var ddx = e.clientX - startX, ddy = e.clientY - startY;
                     if (!dragged && ddx*ddx + ddy*ddy > THRESH2) dragged = true;
                     if (dragged) {
-                        dx = startDx + ddx; dy = startDy + ddy;
+                        var clamped = clampDelta(startDx + ddx, startDy + ddy);
+                        dx = clamped[0]; dy = clamped[1];
                         setTransform();
                         e.stopPropagation();           // suppress pan/zoom while dragging legend
                     }

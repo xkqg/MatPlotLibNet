@@ -40,6 +40,8 @@ Connects to a `ChartHub` endpoint and updates automatically when the server call
 
 Add `.WithServerInteraction(...)` on the figure builder and let the browser drive the server. The embedded dispatcher script inside the SVG invokes the hub's `OnZoom` / `OnPan` / `OnReset` / `OnLegendToggle` methods; the server mutates the registered figure and publishes the new SVG through the same fan-out path `MplLiveChart` already listens on.
 
+For client-side-only interaction (no server round-trip), use `.WithBrowserInteraction()` instead — pan/zoom, **legend toggle (click) + legend drag (press-and-hold to reposition; v1.7.2)**, treemap drilldown, sankey hover, 3D rotation, rich tooltips, highlight, and brush selection all light up automatically. The library detects which scripts are relevant per chart and emits only those.
+
 ```razor
 @page "/interactive"
 @using MatPlotLibNet.AspNetCore

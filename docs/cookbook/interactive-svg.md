@@ -2,7 +2,7 @@
 
 ## Browser-interactive charts
 
-Add `.WithBrowserInteraction()` to make SVG output interactive — pan, zoom, tooltips, legend toggle — no .NET runtime needed on the client:
+Add `.WithBrowserInteraction()` to make SVG output interactive — pan, zoom, tooltips, legend toggle, **legend drag**, treemap drilldown, sankey hover, 3D rotation, brush selection, highlight — no .NET runtime needed on the client:
 
 ```csharp
 Plt.Create()
@@ -14,12 +14,18 @@ Plt.Create()
     .Save("interactive.svg");
 ```
 
+> **One switch wires everything.** `WithBrowserInteraction()` is the only call you need.
+> The library detects which scripts are relevant per chart (legend drag bails when there
+> is no legend; treemap drilldown bails when there are no treemap nodes) and emits only
+> those. There is no per-feature toggle for the user to manage.
+
 Open the SVG in any browser:
-- **Drag** to pan (hold <kbd>x</kbd> / <kbd>y</kbd> to lock an axis — matplotlib `_base.py:format_deltas` parity)
+- **Drag the chart** to pan (hold <kbd>x</kbd> / <kbd>y</kbd> to lock an axis — matplotlib `_base.py:format_deltas` parity)
 - **Scroll** to zoom (`0.85^step` per wheel notch — matches matplotlib `NavigationToolbar2.scroll_handler`)
 - **Double-click** or <kbd>Home</kbd> to reset view
 - Arrow keys to nudge pan, <kbd>+</kbd>/<kbd>-</kbd> for keyboard zoom
 - **Click legend items** to show/hide series (<kbd>Enter</kbd>/<kbd>Space</kbd> keyboard-equivalent, WCAG 2.1.1 Level A)
+- **Press-and-hold a legend item, then drag** to reposition the legend group anywhere on the chart (release to drop). Translation is client-only — lost on full server re-render. New in v1.7.2 Phase S.
 - **Hover data points** to see tooltips (focus via <kbd>Tab</kbd> for keyboard users — tooltip anchors at element bounds)
 
 See the [Keyboard Shortcuts wiki page](https://github.com/xkqg/MatPlotLibNet/wiki/Keyboard-Shortcuts) for the complete reference.

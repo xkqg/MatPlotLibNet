@@ -45,4 +45,31 @@ public class MultiChartIsolationTests
         Assert.Equal("button", h.GetAttribute("#mpl-chart-0 [data-legend-index='0']", "role"));
         Assert.Equal("button", h.GetAttribute("#mpl-chart-1 [data-legend-index='0']", "role"));
     }
+
+    /// <summary>Phase T (2026-04-19) — same isolation contract for the legend-drag script
+    /// (Phase S). Dragging a legend item on chart-1 must translate ONLY chart-1's
+    /// <c>g.legend</c>, never chart-0's. Pre-Phase-2 the script would have grabbed
+    /// document.querySelector('svg') (the first one), so this regression-guards the
+    /// per-chart self-location via document.currentScript.parentNode.</summary>
+    [Fact]
+    public void LegendDrag_OnChart1_DoesNotTranslateLegendOnChart0()
+    {
+        using var h = InteractionScriptHarness.FromBuilders(SimpleLegendChart, SimpleLegendChart);
+        var legend0 = h.Document.querySelector("#mpl-chart-0 g.legend")!;
+        var legend1 = h.Document.querySelector("#mpl-chart-1 g.legend")!;
+
+        // Sanity: neither legend has a transform yet.
+        Assert.True(string.IsNullOrEmpty(legend0.getAttribute("transform")));
+        Assert.True(string.IsNullOrEmpty(legend1.getAttribute("transform")));
+
+        // Drag chart-1's legend item past the 5-px² threshold.
+        h.Simulate("#mpl-chart-1 [data-legend-index='0']", "pointerdown", e => { e.clientX = 50; e.clientY = 50; });
+        h.Simulate("#mpl-chart-1 [data-legend-index='0']", "pointermove", e => { e.clientX = 110; e.clientY = 70; });
+        h.Simulate("#mpl-chart-1 [data-legend-index='0']", "pointerup",   e => { e.clientX = 110; e.clientY = 70; });
+
+        // Chart-1 translated, chart-0 untouched.
+        Assert.Contains("translate", legend1.getAttribute("transform") ?? "");
+        Assert.True(string.IsNullOrEmpty(legend0.getAttribute("transform")),
+            $"chart-0 legend must NOT translate when chart-1 was dragged; got '{legend0.getAttribute("transform")}'");
+    }
 }

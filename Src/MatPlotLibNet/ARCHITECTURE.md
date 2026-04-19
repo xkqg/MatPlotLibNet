@@ -276,7 +276,8 @@ MatPlotLibNet/
       SvgXmlHelper.cs                 internal static: EscapeXml(string) — DRY XML escaping shared by SvgRenderContext and SvgTransform (new v0.8.8)
       SvgSeriesRenderer.cs            thin visitor dispatcher to SeriesRenderer<T> instances
       SvgInteractivityScript.cs       embedded JS: zoom/pan via viewBox; tabindex + aria-roledescription; keyboard +/-/arrows/Home (new v0.8.8)
-      SvgLegendToggleScript.cs        embedded JS: click/Enter/Space on data-legend-index; role=button, aria-pressed, tabindex (new v0.8.8)
+      SvgLegendToggleScript.cs        embedded JS: click/Enter/Space on data-legend-index; role=button, aria-pressed, tabindex (new v0.8.8; v1.7.2 Phase S — toggle on click only, never pointerdown)
+      SvgLegendDragScript.cs          embedded JS: press-and-hold legend item to translate <g class="legend"> via transform; capture-phase stopPropagation coordinates with pan/zoom + toggle; viewBox clamp; client-only translation (new v1.7.2 Phase S)
       SvgCustomTooltipScript.cs       embedded JS: styled floating div tooltip; role=tooltip, aria-live=polite, focus/blur listeners (new v0.8.8)
       SvgHighlightScript.cs           embedded JS: mouseenter/focus dims siblings; tabindex, blur restores (new v0.8.8)
       SvgSelectionScript.cs           embedded JS: Shift+drag selection rect; Escape cancels; aria-label on rect (new v0.8.8)
@@ -383,6 +384,7 @@ string                 complete <svg>...</svg> document
                        optional scripts appended at end of body:
                          SvgInteractivityScript  (EnableZoomPan)
                          SvgLegendToggleScript   (EnableLegendToggle)
+                         SvgLegendDragScript     (EnableLegendToggle — co-emitted; Phase S)
                          SvgCustomTooltipScript  (EnableRichTooltips)
                          SvgHighlightScript      (EnableHighlight)
                          SvgSelectionScript      (EnableSelection)

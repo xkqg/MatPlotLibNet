@@ -14,7 +14,12 @@ public sealed class DomElement
 {
     internal readonly XElement Xml;
     private readonly DomDocument _doc;
-    private readonly Dictionary<string, List<Action<DomEvent>>> _listeners = new();
+    // Phase T (2026-04-19) — separate capture-phase and bubble-phase listener lists so
+    // Fire can dispatch capture FIRST, then bubble (matching DOM Level 3 Events). The
+    // third arg to addEventListener (true / { capture: true }) routes here; everything
+    // else lands in bubble. removeEventListener walks both lists.
+    private readonly Dictionary<string, List<Action<DomEvent>>> _captureListeners = new();
+    private readonly Dictionary<string, List<Action<DomEvent>>> _bubbleListeners = new();
     private readonly DomStyle _style;
 
     internal DomElement(XElement xml, DomDocument doc)
@@ -50,30 +55,82 @@ public sealed class DomElement
         return JsArrayWrap.Wrap(_doc.Engine, arr);
     }
 
-    /// <summary>Registers an event listener. The optional third argument (typically
-    /// `{ passive: false }` or `true` for capture) is accepted but ignored — the harness
-    /// fires every registered listener regardless of capture/passive flags. Tests assert
-    /// the option's PRESENCE in the script source separately.</summary>
+    /// <summary>Registers an event listener. The optional third argument follows the DOM
+    /// shape: a bare boolean <c>true</c> selects capture phase; an object literal
+    /// <c>{ capture: true }</c> does the same; anything else (including <c>false</c>,
+    /// <c>{ passive: false }</c> with no <c>capture</c> key, or omitted) registers in
+    /// bubble phase. Phase T (2026-04-19) honours capture vs bubble so scripts that rely
+    /// on capture-phase ordering (e.g. <see cref="MatPlotLibNet.Rendering.Svg.SvgLegendDragScript"/>'s
+    /// click swallower) test deterministically against the harness.</summary>
     public void addEventListener(string type, Action<DomEvent> handler, object? options = null)
     {
-        if (!_listeners.TryGetValue(type, out var list))
+        var dict = IsCaptureOption(options) ? _captureListeners : _bubbleListeners;
+        if (!dict.TryGetValue(type, out var list))
         {
             list = new List<Action<DomEvent>>();
-            _listeners[type] = list;
+            dict[type] = list;
         }
         list.Add(handler);
     }
 
-    public void removeEventListener(string type, Action<DomEvent> handler)
+    // Decode the third arg to addEventListener — DOM allows either a bare boolean
+    // (true = capture) or an options object (`{ capture: true, passive: true, ... }`).
+    // Jint surfaces these as either CLR bool (interop), Jint.Native.JsBoolean (script),
+    // or a Jint object instance with a `capture` member. ObjectInstance must come BEFORE
+    // the generic JsValue arm because ObjectInstance is-a JsValue.
+    private static bool IsCaptureOption(object? options)
     {
-        if (_listeners.TryGetValue(type, out var list)) list.Remove(handler);
+        switch (options)
+        {
+            case null: return false;
+            case bool b: return b;
+            case Jint.Native.Object.ObjectInstance obj:
+                return obj.Get("capture")?.ToObject() is true;
+            case Jint.Native.JsValue jv:
+                return jv.ToObject() is true;
+            default: return false;
+        }
     }
 
-    /// <summary>Used by the test harness (NOT by the script under test) to fire events.</summary>
+    /// <summary>Removes a previously-registered listener. The optional third argument
+    /// matches the DOM signature (<c>true</c> = remove from capture phase only); when omitted,
+    /// the handler is removed from BOTH capture and bubble lists. The bubble-only ambiguity
+    /// (a phase-specific remove of a handler registered in the OTHER phase) is harmless —
+    /// the Remove call no-ops if the handler isn't in the list.</summary>
+    public void removeEventListener(string type, Action<DomEvent> handler, object? options = null)
+    {
+        bool useCapture = IsCaptureOption(options);
+        if (options is null)
+        {
+            if (_captureListeners.TryGetValue(type, out var cap)) cap.Remove(handler);
+            if (_bubbleListeners.TryGetValue(type, out var bub)) bub.Remove(handler);
+        }
+        else
+        {
+            var dict = useCapture ? _captureListeners : _bubbleListeners;
+            if (dict.TryGetValue(type, out var list)) list.Remove(handler);
+        }
+    }
+
+    /// <summary>Used by the test harness (NOT by the script under test) to fire events.
+    /// Capture-phase listeners run first (in registration order), then bubble-phase
+    /// listeners. Either phase can call <see cref="DomEvent.stopPropagation"/> to halt
+    /// dispatch — the capture loop checks <see cref="DomEvent.PropagationStopped"/>
+    /// after each handler, and bubble doesn't run if capture stopped.</summary>
     internal void Fire(DomEvent ev)
     {
-        if (_listeners.TryGetValue(ev.type, out var list))
-            foreach (var h in list.ToArray()) h(ev);
+        if (_captureListeners.TryGetValue(ev.type, out var cap))
+            foreach (var h in cap.ToArray())
+            {
+                h(ev);
+                if (ev.PropagationStopped) return;
+            }
+        if (_bubbleListeners.TryGetValue(ev.type, out var bub))
+            foreach (var h in bub.ToArray())
+            {
+                h(ev);
+                if (ev.PropagationStopped) return;
+            }
     }
 
     public void dispatchEvent(DomEvent ev) => Fire(ev);
@@ -211,7 +268,16 @@ public sealed class DomEvent
     }
 
     public void preventDefault() => DefaultPrevented = true;
-    public void stopPropagation() { /* no-op for now — harness doesn't bubble */ }
+
+    /// <summary>Halts event dispatch. Phase T (2026-04-19) — Fire reads
+    /// <see cref="PropagationStopped"/> after each handler invocation and returns
+    /// without calling later handlers in either capture or bubble phase. Mirrors the
+    /// DOM contract that capture-phase <c>stopPropagation()</c> prevents bubble-phase
+    /// listeners from running, which is what
+    /// <see cref="MatPlotLibNet.Rendering.Svg.SvgLegendDragScript"/>'s click swallower
+    /// relies on to suppress the toggle handler after a real drag.</summary>
+    public bool PropagationStopped { get; private set; }
+    public void stopPropagation() => PropagationStopped = true;
 }
 
 public sealed class DomSvgPoint

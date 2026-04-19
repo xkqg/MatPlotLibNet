@@ -37,13 +37,18 @@ namespace MatPlotLibNet.Tests.Rendering.Svg.Interaction;
 /// <para><b>What the harness DOES NOT simulate</b> (tests depending on these behaviours
 /// will silently pass against real bugs — Phase R, 2026-04-19, surfaced one such gap):</para>
 /// <list type="bullet">
-///   <item><description><b>Event bubbling.</b> <see cref="DomEvent.stopPropagation"/> is a no-op
-///     and events fire only on the literal target — there is no parent-chain propagation.
-///     Tests needing delegation must fire directly at the element that owns the listener.</description></item>
-///   <item><description><b>Capture phase.</b> The third argument to <c>addEventListener</c>
-///     (<c>useCapture</c> / <c>{ capture: true }</c>) is accepted but ignored — every listener
-///     fires in registration order regardless of phase. Cross-script ordering that the browser
-///     would resolve via capture-vs-bubble is NOT faithful here.</description></item>
+///   <item><description><b>Event bubbling.</b> Events fire only on the literal target — there
+///     is no parent-chain propagation. Tests needing delegation must fire directly at the
+///     element that owns the listener. <c>stopPropagation()</c> DOES halt the in-progress
+///     dispatch on the target (see capture-phase entry below) but never started bubbling
+///     to ancestors anyway.</description></item>
+///   <item><description><b>Capture phase.</b> Phase T (2026-04-19) — capture vs bubble is now
+///     honoured. The third argument to <c>addEventListener</c> (<c>true</c> or
+///     <c>{ capture: true }</c>) registers in capture phase; capture-phase listeners fire
+///     FIRST in registration order, then bubble-phase listeners. <c>stopPropagation()</c>
+///     in either phase halts the rest of the in-progress Fire dispatch (capture stops
+///     bubble; either stops same-phase later listeners). Cross-element capture/bubble
+///     traversal is still NOT faithful — Fire only walks listeners on the literal target.</description></item>
 ///   <item><description><b>Pointer capture target redirection.</b>
 ///     <see cref="DomElement.setPointerCapture"/> / <see cref="DomElement.releasePointerCapture"/>
 ///     are no-ops. In browsers, <c>setPointerCapture</c> causes subsequent

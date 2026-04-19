@@ -2,7 +2,7 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
-**Status (v1.7.2):** **5 385 tests** across 9 test projects (was 5 776 pre-Phase P — the treemap + playground interaction test suites were consolidated to cover the expand/collapse rewrite with fewer, broader-scope tests). Default-mode regression gate **PASSES** (2 classes regressed in the Phase P playground/treemap rework were absorbed into the fresh baseline). **169 classes still below absolute 90/90**, tracked by namespace below — strict-mode flip remains the next coverage milestone.
+**Status (v1.7.2):** **6 203 tests green (3 known-bug skips)** across 9 test projects (was 5 385 post-Phase-P; +18 came from Phases R/S/T regression guards + the harness-uplift unblocks; +800 came from the Phase Q close-out). Default-mode regression gate **PASSES**. **110 classes still below absolute 90/90** (was 169 pre-Phase-Q — Phase Q's 6-batch coverage uplift lifted 59 classes), tracked by namespace below; strict-mode flip remains the next coverage milestone. Phases R/S/T did not require a baseline regeneration — every new test exercises previously-uncovered branches without regressing any class.
 
 ## Why 90/90 (not 80/80)
 

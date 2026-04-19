@@ -2,6 +2,13 @@
 
 Runnable sample projects demonstrating the MatPlotLibNet charting library. All samples use `<ProjectReference>` to build from source — no NuGet packages required.
 
+> **Browser interactions are automatic.** Calling `FigureBuilder.WithBrowserInteraction()`
+> (or, in WPF/Avalonia/Uno, ticking the **Interactive** checkbox) wires every interaction
+> the chart needs in one switch: pan/zoom, **legend toggle + press-and-hold legend drag**
+> (Phase S, v1.7.2), treemap drilldown, sankey hover, 3D rotation, rich tooltips,
+> highlight, brush selection. The library detects which scripts are relevant per chart
+> and emits only those — no per-feature toggle for the user to manage.
+
 ## Playground
 
 Blazor WebAssembly interactive explorer. 16 example charts, flip themes, toggle series styling, copy the generated C# to paste into your own project. Also hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/).
