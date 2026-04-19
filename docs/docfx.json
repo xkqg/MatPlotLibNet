@@ -10,7 +10,11 @@
             "Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj",
             "Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj",
             "Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj",
-            "Src/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.csproj"
+            "Src/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.csproj",
+            "Src/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.csproj",
+            "Src/MatPlotLibNet.Geo/MatPlotLibNet.Geo.csproj",
+            "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj",
+            "Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj"
           ],
           "src": ".."
         }
@@ -19,6 +23,21 @@
       "includePrivateMembers": false,
       "properties": {
         "TargetFramework": "net8.0"
+      }
+    },
+    {
+      "src": [
+        {
+          "files": [
+            "Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj"
+          ],
+          "src": ".."
+        }
+      ],
+      "dest": "api",
+      "includePrivateMembers": false,
+      "properties": {
+        "TargetFramework": "net8.0-windows"
       }
     }
   ],

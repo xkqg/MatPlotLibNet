@@ -10,7 +10,10 @@
             "Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj",
             "Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj",
             "Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj",
-            "Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj"
+            "Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj",
+            "Src/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.csproj",
+            "Src/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.csproj",
+            "Src/MatPlotLibNet.Geo/MatPlotLibNet.Geo.csproj"
           ]
         }
       ],
@@ -23,13 +26,27 @@
       "src": [
         {
           "files": [
-            "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj"
+            "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj",
+            "Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj"
           ]
         }
       ],
       "dest": "api",
       "properties": {
         "TargetFramework": "net8.0"
+      }
+    },
+    {
+      "src": [
+        {
+          "files": [
+            "Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj"
+          ]
+        }
+      ],
+      "dest": "api",
+      "properties": {
+        "TargetFramework": "net8.0-windows"
       }
     }
   ],
