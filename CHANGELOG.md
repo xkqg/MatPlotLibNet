@@ -6,6 +6,106 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.7.2] — 2026-04-18
 
+### Tested — Phase Y (2026-04-19, sub-90/90 close-out wave, ~131 new tests, 9 new test files, 2 new exemptions)
+
+> No production-code change in scope — pure test uplift, same template as Phase X.
+> Phase Y graduated the previously-deferred big-axes set (`AxesRenderer`,
+> `CartesianAxesRenderer`, `AxesBuilder`) plus the Skia bucket (`SkiaRenderContext`)
+> plus the Interactive/Blazor remainders (`ChartServer`, `MplChart`, `MplLiveChart`,
+> `InteractiveExtensions`) plus a Y.8 branch-only quick-fire batch covering
+> `TripcolorSeries`, `MarkerRenderer`, `PriceSources`, `TwoSlopeNormalizer`,
+> `MathTextParser`, `QuiverKeySeriesRenderer`. All ~131 new facts run cleanly in
+> 0 fail / 4 known skips across 9 test projects (**7 203 tests total**, +131 vs Phase X).
+
+- **Y.1 — Interface exemption sweep.** 2 entries added to
+  `tools/coverage/thresholds.json`: `MatPlotLibNet.Rendering.ISeriesVisitor`
+  (interface with 14 default no-op `Visit(...){}` overloads at lines 195-243
+  for ISP compatibility — same shape as the existing `IStreamingIndicator`
+  exemption); `MatPlotLibNet.Rendering.IRenderContext` (default-impl methods
+  for `DrawText` rotation overload, `BeginGroup`, `SetNextElementData`,
+  `MeasureRichText` fallback — only reachable when concrete impls omit overrides).
+  Sub-90 count dropped 64→54 with no test code.
+- **Y.2 — AxesRenderer deep dive.** NEW
+  `Tst/MatPlotLibNet/Rendering/AxesRendererCoverageTests.cs` (23 facts):
+  every `LegendPosition` arm via `[Theory]`, every `TitleLocation` arm,
+  math-mode title + axis labels, ColorBar with label, mixed-series legend
+  (line + scatter + bar swatches), themed render with custom `TextStyle` +
+  bold weight + Size 20.
+- **Y.3 — CartesianAxesRenderer deep dive.** NEW
+  `Tst/MatPlotLibNet/Rendering/CartesianAxesRendererCoverageTests.cs`
+  (25 facts): grid visible/hidden arms, `TickDirection` In/Out/InOut Theory,
+  tick-label rotation 0°/45°/90° Theory, spine HideAllAxes + Top/Right hidden,
+  spine `Position = Data` (Y axis) and `Axes` (X axis) arms via direct
+  `SpineConfig` injection, `Linear`/`Log`/`SymLog` X+Y scale Theories,
+  inverted Y axis (yMin > yMax), mirrored X+Y ticks, categorical bar labels,
+  secondary Y-axis with `SetYLim`, MatplotlibClassic + Dark themes.
+- **Y.4 — AxesBuilder deep dive.** NEW
+  `Tst/MatPlotLibNet/Builders/AxesBuilderCoverageTests.cs` (15 facts): every
+  configure-callback arm (`AxHLine`/`AxVLine`/`AxHSpan`/`AxVSpan` with
+  `Action<T>` parameter), `SetXDateFormat`/`SetYDateFormat`/`SetYTickFormatter`/
+  `SetYTickLocator` (each was 0%-line covered), `WithDownsampling`,
+  `NestedPie` with `TreeNode`, `WithProjection(elevation, azimuth)`,
+  `Sma` indicator with non-null configure, `WilliamsR`/`Obv`/`Cci` indicators
+  (each was 0%-line covered).
+- **Y.5 — ChartSerializer branch lift.** NEW
+  `Tst/MatPlotLibNet/Serialization/ChartSerializerCoverageTests.cs` (11 facts):
+  malformed JSON throws (`null` + `{not valid`), minimal-JSON-no-SubPlots
+  round-trip, `Enable3DRotation` round-trip true + false arms, custom Spines
+  round-trip (HideTopSpine/HideRightSpine), camera config round-trip
+  (Elevation/Azimuth/CameraDistance), `BarMode.Stacked` round-trip,
+  `SpinePosition` round-trip Theory (Data/Axes/Edge).
+- **Y.6 — Skia bucket.** NEW
+  `Tst/MatPlotLibNet.Skia/SkiaRenderContextCoverageTests.cs` (23 facts):
+  `DrawLines`/`DrawPolygon` early-return arms (count<2/<3), `DrawEllipse`
+  stroke + thickness combo Theory, `DrawText` alignment Theory + rotation
+  arm + bold-italic typeface resolve, `DrawRichText` (whole method was
+  0%-covered) including subscript/superscript baseline-shift switch + rotation
+  arm, `DrawPath` all PathSegment subtypes (MoveTo/LineTo/Bezier/Arc/Close),
+  `PushClip`/`PopClip` stack discipline, `SetOpacity` clamping arms.
+- **Y.7 — Interactive/Blazor remainders.** NEW
+  `Tst/MatPlotLibNet.Interactive/ChartServerCoverageTests.cs` (5 facts) —
+  `DisposeAsync` on never-started + started server, `IsRunning`/`Port` on
+  fresh instance, `EnsureStartedAsync` idempotence, `EnsureStarted`
+  synchronous wrapper. NEW
+  `Tst/MatPlotLibNet.Interactive/InteractiveExtensionsBranchTests.cs` (2 facts) —
+  `Browser` setter null-arg `ArgumentNullException` + non-null storage. NEW
+  `Tst/MatPlotLibNet.Blazor/MplChartCoverageTests.cs` (2 facts) — Expandable
+  display mode `ToggleExpand` button click + double-click toggle. NEW
+  `Tst/MatPlotLibNet.Blazor/MplLiveChartCoverageTests.cs` (3 facts) — explicit
+  `Client` parameter + chartId-mismatch arms via in-memory `RecordingClient`
+  (no real SignalR hub needed).
+- **Y.8 — Branch-only quick-fire.** NEW
+  `Tst/MatPlotLibNet/Coverage/PinpointBranchTests12.cs` (22 facts) — same
+  template as the existing PinpointBranchTests1-11 series. `TripcolorSeries`
+  `GetColorBarRange` empty-Z + non-empty-Z arms + `ToSeriesDto` ColorMap null
+  vs `Viridis` arms, `MarkerRenderer` Cross + Plus marker rendering with
+  default vs explicit strokeWidth, `PriceSources.Resolve` every-enum-arm
+  Theory + default-fallback fact, `TwoSlopeNormalizer` lowerRange==0 fallback,
+  `MathTextParser` plain-text vs `$\alpha$` math-mode + ContainsMath true/false,
+  `QuiverKeySeriesRenderer` zero-dataRange (50px/unit) fallback.
+- **Y.9 — Verify all 9 test projects.** Build clean, all suites pass:
+  Tests 6727, Skia 67, Geo 178, Blazor 51, Avalonia 18, AspNetCore 46,
+  Interactive 41, DataFrame 54, GraphQL 21 = **7 203 total / 0 fail / 4 skips**.
+- **Y.10 — Documentation refresh.** README, COVERAGE.md, CHANGELOG (this entry),
+  wiki `Home.md`, wiki `Contributing.md` stats lines updated with Phase Y deltas.
+
+**Cumulative test totals after Y.10** (vs Phase X):
+| Project | Phase X | Phase Y | Delta |
+|---|---|---|---|
+| MatPlotLibNet.Tests | 6 631 | 6 727 | +96 (Y.2/3/4/5/8) |
+| MatPlotLibNet.Skia.Tests | 44 | 67 | +23 (Y.6) |
+| MatPlotLibNet.Geo.Tests | 178 | 178 | — |
+| MatPlotLibNet.Blazor.Tests | 46 | 51 | +5 (Y.7) |
+| MatPlotLibNet.Avalonia.Tests | 18 | 18 | — |
+| MatPlotLibNet.AspNetCore.Tests | 46 | 46 | — |
+| MatPlotLibNet.Interactive.Tests | 34 | 41 | +7 (Y.7) |
+| MatPlotLibNet.DataFrame.Tests | 54 | 54 | — |
+| MatPlotLibNet.GraphQL.Tests | 21 | 21 | — |
+| **Total** | **7 072** | **7 203** | **+131** |
+
+**Exemptions in `thresholds.json`**: 25 → **27** (added `ISeriesVisitor`,
+`IRenderContext` interface-default exemptions in Y.1).
+
 ### Tested — Phase X (2026-04-19, sub-90/90 coverage uplift, ~770 new tests, 12 new test files, 6 new exemptions)
 
 > No production-code change in scope — pure test uplift. Phase X drove total project

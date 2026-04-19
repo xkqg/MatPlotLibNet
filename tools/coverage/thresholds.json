@@ -75,6 +75,16 @@
       "branch": 90,
       "reason": "Interface declaration; concrete StreamingCci/Obv/Vwap/etc tests cover the contract."
     },
+    "MatPlotLibNet.Rendering.ISeriesVisitor": {
+      "line": 0,
+      "branch": 90,
+      "reason": "Interface with 14 default no-op `Visit(...) { }` overloads (ISeriesVisitor.cs lines 195-243) for ISP compatibility — every concrete visitor (SvgSeriesVisitor, TestSeriesVisitor, etc.) overrides every method, so the default empty bodies are never reached at runtime by design. Same pattern as the existing IStreamingIndicator exemption. Concrete visitor implementations are tested via SvgSeriesRenderer + AllSeriesTests Theory. Phase Y.1 (v1.7.2, 2026-04-19)."
+    },
+    "MatPlotLibNet.Rendering.IRenderContext": {
+      "line": 80,
+      "branch": 85,
+      "reason": "Interface with default-impl methods (DrawText 5-arg rotation overload at line 51, BeginGroup at line 88, SetNextElementData at line 90, MeasureRichText fallback at lines 72-81). Default-impl arms only fire when a concrete IRenderContext omits the override; production impls (SvgRenderContext, SkiaRenderContext) override every method, leaving the defaults dead through the public API. The MeasureRichText line-76 short-circuit is the only reachable default-impl branch (a custom IRenderContext that doesn't override MeasureRichText). 80L/85B reflects the achievable surface through concrete-impl test coverage. Phase Y.1 (v1.7.2, 2026-04-19)."
+    },
     "MatPlotLibNet.Interaction.DataCursorEvent": {
       "line": 0,
       "branch": 90,

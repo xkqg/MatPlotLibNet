@@ -2,7 +2,7 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
-**Status (v1.7.2, Phase X complete):** **7 072 tests green (4 known-bug skips)** across 9 test projects (was 6 203 pre-Phase-X, 5 385 post-Phase-P, 3 967 at v1.7.0 baseline). Default-mode regression gate **PASSES** against the regenerated baseline. **64 classes still below absolute 90/90** (was 110 mid-Phase-W, 169 at v1.7.2 release) — Phase X graduated 46 classes through stacked-OO test bases (`ModifierTestBase<T>`, `RendererCoverageTestBase<T>`) + 6 documented exemptions for provably-unreachable defensive arms. Total project coverage: **94.8% line / 84.3% branch** (was 92.5% / 81.3% pre-Phase-X). Strict-mode flip remains the next coverage milestone — the largest remaining substantive sub-90 classes (`AxesRenderer` 76L/62B, `CartesianAxesRenderer` 83L/73B, `AxesBuilder` 84L/60B, complexity 100+ each) are deferred to a focused future phase since they need a deep dive of their own.
+**Status (v1.7.2, Phase Y complete):** **7 203 tests green (4 known-bug skips)** across 9 test projects (was 7 072 post-Phase-X, 6 203 pre-Phase-X, 5 385 post-Phase-P, 3 967 at v1.7.0 baseline). Default-mode regression gate **PASSES** against the Linux-CI baseline. Sub-90 substantive classes pushed close to single digits (was 110 mid-Phase-W, 64 post-Phase-X) — Phase Y graduated the previously-deferred big-axes set (`AxesRenderer`, `CartesianAxesRenderer`, `AxesBuilder`) and the Skia bucket via `SkiaRenderContextCoverageTests`. Phases X+Y combined graduated ~70 classes through stacked-OO test bases (`ModifierTestBase<T>`, `RendererCoverageTestBase<T>`, `StreamingHostFixture`) + 8 documented exemptions for provably-unreachable defensive arms (Y.1 added `ISeriesVisitor` and `IRenderContext` interface-defaults). Total project coverage: **~95% line / ~86% branch** (was 94.8/84.3 post-Phase-X, 92.5/81.3 pre-Phase-X). Strict-mode flip is now feasible — discuss after CI confirms 0-5 substantive sub-90 classes.
 
 ### Phase X uplift summary (2026-04-19)
 
@@ -16,7 +16,22 @@ MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on ever
 | **X.11** | Blazor streaming end-to-end | New `StreamingHostFixture` (xunit `IClassFixture`, real Kestrel on random port + ChartHub mapped); `MplStreamingChart` 0→100; `ChartSubscriptionClient` 0→100 (no-hub no-op + real-hub `ConnectAsync`/Subscribe/UpdateChartSvg/Dispose roundtrip) |
 | **X.12** | Re-baseline + verify | All 9 test projects collected; merged with `reportgenerator`; baseline regenerated; gate **PASS**: 0 regressions |
 
-Exemptions in `tools/coverage/thresholds.json`: 19 → **25** (Phase X added BrowserLauncher [pre-existing X.0], Sinusoidal, Stereographic, StreamingChartSession, HoverModifier, DataCursorModifier, ZoomModifier, InteractionController, PieSeriesRenderer, BarSeriesRenderer, SvgRenderContext — each with documented `reason`).
+Exemptions in `tools/coverage/thresholds.json`: 19 → **25 → 27** (Phase X added 6, Phase Y added 2: `ISeriesVisitor` for the 14 default no-op `Visit(...){}` overloads matching the existing `IStreamingIndicator` exemption, and `IRenderContext` for the default-impl arms only reachable when concrete impls omit overrides).
+
+### Phase Y uplift summary (2026-04-19)
+
+| Sub-phase | Scope | Outcome |
+|---|---|---|
+| **Y.1** | Interface exemption sweep | `ISeriesVisitor` + `IRenderContext` exemptions documented (sub-90 64→54 with no test code) |
+| **Y.2** | AxesRenderer deep dive | NEW `AxesRendererCoverageTests.cs` (23 facts) — every `LegendPosition`/`TitleLocation` arm + math title + colorbar + multi-series legend |
+| **Y.3** | CartesianAxesRenderer deep dive | NEW `CartesianAxesRendererCoverageTests.cs` (25 facts) — grid/tick direction/rotation, spines (Data/Axes positions), Log/SymLog scale arms, mirror ticks, secondary Y-axis, themed renders |
+| **Y.4** | AxesBuilder deep dive | NEW `AxesBuilderCoverageTests.cs` (15 facts) — configure-callback arms (AxHLine/AxVLine/AxHSpan/AxVSpan), `SetXDateFormat`, `WithDownsampling`, `NestedPie`, `WithProjection`, indicator helpers (Sma/WilliamsR/Obv/Cci) |
+| **Y.5** | ChartSerializer branch lift | NEW `ChartSerializerCoverageTests.cs` (11 facts) — malformed JSON throws, Enable3DRotation round-trip, Spine config round-trip, camera config round-trip, BarMode.Stacked round-trip |
+| **Y.6** | Skia bucket | NEW `SkiaRenderContextCoverageTests.cs` (23 facts) — DrawLines/DrawPolygon/DrawEllipse early-return arms, DrawText alignment + rotation, DrawRichText (was 0%-covered), DrawPath all PathSegment subtypes, PushClip/PopClip stack discipline, SetOpacity clamping |
+| **Y.7** | Interactive/Blazor remainders | NEW `ChartServerCoverageTests.cs` (5 facts) — DisposeAsync lifecycle, IsRunning/Port on fresh instance, EnsureStartedAsync idempotence; NEW `InteractiveExtensionsBranchTests.cs` (2 facts) — Browser setter null-arg guard; NEW `MplChartCoverageTests.cs` (2 facts) — Expandable ToggleExpand button; NEW `MplLiveChartCoverageTests.cs` (3 facts) — explicit Client + chartId mismatch arms via in-memory recording client |
+| **Y.8** | Branch-only quick-fire | NEW `PinpointBranchTests12.cs` (22 facts) — TripcolorSeries 50%B→100%B, MarkerRenderer Cross/Plus stroke arms, PriceSources every-enum-arm Theory + default fallback, TwoSlopeNormalizer edge cases, MathTextParser plain-text vs math-mode, QuiverKeySeriesRenderer zero-dataRange fallback |
+| **Y.9** | Full suite verify | All 9 test projects PASS — **7 203 tests / 0 fail / 4 skips** |
+| **Y.10** | Documentation refresh | README + CHANGELOG + COVERAGE.md + wiki Home + wiki Contributing — stats lines refreshed across the board |
 
 ## Why 90/90 (not 80/80)
 
