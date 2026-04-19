@@ -24,6 +24,23 @@ public class AllSeriesTests
         public IReadOnlyList<ISeries> AllSeries => [];
     }
 
+    /// <summary>Phase Q (2026-04-19): companion context with all four axis bounds set so the
+    /// non-null branch of every <c>context.XAxisMin ?? default</c> in <c>ComputeDataRange</c>
+    /// actually executes. Pre-Q the only available context was <see cref="NullAxesContext"/>,
+    /// which left those branches unhit and pinned multiple series at 100% line / 50% branch
+    /// (CandlestickSeries, GanttSeries, OhlcBarSeries, Contour3D / Line3D / Surface /
+    /// Trisurf3D / ResidualSeries — every series whose ComputeDataRange consults the
+    /// axes context for its primary axis bounds).</summary>
+    private sealed class BoundedAxesContext : IAxesContext
+    {
+        public double? XAxisMin => -100.0;
+        public double? XAxisMax => 100.0;
+        public double? YAxisMin => -100.0;
+        public double? YAxisMax => 100.0;
+        public BarMode BarMode => BarMode.Grouped;
+        public IReadOnlyList<ISeries> AllSeries => [];
+    }
+
     /// <summary>Helper: factory for a populated streaming line series (so its data range is non-null).</summary>
     private static StreamingLineSeries MakeStreamingLine()
     {
@@ -313,5 +330,39 @@ public class AllSeriesTests
     public void IHasEdgeColor_DefaultsToNull(ISeries series, string _)
     {
         if (series is IHasEdgeColor ec) Assert.Null(ec.EdgeColor);
+    }
+
+    /// <summary>Phase Q Wave 1 (2026-04-19): exercises the non-null branch of every
+    /// <c>context.XAxisMin ?? default</c> / <c>context.XAxisMax ?? default</c> in
+    /// <c>ComputeDataRange</c>. Pre-Q only <see cref="NullAxesContext"/> was used, so the
+    /// non-null branch was unhit on every series whose range computation reads the context —
+    /// CandlestickSeries / OhlcBarSeries / GanttSeries / 3D series — pinning each at
+    /// 100% line / 50% branch. This Theory adds one assertion per series that the same
+    /// finite-range invariant holds when the context DOES provide bounds; together with
+    /// the existing null-context Theory, both branches are now covered for every series.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void ComputeDataRange_WithBoundedAxisContext_StillProducesFiniteRange(ISeries series, string _)
+    {
+        var range = series.ComputeDataRange(new BoundedAxesContext());
+        AssertFinite(range.XMin, nameof(range.XMin));
+        AssertFinite(range.XMax, nameof(range.XMax));
+        AssertFinite(range.YMin, nameof(range.YMin));
+        AssertFinite(range.YMax, nameof(range.YMax));
+        AssertFinite(range.ZMin, nameof(range.ZMin));
+        AssertFinite(range.ZMax, nameof(range.ZMax));
+        AssertFinite(range.StickyXMin, nameof(range.StickyXMin));
+        AssertFinite(range.StickyXMax, nameof(range.StickyXMax));
+        AssertFinite(range.StickyYMin, nameof(range.StickyYMin));
+        AssertFinite(range.StickyYMax, nameof(range.StickyYMax));
+        AssertFinite(range.StickyZMin, nameof(range.StickyZMin));
+        AssertFinite(range.StickyZMax, nameof(range.StickyZMax));
+
+        static void AssertFinite(double? v, string name)
+        {
+            if (v is null) return;
+            Assert.False(double.IsNaN(v.Value), $"{name} is NaN");
+            Assert.False(double.IsInfinity(v.Value), $"{name} is infinite");
+        }
     }
 }
