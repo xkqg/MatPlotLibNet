@@ -26,18 +26,17 @@
       }
     },
     {
+      "_comment": "WPF metadata block disabled — net8.0-windows can't build on the Linux CI runner without EnableWindowsTargeting=true. Re-enable in a follow-up that adds <EnableWindowsTargeting Condition=...> to MatPlotLibNet.Wpf.csproj OR runs a separate Windows job for WPF API ref generation.",
       "src": [
         {
-          "files": [
-            "Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj"
-          ],
+          "files": [],
           "src": ".."
         }
       ],
       "dest": "api",
       "includePrivateMembers": false,
       "properties": {
-        "TargetFramework": "net8.0-windows"
+        "TargetFramework": "net8.0"
       }
     }
   ],

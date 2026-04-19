@@ -60,11 +60,13 @@ internal static class SvgTreemapDrilldownScript
             }
             applyVisibility();
 
-            // Style: parents (nodes that have children) get a pointer cursor so the user
-            // knows they're clickable. Leaves get the default cursor.
+            // Style: parents (nodes that have children) get a pointer cursor on BOTH the
+            // rect AND the label text — pre-fix only the rect did, so the cursor reverted
+            // to default the moment the user moved over the parent's label, making the
+            // tile look unclickable mid-hover. Leaves get the default cursor either way.
             all.forEach(function(el) {
                 var id = el.getAttribute('data-treemap-node');
-                if (hasChildren[id] && el.tagName === 'rect') el.style.cursor = 'pointer';
+                if (hasChildren[id]) el.style.cursor = 'pointer';
             });
 
             function toggle(id) {
