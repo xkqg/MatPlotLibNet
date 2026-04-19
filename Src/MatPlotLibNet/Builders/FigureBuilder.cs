@@ -64,6 +64,44 @@ public sealed class FigureBuilder
     /// <summary>Sets the figure dimensions in pixels.</summary>
     public FigureBuilder WithSize(double width, double height) { _width = width; _height = height; return this; }
 
+    /// <summary>Phase W (v1.7.2, 2026-04-19) — sizes the figure canvas to fit a treemap of
+    /// <paramref name="root"/>'s leaves at the default 12 pt label font without overflow.
+    /// Most useful for static SVG output where the user can't pan/zoom — the canvas grows
+    /// with leaf count and average label length so labels fit cleanly. With
+    /// <see cref="WithBrowserInteraction(bool)"/> enabled this is optional (the user can
+    /// pan/zoom to read overflowing labels) but still gives a more-readable initial view.
+    /// Floors at 800×600. 16:9 aspect ratio.</summary>
+    public FigureBuilder WithAutoSize(TreeNode root)
+    {
+        var leafCount = CountLeaves(root);
+        var avgChars = AverageLabelChars(root);
+        // 12 pt char ≈ 7 px wide; pad 8 px each side. Each leaf needs roughly
+        // (avgChars * 7 + 16) px width × 22 px height to render its label cleanly.
+        var leafArea = (avgChars * 7.0 + 16.0) * 22.0;
+        // 1.5× slack for parent header strips that consume vertical space at every depth.
+        var canvasArea = leafCount * leafArea * 1.5;
+        const double aspect = 16.0 / 9.0;
+        var w = (int)Math.Sqrt(canvasArea * aspect);
+        var h = (int)(w / aspect);
+        return WithSize(Math.Max(800, w), Math.Max(600, h));
+
+        static int CountLeaves(TreeNode n) =>
+            n.Children.Count == 0 ? 1 : n.Children.Sum(CountLeaves);
+
+        static double AverageLabelChars(TreeNode n)
+        {
+            int sum = 0, count = 0;
+            void Walk(TreeNode x)
+            {
+                sum += (x.Label ?? string.Empty).Length;
+                count++;
+                foreach (var c in x.Children) Walk(c);
+            }
+            Walk(n);
+            return count == 0 ? 8.0 : (double)sum / count;
+        }
+    }
+
     /// <summary>Sets the figure DPI (dots per inch).</summary>
     public FigureBuilder WithDpi(double dpi) { _dpi = dpi; return this; }
 

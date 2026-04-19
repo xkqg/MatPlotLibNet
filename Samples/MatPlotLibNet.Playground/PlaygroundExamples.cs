@@ -382,10 +382,12 @@ public static class PlaygroundExamples
 
     private static (Figure, string) BuildTreemap(PlaygroundOptions opts)
     {
-        // Phase P — expanded to a 3-level tree so the sliding drilldown animation
-        // has something to drill INTO. Pre-fix the tree was flat (root → 4 leaves),
-        // so WithTreemapDrilldown() had no sub-structure to zoom the viewBox into.
-        // Click a tile to drill in; Esc (or Home) pops back to the parent.
+        // Phase W (v1.7.2, 2026-04-19) — actual depth-3 tree under Electronics → Phones
+        // (iPhone / Galaxy / Pixel). Other parents stay depth-2 leaves so the playground
+        // demonstrates mixed-depth rendering. Click Electronics to expand; click Phones
+        // to drill another level into iPhone/Galaxy/Pixel. Z-order paints deeper labels
+        // over shallower ones in any overlapping region. The Phase P comment that lived
+        // here previously claimed "3-level tree" but the data was depth-2 only — fixed.
         var root = new TreeNode
         {
             Label = "Revenue",
@@ -396,7 +398,16 @@ public static class PlaygroundExamples
                     Label = "Electronics", Value = 42, Color = Colors.Blue,
                     Children =
                     [
-                        new() { Label = "Phones",  Value = 22, Color = Colors.CornflowerBlue },
+                        new()
+                        {
+                            Label = "Phones",  Value = 22, Color = Colors.CornflowerBlue,
+                            Children =
+                            [
+                                new() { Label = "iPhone", Value = 12, Color = Colors.RoyalBlue },
+                                new() { Label = "Galaxy", Value = 7,  Color = Colors.SteelBlue },
+                                new() { Label = "Pixel",  Value = 3,  Color = Colors.CornflowerBlue },
+                            ]
+                        },
                         new() { Label = "Laptops", Value = 14, Color = Colors.SteelBlue },
                         new() { Label = "TVs",     Value = 6,  Color = Colors.RoyalBlue },
                     ]

@@ -160,6 +160,64 @@ public class TreemapDrilldownTests
         Assert.Equal("pointer", electronics.style.cursor);
     }
 
+    // Phase W (2026-04-19) — depth-3 tree. Phones is now a parent of iPhone/Galaxy/Pixel
+    // (depth-3 leaves); Laptops stays a depth-2 leaf (mixed-depth). Used to pin that
+    // expand state at depth 2 is independent of depth 1, and depth-3 nodes are hidden
+    // until their depth-2 ancestor is expanded.
+    private static TreeNode SampleRootDepth3 => new()
+    {
+        Label = "Catalog",
+        Children =
+        [
+            new()
+            {
+                Label = "Electronics", Value = 80,
+                Children =
+                [
+                    new()
+                    {
+                        Label = "Phones", Value = 50,
+                        Children =
+                        [
+                            new() { Label = "iPhone", Value = 30 },
+                            new() { Label = "Galaxy", Value = 15 },
+                            new() { Label = "Pixel",  Value = 5 },
+                        ]
+                    },
+                    new() { Label = "Laptops", Value = 30 },
+                ]
+            },
+            new() { Label = "Apparel", Value = 20 },
+        ]
+    };
+
+    [Fact]
+    public void Click_Depth2Parent_TogglesDepth3Children()
+    {
+        using var h = InteractionScriptHarness.FromBuilder(b =>
+        {
+            b.WithSize(700, 500).WithTreemapDrilldown();
+            b.AddSubPlot(1, 1, 1, ax => ax.Treemap(SampleRootDepth3).HideAllAxes());
+        });
+        var svg = h.Document.QuerySelectorAllRaw("svg").Single();
+
+        // Initial: only depth-1 visible (Electronics, Apparel). Depth-3 iPhone hidden.
+        var iphone = h.Document.querySelector("rect[data-treemap-node='0.0.0.0']");
+        Assert.NotNull(iphone);
+        Assert.Equal("none", iphone.style.display);
+
+        // Click Electronics (depth-1) — Phones + Laptops (depth-2) appear; iPhone still hidden.
+        var electronics = h.Document.querySelector("rect[data-treemap-node='0.0']")!;
+        svg.Fire(new DomEvent("click") { target = electronics });
+        var phones = h.Document.querySelector("rect[data-treemap-node='0.0.0']")!;
+        Assert.NotEqual("none", phones.style.display);
+        Assert.Equal("none", iphone.style.display);
+
+        // Click Phones (depth-2) — iPhone/Galaxy/Pixel (depth-3) appear.
+        svg.Fire(new DomEvent("click") { target = phones });
+        Assert.NotEqual("none", iphone.style.display);
+    }
+
     /// <summary>Regression for the v1.7.2 Phase R second-layer click bug, surfaced by the
     /// real-browser pixel-compare repro on 2026-04-19. The pan/zoom script
     /// (<see cref="MatPlotLibNet.Rendering.Svg.SvgInteractivityScript"/>) calls
