@@ -19,14 +19,14 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <remarks>
 /// <para>Layout pipeline:</para>
 /// <list type="number">
-///   <item><description><see cref="ComputeColumns"/>: explicit <see cref="SankeyNode.Column"/>
+///   <item><description><c>SankeyLayoutEngine.ComputeColumns</c>: explicit <see cref="SankeyNode.Column"/>
 ///   overrides take priority; unspecified nodes get their column from BFS distance-from-source.</description></item>
-///   <item><description><see cref="ApplyAlignment"/>: post-processes the column indices so the
+///   <item><description><c>SankeyLayoutEngine.ApplyAlignment</c>: post-processes the column indices so the
 ///   overall grid honours the series' <see cref="SankeySeries.NodeAlignment"/> (Justify / Left /
 ///   Right / Center).</description></item>
 ///   <item><description>Greedy vertical packing: nodes sorted by total value within their column,
 ///   stacked top-to-bottom with <see cref="SankeySeries.NodePadding"/> between them.</description></item>
-///   <item><description><see cref="Relax"/>: <see cref="SankeySeries.Iterations"/> passes that
+///   <item><description><c>SankeyLayoutEngine.Relax</c>: <see cref="SankeySeries.Iterations"/> passes that
 ///   shift each node toward the value-weighted average of its upstream / downstream neighbours,
 ///   then re-resolve collisions column-by-column.</description></item>
 ///   <item><description>Links drawn as Bezier polygons; fill resolved by

@@ -19,6 +19,11 @@ internal sealed class CartesianSecondaryYAxisPart : CartesianAxesPart
     private readonly int _primarySeriesCount;
 
     /// <summary>Constructs a secondary-Y-axis part.</summary>
+    /// <param name="axes">The axes model (reads secondary series + secondary axis config from here).</param>
+    /// <param name="plotArea">Pixel-space plot-area rectangle.</param>
+    /// <param name="ctx">Render context to draw into.</param>
+    /// <param name="theme">Active theme (for colors, default font).</param>
+    /// <param name="primaryTransform">Data→pixel transform for the primary axes; passed to the base class.</param>
     /// <param name="secRange">The computed secondary-axis range (via the orchestrator's
     /// <c>ComputeSecondaryDataRanges</c>).</param>
     /// <param name="primarySeriesCount">Offset for color-cycle indexing so secondary
