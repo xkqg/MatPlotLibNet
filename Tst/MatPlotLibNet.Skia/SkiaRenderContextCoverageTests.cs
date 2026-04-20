@@ -188,4 +188,136 @@ public class SkiaRenderContextCoverageTests : IDisposable
         var size = _ctx.MeasureText("Hello", new Font { Family = "sans-serif", Size = 12 });
         Assert.True(size.Width > 0);
     }
+
+    // ── Phase Z.6: Bold/Italic combos in DrawText (lines 125-126 weight/slant arms)
+
+    /// <summary>DrawText with Bold weight — exercises the Bold arm of line 125.</summary>
+    [Fact]
+    public void DrawText_BoldWeight_RendersWithoutError()
+    {
+        _ctx.DrawText("bold", new Point(10, 30),
+            new Font { Family = "sans-serif", Size = 12, Weight = FontWeight.Bold }, TextAlignment.Left);
+    }
+
+    /// <summary>DrawText with Italic slant — exercises the Italic arm of line 126.</summary>
+    [Fact]
+    public void DrawText_ItalicSlant_RendersWithoutError()
+    {
+        _ctx.DrawText("italic", new Point(10, 30),
+            new Font { Family = "sans-serif", Size = 12, Slant = FontSlant.Italic }, TextAlignment.Left);
+    }
+
+    /// <summary>DrawText with Bold + Italic combo — both arms.</summary>
+    [Fact]
+    public void DrawText_BoldItalicCombo_RendersWithoutError()
+    {
+        _ctx.DrawText("bi", new Point(10, 30),
+            new Font { Family = "sans-serif", Size = 12, Weight = FontWeight.Bold, Slant = FontSlant.Italic },
+            TextAlignment.Center);
+    }
+
+    // ── Phase Z.6: DrawRichText spans (lines 192-197 Span.Kind switch arms)
+
+    /// <summary>DrawRichText with superscript span — line 194 arm.</summary>
+    [Fact]
+    public void DrawRichText_WithSuperscriptSpan_RendersWithoutError()
+    {
+        var rt = new RichText([
+            new TextSpan("x", TextSpanKind.Normal, FontSizeScale: 1.0),
+            new TextSpan("2", TextSpanKind.Superscript, FontSizeScale: 0.7),
+        ]);
+        _ctx.DrawRichText(rt, new Point(10, 30),
+            new Font { Family = "sans-serif", Size = 12 }, TextAlignment.Left);
+    }
+
+    /// <summary>DrawRichText with subscript span — line 195 arm.</summary>
+    [Fact]
+    public void DrawRichText_WithSubscriptSpan_RendersWithoutError()
+    {
+        var rt = new RichText([
+            new TextSpan("H", TextSpanKind.Normal, FontSizeScale: 1.0),
+            new TextSpan("2", TextSpanKind.Subscript, FontSizeScale: 0.7),
+            new TextSpan("O", TextSpanKind.Normal, FontSizeScale: 1.0),
+        ]);
+        _ctx.DrawRichText(rt, new Point(10, 30),
+            new Font { Family = "sans-serif", Size = 12 }, TextAlignment.Right);
+    }
+
+    /// <summary>DrawRichText with rotation — lines 181-184 rotation arm.</summary>
+    [Fact]
+    public void DrawRichText_WithRotation_RendersWithoutError()
+    {
+        var rt = new RichText([new TextSpan("rot", TextSpanKind.Normal, FontSizeScale: 1.0)]);
+        _ctx.DrawRichText(rt, new Point(50, 50),
+            new Font { Family = "sans-serif", Size = 12 }, TextAlignment.Left, rotation: 90);
+    }
+
+    /// <summary>DrawRichText with empty Spans collection — foreach skips, no error.</summary>
+    [Fact]
+    public void DrawRichText_EmptySpans_NoOp()
+    {
+        var rt = new RichText([]);
+        _ctx.DrawRichText(rt, new Point(10, 30),
+            new Font { Family = "sans-serif", Size = 12 }, TextAlignment.Left);
+    }
+
+    // ── Phase Z.6: opacity multiplied through ToSkColor (line 280)
+
+    /// <summary>SetOpacity to 0.5 then DrawRectangle — alpha in pixel should be ~half of color.A.</summary>
+    [Fact]
+    public void SetOpacity_BelowOne_ReducesPixelAlpha()
+    {
+        _ctx.SetOpacity(0.5);
+        _ctx.DrawRectangle(new Rect(60, 60, 30, 30),
+            new Color(255, 0, 0, 255), stroke: null, strokeThickness: 0);
+        var px = _bitmap.GetPixel(75, 75);
+        // With 50% group opacity applied to fully-opaque red, A should be ~127
+        Assert.InRange(px.Alpha, 100, 160);
+    }
+
+    // ── Phase Z.6: Dashed / Dotted line styles → CreateStrokePaint dash branch
+
+    [Theory]
+    [InlineData(LineStyle.Dashed)]
+    [InlineData(LineStyle.Dotted)]
+    [InlineData(LineStyle.DashDot)]
+    public void DrawLine_DashedStyles_PathEffectApplied(LineStyle style)
+    {
+        _ctx.DrawLine(new Point(10, 100), new Point(190, 100),
+            Colors.Black, thickness: 2, style);
+        // Pixel mid-line should NOT be transparent (dashes draw something)
+        Assert.NotEqual(SKColors.Transparent, _bitmap.GetPixel(100, 100));
+    }
+
+    // ── Phase Z.6: ResolveTypeface multi-family + null-family branches
+    // (exercised indirectly via DrawText, since ResolveTypeface is internal to MatPlotLibNet.Skia)
+
+    /// <summary>DrawText with CSS-style font-family stack — exercises the comma-split + per-candidate
+    /// loop in FigureSkiaExtensions.ResolveTypeface.</summary>
+    [Fact]
+    public void DrawText_CssStyleFamilyStack_RendersWithoutError()
+    {
+        _ctx.DrawText("css", new Point(10, 30),
+            new Font { Family = "DejaVu Sans, sans-serif", Size = 12 },
+            TextAlignment.Left);
+    }
+
+    /// <summary>DrawText with empty/whitespace candidates in the family stack — exercises the
+    /// `continue` arm in ResolveTypeface (skip empty candidate).</summary>
+    [Fact]
+    public void DrawText_FamilyStackWithEmptyCandidate_SkipsAndResolves()
+    {
+        _ctx.DrawText("css2", new Point(10, 30),
+            new Font { Family = ", , DejaVu Sans", Size = 12 },
+            TextAlignment.Left);
+    }
+
+    /// <summary>DrawText with null family — falls through to OS lookup in ResolveTypeface.</summary>
+    [Fact]
+    public void DrawText_NullFamily_FallsThroughToOsLookup()
+    {
+        _ctx.DrawText("os", new Point(10, 30),
+            new Font { Family = null, Size = 12 },
+            TextAlignment.Left);
+    }
 }

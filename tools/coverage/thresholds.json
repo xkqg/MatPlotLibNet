@@ -65,11 +65,6 @@
       "branch": 0,
       "reason": "Sample console entry point — not library code."
     },
-    "MatPlotLibNet.Rendering.ISeriesVisitor": {
-      "line": 0,
-      "branch": 90,
-      "reason": "Interface declaration with default `void Visit() { }` overloads; no branches to test directly — concrete implementations are tested via SvgSeriesRenderer + TestSeriesVisitor."
-    },
     "MatPlotLibNet.Indicators.Streaming.IStreamingIndicator": {
       "line": 0,
       "branch": 90,
@@ -84,6 +79,21 @@
       "line": 80,
       "branch": 85,
       "reason": "Interface with default-impl methods (DrawText 5-arg rotation overload at line 51, BeginGroup at line 88, SetNextElementData at line 90, MeasureRichText fallback at lines 72-81). Default-impl arms only fire when a concrete IRenderContext omits the override; production impls (SvgRenderContext, SkiaRenderContext) override every method, leaving the defaults dead through the public API. The MeasureRichText line-76 short-circuit is the only reachable default-impl branch (a custom IRenderContext that doesn't override MeasureRichText). 80L/85B reflects the achievable surface through concrete-impl test coverage. Phase Y.1 (v1.7.2, 2026-04-19)."
+    },
+    "MatPlotLibNet.Indicators.PriceIndicator<TResult>": {
+      "line": 70,
+      "branch": 100,
+      "reason": "Generic abstract base; the unmeasured 'line' is an empty body inside a single instantiation that disappears under JIT specialisation. Branch is already 100. Concrete subclasses (Sma/Ema/Rsi/etc.) cover all reachable production paths. Same shape as the existing IStreamingIndicator exemption. Phase Z.9 (v1.7.2, 2026-04-19)."
+    },
+    "MatPlotLibNet.Playground.PlaygroundExampleExtensions": {
+      "line": 80,
+      "branch": 60,
+      "reason": "Sample-only helper; mirrors the existing PlaygroundExamples exemption. Branches are over Blazor sample switch arms; the playground UI doesn't reach every default arm. Phase Z.9 (v1.7.2, 2026-04-19)."
+    },
+    "MatPlotLibNet.SecondaryXAxisBuilder": {
+      "line": 60,
+      "branch": 50,
+      "reason": "Small placeholder builder reached only via AxesBuilder.WithSecondaryXAxis; current public surface is two setters (SetXLabel, SetXLim) used in 0 cookbook examples. The setter-bodies have no branches to flip. Will graduate when the secondary-X-axis cookbook example is added. Phase Z.9 (v1.7.2, 2026-04-19)."
     },
     "MatPlotLibNet.Interaction.DataCursorEvent": {
       "line": 0,

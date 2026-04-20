@@ -15,7 +15,7 @@ After eleven feature releases (v1.0 → v1.7.2) MatPlotLibNet now covers the **p
 **v1.7.1 started the stabilisation period; v1.7.2 continues it.** The focus shifts from "ship more features" to:
 
 - 🐛 **Bug fixes only** (no new public API), driven by community use and the `≥90/90` coverage gate
-- 🧪 **Test coverage uplift** (the eight-phase plan in [`docs/COVERAGE.md`](docs/COVERAGE.md)) — **7 203 tests green** across 9 test projects, ~**95% line / 86% branch**, sub-90/90 classes pushed close to single digits (was 169 at v1.7.2 release, 110 mid-Phase-W, 64 post-Phase-X); the Phase X+Y uplift waves graduated ~70 classes through stacked-OO test bases + 8 documented exemptions for provably-unreachable defensive arms; strict-mode flip remains the next milestone
+- 🧪 **Test coverage uplift** (the ten-phase plan in [`docs/COVERAGE.md`](docs/COVERAGE.md)) — **7 510 tests green** across 9 test projects, ~**96% line / 88% branch**, sub-90/90 substantive classes pushed close to single digits via Phase X+Y+Z+Ω uplift waves (was 169 at v1.7.2 release, 110 mid-Phase-W, 64 post-Phase-X, 50 post-Phase-Y, ~40 post-Phase-Z); ~95 classes graduated through stacked-OO test bases (custom `SeriesRenderer` subclasses, Theory-driven dispatch coverage, surgical per-line cobertura targeting) + 11 documented exemptions for provably-unreachable defensive arms; strict-mode flip blocked by big-axes residual + compiler-generated lambda-closure noise — production refactors flagged as opt-in for a follow-up phase
 - 📚 **Documentation polish** — cookbook examples, API XML doc completeness
 - 🌱 **Listening** — what should v2 be? Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next major direction will be guided by what real users need, not by a feature checklist.
 
@@ -40,7 +40,7 @@ Bugs found and fixed on `main` after the v1.7.2 NuGet packages were published. P
 | 2026-04-19 | **Legend was fixed in place** — no way to reposition without rebuilding server-side. | New `SvgLegendDragScript`: press-and-hold any legend item, drag the `<g class="legend">` group, release to drop. Coexists with pan/zoom and toggle via capture-phase `stopPropagation`. Translation is client-only (lost on full re-render). +4 behavioural tests. |
 | 2026-04-19 | **Treemap parent tile click didn't expand children** — two compounding causes in `SvgTreemapDrilldownScript`: (a) `pointermove` latched the drag-suppression flag on plain hover, killing the next click; (b) pan/zoom's `setPointerCapture` redirected the synthetic click target to the SVG root, so the script's walk-up from `e.target` found nothing. | (a) Gate the move-threshold on an `isPointerDown` flag (false during hover). (b) Fall back to `document.elementFromPoint(x, y)` when walk-up fails. +2 regression tests + Jint harness uplift (`StubElementFromPoint`, `<remarks>` listing what the harness can't simulate). |
 
-For the full v1.7.2 release notes (Phases L–Y, matplotlib-parity follow-on, coverage uplift, depth-3 treemap, Phase X+Y test-only sub-90/90 graduation waves), see the [CHANGELOG](CHANGELOG.md).
+For the full v1.7.2 release notes (Phases L–Ω, matplotlib-parity follow-on, coverage uplift, depth-3 treemap, Phase X+Y+Z+Ω test-only sub-90/90 graduation waves), see the [CHANGELOG](CHANGELOG.md).
 
 ---
 

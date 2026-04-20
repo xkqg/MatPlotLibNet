@@ -206,4 +206,274 @@ public class AxesBuilderCoverageTests
             .Build();
         Assert.NotNull(fig);
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Phase Z.5 — null-configure arms (the false arm of `configure is not null`)
+    // for the WithTitle / SetXLabel / SetYLabel overloads at AxesBuilder.cs:42, 55, 68.
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// <summary>WithTitle(string, configure: null) — `configure is not null` false arm.
+    /// Title text is set, no TitleStyle is applied.</summary>
+    [Fact]
+    public void WithTitle_OverloadNullConfigure_SetsTitleOnly()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .WithTitle("plain", configure: null))
+            .Build();
+        Assert.Equal("plain", fig.SubPlots[0].Title);
+    }
+
+    /// <summary>SetXLabel(string, configure: null) — false arm. Label text set, no LabelStyle.</summary>
+    [Fact]
+    public void SetXLabel_OverloadNullConfigure_SetsLabelOnly()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .SetXLabel("x-only", configure: null))
+            .Build();
+        Assert.Equal("x-only", fig.SubPlots[0].XAxis.Label);
+    }
+
+    /// <summary>SetYLabel(string, configure: null) — false arm.</summary>
+    [Fact]
+    public void SetYLabel_OverloadNullConfigure_SetsLabelOnly()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .SetYLabel("y-only", configure: null))
+            .Build();
+        Assert.Equal("y-only", fig.SubPlots[0].YAxis.Label);
+    }
+
+    /// <summary>AxHLine with null configure — `configure?.Invoke()` null arm at line 269.</summary>
+    [Fact]
+    public void AxHLine_NullConfigure_AddsLineWithoutCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .AxHLine(3.5, configure: null))
+            .Build();
+        Assert.Single(fig.SubPlots[0].ReferenceLines);
+    }
+
+    /// <summary>AxVLine with null configure — null arm.</summary>
+    [Fact]
+    public void AxVLine_NullConfigure_AddsLineWithoutCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .AxVLine(1.5, configure: null))
+            .Build();
+        Assert.Single(fig.SubPlots[0].ReferenceLines);
+    }
+
+    /// <summary>AxHSpan with null configure — null arm.</summary>
+    [Fact]
+    public void AxHSpan_NullConfigure_AddsSpanWithoutCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 5], [1.0, 5])
+                .AxHSpan(2, 3, configure: null))
+            .Build();
+        Assert.Single(fig.SubPlots[0].Spans);
+    }
+
+    /// <summary>AxVSpan with null configure — null arm.</summary>
+    [Fact]
+    public void AxVSpan_NullConfigure_AddsSpanWithoutCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 5], [1.0, 5])
+                .AxVSpan(1, 2, configure: null))
+            .Build();
+        Assert.Single(fig.SubPlots[0].Spans);
+    }
+
+    /// <summary>Plot with null configure — series-builder method's false arm.</summary>
+    [Fact]
+    public void Plot_NullConfigure_AddsLineSeriesWithoutCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2], [3.0, 4], configure: null))
+            .Build();
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Scatter with null configure.</summary>
+    [Fact]
+    public void Scatter_NullConfigure_AddsScatterSeriesWithoutCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Scatter([1.0, 2], [3.0, 4], configure: null))
+            .Build();
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Bar with null configure.</summary>
+    [Fact]
+    public void Bar_NullConfigure_AddsBarSeriesWithoutCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bar(["A", "B"], [1.0, 2.0], configure: null))
+            .Build();
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Phase Ω.5 — non-null configure arms for indicator + signal helpers
+    // (Phase Z covered the null arms; these flip the false→true branches at
+    // AxesBuilder.cs:167, 262, 628, 886, 906, 917, 926, 936, 946, 956, 967, 977)
+    // ─────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void AddSignal_WithConfigure_AppliesCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .AddSignal(1.5, 3.5, SignalDirection.Buy, m => m.Color = global::MatPlotLibNet.Styling.Colors.Green))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Signals);
+    }
+
+    [Fact]
+    public void AnnotateWithArrowTarget_WithConfigure_AppliesCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .Annotate("hi", 2, 3, 4, 5, a => a.ConnectionStyle = ConnectionStyle.Arc3))
+            .Build();
+        Assert.Single(fig.SubPlots[0].Annotations);
+    }
+
+    [Fact]
+    public void Ema_WithConfigure_AppliesCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2, 3, 4, 5, 6], [1.0, 2, 3, 4, 5, 6])
+                .Ema(period: 3, configure: ind => ind.Offset = 1.0))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void BollingerBands_WithConfigure_AppliesCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2, 3, 4, 5, 6, 7, 8, 9, 10], [1.0, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+                .BollingerBands(period: 5, stdDev: 2.0, configure: ind => ind.Offset = 0.5))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void Rsi_WithConfigure_AppliesCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Rsi(
+                prices: [1.0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+                period: 5,
+                configure: ind => ind.Offset = 1.0))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void WilliamsR_WithConfigure_AppliesCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.WilliamsR(
+                high: [10.0, 11, 12, 13, 14],
+                low:  [5.0, 6, 7, 8, 9],
+                close: [7.0, 9, 10, 11, 12],
+                period: 3,
+                configure: ind => ind.Offset = 1.0))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void Obv_WithConfigure_AppliesCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Obv(
+                close: [10.0, 11, 12, 11, 10],
+                volume: [1000.0, 1100, 1200, 1100, 1000],
+                configure: ind => ind.Offset = 1.0))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void Cci_WithConfigure_AppliesCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Cci(
+                high: [10.0, 11, 12, 13, 14, 15],
+                low:  [5.0, 6, 7, 8, 9, 10],
+                close: [7.0, 9, 10, 11, 12, 13],
+                period: 3,
+                configure: ind => ind.Offset = 1.0))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void ParabolicSar_WithoutConfigure_RendersDefaults()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.ParabolicSar(
+                high: [10.0, 11, 12, 13, 14],
+                low:  [5.0, 6, 7, 8, 9]))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void ParabolicSar_WithConfigure_AppliesCustomization()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.ParabolicSar(
+                high: [10.0, 11, 12, 13, 14],
+                low:  [5.0, 6, 7, 8, 9],
+                step: 0.05, max: 0.5,
+                configure: ind => ind.Offset = 1.0))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void AddSeries_WithConfigure_AppliesCustomization()
+    {
+        var series = new global::MatPlotLibNet.Models.Series.LineSeries(
+            (global::MatPlotLibNet.Numerics.Vec)new[] { 1.0, 2.0 },
+            (global::MatPlotLibNet.Numerics.Vec)new[] { 3.0, 4.0 });
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(series, configure: s => s.Label = "manual"))
+            .Build();
+        Assert.Equal("manual", fig.SubPlots[0].Series[0].Label);
+    }
+
+    [Fact]
+    public void AddSeries_NullConfigure_AddsSeriesWithoutCustomization()
+    {
+        var series = new global::MatPlotLibNet.Models.Series.LineSeries(
+            (global::MatPlotLibNet.Numerics.Vec)new[] { 1.0, 2.0 },
+            (global::MatPlotLibNet.Numerics.Vec)new[] { 3.0, 4.0 });
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(series, configure: null))
+            .Build();
+        Assert.Single(fig.SubPlots[0].Series);
+    }
 }

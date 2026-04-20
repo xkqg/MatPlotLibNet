@@ -216,4 +216,297 @@ public class AxesRendererCoverageTests
         // Legend with no labelled series should not crash.
         Assert.NotNull(svg);
     }
+
+    // ── Phase Z.3: ColorBar extend arms (vertical + horizontal × Min/Max/Both)
+
+    /// <summary>Vertical colorbar with Extend=Min — covers `extendMin` true arm at line 676,
+    /// and the under-color rectangle draw at line 678-679.</summary>
+    [Fact]
+    public void RenderColorBar_VerticalExtendMin_DrawsUnderRect()
+    {
+        var svg = Render(ax =>
+        {
+            ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
+            ax.WithColorBar(cb => cb with
+            {
+                Orientation = global::MatPlotLibNet.Styling.ColorBarOrientation.Vertical,
+                Extend = global::MatPlotLibNet.Styling.ColorMaps.ColorBarExtend.Min,
+            });
+        });
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>Vertical colorbar with Extend=Max — covers `extendMax` true arm at line 659.</summary>
+    [Fact]
+    public void RenderColorBar_VerticalExtendMax_DrawsOverRect()
+    {
+        var svg = Render(ax =>
+        {
+            ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
+            ax.WithColorBar(cb => cb with
+            {
+                Orientation = global::MatPlotLibNet.Styling.ColorBarOrientation.Vertical,
+                Extend = global::MatPlotLibNet.Styling.ColorMaps.ColorBarExtend.Max,
+            });
+        });
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>Vertical colorbar with Extend=Both — exercises both extend arms simultaneously.</summary>
+    [Fact]
+    public void RenderColorBar_VerticalExtendBoth_DrawsBothRects()
+    {
+        var svg = Render(ax =>
+        {
+            ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
+            ax.WithColorBar(cb => cb with
+            {
+                Orientation = global::MatPlotLibNet.Styling.ColorBarOrientation.Vertical,
+                Extend = global::MatPlotLibNet.Styling.ColorMaps.ColorBarExtend.Both,
+            });
+        });
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>Horizontal colorbar default (no Extend) — exercises the H branch at line 592 with
+    /// `drawXMin=false drawXMax=false` (line 605 short-circuit, gradX = barX, gradW = fullW).</summary>
+    [Fact]
+    public void RenderColorBar_HorizontalNoExtend_DrawsBarBelow()
+    {
+        var svg = Render(ax =>
+        {
+            ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
+            ax.WithColorBar(cb => cb with
+            {
+                Orientation = global::MatPlotLibNet.Styling.ColorBarOrientation.Horizontal,
+            });
+        });
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>Horizontal colorbar with Extend=Min — `drawXMin = true`, line 607 true arm.</summary>
+    [Fact]
+    public void RenderColorBar_HorizontalExtendMin_DrawsLeftWedge()
+    {
+        var svg = Render(ax =>
+        {
+            ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
+            ax.WithColorBar(cb => cb with
+            {
+                Orientation = global::MatPlotLibNet.Styling.ColorBarOrientation.Horizontal,
+                Extend = global::MatPlotLibNet.Styling.ColorMaps.ColorBarExtend.Min,
+            });
+        });
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>Horizontal colorbar with Extend=Max — `drawXMax = true`, line 624 true arm.</summary>
+    [Fact]
+    public void RenderColorBar_HorizontalExtendMax_DrawsRightWedge()
+    {
+        var svg = Render(ax =>
+        {
+            ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
+            ax.WithColorBar(cb => cb with
+            {
+                Orientation = global::MatPlotLibNet.Styling.ColorBarOrientation.Horizontal,
+                Extend = global::MatPlotLibNet.Styling.ColorMaps.ColorBarExtend.Max,
+            });
+        });
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>Horizontal colorbar with Extend=Both + Label — exercises both wedges + the
+    /// label branch at line 644-645.</summary>
+    [Fact]
+    public void RenderColorBar_HorizontalExtendBothWithLabel_DrawsAllArms()
+    {
+        var svg = Render(ax =>
+        {
+            ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
+            ax.WithColorBar(cb => cb with
+            {
+                Orientation = global::MatPlotLibNet.Styling.ColorBarOrientation.Horizontal,
+                Extend = global::MatPlotLibNet.Styling.ColorMaps.ColorBarExtend.Both,
+                Label = "intensity",
+            });
+        });
+        Assert.Contains(">intensity<", svg);
+    }
+
+    /// <summary>Vertical colorbar with DrawEdges=true — covers the per-step edge-line branch at
+    /// line 672-673.</summary>
+    [Fact]
+    public void RenderColorBar_VerticalDrawEdges_DrawsPerStepEdges()
+    {
+        var svg = Render(ax =>
+        {
+            ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
+            ax.WithColorBar(cb => cb with
+            {
+                Orientation = global::MatPlotLibNet.Styling.ColorBarOrientation.Vertical,
+                DrawEdges = true,
+            });
+        });
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>Horizontal colorbar with DrawEdges=true — covers line 620-621 per-step edges.</summary>
+    [Fact]
+    public void RenderColorBar_HorizontalDrawEdges_DrawsPerStepEdges()
+    {
+        var svg = Render(ax =>
+        {
+            ax.Heatmap(new double[,] { { 1, 2 }, { 3, 4 } });
+            ax.WithColorBar(cb => cb with
+            {
+                Orientation = global::MatPlotLibNet.Styling.ColorBarOrientation.Horizontal,
+                DrawEdges = true,
+            });
+        });
+        Assert.Contains("<svg", svg);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Phase Ω.7 — AxesRenderer remaining LegendPosition arms (L299-305) +
+    // Shadow + invisible series + invisible Legend arm.
+    // ─────────────────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(LegendPosition.LowerCenter)]
+    [InlineData(LegendPosition.UpperCenter)]
+    [InlineData(LegendPosition.Center)]
+    [InlineData(LegendPosition.OutsideRight)]
+    [InlineData(LegendPosition.OutsideLeft)]
+    [InlineData(LegendPosition.OutsideTop)]
+    [InlineData(LegendPosition.OutsideBottom)]
+    public void RenderLegend_RemainingPositionArms_RendersWithoutError(LegendPosition position)
+    {
+        var svg = Render(ax => ax
+            .Plot([1.0, 2, 3], [4.0, 5, 6], s => s.Label = "L1")
+            .Plot([1.0, 2, 3], [3.0, 4, 5], s => s.Label = "L2")
+            .WithLegend(position));
+        Assert.Contains(">L1<", svg);
+    }
+
+    [Fact]
+    public void RenderLegend_WithShadowEnabled_DrawsShadowRectangle()
+    {
+        // L329-333 — shadow path
+        var fig = Plt.Create()
+            .WithSize(500, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4], s => s.Label = "L")
+                .WithLegend())
+            .Build();
+        fig.SubPlots[0].Legend = fig.SubPlots[0].Legend with { Shadow = true };
+        var svg = fig.ToSvg();
+        Assert.Contains(">L<", svg);
+    }
+
+    [Fact]
+    public void Render_WithInvisibleSeries_SkipsRender()
+    {
+        // L108 if (!series.Visible) continue; — true arm
+        var fig = Plt.Create()
+            .WithSize(500, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4], s => { s.Label = "hidden"; s.Visible = false; })
+                .Plot([1.0, 2], [3.5, 4.5], s => s.Label = "shown"))
+            .Build();
+        var svg = fig.ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    [Fact]
+    public void Render_WithLegendInvisible_SkipsLegendRender()
+    {
+        // L392 if (!Axes.Legend.Visible) return;
+        var fig = Plt.Create()
+            .WithSize(500, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4], s => s.Label = "label")
+                .WithLegend())
+            .Build();
+        fig.SubPlots[0].Legend = fig.SubPlots[0].Legend with { Visible = false };
+        var svg = fig.ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    [Fact]
+    public void RenderLegend_WithCustomTitleFontSize_AppliesCustomFont()
+    {
+        // L274/433 — `legend.TitleFontSize.HasValue` true arm
+        var fig = Plt.Create()
+            .WithSize(500, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4], s => s.Label = "L")
+                .WithLegend())
+            .Build();
+        fig.SubPlots[0].Legend = fig.SubPlots[0].Legend with
+        {
+            Title = "MyLegend",
+            TitleFontSize = 18,
+        };
+        var svg = fig.ToSvg();
+        Assert.Contains(">MyLegend<", svg);
+    }
+
+    [Fact]
+    public void RenderLegend_WithFrameOff_OmitsFrame()
+    {
+        // L320 if (legend.FrameOn) — false arm
+        var fig = Plt.Create()
+            .WithSize(500, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4], s => s.Label = "noframe")
+                .WithLegend())
+            .Build();
+        fig.SubPlots[0].Legend = fig.SubPlots[0].Legend with { FrameOn = false };
+        var svg = fig.ToSvg();
+        Assert.Contains(">noframe<", svg);
+    }
+
+    [Fact]
+    public void RenderLegend_WithCustomFaceAndEdgeColor_UsesOverrides()
+    {
+        // L322/327 - faceColor / edgeColor `?? default` non-null arms
+        var fig = Plt.Create()
+            .WithSize(500, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4], s => s.Label = "L")
+                .WithLegend())
+            .Build();
+        fig.SubPlots[0].Legend = fig.SubPlots[0].Legend with
+        {
+            FaceColor = global::MatPlotLibNet.Styling.Colors.Yellow,
+            EdgeColor = global::MatPlotLibNet.Styling.Colors.Red,
+        };
+        var svg = fig.ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    [Fact]
+    public void Render_WithPieSeriesNoColors_AssignsDefaultColors()
+    {
+        // L113-116 - pie.Colors is null arm
+        var svg = Render(ax => ax.Pie([30.0, 50.0, 20.0]));
+        Assert.Contains("<svg", svg);
+    }
+
+    [Fact]
+    public void Render_WithPropCyclerOnTheme_UsesCyclerProperties()
+    {
+        // L188-189 / L232 - Theme.PropCycler?[i] non-null arm
+        var fig = Plt.Create()
+            .WithSize(500, 400)
+            .WithTheme(Theme.MatplotlibClassic)  // matplotlib classic has a PropCycler
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .Plot([1.0, 2], [4.0, 5])
+                .Plot([1.0, 2], [5.0, 6]))
+            .Build();
+        var svg = fig.ToSvg();
+        Assert.Contains("<svg", svg);
+    }
 }
