@@ -90,88 +90,11 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             RenderTicks(xTicks, yTicks, range.YMin, transform);
         }
 
-        // Render span regions (behind everything)
-        var spanLabelFont = TickFont();
-        foreach (var span in Axes.Spans)
-        {
-            var spanColor = (span.Color ?? Colors.Tab10Blue).WithAlpha((byte)(span.Alpha * 255));
-            var borderColor = span.EdgeColor ?? (span.Color ?? Colors.Tab10Blue);
-            if (span.Orientation == Orientation.Horizontal)
-            {
-                var topLeft = transform.DataToPixel(range.XMin, Math.Max(span.Min, span.Max));
-                var bottomRight = transform.DataToPixel(range.XMax, Math.Min(span.Min, span.Max));
-                var rect = new Rect(PlotArea.X, topLeft.Y, PlotArea.Width, bottomRight.Y - topLeft.Y);
-                Ctx.DrawRectangle(rect, spanColor, null, 0);
-                if (span.LineStyle != LineStyle.None)
-                {
-                    Ctx.DrawLine(new Point(PlotArea.X, topLeft.Y), new Point(PlotArea.X + PlotArea.Width, topLeft.Y), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(PlotArea.X, bottomRight.Y), new Point(PlotArea.X + PlotArea.Width, bottomRight.Y), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(PlotArea.X, topLeft.Y), new Point(PlotArea.X, bottomRight.Y), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, topLeft.Y), new Point(PlotArea.X + PlotArea.Width, bottomRight.Y), borderColor, span.LineWidth, span.LineStyle);
-                }
-                if (span.Label is not null)
-                {
-                    var labelFont = spanLabelFont with { Color = borderColor };
-                    Ctx.DrawText(span.Label, new Point(PlotArea.X + 2, topLeft.Y + spanLabelFont.Size + 2), labelFont, TextAlignment.Left);
-                }
-            }
-            else
-            {
-                var left = transform.DataToPixel(Math.Min(span.Min, span.Max), range.YMax);
-                var right = transform.DataToPixel(Math.Max(span.Min, span.Max), range.YMin);
-                var rect = new Rect(left.X, PlotArea.Y, right.X - left.X, PlotArea.Height);
-                Ctx.DrawRectangle(rect, spanColor, null, 0);
-                if (span.LineStyle != LineStyle.None)
-                {
-                    Ctx.DrawLine(new Point(left.X, PlotArea.Y), new Point(left.X, PlotArea.Y + PlotArea.Height), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(right.X, PlotArea.Y), new Point(right.X, PlotArea.Y + PlotArea.Height), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(left.X, PlotArea.Y), new Point(right.X, PlotArea.Y), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(left.X, PlotArea.Y + PlotArea.Height), new Point(right.X, PlotArea.Y + PlotArea.Height), borderColor, span.LineWidth, span.LineStyle);
-                }
-                if (span.Label is not null)
-                {
-                    var labelFont = spanLabelFont with { Color = borderColor };
-                    Ctx.DrawText(span.Label, new Point((left.X + right.X) / 2, PlotArea.Y + spanLabelFont.Size + 2), labelFont, TextAlignment.Center);
-                }
-            }
-        }
+        // Render span regions (Phase B.5 — extracted to CartesianSpansPart)
+        new CartesianParts.CartesianSpansPart(Axes, PlotArea, Ctx, Theme, transform, range).Render();
 
-        // Render reference lines
-        var refLabelFont = TickFont();
-        foreach (var refLine in Axes.ReferenceLines)
-        {
-            var lineColor = refLine.Color ?? Colors.Gray;
-            if (refLine.Orientation == Orientation.Horizontal)
-            {
-                var pt = transform.DataToPixel(range.XMin, refLine.Value);
-                Ctx.DrawLine(
-                    new Point(PlotArea.X, pt.Y),
-                    new Point(PlotArea.X + PlotArea.Width, pt.Y),
-                    lineColor, refLine.LineWidth, refLine.LineStyle);
-                if (refLine.Label is not null)
-                {
-                    var labelFont = refLabelFont with { Color = lineColor };
-                    Ctx.DrawText(refLine.Label,
-                        new Point(PlotArea.X + PlotArea.Width, pt.Y - 2),
-                        labelFont, TextAlignment.Right);
-                }
-            }
-            else
-            {
-                var pt = transform.DataToPixel(refLine.Value, range.YMin);
-                Ctx.DrawLine(
-                    new Point(pt.X, PlotArea.Y),
-                    new Point(pt.X, PlotArea.Y + PlotArea.Height),
-                    lineColor, refLine.LineWidth, refLine.LineStyle);
-                if (refLine.Label is not null)
-                {
-                    var labelFont = refLabelFont with { Color = lineColor };
-                    Ctx.DrawText(refLine.Label,
-                        new Point(pt.X + 2, PlotArea.Y + refLabelFont.Size),
-                        labelFont, TextAlignment.Left);
-                }
-            }
-        }
+        // Render reference lines (Phase B.6 — extracted to CartesianReferenceLinesPart)
+        new CartesianParts.CartesianReferenceLinesPart(Axes, PlotArea, Ctx, Theme, transform, range).Render();
 
         // Compute stacked baselines if needed
         if (Axes.BarMode == BarMode.Stacked)
@@ -197,159 +120,29 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         if (Axes.XBreaks.Count > 0) RenderBreakMarkers(Axes.XBreaks, transform, isXAxis: true);
         if (Axes.YBreaks.Count > 0) RenderBreakMarkers(Axes.YBreaks, transform, isXAxis: false);
 
-        // Secondary Y-axis series
+        // Secondary Y-axis series (Phase B.7 — extracted to CartesianSecondaryYAxisPart)
         if (Axes.SecondaryYAxis is not null && Axes.SecondarySeries.Count > 0)
         {
-            var secRange = ComputeSecondaryDataRanges(range.XMin, range.XMax);
-            var secTransform = new DataTransform(secRange.XMin, secRange.XMax, secRange.YMin, secRange.YMax, PlotArea);
-            var secYTicks = ComputeTickValues(secRange.YMin, secRange.YMax);
-
-            for (int i = 0; i < Axes.SecondarySeries.Count; i++)
-            {
-                var series = Axes.SecondarySeries[i];
-                if (!series.Visible) continue;
-                int colorIndex = Axes.Series.Count + i;
-                var seriesColor = Theme.CycleColors[colorIndex % Theme.CycleColors.Length];
-                var renderer = new SvgSeriesRenderer(secTransform, Ctx, seriesColor, plotArea: PlotArea);
-                var area = new RenderArea(PlotArea, Ctx);
-                series.Accept(renderer, area);
-            }
-
-            // Right-side Y-axis ticks
-            var tickFont = TickFont();
-            var secYUniformFormat = BuildUniformTickFormatter(secYTicks);
-            foreach (var tick in secYTicks)
-            {
-                var pt = secTransform.DataToPixel(secRange.XMax, tick);
-                Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, pt.Y),
-                    new Point(PlotArea.X + PlotArea.Width + 5, pt.Y),
-                    Theme.ForegroundText, 1, LineStyle.Solid);
-                Ctx.DrawText(Axes.SecondaryYAxis!.TickFormatter?.Format(tick) ?? secYUniformFormat(tick),
-                    new Point(PlotArea.X + PlotArea.Width + 8, pt.Y + 4),
-                    tickFont, TextAlignment.Left);
-            }
-
-            if (Axes.SecondaryYAxis.Label is not null)
-            {
-                Ctx.DrawText(Axes.SecondaryYAxis.Label,
-                    new Point(PlotArea.X + PlotArea.Width + 45, PlotArea.Y + PlotArea.Height / 2),
-                    LabelFont(), TextAlignment.Center);
-            }
+            var secYRange = ComputeSecondaryDataRanges(range.XMin, range.XMax);
+            new CartesianParts.CartesianSecondaryYAxisPart(
+                Axes, PlotArea, Ctx, Theme, transform, secYRange,
+                primarySeriesCount: Axes.Series.Count).Render();
         }
 
-        // Secondary X-axis series (TwinY — top edge)
+        // Secondary X-axis series (Phase B.8 — extracted to CartesianSecondaryXAxisPart)
         if (Axes.SecondaryXAxis is not null && Axes.XSecondarySeries.Count > 0)
         {
             var secXRange = ComputeSecondaryXDataRanges(range.YMin, range.YMax);
-            var secXTransform = new DataTransform(secXRange.XMin, secXRange.XMax, secXRange.YMin, secXRange.YMax, PlotArea);
-            var secXTicks = ComputeTickValues(secXRange.XMin, secXRange.XMax);
-
-            for (int i = 0; i < Axes.XSecondarySeries.Count; i++)
-            {
-                var series = Axes.XSecondarySeries[i];
-                if (!series.Visible) continue;
-                int colorIndex = Axes.Series.Count + Axes.SecondarySeries.Count + i;
-                var seriesColor = Theme.CycleColors[colorIndex % Theme.CycleColors.Length];
-                var renderer = new SvgSeriesRenderer(secXTransform, Ctx, seriesColor, plotArea: PlotArea);
-                var area = new RenderArea(PlotArea, Ctx);
-                series.Accept(renderer, area);
-            }
-
-            // Top-edge X-axis ticks
-            var tickFont = TickFont();
-            var secXUniformFormat = BuildUniformTickFormatter(secXTicks);
-            foreach (var tick in secXTicks)
-            {
-                var pt = secXTransform.DataToPixel(tick, secXRange.YMax);
-                Ctx.DrawLine(new Point(pt.X, PlotArea.Y),
-                    new Point(pt.X, PlotArea.Y - 5),
-                    Theme.ForegroundText, 1, LineStyle.Solid);
-                Ctx.DrawText(Axes.SecondaryXAxis!.TickFormatter?.Format(tick) ?? secXUniformFormat(tick),
-                    new Point(pt.X, PlotArea.Y - 8),
-                    tickFont, TextAlignment.Center);
-            }
-
-            if (Axes.SecondaryXAxis.Label is not null)
-            {
-                Ctx.DrawText(Axes.SecondaryXAxis.Label,
-                    new Point(PlotArea.X + PlotArea.Width / 2, PlotArea.Y - 28),
-                    LabelFont(), TextAlignment.Center);
-            }
+            new CartesianParts.CartesianSecondaryXAxisPart(
+                Axes, PlotArea, Ctx, Theme, transform, secXRange,
+                colorOffset: Axes.Series.Count + Axes.SecondarySeries.Count).Render();
         }
 
-        // Annotations
-        foreach (var annotation in Axes.Annotations)
-        {
-            var annotFont = annotation.Font ?? new Font
-            {
-                Family = Theme.DefaultFont.Family,
-                Size = 10,
-                Color = annotation.Color ?? Theme.ForegroundText
-            };
-            var textPos = transform.DataToPixel(annotation.X, annotation.Y);
+        // Annotations (Phase B.4 — extracted to CartesianAnnotationsPart via Composite pattern)
+        new CartesianParts.CartesianAnnotationsPart(Axes, PlotArea, Ctx, Theme, transform).Render();
 
-            // Background box or legacy background fill behind text
-            var textSize = Ctx.MeasureText(annotation.Text, annotFont);
-            var textBounds = new Rect(textPos.X - 2, textPos.Y - textSize.Height, textSize.Width + 4, textSize.Height + 2);
-
-            if (annotation.BoxStyle != BoxStyle.None)
-            {
-                CalloutBoxRenderer.Draw(Ctx, textBounds, annotation.BoxStyle,
-                    annotation.BoxPadding, annotation.BoxCornerRadius,
-                    annotation.BoxFaceColor, annotation.BoxEdgeColor, annotation.BoxLineWidth);
-            }
-            else if (annotation.BackgroundColor.HasValue)
-            {
-                Ctx.DrawRectangle(textBounds, annotation.BackgroundColor.Value, null, 0);
-            }
-
-            // Draw text with alignment and optional rotation (rotation=0 is a no-op in the SVG renderer)
-            Ctx.DrawText(annotation.Text, textPos, annotFont, annotation.Alignment, annotation.Rotation);
-
-            // Connection path + arrowhead (respects ConnectionStyle + ArrowStyle)
-            if (annotation.ArrowTargetX.HasValue && annotation.ArrowTargetY.HasValue
-                && annotation.ArrowStyle != ArrowStyle.None)
-            {
-                var arrowTarget = transform.DataToPixel(annotation.ArrowTargetX.Value, annotation.ArrowTargetY.Value);
-                var arrowColor = annotation.ArrowColor ?? annotation.Color ?? Theme.ForegroundText;
-
-                // Connection path
-                var connPath = ConnectionPathBuilder.BuildPath(textPos, arrowTarget,
-                    annotation.ConnectionStyle, annotation.ConnectionRad);
-                Ctx.DrawPath(connPath, null, arrowColor, 1);
-
-                // Arrowhead at target
-                double dx = arrowTarget.X - textPos.X;
-                double dy = arrowTarget.Y - textPos.Y;
-                double len = Math.Sqrt(dx * dx + dy * dy);
-                if (len > 0)
-                {
-                    double ux = dx / len, uy = dy / len;
-                    var headPolygon = ArrowHeadBuilder.BuildPolygon(arrowTarget, ux, uy,
-                        annotation.ArrowStyle, annotation.ArrowHeadSize);
-                    if (headPolygon.Count > 0)
-                        Ctx.DrawPolygon([.. headPolygon], arrowColor, null, 0);
-
-                    var headPath = ArrowHeadBuilder.BuildPath(arrowTarget, ux, uy,
-                        annotation.ArrowStyle, annotation.ArrowHeadSize);
-                    if (headPath is { Count: > 0 })
-                        Ctx.DrawPath(headPath, null, arrowColor, 1);
-                }
-            }
-        }
-
-        // Signal markers (buy/sell triangles)
-        foreach (var signal in Axes.Signals)
-        {
-            var pt = transform.DataToPixel(signal.X, signal.Y);
-            double s = signal.Size;
-            var signalColor = signal.Color ?? (signal.Direction == SignalDirection.Buy ? Colors.Green : Colors.Red);
-
-            Point[] triangle = signal.Direction == SignalDirection.Buy
-                ? [new(pt.X, pt.Y + s), new(pt.X - s / 2, pt.Y + s * 2), new(pt.X + s / 2, pt.Y + s * 2)]
-                : [new(pt.X, pt.Y - s), new(pt.X - s / 2, pt.Y - s * 2), new(pt.X + s / 2, pt.Y - s * 2)];
-            Ctx.DrawPolygon(triangle, signalColor, null, 0);
-        }
+        // Signal markers (Phase B.9 — extracted to CartesianSignalsPart)
+        new CartesianParts.CartesianSignalsPart(Axes, PlotArea, Ctx, Theme, transform).Render();
 
         // Axes spines — rendered after series so they appear on top of fills/areas
         if (!radarOnly)

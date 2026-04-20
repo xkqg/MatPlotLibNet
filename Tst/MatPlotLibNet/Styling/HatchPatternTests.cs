@@ -5,7 +5,7 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Styling;
 
-/// <summary>Verifies <see cref="HatchPattern"/> enum values and <see cref="HatchRenderer"/> drawing logic.</summary>
+/// <summary>Verifies <see cref="HatchPattern"/> enum values.</summary>
 public class HatchPatternTests
 {
     [Fact]

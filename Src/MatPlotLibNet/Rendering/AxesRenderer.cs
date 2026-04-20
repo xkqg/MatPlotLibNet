@@ -236,75 +236,10 @@ public abstract class AxesRenderer
 
         if (entries.Count == 0) return;
 
-        // Font: merge FontSize override into tick font
-        var baseFont = TickFont();
-        var font = legend.FontSize.HasValue ? baseFont with { Size = legend.FontSize.Value } : baseFont;
-
-        // matplotlib legend handles use `handlelength = 2.0 em` × `handleheight = 0.7 em`
-        // where 1 em = legend font size. For patch-type series (bar/hist/area) this produces
-        // a WIDE RECTANGLE, not a square. Line series also use this width but with a line handle.
-        double handleWidth  = font.Size * 2.0 * legend.MarkerScale;   // ~27.8 px at 13.89 px font
-        double handleHeight = font.Size * 0.7 * legend.MarkerScale;   // ~9.72 px at 13.89 px font
-        double swatchSize   = handleHeight;                            // legacy name — height only
-        double maxSwatchW   = handleWidth;                              // width is uniform across entries now
-        double swatchGap    = font.Size * 0.8;                          // matplotlib handletextpad = 0.8 em
-        double padding = 8;
-        // LabelSpacing: em-based multiplier on line height (1em ≈ font size)
-        double lineHeight = swatchSize + Math.Max(0, legend.LabelSpacing * font.Size);
-
-        int nCols = Math.Max(1, legend.NCols);
-        int nRows = (int)Math.Ceiling((double)entries.Count / nCols);
-
-        // Measure column widths — parse mathtext so $\alpha$ decay measures as "α decay", not the raw LaTeX
-        var colMaxWidths = new double[nCols];
-        for (int i = 0; i < entries.Count; i++)
-        {
-            int col = i % nCols;
-            var size = MathTextParser.ContainsMath(entries[i].Label)
-                ? Ctx.MeasureRichText(MathTextParser.Parse(entries[i].Label), font)
-                : Ctx.MeasureText(entries[i].Label, font);
-            if (size.Width > colMaxWidths[col]) colMaxWidths[col] = size.Width;
-        }
-
-        double colSpacingPx = legend.ColumnSpacing * font.Size;
-        double totalContentWidth = maxSwatchW + swatchGap + colMaxWidths.Sum()
-            + (nCols - 1) * (maxSwatchW + swatchGap + colSpacingPx);
-
-        // Title height
-        var titleFont = legend.TitleFontSize.HasValue
-            ? baseFont with { Size = legend.TitleFontSize.Value, Weight = FontWeight.Bold }
-            : baseFont with { Size = baseFont.Size + 1, Weight = FontWeight.Bold };
-        double titleHeight = !string.IsNullOrEmpty(legend.Title) ? titleFont.Size + 4 : 0;
-
-        double boxWidth = padding + totalContentWidth + padding;
-        double boxHeight = padding + titleHeight + nRows * lineHeight - (lineHeight - swatchSize) + padding;
-
-        double inset = 10;
-        // Outside legend positions are placed just past the plot-area edge. The 8 px offset
-        // keeps the legend clear of the spine + tick marks; the constrained-layout engine
-        // pre-reserved enough margin on that edge to host the full box (see
-        // `ConstrainedLayoutEngine.Compute` / `LegendMeasurer`), so drawing past the spine
-        // won't fall off the figure.
-        const double OutsideGap = 8;
-        double centerX = PlotArea.X + PlotArea.Width / 2;
-        double centerY = PlotArea.Y + PlotArea.Height / 2;
-        var (boxX, boxY) = legend.Position switch
-        {
-            LegendPosition.UpperLeft    => (PlotArea.X + inset, PlotArea.Y + inset),
-            LegendPosition.LowerRight   => (PlotArea.X + PlotArea.Width - boxWidth - inset, PlotArea.Y + PlotArea.Height - boxHeight - inset),
-            LegendPosition.LowerLeft    => (PlotArea.X + inset, PlotArea.Y + PlotArea.Height - boxHeight - inset),
-            LegendPosition.Right        => (PlotArea.X + PlotArea.Width - boxWidth - inset, centerY - boxHeight / 2),
-            LegendPosition.CenterLeft   => (PlotArea.X + inset, centerY - boxHeight / 2),
-            LegendPosition.CenterRight  => (PlotArea.X + PlotArea.Width - boxWidth - inset, centerY - boxHeight / 2),
-            LegendPosition.LowerCenter  => (centerX - boxWidth / 2, PlotArea.Y + PlotArea.Height - boxHeight - inset),
-            LegendPosition.UpperCenter  => (centerX - boxWidth / 2, PlotArea.Y + inset),
-            LegendPosition.Center       => (centerX - boxWidth / 2, centerY - boxHeight / 2),
-            LegendPosition.OutsideRight => (PlotArea.X + PlotArea.Width + OutsideGap, centerY - boxHeight / 2),
-            LegendPosition.OutsideLeft  => (PlotArea.X - boxWidth - OutsideGap, centerY - boxHeight / 2),
-            LegendPosition.OutsideTop   => (centerX - boxWidth / 2, PlotArea.Y - boxHeight - OutsideGap),
-            LegendPosition.OutsideBottom => (centerX - boxWidth / 2, PlotArea.Y + PlotArea.Height + OutsideGap),
-            _                           => (PlotArea.X + PlotArea.Width - boxWidth - inset, PlotArea.Y + inset) // Best / UpperRight
-        };
+        // Phase B.3 — layout computation moved to LegendLayoutCalculator (was
+        // duplicated verbatim here AND in ComputeLegendBounds below).
+        var layout = new LegendRendering.LegendLayoutCalculator(Theme, Ctx)
+            .Compute(legend, entries.Select(e => e.Label).ToList(), PlotArea);
 
         // Open the legend group FIRST — frame, shadow, title, and entries all live inside
         // it as siblings. Phase S (2026-04-19) — the legend-drag script applies a
@@ -329,54 +264,49 @@ public abstract class AxesRenderer
             if (legend.Shadow)
             {
                 var shadowColor = new Color(0, 0, 0, 80);
-                Ctx.DrawRectangle(new Rect(boxX + 3, boxY + 3, boxWidth, boxHeight), shadowColor, null, 0);
+                Ctx.DrawRectangle(new Rect(layout.BoxX + 3, layout.BoxY + 3, layout.BoxWidth, layout.BoxHeight), shadowColor, null, 0);
             }
 
             // FancyBox: rounded corners are expressed via SVG rx/ry — DrawRectangle doesn't expose
             // corner radius, so we use an SVG comment/group attribute via the context when available.
             // For now render normally; FancyBox is a visual hint recognised by advanced renderers.
-            Ctx.DrawRectangle(new Rect(boxX, boxY, boxWidth, boxHeight), bgColor, edgeColor, 0.5);
+            Ctx.DrawRectangle(new Rect(layout.BoxX, layout.BoxY, layout.BoxWidth, layout.BoxHeight), bgColor, edgeColor, 0.5);
         }
 
         // Title
         if (!string.IsNullOrEmpty(legend.Title))
         {
             Ctx.DrawText(legend.Title,
-                new Point(boxX + padding + totalContentWidth / 2, boxY + padding + titleFont.Size),
-                titleFont, TextAlignment.Center);
+                new Point(layout.BoxX + layout.Padding + layout.TotalContentWidth / 2, layout.BoxY + layout.Padding + layout.TitleFont.Size),
+                layout.TitleFont, TextAlignment.Center);
         }
 
         LegendBounds.Clear();
         var svgCtxLegend = Axes.EnableInteractiveAttributes ? Ctx as SvgRenderContext : null;
         for (int i = 0; i < entries.Count; i++)
         {
-            int row = i / nCols;
-            int col = i % nCols;
+            int row = i / layout.NCols;
+            int col = i % layout.NCols;
             var (label, color, seriesRef, originalIndex) = entries[i];
 
-            // X offset for this column
-            double colX = boxX + padding;
-            for (int c = 0; c < col; c++)
-                colX += maxSwatchW + swatchGap + colMaxWidths[c] + colSpacingPx;
-
-            double entryY = boxY + padding + titleHeight + row * lineHeight;
+            double colX = layout.ColumnX(col);
+            double entryY = layout.EntryY(row);
 
             // Capture hit-test bounds for this legend entry (swatch + label)
-            double itemWidth = maxSwatchW + swatchGap + colMaxWidths[col];
-            LegendBounds.Add(new LegendItemBounds(originalIndex, new Rect(colX, entryY, itemWidth, lineHeight)));
+            LegendBounds.Add(new LegendItemBounds(originalIndex, new Rect(colX, entryY, layout.ItemWidth(col), layout.LineHeight)));
 
             svgCtxLegend?.BeginLegendItemGroup(i, label);
 
             // Swatch dispatch: line segment for line-type series, marker for scatter,
             // line+caps for error bar, filled rectangle for patches (bar/hist/area/violin/pie).
-            DrawLegendSwatch(seriesRef, colX, entryY, maxSwatchW, swatchSize, color);
+            DrawLegendSwatch(seriesRef, colX, entryY, layout.SwatchWidth, layout.SwatchHeight, color);
 
             // Text anchor sits just past the swatch.
-            var textPoint = new Point(colX + maxSwatchW + swatchGap, entryY + swatchSize - 1);
+            var textPoint = new Point(colX + layout.SwatchWidth + layout.SwatchGap, entryY + layout.SwatchHeight - 1);
             if (MathTextParser.ContainsMath(label))
-                Ctx.DrawRichText(MathTextParser.Parse(label), textPoint, font, TextAlignment.Left);
+                Ctx.DrawRichText(MathTextParser.Parse(label), textPoint, layout.Font, TextAlignment.Left);
             else
-                Ctx.DrawText(label, textPoint, font, TextAlignment.Left);
+                Ctx.DrawText(label, textPoint, layout.Font, TextAlignment.Left);
             if (svgCtxLegend is not null) Ctx.EndGroup();
         }
 
@@ -402,76 +332,18 @@ public abstract class AxesRenderer
 
         if (entries.Count == 0) return;
 
-        var baseFont = TickFont();
-        var font = legend.FontSize.HasValue ? baseFont with { Size = legend.FontSize.Value } : baseFont;
-
-        double handleWidth  = font.Size * 2.0 * legend.MarkerScale;
-        double handleHeight = font.Size * 0.7 * legend.MarkerScale;
-        double swatchSize   = handleHeight;
-        double maxSwatchW   = handleWidth;
-        double swatchGap    = font.Size * 0.8;
-        double padding = 8;
-        double lineHeight = swatchSize + Math.Max(0, legend.LabelSpacing * font.Size);
-
-        int nCols = Math.Max(1, legend.NCols);
-        int nRows = (int)Math.Ceiling((double)entries.Count / nCols);
-
-        var colMaxWidths = new double[nCols];
-        for (int i = 0; i < entries.Count; i++)
-        {
-            int col = i % nCols;
-            var size = MathTextParser.ContainsMath(entries[i].Label)
-                ? Ctx.MeasureRichText(MathTextParser.Parse(entries[i].Label), font)
-                : Ctx.MeasureText(entries[i].Label, font);
-            if (size.Width > colMaxWidths[col]) colMaxWidths[col] = size.Width;
-        }
-
-        double colSpacingPx = legend.ColumnSpacing * font.Size;
-        double totalContentWidth = maxSwatchW + swatchGap + colMaxWidths.Sum()
-            + (nCols - 1) * (maxSwatchW + swatchGap + colSpacingPx);
-
-        var titleFont = legend.TitleFontSize.HasValue
-            ? baseFont with { Size = legend.TitleFontSize.Value, Weight = FontWeight.Bold }
-            : baseFont with { Size = baseFont.Size + 1, Weight = FontWeight.Bold };
-        double titleHeight = !string.IsNullOrEmpty(legend.Title) ? titleFont.Size + 4 : 0;
-
-        double boxWidth = padding + totalContentWidth + padding;
-        double boxHeight = padding + titleHeight + nRows * lineHeight - (lineHeight - swatchSize) + padding;
-
-        double inset = 10;
-        const double OutsideGap = 8;
-        double centerX = PlotArea.X + PlotArea.Width / 2;
-        double centerY = PlotArea.Y + PlotArea.Height / 2;
-        var (boxX, boxY) = legend.Position switch
-        {
-            LegendPosition.UpperLeft    => (PlotArea.X + inset, PlotArea.Y + inset),
-            LegendPosition.LowerRight   => (PlotArea.X + PlotArea.Width - boxWidth - inset, PlotArea.Y + PlotArea.Height - boxHeight - inset),
-            LegendPosition.LowerLeft    => (PlotArea.X + inset, PlotArea.Y + PlotArea.Height - boxHeight - inset),
-            LegendPosition.Right        => (PlotArea.X + PlotArea.Width - boxWidth - inset, centerY - boxHeight / 2),
-            LegendPosition.CenterLeft   => (PlotArea.X + inset, centerY - boxHeight / 2),
-            LegendPosition.CenterRight  => (PlotArea.X + PlotArea.Width - boxWidth - inset, centerY - boxHeight / 2),
-            LegendPosition.LowerCenter  => (centerX - boxWidth / 2, PlotArea.Y + PlotArea.Height - boxHeight - inset),
-            LegendPosition.UpperCenter  => (centerX - boxWidth / 2, PlotArea.Y + inset),
-            LegendPosition.Center       => (centerX - boxWidth / 2, centerY - boxHeight / 2),
-            LegendPosition.OutsideRight => (PlotArea.X + PlotArea.Width + OutsideGap, centerY - boxHeight / 2),
-            LegendPosition.OutsideLeft  => (PlotArea.X - boxWidth - OutsideGap, centerY - boxHeight / 2),
-            LegendPosition.OutsideTop   => (centerX - boxWidth / 2, PlotArea.Y - boxHeight - OutsideGap),
-            LegendPosition.OutsideBottom => (centerX - boxWidth / 2, PlotArea.Y + PlotArea.Height + OutsideGap),
-            _                           => (PlotArea.X + PlotArea.Width - boxWidth - inset, PlotArea.Y + inset)
-        };
+        // Phase B.3 — identical layout calculation to RenderLegend, now sharing
+        // the single LegendLayoutCalculator instead of duplicating ~45 lines of math.
+        var layout = new LegendRendering.LegendLayoutCalculator(Theme, Ctx)
+            .Compute(legend, entries.Select(e => e.Label).ToList(), PlotArea);
 
         for (int i = 0; i < entries.Count; i++)
         {
-            int row = i / nCols;
-            int col = i % nCols;
-
-            double colX = boxX + padding;
-            for (int c = 0; c < col; c++)
-                colX += maxSwatchW + swatchGap + colMaxWidths[c] + colSpacingPx;
-
-            double entryY = boxY + padding + titleHeight + row * lineHeight;
-            double itemWidth = maxSwatchW + swatchGap + colMaxWidths[col];
-            LegendBounds.Add(new LegendItemBounds(entries[i].OriginalIndex, new Rect(colX, entryY, itemWidth, lineHeight)));
+            int row = i / layout.NCols;
+            int col = i % layout.NCols;
+            double colX = layout.ColumnX(col);
+            double entryY = layout.EntryY(row);
+            LegendBounds.Add(new LegendItemBounds(entries[i].OriginalIndex, new Rect(colX, entryY, layout.ItemWidth(col), layout.LineHeight)));
         }
     }
 
@@ -561,7 +433,12 @@ public abstract class AxesRenderer
             Ctx.DrawCircle(new Point(cx, cy), radius, color, null, 0);
     }
 
-    /// <summary>Renders a color bar gradient alongside the plot area if configured.</summary>
+    /// <summary>Renders a color bar gradient alongside the plot area if configured.
+    /// Delegates to <see cref="ColorBarRendering.ColorBarRendererFactory"/> which selects
+    /// <see cref="ColorBarRendering.HorizontalColorBarRenderer"/> or
+    /// <see cref="ColorBarRendering.VerticalColorBarRenderer"/> by orientation
+    /// (Phase B.1.e of the strict-90 floor plan, 2026-04-20 — replaced the inline
+    /// 150-line god-method with proper polymorphic dispatch).</summary>
     protected void RenderColorBar()
     {
         if (Axes.ColorBar is not { Visible: true } cb) return;
@@ -579,134 +456,14 @@ public abstract class AxesRenderer
 
         if (Math.Abs(max - min) < 1e-10) { min = 0; max = 1; }
 
-        int steps = 50;
-        const double extendFrac = 0.10;
-        bool extendMin = cb.Extend is ColorBarExtend.Min or ColorBarExtend.Both;
-        bool extendMax = cb.Extend is ColorBarExtend.Max or ColorBarExtend.Both;
-
         if (Ctx is SvgRenderContext svgCtxColorBar)
             svgCtxColorBar.BeginAccessibleGroup("colorbar", "Color bar");
         else
             Ctx.BeginGroup("colorbar");
 
-        if (cb.Orientation == ColorBarOrientation.Horizontal)
-        {
-            // Horizontal: bar below the plot area, length = plot width * Shrink, centered
-            double fullW = PlotArea.Width * cb.Shrink;
-            double barW  = cb.Aspect > 0 ? fullW : cb.Width * cb.Shrink;
-            double barH  = cb.Aspect > 0 ? fullW / cb.Aspect : cb.Width;
-            double barX  = PlotArea.X + (PlotArea.Width - fullW) / 2;
-            double barY  = PlotArea.Y + PlotArea.Height + cb.Padding;
-
-            double extW  = fullW * extendFrac;
-            bool drawXMin = extendMin;
-            bool drawXMax = extendMax;
-            double gradX = barX + (drawXMin ? extW : 0);
-            double gradW = fullW - (drawXMin ? extW : 0) - (drawXMax ? extW : 0);
-
-            if (drawXMin)
-            {
-                var underColor = colorMap.GetUnderColor() ?? colorMap.GetColor(0.0);
-                Ctx.DrawRectangle(new Rect(barX, barY, extW, barH), underColor, null, 0);
-            }
-
-            for (int i = 0; i < steps; i++)
-            {
-                double frac = (double)i / steps;
-                var color = colorMap.GetColor(frac);
-                double stepX = gradX + gradW * i / steps;
-                double stepW = gradW / steps + 1;
-                Ctx.DrawRectangle(new Rect(stepX, barY, stepW, barH), color, null, 0);
-                if (cb.DrawEdges)
-                    Ctx.DrawLine(new Point(stepX, barY), new Point(stepX, barY + barH), Theme.ForegroundText, 0.3, LineStyle.Solid);
-            }
-
-            if (drawXMax)
-            {
-                var overColor = colorMap.GetOverColor() ?? colorMap.GetColor(1.0);
-                Ctx.DrawRectangle(new Rect(gradX + gradW, barY, extW, barH), overColor, null, 0);
-            }
-
-            Ctx.DrawRectangle(new Rect(barX, barY, fullW, barH), null, Theme.ForegroundText, 0.5);
-
-            var tickFont = TickFont();
-            double labelY = barY + barH + 4 + tickFont.Size;
-            var hCbTicks = new double[6];
-            for (int i = 0; i <= 5; i++) hCbTicks[i] = min + ((double)i / 5) * (max - min);
-            var hCbFormat = BuildUniformTickFormatter(hCbTicks);
-            for (int i = 0; i <= 5; i++)
-            {
-                double frac = (double)i / 5;
-                double value = min + frac * (max - min);
-                Ctx.DrawText(hCbFormat(value), new Point(gradX + gradW * frac, labelY), tickFont, TextAlignment.Center);
-            }
-
-            if (cb.Label is not null)
-                Ctx.DrawText(cb.Label, new Point(barX + fullW / 2, labelY + tickFont.Size + 4), LabelFont(), TextAlignment.Center);
-        }
-        else
-        {
-            // Vertical (default): bar to the right of the plot area
-            double fullH = PlotArea.Height * cb.Shrink;
-            double barW  = cb.Width;
-            double barX  = PlotArea.X + PlotArea.Width + cb.Padding;
-            double barY  = PlotArea.Y + (PlotArea.Height - fullH) / 2;
-
-            double extH  = fullH * extendFrac;
-            double gradY = barY + (extendMax ? extH : 0);
-            double gradH = fullH - (extendMin ? extH : 0) - (extendMax ? extH : 0);
-
-            if (extendMax)
-            {
-                var overColor = colorMap.GetOverColor() ?? colorMap.GetColor(1.0);
-                Ctx.DrawRectangle(new Rect(barX, barY, barW, extH), overColor, null, 0);
-            }
-
-            for (int i = 0; i < steps; i++)
-            {
-                double frac = 1.0 - (double)i / steps;
-                var color = colorMap.GetColor(frac);
-                double stepY = gradY + gradH * i / steps;
-                double stepH = gradH / steps + 1;
-                Ctx.DrawRectangle(new Rect(barX, stepY, barW, stepH), color, null, 0);
-                if (cb.DrawEdges)
-                    Ctx.DrawLine(new Point(barX, stepY), new Point(barX + barW, stepY), Theme.ForegroundText, 0.3, LineStyle.Solid);
-            }
-
-            if (extendMin)
-            {
-                var underColor = colorMap.GetUnderColor() ?? colorMap.GetColor(0.0);
-                Ctx.DrawRectangle(new Rect(barX, gradY + gradH, barW, extH), underColor, null, 0);
-            }
-
-            Ctx.DrawRectangle(new Rect(barX, barY, barW, fullH), null, Theme.ForegroundText, 0.5);
-
-            var tickFont = TickFont();
-            double labelX = barX + barW + 4;
-            double maxTickWidth = 0;
-            var vCbTicks = new double[6];
-            for (int i = 0; i <= 5; i++) vCbTicks[i] = max - ((double)i / 5) * (max - min);
-            var vCbFormat = BuildUniformTickFormatter(vCbTicks);
-            for (int i = 0; i <= 5; i++)
-            {
-                double frac = (double)i / 5;
-                double value = max - frac * (max - min);
-                var tickText = vCbFormat(value);
-                Ctx.DrawText(tickText, new Point(labelX, barY + fullH * frac + 4), tickFont, TextAlignment.Left);
-                var w = Ctx.MeasureText(tickText, tickFont).Width;
-                if (w > maxTickWidth) maxTickWidth = w;
-            }
-
-            if (cb.Label is not null)
-            {
-                // Rotate the label 90° (vertical, reading bottom-to-top) so it sits in a
-                // narrow gutter beside the colorbar instead of sprawling horizontally and
-                // getting clipped by the figure right edge. Matches matplotlib defaults.
-                var labelFont = LabelFont();
-                double labelGutter = labelX + maxTickWidth + 8;
-                Ctx.DrawText(cb.Label, new Point(labelGutter, barY + fullH / 2), labelFont, TextAlignment.Center, rotation: 90);
-            }
-        }
+        ColorBarRendering.ColorBarRendererFactory
+            .Create(cb, colorMap, min, max, PlotArea, Ctx, Theme)
+            .Render();
 
         Ctx.EndGroup();
     }
@@ -830,7 +587,7 @@ public abstract class AxesRenderer
     /// is invoked per tick. Falls back to <see cref="FormatTick"/> when <paramref name="ticks"/>
     /// has fewer than two values (no step to measure).
     /// </remarks>
-    protected static Func<double, string> BuildUniformTickFormatter(double[] ticks)
+    internal static Func<double, string> BuildUniformTickFormatter(double[] ticks)
     {
         if (ticks is null || ticks.Length < 2) return FormatTick;
         double step = Math.Abs(ticks[1] - ticks[0]);
@@ -876,6 +633,11 @@ public abstract class AxesRenderer
     /// <param name="targetCount">The desired number of tick intervals; the algorithm snaps to a nearby nice number. Defaults to 8 to match matplotlib's <c>MaxNLocator(nbins='auto')</c>.</param>
     protected static double[] ComputeTickValues(double min, double max, int targetCount = 8)
         => new TickLocators.AutoLocator(targetCount).Locate(min, max);
+
+    /// <summary>Internal wrapper for <see cref="ComputeTickValues(double, double, int)"/> so
+    /// <c>CartesianParts</c> extracted classes can reuse the default nice-number algorithm.</summary>
+    internal static double[] ComputeTickValuesInternal(double min, double max, int targetCount = 8)
+        => ComputeTickValues(min, max, targetCount);
 
     /// <summary>
     /// Computes tick values respecting any <see cref="Axis.TickLocator"/> or <see cref="TickConfig.Spacing"/>

@@ -320,4 +320,43 @@ public class SkiaRenderContextCoverageTests : IDisposable
             new Font { Family = null, Size = 12 },
             TextAlignment.Left);
     }
+
+    // ── Phase A.1.3 (Strict-90 plan): SkiaFontMetrics Bold-only / Italic-only combos
+    // (cobertura SkiaFontMetrics.cs:L32 cc=75% (3/4) — need isolated weight+slant arms)
+
+    [Fact]
+    public void SkiaFontMetrics_BoldOnlyNotItalic_FlipsBoldArmAlone()
+    {
+        var fm = new SkiaFontMetrics();
+        var font = new Font { Family = "DejaVu Sans", Size = 12, Weight = FontWeight.Bold, Slant = FontSlant.Normal };
+        var size = fm.Measure("test", font);
+        Assert.True(size.Width > 0);
+    }
+
+    [Fact]
+    public void SkiaFontMetrics_ItalicOnlyNotBold_FlipsItalicArmAlone()
+    {
+        var fm = new SkiaFontMetrics();
+        var font = new Font { Family = "DejaVu Sans", Size = 12, Weight = FontWeight.Normal, Slant = FontSlant.Italic };
+        var size = fm.Measure("test", font);
+        Assert.True(size.Width > 0);
+    }
+
+    [Fact]
+    public void SkiaFontMetrics_BoldAndItalic_FlipsBothArmsTrue()
+    {
+        var fm = new SkiaFontMetrics();
+        var font = new Font { Family = "DejaVu Sans", Size = 12, Weight = FontWeight.Bold, Slant = FontSlant.Italic };
+        var size = fm.Measure("bi", font);
+        Assert.True(size.Width > 0);
+    }
+
+    [Fact]
+    public void SkiaFontMetrics_NormalNeitherBoldNorItalic_FlipsBothArmsFalse()
+    {
+        var fm = new SkiaFontMetrics();
+        var font = new Font { Family = "DejaVu Sans", Size = 12, Weight = FontWeight.Normal, Slant = FontSlant.Normal };
+        var size = fm.Measure("plain", font);
+        Assert.True(size.Width > 0);
+    }
 }

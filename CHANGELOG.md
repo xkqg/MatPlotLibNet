@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.7.2] — 2026-04-18
 
+### Refactored — strict-90 coverage floor (2026-04-20)
+
+- **Three god-classes decomposed into SOLID hierarchies** (`AxesRenderer.RenderColorBar`,
+  `CartesianAxesRenderer.Render`, `SankeySeriesRenderer`): 32 extracted classes, each at
+  100 % line and branch coverage via direct TDD.
+- **`SvgRenderContext` tightened** — 3 dead files removed; gradient-defs emission moved
+  to a dedicated `SvgGradientRegistry` collaborator; invariant-culture formatting and
+  fill/stroke/dash-array attribute writers exposed as extension methods.
+- **Total project coverage: 94.94L / 85.30B → 97.26L / 90.50B.** Branch coverage
+  crosses the 90 % floor for the first time.
+- No behavioural change vs the v1.7.2 release — production API surface and SVG output
+  bytes unchanged. Internal structure, tests, and dead-code cleanup only.
+
 ### Tested — Phase Ω (2026-04-19, true-90/90-floor attempt, ~165 new tests, 3 new test files, 0 new exemptions)
 
 > Pure test uplift, same template as Phase X/Y/Z. Phase Ω attempted to graduate

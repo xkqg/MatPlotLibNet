@@ -1,7 +1,6 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
-using System.Globalization;
 using System.Text;
 using MatPlotLibNet;
 using MatPlotLibNet.Rendering.MathText;
@@ -14,10 +13,16 @@ namespace MatPlotLibNet.Rendering.Svg;
 public sealed class SvgRenderContext : IRenderContext
 {
     private readonly StringBuilder _sb = new();
-    private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
     private int _clipId;
     private List<(string Key, string Value)>? _pendingData;
     private string? _pendingClass;
+
+    /// <summary>Default constructor: wires the gradient registry to the internal buffer
+    /// so gradient defs land inline at the point of <see cref="DefineLinearGradient"/>.</summary>
+    public SvgRenderContext()
+    {
+        _gradients = new SvgGradientRegistry(_sb);
+    }
 
     /// <summary>Returns the accumulated SVG markup as a string.</summary>
     public string GetOutput() => _sb.ToString();
@@ -57,10 +62,10 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style)
     {
-        _sb.Append("<line x1=\"").Append(F(p1.X)).Append("\" y1=\"").Append(F(p1.Y))
-           .Append("\" x2=\"").Append(F(p2.X)).Append("\" y2=\"").Append(F(p2.Y))
-           .Append("\" stroke=\"").Append(color.ToHex()).Append("\" stroke-width=\"").Append(F(thickness)).Append('"');
-        AppendDashArray(style);
+        _sb.Append("<line x1=\"").Append(p1.X.ToSvgNumber()).Append("\" y1=\"").Append(p1.Y.ToSvgNumber())
+           .Append("\" x2=\"").Append(p2.X.ToSvgNumber()).Append("\" y2=\"").Append(p2.Y.ToSvgNumber())
+           .Append("\" stroke=\"").Append(color.ToHex()).Append("\" stroke-width=\"").Append(thickness.ToSvgNumber()).Append('"');
+        _sb.AppendDashArray(style);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -73,11 +78,11 @@ public sealed class SvgRenderContext : IRenderContext
         for (int i = 0; i < points.Count; i++)
         {
             if (i > 0) _sb.Append(' ');
-            _sb.Append(F(points[i].X)).Append(',').Append(F(points[i].Y));
+            _sb.Append(points[i].X.ToSvgNumber()).Append(',').Append(points[i].Y.ToSvgNumber());
         }
         _sb.Append("\" fill=\"none\" stroke=\"").Append(color.ToHex())
-           .Append("\" stroke-width=\"").Append(F(thickness)).Append('"');
-        AppendDashArray(style);
+           .Append("\" stroke-width=\"").Append(thickness.ToSvgNumber()).Append('"');
+        _sb.AppendDashArray(style);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -89,10 +94,10 @@ public sealed class SvgRenderContext : IRenderContext
         for (int i = 0; i < points.Count; i++)
         {
             if (i > 0) _sb.Append(' ');
-            _sb.Append(F(points[i].X)).Append(',').Append(F(points[i].Y));
+            _sb.Append(points[i].X.ToSvgNumber()).Append(',').Append(points[i].Y.ToSvgNumber());
         }
         _sb.Append('"');
-        AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendFillStroke(fill, stroke, strokeThickness);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -100,9 +105,9 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawCircle(Point center, double radius, Color? fill, Color? stroke, double strokeThickness)
     {
-        _sb.Append("<circle cx=\"").Append(F(center.X)).Append("\" cy=\"").Append(F(center.Y))
-           .Append("\" r=\"").Append(F(radius)).Append('"');
-        AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.Append("<circle cx=\"").Append(center.X.ToSvgNumber()).Append("\" cy=\"").Append(center.Y.ToSvgNumber())
+           .Append("\" r=\"").Append(radius.ToSvgNumber()).Append('"');
+        _sb.AppendFillStroke(fill, stroke, strokeThickness);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -110,9 +115,9 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawRectangle(Rect rect, Color? fill, Color? stroke, double strokeThickness)
     {
-        _sb.Append("<rect x=\"").Append(F(rect.X)).Append("\" y=\"").Append(F(rect.Y))
-           .Append("\" width=\"").Append(F(rect.Width)).Append("\" height=\"").Append(F(rect.Height)).Append('"');
-        AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.Append("<rect x=\"").Append(rect.X.ToSvgNumber()).Append("\" y=\"").Append(rect.Y.ToSvgNumber())
+           .Append("\" width=\"").Append(rect.Width.ToSvgNumber()).Append("\" height=\"").Append(rect.Height.ToSvgNumber()).Append('"');
+        _sb.AppendFillStroke(fill, stroke, strokeThickness);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -122,9 +127,9 @@ public sealed class SvgRenderContext : IRenderContext
     {
         double cx = bounds.X + bounds.Width / 2;
         double cy = bounds.Y + bounds.Height / 2;
-        _sb.Append("<ellipse cx=\"").Append(F(cx)).Append("\" cy=\"").Append(F(cy))
-           .Append("\" rx=\"").Append(F(bounds.Width / 2)).Append("\" ry=\"").Append(F(bounds.Height / 2)).Append('"');
-        AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.Append("<ellipse cx=\"").Append(cx.ToSvgNumber()).Append("\" cy=\"").Append(cy.ToSvgNumber())
+           .Append("\" rx=\"").Append((bounds.Width / 2).ToSvgNumber()).Append("\" ry=\"").Append((bounds.Height / 2).ToSvgNumber()).Append('"');
+        _sb.AppendFillStroke(fill, stroke, strokeThickness);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -170,14 +175,14 @@ public sealed class SvgRenderContext : IRenderContext
             _                    => "start",
         };
 
-        _sb.Append("<text x=\"").Append(F(position.X)).Append("\" y=\"").Append(F(position.Y))
-           .Append("\" font-family=\"").Append(font.Family).Append("\" font-size=\"").Append(F(font.Size))
+        _sb.Append("<text x=\"").Append(position.X.ToSvgNumber()).Append("\" y=\"").Append(position.Y.ToSvgNumber())
+           .Append("\" font-family=\"").Append(font.Family).Append("\" font-size=\"").Append(font.Size.ToSvgNumber())
            .Append("\" text-anchor=\"").Append(anchor).Append('"');
         if (rotation != 0)
         {
             // SVG rotation: negative because SVG y-axis is flipped vs. mathematical convention
-            _sb.Append(" transform=\"rotate(").Append(F(-rotation)).Append(',')
-               .Append(F(position.X)).Append(',').Append(F(position.Y)).Append(")\"");
+            _sb.Append(" transform=\"rotate(").Append((-rotation).ToSvgNumber()).Append(',')
+               .Append(position.X.ToSvgNumber()).Append(',').Append(position.Y.ToSvgNumber()).Append(")\"");
         }
         if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
         if (font.Weight == FontWeight.Bold) _sb.Append(" font-weight=\"bold\"");
@@ -205,11 +210,11 @@ public sealed class SvgRenderContext : IRenderContext
         // by the alignment offset along the UNROTATED baseline, then rotate around the
         // anchor, then translate to the anchor itself. Gives the correct result for
         // rotated text with any alignment (e.g. Y-axis labels rotated 90° and centred).
-        _sb.Append(" transform=\"translate(").Append(F(position.X)).Append(',').Append(F(position.Y)).Append(')');
+        _sb.Append(" transform=\"translate(").Append(position.X.ToSvgNumber()).Append(',').Append(position.Y.ToSvgNumber()).Append(')');
         if (rotation != 0)
-            _sb.Append(" rotate(").Append(F(-rotation)).Append(')');
+            _sb.Append(" rotate(").Append((-rotation).ToSvgNumber()).Append(')');
         if (alignOffset != 0)
-            _sb.Append(" translate(").Append(F(alignOffset)).Append(",0)");
+            _sb.Append(" translate(").Append(alignOffset.ToSvgNumber()).Append(",0)");
         _sb.Append('"');
         FlushPendingData();
         _sb.AppendLine(" />");
@@ -222,7 +227,7 @@ public sealed class SvgRenderContext : IRenderContext
         foreach (var seg in segments)
             _sb.Append(seg.ToSvgPathData());
         _sb.Append('"');
-        AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendFillStroke(fill, stroke, strokeThickness);
         // Phase G.7 of v1.7.2 follow-on plan — missing flush here caused
         // SetNextElementData pushes to leak across iterations (e.g. Sankey's
         // per-link data-* attributes stacked onto every subsequent node).
@@ -235,8 +240,8 @@ public sealed class SvgRenderContext : IRenderContext
     {
         int id = _clipId++;
         _sb.Append("<defs><clipPath id=\"clip-").Append(id)
-           .Append("\"><rect x=\"").Append(F(clipRect.X)).Append("\" y=\"").Append(F(clipRect.Y))
-           .Append("\" width=\"").Append(F(clipRect.Width)).Append("\" height=\"").Append(F(clipRect.Height))
+           .Append("\"><rect x=\"").Append(clipRect.X.ToSvgNumber()).Append("\" y=\"").Append(clipRect.Y.ToSvgNumber())
+           .Append("\" width=\"").Append(clipRect.Width.ToSvgNumber()).Append("\" height=\"").Append(clipRect.Height.ToSvgNumber())
            .AppendLine("\" /></clipPath></defs>");
         _sb.Append("<g clip-path=\"url(#clip-").Append(id).AppendLine(")\">");
     }
@@ -274,13 +279,13 @@ public sealed class SvgRenderContext : IRenderContext
             _                    => "start",
         };
 
-        _sb.Append("<text x=\"").Append(F(position.X)).Append("\" y=\"").Append(F(position.Y))
+        _sb.Append("<text x=\"").Append(position.X.ToSvgNumber()).Append("\" y=\"").Append(position.Y.ToSvgNumber())
            .Append("\" font-family=\"").Append(font.Family)
-           .Append("\" font-size=\"").Append(F(font.Size))
+           .Append("\" font-size=\"").Append(font.Size.ToSvgNumber())
            .Append("\" text-anchor=\"").Append(anchor).Append('"');
         if (rotation != 0)
-            _sb.Append(" transform=\"rotate(").Append(F(-rotation)).Append(',')
-               .Append(F(position.X)).Append(',').Append(F(position.Y)).Append(")\"");
+            _sb.Append(" transform=\"rotate(").Append((-rotation).ToSvgNumber()).Append(',')
+               .Append(position.X.ToSvgNumber()).Append(',').Append(position.Y.ToSvgNumber()).Append(")\"");
         if (font.Slant == FontSlant.Italic) _sb.Append(" font-style=\"italic\"");
         if (font.Weight == FontWeight.Bold)  _sb.Append(" font-weight=\"bold\"");
         if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
@@ -296,7 +301,7 @@ public sealed class SvgRenderContext : IRenderContext
             {
                 string shift = span.Kind == TextSpanKind.Superscript ? "super" : "sub";
                 _sb.Append("<tspan baseline-shift=\"").Append(shift)
-                   .Append("\" font-size=\"").Append(F(span.FontSizeScale * 100)).Append("%\">")
+                   .Append("\" font-size=\"").Append((span.FontSizeScale * 100).ToSvgNumber()).Append("%\">")
                    .Append(EscapeXml(span.Text))
                    .Append("</tspan>");
             }
@@ -326,7 +331,7 @@ public sealed class SvgRenderContext : IRenderContext
         // Calling SetOpacity(1.0) acts as a clean RESET with no extra DOM noise.
         if (opacity < 1.0)
         {
-            _sb.Append("<g opacity=\"").Append(F(opacity)).AppendLine("\">");
+            _sb.Append("<g opacity=\"").Append(opacity.ToSvgNumber()).AppendLine("\">");
             _opacityGroupOpen = true;
         }
     }
@@ -350,20 +355,6 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.AppendLine("</g>");
     }
 
-    private void AppendFillStroke(Color? fill, Color? stroke, double strokeThickness)
-    {
-        if (fill.HasValue)
-        {
-            _sb.Append(" fill=\"").Append(fill.Value.ToHex()).Append('"');
-            if (fill.Value.A < 255)
-                _sb.Append(" fill-opacity=\"").Append(F(fill.Value.A / 255.0)).Append('"');
-        }
-        else
-            _sb.Append(" fill=\"none\"");
-
-        if (stroke.HasValue)
-            _sb.Append(" stroke=\"").Append(stroke.Value.ToHex()).Append("\" stroke-width=\"").Append(F(strokeThickness)).Append('"');
-    }
 
     // ──────────────────────────────────────────────────────────────────────────
     // Linear gradient defs — used by SankeySeriesRenderer for source→target link
@@ -371,7 +362,11 @@ public sealed class SvgRenderContext : IRenderContext
     // the Sankey renderer checks `if (Ctx is SvgRenderContext svg)` before calling these.
     // ──────────────────────────────────────────────────────────────────────────
 
-    private int _gradientId;
+    // Gradient-defs emission delegated to SvgGradientRegistry (Phase F.2.d, 2026-04-20).
+    // Composition over inheritance: the registry writes directly to _sb so output byte-
+    // order is preserved; the render context keeps only the DefineLinearGradient public
+    // surface as a thin forwarder.
+    private readonly SvgGradientRegistry _gradients;
 
     /// <summary>Emits a <c>&lt;linearGradient&gt;</c> into the SVG <c>&lt;defs&gt;</c> stream
     /// with two stops (<paramref name="from"/> at 0 %, <paramref name="to"/> at 100 %) and
@@ -382,27 +377,7 @@ public sealed class SvgRenderContext : IRenderContext
     /// the link's bounding box without the browser re-applying a percentage-based transform.</summary>
     public string DefineLinearGradient(Color from, Color to,
         double x1, double y1, double x2, double y2)
-    {
-        int id = _gradientId++;
-        string refId = $"grad-{id}";
-        _sb.Append("<defs><linearGradient id=\"").Append(refId)
-           .Append("\" gradientUnits=\"userSpaceOnUse\" x1=\"").Append(F(x1))
-           .Append("\" y1=\"").Append(F(y1)).Append("\" x2=\"").Append(F(x2))
-           .Append("\" y2=\"").Append(F(y2)).Append("\">");
-        AppendGradientStop(0, from);
-        AppendGradientStop(1, to);
-        _sb.AppendLine("</linearGradient></defs>");
-        return refId;
-    }
-
-    private void AppendGradientStop(double offset, Color color)
-    {
-        _sb.Append("<stop offset=\"").Append(F(offset))
-           .Append("\" stop-color=\"").Append(color.ToHex()).Append('"');
-        if (color.A < 255)
-            _sb.Append(" stop-opacity=\"").Append(F(color.A / 255.0)).Append('"');
-        _sb.Append(" />");
-    }
+        => _gradients.Register(from, to, x1, y1, x2, y2);
 
     /// <summary>Draws a filled path whose fill references a previously-defined gradient
     /// (see <see cref="DefineLinearGradient"/>). Used by the Sankey renderer to emit
@@ -415,7 +390,7 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.Append("\" fill=\"url(#").Append(gradientId).Append(")\"");
         if (stroke.HasValue)
             _sb.Append(" stroke=\"").Append(stroke.Value.ToHex())
-               .Append("\" stroke-width=\"").Append(F(strokeThickness)).Append('"');
+               .Append("\" stroke-width=\"").Append(strokeThickness.ToSvgNumber()).Append('"');
         // Phase G.7 of v1.7.2 follow-on plan — flush pending data (e.g. Sankey's
         // data-sankey-link-source/target) onto the gradient-filled path too.
         FlushPendingData();
@@ -439,26 +414,26 @@ public sealed class SvgRenderContext : IRenderContext
         Lighting.DirectionalLight? light = null)
     {
         _sb.Append("<g class=\"mpl-3d-scene\"")
-           .Append(" data-elevation=\"").Append(F(elevation)).Append('"')
-           .Append(" data-azimuth=\"").Append(F(azimuth)).Append('"');
+           .Append(" data-elevation=\"").Append(elevation.ToSvgNumber()).Append('"')
+           .Append(" data-azimuth=\"").Append(azimuth.ToSvgNumber()).Append('"');
         // Phase F.3 of v1.7.2 follow-on plan — always emit data-distance so JS and server
         // stay in lockstep. Projection3D always runs perspective with `dist = distance ?? 10`;
         // without the attribute JS bailed on wheel zoom whenever the caller omitted
         // `distance:` in WithCamera, producing the user-reported "zoom does not work in 3D"
         // symptom. 10 matches Projection3D.DefaultDist.
-        _sb.Append(" data-distance=\"").Append(F(distance ?? 10.0)).Append('"');
-        _sb.Append(" data-plot-x=\"").Append(F(plotBounds.X)).Append('"')
-           .Append(" data-plot-y=\"").Append(F(plotBounds.Y)).Append('"')
-           .Append(" data-plot-w=\"").Append(F(plotBounds.Width)).Append('"')
-           .Append(" data-plot-h=\"").Append(F(plotBounds.Height)).Append('"');
+        _sb.Append(" data-distance=\"").Append((distance ?? 10.0).ToSvgNumber()).Append('"');
+        _sb.Append(" data-plot-x=\"").Append(plotBounds.X.ToSvgNumber()).Append('"')
+           .Append(" data-plot-y=\"").Append(plotBounds.Y.ToSvgNumber()).Append('"')
+           .Append(" data-plot-w=\"").Append(plotBounds.Width.ToSvgNumber()).Append('"')
+           .Append(" data-plot-h=\"").Append(plotBounds.Height.ToSvgNumber()).Append('"');
         if (light is not null)
         {
             _sb.Append(" data-light-dir=\"")
-               .Append(F(light.Dx)).Append(',')
-               .Append(F(light.Dy)).Append(',')
-               .Append(F(light.Dz)).Append('"')
-               .Append(" data-light-ambient=\"").Append(F(light.Ambient)).Append('"')
-               .Append(" data-light-diffuse=\"").Append(F(light.Diffuse)).Append('"');
+               .Append(light.Dx.ToSvgNumber()).Append(',')
+               .Append(light.Dy.ToSvgNumber()).Append(',')
+               .Append(light.Dz.ToSvgNumber()).Append('"')
+               .Append(" data-light-ambient=\"").Append(light.Ambient.ToSvgNumber()).Append('"')
+               .Append(" data-light-diffuse=\"").Append(light.Diffuse.ToSvgNumber()).Append('"');
         }
         _sb.AppendLine(">");
     }
@@ -503,20 +478,6 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.AppendLine("</g>");
     }
 
-    private void AppendDashArray(LineStyle style)
-    {
-        var pattern = DashPatterns.GetPattern(style);
-        if (pattern.Length == 0) return;
-        _sb.Append(" stroke-dasharray=\"");
-        for (int i = 0; i < pattern.Length; i++)
-        {
-            if (i > 0) _sb.Append(',');
-            _sb.Append(F(pattern[i]));
-        }
-        _sb.Append('"');
-    }
-
-    private static string F(double value) => value.ToString("G", Inv);
 
     private static string EscapeXml(string text) => SvgXmlHelper.EscapeXml(text);
 }
