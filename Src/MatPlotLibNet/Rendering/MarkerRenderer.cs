@@ -11,12 +11,12 @@ namespace MatPlotLibNet.Rendering;
 /// (Phase M.2 of the v1.7.2 plan). Pre-Phase-M, line renderers drew every
 /// marker as a circle and scatter renderers honoured only Square — this
 /// helper implements all 12 non-<see cref="MarkerStyle.None"/> shapes.
-/// <para>Geometry only — no caching, no state. <paramref name="size"/> is the
+/// <para>Geometry only — no caching, no state. The <c>size</c> argument is the
 /// full bounding-box edge / diameter in pixels; the helper converts to
 /// per-shape radii internally.</para>
 /// <para><b>Cross / Plus</b> are outline-only markers (matches matplotlib's
-/// <c>markers.py</c>). They have no fill; the caller's <paramref name="fill"/>
-/// argument is used as the stroke colour and <paramref name="strokeWidth"/>
+/// <c>markers.py</c>). They have no fill; the caller's <c>fill</c>
+/// argument is used as the stroke colour and <c>strokeWidth</c>
 /// as the line thickness (falling back to <c>size / 8</c> when zero so the
 /// marker remains visible at small sizes).</para>
 /// </summary>

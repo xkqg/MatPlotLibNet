@@ -26,12 +26,13 @@ namespace MatPlotLibNet.Rendering.Svg;
 ///     events targeted at that item even if the cursor leaves the legend's bbox during the
 ///     drag.</description></item>
 /// </list>
-/// <para><b>Harness gap</b>: the test harness (<see cref="MatPlotLibNet.Tests.Rendering.Svg.Interaction.InteractionScriptHarness"/>)
-/// does not honour capture-phase ordering, so the drag-suppresses-click behaviour cannot be
-/// pinned in xUnit; that contract is verified end-to-end by the Phase S Playwright harness
-/// (<c>c:/tmp/legend_repro.py</c>). The xUnit-pinnable behaviours — translate-on-drag, threshold,
-/// hover-no-poison, accumulate-across-drops — are covered by
-/// <see cref="MatPlotLibNet.Tests.Rendering.Svg.Interaction.LegendDragTests"/>.</para>
+/// <para><b>Harness gap</b>: the test harness (<c>InteractionScriptHarness</c> in
+/// <c>MatPlotLibNet.Tests.Rendering.Svg.Interaction</c>) does not honour capture-phase
+/// ordering, so the drag-suppresses-click behaviour cannot be pinned in xUnit; that
+/// contract is verified end-to-end by the Phase S Playwright harness
+/// (<c>c:/tmp/legend_repro.py</c>). The xUnit-pinnable behaviours — translate-on-drag,
+/// threshold, hover-no-poison, accumulate-across-drops — are covered by
+/// <c>LegendDragTests</c>.</para>
 /// </remarks>
 internal static class SvgLegendDragScript
 {

@@ -187,19 +187,12 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         RenderTitle();
     }
 
-    /// <summary>
-    /// Draws light-grey fills on the three back-facing cube faces (bottom <c>z=z0</c>,
-    /// back-left <c>x=x0</c>, back-right <c>y=y1</c>) to match matplotlib's default 3-D
-    /// "shaded panes" look. Uses <c>rcParams['axes3d.xaxis.panecolor']</c> which is
-    /// <c>(0.95, 0.95, 0.95, 0.5)</c> — composites to <c>#F5F5F5</c> on a white figure.
-    /// </summary>
-    /// <remarks>
-    /// The three panes drawn are hard-coded for the default view (elev≥0,
-    /// azim ∈ [-90°, 0°]). Under interactive rotation the back-facing set changes, but
-    /// for the static default this is what matches matplotlib byte-for-byte.
-    /// </remarks>
-
     // ── Phase 3 of v1.7.2 plan — data-v3d emission helpers ────────────────────
+    // Back-facing pane fills (bottom z=z0, back-left x=x0, back-right y=y1) match
+    // matplotlib's default 3-D "shaded panes" look using rcParams['axes3d.xaxis.panecolor']
+    // = (0.95, 0.95, 0.95, 0.5) compositing to #F5F5F5 on a white figure. The pane set
+    // is hard-coded for the default view (elev≥0, azim ∈ [-90°, 0°]); under interactive
+    // rotation the back-facing set changes but the static default matches byte-for-byte.
     // Each axis-infrastructure draw call (cube edges, grid lines, tick marks, text)
     // is preceded by a call to SetNextElementData("v3d", "...") so the JS reproject
     // can move the element under interactive rotation. The helpers below bundle the
