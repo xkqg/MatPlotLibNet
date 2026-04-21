@@ -10,12 +10,14 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 Stabilisation phase
 
-After eleven feature releases (v1.0 → v1.7.2) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators, native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
+After twelve feature releases (v1.0 → v1.7.3) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators, native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
 
-**v1.7.1 started the stabilisation period; v1.7.2 continues it.** The focus shifts from "ship more features" to:
+**v1.7.1 started the stabilisation period; v1.7.3 continues it.** The focus shifts from "ship more features" to:
 
 - 🐛 **Bug fixes only** (no new public API), driven by community use and the `≥90/90` coverage gate
-- 🧪 **Test coverage uplift** (see [`docs/COVERAGE.md`](docs/COVERAGE.md)) — **554 classes, all ≥90/90. CI strict gate active.** Coverage: **98.49% line / 95.19% branch** (was 97.26/90.50 pre-Phase-K, 94.94/85.30 pre-refactor). Three god-classes decomposed into 32 extracted SOLID subclasses (each 100L/100B); `PlaygroundController` extracted from Blazor @code (SRP fix, 12 new tests); two IEEE-754 branch edge cases closed. Byte-level SVG output unchanged vs shipped v1.7.2 (verified by 10 033-case equivalence fuzz)
+- 🧪 **Test coverage uplift** (see [`docs/COVERAGE.md`](docs/COVERAGE.md)) — **554 classes, all ≥90/90. CI strict gate active.** Coverage: **98.49% line / 95.19% branch** (was 97.26/90.50 pre-Phase-K, 94.94/85.30 pre-refactor). Three god-classes decomposed into 32 extracted SOLID subclasses (each 100L/100B); `PlaygroundController` extracted from Blazor @code (SRP fix, 12 new tests); two IEEE-754 branch edge cases closed. Byte-level SVG output unchanged vs shipped v1.7.3 (verified by 10 033-case equivalence fuzz)
+
+> **Why v1.7.3 is a new NuGet release, not just a tag.** The strict 90/90-per-class coverage gate introduced in v1.7.2 turned out to require structural production-code changes in the large renderer classes — methods were too coarse-grained for any single test to cover a coherent branch family. Phase L extracted focused `internal` helpers (`RenderGridLines`, `RenderAxisTicks`, `DrawBreakSegments`, `BuildWedgePath`, `PrepareTransform`, `ComputeNodeLabelAnchor`), introduced generic base classes (`CircularRenderer<T>`, `PolarTransformRenderer<T>`, `OhlcStreamingIndicatorTests<T>`), and eliminated hundreds of lines of parallel duplication. No public API surface changed and SVG output is byte-identical, but the scope of internal restructuring crossed the version-bump bar.
 - 📚 **Documentation polish** — cookbook examples, API XML doc completeness
 - 🌱 **Listening** — what should v2 be? Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next major direction will be guided by what real users need, not by a feature checklist.
 
@@ -28,19 +30,7 @@ No timeline for v1.8.0 yet — when it ships, it will be community-driven.
 > when the chart has no treemap nodes), so there's no per-feature toggle for the user
 > to manage.
 
----
-
-## 🩹 Bug fixes since last NuGet release
-
-Bugs found and fixed on `main` after the v1.7.2 NuGet packages were published. Pull `main` (or wait for the next NuGet rev) to pick these up.
-
-| Reported | Bug (why + where) | Fix (how) |
-|---|---|---|
-| 2026-04-19 | **Plot disappeared on legend press.** `SvgLegendToggleScript` fired the series-toggle on `pointerdown` instead of `click`, so the series hid the moment the user pressed — single/two-series charts looked empty, and grabbing a legend to drag was impossible. | Move toggle to `click` only (keep `Enter`/`Space` for keyboard). +1 regression test. |
-| 2026-04-19 | **Legend was fixed in place** — no way to reposition without rebuilding server-side. | New `SvgLegendDragScript`: press-and-hold any legend item, drag the `<g class="legend">` group, release to drop. Coexists with pan/zoom and toggle via capture-phase `stopPropagation`. Translation is client-only (lost on full re-render). +4 behavioural tests. |
-| 2026-04-19 | **Treemap parent tile click didn't expand children** — two compounding causes in `SvgTreemapDrilldownScript`: (a) `pointermove` latched the drag-suppression flag on plain hover, killing the next click; (b) pan/zoom's `setPointerCapture` redirected the synthetic click target to the SVG root, so the script's walk-up from `e.target` found nothing. | (a) Gate the move-threshold on an `isPointerDown` flag (false during hover). (b) Fall back to `document.elementFromPoint(x, y)` when walk-up fails. +2 regression tests + Jint harness uplift (`StubElementFromPoint`, `<remarks>` listing what the harness can't simulate). |
-
-For the full v1.7.2 release notes (Phases L–K, matplotlib-parity follow-on, coverage uplift, depth-3 treemap, Phase X+Y+Z+Ω+K test-only sub-90/90 graduation waves and CI strict flip), see the [CHANGELOG](CHANGELOG.md).
+For the full v1.7.3 release notes (Phase L SOLID/DRY refactor, NuGet CI publish, Playground AxisBreaks + MinorGrid examples) and all prior history, see the [CHANGELOG](CHANGELOG.md).
 
 ---
 

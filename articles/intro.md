@@ -2,7 +2,7 @@
 
 **matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 74 series types, 104 colormaps, 26 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 13 NuGet packages + 3 npm bindings.
 
-v1.7.2 adds the Phase P polish pass: nested hierarchical treemap with click-to-expand/collapse, six community themes made visually distinct (palette / font / grid per theme), playground UX overhaul, and matplotlib-parity 3D defaults (`elev=20`, `azim=-60`, multiplicative wheel-zoom).
+v1.7.3 is a structural quality release: god-class renderers decomposed into focused, directly-testable helpers (Phase L), test duplication eliminated via stacked-OO base classes, and CI extended with automatic NuGet publish on every green main merge. All 554 classes remain at ≥90/90 line/branch coverage under the strict gate introduced in v1.7.2.
 
 ## Documentation
 
