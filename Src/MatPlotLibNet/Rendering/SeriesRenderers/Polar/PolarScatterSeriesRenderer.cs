@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders a <see cref="PolarScatterSeries"/> as markers in polar coordinates.</summary>
-internal sealed class PolarScatterSeriesRenderer : SeriesRenderer<PolarScatterSeries>
+internal sealed class PolarScatterSeriesRenderer : PolarTransformRenderer<PolarScatterSeries>
 {
     /// <inheritdoc />
     public PolarScatterSeriesRenderer(SeriesRenderContext context) : base(context) { }
@@ -17,8 +17,7 @@ internal sealed class PolarScatterSeriesRenderer : SeriesRenderer<PolarScatterSe
     {
         var color = ResolveColor(series.Color);
         var bounds = Area.PlotBounds;
-        double rMax = series.R.Length > 0 ? series.R.Max() : 1;
-        var transform = new PolarTransform(bounds, rMax);
+        var transform = PrepareTransform(series.R, bounds);
 
         for (int i = 0; i < series.R.Length; i++)
         {

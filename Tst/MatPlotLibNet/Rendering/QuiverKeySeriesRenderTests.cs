@@ -35,4 +35,5 @@ public class QuiverKeySeriesRenderTests
             .ToSvg();
         Assert.Contains("<svg", svg);
     }
+
 }

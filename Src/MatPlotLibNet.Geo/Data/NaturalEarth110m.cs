@@ -25,11 +25,7 @@ public static class NaturalEarth110m
     {
         var assembly = Assembly.GetExecutingAssembly();
         var resourceName = assembly.GetManifestResourceNames()
-            .FirstOrDefault(n => n.EndsWith(name, StringComparison.OrdinalIgnoreCase));
-
-        if (resourceName is null)
-            return []; // no embedded data yet — placeholder for real Natural Earth data
-
+            .FirstOrDefault(n => n.EndsWith(name, StringComparison.OrdinalIgnoreCase))!;
         using var stream = assembly.GetManifestResourceStream(resourceName)!;
         using var reader = new StreamReader(stream);
         return GeoJsonReader.Parse(reader.ReadToEnd());

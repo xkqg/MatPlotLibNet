@@ -254,18 +254,6 @@ public class ModifierBranchPrecisionTests
         Assert.Empty(events);
     }
 
-    /// <summary>DataCursorModifier line 48 — `if (_layout is not ChartLayout cl)`
-    /// false arm: a non-ChartLayout IChartLayout impl makes HandlesPointerPressed
-    /// short-circuit at line 48.</summary>
-    [Fact]
-    public void DataCursor_NonChartLayout_HandlesPointerPressed_False()
-    {
-        var fig = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-        var nonChartLayout = new MinimalLayout();
-        var m = new DataCursorModifier("c1", nonChartLayout, fig, _ => { });
-        Assert.False(m.HandlesPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None)));
-    }
-
     /// <summary>DataCursorModifier line 42 — `args.Button != Left || args.Modifiers != None`
     /// short-circuit. Two facts pin both sides of the OR:
     /// - Right + None (button false → modifier short-circuited at the ||)

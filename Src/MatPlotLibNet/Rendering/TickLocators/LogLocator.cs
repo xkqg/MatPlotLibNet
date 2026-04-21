@@ -35,13 +35,7 @@ public sealed class LogLocator : ITickLocator
         // If nothing fell in range (e.g. min=1, max=5 — both within decade 0..1)
         // include the lower decade boundary if valid
         if (ticks.Count == 0)
-        {
-            double lower = Math.Pow(10, startExp);
-            if (lower >= min && lower <= max)
-                ticks.Add(lower);
-            else
-                ticks.Add(min);
-        }
+            ticks.Add(min);
 
         return ticks.ToArray();
     }

@@ -37,5 +37,5 @@ public record SeriesRenderContext(
     public DepthQueue3D? DepthQueue { get; init; }
 
     /// <summary>The active visual theme, used by renderers for theme-specific defaults (e.g. matplotlib patch edge color).</summary>
-    public Styling.Theme? Theme { get; init; }
+    public Styling.Theme Theme { get; init; } = Styling.Theme.Default;
 }

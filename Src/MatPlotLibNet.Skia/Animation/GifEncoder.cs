@@ -180,7 +180,7 @@ internal static class GifEncoder
 
     // --- Bit packer (LSB-first within each byte, as required by GIF LZW) ---
 
-    private sealed class BitPacker
+    internal sealed class BitPacker
     {
         private readonly List<byte> _bytes = [];
         private int _pending;

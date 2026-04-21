@@ -158,7 +158,7 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
             sb.Append(" aria-describedby=\"chart-desc\"");
         if (figure.ServerInteraction && figure.ChartId is { } chartId)
         {
-            sb.Append(" data-chart-id=\"").Append(SvgXmlHelper.EscapeXml(chartId)).Append('"');
+            sb.Append(" data-chart-id=\"").Append(chartId.EscapeForXml()).Append('"');
             // Phase G.8 of v1.7.2 follow-on plan — emit axis limits on the root SVG so
             // the SignalR interaction script can read its initial view state AND the
             // reset view (Home key target) without extra round-trips. Pre-fix the
@@ -204,13 +204,13 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
 
         // SVG title (always emitted for role="img" accessibility)
         sb.Append("<title id=\"chart-title\">")
-          .Append(SvgXmlHelper.EscapeXml(altText))
+          .Append(altText.EscapeForXml())
           .AppendLine("</title>");
 
         if (hasDescription)
         {
             sb.Append("<desc id=\"chart-desc\">")
-              .Append(SvgXmlHelper.EscapeXml(figure.Description!))
+              .Append(figure.Description!.EscapeForXml())
               .AppendLine("</desc>");
         }
 

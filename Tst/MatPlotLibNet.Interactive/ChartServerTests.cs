@@ -213,3 +213,149 @@ public class ChartServerTests : IAsyncDisposable
         _host.Dispose();
     }
 }
+
+/// <summary>Covers the L115 TRUE arm of ConfigureRoutes: when the injected signalR loader
+/// returns null, the endpoint responds 404 (not a NullReferenceException).</summary>
+public class ChartServerNullLoaderTests : IAsyncDisposable
+{
+    private readonly IHost _host;
+    private readonly HttpClient _httpClient;
+
+    public ChartServerNullLoaderTests()
+    {
+        _host = new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                webBuilder.UseTestServer();
+                webBuilder.ConfigureServices(services =>
+                {
+                    services.AddMatPlotLibNetSignalR();
+                    services.AddRouting();
+                });
+                webBuilder.Configure(app =>
+                {
+                    app.UseRouting();
+                    app.UseEndpoints(endpoints =>
+                    {
+                        ChartServer.ConfigureRoutes(endpoints, new(), () => 0,
+                            signalRLoader: () => null);   // L115 TRUE arm
+                    });
+                });
+            })
+            .Start();
+
+        _httpClient = _host.GetTestClient();
+    }
+
+    [Fact]
+    public async Task SignalRJs_NullLoader_Returns404()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _httpClient.GetAsync("/js/signalr.min.js", ct);
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _httpClient.Dispose();
+        await _host.StopAsync();
+        _host.Dispose();
+    }
+}
+
+// ─── ChartServerCoverageTests.cs ─────────────────────────────────────────────
+
+/// <summary>Phase Y.7 (v1.7.2, 2026-04-19) — branch coverage for the
+/// <see cref="ChartServer"/> lifecycle methods that the existing
+/// <see cref="ChartServerTests"/> harness left at 0% (DisposeAsync, IsRunning
+/// when not started, EnsureStartedAsync idempotence). Pre-Y.7: 83.6%L / 50%B.
+/// Each fact constructs a FRESH non-singleton ChartServer via the internal
+/// constructor (IVT is set in MatPlotLibNet.Interactive.csproj) so the global
+/// singleton is never touched.</summary>
+public class ChartServerCoverageTests
+{
+    /// <summary>IsRunning returns false on a fresh, never-started ChartServer
+    /// (line 37 — `_app is not null` false arm).</summary>
+    [Fact]
+    public async Task IsRunning_OnFreshServer_False()
+    {
+        await using var server = new ChartServer();
+        Assert.False(server.IsRunning);
+        Assert.Equal(0, server.Port);
+    }
+
+    /// <summary>Standard dispose-pattern contract: DisposeAsync is idempotent.
+    /// Second call hits `if (_disposed) return` and must NOT throw or re-execute cleanup.</summary>
+    [Fact]
+    public async Task DisposeAsync_SecondCall_IsNoOp()
+    {
+        var server = new ChartServer();
+        await server.DisposeAsync();
+        await server.DisposeAsync();
+    }
+
+    /// <summary>DisposeAsync on a never-started ChartServer — DisposeAsyncCore
+    /// skips app teardown when _app is null (no Kestrel was started).</summary>
+    [Fact]
+    public async Task DisposeAsync_NeverStartedServer_NoOp()
+    {
+        await using var server = new ChartServer();
+        Assert.False(server.IsRunning);
+    }
+
+    /// <summary>DisposeAsync on a STARTED ChartServer (line 129 true arm).
+    /// Verifies the full teardown of the embedded Kestrel host.</summary>
+    [Fact]
+    public async Task DisposeAsync_StartedServer_StopsKestrel()
+    {
+        var server = new ChartServer();
+        await server.EnsureStartedAsync();
+        Assert.True(server.IsRunning);
+        Assert.True(server.Port > 0);
+
+        await server.DisposeAsync();
+        await server.DisposeAsync();
+    }
+
+    /// <summary>EnsureStartedAsync called twice on the same instance — the second
+    /// call must hit the early-return at line 44 (`_app is not null` true arm).</summary>
+    [Fact]
+    public async Task EnsureStartedAsync_CalledTwice_SecondCallShortCircuits()
+    {
+        var server = new ChartServer();
+        await server.EnsureStartedAsync();
+        var firstPort = server.Port;
+        await server.EnsureStartedAsync();
+        Assert.Equal(firstPort, server.Port);
+        await server.DisposeAsync();
+    }
+
+    /// <summary>EnsureStarted (synchronous wrapper, line 76) — verify it blocks
+    /// until startup completes.</summary>
+    [Fact]
+    public async Task EnsureStarted_Synchronous_StartsServer()
+    {
+        var server = new ChartServer();
+        server.EnsureStarted();
+        Assert.True(server.IsRunning);
+        await server.DisposeAsync();
+    }
+
+    /// <summary>UpdateFigureAsync L90 TRUE arm — when server is started, _publisher is
+    /// non-null and PublishSvgAsync is called. Asserts the figure dict is also updated.</summary>
+    [Fact]
+    public async Task UpdateFigureAsync_AfterStart_PublishesAndUpdatesFigureDict()
+    {
+        var server = new ChartServer();
+        await server.EnsureStartedAsync();
+        var fig = Plt.Create().Plot([1.0], [2.0]).Build();
+        var id = server.RegisterFigure(fig);
+
+        var updatedFig = Plt.Create().Plot([3.0], [4.0]).Build();
+        await server.UpdateFigureAsync(id, updatedFig);
+
+        var url = server.GetFigureUrl(id);
+        Assert.Contains(id, url);
+        await server.DisposeAsync();
+    }
+}

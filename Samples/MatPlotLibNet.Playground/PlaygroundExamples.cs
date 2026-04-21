@@ -39,13 +39,15 @@ public static class PlaygroundExamples
     /// controls have a visible effect. Scatter plots are excluded because they don't draw
     /// a line (Phase L.6 of the v1.7.2 plan).</summary>
     public static bool SupportsLineControls(PlaygroundExample example) =>
-        example is PlaygroundExample.LineChart or PlaygroundExample.MultiSeries;
+        example is PlaygroundExample.LineChart or PlaygroundExample.MultiSeries
+            or PlaygroundExample.AxisBreaks or PlaygroundExample.MinorGrid;
 
     /// <summary>True if the example's primary series exposes a <c>MarkerStyle</c> /
     /// <c>MarkerSize</c> — i.e. the playground's Marker / Marker-size controls should be
     /// shown. Scatter (always-on markers) + Line families (optional per-point markers).</summary>
     public static bool SupportsMarkerControls(PlaygroundExample example) =>
-        example is PlaygroundExample.LineChart or PlaygroundExample.ScatterPlot or PlaygroundExample.MultiSeries;
+        example is PlaygroundExample.LineChart or PlaygroundExample.ScatterPlot or PlaygroundExample.MultiSeries
+            or PlaygroundExample.AxisBreaks or PlaygroundExample.MinorGrid;
 
     /// <summary>True if the example exposes colormap / colorbar controls in the UI.</summary>
     public static bool SupportsColormap(PlaygroundExample example) =>
@@ -83,6 +85,8 @@ public static class PlaygroundExamples
             [PlaygroundExample.SankeyFlow]   = BuildSankey,
             [PlaygroundExample.PolarLine]    = BuildPolar,
             [PlaygroundExample.MultiSubplot] = BuildMulti,
+            [PlaygroundExample.AxisBreaks]   = BuildAxisBreaks,
+            [PlaygroundExample.MinorGrid]    = BuildMinorGrid,
         };
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -494,6 +498,58 @@ public static class PlaygroundExamples
         return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MultiSubplot, opts));
     }
 
+    private static (Figure, string) BuildAxisBreaks(PlaygroundOptions opts)
+    {
+        // Two data clusters separated by a large gap — break hides the empty [20, 80] region.
+        double[] x = Enumerable.Range(0, 16).Select(i => (double)i).ToArray();
+        double[] y =
+        [
+             1,  3,  5,  4,  2,  6,  4,  7,   // low cluster  (y ≈ 1–7)
+            91, 93, 95, 94, 92, 96, 94, 97,    // high cluster (y ≈ 91–97)
+        ];
+
+        var fb = opts.ApplyToFigure(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot(x, y, s =>
+                {
+                    s.Label = "Sensor";
+                    s.LineStyle = opts.LineStyle;
+                    s.LineWidth = opts.LineWidth;
+                    if (opts.Marker != MarkerStyle.None) { s.Marker = opts.Marker; s.MarkerSize = opts.MarkerSize; }
+                });
+                ax.WithYBreak(20, 80);
+                ax.WithTitle("Broken Y-Axis");
+                opts.ApplyToAxes(ax);
+            });
+
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.AxisBreaks, opts));
+    }
+
+    private static (Figure, string) BuildMinorGrid(PlaygroundOptions opts)
+    {
+        double[] x = Enumerable.Range(0, 50).Select(i => i * 0.2).ToArray();
+        double[] y = x.Select(v => Math.Sin(v) + 0.3 * Math.Sin(3 * v)).ToArray();
+
+        var fb = opts.ApplyToFigure(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot(x, y, s =>
+                {
+                    s.Label = "f(x)";
+                    s.LineStyle = opts.LineStyle;
+                    s.LineWidth = opts.LineWidth;
+                    if (opts.Marker != MarkerStyle.None) { s.Marker = opts.Marker; s.MarkerSize = opts.MarkerSize; s.MarkEvery = 5; }
+                });
+                ax.WithMinorTicks();
+                ax.WithGrid(g => g with { Which = GridWhich.Both });
+                ax.WithTitle("Major + Minor Grid");
+                opts.ApplyToAxes(ax);
+            });
+
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MinorGrid, opts));
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Code snippets — kept inline so users see the EXACT call chain to copy
     // ──────────────────────────────────────────────────────────────────────────
@@ -538,6 +594,8 @@ public static class PlaygroundExamples
             PlaygroundExample.SankeyFlow   => "    .AddSubPlot(1, 1, 1, ax => ax.Sankey(nodes, links).HideAllAxes())",
             PlaygroundExample.PolarLine    => "    .AddSubPlot(1, 1, 1, ax => ax.PolarPlot(r, theta, s => s.LineWidth = 2))",
             PlaygroundExample.MultiSubplot => "    .AddSubPlot(1, 2, 1, ax => ax.Plot(x, y).WithTitle(\"Line\"))\n    .AddSubPlot(1, 2, 2, ax => ax.Bar(cats, vals).WithTitle(\"Bar\"))",
+            PlaygroundExample.AxisBreaks   => "    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, s => s.Label = \"Sensor\").WithYBreak(20, 80))",
+            PlaygroundExample.MinorGrid    => "    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y).WithMinorTicks().WithGrid(g => g with { Which = GridWhich.Both }))",
             _                              => throw new ArgumentOutOfRangeException(nameof(example), example,
                                                   $"CodeFor: no snippet registered for new enum value {example}; update the switch."),
         };

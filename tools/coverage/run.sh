@@ -20,6 +20,7 @@ set -euo pipefail
 REPORT=0
 CHECK=0
 BASELINE=0
+STRICT=0
 CFG="Release"
 
 for arg in "$@"; do
@@ -27,6 +28,7 @@ for arg in "$@"; do
         --report)   REPORT=1 ;;
         --check)    CHECK=1 ;;
         --baseline) BASELINE=1 ;;
+        --strict)   STRICT=1 ;;
         --debug)    CFG="Debug" ;;
     esac
 done
@@ -98,7 +100,9 @@ if [ "$REPORT" -eq 1 ]; then
 fi
 
 if [ "$CHECK" -eq 1 ]; then
-    pwsh "$REPO_ROOT/tools/coverage/check-thresholds.ps1" -Cobertura "$COBERTURA"
+    STRICT_FLAG=""
+    [ "$STRICT" -eq 1 ] && STRICT_FLAG="-Strict"
+    pwsh "$REPO_ROOT/tools/coverage/check-thresholds.ps1" -Cobertura "$COBERTURA" $STRICT_FLAG
 fi
 
 echo "==> Done. Cobertura at: $COBERTURA"

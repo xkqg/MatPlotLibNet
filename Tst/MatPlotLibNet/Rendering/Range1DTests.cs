@@ -221,4 +221,52 @@ public class Range1DTests
         Assert.Equal(-5, range.Lo);
         Assert.Equal(15, range.Hi);
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Two-stage Padded — 3D axes renderer uses Padded × 2 (stage-1 margin then
+    // view-margin 1/48). These tests document that composition before it is used
+    // in ThreeDAxesRenderer.Compute3DDataRanges.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void TwoStagePadded_CumulativeExpansion_BothStagesApply()
+    {
+        // Verified against matplotlib bar3d xlim comment:
+        // data (0,2), margin=0.05 → stage1 (-0.1, 2.1); viewMargin=1/48 → stage2 ≈ (-0.1458, 2.1458).
+        var stage1 = new Range1D(0, 2).Padded(0.05, new Axis());
+        Assert.Equal(-0.1, stage1.Lo, precision: 10);
+        Assert.Equal(2.1, stage1.Hi, precision: 10);
+
+        var stage2 = stage1.Padded(1.0 / 48, new Axis());
+        Assert.True(stage2.Lo < stage1.Lo, "stage2 Lo must be further left than stage1 Lo");
+        Assert.True(stage2.Hi > stage1.Hi, "stage2 Hi must be further right than stage1 Hi");
+        Assert.Equal(-0.1 - 2.2 / 48, stage2.Lo, precision: 10);
+        Assert.Equal(2.1 + 2.2 / 48, stage2.Hi, precision: 10);
+    }
+
+    [Fact]
+    public void TwoStagePadded_UserSetLimits_SkipsBothStages()
+    {
+        // When the user pins both axis limits the two padding stages must both be no-ops.
+        var axis = new Axis { Min = 0.0, Max = 2.0 };
+        var result = new Range1D(0, 2).Padded(0.05, axis).Padded(1.0 / 48, axis);
+        Assert.Equal(0, result.Lo);
+        Assert.Equal(2, result.Hi);
+    }
+
+    [Fact]
+    public void TwoStagePadded_ClampStickyAfterBothPasses_ZFloor()
+    {
+        // Mirrors the Bar3D Z-axis pipeline: zMargin=0 (ortho), viewMargin=1/48.
+        // zlim comment in ThreeDAxesRenderer: (-0.125, 6.125) before clamp → snaps to (0, 6.125).
+        var stage1 = new Range1D(0, 6).Padded(0.0, new Axis());     // no margin → (0, 6)
+        var stage2 = stage1.Padded(1.0 / 48, new Axis());           // → (-0.125, 6.125)
+        Assert.Equal(-6.0 / 48, stage2.Lo, precision: 10);
+        Assert.Equal(6 + 6.0 / 48, stage2.Hi, precision: 10);
+
+        var clamped = stage2.ClampSticky(stickyMin: 0, stickyMax: null,
+            unpadded: new Range1D(0, 6), new Axis());
+        Assert.Equal(0, clamped.Lo);
+        Assert.Equal(6 + 6.0 / 48, clamped.Hi, precision: 10);
+    }
 }

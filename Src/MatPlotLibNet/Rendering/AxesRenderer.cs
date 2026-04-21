@@ -347,23 +347,6 @@ public abstract class AxesRenderer
         }
     }
 
-    /// <summary>Line-type series get a wider swatch (horizontal segment) in the legend; patch-type
-    /// series (bar/hist/area/violin/pie) get a square filled rectangle. Mirrors matplotlib's
-    /// default `HandlerLine2D` / `HandlerPatch` dispatch.</summary>
-    private static bool IsLineTypeSeries(Models.Series.ISeries series) => series switch
-    {
-        Models.Series.LineSeries           => true,
-        Models.Series.SignalSeries         => true,
-        Models.Series.SignalXYSeries       => true,
-        Models.Series.SparklineSeries      => true,
-        Models.Series.EcdfSeries           => true,
-        Models.Series.RegressionSeries     => true,
-        Models.Series.StepSeries           => true,
-        Models.Series.ScatterSeries        => false,  // marker, not line
-        Models.Series.ErrorBarSeries       => true,   // drawn as line + caps
-        _                                  => false,
-    };
-
     /// <summary>Draws a type-appropriate legend handle at (x, y): line segment for line series,
     /// single centred marker for scatter, line+caps for error bar, filled rectangle for patches.</summary>
     private void DrawLegendSwatch(Models.Series.ISeries series, double x, double y, double wMax, double h, Color color)
@@ -639,45 +622,14 @@ public abstract class AxesRenderer
     internal static double[] ComputeTickValuesInternal(double min, double max, int targetCount = 8)
         => ComputeTickValues(min, max, targetCount);
 
-    /// <summary>
-    /// Computes tick values respecting any <see cref="Axis.TickLocator"/> or <see cref="TickConfig.Spacing"/>
-    /// configured on the axis, falling back to the default nice-number algorithm.
-    /// </summary>
-    /// <param name="min">The minimum value of the visible data range.</param>
-    /// <param name="max">The maximum value of the visible data range.</param>
-    /// <param name="axis">The axis whose locator, spacing, and formatter configuration to honour.</param>
-    /// <remarks>
-    /// Priority order: (1) <see cref="Axis.TickLocator"/> takes highest precedence;
-    /// (2) <see cref="TickConfig.Spacing"/> auto-constructs a <c>MultipleLocator</c>;
-    /// (3) the default nice-number algorithm is used as fallback.
-    /// Tick formatting via <see cref="Axis.TickFormatter"/> is applied separately during rendering,
-    /// not in this method.
-    /// </remarks>
-    protected static double[] ComputeTickValues(double min, double max, Axis axis)
-    {
-        // Explicit locator takes highest priority
-        if (axis.TickLocator is not null)
-            return axis.TickLocator.Locate(min, max);
-
-        // TickConfig.Spacing auto-creates a MultipleLocator
-        if (axis.MajorTicks.Spacing.HasValue)
-            return new TickLocators.MultipleLocator(axis.MajorTicks.Spacing.Value).Locate(min, max);
-
-        return ComputeTickValues(min, max);
-    }
-
-    /// <summary>
-    /// Like <see cref="ComputeTickValues(double, double, Axis)"/> but scales the target tick
-    /// count to the available pixel dimension so short plot areas (sparklines, multi-panel
-    /// dashboards) don't cram eight labels into 80 pixels.
-    /// </summary>
+    /// <summary>Computes tick values respecting any <see cref="Axis.TickLocator"/> or
+    /// <see cref="TickConfig.Spacing"/>, falling back to the default nice-number algorithm.
+    /// Scales the target tick count to <paramref name="plotPixels"/> so short plot areas
+    /// (sparklines, multi-panel dashboards) don't cram labels.</summary>
     /// <param name="min">Visible range min.</param>
     /// <param name="max">Visible range max.</param>
     /// <param name="axis">Axis config (locator / spacing / formatter).</param>
-    /// <param name="plotPixels">Length of the plot area along the tick direction, in pixels.
-    /// Plots with at least 240 px get the matplotlib-default 8 ticks; smaller plots
-    /// (sparklines, multi-panel dashboards) downscale to 1 tick per ≈ 30 px so labels
-    /// don't stack vertically.</param>
+    /// <param name="plotPixels">Plot area length in pixels along the tick direction.</param>
     protected static double[] ComputeTickValues(double min, double max, Axis axis, double plotPixels)
     {
         if (axis.TickLocator is not null) return axis.TickLocator.Locate(min, max);

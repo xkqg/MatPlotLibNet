@@ -102,4 +102,21 @@ public class StackedAreaSeriesTests
         Assert.Equal(1.0, range.XMin);
         Assert.Equal(2.0, range.XMax);
     }
+
+    // ── Wave J.1 — branch close-out ──────────────────────────────────────
+    /// <summary>Jagged YSets: layer 0 has fewer points than X — exercises the
+    /// <c>i &lt; YSets[layer].Length ? YSets[layer][i] : 0.0</c> false arm.
+    /// BaselineHelper pads baselines to max(ySets[l].Length) so the loop runs
+    /// safely to X.Length; the missing index falls back to 0.0.</summary>
+    [Fact]
+    public void ComputeDataRange_JaggedYSets_PadsShortLayerWithZero()
+    {
+        double[] x = [1.0, 2.0, 3.0];
+        double[][] ySets = [[5.0, 3.0]]; // layer 0: 2 values; X: 3 → index 2 pads 0.0
+        var series = new StackedAreaSeries(x, ySets);
+        var range = series.ComputeDataRange(null!);
+        // yMax = max(5, 3, 0+0) = 5; yMin = 0 (Zero baseline, all non-negative)
+        Assert.Equal(5.0, range.YMax);
+        Assert.Equal(0.0, range.YMin);
+    }
 }

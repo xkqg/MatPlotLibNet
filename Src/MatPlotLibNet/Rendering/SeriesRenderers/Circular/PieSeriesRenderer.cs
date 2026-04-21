@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders <see cref="PieSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
-internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
+internal sealed class PieSeriesRenderer : CircularRenderer<PieSeries>
 {
     // Number of line segments used to approximate each arc. 120 gives smooth circles at typical sizes.
     private const int ArcSteps = 120;
@@ -35,9 +35,8 @@ internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
         // Collect outer-label candidates during the slice pass so LabelLayoutEngine can
         // resolve collisions in one batch at the end. Small wedges would otherwise draw
         // their labels on top of each other — matplotlib pies have the same issue.
-        var labelFont = Context?.Theme?.DefaultFont is { } f
-            ? new Font { Family = f.Family, Size = f.Size, Color = f.Color }
-            : new Font { Size = 12 };
+        var df = Context.Theme.DefaultFont;
+        var labelFont = new Font { Family = df.Family, Size = df.Size, Color = df.Color };
         var outerCandidates = new List<LabelCandidate>();
         var outerAnchors = new List<Point>();
         var outerAlignments = new List<TextAlignment>();
@@ -98,22 +97,8 @@ internal sealed class PieSeriesRenderer : SeriesRenderer<PieSeries>
             startAngle = endAngle;
         }
 
-        // Resolve outer-label collisions in one batch, then draw.
         if (outerCandidates.Count > 0)
-        {
-            var placements = LabelLayoutEngine.Place(
-                outerCandidates,
-                Area.PlotBounds,
-                ChartServices.FontMetrics);
-            for (int i = 0; i < placements.Count; i++)
-            {
-                var p = placements[i];
-                if (p.LeaderLineStart is { } anchor)
-                    CalloutBoxRenderer.DrawLeaderLine(Ctx, anchor, p.FinalPoint,
-                        Context?.Theme?.ForegroundText ?? Colors.Black);
-                Ctx.DrawText(p.Text, p.FinalPoint, p.Font, p.Alignment);
-            }
-        }
+            PlaceOuterLabels(outerCandidates, Area.PlotBounds);
     }
 
     /// <summary>Builds a pie-slice path using line-segment polygon approximation so it works correctly

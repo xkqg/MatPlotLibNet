@@ -66,4 +66,48 @@ public class HexbinSeriesRenderTests
         var series = restored.SubPlots[0].Series.OfType<HexbinSeries>().FirstOrDefault();
         Assert.NotNull(series);
     }
+
+    // ── Wave J.1 — branch close-out ──────────────────────────────────────
+
+/// <summary>MinCount set higher than any single-bin count — all bins are filtered
+    /// at the count &lt; minCount check, but the <c>normMin &gt;= normMax</c> guard fires
+    /// first to clamp the normalisation range. No polygons should be drawn.</summary>
+    [Fact]
+    public void Hexbin_HighMinCount_NormalisationClampFires_NoPolygonsDrawn()
+    {
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(
+                [0.0, 1.0, 2.0, 3.0, 4.0],
+                [0.0, 1.0, 2.0, 3.0, 4.0],
+                s => s.MinCount = 100))
+            .ToSvg();
+        Assert.DoesNotContain("<polygon", svg);
+    }
+
+    // ── J.1 — L35/L36 non-null arms: explicit ColorMap and Normalizer ─────────
+
+    /// <summary>L35 non-null arm: ColorMap explicitly set — uses the provided colormap
+    /// instead of falling back to Viridis. SVG must still contain polygons.</summary>
+    [Fact]
+    public void Hexbin_ExplicitColorMap_RendersPolygons()
+    {
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(X, Y,
+                s => s.ColorMap = MatPlotLibNet.Styling.ColorMaps.ColorMaps.Plasma))
+            .ToSvg();
+        Assert.Contains("<polygon", svg);
+    }
+
+    /// <summary>L36 non-null arm: Normalizer explicitly set — uses the provided normalizer
+    /// instead of LinearNormalizer. SVG must still contain polygons.</summary>
+    [Fact]
+    public void Hexbin_ExplicitNormalizer_RendersPolygons()
+    {
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Hexbin(X, Y,
+                s => s.Normalizer = MatPlotLibNet.Styling.ColorMaps.LinearNormalizer.Instance))
+            .ToSvg();
+        Assert.Contains("<polygon", svg);
+    }
+
 }

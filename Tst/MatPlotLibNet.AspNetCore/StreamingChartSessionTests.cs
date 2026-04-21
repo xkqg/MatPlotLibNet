@@ -5,6 +5,7 @@ using NSubstitute;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Streaming;
 using MatPlotLibNet.Models.Series.Streaming;
+using MatPlotLibNet.AspNetCore;
 
 namespace MatPlotLibNet.AspNetCore.Tests;
 
@@ -117,6 +118,23 @@ public class StreamingChartSessionTests
         await Task.Yield();
 
         await publisher.Received(3).PublishSvgAsync("c1", sf.Figure, Arg.Any<CancellationToken>());
+    }
+
+    // ── Phase J coverage additions ────────────────────────────────────────────
+
+    /// <summary>DisposeAsync FALSE arm (L36 `if (!_disposed)` FALSE) — calling DisposeAsync
+    /// twice on the same session is idempotent; the second call is a no-op.</summary>
+    [Fact]
+    public async Task DisposeAsync_CalledTwice_IsIdempotent()
+    {
+        var (sf, _, publisher) = BuildHarness();
+        var session = new StreamingChartSession("c1", sf, publisher);
+        await session.DisposeAsync();
+        await session.DisposeAsync(); // second call covers the FALSE arm of if (!_disposed)
+        // After double-dispose, render should NOT trigger a publish.
+        sf.RequestRender();
+        await Task.Yield();
+        await publisher.DidNotReceive().PublishSvgAsync(Arg.Any<string>(), Arg.Any<Figure>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>Multiple concurrent streaming sessions on different chartIds are

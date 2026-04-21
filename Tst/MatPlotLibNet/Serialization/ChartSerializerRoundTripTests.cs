@@ -1059,4 +1059,197 @@ public class ChartSerializerRoundTripTests
         Assert.Equal([1.0, 2.0], rt.GridSpec.HeightRatios);
         Assert.Equal([1.0, 1.0], rt.GridSpec.WidthRatios);
     }
+
+    // ── Wave J.2 — missing series types + TryParse false arms ────────────
+
+    [Fact]
+    public void RoundTrip_TableWithHeadersAndRows_FlipsColumnAndRowHeaderArms()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Table(
+                new string[][] { ["a", "b"], ["c", "d"] },
+                s => { s.ColumnHeaders = ["Col1", "Col2"]; s.RowHeaders = ["R1", "R2"]; }))
+            .Build();
+        var rt = RoundTrip(fig);
+        var t = (TableSeries)rt.SubPlots[0].Series[0];
+        Assert.Equal(["Col1", "Col2"], t.ColumnHeaders);
+        Assert.Equal(["R1", "R2"], t.RowHeaders);
+    }
+
+    [Fact]
+    public void RoundTrip_Bar3DFullyPopulated_FlipsBarWidthAndColorArms()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bar3D(
+                [0.0, 1.0], [0.0, 1.0], [1.0, 2.0],
+                s => { s.BarWidth = 0.6; s.Color = Colors.Red; }))
+            .Build();
+        var rt = RoundTrip(fig);
+        var b3 = (Bar3DSeries)rt.SubPlots[0].Series[0];
+        Assert.Equal(0.6, b3.BarWidth);
+        Assert.Equal(Colors.Red, b3.Color);
+    }
+
+    [Fact]
+    public void RoundTrip_VoxelsFullyPopulated_FlipsColorAndAlphaArms()
+    {
+        var filled = new bool[2, 2, 2];
+        filled[0, 0, 0] = true; filled[1, 1, 1] = true;
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Voxels(filled,
+                s => { s.Color = Colors.Blue; s.Alpha = 0.7; }))
+            .Build();
+        var rt = RoundTrip(fig);
+        var vs = (VoxelSeries)rt.SubPlots[0].Series[0];
+        Assert.Equal(Colors.Blue, vs.Color);
+        Assert.Equal(0.7, vs.Alpha);
+    }
+
+    /// <summary>VoxelDataToArray with empty inner list — L354 `yDim > 0` false arm → zDim=0.</summary>
+    [Fact]
+    public void FromJson_VoxelSeriesWithEmptyInnerList_DeserializesGracefully()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{
+                "series":[{
+                    "type":"voxels",
+                    "voxelData":[[]]
+                }]
+            }]
+        }
+        """;
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void RoundTrip_Text3DFullyPopulated_FlipsAllOptionalArms()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Text3D(1, 2, 3, "hello",
+                s => { s.FontSize = 14; s.Color = Colors.Green; }))
+            .Build();
+        var rt = RoundTrip(fig);
+        var t3 = (Text3DSeries)rt.SubPlots[0].Series[0];
+        Assert.Single(t3.Annotations);
+        Assert.Equal("hello", t3.Annotations[0].Text);
+    }
+
+    /// <summary>Countplot with invalid Orientation string — L180 TryParse false arm,
+    /// Orientation stays at default Vertical.</summary>
+    [Fact]
+    public void FromJson_CountplotWithInvalidOrientation_DefaultsVertical()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{
+                "series":[{
+                    "type":"count",
+                    "categories":["A","B"],
+                    "orientation":"notADirection"
+                }]
+            }]
+        }
+        """;
+        var fig = S.FromJson(json);
+        var cs = (CountSeries)fig.SubPlots[0].Series[0];
+        Assert.Equal(BarOrientation.Vertical, cs.Orientation);
+    }
+
+    /// <summary>Regression with invalid LineStyle string — L53 TryParse false arm.</summary>
+    [Fact]
+    public void FromJson_RegressionWithInvalidLineStyle_DefaultsSolid()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{
+                "series":[{
+                    "type":"regression",
+                    "xData":[1,2,3],"yData":[1,2,3],
+                    "lineStyle":"notAStyle"
+                }]
+            }]
+        }
+        """;
+        var fig = S.FromJson(json);
+        var rs = (RegressionSeries)fig.SubPlots[0].Series[0];
+        Assert.Equal(LineStyle.Solid, rs.LineStyle);
+    }
+
+    // ── Wave J.1 — remaining SeriesRegistry HasValue TRUE arms ───────────────
+
+    /// <summary>SeriesRegistry.Create with unknown type → null return (FALSE arm of TryGetValue ternary).</summary>
+    [Fact]
+    public void SeriesRegistry_Create_UnknownType_ReturnsNull()
+    {
+        var axes = new Axes();
+        var result = MatPlotLibNet.Serialization.SeriesRegistry.Create("__no_such_type__", axes, new MatPlotLibNet.Serialization.SeriesDto());
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void RoundTrip_EventplotFullyPopulated_FlipsLineWidthAndLineLengthArms()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Eventplot([[1.0, 2.0], [3.0, 4.0]], s =>
+            {
+                s.LineWidth = 3.0; s.LineLength = 0.5;
+            }))
+            .Build();
+        var rt = RoundTrip(fig);
+        var es = (MatPlotLibNet.Models.Series.EventplotSeries)rt.SubPlots[0].Series[0];
+        Assert.Equal(3.0, es.LineWidth);
+        Assert.Equal(0.5, es.LineLength);
+    }
+
+    [Fact]
+    public void RoundTrip_ResidualFullyPopulated_FlipsAllOptionalArms()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Residplot([1.0, 2, 3], [1.1, 2.1, 3.1], s =>
+            {
+                s.Degree = 2; s.MarkerSize = 8.0; s.Color = Colors.Green;
+            }))
+            .Build();
+        var rt = RoundTrip(fig);
+        var rs = (MatPlotLibNet.Models.Series.ResidualSeries)rt.SubPlots[0].Series[0];
+        Assert.Equal(2, rs.Degree);
+        Assert.Equal(Colors.Green, rs.Color);
+    }
+
+    [Fact]
+    public void RoundTrip_Line3DFullyPopulated_FlipsAllOptionalArms()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot3D([0.0, 1, 2], [0.0, 1, 2], [0.0, 1, 2], s =>
+            {
+                s.Color = Colors.Blue; s.LineWidth = 2.5; s.LineStyle = LineStyle.Dashed;
+            }))
+            .Build();
+        var rt = RoundTrip(fig);
+        var ls = (MatPlotLibNet.Models.Series.Line3DSeries)rt.SubPlots[0].Series[0];
+        Assert.Equal(Colors.Blue, ls.Color);
+        Assert.Equal(LineStyle.Dashed, ls.LineStyle);
+    }
+
+    [Fact]
+    public void RoundTrip_SpectrogramFullyPopulated_FlipsWindowSizeOverlapColorMapArms()
+    {
+        var signal = Enumerable.Range(0, 64).Select(i => Math.Sin(i * 0.5)).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Spectrogram(signal, 1000, s =>
+            {
+                s.WindowSize = 32; s.Overlap = 16;
+                s.ColorMap = MatPlotLibNet.Styling.ColorMaps.ColorMaps.Plasma;
+            }))
+            .Build();
+        var rt = RoundTrip(fig);
+        var ss = (MatPlotLibNet.Models.Series.SpectrogramSeries)rt.SubPlots[0].Series[0];
+        Assert.Equal(32, ss.WindowSize);
+        Assert.Equal(16, ss.Overlap);
+    }
 }

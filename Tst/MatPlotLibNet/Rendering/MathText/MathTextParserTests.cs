@@ -457,4 +457,59 @@ public class MathTextParserTests
         var rt = MathTextParser.Parse(@"$\end x$");
         Assert.NotNull(rt);
     }
+
+    // ── Wave J.2 — branch close-out ──────────────────────────────────────
+
+    /// <summary>Text-form operators (\lim, \max … \tan) — each keyword hits one branch of the
+    /// large <c>cmd is "lim" or "max" or …</c> pattern match at MathTextParser.cs L226.
+    /// Each operator produces a LargeOperator span whose Text equals the command name.</summary>
+    [Theory]
+    [InlineData("lim")]
+    [InlineData("max")]
+    [InlineData("min")]
+    [InlineData("sup")]
+    [InlineData("inf")]
+    [InlineData("log")]
+    [InlineData("ln")]
+    [InlineData("sin")]
+    [InlineData("cos")]
+    [InlineData("tan")]
+    public void Parse_TextOperator_ProducesLargeOperatorSpan(string op)
+    {
+        var result = MathTextParser.Parse($@"$\{op}$");
+        Assert.Contains(result.Spans, s => s.Kind == TextSpanKind.LargeOperator && s.Text == op);
+    }
+
+    /// <summary>Large-symbol operators (\int, \sum, \prod) — hit the <c>cmd is "int" or "sum" or "prod" …</c>
+    /// pattern match at L237 (each alternative is a separate branch).</summary>
+    [Theory]
+    [InlineData("int")]
+    [InlineData("sum")]
+    [InlineData("prod")]
+    [InlineData("iint")]
+    [InlineData("iiint")]
+    [InlineData("oint")]
+    public void Parse_LargeSymbolOperator_ProducesLargeOperatorSpan(string op)
+    {
+        var result = MathTextParser.Parse($@"$\{op}$");
+        Assert.Contains(result.Spans, s => s.Kind == TextSpanKind.LargeOperator);
+    }
+
+    /// <summary>ContainsMath(null) — hits the <c>if (text is null) return false</c>
+    /// true arm at L304.</summary>
+    [Fact]
+    public void ContainsMath_Null_ReturnsFalse()
+    {
+        Assert.False(MathTextParser.ContainsMath(null!));
+    }
+
+    /// <summary>\sqrt with optional index but no closing ']' — hits the
+    /// <c>if (end &lt; 0) end = text.Length</c> true arm at L139.</summary>
+    [Fact]
+    public void Parse_SqrtWithUnclosedIndex_DoesNotThrow()
+    {
+        // The '[' is found but ']' is absent → IndexOf returns -1 → end = text.Length
+        var rt = MathTextParser.Parse(@"$\sqrt[3 x$");
+        Assert.NotNull(rt);
+    }
 }

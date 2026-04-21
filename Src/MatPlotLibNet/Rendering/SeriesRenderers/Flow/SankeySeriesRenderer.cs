@@ -57,12 +57,8 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Orientation-agnostic rect accessors (mirror SankeyLayoutEngine)
+    // Orientation-agnostic rect accessors
     // ──────────────────────────────────────────────────────────────────────────
-
-    /// <summary>Cross-axis midpoint: Y-centre (horizontal) / X-centre (vertical).</summary>
-    private static double CrossCentre(Rect r, bool vert) =>
-        vert ? r.X + r.Width / 2 : r.Y + r.Height / 2;
 
     /// <summary>Cross-axis lower bound: Y (horizontal) / X (vertical).</summary>
     private static double CrossStart(Rect r, bool vert) => vert ? r.X : r.Y;
@@ -171,10 +167,8 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
     private void DrawNodesAndLabels(SankeySeries series, int[] columns, Rect[] nodeRects, int maxCol, bool vert)
     {
         int n = series.Nodes.Count;
-        var themeFont = Context?.Theme?.DefaultFont;
-        var labelFont = themeFont is not null
-            ? new Font { Family = themeFont.Family, Size = Math.Min(10, themeFont.Size), Color = themeFont.Color }
-            : new Font { Size = 10 };
+        var themeFont = Context.Theme.DefaultFont;
+        var labelFont = new Font { Family = themeFont.Family, Size = Math.Min(10, themeFont.Size), Color = themeFont.Color };
         var subLabelFontBase = new Font
         {
             Family = labelFont.Family,
@@ -210,29 +204,9 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
                 continue;
             }
 
-            // Outer-label anchor placement. For horizontal: first column → right of rect,
-            // last column → left of rect. For vertical: first column (top row) → above rect
-            // (text sits above the top edge), last column (bottom row) → below rect.
             bool onFarEdge = columns[i] == maxCol;
-            Point anchor;
-            TextAlignment align;
-            if (vert)
-            {
-                double cx = nodeRects[i].X + nodeRects[i].Width / 2;
-                double yAnchor = onFarEdge
-                    ? nodeRects[i].Y + nodeRects[i].Height + measured.Height + 2   // below
-                    : nodeRects[i].Y - 4;                                          // above
-                anchor = new Point(cx, yAnchor);
-                align = TextAlignment.Center;
-            }
-            else
-            {
-                double labelX = onFarEdge
-                    ? nodeRects[i].X - 4
-                    : nodeRects[i].X + nodeRects[i].Width + 4;
-                anchor = new Point(labelX, nodeRects[i].Y + nodeRects[i].Height / 2 + measured.Height * 0.3);
-                align = onFarEdge ? TextAlignment.Right : TextAlignment.Left;
-            }
+            var orientation = vert ? SankeyOrientation.Vertical : SankeyOrientation.Horizontal;
+            var (anchor, align) = ComputeNodeLabelAnchor(nodeRects[i], onFarEdge, orientation, measured.Height);
             outerCandidates.Add(new LabelCandidate(anchor, label, labelFont, align));
             outerNodeIndex.Add(i);
         }
@@ -244,7 +218,7 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
                 outerCandidates,
                 Context!.Area.PlotBounds,
                 ChartServices.FontMetrics);
-            var leaderColor = Context?.Theme?.ForegroundText ?? Colors.Black;
+            var leaderColor = Context.Theme.ForegroundText;
             for (int k = 0; k < placements.Count; k++)
             {
                 var p = placements[k];
@@ -260,6 +234,29 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
                     subLabelFontBase, p.Alignment);
             }
         }
+    }
+
+    /// <summary>Computes the anchor point and text alignment for an outer node label.
+    /// Pure function — no render context required.</summary>
+    internal static (Point anchor, TextAlignment alignment) ComputeNodeLabelAnchor(
+        Rect nodeRect,
+        bool onFarEdge,
+        SankeyOrientation orientation,
+        double measuredLabelHeight)
+    {
+        if (orientation == SankeyOrientation.Vertical)
+        {
+            double cx = nodeRect.X + nodeRect.Width / 2;
+            double yAnchor = onFarEdge
+                ? nodeRect.Y + nodeRect.Height + measuredLabelHeight + 2
+                : nodeRect.Y - 4;
+            return (new Point(cx, yAnchor), TextAlignment.Center);
+        }
+        double labelX = onFarEdge
+            ? nodeRect.X - 4
+            : nodeRect.X + nodeRect.Width + 4;
+        var anchor = new Point(labelX, nodeRect.Y + nodeRect.Height / 2 + measuredLabelHeight * 0.3);
+        return (anchor, onFarEdge ? TextAlignment.Right : TextAlignment.Left);
     }
 
     private void DrawSubLabelIfAny(SankeyNode node, Point position, Font subLabelFontBase, TextAlignment alignment)

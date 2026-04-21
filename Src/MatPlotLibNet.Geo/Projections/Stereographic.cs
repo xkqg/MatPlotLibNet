@@ -27,7 +27,7 @@ public sealed class Stereographic : IGeoProjection
         double phi = latitude * DegToRad, lam = longitude * DegToRad;
         double cosPhi = Math.Cos(phi), sinPhi = Math.Sin(phi);
         double k = 2.0 / (1 + _sinPhi0 * sinPhi + _cosPhi0 * cosPhi * Math.Cos(lam - _lam0));
-        if (double.IsInfinity(k) || k < 0) return (double.NaN, double.NaN);
+        if (double.IsInfinity(k)) return (double.NaN, double.NaN);
         double x = k * cosPhi * Math.Sin(lam - _lam0);
         double y = k * (_cosPhi0 * sinPhi - _sinPhi0 * cosPhi * Math.Cos(lam - _lam0));
         return (x * RadToDeg, y * RadToDeg);

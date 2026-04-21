@@ -9,8 +9,11 @@ namespace MatPlotLibNet.Tests.Indicators.Streaming;
 /// <summary>Coverage uplift Batch D — full coverage for <see cref="StreamingCci"/> (was 0%).
 /// Verifies typical-price aggregation, the mean-deviation = 0 short-circuit,
 /// hand-derived CCI values across a small window, and ring-buffer wraparound.</summary>
-public sealed class StreamingCciTests
+public sealed class StreamingCciTests : OhlcStreamingIndicatorTests<StreamingCci>
 {
+    protected override StreamingCci CreateIndicator(int period, int capacity = 256)
+        => new(period: period, capacity: capacity);
+
     private static OhlcBar BarWithTp(double typicalPrice)
         => new(typicalPrice, typicalPrice, typicalPrice, typicalPrice); // H=L=C ⇒ TP = price
 
@@ -29,18 +32,6 @@ public sealed class StreamingCciTests
         var cci = new StreamingCci(period: 7);
         Assert.Equal(7, cci.WarmupPeriod);
         Assert.Equal("CCI(7)", cci.Label);
-    }
-
-    [Fact]
-    public void Warmup_OutputIsNaN_UntilPeriodReached()
-    {
-        var cci = new StreamingCci(period: 3);
-        cci.AppendCandle(BarWithTp(10));
-        cci.AppendCandle(BarWithTp(20));
-
-        var y = cci.OutputSeries[0].CreateSnapshot().YData;
-        Assert.True(double.IsNaN(y[0]));
-        Assert.True(double.IsNaN(y[1]));
     }
 
     [Fact]
@@ -122,23 +113,4 @@ public sealed class StreamingCciTests
         Assert.False(double.IsNaN(y[^1]));
     }
 
-    [Fact]
-    public void RingBuffer_RespectsCapacity_OnOverflow()
-    {
-        var cci = new StreamingCci(period: 2, capacity: 3);
-        for (int i = 0; i < 6; i++)
-            cci.AppendCandle(new OhlcBar(i, i + 2, i - 1, i + 1));
-
-        Assert.Equal(3, cci.OutputSeries[0].Count);
-    }
-
-    [Fact]
-    public void ComputeNext_ScalarPath_ReturnsNaN()
-    {
-        // The (price-only) Append path is unsupported for OHLC indicators; ComputeNext returns NaN
-        // by contract so any consumer mistakenly using Append() gets a clear NaN signal.
-        var cci = new StreamingCci(period: 3);
-        cci.Append(100);
-        Assert.True(double.IsNaN(cci.GetLatest()));
-    }
 }

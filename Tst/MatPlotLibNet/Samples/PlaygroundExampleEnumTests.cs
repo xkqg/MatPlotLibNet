@@ -66,6 +66,27 @@ public class PlaygroundExampleEnumTests
     }
 
     [Fact]
+    public void HasCartesianSpines_ReturnsFalseFor3DAndPolar()
+    {
+        Assert.True(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.LineChart));
+        Assert.True(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.BarChart));
+        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.Surface3D));
+        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.PolarLine));
+        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.PieChart));
+        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.SankeyFlow));
+        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.Treemap));
+        Assert.False(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.RadarChart));
+    }
+
+    [Fact]
+    public void Build_UnregisteredEnumValue_ThrowsArgumentException()
+    {
+        var opts = new PlaygroundOptions { Title = "Test" };
+        Assert.Throws<ArgumentException>(() =>
+            PlaygroundExamples.Build((PlaygroundExample)999, opts));
+    }
+
+    [Fact]
     public void DisplayName_RoundTrips()
     {
         // UI shows human-readable labels ("Line Chart"). The mapping must be
@@ -78,5 +99,20 @@ public class PlaygroundExampleEnumTests
             var parsed = PlaygroundExampleExtensions.FromDisplayName(display);
             Assert.Equal(example, parsed);
         }
+    }
+
+    /// <summary>DisplayName fallback — enum value with no [Description] attr → ToString().</summary>
+    [Fact]
+    public void DisplayName_NoDescriptionAttribute_FallsBackToEnumName()
+    {
+        var unnamed = (PlaygroundExample)999;
+        Assert.Equal("999", unnamed.DisplayName());
+    }
+
+    /// <summary>FromDisplayName null arm — unknown name returns null.</summary>
+    [Fact]
+    public void FromDisplayName_UnknownName_ReturnsNull()
+    {
+        Assert.Null(PlaygroundExampleExtensions.FromDisplayName("DoesNotExist"));
     }
 }

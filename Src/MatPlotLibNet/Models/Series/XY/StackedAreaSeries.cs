@@ -44,7 +44,7 @@ public sealed class StackedAreaSeries : ChartSeries, IHasAlpha
         double xMax = X.Max();
 
         // Use the baseline strategy to find the true yMin and yMax
-        var baselines = BaselineHelper.ComputeBaselines(YSets, Baseline);
+        var baselines = Baseline.ComputeFor(YSets, X.Length);
 
         double yMin = double.MaxValue;
         double yMax = double.MinValue;

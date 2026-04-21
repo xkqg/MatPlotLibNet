@@ -34,6 +34,8 @@ public enum PlaygroundExample
     [Description("Sankey Flow")]   SankeyFlow   = 13,
     [Description("Polar Line")]    PolarLine    = 14,
     [Description("Multi-Subplot")] MultiSubplot = 15,
+    [Description("Axis Breaks")]   AxisBreaks   = 16,
+    [Description("Minor Grid")]    MinorGrid    = 17,
 }
 
 /// <summary>Display-name helpers for <see cref="PlaygroundExample"/>.</summary>

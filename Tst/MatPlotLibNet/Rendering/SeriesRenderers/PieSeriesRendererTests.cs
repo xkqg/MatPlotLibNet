@@ -153,4 +153,42 @@ public class PieSeriesRendererTests
         Assert.Contains(">C<", svg);
         Assert.Contains(">D<", svg);
     }
+
+    // ── Wave J.0.e — remaining uncovered arms ────────────────────────────────
+
+    /// <summary>L92 CENTER arm — cosA ∈ [-0.1, 0.1] → TextAlignment.Center.
+    /// StartAngle=0, CCW, sizes [1,1,2]: third slice midAngle = 3π/2 → cos = 0.</summary>
+    [Fact]
+    public void Render_LabelAtTopOrBottom_UsesCenterAlignment()
+    {
+        var svg = Render(new PieSeries([1.0, 1.0, 2.0])
+        {
+            Labels = ["left", "right", "center"],
+            StartAngle = 0,
+            CounterClockwise = true,
+        });
+        Assert.Contains(">center<", svg);
+    }
+
+    /// <summary>L110 TRUE arm — very wide labels on a tiny canvas guarantee that
+    /// LabelLayoutEngine offsets each label &gt;6px from its anchor, setting
+    /// <c>LeaderLineStart</c> so <c>DrawLeaderLine</c> fires. The SVG emits &lt;line&gt;
+    /// elements (one per displaced label) that do not appear in pie renders without
+    /// labels or without collision.</summary>
+    [Fact]
+    public void Render_DenseLabels_SmallCanvas_DrawsLeaderLines()
+    {
+        // 12 equal slices on a 100×100 canvas. Outer label radius ≈44px, arc spacing
+        // ≈23px, "WWWWWWWWWW" ≈92px wide → every adjacent pair overlaps → labels
+        // are pushed well past the 6px leader-line threshold.
+        double[] sizes = Enumerable.Repeat(1.0, 12).ToArray();
+        string[] labels = Enumerable.Repeat("WWWWWWWWWW", 12).ToArray();
+        string svg = Plt.Create()
+            .WithSize(100, 100)
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new PieSeries(sizes) { Labels = labels }).HideAllAxes())
+            .Build()
+            .ToSvg();
+        // HideAllAxes removes all axis lines; the only <line> elements come from leader lines.
+        Assert.Contains("<line", svg);
+    }
 }

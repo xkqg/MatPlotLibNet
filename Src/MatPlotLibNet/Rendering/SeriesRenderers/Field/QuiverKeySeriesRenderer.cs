@@ -23,8 +23,7 @@ internal sealed class QuiverKeySeriesRenderer : SeriesRenderer<QuiverKeySeries>
         double py = bounds.Y + (1.0 - series.Y) * bounds.Height;
 
         // Arrow length in pixels (approximate scale from U data units to pixels)
-        double dataRange = Transform.DataXMax - Transform.DataXMin;
-        double pixelPerDataUnit = dataRange > 0 ? bounds.Width / dataRange : 50;
+        double pixelPerDataUnit = bounds.Width / (Transform.DataXMax - Transform.DataXMin);
         double arrowPx = series.U * pixelPerDataUnit;
 
         var tail = new Point(px, py);

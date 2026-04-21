@@ -84,4 +84,52 @@ public class DataCursorModifierTests
         mod.OnPointerPressed(P(60, 50));
         Assert.Empty(events);
     }
+
+    /// <summary>L52 FALSE arm — nearest.PixelDistance &lt;= HitRadiusPx → don't return false,
+    /// store _pendingHit. Click 4 px away from data point (1, 5) → pixel (100, 50),
+    /// so click at (104, 50) is within HitRadiusPx=10.</summary>
+    [Fact]
+    public void HandlesPointerPressed_WithinHitRadius_ReturnsTrueAndSetsPending()
+    {
+        var (mod, _, _) = Setup();
+        // Data point (1, 5): X=1/2*200=100, Y=100-(5/10*100)=50. Click at (104, 50) = 4px away.
+        Assert.True(mod.HandlesPointerPressed(P(104, 50)));
+    }
+
+    // ── Phase J coverage additions ────────────────────────────────────────────
+
+    /// <summary>L42 TRUE — Button != Left → return false immediately.</summary>
+    [Fact]
+    public void HandlesPointerPressed_RightButton_ReturnsFalse()
+    {
+        var (mod, _, _) = Setup();
+        Assert.False(mod.HandlesPointerPressed(
+            new PointerInputArgs(0, 100, PointerButton.Right, ModifierKeys.None)));
+    }
+
+    /// <summary>L52 TRUE — nearest found (within NearestPointFinder's 20px window) but
+    /// PixelDistance > HitRadiusPx (10px) → return false. Click 15 px from data point (1,5)
+    /// at pixel (100,50); clicking at (115,50) gives distance=15 px.</summary>
+    [Fact]
+    public void HandlesPointerPressed_NearButOutsideHitRadius_ReturnsFalse()
+    {
+        var (mod, _, _) = Setup();
+        // Data point (1, 5) → pixel (100, 50). Distance from (115, 50) = 15 px > HitRadiusPx=10.
+        Assert.False(mod.HandlesPointerPressed(P(115, 50)));
+    }
+
+    /// <summary>L48 TRUE — nearest is null (subplot exists but has no series) → return false.</summary>
+    [Fact]
+    public void HandlesPointerPressed_NoSeries_NearestIsNull_ReturnsFalse()
+    {
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, _ => { }).Build();
+        figure.ChartId = "c";
+        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 1;
+        figure.SubPlots[0].YAxis.Min = 0; figure.SubPlots[0].YAxis.Max = 1;
+        var layout = ChartLayout.Create(figure, [new Rect(0, 0, 200, 100)]);
+        var mod = new DataCursorModifier("c", layout, figure, _ => { });
+        // Pixel (100, 50) is inside the layout rect → axesIndex non-null.
+        // NearestPointFinder returns null because there are no series.
+        Assert.False(mod.HandlesPointerPressed(P(100, 50)));
+    }
 }

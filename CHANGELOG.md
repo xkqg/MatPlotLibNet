@@ -4,7 +4,70 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.7.3] — 2026-04-21
+
+### Refactored — Phase L: structural clean-up driven by the strict 90/90 coverage gate
+
+v1.7.2 flipped CI to strict mode — every class must reach 90 % line **and** 90 % branch
+coverage, enforced on every push. Meeting that bar in the large renderer classes
+(`CartesianAxesRenderer`, `PieSeriesRenderer`, `DonutSeriesRenderer`, `SankeySeriesRenderer`,
+and the polar renderers) turned out to require more than adding tests: the methods were too
+large for any single test to cover a coherent branch family. The fix was to decompose each
+god-method into focused, directly-testable helpers first, then write the tests against the
+helper — TDD at the extracted level. v1.7.3 captures that structural work.
+
+**Production refactors (no behaviour change, SVG output unchanged):**
+
+- `CartesianAxesRenderer` — `RenderGrid`'s four parallel X/Y major/minor loops collapsed into
+  one `RenderGridLines(Orientation, …)` helper; the three tick-draw loops (X, Y, mirror-Y)
+  unified under `RenderAxisTicks` + `TickDrawContext`; `DrawAxisBreakMark`'s 72-line
+  orientation branch replaced by `DrawBreakSegments(Orientation, BreakStyle, …)`. No `bool`
+  parameters — the existing `Orientation` and `BreakStyle` enums are used throughout.
+- `CircularRenderer<TSeries>` — `BuildWedgePath` and `PlaceOuterLabels` extracted from
+  verbatim-duplicate code in `PieSeriesRenderer`, `DonutSeriesRenderer`, and
+  `SunburstSeriesRenderer` into a shared abstract base class.
+- `PolarTransformRenderer<TSeries>` — `PrepareTransform` (rMax computation + `PolarTransform`
+  construction) extracted from `PolarLineSeriesRenderer` and `PolarScatterSeriesRenderer`.
+- `SankeySeriesRenderer.ComputeNodeLabelAnchor` — the `if (vert) { … } else { … }` label
+  anchor block extracted as a pure static helper; receives `SankeyOrientation` directly
+  instead of a derived `bool vert`.
+
+**Test structure clean-up (same coverage, less duplication):**
+
+- `OhlcStreamingIndicatorTests<TIndicator>` base class eliminates 3 verbatim `[Fact]` bodies
+  shared across the CCI, WilliamsR, and ATR test classes.
+- `SimpleSeriesRenderTheoryTests` — one `[Theory]` with 4 cases (Pointplot, Eventplot, Barbs,
+  Countplot) replaces 4 identical `RendersWithoutError` facts that each asserted only
+  `Assert.Contains("<svg")`. Each theory case now also asserts the series-type-specific
+  element (`<circle`, `<line`, `<rect`).
+- `EnumOutputContractTests<TEnum>` — 6 standalone enum-contract files collapsed into sealed
+  subclasses of one abstract base (~180 lines removed).
+- `InteractionModifierTests<TModifier>` — 6 standalone modifier test files (Pan, Hover,
+  BrushSelect, Zoom, LegendToggle, Reset) migrated into sealed subclasses (~634 lines removed).
+- `BranchCoverageTests.cs` (3 102 lines) split into 4 domain files: Indicators, Series,
+  Rendering, Math.
+
+**Playground:**
+
+- `AxisBreaks` example (ordinal 16) — `.WithYBreak()` on a two-cluster dataset.
+- `MinorGrid` example (ordinal 17) — `.WithMinorTicks()` + `WithGrid(g => g with { Which = GridWhich.Both })`.
+
+**CI:** `nuget-publish` job added — packs all 13 packages and pushes to NuGet.org on every
+green merge to `main` (requires `NUGET_API_KEY` secret).
+
 ## [1.7.2] — 2026-04-18
+
+### Tested — Phase K (2026-04-21, strict-90 close-out + CI strict flip, 18 new tests, 0 new exemptions)
+
+- **`PlaygroundController` extracted from `Pages/Playground.razor @code`** — pure-C# static class corrects an SRP violation: selection and build logic is now testable without a Blazor runtime. Razor page delegates to `PlaygroundController.SelectThemeByIndex`, `SelectColorMapByIndex`, and `TryBuild`. **12 new tests** in `Tst/MatPlotLibNet/Samples/PlaygroundControllerTests.cs` cover every branch family (null / non-integer / negative / at-length / beyond-length index; `TryBuild` success + exception arms). `PlaygroundExampleEnumTests` extended with 4 more facts: `HasCartesianSpines_ReturnsFalseFor3DAndPolar`, `Build_UnregisteredEnumValue_ThrowsArgumentException`, `DisplayName_NoDescriptionAttribute_FallsBackToEnumName`, `FromDisplayName_UnknownName_ReturnsNull`.
+
+- **`Stereographic.Forward` IEEE-754 antipode branch covered** — the `IsInfinity(k)` TRUE arm requires an exact-equator centre: `centerLat=0`, antipode at `(0, 180)` produces `cos(π) = −1.0` exactly in IEEE-754, denominator exactly 0, `k = +∞`. The existing test used `centerLat=90` where `cos(π/2) ≈ 6.12e-17` (not zero) → `k` remained finite, leaving the TRUE arm uncovered. New `Forward_ExactEquatorialAntipode_ReturnsNaN` closes it. **Stereographic 50 %B → 100 %B.**
+
+- **`FuncAnimation.Save(string filePath)` covered** — new `Save_ToFilePath_WritesGifFile` fact exercises the file-write path. **FuncAnimation 88.5 %L → 100 %L.**
+
+- **CI strict flip (Wave K.3)** — `tools/coverage/run.sh --strict`, `run.ps1 -Strict`, and `.github/workflows/ci.yml` (`--check --strict`) now enforce the absolute 90/90 threshold on every push, not just baseline-regression detection.
+
+- **Total project coverage: 98.49 %L / 95.19 %B** across **554 classes**. Strict gate: **PASS — all 554 classes meet 90/90** (0 failures).
 
 ### Refactored — strict-90 coverage floor (2026-04-20)
 

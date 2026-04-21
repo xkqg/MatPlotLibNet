@@ -7,7 +7,8 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Numerics;
 
-/// <summary>Verifies <see cref="BaselineHelper"/> baseline computation for stacked area series.</summary>
+/// <summary>Verifies <see cref="StackedBaselineExtensions.ComputeFor"/> baseline computation
+/// for stacked area series (refactored from static <c>BaselineHelper</c>).</summary>
 public class BaselineHelperTests
 {
     private static double[][] TwoLayers => [[1, 2, 3], [4, 5, 6]];
@@ -17,14 +18,14 @@ public class BaselineHelperTests
     [Fact]
     public void Zero_AllBaselinesStartAtZero()
     {
-        var baselines = BaselineHelper.ComputeBaselines(TwoLayers, StackedBaseline.Zero);
+        var baselines = StackedBaseline.Zero.ComputeFor(TwoLayers);
         Assert.Equal([0.0, 0.0, 0.0], baselines[0]);
     }
 
     [Fact]
     public void Zero_SecondLayerEqualsFirstLayerValues()
     {
-        var baselines = BaselineHelper.ComputeBaselines(TwoLayers, StackedBaseline.Zero);
+        var baselines = StackedBaseline.Zero.ComputeFor(TwoLayers);
         Assert.Equal([1.0, 2.0, 3.0], baselines[1]);
     }
 
@@ -32,8 +33,7 @@ public class BaselineHelperTests
     public void Zero_CumulativeMatchesLayerSums()
     {
         double[][] ySets = [[1, 2], [3, 4]];
-        var baselines = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.Zero);
-        // layer 0 starts at 0; layer 1 starts at ySets[0] = [1, 2]
+        var baselines = StackedBaseline.Zero.ComputeFor(ySets);
         Assert.Equal([0.0, 0.0], baselines[0]);
         Assert.Equal([1.0, 2.0], baselines[1]);
     }
@@ -43,24 +43,18 @@ public class BaselineHelperTests
     [Fact]
     public void Symmetric_MidpointIsZero()
     {
-        // ySets = [[2, 2], [2, 2]] → total = [4, 4] → midpoint = [2, 2] → shifted so midpoint at 0
         double[][] ySets = [[2, 2], [2, 2]];
-        var baselines = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.Symmetric);
-        // Layer 0 baseline starts at -totalSum/2 = -2 at each point
+        var baselines = StackedBaseline.Symmetric.ComputeFor(ySets);
         Assert.Equal([-2.0, -2.0], baselines[0]);
     }
 
     [Fact]
     public void Symmetric_TotalHeightPreserved()
     {
-        // Total span from baselines[0][i] to baselines[0][i] + sum of all layers should equal total sum
         double[][] ySets = [[1, 2], [3, 4]];
-        var baselines = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.Symmetric);
-        // total at point 0: 1+3=4, half=2 → layer0 baseline = -2
-        // total at point 1: 2+4=6, half=3 → layer0 baseline = -3
+        var baselines = StackedBaseline.Symmetric.ComputeFor(ySets);
         Assert.Equal(-2.0, baselines[0][0], precision: 10);
         Assert.Equal(-3.0, baselines[0][1], precision: 10);
-        // layer 1 baseline = layer0 baseline + ySets[0] = -2+1=-1 and -3+2=-1
         Assert.Equal(-1.0, baselines[1][0], precision: 10);
         Assert.Equal(-1.0, baselines[1][1], precision: 10);
     }
@@ -70,19 +64,18 @@ public class BaselineHelperTests
     [Fact]
     public void Wiggle_FirstBaselineIsNegativeHalfSum()
     {
-        // baselines[0][j] = -0.5 * totalSum[j]
         double[][] ySets = [[2, 4], [2, 4]];
-        var baselines = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.Wiggle);
-        double expectedB0 = -0.5 * (2 + 2); // -2 at point 0
+        var baselines = StackedBaseline.Wiggle.ComputeFor(ySets);
+        double expectedB0 = -0.5 * (2 + 2);
         Assert.Equal(expectedB0, baselines[0][0], precision: 10);
     }
 
     [Fact]
     public void Wiggle_ProducesValidBaselinesShape()
     {
-        var baselines = BaselineHelper.ComputeBaselines(TwoLayers, StackedBaseline.Wiggle);
-        Assert.Equal(2, baselines.Length);          // one per layer
-        Assert.Equal(3, baselines[0].Length);       // one per point
+        var baselines = StackedBaseline.Wiggle.ComputeFor(TwoLayers);
+        Assert.Equal(2, baselines.Length);
+        Assert.Equal(3, baselines[0].Length);
         Assert.Equal(3, baselines[1].Length);
     }
 
@@ -91,7 +84,7 @@ public class BaselineHelperTests
     [Fact]
     public void WeightedWiggle_ProducesValidBaselines()
     {
-        var baselines = BaselineHelper.ComputeBaselines(TwoLayers, StackedBaseline.WeightedWiggle);
+        var baselines = StackedBaseline.WeightedWiggle.ComputeFor(TwoLayers);
         Assert.Equal(2, baselines.Length);
         Assert.Equal(3, baselines[0].Length);
         Assert.Equal(3, baselines[1].Length);
@@ -100,10 +93,8 @@ public class BaselineHelperTests
     [Fact]
     public void WeightedWiggle_PositiveData_FirstBaselineIsNegative()
     {
-        // WeightedWiggle shifts the stack so the center of mass sits near y = 0
-        // → layer 0 baseline must be negative when all values are positive
         double[][] ySets = [[3, 3, 3], [3, 3, 3]];
-        var baselines = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.WeightedWiggle);
+        var baselines = StackedBaseline.WeightedWiggle.ComputeFor(ySets);
         Assert.True(baselines[0][0] < 0, $"Expected baselines[0][0] < 0 but got {baselines[0][0]}");
     }
 
@@ -134,59 +125,62 @@ public class BaselineHelperTests
     [Fact]
     public void StackedAreaSeries_DataRange_SymmetricGoesNegative()
     {
-        // [[2,2],[2,2]] total=4, symmetric baseline starts at -2 → yMin should be -2
         var s = new StackedAreaSeries([0.0, 1.0], [[2.0, 2.0], [2.0, 2.0]]) { Baseline = StackedBaseline.Symmetric };
         var range = s.ComputeDataRange(null!);
         Assert.True(range.YMin < 0, $"Expected YMin < 0 but got {range.YMin}");
     }
 
-    // ── Edge cases that exercise defensive ternaries (Phase A coverage uplift) ──
+    // ── Edge cases ────────────────────────────────────────────────────────────
 
-    /// <summary>Empty ySets — covers the `layers &gt; 0 ? ... : 0` arms in Zero/Symmetric.
-    /// (Wiggle / WeightedWiggle would also be exercised but currently throw on empty input —
-    /// tracked as a follow-up rather than masked here.)</summary>
     [Theory]
     [InlineData(StackedBaseline.Zero)]
     [InlineData(StackedBaseline.Symmetric)]
     public void EmptyYSets_ReturnsEmptyBaselines(StackedBaseline baseline)
     {
-        var baselines = BaselineHelper.ComputeBaselines([], baseline);
+        var baselines = baseline.ComputeFor([]);
         Assert.Empty(baselines);
     }
 
-    /// <summary>WeightedWiggle with all-zero data → totalWeight is 0 → falls back to Wiggle.</summary>
     [Fact]
     public void WeightedWiggle_AllZeroData_FallsBackToWiggle()
     {
         double[][] ySets = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]];
-        var ww = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.WeightedWiggle);
-        var w  = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.Wiggle);
+        var ww = StackedBaseline.WeightedWiggle.ComputeFor(ySets);
+        var w  = StackedBaseline.Wiggle.ComputeFor(ySets);
         Assert.Equal(w[0], ww[0]);
         Assert.Equal(w[1], ww[1]);
     }
 
-    /// <summary>Layers with empty inner arrays — exercises the n=0 branch in WeightedWiggle.</summary>
     [Fact]
     public void EmptyInnerArrays_ProducesEmptyPerLayerBaselines()
     {
         double[][] ySets = [[], []];
-        var baselines = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.WeightedWiggle);
+        var baselines = StackedBaseline.WeightedWiggle.ComputeFor(ySets);
         Assert.Equal(2, baselines.Length);
         Assert.Empty(baselines[0]);
         Assert.Empty(baselines[1]);
     }
 
-    /// <summary>Layers with different lengths — exercises Value's bounds-check arm
-    /// (<c>j &lt; ySets[layer].Length ? ... : 0.0</c>).</summary>
     [Fact]
     public void RaggedLayers_OutOfBoundsValuesTreatedAsZero()
     {
-        // Layer 1 is shorter than layer 0 — accessing index 2 in layer 1 must return 0
         double[][] ySets = [[1, 2, 3], [10]];
-        var baselines = BaselineHelper.ComputeBaselines(ySets, StackedBaseline.Zero);
-        // baselines[1][1] = baselines[0][1] (=0) + ySets[0][1] (=2) = 2
-        // baselines[1][2] = baselines[0][2] (=0) + ySets[0][2] (=3) = 3
+        var baselines = StackedBaseline.Zero.ComputeFor(ySets);
         Assert.Equal(2.0, baselines[1][1]);
         Assert.Equal(3.0, baselines[1][2]);
+    }
+
+    // ── J.0.c — extension form consistent across all four strategies ──────────
+
+    [Theory]
+    [InlineData(StackedBaseline.Zero)]
+    [InlineData(StackedBaseline.Symmetric)]
+    [InlineData(StackedBaseline.Wiggle)]
+    [InlineData(StackedBaseline.WeightedWiggle)]
+    public void ComputeFor_ExtensionDeterministic(StackedBaseline baseline)
+    {
+        var first  = baseline.ComputeFor(TwoLayers);
+        var second = baseline.ComputeFor(TwoLayers);
+        Assert.Equal(first, second);
     }
 }

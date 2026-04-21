@@ -20,11 +20,8 @@ internal sealed class HexbinSeriesRenderer : SeriesRenderer<HexbinSeries>
 
         double xMin = Transform.DataXMin, xMax = Transform.DataXMax;
         double yMin = Transform.DataYMin, yMax = Transform.DataYMax;
-        if (xMin >= xMax) { xMax = xMin + 1; }
-        if (yMin >= yMax) { yMax = yMin + 1; }
 
         var bins = HexGrid.ComputeHexBins(series.X, series.Y, xMin, xMax, yMin, yMax, series.GridSize);
-        if (bins.Count == 0) return;
 
         int maxCount = bins.Values.Max();
         int minCount = series.MinCount;

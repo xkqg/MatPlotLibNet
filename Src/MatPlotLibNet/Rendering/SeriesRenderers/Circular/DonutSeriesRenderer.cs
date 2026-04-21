@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders <see cref="DonutSeries"/> instances onto an <see cref="IRenderContext"/>.</summary>
-internal sealed class DonutSeriesRenderer : SeriesRenderer<DonutSeries>
+internal sealed class DonutSeriesRenderer : CircularRenderer<DonutSeries>
 {
     /// <inheritdoc />
     public DonutSeriesRenderer(SeriesRenderContext context) : base(context) { }
@@ -26,13 +26,11 @@ internal sealed class DonutSeriesRenderer : SeriesRenderer<DonutSeries>
         {
             double sweep = series.Sizes[i] / total * 2 * Math.PI;
             var color = series.Colors is not null && i < series.Colors.Length ? series.Colors[i] : Theme.Default.CycleColors[i % Theme.Default.CycleColors.Length];
-            Ctx.DrawPath([
-                new MoveToSegment(new Point(cx + outerR * Math.Cos(angle), cy - outerR * Math.Sin(angle))),
-                new ArcSegment(new Point(cx, cy), outerR, outerR, -angle * 180 / Math.PI, -(angle + sweep) * 180 / Math.PI),
-                new LineToSegment(new Point(cx + innerR * Math.Cos(angle + sweep), cy - innerR * Math.Sin(angle + sweep))),
-                new ArcSegment(new Point(cx, cy), innerR, innerR, -(angle + sweep) * 180 / Math.PI, -angle * 180 / Math.PI),
-                new CloseSegment()
-            ], color, null, 0);
+            // Donut uses screen-Y convention (0° = right, positive sweeps clockwise on screen).
+            // BuildWedgePath uses math-Y (cy + r·sin), so negate angles to preserve visual output.
+            double startDeg = -angle * 180 / Math.PI;
+            double endDeg = -(angle + sweep) * 180 / Math.PI;
+            Ctx.DrawPath(BuildWedgePath(cx, cy, innerR, outerR, startDeg, endDeg), color, null, 0);
             angle += sweep;
         }
         if (series.CenterText is not null)

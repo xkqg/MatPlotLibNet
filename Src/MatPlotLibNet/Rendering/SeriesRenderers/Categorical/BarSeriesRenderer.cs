@@ -19,13 +19,8 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
     {
         var baseColor = ResolveColor(series.Color);
         var fillColor = ApplyAlpha(baseColor, series.Alpha);
-        // Bar value labels inherit the theme's default font so they pick up MatplotlibV2/Classic
-        // sizes (matplotlib uses font.size = 10 pt for v2). Falls back to a system 11-px font
-        // if no theme is in scope.
-        var themeFont = Context?.Theme?.DefaultFont;
-        var labelFont = themeFont is not null
-            ? new Font { Family = themeFont.Family, Size = themeFont.Size, Color = themeFont.Color }
-            : new Font { Family = "sans-serif", Size = 11 };
+        var df = Context.Theme.DefaultFont;
+        var labelFont = new Font { Family = df.Family, Size = df.Size, Color = df.Color };
         double edgeWidth = series.LineWidth > 0 ? series.LineWidth : (series.EdgeColor.HasValue ? 1 : 0);
         Color? edgeColor = series.LineWidth > 0 ? (series.EdgeColor ?? baseColor) : series.EdgeColor;
 
@@ -98,7 +93,7 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
                 labelCandidates,
                 Context!.Area.PlotBounds,
                 ChartServices.FontMetrics);
-            var leaderColor = Context?.Theme?.ForegroundText ?? Colors.Black;
+            var leaderColor = Context.Theme.ForegroundText;
             foreach (var p in placements)
             {
                 if (p.LeaderLineStart is { } anchor)

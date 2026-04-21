@@ -101,9 +101,9 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
             {
                 double intensity = light.ComputeIntensity(nx, ny, nz);
                 if (Context.LightSource is DirectionalLight dl)
-                    color = LightingHelper.ShadeColor(color, nx, ny, nz, dl.Dx, dl.Dy, dl.Dz);
+                    color = color.Shade(nx, ny, nz, dl.Dx, dl.Dy, dl.Dz);
                 else
-                    color = LightingHelper.ModulateColor(color, intensity);
+                    color = color.Modulate(intensity);
             }
             if (v3d is not null)
                 Ctx.SetNextElementData("v3d", v3d);

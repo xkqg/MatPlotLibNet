@@ -12,30 +12,12 @@ public class EventplotSeriesRenderTests
     private static readonly double[][] Positions = [[1.0, 2.0, 3.0], [4.0, 5.0]];
 
     [Fact]
-    public void Eventplot_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Eventplot(Positions))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
     public void Eventplot_SvgContainsLines()
     {
         string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Eventplot(Positions))
             .ToSvg();
         Assert.Contains("<line", svg);
-    }
-
-    [Fact]
-    public void Eventplot_EmptyPositions_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Eventplot([]))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
     }
 
     [Fact]

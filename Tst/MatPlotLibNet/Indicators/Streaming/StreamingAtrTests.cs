@@ -10,8 +10,11 @@ namespace MatPlotLibNet.Tests.Indicators.Streaming;
 /// (was 91% line / 100% branch). The remaining gap was the <c>WarmupPeriod</c> getter and
 /// the unused <c>ComputeNext</c> scalar path. These tests also pin Wilder's smoothing
 /// against hand-derived ATR values from a tiny period-2 sequence.</summary>
-public sealed class StreamingAtrTests
+public sealed class StreamingAtrTests : OhlcStreamingIndicatorTests<StreamingAtr>
 {
+    protected override StreamingAtr CreateIndicator(int period, int capacity = 256)
+        => new(period: period, capacity: capacity);
+
     [Fact]
     public void Construction_DefaultsAreCorrect()
     {
@@ -111,23 +114,4 @@ public sealed class StreamingAtrTests
         Assert.Equal(0.0, y[4]);
     }
 
-    [Fact]
-    public void RingBuffer_RespectsCapacity_OnOverflow()
-    {
-        var atr = new StreamingAtr(period: 2, capacity: 3);
-        for (int i = 0; i < 8; i++)
-            atr.AppendCandle(new OhlcBar(i, i + 2, i - 1, i + 1));
-
-        Assert.Equal(3, atr.OutputSeries[0].Count);
-    }
-
-    [Fact]
-    public void ComputeNext_ScalarPath_ReturnsNaN()
-    {
-        // The price-only Append path is unsupported for OHLC indicators; ComputeNext returns NaN
-        // so any consumer mistakenly using Append() observes the contract violation explicitly.
-        var atr = new StreamingAtr(period: 3);
-        atr.Append(100);
-        Assert.True(double.IsNaN(atr.GetLatest()));
-    }
 }

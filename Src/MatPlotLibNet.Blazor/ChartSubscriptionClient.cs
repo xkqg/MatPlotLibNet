@@ -23,19 +23,22 @@ public sealed class ChartSubscriptionClient : IChartSubscriptionClient
             .WithAutomaticReconnect()
             .Build();
 
-        _hub.On<string, string>("UpdateChartSvg", async (id, svg) =>
-        {
-            if (_onSvgUpdated is not null)
-                await _onSvgUpdated(id, svg);
-        });
-
-        _hub.On<string, string>("UpdateChart", async (id, json) =>
-        {
-            if (_onChartUpdated is not null)
-                await _onChartUpdated(id, json);
-        });
+        _hub.On<string, string>("UpdateChartSvg", HandleSvgUpdatedAsync);
+        _hub.On<string, string>("UpdateChart", HandleChartUpdatedAsync);
 
         await _hub.StartAsync(ct);
+    }
+
+    internal async Task HandleSvgUpdatedAsync(string id, string svg)
+    {
+        if (_onSvgUpdated is not null)
+            await _onSvgUpdated(id, svg);
+    }
+
+    internal async Task HandleChartUpdatedAsync(string id, string json)
+    {
+        if (_onChartUpdated is not null)
+            await _onChartUpdated(id, json);
     }
 
     /// <inheritdoc/>

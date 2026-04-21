@@ -72,4 +72,33 @@ public class SecondaryAxisBuildersTests
 
         Assert.NotNull(fig.SubPlots[0].SecondaryXAxis);
     }
+
+    /// <summary>configure=null arm of PlotXSecondary — the null-conditional invoke is skipped.</summary>
+    [Fact]
+    public void SecondaryXAxis_PlotXSecondary_NoConfigure_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(EdgeCaseData.Ramp(5), EdgeCaseData.Sin(5))
+                .WithSecondaryXAxis(s => s
+                    .PlotXSecondary(EdgeCaseData.Ramp(5), EdgeCaseData.Sin(5))))
+            .Build();
+
+        Assert.NotNull(fig.SubPlots[0].SecondaryXAxis);
+    }
+
+    /// <summary>ScatterXSecondary with and without configure — covers both arms.</summary>
+    [Fact]
+    public void SecondaryXAxis_ScatterXSecondary_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(EdgeCaseData.Ramp(5), EdgeCaseData.Sin(5))
+                .WithSecondaryXAxis(s => s
+                    .ScatterXSecondary(EdgeCaseData.Ramp(5), EdgeCaseData.Sin(5), sc => sc.Label = "top-scatter")
+                    .ScatterXSecondary(EdgeCaseData.Ramp(5), EdgeCaseData.Sin(5))))
+            .Build();
+
+        Assert.NotNull(fig.SubPlots[0].SecondaryXAxis);
+    }
 }

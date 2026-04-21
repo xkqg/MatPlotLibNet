@@ -17,10 +17,10 @@ internal sealed class ViolinSeriesRenderer : SeriesRenderer<ViolinSeries>
     {
         // Body fill: theme ViolinBodyColor if set (e.g. 'y'=#BFBF00 in MatplotlibClassic),
         // otherwise fall back to the normal series cycle color.
-        var bodyColor  = Context.Theme?.ViolinBodyColor  ?? ResolveColor(series.Color);
+        var bodyColor  = Context.Theme.ViolinBodyColor  ?? ResolveColor(series.Color);
         // Stats lines: theme ViolinStatsColor if set (e.g. 'r'=#FF0000 in MatplotlibClassic),
         // otherwise fall back to the series cycle color.
-        var statsColor = Context.Theme?.ViolinStatsColor ?? ResolveColor(series.Color);
+        var statsColor = Context.Theme.ViolinStatsColor ?? ResolveColor(series.Color);
 
         for (int i = 0; i < series.Datasets.Length; i++)
         {

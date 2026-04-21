@@ -145,7 +145,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
             Projection3D    = projection,
             LightSource     = lightSource,
             Emit3DData      = emit3DData,
-            Theme           = theme,
+            Theme           = theme ?? Styling.Theme.Default,
             DepthQueue      = depthQueue,
         };
     }

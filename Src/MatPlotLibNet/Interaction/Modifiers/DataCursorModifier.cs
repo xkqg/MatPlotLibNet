@@ -39,18 +39,17 @@ public sealed class DataCursorModifier : IInteractionModifier
     /// <inheritdoc />
     public bool HandlesPointerPressed(PointerInputArgs args)
     {
-        if (args.Button != PointerButton.Left || args.Modifiers != ModifierKeys.None)
-            return false;
+        if (args.Button != PointerButton.Left) return false;
+        if (args.Modifiers != ModifierKeys.None) return false;
 
         var axesIndex = _layout.HitTestAxes(args.X, args.Y);
         if (axesIndex is null) return false;
 
-        if (_layout is not ChartLayout cl) return false;
-        var coords = cl.PixelToData(args.X, args.Y, axesIndex.Value);
-        if (coords is null) return false;
+        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex.Value);
 
-        var nearest = NearestPointFinder.Find(_figure, axesIndex.Value, coords.Value.DataX, coords.Value.DataY, _layout);
-        if (nearest is null || nearest.PixelDistance > HitRadiusPx) return false;
+        var nearest = NearestPointFinder.Find(_figure, axesIndex.Value, coords!.Value.DataX, coords.Value.DataY, _layout);
+        if (nearest is null) return false;
+        if (nearest.PixelDistance > HitRadiusPx) return false;
 
         _pendingHit = nearest;
         _pendingHitPointer = (args.X, args.Y);

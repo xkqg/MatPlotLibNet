@@ -46,12 +46,12 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
         if (Context.LightSource is DirectionalLight dl)
         {
             double lx = dl.Dx, ly = dl.Dy, lz = dl.Dz;
-            topColor    = LightingHelper.ShadeColor(baseColor,  0,  0,  1, lx, ly, lz);
-            bottomColor = LightingHelper.ShadeColor(baseColor,  0,  0, -1, lx, ly, lz);
-            frontColor  = LightingHelper.ShadeColor(baseColor,  0, -1,  0, lx, ly, lz);
-            backColor   = LightingHelper.ShadeColor(baseColor,  0,  1,  0, lx, ly, lz);
-            leftColor   = LightingHelper.ShadeColor(baseColor, -1,  0,  0, lx, ly, lz);
-            rightColor  = LightingHelper.ShadeColor(baseColor,  1,  0,  0, lx, ly, lz);
+            topColor    = baseColor.Shade( 0,  0,  1, lx, ly, lz);
+            bottomColor = baseColor.Shade( 0,  0, -1, lx, ly, lz);
+            frontColor  = baseColor.Shade( 0, -1,  0, lx, ly, lz);
+            backColor   = baseColor.Shade( 0,  1,  0, lx, ly, lz);
+            leftColor   = baseColor.Shade(-1,  0,  0, lx, ly, lz);
+            rightColor  = baseColor.Shade( 1,  0,  0, lx, ly, lz);
         }
         else
         {

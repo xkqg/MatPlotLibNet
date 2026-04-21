@@ -31,6 +31,7 @@ public sealed class ThemeBuilder
     private Font _defaultFont;
     private GridStyle _defaultGrid;
     private PropCycler? _propCycler;
+    private Color? _pane3DColor;
     private readonly string _baseName;
 
     /// <summary>Initializes a new <see cref="ThemeBuilder"/> pre-populated from <paramref name="baseTheme"/>.</summary>
@@ -90,6 +91,11 @@ public sealed class ThemeBuilder
     /// <returns>This builder for chaining.</returns>
     public ThemeBuilder WithPropCycler(PropCycler? cycler) { _propCycler = cycler; return this; }
 
+    /// <summary>Sets the default 3-D pane color (floor, left wall, right wall). Pass <see langword="null"/> to use the renderer default.</summary>
+    /// <param name="color">The pane color, or <see langword="null"/> to let the renderer choose.</param>
+    /// <returns>This builder for chaining.</returns>
+    public ThemeBuilder WithPane3DColor(Color? color) { _pane3DColor = color; return this; }
+
     /// <summary>Builds and returns the customized <see cref="Theme"/>.</summary>
     /// <returns>The constructed theme.</returns>
     public Theme Build() => new(
@@ -100,5 +106,5 @@ public sealed class ThemeBuilder
         _cycleColors,
         _defaultFont,
         _defaultGrid,
-        _propCycler);
+        _propCycler) { Pane3DColor = _pane3DColor };
 }

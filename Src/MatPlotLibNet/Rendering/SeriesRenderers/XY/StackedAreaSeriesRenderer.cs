@@ -23,7 +23,7 @@ internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeri
         var cycleColors = Theme.Default.CycleColors;
 
         // Compute per-layer baselines using the chosen strategy
-        var baselines = BaselineHelper.ComputeBaselines(series.YSets, series.Baseline);
+        var baselines = series.Baseline.ComputeFor(series.YSets, n);
 
         // Compute top edge (baseline + layer value) for each layer
         var tops = new double[layers][];

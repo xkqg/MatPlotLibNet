@@ -4,6 +4,7 @@
 using MatPlotLibNet.Animation;
 using MatPlotLibNet.Skia;
 using MatPlotLibNet.Transforms.Animation;
+using SkiaSharp;
 
 namespace MatPlotLibNet.Skia.Tests.Animation;
 
@@ -116,6 +117,52 @@ public class GifEncoderTests
         {
             if (File.Exists(path)) File.Delete(path);
         }
+    }
+
+    // ── Phase J coverage additions ───────────────────────────────────────────
+
+    /// <summary>L25 TRUE — empty frame list → Encode returns immediately without writing.</summary>
+    [Fact]
+    public void Encode_EmptyFrames_WritesNothing()
+    {
+        var ms = new MemoryStream();
+        GifEncoder.Encode([], 100, false, ms);
+        Assert.Equal(0, ms.Length);
+    }
+
+    /// <summary>L131 FALSE — LZW table fills (nextCode &gt; 4095) → encoder emits clear code
+    /// and resets the table. A 90×90 high-entropy bitmap generates enough unique
+    /// (prefix, suffix) patterns to exhaust all 3838 available table slots.</summary>
+    [Fact]
+    public void Encode_HighEntropyBitmap_FillsLzwTableAndResets()
+    {
+        using var bitmap = new SKBitmap(90, 90, SKColorType.Rgba8888, SKAlphaType.Premul);
+        for (int y = 0; y < 90; y++)
+        for (int x = 0; x < 90; x++)
+        {
+            byte r = (byte)((x * y + x * 13 + 7) & 0xFF);
+            byte g = (byte)((x * 3  + y * 97 + 5) & 0xFF);
+            byte b = (byte)((x * 59 + y * 11 + 3) & 0xFF);
+            bitmap.SetPixel(x, y, new SKColor(r, g, b));
+        }
+        var ms = new MemoryStream();
+        GifEncoder.Encode((IReadOnlyList<SKBitmap>)new[] { bitmap }, 100, false, ms);
+        var bytes = ms.ToArray();
+        Assert.Equal(new byte[] { 0x47, 0x49, 0x46, 0x38, 0x39, 0x61 }, bytes[..6]);
+        Assert.Equal(0x3B, bytes[^1]);
+    }
+
+    /// <summary>BitPacker.Flush L203 FALSE — when no bits are pending (total written bits
+    /// is an exact multiple of 8) Flush is a no-op. Write 8 bits (one full byte worth),
+    /// then call Flush: the byte count must NOT increase.</summary>
+    [Fact]
+    public void BitPacker_Flush_ZeroPendingBits_EmitsNoByte()
+    {
+        var packer = new GifEncoder.BitPacker();
+        packer.Write(0xFF, 8); // exactly 8 bits → _bitsInPending becomes 0 after while loop
+        int lengthBeforeFlush = packer.ToArray().Length;
+        packer.Flush();        // _bitsInPending == 0 → L203 FALSE arm: if-body skipped
+        Assert.Equal(lengthBeforeFlush, packer.ToArray().Length);
     }
 
     // --- Helpers ---

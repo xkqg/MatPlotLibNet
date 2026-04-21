@@ -26,7 +26,6 @@ internal sealed class StreamingChartSession : IAsyncDisposable
 
     private void OnRenderRequested()
     {
-        if (_disposed) return;
         _streamingFigure.ApplyAxisScaling();
         _ = _publisher.PublishSvgAsync(_chartId, _streamingFigure.Figure);
     }
@@ -35,9 +34,15 @@ internal sealed class StreamingChartSession : IAsyncDisposable
     {
         if (!_disposed)
         {
-            _disposed = true;
-            _streamingFigure.RenderRequested -= OnRenderRequested;
+            DisposeCore();
         }
         return ValueTask.CompletedTask;
+    }
+
+    private void DisposeCore()
+    {
+        _streamingFigure.RenderRequested -= OnRenderRequested;
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

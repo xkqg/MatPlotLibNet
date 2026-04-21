@@ -28,32 +28,15 @@ public sealed class InteractionController : IInteractionController
     public event Action? InvalidateRequested;
 
     /// <inheritdoc />
-    public BrushSelectState? ActiveBrushSelect
-    {
-        get
-        {
-            foreach (var m in _modifiers)
-            {
-                if (m is BrushSelectModifier bsm)
-                    return bsm.ActiveBrush;
-            }
-            return null;
-        }
-    }
+    public BrushSelectState? ActiveBrushSelect =>
+        _modifiers.OfType<BrushSelectModifier>().FirstOrDefault()?.ActiveBrush;
 
     /// <inheritdoc />
     public HoverTooltipContent? ActiveTooltip => _activeTooltip;
 
     /// <inheritdoc />
-    public CrosshairState? ActiveCrosshair
-    {
-        get
-        {
-            foreach (var m in _modifiers)
-                if (m is CrosshairModifier cm) return cm.ActiveCrosshair;
-            return null;
-        }
-    }
+    public CrosshairState? ActiveCrosshair =>
+        _modifiers.OfType<CrosshairModifier>().FirstOrDefault()?.ActiveCrosshair;
 
     private InteractionController(
         Figure figure,
@@ -145,9 +128,9 @@ public sealed class InteractionController : IInteractionController
         if (hoverRan && _activeModifier is null)
         {
             int? axesIndex = _layout.HitTestAxes(args.X, args.Y);
-            if (axesIndex is not null && _layout is ChartLayout cl)
+            if (axesIndex is not null)
             {
-                var coords = cl.PixelToData(args.X, args.Y, axesIndex.Value);
+                var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex.Value);
                 if (coords is { } c)
                 {
                     var nearest = NearestPointFinder.Find(_figure, axesIndex.Value, c.DataX, c.DataY, _layout);

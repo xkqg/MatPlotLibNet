@@ -25,7 +25,7 @@ internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
         double[] heights = BuildHeights(series, bins);
 
         // Use series-level EdgeColor if set; otherwise fall back to theme PatchEdgeColor (e.g. black in MatplotlibClassic).
-        Color? edgeColor = series.EdgeColor ?? Context.Theme?.PatchEdgeColor;
+        Color? edgeColor = series.EdgeColor ?? Context.Theme.PatchEdgeColor;
         double edgeWidth = edgeColor.HasValue ? 0.5 : 0;
 
         if (series.HistType == HistType.Bar)

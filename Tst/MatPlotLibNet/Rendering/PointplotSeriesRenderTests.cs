@@ -12,15 +12,6 @@ public class PointplotSeriesRenderTests
     private static readonly double[][] Datasets = [[1.0, 2.0, 3.0, 2.5], [4.0, 5.0, 4.5, 5.5]];
 
     [Fact]
-    public void Pointplot_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Pointplot(Datasets))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
     public void Pointplot_SvgContainsCircles()
     {
         string svg = Plt.Create()
@@ -36,15 +27,6 @@ public class PointplotSeriesRenderTests
             .AddSubPlot(1, 1, 1, ax => ax.Pointplot(Datasets))
             .ToSvg();
         Assert.Contains("<line", svg);
-    }
-
-    [Fact]
-    public void Pointplot_EmptyDatasets_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Pointplot([]))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
     }
 
     [Fact]

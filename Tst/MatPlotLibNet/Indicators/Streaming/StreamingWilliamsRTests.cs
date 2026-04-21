@@ -9,8 +9,11 @@ namespace MatPlotLibNet.Tests.Indicators.Streaming;
 /// <summary>Coverage uplift Batch D — full coverage for <see cref="StreamingWilliamsR"/> (was 0%).
 /// Verifies the rolling high/low window, the high==low degenerate branch (returns -50),
 /// hand-derived %R values across a small zig-zag price series, and ring-buffer wraparound.</summary>
-public sealed class StreamingWilliamsRTests
+public sealed class StreamingWilliamsRTests : OhlcStreamingIndicatorTests<StreamingWilliamsR>
 {
+    protected override StreamingWilliamsR CreateIndicator(int period, int capacity = 256)
+        => new(period: period, capacity: capacity);
+
     [Fact]
     public void Construction_DefaultsAreCorrect()
     {
@@ -26,18 +29,6 @@ public sealed class StreamingWilliamsRTests
         var wr = new StreamingWilliamsR(period: 5);
         Assert.Equal(5, wr.WarmupPeriod);
         Assert.Equal("W%R(5)", wr.Label);
-    }
-
-    [Fact]
-    public void Warmup_OutputIsNaN_UntilPeriodReached()
-    {
-        var wr = new StreamingWilliamsR(period: 3);
-        wr.AppendCandle(new OhlcBar(10, 12, 8, 10));
-        wr.AppendCandle(new OhlcBar(10, 14, 9, 13));
-
-        var snap = wr.OutputSeries[0].CreateSnapshot();
-        Assert.True(double.IsNaN(snap.YData[0]));
-        Assert.True(double.IsNaN(snap.YData[1]));
     }
 
     [Fact]
@@ -119,24 +110,4 @@ public sealed class StreamingWilliamsRTests
         Assert.InRange(y[7], -100, 0);
     }
 
-    [Fact]
-    public void RingBuffer_RespectsCapacity_OnOverflow()
-    {
-        var wr = new StreamingWilliamsR(period: 2, capacity: 3);
-        for (int i = 0; i < 6; i++)
-            wr.AppendCandle(new OhlcBar(i, i + 2, i - 1, i + 1));
-
-        // Output buffer caps at 3 even though 6 bars went in.
-        Assert.Equal(3, wr.OutputSeries[0].Count);
-    }
-
-    [Fact]
-    public void ComputeNext_ScalarPath_ReturnsNaN()
-    {
-        // The price-only Append path is unsupported for OHLC indicators; ComputeNext returns NaN
-        // so any consumer mistakenly using Append() observes the contract violation explicitly.
-        var wr = new StreamingWilliamsR(period: 3);
-        wr.Append(100);
-        Assert.True(double.IsNaN(wr.GetLatest()));
-    }
 }

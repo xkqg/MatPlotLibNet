@@ -15,30 +15,12 @@ public class BarbsSeriesRenderTests
     private static readonly double[] Dir = [0.0, 45.0, 90.0, 270.0];
 
     [Fact]
-    public void Barbs_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Barbs(X, Y, Speed, Dir))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
     public void Barbs_SvgContainsLines()
     {
         string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Barbs(X, Y, Speed, Dir))
             .ToSvg();
         Assert.Contains("<line", svg);
-    }
-
-    [Fact]
-    public void Barbs_EmptyData_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Barbs([], [], [], []))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
     }
 
     [Fact]

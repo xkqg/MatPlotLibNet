@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering.Svg;
+
 namespace MatPlotLibNet.Tests.Rendering.Svg;
 
 /// <summary>Verifies SVG semantic-structure accessibility (role, title, desc, aria-label).</summary>
@@ -126,10 +128,10 @@ public class SvgAccessibilityTests
     }
 
     [Fact]
-    public void EscapeXml_Helper_MatchesOriginal()
+    public void EscapeForXml_Helper_MatchesOriginal()
     {
-        Assert.Equal("a &amp; b", MatPlotLibNet.Rendering.Svg.SvgXmlHelper.EscapeXml("a & b"));
-        Assert.Equal("&lt;b&gt;", MatPlotLibNet.Rendering.Svg.SvgXmlHelper.EscapeXml("<b>"));
-        Assert.Equal("plain", MatPlotLibNet.Rendering.Svg.SvgXmlHelper.EscapeXml("plain"));
+        Assert.Equal("a &amp; b", "a & b".EscapeForXml());
+        Assert.Equal("&lt;b&gt;", "<b>".EscapeForXml());
+        Assert.Equal("plain", "plain".EscapeForXml());
     }
 }

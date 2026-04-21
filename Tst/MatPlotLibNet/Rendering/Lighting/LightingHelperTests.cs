@@ -6,13 +6,13 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.Lighting;
 
-/// <summary>Verifies <see cref="LightingHelper"/> face normal and color modulation.</summary>
+/// <summary>Verifies <see cref="LightingHelper"/> face normals and <see cref="ColorExtensions"/>
+/// color lighting operations.</summary>
 public class LightingHelperTests
 {
     [Fact]
     public void ComputeFaceNormal_XYPlane_ReturnsZAxis()
     {
-        // Three points in the XY plane → normal should point along Z
         var (nx, ny, nz) = LightingHelper.ComputeFaceNormal(
             (0, 0, 0), (1, 0, 0), (0, 1, 0));
         Assert.Equal(0.0, nx, 6);
@@ -33,73 +33,69 @@ public class LightingHelperTests
     }
 
     [Fact]
-    public void ModulateColor_FullIntensity_NoChange()
+    public void Modulate_FullIntensity_NoChange()
     {
         var color = Color.FromHex("#FF8040");
-        var result = LightingHelper.ModulateColor(color, 1.0);
+        var result = color.Modulate(1.0);
         Assert.Equal(color.R, result.R);
         Assert.Equal(color.G, result.G);
         Assert.Equal(color.B, result.B);
     }
 
     [Fact]
-    public void ModulateColor_HalfIntensity_HalvesRGB()
+    public void Modulate_HalfIntensity_HalvesRGB()
     {
         var color = new Color(200, 100, 50, 255);
-        var result = LightingHelper.ModulateColor(color, 0.5);
+        var result = color.Modulate(0.5);
         Assert.Equal(100, result.R);
         Assert.Equal(50, result.G);
         Assert.Equal(25, result.B);
     }
 
     [Fact]
-    public void ModulateColor_ZeroIntensity_Black()
+    public void Modulate_ZeroIntensity_Black()
     {
         var color = Color.FromHex("#FFFFFF");
-        var result = LightingHelper.ModulateColor(color, 0.0);
+        var result = color.Modulate(0.0);
         Assert.Equal(0, result.R);
         Assert.Equal(0, result.G);
         Assert.Equal(0, result.B);
     }
 
     [Fact]
-    public void ModulateColor_PreservesAlpha()
+    public void Modulate_PreservesAlpha()
     {
         var color = new Color(255, 255, 255, 128);
-        var result = LightingHelper.ModulateColor(color, 0.5);
+        var result = color.Modulate(0.5);
         Assert.Equal(128, result.A);
     }
 
-    /// <summary>Phase X.2.b (v1.7.2, 2026-04-19) — ShadeColor's zero-length-vector
-    /// guard arm at line 47: degenerate normal OR light direction returns the unmodified
-    /// baseColor (matplotlib parity — no shading possible without a defined orientation).
-    /// Pre-X this branch was unhit (LightingHelper pinned at 100%L / 50%B).</summary>
+    /// <summary>Shade's zero-length-vector guard: degenerate normal OR light direction
+    /// returns the unmodified color (no shading possible without a defined orientation).</summary>
     [Theory]
-    [InlineData(0.0, 0.0, 0.0, 0.0, 0.0, 1.0)]   // zero normal (nLen == 0)
-    [InlineData(1.0, 0.0, 0.0, 0.0, 0.0, 0.0)]   // zero light direction (lLen == 0)
-    public void ShadeColor_DegenerateVector_ReturnsBaseColorUnchanged(
+    [InlineData(0.0, 0.0, 0.0, 0.0, 0.0, 1.0)]   // zero normal
+    [InlineData(1.0, 0.0, 0.0, 0.0, 0.0, 0.0)]   // zero light direction
+    public void Shade_DegenerateVector_ReturnsBaseColorUnchanged(
         double nx, double ny, double nz, double lx, double ly, double lz)
     {
         var baseColor = new Color(200, 150, 100, 255);
-        var result = LightingHelper.ShadeColor(baseColor, nx, ny, nz, lx, ly, lz);
+        var result = baseColor.Shade(nx, ny, nz, lx, ly, lz);
         Assert.Equal(baseColor.R, result.R);
         Assert.Equal(baseColor.G, result.G);
         Assert.Equal(baseColor.B, result.B);
         Assert.Equal(baseColor.A, result.A);
     }
 
-    /// <summary>Phase X.2.b — ShadeColor's normal-shading path (line 48-54). Front-facing
-    /// normal (dot==1) → k = 1.0; back-facing (dot==-1) → k = 0.3 (matplotlib's ambient
-    /// floor); perpendicular (dot==0) → k = 0.65. Three points pin the linear
-    /// `0.65 + 0.35·dot` mapping at its endpoints + midpoint.</summary>
+    /// <summary>Front-facing normal (dot==1) → k=1.0; back-facing (dot==-1) → k=0.3
+    /// (matplotlib ambient floor); perpendicular (dot==0) → k=0.65.</summary>
     [Theory]
-    [InlineData(0.0, 0.0,  1.0, 1.0)]    // front-facing → k = 1.00
-    [InlineData(0.0, 0.0, -1.0, 0.3)]    // back-facing → k = 0.30
-    [InlineData(1.0, 0.0,  0.0, 0.65)]   // perpendicular → k = 0.65
-    public void ShadeColor_DotProduct_MapsToMatplotlibK(double nx, double ny, double nz, double expectedK)
+    [InlineData(0.0, 0.0,  1.0, 1.0)]    // front-facing
+    [InlineData(0.0, 0.0, -1.0, 0.3)]    // back-facing
+    [InlineData(1.0, 0.0,  0.0, 0.65)]   // perpendicular
+    public void Shade_DotProduct_MapsToMatplotlibK(double nx, double ny, double nz, double expectedK)
     {
         var baseColor = new Color(200, 200, 200, 255);
-        var result = LightingHelper.ShadeColor(baseColor, nx, ny, nz, 0.0, 0.0, 1.0);
+        var result = baseColor.Shade(nx, ny, nz, 0.0, 0.0, 1.0);
         Assert.Equal((byte)Math.Round(200 * expectedK), result.R);
     }
 }

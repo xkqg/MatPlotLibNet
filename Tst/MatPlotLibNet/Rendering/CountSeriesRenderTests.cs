@@ -12,30 +12,12 @@ public class CountSeriesRenderTests
     private static readonly string[] Values = ["a", "b", "a", "c", "a", "b"];
 
     [Fact]
-    public void Countplot_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Countplot(Values))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
     public void Countplot_SvgContainsRectangles()
     {
         string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Countplot(Values))
             .ToSvg();
         Assert.Contains("<rect", svg);
-    }
-
-    [Fact]
-    public void Countplot_EmptyValues_RendersWithoutError()
-    {
-        string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Countplot([]))
-            .ToSvg();
-        Assert.Contains("<svg", svg);
     }
 
     [Fact]

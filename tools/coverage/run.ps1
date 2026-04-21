@@ -24,6 +24,7 @@ param(
     [switch]$Report,        # Open HTML report in browser when done
     [switch]$Check,         # Run check-thresholds.ps1 after collection
     [switch]$SetBaseline,   # Save current run as the new baseline
+    [switch]$Strict,        # Enforce absolute 90/90 thresholds (not just baseline-regression check)
     [string]$Configuration = "Release"
 )
 
@@ -113,7 +114,9 @@ if ($Report) {
 
 if ($Check) {
     Write-Host "==> Running threshold check..." -ForegroundColor Cyan
-    & pwsh (Join-Path $PSScriptRoot "check-thresholds.ps1") -Cobertura $cobertura
+    $checkArgs = @("-Cobertura", $cobertura)
+    if ($Strict) { $checkArgs += "-Strict" }
+    & pwsh (Join-Path $PSScriptRoot "check-thresholds.ps1") @checkArgs
     exit $LASTEXITCODE
 }
 

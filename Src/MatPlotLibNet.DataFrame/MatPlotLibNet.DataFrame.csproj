@@ -8,7 +8,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.DataFrame</PackageId>
-    <Version>1.7.2</Version>
+    <Version>1.7.3</Version>
     <Description>Microsoft.Data.Analysis.DataFrame extension methods for MatPlotLibNet — plot directly from typed DataFrames (Line, Scatter, Hist with hue grouping), compute 16 financial indicators (SMA, EMA, RSI, MACD, Bollinger Bands, ADX, ATR, VWAP, and more), and run polynomial regression with confidence bands — all from named column strings.</Description>
     <PackageTags>matplotlib charts dataframe plotting visualization indicators finance regression sma ema macd bollinger</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

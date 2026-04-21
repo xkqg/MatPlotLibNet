@@ -399,12 +399,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
     private static double[] ComputeMaxNTicks(double lo, double hi, double edgePx, double labelFontSize)
     {
         double range = hi - lo;
-        if (range <= 0) return [lo];
 
-        // Use matplotlib MaxNLocator default nbins=10 — empirically gives:
-        //   X range 2.98 → step 0.5 (6 ticks)   [matches matplotlib]
-        //   Y range 1.83 → step 0.2 (10 ticks)  [matches matplotlib]
-        //   Z range 6.25 → step 1   (7 ticks)   [matches matplotlib]
         // We keep edgePx + labelFontSize in the signature for future callers that want
         // the matplotlib axis3d.py get_tick_space() dynamic behaviour, but the default
         // gives better parity on the bar3d reference scene.
@@ -414,36 +409,27 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         // matplotlib MaxNLocator default ladder.
         double[] stepLadder = [1.0, 2.0, 2.5, 5.0, 10.0];
 
-        // For each magnitude × ladder entry, walk from finest to coarsest. Pick the first
-        // step that yields (1) at least 2 intervals and (2) at most tickSpace intervals.
-        // This gives the FINEST nice-number step that fits the pixel budget — matches
-        // matplotlib's algorithm for our bar3d scene exactly:
-        //   X range 2.98, edgePx≈380 → tickSpace=11 → step 0.5 (6 ticks)
-        //   Y range 1.83, edgePx≈365 → tickSpace=11 → step 0.2 (10 ticks)
-        //   Z range 6.25, edgePx≈440 → tickSpace=11 → step 1 (7 ticks)
+        // Walk from finest to coarsest. Pick the first step that yields ≥2 and ≤tickSpace+1
+        // intervals — matches matplotlib MaxNLocator for the bar3d reference scene:
+        //   X range 2.98 → step 0.5 (6 ticks)   [matches matplotlib]
+        //   Y range 1.83 → step 0.2 (10 ticks)  [matches matplotlib]
+        //   Z range 6.25 → step 1   (7 ticks)   [matches matplotlib]
         double magnitude = Math.Pow(10, Math.Floor(Math.Log10(range / tickSpace)));
         double chosenStep = 10 * magnitude;
-        for (int mul = 0; mul < 2; mul++)
+        foreach (double s in stepLadder)
         {
-            double m = magnitude * (mul == 0 ? 1 : 10);
-            bool picked = false;
-            foreach (double s in stepLadder)
+            double step = s * magnitude;
+            double niceLo = Math.Floor(lo / step + 1e-9) * step;
+            double niceHi = Math.Ceiling(hi / step - 1e-9) * step;
+            int count = (int)Math.Round((niceHi - niceLo) / step);
+            // matplotlib MaxNLocator: accepts `nbins + 1` intervals. Critical for Y
+            // range 1.83: step 0.2 yields 11 intervals which exceeds strict nbins=10
+            // but matplotlib still picks it (yticks list has 12 values, 11 intervals).
+            if (count <= tickSpace + 1 && count >= 2)
             {
-                double step = s * m;
-                double niceLo = Math.Floor(lo / step + 1e-9) * step;
-                double niceHi = Math.Ceiling(hi / step - 1e-9) * step;
-                int count = (int)Math.Round((niceHi - niceLo) / step);
-                // matplotlib MaxNLocator: accepts `nbins + 1` intervals. Critical for Y
-                // range 1.83: step 0.2 yields 11 intervals which exceeds strict nbins=10
-                // but matplotlib still picks it (yticks list has 12 values, 11 intervals).
-                if (count <= tickSpace + 1 && count >= 2)
-                {
-                    chosenStep = step;
-                    picked = true;
-                    break;
-                }
+                chosenStep = step;
+                break;
             }
-            if (picked) break;
         }
 
         double first = Math.Ceiling(lo / chosenStep - 1e-9) * chosenStep;
@@ -466,7 +452,6 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
     {
         double dx = b.X - a.X, dy = b.Y - a.Y;
         double len = Math.Sqrt(dx * dx + dy * dy);
-        if (len < 1e-6) return new Point(0, px);
         var perp = new Point(dy / len * px, -dx / len * px);
         double towardX = centroid.X - edgeMid.X;
         double towardY = centroid.Y - edgeMid.Y;
@@ -477,7 +462,6 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
     /// <summary>Computes minor-tick positions half-way between the given major ticks, clipped to [lo, hi].</summary>
     private static double[] HalfStepTicks(double[] majors, double lo, double hi)
     {
-        if (majors.Length < 2) return [];
         double step = (majors[1] - majors[0]) / 2.0;
         var list = new List<double>(majors.Length * 2);
         for (double t = majors[0] - step; t <= hi + step * 0.01; t += step)
@@ -644,7 +628,6 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
     {
         double dx = b.X - a.X, dy = b.Y - a.Y;
         double len = Math.Sqrt(dx * dx + dy * dy);
-        if (len < 1e-6) return new Point(0, px);
         return new Point(dy / len * px, -dx / len * px);
     }
 
@@ -731,79 +714,43 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         if (Math.Abs(zMax - zMin) < 1e-10) { zMin -= 0.5; zMax += 0.5; }
 
         // 4. User-set limits bypass both stages.
-        bool xMinSet = Axes.XAxis.Min.HasValue;
-        bool xMaxSet = Axes.XAxis.Max.HasValue;
-        bool yMinSet = Axes.YAxis.Min.HasValue;
-        bool yMaxSet = Axes.YAxis.Max.HasValue;
-        bool zMinSet = Axes.ZAxis.Min.HasValue;
-        bool zMaxSet = Axes.ZAxis.Max.HasValue;
-        if (xMinSet) xMin = Axes.XAxis.Min!.Value;
-        if (xMaxSet) xMax = Axes.XAxis.Max!.Value;
-        if (yMinSet) yMin = Axes.YAxis.Min!.Value;
-        if (yMaxSet) yMax = Axes.YAxis.Max!.Value;
-        if (zMinSet) zMin = Axes.ZAxis.Min!.Value;
-        if (zMaxSet) zMax = Axes.ZAxis.Max!.Value;
+        if (Axes.XAxis.Min.HasValue) xMin = Axes.XAxis.Min.Value;
+        if (Axes.XAxis.Max.HasValue) xMax = Axes.XAxis.Max.Value;
+        if (Axes.YAxis.Min.HasValue) yMin = Axes.YAxis.Min.Value;
+        if (Axes.YAxis.Max.HasValue) yMax = Axes.YAxis.Max.Value;
+        if (Axes.ZAxis.Min.HasValue) zMin = Axes.ZAxis.Min.Value;
+        if (Axes.ZAxis.Max.HasValue) zMax = Axes.ZAxis.Max.Value;
 
-        // Capture raw aggregated range BEFORE stage-1/stage-2 margin expansion. The sticky
-        // clamp below uses these as a guard: if the raw data already extended past the
-        // sticky edge, we do NOT clamp — another series has legitimate data there. Without
-        // this guard, overlays with a narrower range would clip the underlying full-range
-        // series. See the 2-D equivalent in CartesianAxesRenderer.ComputeDataRanges.
-        double unpaddedXMin = xMin, unpaddedXMax = xMax;
-        double unpaddedYMin = yMin, unpaddedYMax = yMax;
-        double unpaddedZMin = zMin, unpaddedZMax = zMax;
-
-        // 5. Stage 1 — rcParams['axes.xmargin'] / ymargin / zmargin.
-        //    matplotlib Axes3D.clear() sets _zmargin=0 for ortho (focal_length==inf)
-        //    and _zmargin=rcParams['axes.zmargin']=0.05 for persp. We're ortho-only
-        //    today, so zMargin default = 0.
-        const double xmarginDefault = 0.05;
-        const double ymarginDefault = 0.05;
-        double zmarginDefault = Axes.CameraDistance.HasValue ? 0.05 : 0.0;
-        double xMargin = Axes.XAxis.Margin ?? xmarginDefault;
-        double yMargin = Axes.YAxis.Margin ?? ymarginDefault;
-        double zMargin = Axes.ZAxis.Margin ?? zmarginDefault;
-        double dx = xMax - xMin, dy = yMax - yMin, dz = zMax - zMin;
-        if (!xMinSet) xMin -= dx * xMargin;
-        if (!xMaxSet) xMax += dx * xMargin;
-        if (!yMinSet) yMin -= dy * yMargin;
-        if (!yMaxSet) yMax += dy * yMargin;
-        if (!zMinSet) zMin -= dz * zMargin;
-        if (!zMaxSet) zMax += dz * zMargin;
-
-        // 6. Stage 2 — _view_margin = 1/48 applied to the stage1-expanded range.
-        //    Verified against matplotlib: for bar3d scene this produces
-        //    xlim (-0.4896, 2.4896), ylim (-0.4167, 1.4167), zlim (-0.125, 6.125).
+        // 5–7. Stage-1 margin, stage-2 view-margin (1/48), and sticky-edge clamp —
+        //      each axis runs the same Range1D pipeline used by CartesianAxesRenderer.
+        //      matplotlib Axes3D.clear() sets _zmargin=0 for ortho (focal_length==inf)
+        //      and _zmargin=rcParams['axes.zmargin']=0.05 for persp. We're ortho-only
+        //      today, so zMargin default = 0.
+        //      Verified against matplotlib: bar3d → xlim (-0.4896, 2.4896),
+        //      ylim (-0.4167, 1.4167), zlim (-0.125, 6.125).
+        const double xMarginDefault = 0.05;
+        const double yMarginDefault = 0.05;
+        double zMarginDefault = Axes.CameraDistance.HasValue ? 0.05 : 0.0;
         const double viewMargin = 1.0 / 48.0;
-        double dx2 = xMax - xMin, dy2 = yMax - yMin, dz2 = zMax - zMin;
-        if (!xMinSet) xMin -= dx2 * viewMargin;
-        if (!xMaxSet) xMax += dx2 * viewMargin;
-        if (!yMinSet) yMin -= dy2 * viewMargin;
-        if (!yMaxSet) yMax += dy2 * viewMargin;
-        if (!zMinSet) zMin -= dz2 * viewMargin;
-        if (!zMaxSet) zMax += dz2 * viewMargin;
 
-        // 7. Sticky-edge clamp — Bar3DSeries pins Z=0 so the cube floor never sits
-        //    below the bar floor, giving a visible z=0 tick and a clean floor-bar join.
-        //    The `unpadded >= sticky` / `<= sticky` guards ensure sticky edges only
-        //    constrain the margin PADDING, not the data contributions of other series
-        //    (mirrors the 2-D fix in CartesianAxesRenderer.ComputeDataRanges).
+        var xUnpadded = new Range1D(xMin, xMax);
+        var yUnpadded = new Range1D(yMin, yMax);
+        var zUnpadded = new Range1D(zMin, zMax);
+
+        var xRange = xUnpadded.Padded(Axes.XAxis.Margin ?? xMarginDefault, Axes.XAxis)
+                              .Padded(viewMargin, Axes.XAxis);
+        var yRange = yUnpadded.Padded(Axes.YAxis.Margin ?? yMarginDefault, Axes.YAxis)
+                              .Padded(viewMargin, Axes.YAxis);
+        var zRange = zUnpadded.Padded(Axes.ZAxis.Margin ?? zMarginDefault, Axes.ZAxis)
+                              .Padded(viewMargin, Axes.ZAxis);
+
         foreach (var c in contribs)
         {
-            if (!xMinSet && c.StickyXMin.HasValue && xMin < c.StickyXMin.Value
-                && unpaddedXMin >= c.StickyXMin.Value) xMin = c.StickyXMin.Value;
-            if (!xMaxSet && c.StickyXMax.HasValue && xMax > c.StickyXMax.Value
-                && unpaddedXMax <= c.StickyXMax.Value) xMax = c.StickyXMax.Value;
-            if (!yMinSet && c.StickyYMin.HasValue && yMin < c.StickyYMin.Value
-                && unpaddedYMin >= c.StickyYMin.Value) yMin = c.StickyYMin.Value;
-            if (!yMaxSet && c.StickyYMax.HasValue && yMax > c.StickyYMax.Value
-                && unpaddedYMax <= c.StickyYMax.Value) yMax = c.StickyYMax.Value;
-            if (!zMinSet && c.StickyZMin.HasValue && zMin < c.StickyZMin.Value
-                && unpaddedZMin >= c.StickyZMin.Value) zMin = c.StickyZMin.Value;
-            if (!zMaxSet && c.StickyZMax.HasValue && zMax > c.StickyZMax.Value
-                && unpaddedZMax <= c.StickyZMax.Value) zMax = c.StickyZMax.Value;
+            xRange = xRange.ClampSticky(c.StickyXMin, c.StickyXMax, xUnpadded, Axes.XAxis);
+            yRange = yRange.ClampSticky(c.StickyYMin, c.StickyYMax, yUnpadded, Axes.YAxis);
+            zRange = zRange.ClampSticky(c.StickyZMin, c.StickyZMax, zUnpadded, Axes.ZAxis);
         }
 
-        return new DataRange3D(xMin, xMax, yMin, yMax, zMin, zMax);
+        return new DataRange3D(xRange.Lo, xRange.Hi, yRange.Lo, yRange.Hi, zRange.Lo, zRange.Hi);
     }
 }

@@ -3,6 +3,8 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -329,5 +331,180 @@ public class SankeySeriesRenderTests
         // SHORTER than the version that renders the full cartesian decoration.
         Assert.True(without.Length < withAxes.Length,
             $"HideAllAxes should shrink SVG output; got without={without.Length} vs with={withAxes.Length}");
+    }
+
+    // ── Wave J.2 — missing SankeySeriesRenderer branches ─────────────────
+
+    /// <summary>Node with empty label — L195 `if (string.IsNullOrEmpty(label)) continue` true arm.</summary>
+    [Fact]
+    public void Sankey_NodeWithEmptyLabel_SkipsLabelDraw()
+    {
+        SankeyNode[] nodes = [new("", Colors.Teal), new("B", Colors.Orange)];
+        SankeyLink[] links = [new(0, 1, 10)];
+        var svg = Plt.Create()
+            .WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
+            .Build().ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>InsideLabels=true — L202 true arm (label draws inside node rect).</summary>
+    [Fact]
+    public void Sankey_InsideLabels_DrawsLabelsInsideNodes()
+    {
+        var svg = Plt.Create()
+            .WithSize(600, 400)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .HideAllAxes()
+                .Sankey(LinearNodes(), LinearLinks(), s => s.InsideLabels = true))
+            .Build().ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>Node with no SubLabel — L267 `if (string.IsNullOrEmpty(node.SubLabel)) return` true arm.</summary>
+    [Fact]
+    public void Sankey_NodeWithNoSubLabel_SkipsSubLabelDraw()
+    {
+        SankeyNode[] nodes = [new("A", Colors.Teal), new("B", Colors.Orange)];
+        SankeyLink[] links = [new(0, 1, 10)];
+        var svg = Plt.Create()
+            .WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
+            .Build().ToSvg();
+        Assert.Contains("<svg", svg);
+        Assert.DoesNotContain("SubLabel", svg);
+    }
+
+    /// <summary>Link with zero-value source or target — L97 continue arm.</summary>
+    [Fact]
+    public void Sankey_LinkWithZeroSourceValue_SkipsLink()
+    {
+        SankeyNode[] nodes = [new("A", Colors.Teal), new("B", Colors.Orange), new("C", Colors.Violet)];
+        // Node 0 only receives, never sends → nodeValue[0] = 0 as source
+        SankeyLink[] links = [new(1, 0, 5), new(2, 0, 3)];
+        var svg = Plt.Create()
+            .WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
+            .Build().ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>Non-gradient link color mode (Source) — L140 `LinkColorMode == Gradient` false arm.</summary>
+    [Fact]
+    public void Sankey_LinkColorModeSource_NoGradientDefs()
+    {
+        string svg = Plt.Create()
+            .WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .HideAllAxes()
+                .Sankey(LinearNodes(), LinearLinks(),
+                    s => s.LinkColorMode = SankeyLinkColorMode.Source))
+            .Build().ToSvg();
+        Assert.Contains("<svg", svg);
+        Assert.DoesNotContain("<linearGradient", svg);
+    }
+
+    // ── Wave J.1 — remaining branch arms ────────────────────────────────────
+
+    /// <summary>Node.SubLabelColor set explicitly — L268 non-null arm in DrawSubLabelIfAny.
+    /// Asserts SVG output is longer when a custom sub-label colour is applied.</summary>
+    [Fact]
+    public void Sankey_SubLabelWithExplicitColor_UsesNodeSubLabelColor()
+    {
+        SankeyNode[] nodesWithColor =
+        [
+            new("Revenue", Color.FromHex("#2A9D55"), SubLabel: "$21.4B", SubLabelColor: Colors.Red),
+            new("Cost",    Color.FromHex("#D62828"), SubLabel: "$6.5B"),
+        ];
+        SankeyLink[] links = [new(0, 1, 10)];
+        string svg = Plt.Create()
+            .WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodesWithColor, links))
+            .Build().ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>Dense Sankey with many nodes in a tiny figure — forces LabelLayoutEngine to push
+    /// labels more than 6 px from their anchors, triggering the L245 LeaderLineStart non-null arm.
+    /// HideAllAxes() ensures the only &lt;line&gt; elements in the SVG are leader lines.</summary>
+    [Fact]
+    public void Sankey_DenseLabels_DrawsLeaderLines()
+    {
+        // 8 labeled nodes packed into 150×120 px — labels must collide and be displaced
+        SankeyNode[] nodes =
+        [
+            new("Alpha", Colors.Red),   new("Beta",    Colors.Green),
+            new("Gamma", Colors.Blue),  new("Delta",   Colors.Yellow),
+            new("Epsilon", Colors.Cyan), new("Zeta",   Colors.Magenta),
+            new("Eta", Colors.Orange),  new("Theta",   Colors.Gray),
+        ];
+        SankeyLink[] links =
+        [
+            new(0, 2, 5), new(0, 3, 3), new(1, 2, 4), new(1, 3, 2),
+            new(2, 4, 6), new(2, 5, 3), new(3, 6, 2), new(3, 7, 1),
+        ];
+        var svg = Plt.Create()
+            .WithSize(150, 120)
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
+            .Build().ToSvg();
+        // Leader lines render as <line> elements; HideAllAxes ensures no spine/tick <line>s
+        Assert.Contains("<line", svg);
+    }
+
+    /// <summary>All nodes have empty labels — outerCandidates.Count == 0 → L241 FALSE arm,
+    /// the batch-place block is skipped entirely.</summary>
+    [Fact]
+    public void Sankey_AllNodesEmptyLabels_SkipsBatchLabelPlace()
+    {
+        SankeyNode[] nodes =
+        [
+            new("", Color.FromHex("#1F77B4")),
+            new("", Color.FromHex("#FF7F0E")),
+            new("", Color.FromHex("#2CA02C")),
+        ];
+        SankeyLink[] links = [new(0, 1, 5), new(1, 2, 3)];
+        string svg = Plt.Create()
+            .WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(nodes, links))
+            .Build().ToSvg();
+        Assert.Contains("<rect", svg);
+    }
+
+    // ── ComputeNodeLabelAnchor (L.3, 2026-04-21) ─────────────────────────────
+
+    private static readonly Rect NodeRect = new(50, 100, 20, 40);
+
+    [Fact]
+    public void ComputeNodeLabelAnchor_Horizontal_FarEdge_AlignmentIsRight()
+    {
+        var (_, alignment) = SankeySeriesRenderer.ComputeNodeLabelAnchor(
+            NodeRect, onFarEdge: true, SankeyOrientation.Horizontal, measuredLabelHeight: 10);
+        Assert.Equal(TextAlignment.Right, alignment);
+    }
+
+    [Fact]
+    public void ComputeNodeLabelAnchor_Horizontal_NotFarEdge_AlignmentIsLeft()
+    {
+        var (_, alignment) = SankeySeriesRenderer.ComputeNodeLabelAnchor(
+            NodeRect, onFarEdge: false, SankeyOrientation.Horizontal, measuredLabelHeight: 10);
+        Assert.Equal(TextAlignment.Left, alignment);
+    }
+
+    [Fact]
+    public void ComputeNodeLabelAnchor_Vertical_FarEdge_AnchorIsBelowRect()
+    {
+        var (anchor, _) = SankeySeriesRenderer.ComputeNodeLabelAnchor(
+            NodeRect, onFarEdge: true, SankeyOrientation.Vertical, measuredLabelHeight: 10);
+        // Below: anchor.Y > nodeRect.Y + nodeRect.Height
+        Assert.True(anchor.Y > NodeRect.Y + NodeRect.Height);
+    }
+
+    [Fact]
+    public void ComputeNodeLabelAnchor_Vertical_NotFarEdge_AnchorIsAboveRect()
+    {
+        var (anchor, _) = SankeySeriesRenderer.ComputeNodeLabelAnchor(
+            NodeRect, onFarEdge: false, SankeyOrientation.Vertical, measuredLabelHeight: 10);
+        // Above: anchor.Y < nodeRect.Y
+        Assert.True(anchor.Y < NodeRect.Y);
     }
 }

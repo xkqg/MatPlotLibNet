@@ -188,7 +188,7 @@ public sealed class SvgRenderContext : IRenderContext
         if (font.Weight == FontWeight.Bold) _sb.Append(" font-weight=\"bold\"");
         if (font.Color.HasValue) _sb.Append(" fill=\"").Append(font.Color.Value.ToHex()).Append('"');
         FlushPendingData();
-        _sb.Append('>').Append(EscapeXml(text)).AppendLine("</text>");
+        _sb.Append('>').Append(text.EscapeForXml()).AppendLine("</text>");
     }
 
     private void EmitGlyphPath(string d, string textForMeasure, Point position, Font font, TextAlignment alignment, double rotation)
@@ -295,14 +295,14 @@ public sealed class SvgRenderContext : IRenderContext
         {
             if (span.Kind == TextSpanKind.Normal)
             {
-                _sb.Append(EscapeXml(span.Text));
+                _sb.Append(span.Text.EscapeForXml());
             }
             else
             {
                 string shift = span.Kind == TextSpanKind.Superscript ? "super" : "sub";
                 _sb.Append("<tspan baseline-shift=\"").Append(shift)
                    .Append("\" font-size=\"").Append((span.FontSizeScale * 100).ToSvgNumber()).Append("%\">")
-                   .Append(EscapeXml(span.Text))
+                   .Append(span.Text.EscapeForXml())
                    .Append("</tspan>");
             }
         }
@@ -346,7 +346,7 @@ public sealed class SvgRenderContext : IRenderContext
     internal void BeginAccessibleGroup(string cssClass, string ariaLabel)
     {
         _sb.Append("<g class=\"").Append(cssClass)
-           .Append("\" aria-label=\"").Append(EscapeXml(ariaLabel)).AppendLine("\">");
+           .Append("\" aria-label=\"").Append(ariaLabel.EscapeForXml()).AppendLine("\">");
     }
 
     /// <summary>Closes the current SVG group element.</summary>
@@ -403,7 +403,7 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.Append("<g class=\"").Append(cssClass)
            .Append("\" data-series-index=\"").Append(seriesIndex).Append('"');
         if (!string.IsNullOrEmpty(ariaLabel))
-            _sb.Append(" aria-label=\"").Append(EscapeXml(ariaLabel)).Append('"');
+            _sb.Append(" aria-label=\"").Append(ariaLabel.EscapeForXml()).Append('"');
         _sb.AppendLine(">");
     }
 
@@ -460,7 +460,7 @@ public sealed class SvgRenderContext : IRenderContext
     {
         _sb.Append("<g data-legend-index=\"").Append(legendIndex).Append("\" style=\"cursor:pointer\"");
         if (!string.IsNullOrEmpty(ariaLabel))
-            _sb.Append(" aria-label=\"").Append(EscapeXml(ariaLabel)).Append('"');
+            _sb.Append(" aria-label=\"").Append(ariaLabel.EscapeForXml()).Append('"');
         _sb.AppendLine(">");
     }
 
@@ -469,7 +469,7 @@ public sealed class SvgRenderContext : IRenderContext
     /// Must be paired with a matching <see cref="EndTooltipGroup"/> call.</remarks>
     internal void BeginTooltipGroup(string tooltipText)
     {
-        _sb.Append("<g><title>").Append(EscapeXml(tooltipText)).AppendLine("</title>");
+        _sb.Append("<g><title>").Append(tooltipText.EscapeForXml()).AppendLine("</title>");
     }
 
     /// <summary>Closes the SVG group opened by <see cref="BeginTooltipGroup"/>.</summary>
@@ -479,5 +479,4 @@ public sealed class SvgRenderContext : IRenderContext
     }
 
 
-    private static string EscapeXml(string text) => SvgXmlHelper.EscapeXml(text);
 }

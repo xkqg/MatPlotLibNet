@@ -18,7 +18,7 @@ public sealed class Sinusoidal : IGeoProjection
     {
         if (Math.Abs(y) > 90) return null;
         double cosLat = Math.Cos(y * DegToRad);
-        return cosLat == 0 ? null : (y, x / cosLat);
+        return Math.Abs(cosLat) < 1e-10 ? null : (y, x / cosLat);
     }
 
     public (double XMin, double XMax, double YMin, double YMax) Bounds => (-180, 180, -90, 90);

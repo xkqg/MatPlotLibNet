@@ -94,9 +94,16 @@ public sealed class ChartServer : IAsyncDisposable
     /// <summary>Gets the full URL for a chart page.</summary>
     internal string GetFigureUrl(string chartId) => $"http://127.0.0.1:{Port}/chart/{chartId}";
 
+    private static readonly Func<Stream?> _defaultSignalRLoader = () =>
+        typeof(ChartServer).Assembly.GetManifestResourceStream(
+            "MatPlotLibNet.Interactive.Resources.signalr.min.js");
+
     /// <summary>Configures routes on an endpoint builder. Extracted for testability.</summary>
-    internal static void ConfigureRoutes(IEndpointRouteBuilder endpoints, ConcurrentDictionary<string, Figure> figures, Func<int> portProvider)
+    /// <param name="signalRLoader">Overrides the embedded-JS loader; pass <see langword="null"/> to use the default assembly resource.</param>
+    internal static void ConfigureRoutes(IEndpointRouteBuilder endpoints, ConcurrentDictionary<string, Figure> figures, Func<int> portProvider, Func<Stream?>? signalRLoader = null)
     {
+        var jsLoader = signalRLoader ?? _defaultSignalRLoader;
+
         endpoints.MapGet("/chart/{chartId}", (string chartId) =>
         {
             if (!figures.TryGetValue(chartId, out var figure))
@@ -109,9 +116,7 @@ public sealed class ChartServer : IAsyncDisposable
 
         endpoints.MapGet("/js/signalr.min.js", () =>
         {
-            var assembly = typeof(ChartServer).Assembly;
-            var stream = assembly.GetManifestResourceStream(
-                "MatPlotLibNet.Interactive.Resources.signalr.min.js");
+            var stream = jsLoader();
             if (stream is null)
                 return Results.NotFound();
             return Results.Stream(stream, "application/javascript");
@@ -125,6 +130,12 @@ public sealed class ChartServer : IAsyncDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        await DisposeAsyncCore();
+        GC.SuppressFinalize(this);
+    }
+
+    private async ValueTask DisposeAsyncCore()
+    {
         _startLock.Dispose();
         if (_app is not null)
         {

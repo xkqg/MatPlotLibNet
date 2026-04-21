@@ -69,4 +69,52 @@ public class ChartSubscriptionClientTests
         client.OnSvgUpdated((id, svg) => Task.CompletedTask);
         client.OnSvgUpdated((id, svg) => Task.CompletedTask);
     }
+
+    // ── Wave J.1 — HandleSvgUpdatedAsync / HandleChartUpdatedAsync internal dispatch ───
+
+    /// <summary>HandleSvgUpdatedAsync with no handler registered — null arm, no-op.</summary>
+    [Fact]
+    public async Task HandleSvgUpdatedAsync_NoHandler_NoOp()
+    {
+        var client = new ChartSubscriptionClient();
+        await client.HandleSvgUpdatedAsync("chart1", "<svg/>");
+    }
+
+    /// <summary>HandleSvgUpdatedAsync with a registered handler — invokes the handler.</summary>
+    [Fact]
+    public async Task HandleSvgUpdatedAsync_WithHandler_InvokesHandler()
+    {
+        var client = new ChartSubscriptionClient();
+        string? receivedId = null;
+        string? receivedSvg = null;
+        client.OnSvgUpdated((id, svg) => { receivedId = id; receivedSvg = svg; return Task.CompletedTask; });
+
+        await client.HandleSvgUpdatedAsync("c1", "<svg/>");
+
+        Assert.Equal("c1", receivedId);
+        Assert.Equal("<svg/>", receivedSvg);
+    }
+
+    /// <summary>HandleChartUpdatedAsync with no handler registered — null arm, no-op.</summary>
+    [Fact]
+    public async Task HandleChartUpdatedAsync_NoHandler_NoOp()
+    {
+        var client = new ChartSubscriptionClient();
+        await client.HandleChartUpdatedAsync("chart1", "{}");
+    }
+
+    /// <summary>HandleChartUpdatedAsync with a registered handler — invokes the handler.</summary>
+    [Fact]
+    public async Task HandleChartUpdatedAsync_WithHandler_InvokesHandler()
+    {
+        var client = new ChartSubscriptionClient();
+        string? receivedId = null;
+        string? receivedJson = null;
+        client.OnChartUpdated((id, json) => { receivedId = id; receivedJson = json; return Task.CompletedTask; });
+
+        await client.HandleChartUpdatedAsync("c2", "{\"x\":1}");
+
+        Assert.Equal("c2", receivedId);
+        Assert.Equal("{\"x\":1}", receivedJson);
+    }
 }

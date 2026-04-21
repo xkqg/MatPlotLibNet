@@ -166,4 +166,138 @@ public class DataTransformBreaksScaleTests
             Assert.Equal(single.Y, batch[i].Y, 1e-6);
         }
     }
+
+    // ── Wave J.2 — TransformX slow path + missing DataTransform branches ─────
+
+    /// <summary>TransformX with SymLog X scale — hits the slow-path else branch at L141.</summary>
+    [Fact]
+    public void TransformX_WithSymLogXScale_AppliesSymLogToXValues()
+    {
+        double scaledMin = SymlogTransform.Forward(-125000, 100);
+        double scaledMax = SymlogTransform.Forward(125000, 100);
+
+        var t = new DataTransform(
+            scaledMin, scaledMax, 0, 10, Plot,
+            null, null,
+            -125000, 125000, 0, 10,
+            AxisScale.SymLog, AxisScale.Linear, 100.0, 1.0);
+
+        double[] xs = [-100000, -1000, 0, 1000, 100000];
+        var px = t.TransformX(xs);
+
+        // Values should match DataToPixel for X
+        for (int i = 0; i < xs.Length; i++)
+            Assert.Equal(t.DataToPixel(xs[i], 5).X, px[i], 1e-6);
+    }
+
+    /// <summary>TransformX with X-axis breaks — hits the slow-path else branch at L141.</summary>
+    [Fact]
+    public void TransformX_WithXBreaks_RemapsValuesAroundBreak()
+    {
+        var xBreaks = new List<AxisBreak> { new(20, 80) };
+        // Full X range 0..120, break removes [20,80] → compressed 0..60
+        var t = new DataTransform(
+            0, 60, 0, 10, Plot,
+            xBreaks: xBreaks, yBreaks: null,
+            0, 120, 0, 10);
+
+        double[] xs = [0, 10, 90, 100];
+        var px = t.TransformX(xs);
+
+        for (int i = 0; i < xs.Length; i++)
+            Assert.Equal(t.DataToPixel(xs[i], 0).X, px[i], 1e-6);
+    }
+
+    /// <summary>TransformX with xScale==0 — fills midpoint.</summary>
+    [Fact]
+    public void TransformX_ZeroXRange_FillsMidpoint()
+    {
+        var t = new DataTransform(5, 5, 0, 10, Plot); // xMin == xMax → xScale = 0
+        var px = t.TransformX([1.0, 5.0, 9.0]);
+        double mid = Plot.X + Plot.Width / 2;
+        Assert.All(px, v => Assert.Equal(mid, v, 1e-9));
+    }
+
+    /// <summary>TransformY with yScale==0 — fills midpoint.</summary>
+    [Fact]
+    public void TransformY_ZeroYRange_FillsMidpoint()
+    {
+        var t = new DataTransform(0, 10, 7, 7, Plot); // yMin == yMax → yScale = 0
+        var py = t.TransformY([1.0, 7.0, 12.0]);
+        double mid = Plot.Y + Plot.Height / 2;
+        Assert.All(py, v => Assert.Equal(mid, v, 1e-9));
+    }
+
+    /// <summary>Log scale via DataToPixel — hits the <c>AxisScale.Log</c> arm of ApplyScale.</summary>
+    [Fact]
+    public void DataToPixel_WithLogXScale_MapsLog10Correctly()
+    {
+        // X range in log space: log10(1)=0 .. log10(1000)=3
+        var t = new DataTransform(
+            0, 3, 0, 10, Plot,
+            null, null, 1, 1000, 0, 10,
+            AxisScale.Log, AxisScale.Linear, 1.0, 1.0);
+
+        // x=100 → log10(100)=2 → midpoint between 0 and 3 relative to range
+        var p = t.DataToPixel(100, 5);
+        Assert.InRange(p.X, Plot.X, Plot.X + Plot.Width);
+    }
+
+    /// <summary>Log scale on Y with x ≤ 0 — ApplyScale returns NaN.</summary>
+    [Fact]
+    public void DataToPixel_LogScaleWithNonPositiveX_ReturnsNaN()
+    {
+        var t = new DataTransform(
+            0, 3, 0, 10, Plot,
+            null, null, 0, 1000, 0, 10,
+            AxisScale.Log, AxisScale.Linear, 1.0, 1.0);
+
+        var p = t.DataToPixel(-1, 5);
+        Assert.True(double.IsNaN(p.X));
+    }
+
+    /// <summary>TransformBatch with X-axis SymLog only — needScalar fires via the 3rd OR operand.</summary>
+    [Fact]
+    public void TransformBatch_WithXSymLogOnlyScale_UseScalarPath()
+    {
+        double scaledMin = SymlogTransform.Forward(-1000, 10);
+        double scaledMax = SymlogTransform.Forward(1000, 10);
+
+        var t = new DataTransform(
+            scaledMin, scaledMax, 0, 10, Plot,
+            null, null,
+            -1000, 1000, 0, 10,
+            AxisScale.SymLog, AxisScale.Linear, 10.0, 1.0);
+
+        double[] xs = [-1000, 0, 1000];
+        double[] ys = [0, 5, 10];
+        var batch = t.TransformBatch(xs, ys);
+        for (int i = 0; i < xs.Length; i++)
+        {
+            var single = t.DataToPixel(xs[i], ys[i]);
+            Assert.Equal(single.X, batch[i].X, 1e-6);
+            Assert.Equal(single.Y, batch[i].Y, 1e-6);
+        }
+    }
+
+    /// <summary>TransformBatch with X-axis breaks only — needScalar fires via the 1st OR operand.</summary>
+    [Fact]
+    public void TransformBatch_WithXBreaksOnly_UseScalarPath()
+    {
+        var xBreaks = new List<AxisBreak> { new(20, 80) };
+        var t = new DataTransform(
+            0, 60, 0, 10, Plot,
+            xBreaks: xBreaks, yBreaks: null,
+            0, 120, 0, 10);
+
+        double[] xs = [0, 10, 90, 100];
+        double[] ys = [0, 3, 7, 10];
+        var batch = t.TransformBatch(xs, ys);
+        for (int i = 0; i < xs.Length; i++)
+        {
+            var single = t.DataToPixel(xs[i], ys[i]);
+            Assert.Equal(single.X, batch[i].X, 1e-6);
+            Assert.Equal(single.Y, batch[i].Y, 1e-6);
+        }
+    }
 }

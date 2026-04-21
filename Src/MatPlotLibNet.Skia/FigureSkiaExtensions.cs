@@ -62,11 +62,9 @@ public static class FigureSkiaExtensions
             if (!name.StartsWith(prefix, StringComparison.Ordinal) ||
                 !name.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase))
                 continue;
-            using var stream = asm.GetManifestResourceStream(name);
-            if (stream is null) continue;
+            using var stream = asm.GetManifestResourceStream(name)!;
             // SKTypeface.FromStream reads the stream eagerly so we can dispose it.
-            var typeface = SKTypeface.FromStream(stream);
-            if (typeface is null) continue;
+            var typeface = SKTypeface.FromStream(stream)!;
             // Key by FamilyName + style so "DejaVu Sans" / "DejaVu Sans|Bold" / etc
             // round-trip. The Resolve helper in SkiaRenderContext computes the same key.
             string key = BuildKey(typeface.FamilyName, typeface.FontStyle);
@@ -110,10 +108,6 @@ public static class FigureSkiaExtensions
                 if (trimmed.Length == 0) continue;
                 var key = BuildKey(trimmed, fontStyle);
                 if (BundledTypefaces.TryGetValue(key, out var bundled)) return bundled;
-                // For the bundled cache, also accept the bare family name as a "regular" match
-                if (BundledTypefaces.TryGetValue(trimmed, out var bare) &&
-                    weight == SKFontStyleWeight.Normal && slant == SKFontStyleSlant.Upright)
-                    return bare;
             }
         }
         return SKTypeface.FromFamilyName(family, weight, SKFontStyleWidth.Normal, slant);

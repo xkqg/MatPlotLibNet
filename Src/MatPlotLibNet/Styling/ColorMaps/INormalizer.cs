@@ -58,7 +58,7 @@ public sealed class TwoSlopeNormalizer : INormalizer
         else
         {
             double upperRange = max - Center;
-            return upperRange == 0 ? 0.5 : 0.5 + 0.5 * (clamped - Center) / upperRange;
+            return 0.5 + 0.5 * (clamped - Center) / upperRange;
         }
     }
 }

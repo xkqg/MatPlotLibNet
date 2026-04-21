@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders a <see cref="SunburstSeries"/> as concentric ring segments.</summary>
-internal sealed class SunburstSeriesRenderer : SeriesRenderer<SunburstSeries>
+internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
 {
     /// <inheritdoc />
     public SunburstSeriesRenderer(SeriesRenderContext context) : base(context) { }
@@ -34,21 +34,8 @@ internal sealed class SunburstSeriesRenderer : SeriesRenderer<SunburstSeries>
 
         RenderRing(series.Root, cx, cy, 0, 360, 0, series, ringWidth, maxRadius, labelCandidates);
 
-        // Place + draw collected labels.
         if (labelCandidates is { Count: > 0 })
-        {
-            var placements = LabelLayoutEngine.Place(
-                labelCandidates,
-                bounds,
-                ChartServices.FontMetrics);
-            var leaderColor = Context?.Theme?.ForegroundText ?? Colors.Black;
-            foreach (var p in placements)
-            {
-                if (p.LeaderLineStart is { } anchor)
-                    CalloutBoxRenderer.DrawLeaderLine(Ctx, anchor, p.FinalPoint, leaderColor);
-                Ctx.DrawText(p.Text, p.FinalPoint, p.Font, p.Alignment);
-            }
-        }
+            PlaceOuterLabels(labelCandidates, bounds);
     }
 
     private void RenderRing(TreeNode node, double cx, double cy,
@@ -66,11 +53,12 @@ internal sealed class SunburstSeriesRenderer : SeriesRenderer<SunburstSeries>
         // Reuse the cached label font so every ring uses the same metrics, and so the
         // text-size measurement inside the LabelLayoutEngine matches what the renderer
         // will eventually draw (both go through ChartServices.FontMetrics).
-        var labelFont = labelCandidates is null
-            ? null
-            : Context?.Theme?.DefaultFont is { } f
-                ? new Font { Family = f.Family, Size = Math.Max(9, f.Size - 1), Color = Colors.White }
-                : new Font { Size = 10, Color = Colors.White };
+        Font? labelFont = null;
+        if (labelCandidates is not null)
+        {
+            var f = Context.Theme.DefaultFont;
+            labelFont = new Font { Family = f.Family, Size = Math.Max(9, f.Size - 1), Color = Colors.White };
+        }
 
         double currentAngle = startAngle;
         foreach (var child in node.Children)
@@ -78,20 +66,7 @@ internal sealed class SunburstSeriesRenderer : SeriesRenderer<SunburstSeries>
             double childSweep = sweepAngle * (child.TotalValue / total);
             var color = child.Color ?? ResolveColor(null);
 
-            // Draw arc segment
-            double startRad = currentAngle * Math.PI / 180;
-            double endRad = (currentAngle + childSweep) * Math.PI / 180;
-
-            var segments = new List<PathSegment>
-            {
-                new MoveToSegment(new Point(cx + innerR * Math.Cos(startRad), cy + innerR * Math.Sin(startRad))),
-                new LineToSegment(new Point(cx + outerR * Math.Cos(startRad), cy + outerR * Math.Sin(startRad))),
-                new ArcSegment(new Point(cx, cy), outerR, outerR, currentAngle, currentAngle + childSweep),
-                new LineToSegment(new Point(cx + innerR * Math.Cos(endRad), cy + innerR * Math.Sin(endRad))),
-                new ArcSegment(new Point(cx, cy), innerR, innerR, currentAngle + childSweep, currentAngle),
-                new CloseSegment()
-            };
-            Ctx.DrawPath(segments, color, Colors.White, 1);
+            Ctx.DrawPath(BuildWedgePath(cx, cy, innerR, outerR, currentAngle, currentAngle + childSweep), color, Colors.White, 1);
 
             // Collect a label for this ring segment when labels are enabled and the wedge
             // is wide enough to plausibly host one. Anchor at the radial+angular midpoint.

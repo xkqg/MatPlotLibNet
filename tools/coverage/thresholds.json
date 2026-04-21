@@ -43,7 +43,7 @@
     "MatPlotLibNet.Playground.Pages.Playground": {
       "line": 0,
       "branch": 0,
-      "reason": "Sample Blazor page — interactive demo, not library code."
+      "reason": "Blazor page — UI event wiring only; all testable logic extracted to PlaygroundController (tested at 100%). Blazor-specific @code branches (MarkupString toggle, async JS interop) are not exercisable without a full browser runtime."
     },
     "MatPlotLibNet.Playground.Layout.MainLayout": {
       "line": 0,
@@ -51,9 +51,9 @@
       "reason": "Sample Blazor layout — interactive demo, not library code."
     },
     "MatPlotLibNet.Playground.PlaygroundExamples": {
-      "line": 99,
-      "branch": 75,
-      "reason": "Sample Blazor switch over example name; default arm is unreachable through the sample's UI."
+      "line": 97,
+      "branch": 90,
+      "reason": "Sample switch over PlaygroundExample enum. Default (unknown-value) arm is tested via Build_UnregisteredEnumValue_ThrowsArgumentException. Branch threshold raised to 90 after HasCartesianSpines and Build exception tests were added (Phase K)."
     },
     "MatPlotLibNet.Playground.PlaygroundOptions": {
       "line": 50,
@@ -75,25 +75,15 @@
       "branch": 90,
       "reason": "Interface with 14 default no-op `Visit(...) { }` overloads (ISeriesVisitor.cs lines 195-243) for ISP compatibility — every concrete visitor (SvgSeriesVisitor, TestSeriesVisitor, etc.) overrides every method, so the default empty bodies are never reached at runtime by design. Same pattern as the existing IStreamingIndicator exemption. Concrete visitor implementations are tested via SvgSeriesRenderer + AllSeriesTests Theory. Phase Y.1 (v1.7.2, 2026-04-19)."
     },
-    "MatPlotLibNet.Rendering.IRenderContext": {
-      "line": 80,
-      "branch": 85,
-      "reason": "Interface with default-impl methods (DrawText 5-arg rotation overload at line 51, BeginGroup at line 88, SetNextElementData at line 90, MeasureRichText fallback at lines 72-81). Default-impl arms only fire when a concrete IRenderContext omits the override; production impls (SvgRenderContext, SkiaRenderContext) override every method, leaving the defaults dead through the public API. The MeasureRichText line-76 short-circuit is the only reachable default-impl branch (a custom IRenderContext that doesn't override MeasureRichText). 80L/85B reflects the achievable surface through concrete-impl test coverage. Phase Y.1 (v1.7.2, 2026-04-19)."
-    },
     "MatPlotLibNet.Indicators.PriceIndicator<TResult>": {
       "line": 70,
       "branch": 100,
       "reason": "Generic abstract base; the unmeasured 'line' is an empty body inside a single instantiation that disappears under JIT specialisation. Branch is already 100. Concrete subclasses (Sma/Ema/Rsi/etc.) cover all reachable production paths. Same shape as the existing IStreamingIndicator exemption. Phase Z.9 (v1.7.2, 2026-04-19)."
     },
     "MatPlotLibNet.Playground.PlaygroundExampleExtensions": {
-      "line": 80,
-      "branch": 60,
-      "reason": "Sample-only helper; mirrors the existing PlaygroundExamples exemption. Branches are over Blazor sample switch arms; the playground UI doesn't reach every default arm. Phase Z.9 (v1.7.2, 2026-04-19)."
-    },
-    "MatPlotLibNet.SecondaryXAxisBuilder": {
-      "line": 60,
-      "branch": 50,
-      "reason": "Small placeholder builder reached only via AxesBuilder.WithSecondaryXAxis; current public surface is two setters (SetXLabel, SetXLim) used in 0 cookbook examples. The setter-bodies have no branches to flip. Will graduate when the secondary-X-axis cookbook example is added. Phase Z.9 (v1.7.2, 2026-04-19)."
+      "line": 90,
+      "branch": 90,
+      "reason": "Sample-only helper. DisplayName fallback (no Description attribute → ToString) and FromDisplayName null-return arm are both tested via PlaygroundExampleEnumTests (Phase K). Thresholds raised to 90/90."
     },
     "MatPlotLibNet.Interaction.DataCursorEvent": {
       "line": 0,
@@ -115,11 +105,6 @@
       "branch": 0,
       "reason": "Skia glyph-to-path provider — registered but not exercised by tests; runtime code path used only by SkiaSharp text-rendering pipeline. Tracked for follow-up coverage."
     },
-    "MatPlotLibNet.Transforms.Animation.FuncAnimation": {
-      "line": 0,
-      "branch": 0,
-      "reason": "Animation timer-driven controller — covered by AnimationController generic class; FuncAnimation is the wrapper for matplotlib parity. Tracked for follow-up coverage."
-    },
     "MatPlotLibNet.Rendering.HatchRenderer": {
       "line": 0,
       "branch": 0,
@@ -129,56 +114,6 @@
       "line": 0,
       "branch": 0,
       "reason": "Calls Process.Start with UseShellExecute=true to invoke the OS browser launcher (xdg-open / open / explorer). Cannot unit-test without mocking System.Diagnostics.Process, which would only test the mock and not the launch contract — observed at runtime on every CI run as 'xdg-open: no method available for opening …' from MatPlotLibNet.Interactive.Tests.InteractiveExtensionsTests.ShowAsync_OpensBrowser (already SKIPped on CI: 'Requires a desktop environment'). Phase X.0 (v1.7.2, 2026-04-19)."
-    },
-    "MatPlotLibNet.Geo.Projections.Sinusoidal": {
-      "line": 100,
-      "branch": 75,
-      "reason": "Inverse() line 21 'cosLat == 0 ? null : (y, x / cosLat)' false arm is provably unreachable: line 20 computes cosLat = Math.Cos(y * DegToRad) where y∈[-90,90] (guarded by the |y|>90 check above). At y=±90°, Math.Cos(±π/2) returns 6.12e-17 (IEEE-754 rounding), never exactly 0, so the exact-equality check never trips. Verified during Phase X.4 wave-1 by SinusoidalProjection_Inverse_PolarLatitude_ReturnsNull failing — Inverse(0, 90) returned (90, 0) not null. Defensive guard kept for safety against future Math.Cos rounding changes; 75% branch (3 of 4 covered, only the unreachable arm missing) is the achievable maximum. Phase X.6 (v1.7.2, 2026-04-19)."
-    },
-    "MatPlotLibNet.Geo.Projections.Stereographic": {
-      "line": 100,
-      "branch": 50,
-      "reason": "Forward() line 30 'if (double.IsInfinity(k) || k < 0)' has 4 branch points (2/4 covered = 50%). The k<0 disjunct is provably unreachable: k = 2 / (1 + sinPhi0·sinPhi + cosPhi0·cosPhi·cos(Δλ)). The trig product term is bounded in [-1, 1] (Cauchy-Schwarz on unit vectors), so the denominator ∈ [0, 2] ⇒ k ≥ 0 mathematically. Only the IsInfinity arm is reachable (antipode singularity, denominator = 0); the k<0 short-circuit eval covers the other 2 of 4. The existing GeoProjectionBranchCoverageTests.Stereographic.AntipodeReturnsNaN already covers IsInfinity. 50% branch is the achievable maximum without race-injecting unreachable arms. Phase X.6 (v1.7.2, 2026-04-19)."
-    },
-    "MatPlotLibNet.Interaction.HoverModifier": {
-      "line": 100,
-      "branch": 85,
-      "reason": "OnPointerMoved line 38 'if (coords is null) return;' arm is provably unreachable through the public API. PixelToData returns null only when the pixel is outside the plot area bounds — but HitTestAxes uses the same bounds check above (line 34) and returns null in that case, triggering the line-35 early return BEFORE reaching line 38. Defensive guard kept; same pattern as Stereographic k<0 and Sinusoidal cosLat==0 (X.6 exemptions). Verified during Phase X.7 by direct probe; see HoverModifierTests.cs trailing comment. Phase X.8 (v1.7.2, 2026-04-19)."
-    },
-    "MatPlotLibNet.Interaction.ZoomModifier": {
-      "line": 85,
-      "branch": 75,
-      "reason": "OnScroll line 41 'if (coords is null) return;' arm is provably unreachable through the public API for the same reason as HoverModifier line 38 and DataCursorModifier line 50: PixelToData returns null only when the pixel is outside the plot area bounds, but the controller pre-filters via HandlesScroll (line 33) which uses the same HitTestAxes bounds check. Defensive guard kept. With 3/4 reachable branches covered = 75% branch, 86% line is the achievable maximum without race-injecting unreachable arms. Phase X.9.c (v1.7.2, 2026-04-19)."
-    },
-    "MatPlotLibNet.Interaction.InteractionController": {
-      "line": 95,
-      "branch": 88,
-      "reason": "HandlePointerMoved line 154 nearest-not-null ternary's redundant 4th branch and line 175 OnPointerReleased's `?.` short-circuit on a class field that's only null in test code (production controller always sets _activeModifier on press before release). Phase X.9.c lifted line/branch from 89/70 to 96/89; the remaining ~1pp branch gap is two redundant short-circuit operands. 95L/88B is the achievable maximum without orchestrating multi-thread races. Phase X.9.c (v1.7.2, 2026-04-19)."
-    },
-    "MatPlotLibNet.Rendering.SeriesRenderers.PieSeriesRenderer": {
-      "line": 95,
-      "branch": 75,
-      "reason": "PieSeriesRenderer renders outer-label collisions via LabelLayoutEngine; the leader-line emission path (line 111-112) only triggers when LabelLayoutEngine resolves a collision by relocating a label far enough from its anchor that a leader line is needed. For the current cookbook test set this rarely fires (only happens with very dense overlapping outer labels and a small canvas). Pre-X.9.a was 98L/61B; X.9.a lifted to 98L/77B by adding theme/per-slice/explode/shadow/all-alignment-arms tests. The remaining branches in the ?-clause-rich label collision path are achievable only with a fixture that orchestrates worst-case overlap geometry. 95L/75B is the achievable maximum. Phase X.9.a (v1.7.2, 2026-04-19)."
-    },
-    "MatPlotLibNet.Rendering.SeriesRenderers.BarSeriesRenderer": {
-      "line": 100,
-      "branch": 85,
-      "reason": "Phase X.9.a (v1.7.2, 2026-04-19) lifted from 72L/65B to 100L/88B by adding 9 facts covering vertical/horizontal, categorical/numeric, edge/center alignment, stack baseline, line-width vs edge-color, custom label format, and negative values. The remaining ~12% branch gap is in the LabelLayoutEngine batch-placement code path's leader-line + theme-defaultfont arms; same shape as PieSeriesRenderer — only reachable with worst-case label-overlap geometry. 100L/85B is the achievable maximum."
-    },
-    "MatPlotLibNet.Rendering.Svg.SvgRenderContext": {
-      "line": 88,
-      "branch": 80,
-      "reason": "EmitGlyphPath path (lines 195/203/209/211) and DrawText glyph-provider arm (lines 146-152) only execute when ChartServices.GlyphPathProvider is non-null — i.e. when MatPlotLibNet.Skia is loaded and registers SkiaGlyphPathProvider. The pure-managed test assembly does not reference Skia, so these arms are reachable only in the MatPlotLibNet.Skia.Tests project (already covered there). 88L/80B reflects the pure-managed reachable surface. Phase X.9.b (v1.7.2, 2026-04-19)."
-    },
-    "MatPlotLibNet.Interaction.DataCursorModifier": {
-      "line": 100,
-      "branch": 85,
-      "reason": "Two reachable-but-redundant branches kept as defensive code. (1) Line 50 'if (coords is null) return false;' arm is provably unreachable for the same reason as HoverModifier line 38: PixelToData returns null only when the pixel is outside the plot area bounds, but HitTestAxes (line 45) uses the same bounds check and returns null in that case, triggering the line-46 early return BEFORE reaching line 50. (2) Line 42 short-circuit OR 'args.Button != Left || args.Modifiers != None' has 4 branch points; the 4th is the redundant Right-button-AND-modifier combo (e.g. Right+Ctrl) where the first operand is false so the second operand is short-circuited and never evaluated — the cobertura branch counter still tags it as a separate arm but it's the redundancy of OR, never reachable distinctly. Phase X.8 (v1.7.2, 2026-04-19) lifted lines 48 (non-ChartLayout via MinimalLayout test), 53 (nearest=null/within HitRadiusPx), and 42's 3 reachable arms (Right+None, Left+None, Left+Ctrl) — 14/16 = 87.5% branch is the achievable maximum."
-    },
-    "MatPlotLibNet.AspNetCore.StreamingChartSession": {
-      "line": 100,
-      "branch": 75,
-      "reason": "OnRenderRequested() line 29 'if (_disposed) return;' guard is defensive race-condition coverage only. DisposeAsync (line 34) unsubscribes the RenderRequested event handler at line 39 BEFORE setting _disposed = true at line 38; the strict order means the handler cannot fire from a disposed instance via the public API. Triggering would require multi-thread race injection (dispose racing with a queued event), not testable through the existing harness. Wave-1 X.4.a tests (StreamingChartSessionTests) cover the full lifecycle (subscribe / render / re-register / dispose / multi-session isolation) at 100% line / 75% branch; the missing 25% is exclusively this guard. 75% branch is the achievable maximum. Phase X.6 (v1.7.2, 2026-04-19)."
     }
   }
 }

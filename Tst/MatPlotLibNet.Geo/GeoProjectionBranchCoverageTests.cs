@@ -112,6 +112,15 @@ public class GeoProjectionBranchCoverageTests
             Assert.Equal(45, inv.Value.Lat, 1e-6);
             Assert.Equal(30, inv.Value.Lon, 1e-6);
         }
+
+        /// <summary>y = ±90 — passes the |y|&gt;90 guard (90 is NOT &gt; 90)
+        /// but cos(90°)=0 → cosLat==0 TRUE arm → returns null.</summary>
+        [Fact]
+        public void Inverse_AtExactPole_ReturnsNull()
+        {
+            Assert.Null(P.Inverse(0, 90));
+            Assert.Null(P.Inverse(0, -90));
+        }
     }
 
     // ─── Stereographic ────────────────────────────────────────────────────────
@@ -136,6 +145,18 @@ public class GeoProjectionBranchCoverageTests
             var p = new Projections.Stereographic();
             Assert.Null(p.Inverse(0, 0));
             Assert.Null(p.Inverse(100, 100));
+        }
+
+        /// <summary>Exact antipode with equatorial centre — cos(180°) == −1.0 exactly in
+        /// IEEE-754, so the denominator is exactly 0 → k == +Infinity → returns (NaN, NaN).
+        /// This is the only geometry that reliably hits the <c>IsInfinity(k)</c> TRUE arm.</summary>
+        [Fact]
+        public void Forward_ExactEquatorialAntipode_ReturnsNaN()
+        {
+            var p = new Projections.Stereographic(centerLat: 0, centerLon: 0);
+            var (x, y) = p.Forward(0, 180);
+            Assert.True(double.IsNaN(x) && double.IsNaN(y),
+                $"Exact antipode must return (NaN, NaN); got ({x}, {y})");
         }
 
         [Fact]

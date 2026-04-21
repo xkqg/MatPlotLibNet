@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.Svg;
@@ -274,6 +275,124 @@ public class SvgRenderContextTests
     }
 
     // --- DrawText variants ---
+
+    // ── Glyph-path provider coverage (Phase J) ───────────────────────────────
+    // ChartServices.GlyphPathProvider is null by default in the pure-managed
+    // test assembly. The tests below inject a stub to cover the EmitGlyphPath
+    // branch family (L151/L154/L208/L214/L216 in SvgRenderContext.cs).
+    // Each test saves and restores the global property for isolation.
+
+    private sealed class StubGlyphProvider(string? pathData) : IGlyphPathProvider
+    {
+        public string? GetPathData(string text, Font font) => pathData;
+    }
+
+    /// <summary>Provider returns non-null path → emits &lt;path d=&gt; not &lt;text&gt;.</summary>
+    [Fact]
+    public void DrawText_GlyphProvider_NonNullPath_EmitsPathElement()
+    {
+        var prev = ChartServices.GlyphPathProvider;
+        try
+        {
+            ChartServices.GlyphPathProvider = new StubGlyphProvider("M 0 0 L 10 0");
+            var ctx = new SvgRenderContext();
+            ctx.DrawText("Hi", new Point(50, 50), new Font(), TextAlignment.Left);
+            string svg = ctx.GetOutput();
+            Assert.Contains("<path d=\"M 0 0 L 10 0\"", svg);
+            Assert.DoesNotContain("<text", svg);
+        }
+        finally { ChartServices.GlyphPathProvider = prev; }
+    }
+
+    /// <summary>Provider returns null → falls back to &lt;text&gt; element.</summary>
+    [Fact]
+    public void DrawText_GlyphProvider_NullPath_FallsBackToTextElement()
+    {
+        var prev = ChartServices.GlyphPathProvider;
+        try
+        {
+            ChartServices.GlyphPathProvider = new StubGlyphProvider(null);
+            var ctx = new SvgRenderContext();
+            ctx.DrawText("Hi", new Point(50, 50), new Font(), TextAlignment.Left);
+            string svg = ctx.GetOutput();
+            Assert.Contains("<text", svg);
+        }
+        finally { ChartServices.GlyphPathProvider = prev; }
+    }
+
+    /// <summary>EmitGlyphPath L208 TRUE arm: font with Color emits fill attribute on path.</summary>
+    [Fact]
+    public void DrawText_GlyphProvider_FontWithColor_EmitsFillOnPath()
+    {
+        var prev = ChartServices.GlyphPathProvider;
+        try
+        {
+            ChartServices.GlyphPathProvider = new StubGlyphProvider("M 0 0");
+            var ctx = new SvgRenderContext();
+            ctx.DrawText("Hi", new Point(50, 50),
+                new Font { Color = Colors.Red }, TextAlignment.Left);
+            string svg = ctx.GetOutput();
+            Assert.Contains("fill=\"#FF0000\"", svg);
+        }
+        finally { ChartServices.GlyphPathProvider = prev; }
+    }
+
+    /// <summary>EmitGlyphPath L214 TRUE arm: rotation != 0 emits rotate() in transform.</summary>
+    [Fact]
+    public void DrawText_GlyphProvider_WithRotation_EmitsRotateInTransform()
+    {
+        var prev = ChartServices.GlyphPathProvider;
+        try
+        {
+            ChartServices.GlyphPathProvider = new StubGlyphProvider("M 0 0");
+            var ctx = new SvgRenderContext();
+            ctx.DrawText("Hi", new Point(50, 50), new Font(), TextAlignment.Left, rotation: 90.0);
+            string svg = ctx.GetOutput();
+            Assert.Contains("rotate(", svg);
+        }
+        finally { ChartServices.GlyphPathProvider = prev; }
+    }
+
+    /// <summary>EmitGlyphPath L216 TRUE arm: Center alignment emits second translate() for align offset.</summary>
+    [Fact]
+    public void DrawText_GlyphProvider_CenterAlignment_EmitsAlignTranslate()
+    {
+        var prev = ChartServices.GlyphPathProvider;
+        try
+        {
+            ChartServices.GlyphPathProvider = new StubGlyphProvider("M 0 0");
+            var ctx = new SvgRenderContext();
+            ctx.DrawText("Hi", new Point(50, 50), new Font { Size = 12 }, TextAlignment.Center);
+            string svg = ctx.GetOutput();
+            // The transform should contain two translate() calls: one for position, one for align offset.
+            int translateCount = 0;
+            int idx = 0;
+            while ((idx = svg.IndexOf("translate(", idx, StringComparison.Ordinal)) >= 0)
+            { translateCount++; idx++; }
+            Assert.True(translateCount >= 2, $"Expected ≥2 translate() in transform; got {translateCount}. SVG={svg}");
+        }
+        finally { ChartServices.GlyphPathProvider = prev; }
+    }
+
+    /// <summary>EmitGlyphPath L216 TRUE arm: Right alignment also emits second translate().</summary>
+    [Fact]
+    public void DrawText_GlyphProvider_RightAlignment_EmitsAlignTranslate()
+    {
+        var prev = ChartServices.GlyphPathProvider;
+        try
+        {
+            ChartServices.GlyphPathProvider = new StubGlyphProvider("M 0 0");
+            var ctx = new SvgRenderContext();
+            ctx.DrawText("Hi", new Point(50, 50), new Font { Size = 12 }, TextAlignment.Right);
+            string svg = ctx.GetOutput();
+            int translateCount = 0;
+            int idx = 0;
+            while ((idx = svg.IndexOf("translate(", idx, StringComparison.Ordinal)) >= 0)
+            { translateCount++; idx++; }
+            Assert.True(translateCount >= 2, $"Expected ≥2 translate() in transform; got {translateCount}. SVG={svg}");
+        }
+        finally { ChartServices.GlyphPathProvider = prev; }
+    }
 
     /// <summary>Verifies that center-aligned text uses the "middle" text-anchor attribute.</summary>
     [Fact]

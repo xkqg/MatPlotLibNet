@@ -219,13 +219,11 @@ public class PlaygroundExampleTests
     // ── Registry sanity ──────────────────────────────────────────────────────
 
     [Fact]
-    public void Examples_Contains_SixteenMembers()
+    public void Examples_Contains_EighteenMembers()
     {
-        // Phase G.7 of v1.7.2 follow-on plan — "Sankey Flow" added (16th example)
-        // to exercise the browser-side Sankey hover script end-to-end.
-        // Phase N.1 — Examples is now an IReadOnlyList<PlaygroundExample> backed
-        // by Enum.GetValues<PlaygroundExample>().
-        Assert.Equal(16, PlaygroundExamples.Examples.Count);
+        // Phase L (v1.7.2, 2026-04-21) — AxisBreaks + MinorGrid added (17th and 18th examples)
+        // to showcase the refactored DrawBreakSegments + RenderGridLines helpers.
+        Assert.Equal(18, PlaygroundExamples.Examples.Count);
     }
 
     [Fact]
@@ -235,6 +233,8 @@ public class PlaygroundExampleTests
         // controls make no visual difference on them. Exclude Scatter.
         Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.LineChart));
         Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.MultiSeries));
+        Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.AxisBreaks));
+        Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.MinorGrid));
         Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.ScatterPlot));
         Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.Heatmap));
         Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.PieChart));
@@ -249,6 +249,8 @@ public class PlaygroundExampleTests
         Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.LineChart));
         Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.ScatterPlot));
         Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.MultiSeries));
+        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.AxisBreaks));
+        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.MinorGrid));
         Assert.False(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.Heatmap));
         Assert.False(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.PieChart));
     }

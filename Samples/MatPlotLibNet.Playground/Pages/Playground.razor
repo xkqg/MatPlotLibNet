@@ -337,36 +337,19 @@
 
     private void OnThemeChanged(ChangeEventArgs e)
     {
-        if (int.TryParse(e.Value?.ToString(), out int idx))
-        {
-            var all = AllThemeChoices;
-            if (idx >= 0 && idx < all.Length) _theme = all[idx].Theme;
-        }
+        _theme = PlaygroundController.SelectThemeByIndex(e.Value?.ToString(), AllThemeChoices) ?? _theme;
         Rebuild();
     }
 
     private void OnColorMapChanged(ChangeEventArgs e)
     {
-        if (int.TryParse(e.Value?.ToString(), out int idx)
-            && idx >= 0 && idx < ColorMapChoices.Length)
-        {
-            _colorMap = ColorMapChoices[idx];
-        }
+        _colorMap = PlaygroundController.SelectColorMapByIndex(e.Value?.ToString(), ColorMapChoices) ?? _colorMap;
         Rebuild();
     }
 
     private void Rebuild()
     {
-        try
-        {
-            var (figure, code) = PlaygroundExamples.Build(_selectedExample, CurrentOptions);
-            _svg  = figure.ToSvg();
-            _code = code;
-        }
-        catch (Exception ex)
-        {
-            _svg = "<p style='color:red;padding:20px'>" + ex.Message + "</p>";
-        }
+        PlaygroundController.TryBuild(_selectedExample, CurrentOptions, out _svg, out _code, out _);
     }
 
     private async Task CopyCode()       => await JS.InvokeVoidAsync("copyToClipboard", _code);
