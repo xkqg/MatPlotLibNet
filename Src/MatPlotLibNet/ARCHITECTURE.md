@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.0.1)
+# MatPlotLibNet Core -- Architecture (v1.7.3)
 
 ## Package dependency graph
 
@@ -202,6 +202,7 @@ MatPlotLibNet/
     ChartRenderer.cs                  figure-level orchestrator: background, constrained layout, subplot layout, dispatch to AxesRenderer
     AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry)
     CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, series, annotations, signals
+                                        internal helpers (Phase L): RenderGridLines(Orientation,…), RenderAxisTicks(…)+TickDrawContext, DrawBreakSegments(Orientation,BreakStyle,…)
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation), DrawRichText (default method)
@@ -260,10 +261,11 @@ MatPlotLibNet/
       DrawStyleInterpolation.cs         internal static: Apply(x, y, style) — shared step-mode interpolation; eliminates duplication between LineSeriesRenderer and AreaSeriesRenderer
       XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band), Residual (LeastSquares residuals + optional zero line)
       Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
-      Circular/                         Pie, Radar, Donut, Gauge
+      Circular/                         CircularRenderer<TSeries> (abstract base: BuildWedgePath, PlaceOuterLabels); Pie, Radar, Donut, Gauge
       Grid/                             Heatmap, Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill)
       Distribution/                     Box, Violin, Kde (GaussianKde Silverman bandwidth), Rugplot (tick marks), Stripplot (jittered points), Swarmplot (BeeswarmLayout circle-packing)
       Financial/                        Candlestick, OhlcBar
+      Polar/                            PolarTransformRenderer<TSeries> (abstract base: PrepareTransform → rMax + PolarTransform); PolarLine, PolarScatter, PolarBar
       Field/                            Quiver, Stem, Streamplot, QuiverKey (reference arrow), Barbs (meteorological wind barbs)
       Hierarchical/                     Treemap, Sunburst (shared HierarchicalSeries base)
       Flow/                             Sankey
@@ -461,7 +463,7 @@ ChartHub               routes to SignalR group by chartId
 | Self-serialization | ISeriesSerializable on all 60 series | each series knows how to serialize itself (no central switch) |
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
 | Registry | SeriesRegistry (ConcurrentDictionary) | thread-safe deserialization type lookup |
-| Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries | DRY shared properties across series families |
+| Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries; CircularRenderer<T>, PolarTransformRenderer<T>, OhlcStreamingIndicatorTests<T> (Phase L) | DRY shared properties and behaviour across series and renderer families |
 | Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable, IHasColor, IHasAlpha, IHasEdgeColor, ILabelable | narrow contracts for cross-cutting concerns |
 | DI interfaces | IFigureTransform, IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |
 | SRP extension methods | FigureExtensions (Save, Transform, ToSvg, RegisterTransform) | builder only builds; output is separate |
