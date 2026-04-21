@@ -38,6 +38,7 @@ public sealed class ZoomModifier : IInteractionModifier
     {
         int axesIndex = (_layout.HitTestAxes(args.X, args.Y)).GetValueOrDefault();
         var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex);
+        if (coords is null) return;
 
         var (xMin, xMax, yMin, yMax) = _layout.GetDataRange(axesIndex);
 

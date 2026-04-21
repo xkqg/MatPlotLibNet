@@ -125,46 +125,49 @@ jobs:
       - name: Restore
         run: dotnet restore MatPlotLibNet.CI.slnf
 
+      - name: Build
+        run: dotnet build MatPlotLibNet.CI.slnf --configuration Release --no-restore
+
       - name: Pack
         run: |
           dotnet pack Src/MatPlotLibNet/MatPlotLibNet.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.Skia/MatPlotLibNet.Skia.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.Geo/MatPlotLibNet.Geo.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
           dotnet pack Src/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.csproj \
-            --no-restore --configuration Release \
+            --no-build --no-restore --configuration Release \
             --output out/nupkg
 
       - name: Push to NuGet

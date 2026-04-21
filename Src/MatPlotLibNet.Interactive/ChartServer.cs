@@ -99,6 +99,9 @@ public sealed class ChartServer : IAsyncDisposable
             "MatPlotLibNet.Interactive.Resources.signalr.min.js");
 
     /// <summary>Configures routes on an endpoint builder. Extracted for testability.</summary>
+    /// <param name="endpoints">The endpoint route builder to register routes on.</param>
+    /// <param name="figures">The shared figure registry keyed by chart ID.</param>
+    /// <param name="portProvider">Returns the port the server is listening on (used for the SignalR hub URL).</param>
     /// <param name="signalRLoader">Overrides the embedded-JS loader; pass <see langword="null"/> to use the default assembly resource.</param>
     internal static void ConfigureRoutes(IEndpointRouteBuilder endpoints, ConcurrentDictionary<string, Figure> figures, Func<int> portProvider, Func<Stream?>? signalRLoader = null)
     {
