@@ -1056,8 +1056,8 @@ public class ChartSerializerRoundTripTests
             .Build();
         var rt = RoundTrip(fig);
         Assert.NotNull(rt.GridSpec);
-        Assert.Equal([1.0, 2.0], rt.GridSpec.HeightRatios);
-        Assert.Equal([1.0, 1.0], rt.GridSpec.WidthRatios);
+        Assert.Equal([1.0, 2.0], rt.GridSpec!.HeightRatios!);
+        Assert.Equal([1.0, 1.0], rt.GridSpec.WidthRatios!);
     }
 
     // ── Wave J.2 — missing series types + TryParse false arms ────────────
@@ -1072,8 +1072,8 @@ public class ChartSerializerRoundTripTests
             .Build();
         var rt = RoundTrip(fig);
         var t = (TableSeries)rt.SubPlots[0].Series[0];
-        Assert.Equal(["Col1", "Col2"], t.ColumnHeaders);
-        Assert.Equal(["R1", "R2"], t.RowHeaders);
+        Assert.Equal(["Col1", "Col2"], t.ColumnHeaders!);
+        Assert.Equal(["R1", "R2"], t.RowHeaders!);
     }
 
     [Fact]

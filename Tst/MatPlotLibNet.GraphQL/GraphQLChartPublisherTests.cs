@@ -51,14 +51,15 @@ public class GraphQLChartPublisherTests
         var (publisher, inner, receiver) = BuildHarness();
         var fig = Plt.Create().WithTitle("X.4.b").Plot([1.0], [2.0]).Build();
 
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartJson:chart-json-1");
+        var ct = TestContext.Current.CancellationToken;
+        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartJson:chart-json-1", ct);
 
         // Publish on a background task so the read loop below doesn't race the send.
         _ = Task.Run(async () =>
         {
-            await Task.Delay(50);
-            await publisher.PublishAsync("chart-json-1", fig);
-        });
+            await Task.Delay(50, ct);
+            await publisher.PublishAsync("chart-json-1", fig, ct);
+        }, ct);
 
         await foreach (var msg in stream.ReadEventsAsync())
         {
@@ -79,13 +80,14 @@ public class GraphQLChartPublisherTests
         var (publisher, inner, receiver) = BuildHarness();
         var fig = Plt.Create().WithTitle("X.4.b SVG").Plot([1.0], [2.0]).Build();
 
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartSvg:chart-svg-1");
+        var ct = TestContext.Current.CancellationToken;
+        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartSvg:chart-svg-1", ct);
 
         _ = Task.Run(async () =>
         {
-            await Task.Delay(50);
-            await publisher.PublishSvgAsync("chart-svg-1", fig);
-        });
+            await Task.Delay(50, ct);
+            await publisher.PublishSvgAsync("chart-svg-1", fig, ct);
+        }, ct);
 
         await foreach (var msg in stream.ReadEventsAsync())
         {

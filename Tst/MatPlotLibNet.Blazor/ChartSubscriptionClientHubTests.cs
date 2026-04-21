@@ -31,7 +31,7 @@ public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixtur
     public async Task ConnectAsync_AgainstRealHub_IsConnected()
     {
         await using var client = new ChartSubscriptionClient();
-        await client.ConnectAsync(_fixture.HubUrl);
+        await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
         Assert.True(client.IsConnected);
     }
 
@@ -44,13 +44,13 @@ public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixtur
         await using var client = new ChartSubscriptionClient();
         var tcs = new TaskCompletionSource<(string id, string svg)>();
         client.OnSvgUpdated((id, svg) => { tcs.TrySetResult((id, svg)); return Task.CompletedTask; });
-        await client.ConnectAsync(_fixture.HubUrl);
-        await client.SubscribeAsync("chart-x11c");
+        await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
+        await client.SubscribeAsync("chart-x11c", TestContext.Current.CancellationToken);
 
         var fig = Plt.Create().WithTitle("Live X.11.c").Plot([1.0], [2.0]).Build();
-        await _fixture.Publisher.PublishSvgAsync("chart-x11c", fig);
+        await _fixture.Publisher.PublishSvgAsync("chart-x11c", fig, TestContext.Current.CancellationToken);
 
-        var received = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var received = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.Equal("chart-x11c", received.id);
         Assert.Contains("Live X.11.c", received.svg);
     }
@@ -63,13 +63,13 @@ public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixtur
         await using var client = new ChartSubscriptionClient();
         var fired = false;
         client.OnSvgUpdated((id, svg) => { fired = true; return Task.CompletedTask; });
-        await client.ConnectAsync(_fixture.HubUrl);
-        await client.SubscribeAsync("chart-x11c-unsub");
-        await client.UnsubscribeAsync("chart-x11c-unsub");
+        await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
+        await client.SubscribeAsync("chart-x11c-unsub", TestContext.Current.CancellationToken);
+        await client.UnsubscribeAsync("chart-x11c-unsub", TestContext.Current.CancellationToken);
 
         var fig = Plt.Create().Plot([1.0], [2.0]).Build();
-        await _fixture.Publisher.PublishSvgAsync("chart-x11c-unsub", fig);
-        await Task.Delay(300);
+        await _fixture.Publisher.PublishSvgAsync("chart-x11c-unsub", fig, TestContext.Current.CancellationToken);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         Assert.False(fired);
     }
@@ -80,7 +80,7 @@ public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixtur
     public async Task DisposeAsync_AfterConnect_ClosesConnectionCleanly()
     {
         var client = new ChartSubscriptionClient();
-        await client.ConnectAsync(_fixture.HubUrl);
+        await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
         Assert.True(client.IsConnected);
         await client.DisposeAsync();
     }

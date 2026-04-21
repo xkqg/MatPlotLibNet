@@ -16,21 +16,21 @@ public class SimpleSeriesRenderTheoryTests
     [
         [(Func<string>)(() => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Pointplot([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
-            .ToSvg()), "<circle", "Pointplot"],
+            .ToSvg()), "<circle"],
         [(Func<string>)(() => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Eventplot([[1.0, 2.0, 3.0]]))
-            .ToSvg()), "<line", "Eventplot"],
+            .ToSvg()), "<line"],
         [(Func<string>)(() => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Barbs([0.0, 1.0, 2.0], [0.0, 0.0, 0.0], [10.0, 20.0, 30.0], [0.0, 45.0, 90.0]))
-            .ToSvg()), "<line", "Barbs"],
+            .ToSvg()), "<line"],
         [(Func<string>)(() => Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Countplot(["x", "y", "x", "z"]))
-            .ToSvg()), "<rect", "Countplot"],
+            .ToSvg()), "<rect"],
     ];
 
     [Theory]
     [MemberData(nameof(Cases))]
-    public void Renders_ContainsExpectedElement(Func<string> renderFn, string expectedElement, string _seriesName)
+    public void Renders_ContainsExpectedElement(Func<string> renderFn, string expectedElement)
     {
         string svg = renderFn();
         Assert.NotEmpty(svg);

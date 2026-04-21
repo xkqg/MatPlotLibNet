@@ -309,7 +309,7 @@ public class ChartServerCoverageTests
     public async Task DisposeAsync_StartedServer_StopsKestrel()
     {
         var server = new ChartServer();
-        await server.EnsureStartedAsync();
+        await server.EnsureStartedAsync(TestContext.Current.CancellationToken);
         Assert.True(server.IsRunning);
         Assert.True(server.Port > 0);
 
@@ -323,9 +323,9 @@ public class ChartServerCoverageTests
     public async Task EnsureStartedAsync_CalledTwice_SecondCallShortCircuits()
     {
         var server = new ChartServer();
-        await server.EnsureStartedAsync();
+        await server.EnsureStartedAsync(TestContext.Current.CancellationToken);
         var firstPort = server.Port;
-        await server.EnsureStartedAsync();
+        await server.EnsureStartedAsync(TestContext.Current.CancellationToken);
         Assert.Equal(firstPort, server.Port);
         await server.DisposeAsync();
     }
@@ -347,7 +347,7 @@ public class ChartServerCoverageTests
     public async Task UpdateFigureAsync_AfterStart_PublishesAndUpdatesFigureDict()
     {
         var server = new ChartServer();
-        await server.EnsureStartedAsync();
+        await server.EnsureStartedAsync(TestContext.Current.CancellationToken);
         var fig = Plt.Create().Plot([1.0], [2.0]).Build();
         var id = server.RegisterFigure(fig);
 

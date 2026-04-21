@@ -528,7 +528,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void DrawText_NullFamily_FallsThroughToOsLookup()
     {
         _ctx.DrawText("os", new Point(10, 30),
-            new Font { Family = null, Size = 12 },
+            new Font { Family = null!, Size = 12 },
             TextAlignment.Left);
     }
 

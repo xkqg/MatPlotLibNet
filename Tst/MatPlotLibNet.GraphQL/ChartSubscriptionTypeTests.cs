@@ -58,8 +58,9 @@ public class ChartSubscriptionTypeTests
         var receiver = sp.GetRequiredService<ITopicEventReceiver>();
         var sender = sp.GetRequiredService<ITopicEventSender>();
 
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartSvg:chart-X");
-        _ = Task.Run(async () => { await Task.Delay(50); await sender.SendAsync("ChartSvg:chart-X", new ChartEventMessage("chart-X", "<svg/>")); });
+        var ct = TestContext.Current.CancellationToken;
+        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartSvg:chart-X", ct);
+        _ = Task.Run(async () => { await Task.Delay(50, ct); await sender.SendAsync("ChartSvg:chart-X", new ChartEventMessage("chart-X", "<svg/>"), ct); }, ct);
 
         await foreach (var msg in stream.ReadEventsAsync())
         {
@@ -79,8 +80,9 @@ public class ChartSubscriptionTypeTests
         var receiver = sp.GetRequiredService<ITopicEventReceiver>();
         var sender = sp.GetRequiredService<ITopicEventSender>();
 
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartJson:chart-Y");
-        _ = Task.Run(async () => { await Task.Delay(50); await sender.SendAsync("ChartJson:chart-Y", new ChartEventMessage("chart-Y", "{\"k\":1}")); });
+        var ct = TestContext.Current.CancellationToken;
+        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartJson:chart-Y", ct);
+        _ = Task.Run(async () => { await Task.Delay(50, ct); await sender.SendAsync("ChartJson:chart-Y", new ChartEventMessage("chart-Y", "{\"k\":1}"), ct); }, ct);
 
         await foreach (var msg in stream.ReadEventsAsync())
         {
@@ -104,7 +106,7 @@ public class ChartSubscriptionTypeTests
     {
         var sp = BuildProvider();
         var receiver = sp.GetRequiredService<ITopicEventReceiver>();
-        await using var stream = await ChartSubscriptionType.SubscribeToChartSvg("chart-direct-svg", receiver, default);
+        await using var stream = await ChartSubscriptionType.SubscribeToChartSvg("chart-direct-svg", receiver, TestContext.Current.CancellationToken);
         Assert.NotNull(stream);
     }
 
@@ -114,7 +116,7 @@ public class ChartSubscriptionTypeTests
     {
         var sp = BuildProvider();
         var receiver = sp.GetRequiredService<ITopicEventReceiver>();
-        await using var stream = await ChartSubscriptionType.SubscribeToChartJson("chart-direct-json", receiver, default);
+        await using var stream = await ChartSubscriptionType.SubscribeToChartJson("chart-direct-json", receiver, TestContext.Current.CancellationToken);
         Assert.NotNull(stream);
     }
 

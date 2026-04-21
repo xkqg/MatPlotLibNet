@@ -39,14 +39,15 @@ public class GraphQLSubscriptionIntegrationTests
         var sender   = sp.GetRequiredService<IChartEventSender>();
 
         // Subscribe directly to the topic (matches what ChartSubscriptionType does internally).
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartSvg:chart-1");
+        var ct = TestContext.Current.CancellationToken;
+        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartSvg:chart-1", ct);
 
         // Publish on a background task so ReadEventsAsync doesn't hang before send.
         _ = Task.Run(async () =>
         {
-            await Task.Delay(50);
-            await sender.SendSvgAsync("chart-1", "<svg><rect/></svg>");
-        });
+            await Task.Delay(50, ct);
+            await sender.SendSvgAsync("chart-1", "<svg><rect/></svg>", ct);
+        }, ct);
 
         await foreach (var msg in stream.ReadEventsAsync())
         {
@@ -64,13 +65,14 @@ public class GraphQLSubscriptionIntegrationTests
         var receiver = sp.GetRequiredService<ITopicEventReceiver>();
         var sender   = sp.GetRequiredService<IChartEventSender>();
 
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartJson:chart-2");
+        var ct = TestContext.Current.CancellationToken;
+        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartJson:chart-2", ct);
 
         _ = Task.Run(async () =>
         {
-            await Task.Delay(50);
-            await sender.SendJsonAsync("chart-2", "{\"x\":1}");
-        });
+            await Task.Delay(50, ct);
+            await sender.SendJsonAsync("chart-2", "{\"x\":1}", ct);
+        }, ct);
 
         await foreach (var msg in stream.ReadEventsAsync())
         {
@@ -88,14 +90,15 @@ public class GraphQLSubscriptionIntegrationTests
         var receiver = sp.GetRequiredService<ITopicEventReceiver>();
         var sender   = sp.GetRequiredService<IChartEventSender>();
 
-        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartSvg:chart-A");
+        var ct = TestContext.Current.CancellationToken;
+        await using var stream = await receiver.SubscribeAsync<ChartEventMessage>("ChartSvg:chart-A", ct);
 
         _ = Task.Run(async () =>
         {
-            await Task.Delay(50);
+            await Task.Delay(50, ct);
             // Send to a DIFFERENT chart's topic.
-            await sender.SendSvgAsync("chart-B", "<svg data-leak=\"true\"/>");
-        });
+            await sender.SendSvgAsync("chart-B", "<svg data-leak=\"true\"/>", ct);
+        }, ct);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
         try

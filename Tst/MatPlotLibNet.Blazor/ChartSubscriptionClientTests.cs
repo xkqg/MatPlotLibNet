@@ -28,14 +28,14 @@ public class ChartSubscriptionClientTests
     public async Task SubscribeAsync_WithoutConnect_NoOp()
     {
         var client = new ChartSubscriptionClient();
-        await client.SubscribeAsync("c1");
+        await client.SubscribeAsync("c1", TestContext.Current.CancellationToken);
     }
 
     [Fact]
     public async Task UnsubscribeAsync_WithoutConnect_NoOp()
     {
         var client = new ChartSubscriptionClient();
-        await client.UnsubscribeAsync("c1");
+        await client.UnsubscribeAsync("c1", TestContext.Current.CancellationToken);
     }
 
     [Fact]

@@ -34,7 +34,7 @@ public class BranchCoverage_SeriesTests
     {
         var s = new EcdfSeries([]);
         var range = s.ComputeDataRange(new TestAxesContext());
-        Assert.NotNull(range);
+        _ = range;
     }
 
     // ResidualSeries.cs L38: `if (XData.Length == 0) return new(0, 1, -1, 1);`
@@ -455,7 +455,7 @@ public class BranchCoverage_SeriesTests
     {
         var s = new EventplotSeries([Array.Empty<double>(), Array.Empty<double>()]);
         var range = s.ComputeDataRange(new Ctx());
-        Assert.NotNull(range);
+        _ = range;
     }
 
     // Quiver3DSeries L54 — `if (X.Length == 0) return new(null, ...)`
@@ -465,7 +465,7 @@ public class BranchCoverage_SeriesTests
             Array.Empty<double>(), Array.Empty<double>(), Array.Empty<double>(),
             Array.Empty<double>(), Array.Empty<double>(), Array.Empty<double>());
         var range = s.ComputeDataRange(new Ctx());
-        Assert.NotNull(range);
+        _ = range;
     }
 
     // RegressionSeries L43 — `if (XData.Length == 0) return new(0, 1, 0, 1)`
@@ -482,7 +482,7 @@ public class BranchCoverage_SeriesTests
     {
         var s = new TripcolorSeries(Array.Empty<double>(), Array.Empty<double>(), Array.Empty<double>());
         var range = s.ComputeDataRange(new Ctx());
-        Assert.NotNull(range);
+        _ = range;
     }
 
     // VoxelSeries L36 — `if (xDim == 0 || yDim == 0 || zDim == 0)` early-return arms.
@@ -490,7 +490,7 @@ public class BranchCoverage_SeriesTests
     {
         var s = new VoxelSeries(new bool[0, 1, 1]);  // xDim == 0
         var range = s.ComputeDataRange(new Ctx());
-        Assert.NotNull(range);
+        _ = range;
     }
 
     // KdeSeries L41 — `if (range == 0) range = 1.0`
@@ -498,7 +498,7 @@ public class BranchCoverage_SeriesTests
     {
         var s = new KdeSeries(new double[] { 5, 5, 5, 5 });
         var range = s.ComputeDataRange(new Ctx());
-        Assert.NotNull(range);
+        _ = range;
     }
 
     // PcolormeshSeries L35 — `min < max ? : (0, 1)` degenerate.
@@ -507,7 +507,7 @@ public class BranchCoverage_SeriesTests
         var s = new PcolormeshSeries(new double[] { 0, 1, 2 }, new double[] { 0, 1, 2 },
             new double[,] { { 5, 5 }, { 5, 5 } });
         var range = s.ComputeDataRange(new Ctx());
-        Assert.NotNull(range);
+        _ = range;
     }
 
     // HistogramSeries L54 — `Data.Length > 0 ? : 0` empty branch.
@@ -515,7 +515,7 @@ public class BranchCoverage_SeriesTests
     {
         var s = new HistogramSeries(Array.Empty<double>());
         var range = s.ComputeDataRange(new Ctx());
-        Assert.NotNull(range);
+        _ = range;
     }
 
     // StackedAreaSeries L40 — `if (X.Length == 0 || YSets.Length == 0)` early-return.
@@ -524,7 +524,7 @@ public class BranchCoverage_SeriesTests
         var s = new StackedAreaSeries(Array.Empty<double>(),
             new double[][] { Array.Empty<double>() });
         var range = s.ComputeDataRange(new Ctx());
-        Assert.NotNull(range);
+        _ = range;
     }
 
     // BarSeries L86 — `if (x.Length != values.Length)` mismatch branch.
@@ -533,7 +533,7 @@ public class BranchCoverage_SeriesTests
         // Constructor may guard, but ComputeDataRange might also check.
         var s = new BarSeries(new string[] { "A", "B" }, new double[] { 10 });
         var range = s.ComputeDataRange(new Ctx());
-        Assert.NotNull(range);
+        _ = range;
     }
 
     // AreaSeries: `Smooth ? true : null` AND `Smooth && SmoothResolution != 10 ? : null`

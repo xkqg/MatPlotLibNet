@@ -52,7 +52,7 @@ public class StyleSheetTests
     public void FromTheme_NullFontFamily_FallsBackToSansSerif()
     {
         var themeWithNullFamily = Theme.CreateFrom(Theme.Default)
-            .WithFont(f => f with { Family = null })
+            .WithFont(f => f with { Family = null! })
             .Build();
         var sheet = StyleSheet.FromTheme(themeWithNullFamily);
         Assert.Equal("sans-serif", sheet.Parameters[RcParamKeys.FontFamily]);

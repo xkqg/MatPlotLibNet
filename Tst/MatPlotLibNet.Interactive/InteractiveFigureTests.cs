@@ -63,7 +63,7 @@ public class InteractiveFigureTests
         var iv = new InteractiveFigure("chart-animate-x10a", fig);
 
         var animation = new TestAnimation(frameCount: 1);
-        await iv.AnimateAsync(animation);
+        await iv.AnimateAsync(animation, TestContext.Current.CancellationToken);
     }
 
     /// <summary>AnimateAsync (legacy AnimationBuilder) — lines 31-36 wrap AnimationBuilder
@@ -79,7 +79,7 @@ public class InteractiveFigureTests
             Interval = TimeSpan.Zero,
             Loop = false,
         };
-        await iv.AnimateAsync(builder);
+        await iv.AnimateAsync(builder, TestContext.Current.CancellationToken);
     }
 
     /// <summary>Pre-cancelled token causes the controller's PlayAsync to throw and catch
