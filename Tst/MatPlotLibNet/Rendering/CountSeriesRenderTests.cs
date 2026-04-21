@@ -28,4 +28,30 @@ public class CountSeriesRenderTests
             .ToSvg();
         Assert.Contains("<svg", svg);
     }
+
+    // ── Branch coverage ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Countplot_EmptyValues_ReturnsDefaultDataRange()
+    {
+        // CountSeries.ComputeDataRange: Values.Length == 0 branch
+        // CountSeriesRenderer.Render: Values.Length == 0 early-return branch
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Countplot([]))
+            .ToSvg();
+        Assert.StartsWith("<svg", svg);
+    }
+
+    [Fact]
+    public void Countplot_HorizontalOrientation_RendersRects()
+    {
+        // CountSeriesRenderer.Render: else-branch (Horizontal orientation)
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Countplot(Values, s =>
+            {
+                s.Orientation = BarOrientation.Horizontal;
+            }))
+            .ToSvg();
+        Assert.Contains("<rect", svg);
+    }
 }

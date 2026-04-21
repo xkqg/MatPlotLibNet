@@ -40,4 +40,37 @@ public class BarbsSeriesRenderTests
             .ToSvg();
         Assert.Contains("<svg", svg);
     }
+
+    // ── Branch coverage ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Barbs_EmptySeries_ReturnsDefaultDataRange()
+    {
+        // BarbsSeries.ComputeDataRange: X.Length == 0 branch
+        // BarbsSeriesRenderer.Render: X.Length == 0 early-return branch
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Barbs([], [], [], []))
+            .ToSvg();
+        Assert.StartsWith("<svg", svg);
+    }
+
+    [Fact]
+    public void Barbs_SpeedArrayShorterThanPositions_FallsBackToZero()
+    {
+        // BarbsSeriesRenderer: i >= series.Speed.Length ternary false-branch
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Barbs([0.0, 1.0], [0.0, 0.0], [20.0], [45.0, 90.0]))
+            .ToSvg();
+        Assert.Contains("<line", svg);
+    }
+
+    [Fact]
+    public void Barbs_DirectionArrayShorterThanPositions_FallsBackToZero()
+    {
+        // BarbsSeriesRenderer: i >= series.Direction.Length ternary false-branch
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Barbs([0.0, 1.0], [0.0, 0.0], [20.0, 30.0], [45.0]))
+            .ToSvg();
+        Assert.Contains("<line", svg);
+    }
 }

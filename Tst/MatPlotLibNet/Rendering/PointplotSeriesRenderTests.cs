@@ -37,4 +37,36 @@ public class PointplotSeriesRenderTests
             .ToSvg();
         Assert.Contains("<svg", svg);
     }
+
+    // ── Branch coverage ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Pointplot_EmptyDatasets_EarlyReturn()
+    {
+        // PointplotSeriesRenderer.Render: Datasets.Length == 0 branch
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Pointplot([]))
+            .ToSvg();
+        Assert.StartsWith("<svg", svg);
+    }
+
+    [Fact]
+    public void Pointplot_EmptyInnerDataset_ContinueBranch()
+    {
+        // PointplotSeriesRenderer.Render: data.Length == 0 continue-branch
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Pointplot([[], [1.0, 2.0, 3.0]]))
+            .ToSvg();
+        Assert.Contains("<circle", svg);
+    }
+
+    [Fact]
+    public void Pointplot_SingleValueDataset_ComputeCI_ReturnsZero()
+    {
+        // PointplotSeriesRenderer.ComputeCI: v.Length < 2 branch → returns 0
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Pointplot([[5.0]]))
+            .ToSvg();
+        Assert.Contains("<circle", svg);
+    }
 }

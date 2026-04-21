@@ -274,6 +274,27 @@ public class PlaygroundExampleTests
     }
 
     [Fact]
+    public void AxisBreaks_WithMarker_AppliesMarkerTruthBranch()
+    {
+        // Covers the true-branch of `if (opts.Marker != MarkerStyle.None)` in BuildAxisBreaks
+        var opts = Defaults() with { Marker = MarkerStyle.Circle, MarkerSize = 6 };
+        var (figure, _) = PlaygroundExamples.Build(PlaygroundExample.AxisBreaks, opts);
+        string svg = figure.ToSvg();
+        Assert.Contains("<circle", svg);
+    }
+
+    [Fact]
+    public void MinorGrid_WithMarker_AppliesMarkerTruthBranch()
+    {
+        // Covers the true-branch of `if (opts.Marker != MarkerStyle.None)` in BuildMinorGrid
+        // also covers the `s.MarkEvery = 5` assignment inside that branch
+        var opts = Defaults() with { Marker = MarkerStyle.Circle, MarkerSize = 6 };
+        var (figure, _) = PlaygroundExamples.Build(PlaygroundExample.MinorGrid, opts);
+        string svg = figure.ToSvg();
+        Assert.Contains("<circle", svg);
+    }
+
+    [Fact]
     public void SupportsColormap_IsTrueOnlyForGridFamilies()
     {
         Assert.True(PlaygroundExamples.SupportsColormap(PlaygroundExample.Heatmap));

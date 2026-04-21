@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -27,5 +28,54 @@ public class EventplotSeriesRenderTests
             .Eventplot(Positions)
             .ToSvg();
         Assert.Contains("<svg", svg);
+    }
+
+    // ── Branch coverage ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Eventplot_EmptyPositions_ReturnsDefaultDataRange()
+    {
+        // EventplotSeries.ComputeDataRange: Positions.Length == 0 branch
+        // EventplotSeriesRenderer.Render: Positions.Length == 0 early-return branch
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Eventplot([]))
+            .ToSvg();
+        Assert.StartsWith("<svg", svg);
+    }
+
+    [Fact]
+    public void Eventplot_EmptyInnerArrays_AllPosEmptyBranch()
+    {
+        // EventplotSeries.ComputeDataRange: allPos.Length == 0 ternary false-branches
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Eventplot([[]]))
+            .ToSvg();
+        Assert.StartsWith("<svg", svg);
+    }
+
+    [Fact]
+    public void Eventplot_WithColors_UsesPerRowColor()
+    {
+        // EventplotSeriesRenderer: series.Colors is not null true-branch
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Eventplot(Positions, s =>
+            {
+                s.Colors = [Colors.Red, Colors.Blue];
+            }))
+            .ToSvg();
+        Assert.Contains("<line", svg);
+    }
+
+    [Fact]
+    public void Eventplot_MoreRowsThanColors_FallsBackForExtraRows()
+    {
+        // EventplotSeriesRenderer: i >= series.Colors.Length false-branch
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Eventplot(Positions, s =>
+            {
+                s.Colors = [Colors.Red];  // 1 color for 2 rows
+            }))
+            .ToSvg();
+        Assert.Contains("<line", svg);
     }
 }
