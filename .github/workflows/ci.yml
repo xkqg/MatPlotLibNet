@@ -128,6 +128,18 @@ jobs:
       - name: Build
         run: dotnet build MatPlotLibNet.CI.slnf --configuration Release --no-restore
 
+      - name: Install MAUI workload
+        run: dotnet workload install maui
+
+      - name: Restore and build platform-specific projects
+        run: |
+          dotnet restore Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj
+          dotnet build Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj --configuration Release --no-restore
+          dotnet restore Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj
+          dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --configuration Release --no-restore
+          dotnet restore Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj
+          dotnet build Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --configuration Release --no-restore
+
       - name: Pack
         run: |
           dotnet pack Src/MatPlotLibNet/MatPlotLibNet.csproj \
