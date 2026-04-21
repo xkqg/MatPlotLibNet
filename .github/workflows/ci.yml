@@ -129,7 +129,7 @@ jobs:
         run: dotnet build MatPlotLibNet.CI.slnf --configuration Release --no-restore
 
       - name: Install MAUI workload
-        run: dotnet workload install maui
+        run: dotnet workload install android ios maccatalyst
 
       - name: Restore and build platform-specific projects
         run: |
