@@ -14,6 +14,9 @@ internal static class MarchingSquares
     /// <summary>One filled band between two consecutive iso-levels, as a set of closed polygons.</summary>
     internal readonly record struct ContourBand(double LevelLow, double LevelHigh, PointF[][] Polygons);
 
+    /// <summary>One oriented edge segment between two points on the iso surface.</summary>
+    private readonly record struct Segment(PointF A, PointF B);
+
     /// <summary>Extracts iso-lines for the given levels from a 2D scalar field.</summary>
     /// <param name="xGrid">X coordinates (length = number of columns in <paramref name="zGrid"/>).</param>
     /// <param name="yGrid">Y coordinates (length = number of rows in <paramref name="zGrid"/>).</param>
@@ -31,7 +34,7 @@ internal static class MarchingSquares
         foreach (double level in levels)
         {
             // Collect all raw segments for this level
-            var segments = new List<(PointF A, PointF B)>();
+            var segments = new List<Segment>();
 
             for (int row = 0; row < rows - 1; row++)
             {
@@ -65,20 +68,20 @@ internal static class MarchingSquares
                     // Cases: two segments per cell (saddle cases resolved with consistent orientation)
                     switch (idx)
                     {
-                        case 1:  case 14: segments.Add((Bottom(), Left()));   break;
-                        case 2:  case 13: segments.Add((Bottom(), Right()));  break;
-                        case 3:  case 12: segments.Add((Left(),   Right()));  break;
-                        case 4:  case 11: segments.Add((Top(),    Right()));  break;
-                        case 6:  case 9:  segments.Add((Bottom(), Top()));    break;
-                        case 7:  case 8:  segments.Add((Top(),    Left()));   break;
+                        case 1:  case 14: segments.Add(new(Bottom(), Left()));   break;
+                        case 2:  case 13: segments.Add(new(Bottom(), Right()));  break;
+                        case 3:  case 12: segments.Add(new(Left(),   Right()));  break;
+                        case 4:  case 11: segments.Add(new(Top(),    Right()));  break;
+                        case 6:  case 9:  segments.Add(new(Bottom(), Top()));    break;
+                        case 7:  case 8:  segments.Add(new(Top(),    Left()));   break;
                         // Saddle cases: split into two segments using average
                         case 5:
-                            segments.Add((Bottom(), Left()));
-                            segments.Add((Top(),    Right()));
+                            segments.Add(new(Bottom(), Left()));
+                            segments.Add(new(Top(),    Right()));
                             break;
                         case 10:
-                            segments.Add((Bottom(), Right()));
-                            segments.Add((Top(),    Left()));
+                            segments.Add(new(Bottom(), Right()));
+                            segments.Add(new(Top(),    Left()));
                             break;
                     }
                 }
@@ -132,7 +135,7 @@ internal static class MarchingSquares
             double hi = thresholds[b + 1];
 
             // Collect segments that border cells where lo <= z < hi
-            var segments = new List<(PointF A, PointF B)>();
+            var segments = new List<Segment>();
             CollectBandBoundary(xGrid, yGrid, zGrid, lo, hi, rows, cols, segments);
 
             PointF[][] polygons = [.. JoinSegments(segments).Select(p => ClosePolygon(p))];
@@ -149,7 +152,7 @@ internal static class MarchingSquares
     private static void CollectBandBoundary(
         double[] xGrid, double[] yGrid, double[,] zGrid,
         double lo, double hi, int rows, int cols,
-        List<(PointF A, PointF B)> segments)
+        List<Segment> segments)
     {
         // We run Extract once at lo and once at hi, then merge — simpler and avoids
         // bespoke polygon-fill logic.  The band polygon boundary = iso(lo) ∪ iso(hi)
@@ -168,7 +171,7 @@ internal static class MarchingSquares
     }
 
     /// <summary>Returns all raw marching-squares edge segments for a single iso-level.</summary>
-    private static IEnumerable<(PointF A, PointF B)> GetRawSegments(
+    private static IEnumerable<Segment> GetRawSegments(
         double[] xGrid, double[] yGrid, double[,] zGrid, double level, int rows, int cols)
     {
         for (int row = 0; row < rows - 1; row++)
@@ -199,19 +202,19 @@ internal static class MarchingSquares
 
                 switch (idx)
                 {
-                    case 1:  case 14: yield return (Bottom(), Left());  break;
-                    case 2:  case 13: yield return (Bottom(), Right()); break;
-                    case 3:  case 12: yield return (Left(),   Right()); break;
-                    case 4:  case 11: yield return (Top(),    Right()); break;
-                    case 6:  case 9:  yield return (Bottom(), Top());   break;
-                    case 7:  case 8:  yield return (Top(),    Left());  break;
+                    case 1:  case 14: yield return new(Bottom(), Left());  break;
+                    case 2:  case 13: yield return new(Bottom(), Right()); break;
+                    case 3:  case 12: yield return new(Left(),   Right()); break;
+                    case 4:  case 11: yield return new(Top(),    Right()); break;
+                    case 6:  case 9:  yield return new(Bottom(), Top());   break;
+                    case 7:  case 8:  yield return new(Top(),    Left());  break;
                     case 5:
-                        yield return (Bottom(), Left());
-                        yield return (Top(),    Right());
+                        yield return new(Bottom(), Left());
+                        yield return new(Top(),    Right());
                         break;
                     case 10:
-                        yield return (Bottom(), Right());
-                        yield return (Top(),    Left());
+                        yield return new(Bottom(), Right());
+                        yield return new(Top(),    Left());
                         break;
                 }
             }
@@ -236,7 +239,7 @@ internal static class MarchingSquares
     }
 
     /// <summary>Greedily chains segments that share an endpoint into polylines.</summary>
-    private static IEnumerable<PointF[]> JoinSegments(List<(PointF A, PointF B)> segments)
+    private static IEnumerable<PointF[]> JoinSegments(List<Segment> segments)
     {
         if (segments.Count == 0) yield break;
 

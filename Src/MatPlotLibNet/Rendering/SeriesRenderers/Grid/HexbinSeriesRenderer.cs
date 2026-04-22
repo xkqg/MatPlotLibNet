@@ -33,16 +33,16 @@ internal sealed class HexbinSeriesRenderer : SeriesRenderer<HexbinSeries>
         var norm = series.Normalizer ?? LinearNormalizer.Instance;
         double hexSize = HexGrid.ComputeHexSize(xMin, xMax, series.GridSize);
 
-        foreach (var ((q, r), count) in bins)
+        foreach (var (hex, count) in bins)
         {
             if (count < minCount) continue;
 
-            var (dataCx, dataCy) = HexGrid.HexCenter(q, r, hexSize, xMin, yMin);
-            var dataVerts = HexGrid.HexagonVertices(dataCx, dataCy, hexSize * 0.95); // 5% gap
+            var dataCenter = HexGrid.HexCenter(hex.Q, hex.R, hexSize, xMin, yMin);
+            var dataVerts = HexGrid.HexagonVertices(dataCenter.X, dataCenter.Y, hexSize * 0.95); // 5% gap
 
             var pixelVerts = new List<Point>(6);
-            foreach (var (vx, vy) in dataVerts)
-                pixelVerts.Add(Transform.DataToPixel(vx, vy));
+            foreach (var v in dataVerts)
+                pixelVerts.Add(Transform.DataToPixel(v.X, v.Y));
 
             var color = cmap.GetColor(norm.Normalize(count, normMin, normMax));
             Ctx.DrawPolygon(pixelVerts, color, null, 0);

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Builders;
 
@@ -111,11 +112,16 @@ internal static class SubplotMosaicParser
                 maxCol[kv.Key] + 1));
     }
 
-    /// <summary>Returns the number of rows and columns implied by <paramref name="pattern"/>.</summary>
-    internal static (int Rows, int Cols) GetDimensions(string pattern)
+    /// <summary>Returns the grid dimensions implied by a mosaic <paramref name="pattern"/>. Rows
+    /// are separated by <c>\n</c>; whitespace-only or empty rows are dropped. Columns are taken
+    /// from the first non-empty row's length after <c>TrimEnd</c>.</summary>
+    /// <param name="pattern">The mosaic-string input (same shape accepted by <see cref="Parse"/>).</param>
+    /// <returns>A <see cref="MatShape"/> with <c>Rows = N</c> surviving rows and <c>Cols = L</c>
+    /// columns (first row length), or <c>(0, 0)</c> for an empty / whitespace-only input.</returns>
+    internal static MatShape GetDimensions(string pattern)
     {
         var rows = pattern.Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Select(l => l.TrimEnd()).Where(l => l.Length > 0).ToArray();
-        return (rows.Length, rows.Length > 0 ? rows[0].Length : 0);
+        return new(rows.Length, rows.Length > 0 ? rows[0].Length : 0);
     }
 }

@@ -2,6 +2,7 @@
 @* Licensed under the GNU GPL-v3 License. See LICENSE file in the project root for full license information. *@
 
 @namespace MatPlotLibNet.Blazor
+@implements IDisposable
 
 @if (DisplayMode == DisplayMode.Popup)
 {
@@ -36,18 +37,44 @@ else
     </div>
 }
 
+@using MatPlotLibNet.Animation
+
 @code {
     [Parameter] public Figure? Figure { get; set; }
     [Parameter] public string? CssClass { get; set; }
     [Parameter] public DisplayMode DisplayMode { get; set; } = DisplayMode.Inline;
     [Parameter] public string? PopupUrl { get; set; }
+    [Parameter] public IAnimationSource? AnimationSource { get; set; }
 
     private string _svgContent = string.Empty;
     private bool _expanded;
+    private IAnimationSource? _subscribedSource;
 
     protected override void OnParametersSet()
     {
+        if (!ReferenceEquals(_subscribedSource, AnimationSource))
+        {
+            if (_subscribedSource is not null)
+                _subscribedSource.FrameReady -= OnAnimationFrameReady;
+            _subscribedSource = AnimationSource;
+            if (_subscribedSource is not null)
+                _subscribedSource.FrameReady += OnAnimationFrameReady;
+        }
+
         _svgContent = Figure is not null ? ChartServices.SvgRenderer.Render(Figure) : string.Empty;
+    }
+
+    private void OnAnimationFrameReady(object? sender, Figure fig)
+    {
+        Figure = fig;
+        _svgContent = ChartServices.SvgRenderer.Render(fig);
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        if (_subscribedSource is not null)
+            _subscribedSource.FrameReady -= OnAnimationFrameReady;
     }
 
     private void ToggleExpand()

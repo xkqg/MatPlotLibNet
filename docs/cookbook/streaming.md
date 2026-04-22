@@ -96,6 +96,6 @@ sf.DefaultConfig = new StreamingAxesConfig(
 Connect `IObservable<T>` sources without System.Reactive dependency:
 
 ```csharp
-IObservable<(double x, double y)> sensorStream = ...;
+IObservable<StreamingPoint> sensorStream = ...;
 using var sub = series.SubscribeTo(sensorStream);
 ```

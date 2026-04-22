@@ -16,7 +16,7 @@ public class LinearColorMapEdgeCaseTests
     {
         var c = new Color(0, 0, 0);
         Assert.Throws<ArgumentException>(() =>
-            LinearColorMap.FromList("", [(0.0, c), (1.0, c)]));
+            LinearColorMap.FromList("", [new(0.0, c), new(1.0, c)]));
     }
 
     [Fact]
@@ -24,7 +24,7 @@ public class LinearColorMapEdgeCaseTests
     {
         var c = new Color(0, 0, 0);
         Assert.Throws<ArgumentException>(() =>
-            LinearColorMap.FromList("   ", [(0.0, c), (1.0, c)]));
+            LinearColorMap.FromList("   ", [new(0.0, c), new(1.0, c)]));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class LinearColorMapEdgeCaseTests
             // strictly-increasing check fires before even-spacing path -- so we
             // can't actually reach the range==0 branch through the public API
             // without violating the strict-increasing rule. Confirmed in source.
-            LinearColorMap.FromList("test_same", [(0.5, c1), (0.5, c2), (0.5, c3)]));
+            LinearColorMap.FromList("test_same", [new(0.5, c1), new(0.5, c2), new(0.5, c3)]));
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class LinearColorMapEdgeCaseTests
         var green  = new Color(0, 255, 0);
         var blue   = new Color(0, 0, 255);
         var map = LinearColorMap.FromPositions("bs_test",
-            [(0.0, red), (0.5, green), (1.0, blue)]);
+            [new(0.0, red), new(0.5, green), new(1.0, blue)]);
 
         // Values that fall in each bracket
         Assert.Equal(red, map.GetColor(0.0));

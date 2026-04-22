@@ -182,18 +182,18 @@ public sealed class Projection3D
             double wxv = (i & 1) == 0 ? 0 : BoxAspectX;
             double wyv = (i & 2) == 0 ? 0 : BoxAspectY;
             double wzv = (i & 4) == 0 ? 0 : BoxAspectZ;
-            var (nx, ny) = ProjectWorldToNdc(wxv, wyv, wzv);
-            if (nx < minX) minX = nx;
-            if (nx > maxX) maxX = nx;
-            if (ny < minY) minY = ny;
-            if (ny > maxY) maxY = ny;
+            var p = ProjectWorldToNdc(wxv, wyv, wzv);
+            if (p.X < minX) minX = p.X;
+            if (p.X > maxX) maxX = p.X;
+            if (p.Y < minY) minY = p.Y;
+            if (p.Y > maxY) maxY = p.Y;
         }
         _fitXMin = minX; _fitXMax = maxX;
         _fitYMin = minY; _fitYMax = maxY;
     }
 
     /// <summary>Applies the full 4×4 matrix M to a world-box point, returning post-divide NDC (x, y).</summary>
-    private (double X, double Y) ProjectWorldToNdc(double wx, double wy, double wz)
+    private Point ProjectWorldToNdc(double wx, double wy, double wz)
     {
         // Direct M @ [wx, wy, wz, 1] without the intermediate world_M step (world coords already).
         // But _m was built as M = Proj · View · World, so feed DATA coords in. For the cube-corner
@@ -214,7 +214,7 @@ public sealed class Projection3D
         double x = _m[0, 0] * dataX + _m[0, 1] * dataY + _m[0, 2] * dataZ + _m[0, 3];
         double y = _m[1, 0] * dataX + _m[1, 1] * dataY + _m[1, 2] * dataZ + _m[1, 3];
         double w = _m[3, 0] * dataX + _m[3, 1] * dataY + _m[3, 2] * dataZ + _m[3, 3];
-        return (x / w, y / w);
+        return new(x / w, y / w);
     }
 
     /// <summary>Normalizes data coordinates to matplotlib's world box.</summary>

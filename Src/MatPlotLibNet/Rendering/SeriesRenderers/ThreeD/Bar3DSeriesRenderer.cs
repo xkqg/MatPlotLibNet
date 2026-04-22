@@ -67,7 +67,7 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
         // Drawing all 6 faces per prism and letting per-face depth sorting handle occlusion
         // is robust to any camera angle — we don't have to hard-code which 3 faces are
         // front-facing for the current rotation.
-        var faces = new List<(double Depth, Point[] Vertices, Color Fill)>(series.X.Length * 6);
+        var faces = new List<DepthFace>(series.X.Length * 6);
 
         for (int i = 0; i < series.X.Length; i++)
         {
@@ -82,17 +82,17 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
             double y0 = cy, y1 = cy + series.BarWidth;
 
             AddFace(faces, proj, topColor,
-                (x0, y0, h), (x1, y0, h), (x1, y1, h), (x0, y1, h));
+                new(x0, y0, h), new(x1, y0, h), new(x1, y1, h), new(x0, y1, h));
             AddFace(faces, proj, bottomColor,
-                (x0, y0, 0d), (x0, y1, 0d), (x1, y1, 0d), (x1, y0, 0d));
+                new(x0, y0, 0d), new(x0, y1, 0d), new(x1, y1, 0d), new(x1, y0, 0d));
             AddFace(faces, proj, frontColor,
-                (x0, y0, 0d), (x1, y0, 0d), (x1, y0, h), (x0, y0, h));
+                new(x0, y0, 0d), new(x1, y0, 0d), new(x1, y0, h), new(x0, y0, h));
             AddFace(faces, proj, backColor,
-                (x1, y1, 0d), (x0, y1, 0d), (x0, y1, h), (x1, y1, h));
+                new(x1, y1, 0d), new(x0, y1, 0d), new(x0, y1, h), new(x1, y1, h));
             AddFace(faces, proj, leftColor,
-                (x0, y1, 0d), (x0, y0, 0d), (x0, y0, h), (x0, y1, h));
+                new(x0, y1, 0d), new(x0, y0, 0d), new(x0, y0, h), new(x0, y1, h));
             AddFace(faces, proj, rightColor,
-                (x1, y0, 0d), (x1, y1, 0d), (x1, y1, h), (x1, y0, h));
+                new(x1, y0, 0d), new(x1, y1, 0d), new(x1, y1, h), new(x1, y0, h));
         }
 
         // If a shared cross-series depth queue is available on the context, push each
@@ -101,39 +101,38 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
         // local back-to-front sort — correct for a single-series render.
         if (Context.DepthQueue is { } queue)
         {
-            foreach (var (depth, verts, fill) in faces)
+            foreach (var face in faces)
             {
                 // Capture-by-value — avoid foreach-variable aliasing in the closure.
-                var vLocal = verts; var fLocal = fill; var sLocal = strokeColor;
-                queue.Add(depth, () => Ctx.DrawPolygon(vLocal, fLocal, sLocal, 0.5));
+                var vLocal = face.Vertices; var fLocal = face.Fill; var sLocal = strokeColor;
+                queue.Add(face.Depth, () => Ctx.DrawPolygon(vLocal, fLocal, sLocal, 0.5));
             }
         }
         else
         {
             faces.Sort((a, b) => a.Depth.CompareTo(b.Depth));
-            foreach (var (_, verts, fill) in faces)
-                Ctx.DrawPolygon(verts, fill, strokeColor, 0.5);
+            foreach (var face in faces)
+                Ctx.DrawPolygon(face.Vertices, face.Fill, strokeColor, 0.5);
         }
     }
 
     private static void AddFace(
-        List<(double Depth, Point[] Vertices, Color Fill)> sink,
+        List<DepthFace> sink,
         Projection3D proj, Color fill,
-        (double x, double y, double z) c0,
-        (double x, double y, double z) c1,
-        (double x, double y, double z) c2,
-        (double x, double y, double z) c3)
+        Lighting.Vec3 c0, Lighting.Vec3 c1, Lighting.Vec3 c2, Lighting.Vec3 c3)
     {
         var pts = new[]
         {
-            proj.Project(c0.x, c0.y, c0.z),
-            proj.Project(c1.x, c1.y, c1.z),
-            proj.Project(c2.x, c2.y, c2.z),
-            proj.Project(c3.x, c3.y, c3.z),
+            proj.Project(c0.X, c0.Y, c0.Z),
+            proj.Project(c1.X, c1.Y, c1.Z),
+            proj.Project(c2.X, c2.Y, c2.Z),
+            proj.Project(c3.X, c3.Y, c3.Z),
         };
-        double cx = (c0.x + c1.x + c2.x + c3.x) / 4.0;
-        double cy = (c0.y + c1.y + c2.y + c3.y) / 4.0;
-        double cz = (c0.z + c1.z + c2.z + c3.z) / 4.0;
-        sink.Add((proj.Depth(cx, cy, cz), pts, fill));
+        double cx = (c0.X + c1.X + c2.X + c3.X) / 4.0;
+        double cy = (c0.Y + c1.Y + c2.Y + c3.Y) / 4.0;
+        double cz = (c0.Z + c1.Z + c2.Z + c3.Z) / 4.0;
+        sink.Add(new(proj.Depth(cx, cy, cz), pts, fill));
     }
+
+    private readonly record struct DepthFace(double Depth, Point[] Vertices, Color Fill);
 }

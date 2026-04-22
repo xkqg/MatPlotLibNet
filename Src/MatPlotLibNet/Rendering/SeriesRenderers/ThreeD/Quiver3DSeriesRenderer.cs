@@ -44,7 +44,7 @@ internal sealed class Quiver3DSeriesRenderer : SeriesRenderer<Quiver3DSeries>
             ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
 
         // Build arrows with depth for sorting
-        var arrows = new List<(double Depth, Point Base, Point Tip)>(series.X.Length);
+        var arrows = new List<Arrow>(series.X.Length);
         for (int i = 0; i < series.X.Length; i++)
         {
             double bx = series.X[i], by = series.Y[i], bz = series.Z[i];
@@ -56,7 +56,7 @@ internal sealed class Quiver3DSeriesRenderer : SeriesRenderer<Quiver3DSeries>
             var tipPt = proj.Project(tx, ty, tz);
             double depth = proj.Depth(bx, by, bz);
 
-            arrows.Add((depth, basePt, tipPt));
+            arrows.Add(new(depth, basePt, tipPt));
         }
 
         // Sort back-to-front
@@ -65,8 +65,10 @@ internal sealed class Quiver3DSeriesRenderer : SeriesRenderer<Quiver3DSeries>
         const double arrowHeadSize = 6.0;
         const double arrowHeadAngle = 0.4; // radians (~23 degrees)
 
-        foreach (var (_, basePt, tipPt) in arrows)
+        foreach (var arrow in arrows)
         {
+            var basePt = arrow.Base;
+            var tipPt = arrow.Tip;
             // Draw shaft
             Ctx.DrawLine(basePt, tipPt, color, 1.5, LineStyle.Solid);
 
@@ -93,4 +95,6 @@ internal sealed class Quiver3DSeriesRenderer : SeriesRenderer<Quiver3DSeries>
             Ctx.DrawLine(tipPt, new Point(rx, ry), color, 1.5, LineStyle.Solid);
         }
     }
+
+    private readonly record struct Arrow(double Depth, Point Base, Point Tip);
 }

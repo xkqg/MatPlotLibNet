@@ -158,13 +158,13 @@ public static class SeriesRegistry
             var starts = dto.RangeStarts ?? [];
             var widths = dto.RangeWidths ?? [];
             int rowCount = Math.Min(starts.Length, widths.Length);
-            var ranges = new (double, double)[rowCount][];
+            var ranges = new BarRange[rowCount][];
             for (int r = 0; r < rowCount; r++)
             {
                 int segCount = Math.Min(starts[r].Length, widths[r].Length);
-                ranges[r] = new (double, double)[segCount];
+                ranges[r] = new BarRange[segCount];
                 for (int s2 = 0; s2 < segCount; s2++)
-                    ranges[r][s2] = (starts[r][s2], widths[r][s2]);
+                    ranges[r][s2] = new BarRange(starts[r][s2], widths[r][s2]);
             }
             var s = axes.BrokenBarH(ranges);
             if (dto.BarHeight.HasValue) s.BarHeight = dto.BarHeight.Value;

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
+
 namespace MatPlotLibNet.Numerics;
 
 /// <summary>Flat-top hexagonal grid utilities for hexbin series rendering.</summary>
@@ -19,10 +21,10 @@ internal static class HexGrid
     /// Bins scatter data into a flat-top hexagonal grid using axial (q, r) coordinates.
     /// Returns a dictionary mapping each occupied hex cell to its point count.
     /// </summary>
-    internal static Dictionary<(int q, int r), int> ComputeHexBins(
+    internal static Dictionary<AxialHex, int> ComputeHexBins(
         double[] x, double[] y, double xMin, double xMax, double yMin, double yMax, int gridSize)
     {
-        var bins = new Dictionary<(int, int), int>();
+        var bins = new Dictionary<AxialHex, int>();
         if (x.Length == 0) return bins;
 
         double hexSize = ComputeHexSize(xMin, xMax, gridSize);
@@ -38,12 +40,12 @@ internal static class HexGrid
             double qFrac = (2.0 / 3.0 * lx) / hexSize;
             double rFrac = (-1.0 / 3.0 * lx + Sqrt3 / 3.0 * ly) / hexSize;
 
-            var (q, r) = CubeRound(qFrac, rFrac);
+            var hex = CubeRound(qFrac, rFrac);
 
-            if (bins.TryGetValue((q, r), out int count))
-                bins[(q, r)] = count + 1;
+            if (bins.TryGetValue(hex, out int count))
+                bins[hex] = count + 1;
             else
-                bins[(q, r)] = 1;
+                bins[hex] = 1;
         }
         return bins;
     }
@@ -52,14 +54,14 @@ internal static class HexGrid
     /// Returns the 6 vertices of a flat-top regular hexagon centered at (<paramref name="cx"/>, <paramref name="cy"/>)
     /// with center-to-vertex radius <paramref name="hexSize"/>.
     /// </summary>
-    /// <returns>Array of 6 (X, Y) tuples in order.</returns>
-    internal static (double X, double Y)[] HexagonVertices(double cx, double cy, double hexSize)
+    /// <returns>Array of 6 <see cref="Point"/> vertices in order.</returns>
+    internal static Point[] HexagonVertices(double cx, double cy, double hexSize)
     {
-        var verts = new (double X, double Y)[6];
+        var verts = new Point[6];
         for (int i = 0; i < 6; i++)
         {
             double angle = Math.PI / 3.0 * i; // flat-top: vertex 0 at angle 0°
-            verts[i] = (cx + hexSize * Math.Cos(angle), cy + hexSize * Math.Sin(angle));
+            verts[i] = new(cx + hexSize * Math.Cos(angle), cy + hexSize * Math.Sin(angle));
         }
         return verts;
     }
@@ -68,15 +70,15 @@ internal static class HexGrid
     /// Returns the data-space center of the hex at axial coordinates (<paramref name="q"/>, <paramref name="r"/>),
     /// offset by (<paramref name="xOffset"/>, <paramref name="yOffset"/>).
     /// </summary>
-    internal static (double X, double Y) HexCenter(int q, int r, double hexSize, double xOffset = 0, double yOffset = 0)
+    internal static Point HexCenter(int q, int r, double hexSize, double xOffset = 0, double yOffset = 0)
     {
         double x = hexSize * 1.5 * q + xOffset;
         double y = hexSize * Sqrt3 * (r + q * 0.5) + yOffset;
-        return (x, y);
+        return new(x, y);
     }
 
     /// <summary>Rounds fractional axial coordinates to the nearest integer hex cell using cube-coordinate rounding.</summary>
-    private static (int q, int r) CubeRound(double qFrac, double rFrac)
+    private static AxialHex CubeRound(double qFrac, double rFrac)
     {
         double sFrac = -qFrac - rFrac;
         int rq = (int)Math.Round(qFrac);
@@ -87,6 +89,6 @@ internal static class HexGrid
         double ds = Math.Abs(rs - sFrac);
         if (dq > dr && dq > ds) rq = -rr - rs;
         else if (dr > ds) rr = -rq - rs;
-        return (rq, rr);
+        return new(rq, rr);
     }
 }

@@ -5,11 +5,11 @@ using System.Text;
 
 namespace MatPlotLibNet.Rendering.Svg;
 
-/// <summary>XML escaping extension for SVG output.</summary>
-internal static class SvgXmlHelper
+/// <summary>XML escaping extensions for SVG output.</summary>
+internal static class SvgXml
 {
-    /// <summary>Escapes <c>&amp;</c>, <c>&lt;</c>, and <c>&gt;</c> for safe embedding in XML/SVG attributes and text content.
-    /// Returns the same reference when no escaping is needed.</summary>
+    /// <summary>Escapes <c>&amp;</c>, <c>&lt;</c>, and <c>&gt;</c> for safe embedding in XML/SVG
+    /// attributes and text content. Returns the same reference when no escaping is needed.</summary>
     internal static string EscapeForXml(this string text)
     {
         if (text.AsSpan().IndexOfAny('&', '<', '>') < 0) return text;

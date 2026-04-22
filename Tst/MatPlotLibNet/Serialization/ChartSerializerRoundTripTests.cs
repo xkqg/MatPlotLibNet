@@ -673,7 +673,7 @@ public class ChartSerializerRoundTripTests
     [Fact]
     public void RoundTrip_BrokenBarHFullyPopulated_FlipsAllOptionalArms()
     {
-        var ranges = new (double, double)[][] { [(1, 2), (4, 1)] };
+        var ranges = new BarRange[][] { [new(1, 2), new(4, 1)] };
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.BrokenBarH(ranges,
                 s => { s.BarHeight = 0.5; s.Color = Colors.Red; s.Labels = ["row1"]; }))

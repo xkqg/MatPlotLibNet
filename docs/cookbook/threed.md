@@ -1,6 +1,6 @@
 # 3D Charts
 
-MatPlotLibNet includes a full 3D projection pipeline: `Projection3D` (World → View → NDC → Pixel), `DepthQueue3D` painter's algorithm, `LightingHelper` face-normal shading, and `Svg3DRotationScript` for client-side rotation in SVG.
+MatPlotLibNet includes a full 3D projection pipeline: `Projection3D` (World → View → NDC → Pixel), `DepthQueue3D` painter's algorithm, `Vec3.FaceNormal` face-normal shading via `Color.Shade` / `Color.Modulate` extensions, and `Svg3DRotationScript` for client-side rotation in SVG.
 
 ## Surface plot
 

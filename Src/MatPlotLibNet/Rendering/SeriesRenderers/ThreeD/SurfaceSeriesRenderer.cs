@@ -48,7 +48,7 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
         bool emitV3d = Context.Emit3DData;
 
         // Build quads with average depth for painter's algorithm sorting
-        var quads = new List<(double Depth, Point[] Vertices, double AvgZ, double Nx, double Ny, double Nz, string? V3d)>((rows - 1) * (cols - 1));
+        var quads = new List<ShadedQuad>((rows - 1) * (cols - 1));
         for (int r = 0; r < rows - 1; r += rowStride)
             for (int c = 0; c < cols - 1; c += colStride)
             {
@@ -71,8 +71,8 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
 
                 double nx = 0, ny = 0, nz = 0;
                 if (useLighting)
-                    (nx, ny, nz) = LightingHelper.ComputeFaceNormal(
-                        (x0, y0, z00), (x1, y0, z01), (x0, y1, z10));
+                    (nx, ny, nz) = Vec3.FaceNormal(
+                        new(x0, y0, z00), new(x1, y0, z01), new(x0, y1, z10));
 
                 string? v3d = null;
                 if (emitV3d)
@@ -85,7 +85,7 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
                         $"{n0.Nx:G4},{n0.Ny:G4},{n0.Nz:G4} {n1.Nx:G4},{n1.Ny:G4},{n1.Nz:G4} {n2.Nx:G4},{n2.Ny:G4},{n2.Nz:G4} {n3.Nx:G4},{n3.Ny:G4},{n3.Nz:G4}");
                 }
 
-                quads.Add((avgDepth, vertices, avgZ, nx, ny, nz, v3d));
+                quads.Add(new(avgDepth, vertices, avgZ, nx, ny, nz, v3d));
             }
 
         // Sort back-to-front (painter's algorithm)
@@ -93,36 +93,40 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
 
         Ctx.SetOpacity(series.Alpha);
 
-        foreach (var (_, vertices, avgZ, nx, ny, nz, v3d) in quads)
+        foreach (var q in quads)
         {
-            var baseColor = cmap.GetColor(normalizer.Normalize(avgZ, zMin, zMax));
+            var baseColor = cmap.GetColor(normalizer.Normalize(q.AvgZ, zMin, zMax));
             var color = baseColor;
             if (Context.LightSource is { } light)
             {
-                double intensity = light.ComputeIntensity(nx, ny, nz);
+                double intensity = light.ComputeIntensity(q.Nx, q.Ny, q.Nz);
                 if (Context.LightSource is DirectionalLight dl)
-                    color = color.Shade(nx, ny, nz, dl.Dx, dl.Dy, dl.Dz);
+                    color = color.Shade(q.Nx, q.Ny, q.Nz, dl.Dx, dl.Dy, dl.Dz);
                 else
                     color = color.Modulate(intensity);
             }
-            if (v3d is not null)
-                Ctx.SetNextElementData("v3d", v3d);
+            if (q.V3d is not null)
+                Ctx.SetNextElementData("v3d", q.V3d);
             // Phase 6 of v1.7.2 plan — emit the un-shaded base color + face normal so the
             // JS reproject can recompute shading on rotation. Skipped when there's no light
             // (no shading to recompute).
-            if (Context.LightSource is DirectionalLight && v3d is not null)
+            if (Context.LightSource is DirectionalLight && q.V3d is not null)
             {
                 Ctx.SetNextElementData("face-normal",
-                    $"{nx.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}," +
-                    $"{ny.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}," +
-                    $"{nz.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}");
+                    $"{q.Nx.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}," +
+                    $"{q.Ny.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}," +
+                    $"{q.Nz.ToString("G6", System.Globalization.CultureInfo.InvariantCulture)}");
                 Ctx.SetNextElementData("base-color", baseColor.ToHex());
             }
             Color? stroke = series.ShowWireframe ? (series.EdgeColor ?? Colors.Black.WithAlpha(80)) : null;
             double strokeWidth = series.ShowWireframe ? 0.5 : 0;
-            Ctx.DrawPolygon(vertices, color, stroke, strokeWidth);
+            Ctx.DrawPolygon(q.Vertices, color, stroke, strokeWidth);
         }
 
         Ctx.SetOpacity(1.0);
     }
+
+    private readonly record struct ShadedQuad(
+        double Depth, Point[] Vertices, double AvgZ,
+        double Nx, double Ny, double Nz, string? V3d);
 }

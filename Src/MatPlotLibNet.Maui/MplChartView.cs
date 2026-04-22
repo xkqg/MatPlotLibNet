@@ -3,6 +3,7 @@
 
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using MatPlotLibNet.Animation;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 
@@ -31,6 +32,32 @@ public class MplChartView : GraphicsView
     {
         if (bindable is MplChartView view)
             view.Invalidate();
+    }
+
+    private IAnimationSource? _animationSource;
+
+    /// <summary>Gets or sets the animation source whose <see cref="IAnimationSource.FrameReady"/>
+    /// event drives figure updates and visual invalidation.</summary>
+    public IAnimationSource? AnimationSource
+    {
+        get => _animationSource;
+        set
+        {
+            if (_animationSource is not null)
+                _animationSource.FrameReady -= OnAnimationFrameReady;
+            _animationSource = value;
+            if (_animationSource is not null)
+                _animationSource.FrameReady += OnAnimationFrameReady;
+        }
+    }
+
+    private void OnAnimationFrameReady(object? sender, Figure fig)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            Figure = fig;
+            Invalidate();
+        });
     }
 
     /// <summary>Initializes a new chart view with the default drawable.</summary>

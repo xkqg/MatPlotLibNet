@@ -29,7 +29,7 @@ public abstract record LegendPositionStrategy
     /// <param name="plotArea">The pixel-space rectangle that bounds the plot.</param>
     /// <param name="boxW">The pre-measured legend box width in pixels.</param>
     /// <param name="boxH">The pre-measured legend box height in pixels.</param>
-    public abstract (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH);
+    public abstract Point ComputeBox(Rect plotArea, double boxW, double boxH);
 
     // Helpers used by the centered/outside strategies (avoid recomputing per-call).
     /// <summary>The horizontal centre of the plot area.</summary>
@@ -41,86 +41,86 @@ public abstract record LegendPositionStrategy
 
 internal sealed record UpperRightStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (plotArea.X + plotArea.Width - boxW - Inset, plotArea.Y + Inset);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(plotArea.X + plotArea.Width - boxW - Inset, plotArea.Y + Inset);
 }
 
 internal sealed record UpperLeftStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (plotArea.X + Inset, plotArea.Y + Inset);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(plotArea.X + Inset, plotArea.Y + Inset);
 }
 
 internal sealed record LowerRightStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (plotArea.X + plotArea.Width - boxW - Inset, plotArea.Y + plotArea.Height - boxH - Inset);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(plotArea.X + plotArea.Width - boxW - Inset, plotArea.Y + plotArea.Height - boxH - Inset);
 }
 
 internal sealed record LowerLeftStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (plotArea.X + Inset, plotArea.Y + plotArea.Height - boxH - Inset);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(plotArea.X + Inset, plotArea.Y + plotArea.Height - boxH - Inset);
 }
 
 internal sealed record RightStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (plotArea.X + plotArea.Width - boxW - Inset, CenterY(plotArea) - boxH / 2);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(plotArea.X + plotArea.Width - boxW - Inset, CenterY(plotArea) - boxH / 2);
 }
 
 internal sealed record CenterLeftStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (plotArea.X + Inset, CenterY(plotArea) - boxH / 2);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(plotArea.X + Inset, CenterY(plotArea) - boxH / 2);
 }
 
 internal sealed record CenterRightStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (plotArea.X + plotArea.Width - boxW - Inset, CenterY(plotArea) - boxH / 2);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(plotArea.X + plotArea.Width - boxW - Inset, CenterY(plotArea) - boxH / 2);
 }
 
 internal sealed record LowerCenterStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (CenterX(plotArea) - boxW / 2, plotArea.Y + plotArea.Height - boxH - Inset);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(CenterX(plotArea) - boxW / 2, plotArea.Y + plotArea.Height - boxH - Inset);
 }
 
 internal sealed record UpperCenterStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (CenterX(plotArea) - boxW / 2, plotArea.Y + Inset);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(CenterX(plotArea) - boxW / 2, plotArea.Y + Inset);
 }
 
 internal sealed record CenterStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (CenterX(plotArea) - boxW / 2, CenterY(plotArea) - boxH / 2);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(CenterX(plotArea) - boxW / 2, CenterY(plotArea) - boxH / 2);
 }
 
 internal sealed record OutsideRightStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (plotArea.X + plotArea.Width + OutsideGap, CenterY(plotArea) - boxH / 2);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(plotArea.X + plotArea.Width + OutsideGap, CenterY(plotArea) - boxH / 2);
 }
 
 internal sealed record OutsideLeftStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (plotArea.X - boxW - OutsideGap, CenterY(plotArea) - boxH / 2);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(plotArea.X - boxW - OutsideGap, CenterY(plotArea) - boxH / 2);
 }
 
 internal sealed record OutsideTopStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (CenterX(plotArea) - boxW / 2, plotArea.Y - boxH - OutsideGap);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(CenterX(plotArea) - boxW / 2, plotArea.Y - boxH - OutsideGap);
 }
 
 internal sealed record OutsideBottomStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (CenterX(plotArea) - boxW / 2, plotArea.Y + plotArea.Height + OutsideGap);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(CenterX(plotArea) - boxW / 2, plotArea.Y + plotArea.Height + OutsideGap);
 }
 
 /// <summary>
@@ -129,6 +129,6 @@ internal sealed record OutsideBottomStrategy : LegendPositionStrategy
 /// </summary>
 internal sealed record BestStrategy : LegendPositionStrategy
 {
-    public override (double X, double Y) ComputeBox(Rect plotArea, double boxW, double boxH)
-        => (plotArea.X + plotArea.Width - boxW - Inset, plotArea.Y + Inset);
+    public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
+        => new(plotArea.X + plotArea.Width - boxW - Inset, plotArea.Y + Inset);
 }

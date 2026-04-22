@@ -34,4 +34,8 @@ public sealed class AnimationBuilder
 
     /// <summary>Generates a single frame at the specified index.</summary>
     public Figure GenerateFrame(int index) => _frameGenerator(index);
+
+    /// <summary>Wraps this builder in an <see cref="AnimationController{TState}"/> ready to play.</summary>
+    public AnimationController<int> ToController() =>
+        new(new LegacyAnimationAdapter(this), static (_, _) => Task.CompletedTask);
 }

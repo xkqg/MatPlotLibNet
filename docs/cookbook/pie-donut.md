@@ -119,15 +119,15 @@ Plt.Create()
             s.NeedleColor = Colors.Black;
             s.Ranges =
             [
-                (40,  Color.FromHex("#E74C3C")),
-                (70,  Color.FromHex("#F39C12")),
-                (100, Color.FromHex("#2ECC71")),
+                new GaugeBand(40,  Color.FromHex("#E74C3C")),
+                new GaugeBand(70,  Color.FromHex("#F39C12")),
+                new GaugeBand(100, Color.FromHex("#2ECC71")),
             ];
         }))
     .Save("gauge_chart.svg");
 ```
 
-`Ranges` defines color bands: each `(Threshold, Color)` entry covers from the previous threshold (or `Min`) up to `Threshold`.
+`Ranges` defines color bands: each `GaugeBand(Threshold, Color)` entry covers from the previous threshold (or `Min`) up to `Threshold`.
 
 ![Gauge chart](../images/gauge_chart.png)
 

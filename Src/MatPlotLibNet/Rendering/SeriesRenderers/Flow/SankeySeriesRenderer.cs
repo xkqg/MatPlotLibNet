@@ -238,7 +238,7 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
 
     /// <summary>Computes the anchor point and text alignment for an outer node label.
     /// Pure function — no render context required.</summary>
-    internal static (Point anchor, TextAlignment alignment) ComputeNodeLabelAnchor(
+    internal static LabelAnchor ComputeNodeLabelAnchor(
         Rect nodeRect,
         bool onFarEdge,
         SankeyOrientation orientation,
@@ -250,13 +250,13 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
             double yAnchor = onFarEdge
                 ? nodeRect.Y + nodeRect.Height + measuredLabelHeight + 2
                 : nodeRect.Y - 4;
-            return (new Point(cx, yAnchor), TextAlignment.Center);
+            return new(new Point(cx, yAnchor), TextAlignment.Center);
         }
         double labelX = onFarEdge
             ? nodeRect.X - 4
             : nodeRect.X + nodeRect.Width + 4;
         var anchor = new Point(labelX, nodeRect.Y + nodeRect.Height / 2 + measuredLabelHeight * 0.3);
-        return (anchor, onFarEdge ? TextAlignment.Right : TextAlignment.Left);
+        return new(anchor, onFarEdge ? TextAlignment.Right : TextAlignment.Left);
     }
 
     private void DrawSubLabelIfAny(SankeyNode node, Point position, Font subLabelFontBase, TextAlignment alignment)

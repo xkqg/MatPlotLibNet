@@ -15,7 +15,7 @@ public class MatTests
     public void Shape_ReportsCorrectDimensions()
     {
         var m = Mat.FromRows([[1, 2, 3], [4, 5, 6]]);
-        Assert.Equal((2, 3), m.Shape);
+        Assert.Equal(new MatShape(2, 3), m.Shape);
         Assert.Equal(2, m.Rows);
         Assert.Equal(3, m.Cols);
     }
@@ -85,7 +85,7 @@ public class MatTests
     {
         var m = Mat.FromRows([[1, 2, 3], [4, 5, 6]]);
         Mat t = m.T;
-        Assert.Equal((3, 2), t.Shape);
+        Assert.Equal(new MatShape(3, 2), t.Shape);
         Assert.Equal(1.0, t[0, 0]);
         Assert.Equal(4.0, t[0, 1]);
         Assert.Equal(2.0, t[1, 0]);
@@ -113,7 +113,7 @@ public class MatTests
         var a = Mat.FromRows([[1, 2, 3], [4, 5, 6]]);
         var b = Mat.FromRows([[7, 8], [9, 10], [11, 12]]);
         Mat c = a * b;
-        Assert.Equal((2, 2), c.Shape);
+        Assert.Equal(new MatShape(2, 2), c.Shape);
         Assert.Equal(58.0,  c[0, 0]);   // 1*7+2*9+3*11
         Assert.Equal(64.0,  c[0, 1]);   // 1*8+2*10+3*12
         Assert.Equal(139.0, c[1, 0]);   // 4*7+5*9+6*11

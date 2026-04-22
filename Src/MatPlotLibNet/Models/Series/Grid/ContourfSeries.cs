@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
@@ -45,7 +46,7 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
     }
 
     /// <inheritdoc />
-    public (double Min, double Max) GetColorBarRange()
+    public MinMaxRange GetColorBarRange()
     {
         double min = double.MaxValue;
         double max = double.MinValue;
@@ -58,7 +59,7 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
                 if (v < min) min = v;
                 if (v > max) max = v;
             }
-        return (min, max);
+        return new(min, max);
     }
 
     /// <inheritdoc />

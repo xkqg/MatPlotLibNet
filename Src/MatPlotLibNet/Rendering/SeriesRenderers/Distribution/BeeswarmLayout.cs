@@ -31,7 +31,7 @@ internal static class BeeswarmLayout
         }
 
         double diameter = markerRadius * 2;
-        var placed = new List<(double x, double y)>(n);
+        var placed = new List<Point>(n);
         var result = new double[n];
 
         for (int i = 0; i < n; i++)
@@ -49,9 +49,9 @@ internal static class BeeswarmLayout
                 foreach (double cx in candidates)
                 {
                     bool overlaps = false;
-                    foreach (var (px, py) in placed)
+                    foreach (var p in placed)
                     {
-                        double dx = cx - px, dy = y - py;
+                        double dx = cx - p.X, dy = y - p.Y;
                         if (dx * dx + dy * dy < diameter * diameter)
                         {
                             overlaps = true;
@@ -68,7 +68,7 @@ internal static class BeeswarmLayout
                 if (placed2) break;
             }
 
-            placed.Add((bestOffset, y));
+            placed.Add(new(bestOffset, y));
             result[i] = bestOffset;
         }
 

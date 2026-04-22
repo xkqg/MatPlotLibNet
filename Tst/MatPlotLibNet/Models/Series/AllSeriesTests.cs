@@ -124,7 +124,7 @@ public class AllSeriesTests
         { new RugplotSeries(new double[] { 1.0, 2.0, 3.0 }), nameof(RugplotSeries) },
         { new StripplotSeries([[1.0, 2.0], [3.0, 4.0]]), nameof(StripplotSeries) },
         { new EventplotSeries([[1.0, 2.0], [3.0]]), nameof(EventplotSeries) },
-        { new BrokenBarSeries([[(1.0, 2.0), (4.0, 1.0)]]), nameof(BrokenBarSeries) },
+        { new BrokenBarSeries([[new(1.0, 2.0), new(4.0, 1.0)]]), nameof(BrokenBarSeries) },
         { new CountSeries(["a", "b", "a"]), nameof(CountSeries) },
         { new PcolormeshSeries(new double[] { 0.0, 1.0, 2.0 }, new double[] { 0.0, 1.0, 2.0 }, new double[,] { { 1, 2 }, { 3, 4 } }), nameof(PcolormeshSeries) },
         { new ResidualSeries(new double[] { 1.0, 2.0, 3.0 }, new double[] { 2.0, 4.0, 6.0 }), nameof(ResidualSeries) },

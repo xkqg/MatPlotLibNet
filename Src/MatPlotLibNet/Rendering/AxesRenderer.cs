@@ -61,7 +61,7 @@ public abstract class AxesRenderer
 
     /// <summary>Optional figure size (pixels) for renderers that need the whole figure dimensions
     /// to reproduce matplotlib's layout exactly. Set by the factory when available; null otherwise.</summary>
-    protected (double Width, double Height)? FigureSize { get; set; }
+    protected Size? FigureSize { get; set; }
 
     private static readonly ConcurrentDictionary<CoordinateSystem, Func<Axes, Rect, IRenderContext, Theme, AxesRenderer>>
         RendererFactories = new()
@@ -84,13 +84,13 @@ public abstract class AxesRenderer
     /// <param name="theme">The active visual theme.</param>
     /// <param name="figureSize">Optional figure size; set for 3-D renderers that need the matplotlib-compatible square layout.</param>
     /// <returns>An <see cref="AxesRenderer"/> instance for the axes' coordinate system.</returns>
-    public static AxesRenderer Create(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme, (double W, double H)? figureSize = null)
+    public static AxesRenderer Create(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme, Size? figureSize = null)
     {
         var renderer = RendererFactories.TryGetValue(axes.CoordinateSystem, out var factory)
             ? factory(axes, plotArea, ctx, theme)
             : new CartesianAxesRenderer(axes, plotArea, ctx, theme);
         if (figureSize.HasValue)
-            renderer.FigureSize = (figureSize.Value.W, figureSize.Value.H);
+            renderer.FigureSize = figureSize.Value;
         return renderer;
     }
 
@@ -224,14 +224,14 @@ public abstract class AxesRenderer
         if (!Axes.Legend.Visible) return;
 
         var legend = Axes.Legend;
-        var entries = new List<(string Label, Color Color, Models.Series.ISeries Series, int OriginalIndex)>();
+        var entries = new List<RenderLegendEntry>();
         for (int i = 0; i < Axes.Series.Count; i++)
         {
             var series = Axes.Series[i];
             if (string.IsNullOrEmpty(series.Label)) continue;
             var cycleColor = Theme.PropCycler?[i].Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
             var seriesColor = series.GetType().GetProperty("Color")?.GetValue(series) as Color?;
-            entries.Add((series.Label, seriesColor ?? cycleColor, series, i));
+            entries.Add(new(series.Label, seriesColor ?? cycleColor, series, i));
         }
 
         if (entries.Count == 0) return;
@@ -287,26 +287,26 @@ public abstract class AxesRenderer
         {
             int row = i / layout.NCols;
             int col = i % layout.NCols;
-            var (label, color, seriesRef, originalIndex) = entries[i];
+            var entry = entries[i];
 
             double colX = layout.ColumnX(col);
             double entryY = layout.EntryY(row);
 
             // Capture hit-test bounds for this legend entry (swatch + label)
-            LegendBounds.Add(new LegendItemBounds(originalIndex, new Rect(colX, entryY, layout.ItemWidth(col), layout.LineHeight)));
+            LegendBounds.Add(new LegendItemBounds(entry.OriginalIndex, new Rect(colX, entryY, layout.ItemWidth(col), layout.LineHeight)));
 
-            svgCtxLegend?.BeginLegendItemGroup(i, label);
+            svgCtxLegend?.BeginLegendItemGroup(i, entry.Label);
 
             // Swatch dispatch: line segment for line-type series, marker for scatter,
             // line+caps for error bar, filled rectangle for patches (bar/hist/area/violin/pie).
-            DrawLegendSwatch(seriesRef, colX, entryY, layout.SwatchWidth, layout.SwatchHeight, color);
+            DrawLegendSwatch(entry.Series, colX, entryY, layout.SwatchWidth, layout.SwatchHeight, entry.Color);
 
             // Text anchor sits just past the swatch.
             var textPoint = new Point(colX + layout.SwatchWidth + layout.SwatchGap, entryY + layout.SwatchHeight - 1);
-            if (MathTextParser.ContainsMath(label))
-                Ctx.DrawRichText(MathTextParser.Parse(label), textPoint, layout.Font, TextAlignment.Left);
+            if (MathTextParser.ContainsMath(entry.Label))
+                Ctx.DrawRichText(MathTextParser.Parse(entry.Label), textPoint, layout.Font, TextAlignment.Left);
             else
-                Ctx.DrawText(label, textPoint, layout.Font, TextAlignment.Left);
+                Ctx.DrawText(entry.Label, textPoint, layout.Font, TextAlignment.Left);
             if (svgCtxLegend is not null) Ctx.EndGroup();
         }
 
@@ -322,12 +322,12 @@ public abstract class AxesRenderer
         if (!Axes.Legend.Visible) return;
 
         var legend = Axes.Legend;
-        var entries = new List<(string Label, int OriginalIndex)>();
+        var entries = new List<LegendEntryIndex>();
         for (int i = 0; i < Axes.Series.Count; i++)
         {
             var series = Axes.Series[i];
             if (string.IsNullOrEmpty(series.Label)) continue;
-            entries.Add((series.Label, i));
+            entries.Add(new(series.Label, i));
         }
 
         if (entries.Count == 0) return;
@@ -640,4 +640,9 @@ public abstract class AxesRenderer
         int target = plotPixels >= 240 ? 8 : Math.Clamp((int)Math.Round(plotPixels / 30), 2, 6);
         return ComputeTickValues(min, max, target);
     }
+
+    private readonly record struct RenderLegendEntry(
+        string Label, Color Color, Models.Series.ISeries Series, int OriginalIndex);
+
+    private readonly record struct LegendEntryIndex(string Label, int OriginalIndex);
 }

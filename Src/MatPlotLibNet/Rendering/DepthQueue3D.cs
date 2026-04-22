@@ -18,18 +18,19 @@ namespace MatPlotLibNet.Rendering;
 /// </remarks>
 public sealed class DepthQueue3D
 {
-    private readonly List<(double Depth, Action Draw)> _items = new();
+    private readonly record struct DepthItem(double Depth, Action Draw);
+    private readonly List<DepthItem> _items = new();
 
     /// <summary>Queues a drawing action to be executed during <see cref="Flush"/>.</summary>
     /// <param name="depth">Centroid depth of the primitive; lower = farther from camera.</param>
     /// <param name="draw">Closure that performs the actual draw when flushed.</param>
-    public void Add(double depth, Action draw) => _items.Add((depth, draw));
+    public void Add(double depth, Action draw) => _items.Add(new(depth, draw));
 
     /// <summary>Sorts queued items ascending by depth and invokes each draw closure.</summary>
     public void Flush()
     {
         _items.Sort(static (a, b) => a.Depth.CompareTo(b.Depth));
-        foreach (var (_, draw) in _items) draw();
+        foreach (var item in _items) item.Draw();
         _items.Clear();
     }
 }

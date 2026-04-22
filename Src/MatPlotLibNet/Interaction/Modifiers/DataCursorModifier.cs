@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Interaction;
 
@@ -52,12 +53,12 @@ public sealed class DataCursorModifier : IInteractionModifier
         if (nearest.PixelDistance > HitRadiusPx) return false;
 
         _pendingHit = nearest;
-        _pendingHitPointer = (args.X, args.Y);
+        _pendingHitPointer = new Point(args.X, args.Y);
         _pendingHitAxes = axesIndex.Value;
         return true;
     }
 
-    private (double X, double Y) _pendingHitPointer;
+    private Point _pendingHitPointer;
     private int _pendingHitAxes;
 
     /// <inheritdoc />

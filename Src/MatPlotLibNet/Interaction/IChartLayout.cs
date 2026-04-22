@@ -16,7 +16,7 @@ public interface IChartLayout
     Rect GetPlotArea(int axesIndex);
 
     /// <summary>Returns the current data-space range displayed by the given axes.</summary>
-    (double XMin, double XMax, double YMin, double YMax) GetDataRange(int axesIndex);
+    DataRange GetDataRange(int axesIndex);
 
     /// <summary>Returns the axes index whose plot area contains the given pixel position,
     /// or <c>null</c> if the point is outside every plot area.</summary>

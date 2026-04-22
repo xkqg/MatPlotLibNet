@@ -34,7 +34,7 @@ internal sealed class ViolinSeriesRenderer : SeriesRenderer<ViolinSeries>
             for (int s = 0; s <= 20; s++)
             {
                 double y = min + range * s / 20;
-                int lo = MathHelpers.BisectLeft(data, y - bandwidth), hi = MathHelpers.BisectRight(data, y + bandwidth);
+                int lo = data.BisectLeft(y - bandwidth), hi = data.BisectRight(y + bandwidth);
                 double halfW = (hi - lo) / (double)data.Length * series.Widths;
                 // Apply Side clipping
                 double leftOff = series.Side == ViolinSide.High ? 0 : halfW;
@@ -61,7 +61,7 @@ internal sealed class ViolinSeriesRenderer : SeriesRenderer<ViolinSeries>
             // ShowMedians: draw median line across full width
             if (series.ShowMedians)
             {
-                double median = MathHelpers.Percentile(data, 50);
+                double median = data.Percentile(50);
                 double medHalfW = series.Widths * 0.5;
                 Ctx.DrawLine(Transform.DataToPixel(pos - medHalfW, median), Transform.DataToPixel(pos + medHalfW, median), Colors.White, 2, LineStyle.Solid);
             }

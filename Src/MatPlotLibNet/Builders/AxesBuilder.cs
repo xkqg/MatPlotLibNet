@@ -5,7 +5,9 @@ using MatPlotLibNet.Indicators;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
+using MatPlotLibNet.Models.Tools;
 using MatPlotLibNet.Styling;
+using FibonacciRetracementTool = MatPlotLibNet.Models.Tools.FibonacciRetracement;
 
 namespace MatPlotLibNet;
 
@@ -260,6 +262,32 @@ public sealed class AxesBuilder
         annotation.ArrowTargetX = arrowX;
         annotation.ArrowTargetY = arrowY;
         configure?.Invoke(annotation);
+        return this;
+    }
+
+    /// <summary>Adds a trendline between two data-coordinate points.</summary>
+    public AxesBuilder AddTrendline(double x1, double y1, double x2, double y2,
+        Action<Trendline>? configure = null)
+    {
+        var line = _axes.AddTrendline(x1, y1, x2, y2);
+        configure?.Invoke(line);
+        return this;
+    }
+
+    /// <summary>Adds a horizontal price level (support/resistance) at the given value.</summary>
+    public AxesBuilder AddLevel(double value, Action<HorizontalLevel>? configure = null)
+    {
+        var level = _axes.AddLevel(value);
+        configure?.Invoke(level);
+        return this;
+    }
+
+    /// <summary>Adds a Fibonacci retracement overlay between a price high and a price low.</summary>
+    public AxesBuilder AddFibonacci(double priceHigh, double priceLow,
+        Action<FibonacciRetracementTool>? configure = null)
+    {
+        var fib = _axes.AddFibonacci(priceHigh, priceLow);
+        configure?.Invoke(fib);
         return this;
     }
 
@@ -773,8 +801,11 @@ public sealed class AxesBuilder
     public AxesBuilder Eventplot(double[][] positions, Action<EventplotSeries>? configure = null)
         => AddSeries(ax => ax.Eventplot(positions), configure);
 
-    /// <summary>Adds a broken bar series to the axes.</summary>
-    public AxesBuilder BrokenBarH((double Start, double Width)[][] ranges, Action<BrokenBarSeries>? configure = null)
+    /// <summary>Adds a broken-bar series to the axes (matplotlib <c>broken_barh</c>).</summary>
+    /// <param name="ranges">One <see cref="BarRange"/> array per row; each inner entry defines a
+    /// horizontal segment by <c>(Start, Width)</c> in data units.</param>
+    /// <param name="configure">Optional post-construction configurator (colour, labels, bar height).</param>
+    public AxesBuilder BrokenBarH(BarRange[][] ranges, Action<BrokenBarSeries>? configure = null)
         => AddSeries(ax => ax.BrokenBarH(ranges), configure);
 
     /// <summary>Adds a count plot series to the axes.</summary>
@@ -963,6 +994,291 @@ public sealed class AxesBuilder
     public AxesBuilder ParabolicSar(double[] high, double[] low, double step = 0.02, double max = 0.2, Action<Indicators.ParabolicSar>? configure = null)
     {
         var indicator = new Indicators.ParabolicSar(high, low, step, max);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Garman-Klass volatility panel indicator.</summary>
+    public AxesBuilder GarmanKlass(double[] open, double[] high, double[] low, double[] close,
+                                   int period = 20, Action<Indicators.GarmanKlass>? configure = null)
+    {
+        var indicator = new Indicators.GarmanKlass(open, high, low, close, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Yang-Zhang volatility panel indicator.</summary>
+    public AxesBuilder YangZhang(double[] open, double[] high, double[] low, double[] close,
+                                 int period = 20, Action<Indicators.YangZhang>? configure = null)
+    {
+        var indicator = new Indicators.YangZhang(open, high, low, close, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Kaufman Efficiency Ratio panel indicator. Output bounded to [0, 1].</summary>
+    public AxesBuilder KaufmanEfficiencyRatio(double[] prices, int period = 10,
+        Action<Indicators.KaufmanEfficiencyRatio>? configure = null)
+    {
+        var indicator = new Indicators.KaufmanEfficiencyRatio(prices, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a CUSUM filter panel indicator (regime-break detector).</summary>
+    public AxesBuilder Cusum(double[] prices, double threshold, double drift = 0.0,
+        Action<Indicators.Cusum>? configure = null)
+    {
+        var indicator = new Indicators.Cusum(prices, threshold, drift);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a fractional-differentiation panel indicator (Lopez de Prado §5.5).</summary>
+    public AxesBuilder Ffd(double[] prices, double d = 0.4, double tolerance = 1e-3,
+        Action<Indicators.FractionalDifferentiation>? configure = null)
+    {
+        var indicator = new Indicators.FractionalDifferentiation(prices, d, tolerance);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Amihud illiquidity panel indicator.</summary>
+    public AxesBuilder AmihudIlliquidity(double[] close, double[] volume, int period = 20,
+        Action<Indicators.AmihudIlliquidity>? configure = null)
+    {
+        var indicator = new Indicators.AmihudIlliquidity(close, volume, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Corwin-Schultz bid-ask-spread panel indicator.</summary>
+    public AxesBuilder CorwinSchultz(double[] high, double[] low, int period = 20,
+        Action<Indicators.CorwinSchultz>? configure = null)
+    {
+        var indicator = new Indicators.CorwinSchultz(high, low, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a VPIN (Volume-Synchronized Probability of Informed Trading) panel indicator.
+    /// Output bounded to [0, 1].</summary>
+    public AxesBuilder Vpin(double[] close, double[] volume, int bucketPeriod = 50, int sigmaPeriod = 50,
+        Action<Indicators.Vpin>? configure = null)
+    {
+        var indicator = new Indicators.Vpin(close, volume, bucketPeriod, sigmaPeriod);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Roll bid-ask-spread panel indicator.</summary>
+    public AxesBuilder RollSpread(double[] prices, int period = 20,
+        Action<Indicators.RollSpread>? configure = null)
+    {
+        var indicator = new Indicators.RollSpread(prices, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Laguerre RSI panel indicator (Ehlers 2004). Output bounded to [0, 1].</summary>
+    public AxesBuilder LaguerreRsi(double[] prices, double alpha = 0.2,
+        Action<Indicators.LaguerreRsi>? configure = null)
+    {
+        var indicator = new Indicators.LaguerreRsi(prices, alpha);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a MAMA/FAMA adaptive-moving-average overlay (Ehlers 2001). Two lines.</summary>
+    public AxesBuilder MamaFama(double[] prices, double fastLimit = 0.5, double slowLimit = 0.05,
+        Action<Indicators.MamaFama>? configure = null)
+    {
+        var indicator = new Indicators.MamaFama(prices, fastLimit, slowLimit);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Squeeze Momentum (LazyBear) panel indicator.</summary>
+    public AxesBuilder SqueezeMomentum(double[] high, double[] low, double[] close,
+        int period = 20, double bbMult = 2.0, double kcMult = 1.5,
+        Action<Indicators.SqueezeMomentum>? configure = null)
+    {
+        var indicator = new Indicators.SqueezeMomentum(high, low, close, period, bbMult, kcMult);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a BOCPD (Bayesian Online Changepoint Detection) panel indicator.
+    /// Output is per-bar changepoint probability in [0, 1].</summary>
+    public AxesBuilder Bocpd(double[] prices, double hazard = 0.01,
+        double priorVariance = 1.0, int maxRunLength = 500,
+        Action<Indicators.Bocpd>? configure = null)
+    {
+        var indicator = new Indicators.Bocpd(prices, hazard, priorVariance, maxRunLength);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Turbulence Index panel indicator (Kritzman &amp; Li 2010).
+    /// Rolling Mahalanobis distance — crisis detector.</summary>
+    public AxesBuilder TurbulenceIndex(double[][] features, int window = 252,
+        double regularization = 1e-6,
+        Action<Indicators.TurbulenceIndex>? configure = null)
+    {
+        var indicator = new Indicators.TurbulenceIndex(features, window, regularization);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Dispersion Index panel indicator — population stddev across signals per bar.</summary>
+    public AxesBuilder DispersionIndex(double[][] signals,
+        Action<Indicators.DispersionIndex>? configure = null)
+    {
+        var indicator = new Indicators.DispersionIndex(signals);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Permutation Entropy panel indicator (Bandt &amp; Pompe 2002). Output in [0, 1].</summary>
+    public AxesBuilder PermutationEntropy(double[] prices, int order = 4, int window = 100,
+        Action<Indicators.PermutationEntropy>? configure = null)
+    {
+        var indicator = new Indicators.PermutationEntropy(prices, order, window);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Haar-DWT energy-ratio panel indicator. Output in [0, 1] — fraction of
+    /// band energy at the target detail level.</summary>
+    public AxesBuilder WaveletEnergyRatio(double[] prices, int window = 64, int level = 0,
+        Action<Indicators.WaveletEnergyRatio>? configure = null)
+    {
+        var indicator = new Indicators.WaveletEnergyRatio(prices, window, level);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Haar-DWT entropy panel indicator. Output in [0, 1] — Shannon entropy
+    /// of the energy distribution over wavelet bands.</summary>
+    public AxesBuilder WaveletEntropy(double[] prices, int window = 64,
+        Action<Indicators.WaveletEntropy>? configure = null)
+    {
+        var indicator = new Indicators.WaveletEntropy(prices, window);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Ehlers Cyber Cycle panel indicator (Ehlers 2002).</summary>
+    public AxesBuilder CyberCycle(double[] prices, double alpha = 0.07,
+        Action<Indicators.CyberCycle>? configure = null)
+    {
+        var indicator = new Indicators.CyberCycle(prices, alpha);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Ehlers Roofing Filter panel indicator (band-pass, Ehlers 2014).</summary>
+    public AxesBuilder RoofingFilter(double[] prices, int hpPeriod = 48, int lpPeriod = 10,
+        Action<Indicators.RoofingFilter>? configure = null)
+    {
+        var indicator = new Indicators.RoofingFilter(prices, hpPeriod, lpPeriod);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Ehlers Sinewave indicator (Ehlers 2002) — two lines + cycle/trend flag.</summary>
+    public AxesBuilder EhlersSineWave(double[] prices,
+        Action<Indicators.EhlersSineWave>? configure = null)
+    {
+        var indicator = new Indicators.EhlersSineWave(prices);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Ehlers Adaptive Stochastic panel indicator. Output in [0, 100].</summary>
+    public AxesBuilder AdaptiveStochastic(double[] high, double[] low, double[] close,
+        int smoothingPeriod = 3,
+        Action<Indicators.AdaptiveStochastic>? configure = null)
+    {
+        var indicator = new Indicators.AdaptiveStochastic(high, low, close, smoothingPeriod);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Aroon Oscillator panel indicator (Chande 1995). Output in [-100, 100].</summary>
+    public AxesBuilder AroonOscillator(double[] high, double[] low, int period = 25,
+        Action<Indicators.AroonOscillator>? configure = null)
+    {
+        var indicator = new Indicators.AroonOscillator(high, low, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Elder Force Index panel indicator (Elder 1993). Signed momentum.</summary>
+    public AxesBuilder ForceIndex(double[] close, double[] volume, int period = 13,
+        Action<Indicators.ForceIndex>? configure = null)
+    {
+        var indicator = new Indicators.ForceIndex(close, volume, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Relative Vigor Index panel indicator (Ehlers 2002). Two lines (RVI + Signal).</summary>
+    public AxesBuilder RelativeVigorIndex(double[] open, double[] high, double[] low, double[] close,
+        int period = 10,
+        Action<Indicators.RelativeVigorIndex>? configure = null)
+    {
+        var indicator = new Indicators.RelativeVigorIndex(open, high, low, close, period);
         if (IsBarSlotContext()) indicator.Offset = 0.5;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);

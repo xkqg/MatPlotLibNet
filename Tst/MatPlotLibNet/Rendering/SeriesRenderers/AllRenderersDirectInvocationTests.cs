@@ -744,7 +744,7 @@ public class AllRenderersDirectInvocationTests
         new GaugeSeriesRenderer(ctx).Render(new GaugeSeries(50)
         {
             Min = 0, Max = 100,
-            Ranges = [(25, Colors.Red), (75, Colors.Amber), (100, Colors.Green)],
+            Ranges = [new(25, Colors.Red), new(75, Colors.Amber), new(100, Colors.Green)],
         });
         Assert.True(HasAnyDrawing(svg.GetOutput()));
     }

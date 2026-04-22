@@ -6,27 +6,27 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.Lighting;
 
-/// <summary>Verifies <see cref="LightingHelper"/> face normals and <see cref="ColorExtensions"/>
-/// color lighting operations.</summary>
-public class LightingHelperTests
+/// <summary>Verifies <see cref="Vec3.FaceNormal"/> and <see cref="ColorExtensions"/>
+/// colour lighting operations (v1.8.0: replaces the old <c>LightingHelper</c> static class).</summary>
+public class Vec3AndColorLightingTests
 {
     [Fact]
-    public void ComputeFaceNormal_XYPlane_ReturnsZAxis()
+    public void FaceNormal_XYPlane_ReturnsZAxis()
     {
-        var (nx, ny, nz) = LightingHelper.ComputeFaceNormal(
-            (0, 0, 0), (1, 0, 0), (0, 1, 0));
+        var (nx, ny, nz) = Vec3.FaceNormal(
+            new(0, 0, 0), new(1, 0, 0), new(0, 1, 0));
         Assert.Equal(0.0, nx, 6);
         Assert.Equal(0.0, ny, 6);
         Assert.Equal(1.0, nz, 6);
     }
 
     [Fact]
-    public void ComputeFaceNormal_ReversedOrder_OppositeNormal()
+    public void FaceNormal_ReversedOrder_OppositeNormal()
     {
-        var (nx1, ny1, nz1) = LightingHelper.ComputeFaceNormal(
-            (0, 0, 0), (1, 0, 0), (0, 1, 0));
-        var (nx2, ny2, nz2) = LightingHelper.ComputeFaceNormal(
-            (0, 0, 0), (0, 1, 0), (1, 0, 0));
+        var (nx1, ny1, nz1) = Vec3.FaceNormal(
+            new(0, 0, 0), new(1, 0, 0), new(0, 1, 0));
+        var (nx2, ny2, nz2) = Vec3.FaceNormal(
+            new(0, 0, 0), new(0, 1, 0), new(1, 0, 0));
         Assert.Equal(-nx1, nx2, 6);
         Assert.Equal(-ny1, ny2, 6);
         Assert.Equal(-nz1, nz2, 6);

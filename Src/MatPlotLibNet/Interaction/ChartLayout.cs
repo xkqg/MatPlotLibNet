@@ -49,7 +49,7 @@ public sealed class ChartLayout : IChartLayout
     public Rect GetPlotArea(int axesIndex) => _plotAreas[axesIndex];
 
     /// <inheritdoc />
-    public (double XMin, double XMax, double YMin, double YMax) GetDataRange(int axesIndex)
+    public DataRange GetDataRange(int axesIndex)
     {
         var axes = _figure.SubPlots[axesIndex];
         // Fall back to 0-1 when axis limits are not yet materialised (auto-range).
@@ -57,7 +57,7 @@ public sealed class ChartLayout : IChartLayout
         double xMax = axes.XAxis.Max ?? 1.0;
         double yMin = axes.YAxis.Min ?? 0.0;
         double yMax = axes.YAxis.Max ?? 1.0;
-        return (xMin, xMax, yMin, yMax);
+        return new(xMin, xMax, yMin, yMax);
     }
 
     /// <inheritdoc />
@@ -90,7 +90,7 @@ public sealed class ChartLayout : IChartLayout
 
     /// <summary>Converts a pixel position to data-space coordinates for the given axes.
     /// Returns <c>null</c> if the pixel is outside the axes plot area.</summary>
-    public (double DataX, double DataY)? PixelToData(double pixelX, double pixelY, int axesIndex)
+    public DataPoint? PixelToData(double pixelX, double pixelY, int axesIndex)
     {
         var area = _plotAreas[axesIndex];
         if (pixelX < area.X || pixelX > area.X + area.Width ||
@@ -103,6 +103,6 @@ public sealed class ChartLayout : IChartLayout
         // Y is inverted: top of plot = yMax, bottom = yMin (screen-Y increases downward).
         double dataY = yMax - (pixelY - area.Y) / area.Height * (yMax - yMin);
 
-        return (dataX, dataY);
+        return new DataPoint(dataX, dataY);
     }
 }

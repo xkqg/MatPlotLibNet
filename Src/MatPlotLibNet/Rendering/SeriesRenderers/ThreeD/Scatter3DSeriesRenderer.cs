@@ -33,9 +33,9 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
         var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
 
         // Build indexed depth list for sorting
-        var indexed = new List<(int Index, double Depth)>(series.X.Length);
+        var indexed = new List<IndexedDepth>(series.X.Length);
         for (int i = 0; i < series.X.Length; i++)
-            indexed.Add((i, proj.Depth(series.X[i], series.Y[i], series.Z[i])));
+            indexed.Add(new(i, proj.Depth(series.X[i], series.Y[i], series.Z[i])));
 
         // Sort back-to-front (painter's algorithm)
         indexed.Sort((a, b) => a.Depth.CompareTo(b.Depth));
@@ -46,13 +46,14 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
 
         bool emitV3d = Context.Emit3DData;
 
-        foreach (var (idx, depth) in indexed)
+        foreach (var entry in indexed)
         {
+            int idx = entry.Index;
             double xi = series.X[idx], yi = series.Y[idx], zi = series.Z[idx];
             var pt = proj.Project(xi, yi, zi);
 
             // Vary size by depth for perspective effect: closer points are larger
-            double depthFrac = depthRange > 0 ? (depth - indexed[0].Depth) / depthRange : 0.5;
+            double depthFrac = depthRange > 0 ? (entry.Depth - indexed[0].Depth) / depthRange : 0.5;
             double radius = series.MarkerSize / 2 * (0.5 + 0.5 * depthFrac);
 
             // Resolve color: colormap Z-mapping takes priority over flat color
@@ -68,4 +69,6 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
             Ctx.DrawCircle(pt, radius, color, null, 0);
         }
     }
+
+    private readonly record struct IndexedDepth(int Index, double Depth);
 }

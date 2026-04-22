@@ -896,9 +896,9 @@ public class ColorMapTests
         var black = new Color(0, 0, 0);
         var cm = LinearColorMap.FromPositions("test",
         [
-            (0.0, black),
-            (0.5, red),
-            (1.0, white),
+            new(0.0, black),
+            new(0.5, red),
+            new(1.0, white),
         ]);
         var c = cm.GetColor(0.25);
         Assert.InRange(c.R, (byte)125, (byte)129); // ~127 ± rounding
@@ -911,7 +911,7 @@ public class ColorMapTests
     {
         var red = new Color(255, 0, 0);
         var blue = new Color(0, 0, 255);
-        var cm = LinearColorMap.FromPositions("test", [(0.0, red), (1.0, blue)]);
+        var cm = LinearColorMap.FromPositions("test", [new(0.0, red), new(1.0, blue)]);
         Assert.Equal(red, cm.GetColor(0.0));
         Assert.Equal(blue, cm.GetColor(1.0));
     }
@@ -921,7 +921,7 @@ public class ColorMapTests
     {
         var c = new Color(0, 0, 0);
         Assert.Throws<ArgumentException>(() =>
-            LinearColorMap.FromPositions("test", [(0.5, c), (0.0, c), (1.0, c)]));
+            LinearColorMap.FromPositions("test", [new(0.5, c), new(0.0, c), new(1.0, c)]));
     }
 
     [Fact]
@@ -929,7 +929,7 @@ public class ColorMapTests
     {
         var c = new Color(0, 0, 0);
         Assert.Throws<ArgumentException>(() =>
-            LinearColorMap.FromPositions("test", [(0.5, c)]));
+            LinearColorMap.FromPositions("test", [new(0.5, c)]));
     }
 
     // --- B4: Extreme value support ---
@@ -1037,7 +1037,7 @@ public class ColorMapTests
         var red  = new Color(255, 0, 0);
         var blue = new Color(0, 0, 255);
         var map  = LinearColorMap.FromList("fl_test_two",
-            [(0.0, red), (1.0, blue)]);
+            [new(0.0, red), new(1.0, blue)]);
         Assert.Equal(red,  map.GetColor(0.0));
         Assert.Equal(blue, map.GetColor(1.0));
     }
@@ -1050,7 +1050,7 @@ public class ColorMapTests
         var red   = new Color(255, 0,   0);
         // stops at 0, 0.5, 1 — midpoint between black and red is at value=0.25
         var map = LinearColorMap.FromList("fl_test_three",
-            [(0.0, black), (0.5, red), (1.0, white)]);
+            [new(0.0, black), new(0.5, red), new(1.0, white)]);
         var c = map.GetColor(0.25);
         Assert.InRange(c.R, (byte)125, (byte)129);
         Assert.Equal((byte)0, c.G);
@@ -1064,7 +1064,7 @@ public class ColorMapTests
         var white = new Color(255, 255, 255);
         // positions 10 and 20 should be normalized to 0 and 1
         var map = LinearColorMap.FromList("fl_test_norm",
-            [(10.0, black), (20.0, white)]);
+            [new(10.0, black), new(20.0, white)]);
         Assert.Equal(black, map.GetColor(0.0));
         Assert.Equal(white, map.GetColor(1.0));
     }
@@ -1073,7 +1073,7 @@ public class ColorMapTests
     public void FromList_AutoRegisters_InRegistry()
     {
         LinearColorMap.FromList("fl_test_reg",
-            [(0.0, new Color(0, 0, 0)), (1.0, new Color(255, 255, 255))]);
+            [new(0.0, new Color(0, 0, 0)), new(1.0, new Color(255, 255, 255))]);
         Assert.NotNull(ColorMapRegistry.Get("fl_test_reg"));
         Assert.NotNull(ColorMapRegistry.Get("fl_test_reg_r"));
     }
@@ -1083,7 +1083,7 @@ public class ColorMapTests
     {
         var c = new Color(0, 0, 0);
         Assert.Throws<ArgumentException>(() =>
-            LinearColorMap.FromList("fl_test_single", [(0.0, c)]));
+            LinearColorMap.FromList("fl_test_single", [new(0.0, c)]));
     }
 
     [Fact]
@@ -1092,6 +1092,6 @@ public class ColorMapTests
         var c = new Color(0, 0, 0);
         Assert.Throws<ArgumentException>(() =>
             LinearColorMap.FromList("fl_test_nonincr",
-                [(0.0, c), (0.0, c), (1.0, c)]));
+                [new(0.0, c), new(0.0, c), new(1.0, c)]));
     }
 }

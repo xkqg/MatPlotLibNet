@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel SVG rendering, polymorphic export (SVG / PNG / PDF / GIF), and multi-platform output to Blazor, MAUI, Avalonia, Uno Platform, ASP.NET Core, Angular, React, and Vue.
+A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel server-side SVG rendering, polymorphic export (SVG / PNG / PDF / animated GIF), and 74 series types across line, scatter, bar, 3D, streaming, polar, financial, statistical, hierarchical, Sankey, and vector families. Ships with 13 map projections and embedded Natural Earth data, 26 themes, LaTeX-style MathText, O(1) streaming with 13 technical indicators, financial drawing tools (trendlines, Fibonacci retracements, horizontal levels), frame-based animation with 6 easing curves + Pause/Resume playback, native UI controls for **Blazor, WPF, MAUI, Avalonia, Uno Platform, ASP.NET Core**, and TypeScript clients for **Angular, React, and Vue** — no JavaScript framework, no WebView, no SaaS.
 
 [![CI](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml/badge.svg)](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
@@ -10,18 +10,16 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 Stabilisation phase
 
-After twelve feature releases (v1.0 → v1.7.3) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators, native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
+After thirteen feature releases (v1.0 → v1.8.0) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators, native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
 
-**v1.7.1 started the stabilisation period; v1.7.3 continues it.** The focus shifts from "ship more features" to:
+**v1.7.1 started the stabilisation period; v1.8.0 continues it.** The focus shifts from "ship more features" to:
 
 - 🐛 **Bug fixes only** (no new public API), driven by community use and the `≥90/90` coverage gate
 - 🧪 **Test coverage uplift** (see [`docs/COVERAGE.md`](docs/COVERAGE.md)) — **554 classes, all ≥90/90. CI strict gate active.** Coverage: **98.49% line / 95.19% branch** (was 97.26/90.50 pre-Phase-K, 94.94/85.30 pre-refactor). Three god-classes decomposed into 32 extracted SOLID subclasses (each 100L/100B); `PlaygroundController` extracted from Blazor @code (SRP fix, 12 new tests); two IEEE-754 branch edge cases closed. Byte-level SVG output unchanged vs shipped v1.7.3 (verified by 10 033-case equivalence fuzz)
 
-> **Why v1.7.3 is a new NuGet release, not just a tag.** The strict 90/90-per-class coverage gate introduced in v1.7.2 turned out to require structural production-code changes in the large renderer classes — methods were too coarse-grained for any single test to cover a coherent branch family. Phase L extracted focused `internal` helpers (`RenderGridLines`, `RenderAxisTicks`, `DrawBreakSegments`, `BuildWedgePath`, `PrepareTransform`, `ComputeNodeLabelAnchor`), introduced generic base classes (`CircularRenderer<T>`, `PolarTransformRenderer<T>`, `OhlcStreamingIndicatorTests<T>`), and eliminated hundreds of lines of parallel duplication. No public API surface changed and SVG output is byte-identical, but the scope of internal restructuring crossed the version-bump bar.
+> **Why v1.8.0 is a new NuGet release.** The strict 90/90-per-class coverage gate introduced in v1.7.2 surfaced dozens of anonymous tuples and `*Helper` static classes that violated the project's named-type policy. v1.8.0 completes the sweep: every public API tuple is now a named `readonly record struct` (`ColorStop`, `StreamingPoint`, `MinMaxRange`, `MatShape`, `XYCurve`, `BarRange`, `GaugeBand`, `DataPoint`, `Size`, `LineSegment`, and more), and every `*Helper` class has been replaced with extension methods or domain-named statics (`SvgXml`, `SortedArrayExtensions`, `Vec3`). Public signatures that previously returned tuples now return records; call sites that deconstruct continue to work via auto-generated `Deconstruct`. Internal list-of-tuples collections also converted. No behavioural changes; SVG output byte-identical.
 - 📚 **Documentation polish** — cookbook examples, API XML doc completeness
 - 🌱 **Listening** — what should v2 be? Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next major direction will be guided by what real users need, not by a feature checklist.
-
-No timeline for v1.8.0 yet — when it ships, it will be community-driven.
 
 > **Browser interactions are automatic.** `FigureBuilder.WithBrowserInteraction()` is the
 > single switch — pan/zoom, legend toggle + drag, treemap drilldown, sankey hover, 3D
@@ -30,7 +28,7 @@ No timeline for v1.8.0 yet — when it ships, it will be community-driven.
 > when the chart has no treemap nodes), so there's no per-feature toggle for the user
 > to manage.
 
-For the full v1.7.3 release notes (Phase L SOLID/DRY refactor, NuGet CI publish, Playground AxisBreaks + MinorGrid examples) and all prior history, see the [CHANGELOG](CHANGELOG.md).
+For the full v1.8.0 release notes (tuple → record struct sweep, `*Helper` → extensions / domain-named statics) and all prior history, see the [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -109,7 +107,7 @@ Plt.Create()
 
 **MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
 
-**3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). Full `Projection3D` pipeline, `DepthQueue3D` painter's algorithm, `LightingHelper` shading, `Svg3DRotationScript` client-side rotation with depth re-sorting, configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
+**3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). Full `Projection3D` pipeline, `DepthQueue3D` painter's algorithm, `Vec3.FaceNormal` + `Color.Shade()`/`Color.Modulate()` extension-based shading, `Svg3DRotationScript` client-side rotation with depth re-sorting, configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
 
 **Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries`, `StreamingCandlestickSeries` backed by `DoubleRingBuffer` with `AppendPoint(x, y)`. `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 11 streaming indicators (SMA, EMA, RSI, Bollinger, MACD, OBV, ATR, Stochastic, WilliamsR, CCI, VWAP) auto-attach to candlestick data. Streaming controls for Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. SVG diff engine for bandwidth optimization. Rx `IObservable<T>` adapter.
 

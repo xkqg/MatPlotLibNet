@@ -24,7 +24,7 @@ public sealed class SpectrogramSeries : ChartSeries, IColorBarDataProvider, ICol
     public INormalizer? Normalizer { get; set; }
 
     /// <inheritdoc />
-    public (double Min, double Max) GetColorBarRange() => (0, 1);
+    public MinMaxRange GetColorBarRange() => new(0, 1);
 
     /// <summary>Initializes a new instance of <see cref="SpectrogramSeries"/> with the specified signal.</summary>
     /// <param name="signal">The input signal values.</param>

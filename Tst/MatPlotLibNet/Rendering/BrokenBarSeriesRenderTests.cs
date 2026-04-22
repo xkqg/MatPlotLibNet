@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// <summary>Verifies SVG output of <see cref="BrokenBarSeries"/> rendering.</summary>
 public class BrokenBarSeriesRenderTests
 {
-    private static readonly (double, double)[][] Ranges = [[(1.0, 2.0), (4.0, 1.5)], [(0.5, 3.0)]];
+    private static readonly BarRange[][] Ranges = [[new(1.0, 2.0), new(4.0, 1.5)], [new(0.5, 3.0)]];
 
     [Fact]
     public void BrokenBar_RendersWithoutError()

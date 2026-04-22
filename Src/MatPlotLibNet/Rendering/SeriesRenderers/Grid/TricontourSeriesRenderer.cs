@@ -43,17 +43,17 @@ internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries
                     mesh.X[ib], mesh.Y[ib], series.Z[ib],
                     mesh.X[ic], mesh.Y[ic], series.Z[ic],
                     levelValue);
-                foreach (var (p1, p2) in segments)
+                foreach (var seg in segments)
                 {
-                    var px1 = Transform.DataToPixel(p1.X, p1.Y);
-                    var px2 = Transform.DataToPixel(p2.X, p2.Y);
+                    var px1 = Transform.DataToPixel(seg.From.X, seg.From.Y);
+                    var px2 = Transform.DataToPixel(seg.To.X, seg.To.Y);
                     Ctx.DrawLine(px1, px2, color, 1.0, Styling.LineStyle.Solid);
                 }
             }
         }
     }
 
-    private static IEnumerable<(Point p1, Point p2)> ContourSegments(
+    private static IEnumerable<LineSegment> ContourSegments(
         double ax, double ay, double az,
         double bx, double by, double bz,
         double cx, double cy, double cz,
@@ -70,7 +70,7 @@ internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries
         AddCrossing(crossings, cx, cy, cz, ax, ay, az, level);
 
         if (crossings.Count >= 2)
-            yield return (crossings[0], crossings[1]);
+            yield return new(crossings[0], crossings[1]);
     }
 
     private static void AddCrossing(List<Point> list,

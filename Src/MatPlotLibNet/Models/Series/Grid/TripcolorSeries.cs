@@ -24,8 +24,8 @@ public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColor
     public INormalizer? Normalizer { get; set; }
 
     /// <inheritdoc />
-    public (double Min, double Max) GetColorBarRange() =>
-        Z.Length > 0 ? (Z.Min(), Z.Max()) : (0, 1);
+    public MinMaxRange GetColorBarRange() =>
+        Z.Length > 0 ? new(Z.Min(), Z.Max()) : new(0, 1);
 
     /// <summary>Initializes a new instance of <see cref="TripcolorSeries"/>.</summary>
     public TripcolorSeries(Vec x, Vec y, Vec z)

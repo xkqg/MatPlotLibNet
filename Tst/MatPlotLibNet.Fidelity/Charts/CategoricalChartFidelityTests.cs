@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Fidelity;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Fidelity.Charts;
@@ -17,10 +18,10 @@ public class CategoricalChartFidelityTests : FidelityTest
     [FidelityTolerance(Rms = 115, Ssim = 0.50, DeltaE = 55)]   // v1.1.4: AA grey text + tab10/bgrcmyk; classic xmargin=0 made bars extend edge-to-edge → RMS 100→115
     public void BrokenBar_TwoRows_MatchesMatplotlib(string themeId)
     {
-        (double Start, double Width)[][] ranges =
+        BarRange[][] ranges =
         [
-            [(0, 3), (5, 2), (8, 4)],
-            [(1, 2), (6, 3)],
+            [new(0, 3), new(5, 2), new(8, 4)],
+            [new(1, 2), new(6, 3)],
         ];
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)

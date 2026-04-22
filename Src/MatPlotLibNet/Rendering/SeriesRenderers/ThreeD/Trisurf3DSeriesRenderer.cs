@@ -37,7 +37,7 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
         // Generate triangles using simple sequential triplets. A full Delaunay triangulation
         // would be more general but this approach produces valid geometry for regularly spaced
         // data and keeps the renderer simple.
-        var triangles = new List<(double Depth, Point[] Vertices, double AvgZ)>();
+        var triangles = new List<DepthTriangle>();
 
         // If the point count is divisible by 3, use sequential triplets;
         // otherwise, use a fan triangulation from point 0.
@@ -58,10 +58,10 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
 
         Ctx.SetOpacity(series.Alpha);
 
-        foreach (var (_, vertices, avgZ) in triangles)
+        foreach (var tri in triangles)
         {
             var fill = useColorMap
-                ? cmap!.GetColor(normalizer.Normalize(avgZ, zMin, zMax))
+                ? cmap!.GetColor(normalizer.Normalize(tri.AvgZ, zMin, zMax))
                 : baseColor;
 
             Color? stroke = series.ShowWireframe
@@ -69,14 +69,14 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
                 : null;
             double strokeWidth = series.ShowWireframe ? 0.5 : 0;
 
-            Ctx.DrawPolygon(vertices, fill, stroke, strokeWidth);
+            Ctx.DrawPolygon(tri.Vertices, fill, stroke, strokeWidth);
         }
 
         Ctx.SetOpacity(1.0);
     }
 
     private static void AddTriangle(
-        List<(double Depth, Point[] Vertices, double AvgZ)> sink,
+        List<DepthTriangle> sink,
         Projection3D proj, Trisurf3DSeries series,
         int i0, int i1, int i2)
     {
@@ -96,6 +96,8 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
             proj.Project(x2, y2, z2),
         };
 
-        sink.Add((proj.Depth(cx, cy, cz), vertices, avgZ));
+        sink.Add(new(proj.Depth(cx, cy, cz), vertices, avgZ));
     }
+
+    private readonly record struct DepthTriangle(double Depth, Point[] Vertices, double AvgZ);
 }

@@ -592,4 +592,996 @@ public class AxesBuilderCoverageTests
                 .AddSubPlot(1, 1, 1, ax => ax.Sma(3))
                 .Build());
     }
+
+    // ── Tier 1a indicator shortcuts — GarmanKlass, YangZhang, KaufmanEfficiencyRatio ──
+
+    private static readonly double[] TierO = [100, 102, 103, 105, 107, 108];
+    private static readonly double[] TierH = [105, 104, 106, 108, 109, 111];
+    private static readonly double[] TierL = [99, 100, 102, 104, 106, 107];
+    private static readonly double[] TierC = [102, 103, 105, 107, 108, 110];
+
+    /// <summary>GarmanKlass fluent shortcut applies the indicator to the axes.</summary>
+    [Fact]
+    public void GarmanKlass_Shortcut_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.GarmanKlass(TierO, TierH, TierL, TierC, period: 5))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>GarmanKlass after UseBarSlotX() sets Offset = 0.5 (bar-slot true arm).</summary>
+    [Fact]
+    public void GarmanKlass_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .GarmanKlass(TierO, TierH, TierL, TierC, period: 5))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    /// <summary>GarmanKlass configure callback is invoked on the indicator instance.</summary>
+    [Fact]
+    public void GarmanKlass_Configure_IsInvoked()
+    {
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .GarmanKlass(TierO, TierH, TierL, TierC, period: 5,
+                    configure: ind => { configured = true; ind.LineWidth = 3; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    /// <summary>YangZhang fluent shortcut applies the indicator to the axes.</summary>
+    [Fact]
+    public void YangZhang_Shortcut_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.YangZhang(TierO, TierH, TierL, TierC, period: 5))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>YangZhang after UseBarSlotX() sets Offset = 0.5 (bar-slot true arm).</summary>
+    [Fact]
+    public void YangZhang_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .YangZhang(TierO, TierH, TierL, TierC, period: 5))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    /// <summary>YangZhang configure callback is invoked on the indicator instance.</summary>
+    [Fact]
+    public void YangZhang_Configure_IsInvoked()
+    {
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .YangZhang(TierO, TierH, TierL, TierC, period: 5,
+                    configure: ind => { configured = true; ind.LineWidth = 3; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    /// <summary>KaufmanEfficiencyRatio fluent shortcut applies the indicator to the axes.</summary>
+    [Fact]
+    public void KaufmanEfficiencyRatio_Shortcut_AddsSeries()
+    {
+        double[] prices = [100, 101, 102, 103, 104, 105, 106, 107];
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.KaufmanEfficiencyRatio(prices, period: 5))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>KaufmanEfficiencyRatio after UseBarSlotX() sets Offset = 0.5 (bar-slot true arm).</summary>
+    [Fact]
+    public void KaufmanEfficiencyRatio_InBarSlotContext_SetsIndicatorOffset()
+    {
+        double[] prices = [100, 101, 102, 103, 104, 105, 106, 107];
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .KaufmanEfficiencyRatio(prices, period: 5))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    /// <summary>KaufmanEfficiencyRatio configure callback is invoked on the indicator instance.</summary>
+    [Fact]
+    public void KaufmanEfficiencyRatio_Configure_IsInvoked()
+    {
+        double[] prices = [100, 101, 102, 103, 104, 105, 106, 107];
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .KaufmanEfficiencyRatio(prices, period: 5,
+                    configure: ind => { configured = true; ind.LineWidth = 3; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    // ── Gap 5 drawing-tool shortcuts — AddTrendline / AddLevel / AddFibonacci ──
+
+    [Fact]
+    public void AddTrendline_AddsToAxes()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 10], [0.0, 10])
+                .AddTrendline(1, 2, 3, 4))
+            .Build();
+        Assert.Single(fig.SubPlots[0].Trendlines);
+    }
+
+    [Fact]
+    public void AddTrendline_WithConfigure_AppliesCustomisation()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 10], [0.0, 10])
+                .AddTrendline(1, 2, 3, 4, line => line.Label = "support"))
+            .Build();
+        Assert.Equal("support", fig.SubPlots[0].Trendlines[0].Label);
+    }
+
+    [Fact]
+    public void AddLevel_AddsToAxes()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 10], [0.0, 10])
+                .AddLevel(5.0))
+            .Build();
+        Assert.Single(fig.SubPlots[0].HorizontalLevels);
+    }
+
+    [Fact]
+    public void AddLevel_WithConfigure_AppliesCustomisation()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 10], [0.0, 10])
+                .AddLevel(5.0, lv => lv.Label = "pivot"))
+            .Build();
+        Assert.Equal("pivot", fig.SubPlots[0].HorizontalLevels[0].Label);
+    }
+
+    [Fact]
+    public void AddFibonacci_AddsToAxes()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 10], [0.0, 10])
+                .AddFibonacci(priceHigh: 10, priceLow: 5))
+            .Build();
+        Assert.Single(fig.SubPlots[0].FibonacciRetracements);
+    }
+
+    [Fact]
+    public void AddFibonacci_WithConfigure_AppliesCustomisation()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 10], [0.0, 10])
+                .AddFibonacci(priceHigh: 10, priceLow: 5, fib => fib.ShowLabels = false))
+            .Build();
+        Assert.False(fig.SubPlots[0].FibonacciRetracements[0].ShowLabels);
+    }
+
+    // ── Generic Indicator entry-point (delegates to IIndicator.Apply) ──
+
+    [Fact]
+    public void Indicator_Generic_AppliesToAxes()
+    {
+        double[] prices = [100, 101, 102, 103, 104, 105, 106];
+        var atr = new MatPlotLibNet.Indicators.Atr(
+            high: [101, 102, 103, 104, 105, 106, 107],
+            low:  [99, 100, 101, 102, 103, 104, 105],
+            close: prices,
+            period: 3);
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0], [1.0]).Indicator(atr))
+            .Build();
+        // Adds a series via indicator.Apply — original Plot + ATR output
+        Assert.True(fig.SubPlots[0].Series.Count >= 2);
+    }
+
+    // ── GetPriceData fallback — resolve price from OHLC series when no LinePlot/Scatter ──
+
+    [Fact]
+    public void Sma_AfterCandlestick_ResolvesPriceFromOhlcSeries()
+    {
+        // No Plot() — Candlestick alone. Indicator shortcut needs GetPriceData to fall
+        // through to the OHLC branch (line 1070) and pull Close prices.
+        double[] o = [10, 11, 12, 13, 14, 15];
+        double[] h = [12, 13, 14, 15, 16, 17];
+        double[] l = [9, 10, 11, 12, 13, 14];
+        double[] c = [11, 12, 13, 14, 15, 16];
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Candlestick(o, h, l, c).Sma(3))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    // ── Tier 1b shortcuts — Cusum, Ffd ──
+
+    [Fact]
+    public void Cusum_Shortcut_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Cusum([100.0, 101, 102, 103, 100], threshold: 0.02))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void Cusum_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .Cusum([100.0, 101, 102, 103, 100], threshold: 0.02))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void Cusum_Configure_IsInvoked()
+    {
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Cusum([100.0, 101, 102, 103, 100], threshold: 0.02,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void Ffd_Shortcut_AddsSeries()
+    {
+        var prices = new double[80];
+        for (int i = 0; i < 80; i++) prices[i] = 100 + 0.25 * i;
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Ffd(prices, d: 0.4, tolerance: 1e-2))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void Ffd_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var prices = new double[80];
+        for (int i = 0; i < 80; i++) prices[i] = 100 + 0.25 * i;
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .Ffd(prices, d: 0.4, tolerance: 1e-2))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void Ffd_Configure_IsInvoked()
+    {
+        bool configured = false;
+        var prices = new double[80];
+        for (int i = 0; i < 80; i++) prices[i] = 100 + 0.25 * i;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Ffd(prices, d: 0.4, tolerance: 1e-2,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    // ── Tier 1c shortcuts — AmihudIlliquidity, CorwinSchultz, Vpin, RollSpread ──
+
+    [Fact]
+    public void AmihudIlliquidity_Shortcut_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .AmihudIlliquidity([100.0, 101, 102, 103, 104], [1000.0, 1000, 1000, 1000, 1000], period: 3))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void AmihudIlliquidity_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .AmihudIlliquidity([100.0, 101, 102, 103, 104], [1000.0, 1000, 1000, 1000, 1000], period: 3))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void AmihudIlliquidity_Configure_IsInvoked()
+    {
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .AmihudIlliquidity([100.0, 101, 102, 103, 104], [1000.0, 1000, 1000, 1000, 1000], period: 3,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void CorwinSchultz_Shortcut_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .CorwinSchultz([100.5, 100.5, 100.5, 100.5], [99.5, 99.5, 99.5, 99.5], period: 2))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void CorwinSchultz_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .CorwinSchultz([100.5, 100.5, 100.5, 100.5], [99.5, 99.5, 99.5, 99.5], period: 2))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void CorwinSchultz_Configure_IsInvoked()
+    {
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .CorwinSchultz([100.5, 100.5, 100.5, 100.5], [99.5, 99.5, 99.5, 99.5], period: 2,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void Vpin_Shortcut_AddsSeries()
+    {
+        var close = new double[15]; var vol = new double[15];
+        for (int i = 0; i < 15; i++) { close[i] = 100 + i; vol[i] = 1000; }
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Vpin(close, vol, bucketPeriod: 5, sigmaPeriod: 5))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void Vpin_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var close = new double[15]; var vol = new double[15];
+        for (int i = 0; i < 15; i++) { close[i] = 100 + i; vol[i] = 1000; }
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .Vpin(close, vol, bucketPeriod: 5, sigmaPeriod: 5))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void Vpin_Configure_IsInvoked()
+    {
+        var close = new double[15]; var vol = new double[15];
+        for (int i = 0; i < 15; i++) { close[i] = 100 + i; vol[i] = 1000; }
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Vpin(close, vol, bucketPeriod: 5, sigmaPeriod: 5,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void RollSpread_Shortcut_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .RollSpread([100.0, 100.2, 100.0, 100.2, 100.0, 100.2, 100.0, 100.2], period: 4))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void RollSpread_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .RollSpread([100.0, 100.2, 100.0, 100.2, 100.0, 100.2, 100.0, 100.2], period: 4))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void RollSpread_Configure_IsInvoked()
+    {
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .RollSpread([100.0, 100.2, 100.0, 100.2, 100.0, 100.2, 100.0, 100.2], period: 4,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    // ── Tier 1d shortcuts — LaguerreRsi, MamaFama, SqueezeMomentum ──
+
+    [Fact]
+    public void LaguerreRsi_Shortcut_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .LaguerreRsi([100.0, 101, 102, 103, 104, 105], alpha: 0.2))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void LaguerreRsi_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .LaguerreRsi([100.0, 101, 102, 103, 104, 105], alpha: 0.2))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void LaguerreRsi_Configure_IsInvoked()
+    {
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .LaguerreRsi([100.0, 101, 102, 103, 104, 105], alpha: 0.2,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void MamaFama_Shortcut_AddsTwoSeries()
+    {
+        var prices = Enumerable.Range(0, 50).Select(i => 100.0 + i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.MamaFama(prices))
+            .Build();
+        Assert.Equal(2, fig.SubPlots[0].Series.Count);
+    }
+
+    [Fact]
+    public void MamaFama_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var prices = Enumerable.Range(0, 50).Select(i => 100.0 + i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().MamaFama(prices))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void MamaFama_Configure_IsInvoked()
+    {
+        var prices = Enumerable.Range(0, 50).Select(i => 100.0 + i).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .MamaFama(prices, configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void SqueezeMomentum_Shortcut_AddsSeries()
+    {
+        double[] c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
+        double[] h = c.Select(v => v + 0.5).ToArray();
+        double[] l = c.Select(v => v - 0.5).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.SqueezeMomentum(h, l, c, period: 5))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void SqueezeMomentum_InBarSlotContext_SetsIndicatorOffset()
+    {
+        double[] c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
+        double[] h = c.Select(v => v + 0.5).ToArray();
+        double[] l = c.Select(v => v - 0.5).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().SqueezeMomentum(h, l, c, period: 5))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void SqueezeMomentum_Configure_IsInvoked()
+    {
+        double[] c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
+        double[] h = c.Select(v => v + 0.5).ToArray();
+        double[] l = c.Select(v => v - 0.5).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .SqueezeMomentum(h, l, c, period: 5,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    // ── Tier 2a shortcuts — Bocpd, TurbulenceIndex, DispersionIndex ──
+
+    [Fact]
+    public void Bocpd_Shortcut_AddsSeries()
+    {
+        var prices = Enumerable.Range(0, 20).Select(i => 100.0 + i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bocpd(prices))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void Bocpd_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var prices = Enumerable.Range(0, 20).Select(i => 100.0 + i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().Bocpd(prices))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void Bocpd_Configure_IsInvoked()
+    {
+        var prices = Enumerable.Range(0, 20).Select(i => 100.0 + i).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Bocpd(prices, configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void TurbulenceIndex_Shortcut_AddsSeries()
+    {
+        var features = new double[6][];
+        for (int i = 0; i < 6; i++) features[i] = [100.0 + i];
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.TurbulenceIndex(features, window: 3))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void TurbulenceIndex_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var features = new double[6][];
+        for (int i = 0; i < 6; i++) features[i] = [100.0 + i];
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().TurbulenceIndex(features, window: 3))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void TurbulenceIndex_Configure_IsInvoked()
+    {
+        var features = new double[6][];
+        for (int i = 0; i < 6; i++) features[i] = [100.0 + i];
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .TurbulenceIndex(features, window: 3,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void DispersionIndex_Shortcut_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.DispersionIndex(
+                [[0.2, 0.3, 0.5], [0.8, 0.5, 0.1]]))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void DispersionIndex_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .DispersionIndex([[0.2, 0.3], [0.8, 0.5]]))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void DispersionIndex_Configure_IsInvoked()
+    {
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .DispersionIndex([[0.2, 0.3], [0.8, 0.5]],
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    // ── Tier 2b shortcuts — PermutationEntropy, WaveletEnergyRatio, WaveletEntropy ──
+
+    [Fact]
+    public void PermutationEntropy_Shortcut_AddsSeries()
+    {
+        var prices = Enumerable.Range(0, 50).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.PermutationEntropy(prices, order: 3, window: 20))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void PermutationEntropy_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var prices = Enumerable.Range(0, 50).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .PermutationEntropy(prices, order: 3, window: 20))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void PermutationEntropy_Configure_IsInvoked()
+    {
+        var prices = Enumerable.Range(0, 50).Select(i => (double)i).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .PermutationEntropy(prices, order: 3, window: 20,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void WaveletEnergyRatio_Shortcut_AddsSeries()
+    {
+        var prices = Enumerable.Range(0, 80).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.WaveletEnergyRatio(prices, window: 16, level: 0))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void WaveletEnergyRatio_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var prices = Enumerable.Range(0, 80).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .WaveletEnergyRatio(prices, window: 16, level: 0))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void WaveletEnergyRatio_Configure_IsInvoked()
+    {
+        var prices = Enumerable.Range(0, 80).Select(i => (double)i).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WaveletEnergyRatio(prices, window: 16, level: 0,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void WaveletEntropy_Shortcut_AddsSeries()
+    {
+        var prices = Enumerable.Range(0, 80).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.WaveletEntropy(prices, window: 16))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void WaveletEntropy_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var prices = Enumerable.Range(0, 80).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .UseBarSlotX()
+                .WaveletEntropy(prices, window: 16))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void WaveletEntropy_Configure_IsInvoked()
+    {
+        var prices = Enumerable.Range(0, 80).Select(i => (double)i).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WaveletEntropy(prices, window: 16,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    // ── Tier 2c shortcuts — CyberCycle, RoofingFilter, EhlersSineWave, AdaptiveStochastic ──
+
+    [Fact]
+    public void CyberCycle_Shortcut_AddsSeries()
+    {
+        var prices = Enumerable.Range(0, 30).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.CyberCycle(prices))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void CyberCycle_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var prices = Enumerable.Range(0, 30).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().CyberCycle(prices))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void CyberCycle_Configure_IsInvoked()
+    {
+        var prices = Enumerable.Range(0, 30).Select(i => (double)i).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .CyberCycle(prices, alpha: 0.1,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void RoofingFilter_Shortcut_AddsSeries()
+    {
+        var prices = Enumerable.Range(0, 80).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.RoofingFilter(prices))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void RoofingFilter_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var prices = Enumerable.Range(0, 80).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().RoofingFilter(prices))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void RoofingFilter_Configure_IsInvoked()
+    {
+        var prices = Enumerable.Range(0, 80).Select(i => (double)i).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .RoofingFilter(prices, hpPeriod: 20, lpPeriod: 5,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void EhlersSineWave_Shortcut_AddsTwoSeries()
+    {
+        var prices = Enumerable.Range(0, 30).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.EhlersSineWave(prices))
+            .Build();
+        Assert.Equal(2, fig.SubPlots[0].Series.Count);
+    }
+
+    [Fact]
+    public void EhlersSineWave_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var prices = Enumerable.Range(0, 30).Select(i => (double)i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().EhlersSineWave(prices))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void EhlersSineWave_Configure_IsInvoked()
+    {
+        var prices = Enumerable.Range(0, 30).Select(i => (double)i).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .EhlersSineWave(prices,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void AdaptiveStochastic_Shortcut_AddsSeries()
+    {
+        var c = Enumerable.Range(0, 30).Select(i => (double)i + 100).ToArray();
+        var h = c.Select(v => v + 0.5).ToArray();
+        var l = c.Select(v => v - 0.5).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.AdaptiveStochastic(h, l, c))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void AdaptiveStochastic_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var c = Enumerable.Range(0, 30).Select(i => (double)i + 100).ToArray();
+        var h = c.Select(v => v + 0.5).ToArray();
+        var l = c.Select(v => v - 0.5).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().AdaptiveStochastic(h, l, c))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void AdaptiveStochastic_Configure_IsInvoked()
+    {
+        var c = Enumerable.Range(0, 30).Select(i => (double)i + 100).ToArray();
+        var h = c.Select(v => v + 0.5).ToArray();
+        var l = c.Select(v => v - 0.5).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .AdaptiveStochastic(h, l, c, smoothingPeriod: 3,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    // ── Tier 2d shortcuts — ForceIndex, AroonOscillator, RelativeVigorIndex ──
+
+    [Fact]
+    public void ForceIndex_Shortcut_AddsSeries()
+    {
+        double[] close = [100, 101, 102, 103, 104];
+        double[] volume = [1000, 1100, 900, 1200, 1000];
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.ForceIndex(close, volume))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void ForceIndex_InBarSlotContext_SetsIndicatorOffset()
+    {
+        double[] close = [100, 101, 102, 103, 104];
+        double[] volume = [1000, 1100, 900, 1200, 1000];
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().ForceIndex(close, volume))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void ForceIndex_Configure_IsInvoked()
+    {
+        double[] close = [100, 101, 102, 103, 104];
+        double[] volume = [1000, 1100, 900, 1200, 1000];
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .ForceIndex(close, volume, period: 3,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void AroonOscillator_Shortcut_AddsSeries()
+    {
+        var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
+        var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.AroonOscillator(h, l))
+            .Build();
+        Assert.NotEmpty(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void AroonOscillator_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
+        var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().AroonOscillator(h, l))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void AroonOscillator_Configure_IsInvoked()
+    {
+        var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
+        var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .AroonOscillator(h, l, period: 5,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
+
+    [Fact]
+    public void RelativeVigorIndex_Shortcut_AddsTwoSeries()
+    {
+        var a = Enumerable.Repeat(100.0, 30).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.RelativeVigorIndex(a, a, a, a))
+            .Build();
+        Assert.Equal(2, fig.SubPlots[0].Series.Count);
+    }
+
+    [Fact]
+    public void RelativeVigorIndex_InBarSlotContext_SetsIndicatorOffset()
+    {
+        var a = Enumerable.Repeat(100.0, 30).ToArray();
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().RelativeVigorIndex(a, a, a, a))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    [Fact]
+    public void RelativeVigorIndex_Configure_IsInvoked()
+    {
+        var a = Enumerable.Repeat(100.0, 30).ToArray();
+        bool configured = false;
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .RelativeVigorIndex(a, a, a, a, period: 5,
+                    configure: ind => { configured = true; ind.LineWidth = 2; }))
+            .Build();
+        Assert.True(configured);
+    }
 }

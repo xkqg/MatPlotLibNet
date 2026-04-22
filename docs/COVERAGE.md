@@ -2,7 +2,7 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
-**Status (v1.7.3, Phase L SOLID/DRY refactor complete, 2026-04-21):** **554 classes, all at ≥90/90.** Strict gate **PASSES on CI** — `--strict` flag is now active in `.github/workflows/ci.yml`. Total project coverage: **98.49L / 95.19B** (was 97.26/90.50 pre-Phase-K, 94.94/85.30 pre-refactor). `PlaygroundController` extracted from `Playground.razor @code` (SRP fix, 12 new tests). Two residual branch gaps closed: `Stereographic.Forward` IEEE-754 antipode arm, `FuncAnimation.Save(string)` file-write path. Byte-level SVG output unchanged vs shipped v1.7.3 NuGet.
+**Status (v1.8.0, named-type sweep complete, 2026-04-22):** **554 classes, all at ≥90/90.** Strict gate **PASSES on CI** — `--strict` flag is active in `.github/workflows/ci.yml`. Total project coverage: **98.49L / 95.19B** (was 97.26/90.50 pre-Phase-K, 94.94/85.30 pre-refactor). v1.8.0 converts every public-API tuple to a named `readonly record struct` and replaces every `*Helper` static class with an extension method or domain-named static — signature-level only, SVG output byte-identical to shipped v1.7.3 NuGet.
 
 ### Phase X uplift summary (2026-04-19)
 

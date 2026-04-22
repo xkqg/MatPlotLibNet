@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
+
 namespace MatPlotLibNet.Rendering.TickLocators;
 
 /// <summary>
@@ -31,18 +33,20 @@ public sealed class AutoLocator : ITickLocator
         return ticks.ToArray();
     }
 
-    /// <summary>
-    /// Expands a raw <c>[lo, hi]</c> range outward to the nearest nice-number tick boundary
-    /// (matplotlib <c>MaxNLocator.view_limits</c> equivalent). Guarantees both endpoints land
-    /// exactly on tick positions so axis limits and tick labels agree.
-    /// </summary>
-    public (double Lo, double Hi) ExpandToNiceBounds(double lo, double hi)
+    /// <summary>Expands a raw <c>[lo, hi]</c> range outward to the nearest nice-number tick
+    /// boundary (matplotlib <c>MaxNLocator.view_limits</c> equivalent). Guarantees both endpoints
+    /// land exactly on tick positions so axis limits and tick labels agree.</summary>
+    /// <param name="lo">Raw lower bound of the data range.</param>
+    /// <param name="hi">Raw upper bound of the data range.</param>
+    /// <returns>A <see cref="MinMaxRange"/> widened to the nearest nice-number step. When
+    /// <paramref name="hi"/> ≤ <paramref name="lo"/> the input is returned unchanged (degenerate range).</returns>
+    public MinMaxRange ExpandToNiceBounds(double lo, double hi)
     {
-        if (hi <= lo) return (lo, hi);
+        if (hi <= lo) return new(lo, hi);
         double step = NiceStep(hi - lo, _targetCount);
         double newLo = Math.Floor(lo / step + 1e-9) * step;
         double newHi = Math.Ceiling(hi / step - 1e-9) * step;
-        return (Math.Round(newLo, 10), Math.Round(newHi, 10));
+        return new(Math.Round(newLo, 10), Math.Round(newHi, 10));
     }
 
     /// <summary>

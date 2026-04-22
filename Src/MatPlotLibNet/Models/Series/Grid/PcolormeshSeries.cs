@@ -23,7 +23,7 @@ public sealed class PcolormeshSeries : ChartSeries, IColorBarDataProvider, IColo
     public INormalizer? Normalizer { get; set; }
 
     /// <inheritdoc />
-    public (double Min, double Max) GetColorBarRange()
+    public MinMaxRange GetColorBarRange()
     {
         double min = double.MaxValue, max = double.MinValue;
         for (int r = 0; r < C.GetLength(0); r++)
@@ -32,7 +32,7 @@ public sealed class PcolormeshSeries : ChartSeries, IColorBarDataProvider, IColo
                 if (C[r, c] < min) min = C[r, c];
                 if (C[r, c] > max) max = C[r, c];
             }
-        return min < max ? (min, max) : (0, 1);
+        return min < max ? new(min, max) : new(0, 1);
     }
 
     /// <summary>Initializes a new instance of <see cref="PcolormeshSeries"/>.</summary>

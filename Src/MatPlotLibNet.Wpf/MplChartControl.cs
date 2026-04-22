@@ -6,6 +6,7 @@ using System.Windows.Input;
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using SkiaSharp.Views.WPF;
+using MatPlotLibNet.Animation;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
@@ -29,6 +30,22 @@ public sealed class MplChartControl : SKElement
             new PropertyMetadata(false));
 
     private InteractionController? _controller;
+    private IAnimationSource? _animationSource;
+
+    /// <summary>Gets or sets the animation source whose <see cref="IAnimationSource.FrameReady"/>
+    /// event drives figure updates and visual invalidation.</summary>
+    public IAnimationSource? AnimationSource
+    {
+        get => _animationSource;
+        set
+        {
+            if (_animationSource is not null)
+                _animationSource.FrameReady -= OnAnimationFrameReady;
+            _animationSource = value;
+            if (_animationSource is not null)
+                _animationSource.FrameReady += OnAnimationFrameReady;
+        }
+    }
 
     /// <summary>Gets or sets the <see cref="Models.Figure"/> rendered in this control.</summary>
     public Figure? Figure
@@ -124,6 +141,9 @@ public sealed class MplChartControl : SKElement
         if (_controller is null || !IsInteractive) return;
         _controller.HandleKeyDown(new KeyInputArgs(e.Key.ToString(), GetModifiers()));
     }
+
+    private void OnAnimationFrameReady(object? sender, Figure fig) =>
+        Dispatcher.InvokeAsync(() => Figure = fig);
 
     private static MatPlotLibNet.Interaction.ModifierKeys GetModifiers()
     {

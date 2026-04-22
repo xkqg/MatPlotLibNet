@@ -67,4 +67,19 @@ public class DelaunayTests
         // Y coordinates are never jittered
         Assert.Equal(y, mesh.Y);
     }
+
+    /// <summary>Covers the <c>scale == 0</c> fallback in <c>JitterCollinear</c> — when every
+    /// input point is at the same coordinate, <c>(xMax - xMin) + (yMax - yMin) == 0</c> and the
+    /// jitter scale falls back to <c>Epsilon</c>. Without this fallback the deterministic jitter
+    /// would be a no-op and the Bowyer-Watson insertion would see coincident points.</summary>
+    [Fact]
+    public void IdenticalPoints_TriggersZeroScaleFallback()
+    {
+        // All 3 points at the origin — degenerate input that exercises the scale==0 arm.
+        double[] x = [0.0, 0.0, 0.0];
+        double[] y = [0.0, 0.0, 0.0];
+        var mesh = Delaunay.Triangulate(x, y);
+        Assert.NotNull(mesh);
+        Assert.Equal(x.Length, mesh.X.Length);
+    }
 }

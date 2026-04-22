@@ -7,7 +7,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.7.3</Version>
+    <Version>1.8.0</Version>
     <PackageId>MatPlotLibNet.Uno</PackageId>
     <Description>Uno Platform chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/reset interaction.</Description>
     <PackageTags>charting;plotting;charts;uno;winui;skiasharp;cross-platform;interactive</PackageTags>

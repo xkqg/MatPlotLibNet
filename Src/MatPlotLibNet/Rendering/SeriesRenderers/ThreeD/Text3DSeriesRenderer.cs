@@ -35,12 +35,12 @@ internal sealed class Text3DSeriesRenderer : SeriesRenderer<Text3DSeries>
             ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
 
         // Build indexed list for depth sorting
-        var items = new List<(double Depth, Point Pt, string Text)>(series.Annotations.Count);
+        var items = new List<DepthText>(series.Annotations.Count);
         foreach (var a in series.Annotations)
         {
             var pt = proj.Project(a.X, a.Y, a.Z);
             double depth = proj.Depth(a.X, a.Y, a.Z);
-            items.Add((depth, pt, a.Text));
+            items.Add(new(depth, pt, a.Text));
         }
 
         // Sort back-to-front (painter's algorithm)
@@ -48,7 +48,9 @@ internal sealed class Text3DSeriesRenderer : SeriesRenderer<Text3DSeries>
 
         var font = new Font { Size = series.FontSize, Color = color };
 
-        foreach (var (_, pt, text) in items)
-            Ctx.DrawText(text, pt, font, TextAlignment.Center);
+        foreach (var item in items)
+            Ctx.DrawText(item.Text, item.Pt, font, TextAlignment.Center);
     }
+
+    private readonly record struct DepthText(double Depth, Point Pt, string Text);
 }

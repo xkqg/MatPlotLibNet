@@ -20,7 +20,7 @@ public sealed class CrosshairTests
     [Fact]
     public void CrosshairModifier_InsidePlotArea_ProducesState()
     {
-        var layout = new TestLayout(new Rect(50, 50, 400, 400), (0, 10, 0, 100));
+        var layout = new TestLayout(new Rect(50, 50, 400, 400), new DataRange(0, 10, 0, 100));
         var mod = new CrosshairModifier(layout);
         mod.UpdatePosition(250, 250);
 
@@ -31,7 +31,7 @@ public sealed class CrosshairTests
     [Fact]
     public void CrosshairModifier_OutsidePlotArea_NullsState()
     {
-        var layout = new TestLayout(new Rect(50, 50, 400, 400), (0, 10, 0, 100));
+        var layout = new TestLayout(new Rect(50, 50, 400, 400), new DataRange(0, 10, 0, 100));
         var mod = new CrosshairModifier(layout);
         mod.UpdatePosition(10, 10); // outside
 
@@ -41,18 +41,18 @@ public sealed class CrosshairTests
     [Fact]
     public void CrosshairModifier_DoesNotClaimEvents()
     {
-        var layout = new TestLayout(new Rect(50, 50, 400, 400), (0, 10, 0, 100));
+        var layout = new TestLayout(new Rect(50, 50, 400, 400), new DataRange(0, 10, 0, 100));
         var mod = new CrosshairModifier(layout);
         Assert.False(mod.HandlesPointerPressed(new PointerInputArgs(100, 100, PointerButton.Left, ModifierKeys.None)));
         Assert.False(mod.HandlesScroll(new ScrollInputArgs(100, 100, 0, 1)));
         Assert.False(mod.HandlesKeyDown(new KeyInputArgs("Home")));
     }
 
-    private sealed class TestLayout(Rect plotArea, (double, double, double, double) dataRange) : IChartLayout
+    private sealed class TestLayout(Rect plotArea, DataRange dataRange) : IChartLayout
     {
         public int AxesCount => 1;
         public Rect GetPlotArea(int i) => plotArea;
-        public (double XMin, double XMax, double YMin, double YMax) GetDataRange(int i) => dataRange;
+        public DataRange GetDataRange(int i) => dataRange;
         public int? HitTestAxes(double px, double py) =>
             px >= plotArea.X && px <= plotArea.X + plotArea.Width &&
             py >= plotArea.Y && py <= plotArea.Y + plotArea.Height ? 0 : null;

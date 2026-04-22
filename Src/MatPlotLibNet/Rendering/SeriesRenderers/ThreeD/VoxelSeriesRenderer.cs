@@ -33,7 +33,7 @@ internal sealed class VoxelSeriesRenderer : SeriesRenderer<VoxelSeries>
         var sideColor = baseColor.WithAlpha((byte)(baseColor.A * 0.70));
 
         // Build faces for all filled voxels
-        var faces = new List<(double Depth, Point[] Vertices, Color Fill)>();
+        var faces = new List<DepthFace>();
 
         for (int x = 0; x < xDim; x++)
             for (int y = 0; y < yDim; y++)
@@ -47,22 +47,22 @@ internal sealed class VoxelSeriesRenderer : SeriesRenderer<VoxelSeries>
 
                     // Top face
                     AddFace(faces, proj, topColor,
-                        (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1));
+                        new(x0, y0, z1), new(x1, y0, z1), new(x1, y1, z1), new(x0, y1, z1));
                     // Bottom face
                     AddFace(faces, proj, sideColor,
-                        (x0, y0, z0), (x0, y1, z0), (x1, y1, z0), (x1, y0, z0));
+                        new(x0, y0, z0), new(x0, y1, z0), new(x1, y1, z0), new(x1, y0, z0));
                     // Front face (Y = y0)
                     AddFace(faces, proj, frontColor,
-                        (x0, y0, z0), (x1, y0, z0), (x1, y0, z1), (x0, y0, z1));
+                        new(x0, y0, z0), new(x1, y0, z0), new(x1, y0, z1), new(x0, y0, z1));
                     // Back face (Y = y1)
                     AddFace(faces, proj, frontColor,
-                        (x1, y1, z0), (x0, y1, z0), (x0, y1, z1), (x1, y1, z1));
+                        new(x1, y1, z0), new(x0, y1, z0), new(x0, y1, z1), new(x1, y1, z1));
                     // Left face (X = x0)
                     AddFace(faces, proj, sideColor,
-                        (x0, y1, z0), (x0, y0, z0), (x0, y0, z1), (x0, y1, z1));
+                        new(x0, y1, z0), new(x0, y0, z0), new(x0, y0, z1), new(x0, y1, z1));
                     // Right face (X = x1)
                     AddFace(faces, proj, sideColor,
-                        (x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1));
+                        new(x1, y0, z0), new(x1, y1, z0), new(x1, y1, z1), new(x1, y0, z1));
                 }
 
         Ctx.SetOpacity(series.Alpha);
@@ -70,41 +70,40 @@ internal sealed class VoxelSeriesRenderer : SeriesRenderer<VoxelSeries>
         // Use shared depth queue if available for cross-series compositing
         if (Context.DepthQueue is { } queue)
         {
-            foreach (var (depth, verts, fill) in faces)
+            foreach (var face in faces)
             {
-                var vLocal = verts; var fLocal = fill; var sLocal = strokeColor;
-                queue.Add(depth, () => Ctx.DrawPolygon(vLocal, fLocal, sLocal, 0.5));
+                var vLocal = face.Vertices; var fLocal = face.Fill; var sLocal = strokeColor;
+                queue.Add(face.Depth, () => Ctx.DrawPolygon(vLocal, fLocal, sLocal, 0.5));
             }
         }
         else
         {
             // Sort back-to-front (painter's algorithm)
             faces.Sort((a, b) => a.Depth.CompareTo(b.Depth));
-            foreach (var (_, verts, fill) in faces)
-                Ctx.DrawPolygon(verts, fill, strokeColor, 0.5);
+            foreach (var face in faces)
+                Ctx.DrawPolygon(face.Vertices, face.Fill, strokeColor, 0.5);
         }
 
         Ctx.SetOpacity(1.0);
     }
 
     private static void AddFace(
-        List<(double Depth, Point[] Vertices, Color Fill)> sink,
+        List<DepthFace> sink,
         Projection3D proj, Color fill,
-        (double x, double y, double z) c0,
-        (double x, double y, double z) c1,
-        (double x, double y, double z) c2,
-        (double x, double y, double z) c3)
+        Lighting.Vec3 c0, Lighting.Vec3 c1, Lighting.Vec3 c2, Lighting.Vec3 c3)
     {
         var pts = new[]
         {
-            proj.Project(c0.x, c0.y, c0.z),
-            proj.Project(c1.x, c1.y, c1.z),
-            proj.Project(c2.x, c2.y, c2.z),
-            proj.Project(c3.x, c3.y, c3.z),
+            proj.Project(c0.X, c0.Y, c0.Z),
+            proj.Project(c1.X, c1.Y, c1.Z),
+            proj.Project(c2.X, c2.Y, c2.Z),
+            proj.Project(c3.X, c3.Y, c3.Z),
         };
-        double cx = (c0.x + c1.x + c2.x + c3.x) / 4.0;
-        double cy = (c0.y + c1.y + c2.y + c3.y) / 4.0;
-        double cz = (c0.z + c1.z + c2.z + c3.z) / 4.0;
-        sink.Add((proj.Depth(cx, cy, cz), pts, fill));
+        double cx = (c0.X + c1.X + c2.X + c3.X) / 4.0;
+        double cy = (c0.Y + c1.Y + c2.Y + c3.Y) / 4.0;
+        double cz = (c0.Z + c1.Z + c2.Z + c3.Z) / 4.0;
+        sink.Add(new(proj.Depth(cx, cy, cz), pts, fill));
     }
+
+    private readonly record struct DepthFace(double Depth, Point[] Vertices, Color Fill);
 }

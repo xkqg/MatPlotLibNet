@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
@@ -45,10 +46,10 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         // Apply axis breaks: compress the visible range by removing break gaps
         var (cXMin, cXMax) = Axes.XBreaks.Count > 0
             ? AxisBreakMapper.CompressedRange(Axes.XBreaks, range.XMin, range.XMax)
-            : (range.XMin, range.XMax);
+            : new MinMaxRange(range.XMin, range.XMax);
         var (cYMin, cYMax) = Axes.YBreaks.Count > 0
             ? AxisBreakMapper.CompressedRange(Axes.YBreaks, range.YMin, range.YMax)
-            : (range.YMin, range.YMax);
+            : new MinMaxRange(range.YMin, range.YMax);
 
         // For non-linear scales (Log / SymLog), the displayed range must be in scaled space
         // so that ticks at e.g. 100, 1000, 10000 land at evenly-spaced pixel positions.
@@ -111,6 +112,9 @@ public sealed class CartesianAxesRenderer : AxesRenderer
 
         // Render reference lines (Phase B.6 — extracted to CartesianReferenceLinesPart)
         new CartesianParts.CartesianReferenceLinesPart(Axes, PlotArea, Ctx, Theme, transform, range).Render();
+
+        // Render financial drawing tools (trendlines, levels, Fibonacci retracements)
+        new CartesianParts.CartesianToolsPart(Axes, PlotArea, Ctx, Theme, transform).Render();
 
         // Compute stacked baselines if needed
         if (Axes.BarMode == BarMode.Stacked)
@@ -181,11 +185,11 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     /// resulting scaled range can be used by <see cref="DataTransform"/> for pixel scaling.
     /// Linear scale is identity; SymLog applies <see cref="SymlogTransform.Forward"/>; Log
     /// applies log10. Returns the scaled (min, max) pair.</summary>
-    private static (double Min, double Max) ScaleRange(double min, double max, AxisScale scale, double linthresh) => scale switch
+    private static MinMaxRange ScaleRange(double min, double max, AxisScale scale, double linthresh) => scale switch
     {
-        AxisScale.SymLog => (SymlogTransform.Forward(min, linthresh), SymlogTransform.Forward(max, linthresh)),
-        AxisScale.Log    => (min > 0 ? Math.Log10(min) : double.NaN, max > 0 ? Math.Log10(max) : double.NaN),
-        _                => (min, max),
+        AxisScale.SymLog => new(SymlogTransform.Forward(min, linthresh), SymlogTransform.Forward(max, linthresh)),
+        AxisScale.Log    => new(min > 0 ? Math.Log10(min) : double.NaN, max > 0 ? Math.Log10(max) : double.NaN),
+        _                => new(min, max),
     };
 
     /// <summary>Renders major and/or minor grid lines behind the plot area at each tick position.</summary>

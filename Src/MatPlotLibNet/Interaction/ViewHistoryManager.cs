@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
+
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Per-axes stack of axis limit snapshots for back/forward navigation.
@@ -9,7 +11,7 @@ public sealed class ViewHistoryManager
 {
     private const int MaxHistory = 50;
 
-    private readonly List<(double XMin, double XMax, double YMin, double YMax)> _history = [];
+    private readonly List<DataRange> _history = [];
     private int _position = -1;
 
     /// <summary>Whether a previous view exists to go back to.</summary>
@@ -28,7 +30,7 @@ public sealed class ViewHistoryManager
         if (_position < _history.Count - 1)
             _history.RemoveRange(_position + 1, _history.Count - _position - 1);
 
-        _history.Add((xMin, xMax, yMin, yMax));
+        _history.Add(new DataRange(xMin, xMax, yMin, yMax));
 
         // Cap history size
         if (_history.Count > MaxHistory)
@@ -40,7 +42,7 @@ public sealed class ViewHistoryManager
     }
 
     /// <summary>Returns the previous view, or <c>null</c> if at the beginning.</summary>
-    public (double XMin, double XMax, double YMin, double YMax)? Back()
+    public DataRange? Back()
     {
         if (!CanGoBack) return null;
         _position--;
@@ -48,7 +50,7 @@ public sealed class ViewHistoryManager
     }
 
     /// <summary>Returns the next view (after going back), or <c>null</c> if at the end.</summary>
-    public (double XMin, double XMax, double YMin, double YMax)? Forward()
+    public DataRange? Forward()
     {
         if (!CanGoForward) return null;
         _position++;

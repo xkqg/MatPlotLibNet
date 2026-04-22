@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.7.3)
+# MatPlotLibNet Core -- Architecture (v1.8.0)
 
 ## Package dependency graph
 
@@ -110,7 +110,7 @@ MatPlotLibNet/
       WaterfallSeries.cs              Categories, Values, IncreaseColor, DecreaseColor (Categorical/)
       FunnelSeries.cs                 Labels, Values, Colors (Categorical/)
       GanttSeries.cs                  Tasks, Starts, Ends, BarHeight (Categorical/)
-      GaugeSeries.cs                  Value, Min, Max, Ranges, NeedleColor (Circular/)
+      GaugeSeries.cs                  Value, Min, Max, Ranges (GaugeBand[]?), NeedleColor (Circular/)
       ProgressBarSeries.cs            Value, FillColor, TrackColor (Categorical/)
       SparklineSeries.cs              XYSeries: Values, LineWidth (XY/)
       EcdfSeries.cs                   XYSeries: sorted empirical CDF (XY/)
@@ -132,7 +132,7 @@ MatPlotLibNet/
       StripplotSeries.cs              DatasetSeries: Jitter, MarkerSize, Color, Alpha (Distribution/)
       SwarmplotSeries.cs              DatasetSeries: MarkerSize, Color, Alpha — beeswarm layout (Distribution/)
       EventplotSeries.cs              double[][] Positions, LineWidth, Colors[], LineLength (Categorical/)
-      BrokenBarSeries.cs              (double Start,Width)[][] Ranges, Labels, BarHeight, Color (Categorical/)
+      BrokenBarSeries.cs              BarRange[][] Ranges, Labels, BarHeight, Color (Categorical/)
       CountSeries.cs                  string[] Values, Color, Orientation, BarWidth — auto group-count (Categorical/)
       PointplotSeries.cs              DatasetSeries: Categories, Color, MarkerSize, CapSize, ConfidenceLevel (Categorical/)
       PcolormeshSeries.cs             Vec X (M+1), Vec Y (N+1), double[,] C (N×M), IColormappable, INormalizable, IColorBarDataProvider (Grid/)
@@ -150,7 +150,8 @@ MatPlotLibNet/
     Lighting/                         per-face 3D lighting model (Phase G, v0.9.0)
       ILightSource.cs                 interface: ComputeIntensity(nx, ny, nz) → [0,1]
       DirectionalLight.cs             sealed record: Dx/Dy/Dz direction + Ambient/Diffuse (Lambertian)
-      LightingHelper.cs               static: ComputeFaceNormal() (cross product) + ModulateColor(color, intensity)
+      Vec3.cs                         readonly record struct Vec3(X, Y, Z) + static FaceNormal(v0, v1, v2) cross-product face normal
+      ColorExtensions.cs              Color.Modulate(intensity), Color.Shade(normal, lightDir) — extensions on Styling.Color
     Svg/
       Svg3DRotationScript.cs          embedded JS for mouse/keyboard interactive 3D rotation
 
@@ -274,8 +275,8 @@ MatPlotLibNet/
 
     Svg/
       ISvgRenderer.cs                 interface: Render(Figure) -> string (backward compat)
-      SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission; BeginDataGroup(cssClass, idx, ariaLabel?), BeginLegendItemGroup(idx, ariaLabel?), BeginAccessibleGroup(cssClass, ariaLabel); EscapeXml delegates to SvgXmlHelper
-      SvgXmlHelper.cs                 internal static: EscapeXml(string) — DRY XML escaping shared by SvgRenderContext and SvgTransform (new v0.8.8)
+      SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission; BeginDataGroup(cssClass, idx, ariaLabel?), BeginLegendItemGroup(idx, ariaLabel?), BeginAccessibleGroup(cssClass, ariaLabel); uses string.EscapeForXml() extension
+      SvgXml.cs                       internal static: EscapeForXml(this string) — DRY XML escaping extension used by SvgRenderContext and SvgTransform (v1.8.0: renamed from SvgXmlHelper)
       SvgSeriesRenderer.cs            thin visitor dispatcher to SeriesRenderer<T> instances
       SvgInteractivityScript.cs       embedded JS: zoom/pan via viewBox; tabindex + aria-roledescription; keyboard +/-/arrows/Home (new v0.8.8)
       SvgLegendToggleScript.cs        embedded JS: click/Enter/Space on data-legend-index; role=button, aria-pressed, tabindex (new v0.8.8; v1.7.2 Phase S — toggle on click only, never pointerdown)
@@ -301,11 +302,17 @@ MatPlotLibNet/
     HierarchicalClustering.cs         public static: Cluster(double[,] distanceMatrix) → Dendrogram — Ward's method (Lance-Williams), O(n³)
                                         Dendrogram: DendrogramNode[] Merges, int[] LeafOrder
                                         DendrogramNode: Left, Right, Distance, Size
-    HexGrid.cs*                       internal static: ComputeHexBins, HexagonVertices, HexCenter (axial q,r coords)
+    HexGrid.cs*                       internal static: ComputeHexBins → Dictionary<AxialHex, int>, HexagonVertices → Point[], HexCenter → Point
                                       (* file lives in Rendering/SeriesRenderers/Grid/ but uses MatPlotLibNet.Numerics namespace)
+    AxialHex.cs*                      internal readonly record struct AxialHex(Q, R) — axial coord of a flat-top hex cell
+    MinMaxRange.cs                    public readonly record struct MinMaxRange(Min, Max) — inclusive numeric interval
+    MatShape.cs                       public readonly record struct MatShape(Rows, Cols) — 2-D dimensions
+    XYCurve.cs                        public readonly record struct XYCurve(X, Y) — paired sample arrays (spline / KDE results)
 
     SeriesRenderers/Distribution/
     BeeswarmLayout.cs                 internal static: Compute(sortedValues, markerRadius, categoryCenter, pixelScale) — greedy circle-packing, cap 1000 pts, jitter fallback
+    SortedArrayExtensions.cs          internal extensions on double[]: Percentile(p), BisectLeft(v), BisectRight(v) — used by Box / Violin / ECDF (v1.8.0: renamed from MathHelpers)
+    GaussianKde.cs                    internal static: SilvermanBandwidth(sorted), Evaluate(sorted, bandwidth, numPoints) → XYCurve
 
   Serialization/
     IChartSerializer.cs               interface: ToJson(Figure), FromJson(string)
@@ -476,7 +483,8 @@ ChartHub               routes to SignalR group by chartId
 | Default interface method | IRenderContext.DrawRichText | all backends get plain-text fallback; SVG overrides with tspan emission |
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
-| Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand | replace anonymous/named tuples in public API for discoverability and structural equality |
+| Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand, ColorStop, StreamingPoint, MinMaxRange, MatShape, XYCurve, BarRange, GaugeBand, DataPoint, LineSegment, Size, Vec3 | replace anonymous/named tuples in public API for discoverability and structural equality (v1.8.0 completed the sweep — no anonymous tuples remain) |
+| Extension methods on value types | `string.EscapeForXml()`, `double[].Percentile()` / `BisectLeft()` / `BisectRight()`, `Color.Modulate()` / `Shade()` | replaces `*Helper` static classes with discoverable dot-access APIs (v1.8.0: SvgXmlHelper → SvgXml, MathHelpers → SortedArrayExtensions, LightingHelper → Vec3 + ColorExtensions) |
 
 ---
 

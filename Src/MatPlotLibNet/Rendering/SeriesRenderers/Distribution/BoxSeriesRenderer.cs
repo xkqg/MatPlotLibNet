@@ -22,7 +22,7 @@ internal sealed class BoxSeriesRenderer : SeriesRenderer<BoxSeries>
             var data = series.Datasets[i].OrderBy(v => v).ToArray();
             if (data.Length == 0) continue;
             double pos = series.Positions is not null && i < series.Positions.Length ? series.Positions[i] : i;
-            double q1 = MathHelpers.Percentile(data, 25), median = MathHelpers.Percentile(data, 50), q3 = MathHelpers.Percentile(data, 75);
+            double q1 = data.Percentile(25), median = data.Percentile(50), q3 = data.Percentile(75);
             double iqr = q3 - q1;
             double whisLo = Math.Max(data[0], q1 - series.Whis * iqr);
             double whisHi = Math.Min(data[^1], q3 + series.Whis * iqr);

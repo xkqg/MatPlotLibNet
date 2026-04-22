@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
+
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Gaussian kernel density estimation utilities.</summary>
@@ -34,10 +36,10 @@ internal static class GaussianKde
     /// <param name="sortedData">Data values sorted in ascending order.</param>
     /// <param name="bandwidth">Gaussian kernel bandwidth.</param>
     /// <param name="numPoints">Number of evaluation points (default 100).</param>
-    /// <returns>Tuple of evaluation X coordinates and corresponding density estimates.</returns>
-    internal static (double[] X, double[] Density) Evaluate(double[] sortedData, double bandwidth, int numPoints = 100)
+    /// <returns>An <see cref="XYCurve"/> with evaluation X coordinates and corresponding density estimates in Y.</returns>
+    internal static XYCurve Evaluate(double[] sortedData, double bandwidth, int numPoints = 100)
     {
-        if (sortedData.Length == 0) return ([], []);
+        if (sortedData.Length == 0) return new([], []);
         double lo = sortedData[0] - 3 * bandwidth;
         double hi = sortedData[^1] + 3 * bandwidth;
         double step = (hi - lo) / (numPoints - 1);
@@ -55,6 +57,6 @@ internal static class GaussianKde
             }
             density[j] = kernelSum / (n * bandwidth * Sqrt2Pi);
         }
-        return (xs, density);
+        return new(xs, density);
     }
 }

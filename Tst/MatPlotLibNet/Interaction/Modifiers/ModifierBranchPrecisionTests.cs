@@ -321,7 +321,7 @@ public class ModifierBranchPrecisionTests
     {
         public int AxesCount => 1;
         public Rect GetPlotArea(int axesIndex) => new(0, 0, 200, 100);
-        public (double XMin, double XMax, double YMin, double YMax) GetDataRange(int axesIndex) => (0, 10, 0, 5);
+        public DataRange GetDataRange(int axesIndex) => new(0, 10, 0, 5);
         public int? HitTestAxes(double pixelX, double pixelY) =>
             pixelX is >= 0 and <= 200 && pixelY is >= 0 and <= 100 ? 0 : null;
         public int? HitTestLegendItem(double pixelX, double pixelY, int axesIndex) => null;
@@ -336,7 +336,7 @@ public class ModifierBranchPrecisionTests
         public StaleAxesLayout(int returnsAxesIndex) => _returnsAxesIndex = returnsAxesIndex;
         public int AxesCount => 1;
         public Rect GetPlotArea(int axesIndex) => new(0, 0, 200, 100);
-        public (double XMin, double XMax, double YMin, double YMax) GetDataRange(int axesIndex) => (0, 10, 0, 5);
+        public DataRange GetDataRange(int axesIndex) => new(0, 10, 0, 5);
         public int? HitTestAxes(double pixelX, double pixelY) => _returnsAxesIndex;
         public int? HitTestLegendItem(double pixelX, double pixelY, int axesIndex) => null;
     }

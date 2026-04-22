@@ -12,9 +12,11 @@ namespace MatPlotLibNet.Rendering.Svg;
 /// <summary>An <see cref="IRenderContext"/> implementation that emits SVG markup for each drawing operation.</summary>
 public sealed class SvgRenderContext : IRenderContext
 {
+    private readonly record struct DataAttr(string Key, string Value);
+
     private readonly StringBuilder _sb = new();
     private int _clipId;
-    private List<(string Key, string Value)>? _pendingData;
+    private List<DataAttr>? _pendingData;
     private string? _pendingClass;
 
     /// <summary>Default constructor: wires the gradient registry to the internal buffer
@@ -37,7 +39,7 @@ public sealed class SvgRenderContext : IRenderContext
     public void SetNextElementData(string key, string value)
     {
         _pendingData ??= [];
-        _pendingData.Add((key, value));
+        _pendingData.Add(new(key, value));
     }
 
     private void FlushPendingData()
@@ -48,8 +50,8 @@ public sealed class SvgRenderContext : IRenderContext
             _pendingClass = null;
         }
         if (_pendingData is null || _pendingData.Count == 0) return;
-        foreach (var (key, value) in _pendingData)
-            _sb.Append(" data-").Append(key).Append("=\"").Append(value).Append('"');
+        foreach (var attr in _pendingData)
+            _sb.Append(" data-").Append(attr.Key).Append("=\"").Append(attr.Value).Append('"');
         _pendingData.Clear();
     }
 

@@ -93,6 +93,10 @@ public static class EnumOrdinalSnapshot
             [typeof(DrawStyle)] = new Dictionary<string, int> {
                 ["Default"] = 0, ["StepsPre"] = 1, ["StepsMid"] = 2, ["StepsPost"] = 3,
             },
+            [typeof(EasingKind)] = new Dictionary<string, int> {
+                ["Linear"] = 0, ["EaseIn"] = 1, ["EaseOut"] = 2, ["EaseInOut"] = 3,
+                ["Bounce"] = 4, ["Elastic"] = 5,
+            },
             [typeof(FontSlant)] = new Dictionary<string, int> {
                 ["Normal"] = 0, ["Italic"] = 1, ["Oblique"] = 2,
             },
@@ -203,6 +207,7 @@ public static class EnumOrdinalSnapshot
             [typeof(InteractionToolbar.ToolMode)] = new Dictionary<string, int> {
                 ["Pan"] = 0, ["Zoom"] = 1, ["Rotate3D"] = 2,
                 ["DataCursor"] = 3, ["SpanSelect"] = 4,
+                ["Trendline"] = 5, ["Level"] = 6, ["Fibonacci"] = 7,
             },
             [typeof(ViolinSide)] = new Dictionary<string, int> {
                 ["Both"] = 0, ["Low"] = 1, ["High"] = 2,

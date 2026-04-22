@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
+using MatPlotLibNet.Animation;
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 
@@ -52,6 +53,22 @@ public sealed class MplChartControl : Control
 
     private InteractionController? _controller;
     private Action<FigureInteractionEvent>? _serverEventSink;
+    private IAnimationSource? _animationSource;
+
+    /// <summary>Gets or sets the animation source whose <see cref="IAnimationSource.FrameReady"/>
+    /// event drives figure updates and visual invalidation.</summary>
+    public IAnimationSource? AnimationSource
+    {
+        get => _animationSource;
+        set
+        {
+            if (_animationSource is not null)
+                _animationSource.FrameReady -= OnAnimationFrameReady;
+            _animationSource = value;
+            if (_animationSource is not null)
+                _animationSource.FrameReady += OnAnimationFrameReady;
+        }
+    }
 
     /// <summary>When set, the interaction controller routes events through this sink (typically
     /// created via <see cref="SignalREventSink.Create"/>) instead of applying them locally.
@@ -143,5 +160,11 @@ public sealed class MplChartControl : Control
         base.OnKeyDown(e);
         if (_controller is null || !IsInteractive) return;
         _controller.HandleKeyDown(AvaloniaInputAdapter.ToKeyArgs(e));
+    }
+
+    private void OnAnimationFrameReady(object? sender, Figure fig)
+    {
+        Figure = fig;
+        Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Render);
     }
 }

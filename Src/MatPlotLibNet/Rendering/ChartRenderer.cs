@@ -270,7 +270,7 @@ public sealed class ChartRenderer : IChartRenderer
     internal void RenderAxes(Figure figure, Axes axes, Rect plotArea, IRenderContext ctx, Theme theme, int depth = 0)
     {
         // Pass figure size through so 3-D renderer can compute matplotlib's exact square bbox.
-        var figSize = ((double W, double H)?)(figure.Width, figure.Height);
+        var figSize = (Size?)new Size(figure.Width, figure.Height);
         var axesRenderer = AxesRenderer.Create(axes, plotArea, ctx, theme, figSize);
         axesRenderer.Render();
 

@@ -7,20 +7,32 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
-/// <summary>Represents a gauge (speedometer) chart with a semi-circular dial, needle, and colored range bands.</summary>
+/// <summary>A gauge (speedometer) chart: a semi-circular dial with coloured range bands and a
+/// value needle. The dial is divided into bands by <see cref="Ranges"/>; the needle points at
+/// <see cref="Value"/> within the <c>[Min, Max]</c> range.</summary>
 public sealed class GaugeSeries : ChartSeries
 {
+    /// <summary>Current value indicated by the needle, within <c>[Min, Max]</c>.</summary>
     public double Value { get; }
 
+    /// <summary>Lower bound of the dial. Defaults to <c>0</c>.</summary>
     public double Min { get; set; }
 
+    /// <summary>Upper bound of the dial. Defaults to <c>100</c>.</summary>
     public double Max { get; set; } = 100;
 
-    public (double Threshold, Color Color)[]? Ranges { get; set; }
+    /// <summary>Optional coloured bands across the dial. Each <see cref="GaugeBand"/> defines the
+    /// upper-bound threshold (in value space) and fill colour of one arc segment. Bands share
+    /// endpoints: band <c>i</c>'s arc spans <c>[prevThreshold, bands[i].Threshold]</c>. Pass
+    /// <see langword="null"/> (default) to use the built-in green/amber/red 60/80/100 bands.</summary>
+    public GaugeBand[]? Ranges { get; set; }
 
+    /// <summary>Needle stroke colour. Defaults to <see cref="Colors.Black"/>.</summary>
     public Color NeedleColor { get; set; } = Colors.Black;
 
-    /// <summary>Creates a new gauge series displaying the given value.</summary>
+    /// <summary>Creates a new gauge series displaying <paramref name="value"/> with the default
+    /// <c>[0, 100]</c> range and black needle.</summary>
+    /// <param name="value">Value pointed at by the needle. Clamped to <c>[Min, Max]</c> at render time.</param>
     public GaugeSeries(double value) => Value = value;
 
     /// <inheritdoc />

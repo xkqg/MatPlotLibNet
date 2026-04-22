@@ -1,0 +1,119 @@
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root for full license information.
+
+using MatPlotLibNet.Animation;
+using MatPlotLibNet.Models;
+
+namespace MatPlotLibNet.Avalonia.Tests;
+
+/// <summary>Verifies <see cref="AvaloniaAnimationTimer"/> and
+/// <see cref="MplChartControl"/> animation source wiring.</summary>
+public class AvaloniaAnimationTimerTests
+{
+    [Fact]
+    public void ImplementsIAnimationTimer()
+    {
+        IAnimationTimer timer = new AvaloniaAnimationTimer();
+        Assert.NotNull(timer);
+    }
+
+    [Fact]
+    public void DefaultInterval_Is16ms()
+    {
+        var timer = new AvaloniaAnimationTimer();
+        Assert.Equal(TimeSpan.FromMilliseconds(16), timer.Interval);
+    }
+
+    [Fact]
+    public void IntervalCanBeChanged()
+    {
+        var timer = new AvaloniaAnimationTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(33);
+        Assert.Equal(TimeSpan.FromMilliseconds(33), timer.Interval);
+    }
+
+    [Fact]
+    public void StopWithoutStart_DoesNotThrow()
+    {
+        using var timer = new AvaloniaAnimationTimer();
+        var ex = Record.Exception(timer.Stop);
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void StartThenStart_DoesNotThrow()
+    {
+        using var timer = new AvaloniaAnimationTimer { Interval = TimeSpan.FromSeconds(10) };
+        timer.Start();
+        var ex = Record.Exception(timer.Start);
+        timer.Stop();
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void Dispose_DoesNotThrow()
+    {
+        var timer = new AvaloniaAnimationTimer();
+        timer.Start();
+        var ex = Record.Exception(timer.Dispose);
+        Assert.Null(ex);
+    }
+}
+
+public class MplChartAnimationTests
+{
+    // ── IAnimationSource property ─────────────────────────────────────────────
+
+    [Fact]
+    public void AnimationSource_DefaultsToNull()
+    {
+        var ctrl = new MplChartControl();
+        Assert.Null(ctrl.AnimationSource);
+    }
+
+    [Fact]
+    public void AnimationSource_CanBeSet()
+    {
+        var ctrl = new MplChartControl();
+        var fake = new FakeAnimationSource();
+        ctrl.AnimationSource = fake;
+        Assert.Same(fake, ctrl.AnimationSource);
+    }
+
+    [Fact]
+    public void AnimationSource_Set_SubscribesToFrameReady()
+    {
+        var ctrl = new MplChartControl();
+        var fake = new FakeAnimationSource();
+        ctrl.AnimationSource = fake;
+        Assert.Equal(1, fake.SubscriberCount);
+    }
+
+    [Fact]
+    public void AnimationSource_Replaced_UnsubscribesOld()
+    {
+        var ctrl = new MplChartControl();
+        var fake1 = new FakeAnimationSource();
+        var fake2 = new FakeAnimationSource();
+        ctrl.AnimationSource = fake1;
+        ctrl.AnimationSource = fake2;
+        Assert.Equal(0, fake1.SubscriberCount);
+        Assert.Equal(1, fake2.SubscriberCount);
+    }
+
+    [Fact]
+    public void AnimationSource_SetToNull_UnsubscribesOld()
+    {
+        var ctrl = new MplChartControl();
+        var fake = new FakeAnimationSource();
+        ctrl.AnimationSource = fake;
+        ctrl.AnimationSource = null;
+        Assert.Equal(0, fake.SubscriberCount);
+    }
+
+    private sealed class FakeAnimationSource : IAnimationSource
+    {
+        public event EventHandler<Figure>? FrameReady;
+        public int SubscriberCount => FrameReady?.GetInvocationList().Length ?? 0;
+    }
+}

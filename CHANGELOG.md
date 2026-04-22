@@ -4,6 +4,103 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.8.0] — 2026-04-22
+
+### Refactored — named-type sweep: every tuple → `record struct`, every `*Helper` → extension or domain static
+
+The project's class-design rules (see `CONTRIBUTING.md`) forbid anonymous tuples in
+public or internal signatures and `*Helper` / `*Util` catch-all static classes. The
+strict-90 gate surfaced dozens of lingering violations as orphan branches in coverage
+reports. v1.8.0 closes the sweep.
+
+**Public API — new named types (replaces tuple parameters / returns):**
+
+- `ColorStop(double Position, Color Color)` — stops in `LinearColorMap.FromList` /
+  `FromPositions` (was `IReadOnlyList<(double Position, Color Color)>` /
+  `(double Position, Color Color)[]`).
+- `StreamingPoint(double X, double Y)` — samples in
+  `StreamingSeriesExtensions.SubscribeTo(IObservable<StreamingPoint>)` (was
+  `IObservable<(double x, double y)>`).
+- `GaugeBand(double Threshold, Color Color)` — bands on `GaugeSeries.Ranges`
+  (was `(double Threshold, Color Color)[]?`).
+- `BarRange(double Start, double Width)` — segments of `BrokenBarSeries.Ranges`
+  (was `(double, double)[][]`). Constructor + `BrokenBarH` overloads on
+  `Axes` / `AxesBuilder` / `FigureBuilder` take `BarRange[][]`.
+
+**Shared named types introduced:**
+
+- `MatPlotLibNet.Numerics.MinMaxRange(double Min, double Max)` — replaces
+  `(double, double)` returns on `IColorBarDataProvider.GetColorBarRange()` (nine
+  series implementations), `CartesianAxesRenderer.ScaleRange`,
+  `AxisBreakMapper.CompressedRange`, and `AutoLocator.ExpandToNiceBounds`.
+- `MatPlotLibNet.Numerics.MatShape(int Rows, int Cols)` — replaces `(int, int)` on
+  `Mat.Shape` and `SubplotMosaicParser.GetDimensions`.
+- `MatPlotLibNet.Numerics.XYCurve(double[] X, double[] Y)` — replaces paired-array
+  tuple returns on `MonotoneCubicSpline.Interpolate` and `GaussianKde.Evaluate`.
+- `MatPlotLibNet.Rendering.Size(double Width, double Height)` — adopted by
+  `AxesRenderer.FigureSize` / `AxesRenderer.Create(…, Size? figureSize)`.
+- `MatPlotLibNet.Rendering.LineSegment(Point From, Point To)` — replaces
+  `(Point, Point)` in `TricontourSeriesRenderer.ContourSegments`.
+- `MatPlotLibNet.Rendering.SeriesRenderers.LabelAnchor(Point Anchor, TextAlignment Alignment)`
+  — replaces the tuple return of `SankeySeriesRenderer.ComputeNodeLabelAnchor`.
+- `MatPlotLibNet.Rendering.SeriesRenderers.AxialHex(int Q, int R)` — replaces
+  `(int q, int r)` in `HexGrid.ComputeHexBins` dictionary keys and `CubeRound`.
+- `MatPlotLibNet.Interaction.DataPoint(double DataX, double DataY)` — replaces the
+  tuple return of `ChartLayout.PixelToData` and `IChartLayout.GetDataRange` (the
+  latter now returns the pre-existing `Rendering.DataRange` record; the short-lived
+  `Interaction.DataRange` duplicate was removed once the existing one was found).
+- `MatPlotLibNet.Indicators.Wavelet.DwtResult(double[][] Details, double[] Approx)`
+  (internal) — replaces `(double[][], double[])` on `HaarDwt.Decompose`.
+
+**`*Helper` classes eliminated:**
+
+- `SvgXmlHelper` → `SvgXml` — a `this string` extension method `EscapeForXml`.
+- `MathHelpers` → `SortedArrayExtensions` — `Percentile`, `BisectLeft`, `BisectRight`
+  as `this double[]` extensions. Consumed by `BoxSeriesRenderer`, `ViolinSeriesRenderer`.
+- `LightingHelper` → `Vec3(double X, double Y, double Z)` — the cross-product face
+  normal is now `Vec3.FaceNormal(Vec3, Vec3, Vec3)`. The static class became an
+  instance of its own named type.
+
+**Internal tuple-list collections named:**
+
+- `DepthQueue3D` — `List<(double Depth, Action Draw)>` → `List<DepthItem>`.
+- `SvgRenderContext._pendingData` — `List<(string Key, string Value)>` → `List<DataAttr>`.
+- `FigureBuilder` — `DeferredShare`, `PendingInset` private record structs replace
+  the two in-flight `List<(…)>` fields.
+- `AxesRenderer` — `RenderLegendEntry`, `LegendEntryIndex` private record structs.
+- `MarchingSquares.Segment`, `Delaunay.Triangle` + `Delaunay.Edge` — private
+  record structs replace `List<(PointF A, PointF B)>`, `List<(int a, int b, int c)>`,
+  `List<(int a, int b)>`.
+- Every 3-D renderer depth list named: `Arrow` (Quiver3D), `DepthSegment` (Line3D),
+  `DepthFace` (Bar3D, Voxel), `IndexedDepth` (Scatter3D), `DepthText` (Text3D),
+  `DepthTriangle` (Trisurf3D), `ShadedQuad` (Surface). `Bar3DSeriesRenderer` and
+  `VoxelSeriesRenderer.AddFace` now take `Vec3` corner coordinates instead of
+  `(double x, double y, double z)` tuples.
+- `EngFormatter.SiPrefix(double Factor, string Prefix)` replaces the
+  `(double Factor, string Prefix)[] Prefixes` table.
+- `BeeswarmLayout` — `List<(double x, double y)>` → `List<Point>` (existing record).
+- `LegendPositionStrategy.ComputeBox` — returns `Point`, not `(double X, double Y)`.
+  All 15 strategy subclasses switched to `new Point(…)` literals.
+- `Projection3D.ProjectWorldToNdc` → returns `Point`; deconstruction at call sites
+  unchanged.
+- `StreamplotSeriesRenderer.Interpolate` → returns `Point` (the 2-D flow-velocity
+  vector; private method).
+- `DataCursorModifier._pendingHitPointer` — `(double, double)` field → `Point`.
+
+**Migration notes:**
+
+- Source code that used positional deconstruction (`var (a, b) = …`) continues to
+  work unchanged — every new record struct auto-generates a `Deconstruct` with the
+  same ordering.
+- Source code that constructed tuple literals (`(x, y)`, `[(a, b), (c, d)]`) must
+  use target-typed `new(…)` expressions (`new(x, y)`, `[new(a, b), new(c, d)]`).
+- Binary compatibility is broken for the public API types listed above — this is a
+  minor-version bump because the mechanical signature changes are API-visible even
+  though behaviour is unchanged.
+
+All 8394 core tests pass. Interactive tests pass. SVG output byte-identical to v1.7.3
+(the changes are signature-level; no rendering logic touched).
+
 ## [1.7.3] — 2026-04-21
 
 ### Refactored — Phase L: structural clean-up driven by the strict 90/90 coverage gate

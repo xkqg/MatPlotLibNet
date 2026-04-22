@@ -25,7 +25,53 @@ public sealed class InteractionToolbar
         DataCursor = 3,
         /// <summary>Alt+drag selects an X-range.</summary>
         SpanSelect = 4,
+        /// <summary>Click two points to draw a trendline.</summary>
+        Trendline = 5,
+        /// <summary>Click to draw a horizontal price level.</summary>
+        Level = 6,
+        /// <summary>Click high then low to draw a Fibonacci retracement.</summary>
+        Fibonacci = 7,
     }
+
+    /// <summary>Button IDs used by <see cref="Activate"/> and <see cref="CreateDefault"/>.</summary>
+    public static class ToolIds
+    {
+        public const string Pan       = "pan";
+        public const string Zoom      = "zoom";
+        public const string Rotate3D  = "rotate3d";
+        public const string Home      = "home";
+        public const string Cursor    = "cursor";
+        public const string Span      = "span";
+        public const string Trendline = "trendline";
+        public const string Level     = "level";
+        public const string Fibonacci = "fibonacci";
+    }
+
+    private static readonly IReadOnlyDictionary<string, ToolMode> _idToMode =
+        new Dictionary<string, ToolMode>
+        {
+            [ToolIds.Pan]       = ToolMode.Pan,
+            [ToolIds.Zoom]      = ToolMode.Zoom,
+            [ToolIds.Rotate3D]  = ToolMode.Rotate3D,
+            [ToolIds.Cursor]    = ToolMode.DataCursor,
+            [ToolIds.Span]      = ToolMode.SpanSelect,
+            [ToolIds.Trendline] = ToolMode.Trendline,
+            [ToolIds.Level]     = ToolMode.Level,
+            [ToolIds.Fibonacci] = ToolMode.Fibonacci,
+        };
+
+    private static readonly IReadOnlyDictionary<ToolMode, string> _modeToId =
+        new Dictionary<ToolMode, string>
+        {
+            [ToolMode.Pan]        = ToolIds.Pan,
+            [ToolMode.Zoom]       = ToolIds.Zoom,
+            [ToolMode.Rotate3D]   = ToolIds.Rotate3D,
+            [ToolMode.DataCursor] = ToolIds.Cursor,
+            [ToolMode.SpanSelect] = ToolIds.Span,
+            [ToolMode.Trendline]  = ToolIds.Trendline,
+            [ToolMode.Level]      = ToolIds.Level,
+            [ToolMode.Fibonacci]  = ToolIds.Fibonacci,
+        };
 
     private readonly List<ToolbarButton> _buttons = [];
 
@@ -39,43 +85,32 @@ public sealed class InteractionToolbar
     public static InteractionToolbar CreateDefault(Figure figure)
     {
         var toolbar = new InteractionToolbar();
-        toolbar._buttons.Add(new ToolbarButton("pan", "Pan (drag)", IsToggle: true));
-        toolbar._buttons.Add(new ToolbarButton("zoom", "Rectangle Zoom (Ctrl+drag)", IsToggle: true));
+        toolbar._buttons.Add(new ToolbarButton(ToolIds.Pan,      "Pan (drag)",                        IsToggle: true));
+        toolbar._buttons.Add(new ToolbarButton(ToolIds.Zoom,     "Rectangle Zoom (Ctrl+drag)",        IsToggle: true));
 
         bool has3D = false;
         foreach (var ax in figure.SubPlots)
             if (ax.CoordinateSystem == CoordinateSystem.ThreeD) { has3D = true; break; }
 
         if (has3D)
-            toolbar._buttons.Add(new ToolbarButton("rotate3d", "Rotate 3D (right-drag)", IsToggle: true));
+            toolbar._buttons.Add(new ToolbarButton(ToolIds.Rotate3D, "Rotate 3D (right-drag)", IsToggle: true));
 
-        toolbar._buttons.Add(new ToolbarButton("home", "Reset View"));
-        toolbar._buttons.Add(new ToolbarButton("cursor", "Data Cursor (click)", IsToggle: true));
+        toolbar._buttons.Add(new ToolbarButton(ToolIds.Home,     "Reset View"));
+        toolbar._buttons.Add(new ToolbarButton(ToolIds.Cursor,   "Data Cursor (click)",               IsToggle: true));
+        toolbar._buttons.Add(new ToolbarButton(ToolIds.Trendline,"Trendline (2 clicks)",              IsToggle: true));
+        toolbar._buttons.Add(new ToolbarButton(ToolIds.Level,    "Horizontal Level (click)",          IsToggle: true));
+        toolbar._buttons.Add(new ToolbarButton(ToolIds.Fibonacci,"Fibonacci Retracement (2 clicks)",  IsToggle: true));
 
         return toolbar;
     }
 
-    /// <summary>Activates a tool by its button ID.</summary>
+    /// <summary>Activates a tool by its button ID. Unknown IDs leave the active tool unchanged.</summary>
     public void Activate(string toolId)
     {
-        ActiveTool = toolId switch
-        {
-            "pan" => ToolMode.Pan,
-            "zoom" => ToolMode.Zoom,
-            "rotate3d" => ToolMode.Rotate3D,
-            "cursor" => ToolMode.DataCursor,
-            _ => ActiveTool,
-        };
+        if (_idToMode.TryGetValue(toolId, out var mode))
+            ActiveTool = mode;
     }
 
     /// <summary>Returns the ID of the currently active toggle tool.</summary>
-    public string ActiveToolId => ActiveTool switch
-    {
-        ToolMode.Pan => "pan",
-        ToolMode.Zoom => "zoom",
-        ToolMode.Rotate3D => "rotate3d",
-        ToolMode.DataCursor => "cursor",
-        ToolMode.SpanSelect => "span",
-        _ => "pan",
-    };
+    public string ActiveToolId => _modeToId[ActiveTool];
 }

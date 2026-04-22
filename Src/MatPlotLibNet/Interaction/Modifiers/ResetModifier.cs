@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
+
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Resets the axes to their original limits on a double-click or <c>Home</c> key press.</summary>
@@ -10,7 +12,7 @@ public sealed class ResetModifier : IInteractionModifier
     private readonly IChartLayout _layout;
     private readonly Action<FigureInteractionEvent> _sink;
     /// <summary>Original data ranges captured when the modifier was created, keyed by axes index.</summary>
-    private readonly Dictionary<int, (double XMin, double XMax, double YMin, double YMax)> _originalRanges;
+    private readonly Dictionary<int, DataRange> _originalRanges;
 
     /// <summary>Creates a reset modifier. The original axis limits are snapshotted at construction time.</summary>
     public ResetModifier(string chartId, IChartLayout layout, Action<FigureInteractionEvent> sink)
@@ -18,7 +20,7 @@ public sealed class ResetModifier : IInteractionModifier
         _chartId        = chartId;
         _layout         = layout;
         _sink           = sink;
-        _originalRanges = new Dictionary<int, (double, double, double, double)>();
+        _originalRanges = new Dictionary<int, DataRange>();
 
         for (int i = 0; i < layout.AxesCount; i++)
             _originalRanges[i] = layout.GetDataRange(i);

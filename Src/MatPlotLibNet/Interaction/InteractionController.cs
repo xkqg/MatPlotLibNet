@@ -24,6 +24,9 @@ public sealed class InteractionController : IInteractionController
     private IChartLayout _layout;
     private HoverTooltipContent? _activeTooltip;
 
+    /// <summary>The toolbar managed by this controller. Activate drawing tools via <see cref="InteractionToolbar.Activate"/>.</summary>
+    public InteractionToolbar Toolbar { get; } = new();
+
     /// <inheritdoc />
     public event Action? InvalidateRequested;
 
@@ -46,7 +49,7 @@ public sealed class InteractionController : IInteractionController
         _figure    = figure;
         _layout    = layout;
         _sink      = sink;
-        _modifiers = BuildModifiers(figure.ChartId ?? string.Empty, layout, sink, figure);
+        _modifiers = BuildModifiers(figure.ChartId ?? string.Empty, layout, sink, figure, Toolbar);
     }
 
     /// <summary>Creates a controller in local mode: events are applied directly to the figure
@@ -78,7 +81,7 @@ public sealed class InteractionController : IInteractionController
     public void UpdateLayout(IChartLayout layout)
     {
         _layout = layout;
-        _modifiers = BuildModifiers(_figure.ChartId ?? string.Empty, layout, _sink, _figure);
+        _modifiers = BuildModifiers(_figure.ChartId ?? string.Empty, layout, _sink, _figure, Toolbar);
     }
 
     /// <inheritdoc />
@@ -189,7 +192,8 @@ public sealed class InteractionController : IInteractionController
         string chartId,
         IChartLayout layout,
         Action<FigureInteractionEvent> sink,
-        Figure figure)
+        Figure figure,
+        InteractionToolbar toolbar)
     {
         // Order matters — first modifier whose Handles* returns true claims the event:
         //   1. LegendToggle: click on legend item (specific hit-test, highest priority for clicks)
@@ -198,10 +202,13 @@ public sealed class InteractionController : IInteractionController
         //   4. RectangleZoom: Ctrl+drag draws zoom box (v1.4.1)
         //   5. BrushSelect: Shift+drag before Pan (Shift distinguishes)
         //   6. SpanSelect: Alt+drag selects X-range (v1.4.1)
-        //   7. Pan: plain left-drag
-        //   8. Zoom: scroll wheel
-        //   9. Crosshair: passive — every move (v1.4.1)
-        //  10. Hover: passive, always last
+        //   7. Drawing tools: toolbar-mode-gated, claim left-click only when active
+        //   8. DrawingToolSelection: Delete key for selected drawing tool
+        //   9. Pan: plain left-drag
+        //  10. Zoom: scroll wheel
+        //  11. DataCursor: proximity click (passive when drawing tools active)
+        //  12. Crosshair: passive — every move (v1.4.1)
+        //  13. Hover: passive, always last
         return
         [
             new LegendToggleModifier(chartId, layout, sink),
@@ -210,18 +217,17 @@ public sealed class InteractionController : IInteractionController
             new RectangleZoomModifier(chartId, layout, sink),
             new BrushSelectModifier(chartId, layout, sink),
             new SpanSelectModifier(chartId, layout, sink),
-            // Phase H.4 of v1.7.2 follow-on plan — DataCursor claims plain left-click
-            // only when the cursor is within 10 px of an actual data point (via
-            // NearestPointFinder). Placed before PanModifier so hit-test wins; when
-            // the click misses, HandlesPointerPressed returns false and Pan takes over.
+            new TrendlineDrawingModifier(chartId, layout, figure, sink, toolbar),
+            new LevelDrawingModifier(chartId, layout, figure, sink, toolbar),
+            new FibonacciDrawingModifier(chartId, layout, figure, sink, toolbar),
+            new DrawingToolSelectionModifier(chartId, layout, figure, sink, toolbar),
+            // DataCursor claims plain left-click only when the cursor is within 10 px
+            // of an actual data point (via NearestPointFinder). Placed before PanModifier
+            // so hit-test wins; when the click misses, HandlesPointerPressed returns false
+            // and Pan takes over.
             new DataCursorModifier(chartId, layout, figure, sink),
             new PanModifier(chartId, layout, sink),
             new ZoomModifier(chartId, layout, sink),
-            // Phase H.3 of v1.7.2 follow-on plan — Crosshair is passive (no
-            // HandlesPointerPressed), runs alongside all other modifiers.
-            // Controller calls CrosshairModifier.UpdatePosition in
-            // HandlePointerMoved to keep the state fresh without claiming the
-            // event for itself.
             new CrosshairModifier(layout),
             new HoverModifier(chartId, layout, sink),
         ];

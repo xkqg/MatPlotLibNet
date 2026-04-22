@@ -12,11 +12,11 @@ public sealed class StreamingSeriesExtensionsTests
     public void SubscribeTo_XYObservable_AppendsPoints()
     {
         var series = new StreamingLineSeries(100);
-        var subject = new TestSubject<(double, double)>();
+        var subject = new TestSubject<StreamingPoint>();
         using var sub = series.SubscribeTo(subject);
 
-        subject.OnNext((1.0, 2.0));
-        subject.OnNext((3.0, 4.0));
+        subject.OnNext(new(1.0, 2.0));
+        subject.OnNext(new(3.0, 4.0));
 
         Assert.Equal(2, series.Count);
         var snap = series.CreateSnapshot();
@@ -51,14 +51,14 @@ public sealed class StreamingSeriesExtensionsTests
     public void Dispose_Unsubscribes()
     {
         var series = new StreamingLineSeries(100);
-        var subject = new TestSubject<(double, double)>();
+        var subject = new TestSubject<StreamingPoint>();
         var sub = series.SubscribeTo(subject);
 
-        subject.OnNext((1.0, 2.0));
+        subject.OnNext(new(1.0, 2.0));
         Assert.Equal(1, series.Count);
 
         sub.Dispose();
-        subject.OnNext((3.0, 4.0)); // should not reach series
+        subject.OnNext(new(3.0, 4.0)); // should not reach series
         Assert.Equal(1, series.Count);
     }
 
@@ -66,7 +66,7 @@ public sealed class StreamingSeriesExtensionsTests
     public void OnError_DoesNotThrow()
     {
         var series = new StreamingLineSeries(100);
-        var subject = new TestSubject<(double, double)>();
+        var subject = new TestSubject<StreamingPoint>();
         using var sub = series.SubscribeTo(subject);
 
         subject.OnError(new Exception("test")); // should not throw
@@ -77,7 +77,7 @@ public sealed class StreamingSeriesExtensionsTests
     public void OnCompleted_DoesNotThrow()
     {
         var series = new StreamingLineSeries(100);
-        var subject = new TestSubject<(double, double)>();
+        var subject = new TestSubject<StreamingPoint>();
         using var sub = series.SubscribeTo(subject);
 
         subject.OnCompleted(); // should not throw

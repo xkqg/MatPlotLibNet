@@ -418,8 +418,11 @@ public sealed class FigureBuilder
     public FigureBuilder Eventplot(double[][] positions, Action<EventplotSeries>? configure = null) =>
         AddSeries(ax => ax.Eventplot(positions), configure);
 
-    /// <summary>Adds a broken bar series to the default axes.</summary>
-    public FigureBuilder BrokenBarH((double Start, double Width)[][] ranges, Action<BrokenBarSeries>? configure = null) =>
+    /// <summary>Adds a broken-bar series to the default axes (matplotlib <c>broken_barh</c>).</summary>
+    /// <param name="ranges">One <see cref="BarRange"/> array per row; each inner entry defines a
+    /// horizontal segment by <c>(Start, Width)</c> in data units.</param>
+    /// <param name="configure">Optional post-construction configurator (colour, labels, bar height).</param>
+    public FigureBuilder BrokenBarH(BarRange[][] ranges, Action<BrokenBarSeries>? configure = null) =>
         AddSeries(ax => ax.BrokenBarH(ranges), configure);
 
     /// <summary>Adds a count plot series to the default axes.</summary>
@@ -562,7 +565,7 @@ public sealed class FigureBuilder
             figure.AddAxes(_defaultAxes);
 
         var keyedAxes = new Dictionary<string, Axes>();
-        var deferredSharing = new List<(Axes axes, string? shareXKey, string? shareYKey)>();
+        var deferredSharing = new List<DeferredShare>();
 
         foreach (var spec in _subPlots)
         {
@@ -582,27 +585,27 @@ public sealed class FigureBuilder
             }
 
             if (builder.ShareXKey is not null || builder.ShareYKey is not null)
-                deferredSharing.Add((axes, builder.ShareXKey, builder.ShareYKey));
+                deferredSharing.Add(new(axes, builder.ShareXKey, builder.ShareYKey));
 
             figure.AddAxes(axes);
         }
 
         // Resolve sharing references by key
-        foreach (var (axes, shareXKey, shareYKey) in deferredSharing)
+        foreach (var share in deferredSharing)
         {
-            if (shareXKey is not null && keyedAxes.TryGetValue(shareXKey, out var xTarget))
-                axes.ShareXWith = xTarget;
-            if (shareYKey is not null && keyedAxes.TryGetValue(shareYKey, out var yTarget))
-                axes.ShareYWith = yTarget;
+            if (share.ShareXKey is not null && keyedAxes.TryGetValue(share.ShareXKey, out var xTarget))
+                share.Axes.ShareXWith = xTarget;
+            if (share.ShareYKey is not null && keyedAxes.TryGetValue(share.ShareYKey, out var yTarget))
+                share.Axes.ShareYWith = yTarget;
         }
 
         // Apply pending insets
-        foreach (var (subplotIndex, x, y, w, h, configure) in _pendingInsets)
+        foreach (var inset in _pendingInsets)
         {
-            if (subplotIndex >= 0 && subplotIndex < figure.SubPlots.Count)
+            if (inset.SubplotIndex >= 0 && inset.SubplotIndex < figure.SubPlots.Count)
             {
-                var inset = figure.SubPlots[subplotIndex].AddInset(x, y, w, h);
-                configure?.Invoke(inset);
+                var insetAxes = figure.SubPlots[inset.SubplotIndex].AddInset(inset.X, inset.Y, inset.Width, inset.Height);
+                inset.Configure?.Invoke(insetAxes);
             }
         }
 
@@ -691,12 +694,16 @@ public sealed class FigureBuilder
     public FigureBuilder AddInset(int subplotIndex, double x, double y, double width, double height,
         Action<Axes>? configure = null)
     {
-        _pendingInsets.Add((subplotIndex, x, y, width, height, configure));
+        _pendingInsets.Add(new(subplotIndex, x, y, width, height, configure));
         return this;
     }
 
-    private readonly List<(int SubplotIndex, double X, double Y, double Width, double Height, Action<Axes>? Configure)>
-        _pendingInsets = [];
+    private readonly record struct DeferredShare(Axes Axes, string? ShareXKey, string? ShareYKey);
+
+    private readonly record struct PendingInset(
+        int SubplotIndex, double X, double Y, double Width, double Height, Action<Axes>? Configure);
+
+    private readonly List<PendingInset> _pendingInsets = [];
 
     private Axes EnsureDefaultAxes() => _defaultAxes ??= new Axes();
 }

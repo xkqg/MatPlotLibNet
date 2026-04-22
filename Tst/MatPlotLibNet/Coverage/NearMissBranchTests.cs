@@ -549,7 +549,7 @@ public class NearMissBranchTests
     public void Histogram2D_EmptyX_ReturnsSentinelColorBarRange()
     {
         var s = new Histogram2DSeries(Array.Empty<double>(), Array.Empty<double>(), binsX: 5, binsY: 5);
-        Assert.Equal((0.0, 1.0), s.GetColorBarRange());
+        Assert.Equal(new MatPlotLibNet.Numerics.MinMaxRange(0.0, 1.0), s.GetColorBarRange());
     }
 
     /// <summary>Histogram2DSeries.GetColorBarRange line 62: `min &lt; max ? : (0, 1)` false

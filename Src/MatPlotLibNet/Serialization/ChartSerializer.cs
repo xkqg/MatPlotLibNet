@@ -108,6 +108,26 @@ public sealed class ChartSerializer : IChartSerializer
             LineWidth = s.LineWidth != 1.0 ? s.LineWidth : null,
             Label = s.Label,
         }).ToList() : null,
+        Trendlines = axes.Trendlines.Count > 0 ? axes.Trendlines.Select(t => new TrendlineDto
+        {
+            X1 = t.X1, Y1 = t.Y1, X2 = t.X2, Y2 = t.Y2,
+            Color = t.Color is { } tc ? tc.ToHex() : null,
+            LineStyle = t.LineStyle != Styling.LineStyle.Solid ? t.LineStyle.ToString().ToLowerInvariant() : null,
+            LineWidth = t.LineWidth, Label = t.Label, IsExtended = t.IsExtended,
+        }).ToList() : null,
+        HorizontalLevels = axes.HorizontalLevels.Count > 0 ? axes.HorizontalLevels.Select(l => new HorizontalLevelDto
+        {
+            Value = l.Value,
+            Color = l.Color is { } lc ? lc.ToHex() : null,
+            LineStyle = l.LineStyle != Styling.LineStyle.Dashed ? l.LineStyle.ToString().ToLowerInvariant() : null,
+            LineWidth = l.LineWidth, Label = l.Label,
+        }).ToList() : null,
+        FibonacciRetracements = axes.FibonacciRetracements.Count > 0 ? axes.FibonacciRetracements.Select(f => new FibonacciRetracementDto
+        {
+            PriceHigh = f.PriceHigh, PriceLow = f.PriceLow,
+            Color = f.Color is { } fc ? fc.ToHex() : null,
+            LineWidth = f.LineWidth, ShowLabels = f.ShowLabels,
+        }).ToList() : null,
         InsetBounds = axes.InsetBounds is { } ib ? new InsetBoundsDto
         {
             X = ib.X, Y = ib.Y, Width = ib.Width, Height = ib.Height
@@ -293,6 +313,35 @@ public sealed class ChartSerializer : IChartSerializer
                     sp.LineStyle = ls;
                 if (sDto.LineWidth.HasValue) sp.LineWidth = sDto.LineWidth.Value;
                 sp.Label = sDto.Label;
+            }
+
+            foreach (var tDto in axDto.Trendlines ?? [])
+            {
+                var t = axes.AddTrendline(tDto.X1, tDto.Y1, tDto.X2, tDto.Y2);
+                if (tDto.Color is not null) t.Color = Styling.Color.FromHex(tDto.Color);
+                if (tDto.LineStyle is not null && Enum.TryParse<LineStyle>(tDto.LineStyle, true, out var tls))
+                    t.LineStyle = tls;
+                t.LineWidth = tDto.LineWidth;
+                t.Label = tDto.Label;
+                t.IsExtended = tDto.IsExtended;
+            }
+
+            foreach (var lDto in axDto.HorizontalLevels ?? [])
+            {
+                var l = axes.AddLevel(lDto.Value);
+                if (lDto.Color is not null) l.Color = Styling.Color.FromHex(lDto.Color);
+                if (lDto.LineStyle is not null && Enum.TryParse<LineStyle>(lDto.LineStyle, true, out var lls))
+                    l.LineStyle = lls;
+                l.LineWidth = lDto.LineWidth;
+                l.Label = lDto.Label;
+            }
+
+            foreach (var fDto in axDto.FibonacciRetracements ?? [])
+            {
+                var f = axes.AddFibonacci(fDto.PriceHigh, fDto.PriceLow);
+                if (fDto.Color is not null) f.Color = Styling.Color.FromHex(fDto.Color);
+                f.LineWidth = fDto.LineWidth;
+                f.ShowLabels = fDto.ShowLabels;
             }
 
             // Restore insets recursively
@@ -843,6 +892,9 @@ internal sealed record AxesDto
     public List<AnnotationDto>? Annotations { get; init; }
     public List<ReferenceLineDto>? ReferenceLines { get; init; }
     public List<SpanRegionDto>? Spans { get; init; }
+    public List<TrendlineDto>? Trendlines { get; init; }
+    public List<HorizontalLevelDto>? HorizontalLevels { get; init; }
+    public List<FibonacciRetracementDto>? FibonacciRetracements { get; init; }
     public InsetBoundsDto? InsetBounds { get; init; }
     public List<AxesDto>? Insets { get; init; }
     public double? Elevation { get; init; }
@@ -902,6 +954,40 @@ internal sealed record SpanRegionDto
     public string? LineStyle { get; init; }
     public double? LineWidth { get; init; }
     public string? Label { get; init; }
+}
+
+/// <summary>Data-transfer object for a <see cref="Models.Tools.Trendline"/>.</summary>
+internal sealed record TrendlineDto
+{
+    public double X1 { get; init; }
+    public double Y1 { get; init; }
+    public double X2 { get; init; }
+    public double Y2 { get; init; }
+    public string? Color { get; init; }
+    public string? LineStyle { get; init; }
+    public double LineWidth { get; init; } = 1.0;
+    public string? Label { get; init; }
+    public bool IsExtended { get; init; }
+}
+
+/// <summary>Data-transfer object for a <see cref="Models.Tools.HorizontalLevel"/>.</summary>
+internal sealed record HorizontalLevelDto
+{
+    public double Value { get; init; }
+    public string? Color { get; init; }
+    public string? LineStyle { get; init; }
+    public double LineWidth { get; init; } = 1.0;
+    public string? Label { get; init; }
+}
+
+/// <summary>Data-transfer object for a <see cref="Models.Tools.FibonacciRetracement"/>.</summary>
+internal sealed record FibonacciRetracementDto
+{
+    public double PriceHigh { get; init; }
+    public double PriceLow { get; init; }
+    public string? Color { get; init; }
+    public double LineWidth { get; init; } = 1.0;
+    public bool ShowLabels { get; init; } = true;
 }
 
 /// <summary>Data-transfer object for an axis configuration (label, limits, and scale).</summary>

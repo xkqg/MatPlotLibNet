@@ -16,10 +16,14 @@ public class InteractionToolbarCoverageTests
     /// <summary>Activate(toolId) line 61 switch — every recognised ID maps to its
     /// matching <see cref="InteractionToolbar.ToolMode"/>. Theory walks all 4 IDs.</summary>
     [Theory]
-    [InlineData("pan",      InteractionToolbar.ToolMode.Pan)]
-    [InlineData("zoom",     InteractionToolbar.ToolMode.Zoom)]
-    [InlineData("rotate3d", InteractionToolbar.ToolMode.Rotate3D)]
-    [InlineData("cursor",   InteractionToolbar.ToolMode.DataCursor)]
+    [InlineData("pan",       InteractionToolbar.ToolMode.Pan)]
+    [InlineData("zoom",      InteractionToolbar.ToolMode.Zoom)]
+    [InlineData("rotate3d",  InteractionToolbar.ToolMode.Rotate3D)]
+    [InlineData("cursor",    InteractionToolbar.ToolMode.DataCursor)]
+    [InlineData("trendline", InteractionToolbar.ToolMode.Trendline)]
+    [InlineData("level",     InteractionToolbar.ToolMode.Level)]
+    [InlineData("fibonacci", InteractionToolbar.ToolMode.Fibonacci)]
+    [InlineData("span",      InteractionToolbar.ToolMode.SpanSelect)]
     public void Activate_RecognisedId_MapsToMatchingMode(string toolId, InteractionToolbar.ToolMode expected)
     {
         var toolbar = new InteractionToolbar();
@@ -43,10 +47,14 @@ public class InteractionToolbarCoverageTests
     /// ID covers every arm. SpanSelect doesn't have a public Activate ID so it falls
     /// through to the default arm — see <see cref="ActiveToolId_SpanSelect_FallsBackToPan"/>.</summary>
     [Theory]
-    [InlineData("pan",      "pan")]
-    [InlineData("zoom",     "zoom")]
-    [InlineData("rotate3d", "rotate3d")]
-    [InlineData("cursor",   "cursor")]
+    [InlineData("pan",       "pan")]
+    [InlineData("zoom",      "zoom")]
+    [InlineData("rotate3d",  "rotate3d")]
+    [InlineData("cursor",    "cursor")]
+    [InlineData("trendline", "trendline")]
+    [InlineData("level",     "level")]
+    [InlineData("fibonacci", "fibonacci")]
+    [InlineData("span",      "span")]
     public void ActiveToolId_RoundTrip_MatchesActivateId(string activateId, string expectedReadBackId)
     {
         var toolbar = new InteractionToolbar();
@@ -64,6 +72,18 @@ public class InteractionToolbarCoverageTests
     public void SpanSelect_EnumValue_HasOrdinalFour()
     {
         Assert.Equal(4, (int)InteractionToolbar.ToolMode.SpanSelect);
+    }
+
+    /// <summary>CreateDefault includes the three drawing tool buttons.</summary>
+    [Fact]
+    public void CreateDefault_IncludesDrawingToolButtons()
+    {
+        var fig = new Figure();
+        fig.AddSubPlot();
+        var toolbar = InteractionToolbar.CreateDefault(fig);
+        Assert.Contains(toolbar.Buttons, b => b.Id == InteractionToolbar.ToolIds.Trendline);
+        Assert.Contains(toolbar.Buttons, b => b.Id == InteractionToolbar.ToolIds.Level);
+        Assert.Contains(toolbar.Buttons, b => b.Id == InteractionToolbar.ToolIds.Fibonacci);
     }
 
     /// <summary>CreateDefault with a non-3D figure — line 47 false arm of HasAnyThreeD.

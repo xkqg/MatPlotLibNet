@@ -31,15 +31,17 @@ public sealed class LinearColorMap : IColorMap
         _positions = positions;
     }
 
-    /// <summary>Creates a colormap from a list of (position, color) pairs and auto-registers it in
-    /// <see cref="ColorMapRegistry"/> under <paramref name="name"/> and its reversed variant
-    /// (<c>{name}_r</c>). Positions are auto-normalized to [0, 1] if the range is not already [0, 1].</summary>
-    /// <param name="name">Registry name. Must be unique; existing registrations with the same name are overwritten.</param>
-    /// <param name="colors">At least 2 (position, color) pairs. Positions need not start at 0 or end at 1 —
-    /// they are normalized automatically. Must be strictly increasing.</param>
-    /// <returns>The newly created <see cref="LinearColorMap"/>.</returns>
-    /// <exception cref="ArgumentException">Fewer than 2 stops, non-increasing positions, or <paramref name="name"/> is null/empty.</exception>
-    public static LinearColorMap FromList(string name, IReadOnlyList<(double Position, Color Color)> colors)
+    /// <summary>Creates a colormap from a list of <see cref="ColorStop"/> stops and auto-registers it
+    /// in <see cref="ColorMapRegistry"/> under <paramref name="name"/> and its reversed variant
+    /// (<c>{name}_r</c>). Positions are auto-normalised to <c>[0, 1]</c> if the range is not already
+    /// <c>[0, 1]</c>.</summary>
+    /// <param name="name">Registry name. Must be non-empty; existing registrations with the same name are overwritten.</param>
+    /// <param name="colors">At least 2 <see cref="ColorStop"/> entries with strictly increasing positions.
+    /// Positions need not start at 0 or end at 1 — they are normalised automatically.</param>
+    /// <returns>The newly created <see cref="LinearColorMap"/>, already registered under both
+    /// <paramref name="name"/> and <c>{name}_r</c>.</returns>
+    /// <exception cref="ArgumentException">Fewer than 2 stops, non-increasing positions, or <paramref name="name"/> is null/whitespace.</exception>
+    public static LinearColorMap FromList(string name, IReadOnlyList<ColorStop> colors)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name must not be empty.", nameof(name));
@@ -65,8 +67,14 @@ public sealed class LinearColorMap : IColorMap
         return map;
     }
 
-    /// <summary>Creates a colormap with explicitly positioned stops. Positions must be strictly increasing in [0, 1].</summary>
-    public static LinearColorMap FromPositions(string name, (double Position, Color Color)[] stops)
+    /// <summary>Creates a colormap with explicitly positioned <see cref="ColorStop"/> stops. Unlike
+    /// <see cref="FromList"/> this overload does <b>not</b> normalise — positions must already be
+    /// strictly increasing within <c>[0, 1]</c>.</summary>
+    /// <param name="name">Colormap name (not registered with <see cref="ColorMapRegistry"/>).</param>
+    /// <param name="stops">At least 2 stops with strictly increasing positions in <c>[0, 1]</c>.</param>
+    /// <returns>The newly created colormap.</returns>
+    /// <exception cref="ArgumentException">Fewer than 2 stops or non-increasing positions.</exception>
+    public static LinearColorMap FromPositions(string name, ColorStop[] stops)
     {
         if (stops.Length < 2)
             throw new ArgumentException("At least 2 stops required.", nameof(stops));

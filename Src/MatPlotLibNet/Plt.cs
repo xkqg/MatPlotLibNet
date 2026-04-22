@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Animation;
 using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Styling;
@@ -51,6 +52,22 @@ public static class Plt
         configure?.Invoke(builder);
         return builder;
     }
+
+    /// <summary>Creates an <see cref="AnimationController{TState}"/> that calls
+    /// <paramref name="frameGenerator"/> with the eased progress <c>t ∈ [0, 1]</c> for each frame.</summary>
+    /// <param name="frameCount">Total number of frames.</param>
+    /// <param name="frameGenerator">Receives eased <c>t</c> and returns the figure for that moment.</param>
+    /// <param name="easing">Easing curve (default: <see cref="EasingKind.Linear"/>).</param>
+    /// <param name="intervalMs">Delay between frames in milliseconds (default: 16 ≈ 60fps).</param>
+    /// <param name="loop">Whether the animation loops (default: false).</param>
+    public static AnimationController<double> Animate(
+        int frameCount,
+        Func<double, Figure> frameGenerator,
+        EasingKind easing = EasingKind.Linear,
+        int intervalMs = 16,
+        bool loop = false) =>
+        new(new EasedFigureAnimation(frameCount, frameGenerator, easing, intervalMs, loop),
+            static (_, _) => Task.CompletedTask);
 
     /// <summary>
     /// Entry point for global style configuration, modeled after <c>matplotlib.pyplot.style</c>.

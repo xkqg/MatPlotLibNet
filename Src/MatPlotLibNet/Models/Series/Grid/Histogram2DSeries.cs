@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -37,9 +38,9 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
     }
 
     /// <inheritdoc />
-    public (double Min, double Max) GetColorBarRange()
+    public MinMaxRange GetColorBarRange()
     {
-        if (X.Length == 0 || Y.Length == 0) return (0, 1);
+        if (X.Length == 0 || Y.Length == 0) return new(0, 1);
         var counts = ComputeBinCounts();
         double min = double.MaxValue, max = double.MinValue;
         for (int r = 0; r < BinsY; r++)
@@ -48,7 +49,7 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
             if (counts[r, c] < min) min = counts[r, c];
             if (counts[r, c] > max) max = counts[r, c];
         }
-        return min < max ? (min, max) : (0, 1);
+        return min < max ? new(min, max) : new(0, 1);
     }
 
     /// <inheritdoc />

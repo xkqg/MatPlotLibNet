@@ -11,7 +11,7 @@ public class BrokenBarSeriesTests
     [Fact]
     public void Constructor_StoresRanges()
     {
-        var ranges = new (double, double)[][] { [(1.0, 2.0), (4.0, 1.0)] };
+        var ranges = new BarRange[][] { [new(1.0, 2.0), new(4.0, 1.0)] };
         var series = new BrokenBarSeries(ranges);
         Assert.Equal(ranges, series.Ranges);
     }
@@ -33,14 +33,14 @@ public class BrokenBarSeriesTests
     [Fact]
     public void ToSeriesDto_ReturnsTypeBrokenbar()
     {
-        var series = new BrokenBarSeries([[(1.0, 2.0)]]);
+        var series = new BrokenBarSeries([[new(1.0, 2.0)]]);
         Assert.Equal("brokenbar", series.ToSeriesDto().Type);
     }
 
     [Fact]
     public void ToSeriesDto_IncludesRangeStartsAndWidths()
     {
-        var ranges = new (double, double)[][] { [(1.0, 2.0), (5.0, 3.0)] };
+        var ranges = new BarRange[][] { [new(1.0, 2.0), new(5.0, 3.0)] };
         var series = new BrokenBarSeries(ranges);
         var dto = series.ToSeriesDto();
         Assert.NotNull(dto.RangeStarts);

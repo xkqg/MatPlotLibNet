@@ -32,17 +32,17 @@ public sealed class HexbinSeries : ChartSeries, IColormappable, INormalizable, I
     }
 
     /// <inheritdoc />
-    public (double Min, double Max) GetColorBarRange()
+    public MinMaxRange GetColorBarRange()
     {
-        if (X.Length == 0) return (0, 1);
+        if (X.Length == 0) return new(0, 1);
         double xMin = X.Min(), xMax = X.Max();
         double yMin = Y.Min(), yMax = Y.Max();
         if (xMin == xMax) xMax = xMin + 1;
         if (yMin == yMax) yMax = yMin + 1;
         var bins = HexbinSeries.ComputeBins(X, Y, xMin, xMax, yMin, yMax, GridSize);
-        if (bins.Count == 0) return (0, 1);
+        if (bins.Count == 0) return new(0, 1);
         int maxCount = bins.Values.Max();
-        return (MinCount, maxCount);
+        return new(MinCount, maxCount);
     }
 
     /// <inheritdoc />
@@ -67,7 +67,7 @@ public sealed class HexbinSeries : ChartSeries, IColormappable, INormalizable, I
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 
     /// <summary>Computes hex bin counts using the given data range and grid size.</summary>
-    internal static Dictionary<(int q, int r), int> ComputeBins(
+    internal static Dictionary<AxialHex, int> ComputeBins(
         double[] x, double[] y, double xMin, double xMax, double yMin, double yMax, int gridSize)
         => HexGrid.ComputeHexBins(x, y, xMin, xMax, yMin, yMax, gridSize);
 }

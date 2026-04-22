@@ -22,8 +22,8 @@ public readonly record struct Mat(double[,] Data)
     /// <summary>Number of columns.</summary>
     public int Cols => Data.GetLength(1);
 
-    /// <summary>Returns <c>(Rows, Cols)</c>.</summary>
-    public (int Rows, int Cols) Shape => (Rows, Cols);
+    /// <summary>Returns the matrix dimensions as <see cref="MatShape"/>.</summary>
+    public MatShape Shape => new(Rows, Cols);
 
     // -------------------------------------------------------------------------
     // Accessors

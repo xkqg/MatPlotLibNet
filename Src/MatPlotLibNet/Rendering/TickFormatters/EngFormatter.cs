@@ -13,16 +13,18 @@ namespace MatPlotLibNet.Rendering.TickFormatters;
 /// </summary>
 public sealed class EngFormatter : ITickFormatter
 {
-    private static readonly (double Factor, string Prefix)[] Prefixes =
+    private readonly record struct SiPrefix(double Factor, string Prefix);
+
+    private static readonly SiPrefix[] Prefixes =
     [
-        (1e12, "T"),
-        (1e9,  "G"),
-        (1e6,  "M"),
-        (1e3,  "k"),
-        (1e0,  ""),
-        (1e-3, "m"),
-        (1e-6, "µ"),
-        (1e-9, "n"),
+        new(1e12, "T"),
+        new(1e9,  "G"),
+        new(1e6,  "M"),
+        new(1e3,  "k"),
+        new(1e0,  ""),
+        new(1e-3, "m"),
+        new(1e-6, "µ"),
+        new(1e-9, "n"),
     ];
 
     /// <summary>Separator inserted between the number and the prefix. Defaults to a single space
@@ -38,16 +40,16 @@ public sealed class EngFormatter : ITickFormatter
         bool negative = value < 0;
         double abs = Math.Abs(value);
 
-        foreach (var (factor, prefix) in Prefixes)
+        foreach (var si in Prefixes)
         {
-            if (abs >= factor)
+            if (abs >= si.Factor)
             {
-                double scaled = abs / factor;
+                double scaled = abs / si.Factor;
                 string number = FormatScaled(scaled);
                 // Omit the separator when there's no prefix (e.g. plain "1", "42") so the
                 // no-prefix case renders as "42", not "42 ".
-                string sepToUse = prefix.Length == 0 ? string.Empty : Sep;
-                return negative ? $"-{number}{sepToUse}{prefix}" : $"{number}{sepToUse}{prefix}";
+                string sepToUse = si.Prefix.Length == 0 ? string.Empty : Sep;
+                return negative ? $"-{number}{sepToUse}{si.Prefix}" : $"{number}{sepToUse}{si.Prefix}";
             }
         }
 

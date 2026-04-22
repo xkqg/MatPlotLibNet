@@ -59,12 +59,12 @@ internal sealed class StreamplotSeriesRenderer : SeriesRenderer<StreamplotSeries
 
             points.Add(Transform.DataToPixel(cx, cy));
 
-            var (iu, iv) = Interpolate(cx, cy, x, y, u, v);
-            double mag = Math.Sqrt(iu * iu + iv * iv);
+            var velocity = Interpolate(cx, cy, x, y, u, v);
+            double mag = Math.Sqrt(velocity.X * velocity.X + velocity.Y * velocity.Y);
             if (mag < 1e-10) break;
 
-            cx += iu / mag * dt;
-            cy += iv / mag * dt;
+            cx += velocity.X / mag * dt;
+            cy += velocity.Y / mag * dt;
         }
 
         if (points.Count < 2) return;
@@ -93,7 +93,7 @@ internal sealed class StreamplotSeriesRenderer : SeriesRenderer<StreamplotSeries
         }
     }
 
-    private static (double u, double v) Interpolate(double px, double py,
+    private static Point Interpolate(double px, double py,
         double[] x, double[] y, double[,] u, double[,] v)
     {
         int nx = x.Length, ny = y.Length;
@@ -124,7 +124,7 @@ internal sealed class StreamplotSeriesRenderer : SeriesRenderer<StreamplotSeries
         double rv = v00 * (1 - tx) * (1 - ty) + v10 * tx * (1 - ty)
                    + v01 * (1 - tx) * ty + v11 * tx * ty;
 
-        return (ru, rv);
+        return new(ru, rv);
     }
 
     private static int FindIndex(double[] arr, double val)

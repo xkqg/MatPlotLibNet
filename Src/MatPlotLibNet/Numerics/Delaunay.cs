@@ -14,6 +14,10 @@ public static class Delaunay
 {
     private const double Epsilon = 1e-10;
 
+    private readonly record struct Triangle(int A, int B, int C);
+
+    private readonly record struct Edge(int A, int B);
+
     /// <summary>Computes the Delaunay triangulation of a 2D point set.</summary>
     /// <param name="x">X coordinates of the points.</param>
     /// <param name="y">Y coordinates of the points. Must be the same length as <paramref name="x"/>.</param>
@@ -38,29 +42,29 @@ public static class Delaunay
         double[] py = [..y, my - 3 * delta, my + delta, my - 3 * delta];
 
         // Initial super-triangle in CCW order (required for determinant circumcircle test)
-        var triangles = new List<(int a, int b, int c)>
+        var triangles = new List<Triangle>
         {
-            (n, n + 2, n + 1)
+            new(n, n + 2, n + 1)
         };
 
         for (int i = 0; i < n; i++)
         {
             double xi = px[i], yi = py[i];
-            var badTriangles = new List<(int a, int b, int c)>();
+            var badTriangles = new List<Triangle>();
             foreach (var tri in triangles)
             {
-                if (InCircumcircle(xi, yi, px[tri.a], py[tri.a], px[tri.b], py[tri.b], px[tri.c], py[tri.c]))
+                if (InCircumcircle(xi, yi, px[tri.A], py[tri.A], px[tri.B], py[tri.B], px[tri.C], py[tri.C]))
                     badTriangles.Add(tri);
             }
 
             // Find boundary polygon of bad triangles (edges not shared by 2 bad triangles)
-            var boundary = new List<(int a, int b)>();
+            var boundary = new List<Edge>();
             foreach (var tri in badTriangles)
             {
-                (int, int)[] edges = [(tri.a, tri.b), (tri.b, tri.c), (tri.c, tri.a)];
+                Edge[] edges = [new(tri.A, tri.B), new(tri.B, tri.C), new(tri.C, tri.A)];
                 foreach (var e in edges)
                 {
-                    bool shared = badTriangles.Any(other => other != tri && TriHasEdge(other, e.Item1, e.Item2));
+                    bool shared = badTriangles.Any(other => other != tri && TriHasEdge(other, e.A, e.B));
                     if (!shared) boundary.Add(e);
                 }
             }
@@ -68,19 +72,19 @@ public static class Delaunay
             foreach (var bad in badTriangles)
                 triangles.Remove(bad);
 
-            foreach (var (a, b) in boundary)
-                triangles.Add((a, b, i));
+            foreach (var edge in boundary)
+                triangles.Add(new(edge.A, edge.B, i));
         }
 
         // Remove triangles that use super-triangle vertices
-        triangles.RemoveAll(t => t.a >= n || t.b >= n || t.c >= n);
+        triangles.RemoveAll(t => t.A >= n || t.B >= n || t.C >= n);
 
         var flat = new int[triangles.Count * 3];
         for (int i = 0; i < triangles.Count; i++)
         {
-            flat[i * 3] = triangles[i].a;
-            flat[i * 3 + 1] = triangles[i].b;
-            flat[i * 3 + 2] = triangles[i].c;
+            flat[i * 3] = triangles[i].A;
+            flat[i * 3 + 1] = triangles[i].B;
+            flat[i * 3 + 2] = triangles[i].C;
         }
 
         return new TriMesh(flat, x, y);
@@ -99,12 +103,11 @@ public static class Delaunay
         return det > 0;
     }
 
-    private static bool TriHasEdge((int a, int b, int c) t, int u, int v)
+    private static bool TriHasEdge(Triangle t, int u, int v)
     {
-        var e = (u, v);
-        return (t.a == e.Item1 && t.b == e.Item2) || (t.b == e.Item1 && t.a == e.Item2)
-            || (t.b == e.Item1 && t.c == e.Item2) || (t.c == e.Item1 && t.b == e.Item2)
-            || (t.c == e.Item1 && t.a == e.Item2) || (t.a == e.Item1 && t.c == e.Item2);
+        return (t.A == u && t.B == v) || (t.B == u && t.A == v)
+            || (t.B == u && t.C == v) || (t.C == u && t.B == v)
+            || (t.C == u && t.A == v) || (t.A == u && t.C == v);
     }
 
     private static double[] JitterCollinear(double[] x, double[] y)

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models.Tools;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Lighting;
 using MatPlotLibNet.Styling;
@@ -91,6 +92,18 @@ public sealed class Axes
     /// <summary>Gets the collection of reference lines on this axes.</summary>
     public IReadOnlyList<ReferenceLine> ReferenceLines => _referenceLines;
     private readonly List<ReferenceLine> _referenceLines = [];
+
+    /// <summary>Gets the collection of trendlines drawn on this axes.</summary>
+    public IReadOnlyList<Trendline> Trendlines => _trendlines;
+    private readonly List<Trendline> _trendlines = [];
+
+    /// <summary>Gets the collection of horizontal price levels drawn on this axes.</summary>
+    public IReadOnlyList<HorizontalLevel> HorizontalLevels => _horizontalLevels;
+    private readonly List<HorizontalLevel> _horizontalLevels = [];
+
+    /// <summary>Gets the collection of Fibonacci retracement overlays on this axes.</summary>
+    public IReadOnlyList<FibonacciRetracement> FibonacciRetracements => _fibonacciRetracements;
+    private readonly List<FibonacciRetracement> _fibonacciRetracements = [];
 
     /// <summary>Gets the collection of shaded span regions on this axes.</summary>
     public IReadOnlyList<SpanRegion> Spans => _spans;
@@ -797,9 +810,9 @@ public sealed class Axes
     }
 
     /// <summary>Adds a broken bar series showing horizontal bars with gaps per row.</summary>
-    /// <param name="ranges">An array of (Start, Width) range sets, one per row.</param>
+    /// <param name="ranges">An array of <see cref="BarRange"/> sets, one per row.</param>
     /// <returns>The newly created <see cref="BrokenBarSeries"/> for further configuration.</returns>
-    public BrokenBarSeries BrokenBarH((double Start, double Width)[][] ranges)
+    public BrokenBarSeries BrokenBarH(BarRange[][] ranges)
     {
         var series = new BrokenBarSeries(ranges);
         _series.Add(series);
@@ -943,6 +956,42 @@ public sealed class Axes
         _referenceLines.Add(line);
         return line;
     }
+
+    /// <summary>Adds a trendline between two data-coordinate points.</summary>
+    public Trendline AddTrendline(double x1, double y1, double x2, double y2)
+    {
+        var line = new Trendline(x1, y1, x2, y2);
+        _trendlines.Add(line);
+        return line;
+    }
+
+    internal void AddTrendline(Trendline line) => _trendlines.Add(line);
+
+    internal void RemoveTrendline(Trendline line) => _trendlines.Remove(line);
+
+    /// <summary>Adds a horizontal price level (support/resistance) at the given value.</summary>
+    public HorizontalLevel AddLevel(double value)
+    {
+        var level = new HorizontalLevel(value);
+        _horizontalLevels.Add(level);
+        return level;
+    }
+
+    internal void AddLevel(HorizontalLevel level) => _horizontalLevels.Add(level);
+
+    internal void RemoveLevel(HorizontalLevel level) => _horizontalLevels.Remove(level);
+
+    /// <summary>Adds a Fibonacci retracement overlay between a price high and a price low.</summary>
+    public FibonacciRetracement AddFibonacci(double priceHigh, double priceLow)
+    {
+        var fib = new FibonacciRetracement(priceHigh, priceLow);
+        _fibonacciRetracements.Add(fib);
+        return fib;
+    }
+
+    internal void AddFibonacci(FibonacciRetracement fib) => _fibonacciRetracements.Add(fib);
+
+    internal void RemoveFibonacci(FibonacciRetracement fib) => _fibonacciRetracements.Remove(fib);
 
     /// <summary>Adds a horizontal shaded span between the specified Y values.</summary>
     public SpanRegion AxHSpan(double yMin, double yMax)

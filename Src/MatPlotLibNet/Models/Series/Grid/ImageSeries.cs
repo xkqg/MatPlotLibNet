@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
@@ -30,7 +31,7 @@ public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormapp
     public double? VMax { get; set; }
 
     /// <inheritdoc />
-    public (double Min, double Max) GetColorBarRange()
+    public MinMaxRange GetColorBarRange()
     {
         double min = VMin ?? double.MaxValue;
         double max = VMax ?? double.MinValue;
@@ -43,7 +44,7 @@ public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormapp
                     if (!VMax.HasValue && Data[r, c] > max) max = Data[r, c];
                 }
         }
-        return min < max ? (min, max) : (0, 1);
+        return min < max ? new(min, max) : new(0, 1);
     }
 
     /// <summary>Initializes a new instance of <see cref="ImageSeries"/> with the specified 2D data.</summary>

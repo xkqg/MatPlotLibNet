@@ -29,7 +29,7 @@ internal sealed class Line3DSeriesRenderer : SeriesRenderer<Line3DSeries>
 
         // Build segments with average depth for painter's algorithm sorting
         int segCount = series.X.Length - 1;
-        var segments = new List<(double Depth, Point P1, Point P2)>(segCount);
+        var segments = new List<DepthSegment>(segCount);
 
         for (int i = 0; i < segCount; i++)
         {
@@ -37,13 +37,15 @@ internal sealed class Line3DSeriesRenderer : SeriesRenderer<Line3DSeries>
             double x1 = series.X.Data[i + 1], y1 = series.Y.Data[i + 1], z1 = series.Z.Data[i + 1];
 
             double avgDepth = (proj.Depth(x0, y0, z0) + proj.Depth(x1, y1, z1)) / 2.0;
-            segments.Add((avgDepth, proj.Project(x0, y0, z0), proj.Project(x1, y1, z1)));
+            segments.Add(new(avgDepth, proj.Project(x0, y0, z0), proj.Project(x1, y1, z1)));
         }
 
         // Sort back-to-front (painter's algorithm)
         segments.Sort((a, b) => a.Depth.CompareTo(b.Depth));
 
-        foreach (var (_, p1, p2) in segments)
-            Ctx.DrawLine(p1, p2, color, series.LineWidth, series.LineStyle);
+        foreach (var seg in segments)
+            Ctx.DrawLine(seg.P1, seg.P2, color, series.LineWidth, series.LineStyle);
     }
+
+    private readonly record struct DepthSegment(double Depth, Point P1, Point P2);
 }

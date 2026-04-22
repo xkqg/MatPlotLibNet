@@ -18,14 +18,14 @@ internal static class MonotoneCubicSpline
     /// <param name="y">Y values, same length as <paramref name="x"/>.</param>
     /// <param name="resolution">Number of output sub-segments per input interval. Default 10.</param>
     /// <returns>
-    /// A tuple of interpolated X and Y arrays of length <c>(n−1)×resolution+1</c>.
+    /// An <see cref="XYCurve"/> of interpolated X and Y arrays of length <c>(n−1)×resolution+1</c>.
     /// Returns the input unchanged when <paramref name="x"/> has fewer than 2 elements
     /// or <paramref name="resolution"/> ≤ 1.
     /// </returns>
-    internal static (double[] X, double[] Y) Interpolate(double[] x, double[] y, int resolution = 10)
+    internal static XYCurve Interpolate(double[] x, double[] y, int resolution = 10)
     {
         int n = x.Length;
-        if (n < 2 || resolution <= 1) return (x, y);
+        if (n < 2 || resolution <= 1) return new(x, y);
 
         // Step 1: compute secant slopes
         var d = new double[n - 1];
@@ -93,6 +93,6 @@ internal static class MonotoneCubicSpline
             }
         }
 
-        return (outX, outY);
+        return new(outX, outY);
     }
 }

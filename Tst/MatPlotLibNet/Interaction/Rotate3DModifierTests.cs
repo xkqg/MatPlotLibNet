@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Interaction;
 
@@ -136,8 +137,7 @@ public sealed class Rotate3DModifierTests
 
         public MatPlotLibNet.Rendering.Rect GetPlotArea(int axesIndex) => _plotArea;
 
-        public (double XMin, double XMax, double YMin, double YMax) GetDataRange(int axesIndex) =>
-            (0, 10, 0, 10);
+        public DataRange GetDataRange(int axesIndex) => new(0, 10, 0, 10);
 
         public int? HitTestAxes(double pixelX, double pixelY)
         {

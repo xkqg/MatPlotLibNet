@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -41,7 +42,7 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
     }
 
     /// <inheritdoc />
-    public (double Min, double Max) GetColorBarRange()
+    public MinMaxRange GetColorBarRange()
     {
         double min = double.MaxValue, max = double.MinValue;
         for (int t = 0; t < Data.GetLength(0); t++)
@@ -51,7 +52,7 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
                 if (v < min) min = v;
                 if (v > max) max = v;
             }
-        return min < max ? (min, max) : (0, 1);
+        return min < max ? new(min, max) : new(0, 1);
     }
 
     /// <inheritdoc />

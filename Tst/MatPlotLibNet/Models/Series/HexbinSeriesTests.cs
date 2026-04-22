@@ -51,7 +51,7 @@ public class HexbinSeriesTests
     public void GetColorBarRange_EmptyData_ReturnsSentinel()
     {
         var s = new HexbinSeries([], []);
-        Assert.Equal((0.0, 1.0), s.GetColorBarRange());
+        Assert.Equal(new MatPlotLibNet.Numerics.MinMaxRange(0.0, 1.0), s.GetColorBarRange());
     }
 
     /// <summary>GetColorBarRange line 40-41: degenerate axis (xMin==xMax / yMin==yMax)

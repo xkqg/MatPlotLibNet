@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Rendering;
 
@@ -26,8 +27,8 @@ internal static class AxisBreakMapper
     /// <param name="breaks">List of axis breaks whose gap widths are to be removed.</param>
     /// <param name="fullMin">Minimum of the full (uncompressed) data range.</param>
     /// <param name="fullMax">Maximum of the full (uncompressed) data range.</param>
-    /// <returns>Tuple (<c>fullMin</c>, <c>fullMax − totalGap</c>) suitable for <see cref="DataTransform"/>.</returns>
-    public static (double Min, double Max) CompressedRange(
+    /// <returns>Range (<c>fullMin</c>, <c>fullMax − totalGap</c>) suitable for <see cref="DataTransform"/>.</returns>
+    public static MinMaxRange CompressedRange(
         IReadOnlyList<AxisBreak> breaks, double fullMin, double fullMax)
     {
         double totalGap = 0;
@@ -37,7 +38,7 @@ internal static class AxisBreakMapper
             double hi = Math.Min(b.To, fullMax);
             if (hi > lo) totalGap += hi - lo;
         }
-        return (fullMin, fullMax - totalGap);
+        return new(fullMin, fullMax - totalGap);
     }
 
     /// <summary>Maps <paramref name="value"/> from data space to compressed coordinate space.
