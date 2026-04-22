@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel server-side SVG rendering, polymorphic export (SVG / PNG / PDF / animated GIF), and 74 series types across line, scatter, bar, 3D, streaming, polar, financial, statistical, hierarchical, Sankey, and vector families. Ships with 13 map projections and embedded Natural Earth data, 26 themes, LaTeX-style MathText, O(1) streaming with 13 technical indicators, financial drawing tools (trendlines, Fibonacci retracements, horizontal levels), frame-based animation with 6 easing curves + Pause/Resume playback, native UI controls for **Blazor, WPF, MAUI, Avalonia, Uno Platform, ASP.NET Core**, and TypeScript clients for **Angular, React, and Vue** — no JavaScript framework, no WebView, no SaaS.
+A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel server-side SVG rendering, polymorphic export (SVG / PNG / PDF / animated GIF), and 74 series types across line, scatter, bar, 3D, streaming, polar, financial, statistical, hierarchical, Sankey, and vector families. Ships with 13 map projections and embedded Natural Earth data, 26 themes, LaTeX-style MathText, O(1) streaming with **40 technical indicators** (classical moving averages + volatility, momentum, cycle, microstructure, entropy, and change-point detectors), financial drawing tools (trendlines, Fibonacci retracements, horizontal levels), frame-based animation with 6 easing curves + Pause/Resume playback, native UI controls for **Blazor, WPF, MAUI, Avalonia, Uno Platform, ASP.NET Core**, and TypeScript clients for **Angular, React, and Vue** — no JavaScript framework, no WebView, no SaaS.
 
 [![CI](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml/badge.svg)](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
@@ -10,7 +10,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 Stabilisation phase
 
-After thirteen feature releases (v1.0 → v1.8.0) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators, native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
+After thirteen feature releases (v1.0 → v1.8.0) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators (40 indicators — v1.8.0 adds 24 financial / signal-processing extras), native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
 
 **v1.7.1 started the stabilisation period; v1.8.0 continues it.** The focus shifts from "ship more features" to:
 
@@ -115,7 +115,7 @@ Plt.Create()
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). Stacked-record event hierarchy, natural coalescing, per-caller hover responses.
 
-**104 colormaps** — viridis, plasma, turbo, coolwarm, and 100 more. NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with 16 financial indicators. Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
+**104 colormaps** — viridis, plasma, turbo, coolwarm, and 100 more. NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with **40 technical indicators** (v1.8.0 adds 24 — Garman-Klass, Yang-Zhang, VPIN, Hurst, Ehlers cycle family, BOCPD, wavelet entropy, and more). Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
 
 ---
 

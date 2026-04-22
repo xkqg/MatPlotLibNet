@@ -6,6 +6,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.8.0] — 2026-04-22
 
+### Added — 24 new financial / signal-processing indicators
+
+v1.8.0 extends the indicator library from 16 to **40 indicators**. All new classes follow the
+existing `Indicator<TResult>` / `CandleIndicator<TResult>` / `PriceIndicator<TResult>` stacked-
+base-class pattern, emit `SignalResult` or a dedicated named result record, round-trip through
+the serialization pipeline, and ship with ≥90/90 line/branch coverage.
+
+**Volatility estimators (3):**
+- `GarmanKlass` — Garman-Klass OHLC-based variance estimator (7.4× more efficient than close-to-close).
+- `YangZhang` — Yang-Zhang estimator combining overnight, open-to-close, and Garman-Klass components.
+- `TurbulenceIndex` — multivariate turbulence / Mahalanobis-distance volatility measure across a correlation matrix.
+
+**Momentum / oscillators (5):**
+- `AroonOscillator` — Aroon up/down differential, range <c>[-100, +100]</c>.
+- `RelativeVigorIndex` — RVI with signal line (returns `RviResult`).
+- `SqueezeMomentum` — John Carter's TTM Squeeze (returns `SqueezeResult` — momentum histogram + squeeze on/off/fire flags).
+- `LaguerreRsi` — Ehlers's Laguerre-RSI (smoother RSI via gamma-damped Laguerre filter).
+- `KaufmanEfficiencyRatio` — KAMA's efficiency-ratio signal, range <c>[0, 1]</c>.
+
+**Trend / regime detection (4):**
+- `MamaFama` — Ehlers's MESA Adaptive Moving Average + Following Adaptive MA (returns `MamaFamaResult`).
+- `AdaptiveStochastic` — Ehlers's adaptive-lookback stochastic using dominant-cycle length.
+- `FractionalDifferentiation` — Lopez de Prado's fractional differencing (stationarity preserving long-memory signal).
+- `RoofingFilter` — Ehlers's two-pole high-pass + SuperSmoother roofing filter for cycle extraction.
+
+**Cycle / phase (3):**
+- `CyberCycle` — Ehlers's Cyber Cycle (phase-accurate cycle oscillator).
+- `EhlersSineWave` — dual sine/lead-sine wave (returns `SineWaveResult`) — detects cycle turning points.
+- The supporting Ehlers infrastructure ships under `Indicators/Ehlers/` (`HighPassFilter`, `SuperSmoother`, `HilbertDiscriminator` + `HilbertResult`) — reused across the cycle family.
+
+**Microstructure / liquidity (4):**
+- `AmihudIlliquidity` — Amihud's <c>|return| / volume</c> illiquidity proxy.
+- `CorwinSchultz` — high-low bid-ask spread estimator.
+- `RollSpread` — Roll's serial-covariance spread estimator.
+- `Vpin` — Volume-Synchronised Probability of Informed Trading.
+
+**Volume-based (1):**
+- `ForceIndex` — Elder's force index, <c>(close - prev_close) × volume</c>, smoothed via EMA.
+
+**Change-point / regime shifts (2):**
+- `Bocpd` — Bayesian Online Change Point Detection (Adams-MacKay).
+- `Cusum` — Page's CUSUM change-point detector (returns `CusumResult` with positive / negative sums).
+
+**Entropy / information-theoretic (3):**
+- `PermutationEntropy` — Bandt-Pompe permutation entropy (model-free complexity measure).
+- `WaveletEntropy` — Shannon entropy over Haar wavelet detail coefficients (returns level-resolved entropy).
+- `WaveletEnergyRatio` — per-level wavelet-energy ratios for multi-scale volatility decomposition.
+
+**Dispersion (1):**
+- `DispersionIndex` — cross-sectional dispersion measure across a basket.
+
+Each indicator extends the `Indicator<TResult>` base and plugs into the existing
+`Plot(Axes)` / `SeriesDto` serialization / `Apply(DataFrame)` pipelines. No core-framework
+changes — the additions are pure content extension.
+
 ### Refactored — named-type sweep: every tuple → `record struct`, every `*Helper` → extension or domain static
 
 The project's class-design rules (see `CONTRIBUTING.md`) forbid anonymous tuples in

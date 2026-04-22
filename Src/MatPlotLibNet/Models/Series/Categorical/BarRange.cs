@@ -4,10 +4,9 @@
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>One segment of a <see cref="BrokenBarSeries"/> row: a horizontal bar
-/// occupying <c>[Start, Start + Width]</c> on the X axis. Consumed by
-/// <see cref="Builders.AxesBuilder.BrokenBarH"/>,
-/// <see cref="Builders.FigureBuilder.BrokenBarH"/>, and the
-/// <see cref="Models.Axes.BrokenBarH"/> convenience method.</summary>
+/// occupying <c>[Start, Start + Width]</c> on the X axis. Consumed by the
+/// <c>BrokenBarH(BarRange[][], …)</c> convenience methods on <c>AxesBuilder</c>,
+/// <c>FigureBuilder</c>, and <see cref="Axes"/>.</summary>
 /// <param name="Start">Starting X coordinate of the segment.</param>
 /// <param name="Width">Horizontal span of the segment. Must be non-negative.</param>
 public readonly record struct BarRange(double Start, double Width);
