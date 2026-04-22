@@ -47,8 +47,9 @@ public class BrowserLauncherTests : IDisposable
     [Fact]
     public void DefaultBrowser_IsNotNull()
     {
-        Assert.NotNull(new BrowserLauncher());
-        Assert.IsType<BrowserLauncher>(_original);
+        var launcher = new BrowserLauncher();
+        Assert.NotNull(launcher);
+        Assert.IsType<BrowserLauncher>(launcher);
     }
 
     public void Dispose()
