@@ -1,0 +1,1812 @@
+### YamlMime:ManagedReference
+items:
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  commentId: T:MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  id: MauiGraphicsRenderContext
+  parent: MatPlotLibNet.Maui
+  children:
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.#ctor(Microsoft.Maui.Graphics.ICanvas)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point,System.Double,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLine(MatPlotLibNet.Rendering.Point,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawText(System.String,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Font,MatPlotLibNet.Rendering.TextAlignment)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.MeasureText(System.String,MatPlotLibNet.Styling.Font)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.PopClip
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.PushClip(MatPlotLibNet.Rendering.Rect)
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext.SetOpacity(System.Double)
+  langs:
+  - csharp
+  - vb
+  name: MauiGraphicsRenderContext
+  nameWithType: MauiGraphicsRenderContext
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  type: Class
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: MauiGraphicsRenderContext
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 15
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: An <xref href="MatPlotLibNet.Rendering.IRenderContext" data-throw-if-not-resolved="false"></xref> implementation that draws onto a .NET MAUI <xref href="Microsoft.Maui.Graphics.ICanvas" data-throw-if-not-resolved="false"></xref>.
+  example: []
+  syntax:
+    content: 'public sealed class MauiGraphicsRenderContext : IRenderContext'
+    content.vb: Public NotInheritable Class MauiGraphicsRenderContext Implements IRenderContext
+  inheritance:
+  - System.Object
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext
+  inheritedMembers:
+  - System.Object.Equals(System.Object)
+  - System.Object.Equals(System.Object,System.Object)
+  - System.Object.GetHashCode
+  - System.Object.GetType
+  - System.Object.ReferenceEquals(System.Object,System.Object)
+  - System.Object.ToString
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.#ctor(Microsoft.Maui.Graphics.ICanvas)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.#ctor(Microsoft.Maui.Graphics.ICanvas)
+  id: '#ctor(Microsoft.Maui.Graphics.ICanvas)'
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: MauiGraphicsRenderContext(ICanvas)
+  nameWithType: MauiGraphicsRenderContext.MauiGraphicsRenderContext(ICanvas)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.MauiGraphicsRenderContext(Microsoft.Maui.Graphics.ICanvas)
+  type: Constructor
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: .ctor
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 20
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Initializes a new instance wrapping the specified MAUI canvas.
+  example: []
+  syntax:
+    content: public MauiGraphicsRenderContext(ICanvas canvas)
+    parameters:
+    - id: canvas
+      type: Microsoft.Maui.Graphics.ICanvas
+    content.vb: Public Sub New(canvas As ICanvas)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.#ctor*
+  nameWithType.vb: MauiGraphicsRenderContext.New(ICanvas)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.New(Microsoft.Maui.Graphics.ICanvas)
+  name.vb: New(ICanvas)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLine(MatPlotLibNet.Rendering.Point,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLine(MatPlotLibNet.Rendering.Point,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  id: DrawLine(MatPlotLibNet.Rendering.Point,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: DrawLine(Point, Point, Color, double, LineStyle)
+  nameWithType: MauiGraphicsRenderContext.DrawLine(Point, Point, Color, double, LineStyle)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLine(MatPlotLibNet.Rendering.Point, MatPlotLibNet.Rendering.Point, MatPlotLibNet.Styling.Color, double, MatPlotLibNet.Styling.LineStyle)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: DrawLine
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 26
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Draws a straight line between two points.
+  example: []
+  syntax:
+    content: public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style)
+    parameters:
+    - id: p1
+      type: MatPlotLibNet.Rendering.Point
+    - id: p2
+      type: MatPlotLibNet.Rendering.Point
+    - id: color
+      type: MatPlotLibNet.Styling.Color
+    - id: thickness
+      type: System.Double
+    - id: style
+      type: MatPlotLibNet.Styling.LineStyle
+    content.vb: Public Sub DrawLine(p1 As Point, p2 As Point, color As Color, thickness As Double, style As LineStyle)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLine*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.DrawLine(MatPlotLibNet.Rendering.Point,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  nameWithType.vb: MauiGraphicsRenderContext.DrawLine(Point, Point, Color, Double, LineStyle)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLine(MatPlotLibNet.Rendering.Point, MatPlotLibNet.Rendering.Point, MatPlotLibNet.Styling.Color, Double, MatPlotLibNet.Styling.LineStyle)
+  name.vb: DrawLine(Point, Point, Color, Double, LineStyle)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  id: DrawLines(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: DrawLines(IReadOnlyList<Point>, Color, double, LineStyle)
+  nameWithType: MauiGraphicsRenderContext.DrawLines(IReadOnlyList<Point>, Color, double, LineStyle)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList<MatPlotLibNet.Rendering.Point>, MatPlotLibNet.Styling.Color, double, MatPlotLibNet.Styling.LineStyle)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: DrawLines
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 35
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Draws a connected polyline through the specified points.
+  example: []
+  syntax:
+    content: public void DrawLines(IReadOnlyList<Point> points, Color color, double thickness, LineStyle style)
+    parameters:
+    - id: points
+      type: System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point}
+    - id: color
+      type: MatPlotLibNet.Styling.Color
+    - id: thickness
+      type: System.Double
+    - id: style
+      type: MatPlotLibNet.Styling.LineStyle
+    content.vb: Public Sub DrawLines(points As IReadOnlyList(Of Point), color As Color, thickness As Double, style As LineStyle)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLines*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  nameWithType.vb: MauiGraphicsRenderContext.DrawLines(IReadOnlyList(Of Point), Color, Double, LineStyle)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList(Of MatPlotLibNet.Rendering.Point), MatPlotLibNet.Styling.Color, Double, MatPlotLibNet.Styling.LineStyle)
+  name.vb: DrawLines(IReadOnlyList(Of Point), Color, Double, LineStyle)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  id: DrawPolygon(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: DrawPolygon(IReadOnlyList<Point>, Color?, Color?, double)
+  nameWithType: MauiGraphicsRenderContext.DrawPolygon(IReadOnlyList<Point>, Color?, Color?, double)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList<MatPlotLibNet.Rendering.Point>, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, double)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: DrawPolygon
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 51
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Draws a filled and/or stroked polygon defined by the given vertices.
+  example: []
+  syntax:
+    content: public void DrawPolygon(IReadOnlyList<Point> points, Color? fill, Color? stroke, double strokeThickness)
+    parameters:
+    - id: points
+      type: System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point}
+    - id: fill
+      type: System.Nullable{MatPlotLibNet.Styling.Color}
+    - id: stroke
+      type: System.Nullable{MatPlotLibNet.Styling.Color}
+    - id: strokeThickness
+      type: System.Double
+    content.vb: Public Sub DrawPolygon(points As IReadOnlyList(Of Point), fill As Color?, stroke As Color?, strokeThickness As Double)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPolygon*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  nameWithType.vb: MauiGraphicsRenderContext.DrawPolygon(IReadOnlyList(Of Point), Color?, Color?, Double)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList(Of MatPlotLibNet.Rendering.Point), MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, Double)
+  name.vb: DrawPolygon(IReadOnlyList(Of Point), Color?, Color?, Double)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point,System.Double,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point,System.Double,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  id: DrawCircle(MatPlotLibNet.Rendering.Point,System.Double,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: DrawCircle(Point, double, Color?, Color?, double)
+  nameWithType: MauiGraphicsRenderContext.DrawCircle(Point, double, Color?, Color?, double)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point, double, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, double)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: DrawCircle
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 76
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Draws a circle at the specified center with the given radius.
+  example: []
+  syntax:
+    content: public void DrawCircle(Point center, double radius, Color? fill, Color? stroke, double strokeThickness)
+    parameters:
+    - id: center
+      type: MatPlotLibNet.Rendering.Point
+    - id: radius
+      type: System.Double
+    - id: fill
+      type: System.Nullable{MatPlotLibNet.Styling.Color}
+    - id: stroke
+      type: System.Nullable{MatPlotLibNet.Styling.Color}
+    - id: strokeThickness
+      type: System.Double
+    content.vb: Public Sub DrawCircle(center As Point, radius As Double, fill As Color?, stroke As Color?, strokeThickness As Double)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawCircle*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point,System.Double,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  nameWithType.vb: MauiGraphicsRenderContext.DrawCircle(Point, Double, Color?, Color?, Double)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point, Double, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, Double)
+  name.vb: DrawCircle(Point, Double, Color?, Color?, Double)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  id: DrawRectangle(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: DrawRectangle(Rect, Color?, Color?, double)
+  nameWithType: MauiGraphicsRenderContext.DrawRectangle(Rect, Color?, Color?, double)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, double)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: DrawRectangle
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 92
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Draws a filled and/or stroked rectangle.
+  example: []
+  syntax:
+    content: public void DrawRectangle(Rect rect, Color? fill, Color? stroke, double strokeThickness)
+    parameters:
+    - id: rect
+      type: MatPlotLibNet.Rendering.Rect
+    - id: fill
+      type: System.Nullable{MatPlotLibNet.Styling.Color}
+    - id: stroke
+      type: System.Nullable{MatPlotLibNet.Styling.Color}
+    - id: strokeThickness
+      type: System.Double
+    content.vb: Public Sub DrawRectangle(rect As Rect, fill As Color?, stroke As Color?, strokeThickness As Double)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawRectangle*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  nameWithType.vb: MauiGraphicsRenderContext.DrawRectangle(Rect, Color?, Color?, Double)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, Double)
+  name.vb: DrawRectangle(Rect, Color?, Color?, Double)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  id: DrawEllipse(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: DrawEllipse(Rect, Color?, Color?, double)
+  nameWithType: MauiGraphicsRenderContext.DrawEllipse(Rect, Color?, Color?, double)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, double)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: DrawEllipse
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 108
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Draws an ellipse inscribed within the specified bounding rectangle.
+  example: []
+  syntax:
+    content: public void DrawEllipse(Rect bounds, Color? fill, Color? stroke, double strokeThickness)
+    parameters:
+    - id: bounds
+      type: MatPlotLibNet.Rendering.Rect
+    - id: fill
+      type: System.Nullable{MatPlotLibNet.Styling.Color}
+    - id: stroke
+      type: System.Nullable{MatPlotLibNet.Styling.Color}
+    - id: strokeThickness
+      type: System.Double
+    content.vb: Public Sub DrawEllipse(bounds As Rect, fill As Color?, stroke As Color?, strokeThickness As Double)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawEllipse*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  nameWithType.vb: MauiGraphicsRenderContext.DrawEllipse(Rect, Color?, Color?, Double)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, Double)
+  name.vb: DrawEllipse(Rect, Color?, Color?, Double)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawText(System.String,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Font,MatPlotLibNet.Rendering.TextAlignment)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawText(System.String,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Font,MatPlotLibNet.Rendering.TextAlignment)
+  id: DrawText(System.String,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Font,MatPlotLibNet.Rendering.TextAlignment)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: DrawText(string, Point, Font, TextAlignment)
+  nameWithType: MauiGraphicsRenderContext.DrawText(string, Point, Font, TextAlignment)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawText(string, MatPlotLibNet.Rendering.Point, MatPlotLibNet.Styling.Font, MatPlotLibNet.Rendering.TextAlignment)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: DrawText
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 124
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Draws a text string at the specified position with the given font and alignment.
+  example: []
+  syntax:
+    content: public void DrawText(string text, Point position, Font font, TextAlignment alignment)
+    parameters:
+    - id: text
+      type: System.String
+    - id: position
+      type: MatPlotLibNet.Rendering.Point
+    - id: font
+      type: MatPlotLibNet.Styling.Font
+    - id: alignment
+      type: MatPlotLibNet.Rendering.TextAlignment
+    content.vb: Public Sub DrawText(text As String, position As Point, font As Font, alignment As TextAlignment)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawText*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.DrawText(System.String,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Font,MatPlotLibNet.Rendering.TextAlignment)
+  nameWithType.vb: MauiGraphicsRenderContext.DrawText(String, Point, Font, TextAlignment)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawText(String, MatPlotLibNet.Rendering.Point, MatPlotLibNet.Styling.Font, MatPlotLibNet.Rendering.TextAlignment)
+  name.vb: DrawText(String, Point, Font, TextAlignment)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  id: DrawPath(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: DrawPath(IReadOnlyList<PathSegment>, Color?, Color?, double)
+  nameWithType: MauiGraphicsRenderContext.DrawPath(IReadOnlyList<PathSegment>, Color?, Color?, double)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList<MatPlotLibNet.Rendering.PathSegment>, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, double)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: DrawPath
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 141
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Draws a complex path composed of move, line, bezier, arc, and close segments.
+  example: []
+  syntax:
+    content: public void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness)
+    parameters:
+    - id: segments
+      type: System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment}
+    - id: fill
+      type: System.Nullable{MatPlotLibNet.Styling.Color}
+    - id: stroke
+      type: System.Nullable{MatPlotLibNet.Styling.Color}
+    - id: strokeThickness
+      type: System.Double
+    content.vb: Public Sub DrawPath(segments As IReadOnlyList(Of PathSegment), fill As Color?, stroke As Color?, strokeThickness As Double)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPath*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  nameWithType.vb: MauiGraphicsRenderContext.DrawPath(IReadOnlyList(Of PathSegment), Color?, Color?, Double)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList(Of MatPlotLibNet.Rendering.PathSegment), MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, Double)
+  name.vb: DrawPath(IReadOnlyList(Of PathSegment), Color?, Color?, Double)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.PushClip(MatPlotLibNet.Rendering.Rect)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.PushClip(MatPlotLibNet.Rendering.Rect)
+  id: PushClip(MatPlotLibNet.Rendering.Rect)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: PushClip(Rect)
+  nameWithType: MauiGraphicsRenderContext.PushClip(Rect)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.PushClip(MatPlotLibNet.Rendering.Rect)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: PushClip
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 180
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Pushes a rectangular clipping region onto the clip stack.
+  example: []
+  syntax:
+    content: public void PushClip(Rect clipRect)
+    parameters:
+    - id: clipRect
+      type: MatPlotLibNet.Rendering.Rect
+    content.vb: Public Sub PushClip(clipRect As Rect)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.PushClip*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.PushClip(MatPlotLibNet.Rendering.Rect)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.PopClip
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.PopClip
+  id: PopClip
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: PopClip()
+  nameWithType: MauiGraphicsRenderContext.PopClip()
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.PopClip()
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: PopClip
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 188
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Pops the most recent clipping region from the clip stack.
+  example: []
+  syntax:
+    content: public void PopClip()
+    content.vb: Public Sub PopClip()
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.PopClip*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.PopClip
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.MeasureText(System.String,MatPlotLibNet.Styling.Font)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.MeasureText(System.String,MatPlotLibNet.Styling.Font)
+  id: MeasureText(System.String,MatPlotLibNet.Styling.Font)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: MeasureText(string, Font)
+  nameWithType: MauiGraphicsRenderContext.MeasureText(string, Font)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.MeasureText(string, MatPlotLibNet.Styling.Font)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: MeasureText
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 194
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Measures the size of the given text when rendered with the specified font.
+  example: []
+  syntax:
+    content: public Size MeasureText(string text, Font font)
+    parameters:
+    - id: text
+      type: System.String
+    - id: font
+      type: MatPlotLibNet.Styling.Font
+    return:
+      type: MatPlotLibNet.Rendering.Size
+      description: The computed size of the text bounding box.
+    content.vb: Public Function MeasureText(text As String, font As Font) As Size
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.MeasureText*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.MeasureText(System.String,MatPlotLibNet.Styling.Font)
+  nameWithType.vb: MauiGraphicsRenderContext.MeasureText(String, Font)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.MeasureText(String, MatPlotLibNet.Styling.Font)
+  name.vb: MeasureText(String, Font)
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.SetOpacity(System.Double)
+  commentId: M:MatPlotLibNet.Maui.MauiGraphicsRenderContext.SetOpacity(System.Double)
+  id: SetOpacity(System.Double)
+  parent: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  langs:
+  - csharp
+  - vb
+  name: SetOpacity(double)
+  nameWithType: MauiGraphicsRenderContext.SetOpacity(double)
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.SetOpacity(double)
+  type: Method
+  source:
+    remote:
+      path: Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+      branch: main
+      repo: https://github.com/xkqg/MatPlotLibNet.git
+    id: SetOpacity
+    path: ../Src/MatPlotLibNet.Maui/MauiGraphicsRenderContext.cs
+    startLine: 202
+  assemblies:
+  - MatPlotLibNet.Maui
+  namespace: MatPlotLibNet.Maui
+  summary: Sets the global opacity for subsequent drawing operations.
+  example: []
+  syntax:
+    content: public void SetOpacity(double opacity)
+    parameters:
+    - id: opacity
+      type: System.Double
+    content.vb: Public Sub SetOpacity(opacity As Double)
+  overload: MatPlotLibNet.Maui.MauiGraphicsRenderContext.SetOpacity*
+  implements:
+  - MatPlotLibNet.Rendering.IRenderContext.SetOpacity(System.Double)
+  nameWithType.vb: MauiGraphicsRenderContext.SetOpacity(Double)
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.SetOpacity(Double)
+  name.vb: SetOpacity(Double)
+references:
+- uid: MatPlotLibNet.Rendering.IRenderContext
+  commentId: T:MatPlotLibNet.Rendering.IRenderContext
+  parent: MatPlotLibNet.Rendering
+  name: IRenderContext
+  nameWithType: IRenderContext
+  fullName: MatPlotLibNet.Rendering.IRenderContext
+- uid: Microsoft.Maui.Graphics.ICanvas
+  commentId: T:Microsoft.Maui.Graphics.ICanvas
+  parent: Microsoft.Maui.Graphics
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/microsoft.maui.graphics.icanvas
+  name: ICanvas
+  nameWithType: ICanvas
+  fullName: Microsoft.Maui.Graphics.ICanvas
+- uid: MatPlotLibNet.Maui
+  commentId: N:MatPlotLibNet.Maui
+  href: MatPlotLibNet.html
+  name: MatPlotLibNet.Maui
+  nameWithType: MatPlotLibNet.Maui
+  fullName: MatPlotLibNet.Maui
+  spec.csharp:
+  - uid: MatPlotLibNet
+    name: MatPlotLibNet
+    href: MatPlotLibNet.html
+  - name: .
+  - uid: MatPlotLibNet.Maui
+    name: Maui
+    href: MatPlotLibNet.Maui.html
+  spec.vb:
+  - uid: MatPlotLibNet
+    name: MatPlotLibNet
+    href: MatPlotLibNet.html
+  - name: .
+  - uid: MatPlotLibNet.Maui
+    name: Maui
+    href: MatPlotLibNet.Maui.html
+- uid: System.Object
+  commentId: T:System.Object
+  parent: System
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.object
+  name: object
+  nameWithType: object
+  fullName: object
+  nameWithType.vb: Object
+  fullName.vb: Object
+  name.vb: Object
+- uid: System.Object.Equals(System.Object)
+  commentId: M:System.Object.Equals(System.Object)
+  parent: System.Object
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)
+  name: Equals(object)
+  nameWithType: object.Equals(object)
+  fullName: object.Equals(object)
+  nameWithType.vb: Object.Equals(Object)
+  fullName.vb: Object.Equals(Object)
+  name.vb: Equals(Object)
+  spec.csharp:
+  - uid: System.Object.Equals(System.Object)
+    name: Equals
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)
+  - name: (
+  - uid: System.Object
+    name: object
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object
+  - name: )
+  spec.vb:
+  - uid: System.Object.Equals(System.Object)
+    name: Equals
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)
+  - name: (
+  - uid: System.Object
+    name: Object
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object
+  - name: )
+- uid: System.Object.Equals(System.Object,System.Object)
+  commentId: M:System.Object.Equals(System.Object,System.Object)
+  parent: System.Object
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)
+  name: Equals(object, object)
+  nameWithType: object.Equals(object, object)
+  fullName: object.Equals(object, object)
+  nameWithType.vb: Object.Equals(Object, Object)
+  fullName.vb: Object.Equals(Object, Object)
+  name.vb: Equals(Object, Object)
+  spec.csharp:
+  - uid: System.Object.Equals(System.Object,System.Object)
+    name: Equals
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)
+  - name: (
+  - uid: System.Object
+    name: object
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object
+  - name: ','
+  - name: " "
+  - uid: System.Object
+    name: object
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object
+  - name: )
+  spec.vb:
+  - uid: System.Object.Equals(System.Object,System.Object)
+    name: Equals
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)
+  - name: (
+  - uid: System.Object
+    name: Object
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object
+  - name: ','
+  - name: " "
+  - uid: System.Object
+    name: Object
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object
+  - name: )
+- uid: System.Object.GetHashCode
+  commentId: M:System.Object.GetHashCode
+  parent: System.Object
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.object.gethashcode
+  name: GetHashCode()
+  nameWithType: object.GetHashCode()
+  fullName: object.GetHashCode()
+  nameWithType.vb: Object.GetHashCode()
+  fullName.vb: Object.GetHashCode()
+  spec.csharp:
+  - uid: System.Object.GetHashCode
+    name: GetHashCode
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.gethashcode
+  - name: (
+  - name: )
+  spec.vb:
+  - uid: System.Object.GetHashCode
+    name: GetHashCode
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.gethashcode
+  - name: (
+  - name: )
+- uid: System.Object.GetType
+  commentId: M:System.Object.GetType
+  parent: System.Object
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.object.gettype
+  name: GetType()
+  nameWithType: object.GetType()
+  fullName: object.GetType()
+  nameWithType.vb: Object.GetType()
+  fullName.vb: Object.GetType()
+  spec.csharp:
+  - uid: System.Object.GetType
+    name: GetType
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.gettype
+  - name: (
+  - name: )
+  spec.vb:
+  - uid: System.Object.GetType
+    name: GetType
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.gettype
+  - name: (
+  - name: )
+- uid: System.Object.ReferenceEquals(System.Object,System.Object)
+  commentId: M:System.Object.ReferenceEquals(System.Object,System.Object)
+  parent: System.Object
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.object.referenceequals
+  name: ReferenceEquals(object, object)
+  nameWithType: object.ReferenceEquals(object, object)
+  fullName: object.ReferenceEquals(object, object)
+  nameWithType.vb: Object.ReferenceEquals(Object, Object)
+  fullName.vb: Object.ReferenceEquals(Object, Object)
+  name.vb: ReferenceEquals(Object, Object)
+  spec.csharp:
+  - uid: System.Object.ReferenceEquals(System.Object,System.Object)
+    name: ReferenceEquals
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.referenceequals
+  - name: (
+  - uid: System.Object
+    name: object
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object
+  - name: ','
+  - name: " "
+  - uid: System.Object
+    name: object
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object
+  - name: )
+  spec.vb:
+  - uid: System.Object.ReferenceEquals(System.Object,System.Object)
+    name: ReferenceEquals
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.referenceequals
+  - name: (
+  - uid: System.Object
+    name: Object
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object
+  - name: ','
+  - name: " "
+  - uid: System.Object
+    name: Object
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object
+  - name: )
+- uid: System.Object.ToString
+  commentId: M:System.Object.ToString
+  parent: System.Object
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.object.tostring
+  name: ToString()
+  nameWithType: object.ToString()
+  fullName: object.ToString()
+  nameWithType.vb: Object.ToString()
+  fullName.vb: Object.ToString()
+  spec.csharp:
+  - uid: System.Object.ToString
+    name: ToString
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.tostring
+  - name: (
+  - name: )
+  spec.vb:
+  - uid: System.Object.ToString
+    name: ToString
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.object.tostring
+  - name: (
+  - name: )
+- uid: MatPlotLibNet.Rendering
+  commentId: N:MatPlotLibNet.Rendering
+  name: MatPlotLibNet.Rendering
+  nameWithType: MatPlotLibNet.Rendering
+  fullName: MatPlotLibNet.Rendering
+  spec.csharp:
+  - uid: MatPlotLibNet
+    name: MatPlotLibNet
+  - name: .
+  - uid: MatPlotLibNet.Rendering
+    name: Rendering
+  spec.vb:
+  - uid: MatPlotLibNet
+    name: MatPlotLibNet
+  - name: .
+  - uid: MatPlotLibNet.Rendering
+    name: Rendering
+- uid: Microsoft.Maui.Graphics
+  commentId: N:Microsoft.Maui.Graphics
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/microsoft
+  name: Microsoft.Maui.Graphics
+  nameWithType: Microsoft.Maui.Graphics
+  fullName: Microsoft.Maui.Graphics
+  spec.csharp:
+  - uid: Microsoft
+    name: Microsoft
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/microsoft
+  - name: .
+  - uid: Microsoft.Maui
+    name: Maui
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/microsoft.maui
+  - name: .
+  - uid: Microsoft.Maui.Graphics
+    name: Graphics
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/microsoft.maui.graphics
+  spec.vb:
+  - uid: Microsoft
+    name: Microsoft
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/microsoft
+  - name: .
+  - uid: Microsoft.Maui
+    name: Maui
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/microsoft.maui
+  - name: .
+  - uid: Microsoft.Maui.Graphics
+    name: Graphics
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/microsoft.maui.graphics
+- uid: System
+  commentId: N:System
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system
+  name: System
+  nameWithType: System
+  fullName: System
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.#ctor*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.#ctor
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext__ctor_Microsoft_Maui_Graphics_ICanvas_
+  name: MauiGraphicsRenderContext
+  nameWithType: MauiGraphicsRenderContext.MauiGraphicsRenderContext
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.MauiGraphicsRenderContext
+  nameWithType.vb: MauiGraphicsRenderContext.New
+  fullName.vb: MatPlotLibNet.Maui.MauiGraphicsRenderContext.New
+  name.vb: New
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLine*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLine
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_DrawLine_MatPlotLibNet_Rendering_Point_MatPlotLibNet_Rendering_Point_MatPlotLibNet_Styling_Color_System_Double_MatPlotLibNet_Styling_LineStyle_
+  name: DrawLine
+  nameWithType: MauiGraphicsRenderContext.DrawLine
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLine
+- uid: MatPlotLibNet.Rendering.IRenderContext.DrawLine(MatPlotLibNet.Rendering.Point,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.DrawLine(MatPlotLibNet.Rendering.Point,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.double
+  name: DrawLine(Point, Point, Color, double, LineStyle)
+  nameWithType: IRenderContext.DrawLine(Point, Point, Color, double, LineStyle)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.DrawLine(MatPlotLibNet.Rendering.Point, MatPlotLibNet.Rendering.Point, MatPlotLibNet.Styling.Color, double, MatPlotLibNet.Styling.LineStyle)
+  nameWithType.vb: IRenderContext.DrawLine(Point, Point, Color, Double, LineStyle)
+  fullName.vb: MatPlotLibNet.Rendering.IRenderContext.DrawLine(MatPlotLibNet.Rendering.Point, MatPlotLibNet.Rendering.Point, MatPlotLibNet.Styling.Color, Double, MatPlotLibNet.Styling.LineStyle)
+  name.vb: DrawLine(Point, Point, Color, Double, LineStyle)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawLine(MatPlotLibNet.Rendering.Point,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+    name: DrawLine
+  - name: (
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.LineStyle
+    name: LineStyle
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawLine(MatPlotLibNet.Rendering.Point,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+    name: DrawLine
+  - name: (
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: Double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.LineStyle
+    name: LineStyle
+  - name: )
+- uid: MatPlotLibNet.Rendering.Point
+  commentId: T:MatPlotLibNet.Rendering.Point
+  parent: MatPlotLibNet.Rendering
+  name: Point
+  nameWithType: Point
+  fullName: MatPlotLibNet.Rendering.Point
+- uid: MatPlotLibNet.Styling.Color
+  commentId: T:MatPlotLibNet.Styling.Color
+  parent: MatPlotLibNet.Styling
+  name: Color
+  nameWithType: Color
+  fullName: MatPlotLibNet.Styling.Color
+- uid: System.Double
+  commentId: T:System.Double
+  parent: System
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.double
+  name: double
+  nameWithType: double
+  fullName: double
+  nameWithType.vb: Double
+  fullName.vb: Double
+  name.vb: Double
+- uid: MatPlotLibNet.Styling.LineStyle
+  commentId: T:MatPlotLibNet.Styling.LineStyle
+  parent: MatPlotLibNet.Styling
+  name: LineStyle
+  nameWithType: LineStyle
+  fullName: MatPlotLibNet.Styling.LineStyle
+- uid: MatPlotLibNet.Styling
+  commentId: N:MatPlotLibNet.Styling
+  name: MatPlotLibNet.Styling
+  nameWithType: MatPlotLibNet.Styling
+  fullName: MatPlotLibNet.Styling
+  spec.csharp:
+  - uid: MatPlotLibNet
+    name: MatPlotLibNet
+  - name: .
+  - uid: MatPlotLibNet.Styling
+    name: Styling
+  spec.vb:
+  - uid: MatPlotLibNet
+    name: MatPlotLibNet
+  - name: .
+  - uid: MatPlotLibNet.Styling
+    name: Styling
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLines*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLines
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_DrawLines_System_Collections_Generic_IReadOnlyList_MatPlotLibNet_Rendering_Point__MatPlotLibNet_Styling_Color_System_Double_MatPlotLibNet_Styling_LineStyle_
+  name: DrawLines
+  nameWithType: MauiGraphicsRenderContext.DrawLines
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawLines
+- uid: MatPlotLibNet.Rendering.IRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  name: DrawLines(IReadOnlyList<Point>, Color, double, LineStyle)
+  nameWithType: IRenderContext.DrawLines(IReadOnlyList<Point>, Color, double, LineStyle)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList<MatPlotLibNet.Rendering.Point>, MatPlotLibNet.Styling.Color, double, MatPlotLibNet.Styling.LineStyle)
+  nameWithType.vb: IRenderContext.DrawLines(IReadOnlyList(Of Point), Color, Double, LineStyle)
+  fullName.vb: MatPlotLibNet.Rendering.IRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList(Of MatPlotLibNet.Rendering.Point), MatPlotLibNet.Styling.Color, Double, MatPlotLibNet.Styling.LineStyle)
+  name.vb: DrawLines(IReadOnlyList(Of Point), Color, Double, LineStyle)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+    name: DrawLines
+  - name: (
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: <
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: '>'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.LineStyle
+    name: LineStyle
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawLines(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},MatPlotLibNet.Styling.Color,System.Double,MatPlotLibNet.Styling.LineStyle)
+    name: DrawLines
+  - name: (
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: (
+  - name: Of
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: )
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: Double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.LineStyle
+    name: LineStyle
+  - name: )
+- uid: System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point}
+  commentId: T:System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point}
+  parent: System.Collections.Generic
+  definition: System.Collections.Generic.IReadOnlyList`1
+  href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  name: IReadOnlyList<Point>
+  nameWithType: IReadOnlyList<Point>
+  fullName: System.Collections.Generic.IReadOnlyList<MatPlotLibNet.Rendering.Point>
+  nameWithType.vb: IReadOnlyList(Of Point)
+  fullName.vb: System.Collections.Generic.IReadOnlyList(Of MatPlotLibNet.Rendering.Point)
+  name.vb: IReadOnlyList(Of Point)
+  spec.csharp:
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: <
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: '>'
+  spec.vb:
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: (
+  - name: Of
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: )
+- uid: System.Collections.Generic.IReadOnlyList`1
+  commentId: T:System.Collections.Generic.IReadOnlyList`1
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  name: IReadOnlyList<T>
+  nameWithType: IReadOnlyList<T>
+  fullName: System.Collections.Generic.IReadOnlyList<T>
+  nameWithType.vb: IReadOnlyList(Of T)
+  fullName.vb: System.Collections.Generic.IReadOnlyList(Of T)
+  name.vb: IReadOnlyList(Of T)
+  spec.csharp:
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: <
+  - name: T
+  - name: '>'
+  spec.vb:
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: (
+  - name: Of
+  - name: " "
+  - name: T
+  - name: )
+- uid: System.Collections.Generic
+  commentId: N:System.Collections.Generic
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system
+  name: System.Collections.Generic
+  nameWithType: System.Collections.Generic
+  fullName: System.Collections.Generic
+  spec.csharp:
+  - uid: System
+    name: System
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system
+  - name: .
+  - uid: System.Collections
+    name: Collections
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections
+  - name: .
+  - uid: System.Collections.Generic
+    name: Generic
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic
+  spec.vb:
+  - uid: System
+    name: System
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system
+  - name: .
+  - uid: System.Collections
+    name: Collections
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections
+  - name: .
+  - uid: System.Collections.Generic
+    name: Generic
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPolygon*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPolygon
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_DrawPolygon_System_Collections_Generic_IReadOnlyList_MatPlotLibNet_Rendering_Point__System_Nullable_MatPlotLibNet_Styling_Color__System_Nullable_MatPlotLibNet_Styling_Color__System_Double_
+  name: DrawPolygon
+  nameWithType: MauiGraphicsRenderContext.DrawPolygon
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPolygon
+- uid: MatPlotLibNet.Rendering.IRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  name: DrawPolygon(IReadOnlyList<Point>, Color?, Color?, double)
+  nameWithType: IRenderContext.DrawPolygon(IReadOnlyList<Point>, Color?, Color?, double)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList<MatPlotLibNet.Rendering.Point>, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, double)
+  nameWithType.vb: IRenderContext.DrawPolygon(IReadOnlyList(Of Point), Color?, Color?, Double)
+  fullName.vb: MatPlotLibNet.Rendering.IRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList(Of MatPlotLibNet.Rendering.Point), MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, Double)
+  name.vb: DrawPolygon(IReadOnlyList(Of Point), Color?, Color?, Double)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+    name: DrawPolygon
+  - name: (
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: <
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: '>'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawPolygon(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.Point},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+    name: DrawPolygon
+  - name: (
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: (
+  - name: Of
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: )
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: Double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+- uid: System.Nullable{MatPlotLibNet.Styling.Color}
+  commentId: T:System.Nullable{MatPlotLibNet.Styling.Color}
+  parent: System
+  definition: System.Nullable`1
+  name: Color?
+  nameWithType: Color?
+  fullName: MatPlotLibNet.Styling.Color?
+  spec.csharp:
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  spec.vb:
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+- uid: System.Nullable`1
+  commentId: T:System.Nullable`1
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.nullable-1
+  name: Nullable<T>
+  nameWithType: Nullable<T>
+  fullName: System.Nullable<T>
+  nameWithType.vb: Nullable(Of T)
+  fullName.vb: System.Nullable(Of T)
+  name.vb: Nullable(Of T)
+  spec.csharp:
+  - uid: System.Nullable`1
+    name: Nullable
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.nullable-1
+  - name: <
+  - name: T
+  - name: '>'
+  spec.vb:
+  - uid: System.Nullable`1
+    name: Nullable
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.nullable-1
+  - name: (
+  - name: Of
+  - name: " "
+  - name: T
+  - name: )
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawCircle*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawCircle
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_DrawCircle_MatPlotLibNet_Rendering_Point_System_Double_System_Nullable_MatPlotLibNet_Styling_Color__System_Nullable_MatPlotLibNet_Styling_Color__System_Double_
+  name: DrawCircle
+  nameWithType: MauiGraphicsRenderContext.DrawCircle
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawCircle
+- uid: MatPlotLibNet.Rendering.IRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point,System.Double,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point,System.Double,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.double
+  name: DrawCircle(Point, double, Color?, Color?, double)
+  nameWithType: IRenderContext.DrawCircle(Point, double, Color?, Color?, double)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point, double, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, double)
+  nameWithType.vb: IRenderContext.DrawCircle(Point, Double, Color?, Color?, Double)
+  fullName.vb: MatPlotLibNet.Rendering.IRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point, Double, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, Double)
+  name.vb: DrawCircle(Point, Double, Color?, Color?, Double)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point,System.Double,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+    name: DrawCircle
+  - name: (
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawCircle(MatPlotLibNet.Rendering.Point,System.Double,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+    name: DrawCircle
+  - name: (
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: Double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: Double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawRectangle*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawRectangle
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_DrawRectangle_MatPlotLibNet_Rendering_Rect_System_Nullable_MatPlotLibNet_Styling_Color__System_Nullable_MatPlotLibNet_Styling_Color__System_Double_
+  name: DrawRectangle
+  nameWithType: MauiGraphicsRenderContext.DrawRectangle
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawRectangle
+- uid: MatPlotLibNet.Rendering.IRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.double
+  name: DrawRectangle(Rect, Color?, Color?, double)
+  nameWithType: IRenderContext.DrawRectangle(Rect, Color?, Color?, double)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, double)
+  nameWithType.vb: IRenderContext.DrawRectangle(Rect, Color?, Color?, Double)
+  fullName.vb: MatPlotLibNet.Rendering.IRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, Double)
+  name.vb: DrawRectangle(Rect, Color?, Color?, Double)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+    name: DrawRectangle
+  - name: (
+  - uid: MatPlotLibNet.Rendering.Rect
+    name: Rect
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawRectangle(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+    name: DrawRectangle
+  - name: (
+  - uid: MatPlotLibNet.Rendering.Rect
+    name: Rect
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: Double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+- uid: MatPlotLibNet.Rendering.Rect
+  commentId: T:MatPlotLibNet.Rendering.Rect
+  parent: MatPlotLibNet.Rendering
+  name: Rect
+  nameWithType: Rect
+  fullName: MatPlotLibNet.Rendering.Rect
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawEllipse*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawEllipse
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_DrawEllipse_MatPlotLibNet_Rendering_Rect_System_Nullable_MatPlotLibNet_Styling_Color__System_Nullable_MatPlotLibNet_Styling_Color__System_Double_
+  name: DrawEllipse
+  nameWithType: MauiGraphicsRenderContext.DrawEllipse
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawEllipse
+- uid: MatPlotLibNet.Rendering.IRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.double
+  name: DrawEllipse(Rect, Color?, Color?, double)
+  nameWithType: IRenderContext.DrawEllipse(Rect, Color?, Color?, double)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, double)
+  nameWithType.vb: IRenderContext.DrawEllipse(Rect, Color?, Color?, Double)
+  fullName.vb: MatPlotLibNet.Rendering.IRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, Double)
+  name.vb: DrawEllipse(Rect, Color?, Color?, Double)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+    name: DrawEllipse
+  - name: (
+  - uid: MatPlotLibNet.Rendering.Rect
+    name: Rect
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawEllipse(MatPlotLibNet.Rendering.Rect,System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+    name: DrawEllipse
+  - name: (
+  - uid: MatPlotLibNet.Rendering.Rect
+    name: Rect
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: Double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawText*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawText
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_DrawText_System_String_MatPlotLibNet_Rendering_Point_MatPlotLibNet_Styling_Font_MatPlotLibNet_Rendering_TextAlignment_
+  name: DrawText
+  nameWithType: MauiGraphicsRenderContext.DrawText
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawText
+- uid: MatPlotLibNet.Rendering.IRenderContext.DrawText(System.String,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Font,MatPlotLibNet.Rendering.TextAlignment)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.DrawText(System.String,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Font,MatPlotLibNet.Rendering.TextAlignment)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.string
+  name: DrawText(string, Point, Font, TextAlignment)
+  nameWithType: IRenderContext.DrawText(string, Point, Font, TextAlignment)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.DrawText(string, MatPlotLibNet.Rendering.Point, MatPlotLibNet.Styling.Font, MatPlotLibNet.Rendering.TextAlignment)
+  nameWithType.vb: IRenderContext.DrawText(String, Point, Font, TextAlignment)
+  fullName.vb: MatPlotLibNet.Rendering.IRenderContext.DrawText(String, MatPlotLibNet.Rendering.Point, MatPlotLibNet.Styling.Font, MatPlotLibNet.Rendering.TextAlignment)
+  name.vb: DrawText(String, Point, Font, TextAlignment)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawText(System.String,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Font,MatPlotLibNet.Rendering.TextAlignment)
+    name: DrawText
+  - name: (
+  - uid: System.String
+    name: string
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.string
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Font
+    name: Font
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.TextAlignment
+    name: TextAlignment
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawText(System.String,MatPlotLibNet.Rendering.Point,MatPlotLibNet.Styling.Font,MatPlotLibNet.Rendering.TextAlignment)
+    name: DrawText
+  - name: (
+  - uid: System.String
+    name: String
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.string
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.Point
+    name: Point
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Font
+    name: Font
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.TextAlignment
+    name: TextAlignment
+  - name: )
+- uid: System.String
+  commentId: T:System.String
+  parent: System
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.string
+  name: string
+  nameWithType: string
+  fullName: string
+  nameWithType.vb: String
+  fullName.vb: String
+  name.vb: String
+- uid: MatPlotLibNet.Styling.Font
+  commentId: T:MatPlotLibNet.Styling.Font
+  parent: MatPlotLibNet.Styling
+  name: Font
+  nameWithType: Font
+  fullName: MatPlotLibNet.Styling.Font
+- uid: MatPlotLibNet.Rendering.TextAlignment
+  commentId: T:MatPlotLibNet.Rendering.TextAlignment
+  parent: MatPlotLibNet.Rendering
+  name: TextAlignment
+  nameWithType: TextAlignment
+  fullName: MatPlotLibNet.Rendering.TextAlignment
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPath*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPath
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_DrawPath_System_Collections_Generic_IReadOnlyList_MatPlotLibNet_Rendering_PathSegment__System_Nullable_MatPlotLibNet_Styling_Color__System_Nullable_MatPlotLibNet_Styling_Color__System_Double_
+  name: DrawPath
+  nameWithType: MauiGraphicsRenderContext.DrawPath
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.DrawPath
+- uid: MatPlotLibNet.Rendering.IRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  name: DrawPath(IReadOnlyList<PathSegment>, Color?, Color?, double)
+  nameWithType: IRenderContext.DrawPath(IReadOnlyList<PathSegment>, Color?, Color?, double)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList<MatPlotLibNet.Rendering.PathSegment>, MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, double)
+  nameWithType.vb: IRenderContext.DrawPath(IReadOnlyList(Of PathSegment), Color?, Color?, Double)
+  fullName.vb: MatPlotLibNet.Rendering.IRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList(Of MatPlotLibNet.Rendering.PathSegment), MatPlotLibNet.Styling.Color?, MatPlotLibNet.Styling.Color?, Double)
+  name.vb: DrawPath(IReadOnlyList(Of PathSegment), Color?, Color?, Double)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+    name: DrawPath
+  - name: (
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: <
+  - uid: MatPlotLibNet.Rendering.PathSegment
+    name: PathSegment
+  - name: '>'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.DrawPath(System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment},System.Nullable{MatPlotLibNet.Styling.Color},System.Nullable{MatPlotLibNet.Styling.Color},System.Double)
+    name: DrawPath
+  - name: (
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: (
+  - name: Of
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.PathSegment
+    name: PathSegment
+  - name: )
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Color
+    name: Color
+  - name: '?'
+  - name: ','
+  - name: " "
+  - uid: System.Double
+    name: Double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+- uid: System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment}
+  commentId: T:System.Collections.Generic.IReadOnlyList{MatPlotLibNet.Rendering.PathSegment}
+  parent: System.Collections.Generic
+  definition: System.Collections.Generic.IReadOnlyList`1
+  href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  name: IReadOnlyList<PathSegment>
+  nameWithType: IReadOnlyList<PathSegment>
+  fullName: System.Collections.Generic.IReadOnlyList<MatPlotLibNet.Rendering.PathSegment>
+  nameWithType.vb: IReadOnlyList(Of PathSegment)
+  fullName.vb: System.Collections.Generic.IReadOnlyList(Of MatPlotLibNet.Rendering.PathSegment)
+  name.vb: IReadOnlyList(Of PathSegment)
+  spec.csharp:
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: <
+  - uid: MatPlotLibNet.Rendering.PathSegment
+    name: PathSegment
+  - name: '>'
+  spec.vb:
+  - uid: System.Collections.Generic.IReadOnlyList`1
+    name: IReadOnlyList
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.collections.generic.ireadonlylist-1
+  - name: (
+  - name: Of
+  - name: " "
+  - uid: MatPlotLibNet.Rendering.PathSegment
+    name: PathSegment
+  - name: )
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.PushClip*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.PushClip
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_PushClip_MatPlotLibNet_Rendering_Rect_
+  name: PushClip
+  nameWithType: MauiGraphicsRenderContext.PushClip
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.PushClip
+- uid: MatPlotLibNet.Rendering.IRenderContext.PushClip(MatPlotLibNet.Rendering.Rect)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.PushClip(MatPlotLibNet.Rendering.Rect)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  name: PushClip(Rect)
+  nameWithType: IRenderContext.PushClip(Rect)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.PushClip(MatPlotLibNet.Rendering.Rect)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.PushClip(MatPlotLibNet.Rendering.Rect)
+    name: PushClip
+  - name: (
+  - uid: MatPlotLibNet.Rendering.Rect
+    name: Rect
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.PushClip(MatPlotLibNet.Rendering.Rect)
+    name: PushClip
+  - name: (
+  - uid: MatPlotLibNet.Rendering.Rect
+    name: Rect
+  - name: )
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.PopClip*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.PopClip
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_PopClip
+  name: PopClip
+  nameWithType: MauiGraphicsRenderContext.PopClip
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.PopClip
+- uid: MatPlotLibNet.Rendering.IRenderContext.PopClip
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.PopClip
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  name: PopClip()
+  nameWithType: IRenderContext.PopClip()
+  fullName: MatPlotLibNet.Rendering.IRenderContext.PopClip()
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.PopClip
+    name: PopClip
+  - name: (
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.PopClip
+    name: PopClip
+  - name: (
+  - name: )
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.MeasureText*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.MeasureText
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_MeasureText_System_String_MatPlotLibNet_Styling_Font_
+  name: MeasureText
+  nameWithType: MauiGraphicsRenderContext.MeasureText
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.MeasureText
+- uid: MatPlotLibNet.Rendering.IRenderContext.MeasureText(System.String,MatPlotLibNet.Styling.Font)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.MeasureText(System.String,MatPlotLibNet.Styling.Font)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.string
+  name: MeasureText(string, Font)
+  nameWithType: IRenderContext.MeasureText(string, Font)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.MeasureText(string, MatPlotLibNet.Styling.Font)
+  nameWithType.vb: IRenderContext.MeasureText(String, Font)
+  fullName.vb: MatPlotLibNet.Rendering.IRenderContext.MeasureText(String, MatPlotLibNet.Styling.Font)
+  name.vb: MeasureText(String, Font)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.MeasureText(System.String,MatPlotLibNet.Styling.Font)
+    name: MeasureText
+  - name: (
+  - uid: System.String
+    name: string
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.string
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Font
+    name: Font
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.MeasureText(System.String,MatPlotLibNet.Styling.Font)
+    name: MeasureText
+  - name: (
+  - uid: System.String
+    name: String
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.string
+  - name: ','
+  - name: " "
+  - uid: MatPlotLibNet.Styling.Font
+    name: Font
+  - name: )
+- uid: MatPlotLibNet.Rendering.Size
+  commentId: T:MatPlotLibNet.Rendering.Size
+  parent: MatPlotLibNet.Rendering
+  name: Size
+  nameWithType: Size
+  fullName: MatPlotLibNet.Rendering.Size
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext.SetOpacity*
+  commentId: Overload:MatPlotLibNet.Maui.MauiGraphicsRenderContext.SetOpacity
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html#MatPlotLibNet_Maui_MauiGraphicsRenderContext_SetOpacity_System_Double_
+  name: SetOpacity
+  nameWithType: MauiGraphicsRenderContext.SetOpacity
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext.SetOpacity
+- uid: MatPlotLibNet.Rendering.IRenderContext.SetOpacity(System.Double)
+  commentId: M:MatPlotLibNet.Rendering.IRenderContext.SetOpacity(System.Double)
+  parent: MatPlotLibNet.Rendering.IRenderContext
+  isExternal: true
+  href: https://learn.microsoft.com/dotnet/api/system.double
+  name: SetOpacity(double)
+  nameWithType: IRenderContext.SetOpacity(double)
+  fullName: MatPlotLibNet.Rendering.IRenderContext.SetOpacity(double)
+  nameWithType.vb: IRenderContext.SetOpacity(Double)
+  fullName.vb: MatPlotLibNet.Rendering.IRenderContext.SetOpacity(Double)
+  name.vb: SetOpacity(Double)
+  spec.csharp:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.SetOpacity(System.Double)
+    name: SetOpacity
+  - name: (
+  - uid: System.Double
+    name: double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )
+  spec.vb:
+  - uid: MatPlotLibNet.Rendering.IRenderContext.SetOpacity(System.Double)
+    name: SetOpacity
+  - name: (
+  - uid: System.Double
+    name: Double
+    isExternal: true
+    href: https://learn.microsoft.com/dotnet/api/system.double
+  - name: )

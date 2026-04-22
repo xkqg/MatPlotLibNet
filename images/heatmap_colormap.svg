@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-labelledby="chart-title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" style="width:100%;height:auto" role="img" aria-labelledby="chart-title">
 <title id="chart-title"></title>
 <rect x="0" y="0" width="800" height="600" fill="#FFFFFF" />
 <rect x="66.12060631646051" y="40" width="618.6151775783964" height="510" fill="#FFFFFF" />

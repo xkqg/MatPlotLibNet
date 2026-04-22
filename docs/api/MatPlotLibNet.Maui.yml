@@ -1,0 +1,60 @@
+### YamlMime:ManagedReference
+items:
+- uid: MatPlotLibNet.Maui
+  commentId: N:MatPlotLibNet.Maui
+  id: MatPlotLibNet.Maui
+  children:
+  - MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  - MatPlotLibNet.Maui.MplChartView
+  - MatPlotLibNet.Maui.MplStreamingChartView
+  langs:
+  - csharp
+  - vb
+  name: MatPlotLibNet.Maui
+  nameWithType: MatPlotLibNet.Maui
+  fullName: MatPlotLibNet.Maui
+  type: Namespace
+  assemblies:
+  - MatPlotLibNet.Maui
+references:
+- uid: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  commentId: T:MatPlotLibNet.Maui.MauiGraphicsRenderContext
+  href: MatPlotLibNet.Maui.MauiGraphicsRenderContext.html
+  name: MauiGraphicsRenderContext
+  nameWithType: MauiGraphicsRenderContext
+  fullName: MatPlotLibNet.Maui.MauiGraphicsRenderContext
+- uid: MatPlotLibNet.Maui.MplChartView
+  commentId: T:MatPlotLibNet.Maui.MplChartView
+  parent: MatPlotLibNet.Maui
+  href: MatPlotLibNet.Maui.MplChartView.html
+  name: MplChartView
+  nameWithType: MplChartView
+  fullName: MatPlotLibNet.Maui.MplChartView
+- uid: MatPlotLibNet.Maui.MplStreamingChartView
+  commentId: T:MatPlotLibNet.Maui.MplStreamingChartView
+  href: MatPlotLibNet.Maui.MplStreamingChartView.html
+  name: MplStreamingChartView
+  nameWithType: MplStreamingChartView
+  fullName: MatPlotLibNet.Maui.MplStreamingChartView
+- uid: MatPlotLibNet.Maui
+  commentId: N:MatPlotLibNet.Maui
+  href: MatPlotLibNet.html
+  name: MatPlotLibNet.Maui
+  nameWithType: MatPlotLibNet.Maui
+  fullName: MatPlotLibNet.Maui
+  spec.csharp:
+  - uid: MatPlotLibNet
+    name: MatPlotLibNet
+    href: MatPlotLibNet.html
+  - name: .
+  - uid: MatPlotLibNet.Maui
+    name: Maui
+    href: MatPlotLibNet.Maui.html
+  spec.vb:
+  - uid: MatPlotLibNet
+    name: MatPlotLibNet
+    href: MatPlotLibNet.html
+  - name: .
+  - uid: MatPlotLibNet.Maui
+    name: Maui
+    href: MatPlotLibNet.Maui.html
