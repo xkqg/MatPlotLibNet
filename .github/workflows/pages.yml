@@ -47,7 +47,7 @@ jobs:
         run: cp -r images docs/images
 
       - name: Install MAUI workload (for Maui API metadata)
-        run: dotnet workload install android ios maccatalyst --ignore-failed-sources
+        run: dotnet workload install android --ignore-failed-sources
 
       - name: Build DocFx site
         run: docfx docs/docfx.json

@@ -20,41 +20,44 @@ internal static class DrawStyleInterpolation
     {
         if (style is null or DrawStyle.Default || x.Length < 2) return new(x, y);
 
-        var newX = new List<double>(x.Length * 2);
-        var newY = new List<double>(y.Length * 2);
+        int n = x.Length;
+        int outLen = style == DrawStyle.StepsMid ? 3 * n - 2 : 2 * n - 1;
+        var newX = new double[outLen];
+        var newY = new double[outLen];
+        int k = 0;
 
         switch (style)
         {
             case DrawStyle.StepsPre:
-                for (int i = 0; i < x.Length; i++)
+                for (int i = 0; i < n; i++)
                 {
-                    if (i > 0) { newX.Add(x[i]); newY.Add(y[i - 1]); }
-                    newX.Add(x[i]); newY.Add(y[i]);
+                    if (i > 0) { newX[k] = x[i]; newY[k++] = y[i - 1]; }
+                    newX[k] = x[i]; newY[k++] = y[i];
                 }
                 break;
 
             case DrawStyle.StepsPost:
-                for (int i = 0; i < x.Length; i++)
+                for (int i = 0; i < n; i++)
                 {
-                    newX.Add(x[i]); newY.Add(y[i]);
-                    if (i < x.Length - 1) { newX.Add(x[i + 1]); newY.Add(y[i]); }
+                    newX[k] = x[i]; newY[k++] = y[i];
+                    if (i < n - 1) { newX[k] = x[i + 1]; newY[k++] = y[i]; }
                 }
                 break;
 
             case DrawStyle.StepsMid:
-                for (int i = 0; i < x.Length; i++)
+                for (int i = 0; i < n; i++)
                 {
                     if (i > 0)
                     {
-                        var midX = (x[i - 1] + x[i]) / 2;
-                        newX.Add(midX); newY.Add(y[i - 1]);
-                        newX.Add(midX); newY.Add(y[i]);
+                        double midX = (x[i - 1] + x[i]) / 2;
+                        newX[k] = midX; newY[k++] = y[i - 1];
+                        newX[k] = midX; newY[k++] = y[i];
                     }
-                    newX.Add(x[i]); newY.Add(y[i]);
+                    newX[k] = x[i]; newY[k++] = y[i];
                 }
                 break;
         }
 
-        return new([.. newX], [.. newY]);
+        return new(newX, newY);
     }
 }

@@ -16,7 +16,7 @@ internal sealed class SignalSeriesRenderer : SeriesRenderer<SignalSeries>
     {
         var color = ResolveColor(series.Color);
         var data  = ApplyMonotonicDownsampling(series, series.MaxDisplayPoints);
-        var points = new List<Point>(Transform.TransformBatch(data.X, data.Y));
+        Point[] points = Transform.TransformBatch(data.X, data.Y);
         Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);
     }
 }

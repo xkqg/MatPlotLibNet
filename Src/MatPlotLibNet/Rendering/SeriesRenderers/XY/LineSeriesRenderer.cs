@@ -28,7 +28,7 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
         if (series.Smooth && drawX.Length >= 3)
             (drawX, drawY) = MonotoneCubicSpline.Interpolate(drawX, drawY, series.SmoothResolution);
 
-        var points = new List<Point>(Transform.TransformBatch(drawX, drawY));
+        Point[] points = Transform.TransformBatch(drawX, drawY);
         Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);
 
         if (series.Marker is not null && series.Marker != MarkerStyle.None)
@@ -38,11 +38,11 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
             var markerStrokeWidth = series.MarkerEdgeColor is not null ? series.MarkerEdgeWidth : 0;
 
             // For step-interpolated data, draw markers only on original data points
-            var markerPoints = series.DrawStyle is not null and not DrawStyle.Default
-                ? new List<Point>(Transform.TransformBatch(data.X, data.Y))
+            Point[] markerPoints = series.DrawStyle is not null and not DrawStyle.Default
+                ? Transform.TransformBatch(data.X, data.Y)
                 : points;
 
-            for (int i = 0; i < markerPoints.Count; i++)
+            for (int i = 0; i < markerPoints.Length; i++)
             {
                 if (series.MarkEvery is not null && i % series.MarkEvery.Value != 0) continue;
                 MarkerRenderer.Draw(Ctx, series.Marker ?? MarkerStyle.Circle,
