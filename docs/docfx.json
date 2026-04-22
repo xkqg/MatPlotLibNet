@@ -40,6 +40,22 @@
       "properties": {
         "TargetFramework": "net8.0-windows"
       }
+    },
+    {
+      "_comment": "MAUI metadata block — net10.0-windows10.0.19041.0 with EnableWindowsTargeting so Linux CI can extract metadata without MAUI runtime. Requires 'dotnet workload install maui' in pages.yml (added 2026-04-21).",
+      "src": [
+        {
+          "files": [
+            "Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj"
+          ],
+          "src": ".."
+        }
+      ],
+      "dest": "api",
+      "includePrivateMembers": false,
+      "properties": {
+        "TargetFramework": "net10.0-windows10.0.19041.0"
+      }
     }
   ],
   "build": {

@@ -46,6 +46,9 @@ jobs:
       - name: Copy images to docs
         run: cp -r images docs/images
 
+      - name: Install MAUI workload (for Maui API metadata)
+        run: dotnet workload install maui --ignore-failed-sources
+
       - name: Build DocFx site
         run: docfx docs/docfx.json
 

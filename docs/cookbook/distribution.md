@@ -162,3 +162,42 @@ Plt.Create()
 | `Hatch` | `HatchPattern` | `None` | Texture pattern |
 | `HatchColor` | `Color` | auto | Hatch pattern color |
 | `LineWidth` | `double` | `0.5` | Edge/step line width |
+
+## Ridge plot
+
+Show the distribution of multiple groups offset vertically using manual KDE + `FillBetween`.
+
+```csharp
+var rng = new Random(42);
+double BM(Random r) { double u1 = 1 - r.NextDouble(), u2 = 1 - r.NextDouble(); return Math.Sqrt(-2 * Math.Log(u1)) * Math.Sin(2 * Math.PI * u2); }
+double[] xGrid = Enumerable.Range(0, 300).Select(i => i * 0.04 - 3.0).ToArray();
+
+double[] GaussKde(double[] data, double bw = 0.5) =>
+    xGrid.Select(xi => data.Sum(d => { double z = (xi - d) / bw; return Math.Exp(-0.5 * z * z) / (bw * Math.Sqrt(2 * Math.PI)); }) / data.Length).ToArray();
+
+string[] groups = ["Group A", "Group B", "Group C", "Group D", "Group E", "Group F"];
+double[] means = [-1.2, -0.4, 0.2, 0.7, 1.3, 1.9];
+var palette = new[] { "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#A65628" };
+
+Plt.Create()
+    .WithTitle("Ridge Plot")
+    .WithSize(900, 600)
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        for (int g = 0; g < groups.Length; g++)
+        {
+            double offset = g * 0.6;
+            double[] data = Enumerable.Range(0, 200).Select(_ => means[g] + BM(rng) * 0.6).ToArray();
+            double[] kde = GaussKde(data);
+            double[] kdeShifted = kde.Select(v => v + offset).ToArray();
+            double[] baseline = Enumerable.Repeat(offset, xGrid.Length).ToArray();
+            var col = Color.FromHex(palette[g]);
+            ax.FillBetween(xGrid, kdeShifted, baseline, s => { s.Color = col; s.Alpha = 0.6; s.Label = groups[g]; });
+            ax.Plot(xGrid, kdeShifted, s => { s.Color = col; s.LineWidth = 1.5; });
+        }
+        ax.WithLegend();
+    })
+    .Save("ridge_plot.svg");
+```
+
+![Ridge plot](../images/ridge_plot.png)

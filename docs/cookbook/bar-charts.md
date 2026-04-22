@@ -135,3 +135,74 @@ Plt.Create()
 | `.SetBarMode(BarMode.Stacked)` | Stack multiple bar series |
 | `.SetBarMode(BarMode.Grouped)` | Side-by-side grouped bars |
 | `.WithBarLabels(format?)` | Show value labels on last bar |
+
+## Pareto chart
+
+```csharp
+string[] defects = ["Scratches", "Dents", "Cracks", "Stains", "Breaks", "Missing", "Warp"];
+double[] counts = [142, 98, 67, 45, 31, 18, 9];
+double total = counts.Sum();
+double running = 0;
+double[] cumPct = counts.Select(c => { running += c; return running / total * 100; }).ToArray();
+double[] barCenters = Enumerable.Range(0, defects.Length).Select(i => i + 0.5).ToArray();
+
+Plt.Create()
+    .WithTitle("Pareto Chart — Defect Analysis")
+    .WithSize(900, 500)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Bar(defects, counts, s => { s.Color = Color.FromHex("#4472C4"); s.Label = "Count"; })
+        .WithSecondaryYAxis(y2 => y2
+            .Plot(barCenters, cumPct, s => { s.Color = Color.FromHex("#8B0000"); s.LineWidth = 2; s.Marker = MarkerStyle.Circle; s.Label = "Cumulative %"; })
+            .SetYLim(0, 100)
+            .SetYLabel("Cumulative %"))
+        .SetYLabel("Defect Count")
+        .WithLegend())
+    .Save("pareto_chart.svg");
+```
+
+![Pareto chart](../images/pareto_chart.png)
+
+## Lollipop chart
+
+```csharp
+// Products at indices 0-5
+double[] scores = [82.5, 67.3, 91.1, 54.8, 76.4, 88.2];
+double[] xIdx = Enumerable.Range(0, scores.Length).Select(i => (double)i).ToArray();
+
+Plt.Create()
+    .WithTitle("Lollipop Chart — Product Scores")
+    .WithSize(800, 450)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Stem(xIdx, scores, s => { s.StemColor = Color.FromHex("#5B9BD5"); })
+        .Scatter(xIdx, scores, s => { s.Color = Color.FromHex("#5B9BD5"); s.MarkerSize = 14; s.Marker = MarkerStyle.Circle; })
+        .SetYLim(0, 110)
+        .SetYLabel("Score"))
+    .Save("lollipop_chart.svg");
+```
+
+![Lollipop chart](../images/lollipop_chart.png)
+
+## Monthly P&L waterfall
+
+```csharp
+string[] months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Total"];
+double[] pnl = [120, -45, 80, -30, 95, 60, -20, 110, -55, 75, 40, 130, 0];
+pnl[12] = pnl[..12].Sum();
+
+Plt.Create()
+    .WithTitle("Monthly P&L Waterfall")
+    .WithSize(1100, 500)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Waterfall(months, pnl, s =>
+        {
+            s.IncreaseColor = Color.FromHex("#2ECC71");
+            s.DecreaseColor = Color.FromHex("#E74C3C");
+            s.TotalColor = Color.FromHex("#3498DB");
+            s.BarWidth = 0.6;
+        })
+        .SetYLabel("P&L (€k)")
+        .WithXTickLabelRotation(30))
+    .Save("waterfall_pnl.svg");
+```
+
+![Monthly P&L waterfall](../images/waterfall_pnl.png)

@@ -104,3 +104,54 @@ Plt.Create()
 | `Radius` | `double` | `1.0` | Pie radius |
 | `Hatches` | `HatchPattern[]` | none | Per-slice hatch patterns |
 | `InnerRadius` | `double` | `0` | Donut hole (0 = pie, 0.4 = donut) |
+
+## Gauge chart
+
+```csharp
+Plt.Create()
+    .WithTitle("Gauge — Customer Satisfaction KPI")
+    .WithSize(600, 400)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Gauge(72, s =>
+        {
+            s.Min = 0;
+            s.Max = 100;
+            s.NeedleColor = Colors.Black;
+            s.Ranges =
+            [
+                (40,  Color.FromHex("#E74C3C")),
+                (70,  Color.FromHex("#F39C12")),
+                (100, Color.FromHex("#2ECC71")),
+            ];
+        }))
+    .Save("gauge_chart.svg");
+```
+
+`Ranges` defines color bands: each `(Threshold, Color)` entry covers from the previous threshold (or `Min`) up to `Threshold`.
+
+![Gauge chart](../images/gauge_chart.png)
+
+## Funnel chart
+
+```csharp
+string[] stages = ["Visitors", "Sign-ups", "Trials", "Qualified", "Closed"];
+double[] counts = [12_400, 4_800, 1_950, 720, 310];
+
+Plt.Create()
+    .WithTitle("Funnel Chart — Sales Pipeline")
+    .WithSize(700, 500)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Funnel(stages, counts, s =>
+        {
+            s.Colors = [
+                Color.FromHex("#2980B9"),
+                Color.FromHex("#27AE60"),
+                Color.FromHex("#F39C12"),
+                Color.FromHex("#E67E22"),
+                Color.FromHex("#E74C3C"),
+            ];
+        }))
+    .Save("funnel_chart.svg");
+```
+
+![Funnel chart](../images/funnel_chart.png)

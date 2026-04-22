@@ -1509,4 +1509,390 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     Console.WriteLine("Saved geo_globe");
 }
 
+// --- 23. Cookbook images — pareto chart ---
+{
+    string[] defects = ["Scratches", "Dents", "Cracks", "Stains", "Breaks", "Missing", "Warp"];
+    double[] counts = [142, 98, 67, 45, 31, 18, 9];
+    double total = counts.Sum();
+    double running = 0;
+    double[] cumPct = counts.Select(c => { running += c; return running / total * 100; }).ToArray();
+    double[] barCenters = Enumerable.Range(0, defects.Length).Select(i => i + 0.5).ToArray();
+
+    Plt.Create()
+        .WithTitle("Pareto Chart — Defect Analysis")
+        .WithSize(900, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Bar(defects, counts, s => { s.Color = Color.FromHex("#4472C4"); s.Label = "Count"; })
+            .WithSecondaryYAxis(y2 => y2
+                .Plot(barCenters, cumPct, s =>
+                {
+                    s.Color = Color.FromHex("#8B0000");
+                    s.LineWidth = 2;
+                    s.Marker = MarkerStyle.Circle;
+                    s.MarkerSize = 7;
+                    s.Label = "Cumulative %";
+                })
+                .SetYLim(0, 100)
+                .SetYLabel("Cumulative %"))
+            .SetYLabel("Defect Count")
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("pareto_chart.svg"));
+    Console.WriteLine("Saved pareto_chart");
+}
+
+// --- 24. Cookbook images — lollipop chart ---
+{
+    // Products at indices 0-5: Alpha, Beta, Gamma, Delta, Epsilon, Zeta
+    double[] scores = [82.5, 67.3, 91.1, 54.8, 76.4, 88.2];
+    double[] xIdx = Enumerable.Range(0, scores.Length).Select(i => (double)i).ToArray();
+
+    Plt.Create()
+        .WithTitle("Lollipop Chart — Product Scores")
+        .WithSize(800, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Stem(xIdx, scores, s => { s.StemColor = Color.FromHex("#5B9BD5"); })
+            .Scatter(xIdx, scores, s =>
+            {
+                s.Color = Color.FromHex("#5B9BD5");
+                s.MarkerSize = 14;
+                s.Marker = MarkerStyle.Circle;
+            })
+            .SetYLim(0, 110)
+            .SetYLabel("Score"))
+        .SaveSvgAndPng(SamplesPath("lollipop_chart.svg"));
+    Console.WriteLine("Saved lollipop_chart");
+}
+
+// --- 25. Cookbook images — P&L waterfall ---
+{
+    string[] months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Total"];
+    double[] pnl = [120, -45, 80, -30, 95, 60, -20, 110, -55, 75, 40, 130, 0];
+    // Total = sum of monthly values
+    pnl[12] = pnl[..12].Sum();
+
+    Plt.Create()
+        .WithTitle("Monthly P&L Waterfall")
+        .WithSize(1100, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Waterfall(months, pnl, s =>
+            {
+                s.IncreaseColor = Color.FromHex("#2ECC71");
+                s.DecreaseColor = Color.FromHex("#E74C3C");
+                s.TotalColor = Color.FromHex("#3498DB");
+                s.BarWidth = 0.6;
+            })
+            .SetYLabel("P&L (€k)")
+            .WithXTickLabelRotation(30))
+        .SaveSvgAndPng(SamplesPath("waterfall_pnl.svg"));
+    Console.WriteLine("Saved waterfall_pnl");
+}
+
+// --- 26. Cookbook images — ridge plot ---
+{
+    var rngRidge = new Random(42);
+    double BoxMuller(Random r) { double u1 = 1 - r.NextDouble(), u2 = 1 - r.NextDouble(); return Math.Sqrt(-2 * Math.Log(u1)) * Math.Sin(2 * Math.PI * u2); }
+    double[] xGrid = Enumerable.Range(0, 300).Select(i => i * 0.04 - 3.0).ToArray();
+
+    double[] GaussKde(double[] data, double bw = 0.5) =>
+        xGrid.Select(xi =>
+            data.Sum(d =>
+            {
+                double z = (xi - d) / bw;
+                return Math.Exp(-0.5 * z * z) / (bw * Math.Sqrt(2 * Math.PI));
+            }) / data.Length
+        ).ToArray();
+
+    string[] groups = ["Group A", "Group B", "Group C", "Group D", "Group E", "Group F"];
+    double[] means = [-1.2, -0.4, 0.2, 0.7, 1.3, 1.9];
+    var palette = new[] { "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#A65628" };
+
+    Plt.Create()
+        .WithTitle("Ridge Plot — Distribution Comparison")
+        .WithSize(900, 600)
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            for (int g = 0; g < groups.Length; g++)
+            {
+                double offset = g * 0.6;
+                double[] data = Enumerable.Range(0, 200)
+                    .Select(_ => means[g] + BoxMuller(rngRidge) * 0.6)
+                    .ToArray();
+                double[] kde = GaussKde(data);
+                double[] kdeShifted = kde.Select(v => v + offset).ToArray();
+                double[] baseline = Enumerable.Repeat(offset, xGrid.Length).ToArray();
+                var col = Color.FromHex(palette[g]);
+                ax.FillBetween(xGrid, kdeShifted, baseline, s =>
+                {
+                    s.Color = col;
+                    s.Alpha = 0.6;
+                    s.Label = groups[g];
+                });
+                ax.Plot(xGrid, kdeShifted, s => { s.Color = col; s.LineWidth = 1.5; });
+            }
+            ax.WithLegend();
+        })
+        .SaveSvgAndPng(SamplesPath("ridge_plot.svg"));
+    Console.WriteLine("Saved ridge_plot");
+}
+
+// --- 27. Cookbook images — dumbbell chart ---
+{
+    // Indices 0-5: Product A–F
+    double[] before = [62.0, 78.5, 55.0, 83.0, 70.0, 48.0];
+    double[] after  = [74.0, 82.0, 68.0, 79.5, 88.5, 61.0];
+    double[] xIdx   = Enumerable.Range(0, before.Length).Select(i => (double)i).ToArray();
+    double[] zeros    = new double[before.Length];
+    double[] dumbDiff = before.Zip(after, (b, a) => Math.Abs(a - b)).ToArray();
+
+    Plt.Create()
+        .WithTitle("Dumbbell Chart — Before vs After")
+        .WithSize(800, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .ErrorBar(xIdx, before, zeros, dumbDiff, s =>
+            {
+                s.Color = Color.FromHex("#AAAAAA");
+                s.LineWidth = 3;
+                s.CapSize = 0;
+            })
+            .Scatter(xIdx, before, s => { s.Color = Color.FromHex("#E74C3C"); s.MarkerSize = 14; s.Marker = MarkerStyle.Circle; s.Label = "Before"; })
+            .Scatter(xIdx, after, s => { s.Color = Color.FromHex("#2ECC71"); s.MarkerSize = 14; s.Marker = MarkerStyle.Circle; s.Label = "After"; })
+            .SetYLim(30, 100)
+            .SetYLabel("Score")
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("dumbbell_chart.svg"));
+    Console.WriteLine("Saved dumbbell_chart");
+}
+
+// --- 28. Cookbook images — A/B test with CI ---
+{
+    string[] variants = ["Control", "Variant A", "Variant B"];
+    double[] rates  = [0.121, 0.143, 0.158];
+    double[] errLo  = [0.008, 0.009, 0.010];
+    double[] errHi  = [0.008, 0.010, 0.011];
+    double[] xIdx   = [0.5, 1.5, 2.5];
+
+    Plt.Create()
+        .WithTitle("A/B Test — Conversion Rate with 95% CI")
+        .WithSize(750, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Bar(variants, rates, s => { s.Color = Color.FromHex("#5B9BD5"); s.Alpha = 0.7; })
+            .ErrorBar(xIdx, rates, errLo, errHi, s => { s.Color = Colors.Black; s.CapSize = 6; s.LineWidth = 2; })
+            .Annotate("p < 0.001", 2.0, 0.172, s => { s.Alignment = TextAlignment.Center; })
+            .SetYLabel("Conversion Rate")
+            .SetYLim(0, 0.20))
+        .SaveSvgAndPng(SamplesPath("ab_test.svg"));
+    Console.WriteLine("Saved ab_test");
+}
+
+// --- 29. Cookbook images — calendar heatmap ---
+{
+    var rngCal = new Random(7);
+    var calData = new double[52, 7];
+    for (int w = 0; w < 52; w++)
+        for (int d = 0; d < 7; d++)
+        {
+            double base_ = (d < 5) ? rngCal.NextDouble() * 8 : rngCal.NextDouble() * 2;
+            double trend = w * 0.05;
+            calData[w, d] = Math.Max(0, base_ + trend + rngCal.NextDouble() * 2 - 1);
+        }
+
+    Plt.Create()
+        .WithTitle("Calendar Heatmap — GitHub-style Contributions")
+        .WithSize(1100, 300)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Heatmap(calData, s =>
+            {
+                s.ColorMap = ColorMaps.Viridis;
+                s.Label = "Commits";
+            })
+            .WithColorBar()
+            .SetXLabel("Week")
+            .SetYLabel("Day"))
+        .SaveSvgAndPng(SamplesPath("calendar_heatmap.svg"));
+    Console.WriteLine("Saved calendar_heatmap");
+}
+
+// --- 30. Cookbook images — wind rose ---
+{
+    double[] directions = [0, 45, 90, 135, 180, 225, 270, 315];
+    double[] freqSlow   = [5.2, 4.1, 6.8, 3.5, 4.9, 7.2, 5.5, 3.8]; // 0–10 knots
+    double[] freqMed    = [3.1, 2.8, 4.2, 2.1, 3.4, 4.8, 3.2, 2.5]; // 10–20 knots
+    double[] freqFast   = [1.2, 0.9, 1.8, 0.7, 1.1, 2.1, 1.4, 0.8]; // 20+ knots
+
+    Plt.Create()
+        .WithTitle("Wind Rose")
+        .WithSize(600, 600)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .PolarBar(freqSlow, directions, s => { s.Color = Color.FromHex("#AED6F1"); s.Alpha = 0.85; s.Label = "0–10 kn"; s.BarWidth = 40; })
+            .PolarBar(freqMed, directions, s => { s.Color = Color.FromHex("#2E86C1"); s.Alpha = 0.85; s.Label = "10–20 kn"; s.BarWidth = 40; })
+            .PolarBar(freqFast, directions, s => { s.Color = Color.FromHex("#1A252F"); s.Alpha = 0.85; s.Label = "20+ kn"; s.BarWidth = 40; })
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("wind_rose.svg"));
+    Console.WriteLine("Saved wind_rose");
+}
+
+// --- 31. Cookbook images — bump / rank chart ---
+{
+    var rng3 = new Random(99);
+    string[] brands = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
+    int periods = 8;
+    double[] xPeriods = Enumerable.Range(1, periods).Select(i => (double)i).ToArray();
+    var palette2 = new[] { "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00" };
+
+    // Build rank data: each period has a permutation of 1..5
+    int[][] ranks = Enumerable.Range(0, brands.Length)
+        .Select(_ => new int[periods])
+        .ToArray();
+    for (int p = 0; p < periods; p++)
+    {
+        int[] perm = Enumerable.Range(1, brands.Length).OrderBy(_ => rng3.Next()).ToArray();
+        for (int b = 0; b < brands.Length; b++)
+            ranks[b][p] = perm[b];
+    }
+
+    Plt.Create()
+        .WithTitle("Bump Chart — Brand Ranking over Time")
+        .WithSize(900, 450)
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            for (int b = 0; b < brands.Length; b++)
+            {
+                double[] y = ranks[b].Select(r => (double)r).ToArray();
+                ax.Plot(xPeriods, y, s =>
+                {
+                    s.Color = Color.FromHex(palette2[b]);
+                    s.LineWidth = 3;
+                    s.Marker = MarkerStyle.Circle;
+                    s.MarkerSize = 10;
+                    s.Label = brands[b];
+                });
+            }
+            ax.SetYLim(brands.Length + 0.5, 0.5);
+            ax.SetYLabel("Rank");
+            ax.SetXLabel("Period");
+            ax.WithLegend();
+        })
+        .SaveSvgAndPng(SamplesPath("bump_chart.svg"));
+    Console.WriteLine("Saved bump_chart");
+}
+
+// --- 32. Cookbook images — gauge chart ---
+{
+    Plt.Create()
+        .WithTitle("Gauge Chart — Customer Satisfaction KPI")
+        .WithSize(600, 400)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Gauge(72, s =>
+            {
+                s.Min = 0;
+                s.Max = 100;
+                s.NeedleColor = Colors.Black;
+                s.Ranges =
+                [
+                    (40,  Color.FromHex("#E74C3C")),
+                    (70,  Color.FromHex("#F39C12")),
+                    (100, Color.FromHex("#2ECC71")),
+                ];
+            }))
+        .SaveSvgAndPng(SamplesPath("gauge_chart.svg"));
+    Console.WriteLine("Saved gauge_chart");
+}
+
+// --- 33. Cookbook images — funnel chart ---
+{
+    string[] stages = ["Visitors", "Sign-ups", "Trials", "Qualified", "Closed"];
+    double[] counts2 = [12_400, 4_800, 1_950, 720, 310];
+
+    Plt.Create()
+        .WithTitle("Funnel Chart — Sales Pipeline")
+        .WithSize(700, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Funnel(stages, counts2, s =>
+            {
+                s.Colors = [
+                    Color.FromHex("#2980B9"),
+                    Color.FromHex("#27AE60"),
+                    Color.FromHex("#F39C12"),
+                    Color.FromHex("#E67E22"),
+                    Color.FromHex("#E74C3C"),
+                ];
+            }))
+        .SaveSvgAndPng(SamplesPath("funnel_chart.svg"));
+    Console.WriteLine("Saved funnel_chart");
+}
+
+// --- 34. Cookbook images — scatter with marginals ---
+{
+    var rng4 = new Random(17);
+    double BM4(Random r) { double u1 = 1 - r.NextDouble(), u2 = 1 - r.NextDouble(); return Math.Sqrt(-2 * Math.Log(u1)) * Math.Sin(2 * Math.PI * u2); }
+    double[] xs = Enumerable.Range(0, 200).Select(_ => BM4(rng4)).ToArray();
+    double[] ys = xs.Select(x => 0.6 * x + BM4(rng4) * 0.8).ToArray();
+
+    Plt.Create()
+        .WithTitle("Scatter with Marginal Histograms")
+        .WithSize(800, 700)
+        .WithGridSpec(2, 2, heightRatios: [3.0, 1.0], widthRatios: [3.0, 1.0])
+        .AddSubPlot(new GridPosition(0, 1, 0, 1), ax => ax
+            .Scatter(xs, ys, s => { s.Color = Color.FromHex("#2C3E50"); s.Alpha = 0.5; s.MarkerSize = 5; })
+            .SetXLabel("X")
+            .SetYLabel("Y"))
+        .AddSubPlot(new GridPosition(0, 1, 1, 2), ax => ax
+            .Hist(ys, bins: 20, s => { s.Color = Color.FromHex("#E74C3C"); })
+            .SetXLabel("Count"))
+        .AddSubPlot(new GridPosition(1, 2, 0, 1), ax => ax
+            .Hist(xs, bins: 20, s => { s.Color = Color.FromHex("#3498DB"); })
+            .SetYLabel("Count"))
+        .SaveSvgAndPng(SamplesPath("scatter_marginals.svg"));
+    Console.WriteLine("Saved scatter_marginals");
+}
+
+// --- 35. Cookbook images — 4-projection comparison ---
+{
+    var projections = new (string Name, IGeoProjection Proj)[]
+    {
+        ("Mercator",    GeoProjection.Mercator),
+        ("Robinson",    GeoProjection.Robinson),
+        ("Mollweide",   GeoProjection.Mollweide),
+        ("Equal Earth", GeoProjection.EqualEarth),
+    };
+
+    var fig = Plt.Create()
+        .WithTitle("World Map — Four Projections")
+        .WithSize(1200, 700);
+
+    for (int i = 0; i < projections.Length; i++)
+    {
+        int row = i / 2, col = i % 2;
+        var (name, proj) = projections[i];
+        fig.AddSubPlot(2, 2, i + 1, ax => ax
+            .WithTitle(name)
+            .WithProjection(proj)
+            .Ocean(proj, Color.FromHex("#1a3a5c"))
+            .Land(proj, Color.FromHex("#2d5a27"))
+            .Coastlines(proj, Colors.White, lineWidth: 0.5)
+            .Borders(proj, Color.FromHex("#888888"), lineWidth: 0.2));
+    }
+
+    fig.SaveSvgAndPng(SamplesPath("geo_projection_grid.svg"));
+    Console.WriteLine("Saved geo_projection_grid");
+}
+
+// --- 36. Cookbook images — night-side globe ---
+{
+    var proj = GeoProjection.OrthographicAt(20, 10);
+
+    Plt.Create()
+        .WithTitle("Night-side Globe")
+        .WithSize(700, 700)
+        .WithTheme(Theme.Dark)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .WithProjection(proj)
+            .Ocean(proj, Color.FromHex("#0a1628"))
+            .Land(proj, Color.FromHex("#1a3a1a"))
+            .Coastlines(proj, Color.FromHex("#7fbbff"), lineWidth: 0.8)
+            .Borders(proj, Color.FromHex("#3a6a8a"), lineWidth: 0.25))
+        .SaveSvgAndPng(SamplesPath("geo_nightside.svg"));
+    Console.WriteLine("Saved geo_nightside");
+}
+
 Console.WriteLine("Done!");

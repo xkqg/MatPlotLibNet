@@ -287,3 +287,40 @@ ax.WithLegend(l => l with
 | `Label` | `string` | none | Legend label |
 | `Visible` | `bool` | `true` | Show/hide series |
 | `ZOrder` | `int` | `0` | Render order (higher = on top) |
+
+## Bump / rank chart
+
+Invert the Y axis so rank 1 is at the top. Use `SetYLim(n + 0.5, 0.5)` to flip the scale.
+
+```csharp
+var rng = new Random(99);
+string[] brands = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
+int periods = 8;
+double[] xPeriods = Enumerable.Range(1, periods).Select(i => (double)i).ToArray();
+var palette = new[] { "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00" };
+
+int[][] ranks = Enumerable.Range(0, brands.Length).Select(_ => new int[periods]).ToArray();
+for (int p = 0; p < periods; p++)
+{
+    int[] perm = Enumerable.Range(1, brands.Length).OrderBy(_ => rng.Next()).ToArray();
+    for (int b = 0; b < brands.Length; b++) ranks[b][p] = perm[b];
+}
+
+Plt.Create()
+    .WithTitle("Bump Chart — Brand Ranking over Time")
+    .WithSize(900, 450)
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        for (int b = 0; b < brands.Length; b++)
+        {
+            double[] y = ranks[b].Select(r => (double)r).ToArray();
+            ax.Plot(xPeriods, y, s => { s.Color = Color.FromHex(palette[b]); s.LineWidth = 3; s.Marker = MarkerStyle.Circle; s.MarkerSize = 10; s.Label = brands[b]; });
+        }
+        ax.SetYLim(brands.Length + 0.5, 0.5); // invert: rank 1 at top
+        ax.SetYLabel("Rank");
+        ax.WithLegend();
+    })
+    .Save("bump_chart.svg");
+```
+
+![Bump chart](../images/bump_chart.png)

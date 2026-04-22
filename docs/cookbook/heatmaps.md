@@ -147,3 +147,30 @@ Plt.Create()
 | Cyclic | twilight, hsv |
 | Qualitative | tab10, tab20, Set1, Set2, Set3, Pastel1, Paired |
 | Other | turbo, jet, hot, cool, spring, summer, autumn, winter |
+
+## Calendar heatmap (GitHub-style)
+
+A 52 × 7 heatmap where rows are weeks and columns are days of the week.
+
+```csharp
+var rng = new Random(7);
+var data = new double[52, 7];
+for (int w = 0; w < 52; w++)
+    for (int d = 0; d < 7; d++)
+    {
+        double base_ = (d < 5) ? rng.NextDouble() * 8 : rng.NextDouble() * 2;
+        data[w, d] = Math.Max(0, base_ + w * 0.05 + rng.NextDouble() * 2 - 1);
+    }
+
+Plt.Create()
+    .WithTitle("Calendar Heatmap — Contributions")
+    .WithSize(1100, 300)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Heatmap(data, s => { s.ColorMap = ColorMaps.Viridis; })
+        .WithColorBar()
+        .SetXLabel("Week")
+        .SetYLabel("Day"))
+    .Save("calendar_heatmap.svg");
+```
+
+![Calendar heatmap](../images/calendar_heatmap.png)

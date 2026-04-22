@@ -118,3 +118,26 @@ Plt.Create()
         .WithColorBar())
     .Save("polar_heatmap.svg");
 ```
+
+## Wind rose
+
+Three `PolarBarSeries` represent different wind speed bins; each uses the same 8 compass directions.
+
+```csharp
+double[] directions = [0, 45, 90, 135, 180, 225, 270, 315];
+double[] freqSlow  = [5.2, 4.1, 6.8, 3.5, 4.9, 7.2, 5.5, 3.8]; // 0–10 kn
+double[] freqMed   = [3.1, 2.8, 4.2, 2.1, 3.4, 4.8, 3.2, 2.5]; // 10–20 kn
+double[] freqFast  = [1.2, 0.9, 1.8, 0.7, 1.1, 2.1, 1.4, 0.8]; // 20+ kn
+
+Plt.Create()
+    .WithTitle("Wind Rose")
+    .WithSize(600, 600)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .PolarBar(freqSlow, directions, s => { s.Color = Color.FromHex("#AED6F1"); s.Alpha = 0.85; s.Label = "0–10 kn"; s.BarWidth = 40; })
+        .PolarBar(freqMed,  directions, s => { s.Color = Color.FromHex("#2E86C1"); s.Alpha = 0.85; s.Label = "10–20 kn"; s.BarWidth = 40; })
+        .PolarBar(freqFast, directions, s => { s.Color = Color.FromHex("#1A252F"); s.Alpha = 0.85; s.Label = "20+ kn"; s.BarWidth = 40; })
+        .WithLegend())
+    .Save("wind_rose.svg");
+```
+
+![Wind rose](../images/wind_rose.png)

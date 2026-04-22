@@ -147,3 +147,33 @@ Plt.Create()
 | `.TightLayout()` | Auto-adjust margins |
 | `.ConstrainedLayout()` | Advanced margin adjustment |
 | `.WithSubPlotSpacing(cfg)` | Manual margin/gap control |
+
+## Scatter with marginal histograms
+
+Use `WithGridSpec` + `GridPosition` to lay out the scatter (large cell) and two marginal histograms.
+
+```csharp
+var rng = new Random(17);
+double BM(Random r) { double u1 = 1 - r.NextDouble(), u2 = 1 - r.NextDouble(); return Math.Sqrt(-2 * Math.Log(u1)) * Math.Sin(2 * Math.PI * u2); }
+double[] xs = Enumerable.Range(0, 200).Select(_ => BM(rng)).ToArray();
+double[] ys = xs.Select(x => 0.6 * x + BM(rng) * 0.8).ToArray();
+
+Plt.Create()
+    .WithTitle("Scatter with Marginals")
+    .WithSize(800, 700)
+    .WithGridSpec(2, 2, heightRatios: [3.0, 1.0], widthRatios: [3.0, 1.0])
+    .AddSubPlot(new GridPosition(0, 1, 0, 1), ax => ax
+        .Scatter(xs, ys, s => { s.Color = Color.FromHex("#2C3E50"); s.Alpha = 0.5; s.MarkerSize = 5; })
+        .SetXLabel("X").SetYLabel("Y"))
+    .AddSubPlot(new GridPosition(0, 1, 1, 2), ax => ax
+        .Hist(ys, bins: 20, s => { s.Color = Color.FromHex("#E74C3C"); })
+        .SetXLabel("Count"))
+    .AddSubPlot(new GridPosition(1, 2, 0, 1), ax => ax
+        .Hist(xs, bins: 20, s => { s.Color = Color.FromHex("#3498DB"); })
+        .SetYLabel("Count"))
+    .Save("scatter_marginals.svg");
+```
+
+`GridPosition(rowStart, rowEnd, colStart, colEnd)` uses zero-based exclusive indices.
+
+![Scatter with marginals](../images/scatter_marginals.png)

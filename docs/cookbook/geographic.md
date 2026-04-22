@@ -237,3 +237,55 @@ foreach (var country in countries)
 | `GeoJsonReader.Parse(json)` | `string` | Parse custom GeoJSON FeatureCollection |
 | `NaturalEarth110m.Coastlines()` | — | 134 coastline features |
 | `NaturalEarth110m.Countries()` | — | 177 country polygon features |
+
+## Four-projection comparison
+
+Render the same world dataset under four different projections in a 2 × 2 grid.
+
+```csharp
+var projections = new (string Name, IGeoProjection Proj)[]
+{
+    ("Mercator",    GeoProjection.Mercator),
+    ("Robinson",    GeoProjection.Robinson),
+    ("Mollweide",   GeoProjection.Mollweide),
+    ("Equal Earth", GeoProjection.EqualEarth),
+};
+
+var fig = Plt.Create().WithTitle("Four Projections").WithSize(1200, 700);
+for (int i = 0; i < projections.Length; i++)
+{
+    var (name, proj) = projections[i];
+    fig.AddSubPlot(2, 2, i + 1, ax => ax
+        .WithTitle(name)
+        .WithProjection(proj)
+        .Ocean(proj, Color.FromHex("#1a3a5c"))
+        .Land(proj, Color.FromHex("#2d5a27"))
+        .Coastlines(proj, Colors.White, lineWidth: 0.5)
+        .Borders(proj, Color.FromHex("#888888"), lineWidth: 0.2));
+}
+fig.Save("geo_projection_grid.svg");
+```
+
+![Four-projection comparison](../images/geo_projection_grid.png)
+
+## Night-side globe
+
+Dark ocean, muted land, glowing coastlines using `Theme.Dark` and `OrthographicAt`.
+
+```csharp
+var proj = GeoProjection.OrthographicAt(20, 10);
+
+Plt.Create()
+    .WithTitle("Night-side Globe")
+    .WithSize(700, 700)
+    .WithTheme(Theme.Dark)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithProjection(proj)
+        .Ocean(proj, Color.FromHex("#0a1628"))
+        .Land(proj, Color.FromHex("#1a3a1a"))
+        .Coastlines(proj, Color.FromHex("#7fbbff"), lineWidth: 0.8)
+        .Borders(proj, Color.FromHex("#3a6a8a"), lineWidth: 0.25))
+    .Save("geo_nightside.svg");
+```
+
+![Night-side globe](../images/geo_nightside.png)

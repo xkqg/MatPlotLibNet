@@ -5,6 +5,7 @@
     <UseMaui>true</UseMaui>
     <SingleProject>true</SingleProject>
     <MauiEnableTizenTarget>false</MauiEnableTizenTarget>
+    <EnableWindowsTargeting Condition="'$(OS)' != 'Windows_NT'">true</EnableWindowsTargeting>
 <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
