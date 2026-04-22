@@ -17,6 +17,7 @@ _site/
 docs/_site/
 docs/images/
 docs/api/*.yml
+docs/api/.manifest
 !docs/api/MatPlotLibNet.Maui*.yml
 /api/
 
