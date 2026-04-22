@@ -47,10 +47,13 @@ jobs:
         run: cp -r images docs/images
 
       - name: Install MAUI workload (for Maui API metadata)
-        run: dotnet workload install android --ignore-failed-sources
+        run: dotnet workload install maui-android --ignore-failed-sources
 
       - name: Build DocFx site
-        run: docfx docs/docfx.json
+        run: |
+          docfx metadata docs/docfx.json
+          cp docs/api-toc.yml docs/api/toc.yml
+          docfx build docs/docfx.json
 
       - name: Publish Blazor WASM Playground
         run: dotnet publish Samples/MatPlotLibNet.Playground/MatPlotLibNet.Playground.csproj -c Release -o playground-out

@@ -1,0 +1,54 @@
+### YamlMime:TableOfContent
+items:
+- name: Core
+  items:
+  - uid: MatPlotLibNet
+    name: MatPlotLibNet
+  - uid: MatPlotLibNet.Models
+    name: Models
+  - uid: MatPlotLibNet.Rendering
+    name: Rendering
+  - uid: MatPlotLibNet.Styling
+    name: Styling
+  - uid: MatPlotLibNet.Numerics
+    name: Numerics
+  - uid: MatPlotLibNet.Indicators
+    name: Indicators
+  - uid: MatPlotLibNet.Interaction
+    name: Interaction
+  - uid: MatPlotLibNet.Animation
+    name: Animation
+  - uid: MatPlotLibNet.Serialization
+    name: Serialization
+  - uid: MatPlotLibNet.Transforms
+    name: Transforms
+  - uid: MatPlotLibNet.Builders
+    name: Builders
+  - uid: MatPlotLibNet.Data
+    name: Data
+- name: Packages
+  items:
+  - uid: MatPlotLibNet.Skia
+    name: Skia
+  - uid: MatPlotLibNet.DataFrame
+    name: DataFrame
+  - uid: MatPlotLibNet.Blazor
+    name: Blazor
+  - uid: MatPlotLibNet.AspNetCore
+    name: AspNetCore
+  - uid: MatPlotLibNet.Interactive
+    name: Interactive
+  - uid: MatPlotLibNet.GraphQL
+    name: GraphQL
+  - uid: MatPlotLibNet.Notebooks
+    name: Notebooks
+  - uid: MatPlotLibNet.Avalonia
+    name: Avalonia
+  - uid: MatPlotLibNet.Geo
+    name: Geo
+  - uid: MatPlotLibNet.Uno
+    name: Uno
+  - uid: MatPlotLibNet.Wpf
+    name: Wpf
+  - uid: MatPlotLibNet.Maui
+    name: Maui
