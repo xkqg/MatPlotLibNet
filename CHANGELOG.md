@@ -4,6 +4,94 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.9.0] — 2026-04-23
+
+### Indicator expansion release — 12 new indicators, 40 → 52
+
+v1.9.0 is a pure **content-expansion release**: twelve financial / signal-processing
+indicators across three logical tiers. No public API refactors, no new packages, no
+framework churn. All indicators extend the existing `Indicator<TResult>` /
+`CandleIndicator<TResult>` / `PriceIndicator<TResult>` stacked base-class pattern; SVG
+output for existing charts is byte-identical vs v1.8.0.
+
+
+### Added — Tier 3a: 4 volume / money-flow indicators
+
+First slice of the v1.9.0 indicator pack. Four classic volume-based indicators that every
+mainstream charting toolkit ships; MatPlotLibNet was missing them. All four extend
+`CandleIndicator<TResult>`, round-trip through the existing plotting pipeline, and carry
+≥90/90 line/branch coverage.
+
+- **`KlingerVolumeOscillator`** (Klinger 1977) — combines volume direction with cumulative
+  money flow. Fast/slow EMA of volume-force + signal-line EMA. Returns a named
+  `KlingerResult(double[] Kvo, double[] Signal)` record struct. Crossovers flag buying /
+  selling pressure reversals. Default periods: 34 / 55 / 13.
+- **`TwiggsMoneyFlow`** (Twiggs 2002) — true-range refinement of Chaikin Money Flow that
+  handles overnight gaps. Output bounded in `[-1, 1]`; positive = accumulation, negative =
+  distribution. Wilder-style smoothing (`α = 1/period`) on both numerator and denominator.
+  Default period: 21.
+- **`EaseOfMovement`** (Arms 1975) — measures how easily price moves a given distance
+  relative to volume. SMA of `MidpointMove / (Volume/scale / Range)`. Guards against
+  divide-by-zero on flat ranges and zero volume. Default period: 14, scale: 10⁶.
+- **`VwapZScore`** — standardised deviation from rolling Volume-Weighted Average Price.
+  Quantifies dislocation from volume-weighted fair value in sample-stddev units.
+  Mean-reversion signal. Default window: 20.
+
+Fluent entry points on `AxesBuilder`: `.EaseOfMovement(…)`, `.KlingerVolumeOscillator(…)`,
+`.TwiggsMoneyFlow(…)`, `.VwapZScore(…)`.
+
+### Added — Tier 3b: 4 trend + transform indicators
+
+Second slice of the v1.9.0 pack. Mix of classic trend-follower (Supertrend), Ehlers
+oscillator family (CG, Inverse Fisher), and a regime-detection ratio (Yang-Zhang vol
+ratio) that reuses the v1.8.0 `YangZhang` indicator.
+
+- **`Supertrend`** (Seban 2008) — ATR-based trailing stop with the outward-only band
+  recurrence. Returns a named `SupertrendResult(double[] Line, int[] Direction, bool[] Flipped)`
+  record struct: stop line + per-bar `+1`/`-1` direction + flip markers on reversal bars.
+  Reuses the existing `Atr` indicator. Defaults: period 10, multiplier 3.0.
+- **`CgOscillator`** (Ehlers 2002) — linearly weighted price average centred on zero.
+  Recent bars carry heavier weight than older ones; leads RSI slightly. Default period: 10.
+- **`InverseFisherTransform`** (Ehlers 2004) — `tanh(scale·x)` meta-indicator that
+  sharpens any bounded oscillator into clean crossover signals. Applies to RSI, stochastic,
+  CCI, or any pre-normalised series. Output bounded in `[-1, +1]`. Extends
+  `Indicator<SignalResult>` (not `PriceIndicator`) because it takes any numerical series.
+- **`YangZhangVolRatio`** — short-window / long-window Yang-Zhang volatility ratio.
+  Regime detector: &gt; 1 = vol expansion, &lt; 1 = contraction. Reuses the v1.8.0
+  `YangZhang` indicator for both components. Defaults: short 20, long 60.
+
+Fluent entry points on `AxesBuilder`: `.CgOscillator(…)`, `.InverseFisherTransform(…)`,
+`.Supertrend(…)`, `.YangZhangVolRatio(…)`.
+
+### Added — Tier 3c: 4 advanced / cross-asset indicators (closes v1.9.0)
+
+Final slice of the v1.9.0 pack. Three remaining Ehlers DSP indicators (iTrend, Decycler,
+SuperSmoother public exposure) plus the information-theoretic cross-asset measure.
+Together with v1.8.0's 24 indicators and Tier 3a/3b's 8, v1.9.0 brings the 2026 running
+total to **52 production-grade indicators** across volatility, momentum, trend, cycle,
+microstructure, entropy, change-point, and cross-asset families.
+
+- **`EhlersITrend`** (Ehlers 2001) — Instantaneous Trendline. Adaptive linearly-weighted
+  moving average whose window length equals the Hilbert-derived dominant cycle. Follows
+  trends with minimal lag and smooths noise in ranging regimes. Reuses the internal
+  `HilbertDiscriminator` helper from Tier 2c. Output length: `n − 6`.
+- **`Decycler`** (Ehlers 2015) — subtracts the dominant-cycle band (one-pole high-pass
+  filter output) from the price series, leaving the pure trend. Reuses the internal
+  `HighPassFilter` helper from Tier 2c. Default cutoff `hpPeriod = 60`.
+- **`EhlersSuperSmoother`** (Ehlers 2013) — **public exposure** of the two-pole Butterworth
+  low-pass filter previously available only as the internal Tier 2c `SuperSmoother` helper.
+  Applicable to any numerical series (price, indicator output, residuals, volume). Extends
+  `Indicator<SignalResult>` (not `PriceIndicator`) because it takes any series.
+- **`TransferEntropy`** (Schreiber 2000) — information-theoretic measure of directional
+  influence from one time series to another. Asymmetric, nonlinear alternative to
+  correlation. Returns a scalar in nats (natural-log units) estimated from joint / marginal
+  histograms over equal-width bins. `Apply` is intentionally a no-op (scalar output — not a
+  per-bar series); callers use `Compute()` / `ComputeScalar()` for display or ML features.
+  Default bins: 8, lag: 1.
+
+Fluent entry points on `AxesBuilder`: `.Decycler(…)`, `.EhlersITrend(…)`,
+`.EhlersSuperSmoother(…)`, `.TransferEntropy(…)`.
+
 ## [1.8.0] — 2026-04-22
 
 ### Added — 24 new financial / signal-processing indicators

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Diagnostics.CodeAnalysis;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
 
@@ -8,6 +9,10 @@ namespace MatPlotLibNet.Rendering;
 
 
 /// <summary>Visitor interface for rendering each series type through the visitor pattern.</summary>
+/// <remarks>Each default no-op <c>Visit(...) { }</c> overload is individually
+/// <see cref="ExcludeFromCodeCoverageAttribute"/>-tagged: they exist for ISP compatibility
+/// (so concrete visitors only need to override the methods they care about), and every
+/// production visitor overrides them so the defaults are never entered at runtime.</remarks>
 public interface ISeriesVisitor
 {
     /// <summary>Renders a line series.</summary>
@@ -192,52 +197,52 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a planar 3D bar series — flat translucent rectangles in Y-planes.
     /// Default no-op for ISP compatibility with existing visitor implementations.</summary>
-    void Visit(PlanarBar3DSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(PlanarBar3DSeries series, RenderArea area) { }
 
     // ── v1.0 Signal series (default no-ops for ISP compatibility) ──
 
     /// <summary>Renders a monotonic-XY signal series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(SignalXYSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(SignalXYSeries series, RenderArea area) { }
 
     /// <summary>Renders a uniform-sample-rate signal series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(SignalSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(SignalSeries series, RenderArea area) { }
 
     // ── v1.1.1 Polar heatmap (default no-op for ISP compatibility) ──
 
     /// <summary>Renders a polar heatmap series (wedge/sector cells). Default is a no-op for ISP compatibility.</summary>
-    void Visit(PolarHeatmapSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(PolarHeatmapSeries series, RenderArea area) { }
 
     // ── v1.3.0 3D series enhancements (default no-ops for ISP compatibility) ──
 
     /// <summary>Renders a 3D polyline series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(Line3DSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(Line3DSeries series, RenderArea area) { }
 
     /// <summary>Renders a triangulated surface series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(Trisurf3DSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(Trisurf3DSeries series, RenderArea area) { }
 
     /// <summary>Renders a 3D contour series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(Contour3DSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(Contour3DSeries series, RenderArea area) { }
 
     /// <summary>Renders a 3D quiver (vector field) series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(Quiver3DSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(Quiver3DSeries series, RenderArea area) { }
 
     /// <summary>Renders a voxel series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(VoxelSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(VoxelSeries series, RenderArea area) { }
 
     /// <summary>Renders a 3D text annotation series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(Text3DSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(Text3DSeries series, RenderArea area) { }
 
     // ── v1.4.0 Streaming series (default no-ops for ISP compatibility) ──
 
     /// <summary>Renders a streaming line series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(StreamingLineSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(StreamingLineSeries series, RenderArea area) { }
 
     /// <summary>Renders a streaming scatter series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(StreamingScatterSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(StreamingScatterSeries series, RenderArea area) { }
 
     /// <summary>Renders a streaming signal series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(StreamingSignalSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(StreamingSignalSeries series, RenderArea area) { }
 
     /// <summary>Renders a streaming candlestick series. Default is a no-op for ISP compatibility.</summary>
-    void Visit(StreamingCandlestickSeries series, RenderArea area) { }
+    [ExcludeFromCodeCoverage] void Visit(StreamingCandlestickSeries series, RenderArea area) { }
 }

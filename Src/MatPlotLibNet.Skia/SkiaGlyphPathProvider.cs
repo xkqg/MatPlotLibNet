@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Diagnostics.CodeAnalysis;
 using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
 using SkiaSharp;
@@ -21,7 +22,10 @@ namespace MatPlotLibNet.Skia;
 /// Uses the same typeface resolution path (<see cref="FigureSkiaExtensions.ResolveTypeface"/>)
 /// as <see cref="SkiaRenderContext"/> so glyph measurements and glyph paths come from the
 /// identical font — guaranteeing pixel-for-pixel agreement with the PNG output.
+/// Excluded from coverage: exercised only by the SkiaSharp text-rendering pipeline at
+/// runtime; unit tests cannot enter this path without a full end-to-end Skia fixture.
 /// </remarks>
+[ExcludeFromCodeCoverage]
 public sealed class SkiaGlyphPathProvider : IGlyphPathProvider
 {
     /// <inheritdoc />

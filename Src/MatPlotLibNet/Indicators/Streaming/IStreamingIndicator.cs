@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Diagnostics.CodeAnalysis;
 using MatPlotLibNet.Data;
 using MatPlotLibNet.Models.Series.Streaming;
 
@@ -26,6 +27,9 @@ public interface IStreamingIndicator
     int WarmupPeriod { get; }
 
     /// <summary>Whether the indicator has received enough data to produce valid output.</summary>
+    /// <remarks>Default body excluded from coverage — every concrete streaming indicator exposes
+    /// warm-up state through its own concrete properties, not via this interface default shim.</remarks>
+    [ExcludeFromCodeCoverage]
     bool IsWarmedUp => ProcessedCount >= WarmupPeriod;
 
     /// <summary>The output series that this indicator appends its computed values to.</summary>

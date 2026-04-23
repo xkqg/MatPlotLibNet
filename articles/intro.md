@@ -2,7 +2,13 @@
 
 **matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 74 series types, 104 colormaps, 26 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 13 NuGet packages + 3 npm bindings.
 
-v1.8.0 is a named-type sweep release: every anonymous tuple in the public API is now a `readonly record struct` (`ColorStop`, `StreamingPoint`, `MinMaxRange`, `MatShape`, `XYCurve`, `BarRange`, `GaugeBand`, `DataPoint`, `Size`, `LineSegment`, and more), every `*Helper` static class is replaced with extension methods or a domain-named static (`SvgXml`, `SortedArrayExtensions`, `Vec3`), and internal list-of-tuples collections have named record structs too. All 554 classes remain at ≥90/90 line/branch coverage under the strict gate introduced in v1.7.2. Byte-identical SVG output vs v1.7.3 (signature-level changes only).
+v1.9.0 is a pure indicator-expansion release. 12 new indicators extend the quant-finance library from 40 to **52 production-grade indicators**:
+
+- **Tier 3a Volume / Money Flow** (4) — `KlingerVolumeOscillator`, `TwiggsMoneyFlow`, `EaseOfMovement`, `VwapZScore`
+- **Tier 3b Trend / Transform** (4) — `Supertrend`, `CgOscillator`, `InverseFisherTransform`, `YangZhangVolRatio`
+- **Tier 3c Advanced / Cross-asset** (4) — `EhlersITrend`, `Decycler`, `EhlersSuperSmoother` (public), `TransferEntropy`
+
+All 622 classes remain at ≥90/90 line/branch coverage under the strict gate. No framework refactors this release — rendering paths are unchanged, SVG output byte-identical to shipped v1.8.0. See [CHANGELOG](https://github.com/xkqg/MatPlotLibNet/blob/main/CHANGELOG.md) for per-indicator details.
 
 ## Documentation
 

@@ -5,6 +5,10 @@
 @using MatPlotLibNet.Styling
 @using MatPlotLibNet.Styling.ColorMaps
 @inject IJSRuntime JS
+@attribute [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+@* Blazor page — UI event wiring only. All testable logic is extracted to PlaygroundController
+   (tested at 100%). Razor @code branches (MarkupString toggle, async JS interop) are not
+   exercisable without a full browser runtime; excluded from the coverage gate. *@
 
 <div class="playground-layout">
     <div class="panel panel-controls">

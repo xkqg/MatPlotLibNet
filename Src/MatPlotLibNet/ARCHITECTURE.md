@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.8.0)
+# MatPlotLibNet Core -- Architecture (v1.9.0)
 
 ## Package dependency graph
 
@@ -185,6 +185,33 @@ MatPlotLibNet/
     EquityCurve.cs                      Cumulative P&L line (panel)
     ProfitLoss.cs                       Per-trade colored bars (panel)
     DrawDown.cs                         % drawdown from peak (panel)
+    /* v1.8.0 additions (24) — volatility, momentum, cycle, microstructure, entropy, change-point, dispersion: */
+    GarmanKlass.cs, YangZhang.cs, TurbulenceIndex.cs       CandleIndicator / multivariate: vol estimators
+    AroonOscillator.cs, RelativeVigorIndex.cs + RviResult  CandleIndicator: momentum / oscillators
+    SqueezeMomentum.cs + SqueezeResult                     CandleIndicator: TTM Squeeze (histogram + flags)
+    LaguerreRsi.cs, KaufmanEfficiencyRatio.cs              PriceIndicator: smoother RSI / KAMA efficiency
+    MamaFama.cs + MamaFamaResult                           PriceIndicator: Ehlers MAMA/FAMA (uses Ehlers/)
+    AdaptiveStochastic.cs                                  CandleIndicator: Ehlers adaptive-lookback stochastic
+    FractionalDifferentiation.cs, RoofingFilter.cs         PriceIndicator: Lopez de Prado / Ehlers band-pass
+    CyberCycle.cs, EhlersSineWave.cs + SineWaveResult      PriceIndicator: cycle / phase
+    AmihudIlliquidity.cs, CorwinSchultz.cs, RollSpread.cs, Vpin.cs  CandleIndicator: microstructure
+    ForceIndex.cs                                          CandleIndicator: Elder's force index
+    Bocpd.cs, Cusum.cs + CusumResult                       PriceIndicator: change-point detection
+    PermutationEntropy.cs, WaveletEntropy.cs, WaveletEnergyRatio.cs  PriceIndicator: entropy (Wavelet/HaarDwt helper)
+    DispersionIndex.cs                                     MultivariateIndicator: cross-sectional stddev
+    /* v1.9.0 additions (12) — volume / money-flow, trend / transform, advanced + cross-asset: */
+    KlingerVolumeOscillator.cs + KlingerResult             CandleIndicator: Klinger 1977 volume oscillator
+    TwiggsMoneyFlow.cs, EaseOfMovement.cs, VwapZScore.cs   CandleIndicator: volume / money-flow
+    Supertrend.cs + SupertrendResult                       CandleIndicator: Seban 2008 ATR trailing-stop; reuses Atr
+    CgOscillator.cs                                        PriceIndicator: Ehlers 2002 Center-of-Gravity
+    InverseFisherTransform.cs                              Indicator<T>: tanh meta-indicator (any bounded series)
+    YangZhangVolRatio.cs                                   CandleIndicator: YZ short/long regime ratio; reuses YangZhang
+    EhlersITrend.cs                                        PriceIndicator: adaptive MA; reuses Ehlers/HilbertDiscriminator
+    Decycler.cs                                            PriceIndicator: price − HP; reuses Ehlers/HighPassFilter
+    EhlersSuperSmoother.cs                                 Indicator<T>: public wrapper over Ehlers/SuperSmoother
+    TransferEntropy.cs                                     Indicator<T>: Schreiber 2000 directional info flow (scalar, histogram-based)
+    Ehlers/                                                internal DSP helpers (v1.8.0): HilbertDiscriminator + HilbertResult, SuperSmoother, HighPassFilter
+    Wavelet/                                               internal DSP helpers (v1.8.0): HaarDwt + DwtResult
 
   Transforms/                         polymorphic export: IFigureTransform -> FigureTransform -> concrete
     IFigureTransform.cs               interface: Transform(Figure, Stream)

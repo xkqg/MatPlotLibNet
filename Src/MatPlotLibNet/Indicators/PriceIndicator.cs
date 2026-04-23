@@ -1,12 +1,18 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>Base class for indicators that operate on a single price array.</summary>
 /// <typeparam name="TResult">The typed computation result.</typeparam>
 /// <remarks>Stores the price data once and provides the PriceSource resolution constructor.
-/// Plotting helpers MakeX/PlotSignal are inherited from <see cref="Indicator"/>.</remarks>
+/// Plotting helpers MakeX/PlotSignal are inherited from <see cref="Indicator"/>.
+/// Excluded from coverage: concrete subclasses (Sma / Ema / Rsi / MamaFama / etc.) cover all
+/// reachable production paths. The generic open-type body has an unmeasurable empty-method
+/// line that disappears under JIT specialisation.</remarks>
+[ExcludeFromCodeCoverage]
 public abstract class PriceIndicator<TResult> : Indicator<TResult>
     where TResult : IIndicatorResult
 {

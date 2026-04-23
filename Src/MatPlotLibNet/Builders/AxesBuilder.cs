@@ -1285,6 +1285,169 @@ public sealed class AxesBuilder
         return this;
     }
 
+    // ── v1.9.0 Tier 3a — Volume / Money Flow ──
+
+    /// <summary>Adds an Ease of Movement panel indicator (Arms 1975). Signed — positive =
+    /// price rises easily on light volume (accumulation), negative = easy decline.</summary>
+    public AxesBuilder EaseOfMovement(double[] high, double[] low, double[] volume,
+        int period = 14, double scale = 1_000_000,
+        Action<Indicators.EaseOfMovement>? configure = null)
+    {
+        var indicator = new Indicators.EaseOfMovement(high, low, volume, period, scale);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Klinger Volume Oscillator panel indicator (Klinger 1977). Two lines —
+    /// KVO (fast EMA − slow EMA of volume force) + Signal (EMA of KVO). Crossovers are the
+    /// standard buy / sell trigger.</summary>
+    public AxesBuilder KlingerVolumeOscillator(double[] high, double[] low, double[] close, double[] volume,
+        int fastPeriod = 34, int slowPeriod = 55, int signalPeriod = 13,
+        Action<Indicators.KlingerVolumeOscillator>? configure = null)
+    {
+        var indicator = new Indicators.KlingerVolumeOscillator(high, low, close, volume,
+            fastPeriod, slowPeriod, signalPeriod);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Twiggs Money Flow panel indicator (Twiggs 2002). Output bounded in
+    /// <c>[-1, 1]</c>; positive = accumulation, negative = distribution.</summary>
+    public AxesBuilder TwiggsMoneyFlow(double[] high, double[] low, double[] close, double[] volume,
+        int period = 21,
+        Action<Indicators.TwiggsMoneyFlow>? configure = null)
+    {
+        var indicator = new Indicators.TwiggsMoneyFlow(high, low, close, volume, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a VWAP Z-Score panel indicator — standardised deviation from the rolling
+    /// volume-weighted average price. Mean-reversion signal; extremes beyond ±2σ mark
+    /// dislocations from fair value.</summary>
+    public AxesBuilder VwapZScore(double[] close, double[] volume, int window = 20,
+        Action<Indicators.VwapZScore>? configure = null)
+    {
+        var indicator = new Indicators.VwapZScore(close, volume, window);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    // ── v1.9.0 Tier 3b — Trend & Transform ──
+
+    /// <summary>Adds an Ehlers Center-of-Gravity Oscillator panel (Ehlers 2002) — linearly
+    /// weighted price average centred on zero. Recent prices weigh more than older ones.</summary>
+    public AxesBuilder CgOscillator(double[] prices, int period = 10,
+        Action<Indicators.CgOscillator>? configure = null)
+    {
+        var indicator = new Indicators.CgOscillator(prices, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Ehlers Inverse Fisher Transform panel (Ehlers 2004) — <c>tanh(scale·x)</c>
+    /// squash that sharpens any bounded oscillator. Output in <c>[-1, +1]</c>. Apply to RSI,
+    /// stochastic, CCI, etc. to produce cleaner crossover signals.</summary>
+    public AxesBuilder InverseFisherTransform(double[] input, double scale = 1.0,
+        Action<Indicators.InverseFisherTransform>? configure = null)
+    {
+        var indicator = new Indicators.InverseFisherTransform(input, scale);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Supertrend overlay (Seban 2008) — ATR-based trailing stop with direction
+    /// flips. Renders as a single line below price in uptrends, above price in downtrends.</summary>
+    public AxesBuilder Supertrend(double[] high, double[] low, double[] close,
+        int period = 10, double multiplier = 3.0,
+        Action<Indicators.Supertrend>? configure = null)
+    {
+        var indicator = new Indicators.Supertrend(high, low, close, period, multiplier);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Yang-Zhang volatility ratio panel — <c>short-window YZ / long-window YZ</c>.
+    /// Ratio &gt; 1 = vol expansion (possible breakout); &lt; 1 = consolidation. Reuses
+    /// <see cref="Indicators.YangZhang"/> for both numerator and denominator.</summary>
+    public AxesBuilder YangZhangVolRatio(double[] open, double[] high, double[] low, double[] close,
+        int shortWindow = 20, int longWindow = 60,
+        Action<Indicators.YangZhangVolRatio>? configure = null)
+    {
+        var indicator = new Indicators.YangZhangVolRatio(open, high, low, close, shortWindow, longWindow);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    // ── v1.9.0 Tier 3c — Advanced (remaining Ehlers + cross-asset) ──
+
+    /// <summary>Adds an Ehlers Decycler overlay (Ehlers 2015) — price minus the one-pole
+    /// high-pass filter output. Removes the dominant cycle band, leaving the trend.</summary>
+    public AxesBuilder Decycler(double[] prices, int hpPeriod = 60,
+        Action<Indicators.Decycler>? configure = null)
+    {
+        var indicator = new Indicators.Decycler(prices, hpPeriod);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Ehlers Instantaneous Trendline overlay (Ehlers 2001) — adaptive
+    /// linearly-weighted MA whose window length equals the Hilbert-derived dominant cycle.</summary>
+    public AxesBuilder EhlersITrend(double[] prices,
+        Action<Indicators.EhlersITrend>? configure = null)
+    {
+        var indicator = new Indicators.EhlersITrend(prices);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds an Ehlers SuperSmoother panel (Ehlers 2013) — two-pole Butterworth
+    /// low-pass. Applicable to any numerical series (price, indicator output, residuals).</summary>
+    public AxesBuilder EhlersSuperSmoother(double[] input, int period = 10,
+        Action<Indicators.EhlersSuperSmoother>? configure = null)
+    {
+        var indicator = new Indicators.EhlersSuperSmoother(input, period);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
+    /// <summary>Adds a Transfer Entropy computation (Schreiber 2000). Scalar output in nats —
+    /// measures directional information flow from <paramref name="source"/> to
+    /// <paramref name="target"/>. Unlike line-emitting indicators, <c>Apply</c> is a no-op;
+    /// callers typically consume <c>Compute()</c> for display as an annotation or ML feature.</summary>
+    public AxesBuilder TransferEntropy(double[] source, double[] target,
+        int bins = 8, int lag = 1,
+        Action<Indicators.TransferEntropy>? configure = null)
+    {
+        var indicator = new Indicators.TransferEntropy(source, target, bins, lag);
+        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        configure?.Invoke(indicator);
+        indicator.Apply(_axes);
+        return this;
+    }
+
     /// <summary>Applies any <see cref="Indicators.IIndicator"/> to the current axes.</summary>
     /// <remarks>Generic entry point for indicators that don't have a dedicated shortcut
     /// (e.g. <c>Macd</c>, <c>Stochastic</c>, <c>Atr</c>, <c>Ichimoku</c>). The indicator instance

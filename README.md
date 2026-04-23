@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel server-side SVG rendering, polymorphic export (SVG / PNG / PDF / animated GIF), and 74 series types across line, scatter, bar, 3D, streaming, polar, financial, statistical, hierarchical, Sankey, and vector families. Ships with 13 map projections and embedded Natural Earth data, 26 themes, LaTeX-style MathText, O(1) streaming with **40 technical indicators** (classical moving averages + volatility, momentum, cycle, microstructure, entropy, and change-point detectors), financial drawing tools (trendlines, Fibonacci retracements, horizontal levels), frame-based animation with 6 easing curves + Pause/Resume playback, native UI controls for **Blazor, WPF, MAUI, Avalonia, Uno Platform, ASP.NET Core**, and TypeScript clients for **Angular, React, and Vue** — no JavaScript framework, no WebView, no SaaS.
+A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel server-side SVG rendering, polymorphic export (SVG / PNG / PDF / animated GIF), and 74 series types across line, scatter, bar, 3D, streaming, polar, financial, statistical, hierarchical, Sankey, and vector families. Ships with 13 map projections and embedded Natural Earth data, 26 themes, LaTeX-style MathText, O(1) streaming with **52 technical indicators** (classical moving averages + volatility, momentum, trend-follower, cycle, microstructure, entropy, change-point, and cross-asset causality), financial drawing tools (trendlines, Fibonacci retracements, horizontal levels), frame-based animation with 6 easing curves + Pause/Resume playback, native UI controls for **Blazor, WPF, MAUI, Avalonia, Uno Platform, ASP.NET Core**, and TypeScript clients for **Angular, React, and Vue** — no JavaScript framework, no WebView, no SaaS.
 
 [![CI](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml/badge.svg)](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
@@ -8,27 +8,19 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-## 🧭 Stabilisation phase
+## 🧭 What's next
 
-After thirteen feature releases (v1.0 → v1.8.0) MatPlotLibNet now covers the **practical 90% of matplotlib's surface**: 74 series types, 13 map projections with embedded Natural Earth data, 26 themes, MathText with operator limits and matrices, streaming with O(1) indicators (40 indicators — v1.8.0 adds 24 financial / signal-processing extras), native UI controls for Blazor / Avalonia / Uno / WPF / MAUI, fidelity tests against a pinned matplotlib reference, and 13 NuGet packages.
+**v1.9.0 is a pure indicator-expansion release** — 12 new indicators across three tiers, bringing the library total to **52 production-grade indicators**. Future releases are **community-driven**:
 
-**v1.7.1 started the stabilisation period; v1.8.0 continues it.** The focus shifts from "ship more features" to:
+- 🧮 **v1.9.0 indicators (12)**:
+  - **Volume / Money Flow** (4) — `KlingerVolumeOscillator`, `TwiggsMoneyFlow`, `EaseOfMovement`, `VwapZScore`
+  - **Trend / Transform** (4) — `Supertrend`, `CgOscillator`, `InverseFisherTransform`, `YangZhangVolRatio`
+  - **Advanced / Cross-asset** (4) — `EhlersITrend`, `Decycler`, `EhlersSuperSmoother` (public), `TransferEntropy`
+- 🐛 **Bug fixes** — driven by community use and the strict `≥90/90` per-class coverage gate (622 classes, all pass; total **98.7% line / 95.7% branch** across 8 592 core tests). Byte-identical SVG output vs v1.8.0 — no rendering paths touched.
+- 📚 **Documentation polish** — cookbook examples, API XML doc completeness.
+- 🌱 **Listening** — Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next direction will be guided by what real users need, not by a feature checklist.
 
-- 🐛 **Bug fixes only** (no new public API), driven by community use and the `≥90/90` coverage gate
-- 🧪 **Test coverage uplift** (see [`docs/COVERAGE.md`](docs/COVERAGE.md)) — **554 classes, all ≥90/90. CI strict gate active.** Coverage: **98.49% line / 95.19% branch** (was 97.26/90.50 pre-Phase-K, 94.94/85.30 pre-refactor). Three god-classes decomposed into 32 extracted SOLID subclasses (each 100L/100B); `PlaygroundController` extracted from Blazor @code (SRP fix, 12 new tests); two IEEE-754 branch edge cases closed. Byte-level SVG output unchanged vs shipped v1.7.3 (verified by 10 033-case equivalence fuzz)
-
-> **Why v1.8.0 is a new NuGet release.** The strict 90/90-per-class coverage gate introduced in v1.7.2 surfaced dozens of anonymous tuples and `*Helper` static classes that violated the project's named-type policy. v1.8.0 completes the sweep: every public API tuple is now a named `readonly record struct` (`ColorStop`, `StreamingPoint`, `MinMaxRange`, `MatShape`, `XYCurve`, `BarRange`, `GaugeBand`, `DataPoint`, `Size`, `LineSegment`, and more), and every `*Helper` class has been replaced with extension methods or domain-named statics (`SvgXml`, `SortedArrayExtensions`, `Vec3`). Public signatures that previously returned tuples now return records; call sites that deconstruct continue to work via auto-generated `Deconstruct`. Internal list-of-tuples collections also converted. No behavioural changes; SVG output byte-identical.
-- 📚 **Documentation polish** — cookbook examples, API XML doc completeness
-- 🌱 **Listening** — what should v2 be? Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next major direction will be guided by what real users need, not by a feature checklist.
-
-> **Browser interactions are automatic.** `FigureBuilder.WithBrowserInteraction()` is the
-> single switch — pan/zoom, legend toggle + drag, treemap drilldown, sankey hover, 3D
-> rotation, rich tooltips, highlight, and brush selection all light up together. Each
-> script self-detects whether it has anything to do (e.g. the treemap script is silent
-> when the chart has no treemap nodes), so there's no per-feature toggle for the user
-> to manage.
-
-For the full v1.8.0 release notes (tuple → record struct sweep, `*Helper` → extensions / domain-named statics) and all prior history, see the [CHANGELOG](CHANGELOG.md).
+For the full v1.9.0 release notes, see the [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -115,7 +107,7 @@ Plt.Create()
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). Stacked-record event hierarchy, natural coalescing, per-caller hover responses.
 
-**104 colormaps** — viridis, plasma, turbo, coolwarm, and 100 more. NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with **40 technical indicators** (v1.8.0 adds 24 — Garman-Klass, Yang-Zhang, VPIN, Hurst, Ehlers cycle family, BOCPD, wavelet entropy, and more). Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
+**104 colormaps** — viridis, plasma, turbo, coolwarm, and 100 more. NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with **52 technical indicators** (v1.9.0 adds 12 — Klinger, Twiggs MF, Ease of Movement, VWAP Z-Score, Supertrend, CG Oscillator, Inverse Fisher, YZ Vol Ratio, Ehlers iTrend, Decycler, Ehlers SuperSmoother, Transfer Entropy). Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
 
 ---
 

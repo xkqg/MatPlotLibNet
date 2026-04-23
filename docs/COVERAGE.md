@@ -2,7 +2,7 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
-**Status (v1.8.0, named-type sweep complete, 2026-04-22):** **554 classes, all at ≥90/90.** Strict gate **PASSES on CI** — `--strict` flag is active in `.github/workflows/ci.yml`. Total project coverage: **98.49L / 95.19B** (was 97.26/90.50 pre-Phase-K, 94.94/85.30 pre-refactor). v1.8.0 converts every public-API tuple to a named `readonly record struct` and replaces every `*Helper` static class with an extension method or domain-named static — signature-level only, SVG output byte-identical to shipped v1.7.3 NuGet.
+**Status (v1.9.0, indicator-expansion release complete, 2026-04-23):** **622 classes, all at ≥90/90.** Strict gate **PASSES on CI** — `--strict` flag is active in `.github/workflows/ci.yml`. Total project coverage: **98.7L / 95.7B**. v1.9.0 adds 12 indicators (Tier 3a Volume / Tier 3b Trend+Transform / Tier 3c Advanced+Cross-asset) bringing the total to 52; every new class ships with its own ≥90/90 test file and the `AxesBuilder` shortcuts have paired tests. No framework refactors this release — rendering paths are unchanged, SVG output byte-identical to v1.8.0.
 
 ### Phase X uplift summary (2026-04-19)
 
