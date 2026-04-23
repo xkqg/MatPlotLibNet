@@ -19,15 +19,22 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release (idempotent)
         id: create_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          gh release create "$TAG" \
-            --title "$TAG" \
-            --generate-notes
+          # Skip creation if a release for this tag already exists (e.g. user created it
+          # manually via the GitHub UI, or a parallel workflow beat us to it). The social
+          # announcements below only need the release URL, which we can always look up.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — skipping create."
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           RELEASE_URL=$(gh release view "$TAG" --json url --jq '.url')
           echo "url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
@@ -45,7 +52,7 @@ jobs:
         run: |
           TAG="${{ steps.create_release.outputs.tag }}"
           URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 67 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed. ${URL}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 74 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed. ${URL}"
 
           SESSION=$(curl -s -X POST https://bsky.social/xrpc/com.atproto.server.createSession \
             -H "Content-Type: application/json" \
@@ -75,7 +82,7 @@ jobs:
         run: |
           TAG="${{ steps.create_release.outputs.tag }}"
           URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 67 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 74 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.
 
           ${URL}
 
@@ -94,7 +101,7 @@ jobs:
         run: |
           TAG="${{ steps.create_release.outputs.tag }}"
           URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 67 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.\n\n${URL}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 74 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.\n\n${URL}"
 
           curl -s -X POST "https://api.linkedin.com/v2/ugcPosts" \
             -H "Authorization: Bearer ${LINKEDIN_ACCESS_TOKEN}" \

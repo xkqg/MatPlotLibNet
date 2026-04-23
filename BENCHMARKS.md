@@ -1,6 +1,21 @@
 # Performance Benchmarks
 
-AMD Ryzen 9 3950X (16C/32T), .NET 10.0.5, X64 RyuJIT AVX2, BenchmarkDotNet v0.14.0, Release mode. Historical v0.5.1 / v0.6.0 comparisons preserved; v1.1.0 additions noted in each section.
+AMD Ryzen 9 3950X (16C/32T, 3.49 GHz base). Windows 11 24H2. .NET 10.0.6, X64 RyuJIT AVX2 / x86-64-v3. BenchmarkDotNet 0.14 / 0.15, Release mode. Raw reports live under [`Benchmarks/MatPlotLibNet.Benchmarks/BenchmarkDotNet.Artifacts/results/`](Benchmarks/MatPlotLibNet.Benchmarks/BenchmarkDotNet.Artifacts/results/) (`*-report.csv`, `*-report-github.md`, `*-report.html`). Historical v0.5.1 / v0.6.0 / v1.1.0 / v1.1.1 comparisons preserved below.
+
+## What's in v1.9.0
+
+v1.9.0 is a **pure indicator-expansion release** — 12 new indicators across Tier 3a (Volume / Money Flow), Tier 3b (Trend / Transform), and Tier 3c (Advanced / Cross-asset) bring the library total to **52 production-grade indicators**. No hot-path changes: SVG output is byte-identical to v1.8.0 so every render number in the tables below is still current. The v1.8.0 + v1.9.0 indicators (GarmanKlass, YangZhang, Klinger, Supertrend, EhlersITrend, TransferEntropy, and 30 more) use the same stacked-base-class infrastructure as the classical set benchmarked here — their per-indicator cost is in the same ballpark as the ATR / BollingerBands family for the equivalent family (volatility / trend / cycle / microstructure). A dedicated `Tier3IndicatorBenchmarks` suite will land post-v1.9.0 with side-by-side numbers.
+
+**Positioning highlights (Ryzen 9 3950X, 100 000-point series):**
+
+- **SVG render** of a 1 000-point line: **66 µs** (127 KB)
+- **SVG render** with LTTB downsample of 100 000 points: **1.78 ms**
+- **SIMD reductions** (`Vec.Sum` / `Vec.Mean`) on 100 000 points: **19 µs, zero allocation**
+- **SMA(20)** on 100 000 points: **196 µs**
+- **VWAP** on 100 000 points: **204 µs**
+- **JSON round-trip** (Figure ⇄ JSON): **40 µs**
+- **PNG export** via SkiaSharp: **27 ms**
+- **TransformBatch** (data-space → pixel-space, AVX interleave): **208 µs for 100 000 points**, 33 % faster than per-point scalar.
 
 ## What changed in v1.1.1
 
