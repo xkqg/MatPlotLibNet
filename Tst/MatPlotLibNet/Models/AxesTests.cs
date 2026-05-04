@@ -207,4 +207,63 @@ public class AxesTests
         var axes = new Axes();
         Assert.IsAssignableFrom<IReadOnlyList<ISeries>>(axes.Series);
     }
+
+    // ── v1.10 chart-pack: configure-callback null vs non-null branches ────────
+    // Each new Axes shortcut has the same `configure?.Invoke(series)` shape;
+    // both paths must be exercised to keep branch-coverage at 100/100.
+
+    [Fact]
+    public void Clustermap_NullConfigure_AddsSeries()
+    {
+        var axes = new Axes();
+        var s = axes.Clustermap(new double[,] { { 1, 2 }, { 3, 4 } });
+        Assert.Single(axes.Series);
+        Assert.NotNull(s);
+    }
+
+    [Fact]
+    public void Clustermap_WithConfigure_InvokesCallback()
+    {
+        var axes = new Axes();
+        bool invoked = false;
+        axes.Clustermap(new double[,] { { 1, 2 }, { 3, 4 } }, _ => invoked = true);
+        Assert.True(invoked);
+    }
+
+    [Fact]
+    public void PairGrid_NullConfigure_AddsSeries()
+    {
+        var axes = new Axes();
+        var s = axes.PairGrid(new[] { new[] { 1.0, 2.0 }, new[] { 3.0, 4.0 } });
+        Assert.Single(axes.Series);
+        Assert.NotNull(s);
+    }
+
+    [Fact]
+    public void PairGrid_WithConfigure_InvokesCallback()
+    {
+        var axes = new Axes();
+        bool invoked = false;
+        axes.PairGrid(new[] { new[] { 1.0, 2.0 }, new[] { 3.0, 4.0 } }, _ => invoked = true);
+        Assert.True(invoked);
+    }
+
+    [Fact]
+    public void NetworkGraph_NullConfigure_AddsSeries()
+    {
+        var axes = new Axes();
+        var s = axes.NetworkGraph([new GraphNode("a")], []);
+        Assert.Single(axes.Series);
+        Assert.NotNull(s);
+    }
+
+    [Fact]
+    public void NetworkGraph_WithConfigure_InvokesCallback()
+    {
+        var axes = new Axes();
+        bool invoked = false;
+        axes.NetworkGraph([new GraphNode("a"), new GraphNode("b")], [new GraphEdge("a", "b")],
+            _ => invoked = true);
+        Assert.True(invoked);
+    }
 }

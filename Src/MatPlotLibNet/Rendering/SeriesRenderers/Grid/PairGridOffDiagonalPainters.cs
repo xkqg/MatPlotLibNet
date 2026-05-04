@@ -77,12 +77,12 @@ internal sealed class ScatterOffDiagonalPainter : IPairGridOffDiagonalPainter
         }
 
         var hue = series.HueGroups!;
+        // BuildCache seeded every group ID present in HueGroups before dispatch, so
+        // the lookup is total — no fallback required.
         for (int k = 0; k < n; k++)
         {
             if (!double.IsFinite(xData[k]) || !double.IsFinite(yData[k])) continue;
-            int group = hue[k];
-            var groupColor = hueCache!.TryGetValue(group, out var c) ? c : PairGridHue.GetColor(group, series.HuePalette);
-            ctx.DrawCircle(PairGridGeometry.MapPoint(xData[k], yData[k], xMin, xSpan, yMin, ySpan, cell), radius, groupColor, null, 0.0);
+            ctx.DrawCircle(PairGridGeometry.MapPoint(xData[k], yData[k], xMin, xSpan, yMin, ySpan, cell), radius, hueCache![hue[k]], null, 0.0);
         }
     }
 }

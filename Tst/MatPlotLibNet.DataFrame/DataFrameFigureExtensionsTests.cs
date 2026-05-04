@@ -323,6 +323,21 @@ public class DataFrameFigureExtensionsTests
         Assert.Equal("A", s.HueLabels[0]);
     }
 
+    [Fact]
+    public void PairGrid_WithPaletteAndConfigure_BothAreApplied()
+    {
+        // Exercises the (palette is not null) and configure?.Invoke(s) branches in
+        // the inner lambda — the two halves that the no-arg call-sites short-circuit.
+        var palette = new[] { Colors.Red, Colors.Blue };
+        bool invoked = false;
+        var fig = MakePairDf().PairGrid(["petal_l", "petal_w"],
+            palette: palette,
+            configure: _ => invoked = true).Build();
+        var s = (MatPlotLibNet.Models.Series.PairGridSeries)fig.SubPlots[0].Series[0];
+        Assert.True(invoked);
+        Assert.Equal(palette, s.HuePalette);
+    }
+
     // ── NetworkGraph ──────────────────────────────────────────────────────────
 
     private static Microsoft.Data.Analysis.DataFrame MakeEdgeListDf(
@@ -414,5 +429,30 @@ public class DataFrameFigureExtensionsTests
     {
         var fig = MakeEdgeListDf().NetworkGraph("source", "target").WithTitle("My Graph").Build();
         Assert.Equal("My Graph", fig.Title);
+    }
+
+    [Fact]
+    public void NetworkGraph_WithConfigure_InvokesCallback()
+    {
+        bool invoked = false;
+        MakeEdgeListDf().NetworkGraph("source", "target", configure: _ => invoked = true).Build();
+        Assert.True(invoked);
+    }
+
+    [Fact]
+    public void NetworkGraph_DirectedColumn_NullValue_TreatedAsFalse()
+    {
+        // Boolean directed column with a null entry → `col[i] ?? false` fallback
+        // path. This exercises the null-coalescing branch in the directed loop.
+        var col = new PrimitiveDataFrameColumn<bool>("directed", new bool?[] { true, null, false });
+        var df  = new Microsoft.Data.Analysis.DataFrame(
+            new StringDataFrameColumn("source", new[] { "a", "a", "b" }),
+            new StringDataFrameColumn("target", new[] { "b", "c", "c" }),
+            col);
+        var fig = df.NetworkGraph("source", "target", directedCol: "directed").Build();
+        var s = (MatPlotLibNet.Models.Series.NetworkGraphSeries)fig.SubPlots[0].Series[0];
+        Assert.True( s.Edges[0].IsDirected);
+        Assert.False(s.Edges[1].IsDirected); // null → false fallback
+        Assert.False(s.Edges[2].IsDirected);
     }
 }

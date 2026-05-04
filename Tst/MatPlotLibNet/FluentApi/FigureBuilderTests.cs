@@ -284,4 +284,74 @@ public class FigureBuilderTests
 
         Assert.Same(figure.SubPlots[0], figure.SubPlots[1].ShareYWith);
     }
+
+    // ── v1.10 chart-pack: configure null vs non-null branches ────────────────
+
+    private static TreeNode SimpleTree() =>
+        new() { Label = "root", Children = [new() { Label = "a", Value = 1.0 }, new() { Label = "b", Value = 2.0 }] };
+
+    [Fact]
+    public void Dendrogram_NullConfigure_AddsSeries()
+    {
+        var fig = Plt.Create().Dendrogram(SimpleTree()).Build();
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void Dendrogram_WithConfigure_InvokesCallback()
+    {
+        bool invoked = false;
+        Plt.Create().Dendrogram(SimpleTree(), _ => invoked = true).Build();
+        Assert.True(invoked);
+    }
+
+    [Fact]
+    public void Clustermap_NullConfigure_AddsSeries()
+    {
+        var fig = Plt.Create().Clustermap(new double[,] { { 1, 2 }, { 3, 4 } }).Build();
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void Clustermap_WithConfigure_InvokesCallback()
+    {
+        bool invoked = false;
+        Plt.Create().Clustermap(new double[,] { { 1, 2 }, { 3, 4 } }, _ => invoked = true).Build();
+        Assert.True(invoked);
+    }
+
+    [Fact]
+    public void PairGrid_NullConfigure_AddsSeries()
+    {
+        var fig = Plt.Create().PairGrid(new[] { new[] { 1.0, 2.0 }, new[] { 3.0, 4.0 } }).Build();
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void PairGrid_WithConfigure_InvokesCallback()
+    {
+        bool invoked = false;
+        Plt.Create().PairGrid(new[] { new[] { 1.0, 2.0 }, new[] { 3.0, 4.0 } }, _ => invoked = true).Build();
+        Assert.True(invoked);
+    }
+
+    [Fact]
+    public void NetworkGraph_NullConfigure_AddsSeries()
+    {
+        var fig = Plt.Create()
+            .NetworkGraph([new GraphNode("a"), new GraphNode("b")], [new GraphEdge("a", "b")])
+            .Build();
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    [Fact]
+    public void NetworkGraph_WithConfigure_InvokesCallback()
+    {
+        bool invoked = false;
+        Plt.Create()
+            .NetworkGraph([new GraphNode("a"), new GraphNode("b")], [new GraphEdge("a", "b")],
+                _ => invoked = true)
+            .Build();
+        Assert.True(invoked);
+    }
 }

@@ -522,6 +522,20 @@ public class PairGridRenderTests
     }
 
     [Fact]
+    public void OffDiagonalKind_Hexbin_AllNonFiniteSamples_DoesNotThrow()
+    {
+        // Every sample non-finite → HexbinOffDiagonalPainter's xFiltered/yFiltered both
+        // collapse to empty → early-return guard fires before HexGrid binning.
+        var nonFiniteVars = new[]
+        {
+            new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity, double.NaN },
+            new[] { double.NaN, double.NaN, double.PositiveInfinity, double.NegativeInfinity },
+        };
+        var ex = Record.Exception(() => RenderSvg(nonFiniteVars, s => s.OffDiagonalKind = PairGridOffDiagonalKind.Hexbin));
+        Assert.Null(ex);
+    }
+
+    [Fact]
     public void OffDiagonalKind_Hexbin_OffDiagonalColorMap_RespectsCustomMap()
     {
         // Default colormap is Viridis. With Plasma set, SVG must contain Plasma fills.

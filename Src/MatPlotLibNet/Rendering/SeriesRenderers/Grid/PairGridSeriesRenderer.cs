@@ -91,7 +91,7 @@ internal sealed class PairGridSeriesRenderer : SeriesRenderer<PairGridSeries>
         if (series.DiagonalKind == PairGridDiagonalKind.Kde)
         {
             if (hueActive) RenderDiagonalKdePerHue(series, i, cell, hueCache!);
-            else            RenderDiagonalKdeSingle(series.Variables[i], cell, color, alpha: 1.0);
+            else            RenderDiagonalKdeSingle(series.Variables[i], cell, color);
             return;
         }
 
@@ -131,19 +131,18 @@ internal sealed class PairGridSeriesRenderer : SeriesRenderer<PairGridSeries>
         }
     }
 
-    /// <summary>Per-group overlapping histograms with <see cref="HueOverlayAlpha"/> alpha.</summary>
+    /// <summary>Per-group overlapping histograms with <see cref="HueOverlayAlpha"/> alpha.
+    /// <see cref="PairGridHue.BuildCache"/> seeds every group ID present in <c>HueGroups</c>,
+    /// so the cache lookup is total — no fallback path needed.</summary>
     private void RenderDiagonalHistogramPerHue(PairGridSeries series, int i, Rect cell, Dictionary<int, Color> hueCache)
     {
         var groups = SplitByHue(series.Variables[i], series.HueGroups!);
         foreach (var (group, data) in groups)
-        {
-            var groupColor = hueCache.TryGetValue(group, out var c) ? c : PairGridHue.GetColor(group, series.HuePalette);
-            RenderDiagonalHistogramSingle(data, series.DiagonalBins, cell, groupColor, HueOverlayAlpha);
-        }
+            RenderDiagonalHistogramSingle(data, series.DiagonalBins, cell, hueCache[group], HueOverlayAlpha);
     }
 
     /// <summary>Single-colour KDE rendering for one variable.</summary>
-    private void RenderDiagonalKdeSingle(double[] data, Rect cell, Color color, double alpha)
+    private void RenderDiagonalKdeSingle(double[] data, Rect cell, Color color)
     {
         if (data.Length == 0) return;
 
@@ -173,19 +172,16 @@ internal sealed class PairGridSeriesRenderer : SeriesRenderer<PairGridSeries>
             double py = cell.Bottom - curve.Y[k] / yMax * cell.Height;
             points[k] = new Point(px, py);
         }
-        var stroke = alpha < 1.0 ? ApplyAlpha(color, alpha) : color;
-        Ctx.DrawLines(points, stroke, thickness: 1.5, LineStyle.Solid);
+        Ctx.DrawLines(points, color, thickness: 1.5, LineStyle.Solid);
     }
 
-    /// <summary>Per-group KDE curves on the diagonal.</summary>
+    /// <summary>Per-group KDE curves on the diagonal. See note on
+    /// <see cref="RenderDiagonalHistogramPerHue"/> for why the cache lookup is total.</summary>
     private void RenderDiagonalKdePerHue(PairGridSeries series, int i, Rect cell, Dictionary<int, Color> hueCache)
     {
         var groups = SplitByHue(series.Variables[i], series.HueGroups!);
         foreach (var (group, data) in groups)
-        {
-            var groupColor = hueCache.TryGetValue(group, out var c) ? c : PairGridHue.GetColor(group, series.HuePalette);
-            RenderDiagonalKdeSingle(data, cell, groupColor, alpha: 1.0);
-        }
+            RenderDiagonalKdeSingle(data, cell, hueCache[group]);
     }
 
     /// <summary>One hue group's samples extracted from a parent variable. Carries

@@ -58,4 +58,30 @@ public class SpectrogramSeriesRenderTests
             .ToSvg();
         Assert.Contains("<svg", svg);
     }
+
+    // Branch coverage — exercise both halves of the (nBins==0 || nFrames==0) guard.
+    // Fft.Stft returns an empty (0,0) matrix when WindowSize<=0, hitting nBins==0 first.
+
+    [Fact]
+    public void Spectrogram_ZeroWindowSize_EarlyReturn()
+    {
+        // Non-empty signal but WindowSize=0 → Fft.Stft returns (0,0) matrix → renderer's
+        // nBins==0 guard returns. The Signal.Length==0 guard is bypassed.
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Spectrogram(Signal, 1000, s => { s.WindowSize = 0; }))
+            .ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
+    [Fact]
+    public void Spectrogram_AllZeroSignal_DegenerateColorMappingGuard()
+    {
+        // Constant signal → STFT magnitudes all equal → ResolveColormapping (min == max)
+        // → degenerate guard sets max = min + 1 so normalize stays finite.
+        var flat = new double[256];
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Spectrogram(flat, 1000, s => { s.WindowSize = 64; s.Overlap = 32; }))
+            .ToSvg();
+        Assert.Contains("<svg", svg);
+    }
 }
