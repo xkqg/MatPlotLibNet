@@ -38,7 +38,7 @@ internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
         // Extract iso-lines via MarchingSquares
         var contours = MarchingSquares.Extract(series.XData, series.YData, series.ZData, levels);
 
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var labelFont = new Font { Size = series.LabelFontSize };
         string fmt = series.LabelFormat ?? "G4";
 

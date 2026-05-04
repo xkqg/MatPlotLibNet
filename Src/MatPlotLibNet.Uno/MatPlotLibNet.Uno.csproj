@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <!-- net8.0 targets the Uno Platform Skia desktop backend. SKCanvasElement
@@ -7,7 +7,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.9.0</Version>
+    <Version>1.10.0</Version>
     <PackageId>MatPlotLibNet.Uno</PackageId>
     <Description>Uno Platform chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/reset interaction.</Description>
     <PackageTags>charting;plotting;charts;uno;winui;skiasharp;cross-platform;interactive</PackageTags>
@@ -24,7 +24,7 @@
     <PackageReference Include="SkiaSharp.Views.Uno.WinUI" Version="3.*" />
     <!-- Suppress ALL WindowsAppSDK sub-package build targets. On net8.0 (Skia backend)
          these targets assume a Windows TFM and crash on empty TargetPlatformVersion.
-         Uno handles platform abstraction — WindowsAppSDK targets are only needed for native WinUI. -->
+         Uno handles platform abstraction â€” WindowsAppSDK targets are only needed for native WinUI. -->
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
     <PackageReference Include="Microsoft.WindowsAppSDK.Base" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
     <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />

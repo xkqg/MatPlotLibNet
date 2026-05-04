@@ -98,6 +98,62 @@ Plt.Create()
     .Save("heatmap_series.svg");
 ```
 
+## Annotated heatmap (correlation matrix)
+
+`ShowValues = true` renders each cell's numeric value on top of the colour fill. The text
+colour auto-contrasts black/white per cell using Rec. 709 luminance, so labels stay
+readable across the colour map. Use `CellValueFormat` with any standard .NET numeric
+format string — `"F2"` (default) for two decimals, `"P1"` for percent.
+
+```csharp
+double[,] corr = ComputeCorrelationMatrix(returns);
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithTitle("Asset Correlation Matrix")
+        .Heatmap(corr, s =>
+        {
+            s.ColorMap = ColorMaps.RdBu_r;
+            s.ShowValues = true;
+            s.CellValueFormat = "F2";
+        })
+        .WithColorBar())
+    .Save("heatmap_annotated.svg");
+```
+
+Override the auto-contrast text colour with `CellValueColor` when you want the labels to
+match a brand colour or stay constant across the matrix.
+
+## Triangular-mask heatmap
+
+Symmetric matrices (correlation, covariance, distance) are redundant above and below the
+diagonal — `MaskMode` hides the redundant half so the eye focuses on each pair once.
+The strict variants also hide the diagonal (constant 1 for correlation matrices).
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithTitle("Lower-triangle correlation")
+        .Heatmap(corr, s =>
+        {
+            s.ColorMap = ColorMaps.RdBu_r;
+            s.ShowValues = true;
+            s.MaskMode = HeatmapMaskMode.UpperTriangleStrict;  // hide upper half + diagonal
+        })
+        .WithColorBar())
+    .Save("heatmap_lower_triangle.svg");
+```
+
+`HeatmapMaskMode` values:
+
+| Value | Hides cells where | Diagonal kept? |
+|---|---|---|
+| `None` | (nothing) | yes |
+| `UpperTriangle` | `col > row` | yes |
+| `LowerTriangle` | `col < row` | yes |
+| `UpperTriangleStrict` | `col >= row` | **no** |
+| `LowerTriangleStrict` | `col <= row` | **no** |
+
 ## Image (imshow)
 
 Display 2D arrays as images:

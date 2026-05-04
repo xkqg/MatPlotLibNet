@@ -19,6 +19,10 @@ Code examples with rendered output. Every example uses the fluent `Plt.Create()`
 | [Financial Charts](financial.md) | Candlestick + MACD + RSI dashboard, technical indicators (Bollinger, Williams %R, OBV, SAR, CCI) |
 | [Sankey Diagrams](sankey.md) | Income statement, customer journey, process distribution, vertical orientation, severity cascade |
 | [Treemaps & Hierarchical](treemaps.md) | Nested pie, treemap with drilldown |
+| [Dendrograms](dendrograms.md) | Hierarchical-clustering tree, four orientations, cut-height with cluster colours |
+| [Clustermap](clustermap.md) | Heatmap + row/column dendrograms, automatic reordering, panel ratio control |
+| [Pair Grid (PairPlot)](pairplot.md) | N×N matrix of histograms (or KDE) on the diagonal + scatters off-diagonal, hue grouping, triangular suppression |
+| [Network Graph](network-graph.md) | Nodes + edges in 2D, three deterministic layouts (Manual/Circular/Hierarchical), directed-edge arrowheads, per-node colour and size scalars, DataFrame edge-list ingestion |
 | [3D Charts](threed.md) | Surface, scatter, bar, Line3D, Trisurf, Contour3D, Quiver3D, Voxels, Text3D, camera, lighting, pane styling |
 | [Math Text](mathtext.md) | Greek letters, fractions, square roots, accents, font variants, operator limits (∫ Σ Π), matrices |
 | [Error Bars](error-bars.md) | Symmetric, asymmetric, cap size, combined scatter+error, confidence bands |

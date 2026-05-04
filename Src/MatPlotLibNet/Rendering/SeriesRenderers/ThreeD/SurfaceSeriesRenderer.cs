@@ -38,7 +38,7 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
 
         var proj = Context.Projection3D
             ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
 
         int rowStride = Math.Max(1, series.RowStride);

@@ -25,7 +25,7 @@ internal sealed class TripcolorSeriesRenderer : SeriesRenderer<TripcolorSeries>
         double zMax = series.Z.Length > 0 ? series.Z.Max() : 1;
         if (zMin == zMax) zMax = zMin + 1;
 
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var norm = series.Normalizer ?? LinearNormalizer.Instance;
 
         int nTri = tris.Length / 3;

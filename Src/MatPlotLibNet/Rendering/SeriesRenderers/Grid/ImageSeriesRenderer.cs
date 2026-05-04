@@ -50,7 +50,7 @@ internal sealed class ImageSeriesRenderer : SeriesRenderer<ImageSeries>
         }
         if (min == max) max = min + 1;
 
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var norm = series.Normalizer ?? LinearNormalizer.Instance;
 
         double cellW = Area.PlotBounds.Width  / targetCols;

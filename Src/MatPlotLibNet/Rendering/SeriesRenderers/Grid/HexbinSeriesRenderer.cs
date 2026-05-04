@@ -29,7 +29,7 @@ internal sealed class HexbinSeriesRenderer : SeriesRenderer<HexbinSeries>
         double normMax = maxCount;
         if (normMin >= normMax) normMax = normMin + 1;
 
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var norm = series.Normalizer ?? LinearNormalizer.Instance;
         double hexSize = HexGrid.ComputeHexSize(xMin, xMax, series.GridSize);
 

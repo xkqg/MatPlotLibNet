@@ -125,6 +125,34 @@ public class AdxTests
         Assert.Equal(MatPlotLibNet.Styling.Colors.Cyan, ((LineSeries)axes.Series[1]).Color);
         Assert.Equal(MatPlotLibNet.Styling.Colors.Magenta, ((LineSeries)axes.Series[2]).Color);
     }
+
+    /// <summary>ComputeFull must return real +DI / -DI — not the 50-stub placeholder.</summary>
+    [Fact]
+    public void ComputeFull_PlusDi_NotAllFifty()
+    {
+        var r = new Adx(High, Low, Close, 5).ComputeFull();
+        Assert.NotEmpty(r.PlusDi);
+        Assert.False(r.PlusDi.All(v => v == 50.0), "+DI must not be the 50 placeholder");
+    }
+
+    /// <summary>ComputeFull +DI and -DI values must be in [0, 100].</summary>
+    [Fact]
+    public void ComputeFull_PlusDiMinusDi_InRange()
+    {
+        var r = new Adx(High, Low, Close, 5).ComputeFull();
+        foreach (var v in r.PlusDi)    Assert.InRange(v, 0, 100);
+        foreach (var v in r.MinusDi)   Assert.InRange(v, 0, 100);
+    }
+
+    /// <summary>ComputeFull must return all three arrays with the same length.</summary>
+    [Fact]
+    public void ComputeFull_AllThree_SameLength()
+    {
+        var r = new Adx(High, Low, Close, 5).ComputeFull();
+        Assert.NotEmpty(r.Adx);
+        Assert.Equal(r.Adx.Length, r.PlusDi.Length);
+        Assert.Equal(r.Adx.Length, r.MinusDi.Length);
+    }
 }
 
 /// <summary>Verifies <see cref="KeltnerChannels"/> behavior.</summary>

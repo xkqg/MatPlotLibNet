@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -23,18 +22,7 @@ internal sealed class Histogram2DSeriesRenderer : SeriesRenderer<Histogram2DSeri
         double cellW = Area.PlotBounds.Width / binsX;
         double cellH = Area.PlotBounds.Height / binsY;
 
-        // Find min/max counts for color mapping
-        double min = double.MaxValue, max = double.MinValue;
-        for (int r = 0; r < binsY; r++)
-        for (int c = 0; c < binsX; c++)
-        {
-            if (counts[r, c] < min) min = counts[r, c];
-            if (counts[r, c] > max) max = counts[r, c];
-        }
-        if (min == max) max = min + 1;
-
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
-        var norm = series.Normalizer ?? LinearNormalizer.Instance;
+        var (cmap, norm, min, max) = ResolveColormapping(counts, series, series);
 
         for (int r = 0; r < binsY; r++)
         for (int c = 0; c < binsX; c++)

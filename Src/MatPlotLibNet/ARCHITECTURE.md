@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.9.0)
+# MatPlotLibNet Core -- Architecture (v1.10.0)
 
 ## Package dependency graph
 
@@ -61,7 +61,7 @@ MatPlotLibNet/
     InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
 
-    Series/                           62 series types across 15 families
+    Series/                           75 series types across 15 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
       ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
       IHasDataRange.cs                interface: series that expose their own data bounds
@@ -84,13 +84,14 @@ MatPlotLibNet/
       DatasetSeries.cs                distribution base: Datasets[][], default ComputeDataRange (Stripplot, Swarmplot, Pointplot, Box, Violin)
       PolarSeries.cs                  generic base: RData, ThetaData (PolarLine, PolarScatter, PolarBar)
       GridSeries3D.cs                 generic base: XData, YData, ZData[,] (Surface, Wireframe)
-      HierarchicalSeries.cs           abstract base: Root, ColorMap, ShowLabels, IColormappable (Treemap, Sunburst)
+      HierarchicalSeries.cs           abstract base: Root, ColorMap, ShowLabels, IColormappable (Treemap, Sunburst, Dendrogram)
       LineSeries.cs                   XYSeries: Color, LineStyle, LineWidth, Marker
       ScatterSeries.cs                XYSeries: Color, MarkerSize, Sizes[], Colors[], IColormappable
       BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth, StackBaseline, ShowLabels, LabelFormat, ICategoryLabeled, IStackable
       HistogramSeries.cs              Data, Bins, Color, Alpha, ComputeBins()
       PieSeries.cs                    Sizes, Labels, Colors[], StartAngle
-      HeatmapSeries.cs                Data[,], ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider
+      HeatmapSeries.cs                Data[,], ColorMap, Normalizer, ShowLabels, LabelFormat, MaskMode, CellValueColor, IColormappable, INormalizable, ILabelable, IColorBarDataProvider
+      HeatmapMaskMode.cs              enum: None, UpperTriangle, LowerTriangle, UpperTriangleStrict, LowerTriangleStrict + HeatmapMaskModeExtensions.Hides(row,col)
       ImageSeries.cs                  Data[,], ColorMap, Normalizer, VMin, VMax, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       Histogram2DSeries.cs            X[], Y[], BinsX, BinsY, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       BoxSeries.cs                    DatasetSeries: Color, MedianColor, ShowOutliers (overrides ComputeDataRange)
@@ -124,6 +125,18 @@ MatPlotLibNet/
       Scatter3DSeries.cs              I3DPointSeries: XData, YData, ZData, MarkerSize
       TreemapSeries.cs                HierarchicalSeries: Padding (Hierarchical/)
       SunburstSeries.cs               HierarchicalSeries: InnerRadius (Hierarchical/)
+      DendrogramSeries.cs             HierarchicalSeries: Orientation, CutHeight, CutLineColor, ColorByCluster (Hierarchical/)
+      DendrogramOrientation.cs        enum: Top, Bottom, Left, Right — leaf-axis placement
+      TreeNodeExtensions.cs           TreeNode.Walk() — DFS pre-order enumerable; replaces hand-rolled visit-all recursions
+      ClustermapSeries.cs             ChartSeries + IColorBarDataProvider + IColormappable + INormalizable + ILabelable: Data[,], RowTree?, ColumnTree?, RowDendrogramWidth, ColumnDendrogramHeight; ResolveLeafOrder() (Grid/)
+      PairGridSeries.cs               ChartSeries: Variables[][], Labels?, HueGroups?, HueLabels?, DiagonalKind, OffDiagonalKind, Triangular, DiagonalBins, MarkerSize, CellSpacing (Grid/)
+      PairGridDiagonalKind.cs         enum: Histogram, Kde, None — univariate kind for diagonal cells
+      PairGridOffDiagonalKind.cs      enum: Scatter, None, Hexbin — bivariate kind for off-diagonal cells
+      PairGridTriangle.cs             enum: Both, LowerOnly, UpperOnly — N×N triangle selector
+      Graph/NetworkGraphSeries.cs     ChartSeries + IColormappable: Nodes, Edges, Layout, ColorMap, ShowNodeLabels, ShowEdgeWeights, EdgeThicknessScale, NodeRadiusScale, LayoutSeed, LayoutIterations, ConvergenceThreshold
+      Graph/GraphNode.cs              readonly record struct: Id, X, Y, ColorScalar, SizeScalar, Label
+      Graph/GraphEdge.cs              readonly record struct: From, To, Weight, IsDirected
+      Graph/GraphLayout.cs            enum: Manual=0, ForceDirected=1, Circular=2, Hierarchical=3
       SankeySeries.cs                 Nodes, Links (Flow/)
       KdeSeries.cs                    Data[], Bandwidth?, Fill, Alpha, LineWidth, Color, LineStyle (Distribution/)
       RegressionSeries.cs             XData[], YData[], Degree, ShowConfidence, ConfidenceLevel, BandColor, BandAlpha (XY/)
@@ -234,7 +247,7 @@ MatPlotLibNet/
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation), DrawRichText (default method)
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 60 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 75 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
@@ -285,17 +298,22 @@ MatPlotLibNet/
 
     SeriesRenderers/                    generic SeriesRenderer<T> per series type
       SeriesRenderContext.cs            record: Transform + Ctx + Color + Area + options
-      SeriesRenderer.cs                 abstract base: ResolveColor(), ApplyAlpha(), ApplyDownsampling() + generic SeriesRenderer<T>
+      SeriesRenderer.cs                 abstract base: ResolveColor(), ApplyAlpha(), ApplyDownsampling(), ApplyMonotonicDownsampling(), ResolveColormapping() + ColormapContext record struct + generic SeriesRenderer<T>
       DrawStyleInterpolation.cs         internal static: Apply(x, y, style) — shared step-mode interpolation; eliminates duplication between LineSeriesRenderer and AreaSeriesRenderer
       XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band), Residual (LeastSquares residuals + optional zero line)
       Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
       Circular/                         CircularRenderer<TSeries> (abstract base: BuildWedgePath, PlaceOuterLabels); Pie, Radar, Donut, Gauge
-      Grid/                             Heatmap, Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill)
+      Grid/                             Heatmap, Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill), Clustermap (composite: heatmap + row/column dendrograms with sub-pixel-suppressed margin panels), PairGrid (composite: N×N matrix of histograms/KDE on diagonal + scatters/hexbin off-diagonal, optional hue grouping)
+                                        PairGridLayout.cs — pure geometry: ComputeCellRects(plotBounds, n, cellSpacing) → Rect[n,n]; MinPanelPx sub-pixel gate
+                                        PairGridOffDiagonalPainters.cs — IPairGridOffDiagonalPainter strategy + ScatterOffDiagonalPainter / HexbinOffDiagonalPainter / Registry; PairGridGeometry (MapPoint, ComputeAxisSpan); PairGridHue (IsValid, BuildCache, GetColor)
+      Graph/                            NetworkGraph (composite: nodes + edges in 2D, directed-edge arrowheads, optional weight labels)
+                                        NetworkGraphLayouts.cs — pure-function layouts: ApplyManual (pass-through), ApplyCircular (unit-circle evenly-spaced), ApplyHierarchical (BFS top-down with cycle handling), ApplyForceDirected (Fruchterman–Reingold spring-embedder with seeded RNG via NpRandom + temperature cooling + optional convergence-threshold early-stop); Apply(kind, seed, iterations, threshold) enum dispatch
       Distribution/                     Box, Violin, Kde (GaussianKde Silverman bandwidth), Rugplot (tick marks), Stripplot (jittered points), Swarmplot (BeeswarmLayout circle-packing)
       Financial/                        Candlestick, OhlcBar
       Polar/                            PolarTransformRenderer<TSeries> (abstract base: PrepareTransform → rMax + PolarTransform); PolarLine, PolarScatter, PolarBar
       Field/                            Quiver, Stem, Streamplot, QuiverKey (reference arrow), Barbs (meteorological wind barbs)
-      Hierarchical/                     Treemap, Sunburst (shared HierarchicalSeries base)
+      Hierarchical/                     Treemap, Sunburst, Dendrogram (shared HierarchicalSeries base; tree-of-U-shape segments with optional cut-height clustering)
+                                        HierarchicalLayout.cs — nested Dendrogram/Treemap/Sunburst/Clustermap constant classes (LabelOffsetPx, HeaderHeightPx, OuterRingInsetPx, MinPanelPx, …)
       Flow/                             Sankey
       Special/                          Table (measured column widths, header+data rows, borders)
       ThreeD/                           Stem3D (vertical stems via Projection3D), Bar3D (prism faces, painter's depth sort)
@@ -332,7 +350,7 @@ MatPlotLibNet/
     HexGrid.cs*                       internal static: ComputeHexBins → Dictionary<AxialHex, int>, HexagonVertices → Point[], HexCenter → Point
                                       (* file lives in Rendering/SeriesRenderers/Grid/ but uses MatPlotLibNet.Numerics namespace)
     AxialHex.cs*                      internal readonly record struct AxialHex(Q, R) — axial coord of a flat-top hex cell
-    MinMaxRange.cs                    public readonly record struct MinMaxRange(Min, Max) — inclusive numeric interval
+    MinMaxRange.cs                    public readonly record struct MinMaxRange(Min, Max) + MinMaxRangeExtensions.ScanColorBarRange(this double[,]) — inclusive numeric interval
     MatShape.cs                       public readonly record struct MatShape(Rows, Cols) — 2-D dimensions
     XYCurve.cs                        public readonly record struct XYCurve(X, Y) — paired sample arrays (spline / KDE results)
 
@@ -357,6 +375,7 @@ MatPlotLibNet/
     Color.cs                          readonly record struct (R, G, B, A) + named colors + hex
                                       Color constants: Tab10Blue, Tab10Orange, Tab10Green, GridGray,
                                       EdgeGray, Amber, FibonacciOrange (replace magic hex strings)
+    ColorExtensions.cs                Color.Luminance() (Rec. 709 Y'), Color.ContrastingTextColor() — auto black/white for readable cell labels
     Font.cs                           sealed record (Family, Size, Weight, Slant, Color)
     Theme.cs                          8 built-in themes (+ ColorBlindSafe Okabe-Ito, HighContrast WCAG AAA) + GridStyle sealed record + PropCycler? property (new v0.8.8)
     LineStyle.cs                      enum: Solid, Dashed, Dotted, DashDot, None
@@ -383,6 +402,8 @@ MatPlotLibNet/
       QualitativeColorMaps.cs         11 qualitative: Tab10, Tab20, Set1, Set2, Set3, Pastel1, Pastel2,
                                         Dark2, Accent, Paired, OkabeIto (new v0.8.8 — color-blind safe)
                                       Total: 53 base colormaps × 2 (+ _r reversed) = 106 registered names
+      ColormapExtensions.cs           IColormappable.GetColorMapOrDefault(fallback) + int.ColormapFraction(count, singletonT)
+                                        — replaces 17 inline `?? Viridis|Tab10` sites and 3 `index/(count-1)` sites
 ```
 
 ## Data flow
@@ -524,9 +545,8 @@ happens inside the core library.
 ```
 MatPlotLibNet.DataFrame/
   DataFrameColumnReader.cs           static: ToDoubleArray / ToStringArray — type-safe column materialisation
-  DataFrameToHueGroups.cs            static: ToHueGroups — resolves x/y/hue columns → HueGroup[]
   DataFrameFigureExtensions.cs       Line / Scatter / Hist — delegates to EnumerableFigureExtensions
-  DataFrameIndicatorExtensions.cs    16 indicator bridge methods — delegates to core indicator types
+  DataFrameIndicatorExtensions.cs    indicator bridge methods — delegates to core indicator types
   DataFrameNumericsExtensions.cs     PolyFit / PolyEval / ConfidenceBand — delegates to LeastSquares
 ```
 
@@ -538,12 +558,18 @@ All column access funnels through `DataFrameColumnReader.ToDoubleArray` / `ToStr
 
 ### Indicator bridge
 
-`DataFrameIndicatorExtensions` covers all 16 core indicators:
+`DataFrameIndicatorExtensions` exposes 51 indicator bridge methods covering all core indicators:
 
 | Group | Methods |
 |---|---|
-| Price | `Sma`, `Ema`, `Rsi`, `BollingerBands`, `Obv`, `Macd`, `DrawDown` |
-| Candle | `Adx` (scalar), `AdxFull` (→ `AdxResult`), `Atr`, `Cci`, `WilliamsR`, `Stochastic`, `ParabolicSar`, `KeltnerChannels`, `Vwap` |
+| Price | `Sma`, `Ema`, `Rsi`, `BollingerBands`, `Obv`, `Macd`, `DrawDown`, `CgOscillator`, `Bocpd`, `CyberCycle`, `Decycler`, `EhlersITrend`, `EhlersSineWave` (→ `SineWaveResult`), `EhlersSuperSmoother`, `FractionalDifferentiation`, `KaufmanEfficiencyRatio`, `LaguerreRsi`, `MamaFama` (→ `MamaFamaResult`), `PermutationEntropy`, `RollSpread`, `RoofingFilter`, `WaveletEnergyRatio`, `WaveletEntropy`, `Cusum` (→ `CusumResult`) |
+| Close+Vol | `AmihudIlliquidity`, `ForceIndex`, `Vpin`, `VwapZScore` |
+| High+Low | `AroonOscillator`, `CorwinSchultz` |
+| Candle | `Adx` (scalar), `AdxFull` (→ `AdxResult`), `Atr`, `Cci`, `WilliamsR`, `Stochastic`, `ParabolicSar`, `KeltnerChannels`, `Vwap`, `AdaptiveStochastic`, `Ichimoku` (→ `IchimokuResult`), `Supertrend` (→ `SupertrendResult`), `SqueezeMomentum` (→ `SqueezeResult`) |
+| H+L+V | `EaseOfMovement` |
+| HLCV | `KlingerVolumeOscillator` (→ `KlingerResult`), `TwiggsMoneyFlow` |
+| OHLC | `GarmanKlass`, `RelativeVigorIndex` (→ `RviResult`), `YangZhang`, `YangZhangVolRatio` |
+| Two-col | `TransferEntropy` |
 
 `Vwap` pre-computes the typical price `(H+L+C)/3` before delegating to the core `Vwap` indicator.
 `ParabolicSar` returns `.Sar` from `ParabolicSarResult`.

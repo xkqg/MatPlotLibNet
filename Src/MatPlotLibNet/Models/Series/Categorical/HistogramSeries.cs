@@ -68,20 +68,7 @@ public sealed class HistogramSeries : ChartSeries, IHasColor, IHasAlpha, IHasEdg
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 
     /// <summary>Computes histogram bin counts. Used by both range computation and rendering.</summary>
-    public HistogramBins ComputeBins()
-    {
-        if (Data.Length == 0) return new HistogramBins(0, 1, []);
-
-        double min = Data[0], max = Data[0];
-        foreach (var v in Data) { if (v < min) min = v; if (v > max) max = v; }
-
-        double binWidth = (max - min) / Bins;
-        if (binWidth == 0) binWidth = 1;
-
-        var counts = new int[Bins];
-        foreach (var val in Data)
-            counts[Math.Min((int)((val - min) / binWidth), Bins - 1)]++;
-
-        return new HistogramBins(min, binWidth, counts);
-    }
+    /// <remarks>Delegates to the shared <see cref="MatPlotLibNet.Numerics.HistogramBinning.Compute"/>
+    /// — single source-of-truth for equal-width binning across every series that needs it.</remarks>
+    public HistogramBins ComputeBins() => Numerics.HistogramBinning.Compute(Data, Bins);
 }

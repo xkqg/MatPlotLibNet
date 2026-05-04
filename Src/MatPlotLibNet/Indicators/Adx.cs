@@ -81,8 +81,11 @@ public sealed class Adx : CandleIndicator<SignalResult>
         int resultLen = n - _period * 2;
         if (resultLen <= 0) return new([], [], []);
 
-        var dx = new double[n - _period - 1];
-        int dxIdx = 0;
+        int dxLen = n - _period - 1;
+        var dx     = new double[dxLen];
+        var pdiArr = new double[dxLen];
+        var mdiArr = new double[dxLen];
+        int dxIdx  = 0;
 
         for (int i = _period; i < n - 1; i++)
         {
@@ -93,22 +96,23 @@ public sealed class Adx : CandleIndicator<SignalResult>
             double pdi = smoothTr > 0 ? smoothPlusDm / smoothTr * 100 : 0;
             double mdi = smoothTr > 0 ? smoothMinusDm / smoothTr * 100 : 0;
             double diSum = pdi + mdi;
-            dx[dxIdx++] = diSum > 0 ? Math.Abs(pdi - mdi) / diSum * 100 : 0;
+            dx[dxIdx]     = diSum > 0 ? Math.Abs(pdi - mdi) / diSum * 100 : 0;
+            pdiArr[dxIdx] = pdi;
+            mdiArr[dxIdx] = mdi;
+            dxIdx++;
         }
 
         // ADX = SMA of DX over period
         double[] adxValues = new Sma(dx, _period).Compute();
         int adxLen = adxValues.Length;
 
-        // +DI/-DI at same offset as ADX
-        var plusDiValues = new double[adxLen];
+        // +DI/-DI aligned to the last bar of each SMA window
+        var plusDiValues  = new double[adxLen];
         var minusDiValues = new double[adxLen];
-        int diStart = _period - 1; // SMA offset
-        for (int i = 0; i < adxLen && diStart + i < dx.Length; i++)
+        for (int j = 0; j < adxLen; j++)
         {
-            // Recompute DI at this point
-            plusDiValues[i] = 50; // simplified: use ADX for trend strength display
-            minusDiValues[i] = 50;
+            plusDiValues[j]  = pdiArr[j + _period - 1];
+            minusDiValues[j] = mdiArr[j + _period - 1];
         }
 
         return new(adxValues, plusDiValues, minusDiValues);

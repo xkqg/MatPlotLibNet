@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net10.0-android;net10.0-ios;net10.0-maccatalyst;net10.0-windows10.0.19041.0</TargetFrameworks>
@@ -11,7 +11,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Maui</PackageId>
-    <Version>1.9.0</Version>
+    <Version>1.10.0</Version>
     <Description>MAUI controls for MatPlotLibNet charting library. Renders charts via Microsoft.Maui.Graphics.</Description>
     <PackageTags>maui;charting;plotting;mobile;cross-platform</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

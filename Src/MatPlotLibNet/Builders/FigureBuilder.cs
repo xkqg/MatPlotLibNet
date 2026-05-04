@@ -296,6 +296,37 @@ public sealed class FigureBuilder
     public FigureBuilder Sunburst(TreeNode root, Action<SunburstSeries>? configure = null) =>
         AddSeries(ax => ax.Sunburst(root), configure);
 
+    /// <summary>Adds a dendrogram series to the default axes.</summary>
+    /// <param name="root">The root <see cref="TreeNode"/>. Internal nodes carry their merge distance in <see cref="TreeNode.Value"/>.</param>
+    /// <param name="configure">Optional callback to configure orientation, cut-height, and clustering colours.</param>
+    /// <returns>This <see cref="FigureBuilder"/> for chaining.</returns>
+    public FigureBuilder Dendrogram(TreeNode root, Action<DendrogramSeries>? configure = null) =>
+        AddSeries(ax => ax.Dendrogram(root), configure);
+
+    /// <summary>Adds a clustermap series to the default axes (heatmap with optional row/column dendrograms).</summary>
+    /// <param name="data">The 2D data matrix to render as the heatmap.</param>
+    /// <param name="configure">Optional configuration callback for the series.</param>
+    public FigureBuilder Clustermap(double[,] data, Action<ClustermapSeries>? configure = null) =>
+        AddSeries(ax => ax.Clustermap(data), configure);
+
+    /// <summary>Adds a pair-grid series to the default axes (N×N matrix of histograms + scatters).</summary>
+    /// <param name="variables">The N input variables (one <c>double[]</c> per variable, all equal length).</param>
+    /// <param name="configure">Optional configuration callback for the series.</param>
+    /// <returns>This <see cref="FigureBuilder"/> for chaining.</returns>
+    public FigureBuilder PairGrid(double[][] variables, Action<PairGridSeries>? configure = null) =>
+        AddSeries(ax => ax.PairGrid(variables), configure);
+
+    /// <summary>Adds a network-graph series to the default axes (nodes + edges in 2D).</summary>
+    /// <param name="nodes">The graph's nodes.</param>
+    /// <param name="edges">The graph's edges.</param>
+    /// <param name="configure">Optional configuration callback for the series.</param>
+    /// <returns>This <see cref="FigureBuilder"/> for chaining.</returns>
+    public FigureBuilder NetworkGraph(
+        IReadOnlyList<GraphNode> nodes,
+        IReadOnlyList<GraphEdge> edges,
+        Action<NetworkGraphSeries>? configure = null) =>
+        AddSeries(ax => ax.NetworkGraph(nodes, edges), configure);
+
     /// <summary>Adds a Sankey diagram series to the default axes.</summary>
     public FigureBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null) =>
         AddSeries(ax => ax.Sankey(nodes, links), configure);

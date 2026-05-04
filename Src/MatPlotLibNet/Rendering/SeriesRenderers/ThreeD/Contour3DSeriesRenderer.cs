@@ -41,7 +41,7 @@ internal sealed class Contour3DSeriesRenderer : SeriesRenderer<Contour3DSeries>
         var proj = Context.Projection3D
             ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
 
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var normalizer = LinearNormalizer.Instance;
 
         // Generate evenly spaced contour levels

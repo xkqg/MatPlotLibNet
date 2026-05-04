@@ -7,7 +7,17 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Serialization;
 
-/// <summary>Registry mapping series type discriminators to factory functions for deserialization.</summary>
+/// <summary>Registry mapping series type discriminators to factory functions for
+/// deserialization.</summary>
+/// <remarks>The factory table is **process-global** by design — every
+/// <see cref="ChartSerializer"/> instance dispatches through the same dictionary so
+/// downstream <c>FromJson</c> calls don't need a per-instance configuration step.
+/// Because of this, registrations made by one test bleed into sibling tests sharing
+/// the same process. Test code that registers a custom factory must call
+/// <see cref="ResetForTests"/> in its tear-down to roll the table back to the
+/// built-in defaults. Production callers that only consume the built-ins are
+/// unaffected: idempotent re-registration of the same discriminator is a safe
+/// last-writer-wins overwrite.</remarks>
 public static class SeriesRegistry
 {
     private static readonly ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>> Factories = new();
@@ -19,6 +29,16 @@ public static class SeriesRegistry
     /// <summary>Creates a series from a DTO using the registered factory.</summary>
     public static ISeries? Create(string typeDiscriminator, Axes axes, SeriesDto dto)
         => Factories.TryGetValue(typeDiscriminator, out var factory) ? factory(axes, dto) : null;
+
+    /// <summary>Clears every registered factory and re-runs <see cref="RegisterDefaults"/>
+    /// so the table returns to the exact set the static constructor builds. Intended
+    /// for test infrastructure that registers a custom factory and needs to undo
+    /// that mutation before the next test runs.</summary>
+    public static void ResetForTests()
+    {
+        Factories.Clear();
+        RegisterDefaults();
+    }
 
     static SeriesRegistry() => RegisterDefaults();
 
@@ -63,13 +83,7 @@ public static class SeriesRegistry
             if (dto.LineStyle is not null && Enum.TryParse<Styling.LineStyle>(dto.LineStyle, true, out var ls)) s.LineStyle = ls;
             return s;
         });
-        Register("heatmap", (axes, dto) =>
-        {
-            var hs = axes.Heatmap(ChartSerializer.From2DList(dto.HeatmapData));
-            if (dto.ColorMapName is not null)
-                hs.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-            return hs;
-        });
+        Register("heatmap", ChartSerializer.CreateHeatmap);
         Register("image", ChartSerializer.CreateImage);
         Register("histogram2d", ChartSerializer.CreateHistogram2D);
         Register("stem", (axes, dto) => axes.Stem(dto.XData ?? [], dto.YData ?? []));
@@ -95,6 +109,21 @@ public static class SeriesRegistry
         Register("sparkline", ChartSerializer.CreateSparkline);
         Register("treemap", (axes, _) => axes.Treemap(new TreeNode { Label = "Root" }));
         Register("sunburst", (axes, _) => axes.Sunburst(new TreeNode { Label = "Root" }));
+        Register("dendrogram", (axes, dto) =>
+        {
+            var s = axes.Dendrogram(new TreeNode { Label = "Root" });
+            if (dto.DendrogramOrientation.HasValue) s.Orientation = dto.DendrogramOrientation.Value;
+            if (dto.CutHeight.HasValue) s.CutHeight = dto.CutHeight.Value;
+            if (dto.CutLineColor.HasValue) s.CutLineColor = dto.CutLineColor.Value;
+            if (dto.ColorByCluster.HasValue) s.ColorByCluster = dto.ColorByCluster.Value;
+            if (dto.ColorMapName is not null)
+                s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+            if (dto.ShowLabels.HasValue) s.ShowLabels = dto.ShowLabels.Value;
+            return s;
+        });
+        Register("clustermap", ChartSerializer.CreateClustermap);
+        Register("pairgrid",   ChartSerializer.CreatePairGrid);
+        Register("networkgraph", ChartSerializer.CreateNetworkGraph);
         Register("sankey", (axes, _) => axes.Sankey([new SankeyNode("A")], []));
         Register("polarline", (axes, _) => axes.PolarPlot([1.0], [0.0]));
         Register("polarscatter", (axes, _) => axes.PolarScatter([1.0], [0.0]));

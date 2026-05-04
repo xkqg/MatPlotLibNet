@@ -231,10 +231,7 @@ public static class FigureTemplates
             ? colDendrogram.LeafOrder
             : Enumerable.Range(0, cols).ToArray();
 
-        var reordered = new double[rows, cols];
-        for (int r = 0; r < rows; r++)
-        for (int c = 0; c < cols; c++)
-            reordered[r, c] = data[rowOrder[r], colOrder[c]];
+        var reordered = data.Permute(rowOrder, colOrder);
 
         var builder = Plt.Create()
             .WithSize(700, 700)

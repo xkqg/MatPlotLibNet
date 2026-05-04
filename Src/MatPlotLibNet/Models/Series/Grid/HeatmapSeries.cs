@@ -4,12 +4,13 @@
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Serialization;
+using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a heatmap series that renders a 2D data matrix as colored cells.</summary>
-public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable
+public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable, ILabelable
 {
     public double[,] Data { get; }
 
@@ -17,18 +18,21 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
 
     public INormalizer? Normalizer { get; set; }
 
+    /// <inheritdoc cref="ILabelable.ShowLabels"/>
+    public bool ShowLabels { get; set; }
+
+    /// <inheritdoc cref="ILabelable.LabelFormat"/>
+    /// <remarks>Defaults to <c>"F2"</c> (two decimal places) when <see langword="null"/>.</remarks>
+    public string? LabelFormat { get; set; }
+
+    /// <summary>Mask mode that hides redundant cells in symmetric matrices (e.g. correlation matrices).</summary>
+    public HeatmapMaskMode MaskMode { get; set; } = HeatmapMaskMode.None;
+
+    /// <summary>Optional explicit cell-annotation colour. When null the renderer auto-picks black or white per cell to maximise contrast against the fill.</summary>
+    public Color? CellValueColor { get; set; }
+
     /// <inheritdoc />
-    public MinMaxRange GetColorBarRange()
-    {
-        double min = double.MaxValue, max = double.MinValue;
-        for (int r = 0; r < Data.GetLength(0); r++)
-            for (int c = 0; c < Data.GetLength(1); c++)
-            {
-                if (Data[r, c] < min) min = Data[r, c];
-                if (Data[r, c] > max) max = Data[r, c];
-            }
-        return min < max ? new(min, max) : new(0, 1);
-    }
+    public MinMaxRange GetColorBarRange() => Data.ScanColorBarRange();
 
 
     /// <summary>Initializes a new instance of <see cref="HeatmapSeries"/> with the specified 2D data.</summary>
@@ -53,7 +57,16 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
     }
 
     /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new() { Type = "heatmap", HeatmapData = ChartSerializer.To2DList(Data), ColorMapName = ColorMap?.Name };
+    public override SeriesDto ToSeriesDto() => new()
+    {
+        Type = "heatmap",
+        HeatmapData = ChartSerializer.To2DList(Data),
+        ColorMapName = ColorMap?.Name,
+        ShowLabels = ShowLabels ? true : null,
+        LabelFormat = LabelFormat,
+        MaskMode = MaskMode != HeatmapMaskMode.None ? MaskMode.ToString() : null,
+        CellValueColor = CellValueColor,
+    };
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

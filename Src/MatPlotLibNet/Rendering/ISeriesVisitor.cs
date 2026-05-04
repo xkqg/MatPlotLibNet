@@ -245,4 +245,21 @@ public interface ISeriesVisitor
 
     /// <summary>Renders a streaming candlestick series. Default is a no-op for ISP compatibility.</summary>
     [ExcludeFromCodeCoverage] void Visit(StreamingCandlestickSeries series, RenderArea area) { }
+
+    // ── v1.10 Pair-Selection Visualisation Pack (default no-ops for ISP compatibility) ──
+
+    /// <summary>Renders a dendrogram series. Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(DendrogramSeries series, RenderArea area) { }
+
+    /// <summary>Renders a clustermap series (heatmap + optional row/column dendrograms).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(ClustermapSeries series, RenderArea area) { }
+
+    /// <summary>Renders a pair-grid series (N×N matrix of histograms + scatters).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(PairGridSeries series, RenderArea area) { }
+
+    /// <summary>Renders a network-graph series (nodes + edges in 2D).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(NetworkGraphSeries series, RenderArea area) { }
 }

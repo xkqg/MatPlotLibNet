@@ -6,6 +6,7 @@ using MatPlotLibNet.Models.Series.XY;
 using MatPlotLibNet.Rendering.Downsampling;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -81,7 +82,38 @@ internal abstract class SeriesRenderer
     protected XYData ApplyMonotonicDownsampling<T>(T src, int? maxPoints)
         where T : IMonotonicXY =>
         MonotonicViewportSlicer.Slice(src, Transform.DataXMin, Transform.DataXMax, maxPoints);
+
+    /// <summary>Scans <paramref name="data"/> for its value range, then resolves the colour map and
+    /// normalizer from the series. The <c>min == max</c> edge case is guarded with <c>max = min + 1</c>
+    /// so downstream normalizers never divide by zero.</summary>
+    protected static ColormapContext ResolveColormapping(double[,] data, IColormappable cm, INormalizable norm)
+    {
+        double min = double.MaxValue, max = double.MinValue;
+        foreach (double v in data)
+        {
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+        if (min == max) max = min + 1;
+        return new(cm.GetColorMapOrDefault(ColorMaps.Viridis), norm.Normalizer ?? LinearNormalizer.Instance, min, max);
+    }
+
+    /// <inheritdoc cref="ResolveColormapping(double[,],IColormappable,INormalizable)"/>
+    protected static ColormapContext ResolveColormapping(int[,] data, IColormappable cm, INormalizable norm)
+    {
+        double min = double.MaxValue, max = double.MinValue;
+        foreach (int v in data)
+        {
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+        if (min == max) max = min + 1;
+        return new(cm.GetColorMapOrDefault(ColorMaps.Viridis), norm.Normalizer ?? LinearNormalizer.Instance, min, max);
+    }
 }
+
+/// <summary>Resolved colour-map configuration used by grid-series renderers.</summary>
+internal readonly record struct ColormapContext(IColorMap ColorMap, INormalizer Normalizer, double Min, double Max);
 
 /// <summary>Generic typed series renderer. Each concrete renderer handles exactly one <typeparamref name="T"/> series type.</summary>
 /// <typeparam name="T">The series type this renderer handles.</typeparam>

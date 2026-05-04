@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Notebooks</PackageId>
-    <Version>1.9.0</Version>
+    <Version>1.10.0</Version>
     <Description>Polyglot Notebooks / Jupyter support for MatPlotLibNet. Renders Figure inline as SVG in notebook cells.</Description>
     <PackageTags>notebooks;jupyter;polyglot;interactive;charting;svg</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

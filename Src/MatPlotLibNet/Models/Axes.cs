@@ -618,6 +618,57 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a dendrogram series to the axes.</summary>
+    /// <param name="root">The root <see cref="TreeNode"/>. Internal nodes carry their merge
+    /// distance in <see cref="TreeNode.Value"/>.</param>
+    /// <returns>The newly added <see cref="DendrogramSeries"/> for further property configuration.</returns>
+    public DendrogramSeries Dendrogram(TreeNode root)
+    {
+        var series = new DendrogramSeries(root);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a clustermap series to the axes (heatmap with optional row/column dendrograms).</summary>
+    /// <param name="data">The 2D data matrix to render as the heatmap.</param>
+    /// <param name="configure">Optional configuration callback for the series.</param>
+    /// <returns>The newly added <see cref="ClustermapSeries"/> for further property configuration.</returns>
+    public ClustermapSeries Clustermap(double[,] data, Action<ClustermapSeries>? configure = null)
+    {
+        var series = new ClustermapSeries(data);
+        configure?.Invoke(series);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a pair-grid series to the axes (N×N matrix of histograms + scatters).</summary>
+    /// <param name="variables">The N input variables (one <c>double[]</c> per variable, all equal length).</param>
+    /// <param name="configure">Optional configuration callback for the series.</param>
+    /// <returns>The newly added <see cref="PairGridSeries"/> for further property configuration.</returns>
+    public PairGridSeries PairGrid(double[][] variables, Action<PairGridSeries>? configure = null)
+    {
+        var series = new PairGridSeries(variables);
+        configure?.Invoke(series);
+        _series.Add(series);
+        return series;
+    }
+
+    /// <summary>Adds a network-graph series to the axes (nodes + edges in 2D).</summary>
+    /// <param name="nodes">The graph's nodes (each with an Id and optional X/Y/colour/size scalars).</param>
+    /// <param name="edges">The graph's edges (From/To node IDs, optional Weight, optional IsDirected).</param>
+    /// <param name="configure">Optional configuration callback for the series.</param>
+    /// <returns>The newly added <see cref="NetworkGraphSeries"/> for further property configuration.</returns>
+    public NetworkGraphSeries NetworkGraph(
+        IReadOnlyList<GraphNode> nodes,
+        IReadOnlyList<GraphEdge> edges,
+        Action<NetworkGraphSeries>? configure = null)
+    {
+        var series = new NetworkGraphSeries(nodes, edges);
+        configure?.Invoke(series);
+        _series.Add(series);
+        return series;
+    }
+
     /// <summary>Adds a Sankey diagram series to the axes.</summary>
     public SankeySeries Sankey(SankeyNode[] nodes, SankeyLink[] links)
     {

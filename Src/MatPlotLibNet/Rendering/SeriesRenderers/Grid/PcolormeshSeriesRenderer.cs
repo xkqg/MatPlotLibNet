@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -19,17 +18,7 @@ internal sealed class PcolormeshSeriesRenderer : SeriesRenderer<PcolormeshSeries
         if (rows == 0 || cols == 0) return;
         if (series.X.Length < 2 || series.Y.Length < 2) return;
 
-        double min = double.MaxValue, max = double.MinValue;
-        for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols; c++)
-            {
-                if (series.C[r, c] < min) min = series.C[r, c];
-                if (series.C[r, c] > max) max = series.C[r, c];
-            }
-        if (min == max) max = min + 1;
-
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
-        var norm = series.Normalizer ?? LinearNormalizer.Instance;
+        var (cmap, norm, min, max) = ResolveColormapping(series.C, series, series);
 
         for (int r = 0; r < rows; r++)
         for (int c = 0; c < cols; c++)

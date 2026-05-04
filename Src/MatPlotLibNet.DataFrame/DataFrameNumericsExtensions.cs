@@ -47,7 +47,7 @@ public static class DataFrameNumericsExtensions
     /// <param name="degree">Polynomial degree (0–10). Prefer ≤ 6 for numerical stability.</param>
     /// <returns>Coefficient array [a₀, a₁, …, aₙ] of length <c>degree + 1</c>.</returns>
     public static double[] PolyFit(this MsDataFrame df, string xCol, string yCol, int degree) =>
-        LeastSquares.PolyFit(Col(df, xCol), Col(df, yCol), degree);
+        LeastSquares.PolyFit(df.DoubleCol(xCol), df.DoubleCol(yCol), degree);
 
     /// <summary>Evaluates a fitted polynomial at every value in the named X column.</summary>
     /// <param name="df">The source data frame.</param>
@@ -55,7 +55,7 @@ public static class DataFrameNumericsExtensions
     /// <param name="coefficients">Polynomial coefficients from <see cref="PolyFit"/>.</param>
     /// <returns>Evaluated Y values — same length as the X column.</returns>
     public static double[] PolyEval(this MsDataFrame df, string xCol, double[] coefficients) =>
-        LeastSquares.PolyEval(coefficients, Col(df, xCol));
+        LeastSquares.PolyEval(coefficients, df.DoubleCol(xCol));
 
     /// <summary>
     /// Computes confidence bands for a fitted polynomial at the specified evaluation X values.
@@ -70,14 +70,6 @@ public static class DataFrameNumericsExtensions
     public static ConfidenceBand ConfidenceBand(
         this MsDataFrame df, string xCol, string yCol,
         double[] coefficients, double[] evalX, double level = 0.95) =>
-        LeastSquares.ConfidenceBand(Col(df, xCol), Col(df, yCol), coefficients, evalX, level);
+        LeastSquares.ConfidenceBand(df.DoubleCol(xCol), df.DoubleCol(yCol), coefficients, evalX, level);
 
-    // ── Private helper ────────────────────────────────────────────────────────
-
-    private static double[] Col(MsDataFrame df, string name)
-    {
-        if (!df.Columns.Any(c => c.Name == name))
-            throw new ArgumentException($"DataFrame has no column '{name}'.", nameof(name));
-        return DataFrameColumnReader.ToDoubleArray(df[name]);
-    }
 }

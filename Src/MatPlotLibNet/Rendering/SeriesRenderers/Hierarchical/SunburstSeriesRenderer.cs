@@ -20,7 +20,7 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
         var bounds = Context.Area.PlotBounds;
         double cx = bounds.X + bounds.Width / 2;
         double cy = bounds.Y + bounds.Height / 2;
-        double maxRadius = Math.Min(bounds.Width, bounds.Height) / 2 - 10;
+        double maxRadius = Math.Min(bounds.Width, bounds.Height) / 2 - HierarchicalLayout.Sunburst.OuterRingInsetPx;
 
         // Count max depth
         int maxDepth = GetMaxDepth(series.Root);

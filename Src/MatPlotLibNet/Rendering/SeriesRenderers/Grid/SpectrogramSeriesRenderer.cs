@@ -3,7 +3,6 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
-using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -23,19 +22,7 @@ internal sealed class SpectrogramSeriesRenderer : SeriesRenderer<SpectrogramSeri
         int nFrames = stft.Magnitudes.GetLength(1);
         if (nBins == 0 || nFrames == 0) return;
 
-        // Find global min/max for normalization
-        double min = double.MaxValue, max = double.MinValue;
-        for (int b = 0; b < nBins; b++)
-            for (int f = 0; f < nFrames; f++)
-            {
-                double v = stft.Magnitudes[b, f];
-                if (v < min) min = v;
-                if (v > max) max = v;
-            }
-        if (min == max) max = min + 1;
-
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
-        var norm = series.Normalizer ?? LinearNormalizer.Instance;
+        var (cmap, norm, min, max) = ResolveColormapping(stft.Magnitudes, series, series);
 
         double duration = series.Signal.Length / (double)series.SampleRate;
         double maxFreq = series.SampleRate / 2.0;

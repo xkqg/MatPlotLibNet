@@ -24,7 +24,7 @@ internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries
         double zMin = series.Z.Min(), zMax = series.Z.Max();
         if (zMin == zMax) return;
 
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var norm = series.Normalizer ?? LinearNormalizer.Instance;
 
         int levels = Math.Max(2, series.Levels);

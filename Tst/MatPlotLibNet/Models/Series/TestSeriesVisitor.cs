@@ -88,4 +88,10 @@ internal sealed class TestSeriesVisitor : ISeriesVisitor
     public void Visit(StreamingScatterSeries series, RenderArea area) => LastVisited = nameof(StreamingScatterSeries);
     public void Visit(StreamingSignalSeries series, RenderArea area) => LastVisited = nameof(StreamingSignalSeries);
     public void Visit(StreamingCandlestickSeries series, RenderArea area) => LastVisited = nameof(StreamingCandlestickSeries);
+
+    // ── v1.10 Pair-Selection Visualisation Pack ──
+    public void Visit(DendrogramSeries series, RenderArea area) => LastVisited = nameof(DendrogramSeries);
+    public void Visit(ClustermapSeries series, RenderArea area) => LastVisited = nameof(ClustermapSeries);
+    public void Visit(PairGridSeries series, RenderArea area) => LastVisited = nameof(PairGridSeries);
+    public void Visit(NetworkGraphSeries series, RenderArea area) => LastVisited = nameof(NetworkGraphSeries);
 }

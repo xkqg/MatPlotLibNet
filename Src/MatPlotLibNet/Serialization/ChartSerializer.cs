@@ -557,6 +557,95 @@ public sealed class ChartSerializer : IChartSerializer
         return s;
     }
 
+    /// <summary>Reconstructs a <see cref="HeatmapSeries"/> from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static HeatmapSeries CreateHeatmap(Axes axes, SeriesDto dto)
+    {
+        var hs = axes.Heatmap(From2DList(dto.HeatmapData));
+        if (dto.ColorMapName is not null)
+            hs.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        if (dto.ShowLabels.HasValue) hs.ShowLabels = dto.ShowLabels.Value;
+        if (dto.LabelFormat is not null) hs.LabelFormat = dto.LabelFormat;
+        if (dto.MaskMode is not null && Enum.TryParse<Models.Series.HeatmapMaskMode>(dto.MaskMode, true, out var mm)) hs.MaskMode = mm;
+        if (dto.CellValueColor.HasValue) hs.CellValueColor = dto.CellValueColor.Value;
+        return hs;
+    }
+
+    /// <summary>Reconstructs a <see cref="PairGridSeries"/> from the DTO.</summary>
+    /// <remarks>The hue palette is not serialised — it is the user's runtime preference,
+    /// not part of the persisted figure shape (same project convention as
+    /// <c>HeatmapSeries.Normalizer</c>).</remarks>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static PairGridSeries CreatePairGrid(Axes axes, SeriesDto dto)
+    {
+        var variables = FromJaggedList(dto.Variables);
+        if (variables.Length == 0)
+            throw new InvalidOperationException(
+                "Cannot reconstruct PairGridSeries: the JSON DTO has no Variables. " +
+                "Pair-grid serialization requires at least one variable, matching the model constructor invariant.");
+        var s = axes.PairGrid(variables);
+        if (dto.PairGridLabels    is not null) s.Labels    = dto.PairGridLabels;
+        if (dto.PairGridHueGroups is not null) s.HueGroups = dto.PairGridHueGroups;
+        if (dto.PairGridHueLabels is not null) s.HueLabels = dto.PairGridHueLabels;
+        if (dto.PairGridDiagonal     is not null && Enum.TryParse<Models.Series.PairGridDiagonalKind>(dto.PairGridDiagonal,    true, out var dk)) s.DiagonalKind    = dk;
+        if (dto.PairGridOffDiagonal  is not null && Enum.TryParse<Models.Series.PairGridOffDiagonalKind>(dto.PairGridOffDiagonal, true, out var od)) s.OffDiagonalKind = od;
+        if (dto.PairGridTriangular   is not null && Enum.TryParse<Models.Series.PairGridTriangle>(dto.PairGridTriangular,    true, out var tri)) s.Triangular      = tri;
+        if (dto.PairGridDiagonalBins.HasValue) s.DiagonalBins = dto.PairGridDiagonalBins.Value;
+        if (dto.PairGridMarkerSize  .HasValue) s.MarkerSize   = dto.PairGridMarkerSize.Value;
+        if (dto.PairGridCellSpacing .HasValue) s.CellSpacing  = dto.PairGridCellSpacing.Value;
+        if (dto.PairGridHexbinGridSize.HasValue) s.HexbinGridSize = dto.PairGridHexbinGridSize.Value;
+        if (dto.PairGridOffDiagonalColorMap is not null)
+            s.OffDiagonalColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.PairGridOffDiagonalColorMap);
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="NetworkGraphSeries"/> from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static NetworkGraphSeries CreateNetworkGraph(Axes axes, SeriesDto dto)
+    {
+        var nodes = FromGraphNodeDtos(dto.GraphNodes);
+        var edges = FromGraphEdgeDtos(dto.GraphEdges);
+        var s = axes.NetworkGraph(nodes, edges);
+        if (dto.ColorMapName is not null)
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        if (dto.NetworkGraphLayout is not null
+            && Enum.TryParse<Models.Series.GraphLayout>(dto.NetworkGraphLayout, true, out var lay))
+            s.Layout = lay;
+        if (dto.NetworkGraphShowNodeLabels.HasValue)     s.ShowNodeLabels     = dto.NetworkGraphShowNodeLabels.Value;
+        if (dto.NetworkGraphShowEdgeWeights.HasValue)    s.ShowEdgeWeights    = dto.NetworkGraphShowEdgeWeights.Value;
+        if (dto.NetworkGraphEdgeThicknessScale.HasValue) s.EdgeThicknessScale = dto.NetworkGraphEdgeThicknessScale.Value;
+        if (dto.NetworkGraphNodeRadiusScale.HasValue)    s.NodeRadiusScale    = dto.NetworkGraphNodeRadiusScale.Value;
+        if (dto.NetworkGraphLayoutSeed.HasValue)         s.LayoutSeed         = dto.NetworkGraphLayoutSeed.Value;
+        if (dto.NetworkGraphLayoutIterations.HasValue)   s.LayoutIterations   = dto.NetworkGraphLayoutIterations.Value;
+        if (dto.NetworkGraphConvergenceThreshold.HasValue) s.ConvergenceThreshold = dto.NetworkGraphConvergenceThreshold.Value;
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="ClustermapSeries"/> from the DTO.</summary>
+    /// <remarks>Trees and the normalizer are not serialised — they are rebuilt
+    /// as placeholders on restore.</remarks>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static ClustermapSeries CreateClustermap(Axes axes, SeriesDto dto)
+    {
+        var data = From2DList(dto.HeatmapData);
+        var s = axes.Clustermap(data.GetLength(0) > 0 ? data : new double[1, 1]);
+        if (dto.ColorMapName is not null)
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        if (dto.ShowLabels.HasValue) s.ShowLabels = dto.ShowLabels.Value;
+        if (dto.LabelFormat is not null) s.LabelFormat = dto.LabelFormat;
+        if (dto.RowDendrogramWidth.HasValue) s.RowDendrogramWidth = dto.RowDendrogramWidth.Value;
+        if (dto.ColumnDendrogramHeight.HasValue) s.ColumnDendrogramHeight = dto.ColumnDendrogramHeight.Value;
+        return s;
+    }
+
     /// <summary>Reconstructs an <see cref="ImageSeries"/> from the DTO.</summary>
     /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
     /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
@@ -815,6 +904,83 @@ public sealed class ChartSerializer : IChartSerializer
         for (int r = 0; r < rows; r++)
         for (int c = 0; c < cols; c++)
             result[r, c] = data[r][c];
+        return result;
+    }
+
+    /// <summary>Converts a jagged <c>double[][]</c> (variable-major) to a list-of-lists for JSON
+    /// serialization. Used by <c>PairGridSeries</c> where each sub-array is one variable's samples.</summary>
+    /// <param name="data">The source jagged array.</param>
+    /// <returns>A list-of-lists representation suitable for JSON serialization. Returns
+    /// an empty list for empty input — never <see langword="null"/>.</returns>
+    internal static List<List<double>> JaggedTo2DList(double[][] data)
+    {
+        var result = new List<List<double>>(data.Length);
+        for (int i = 0; i < data.Length; i++) result.Add([.. data[i]]);
+        return result;
+    }
+
+    /// <summary>Converts a JSON list-of-lists back to a jagged <c>double[][]</c>.</summary>
+    /// <param name="data">The list-of-lists from JSON; returns an empty array when <see langword="null"/> or empty.</param>
+    /// <returns>A jagged <c>double[][]</c>.</returns>
+    internal static double[][] FromJaggedList(List<List<double>>? data)
+    {
+        if (data is null || data.Count == 0) return [];
+        var result = new double[data.Count][];
+        for (int i = 0; i < data.Count; i++) result[i] = [.. data[i]];
+        return result;
+    }
+
+    /// <summary>Converts an <see cref="IReadOnlyList{T}"/> of <see cref="Models.Series.GraphNode"/>
+    /// to its DTO form for JSON serialisation.</summary>
+    internal static List<GraphNodeDto> ToGraphNodeDtos(IReadOnlyList<Models.Series.GraphNode> nodes)
+    {
+        var result = new List<GraphNodeDto>(nodes.Count);
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            var n = nodes[i];
+            result.Add(new GraphNodeDto(n.Id, n.X, n.Y, n.ColorScalar, n.SizeScalar, n.Label));
+        }
+        return result;
+    }
+
+    /// <summary>Converts an <see cref="IReadOnlyList{T}"/> of <see cref="Models.Series.GraphEdge"/>
+    /// to its DTO form for JSON serialisation.</summary>
+    internal static List<GraphEdgeDto> ToGraphEdgeDtos(IReadOnlyList<Models.Series.GraphEdge> edges)
+    {
+        var result = new List<GraphEdgeDto>(edges.Count);
+        for (int i = 0; i < edges.Count; i++)
+        {
+            var e = edges[i];
+            result.Add(new GraphEdgeDto(e.From, e.To, e.Weight, e.IsDirected));
+        }
+        return result;
+    }
+
+    /// <summary>Converts a list of <see cref="GraphNodeDto"/> back to model
+    /// <see cref="Models.Series.GraphNode"/> records.</summary>
+    internal static Models.Series.GraphNode[] FromGraphNodeDtos(List<GraphNodeDto>? dtos)
+    {
+        if (dtos is null || dtos.Count == 0) return [];
+        var result = new Models.Series.GraphNode[dtos.Count];
+        for (int i = 0; i < dtos.Count; i++)
+        {
+            var d = dtos[i];
+            result[i] = new Models.Series.GraphNode(d.Id, d.X, d.Y, d.ColorScalar, d.SizeScalar, d.Label);
+        }
+        return result;
+    }
+
+    /// <summary>Converts a list of <see cref="GraphEdgeDto"/> back to model
+    /// <see cref="Models.Series.GraphEdge"/> records.</summary>
+    internal static Models.Series.GraphEdge[] FromGraphEdgeDtos(List<GraphEdgeDto>? dtos)
+    {
+        if (dtos is null || dtos.Count == 0) return [];
+        var result = new Models.Series.GraphEdge[dtos.Count];
+        for (int i = 0; i < dtos.Count; i++)
+        {
+            var d = dtos[i];
+            result[i] = new Models.Series.GraphEdge(d.From, d.To, d.Weight, d.IsDirected);
+        }
         return result;
     }
 }
@@ -1131,10 +1297,59 @@ public sealed record SeriesDto
     public double? ArrowLength { get; init; }
     public List<List<List<bool>>>? VoxelData { get; init; }
     public List<Text3DAnnotationDto>? Text3DAnnotations { get; init; }
+
+    // v1.10 HeatmapSeries extensions (annotated cells + triangular masks)
+    public bool? ShowLabels { get; init; }
+    public string? LabelFormat { get; init; }
+    public string? MaskMode { get; init; }
+    public Color? CellValueColor { get; init; }
+
+    // v1.10 DendrogramSeries
+    public DendrogramOrientation? DendrogramOrientation { get; init; }
+    public double? CutHeight { get; init; }
+    public Color? CutLineColor { get; init; }
+    public bool? ColorByCluster { get; init; }
+
+    // v1.10 ClustermapSeries panel-ratio overrides (null = use default 0.15)
+    public double? RowDendrogramWidth { get; init; }
+    public double? ColumnDendrogramHeight { get; init; }
+
+    // v1.10 Phase 4 — PairGridSeries
+    public List<List<double>>? Variables          { get; init; }
+    public string[]?            PairGridLabels     { get; init; }
+    public int[]?               PairGridHueGroups  { get; init; }
+    public string[]?            PairGridHueLabels  { get; init; }
+    public string?              PairGridDiagonal   { get; init; }   // enum name
+    public string?              PairGridOffDiagonal{ get; init; }   // enum name
+    public string?              PairGridTriangular { get; init; }   // enum name
+    public int?                 PairGridDiagonalBins { get; init; }
+    public double?              PairGridMarkerSize   { get; init; }
+    public double?              PairGridCellSpacing  { get; init; }
+    // v1.10 — Hexbin off-diagonal
+    public int?                 PairGridHexbinGridSize      { get; init; }
+    public string?              PairGridOffDiagonalColorMap { get; init; }
+
+    // v1.10 — NetworkGraphSeries
+    public List<GraphNodeDto>?  GraphNodes                     { get; init; }
+    public List<GraphEdgeDto>?  GraphEdges                     { get; init; }
+    public string?              NetworkGraphLayout             { get; init; }   // enum name
+    public bool?                NetworkGraphShowNodeLabels     { get; init; }
+    public bool?                NetworkGraphShowEdgeWeights    { get; init; }
+    public double?              NetworkGraphEdgeThicknessScale { get; init; }
+    public double?              NetworkGraphNodeRadiusScale    { get; init; }
+    public int?                 NetworkGraphLayoutSeed         { get; init; }
+    public int?                 NetworkGraphLayoutIterations   { get; init; }
+    public double?              NetworkGraphConvergenceThreshold { get; init; }
 }
 
 /// <summary>DTO for a single 3D text annotation positioned at (X, Y, Z).</summary>
 public sealed record Text3DAnnotationDto(double X, double Y, double Z, string Text);
+
+/// <summary>DTO for one <see cref="MatPlotLibNet.Models.Series.GraphNode"/>.</summary>
+public sealed record GraphNodeDto(string Id, double X, double Y, double ColorScalar, double SizeScalar, string? Label);
+
+/// <summary>DTO for one <see cref="MatPlotLibNet.Models.Series.GraphEdge"/>.</summary>
+public sealed record GraphEdgeDto(string From, string To, double Weight, bool IsDirected);
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>
 internal sealed class ColorJsonConverter : JsonConverter<Color>

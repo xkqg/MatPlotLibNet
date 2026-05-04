@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -10,7 +10,7 @@
     <EnableWindowsTargeting Condition=" '$(OS)' != 'Windows_NT' ">true</EnableWindowsTargeting>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.9.0</Version>
+    <Version>1.10.0</Version>
     <PackageId>MatPlotLibNet.Wpf</PackageId>
     <Description>WPF chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/3D rotation interaction.</Description>
     <PackageTags>charting;plotting;charts;wpf;skiasharp;interactive</PackageTags>

@@ -642,6 +642,15 @@ public sealed class AxesBuilder
     public AxesBuilder Sunburst(TreeNode root, Action<SunburstSeries>? configure = null)
         => AddSeries(ax => ax.Sunburst(root), configure);
 
+    /// <summary>Adds a dendrogram series to the axes.</summary>
+    /// <param name="root">The root <see cref="TreeNode"/>. Internal nodes carry their merge
+    /// distance in <see cref="TreeNode.Value"/>.</param>
+    /// <param name="configure">Optional callback to configure orientation, cut-height, and
+    /// clustering colours on the new <see cref="DendrogramSeries"/>.</param>
+    /// <returns>This <see cref="AxesBuilder"/> for chaining.</returns>
+    public AxesBuilder Dendrogram(TreeNode root, Action<DendrogramSeries>? configure = null)
+        => AddSeries(ax => ax.Dendrogram(root), configure);
+
     /// <summary>
     /// Adds a nested pie series — inner filled disc showing top-level categories, outer ring
     /// showing each category's sub-breakdown. Convenience wrapper around <see cref="Sunburst"/>
@@ -655,6 +664,30 @@ public sealed class AxesBuilder
             s.InnerRadius = 0;
             configure?.Invoke(s);
         });
+
+    /// <summary>Adds a clustermap series to the axes (heatmap with optional row/column dendrograms).</summary>
+    /// <param name="data">The 2D data matrix to render as the heatmap.</param>
+    /// <param name="configure">Optional configuration callback for the series.</param>
+    public AxesBuilder Clustermap(double[,] data, Action<ClustermapSeries>? configure = null)
+        => AddSeries(ax => ax.Clustermap(data), configure);
+
+    /// <summary>Adds a pair-grid series to the axes (N×N matrix of histograms + scatters).</summary>
+    /// <param name="variables">The N input variables (one <c>double[]</c> per variable, all equal length).</param>
+    /// <param name="configure">Optional configuration callback for the series.</param>
+    /// <returns>This <see cref="AxesBuilder"/> for chaining.</returns>
+    public AxesBuilder PairGrid(double[][] variables, Action<PairGridSeries>? configure = null)
+        => AddSeries(ax => ax.PairGrid(variables), configure);
+
+    /// <summary>Adds a network-graph series to the axes (nodes + edges in 2D).</summary>
+    /// <param name="nodes">The graph's nodes.</param>
+    /// <param name="edges">The graph's edges.</param>
+    /// <param name="configure">Optional configuration callback for the series.</param>
+    /// <returns>This <see cref="AxesBuilder"/> for chaining.</returns>
+    public AxesBuilder NetworkGraph(
+        IReadOnlyList<GraphNode> nodes,
+        IReadOnlyList<GraphEdge> edges,
+        Action<NetworkGraphSeries>? configure = null)
+        => AddSeries(ax => ax.NetworkGraph(nodes, edges), configure);
 
     /// <summary>Adds a Sankey diagram series to the axes.</summary>
     public AxesBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null)

@@ -10,3 +10,21 @@ namespace MatPlotLibNet.Numerics;
 /// <param name="Min">Lower bound (inclusive).</param>
 /// <param name="Max">Upper bound (inclusive).</param>
 public readonly record struct MinMaxRange(double Min, double Max);
+
+/// <summary>Extension methods for computing color-bar data ranges from 2-D data arrays.</summary>
+public static class MinMaxRangeExtensions
+{
+    /// <summary>Scans every element of <paramref name="data"/> and returns the inclusive
+    /// <c>[min, max]</c> range. Falls back to <c>[0, 1]</c> when all values are equal so
+    /// downstream normalizers never divide by zero.</summary>
+    public static MinMaxRange ScanColorBarRange(this double[,] data)
+    {
+        double min = double.MaxValue, max = double.MinValue;
+        foreach (double v in data)
+        {
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+        return min < max ? new(min, max) : new(0, 1);
+    }
+}

@@ -33,6 +33,21 @@ public class DataFrameIndicatorExtensionsTests
             new PrimitiveDataFrameColumn<double>("volume", volume));
     }
 
+    private static Microsoft.Data.Analysis.DataFrame MakeOhlcvDf(int count = N)
+    {
+        var open   = Enumerable.Range(0, count).Select(i => 99.0  + i).ToArray();
+        var high   = Enumerable.Range(0, count).Select(i => 102.0 + i).ToArray();
+        var low    = Enumerable.Range(0, count).Select(i => 98.0  + i).ToArray();
+        var close  = Enumerable.Range(0, count).Select(i => 100.0 + i).ToArray();
+        var volume = Enumerable.Range(0, count).Select(i => 1000.0 + i * 10).ToArray();
+        return new Microsoft.Data.Analysis.DataFrame(
+            new PrimitiveDataFrameColumn<double>("open",   open),
+            new PrimitiveDataFrameColumn<double>("high",   high),
+            new PrimitiveDataFrameColumn<double>("low",    low),
+            new PrimitiveDataFrameColumn<double>("close",  close),
+            new PrimitiveDataFrameColumn<double>("volume", volume));
+    }
+
     // Indicators return trimmed arrays (not NaN-padded).
     private static void AssertNonEmptyResult(double[] result) => Assert.NotEmpty(result);
 
@@ -238,4 +253,149 @@ public class DataFrameIndicatorExtensionsTests
         var ex = Assert.Throws<ArgumentException>(() => MakeCandleDf().Obv("close", "missing_vol"));
         Assert.Contains("missing_vol", ex.Message);
     }
+
+    // ── Price-column indicator wrappers ───────────────────────────────────────
+
+    [Fact] public void CgOscillator_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().CgOscillator("close"));
+
+    [Fact] public void Bocpd_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().Bocpd("close"));
+
+    [Fact] public void CyberCycle_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().CyberCycle("close"));
+
+    [Fact] public void Decycler_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().Decycler("close"));
+
+    [Fact] public void EhlersITrend_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().EhlersITrend("close"));
+
+    [Fact] public void EhlersSineWave_ReturnsNonEmptySineArray()
+    {
+        SineWaveResult r = MakePriceDf().EhlersSineWave("close");
+        Assert.NotEmpty(r.SineWave);
+    }
+
+    [Fact] public void EhlersSuperSmoother_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().EhlersSuperSmoother("close"));
+
+    [Fact] public void FractionalDifferentiation_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().FractionalDifferentiation("close"));
+
+    [Fact] public void KaufmanEfficiencyRatio_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().KaufmanEfficiencyRatio("close"));
+
+    [Fact] public void LaguerreRsi_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().LaguerreRsi("close"));
+
+    [Fact] public void MamaFama_ReturnsMamaArray()
+    {
+        MamaFamaResult r = MakePriceDf().MamaFama("close");
+        Assert.NotEmpty(r.Mama);
+    }
+
+    [Fact] public void PermutationEntropy_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().PermutationEntropy("close", order: 4, window: 20));
+
+    [Fact] public void RollSpread_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().RollSpread("close"));
+
+    [Fact] public void RoofingFilter_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().RoofingFilter("close"));
+
+    [Fact] public void WaveletEnergyRatio_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().WaveletEnergyRatio("close", window: 32));
+
+    [Fact] public void WaveletEntropy_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakePriceDf().WaveletEntropy("close", window: 32));
+
+    [Fact] public void Cusum_ReturnsNonEmptySignal()
+    {
+        CusumResult r = MakePriceDf().Cusum("close", threshold: 2.0);
+        Assert.NotEmpty(r.Signal);
+    }
+
+    // ── Close + Volume indicators ─────────────────────────────────────────────
+
+    [Fact] public void AmihudIlliquidity_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeCandleDf().AmihudIlliquidity("close", "volume"));
+
+    [Fact] public void ForceIndex_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeCandleDf().ForceIndex("close", "volume"));
+
+    [Fact] public void Vpin_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeCandleDf().Vpin("close", "volume", bucketPeriod: 10, sigmaPeriod: 10));
+
+    [Fact] public void VwapZScore_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeCandleDf().VwapZScore("close", "volume"));
+
+    // ── High + Low indicators ─────────────────────────────────────────────────
+
+    [Fact] public void AroonOscillator_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeCandleDf().AroonOscillator("high", "low"));
+
+    [Fact] public void CorwinSchultz_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeCandleDf().CorwinSchultz("high", "low"));
+
+    // ── High + Low + Close indicators ────────────────────────────────────────
+
+    [Fact] public void AdaptiveStochastic_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeCandleDf().AdaptiveStochastic("high", "low", "close"));
+
+    [Fact] public void Ichimoku_ReturnsTenkanSen()
+    {
+        IchimokuResult r = MakeCandleDf(120).Ichimoku("high", "low", "close");
+        Assert.NotEmpty(r.TenkanSen);
+    }
+
+    [Fact] public void Supertrend_ReturnsLineArray()
+    {
+        SupertrendResult r = MakeCandleDf().Supertrend("high", "low", "close");
+        Assert.NotEmpty(r.Line);
+    }
+
+    [Fact] public void SqueezeMomentum_ReturnsMomentum()
+    {
+        SqueezeResult r = MakeCandleDf().SqueezeMomentum("high", "low", "close");
+        Assert.NotEmpty(r.Momentum);
+    }
+
+    // ── High + Low + Volume indicator ────────────────────────────────────────
+
+    [Fact] public void EaseOfMovement_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeCandleDf().EaseOfMovement("high", "low", "volume"));
+
+    // ── HLCV indicators ───────────────────────────────────────────────────────
+
+    [Fact] public void KlingerVolumeOscillator_ReturnsKvo()
+    {
+        KlingerResult r = MakeCandleDf().KlingerVolumeOscillator("high", "low", "close", "volume");
+        Assert.NotEmpty(r.Kvo);
+    }
+
+    [Fact] public void TwiggsMoneyFlow_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeCandleDf().TwiggsMoneyFlow("high", "low", "close", "volume"));
+
+    // ── OHLC indicators ───────────────────────────────────────────────────────
+
+    [Fact] public void GarmanKlass_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeOhlcvDf().GarmanKlass("open", "high", "low", "close"));
+
+    [Fact] public void RelativeVigorIndex_ReturnsRviArray()
+    {
+        RviResult r = MakeOhlcvDf().RelativeVigorIndex("open", "high", "low", "close");
+        Assert.NotEmpty(r.Rvi);
+    }
+
+    [Fact] public void YangZhang_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeOhlcvDf().YangZhang("open", "high", "low", "close"));
+
+    [Fact] public void YangZhangVolRatio_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeOhlcvDf(80).YangZhangVolRatio("open", "high", "low", "close"));
+
+    // ── Two-column indicator ──────────────────────────────────────────────────
+
+    [Fact] public void TransferEntropy_ReturnsNonEmptyArray()
+        => Assert.NotEmpty(MakeCandleDf().TransferEntropy("close", "high"));
 }

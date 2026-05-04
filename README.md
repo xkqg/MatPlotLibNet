@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel server-side SVG rendering, polymorphic export (SVG / PNG / PDF / animated GIF), and 74 series types across line, scatter, bar, 3D, streaming, polar, financial, statistical, hierarchical, Sankey, and vector families. Ships with 13 map projections and embedded Natural Earth data, 26 themes, LaTeX-style MathText, O(1) streaming with **52 technical indicators** (classical moving averages + volatility, momentum, trend-follower, cycle, microstructure, entropy, change-point, and cross-asset causality), financial drawing tools (trendlines, Fibonacci retracements, horizontal levels), frame-based animation with 6 easing curves + Pause/Resume playback, native UI controls for **Blazor, WPF, MAUI, Avalonia, Uno Platform, ASP.NET Core**, and TypeScript clients for **Angular, React, and Vue** — no JavaScript framework, no WebView, no SaaS.
+A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel server-side SVG rendering, polymorphic export (SVG / PNG / PDF / animated GIF), and 78 series types across line, scatter, bar, 3D, streaming, polar, financial, statistical, hierarchical, Sankey, and vector families. Ships with 13 map projections and embedded Natural Earth data, 26 themes, LaTeX-style MathText, O(1) streaming with **52 technical indicators** (classical moving averages + volatility, momentum, trend-follower, cycle, microstructure, entropy, change-point, and cross-asset causality), financial drawing tools (trendlines, Fibonacci retracements, horizontal levels), frame-based animation with 6 easing curves + Pause/Resume playback, native UI controls for **Blazor, WPF, MAUI, Avalonia, Uno Platform, ASP.NET Core**, and TypeScript clients for **Angular, React, and Vue** — no JavaScript framework, no WebView, no SaaS.
 
 [![CI](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml/badge.svg)](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
@@ -10,17 +10,23 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 What's next
 
-**v1.9.0 is a pure indicator-expansion release** — 12 new indicators across three tiers, bringing the library total to **52 production-grade indicators**. Future releases are **community-driven**:
+**v1.10.0 (2026-05-04) — Pair-Selection Visualisation Pack** ships the full 5-phase chart-type machinery for correlation-based asset clustering, dimensional EDA, and hierarchical risk parity. Future releases are **community-driven**:
 
-- 🧮 **v1.9.0 indicators (12)**:
-  - **Volume / Money Flow** (4) — `KlingerVolumeOscillator`, `TwiggsMoneyFlow`, `EaseOfMovement`, `VwapZScore`
-  - **Trend / Transform** (4) — `Supertrend`, `CgOscillator`, `InverseFisherTransform`, `YangZhangVolRatio`
-  - **Advanced / Cross-asset** (4) — `EhlersITrend`, `Decycler`, `EhlersSuperSmoother` (public), `TransferEntropy`
-- 🐛 **Bug fixes** — driven by community use and the strict `≥90/90` per-class coverage gate (622 classes, all pass; total **98.7% line / 95.7% branch** across 8 592 core tests). Byte-identical SVG output vs v1.8.0 — no rendering paths touched.
+- 🗺️ **Phase 1 — Annotated & triangular-mask heatmaps**: four new `HeatmapSeries` properties (`ShowLabels`, `LabelFormat`, `MaskMode`, `CellValueColor`) + `HeatmapMaskMode` enum unblock every realistic correlation-matrix figure.
+- 🌲 **Phase 2 — `DendrogramSeries`**: hierarchical-clustering tree as canonical "U"-shape segments. Four `DendrogramOrientation` values (`Top`, `Bottom`, `Left`, `Right`); optional `CutHeight` draws a dashed reference line and recolours each cluster below the cut from a qualitative `IColorMap` (default `Tab10`). Fluent API: `Plt.Create().Dendrogram(root, s => s.CutHeight = 1.5)`.
+- 🔥 **Phase 3 — `ClustermapSeries`**: composite heatmap with optional row/column dendrograms (the seaborn `clustermap` idiom). Automatic data-matrix reordering to align cells visually with the leaf order.
+- 📊 **Phase 4 — `PairGridSeries`**: multi-panel scatter matrix (the seaborn `pairplot` idiom). N×N grid: histogram or KDE on the diagonal, scatter or hexbin on the off-diagonal, optional hue groups + `string[]?` `HueLabels` for category-aware EDA.
+- 🔷 **Phase 5 — Hexbin off-diagonal**: activates `PairGridOffDiagonalKind.Hexbin = 2` for high-cardinality EDA where scatter overplots (~1000+ samples per cell).
+- 🧹 **Convergence sweep**: `IColormappable.GetColorMapOrDefault(fallback)` and `int.ColormapFraction(count)` extensions collapse 17 + 3 inline duplications across renderers into one place; shared `HierarchicalLayout.MinPanelPx` and `Numerics/HistogramBinning` source-of-truth.
+- 🗺️ **v1.10.0 heatmap extensions** (released):
+  - **`ShowLabels` / `LabelFormat`** (`ILabelable`) — render each cell's value on top of the fill; any .NET numeric format string (e.g. `"P1"`, `"F0"`)
+  - **`MaskMode`** — `HeatmapMaskMode` enum hides redundant cells in symmetric matrices (`UpperTriangle`, `LowerTriangle`, and strict variants that include the diagonal)
+  - **`CellValueColor`** — explicit label colour; auto black/white contrast via `Color.ContrastingTextColor()` (Rec. 709) when null
+- 🐛 **Bug fixes** — driven by community use and the strict `≥90/90` per-class coverage gate (all classes pass; **8 707 core tests**).
 - 📚 **Documentation polish** — cookbook examples, API XML doc completeness.
 - 🌱 **Listening** — Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next direction will be guided by what real users need, not by a feature checklist.
 
-For the full v1.9.0 release notes, see the [CHANGELOG](CHANGELOG.md).
+For the full v1.10.0 release notes, see the [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -34,7 +40,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 - [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started) — installation, output formats, subplots
 - [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet) — one-page reference for `Plt` / `FigureBuilder` / `AxesBuilder`
 - [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all 13 NuGet + 3 npm packages in detail
-- [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 74 series with code examples
+- [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 78 series with code examples
 - [Streaming & Realtime](https://github.com/xkqg/MatPlotLibNet/wiki/Streaming) — ring buffers, StreamingFigure, axis scaling, 11 streaming indicators, platform controls
 - [Interactive Controls](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) — Avalonia + Uno native controls, managed interaction layer
 - [Bidirectional SignalR](https://github.com/xkqg/MatPlotLibNet/wiki/Bidirectional-SignalR) — server-authoritative interactive charts, event hierarchy, hub wiring
@@ -93,7 +99,7 @@ Plt.Create()
 
 ## Features
 
-**74 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, streaming line/scatter/signal/candlestick, and more.
+**78 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, pair grid, streaming line/scatter/signal/candlestick, and more.
 
 **Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp — no browser, no WebView, no SignalR required. 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. Toolbar state model, view history (back/forward), data cursor (click-to-pin), tick mirroring, tight margins.
 

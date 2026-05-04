@@ -68,6 +68,10 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     // Hierarchical family
     private TreemapSeriesRenderer? _treemap;
     private SunburstSeriesRenderer? _sunburst;
+    private DendrogramSeriesRenderer? _dendrogram;
+    private ClustermapSeriesRenderer? _clustermap;
+    private PairGridSeriesRenderer? _pairgrid;
+    private NetworkGraphSeriesRenderer? _networkgraph;
 
     // Flow family
     private SankeySeriesRenderer? _sankey;
@@ -237,6 +241,14 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(TreemapSeries s, RenderArea a) => (_treemap ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(SunburstSeries s, RenderArea a) => (_sunburst ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(DendrogramSeries s, RenderArea a) => (_dendrogram ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(ClustermapSeries s, RenderArea a) => (_clustermap ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(PairGridSeries s, RenderArea a) => (_pairgrid ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(NetworkGraphSeries s, RenderArea a) => (_networkgraph ??= new(_context)).Render(s);
 
     // Flow family
     /// <inheritdoc />

@@ -1,8 +1,8 @@
-# v2.0a — Statistical Diagnostics Pack (Chart Types)
+# v1.10a — Statistical Diagnostics Pack (Chart Types)
 
-First PR of the **v2.0 "Quant & Stats Pack"** — targeted chart-type additions for quant/scientific workflows. Scope: **three statistical-diagnostic chart types** that matplotlib and seaborn users have come to expect but are absent from current .NET charting libraries.
+First PR of the **v1.10 "Quant & Stats Pack"** — targeted chart-type additions for quant/scientific workflows. Scope: **three statistical-diagnostic chart types** that matplotlib and seaborn users have come to expect but are absent from current .NET charting libraries.
 
-**Target:** merge into `main` for v2.0 (after v1.9.0 Tier 3 ships). This PR adds the first 3 of an 8-10 chart-type expansion.
+**Target:** merge into `main` for v1.10 (after v1.9.0 Tier 3 ships). This PR adds the first 3 of an 8-10 chart-type expansion.
 
 **Coverage gate:** ≥90% line AND ≥90% branch per public class.
 
@@ -295,30 +295,30 @@ Must pass:
 - [ ] 9 test files
 - [ ] Python reference vectors for Correlogram (statsmodels) and QQ (scipy.stats)
 - [ ] `pwsh tools/coverage/run.ps1 -Strict` passes locally
-- [ ] Changelog entry under `v2.0a`: "Added ACF/PACF correlogram, QQ plot, Ridgeline plot — statsmodels/seaborn-equivalent statistical diagnostics"
+- [ ] Changelog entry under `v1.10a`: "Added ACF/PACF correlogram, QQ plot, Ridgeline plot — statsmodels/seaborn-equivalent statistical diagnostics"
 - [ ] Wiki `Chart-Types.md` updated with the three new types + usage snippets
 
 ---
 
-## v2.0 release roadmap (context for reviewers)
+## v1.10 release roadmap (context for reviewers)
 
-v2.0 adds ~10 chart types across **four sub-PRs**:
+v1.10 adds ~10 chart types across **four sub-PRs**:
 
 | Sub-PR | Theme | Chart types | Status |
 |---|---|---|---|
-| **v2.0a** (this PR) | Statistical Diagnostics | ACF/PACF, QQ, Ridgeline | ← now |
-| v2.0b | Financial Motion | Renko, Heikin-Ashi, Point & Figure | brief TBD |
-| v2.0c | Analysis Tools | Parallel coordinates, Forest plot | brief TBD |
-| v2.0d | Time-Series Visualization | Horizon chart, Calendar heatmap | brief TBD |
+| **v1.10a** (this PR) | Statistical Diagnostics | ACF/PACF, QQ, Ridgeline | ← now |
+| v1.10b | Financial Motion | Renko, Heikin-Ashi, Point & Figure | brief TBD |
+| v1.10c | Analysis Tools | Parallel coordinates, Forest plot | brief TBD |
+| v1.10d | Time-Series Visualization | Horizon chart, Calendar heatmap | brief TBD |
 
-Full v2.0 release narrative after all four land:
-*"10 new chart types for quant and scientific workflows — ACF/PACF diagnostics, Q-Q distributional checks, ridgeline group comparisons, three price-motion financial charts, parallel-coordinates and forest plots for experiment analysis, horizon chart and calendar heatmap for compact time-series view. Totals: 84 series + 24 indicators across v1.8 → v1.9 → v2.0."*
+Full v1.10 release narrative after all four land:
+*"10 new chart types for quant and scientific workflows — ACF/PACF diagnostics, Q-Q distributional checks, ridgeline group comparisons, three price-motion financial charts, parallel-coordinates and forest plots for experiment analysis, horizon chart and calendar heatmap for compact time-series view. Totals: 84 series + 24 indicators across v1.8 → v1.9 → v1.10."*
 
-v2.0b-d briefs will be drafted when v2.0a lands. **Do not front-load** — keep per-PR scope small so each ships cleanly.
+v1.10b-d briefs will be drafted when v1.10a lands. **Do not front-load** — keep per-PR scope small so each ships cleanly.
 
-## What's NOT in v2.0
+## What's NOT in v1.10
 
-Explicitly out of scope for the entire v2.0 release:
+Explicitly out of scope for the entire v1.10 release:
 - Infographic / business-dashboard types (pictogram, word cloud, Venn, tally, Gantt)
 - Geospatial types (already covered by `MatPlotLibNet.Geo`)
 - Network/graph types (would need a dedicated graph-layout subsystem — v2.1+)
@@ -335,7 +335,7 @@ ACF/PACF in particular is **the** missing tool in .NET quant workflows. Every Py
 
 QQ plot + Ridgeline round out the "distribution diagnostics" story — together with the existing Violin and Box plots, that's the full quant-distributional-analysis stack in one library.
 
-**Release narrative after v2.0a alone:**
-> *"v2.0a adds ACF/PACF correlogram, QQ plot, and Ridgeline (joyplot). The .NET ecosystem's first native Box-Jenkins + distribution-diagnostic toolkit — no Python dependency for residual analysis."*
+**Release narrative after v1.10a alone:**
+> *"v1.10a adds ACF/PACF correlogram, QQ plot, and Ridgeline (joyplot). The .NET ecosystem's first native Box-Jenkins + distribution-diagnostic toolkit — no Python dependency for residual analysis."*
 
-That's a compelling PR announcement for the quant-finance .NET community, even before v2.0b-d land.
+That's a compelling PR announcement for the quant-finance .NET community, even before v1.10b-d land.

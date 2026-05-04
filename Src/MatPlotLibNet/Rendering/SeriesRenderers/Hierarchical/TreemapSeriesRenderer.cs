@@ -23,7 +23,7 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
     public override void Render(TreemapSeries series)
     {
         var bounds = Context.Area.PlotBounds;
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         RenderNode(series.Root, bounds, series, cmap,
             depth: 0, indexInParent: 0, siblingCount: 1, nodeId: "0", parentId: "");
     }
@@ -56,7 +56,7 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         {
             // Leaf: fill with node colour, or cmap sample at the sibling fraction.
             var color = node.Color
-                ?? cmap.GetColor(siblingCount > 1 ? indexInParent / (double)(siblingCount - 1) : 0.5);
+                ?? cmap.GetColor(indexInParent.ColormapFraction(siblingCount));
             Ctx.SetNextElementData("treemap-node", nodeId);
             Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Ctx.SetNextElementData("treemap-parent", parentId);
@@ -82,7 +82,7 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         // children edge-to-edge, so the parent label collided with the first child's
         // label and the hierarchy was invisible.
         var interiorColor = node.Color
-            ?? cmap.GetColor(siblingCount > 1 ? indexInParent / (double)(siblingCount - 1) : 0.5);
+            ?? cmap.GetColor(indexInParent.ColormapFraction(siblingCount));
         Ctx.SetNextElementData("treemap-node", nodeId);
         Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Ctx.SetNextElementData("treemap-parent", parentId);
@@ -96,8 +96,8 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         // (Shneiderman z-order) so the deepest visible label wins in any overlapping
         // region. Only suppress the header when the parent rect itself can't even hold
         // a header strip + a tiny child area beneath it (sub-pixel-noise gate).
-        const double headerH = 18.0;
-        const double sidePad = 2.0;
+        const double headerH = HierarchicalLayout.Treemap.HeaderHeightPx;
+        const double sidePad = HierarchicalLayout.Treemap.SidePaddingPx;
         Rect childBounds = bounds;
         bool headerDrawn = false;
         if (series.ShowLabels && !string.IsNullOrEmpty(node.Label)

@@ -30,7 +30,7 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
         var bands = MarchingSquares.ExtractBands(series.XData, series.YData, series.ZData, nLevels);
         if (bands.Length == 0) return;
 
-        var cmap = series.ColorMap ?? ColorMaps.Viridis;
+        var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var norm = series.Normalizer ?? LinearNormalizer.Instance;
 
         double zMin = bands[0].LevelLow;

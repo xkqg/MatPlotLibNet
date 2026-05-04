@@ -4,6 +4,306 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.10.0] — 2026-05-04
+
+### Added — v1.10 chart pack (NetworkGraphSeries — ForceDirected layout)
+
+Activates `GraphLayout.ForceDirected = 1` — Fruchterman–Reingold (1991) spring-embedder
+with seeded RNG for bit-identical reproducibility. Repulsive force `k²/d` between every
+pair of nodes (O(N²) per iteration), attractive spring force `d²/k` on each edge,
+temperature-cooled step size, optional convergence-mode early-stop. The deterministic
+layouts shipped in the previous PR remain unchanged; this slice activates the previously
+reserved enum ordinal.
+
+- **`GraphLayout.ForceDirected`** — fully wired through the `NetworkGraphLayouts.Apply`
+  dispatcher. The pre-activation Manual fallback is gone; DTOs persisted with this enum
+  value now produce real F-R layouts on deserialise.
+- **`NetworkGraphSeries.LayoutIterations`** (default `50`) — maximum iteration count
+  for ForceDirected. Higher = better visual quality at quadratic cost. Ignored by the
+  deterministic layouts.
+- **`NetworkGraphSeries.ConvergenceThreshold`** (`double?`, default `null`) — optional
+  energy threshold for early-stop. When per-iteration total displacement-energy drops
+  below this, the loop exits before `LayoutIterations`. Sparse / well-separated graphs
+  benefit (10–20 iterations); dense graphs don't converge below any reasonable threshold.
+- **Seeded determinism** — `NpRandom(LayoutSeed)` drives initial positions; same seed
+  + same `LayoutIterations` + same `ConvergenceThreshold` → byte-identical SVG. Critical
+  for snapshot-test workflows.
+- **Defensive edge cases** — `N=0` returns empty; `N=1` lands at origin; self-loops are
+  filtered before the repulsive pass (`d=0` would explode); coincident initial positions
+  get a one-time epsilon perturbation. All paths covered by tests.
+- **Per-iter allocation** — displacement arrays are allocated once and reused across
+  iterations, so the steady-state hot loop has zero GC pressure regardless of iteration
+  count. Validated by `NetworkGraphBenchmarks` `[MemoryDiagnoser]`.
+- **`NetworkGraphBenchmarks.cs`** (new) — BenchmarkDotNet suite with 6 measurement axes
+  per the agreed plan: side-by-side layout cliff at N ∈ {100, 500, 1000} (deterministic
+  layouts stay flat; ForceDirected exhibits the O(N²) cliff), edge-density variants at
+  N=200 with E ∈ {N, 5N, N²/2} (surfaces repulsion-vs-spring bottleneck), fixed-iters
+  vs convergence-mode comparison, MemoryDiagnoser, fixed `LayoutSeed = 42` for
+  reproducibility, and benchmark-derived "DO NOT EXCEED N≈500" cookbook rule.
+- **Tests** — 11 additional layout tests covering seeded determinism, position-bounds,
+  preservation of node metadata, disconnected-components, self-loops, single-node, and
+  dispatcher routing through F-R; 2 serialisation round-trips for `LayoutIterations`
+  and `ConvergenceThreshold`.
+
+### Added — v1.10 chart pack (NetworkGraphSeries — deterministic layouts)
+
+`NetworkGraphSeries`: nodes-and-edges-in-2D for correlation networks (Pearson edge weights),
+lead-lag flow (TransferEntropy directed edges), Louvain community visualisation (node colour
+= community ID), and minimum spanning trees. PR 1 of 2 ships the three deterministic layouts
+plus full visitor / serialisation / DataFrame integration. PR 2 will activate
+`GraphLayout.ForceDirected = 1` (Fruchterman–Reingold spring-embedder with seeded RNG +
+convergence tests + per-iter allocation profiling).
+
+- **`NetworkGraphSeries`** (sealed, `: ChartSeries, IColormappable`) — new chart type.
+  Constructor takes `IReadOnlyList<GraphNode> nodes` + `IReadOnlyList<GraphEdge> edges`.
+  Properties: `Layout` (default `Circular`), `ColorMap` (defaults to Viridis when null),
+  `ShowNodeLabels` (default true), `ShowEdgeWeights` (default false), `EdgeThicknessScale`
+  (default 1.0), `NodeRadiusScale` (default 5.0), `LayoutSeed` (default 0; reserved for
+  ForceDirected in PR 2).
+- **`GraphNode`** (`readonly record struct`) — `Id`, `X`, `Y`, `ColorScalar`,
+  `SizeScalar`, `Label?`. Carries pre-computed coords (used by `Manual`) plus per-node
+  presentation scalars.
+- **`GraphEdge`** (`readonly record struct`) — `From`, `To`, `Weight`, `IsDirected`.
+  Directed edges get an arrowhead at the `To` end (reuses `ArrowHeadBuilder.FancyArrow`).
+- **`GraphLayout`** — public enum with explicit ordinals: `Manual = 0`, `ForceDirected = 1`
+  (reserved for PR 2 — falls back to `Manual` until activated), `Circular = 2`,
+  `Hierarchical = 3`. Append-only contract.
+- **`NetworkGraphLayouts`** — internal static class with three pure-function deterministic
+  layouts: `ApplyManual` (pass-through), `ApplyCircular` (unit-circle evenly-spaced,
+  ignores edges), `ApplyHierarchical` (BFS top-down layering from node 0; cycles tolerated
+  via visited set; disconnected components stay at depth 0). Plus `Apply(kind, …)` enum
+  dispatch.
+- **`NetworkGraphSeriesRenderer`** — emits edges first (so nodes paint over them), then
+  nodes (`<circle>`), then optional labels. Directed edges add a `<polygon>` arrowhead.
+- **Fluent surface** — `Axes.NetworkGraph(nodes, edges, configure?)`,
+  `AxesBuilder.NetworkGraph(...)`, `FigureBuilder.NetworkGraph(...)`.
+- **DataFrame extension** — `MatPlotLibNet.DataFrame.NetworkGraph(this DataFrame,
+  string edgeFromCol, string edgeToCol, string? weightCol = null,
+  string? directedCol = null, …)`. Nodes are derived implicitly from the union of distinct
+  source/target IDs; ordering is first-seen for determinism.
+- **Visitor + serialization** — `ISeriesVisitor.Visit(NetworkGraphSeries, RenderArea)`
+  default no-op, `SvgSeriesRenderer` wires the renderer; `ChartSerializer.CreateNetworkGraph`
+  named factory registered as `"networkgraph"` in `SeriesRegistry`. DTO carries
+  `GraphNodes` + `GraphEdges` lists and 6 default-suppressed config fields.
+  `GraphLayout.ForceDirected = 1` round-trips cleanly even before PR 2 activates the body.
+- **Tests** — 18 layout unit tests (`NetworkGraphLayoutTests`), 18 model tests
+  (`NetworkGraphSeriesTests`), 16 render tests covering each layout × directed/undirected,
+  16 serialization round-trip tests, 8 DataFrame extension tests. Ordinal contract pinned
+  for `GraphLayout` in `EnumOrdinalContractTests`.
+- **Series total** — 77 → **78**.
+
+### Added — v1.10 chart pack (phase 5 of 5): PairGrid Hexbin off-diagonal
+
+Final slice of the **v1.10 chart-pack release**. Activates the previously reserved
+`PairGridOffDiagonalKind.Hexbin = 2` ordinal: pair-grid off-diagonal cells can now
+render flat-top hexagonal density grids instead of per-point scatter dots. The
+canonical use case is high-cardinality EDA where scatter overplotting (sample count
+greater than ~1000 per cell) hides density structure entirely.
+
+- **`PairGridOffDiagonalKind.Hexbin`** — newly active enum value. The colour of each
+  hex encodes the per-bucket point count via the new `OffDiagonalColorMap`.
+- **`PairGridSeries.HexbinGridSize`** (default `15`) — resolution of the hex tiling
+  per cell. Higher = finer hexagons.
+- **`PairGridSeries.OffDiagonalColorMap`** (`IColorMap?`, default Viridis) — colormap
+  for density encoding. Property name is general-purpose so future off-diagonal
+  density kinds (KDE-fill, etc.) can reuse it.
+- **Hue is intentionally ignored** when `OffDiagonalKind = Hexbin`: density encoding
+  cannot cleanly carry both count and group dimensions. A single aggregate density
+  is rendered (mirrors seaborn's convention). The xmldoc on both
+  `PairGridOffDiagonalKind.Hexbin` and `PairGridSeries.HueGroups` documents this
+  bidirectionally so IntelliSense surfaces it from either entry point.
+- **Strategy refactor** — `IPairGridOffDiagonalPainter` interface + `ScatterOffDiagonalPainter`
+  + `HexbinOffDiagonalPainter` + `PairGridOffDiagonalPainterRegistry` extracted to
+  `Rendering/SeriesRenderers/Grid/PairGridOffDiagonalPainters.cs`. Closes the OCP
+  debt the Phase 4 code review flagged: adding a future kind = new painter class +
+  one registry entry, no renderer-loop modification. Diagonal stays inline if/else
+  (only 2 active kinds, rule-of-three not yet triggered).
+- **Reused machinery** — calls into existing `Numerics/HexGrid.cs` (axial-coordinate
+  binning + hex vertex math); maps data-space hex centres to cell-pixel space via
+  the same linear scaling as scatter mode. NaN/±∞ samples are filtered upstream.
+- **Tests** — 6 new render tests (Hexbin emits polygons, suppresses circles, GridSize
+  scales polygon count, hue×Hexbin fallback, custom colormap respect), 3 new
+  serialization round-trip tests, ordinal pinning extended in `EnumOrdinalContractTests`.
+- **Benchmark** — new `PairGridBenchmarks.cs` (BenchmarkDotNet, `[MemoryDiagnoser]`):
+  Scatter vs Hexbin for 3×10K, 5×10K, and 5×100K sample matrices, plus GridSize=10
+  vs 30 sensitivity at 5×10K. Documents the cliff-point where Hexbin overtakes
+  Scatter (roughly when samples > gridSize²).
+- **Series total unchanged** — still 77; this is a new mode on an existing series,
+  not a new series type.
+
+### Added — v1.10 chart pack (phase 4 of 5): PairGridSeries
+
+Fourth slice of the **v1.10 Pair-Selection Visualisation Pack**. Multi-panel scatter matrix —
+the seaborn `pairplot` / `PairGrid` idiom: an N×N grid of subplots from N variables. Diagonal
+cells render the univariate distribution of variable *i* (histogram or KDE); off-diagonal cells
+render bivariate scatter of *(i, j)*. Optional hue groups colour the off-diagonal scatters by
+category — the killer feature for cluster validation and category-aware EDA. (NetworkGraphSeries,
+originally Phase 4, has been split out to its own follow-up release; see
+`docs/contrib/v1-10c-network-graph.md`.)
+
+- **`PairGridSeries`** (sealed, `: ChartSeries`) — new chart type. Constructor takes
+  `double[][] variables` (each sub-array = one variable's samples; all equal-length, validated;
+  empty or jagged throws `ArgumentException`). Properties: `Labels: string[]?` (axis labels),
+  `HueGroups: int[]?` (per-sample group ID), `HueLabels: string[]?` (per-group legend label),
+  `HuePalette: Color[]?` (per-group palette; defaults to `QualitativeColorMaps.Tab10`),
+  `DiagonalKind` (default `Histogram`), `OffDiagonalKind` (default `Scatter`), `Triangular`
+  (default `Both`), `DiagonalBins` (default 20), `MarkerSize` (default 3.0), `CellSpacing`
+  (default 0.02, clamped `[0.0, 0.2]`).
+- **`PairGridDiagonalKind`** — public enum: `Histogram = 0` (default), `Kde = 1`, `None = 2`.
+- **`PairGridOffDiagonalKind`** — public enum: `Scatter = 0` (default), `None = 1`.
+  `Hexbin = 2` activated in phase 5 (off-diagonal density via hexagonal binning).
+- **`PairGridTriangle`** — public enum: `Both = 0` (default), `LowerOnly = 1`, `UpperOnly = 2`.
+- **Composite renderer** — `PairGridSeriesRenderer` computes the N×N cell layout via
+  `PairGridLayout.ComputeCellRects`, applies the `Triangular` and sub-pixel-skip gates, and
+  dispatches to per-cell painting routines. Diagonal histograms are stacked-overlapping per
+  hue group with `Alpha = 0.6`; KDE renders one curve per group; off-diagonal scatters use
+  one circle set per group with the resolved palette colour. Each cell renders in its own
+  data range — the parent-axes coordinate transform is intentionally bypassed.
+- **`PairGridLayout`** — new internal static class with pure-function geometry
+  `ComputeCellRects(Rect, int, double)` and `MinPanelPx` constant.
+- **Fluent surface** — `Axes.PairGrid(double[][], Action<...>?)`, `AxesBuilder.PairGrid(...)`,
+  `FigureBuilder.PairGrid(...)`.
+- **DataFrame extension** — `MatPlotLibNet.DataFrame.PairGrid(this DataFrame, string[] columns,
+  string? hue = null, Color[]? palette = null, Action<PairGridSeries>? configure = null)`. The
+  `hue` column (string-typed) is converted into integer `HueGroups` IDs plus the original strings
+  in `HueLabels` (lexicographic sort) so the figure-level legend renders human-readable labels.
+- **Visitor + serialization** — `ISeriesVisitor.Visit(PairGridSeries, RenderArea)` default no-op,
+  `SvgSeriesRenderer` wires the renderer; `ChartSerializer.CreatePairGrid` named factory
+  registered as `"pairgrid"` in `SeriesRegistry`. DTO carries 10 PairGrid* fields (default
+  values are not emitted). `HuePalette` is intentionally not serialised (matches the project
+  convention used for `HeatmapSeries.Normalizer` and `ClustermapSeries.RowTree/ColumnTree`).
+- **Tests** — 17 layout unit tests (`PairGridLayoutTests`), 28 model tests
+  (`PairGridSeriesTests`), 19 render tests (`PairGridRenderTests`) covering diagonal/off-diagonal
+  kinds, triangular suppression, hue grouping, KDE, and degenerate-sample paths, 18 serialization
+  round-trip tests (`PairGridSerializationTests`), and 7 DataFrame extension tests
+  (`DataFrameFigureExtensionsTests.PairGrid_*`).
+- **Series total** — 76 → **77**. Cookbook page at `docs/cookbook/pairplot.md`. Wiki Chart-Types
+  section under "Hierarchical / Flow".
+
+### Added — v1.10 chart pack (phase 3 of 5): ClustermapSeries
+
+Third slice of the **v1.10 Pair-Selection Visualisation Pack**. Composites a heatmap and up
+to two dendrograms into a single subplot — the seaborn `clustermap` idiom — with automatic
+row/column reordering to align cells visually with the tree structure.
+
+- **`ClustermapSeries`** (sealed, `: ChartSeries, IColorBarDataProvider, IColormappable, INormalizable, ILabelable`) — new chart type.
+  Constructor takes a `double[,] data` matrix. Optional `RowTree` and `ColumnTree` (`TreeNode?`)
+  dendrograms trigger row/column reordering via DFS leaf-index traversal. Properties:
+  `RowDendrogramWidth` (default 0.15, clamped [0.0, 0.9]), `ColumnDendrogramHeight` (default 0.15,
+  clamped [0.0, 0.9]), `ColorMap`, `Normalizer`, `ShowLabels`, `LabelFormat`.
+- **`ClustermapSeries.ResolveLeafOrder(TreeNode?, int)`** (public static) — pure helper that
+  extracts the DFS leaf order from a tree (leaf `Value` = original row/col index). Defensively
+  returns the identity permutation for null trees, malformed trees, out-of-range indices, and
+  duplicated indices.
+- **Composite renderer** — `ClustermapSeriesRenderer` computes panel layout from ratio properties,
+  reorders the data matrix, then dispatches a `HeatmapSeriesRenderer` (heatmap panel) and up to
+  two `DendrogramSeriesRenderer`s (row panel: `Left` orientation; column panel: `Top` orientation)
+  with sub-panel `RenderArea` bounds. Zero-ratio panels are suppressed.
+- **`HierarchicalLayout.Clustermap`** — new nested constant class: `MinPanelPx = 4.0` (sub-pixel
+  suppression gate).
+- **Fluent surface** — `Axes.Clustermap(data, configure?)`, `AxesBuilder.Clustermap(data, configure?)`,
+  `FigureBuilder.Clustermap(data, configure?)` — all three layers carry full XML doc.
+- **Visitor + serialization** — new `Visit(ClustermapSeries)` overload on `ISeriesVisitor`
+  (default no-op for ISP compatibility), full DTO round-trip via `HeatmapData` + two new
+  optional fields (`RowDendrogramWidth`, `ColumnDendrogramHeight`), opt-out emission for defaults.
+  Trees are not serialised; the registry rebuilds with a `new double[1,1]` placeholder (same
+  pattern as treemap / sunburst / dendrogram).
+
+### Added — v1.10 chart pack (phase 2 of 5): DendrogramSeries
+
+Second slice of the **v1.10 Pair-Selection Visualisation Pack**. Renders the output of
+`HierarchicalClustering` (or any user-supplied `TreeNode` tree where internal-node
+`Value` carries the merge distance) as a tree of "U"-shaped segments — the canonical
+SciPy/R dendrogram layout.
+
+- **`DendrogramSeries`** (sealed, `: HierarchicalSeries`) — new chart type. Constructor
+  takes a `TreeNode root`. Public mutable properties: `Orientation`, `CutHeight`,
+  `CutLineColor`, `ColorByCluster`. Inherited from `HierarchicalSeries`: `ColorMap`,
+  `ShowLabels`.
+- **`DendrogramOrientation`** — new public enum: `Top` (default), `Bottom`, `Left`,
+  `Right`. Pinned ordinals via `EnumOrdinalContractTests`.
+- **`DendrogramSeries.CutHeight`** — when set, draws a dashed reference line at this
+  merge distance and (when `ColorByCluster = true`) colours each connected component
+  below the cut from the assigned `ColorMap` (default `QualitativeColorMaps.Tab10`).
+  Cut comparison is strict-less-than, matching SciPy's `dendrogram(color_threshold=…)`
+  visual convention (a node whose `Value` equals the cut exactly is treated as above
+  the cut).
+- **Fluent surface** — `Axes.Dendrogram(TreeNode)`, `AxesBuilder.Dendrogram(root, configure?)`,
+  `FigureBuilder.Dendrogram(root, configure?)` — all three layers carry full XML doc.
+- **Visitor + serialization** — new `Visit(DendrogramSeries)` overload on `ISeriesVisitor`
+  (default no-op for ISP compatibility), full DTO round-trip via four new `SeriesDto`
+  fields (`DendrogramOrientation` typed as the enum directly, `CutHeight`, `CutLineColor`,
+  `ColorByCluster`), opt-out emission for default values.
+
+### Refactored — hierarchical-renderer convergence sweep
+
+- **`HierarchicalLayout`** (internal static, `Rendering/SeriesRenderers/Hierarchical/`) —
+  nested `Dendrogram` / `Treemap` / `Sunburst` constant classes consolidate the per-renderer
+  padding / offset / stroke-thickness constants that previously lived as private locals
+  scattered across the three hierarchical renderers (`LabelOffsetPx`, `HeaderHeightPx`,
+  `SidePaddingPx`, `OuterRingInsetPx`, …). When a 4th hierarchical sibling lands its
+  constants slot in alongside the existing three.
+- **`TreeNode.Walk()`** extension (public, `MatPlotLibNet.Models`) — DFS pre-order
+  enumerable that replaces hand-rolled visit-all recursions. `DendrogramSeriesRenderer.ColorSubtree`
+  collapses from a 5-line recursive method to a single LINQ-style `foreach (var n in node.Walk()) map[n] = color;`.
+  Predicate-cut and bottom-up fold walks (e.g. `CollectClusterRoots`, `ComputeLayout`,
+  Sunburst's `GetMaxDepth`) intentionally retain their bespoke recursion — the
+  XML doc on `Walk()` documents which patterns it covers.
+- **`SeriesRegistry.ResetForTests()`** (public static) — clears every registered factory
+  and re-runs `RegisterDefaults()` so test infrastructure that mutates the process-global
+  registry can roll the table back. The class XML doc now explicitly states the
+  process-global contract.
+
+### Refactored — colormap fallback duplication
+
+Convergence sweep on the long-standing `?? ColorMaps.X` boilerplate that had
+proliferated to 17 sites across 14 renderers. Two new extensions in
+`MatPlotLibNet.Styling.ColorMaps.ColormapExtensions`:
+
+- **`IColormappable.GetColorMapOrDefault(IColorMap fallback)`** — replaces the inline
+  `series.ColorMap ?? ColorMaps.Viridis` pattern with a single call site so future logic
+  (theme-driven defaults, accessibility overrides) lands in one place. Migrated 13 series
+  renderers + the `SeriesRenderer.ResolveColormapping` helper.
+- **`int.ColormapFraction(int count, double singletonT = 0.5)`** — collapses the
+  `index <= 1 ? singletonT : index / (double)(count - 1)` formula. Migrated 3 sites
+  (Dendrogram + 2× Treemap).
+
+No public-API breakage; the extensions are additive and behaviour preserves byte-for-byte
+SVG output across the existing test suite.
+
+### Coverage
+
+8795 core tests, all green. Phase 3 adds 23 model + 11 reordering + 16 render + 9 serialization tests
+for `ClustermapSeries`; Phase 2 adds 17 model + 17 render + 11 serialization tests
+for `DendrogramSeries`; 4 review-driven coverage gaps closed (zero-merge fallback,
+single-cluster colormap fraction, leaf-as-cluster-root via `Children.Count==0` short-circuit,
+`Bottom` orientation label emission).
+
+### Added — v1.10 chart pack (phase 1 of 5): annotated & triangular-mask heatmaps
+
+First slice of the **v1.10 Pair-Selection Visualisation Pack**. Property-level extensions
+on `HeatmapSeries` that unblock every realistic correlation-matrix figure (annotated
+diagonals, no-redundancy lower-triangle). No new series type — the existing `HeatmapSeries`
+gains four properties; the renderer emits cell labels and skips masked cells.
+
+- **`HeatmapSeries.ShowLabels`** (`ILabelable`) — when true, renders each cell's numeric value on top of
+  the colour fill.
+- **`HeatmapSeries.LabelFormat`** (`ILabelable`) — format string used for cell annotations
+  (default `"F2"`; supports any standard or custom .NET numeric format string,
+  e.g. `"P1"` for percent).
+- **`HeatmapSeries.MaskMode`** — new `HeatmapMaskMode` enum (`None`, `UpperTriangle`,
+  `LowerTriangle`, `UpperTriangleStrict`, `LowerTriangleStrict`); hides redundant cells in
+  symmetric matrices. The strict variants also hide the diagonal — appropriate for
+  correlation matrices where the diagonal is constant 1.
+- **`HeatmapSeries.CellValueColor`** — explicit cell-annotation colour. When null (default)
+  the renderer auto-picks black or white per cell for maximum contrast against the fill.
+- **`Color.Luminance()`** / **`Color.ContrastingTextColor()`** — new extensions on `Color`
+  (Rec. 709 relative luminance + auto black/white selection). Public so custom renderers
+  can reuse the same contrast logic.
+
+Defaults preserve backward compatibility: existing heatmap fixtures serialize byte-identical
+JSON because the new fields are null-suppressed when their values match the defaults.
+
 ## [1.9.0] — 2026-04-23
 
 ### Indicator expansion release — 12 new indicators, 40 → 52
@@ -2354,7 +2654,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 
 ---
 
-## [0.7.0] - Unreleased
+## [0.7.0] - 2026-04-09
 
 ### Added
 

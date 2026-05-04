@@ -36,4 +36,16 @@ public static class ColorExtensions
             (byte)(color.B * intensity),
             color.A);
     }
+
+    /// <summary>Relative luminance per Rec. 709: <c>L = 0.2126·R + 0.7152·G + 0.0722·B</c>
+    /// on channels normalised to [0,1]. Returned value is in [0,1]; alpha is ignored.
+    /// Used by renderers (e.g. heatmap cell annotations) to pick black or white text
+    /// against an arbitrary fill colour for maximum contrast.</summary>
+    public static double Luminance(this Color color) =>
+        (0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B) / 255.0;
+
+    /// <summary>Returns <see cref="Colors.Black"/> when <paramref name="fill"/> has luminance ≥ 0.5,
+    /// otherwise <see cref="Colors.White"/> — the higher-contrast text colour against the fill.</summary>
+    public static Color ContrastingTextColor(this Color fill) =>
+        fill.Luminance() >= 0.5 ? Colors.Black : Colors.White;
 }

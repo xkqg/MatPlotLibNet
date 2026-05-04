@@ -42,18 +42,7 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
     }
 
     /// <inheritdoc />
-    public MinMaxRange GetColorBarRange()
-    {
-        double min = double.MaxValue, max = double.MinValue;
-        for (int t = 0; t < Data.GetLength(0); t++)
-            for (int r = 0; r < Data.GetLength(1); r++)
-            {
-                double v = Data[t, r];
-                if (v < min) min = v;
-                if (v > max) max = v;
-            }
-        return min < max ? new(min, max) : new(0, 1);
-    }
+    public MinMaxRange GetColorBarRange() => Data.ScanColorBarRange();
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>

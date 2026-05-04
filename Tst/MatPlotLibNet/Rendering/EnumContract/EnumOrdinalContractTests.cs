@@ -118,6 +118,25 @@ public static class EnumOrdinalSnapshot
                 ["Horizontal"] = 3, ["Vertical"] = 4, ["Cross"] = 5,
                 ["DiagonalCross"] = 6, ["Dots"] = 7, ["Stars"] = 8,
             },
+            [typeof(HeatmapMaskMode)] = new Dictionary<string, int> {
+                ["None"] = 0, ["UpperTriangle"] = 1, ["LowerTriangle"] = 2,
+                ["UpperTriangleStrict"] = 3, ["LowerTriangleStrict"] = 4,
+            },
+            [typeof(DendrogramOrientation)] = new Dictionary<string, int> {
+                ["Top"] = 0, ["Bottom"] = 1, ["Left"] = 2, ["Right"] = 3,
+            },
+            [typeof(PairGridDiagonalKind)] = new Dictionary<string, int> {
+                ["Histogram"] = 0, ["Kde"] = 1, ["None"] = 2,
+            },
+            [typeof(PairGridOffDiagonalKind)] = new Dictionary<string, int> {
+                ["Scatter"] = 0, ["None"] = 1, ["Hexbin"] = 2,
+            },
+            [typeof(PairGridTriangle)] = new Dictionary<string, int> {
+                ["Both"] = 0, ["LowerOnly"] = 1, ["UpperOnly"] = 2,
+            },
+            [typeof(GraphLayout)] = new Dictionary<string, int> {
+                ["Manual"] = 0, ["ForceDirected"] = 1, ["Circular"] = 2, ["Hierarchical"] = 3,
+            },
             [typeof(HistType)] = new Dictionary<string, int> {
                 ["Bar"] = 0, ["Step"] = 1, ["StepFilled"] = 2,
             },
