@@ -644,8 +644,10 @@ public sealed class ChartSerializer : IChartSerializer
         if (dto.RrgShortPeriod.HasValue)      s.ShortPeriod      = dto.RrgShortPeriod.Value;
         if (dto.RrgLongPeriod.HasValue)       s.LongPeriod       = dto.RrgLongPeriod.Value;
         if (dto.RrgMomentumLookback.HasValue) s.MomentumLookback = dto.RrgMomentumLookback.Value;
-        if (dto.RrgTailLength.HasValue)       s.TailLength       = dto.RrgTailLength.Value;
-        if (dto.RrgShowQuadrantGrid.HasValue) s.ShowQuadrantGrid = dto.RrgShowQuadrantGrid.Value;
+        if (dto.RrgTailLength.HasValue)       s.TailLength            = dto.RrgTailLength.Value;
+        if (dto.RrgShowQuadrantGrid.HasValue) s.ShowQuadrantGrid      = dto.RrgShowQuadrantGrid.Value;
+        if (dto.RrgAbsorptionPerBar is not null) s.AbsorptionRatioPerBar = dto.RrgAbsorptionPerBar.ToArray();
+        if (dto.RrgEnbPerBar        is not null) s.EnbPerBar             = dto.RrgEnbPerBar.ToArray();
         return s;
     }
 
@@ -1373,6 +1375,8 @@ public sealed record SeriesDto
     public int?                 RrgMomentumLookback  { get; init; }
     public int?                 RrgTailLength        { get; init; }
     public bool?                RrgShowQuadrantGrid  { get; init; }
+    public List<double>?        RrgAbsorptionPerBar  { get; init; }
+    public List<double>?        RrgEnbPerBar         { get; init; }
 }
 
 /// <summary>DTO for a single 3D text annotation positioned at (X, Y, Z).</summary>

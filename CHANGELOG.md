@@ -4,7 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.11.2] — 2026-05-16
+
+### Added
+
+- `RelativeRotationSeries.AbsorptionRatioPerBar` (`double[]?`) — optional per-bar absorption ratio [0..1]. When set, each trail dot fill maps through a green→red diverging colormap (low=safe, high=panic); asset colour becomes the edge ring. Null preserves current uniform-fill behaviour.
+- `RelativeRotationSeries.EnbPerBar` (`double[]?`) — optional per-bar Effective Number of Bets. When set, each trail dot radius scales with the ENB value (ENB×1.5 px, min 1.5 px); head dot is 1.5× larger. Null preserves current fixed-radius behaviour.
+- Both overlays trigger ghost-trail rendering: gray polyline behind the dots instead of the coloured tail segments. They compose freely (either or both can be set independently).
+
+### Changed
+
+- `RelativeRotationSeries.ComputeRsData()` now returns `RrsPoint[]` (was named-ValueTuple array) — `readonly record struct RrsPoint(double[] RsRatio, double[] RsMomentum)`. Deconstruction call sites (`var (rsRatio, rsMom) = ...`) are unaffected.
 
 ---
 

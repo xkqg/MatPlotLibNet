@@ -138,6 +138,41 @@ public class RelativeRotationSerializationTests
         Assert.Equal("plasma", s.ColorMap!.Name);
     }
 
+    // ── Overlay arrays round-trip ─────────────────────────────────────────────
+
+    [Fact]
+    public void RoundTrip_PreservesAbsorptionRatioPerBar()
+    {
+        double[] absorption = [0.3, 0.45, 0.6, 0.55, 0.4];
+        var s = Roundtrip(s => s.AbsorptionRatioPerBar = absorption);
+        Assert.NotNull(s.AbsorptionRatioPerBar);
+        Assert.Equal(5, s.AbsorptionRatioPerBar!.Length);
+        Assert.Equal(0.3,  s.AbsorptionRatioPerBar[0], precision: 10);
+        Assert.Equal(0.45, s.AbsorptionRatioPerBar[1], precision: 10);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesEnbPerBar()
+    {
+        double[] enb = [4.2, 3.8, 3.1, 2.5, 1.9];
+        var s = Roundtrip(s => s.EnbPerBar = enb);
+        Assert.NotNull(s.EnbPerBar);
+        Assert.Equal(5, s.EnbPerBar!.Length);
+        Assert.Equal(4.2, s.EnbPerBar[0], precision: 10);
+        Assert.Equal(1.9, s.EnbPerBar[4], precision: 10);
+    }
+
+    [Fact]
+    public void RoundTrip_NullOverlays_NotEmittedToJson()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(SampleAssets, SampleBench, SampleLabels))
+            .Build();
+        var json = new ChartSerializer().ToJson(figure);
+        Assert.DoesNotContain("\"rrgAbsorptionPerBar\"", json);
+        Assert.DoesNotContain("\"rrgEnbPerBar\"",        json);
+    }
+
     // ── Empty assets round-trip ───────────────────────────────────────────────
 
     [Fact]

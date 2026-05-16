@@ -27,6 +27,12 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
     private const double TailThickness      = 1.2;
     private const double LabelFontSize      = 9.0;
 
+    // ENB radius: ENB=1 → ~1.5px, ENB=5 → ~7.5px (ENB * sqrt(7/π) ≈ ENB * 1.49).
+    private static double EnbToRadius(double enb) => Math.Max(1.5, enb * 1.5);
+    // Absorption colormap: low absorption (safe) = green, high (panic) = red.
+    private static readonly IColorMap AbsorptionCmap =
+        new ReversedColorMap(DivergingColorMaps.RdYlGn);
+
     /// <inheritdoc />
     public RelativeRotationSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
@@ -94,32 +100,73 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
         double[] rsRatio, double[] rsMom,
         Color color, string label)
     {
-        // Collect the last TailLength valid (x, y) pixel points.
+        // Collect the last TailLength valid (pixel, time-index) pairs, oldest first.
         int tail = series.TailLength;
-        var points = new List<Point>(tail);
+        var points = new List<(Point Pixel, int T)>(tail);
 
         for (int t = rsRatio.Length - 1; t >= 0 && points.Count < tail; t--)
         {
             if (double.IsNaN(rsRatio[t]) || double.IsNaN(rsMom[t])) continue;
-            points.Insert(0, Transform.DataToPixel(rsRatio[t], rsMom[t]));
+            points.Insert(0, (Transform.DataToPixel(rsRatio[t], rsMom[t]), t));
         }
 
         if (points.Count == 0) return;
 
-        // Draw fading tail segments (oldest to newest, alpha 0.2 → 1.0).
-        for (int i = 0; i < points.Count - 1; i++)
+        bool hasAbsorption = series.AbsorptionRatioPerBar is not null;
+        bool hasEnb        = series.EnbPerBar is not null;
+
+        if (hasAbsorption || hasEnb)
         {
-            double alpha = 0.2 + 0.8 * ((double)i / (points.Count - 1));
-            Ctx.SetOpacity(alpha);
-            Ctx.DrawLine(points[i], points[i + 1], color, TailThickness, LineStyle.Solid);
+            // ── Overlay mode: gray ghost trail + per-point colored dots ────────
+            // Gray ghost trail (fading).
+            for (int i = 0; i < points.Count - 1; i++)
+            {
+                double alpha = 0.2 + 0.8 * ((double)i / (points.Count - 1));
+                Ctx.SetOpacity(alpha);
+                Ctx.DrawLine(points[i].Pixel, points[i + 1].Pixel,
+                    new Color(160, 160, 160), TailThickness, LineStyle.Solid);
+            }
+
+            // Per-point dots.
+            bool isLast = false;
+            for (int i = 0; i < points.Count; i++)
+            {
+                isLast = i == points.Count - 1;
+                var (pixel, t) = points[i];
+                double alpha = isLast ? 1.0 : 0.2 + 0.8 * ((double)i / (points.Count - 1));
+                Ctx.SetOpacity(alpha);
+
+                Color fill = color;
+                if (hasAbsorption)
+                {
+                    double ratio = Math.Clamp(series.AbsorptionRatioPerBar![t], 0.0, 1.0);
+                    fill = AbsorptionCmap.GetColor(ratio);
+                }
+
+                double radius = hasEnb
+                    ? EnbToRadius(series.EnbPerBar![t]) * (isLast ? 1.5 : 1.0)
+                    : HeadRadius * (isLast ? 1.0 : 0.6);
+
+                double stroke = isLast ? 1.5 : 0.5;
+                Ctx.DrawCircle(pixel, radius, fill, color, strokeThickness: stroke);
+            }
+        }
+        else
+        {
+            // ── Default mode: fading trail lines + head dot ──────────────────
+            for (int i = 0; i < points.Count - 1; i++)
+            {
+                double alpha = 0.2 + 0.8 * ((double)i / (points.Count - 1));
+                Ctx.SetOpacity(alpha);
+                Ctx.DrawLine(points[i].Pixel, points[i + 1].Pixel, color, TailThickness, LineStyle.Solid);
+            }
+            Ctx.SetOpacity(1.0);
+            Ctx.DrawCircle(points[^1].Pixel, HeadRadius, color, Colors.Black, strokeThickness: 0.5);
         }
 
-        // Draw head dot at full opacity.
+        // Label always at head, full opacity.
         Ctx.SetOpacity(1.0);
-        var head = points[^1];
-        Ctx.DrawCircle(head, HeadRadius, color, Colors.Black, strokeThickness: 0.5);
-
-        // Label to the right of head.
+        var head = points[^1].Pixel;
         Ctx.DrawText(label, new Point(head.X + HeadRadius + 2.0, head.Y),
             new Font { Family = "sans-serif", Size = LabelFontSize, Color = Colors.Black },
             TextAlignment.Left);

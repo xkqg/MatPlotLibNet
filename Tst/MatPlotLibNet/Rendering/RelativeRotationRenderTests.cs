@@ -169,6 +169,103 @@ public class RelativeRotationRenderTests
         Assert.DoesNotContain("<circle ", svg);  // no heads drawn
     }
 
+    // ── Absorption overlay ────────────────────────────────────────────────────
+
+    [Fact]
+    public void AbsorptionOverlay_EmitsCirclePerTailPoint()
+    {
+        // Without overlay: 1 circle per asset (head only).
+        // With AbsorptionRatioPerBar: one circle per tail point per asset.
+        const int TailLen   = 4;
+        const int NumAssets = 2;
+        var absorption = Enumerable.Repeat(0.4, 60).ToArray();
+
+        string svgOverlay = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
+                [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
+                {
+                    s.ShortPeriod           = 3;
+                    s.LongPeriod            = 5;
+                    s.TailLength            = TailLen;
+                    s.AbsorptionRatioPerBar = absorption;
+                }))
+            .ToSvg();
+
+        string svgBase = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
+                [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
+                {
+                    s.ShortPeriod = 3;
+                    s.LongPeriod  = 5;
+                    s.TailLength  = TailLen;
+                }))
+            .ToSvg();
+
+        int circlesOverlay = CountOccurrences(svgOverlay, "<circle ");
+        int circlesBase    = CountOccurrences(svgBase,    "<circle ");
+
+        Assert.True(circlesOverlay > circlesBase,
+            $"Absorption overlay ({circlesOverlay} circles) must exceed baseline ({circlesBase}).");
+        Assert.Equal(TailLen * NumAssets, circlesOverlay);
+    }
+
+    [Fact]
+    public void EnbOverlay_EmitsCirclePerTailPoint()
+    {
+        const int TailLen   = 4;
+        const int NumAssets = 2;
+        var enb = Enumerable.Repeat(3.0, 60).ToArray();
+
+        string svgOverlay = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
+                [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
+                {
+                    s.ShortPeriod = 3;
+                    s.LongPeriod  = 5;
+                    s.TailLength  = TailLen;
+                    s.EnbPerBar   = enb;
+                }))
+            .ToSvg();
+
+        string svgBase = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
+                [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
+                {
+                    s.ShortPeriod = 3;
+                    s.LongPeriod  = 5;
+                    s.TailLength  = TailLen;
+                }))
+            .ToSvg();
+
+        int circlesOverlay = CountOccurrences(svgOverlay, "<circle ");
+        int circlesBase    = CountOccurrences(svgBase,    "<circle ");
+
+        Assert.True(circlesOverlay > circlesBase,
+            $"ENB overlay ({circlesOverlay} circles) must exceed baseline ({circlesBase}).");
+        Assert.Equal(TailLen * NumAssets, circlesOverlay);
+    }
+
+    [Fact]
+    public void BothOverlays_EmitsCirclePerTailPoint()
+    {
+        const int TailLen   = 4;
+        const int NumAssets = 2;
+
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.RelativeRotation(
+                [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"], s =>
+                {
+                    s.ShortPeriod           = 3;
+                    s.LongPeriod            = 5;
+                    s.TailLength            = TailLen;
+                    s.AbsorptionRatioPerBar = Enumerable.Repeat(0.5, 60).ToArray();
+                    s.EnbPerBar             = Enumerable.Repeat(2.5, 60).ToArray();
+                }))
+            .ToSvg();
+
+        Assert.Equal(TailLen * NumAssets, CountOccurrences(svg, "<circle "));
+    }
+
     // ── Fluent API coverage ────────────────────────────────────────────────────
 
     [Fact]

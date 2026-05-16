@@ -48,8 +48,18 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
     public bool ShowQuadrantGrid { get; set; } = true;
 
     /// <inheritdoc cref="IColormappable.ColorMap"/>
-    /// <remarks>Maps asset index (in [0, 1]) through the colour map. Defaults to Viridis at render time when null.</remarks>
+    /// <remarks>Maps asset index (in [0, 1]) through the colour map. Defaults to Tab10 at render time when null.</remarks>
     public IColorMap? ColorMap { get; set; }
+
+    /// <summary>Per-bar absorption ratio [0..1], same length as the close-price series.
+    /// When set, each trail dot is filled through a green→red diverging colormap instead of the uniform
+    /// asset colour; the asset colour becomes the edge ring. Null means uniform fill (default).</summary>
+    public double[]? AbsorptionRatioPerBar { get; set; }
+
+    /// <summary>Per-bar Effective Number of Bets (ENB), same length as the close-price series.
+    /// When set, each trail dot's radius scales with the ENB value (larger = more diversified portfolio).
+    /// Null means fixed head radius (default).</summary>
+    public double[]? EnbPerBar { get; set; }
 
     /// <summary>Initializes a new <see cref="RelativeRotationSeries"/>.</summary>
     /// <param name="assetCloses">Per-asset close price arrays. May be empty (renders blank figure).</param>
@@ -81,21 +91,22 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
     /// <summary>Computes RS-Ratio and RS-Momentum for each asset using the current <see cref="Formula"/>.
     /// Both output arrays are the same length as the input close series; leading values are
     /// <see cref="double.NaN"/> where the lookback windows are not yet full.</summary>
-    public (double[] RsRatio, double[] RsMomentum)[] ComputeRsData()
+    public RrsPoint[] ComputeRsData()
     {
-        var results = new (double[], double[])[AssetCloses.Count];
+        var results = new RrsPoint[AssetCloses.Count];
         var bench = (double[])BenchmarkCloses is double[] ba
             ? ba
             : BenchmarkCloses.ToArray();
 
         for (int a = 0; a < AssetCloses.Count; a++)
         {
-            results[a] = Formula switch
+            var (ratio, momentum) = Formula switch
             {
                 RrgFormula.ZScore    => ComputeZScore(AssetCloses[a], bench, ShortPeriod, MomentumLookback),
                 RrgFormula.LogReturn => ComputeLogReturn(AssetCloses[a], bench, ShortPeriod, LongPeriod),
                 _                   => ComputeDualEma(AssetCloses[a], bench, ShortPeriod, LongPeriod),
             };
+            results[a] = new RrsPoint(ratio, momentum);
         }
         return results;
     }
@@ -280,12 +291,14 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         RrgBenchmarkCloses   = BenchmarkCloses.ToList(),
         RrgAssetLabels       = AssetLabels.ToArray(),
         ColorMapName         = ColorMap?.Name,
-        RrgFormula           = Formula != RrgFormula.DualEma   ? Formula.ToString() : null,
-        RrgShortPeriod       = ShortPeriod != 10               ? ShortPeriod        : null,
-        RrgLongPeriod        = LongPeriod  != 26               ? LongPeriod         : null,
-        RrgMomentumLookback  = MomentumLookback != 10          ? MomentumLookback   : null,
-        RrgTailLength        = TailLength   != 8               ? TailLength         : null,
-        RrgShowQuadrantGrid  = !ShowQuadrantGrid               ? false              : null,
+        RrgFormula            = Formula != RrgFormula.DualEma   ? Formula.ToString() : null,
+        RrgShortPeriod        = ShortPeriod != 10               ? ShortPeriod        : null,
+        RrgLongPeriod         = LongPeriod  != 26               ? LongPeriod         : null,
+        RrgMomentumLookback   = MomentumLookback != 10          ? MomentumLookback   : null,
+        RrgTailLength         = TailLength   != 8               ? TailLength         : null,
+        RrgShowQuadrantGrid   = !ShowQuadrantGrid               ? false              : null,
+        RrgAbsorptionPerBar   = AbsorptionRatioPerBar?.ToList(),
+        RrgEnbPerBar          = EnbPerBar?.ToList(),
     };
 
     /// <inheritdoc />

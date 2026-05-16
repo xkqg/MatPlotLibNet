@@ -312,6 +312,75 @@ public class RelativeRotationSeriesTests
         Assert.All(rsMom, v => Assert.True(double.IsNaN(v)));
     }
 
+    // ── ComputeRsData — return type ───────────────────────────────────────────
+
+    [Fact]
+    public void ComputeRsData_ReturnsRrsPointArray()
+    {
+        // Verifies that ComputeRsData() returns RrsPoint[] (not a named-tuple array).
+        // Deconstruction must still work so the other tests remain valid.
+        var s = new RelativeRotationSeries(
+            [Rising(40), Flat(40)],
+            Flat(40),
+            ["BTC", "ETH"])
+        {
+            Formula = RrgFormula.DualEma, ShortPeriod = 5, LongPeriod = 10,
+        };
+
+        var result = s.ComputeRsData();
+
+        Assert.IsType<RrsPoint[]>(result);
+        Assert.Equal(2, result.Length);
+        Assert.Equal(40, result[0].RsRatio.Length);
+        Assert.Equal(40, result[0].RsMomentum.Length);
+        Assert.Equal(40, result[1].RsRatio.Length);
+        Assert.Equal(40, result[1].RsMomentum.Length);
+    }
+
+    // ── Overlay properties ────────────────────────────────────────────────────
+
+    [Fact]
+    public void AbsorptionRatioPerBar_DefaultsToNull()
+    {
+        Assert.Null(Sample().AbsorptionRatioPerBar);
+    }
+
+    [Fact]
+    public void EnbPerBar_DefaultsToNull()
+    {
+        Assert.Null(Sample().EnbPerBar);
+    }
+
+    [Fact]
+    public void ToSeriesDto_NullOverlays_NotEmitted()
+    {
+        var dto = Sample().ToSeriesDto();
+        Assert.Null(dto.RrgAbsorptionPerBar);
+        Assert.Null(dto.RrgEnbPerBar);
+    }
+
+    [Fact]
+    public void ToSeriesDto_AbsorptionRatioPerBar_Emitted()
+    {
+        var s = Sample(10);
+        s.AbsorptionRatioPerBar = [0.3, 0.4, 0.5, 0.6, 0.7, 0.3, 0.4, 0.5, 0.6, 0.7];
+        var dto = s.ToSeriesDto();
+        Assert.NotNull(dto.RrgAbsorptionPerBar);
+        Assert.Equal(10, dto.RrgAbsorptionPerBar!.Count);
+        Assert.Equal(0.3, dto.RrgAbsorptionPerBar[0], precision: 10);
+    }
+
+    [Fact]
+    public void ToSeriesDto_EnbPerBar_Emitted()
+    {
+        var s = Sample(10);
+        s.EnbPerBar = [4.0, 3.8, 3.5, 3.0, 2.5, 2.0, 1.8, 1.5, 1.2, 1.0];
+        var dto = s.ToSeriesDto();
+        Assert.NotNull(dto.RrgEnbPerBar);
+        Assert.Equal(10, dto.RrgEnbPerBar!.Count);
+        Assert.Equal(4.0, dto.RrgEnbPerBar[0], precision: 10);
+    }
+
     // ── ComputeDataRange ──────────────────────────────────────────────────────
 
     [Fact]
