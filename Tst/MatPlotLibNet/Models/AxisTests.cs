@@ -87,4 +87,45 @@ public class AxisTests
         var tc = new TickConfig();
         Assert.Equal(TickDirection.Out, tc.Direction);
     }
+
+    // ── Axis.LabelRotation shorthand ─────────────────────────────────────────
+
+    [Fact]
+    public void LabelRotation_Default_IsZero()
+    {
+        Assert.Equal(0.0, new Axis().LabelRotation);
+    }
+
+    [Fact]
+    public void LabelRotation_Set_UpdatesMajorTicks()
+    {
+        var axis = new Axis();
+        axis.LabelRotation = -45.0;
+        Assert.Equal(-45.0, axis.MajorTicks.LabelRotation);
+    }
+
+    [Fact]
+    public void LabelRotation_Get_ReadsMajorTicks()
+    {
+        var axis = new Axis();
+        axis.MajorTicks = axis.MajorTicks with { LabelRotation = 30.0 };
+        Assert.Equal(30.0, axis.LabelRotation);
+    }
+
+    [Fact]
+    public void LabelRotation_SetNegative_Accepted()
+    {
+        var axis = new Axis();
+        axis.LabelRotation = -90.0;
+        Assert.Equal(-90.0, axis.LabelRotation);
+    }
+
+    [Fact]
+    public void LabelRotation_SetDoesNotAffectMinorTicks()
+    {
+        var axis = new Axis();
+        double before = axis.MinorTicks.LabelRotation;
+        axis.LabelRotation = -45.0;
+        Assert.Equal(before, axis.MinorTicks.LabelRotation);
+    }
 }

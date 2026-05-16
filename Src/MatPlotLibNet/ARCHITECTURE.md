@@ -272,6 +272,8 @@ MatPlotLibNet/
       LogTickFormatter.cs               powers of 10
       EngFormatter.cs                   SI prefix engineering notation (k, M, G, m, µ, n)
       PercentFormatter.cs               value/max*100 + "%" suffix
+      CategoryFormatter.cs              index → label string; reversed flag for heatmap Y-axis (new v1.11.1)
+      DateTimeTickFormatter.cs          FromArray (index-based) + FromEpochMs (Unix ms) factories (new v1.11.1)
 
     Layout/                             margin computation (new v0.8.1)
       ConstrainedLayoutEngine.cs        Compute(Figure, IRenderContext) → SubPlotSpacing; measures text extents, clamps margins

@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+---
+
+## [1.11.1] — 2026-05-16
+
+### Added
+
+- **`CategoryFormatter`** (`MatPlotLibNet.Rendering.TickFormatters`) — maps integer tick
+  indices to category label strings. `reversed: true` compensates for the Y-axis heatmap
+  convention (SVG row 0 at bottom, math-Y increasing upward). Eliminates boilerplate custom
+  `ITickFormatter` implementations for heatmaps and bar charts.
+- **`DateTimeTickFormatter`** (`MatPlotLibNet.Rendering.TickFormatters`) — one class, two
+  static factories: `FromArray(DateTime[] timestamps, string format)` for index-based axes
+  (Surface, Bar), and `FromEpochMs(string format)` for Unix-millisecond axes (LineSeries).
+  Does not replace existing `DateTickFormatter` (OLE Automation dates, paired with `AutoDateLocator`).
+- **`Axis.LabelRotation`** — shorthand property delegating to `MajorTicks.LabelRotation`
+  (degrees; negative = clockwise per matplotlib convention). Enables `ax.XAxis.LabelRotation = -45`
+  directly, consistent with `Axis.TickFormatter` and `Axis.TickLocator` which also sit at
+  axis level. Underlying SVG rotation infrastructure was already complete.
+
+### Fixed
+
+- Coverage regressions vs baseline under `--strict` mode introduced by v1.11.0:
+  `ChartSerializer` (`Enum.Parse` replaces `Enum.TryParse`, removing dead false-branch),
+  `Axes.RelativeRotation` (configure non-null branch covered by direct-call test),
+  `FigureBuilder.RelativeRotation` (method body covered by builder test),
+  `ChartSerializer.CreateRelativeRotation` (`?? []` null-fallback branches covered by
+  missing-fields deserialization test). Tests: +29 (total 9165).
+
+---
+
+## [1.11.0] — 2026-05-16
+
 ### Added — v1.11.0 RelativeRotationSeries (RRG — pair radar)
 
 Relative Rotation Graph (Julius de Kempenaer, 2004–2005): 2D scatter where each asset

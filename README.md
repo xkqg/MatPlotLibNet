@@ -10,7 +10,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 What's next
 
-**v1.10.0 (2026-05-04) — Pair-Selection Visualisation Pack** ships the full 5-phase chart-type machinery for correlation-based asset clustering, dimensional EDA, and hierarchical risk parity. Future releases are **community-driven**:
+**v1.11.1 (2026-05-16) — RelativeRotationSeries (RRG) + coverage fix.** `RelativeRotationSeries` renders a JdK-style RRG — 2D scatter of (RS-Ratio, RS-Momentum) per asset vs a benchmark with fading tail, 100/100 quadrant grid, and three formulas (`DualEma`, `ZScore`, `LogReturn`). New `Roc` indicator (Tier-3 #53). v1.11.1 closes coverage gate regressions under `--strict` mode. Future releases are **community-driven**:
 
 - 🗺️ **Phase 1 — Annotated & triangular-mask heatmaps**: four new `HeatmapSeries` properties (`ShowLabels`, `LabelFormat`, `MaskMode`, `CellValueColor`) + `HeatmapMaskMode` enum unblock every realistic correlation-matrix figure.
 - 🌲 **Phase 2 — `DendrogramSeries`**: hierarchical-clustering tree as canonical "U"-shape segments. Four `DendrogramOrientation` values (`Top`, `Bottom`, `Left`, `Right`); optional `CutHeight` draws a dashed reference line and recolours each cluster below the cut from a qualitative `IColorMap` (default `Tab10`). Fluent API: `Plt.Create().Dendrogram(root, s => s.CutHeight = 1.5)`.
@@ -26,9 +26,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 - 📚 **Documentation polish** — cookbook examples, API XML doc completeness.
 - 🌱 **Listening** — Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next direction will be guided by what real users need, not by a feature checklist.
 
-**v1.11.0 (next) — Relative Rotation Graph**: `RelativeRotationSeries` renders a JdK-style RRG — 2D scatter of (RS-Ratio, RS-Momentum) per asset vs a benchmark with fading tail, 100/100 quadrant grid (Leading / Weakening / Lagging / Improving), and three computation formulas (`DualEma` default, `ZScore`, `LogReturn`). Includes new public `Roc` indicator (Rate-of-Change, Tier-3 #53).
-
-For the full v1.10.0 release notes, see the [CHANGELOG](CHANGELOG.md).
+For the full release notes, see the [CHANGELOG](CHANGELOG.md).
 
 ---
 

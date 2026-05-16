@@ -48,6 +48,15 @@ public class Axis
     public ITickFormatter? TickFormatter { get; set; }
 
     public ITickLocator? TickLocator { get; set; }
+
+    /// <summary>Shorthand for <see cref="TickConfig.LabelRotation"/> on <see cref="MajorTicks"/>.
+    /// Degrees; negative = clockwise (matplotlib convention: <c>-45</c> = schuin rechts-onder).
+    /// Default 0 (horizontal).</summary>
+    public double LabelRotation
+    {
+        get => MajorTicks.LabelRotation;
+        set => MajorTicks = MajorTicks with { LabelRotation = value };
+    }
 }
 
 /// <summary>Represents the configuration of the Z axis on a 3D axes. Inherits all standard axis
