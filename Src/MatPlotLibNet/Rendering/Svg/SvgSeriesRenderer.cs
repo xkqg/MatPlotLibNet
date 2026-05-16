@@ -72,6 +72,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private ClustermapSeriesRenderer? _clustermap;
     private PairGridSeriesRenderer? _pairgrid;
     private NetworkGraphSeriesRenderer? _networkgraph;
+    private RelativeRotationSeriesRenderer? _relativeRotation;
 
     // Flow family
     private SankeySeriesRenderer? _sankey;
@@ -249,6 +250,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(PairGridSeries s, RenderArea a) => (_pairgrid ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(NetworkGraphSeries s, RenderArea a) => (_networkgraph ??= new(_context)).Render(s);
+    public void Visit(RelativeRotationSeries s, RenderArea a) => (_relativeRotation ??= new(_context)).Render(s);
 
     // Flow family
     /// <inheritdoc />

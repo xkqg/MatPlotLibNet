@@ -669,6 +669,24 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a Relative Rotation Graph series to the axes.</summary>
+    /// <param name="assetCloses">Per-asset close price series (jagged; each element must equal <paramref name="benchmarkCloses"/> length).</param>
+    /// <param name="benchmarkCloses">Benchmark close price series (e.g. BTC).</param>
+    /// <param name="assetLabels">Display labels — one per asset (e.g. "ETH", "SOL").</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>The newly added <see cref="RelativeRotationSeries"/> for further property configuration.</returns>
+    public RelativeRotationSeries RelativeRotation(
+        double[][] assetCloses,
+        double[] benchmarkCloses,
+        string[] assetLabels,
+        Action<RelativeRotationSeries>? configure = null)
+    {
+        var series = new RelativeRotationSeries(assetCloses, benchmarkCloses, assetLabels);
+        configure?.Invoke(series);
+        _series.Add(series);
+        return series;
+    }
+
     /// <summary>Adds a Sankey diagram series to the axes.</summary>
     public SankeySeries Sankey(SankeyNode[] nodes, SankeyLink[] links)
     {

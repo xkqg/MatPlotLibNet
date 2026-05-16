@@ -134,6 +134,8 @@ MatPlotLibNet/
       PairGridOffDiagonalKind.cs      enum: Scatter, None, Hexbin — bivariate kind for off-diagonal cells
       PairGridTriangle.cs             enum: Both, LowerOnly, UpperOnly — N×N triangle selector
       Graph/NetworkGraphSeries.cs     ChartSeries + IColormappable: Nodes, Edges, Layout, ColorMap, ShowNodeLabels, ShowEdgeWeights, EdgeThicknessScale, NodeRadiusScale, LayoutSeed, LayoutIterations, ConvergenceThreshold
+      XY/RelativeRotationSeries.cs   ChartSeries + IColormappable: AssetCloses[][], BenchmarkCloses[], AssetLabels[], Formula, ShortPeriod, LongPeriod, MomentumLookback, TailLength, ShowQuadrantGrid, ColorMap; ComputeRsData() (XY/)
+      RrgFormula.cs                  enum: DualEma=0 (JdK canonical), ZScore=1 (mean-reversion), LogReturn=2
       Graph/GraphNode.cs              readonly record struct: Id, X, Y, ColorScalar, SizeScalar, Label
       Graph/GraphEdge.cs              readonly record struct: From, To, Weight, IsDirected
       Graph/GraphLayout.cs            enum: Manual=0, ForceDirected=1, Circular=2, Hierarchical=3
@@ -182,7 +184,7 @@ MatPlotLibNet/
     StochasticResult.cs                 Stochastic result: K, D
     IchimokuResult.cs                   Ichimoku result: TenkanSen, KijunSen, SenkouSpanA, SenkouSpanB, ChikouSpan
     PriceSource.cs                      enum (Close/Open/HL2/HLC3/OHLC4) + PriceSources resolver
-    Sma.cs, Ema.cs                      PriceIndicator: moving averages (overlay)
+    Sma.cs, Ema.cs, Roc.cs             PriceIndicator: moving averages / rate-of-change (overlay)
     BollingerBands.cs                   PriceIndicator: upper/lower bands via PlotBands() (overlay)
     Vwap.cs                             PriceIndicator: volume-weighted average price (overlay)
     FibonacciRetracement.cs             Horizontal levels at key ratios (overlay)
@@ -562,7 +564,7 @@ All column access funnels through `DataFrameColumnReader.ToDoubleArray` / `ToStr
 
 | Group | Methods |
 |---|---|
-| Price | `Sma`, `Ema`, `Rsi`, `BollingerBands`, `Obv`, `Macd`, `DrawDown`, `CgOscillator`, `Bocpd`, `CyberCycle`, `Decycler`, `EhlersITrend`, `EhlersSineWave` (→ `SineWaveResult`), `EhlersSuperSmoother`, `FractionalDifferentiation`, `KaufmanEfficiencyRatio`, `LaguerreRsi`, `MamaFama` (→ `MamaFamaResult`), `PermutationEntropy`, `RollSpread`, `RoofingFilter`, `WaveletEnergyRatio`, `WaveletEntropy`, `Cusum` (→ `CusumResult`) |
+| Price | `Sma`, `Ema`, `Roc`, `Rsi`, `BollingerBands`, `Obv`, `Macd`, `DrawDown`, `CgOscillator`, `Bocpd`, `CyberCycle`, `Decycler`, `EhlersITrend`, `EhlersSineWave` (→ `SineWaveResult`), `EhlersSuperSmoother`, `FractionalDifferentiation`, `KaufmanEfficiencyRatio`, `LaguerreRsi`, `MamaFama` (→ `MamaFamaResult`), `PermutationEntropy`, `RollSpread`, `RoofingFilter`, `WaveletEnergyRatio`, `WaveletEntropy`, `Cusum` (→ `CusumResult`) |
 | Close+Vol | `AmihudIlliquidity`, `ForceIndex`, `Vpin`, `VwapZScore` |
 | High+Low | `AroonOscillator`, `CorwinSchultz` |
 | Candle | `Adx` (scalar), `AdxFull` (→ `AdxResult`), `Atr`, `Cci`, `WilliamsR`, `Stochastic`, `ParabolicSar`, `KeltnerChannels`, `Vwap`, `AdaptiveStochastic`, `Ichimoku` (→ `IchimokuResult`), `Supertrend` (→ `SupertrendResult`), `SqueezeMomentum` (→ `SqueezeResult`) |

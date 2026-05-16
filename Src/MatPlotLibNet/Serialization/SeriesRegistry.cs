@@ -123,7 +123,8 @@ public static class SeriesRegistry
         });
         Register("clustermap", ChartSerializer.CreateClustermap);
         Register("pairgrid",   ChartSerializer.CreatePairGrid);
-        Register("networkgraph", ChartSerializer.CreateNetworkGraph);
+        Register("networkgraph",       ChartSerializer.CreateNetworkGraph);
+        Register("relativerotation",   ChartSerializer.CreateRelativeRotation);
         Register("sankey", (axes, _) => axes.Sankey([new SankeyNode("A")], []));
         Register("polarline", (axes, _) => axes.PolarPlot([1.0], [0.0]));
         Register("polarscatter", (axes, _) => axes.PolarScatter([1.0], [0.0]));

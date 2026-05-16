@@ -327,6 +327,19 @@ public sealed class FigureBuilder
         Action<NetworkGraphSeries>? configure = null) =>
         AddSeries(ax => ax.NetworkGraph(nodes, edges), configure);
 
+    /// <summary>Adds a Relative Rotation Graph series to the default axes.</summary>
+    /// <param name="assetCloses">Per-asset close price series.</param>
+    /// <param name="benchmarkCloses">Benchmark close price series (e.g. BTC).</param>
+    /// <param name="assetLabels">Display labels — one per asset.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>This <see cref="FigureBuilder"/> for chaining.</returns>
+    public FigureBuilder RelativeRotation(
+        double[][] assetCloses,
+        double[] benchmarkCloses,
+        string[] assetLabels,
+        Action<RelativeRotationSeries>? configure = null) =>
+        AddSeries(ax => ax.RelativeRotation(assetCloses, benchmarkCloses, assetLabels), configure);
+
     /// <summary>Adds a Sankey diagram series to the default axes.</summary>
     public FigureBuilder Sankey(SankeyNode[] nodes, SankeyLink[] links, Action<SankeySeries>? configure = null) =>
         AddSeries(ax => ax.Sankey(nodes, links), configure);

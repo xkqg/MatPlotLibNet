@@ -262,4 +262,10 @@ public interface ISeriesVisitor
     /// <summary>Renders a network-graph series (nodes + edges in 2D).
     /// Default is a no-op for ISP compatibility.</summary>
     [ExcludeFromCodeCoverage] void Visit(NetworkGraphSeries series, RenderArea area) { }
+
+    // ── v1.11 Relative Rotation Graph (default no-op for ISP compatibility) ──
+
+    /// <summary>Renders a Relative Rotation Graph series (2D scatter with fading tail per asset).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(RelativeRotationSeries series, RenderArea area) { }
 }

@@ -137,6 +137,9 @@ public static class EnumOrdinalSnapshot
             [typeof(GraphLayout)] = new Dictionary<string, int> {
                 ["Manual"] = 0, ["ForceDirected"] = 1, ["Circular"] = 2, ["Hierarchical"] = 3,
             },
+            [typeof(RrgFormula)] = new Dictionary<string, int> {
+                ["DualEma"] = 0, ["ZScore"] = 1, ["LogReturn"] = 2,
+            },
             [typeof(HistType)] = new Dictionary<string, int> {
                 ["Bar"] = 0, ["Step"] = 1, ["StepFilled"] = 2,
             },

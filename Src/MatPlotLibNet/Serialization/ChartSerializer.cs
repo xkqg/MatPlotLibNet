@@ -627,6 +627,29 @@ public sealed class ChartSerializer : IChartSerializer
         return s;
     }
 
+    /// <summary>Reconstructs a <see cref="RelativeRotationSeries"/> from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static RelativeRotationSeries CreateRelativeRotation(Axes axes, SeriesDto dto)
+    {
+        var assetCloses    = (dto.RrgAssetCloses   ?? []).Select(a => a.ToArray()).ToArray();
+        var benchmarkCloses = (dto.RrgBenchmarkCloses ?? []).ToArray();
+        var labels         = dto.RrgAssetLabels ?? [];
+        var s = axes.RelativeRotation(assetCloses, benchmarkCloses, labels);
+        if (dto.ColorMapName is not null)
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        if (dto.RrgFormula is not null
+            && Enum.TryParse<Models.Series.RrgFormula>(dto.RrgFormula, true, out var formula))
+            s.Formula = formula;
+        if (dto.RrgShortPeriod.HasValue)      s.ShortPeriod      = dto.RrgShortPeriod.Value;
+        if (dto.RrgLongPeriod.HasValue)       s.LongPeriod       = dto.RrgLongPeriod.Value;
+        if (dto.RrgMomentumLookback.HasValue) s.MomentumLookback = dto.RrgMomentumLookback.Value;
+        if (dto.RrgTailLength.HasValue)       s.TailLength       = dto.RrgTailLength.Value;
+        if (dto.RrgShowQuadrantGrid.HasValue) s.ShowQuadrantGrid = dto.RrgShowQuadrantGrid.Value;
+        return s;
+    }
+
     /// <summary>Reconstructs a <see cref="ClustermapSeries"/> from the DTO.</summary>
     /// <remarks>Trees and the normalizer are not serialised — they are rebuilt
     /// as placeholders on restore.</remarks>
@@ -1340,6 +1363,17 @@ public sealed record SeriesDto
     public int?                 NetworkGraphLayoutSeed         { get; init; }
     public int?                 NetworkGraphLayoutIterations   { get; init; }
     public double?              NetworkGraphConvergenceThreshold { get; init; }
+
+    // v1.11 — RelativeRotationSeries
+    public List<List<double>>?  RrgAssetCloses       { get; init; }
+    public List<double>?        RrgBenchmarkCloses   { get; init; }
+    public string[]?            RrgAssetLabels       { get; init; }
+    public string?              RrgFormula           { get; init; }   // enum name; null = DualEma (default)
+    public int?                 RrgShortPeriod       { get; init; }
+    public int?                 RrgLongPeriod        { get; init; }
+    public int?                 RrgMomentumLookback  { get; init; }
+    public int?                 RrgTailLength        { get; init; }
+    public bool?                RrgShowQuadrantGrid  { get; init; }
 }
 
 /// <summary>DTO for a single 3D text annotation positioned at (X, Y, Z).</summary>

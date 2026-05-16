@@ -1789,9 +1789,9 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
                 s.NeedleColor = Colors.Black;
                 s.Ranges =
                 [
-                    (40,  Color.FromHex("#E74C3C")),
-                    (70,  Color.FromHex("#F39C12")),
-                    (100, Color.FromHex("#2ECC71")),
+                    new GaugeBand(40,  Color.FromHex("#E74C3C")),
+                    new GaugeBand(70,  Color.FromHex("#F39C12")),
+                    new GaugeBand(100, Color.FromHex("#2ECC71")),
                 ];
             }))
         .SaveSvgAndPng(SamplesPath("gauge_chart.svg"));
@@ -1893,6 +1893,126 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
             .Borders(proj, Color.FromHex("#3a6a8a"), lineWidth: 0.25))
         .SaveSvgAndPng(SamplesPath("geo_nightside.svg"));
     Console.WriteLine("Saved geo_nightside");
+}
+
+// --- 37. Medium cover — v1.10.0 lead-lag network of crypto pairs ---
+//
+// Shipped as the v1.10.0 announcement cover image. Renders a NetworkGraphSeries
+// where directed edges represent Transfer-Entropy lead-lag scores between major
+// crypto symbols. Force-directed layout with a fixed seed gives a deterministic,
+// visually balanced composition. ColorScalar drives node fill via Plasma, and
+// SizeScalar drives node radius — bigger and brighter = more central in the flow.
+{
+    // Node centrality + size proxies — BTC dominant, ETH secondary hub.
+    GraphNode N(string id, double centrality) =>
+        new(id, ColorScalar: centrality, SizeScalar: 0.6 + centrality * 0.8, Label: id);
+
+    var nodes = new[]
+    {
+        N("BTC",   1.00),
+        N("ETH",   0.80),
+        N("SOL",   0.55),
+        N("ADA",   0.45),
+        N("MATIC", 0.40),
+        N("AVAX",  0.35),
+        N("DOT",   0.30),
+        N("LINK",  0.25),
+    };
+
+    // Synthetic Transfer-Entropy weights — BTC leads most, ETH is the secondary
+    // information hub, with a handful of cross-edges for visual richness.
+    var edges = new[]
+    {
+        new GraphEdge("BTC",   "ETH",   Weight: 0.85, IsDirected: true),
+        new GraphEdge("BTC",   "SOL",   Weight: 0.65, IsDirected: true),
+        new GraphEdge("BTC",   "ADA",   Weight: 0.55, IsDirected: true),
+        new GraphEdge("BTC",   "MATIC", Weight: 0.50, IsDirected: true),
+        new GraphEdge("BTC",   "AVAX",  Weight: 0.45, IsDirected: true),
+        new GraphEdge("ETH",   "SOL",   Weight: 0.55, IsDirected: true),
+        new GraphEdge("ETH",   "MATIC", Weight: 0.45, IsDirected: true),
+        new GraphEdge("ETH",   "DOT",   Weight: 0.40, IsDirected: true),
+        new GraphEdge("ETH",   "LINK",  Weight: 0.35, IsDirected: true),
+        new GraphEdge("SOL",   "AVAX",  Weight: 0.35, IsDirected: true),
+        new GraphEdge("DOT",   "ADA",   Weight: 0.30, IsDirected: true),
+        new GraphEdge("AVAX",  "MATIC", Weight: 0.25, IsDirected: true),
+        new GraphEdge("LINK",  "ETH",   Weight: 0.20, IsDirected: true),
+    };
+
+    Plt.Create()
+        .WithTitle("Crypto Lead-Lag Network  ·  Transfer Entropy  ·  MatPlotLibNet v1.10.0")
+        .WithSize(1600, 900)
+        .WithTheme(Theme.Seaborn)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .HideAllAxes()
+            .ShowGrid(false)
+            .NetworkGraph(nodes, edges, s =>
+            {
+                s.Layout               = GraphLayout.ForceDirected;
+                s.LayoutSeed           = 42;
+                s.LayoutIterations     = 250;
+                s.ConvergenceThreshold = 1e-4;
+                s.ColorMap             = ColorMaps.Plasma;
+                s.NodeRadiusScale      = 26.0;
+                s.EdgeThicknessScale   = 7.0;
+                s.ShowNodeLabels       = true;
+                s.ShowEdgeWeights      = false;
+            }))
+        .SaveSvgAndPng(SamplesPath("medium-cover-v1-10-0.svg"));
+    Console.WriteLine("Saved medium-cover-v1-10-0");
+}
+
+// =====================================================================
+// v1.11.0 — RelativeRotationSeries (RRG): crypto coin rotation radar
+// =====================================================================
+
+// --- 38. Relative Rotation Graph — 5 alts vs BTC benchmark ---
+// Simulates 104 weekly closes (2 years) for 5 alt-coins relative to BTC.
+// DualEma formula (JdK canonical). Quadrant grid shows Leading/Weakening/
+// Lagging/Improving sectors. TailLength = 8 shows the last 8 weeks of rotation.
+{
+    var rrgRng = new Random(99);
+
+    // Simulate weekly BTC price (benchmark)
+    double[] btc = new double[104];
+    btc[0] = 40_000.0;
+    for (int i = 1; i < 104; i++)
+        btc[i] = Math.Max(1.0, btc[i - 1] * (1.0 + (rrgRng.NextDouble() - 0.48) * 0.06));
+
+    // Simulate 5 alt-coin weekly closes — each with distinct drift/volatility
+    (string Symbol, double Drift, double Vol)[] alts =
+    [
+        ("ETH",  0.0050, 0.08),
+        ("BNB",  0.0030, 0.07),
+        ("SOL",  0.0080, 0.10),
+        ("ADA", -0.0010, 0.09),
+        ("XRP",  0.0020, 0.07),
+    ];
+
+    double[][] assetCloses = alts.Select(a =>
+    {
+        var prices = new double[104];
+        prices[0] = 100.0;
+        for (int i = 1; i < 104; i++)
+            prices[i] = Math.Max(0.001, prices[i - 1] * (1.0 + a.Drift + (rrgRng.NextDouble() - 0.5) * a.Vol));
+        return prices;
+    }).ToArray();
+
+    string[] labels = alts.Select(a => a.Symbol).ToArray();
+
+    Plt.Create()
+        .WithTitle("Crypto Coin Rotation Radar  ·  Weekly  ·  MatPlotLibNet v1.11.0")
+        .WithSize(900, 700)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .SetXLabel("RS-Ratio (momentum strength)")
+            .SetYLabel("RS-Momentum (momentum direction)")
+            .RelativeRotation(assetCloses, btc, labels, s =>
+            {
+                s.TailLength        = 8;
+                s.ShowQuadrantGrid  = true;
+                s.ColorMap          = ColorMaps.Plasma;
+            }))
+        .SaveSvgAndPng(SamplesPath("rrg_crypto_rotation.svg"));
+    Console.WriteLine("Saved rrg_crypto_rotation.svg");
 }
 
 Console.WriteLine("Done!");

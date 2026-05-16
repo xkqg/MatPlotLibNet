@@ -4,6 +4,66 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added — v1.11.0 RelativeRotationSeries (RRG — pair radar)
+
+Relative Rotation Graph (Julius de Kempenaer, 2004–2005): 2D scatter where each asset
+is a point with a fading trailing tail, showing its position and direction relative to
+a benchmark. Use case: crypto coin-rotation radar (assets vs BTC), sector rotation, any
+relative-strength monitoring.
+
+- **X-axis**: RS-Ratio — trend of relative performance vs benchmark, centered at 100
+- **Y-axis**: RS-Momentum — rate-of-change of RS-Ratio, centered at 100
+- **Quadrants** (split by 100/100 crosshairs, StockCharts canonical colors):
+  - Leading (+/+, green) — outperforming, trend still rising
+  - Weakening (+/−, yellow) — still ahead, momentum fading
+  - Lagging (−/−, red) — underperforming, momentum still negative
+  - Improving (−/+, blue) — underperforming but momentum turning up
+- **Rotation** — typically clockwise (momentum leads ratio); not always circular
+- **Trail** — last `TailLength` periods per asset as a fading polyline (alpha 0.2 → 1.0,
+  head = full-opacity dot)
+
+**Formula** — JdK's original is proprietary; ships a published open-source reconstruction
+(RRG-Lite / RRGPy / OpenBB community standard). Default is `RrgFormula.DualEma` —
+canonical JdK behaviour, no mean-reversion assumption (suitable for trending assets):
+
+```
+RS(t)            = AssetClose(t) / BenchmarkClose(t) × 100
+RsRatio(t)       = EMA(RS, short) / EMA(RS, long) × 100          -- DualEma (default)
+RsMomentum(t)    = EMA(RsRatio, short) / EMA(RsRatio, long) × 100
+```
+
+Opt-in formulas via `RrgFormula` enum:
+- `ZScore`: `100 + (RS − SMA_w) / StdDev_w` (mean-stationary regimes)
+- `LogReturn`: `ln(1 + r_long) − ln(1 + r_short)` log-return momentum, z-score wrapped
+
+**API**:
+```csharp
+ax.RelativeRotation(
+    assetCloses  : new[] { ethCloses, solCloses, adaCloses },
+    benchClose   : btcCloses,
+    assetLabels  : new[] { "ETH", "SOL", "ADA" },
+    configure    : s => {
+        s.Formula     = RrgFormula.DualEma;   // default
+        s.ShortPeriod = 10;                   // default
+        s.LongPeriod  = 26;                   // default
+        s.TailLength  = 8;                    // default
+        s.ShowQuadrantGrid = true;            // default
+    });
+```
+
+- Default `ShortPeriod=10`, `LongPeriod=26` (weekly-equivalent at daily bars; caller
+  rescales for 1-min or hourly bars — no community consensus on crypto intraday defaults)
+- `ShowQuadrantGrid=true` draws the 100/100 crosshair + four faint quadrant fills
+- `ColorMap` maps asset index to hue (Viridis default)
+- JSON round-trip: all non-default properties emitted; nodes/edges use typed DTO
+
+**New indicator** — `Roc` (Rate of Change): `prices[t] / prices[t-k] − 1`, bumps
+Tier-3 indicator count to 53. Public, mirrors `Ema`/`Sma` class shape.
+
+---
+
 ## [1.10.0] — 2026-05-04
 
 ### Added — v1.10 chart pack (NetworkGraphSeries — ForceDirected layout)
