@@ -151,4 +151,19 @@ public class RelativeRotationSerializationTests
         var s = restored.SubPlots[0].Series.OfType<RelativeRotationSeries>().First();
         Assert.Empty(s.AssetCloses);
     }
+
+    // ── Null-field fallback branches ──────────────────────────────────────────
+
+    [Fact]
+    public void FromJson_MissingAssetFields_FallsBackToEmptyCollections()
+    {
+        // JSON with type=relativerotation but no rrgAssetCloses / rrgBenchmarkCloses /
+        // rrgAssetLabels → exercises the ?? [] null branches in CreateRelativeRotation.
+        const string json = """{"subPlots":[{"series":[{"type":"relativerotation"}]}]}""";
+        var figure = new ChartSerializer().FromJson(json);
+        var s = figure.SubPlots[0].Series.OfType<RelativeRotationSeries>().First();
+        Assert.Empty(s.AssetCloses);
+        Assert.Empty(s.BenchmarkCloses);
+        Assert.Empty(s.AssetLabels);
+    }
 }
