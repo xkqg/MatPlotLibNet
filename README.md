@@ -10,7 +10,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 What's next
 
-**v1.11.1 (2026-05-16) — RelativeRotationSeries (RRG) + coverage fix.** `RelativeRotationSeries` renders a JdK-style RRG — 2D scatter of (RS-Ratio, RS-Momentum) per asset vs a benchmark with fading tail, 100/100 quadrant grid, and three formulas (`DualEma`, `ZScore`, `LogReturn`). New `Roc` indicator (Tier-3 #53). v1.11.1 closes coverage gate regressions under `--strict` mode. Future releases are **community-driven**:
+**v1.11.2 (2026-05-16) — RRG absorption + ENB overlays.** `RelativeRotationSeries` extended with `AbsorptionRatioPerBar` (green→red dot fill via absorption ratio) and `EnbPerBar` (dot radius ∝ Effective Number of Bets) overlays, enabling Layer 3 portfolio-risk feedback directly on the RRG scatter. Future releases are **community-driven**:
 
 - 🗺️ **Phase 1 — Annotated & triangular-mask heatmaps**: four new `HeatmapSeries` properties (`ShowLabels`, `LabelFormat`, `MaskMode`, `CellValueColor`) + `HeatmapMaskMode` enum unblock every realistic correlation-matrix figure.
 - 🌲 **Phase 2 — `DendrogramSeries`**: hierarchical-clustering tree as canonical "U"-shape segments. Four `DendrogramOrientation` values (`Top`, `Bottom`, `Left`, `Right`); optional `CutHeight` draws a dashed reference line and recolours each cluster below the cut from a qualitative `IColorMap` (default `Tab10`). Fluent API: `Plt.Create().Dendrogram(root, s => s.CutHeight = 1.5)`.
