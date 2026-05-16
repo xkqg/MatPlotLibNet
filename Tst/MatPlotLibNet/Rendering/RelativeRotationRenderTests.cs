@@ -168,4 +168,29 @@ public class RelativeRotationRenderTests
         Assert.Contains("<svg", svg);
         Assert.DoesNotContain("<circle ", svg);  // no heads drawn
     }
+
+    // ── Fluent API coverage ────────────────────────────────────────────────────
+
+    [Fact]
+    public void Axes_RelativeRotation_WithConfigure_InvokesCallback()
+    {
+        // Directly call Axes.RelativeRotation with a non-null configure to cover
+        // the configure?.Invoke(series) non-null branch (unreachable via AxesBuilder).
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, _ => { }).Build();
+        var axes   = figure.SubPlots[0];
+        var s = axes.RelativeRotation(
+            [Rising(60), Flat(60, 95)], Flat(60), ["ETH", "BNB"],
+            configure: series => series.Formula = RrgFormula.ZScore);
+        Assert.Equal(RrgFormula.ZScore, s.Formula);
+    }
+
+    [Fact]
+    public void FigureBuilder_RelativeRotation_BuildsWithoutException()
+    {
+        // Exercises FigureBuilder.RelativeRotation so the method body is line-covered.
+        var figure = Plt.Create()
+            .RelativeRotation([Rising(60)], Flat(60), ["ETH"])
+            .Build();
+        Assert.NotNull(figure);
+    }
 }

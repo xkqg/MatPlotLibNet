@@ -639,9 +639,8 @@ public sealed class ChartSerializer : IChartSerializer
         var s = axes.RelativeRotation(assetCloses, benchmarkCloses, labels);
         if (dto.ColorMapName is not null)
             s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        if (dto.RrgFormula is not null
-            && Enum.TryParse<Models.Series.RrgFormula>(dto.RrgFormula, true, out var formula))
-            s.Formula = formula;
+        if (dto.RrgFormula is not null)
+            s.Formula = Enum.Parse<Models.Series.RrgFormula>(dto.RrgFormula, ignoreCase: true);
         if (dto.RrgShortPeriod.HasValue)      s.ShortPeriod      = dto.RrgShortPeriod.Value;
         if (dto.RrgLongPeriod.HasValue)       s.LongPeriod       = dto.RrgLongPeriod.Value;
         if (dto.RrgMomentumLookback.HasValue) s.MomentumLookback = dto.RrgMomentumLookback.Value;
