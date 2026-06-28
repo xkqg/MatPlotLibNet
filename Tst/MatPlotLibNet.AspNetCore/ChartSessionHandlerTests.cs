@@ -54,7 +54,7 @@ public class ChartSessionHandlerTests
 
         var figure = NewFigure();
         registry.Register("c1", figure, opts =>
-            opts.OnHover(evt => ValueTask.FromResult<string?>($"<b>x={evt.X},y={evt.Y}</b>")));
+            opts.OnHover(evt => ValueTask.FromResult<string?>(System.FormattableString.Invariant($"<b>x={evt.X},y={evt.Y}</b>"))));
 
         var ok = registry.Publish("c1",
             new HoverEvent("c1", 0, 1.5, 2.5, CallerConnectionId: "conn-A"));

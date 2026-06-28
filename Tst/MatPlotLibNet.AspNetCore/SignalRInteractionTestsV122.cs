@@ -82,7 +82,7 @@ public class SignalRInteractionTestsV122 : IAsyncDisposable
         var registry = _host.Services.GetRequiredService<FigureRegistry>();
         var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
         registry.Register("hover-1", figure, opts =>
-            opts.OnHover(evt => ValueTask.FromResult<string?>($"<b>x={evt.X},y={evt.Y}</b>")));
+            opts.OnHover(evt => ValueTask.FromResult<string?>(System.FormattableString.Invariant($"<b>x={evt.X},y={evt.Y}</b>"))));
 
         // Two clients connected. Client A invokes OnHover; Client B must NOT receive.
         var connA = CreateConnection();
