@@ -323,6 +323,21 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Adds a threshold marker: a dashed <see cref="ReferenceLine"/> at <paramref name="value"/>
+    /// plus a shaded <see cref="SpanRegion"/> covering the breach zone on the <paramref name="breach"/>
+    /// side. An optional text <paramref name="label"/> is added as an annotation at the threshold value.</summary>
+    /// <param name="value">The threshold value in data coordinates.</param>
+    /// <param name="orientation">Horizontal (constant Y) or Vertical (constant X).</param>
+    /// <param name="breach">Which side of the threshold is the breach zone.</param>
+    /// <param name="color">Optional color for the line and span. Null uses the renderer cycle color.</param>
+    /// <param name="label">Optional label text. Null adds no annotation.</param>
+    public AxesBuilder Threshold(double value, Orientation orientation, ThresholdBreach breach,
+        Color? color = null, string? label = null)
+    {
+        _axes.AddThreshold(value, orientation, breach, color, label);
+        return this;
+    }
+
     /// <summary>Sets the X-axis to date scale with intelligent tick placement and automatic format selection.</summary>
     /// <remarks>
     /// Installs an <see cref="Rendering.TickLocators.AutoDateLocator"/> and a paired
@@ -493,6 +508,17 @@ public sealed class AxesBuilder
     public AxesBuilder WithLegend(Func<Legend, Legend> configure)
     {
         _axes.Legend = configure(_axes.Legend);
+        return this;
+    }
+
+    /// <summary>Enables or disables the legend-values suffix that appends each labelled series'
+    /// last data value to its legend entry — e.g. "Signal" becomes "Signal = 2.70"
+    /// (InvariantCulture, F2 format). Only <see cref="Models.Series.XYSeries"/> instances
+    /// yield a value; other series types display the label text only. Default is
+    /// <see langword="false"/>.</summary>
+    public AxesBuilder WithLegendValues(bool enabled = true)
+    {
+        _axes.Legend = _axes.Legend with { LegendValues = enabled };
         return this;
     }
 

@@ -220,6 +220,9 @@ public static class EnumOrdinalSnapshot
                 ["MatrixCellSeparator"] = 12, ["MatrixRowSeparator"] = 13,
                 ["MatrixEnd"] = 14,
             },
+            [typeof(ThresholdBreach)] = new Dictionary<string, int> {
+                ["Above"] = 0, ["Below"] = 1,
+            },
             [typeof(TickDirection)] = new Dictionary<string, int> {
                 ["In"] = 0, ["Out"] = 1, ["InOut"] = 2,
             },

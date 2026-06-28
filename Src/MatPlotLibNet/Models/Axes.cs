@@ -1091,6 +1091,42 @@ public sealed class Axes
         return span;
     }
 
+    /// <summary>Adds a threshold marker composed of a dashed <see cref="ReferenceLine"/> at
+    /// <paramref name="value"/> and a shaded <see cref="SpanRegion"/> covering the breach zone
+    /// on the <paramref name="breach"/> side. An optional text <paramref name="label"/> is
+    /// added as an <see cref="Annotation"/> anchored at the threshold value.</summary>
+    /// <param name="value">The threshold value in data coordinates.</param>
+    /// <param name="orientation">Horizontal (constant Y) or Vertical (constant X).</param>
+    /// <param name="breach">Which side of the threshold is the breach zone.</param>
+    /// <param name="color">Optional color for the reference line and span. When null the renderer's cycle color is used.</param>
+    /// <param name="label">Optional text annotation placed at the threshold value. When null no annotation is added.</param>
+    public void AddThreshold(double value, Orientation orientation, ThresholdBreach breach,
+        Color? color = null, string? label = null)
+    {
+        // (a) Dashed reference line at the threshold value
+        var line = orientation == Orientation.Horizontal
+            ? AxHLine(value)
+            : AxVLine(value);
+        line.LineStyle = LineStyle.Dashed;
+        if (color is not null) line.Color = color;
+
+        // (b) Shaded span covering the breach zone
+        double spanMin = breach == ThresholdBreach.Above ? value : double.MinValue;
+        double spanMax = breach == ThresholdBreach.Above ? double.MaxValue : value;
+        var span = orientation == Orientation.Horizontal
+            ? AxHSpan(spanMin, spanMax)
+            : AxVSpan(spanMin, spanMax);
+        if (color is not null) span.Color = color;
+
+        // (c) Optional text annotation
+        if (label is not null)
+        {
+            double annotX = orientation == Orientation.Horizontal ? 0 : value;
+            double annotY = orientation == Orientation.Horizontal ? value : 0;
+            Annotate(label, annotX, annotY);
+        }
+    }
+
     /// <summary>Adds a <see cref="SignalXYSeries"/> with monotonically ascending X values.</summary>
     /// <param name="x">Monotonically ascending X values. Must match the length of <paramref name="y"/>.</param>
     /// <param name="y">Y values parallel to <paramref name="x"/>.</param>
@@ -1152,6 +1188,12 @@ public sealed record Legend
     public double LabelSpacing { get; init; } = 0.5;
 
     public double ColumnSpacing { get; init; } = 2.0;
+
+    /// <summary>When <see langword="true"/>, each legend entry's label is suffixed with the
+    /// series' last data value formatted as <c>" = {value:F2}"</c> (InvariantCulture).
+    /// Only <see cref="Models.Series.XYSeries"/> instances yield a value; all other series types
+    /// fall back to the label text only. Default <see langword="false"/>.</summary>
+    public bool LegendValues { get; init; }
 }
 
 /// <summary>Specifies the position of a legend within the axes.</summary>

@@ -720,6 +720,32 @@ public sealed class FigureBuilder
         return this;
     }
 
+    /// <summary>Adds a threshold marker on the default axes: a dashed <see cref="Models.ReferenceLine"/>
+    /// at <paramref name="value"/> plus a shaded <see cref="Models.SpanRegion"/> covering the breach
+    /// zone on the <paramref name="breach"/> side. An optional text <paramref name="label"/> is added
+    /// as an annotation at the threshold value.</summary>
+    /// <param name="value">The threshold value in data coordinates.</param>
+    /// <param name="orientation">Horizontal (constant Y) or Vertical (constant X).</param>
+    /// <param name="breach">Which side of the threshold is the breach zone.</param>
+    /// <param name="color">Optional color for the line and span. Null uses the renderer cycle color.</param>
+    /// <param name="label">Optional label text. Null adds no annotation.</param>
+    public FigureBuilder Threshold(double value, Models.Orientation orientation, Models.ThresholdBreach breach,
+        Styling.Color? color = null, string? label = null)
+    {
+        EnsureDefaultAxes().AddThreshold(value, orientation, breach, color, label);
+        return this;
+    }
+
+    /// <summary>Enables or disables the legend-values suffix on the default axes — appends each
+    /// labelled series' last data value to its legend entry, e.g. "Signal" becomes "Signal = 2.70"
+    /// (InvariantCulture, F2 format). Default is <see langword="false"/>.</summary>
+    public FigureBuilder WithLegendValues(bool enabled = true)
+    {
+        var axes = EnsureDefaultAxes();
+        axes.Legend = axes.Legend with { LegendValues = enabled };
+        return this;
+    }
+
     // --- Output convenience methods (delegate to Figure extensions via Build()) ---
 
     /// <summary>Builds the figure and renders it as an SVG string.</summary>

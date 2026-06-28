@@ -17,6 +17,18 @@ public enum Orientation
     Vertical = 1,
 }
 
+/// <summary>Specifies which side of a threshold value constitutes a breach zone.</summary>
+/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
+/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+public enum ThresholdBreach
+{
+    /// <summary>Breach zone is above (or to the right of) the threshold value.</summary>
+    Above = 0,
+
+    /// <summary>Breach zone is below (or to the left of) the threshold value.</summary>
+    Below = 1,
+}
+
 /// <summary>Represents a horizontal or vertical reference line at a specific data value.</summary>
 public sealed class ReferenceLine
 {

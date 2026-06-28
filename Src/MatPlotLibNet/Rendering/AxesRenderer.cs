@@ -218,6 +218,20 @@ public abstract class AxesRenderer
         return false;
     }
 
+    /// <summary>Computes the display label for a legend entry. When <paramref name="legendValues"/>
+    /// is <see langword="true"/> and the series is an <see cref="Models.Series.XYSeries"/> with
+    /// non-empty Y data, appends " = {lastY:F2}" (InvariantCulture) to the base label.</summary>
+    private static string BuildLegendDisplayLabel(string baseLabel, Models.Series.ISeries series, bool legendValues)
+    {
+        if (!legendValues) return baseLabel;
+        if (series is Models.Series.XYSeries xySeries && xySeries.YData.Length > 0)
+        {
+            double last = xySeries.YData[xySeries.YData.Length - 1];
+            return baseLabel + " = " + last.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+        }
+        return baseLabel;
+    }
+
     /// <summary>Renders the legend if any series have labels.</summary>
     protected void RenderLegend()
     {
@@ -231,7 +245,8 @@ public abstract class AxesRenderer
             if (string.IsNullOrEmpty(series.Label)) continue;
             var cycleColor = Theme.PropCycler?[i].Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
             var seriesColor = series.GetType().GetProperty("Color")?.GetValue(series) as Color?;
-            entries.Add(new(series.Label, seriesColor ?? cycleColor, series, i));
+            var displayLabel = BuildLegendDisplayLabel(series.Label, series, legend.LegendValues);
+            entries.Add(new(displayLabel, seriesColor ?? cycleColor, series, i));
         }
 
         if (entries.Count == 0) return;
@@ -327,7 +342,8 @@ public abstract class AxesRenderer
         {
             var series = Axes.Series[i];
             if (string.IsNullOrEmpty(series.Label)) continue;
-            entries.Add(new(series.Label, i));
+            var displayLabel = BuildLegendDisplayLabel(series.Label, series, legend.LegendValues);
+            entries.Add(new(displayLabel, i));
         }
 
         if (entries.Count == 0) return;

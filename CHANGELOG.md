@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`ThresholdLine`** — a fluent convenience (NOT a new series) that marks an alarm/limit threshold on an axes:
+  `AxesBuilder.Threshold(value, orientation, ...)` (and `FigureBuilder.Threshold(...)`) composes a dashed
+  `ReferenceLine` at the value + a shaded `SpanRegion` covering the breach zone (`ThresholdBreach.Above`/`Below`,
+  extending to the axis bound) + an optional label `Annotation`. Reuses the existing primitives — no new
+  series / visitor / renderer.
+- **`LegendValues`** — `FigureBuilder.WithLegendValues()` / `AxesBuilder.WithLegendValues()` (+ a `Legend.LegendValues`
+  property, default `false`) appends each XY series' LAST Y value to its legend entry (e.g. `Signal = 2.70`,
+  InvariantCulture). Guarded at the legend-label seam — default legend output is byte-identical.
+
 - **`StateTimelineSeries`** (`MatPlotLibNet.Models.Series`) — a single-row horizontal timeline of discrete
   coloured state segments along the X axis (e.g. participant up/down over time, alarm state over time). Each
   `StateSegment(Start, End, Label, Color)` defines one filled rectangle spanning `[Start, End]` in data units
