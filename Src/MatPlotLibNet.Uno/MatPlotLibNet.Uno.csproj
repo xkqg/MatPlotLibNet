@@ -21,7 +21,10 @@
   <ItemGroup>
     <PackageReference Include="Uno.WinUI" Version="5.6.99" />
     <PackageReference Include="Uno.WinUI.Graphics2DSK" Version="5.6.99" />
-    <PackageReference Include="SkiaSharp.Views.Uno.WinUI" Version="3.*" />
+    <!-- Pinned: SkiaSharp.Views.Uno.WinUI 3.119.4+ DROPPED net8.0 (supports net9/net10 only). This project's
+         Uno Skia desktop backend targets net8.0, so the floating "3.*" broke restore with NU1202. 3.119.2 is the
+         last 3.x that still ships a net8.0 asset. Revisit when this project moves off net8.0. -->
+    <PackageReference Include="SkiaSharp.Views.Uno.WinUI" Version="3.119.2" />
     <!-- Suppress ALL WindowsAppSDK sub-package build targets. On net8.0 (Skia backend)
          these targets assume a Windows TFM and crash on empty TargetPlatformVersion.
          Uno handles platform abstraction â€” WindowsAppSDK targets are only needed for native WinUI. -->

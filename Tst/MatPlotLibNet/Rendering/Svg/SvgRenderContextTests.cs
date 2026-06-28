@@ -9,6 +9,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Tests.Rendering.Svg;
 
 /// <summary>Verifies <see cref="SvgRenderContext"/> behavior.</summary>
+[Xunit.Collection("ChartServicesGlobalState")] // mutates ChartServices.GlyphPathProvider — must not run concurrently with render tests
 public class SvgRenderContextTests
 {
     /// <summary>Verifies that DrawLine produces an SVG line element with correct attributes and color.</summary>

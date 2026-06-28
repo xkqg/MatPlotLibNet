@@ -14,6 +14,7 @@ namespace MatPlotLibNet.Tests.X9d;
 /// been exercised anywhere else:
 ///   - <see cref="ChartServices"/> 57%L / 0%B — every Get/Set property arm
 ///   - <see cref="FigureExtensions"/> 77%L / 50%B — Save() format-detection branches</summary>
+[Xunit.Collection("ChartServicesGlobalState")] // mutates ChartServices statics — must not run concurrently with render tests
 public class X9dMiscCoverageTests
 {
     // ── ChartServices: cover every property getter/setter + null-arg arm ──────
