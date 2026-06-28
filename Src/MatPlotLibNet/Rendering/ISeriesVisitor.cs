@@ -274,4 +274,10 @@ public interface ISeriesVisitor
     /// <summary>Renders a single-value stat tile (big headline number + label).
     /// Default is a no-op for ISP compatibility.</summary>
     [ExcludeFromCodeCoverage] void Visit(StatTileSeries series, RenderArea area) { }
+
+    // ── v1.13 State timeline (default no-op for ISP compatibility) ──
+
+    /// <summary>Renders a single-row discrete-state timeline (coloured segments along X).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(StateTimelineSeries series, RenderArea area) { }
 }

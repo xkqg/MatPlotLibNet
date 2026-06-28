@@ -61,7 +61,7 @@ MatPlotLibNet/
     InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
 
-    Series/                           76 series types across 15 families
+    Series/                           77 series types across 15 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
       ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
       IHasDataRange.cs                interface: series that expose their own data bounds
@@ -114,6 +114,7 @@ MatPlotLibNet/
       GaugeSeries.cs                  Value, Min, Max, Ranges (GaugeBand[]?), NeedleColor (Circular/)
       ProgressBarSeries.cs            Value, FillColor, TrackColor (Categorical/)
       StatTileSeries.cs               Value, AccentColor, Format — single-value KPI tile, no axes (Categorical/)
+      StateTimelineSeries.cs          IReadOnlyList&lt;StateSegment&gt; Segments — single-row discrete-state timeline along X (Categorical/)
       SparklineSeries.cs              XYSeries: Values, LineWidth (XY/)
       EcdfSeries.cs                   XYSeries: sorted empirical CDF (XY/)
       StackedAreaSeries.cs            X[], YSets[][], StackLabels, FillColors, IStackable (XY/)
@@ -250,7 +251,7 @@ MatPlotLibNet/
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation), DrawRichText (default method)
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 76 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 77 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment

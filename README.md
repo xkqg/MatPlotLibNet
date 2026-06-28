@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel server-side SVG rendering, polymorphic export (SVG / PNG / PDF / animated GIF), and 79 series types across line, scatter, bar, 3D, streaming, polar, financial, statistical, hierarchical, Sankey, vector, and rotation-graph families. Ships with 13 map projections and embedded Natural Earth data, 26 themes, LaTeX-style MathText, O(1) streaming with **53 technical indicators** (classical moving averages + volatility, momentum, trend-follower, cycle, microstructure, entropy, change-point, and cross-asset causality), financial drawing tools (trendlines, Fibonacci retracements, horizontal levels), frame-based animation with 6 easing curves + Pause/Resume playback, native UI controls for **Blazor, WPF, MAUI, Avalonia, Uno Platform, ASP.NET Core**, and TypeScript clients for **Angular, React, and Vue** — no JavaScript framework, no WebView, no SaaS.
+A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel server-side SVG rendering, polymorphic export (SVG / PNG / PDF / animated GIF), and 81 series types across line, scatter, bar, 3D, streaming, polar, financial, statistical, hierarchical, Sankey, vector, and rotation-graph families. Ships with 13 map projections and embedded Natural Earth data, 26 themes, LaTeX-style MathText, O(1) streaming with **53 technical indicators** (classical moving averages + volatility, momentum, trend-follower, cycle, microstructure, entropy, change-point, and cross-asset causality), financial drawing tools (trendlines, Fibonacci retracements, horizontal levels), frame-based animation with 6 easing curves + Pause/Resume playback, native UI controls for **Blazor, WPF, MAUI, Avalonia, Uno Platform, ASP.NET Core**, and TypeScript clients for **Angular, React, and Vue** — no JavaScript framework, no WebView, no SaaS.
 
 [![CI](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml/badge.svg)](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
@@ -40,7 +40,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 - [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started) — installation, output formats, subplots
 - [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet) — one-page reference for `Plt` / `FigureBuilder` / `AxesBuilder`
 - [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all 13 NuGet + 3 npm packages in detail
-- [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 80 series with code examples
+- [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 81 series with code examples
 - [Streaming & Realtime](https://github.com/xkqg/MatPlotLibNet/wiki/Streaming) — ring buffers, StreamingFigure, axis scaling, 11 streaming indicators, platform controls
 - [Interactive Controls](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) — Avalonia + Uno native controls, managed interaction layer
 - [Bidirectional SignalR](https://github.com/xkqg/MatPlotLibNet/wiki/Bidirectional-SignalR) — server-authoritative interactive charts, event hierarchy, hub wiring
@@ -99,7 +99,7 @@ Plt.Create()
 
 ## Features
 
-**80 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
+**81 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
 
 **Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp — no browser, no WebView, no SignalR required. 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. Toolbar state model, view history (back/forward), data cursor (click-to-pin), tick mirroring, tight margins.
 

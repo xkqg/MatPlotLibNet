@@ -592,6 +592,16 @@ public sealed class Axes
     /// <summary>Adds a single-value stat tile (a big headline number + label) filling the plot area.</summary>
     public StatTileSeries StatTile(double value) { var s = new StatTileSeries(value); _series.Add(s); return s; }
 
+    /// <summary>Adds a single-row discrete-state timeline of coloured segments along the X axis.</summary>
+    /// <param name="segments">Ordered state segments; each defines a coloured rectangle spanning
+    /// <c>[Start, End]</c> in data units with a centred label.</param>
+    public StateTimelineSeries StateTimeline(IReadOnlyList<StateSegment> segments)
+    {
+        var s = new StateTimelineSeries(segments);
+        _series.Add(s);
+        return s;
+    }
+
     /// <summary>Adds a sparkline — a tiny inline line chart with no axes or labels.</summary>
     public SparklineSeries Sparkline(double[] values) { var s = new SparklineSeries(values); _series.Add(s); return s; }
 

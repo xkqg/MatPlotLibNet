@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`StateTimelineSeries`** (`MatPlotLibNet.Models.Series`) — a single-row horizontal timeline of discrete
+  coloured state segments along the X axis (e.g. participant up/down over time, alarm state over time). Each
+  `StateSegment(Start, End, Label, Color)` defines one filled rectangle spanning `[Start, End]` in data units
+  with the label centred inside. `ComputeDataRange` contributes `X = [minStart, maxEnd]`, `Y = [0, 1]`;
+  empty segment list contributes nothing. Authored via the default-no-op `ISeriesVisitor` extension pattern
+  (non-breaking). Fluent on `Axes.StateTimeline(segments)`, `AxesBuilder.StateTimeline(...)`, and
+  `FigureBuilder.StateTimeline(...)`; round-trips through the `"statetimeline"` serialization discriminator
+  (segments serialized as parallel `Starts`/`Ends`/`Categories`/`StateSegmentColors` arrays).
+
 - **`StatTileSeries`** (`MatPlotLibNet.Models.Series`) — a single-value "stat tile": a big formatted headline
   number with the series `Label` beneath it, filling its plot area. Built for compact dashboard KPIs
   ("12 participants", "0 alerts"). `Value` (ctor), optional `AccentColor`, and a `Format` string (default

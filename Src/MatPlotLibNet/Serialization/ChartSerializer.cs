@@ -851,6 +851,25 @@ public sealed class ChartSerializer : IChartSerializer
         return s;
     }
 
+    /// <summary>Reconstructs a <see cref="StateTimelineSeries"/> from the DTO, restoring segment
+    /// starts, ends, labels, and per-segment colours.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static StateTimelineSeries CreateStateTimeline(Axes axes, SeriesDto dto)
+    {
+        var starts  = dto.Starts     ?? [];
+        var ends    = dto.Ends       ?? [];
+        var labels  = dto.Categories ?? [];
+        var colors  = dto.StateSegmentColors ?? [];
+        int count   = Math.Min(Math.Min(starts.Length, ends.Length),
+                               Math.Min(labels.Length, colors.Count));
+        var segments = new Models.Series.StateSegment[count];
+        for (int i = 0; i < count; i++)
+            segments[i] = new Models.Series.StateSegment(starts[i], ends[i], labels[i], colors[i]);
+        return axes.StateTimeline(segments);
+    }
+
     /// <summary>Reconstructs a <see cref="SparklineSeries"/> from the DTO, including color and line width.</summary>
     /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
     /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
@@ -1375,6 +1394,9 @@ public sealed record SeriesDto
     public int?                 NetworkGraphLayoutSeed         { get; init; }
     public int?                 NetworkGraphLayoutIterations   { get; init; }
     public double?              NetworkGraphConvergenceThreshold { get; init; }
+
+    // v1.12 — StateTimelineSeries
+    public List<Color>? StateSegmentColors { get; init; }
 
     // v1.11 — RelativeRotationSeries
     public List<List<double>>?  RrgAssetCloses       { get; init; }

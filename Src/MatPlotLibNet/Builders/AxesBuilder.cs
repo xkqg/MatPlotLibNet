@@ -610,6 +610,13 @@ public sealed class AxesBuilder
     public AxesBuilder StatTile(double value, Action<StatTileSeries>? configure = null)
         => AddSeries(ax => ax.StatTile(value), configure);
 
+    /// <summary>Adds a single-row discrete-state timeline of coloured segments along the X axis.</summary>
+    /// <param name="segments">Ordered state segments; each defines a coloured rectangle spanning
+    /// <c>[Start, End]</c> in data units with a centred label.</param>
+    /// <param name="configure">Optional post-construction configurator.</param>
+    public AxesBuilder StateTimeline(IReadOnlyList<StateSegment> segments, Action<StateTimelineSeries>? configure = null)
+        => AddSeries(ax => ax.StateTimeline(segments), configure);
+
     /// <summary>Adds a sparkline to the axes.</summary>
     public AxesBuilder Sparkline(double[] values, Action<SparklineSeries>? configure = null)
         => AddSeries(ax => ax.Sparkline(values), configure);

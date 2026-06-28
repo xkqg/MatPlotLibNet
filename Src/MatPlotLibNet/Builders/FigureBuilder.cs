@@ -160,6 +160,13 @@ public sealed class FigureBuilder
     public FigureBuilder StatTile(double value, Action<StatTileSeries>? configure = null) =>
         AddSeries(ax => ax.StatTile(value), configure);
 
+    /// <summary>Adds a single-row discrete-state timeline of coloured segments along the X axis to the default axes.</summary>
+    /// <param name="segments">Ordered state segments; each defines a coloured rectangle spanning
+    /// <c>[Start, End]</c> in data units with a centred label.</param>
+    /// <param name="configure">Optional post-construction configurator.</param>
+    public FigureBuilder StateTimeline(IReadOnlyList<StateSegment> segments, Action<StateTimelineSeries>? configure = null) =>
+        AddSeries(ax => ax.StateTimeline(segments), configure);
+
     /// <summary>Adds a histogram series to the default axes.</summary>
     public FigureBuilder Hist(double[] data, int bins = 10, Action<HistogramSeries>? configure = null) =>
         AddSeries(ax => ax.Hist(data, bins), configure);

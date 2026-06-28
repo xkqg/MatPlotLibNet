@@ -107,6 +107,7 @@ public static class SeriesRegistry
         Register("gauge", ChartSerializer.CreateGauge);
         Register("progressbar", ChartSerializer.CreateProgressBar);
         Register("stattile", ChartSerializer.CreateStatTile);
+        Register("statetimeline", ChartSerializer.CreateStateTimeline);
         Register("sparkline", ChartSerializer.CreateSparkline);
         Register("treemap", (axes, _) => axes.Treemap(new TreeNode { Label = "Root" }));
         Register("sunburst", (axes, _) => axes.Sunburst(new TreeNode { Label = "Root" }));
