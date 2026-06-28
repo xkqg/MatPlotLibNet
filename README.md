@@ -10,7 +10,7 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 What's next
 
-**v1.11.2 (2026-05-16) — RRG absorption + ENB overlays.** `RelativeRotationSeries` extended with `AbsorptionRatioPerBar` (green→red dot fill via absorption ratio) and `EnbPerBar` (dot radius ∝ Effective Number of Bets) overlays, enabling Layer 3 portfolio-risk feedback directly on the RRG scatter. Future releases are **community-driven**:
+**v1.12.0 (2026-06-28) — dashboard tiles, timelines & threshold conveniences.** Two new series — `StatTileSeries` (a single-value KPI tile: a big formatted headline number + label, for compact dashboards) and `StateTimelineSeries` (a single-row timeline of discrete coloured state segments over time) — plus two fluent conveniences: **`ThresholdLine`** (`Threshold(value, orientation, …)` composes a dashed reference line + a shaded breach span + an optional label, `ThresholdBreach.Above`/`Below`) and **`LegendValues`** (`WithLegendValues()` appends each XY series' last Y value to its legend entry). All authored to the contrib standard (default-no-op `ISeriesVisitor`, ≥90/90). Prior: **v1.11.2 (2026-05-16)** — RRG absorption + ENB overlays (`AbsorptionRatioPerBar` green→red dot fill, `EnbPerBar` dot-radius ∝ Effective Number of Bets). Future releases are **community-driven**:
 
 - 🗺️ **Phase 1 — Annotated & triangular-mask heatmaps**: four new `HeatmapSeries` properties (`ShowLabels`, `LabelFormat`, `MaskMode`, `CellValueColor`) + `HeatmapMaskMode` enum unblock every realistic correlation-matrix figure.
 - 🌲 **Phase 2 — `DendrogramSeries`**: hierarchical-clustering tree as canonical "U"-shape segments. Four `DendrogramOrientation` values (`Top`, `Bottom`, `Left`, `Right`); optional `CutHeight` draws a dashed reference line and recolours each cluster below the cut from a qualitative `IColorMap` (default `Tab10`). Fluent API: `Plt.Create().Dendrogram(root, s => s.CutHeight = 1.5)`.
@@ -113,7 +113,7 @@ Plt.Create()
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). Stacked-record event hierarchy, natural coalescing, per-caller hover responses.
 
-**104 colormaps** — viridis, plasma, turbo, coolwarm, and 100 more. NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with **52 technical indicators** (v1.9.0 adds 12 — Klinger, Twiggs MF, Ease of Movement, VWAP Z-Score, Supertrend, CG Oscillator, Inverse Fisher, YZ Vol Ratio, Ehlers iTrend, Decycler, Ehlers SuperSmoother, Transfer Entropy). Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
+**104 colormaps** — viridis, plasma, turbo, coolwarm, and 100 more. NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with **53 technical indicators** (v1.9.0 added 12 — Klinger, Twiggs MF, Ease of Movement, VWAP Z-Score, Supertrend, CG Oscillator, Inverse Fisher, YZ Vol Ratio, Ehlers iTrend, Decycler, Ehlers SuperSmoother, Transfer Entropy; v1.11.0 added Roc). Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
 
 ---
 

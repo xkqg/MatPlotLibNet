@@ -1,29 +1,29 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.11.2</Version>
+    <Version>1.12.0</Version>
     <PackageId>MatPlotLibNet.Avalonia</PackageId>
     <Description>Avalonia 12 chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/reset/brush-select interaction.</Description>
     <PackageTags>charting;plotting;charts;avalonia;skiasharp;cross-platform;interactive</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <!-- NU5104: Avalonia 12 requires SkiaSharp 3.x which is still in preview â€” suppress
-         "stable release should not have a prerelease dependency" until SkiaSharp 3 goes GA. -->
+    <!-- NU5104 (a stable release should not carry a prerelease dependency) stays suppressed defensively for the
+         Avalonia 12 dependency graph; SkiaSharp itself is now GA (3.* stable), no longer the 3.x preview. -->
     <NoWarn>$(NoWarn);NU5104</NoWarn>
   </PropertyGroup>
 
-  <!-- Avalonia 12 â€” Skia backend is the default on all platforms.
-       ISkiaSharpApiLeaseFeature is in the separate Avalonia.Skia package.
-       Avalonia.Skia 12.x requires SkiaSharp >= 3.119.4-preview; pin explicitly to resolve
-       the version conflict with MatPlotLibNet.Skia's floating SkiaSharp 3.* reference. -->
+  <!-- Avalonia 12 - the Skia backend is the default on all platforms; ISkiaSharpApiLeaseFeature lives in the
+       separate Avalonia.Skia package. SkiaSharp tracks MatPlotLibNet.Skia's floating 3.* (stable) reference,
+       which satisfies Avalonia.Skia 12.x's "SkiaSharp >= 3.119.4" (3.119.4 is now GA) and keeps both
+       references unified on the same resolved version (the old explicit preview pin was a pre-GA stopgap). -->
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.*" />
     <PackageReference Include="Avalonia.Skia" Version="12.*" />
-    <PackageReference Include="SkiaSharp" Version="3.119.4-preview.1.1" />
+    <PackageReference Include="SkiaSharp" Version="3.*" />
   </ItemGroup>
 
   <ItemGroup>

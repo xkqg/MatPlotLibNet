@@ -12,7 +12,7 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | `FigureBuilder` | Top-level builder: title, theme, size, subplots, export |
 | `AxesBuilder` | Per-subplot builder: series, labels, legends, ticks, camera |
 | `Figure` | Immutable chart model — the output of `.Build()` |
-| `ChartSeries` | Abstract base for all 74 series types |
+| `ChartSeries` | Abstract base for all 81 series types |
 | `Theme` | Theme presets and custom theme builder |
 | `ColorMaps` | 104 colormap presets |
 
@@ -20,7 +20,7 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 
 | Namespace | Package | Notes |
 |---|---|---|
-| `MatPlotLibNet` | Core | `Plt`, `FigureBuilder`, `AxesBuilder`, all 74 series types |
+| `MatPlotLibNet` | Core | `Plt`, `FigureBuilder`, `AxesBuilder`, all 81 series types |
 | `MatPlotLibNet.Models` | Core | Chart model types (`Figure`, `Axes`, etc.) |
 | `MatPlotLibNet.Rendering` | Core | SVG render pipeline |
 | `MatPlotLibNet.Styling` | Core | Themes, colors, colormaps |

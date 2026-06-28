@@ -131,7 +131,7 @@ public static AxesBuilder NetworkGraph(this AxesBuilder axes,
 
 - TDD: failing test landed first, build green only after implementation.
 - ≥90% line AND branch coverage on every new public class.
-- `CHANGELOG.md` entry under `[Unreleased]` matching the v1.9.0 / v1.10 indicator-entry detail level.
+- `CHANGELOG.md` entry under the new release's version section, matching the v1.9.0 / v1.10 indicator-entry detail level.
 - New series listed in the cookbook under `docs/cookbook/network-graph.md`.
 - API docs regenerated (`docfx`).
 - No version bump — that is the maintainer's call.

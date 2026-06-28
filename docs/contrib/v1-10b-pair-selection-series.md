@@ -621,7 +621,7 @@ No review on the spec; review on the implementations. No graphify mid-flight; gr
 
 - TDD: failing test landed first, build green only after implementation.
 - ≥90% line AND branch coverage on every new public class.
-- `CHANGELOG.md` entry under `[Unreleased]` with the same level of detail as the v1.9.0 indicator entries.
+- `CHANGELOG.md` entry under the new release's version section, with the same level of detail as the v1.9.0 indicator entries.
 - New series listed in the cookbook under `docs/cookbook/` (one new MD per series following the pattern of existing entries).
 - API docs regenerated (`docfx`).
 - No version bump — that is the maintainer's call.

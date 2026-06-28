@@ -4,7 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.12.0] — 2026-06-28
+
+Dashboard-oriented release: two new series (`StatTileSeries`, `StateTimelineSeries`) + two fluent conveniences
+(`ThresholdLine`, `LegendValues`), all authored to the contrib standard (default-no-op `ISeriesVisitor`, ≥90/90).
+Build hygiene: the Avalonia projects' `SkiaSharp` pin moves off the pre-GA `3.119.4-preview.1.1` to the floating
+stable `3.*` (SkiaSharp 3 is now GA), resolving the NU1605 downgrade against `Avalonia.Skia 12.0.5`.
 
 ### Added
 

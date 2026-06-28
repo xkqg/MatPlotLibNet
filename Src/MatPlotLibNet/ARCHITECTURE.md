@@ -41,7 +41,7 @@ MatPlotLibNet/
 
   Builders/
     FigureBuilder.cs                  fluent API: Plt.Create().WithTitle().Plot().Build() (build only)
-    AxesBuilder.cs                    subplot config: WithTitle(), SetXLabel(), Plot(), Scatter(), etc.
+    AxesBuilder.cs                    subplot config: WithTitle(), SetXLabel(), Plot(), Scatter(), Threshold() (ref-line+breach-span+label), WithLegendValues() (last-Y in legend), etc.
     SecondaryAxisBuilder.cs           secondary Y-axis: SetYLabel(), Plot(), Scatter()
     ThemeBuilder.cs                   custom themes: Theme.CreateFrom().WithFont().Build()
 
@@ -61,7 +61,7 @@ MatPlotLibNet/
     InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
 
-    Series/                           77 series types across 15 families
+    Series/                           81 series types across 15 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
       ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
       IHasDataRange.cs                interface: series that expose their own data bounds
@@ -251,7 +251,7 @@ MatPlotLibNet/
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation), DrawRichText (default method)
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 77 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 81 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
@@ -521,7 +521,7 @@ ChartHub               routes to SignalR group by chartId
 | Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D) | multiple output targets and coordinate systems from same model |
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
-| Self-serialization | ISeriesSerializable on all 60 series | each series knows how to serialize itself (no central switch) |
+| Self-serialization | ISeriesSerializable on all 81 series | each series knows how to serialize itself (no central switch) |
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
 | Registry | SeriesRegistry (ConcurrentDictionary) | thread-safe deserialization type lookup |
 | Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries; CircularRenderer<T>, PolarTransformRenderer<T>, OhlcStreamingIndicatorTests<T> (Phase L) | DRY shared properties and behaviour across series and renderer families |

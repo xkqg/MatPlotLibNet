@@ -98,6 +98,81 @@ Plt.Create()
     .Save("multi_ref.svg");
 ```
 
+## Threshold convenience
+
+`Threshold(...)` is a single-call shortcut that composes a dashed reference line
+**and** a shaded breach-zone span in one step. Use it instead of manually calling
+`AxHLine` + `AxHSpan` when you only care about marking a breach boundary.
+
+```csharp
+double[] x = Enumerable.Range(0, 100).Select(i => (double)i).ToArray();
+double[] y = x.Select(v => 50 + 30 * Math.Sin(v * 0.15)).ToArray();
+
+// Shade everything ABOVE 70 (overbought zone)
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s => s.Label = "Signal")
+        .Threshold(70.0, Orientation.Horizontal, ThresholdBreach.Above,
+            color: Colors.Red, label: "Overbought")
+        .WithLegend())
+    .Save("threshold_above.svg");
+```
+
+Shade the **below** side for a support floor:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s => s.Label = "Signal")
+        .Threshold(30.0, Orientation.Horizontal, ThresholdBreach.Below,
+            color: Colors.Tab10Green, label: "Oversold")
+        .WithLegend())
+    .Save("threshold_below.svg");
+```
+
+Stack both to create a corridor with upper and lower bounds:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s => s.Label = "RSI")
+        .Threshold(70.0, Orientation.Horizontal, ThresholdBreach.Above, Colors.Red,   "Overbought")
+        .Threshold(30.0, Orientation.Horizontal, ThresholdBreach.Below, Colors.Tab10Green, "Oversold")
+        .SetYLabel("RSI")
+        .WithLegend())
+    .Save("threshold_corridor.svg");
+```
+
+Vertical thresholds work identically — `Orientation.Vertical` marks a constant X:
+
+```csharp
+// Shade everything to the RIGHT of an event date
+DateTime eventDate = new DateTime(2026, 6, 15);
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(dates, prices, s => s.Label = "Price")
+        .SetXDateAxis()
+        .Threshold(eventDate.ToOADate(), Orientation.Vertical, ThresholdBreach.Above,
+            color: Colors.Tab10Orange, label: "Event")
+        .WithLegend())
+    .Save("threshold_vertical.svg");
+```
+
+### Threshold parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `double` | (required) | Threshold position in data coordinates. |
+| `orientation` | `Orientation` | (required) | `Horizontal` = constant Y line; `Vertical` = constant X line. |
+| `breach` | `ThresholdBreach` | (required) | `Above` shades above/right of the line; `Below` shades below/left. |
+| `color` | `Color?` | `null` | Colour for both the dashed line and the span fill. `null` = renderer cycle colour. |
+| `label` | `string?` | `null` | Annotation text placed at the threshold value. `null` = no annotation. |
+
+The dashed line is a `ReferenceLine` (`LineStyle.Dashed`, configurable afterwards via
+`axes.ReferenceLines`). The span extends to `double.MaxValue` (Above) or
+`double.MinValue` (Below) so it always reaches the visible plot boundary.
+
 ## Combining annotations with math text
 
 ```csharp
@@ -128,6 +203,7 @@ Plt.Create()
 | `.AxVLine(x, cfg?)` | x position | Vertical reference line |
 | `.AxHSpan(yMin, yMax, cfg?)` | y range | Horizontal shaded band |
 | `.AxVSpan(xMin, xMax, cfg?)` | x range | Vertical shaded band |
+| `.Threshold(value, orientation, breach, color?, label?)` | value, orientation, breach | Dashed reference line + shaded breach span |
 
 ### Annotation properties
 

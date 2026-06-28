@@ -268,6 +268,48 @@ ax.WithLegend(l => l with
 });
 ```
 
+## Legend value display
+
+`WithLegendValues()` appends each labelled XY series' last Y value to its legend
+entry — useful for live or snapshot charts where the current reading matters as much
+as the series name. The value is formatted as `F2` with `InvariantCulture` (always a
+decimal dot, never a locale comma).
+
+```csharp
+double[] x = Enumerable.Range(0, 60).Select(i => (double)i).ToArray();
+
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, x.Select(v => Math.Sin(v * 0.2)).ToArray(),        s => s.Label = "sin")
+        .Plot(x, x.Select(v => Math.Cos(v * 0.2)).ToArray(),        s => s.Label = "cos")
+        .WithLegendValues()   // legend shows e.g. "sin = −0.44"  "cos = 0.90"
+        .WithLegend(LegendPosition.UpperRight))
+    .Save("legend_values.svg");
+```
+
+The result is legend entries like `"sin = −0.44"` and `"cos = 0.90"` — the suffix
+updates automatically if you rebuild the figure with fresh data.
+
+Combine with the transform-based `WithLegend(...)` overload for full control over
+layout while keeping the value suffix:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y1, s => s.Label = "Alpha")
+        .Plot(x, y2, s => s.Label = "Beta")
+        .WithLegendValues()
+        .WithLegend(l => l with { Position = LegendPosition.OutsideRight, Title = "Channel" }))
+    .Save("legend_values_outside.svg");
+```
+
+**Series eligibility.** Only `XYSeries` descendants (line, scatter, signal, sparkline…)
+contribute a value. Categorical series (bar, pie, treemap…) render their label text
+only — the suffix is silently skipped for them. Unlabelled series never appear in the
+legend regardless.
+
+**Disabling.** Pass `false` to opt back out: `.WithLegendValues(false)`.
+
 ## Fluent API reference — LineSeries
 
 | Property | Type | Default | Description |

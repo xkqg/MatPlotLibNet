@@ -8,7 +8,7 @@ Code examples with rendered output. Every example uses the fluent `Plt.Create()`
 
 | Category | Examples |
 |---|---|
-| [Line Charts](line-charts.md) | Line styles, markers, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, secondary Y-axis, outside legend |
+| [Line Charts](line-charts.md) | Line styles, markers, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, secondary Y-axis, outside legend, legend value display |
 | [Bar Charts](bar-charts.md) | Vertical/horizontal bars, stacked, grouped, bar labels, hatching, width/alpha control |
 | [Pie & Donut](pie-donut.md) | Pie, donut, nested pie (sunburst), explode, shadow, percentage labels, custom colors, hatches |
 | [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, KDE, rug plot |
@@ -33,7 +33,8 @@ Code examples with rendered output. Every example uses the fluent `Plt.Create()`
 | [Interactive SVG](interactive-svg.md) | Browser pan/zoom/tooltips/legend toggle, highlight, selection, 3D rotation, SignalR |
 | [Animation](animation.md) | FuncAnimation GIF, multi-page PDF, individual frame export, rotating 3D |
 | [Streaming & Realtime](streaming.md) | Live data append, ring buffers, streaming indicators, axis scaling, Rx integration |
-| [Annotations](annotations.md) | Text, arrows, reference lines (horizontal/vertical), shaded spans, math text in annotations |
+| [Annotations](annotations.md) | Text, arrows, reference lines (horizontal/vertical), shaded spans, threshold convenience (line + breach span in one call), math text in annotations |
 | [Styling & Themes](styling.md) | 26 themes, PropCycler, grid/spine control, tight margins, tick mirroring, templates |
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators, minor ticks |
+| [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition |
 | [Accessibility](accessibility.md) | Color-blind safe palette, high-contrast theme, ARIA semantics, keyboard navigation |
