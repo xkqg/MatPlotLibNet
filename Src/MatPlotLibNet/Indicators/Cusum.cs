@@ -36,7 +36,7 @@ public sealed class Cusum : PriceIndicator<CusumResult>
         }
         _threshold = threshold;
         _drift = drift;
-        Label = $"CUSUM(h={threshold:0.##})";
+        Label = $"CUSUM(h={threshold.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)})";
     }
 
     /// <inheritdoc />

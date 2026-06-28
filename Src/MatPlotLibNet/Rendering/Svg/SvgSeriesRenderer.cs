@@ -36,6 +36,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private FunnelSeriesRenderer? _funnel;
     private GanttSeriesRenderer? _gantt;
     private ProgressBarSeriesRenderer? _progressBar;
+    private StatTileSeriesRenderer? _statTile;
 
     // Circular family
     private PieSeriesRenderer? _pie;
@@ -190,6 +191,8 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(GanttSeries s, RenderArea a) => (_gantt ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(ProgressBarSeries s, RenderArea a) => (_progressBar ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(StatTileSeries s, RenderArea a) => (_statTile ??= new(_context)).Render(s);
 
     // Circular family
     /// <inheritdoc />

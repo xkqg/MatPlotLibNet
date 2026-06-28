@@ -606,6 +606,10 @@ public sealed class AxesBuilder
     public AxesBuilder ProgressBar(double value, Action<ProgressBarSeries>? configure = null)
         => AddSeries(ax => ax.ProgressBar(value), configure);
 
+    /// <summary>Adds a single-value stat tile (a big headline number + label) to the axes.</summary>
+    public AxesBuilder StatTile(double value, Action<StatTileSeries>? configure = null)
+        => AddSeries(ax => ax.StatTile(value), configure);
+
     /// <summary>Adds a sparkline to the axes.</summary>
     public AxesBuilder Sparkline(double[] values, Action<SparklineSeries>? configure = null)
         => AddSeries(ax => ax.Sparkline(values), configure);

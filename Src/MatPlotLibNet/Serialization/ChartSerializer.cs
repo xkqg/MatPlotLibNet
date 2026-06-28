@@ -137,7 +137,7 @@ public sealed class ChartSerializer : IChartSerializer
         Azimuth = axes.Azimuth != -60 ? axes.Azimuth : null,
         CameraDistance = axes.CameraDistance,
         LightSourceType = axes.LightSource is Rendering.Lighting.DirectionalLight dl
-            ? $"directional:{dl.Dx},{dl.Dy},{dl.Dz},{dl.Ambient},{dl.Diffuse}"
+            ? FormattableString.Invariant($"directional:{dl.Dx},{dl.Dy},{dl.Dz},{dl.Ambient},{dl.Diffuse}")
             : null,
         XBreaks = axes.XBreaks.Count > 0 ? axes.XBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null,
         YBreaks = axes.YBreaks.Count > 0 ? axes.YBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null
@@ -837,6 +837,17 @@ public sealed class ChartSerializer : IChartSerializer
         if (dto.FillColor.HasValue) s.FillColor = dto.FillColor.Value;
         if (dto.TrackColor.HasValue) s.TrackColor = dto.TrackColor.Value;
         if (dto.BarHeight.HasValue) s.BarHeight = dto.BarHeight.Value;
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="StatTileSeries"/> from the DTO, restoring its value and accent colour.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static StatTileSeries CreateStatTile(Axes axes, SeriesDto dto)
+    {
+        var s = axes.StatTile(dto.GaugeValue ?? 0);
+        if (dto.Color.HasValue) s.AccentColor = dto.Color.Value;
         return s;
     }
 

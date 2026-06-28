@@ -28,7 +28,7 @@ public sealed class MamaFama : PriceIndicator<MamaFamaResult>
                 $"slowLimit must be in (0, fastLimit={fastLimit}) (got {slowLimit}).", nameof(slowLimit));
         _fastLimit = fastLimit;
         _slowLimit = slowLimit;
-        Label = $"MAMA({fastLimit:0.00}/{slowLimit:0.00})";
+        Label = $"MAMA({fastLimit.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)}/{slowLimit.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})";
     }
 
     /// <inheritdoc />

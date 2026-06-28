@@ -156,6 +156,10 @@ public sealed class FigureBuilder
     public FigureBuilder Bar(string[] categories, double[] values, Action<BarSeries>? configure = null) =>
         AddSeries(ax => ax.Bar(categories, values), configure);
 
+    /// <summary>Adds a single-value stat tile (a big headline number + label) to the default axes.</summary>
+    public FigureBuilder StatTile(double value, Action<StatTileSeries>? configure = null) =>
+        AddSeries(ax => ax.StatTile(value), configure);
+
     /// <summary>Adds a histogram series to the default axes.</summary>
     public FigureBuilder Hist(double[] data, int bins = 10, Action<HistogramSeries>? configure = null) =>
         AddSeries(ax => ax.Hist(data, bins), configure);

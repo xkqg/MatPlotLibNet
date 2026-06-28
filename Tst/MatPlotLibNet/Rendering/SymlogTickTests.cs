@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -53,10 +54,10 @@ public class SymlogTickTests
             @"<line\s+x1=""(?<x1>[\d\.\-]+)""\s+y1=""(?<y1>[\d\.\-]+)""\s+x2=""(?<x2>[\d\.\-]+)""\s+y2=""(?<y2>[\d\.\-]+)""");
         foreach (Match m in matches)
         {
-            double x1 = double.Parse(m.Groups["x1"].Value);
-            double x2 = double.Parse(m.Groups["x2"].Value);
-            double y1 = double.Parse(m.Groups["y1"].Value);
-            double y2 = double.Parse(m.Groups["y2"].Value);
+            double x1 = double.Parse(m.Groups["x1"].Value, CultureInfo.InvariantCulture);
+            double x2 = double.Parse(m.Groups["x2"].Value, CultureInfo.InvariantCulture);
+            double y1 = double.Parse(m.Groups["y1"].Value, CultureInfo.InvariantCulture);
+            double y2 = double.Parse(m.Groups["y2"].Value, CultureInfo.InvariantCulture);
             // Y-axis tick: short horizontal line near the left edge
             if (x1 < 110 && Math.Abs(y1 - y2) < 0.5 && Math.Abs(x2 - x1) < 10)
                 positions.Add(y1);

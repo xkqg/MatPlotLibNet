@@ -61,7 +61,7 @@ MatPlotLibNet/
     InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
 
-    Series/                           75 series types across 15 families
+    Series/                           76 series types across 15 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
       ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
       IHasDataRange.cs                interface: series that expose their own data bounds
@@ -113,6 +113,7 @@ MatPlotLibNet/
       GanttSeries.cs                  Tasks, Starts, Ends, BarHeight (Categorical/)
       GaugeSeries.cs                  Value, Min, Max, Ranges (GaugeBand[]?), NeedleColor (Circular/)
       ProgressBarSeries.cs            Value, FillColor, TrackColor (Categorical/)
+      StatTileSeries.cs               Value, AccentColor, Format — single-value KPI tile, no axes (Categorical/)
       SparklineSeries.cs              XYSeries: Values, LineWidth (XY/)
       EcdfSeries.cs                   XYSeries: sorted empirical CDF (XY/)
       StackedAreaSeries.cs            X[], YSets[][], StackLabels, FillColors, IStackable (XY/)
@@ -249,7 +250,7 @@ MatPlotLibNet/
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
     IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation), DrawRichText (default method)
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 75 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 76 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
@@ -305,7 +306,7 @@ MatPlotLibNet/
       SeriesRenderer.cs                 abstract base: ResolveColor(), ApplyAlpha(), ApplyDownsampling(), ApplyMonotonicDownsampling(), ResolveColormapping() + ColormapContext record struct + generic SeriesRenderer<T>
       DrawStyleInterpolation.cs         internal static: Apply(x, y, style) — shared step-mode interpolation; eliminates duplication between LineSeriesRenderer and AreaSeriesRenderer
       XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band), Residual (LeastSquares residuals + optional zero line)
-      Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
+      Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, StatTile (single-value KPI), Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
       Circular/                         CircularRenderer<TSeries> (abstract base: BuildWedgePath, PlaceOuterLabels); Pie, Radar, Donut, Gauge
       Grid/                             Heatmap, Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill), Clustermap (composite: heatmap + row/column dendrograms with sub-pixel-suppressed margin panels), PairGrid (composite: N×N matrix of histograms/KDE on diagonal + scatters/hexbin off-diagonal, optional hue grouping)
                                         PairGridLayout.cs — pure geometry: ComputeCellRects(plotBounds, n, cellSpacing) → Rect[n,n]; MinPanelPx sub-pixel gate

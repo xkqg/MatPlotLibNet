@@ -35,7 +35,7 @@ public sealed class Bocpd : PriceIndicator<SignalResult>
         _hazard = hazard;
         _priorVariance = priorVariance;
         _maxRunLength = maxRunLength;
-        Label = $"BOCPD(h={hazard:0.###})";
+        Label = $"BOCPD(h={hazard.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)})";
     }
 
     /// <inheritdoc />

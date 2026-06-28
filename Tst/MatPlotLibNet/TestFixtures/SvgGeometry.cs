@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace MatPlotLibNet.Tests.TestFixtures;
@@ -27,8 +28,8 @@ public static partial class SvgGeometry
         {
             var parts = pair.Split(',');
             if (parts.Length != 2) continue;
-            double x = double.TryParse(parts[0], out var xv) ? xv : double.NaN;
-            double y = double.TryParse(parts[1], out var yv) ? yv : double.NaN;
+            double x = double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var xv) ? xv : double.NaN;
+            double y = double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var yv) ? yv : double.NaN;
             pts.Add((x, y));
         }
         return pts;
@@ -41,10 +42,10 @@ public static partial class SvgGeometry
         var positions = new List<double>();
         foreach (Match m in LineRegex().Matches(svg))
         {
-            double x1 = double.Parse(m.Groups["x1"].Value);
-            double y1 = double.Parse(m.Groups["y1"].Value);
-            double x2 = double.Parse(m.Groups["x2"].Value);
-            double y2 = double.Parse(m.Groups["y2"].Value);
+            double x1 = double.Parse(m.Groups["x1"].Value, CultureInfo.InvariantCulture);
+            double y1 = double.Parse(m.Groups["y1"].Value, CultureInfo.InvariantCulture);
+            double x2 = double.Parse(m.Groups["x2"].Value, CultureInfo.InvariantCulture);
+            double y2 = double.Parse(m.Groups["y2"].Value, CultureInfo.InvariantCulture);
             if (x1 < 110 && Math.Abs(y1 - y2) < 0.5 && Math.Abs(x2 - x1) < 10)
                 positions.Add(y1);
         }

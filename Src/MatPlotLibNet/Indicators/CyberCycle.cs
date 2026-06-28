@@ -22,7 +22,7 @@ public sealed class CyberCycle : PriceIndicator<SignalResult>
         if (alpha <= 0 || alpha >= 1)
             throw new ArgumentException($"alpha must be in (0, 1) (got {alpha}).", nameof(alpha));
         _alpha = alpha;
-        Label = $"CC({alpha:0.00})";
+        Label = $"CC({alpha.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})";
     }
 
     /// <inheritdoc />

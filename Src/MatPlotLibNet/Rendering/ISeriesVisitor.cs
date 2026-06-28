@@ -268,4 +268,10 @@ public interface ISeriesVisitor
     /// <summary>Renders a Relative Rotation Graph series (2D scatter with fading tail per asset).
     /// Default is a no-op for ISP compatibility.</summary>
     [ExcludeFromCodeCoverage] void Visit(RelativeRotationSeries series, RenderArea area) { }
+
+    // ── v1.12 Stat tile (default no-op for ISP compatibility) ──
+
+    /// <summary>Renders a single-value stat tile (big headline number + label).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(StatTileSeries series, RenderArea area) { }
 }

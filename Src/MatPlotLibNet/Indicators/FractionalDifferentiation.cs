@@ -35,7 +35,7 @@ public sealed class FractionalDifferentiation : PriceIndicator<SignalResult>
         _d = d;
         _tolerance = tolerance;
         _weights = ComputeWeights(d, tolerance);
-        Label = $"FFD(d={d:0.00})";
+        Label = $"FFD(d={d.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})";
     }
 
     /// <summary>Computes the truncated FFD weight series for order <paramref name="d"/>.</summary>

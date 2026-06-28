@@ -72,7 +72,7 @@ internal sealed class PieSeriesRenderer : CircularRenderer<PieSeries>
             if (series.AutoPct is not null)
             {
                 double pct = series.Sizes[i] / total * 100;
-                string label = string.Format(series.AutoPct, pct);
+                string label = string.Format(System.Globalization.CultureInfo.InvariantCulture, series.AutoPct, pct);
                 double textAngle = startAngle + sweep / 2;
                 double textR = radius * 0.6;
                 double tx = sliceCx + textR * Math.Cos(textAngle);

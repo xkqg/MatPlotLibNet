@@ -40,7 +40,7 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
         var pts = Transform.TransformBatch(data.X, data.Y);
         for (int i = 0; i < pts.Length; i++)
         {
-            BeginTooltip($"x={data.X[i]:G5}, y={data.Y[i]:G5}");
+            BeginTooltip($"x={data.X[i].ToString("G5", System.Globalization.CultureInfo.InvariantCulture)}, y={data.Y[i].ToString("G5", System.Globalization.CultureInfo.InvariantCulture)}");
             // matplotlib scatter: s is marker AREA in points².  radius = sqrt(s/π) × (dpi/72).
             // At 100 DPI, (100/72) ≈ 1.389 — converts pt to px at the standard render DPI.
             double s_pt2  = series.Sizes is not null ? series.Sizes[i] : series.MarkerSize;

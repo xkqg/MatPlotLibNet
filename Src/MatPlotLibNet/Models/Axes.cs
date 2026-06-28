@@ -589,6 +589,9 @@ public sealed class Axes
     /// <summary>Adds a progress bar showing a value as a fraction (0.0 to 1.0).</summary>
     public ProgressBarSeries ProgressBar(double value) { var s = new ProgressBarSeries(value); _series.Add(s); return s; }
 
+    /// <summary>Adds a single-value stat tile (a big headline number + label) filling the plot area.</summary>
+    public StatTileSeries StatTile(double value) { var s = new StatTileSeries(value); _series.Add(s); return s; }
+
     /// <summary>Adds a sparkline — a tiny inline line chart with no axes or labels.</summary>
     public SparklineSeries Sparkline(double[] values) { var s = new SparklineSeries(values); _series.Add(s); return s; }
 

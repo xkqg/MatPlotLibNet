@@ -21,7 +21,7 @@ public sealed class LaguerreRsi : PriceIndicator<SignalResult>
         if (alpha <= 0 || alpha >= 1)
             throw new ArgumentException($"alpha must be in (0, 1) (got {alpha}).", nameof(alpha));
         _alpha = alpha;
-        Label = $"LagRSI({alpha:0.00})";
+        Label = $"LagRSI({alpha.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)})";
     }
 
     /// <inheritdoc />

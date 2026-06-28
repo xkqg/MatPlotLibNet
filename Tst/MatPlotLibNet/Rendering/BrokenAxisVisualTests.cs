@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
 
@@ -63,7 +64,7 @@ public class BrokenAxisVisualTests
         var tickLabels = ExtractYTickLabels(svg);
         foreach (var label in tickLabels)
         {
-            if (double.TryParse(label, out double v))
+            if (double.TryParse(label, NumberStyles.Float, CultureInfo.InvariantCulture, out double v))
                 Assert.False(v > 25 && v < 85,
                     $"Y-tick label '{label}' falls inside break region [25, 85] — should be filtered");
         }
@@ -101,7 +102,7 @@ public class BrokenAxisVisualTests
             foreach (var pair in pairs)
             {
                 var parts = pair.Split(',');
-                if (parts.Length == 2 && double.TryParse(parts[1], out double y))
+                if (parts.Length == 2 && double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double y))
                     coords.Add(y);
             }
         }
@@ -118,7 +119,7 @@ public class BrokenAxisVisualTests
             foreach (var pair in pairs)
             {
                 var parts = pair.Split(',');
-                if (parts.Length == 2 && double.TryParse(parts[0], out double x))
+                if (parts.Length == 2 && double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double x))
                     coords.Add(x);
             }
         }

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **`StatTileSeries`** (`MatPlotLibNet.Models.Series`) — a single-value "stat tile": a big formatted headline
+  number with the series `Label` beneath it, filling its plot area. Built for compact dashboard KPIs
+  ("12 participants", "0 alerts"). `Value` (ctor), optional `AccentColor`, and a `Format` string (default
+  `"0.##"`, invariant culture). Carries no axes/data (`ComputeDataRange` contributes nothing — use a sub-plot /
+  mosaic per tile). Authored via the default-no-op `ISeriesVisitor` extension pattern (non-breaking). Fluent on
+  `Axes.StatTile(value)`, `AxesBuilder.StatTile(...)`, and `FigureBuilder.StatTile(...)`; round-trips through the
+  `"stattile"` serialization discriminator.
+
 ## [1.11.2] — 2026-05-16
 
 ### Added
@@ -738,7 +750,7 @@ green merge to `main` (requires `NUGET_API_KEY` secret).
 > `AxesRenderer.RenderColorBar` / `CartesianAxesRenderer` broken-axis blocks
 > that need production-code refactors (split into helpers) before strict-mode
 > becomes feasible. Production refactor candidates flagged in
-> `C:\Users\Rik Gansevoort\.claude\plans\federated-meandering-hearth.md`
+> `C:\Users\hpgan\.claude\plans\federated-meandering-hearth.md`
 > for explicit user opt-in.
 
 - **Ω.1 — `SeriesRegistry` per-series fully-populated round-trips** (~26 facts).
