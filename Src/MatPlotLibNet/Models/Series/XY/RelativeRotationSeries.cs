@@ -301,6 +301,55 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         RrgEnbPerBar          = EnbPerBar?.ToList(),
     };
 
+    /// <summary>Reconstructs a <see cref="RelativeRotationSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static RelativeRotationSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var assetCloses    = (dto.RrgAssetCloses   ?? []).Select(a => a.ToArray()).ToArray();
+        var benchmarkCloses = (dto.RrgBenchmarkCloses ?? []).ToArray();
+        var labels         = dto.RrgAssetLabels ?? [];
+        var s = axes.RelativeRotation(assetCloses, benchmarkCloses, labels);
+        if (dto.ColorMapName is not null)
+        {
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        }
+        if (dto.RrgFormula is not null)
+        {
+            s.Formula = Enum.Parse<Models.Series.RrgFormula>(dto.RrgFormula, ignoreCase: true);
+        }
+        if (dto.RrgShortPeriod.HasValue)
+        {
+            s.ShortPeriod      = dto.RrgShortPeriod.Value;
+        }
+        if (dto.RrgLongPeriod.HasValue)
+        {
+            s.LongPeriod       = dto.RrgLongPeriod.Value;
+        }
+        if (dto.RrgMomentumLookback.HasValue)
+        {
+            s.MomentumLookback = dto.RrgMomentumLookback.Value;
+        }
+        if (dto.RrgTailLength.HasValue)
+        {
+            s.TailLength            = dto.RrgTailLength.Value;
+        }
+        if (dto.RrgShowQuadrantGrid.HasValue)
+        {
+            s.ShowQuadrantGrid      = dto.RrgShowQuadrantGrid.Value;
+        }
+        if (dto.RrgAbsorptionPerBar is not null)
+        {
+            s.AbsorptionRatioPerBar = dto.RrgAbsorptionPerBar.ToArray();
+        }
+        if (dto.RrgEnbPerBar        is not null)
+        {
+            s.EnbPerBar             = dto.RrgEnbPerBar.ToArray();
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

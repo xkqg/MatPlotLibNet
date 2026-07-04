@@ -31,17 +31,17 @@ internal sealed class RadarSeriesRenderer : SeriesRenderer<RadarSeries>
             double frac = ring / 5.0;
             var ringPts = new List<Point>(n);
             for (int i = 0; i < n; i++) { double a = 2 * Math.PI * i / n - Math.PI / 2; ringPts.Add(new Point(cx + radius * frac * Math.Cos(a), cy + radius * frac * Math.Sin(a))); }
-            Ctx.DrawPolygon(ringPts, null, webColor, 0.5);
+            Ctx.DrawPolygon(ringPts, new ShapeStyle(null, webColor, 0.5));
         }
         var labelFont = new Font { Size = 10 };
         for (int i = 0; i < n; i++)
         {
             double a = 2 * Math.PI * i / n - Math.PI / 2;
-            Ctx.DrawLine(new Point(cx, cy), new Point(cx + radius * Math.Cos(a), cy + radius * Math.Sin(a)), webColor, 0.5, LineStyle.Solid);
+            Ctx.DrawLine(new Point(cx, cy), new Point(cx + radius * Math.Cos(a), cy + radius * Math.Sin(a)), new StrokeStyle(webColor, 0.5, LineStyle.Solid));
             Ctx.DrawText(series.Categories[i], new Point(cx + (radius + 15) * Math.Cos(a), cy + (radius + 15) * Math.Sin(a)), labelFont, TextAlignment.Center);
         }
         var dataPts = new List<Point>(n);
         for (int i = 0; i < n; i++) { double norm = Math.Min(series.Values[i] / maxVal, 1.0); double a = 2 * Math.PI * i / n - Math.PI / 2; dataPts.Add(new Point(cx + radius * norm * Math.Cos(a), cy + radius * norm * Math.Sin(a))); }
-        Ctx.DrawPolygon(dataPts, fillColor, color, series.LineWidth);
+        Ctx.DrawPolygon(dataPts, new ShapeStyle(fillColor, color, series.LineWidth));
     }
 }

@@ -7,25 +7,22 @@ namespace MatPlotLibNet.Geo.Projections;
 /// Foundation of UTM (Universal Transverse Mercator) grid system.</summary>
 public sealed class TransverseMercator : IGeoProjection
 {
-    private const double DegToRad = Math.PI / 180.0;
-    private const double RadToDeg = 180.0 / Math.PI;
-
     private readonly double _lam0;
 
     public string Name => "TransverseMercator";
 
-    public TransverseMercator(double centerLon = 0) => _lam0 = centerLon * DegToRad;
+    public TransverseMercator(double centerLon = 0) => _lam0 = centerLon.ToRadians();
 
-    public (double X, double Y) Forward(double latitude, double longitude)
+    public ProjectedPoint Forward(double latitude, double longitude)
     {
-        double phi = latitude * DegToRad, lam = longitude * DegToRad;
+        double phi = latitude.ToRadians(), lam = longitude.ToRadians();
         double b = Math.Cos(phi) * Math.Sin(lam - _lam0);
-        if (Math.Abs(b) >= 1) return (double.NaN, double.NaN);
+        if (Math.Abs(b) >= 1) return new(double.NaN, double.NaN);
         double x = 0.5 * Math.Log((1 + b) / (1 - b));
         double y = Math.Atan2(Math.Tan(phi), Math.Cos(lam - _lam0)) - _lam0;
-        return (x * RadToDeg, y * RadToDeg);
+        return new(x.ToDegrees(), y.ToDegrees());
     }
 
-    public (double Lat, double Lon)? Inverse(double x, double y) => null;
-    public (double XMin, double XMax, double YMin, double YMax) Bounds => (-180, 180, -90, 90);
+    public GeoCoordinate? Inverse(double x, double y) => null;
+    public GeoBounds Bounds => new(-180, 180, -90, 90);
 }

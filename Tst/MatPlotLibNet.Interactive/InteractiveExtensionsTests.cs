@@ -8,6 +8,7 @@ using NSubstitute;
 namespace MatPlotLibNet.Interactive.Tests;
 
 /// <summary>Verifies <see cref="InteractiveExtensions"/> behavior.</summary>
+[Collection("InteractiveDisplayGlobalState")]
 public class InteractiveExtensionsTests : IDisposable
 {
     private readonly IBrowserLauncher _original;
@@ -47,10 +48,10 @@ public class InteractiveExtensionsTests : IDisposable
 
     /// <summary>Verifies that the figure URL contains the /chart/ prefix and the chart ID.</summary>
     [Fact]
-    public void Show_UrlContainsChartPrefix()
+    public async Task Show_UrlContainsChartPrefix()
     {
-        var server = new ChartServer();
-        server.EnsureStarted();
+        await using var server = new ChartServer();
+        await server.EnsureStartedAsync(TestContext.Current.CancellationToken);
 
         var figure = Plt.Create().Build();
         var chartId = server.RegisterFigure(figure);

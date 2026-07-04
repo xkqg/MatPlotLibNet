@@ -48,55 +48,55 @@ internal static class MarkerRenderer
         switch (style)
         {
             case MarkerStyle.Circle:
-                ctx.DrawCircle(center, r, fill, stroke, strokeWidth);
+                ctx.DrawCircle(center, r, new ShapeStyle(fill, stroke, strokeWidth));
                 return;
 
             case MarkerStyle.Square:
                 ctx.DrawRectangle(
                     new Rect(center.X - r, center.Y - r, size, size),
-                    fill, stroke, strokeWidth);
+                    new ShapeStyle(fill, stroke, strokeWidth));
                 return;
 
             case MarkerStyle.Triangle:
                 ctx.DrawPolygon(EquilateralTriangle(center, r, rotationDeg: 0),
-                    fill, stroke, strokeWidth);
+                    new ShapeStyle(fill, stroke, strokeWidth));
                 return;
 
             case MarkerStyle.TriangleDown:
                 ctx.DrawPolygon(EquilateralTriangle(center, r, rotationDeg: 180),
-                    fill, stroke, strokeWidth);
+                    new ShapeStyle(fill, stroke, strokeWidth));
                 return;
 
             case MarkerStyle.TriangleLeft:
                 ctx.DrawPolygon(EquilateralTriangle(center, r, rotationDeg: -90),
-                    fill, stroke, strokeWidth);
+                    new ShapeStyle(fill, stroke, strokeWidth));
                 return;
 
             case MarkerStyle.TriangleRight:
                 ctx.DrawPolygon(EquilateralTriangle(center, r, rotationDeg: 90),
-                    fill, stroke, strokeWidth);
+                    new ShapeStyle(fill, stroke, strokeWidth));
                 return;
 
             case MarkerStyle.Diamond:
                 ctx.DrawPolygon(RegularPolygon(center, r, sides: 4, rotationDeg: 0),
-                    fill, stroke, strokeWidth);
+                    new ShapeStyle(fill, stroke, strokeWidth));
                 return;
 
             case MarkerStyle.Pentagon:
                 ctx.DrawPolygon(RegularPolygon(center, r, sides: 5, rotationDeg: 0),
-                    fill, stroke, strokeWidth);
+                    new ShapeStyle(fill, stroke, strokeWidth));
                 return;
 
             case MarkerStyle.Hexagon:
                 ctx.DrawPolygon(RegularPolygon(center, r, sides: 6, rotationDeg: 0),
-                    fill, stroke, strokeWidth);
+                    new ShapeStyle(fill, stroke, strokeWidth));
                 return;
 
             case MarkerStyle.Star:
                 // 5-point star: 10 vertices alternating outer (r) and inner radius.
                 // Ratio 0.38 ≈ matplotlib's `mpl.markers.py` star shape.
                 ctx.DrawPolygon(StarPolygon(center, r, points: 5, innerRatio: 0.38),
-                    fill, stroke, strokeWidth);
+                    new ShapeStyle(fill, stroke, strokeWidth));
                 return;
 
             case MarkerStyle.Cross:
@@ -105,9 +105,9 @@ internal static class MarkerRenderer
                 var color = fill ?? stroke ?? new Color(0, 0, 0);
                 double thickness = strokeWidth > 0 ? strokeWidth : Math.Max(1.0, size / 8.0);
                 ctx.DrawLine(new Point(center.X - r, center.Y - r),
-                    new Point(center.X + r, center.Y + r), color, thickness, LineStyle.Solid);
+                    new Point(center.X + r, center.Y + r), new StrokeStyle(color, thickness, LineStyle.Solid));
                 ctx.DrawLine(new Point(center.X - r, center.Y + r),
-                    new Point(center.X + r, center.Y - r), color, thickness, LineStyle.Solid);
+                    new Point(center.X + r, center.Y - r), new StrokeStyle(color, thickness, LineStyle.Solid));
                 return;
             }
 
@@ -117,9 +117,9 @@ internal static class MarkerRenderer
                 var color = fill ?? stroke ?? new Color(0, 0, 0);
                 double thickness = strokeWidth > 0 ? strokeWidth : Math.Max(1.0, size / 8.0);
                 ctx.DrawLine(new Point(center.X - r, center.Y),
-                    new Point(center.X + r, center.Y), color, thickness, LineStyle.Solid);
+                    new Point(center.X + r, center.Y), new StrokeStyle(color, thickness, LineStyle.Solid));
                 ctx.DrawLine(new Point(center.X, center.Y - r),
-                    new Point(center.X, center.Y + r), color, thickness, LineStyle.Solid);
+                    new Point(center.X, center.Y + r), new StrokeStyle(color, thickness, LineStyle.Solid));
                 return;
             }
         }

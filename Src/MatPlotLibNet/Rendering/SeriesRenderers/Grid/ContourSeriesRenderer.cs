@@ -55,7 +55,7 @@ internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
             foreach (var pt in contour.Points)
                 pixelPoints.Add(Transform.DataToPixel(pt.X, pt.Y));
 
-            Ctx.DrawLines(pixelPoints, color, 1.5, LineStyle.Solid);
+            Ctx.DrawLines(pixelPoints, new StrokeStyle(color, 1.5, LineStyle.Solid));
 
             // Label at midpoint of the polyline
             if (series.ShowLabels && pixelPoints.Count >= 2)
@@ -68,7 +68,7 @@ internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
                 double approxW = text.Length * labelFont.Size * 0.6;
                 double approxH = labelFont.Size * 1.4;
                 Ctx.DrawRectangle(new Rect(labelPt.X - approxW / 2, labelPt.Y - approxH / 2, approxW, approxH),
-                    Colors.White, null, 0);
+                    new ShapeStyle(Colors.White, null, 0));
 
                 Ctx.DrawText(text, labelPt, labelFont, TextAlignment.Center);
             }

@@ -7,11 +7,12 @@ namespace MatPlotLibNet.Interactive.Tests;
 
 /// <summary>Phase Y.7 (v1.7.2, 2026-04-19) — branch coverage for the
 /// <see cref="InteractiveExtensions.Browser"/> setter's null-arg guard
-/// (line 17, was 50%B). Show/ShowAsync depend on
+/// (line 17, was 50%B). ShowAsync depends on
 /// `BrowserLauncher` actually opening a browser, which is exempt
 /// (`MatPlotLibNet.Interactive.BrowserLauncher` thresholds.json entry — pre-X
 /// since the launcher does Process.Start with UseShellExecute and can't be
 /// unit-tested without mocking System.Diagnostics.Process).</summary>
+[Collection("InteractiveDisplayGlobalState")]
 public class InteractiveExtensionsBranchTests
 {
     /// <summary>Browser setter line 17 — `value ?? throw` true arm: passing null

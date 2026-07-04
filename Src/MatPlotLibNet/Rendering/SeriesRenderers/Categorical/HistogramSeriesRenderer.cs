@@ -37,7 +37,7 @@ internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
                 double gap = (bins.BinWidth - barW) / 2;
                 var tl = Transform.DataToPixel(x0 + gap, heights[i]);
                 var br = Transform.DataToPixel(x0 + gap + barW, 0);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), fillColor, edgeColor, edgeWidth);
+                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(fillColor, edgeColor, edgeWidth));
             }
         }
         else
@@ -57,12 +57,12 @@ internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
             if (series.HistType == HistType.StepFilled)
             {
                 pts.Add(Transform.DataToPixel(bins.Min, 0));
-                Ctx.DrawPolygon(pts, fillColor, edgeColor, edgeWidth > 0 ? edgeWidth : 1);
+                Ctx.DrawPolygon(pts, new ShapeStyle(fillColor, edgeColor, edgeWidth > 0 ? edgeWidth : 1));
             }
             else
             {
                 // Step: draw just the outline (no fill).
-                Ctx.DrawLines(pts, baseColor, 1.5, LineStyle.Solid);
+                Ctx.DrawLines(pts, new StrokeStyle(baseColor, 1.5, LineStyle.Solid));
             }
         }
     }

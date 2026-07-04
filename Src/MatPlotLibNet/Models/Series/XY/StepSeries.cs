@@ -48,6 +48,20 @@ public sealed class StepSeries : XYSeries, IHasColor
         StepPosition = StepPosition.ToString().ToLowerInvariant()
     };
 
+    /// <summary>Reconstructs a <see cref="StepSeries"/> from its serialization DTO, including step position, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static StepSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Step(dto.XData ?? [], dto.YData ?? []);
+        s.Color = dto.Color;
+        s.LineWidth = dto.LineWidth ?? 1.5;
+        ChartSerializer.ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
+        ChartSerializer.ApplyEnum<StepPosition>(dto.StepPosition, v => s.StepPosition = v);
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

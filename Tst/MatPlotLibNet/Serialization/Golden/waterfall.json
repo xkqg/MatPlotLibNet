@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"waterfall","values":[10,-5],"categories":["A","B"],"barWidth":0.6,"increaseColor":"#008000","decreaseColor":"#FF0000","totalColor":"#1F77B4"}]}]}

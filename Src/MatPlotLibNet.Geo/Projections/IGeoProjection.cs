@@ -10,18 +10,20 @@ public interface IGeoProjection
     /// <summary>Display name of the projection (e.g. "Robinson", "Mercator").</summary>
     string Name { get; }
 
-    /// <summary>Transforms geographic coordinates to planar coordinates.</summary>
+    /// <summary>Transforms geographic coordinates to projected-plane coordinates.</summary>
     /// <param name="latitude">Latitude in degrees (-90 to 90).</param>
     /// <param name="longitude">Longitude in degrees (-180 to 180).</param>
-    /// <returns>Projected (X, Y) coordinates.</returns>
-    (double X, double Y) Forward(double latitude, double longitude);
+    /// <returns>The projected point. Off-domain points are signalled as
+    /// <c>(<see cref="double.NaN"/>, <see cref="double.NaN"/>)</c> — see <see cref="ProjectedPoint"/>.</returns>
+    ProjectedPoint Forward(double latitude, double longitude);
 
-    /// <summary>Transforms planar coordinates back to geographic coordinates.</summary>
+    /// <summary>Transforms projected-plane coordinates back to geographic coordinates.</summary>
     /// <param name="x">Projected X coordinate.</param>
     /// <param name="y">Projected Y coordinate.</param>
-    /// <returns>Geographic (Latitude, Longitude) or null if the point is outside the projection domain.</returns>
-    (double Lat, double Lon)? Inverse(double x, double y);
+    /// <returns>The geographic coordinate, or <see langword="null"/> if the point is outside
+    /// the projection domain.</returns>
+    GeoCoordinate? Inverse(double x, double y);
 
-    /// <summary>Bounding box of the projection in projected coordinates.</summary>
-    (double XMin, double XMax, double YMin, double YMax) Bounds { get; }
+    /// <summary>Bounding box of the projection in projected-plane coordinates.</summary>
+    GeoBounds Bounds { get; }
 }

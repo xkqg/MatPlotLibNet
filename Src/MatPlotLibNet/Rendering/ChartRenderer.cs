@@ -49,7 +49,7 @@ public sealed class ChartRenderer : IChartRenderer
         var plotAreas = ComputeSubPlotLayout(figure, plotAreaTop, resolvedSpacing);
 
         for (int i = 0; i < figure.SubPlots.Count; i++)
-            RenderAxes(figure, figure.SubPlots[i], plotAreas[i], ctx, figure.Theme);
+            RenderAxes(figure, figure.SubPlots[i], new RenderPass(plotAreas[i], ctx, figure.Theme));
 
         // Figure-level colorbar — rendered after all subplots
         if (figure.FigureColorBar is { Visible: true } cb)
@@ -84,7 +84,7 @@ public sealed class ChartRenderer : IChartRenderer
         var theme = figure.Theme;
         var bgColor = figure.BackgroundColor ?? theme.Background;
 
-        ctx.DrawRectangle(new Rect(0, 0, figure.Width, figure.Height), bgColor, null, 0);
+        ctx.DrawRectangle(new Rect(0, 0, figure.Width, figure.Height), new ShapeStyle(bgColor, null, 0));
 
         double plotAreaTop = sp.MarginTop;
         if (figure.Title is not null)
@@ -267,11 +267,11 @@ public sealed class ChartRenderer : IChartRenderer
     }
 
     /// <summary>Renders a single <see cref="Axes"/> subplot, including all series, decorations, and nested insets.</summary>
-    internal void RenderAxes(Figure figure, Axes axes, Rect plotArea, IRenderContext ctx, Theme theme, int depth = 0)
+    internal void RenderAxes(Figure figure, Axes axes, RenderPass pass, int depth = 0)
     {
         // Pass figure size through so 3-D renderer can compute matplotlib's exact square bbox.
         var figSize = (Size?)new Size(figure.Width, figure.Height);
-        var axesRenderer = AxesRenderer.Create(axes, plotArea, ctx, theme, figSize);
+        var axesRenderer = AxesRenderer.Create(axes, pass.PlotArea, pass.Context, pass.Theme, figSize);
         axesRenderer.Render();
 
         // Render inset axes recursively (max depth guard)
@@ -281,7 +281,7 @@ public sealed class ChartRenderer : IChartRenderer
             // to avoid overlapping with axis labels and ticks.
             var referenceArea = figure.Spacing.ConstrainedLayout
                 ? axesRenderer.ComputeInnerBounds()
-                : plotArea;
+                : pass.PlotArea;
 
             foreach (var inset in axes.Insets)
             {
@@ -291,7 +291,7 @@ public sealed class ChartRenderer : IChartRenderer
                     referenceArea.Y + bounds.Y * referenceArea.Height,
                     bounds.Width * referenceArea.Width,
                     bounds.Height * referenceArea.Height);
-                RenderAxes(figure, inset, insetRect, ctx, theme, depth + 1);
+                RenderAxes(figure, inset, pass with { PlotArea = insetRect }, depth + 1);
             }
         }
     }
@@ -346,9 +346,9 @@ public sealed class ChartRenderer : IChartRenderer
                 double frac  = (double)i / steps;
                 double stepX = barX + totalW * i / steps;
                 double stepW = totalW / steps + 1;
-                ctx.DrawRectangle(new Rect(stepX, barY, stepW, barH), colorMap.GetColor(frac), null, 0);
+                ctx.DrawRectangle(new Rect(stepX, barY, stepW, barH), new ShapeStyle(colorMap.GetColor(frac), null, 0));
             }
-            ctx.DrawRectangle(new Rect(barX, barY, totalW, barH), null, theme.ForegroundText, 0.5);
+            ctx.DrawRectangle(new Rect(barX, barY, totalW, barH), new ShapeStyle(null, theme.ForegroundText, 0.5));
 
             double labelY = barY + barH + 4 + tickFont.Size;
             for (int i = 0; i <= 5; i++)
@@ -376,9 +376,9 @@ public sealed class ChartRenderer : IChartRenderer
                 double frac  = 1.0 - (double)i / steps;
                 double stepY = barY + totalH * i / steps;
                 double stepH = totalH / steps + 1;
-                ctx.DrawRectangle(new Rect(barX, stepY, barW, stepH), colorMap.GetColor(frac), null, 0);
+                ctx.DrawRectangle(new Rect(barX, stepY, barW, stepH), new ShapeStyle(colorMap.GetColor(frac), null, 0));
             }
-            ctx.DrawRectangle(new Rect(barX, barY, barW, totalH), null, theme.ForegroundText, 0.5);
+            ctx.DrawRectangle(new Rect(barX, barY, barW, totalH), new ShapeStyle(null, theme.ForegroundText, 0.5));
 
             double labelX = barX + barW + 4;
             for (int i = 0; i <= 5; i++)

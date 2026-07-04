@@ -51,6 +51,13 @@ public sealed class StemSeries : ChartSeries
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new() { Type = "stem", XData = XData, YData = YData };
 
+    /// <summary>Reconstructs a <see cref="StemSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static StemSeries FromSeriesDto(Axes axes, SeriesDto dto)
+        => axes.Stem(dto.XData ?? [], dto.YData ?? []);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

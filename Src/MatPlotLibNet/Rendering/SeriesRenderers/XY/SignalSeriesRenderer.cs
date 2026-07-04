@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -17,6 +18,6 @@ internal sealed class SignalSeriesRenderer : SeriesRenderer<SignalSeries>
         var color = ResolveColor(series.Color);
         var data  = ApplyMonotonicDownsampling(series, series.MaxDisplayPoints);
         Point[] points = Transform.TransformBatch(data.X, data.Y);
-        Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);
+        Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, series.LineStyle));
     }
 }

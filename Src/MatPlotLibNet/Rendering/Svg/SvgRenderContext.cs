@@ -62,18 +62,18 @@ public sealed class SvgRenderContext : IRenderContext
     internal void SetNextElementClass(string className) => _pendingClass = className;
 
     /// <inheritdoc />
-    public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style)
+    public void DrawLine(Point p1, Point p2, StrokeStyle stroke)
     {
         _sb.Append("<line x1=\"").Append(p1.X.ToSvgNumber()).Append("\" y1=\"").Append(p1.Y.ToSvgNumber())
            .Append("\" x2=\"").Append(p2.X.ToSvgNumber()).Append("\" y2=\"").Append(p2.Y.ToSvgNumber())
-           .Append("\" stroke=\"").Append(color.ToHex()).Append("\" stroke-width=\"").Append(thickness.ToSvgNumber()).Append('"');
-        _sb.AppendDashArray(style);
+           .Append("\" stroke=\"").Append(stroke.Color.ToHex()).Append("\" stroke-width=\"").Append(stroke.Thickness.ToSvgNumber()).Append('"');
+        _sb.AppendDashArray(stroke.Style);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
 
     /// <inheritdoc />
-    public void DrawLines(IReadOnlyList<Point> points, Color color, double thickness, LineStyle style)
+    public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke)
     {
         if (points.Count < 2) return;
         _sb.Append("<polyline points=\"");
@@ -82,15 +82,15 @@ public sealed class SvgRenderContext : IRenderContext
             if (i > 0) _sb.Append(' ');
             _sb.Append(points[i].X.ToSvgNumber()).Append(',').Append(points[i].Y.ToSvgNumber());
         }
-        _sb.Append("\" fill=\"none\" stroke=\"").Append(color.ToHex())
-           .Append("\" stroke-width=\"").Append(thickness.ToSvgNumber()).Append('"');
-        _sb.AppendDashArray(style);
+        _sb.Append("\" fill=\"none\" stroke=\"").Append(stroke.Color.ToHex())
+           .Append("\" stroke-width=\"").Append(stroke.Thickness.ToSvgNumber()).Append('"');
+        _sb.AppendDashArray(stroke.Style);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
 
     /// <inheritdoc />
-    public void DrawPolygon(IReadOnlyList<Point> points, Color? fill, Color? stroke, double strokeThickness)
+    public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape)
     {
         _sb.Append("<polygon points=\"");
         for (int i = 0; i < points.Count; i++)
@@ -99,39 +99,39 @@ public sealed class SvgRenderContext : IRenderContext
             _sb.Append(points[i].X.ToSvgNumber()).Append(',').Append(points[i].Y.ToSvgNumber());
         }
         _sb.Append('"');
-        _sb.AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendFillStroke(shape);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
 
     /// <inheritdoc />
-    public void DrawCircle(Point center, double radius, Color? fill, Color? stroke, double strokeThickness)
+    public void DrawCircle(Point center, double radius, ShapeStyle shape)
     {
         _sb.Append("<circle cx=\"").Append(center.X.ToSvgNumber()).Append("\" cy=\"").Append(center.Y.ToSvgNumber())
            .Append("\" r=\"").Append(radius.ToSvgNumber()).Append('"');
-        _sb.AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendFillStroke(shape);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
 
     /// <inheritdoc />
-    public void DrawRectangle(Rect rect, Color? fill, Color? stroke, double strokeThickness)
+    public void DrawRectangle(Rect rect, ShapeStyle shape)
     {
         _sb.Append("<rect x=\"").Append(rect.X.ToSvgNumber()).Append("\" y=\"").Append(rect.Y.ToSvgNumber())
            .Append("\" width=\"").Append(rect.Width.ToSvgNumber()).Append("\" height=\"").Append(rect.Height.ToSvgNumber()).Append('"');
-        _sb.AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendFillStroke(shape);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
 
     /// <inheritdoc />
-    public void DrawEllipse(Rect bounds, Color? fill, Color? stroke, double strokeThickness)
+    public void DrawEllipse(Rect bounds, ShapeStyle shape)
     {
         double cx = bounds.X + bounds.Width / 2;
         double cy = bounds.Y + bounds.Height / 2;
         _sb.Append("<ellipse cx=\"").Append(cx.ToSvgNumber()).Append("\" cy=\"").Append(cy.ToSvgNumber())
            .Append("\" rx=\"").Append((bounds.Width / 2).ToSvgNumber()).Append("\" ry=\"").Append((bounds.Height / 2).ToSvgNumber()).Append('"');
-        _sb.AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendFillStroke(shape);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -223,13 +223,13 @@ public sealed class SvgRenderContext : IRenderContext
     }
 
     /// <inheritdoc />
-    public void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness)
+    public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape)
     {
         _sb.Append("<path d=\"");
         foreach (var seg in segments)
             _sb.Append(seg.ToSvgPathData());
         _sb.Append('"');
-        _sb.AppendFillStroke(fill, stroke, strokeThickness);
+        _sb.AppendFillStroke(shape);
         // Phase G.7 of v1.7.2 follow-on plan — missing flush here caused
         // SetNextElementData pushes to leak across iterations (e.g. Sankey's
         // per-link data-* attributes stacked onto every subsequent node).

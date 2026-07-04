@@ -28,12 +28,12 @@ internal sealed class QuiverKeySeriesRenderer : SeriesRenderer<QuiverKeySeries>
 
         var tail = new Point(px, py);
         var head = new Point(px + arrowPx, py);
-        Ctx.DrawLine(tail, head, color, 1.5, LineStyle.Solid);
+        Ctx.DrawLine(tail, head, new StrokeStyle(color, 1.5, LineStyle.Solid));
 
         // Arrow head (simple triangle)
         double hs = 6; // arrowhead size
-        Ctx.DrawLine(head, new Point(head.X - hs, head.Y - hs / 2), color, 1.5, LineStyle.Solid);
-        Ctx.DrawLine(head, new Point(head.X - hs, head.Y + hs / 2), color, 1.5, LineStyle.Solid);
+        Ctx.DrawLine(head, new Point(head.X - hs, head.Y - hs / 2), new StrokeStyle(color, 1.5, LineStyle.Solid));
+        Ctx.DrawLine(head, new Point(head.X - hs, head.Y + hs / 2), new StrokeStyle(color, 1.5, LineStyle.Solid));
 
         // Label
         var font = new Font { Family = "sans-serif", Size = series.FontSize };

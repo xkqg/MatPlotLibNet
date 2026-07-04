@@ -43,7 +43,7 @@ internal sealed class StepSeriesRenderer : SeriesRenderer<StepSeries>
                 pts.Add(new Point(pxArr[n - 1], pyArr[n - 1]));
                 break;
         }
-        Ctx.DrawLines(pts, color, series.LineWidth, series.LineStyle);
+        Ctx.DrawLines(pts, new StrokeStyle(color, series.LineWidth, series.LineStyle));
     }
 
 }

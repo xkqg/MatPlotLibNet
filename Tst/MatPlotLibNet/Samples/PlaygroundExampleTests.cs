@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Playground;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -219,11 +220,13 @@ public class PlaygroundExampleTests
     // ── Registry sanity ──────────────────────────────────────────────────────
 
     [Fact]
-    public void Examples_Contains_EighteenMembers()
+    public void Examples_Contains_TwentyMembers()
     {
         // Phase L (v1.7.2, 2026-04-21) — AxisBreaks + MinorGrid added (17th and 18th examples)
         // to showcase the refactored DrawBreakSegments + RenderGridLines helpers.
-        Assert.Equal(18, PlaygroundExamples.Examples.Count);
+        // v1.12.0 — DashboardTiles + ThresholdLine added (19th and 20th examples) to showcase
+        // StatTileSeries/StateTimelineSeries and the Threshold + LegendValues conveniences.
+        Assert.Equal(20, PlaygroundExamples.Examples.Count);
     }
 
     [Fact]
@@ -309,6 +312,27 @@ public class PlaygroundExampleTests
         // fail at the dispatcher rather than silently returning a default figure.
         Assert.Throws<ArgumentException>(() =>
             PlaygroundExamples.Build((PlaygroundExample)999, Defaults()));
+    }
+
+    // ── v1.12.0 dashboard examples ───────────────────────────────────────────
+
+    [Fact]
+    public void DashboardTiles_ContainsStatTilesAndStateTimeline()
+    {
+        var (figure, _) = PlaygroundExamples.Build(PlaygroundExample.DashboardTiles, Defaults());
+
+        Assert.Contains(figure.SubPlots, sp => sp.Series.Any(s => s is StatTileSeries));
+        Assert.Contains(figure.SubPlots, sp => sp.Series.Any(s => s is StateTimelineSeries));
+    }
+
+    [Fact]
+    public void ThresholdLine_AddsReferenceLineAndSpan_WithLegendValuesEnabled()
+    {
+        var (figure, _) = PlaygroundExamples.Build(PlaygroundExample.ThresholdLine, Defaults());
+
+        Assert.Single(figure.SubPlots[0].ReferenceLines);
+        Assert.Single(figure.SubPlots[0].Spans);
+        Assert.True(figure.SubPlots[0].Legend.LegendValues);
     }
 
     [Fact]

@@ -152,7 +152,7 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
                     SankeyLinkColorMode.Target => ApplyAlpha(tgtColor, series.LinkAlpha),
                     _ => ApplyAlpha(srcColor, series.LinkAlpha),
                 };
-                Ctx.DrawPath(segments, fillColor, null, 0);
+                Ctx.DrawPath(segments, new ShapeStyle(fillColor, null, 0));
             }
 
             sourceOffsets[link.SourceIndex] += srcBand;
@@ -183,7 +183,7 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
         {
             var color = series.Nodes[i].Color ?? ResolveColor(null);
             Ctx.SetNextElementData("sankey-node-id", i.ToString(culture));
-            Ctx.DrawRectangle(nodeRects[i], color, null, 0);
+            Ctx.DrawRectangle(nodeRects[i], new ShapeStyle(color, null, 0));
 
             string? label = series.Nodes[i].Label;
             if (string.IsNullOrEmpty(label)) continue;

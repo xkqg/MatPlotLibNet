@@ -36,6 +36,14 @@ public sealed class MplStreamingChartElement : SKCanvasElement
         set => SetValue(StreamingFigureProperty, value);
     }
 
+    /// <summary>Initializes a new streaming chart element and wires the <c>Unloaded</c>
+    /// detach hook, so the subscription to <see cref="StreamingFigure.RenderRequested"/> is
+    /// always released even if the element is torn down without its StreamingFigure changing.</summary>
+    public MplStreamingChartElement()
+    {
+        Unloaded += OnUnloaded;
+    }
+
     /// <inheritdoc />
     protected override void RenderOverride(SKCanvas canvas, Windows.Foundation.Size area)
     {
@@ -48,19 +56,30 @@ public sealed class MplStreamingChartElement : SKCanvasElement
 
     private void OnStreamingFigureChanged(StreamingFigure? oldValue, StreamingFigure? newValue)
     {
+        Unsubscribe();
+        if (newValue is not null)
+        {
+            Subscribe(newValue);
+        }
+    }
+
+    private void Subscribe(StreamingFigure sf)
+    {
+        _subscribedFigure = sf;
+        sf.RenderRequested += OnRenderRequested;
+    }
+
+    private void Unsubscribe()
+    {
         if (_subscribedFigure is not null)
         {
             _subscribedFigure.RenderRequested -= OnRenderRequested;
             _subscribedFigure = null;
         }
-
-        if (newValue is not null)
-        {
-            _subscribedFigure = newValue;
-            newValue.RenderRequested += OnRenderRequested;
-        }
     }
 
     private void OnRenderRequested() =>
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, Invalidate);
+
+    private void OnUnloaded(object sender, RoutedEventArgs e) => Unsubscribe();
 }

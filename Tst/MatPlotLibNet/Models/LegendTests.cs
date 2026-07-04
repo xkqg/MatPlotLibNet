@@ -156,4 +156,30 @@ public class LegendTests
         Assert.Equal(LegendPosition.UpperLeft, axes.Legend.Position);
         Assert.Equal(3, axes.Legend.NCols);
     }
+
+    /// <summary>Root-fix regression test: the positional WithLegend(position, visible) overload
+    /// used to replace the whole Legend record (<c>_axes.Legend = new Legend {...}</c>), silently
+    /// discarding EVERY other property set earlier in the chain (not just LegendValues). The fix
+    /// must preserve ALL prior state via `with`-mutation, general across every Legend property.</summary>
+    [Fact]
+    public void AxesBuilder_WithLegend_PositionalOverload_PreservesAllPriorLegendState()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithLegend(l => l with { NCols = 3, Title = "Metrics", FontSize = 11.0 })
+                .WithLegendValues()
+                .WithLegend(LegendPosition.LowerLeft, visible: false))
+            .Build();
+        var legend = figure.SubPlots[0].Legend;
+
+        // Updated by the positional call:
+        Assert.Equal(LegendPosition.LowerLeft, legend.Position);
+        Assert.False(legend.Visible);
+
+        // Preserved from earlier in the chain:
+        Assert.Equal(3, legend.NCols);
+        Assert.Equal("Metrics", legend.Title);
+        Assert.Equal(11.0, legend.FontSize);
+        Assert.True(legend.LegendValues);
+    }
 }

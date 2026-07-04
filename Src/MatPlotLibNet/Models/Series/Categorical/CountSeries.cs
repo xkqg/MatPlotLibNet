@@ -51,6 +51,28 @@ public sealed class CountSeries : ChartSeries, ICategoryLabeled, IHasColor
         BarWidth = BarWidth
     };
 
+    /// <summary>Reconstructs a <see cref="CountSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static CountSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Countplot(dto.Categories ?? []);
+        if (dto.Color.HasValue)
+        {
+            s.Color = dto.Color.Value;
+        }
+        if (dto.BarWidth.HasValue)
+        {
+            s.BarWidth = dto.BarWidth.Value;
+        }
+        if (dto.Orientation is not null && Enum.TryParse<Models.Series.BarOrientation>(dto.Orientation, true, out var ori))
+        {
+            s.Orientation = ori;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

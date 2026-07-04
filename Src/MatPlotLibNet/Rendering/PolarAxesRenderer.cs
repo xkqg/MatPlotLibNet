@@ -18,7 +18,7 @@ public sealed class PolarAxesRenderer : AxesRenderer
     public override void Render()
     {
         var axesBg = Theme.AxesBackground;
-        Ctx.DrawRectangle(PlotArea, axesBg, null, 0);
+        Ctx.DrawRectangle(PlotArea, new ShapeStyle(axesBg, null, 0));
 
         // Determine max R from all polar series
         double rMax = 1;
@@ -48,7 +48,7 @@ public sealed class PolarAxesRenderer : AxesRenderer
             double r = transform.MaxRadius * frac;
             Ctx.DrawEllipse(
                 new Rect(transform.CenterX - r, transform.CenterY - r, r * 2, r * 2),
-                null, gridColor, 0.5);
+                new ShapeStyle(null, gridColor, 0.5));
 
             // Tick label on right side (respects custom formatter if set)
             double tickValue = rMax * frac;
@@ -65,7 +65,7 @@ public sealed class PolarAxesRenderer : AxesRenderer
             var outer = transform.PolarToPixel(rMax, angle);
             Ctx.DrawLine(
                 new Point(transform.CenterX, transform.CenterY),
-                outer, gridColor, 0.5, LineStyle.Solid);
+                outer, new StrokeStyle(gridColor, 0.5, LineStyle.Solid));
 
             // Angle label
             string label = $"{i * 30}\u00b0";

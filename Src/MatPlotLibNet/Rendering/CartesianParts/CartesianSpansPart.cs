@@ -38,13 +38,13 @@ internal sealed class CartesianSpansPart : CartesianAxesPart
                 var topLeft = Transform.DataToPixel(_range.XMin, Math.Max(span.Min, span.Max));
                 var bottomRight = Transform.DataToPixel(_range.XMax, Math.Min(span.Min, span.Max));
                 var rect = new Rect(PlotArea.X, topLeft.Y, PlotArea.Width, bottomRight.Y - topLeft.Y);
-                Ctx.DrawRectangle(rect, spanColor, null, 0);
+                Ctx.DrawRectangle(rect, new ShapeStyle(spanColor, null, 0));
                 if (span.LineStyle != LineStyle.None)
                 {
-                    Ctx.DrawLine(new Point(PlotArea.X, topLeft.Y), new Point(PlotArea.X + PlotArea.Width, topLeft.Y), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(PlotArea.X, bottomRight.Y), new Point(PlotArea.X + PlotArea.Width, bottomRight.Y), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(PlotArea.X, topLeft.Y), new Point(PlotArea.X, bottomRight.Y), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, topLeft.Y), new Point(PlotArea.X + PlotArea.Width, bottomRight.Y), borderColor, span.LineWidth, span.LineStyle);
+                    Ctx.DrawLine(new Point(PlotArea.X, topLeft.Y), new Point(PlotArea.X + PlotArea.Width, topLeft.Y), new StrokeStyle(borderColor, span.LineWidth, span.LineStyle));
+                    Ctx.DrawLine(new Point(PlotArea.X, bottomRight.Y), new Point(PlotArea.X + PlotArea.Width, bottomRight.Y), new StrokeStyle(borderColor, span.LineWidth, span.LineStyle));
+                    Ctx.DrawLine(new Point(PlotArea.X, topLeft.Y), new Point(PlotArea.X, bottomRight.Y), new StrokeStyle(borderColor, span.LineWidth, span.LineStyle));
+                    Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, topLeft.Y), new Point(PlotArea.X + PlotArea.Width, bottomRight.Y), new StrokeStyle(borderColor, span.LineWidth, span.LineStyle));
                 }
                 if (span.Label is not null)
                 {
@@ -57,13 +57,13 @@ internal sealed class CartesianSpansPart : CartesianAxesPart
                 var left = Transform.DataToPixel(Math.Min(span.Min, span.Max), _range.YMax);
                 var right = Transform.DataToPixel(Math.Max(span.Min, span.Max), _range.YMin);
                 var rect = new Rect(left.X, PlotArea.Y, right.X - left.X, PlotArea.Height);
-                Ctx.DrawRectangle(rect, spanColor, null, 0);
+                Ctx.DrawRectangle(rect, new ShapeStyle(spanColor, null, 0));
                 if (span.LineStyle != LineStyle.None)
                 {
-                    Ctx.DrawLine(new Point(left.X, PlotArea.Y), new Point(left.X, PlotArea.Y + PlotArea.Height), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(right.X, PlotArea.Y), new Point(right.X, PlotArea.Y + PlotArea.Height), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(left.X, PlotArea.Y), new Point(right.X, PlotArea.Y), borderColor, span.LineWidth, span.LineStyle);
-                    Ctx.DrawLine(new Point(left.X, PlotArea.Y + PlotArea.Height), new Point(right.X, PlotArea.Y + PlotArea.Height), borderColor, span.LineWidth, span.LineStyle);
+                    Ctx.DrawLine(new Point(left.X, PlotArea.Y), new Point(left.X, PlotArea.Y + PlotArea.Height), new StrokeStyle(borderColor, span.LineWidth, span.LineStyle));
+                    Ctx.DrawLine(new Point(right.X, PlotArea.Y), new Point(right.X, PlotArea.Y + PlotArea.Height), new StrokeStyle(borderColor, span.LineWidth, span.LineStyle));
+                    Ctx.DrawLine(new Point(left.X, PlotArea.Y), new Point(right.X, PlotArea.Y), new StrokeStyle(borderColor, span.LineWidth, span.LineStyle));
+                    Ctx.DrawLine(new Point(left.X, PlotArea.Y + PlotArea.Height), new Point(right.X, PlotArea.Y + PlotArea.Height), new StrokeStyle(borderColor, span.LineWidth, span.LineStyle));
                 }
                 if (span.Label is not null)
                 {

@@ -49,6 +49,13 @@ public sealed class BoxSeries : DatasetSeries, IHasColor
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new() { Type = "box", Datasets = Datasets };
 
+    /// <summary>Reconstructs a <see cref="BoxSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static BoxSeries FromSeriesDto(Axes axes, SeriesDto dto)
+        => axes.BoxPlot(dto.Datasets ?? []);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

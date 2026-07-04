@@ -48,12 +48,12 @@ internal sealed class TableSeriesRenderer : SeriesRenderer<TableSeries>
             double x = plotX;
             if (hasRowHeaders)
             {
-                Ctx.DrawRectangle(new Rect(x, y, colW, rowH), headerColor, borderColor, 1);
+                Ctx.DrawRectangle(new Rect(x, y, colW, rowH), new ShapeStyle(headerColor, borderColor, 1));
                 x += colW;
             }
             for (int c = 0; c < series.ColumnHeaders!.Length && c < cols; c++)
             {
-                Ctx.DrawRectangle(new Rect(x, y, colW, rowH), headerColor, borderColor, 1);
+                Ctx.DrawRectangle(new Rect(x, y, colW, rowH), new ShapeStyle(headerColor, borderColor, 1));
                 Ctx.DrawText(series.ColumnHeaders[c], new Point(x + colW / 2, y + rowH / 2 + cellFont.Size / 3), cellFont, TextAlignment.Center);
                 x += colW;
             }
@@ -67,14 +67,14 @@ internal sealed class TableSeriesRenderer : SeriesRenderer<TableSeries>
             if (hasRowHeaders)
             {
                 string rowLabel = r < series.RowHeaders!.Length ? series.RowHeaders[r] : "";
-                Ctx.DrawRectangle(new Rect(x, y, colW, rowH), headerColor, borderColor, 1);
+                Ctx.DrawRectangle(new Rect(x, y, colW, rowH), new ShapeStyle(headerColor, borderColor, 1));
                 Ctx.DrawText(rowLabel, new Point(x + colW / 2, y + rowH / 2 + cellFont.Size / 3), cellFont, TextAlignment.Center);
                 x += colW;
             }
             for (int c = 0; c < cols; c++)
             {
                 string cell = c < series.CellData[r].Length ? series.CellData[r][c] : "";
-                Ctx.DrawRectangle(new Rect(x, y, colW, rowH), cellColor, borderColor, 1);
+                Ctx.DrawRectangle(new Rect(x, y, colW, rowH), new ShapeStyle(cellColor, borderColor, 1));
                 Ctx.DrawText(cell, new Point(x + series.CellPadding, y + rowH / 2 + cellFont.Size / 3), cellFont, TextAlignment.Left);
                 x += colW;
             }

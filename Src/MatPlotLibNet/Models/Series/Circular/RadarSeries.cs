@@ -44,6 +44,24 @@ public sealed class RadarSeries : ChartSeries, IHasColor, IHasAlpha
         Alpha = Alpha, LineWidth = LineWidth, MaxValue = MaxValue
     };
 
+    /// <summary>Reconstructs a <see cref="RadarSeries"/> from its serialization DTO, including fill colour and max value, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static RadarSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Radar(dto.Categories ?? [], dto.Values ?? []);
+        s.Color = dto.Color;
+        s.FillColor = dto.FillColor;
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        s.LineWidth = dto.LineWidth ?? 2.0;
+        s.MaxValue = dto.MaxValue;
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

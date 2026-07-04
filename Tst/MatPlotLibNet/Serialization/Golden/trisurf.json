@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"trisurf","xData":[0,1,2],"yData":[0,1,2],"zData":[0,1,4]}]}]}

@@ -24,12 +24,12 @@ internal sealed class WaterfallSeriesRenderer : SeriesRenderer<WaterfallSeries>
             var color = value >= 0 ? series.IncreaseColor : series.DecreaseColor;
             var tl = Transform.DataToPixel(i - halfW, Math.Max(top, cumulative));
             var br = Transform.DataToPixel(i + halfW, Math.Min(top, cumulative));
-            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, null, 0);
+            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
             if (i < series.Values.Length - 1)
             {
                 var ls = Transform.DataToPixel(i + halfW, top);
                 var le = Transform.DataToPixel(i + 1 - halfW, top);
-                Ctx.DrawLine(ls, le, Colors.Gray, 0.5, LineStyle.Dashed);
+                Ctx.DrawLine(ls, le, new StrokeStyle(Colors.Gray, 0.5, LineStyle.Dashed));
             }
             cumulative = top;
         }

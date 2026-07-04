@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -48,7 +49,7 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
             var p1 = pixelPositions[u];
             var p2 = pixelPositions[v];
             double thickness = edge.Weight * series.EdgeThicknessScale;
-            Ctx.DrawLine(p1, p2, SeriesColor, thickness, LineStyle.Solid);
+            Ctx.DrawLine(p1, p2, new StrokeStyle(SeriesColor, thickness, LineStyle.Solid));
 
             if (edge.IsDirected)
                 DrawArrowhead(p1, p2, SeriesColor);
@@ -68,7 +69,7 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
             var n = positioned[i];
             double radius = n.SizeScalar * series.NodeRadiusScale;
             var fill = cmap.GetColor(Math.Clamp(n.ColorScalar, 0.0, 1.0));
-            Ctx.DrawCircle(pixelPositions[i], radius, fill, Colors.Black, strokeThickness: 0.5);
+            Ctx.DrawCircle(pixelPositions[i], radius, new ShapeStyle(fill, Colors.Black, 0.5));
 
             if (series.ShowNodeLabels)
             {
@@ -91,6 +92,6 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
         if (len < 1e-9) return;
         double ux = dx / len, uy = dy / len;
         var verts = ArrowHeadBuilder.BuildPolygon(to, ux, uy, ArrowStyle.FancyArrow, ArrowSizePx);
-        if (verts.Count > 0) Ctx.DrawPolygon(verts, color, null, 0.0);
+        if (verts.Count > 0) Ctx.DrawPolygon(verts, new ShapeStyle(color, null, 0.0));
     }
 }

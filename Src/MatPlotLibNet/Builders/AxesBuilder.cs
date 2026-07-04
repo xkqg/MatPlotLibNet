@@ -497,10 +497,14 @@ public sealed class AxesBuilder
         return this;
     }
 
-    /// <summary>Configures the legend display for this axes.</summary>
+    /// <summary>Configures the legend display for this axes. Preserves every other
+    /// <see cref="Legend"/> property already set earlier in the chain (e.g. via
+    /// <see cref="WithLegendValues"/> or the <see cref="WithLegend(Func{Legend, Legend})"/>
+    /// transform overload) — only <see cref="Legend.Visible"/> and <see cref="Legend.Position"/>
+    /// are updated.</summary>
     public AxesBuilder WithLegend(LegendPosition position = LegendPosition.Best, bool visible = true)
     {
-        _axes.Legend = new Legend { Visible = visible, Position = position };
+        _axes.Legend = _axes.Legend with { Visible = visible, Position = position };
         return this;
     }
 
@@ -1594,12 +1598,16 @@ public sealed class AxesBuilder
         return _axes;
     }
 
-    /// <summary>Adds an inset axes at the specified fractional position within this axes.</summary>
-    public AxesBuilder AddInset(double x, double y, double width, double height, Action<AxesBuilder> configure)
+    /// <summary>Adds an inset axes at the specified bounds within this axes and configures it via
+    /// the supplied builder. This is the canonical form; the loose-doubles
+    /// <see cref="AddInset(double,double,double,double,System.Action{AxesBuilder})"/> overload forwards here.</summary>
+    /// <param name="bounds">The fractional position and size of the inset within this axes.</param>
+    /// <param name="configure">Configures the inset's series and axes.</param>
+    public AxesBuilder AddInset(InsetBounds bounds, Action<AxesBuilder> configure)
     {
         var insetBuilder = new AxesBuilder();
         configure(insetBuilder);
-        var inset = _axes.AddInset(x, y, width, height);
+        var inset = _axes.AddInset(bounds);
         // Copy series and configuration from the builder's axes to the inset
         foreach (var series in insetBuilder._axes.Series)
             inset.AddSeries(series);
@@ -1614,6 +1622,11 @@ public sealed class AxesBuilder
         inset.Grid = insetBuilder._axes.Grid;
         return this;
     }
+
+    /// <summary>Adds an inset axes at the specified fractional position within this axes.
+    /// Convenience overload that forwards to <see cref="AddInset(InsetBounds,System.Action{AxesBuilder})"/>.</summary>
+    public AxesBuilder AddInset(double x, double y, double width, double height, Action<AxesBuilder> configure)
+        => AddInset(new InsetBounds(x, y, width, height), configure);
 }
 
 /// <summary>Fluent builder for configuring a secondary Y-axis and adding series that scale against it.</summary>

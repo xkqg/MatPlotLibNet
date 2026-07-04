@@ -69,7 +69,7 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
                 : null;
             double strokeWidth = series.ShowWireframe ? 0.5 : 0;
 
-            Ctx.DrawPolygon(tri.Vertices, fill, stroke, strokeWidth);
+            Ctx.DrawPolygon(tri.Vertices, new ShapeStyle(fill, stroke, strokeWidth));
         }
 
         Ctx.SetOpacity(1.0);

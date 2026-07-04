@@ -17,7 +17,7 @@ public class SetNextElementDataTests
         ctx.SetNextElementData("v3d", "0.1,0.2,0.3");
 
         var pts = new[] { new Point(10, 10), new Point(50, 10), new Point(50, 50), new Point(10, 50) };
-        ctx.DrawPolygon(pts, Color.FromHex("#FF0000"), null, 0);
+        ctx.DrawPolygon(pts, new ShapeStyle(Color.FromHex("#FF0000"), null, 0));
 
         var sb = new System.Text.StringBuilder();
         ctx.WriteTo(sb);
@@ -33,9 +33,9 @@ public class SetNextElementDataTests
         ctx.SetNextElementData("v3d", "test-value");
 
         var pts = new[] { new Point(10, 10), new Point(50, 10), new Point(50, 50) };
-        ctx.DrawPolygon(pts, Color.FromHex("#FF0000"), null, 0);
+        ctx.DrawPolygon(pts, new ShapeStyle(Color.FromHex("#FF0000"), null, 0));
         // Second polygon should NOT have the data attribute
-        ctx.DrawPolygon(pts, Color.FromHex("#0000FF"), null, 0);
+        ctx.DrawPolygon(pts, new ShapeStyle(Color.FromHex("#0000FF"), null, 0));
 
         var sb = new System.Text.StringBuilder();
         ctx.WriteTo(sb);

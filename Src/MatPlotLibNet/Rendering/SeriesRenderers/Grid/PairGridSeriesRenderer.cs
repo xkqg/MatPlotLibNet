@@ -127,7 +127,7 @@ internal sealed class PairGridSeriesRenderer : SeriesRenderer<PairGridSeries>
                 cell.Bottom - h,
                 pixelBinW,
                 h);
-            Ctx.DrawRectangle(barRect, fill, null, 0.0);
+            Ctx.DrawRectangle(barRect, new ShapeStyle(fill, null, 0.0));
         }
     }
 
@@ -172,7 +172,7 @@ internal sealed class PairGridSeriesRenderer : SeriesRenderer<PairGridSeries>
             double py = cell.Bottom - curve.Y[k] / yMax * cell.Height;
             points[k] = new Point(px, py);
         }
-        Ctx.DrawLines(points, color, thickness: 1.5, LineStyle.Solid);
+        Ctx.DrawLines(points, new StrokeStyle(color, 1.5, LineStyle.Solid));
     }
 
     /// <summary>Per-group KDE curves on the diagonal. See note on

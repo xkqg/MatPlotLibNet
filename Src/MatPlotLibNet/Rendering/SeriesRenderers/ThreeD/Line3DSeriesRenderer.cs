@@ -44,7 +44,7 @@ internal sealed class Line3DSeriesRenderer : SeriesRenderer<Line3DSeries>
         segments.Sort((a, b) => a.Depth.CompareTo(b.Depth));
 
         foreach (var seg in segments)
-            Ctx.DrawLine(seg.P1, seg.P2, color, series.LineWidth, series.LineStyle);
+            Ctx.DrawLine(seg.P1, seg.P2, new StrokeStyle(color, series.LineWidth, series.LineStyle));
     }
 
     private readonly record struct DepthSegment(double Depth, Point P1, Point P2);

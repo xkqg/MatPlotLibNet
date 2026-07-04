@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"ohlcbar","open":[10,12],"high":[15,17],"low":[8,10],"close":[13,15],"upColor":"#008000","downColor":"#FF0000","tickWidth":0.3}]}]}

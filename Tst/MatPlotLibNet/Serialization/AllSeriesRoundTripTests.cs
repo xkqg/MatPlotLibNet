@@ -32,6 +32,11 @@ namespace MatPlotLibNet.Tests.Serialization;
 /// Series whose factory is genuinely unimplemented surface as test failures (per the
 /// TDD red→green discipline) — those become <c>[Fact(Skip="…")]</c> follow-up tickets,
 /// not silent passes.</para></summary>
+/// <remarks>Tagged into the <c>ChartSerializerGlobalState</c> collection (see
+/// <see cref="ChartSerializerGlobalStateCollection"/>): this class round-trips through the
+/// process-global <c>SeriesRegistry</c> and must not run concurrently with
+/// <see cref="SeriesRegistryTests"/>, which temporarily mutates the registry table.</remarks>
+[Collection("ChartSerializerGlobalState")]
 public class AllSeriesRoundTripTests
 {
     private static Figure RoundTrip(ISeries series)

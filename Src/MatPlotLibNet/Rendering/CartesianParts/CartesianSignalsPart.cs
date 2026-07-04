@@ -30,7 +30,7 @@ internal sealed class CartesianSignalsPart : CartesianAxesPart
             Point[] triangle = signal.Direction == SignalDirection.Buy
                 ? [new(pt.X, pt.Y + s), new(pt.X - s / 2, pt.Y + s * 2), new(pt.X + s / 2, pt.Y + s * 2)]
                 : [new(pt.X, pt.Y - s), new(pt.X - s / 2, pt.Y - s * 2), new(pt.X + s / 2, pt.Y - s * 2)];
-            Ctx.DrawPolygon(triangle, signalColor, null, 0);
+            Ctx.DrawPolygon(triangle, new ShapeStyle(signalColor, null, 0));
         }
     }
 }

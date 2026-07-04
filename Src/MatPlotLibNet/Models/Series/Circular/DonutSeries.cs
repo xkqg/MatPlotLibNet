@@ -34,6 +34,25 @@ public sealed class DonutSeries : ChartSeries
         StartAngle = StartAngle
     };
 
+    /// <summary>Reconstructs a <see cref="DonutSeries"/> from its serialization DTO, including inner radius and center text, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static DonutSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Donut(dto.Sizes ?? [], dto.PieLabels);
+        if (dto.InnerRadius.HasValue)
+        {
+            s.InnerRadius = dto.InnerRadius.Value;
+        }
+        s.CenterText = dto.CenterText;
+        if (dto.StartAngle.HasValue)
+        {
+            s.StartAngle = dto.StartAngle.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

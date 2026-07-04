@@ -8,7 +8,7 @@ namespace MatPlotLibNet.Models.Series.Streaming;
 
 /// <summary>Abstract base for XY streaming series backed by twin <see cref="DoubleRingBuffer"/> instances.
 /// Subclasses provide visual properties and visitor dispatch.</summary>
-public abstract class StreamingSeriesBase : ChartSeries, IStreamingSeries
+public abstract class StreamingSeries : ChartSeries, IStreamingSeries
 {
     private readonly DoubleRingBuffer _xBuffer;
     private readonly DoubleRingBuffer _yBuffer;
@@ -25,7 +25,7 @@ public abstract class StreamingSeriesBase : ChartSeries, IStreamingSeries
 
     /// <summary>Initializes a new streaming series with the specified buffer capacity.</summary>
     /// <param name="capacity">Maximum number of data points retained. Oldest are evicted when exceeded.</param>
-    protected StreamingSeriesBase(int capacity)
+    protected StreamingSeries(int capacity)
     {
         Capacity = capacity;
         _xBuffer = new DoubleRingBuffer(capacity);

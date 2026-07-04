@@ -8,31 +8,37 @@ namespace MatPlotLibNet.Geo.Projections;
 public sealed class EqualEarth : IGeoProjection
 {
     private const double A1 = 1.340264, A2 = -0.081106, A3 = 0.000893, A4 = 0.003796;
-    private const double M = 0.7071067811865476; // sqrt(3) / 2 ... actually sin(π/4)
+    private const double M = 0.8660254037844386; // sqrt(3) / 2
 
     public string Name => "EqualEarth";
 
-    public (double X, double Y) Forward(double latitude, double longitude)
+    public ProjectedPoint Forward(double latitude, double longitude)
     {
-        double phi = latitude * Math.PI / 180.0;
+        double phi = latitude.ToRadians();
+        double lam = longitude.ToRadians();
         double theta = Math.Asin(M * Math.Sin(phi));
         double t2 = theta * theta, t6 = t2 * t2 * t2;
-        double d = theta * (A1 + 3 * A2 * t2 + t6 * (7 * A3 + 9 * A4 * t2));
-        double x = longitude * Math.Cos(theta) / (M * (A1 + 3 * A2 * t2 + t6 * (7 * A3 + 9 * A4 * t2)));
-        double y = d * 180.0 / Math.PI;
-        x *= 180.0 / Math.PI * longitude / (longitude == 0 ? 1 : longitude); // normalize
-        return (longitude * Math.Cos(theta) * 180.0 / Math.PI / M / (A1 + 3 * A2 * t2 + t6 * (7 * A3 + 9 * A4 * t2)) * Math.PI / 180.0 * longitude, y);
+
+        // y = θ(A1 + A2θ² + A3θ⁶ + A4θ⁸)  (Šavrič, Patterson, Jenny 2018)
+        double py = A1 + A2 * t2 + A3 * t6 + A4 * t6 * t2;
+        double y = (theta * py).ToDegrees();
+
+        // x = 2√3·λ·cos(θ) / [3·(A1 + 3A2θ² + 7A3θ⁶ + 9A4θ⁸)]
+        double pd = A1 + 3 * A2 * t2 + 7 * A3 * t6 + 9 * A4 * t6 * t2;
+        double x = (2 * Math.Sqrt(3) * lam * Math.Cos(theta) / (3 * pd)).ToDegrees();
+
+        return new(x, y);
     }
 
-    public (double Lat, double Lon)? Inverse(double x, double y) => null;
+    public GeoCoordinate? Inverse(double x, double y) => null;
 
-    public (double XMin, double XMax, double YMin, double YMax) Bounds
+    public GeoBounds Bounds
     {
         get
         {
             var (xMax, _) = Forward(0, 180);
             var (_, yMax) = Forward(90, 0);
-            return (-xMax, xMax, -yMax, yMax);
+            return new(-xMax, xMax, -yMax, yMax);
         }
     }
 }

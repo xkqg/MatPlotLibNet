@@ -6,7 +6,7 @@ using MatPlotLibNet.Models.Series.Streaming;
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming MACD (Moving Average Convergence Divergence). Three outputs: MACD line, signal, histogram.</summary>
-public sealed class StreamingMacd : StreamingIndicatorBase
+public sealed class StreamingMacd : StreamingIndicator
 {
     private readonly int _fastPeriod;
     private readonly int _slowPeriod;

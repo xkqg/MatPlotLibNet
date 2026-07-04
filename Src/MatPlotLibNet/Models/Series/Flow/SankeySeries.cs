@@ -95,6 +95,13 @@ public sealed class SankeySeries : ChartSeries
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new() { Type = "sankey" };
 
+    /// <summary>Reconstructs a <see cref="SankeySeries"/> placeholder from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static SankeySeries FromSeriesDto(Axes axes, SeriesDto dto)
+        => axes.Sankey([new SankeyNode("A")], []);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

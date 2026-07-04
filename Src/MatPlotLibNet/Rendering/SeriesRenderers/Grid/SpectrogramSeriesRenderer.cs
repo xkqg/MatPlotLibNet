@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -37,7 +38,7 @@ internal sealed class SpectrogramSeriesRenderer : SeriesRenderer<SpectrogramSeri
             double freq0 = b * df, freq1 = freq0 + df;
             var tl = Transform.DataToPixel(t0, freq1);
             var br = Transform.DataToPixel(t1, freq0);
-            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, null, 0);
+            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
         }
     }
 }

@@ -68,6 +68,36 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
         CellValueColor = CellValueColor,
     };
 
+    /// <summary>Reconstructs a <see cref="HeatmapSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static HeatmapSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var hs = axes.Heatmap(ChartSerializer.From2DList(dto.HeatmapData));
+        if (dto.ColorMapName is not null)
+        {
+            hs.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        }
+        if (dto.ShowLabels.HasValue)
+        {
+            hs.ShowLabels = dto.ShowLabels.Value;
+        }
+        if (dto.LabelFormat is not null)
+        {
+            hs.LabelFormat = dto.LabelFormat;
+        }
+        if (dto.MaskMode is not null && Enum.TryParse<Models.Series.HeatmapMaskMode>(dto.MaskMode, true, out var mm))
+        {
+            hs.MaskMode = mm;
+        }
+        if (dto.CellValueColor.HasValue)
+        {
+            hs.CellValueColor = dto.CellValueColor.Value;
+        }
+        return hs;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

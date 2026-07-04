@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -28,7 +29,7 @@ internal sealed class EventplotSeriesRenderer : SeriesRenderer<EventplotSeries>
             {
                 var bottom = Transform.DataToPixel(pos, i - halfLen);
                 var top = Transform.DataToPixel(pos, i + halfLen);
-                Ctx.DrawLine(bottom, top, color, series.LineWidth, Styling.LineStyle.Solid);
+                Ctx.DrawLine(bottom, top, new StrokeStyle(color, series.LineWidth, Styling.LineStyle.Solid));
             }
         }
     }

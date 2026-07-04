@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Blazor.Tests.Infrastructure;
 using MatPlotLibNet.Models;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace MatPlotLibNet.Blazor.Tests;
 
@@ -83,5 +84,68 @@ public class ChartSubscriptionClientHubTests : IClassFixture<StreamingHostFixtur
         await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
         Assert.True(client.IsConnected);
         await client.DisposeAsync();
+    }
+
+    /// <summary>BUG B1(a) repro (council-main-a5fe781-20260704.stap3.md, blocking #1) —
+    /// a second ConnectAsync call must dispose the prior HubConnection before building
+    /// a new one. Pre-fix, the prior hub was silently overwritten and orphaned — kept
+    /// alive forever by WithAutomaticReconnect (zombie reconnect loop). Uses the
+    /// internal hub-factory seam (drives the real ConnectAsync flow against the real
+    /// hub fixture; only the returned HubConnection references are captured for
+    /// post-hoc inspection, production logic is untouched).</summary>
+    [Fact]
+    public async Task ConnectAsync_CalledTwice_DisposesPriorConnection()
+    {
+        var builtHubs = new List<HubConnection>();
+        await using var client = new ChartSubscriptionClient(
+            hubUrl =>
+            {
+                var hub = ChartSubscriptionClient.BuildHubConnection(hubUrl);
+                builtHubs.Add(hub);
+                return hub;
+            },
+            ChartSubscriptionClient.RegisterHandler);
+
+        await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
+        await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, builtHubs.Count);
+        Assert.Equal(HubConnectionState.Disconnected, builtHubs[0].State);
+        Assert.Equal(HubConnectionState.Connected, builtHubs[1].State);
+    }
+
+    /// <summary>BUG B1(b) repro — the IDisposable tokens returned by hub.On(...) must be
+    /// disposed (unregistered) rather than discarded. Pre-fix, ConnectAsync's two
+    /// `_hub.On&lt;string,string&gt;(...)` return values were never captured, so a
+    /// handler could never be unregistered short of disposing the whole hub. Uses the
+    /// internal handler-registration seam to wrap (not replace) the real token so the
+    /// real ConnectAsync/DisposeAsync flow still runs unchanged.</summary>
+    [Fact]
+    public async Task DisposeAsync_DisposesSubscriptionTokens()
+    {
+        var disposedCount = 0;
+        var client = new ChartSubscriptionClient(
+            ChartSubscriptionClient.BuildHubConnection,
+            (hub, methodName, handler) =>
+            {
+                var real = ChartSubscriptionClient.RegisterHandler(hub, methodName, handler);
+                return new SpyDisposable(real, () => disposedCount++);
+            });
+
+        await client.ConnectAsync(_fixture.HubUrl, TestContext.Current.CancellationToken);
+        await client.DisposeAsync();
+
+        Assert.Equal(2, disposedCount);
+    }
+
+    /// <summary>Wraps a real IDisposable token so tests can observe Dispose() calls
+    /// without altering the underlying (real) unregister behavior.</summary>
+    private sealed class SpyDisposable(IDisposable inner, Action onDisposed) : IDisposable
+    {
+        public void Dispose()
+        {
+            inner.Dispose();
+            onDisposed();
+        }
     }
 }

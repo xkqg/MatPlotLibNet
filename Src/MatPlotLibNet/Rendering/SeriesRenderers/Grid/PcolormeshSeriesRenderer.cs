@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -26,7 +27,7 @@ internal sealed class PcolormeshSeriesRenderer : SeriesRenderer<PcolormeshSeries
             var color = cmap.GetColor(norm.Normalize(series.C[r, c], min, max));
             var tl = Transform.DataToPixel(series.X[c], series.Y[r + 1]);
             var br = Transform.DataToPixel(series.X[c + 1], series.Y[r]);
-            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, null, 0);
+            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
         }
     }
 }

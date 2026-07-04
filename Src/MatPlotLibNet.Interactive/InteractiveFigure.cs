@@ -6,7 +6,7 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Interactive;
 
-/// <summary>Handle returned by <see cref="InteractiveExtensions.Show"/> for pushing updates to a displayed chart.</summary>
+/// <summary>Handle returned by <see cref="InteractiveExtensions.ShowAsync"/> for pushing updates to a displayed chart.</summary>
 public sealed class InteractiveFigure
 {
     /// <summary>Gets the chart identifier used for SignalR subscription.</summary>
@@ -24,22 +24,28 @@ public sealed class InteractiveFigure
     /// <summary>Pushes the current state of the figure to the browser via SignalR.</summary>
     public async Task UpdateAsync()
     {
-        await ChartServer.Instance.UpdateFigureAsync(ChartId, Figure);
+        await ChartServer.Instance.UpdateFigureAsync(ChartId, Figure).ConfigureAwait(false);
     }
 
     /// <summary>Plays an animation using the legacy AnimationBuilder (backward compatible).</summary>
     public async Task AnimateAsync(AnimationBuilder animation, CancellationToken ct = default)
     {
         var adapter = new LegacyAnimationAdapter(animation);
-        await using var controller = new AnimationController<int>(adapter, PublishFrame);
-        await controller.PlayAsync(ct);
+        var controller = new AnimationController<int>(adapter, PublishFrame);
+        await using (controller.ConfigureAwait(false))
+        {
+            await controller.PlayAsync(ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Plays a generic stateful animation, pushing each frame via SignalR.</summary>
     public async Task AnimateAsync<TState>(IAnimation<TState> animation, CancellationToken ct = default)
     {
-        await using var controller = new AnimationController<TState>(animation, PublishFrame);
-        await controller.PlayAsync(ct);
+        var controller = new AnimationController<TState>(animation, PublishFrame);
+        await using (controller.ConfigureAwait(false))
+        {
+            await controller.PlayAsync(ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Creates an animation controller for manual playback control (pause/resume/stop).</summary>

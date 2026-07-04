@@ -62,7 +62,7 @@ internal sealed class CartesianSecondaryXAxisPart : CartesianAxesPart
             var pt = secXTransform.DataToPixel(tick, _secRange.YMax);
             Ctx.DrawLine(new Point(pt.X, PlotArea.Y),
                 new Point(pt.X, PlotArea.Y - 5),
-                Theme.ForegroundText, 1, LineStyle.Solid);
+                new StrokeStyle(Theme.ForegroundText, 1, LineStyle.Solid));
             Ctx.DrawText(Axes.SecondaryXAxis!.TickFormatter?.Format(tick) ?? secXUniformFormat(tick),
                 new Point(pt.X, PlotArea.Y - 8),
                 tickFont, TextAlignment.Center);

@@ -37,6 +37,17 @@ public abstract class FidelityTest
     protected static string FixtureSubdir(Theme theme) =>
         theme.Name == "matplotlib-v2" ? "v2" : "classic";
 
+    /// <summary>
+    /// True if the named matplotlib reference fixture exists on disk for the given theme's style
+    /// subdir. Used by tests whose fixture requires an external, non-hermetic generator dependency
+    /// (e.g. cartopy, which needs system-level GEOS/PROJ libraries and is not pip-installable the
+    /// same way as the rest of <c>tools/mpl_reference/requirements.txt</c>) that may not be present
+    /// in the current environment — those tests dynamically skip via <see cref="Assert.Skip"/> when
+    /// the fixture is absent instead of failing on a missing external test input.
+    /// </summary>
+    protected static bool FixtureExists(Theme theme, string fixtureName) =>
+        File.Exists(Path.Combine(FixtureRoot, FixtureSubdir(theme), $"{fixtureName}.png"));
+
     /// <summary>Helper for [Theory] tests — maps the inline theme id to the actual Theme instance.</summary>
     protected static Theme ResolveTheme(string themeId) => themeId switch
     {

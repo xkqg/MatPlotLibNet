@@ -22,7 +22,7 @@ internal sealed class PolarScatterSeriesRenderer : PolarTransformRenderer<PolarS
         for (int i = 0; i < series.R.Length; i++)
         {
             var pt = transform.PolarToPixel(series.R[i], series.Theta[i]);
-            Ctx.DrawCircle(pt, series.MarkerSize / 2, color, null, 0);
+            Ctx.DrawCircle(pt, series.MarkerSize / 2, new ShapeStyle(color, null, 0));
         }
     }
 }

@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.10.0)
+# MatPlotLibNet Core -- Architecture (v1.13.0)
 
 ## Package dependency graph
 
@@ -58,7 +58,9 @@ MatPlotLibNet/
     ReferenceLine.cs                  horizontal/vertical reference line (AxHLine, AxVLine)
     SpanRegion.cs                     shaded horizontal/vertical region (AxHSpan, AxVSpan)
     GridSpec.cs                       unequal subplot layout: Rows, Cols, HeightRatios, WidthRatios
-    InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates)
+    InsetBounds.cs                    inset position: X, Y, Width, Height (axes-fraction coordinates);
+                                      canonical form for Axes.AddInset / AxesBuilder.AddInset — the
+                                      double-argument overloads forward here (v1.13.0)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
 
     Series/                           81 series types across 15 families
@@ -250,7 +252,10 @@ MatPlotLibNet/
                                         internal helpers (Phase L): RenderGridLines(Orientation,…), RenderAxisTicks(…)+TickDrawContext, DrawBreakSegments(Orientation,BreakStyle,…)
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
-    IRenderContext.cs                  drawing primitives: DrawLine, DrawRect, DrawText, DrawText(…,rotation), DrawRichText (default method)
+    IRenderContext.cs                  drawing primitives: DrawLine/DrawRect/etc. take StrokeStyle(Color,Thickness,Style)
+                                        / ShapeStyle(Fill,Stroke,StrokeThickness) records (v1.13.0, was loose params —
+                                        centralizes the Thickness<=0 visibility guard across every backend);
+                                        DrawText, DrawText(…,rotation), DrawRichText (default method)
     ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 81 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
@@ -312,9 +317,8 @@ MatPlotLibNet/
       Grid/                             Heatmap, Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill), Clustermap (composite: heatmap + row/column dendrograms with sub-pixel-suppressed margin panels), PairGrid (composite: N×N matrix of histograms/KDE on diagonal + scatters/hexbin off-diagonal, optional hue grouping)
                                         PairGridLayout.cs — pure geometry: ComputeCellRects(plotBounds, n, cellSpacing) → Rect[n,n]; MinPanelPx sub-pixel gate
                                         PairGridOffDiagonalPainters.cs — IPairGridOffDiagonalPainter strategy + ScatterOffDiagonalPainter / HexbinOffDiagonalPainter / Registry; PairGridGeometry (MapPoint, ComputeAxisSpan); PairGridHue (IsValid, BuildCache, GetColor)
-      Graph/                            NetworkGraph (composite: nodes + edges in 2D, directed-edge arrowheads, optional weight labels)
-                                        NetworkGraphLayouts.cs — pure-function layouts: ApplyManual (pass-through), ApplyCircular (unit-circle evenly-spaced), ApplyHierarchical (BFS top-down with cycle handling), ApplyForceDirected (Fruchterman–Reingold spring-embedder with seeded RNG via NpRandom + temperature cooling + optional convergence-threshold early-stop); Apply(kind, seed, iterations, threshold) enum dispatch
-      Distribution/                     Box, Violin, Kde (GaussianKde Silverman bandwidth), Rugplot (tick marks), Stripplot (jittered points), Swarmplot (BeeswarmLayout circle-packing)
+      Graph/                            NetworkGraph (composite: nodes + edges in 2D, directed-edge arrowheads, optional weight labels; layout delegated to Numerics/NetworkGraphLayouts.cs)
+      Distribution/                     Box, Violin, Kde (density math delegated to Numerics/GaussianKde.cs — Silverman bandwidth), Rugplot (tick marks), Stripplot (jittered points), Swarmplot (BeeswarmLayout circle-packing)
       Financial/                        Candlestick, OhlcBar
       Polar/                            PolarTransformRenderer<TSeries> (abstract base: PrepareTransform → rMax + PolarTransform); PolarLine, PolarScatter, PolarBar
       Field/                            Quiver, Stem, Streamplot, QuiverKey (reference arrow), Barbs (meteorological wind barbs)
@@ -359,17 +363,31 @@ MatPlotLibNet/
     MinMaxRange.cs                    public readonly record struct MinMaxRange(Min, Max) + MinMaxRangeExtensions.ScanColorBarRange(this double[,]) — inclusive numeric interval
     MatShape.cs                       public readonly record struct MatShape(Rows, Cols) — 2-D dimensions
     XYCurve.cs                        public readonly record struct XYCurve(X, Y) — paired sample arrays (spline / KDE results)
+    GaussianKde.cs                    internal static: SilvermanBandwidth(sorted), Evaluate(sorted, bandwidth, numPoints) → XYCurve (moved from Rendering/SeriesRenderers/Distribution/ — K3 namespace-cycle kill)
+    NetworkGraphLayouts.cs            internal static: pure-function layouts ApplyManual/ApplyCircular/ApplyHierarchical/ApplyForceDirected + Apply(kind, seed, iterations, threshold) dispatch (moved from Rendering/SeriesRenderers/Graph/ — K3 namespace-cycle kill)
 
     SeriesRenderers/Distribution/
     BeeswarmLayout.cs                 internal static: Compute(sortedValues, markerRadius, categoryCenter, pixelScale) — greedy circle-packing, cap 1000 pts, jitter fallback
     SortedArrayExtensions.cs          internal extensions on double[]: Percentile(p), BisectLeft(v), BisectRight(v) — used by Box / Violin / ECDF (v1.8.0: renamed from MathHelpers)
-    GaussianKde.cs                    internal static: SilvermanBandwidth(sorted), Evaluate(sorted, bandwidth, numPoints) → XYCurve
 
   Serialization/
     IChartSerializer.cs               interface: ToJson(Figure), FromJson(string)
-    ChartSerializer.cs                System.Text.Json round-trip — delegates to ISeriesSerializable per series
-    SeriesRegistry.cs                 ConcurrentDictionary-based type registry for deserialization
-                                      (series register themselves; no central switch statement)
+    ChartSerializer.cs                System.Text.Json round-trip — ToSeriesDto() serializes; per-series static
+                                      FromSeriesDto(Axes, SeriesDto) factory deserializes (Information Expert;
+                                      v1.13.0: no central switch on either side; 1454 -> 888 lines)
+    SeriesRegistry.cs                 ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>> mapping each
+                                      discriminator to the series' own FromSeriesDto factory; thin 76-line table
+                                      only, no series-specific logic (v1.13.0: cyclomatic complexity 173 -> 1).
+                                      ResetForTests is an [Obsolete] public shim; real reset is internal
+                                      ResetForTestsInternal (InternalsVisibleTo)
+
+  Diagnostics/
+    ChartDiagnostics.cs                new v1.13.0: process-wide diagnostic event bus — static event Emitted +
+                                      Emit(ChartDiagnostic); ChartDiagnostic readonly record struct(Source, Message,
+                                      Exception?) defined in the same file. Library-wide observability seam for
+                                      degraded-but-non-throwing paths (regression fit failure, unknown deserialize
+                                      discriminator, ChartSubscriptionClient teardown races) — emitting never
+                                      changes default behavior
 
   Styling/
     RcParamKeys.cs                    static constants for all supported rcParams keys
@@ -521,9 +539,9 @@ ChartHub               routes to SignalR group by chartId
 | Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D) | multiple output targets and coordinate systems from same model |
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
-| Self-serialization | ISeriesSerializable on all 81 series | each series knows how to serialize itself (no central switch) |
+| Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 81 series | each series knows how to serialize AND deserialize itself (v1.13.0: no central switch on either side) |
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
-| Registry | SeriesRegistry (ConcurrentDictionary) | thread-safe deserialization type lookup |
+| Registry | SeriesRegistry (ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>>) | thread-safe discriminator -> series' own FromSeriesDto factory lookup; thin table only |
 | Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries; CircularRenderer<T>, PolarTransformRenderer<T>, OhlcStreamingIndicatorTests<T> (Phase L) | DRY shared properties and behaviour across series and renderer families |
 | Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable, IHasColor, IHasAlpha, IHasEdgeColor, ILabelable | narrow contracts for cross-cutting concerns |
 | DI interfaces | IFigureTransform, IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |

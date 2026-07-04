@@ -49,6 +49,44 @@ public sealed class VoxelSeries : ChartSeries, IHasColor, IHasAlpha
         Label = Label
     };
 
+    /// <summary>Reconstructs a <see cref="VoxelSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static VoxelSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var filled = VoxelDataToArray(dto.VoxelData);
+        var s = axes.Voxels(filled);
+        if (dto.Color.HasValue)
+        {
+            s.Color = dto.Color.Value;
+        }
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        return s;
+    }
+
+    /// <summary>Converts a nested boolean list from JSON back to a rectangular 3D mask array.</summary>
+    private static bool[,,] VoxelDataToArray(List<List<List<bool>>>? data)
+    {
+        if (data is null || data.Count == 0)
+            return new bool[1, 1, 1];
+
+        int xDim = data.Count;
+        int yDim = data[0].Count;
+        int zDim = yDim > 0 ? data[0][0].Count : 0;
+
+        var result = new bool[xDim, yDim, zDim];
+        for (int x = 0; x < xDim; x++)
+            for (int y = 0; y < yDim; y++)
+                for (int z = 0; z < zDim; z++)
+                    result[x, y, z] = data[x][y][z];
+
+        return result;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 

@@ -201,14 +201,14 @@ public class SeriesRendererBaseTests
     private sealed class RecordingRenderContext : IRenderContext
     {
         public List<string> Calls { get; } = new();
-        public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style) => Calls.Add(nameof(DrawLine));
-        public void DrawLines(IReadOnlyList<Point> points, Color color, double thickness, LineStyle style) => Calls.Add(nameof(DrawLines));
-        public void DrawPolygon(IReadOnlyList<Point> points, Color? fill, Color? stroke, double strokeThickness) => Calls.Add(nameof(DrawPolygon));
-        public void DrawCircle(Point center, double radius, Color? fill, Color? stroke, double strokeThickness) => Calls.Add(nameof(DrawCircle));
-        public void DrawRectangle(Rect rect, Color? fill, Color? stroke, double strokeThickness) => Calls.Add(nameof(DrawRectangle));
-        public void DrawEllipse(Rect bounds, Color? fill, Color? stroke, double strokeThickness) => Calls.Add(nameof(DrawEllipse));
+        public void DrawLine(Point p1, Point p2, StrokeStyle stroke) => Calls.Add(nameof(DrawLine));
+        public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke) => Calls.Add(nameof(DrawLines));
+        public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape) => Calls.Add(nameof(DrawPolygon));
+        public void DrawCircle(Point center, double radius, ShapeStyle shape) => Calls.Add(nameof(DrawCircle));
+        public void DrawRectangle(Rect rect, ShapeStyle shape) => Calls.Add(nameof(DrawRectangle));
+        public void DrawEllipse(Rect bounds, ShapeStyle shape) => Calls.Add(nameof(DrawEllipse));
         public void DrawText(string text, Point position, Font font, TextAlignment alignment) => Calls.Add(nameof(DrawText));
-        public void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness) => Calls.Add(nameof(DrawPath));
+        public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape) => Calls.Add(nameof(DrawPath));
         public void PushClip(Rect clipRect) => Calls.Add(nameof(PushClip));
         public void PopClip() => Calls.Add(nameof(PopClip));
         public Size MeasureText(string text, Font font) => new(text.Length * font.Size * 0.6, font.Size);

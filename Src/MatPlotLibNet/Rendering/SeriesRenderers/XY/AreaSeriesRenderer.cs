@@ -59,11 +59,11 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
             for (int i = pxX.Length - 1; i >= 0; i--) polygon.Add(new Point(pxX[i], pyZero));
         }
 
-        Ctx.DrawPolygon(polygon, fillColor, null, 0);
+        Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0));
 
         // Draw boundary with EdgeColor override if set
         var edgeColor = series.EdgeColor ?? color;
-        Ctx.DrawLines(new List<Point>(topPts), edgeColor, series.LineWidth, series.LineStyle);
+        Ctx.DrawLines(new List<Point>(topPts), new StrokeStyle(edgeColor, series.LineWidth, series.LineStyle));
     }
 
     /// <summary>Renders the area with a Where predicate, splitting into contiguous fill segments.</summary>
@@ -96,7 +96,7 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
         // Always draw the full top-edge line (unmasked) so the boundary is continuous
         var allTopPts = Transform.TransformBatch(top.X, top.Y);
         var edgeColor = series.EdgeColor ?? color;
-        Ctx.DrawLines(new List<Point>(allTopPts), edgeColor, series.LineWidth, series.LineStyle);
+        Ctx.DrawLines(new List<Point>(allTopPts), new StrokeStyle(edgeColor, series.LineWidth, series.LineStyle));
     }
 
     /// <summary>Renders a single contiguous fill segment from index <paramref name="start"/> to <paramref name="end"/> (inclusive).</summary>
@@ -126,7 +126,7 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
             for (int i = pxX.Length - 1; i >= 0; i--) polygon.Add(new Point(pxX[i], pyZero));
         }
 
-        Ctx.DrawPolygon(polygon, fillColor, null, 0);
+        Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0));
     }
 
 }

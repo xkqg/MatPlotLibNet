@@ -62,6 +62,13 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
         XData = XData, YData = YData, HeatmapData = ChartSerializer.To2DList(ZData)
     };
 
+    /// <summary>Reconstructs a <see cref="ContourSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static ContourSeries FromSeriesDto(Axes axes, SeriesDto dto)
+        => axes.Contour(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData));
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

@@ -7,32 +7,30 @@ namespace MatPlotLibNet.Geo.Projections;
 /// Preserves area but distorts shapes, especially near the edges.</summary>
 public sealed class Mollweide : IGeoProjection
 {
-    private const double DegToRad = Math.PI / 180.0;
-    private const double RadToDeg = 180.0 / Math.PI;
     private const double R = 1.0;
     private const double Sqrt2 = 1.4142135623730951;
 
     public string Name => "Mollweide";
 
-    public (double X, double Y) Forward(double latitude, double longitude)
+    public ProjectedPoint Forward(double latitude, double longitude)
     {
-        double phi = latitude * DegToRad;
-        double lam = longitude * DegToRad;
+        double phi = latitude.ToRadians();
+        double lam = longitude.ToRadians();
         double theta = SolveTheta(phi);
-        double x = R * 2 * Sqrt2 / Math.PI * lam * Math.Cos(theta) * RadToDeg;
-        double y = R * Sqrt2 * Math.Sin(theta) * RadToDeg;
-        return (x, y);
+        double x = (R * 2 * Sqrt2 / Math.PI * lam * Math.Cos(theta)).ToDegrees();
+        double y = (R * Sqrt2 * Math.Sin(theta)).ToDegrees();
+        return new(x, y);
     }
 
-    public (double Lat, double Lon)? Inverse(double x, double y) => null;
+    public GeoCoordinate? Inverse(double x, double y) => null;
 
-    public (double XMin, double XMax, double YMin, double YMax) Bounds
+    public GeoBounds Bounds
     {
         get
         {
             var (xMax, _) = Forward(0, 180);
             var (_, yMax) = Forward(90, 0);
-            return (-xMax, xMax, -yMax, yMax);
+            return new(-xMax, xMax, -yMax, yMax);
         }
     }
 

@@ -34,7 +34,7 @@ internal sealed class StateTimelineSeriesRenderer : SeriesRenderer<StateTimeline
             double h = yBottom - yTop;
 
             // Draw the filled rectangle spanning the full plot height
-            Ctx.DrawRectangle(new Rect(x, y, w, h), seg.Color, null, 0);
+            Ctx.DrawRectangle(new Rect(x, y, w, h), new ShapeStyle(seg.Color, null, 0));
 
             // Centre the label text inside the rectangle
             if (!string.IsNullOrEmpty(seg.Label))

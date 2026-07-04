@@ -30,7 +30,7 @@ internal sealed class HeatmapSeriesRenderer : SeriesRenderer<HeatmapSeries>
             var color = cmap.GetColor(norm.Normalize(series.Data[r, c], min, max));
             double x = Area.PlotBounds.X + c * cellW;
             double y = Area.PlotBounds.Y + r * cellH;
-            Ctx.DrawRectangle(new Rect(x, y, cellW, cellH), color, null, 0);
+            Ctx.DrawRectangle(new Rect(x, y, cellW, cellH), new ShapeStyle(color, null, 0));
 
             if (!series.ShowLabels) continue;
 

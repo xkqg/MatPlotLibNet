@@ -73,7 +73,7 @@ internal sealed class VoxelSeriesRenderer : SeriesRenderer<VoxelSeries>
             foreach (var face in faces)
             {
                 var vLocal = face.Vertices; var fLocal = face.Fill; var sLocal = strokeColor;
-                queue.Add(face.Depth, () => Ctx.DrawPolygon(vLocal, fLocal, sLocal, 0.5));
+                queue.Add(face.Depth, () => Ctx.DrawPolygon(vLocal, new ShapeStyle(fLocal, sLocal, 0.5)));
             }
         }
         else
@@ -81,7 +81,7 @@ internal sealed class VoxelSeriesRenderer : SeriesRenderer<VoxelSeries>
             // Sort back-to-front (painter's algorithm)
             faces.Sort((a, b) => a.Depth.CompareTo(b.Depth));
             foreach (var face in faces)
-                Ctx.DrawPolygon(face.Vertices, face.Fill, strokeColor, 0.5);
+                Ctx.DrawPolygon(face.Vertices, new ShapeStyle(face.Fill, strokeColor, 0.5));
         }
 
         Ctx.SetOpacity(1.0);

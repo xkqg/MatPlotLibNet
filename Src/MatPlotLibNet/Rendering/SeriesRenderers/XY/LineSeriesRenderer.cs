@@ -29,7 +29,7 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
             (drawX, drawY) = MonotoneCubicSpline.Interpolate(drawX, drawY, series.SmoothResolution);
 
         Point[] points = Transform.TransformBatch(drawX, drawY);
-        Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);
+        Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, series.LineStyle));
 
         if (series.Marker is not null && series.Marker != MarkerStyle.None)
         {

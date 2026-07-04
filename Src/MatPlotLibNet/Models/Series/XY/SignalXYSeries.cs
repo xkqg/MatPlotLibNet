@@ -72,6 +72,25 @@ public sealed class SignalXYSeries : XYSeries, XY.IMonotonicXY, IHasColor
         Color = Color
     };
 
+    /// <summary>Reconstructs a <see cref="SignalXYSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static SignalXYSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.SignalXY(dto.XData ?? [], dto.YData ?? []);
+        s.Color = dto.Color;
+        if (dto.LineWidth.HasValue)
+        {
+            s.LineWidth = dto.LineWidth.Value;
+        }
+        if (dto.LineStyle is not null && Enum.TryParse<LineStyle>(dto.LineStyle, true, out var ls))
+        {
+            s.LineStyle = ls;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

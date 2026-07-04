@@ -17,6 +17,13 @@ public sealed class TreemapSeries : HierarchicalSeries
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new() { Type = "treemap" };
 
+    /// <summary>Reconstructs a <see cref="TreemapSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static TreemapSeries FromSeriesDto(Axes axes, SeriesDto dto)
+        => axes.Treemap(new TreeNode { Label = "Root" });
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

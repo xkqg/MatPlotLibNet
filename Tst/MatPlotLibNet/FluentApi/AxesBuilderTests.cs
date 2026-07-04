@@ -425,6 +425,22 @@ public class AxesBuilderTests
         Assert.Equal(0.35, inset.InsetBounds.Value.Width);
     }
 
+    /// <summary>Verifies the canonical InsetBounds overload creates and configures the inset.</summary>
+    [Fact]
+    public void AddInset_InsetBounds_Fluent_ConfiguresInset()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AddInset(new InsetBounds(0.6, 0.1, 0.35, 0.35), inset => inset
+                    .Plot([1.5, 2.0], [3.5, 4.0])))
+            .Build();
+
+        var inset = figure.SubPlots[0].Insets[0];
+        Assert.Single(inset.Series);
+        Assert.Equal(new InsetBounds(0.6, 0.1, 0.35, 0.35), inset.InsetBounds!.Value);
+    }
+
     // ── Sub-phase E: configure baseline accumulation ─────────────────────────
 
     [Fact]

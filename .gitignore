@@ -8,6 +8,9 @@ obj/
 .claude/
 .mcp.json
 
+# codegraph knowledge-graph cache (SQLite index, delta-synced)
+.codegraph/
+
 ## Graphify (knowledge graph tool — generated artifacts)
 .graphify/
 .graphify_detect.json
@@ -59,3 +62,6 @@ out/
 
 ## Private indicator-tier planning docs (not shipped with repo)
 docs/contrib/indicator-tier-*.md
+
+## Council/audit artifacts (local-only, not for the public tree)
+.path-manifests/

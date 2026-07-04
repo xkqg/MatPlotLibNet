@@ -89,6 +89,25 @@ public sealed class Quiver3DSeries : ChartSeries, I3DPointSeries, IHasColor
         Label = Label
     };
 
+    /// <summary>Reconstructs a <see cref="Quiver3DSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static Quiver3DSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Quiver3D(dto.XData ?? [], dto.YData ?? [], dto.ZData ?? [],
+            dto.UData ?? [], dto.VData ?? [], dto.WData ?? []);
+        if (dto.ArrowLength.HasValue)
+        {
+            s.ArrowLength = dto.ArrowLength.Value;
+        }
+        if (dto.Color.HasValue)
+        {
+            s.Color = dto.Color.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

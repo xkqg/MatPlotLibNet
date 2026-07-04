@@ -30,7 +30,7 @@ internal sealed class DonutSeriesRenderer : CircularRenderer<DonutSeries>
             // BuildWedgePath uses math-Y (cy + r·sin), so negate angles to preserve visual output.
             double startDeg = -angle * 180 / Math.PI;
             double endDeg = -(angle + sweep) * 180 / Math.PI;
-            Ctx.DrawPath(BuildWedgePath(cx, cy, innerR, outerR, startDeg, endDeg), color, null, 0);
+            Ctx.DrawPath(BuildWedgePath(cx, cy, innerR, outerR, startDeg, endDeg), new ShapeStyle(color, null, 0));
             angle += sweep;
         }
         if (series.CenterText is not null)

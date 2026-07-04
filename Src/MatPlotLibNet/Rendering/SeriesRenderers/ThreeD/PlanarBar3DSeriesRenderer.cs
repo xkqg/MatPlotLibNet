@@ -71,11 +71,11 @@ internal sealed class PlanarBar3DSeriesRenderer : SeriesRenderer<PlanarBar3DSeri
                 var pLocal = pts;
                 var fLocal = fill;
                 var eLocal = edgeColor;
-                queue.Add(depth, () => Ctx.DrawPolygon(pLocal, fLocal, eLocal, 0.5));
+                queue.Add(depth, () => Ctx.DrawPolygon(pLocal, new ShapeStyle(fLocal, eLocal, 0.5)));
             }
             else
             {
-                Ctx.DrawPolygon(pts, fill, edgeColor, 0.5);
+                Ctx.DrawPolygon(pts, new ShapeStyle(fill, edgeColor, 0.5));
             }
         }
     }

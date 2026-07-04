@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Geo.Projections;
+
 namespace MatPlotLibNet.Geo.GeoJson;
 
 /// <summary>Utility methods for handling geographic edge cases: dateline wraparound,
@@ -39,27 +41,27 @@ public static class GeoClipping
         return result.Count > 0 ? result : [ring];
     }
 
-    /// <summary>Removes points with NaN coordinates from a projected point list.</summary>
-    public static List<(double X, double Y)> FilterNaN(List<(double X, double Y)> points)
+    /// <summary>Removes points with NaN coordinates from a list of projected points.</summary>
+    public static List<ProjectedPoint> FilterNaN(List<ProjectedPoint> points)
     {
-        var result = new List<(double, double)>(points.Count);
+        var result = new List<ProjectedPoint>(points.Count);
         foreach (var (x, y) in points)
         {
             if (!double.IsNaN(x) && !double.IsNaN(y))
-                result.Add((x, y));
+                result.Add(new ProjectedPoint(x, y));
         }
         return result;
     }
 
     /// <summary>Clips projected points to the projection's bounding box.</summary>
-    public static List<(double X, double Y)> ClipToBounds(
-        List<(double X, double Y)> points,
+    public static List<ProjectedPoint> ClipToBounds(
+        List<ProjectedPoint> points,
         double xMin, double xMax, double yMin, double yMax)
     {
-        var result = new List<(double, double)>(points.Count);
+        var result = new List<ProjectedPoint>(points.Count);
         foreach (var (x, y) in points)
         {
-            result.Add((Math.Clamp(x, xMin, xMax), Math.Clamp(y, yMin, yMax)));
+            result.Add(new ProjectedPoint(Math.Clamp(x, xMin, xMax), Math.Clamp(y, yMin, yMax)));
         }
         return result;
     }

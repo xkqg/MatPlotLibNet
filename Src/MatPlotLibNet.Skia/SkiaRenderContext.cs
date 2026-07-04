@@ -25,17 +25,17 @@ public sealed class SkiaRenderContext : IRenderContext
     public SkiaRenderContext(SKCanvas canvas) => _canvas = canvas;
 
     /// <inheritdoc />
-    public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style)
+    public void DrawLine(Point p1, Point p2, StrokeStyle stroke)
     {
-        using var paint = CreateStrokePaint(color, thickness, style);
+        using var paint = CreateStrokePaint(stroke.Color, stroke.Thickness, stroke.Style);
         _canvas.DrawLine((float)p1.X, (float)p1.Y, (float)p2.X, (float)p2.Y, paint);
     }
 
     /// <inheritdoc />
-    public void DrawLines(IReadOnlyList<Point> points, Color color, double thickness, LineStyle style)
+    public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke)
     {
         if (points.Count < 2) return;
-        using var paint = CreateStrokePaint(color, thickness, style);
+        using var paint = CreateStrokePaint(stroke.Color, stroke.Thickness, stroke.Style);
         using var path = new SKPath();
         path.MoveTo((float)points[0].X, (float)points[0].Y);
         for (int i = 1; i < points.Count; i++)
@@ -44,7 +44,7 @@ public sealed class SkiaRenderContext : IRenderContext
     }
 
     /// <inheritdoc />
-    public void DrawPolygon(IReadOnlyList<Point> points, Color? fill, Color? stroke, double strokeThickness)
+    public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape)
     {
         if (points.Count < 3) return;
         using var path = new SKPath();
@@ -53,65 +53,27 @@ public sealed class SkiaRenderContext : IRenderContext
             path.LineTo((float)points[i].X, (float)points[i].Y);
         path.Close();
 
-        if (fill.HasValue)
-        {
-            using var paint = CreateFillPaint(fill.Value);
-            _canvas.DrawPath(path, paint);
-        }
-        if (stroke.HasValue && strokeThickness > 0)
-        {
-            using var paint = CreateStrokePaint(stroke.Value, strokeThickness, LineStyle.Solid);
-            _canvas.DrawPath(path, paint);
-        }
+        FillThenStroke(shape, paint => _canvas.DrawPath(path, paint));
     }
 
     /// <inheritdoc />
-    public void DrawCircle(Point center, double radius, Color? fill, Color? stroke, double strokeThickness)
-    {
-        if (fill.HasValue)
-        {
-            using var paint = CreateFillPaint(fill.Value);
-            _canvas.DrawCircle((float)center.X, (float)center.Y, (float)radius, paint);
-        }
-        if (stroke.HasValue && strokeThickness > 0)
-        {
-            using var paint = CreateStrokePaint(stroke.Value, strokeThickness, LineStyle.Solid);
-            _canvas.DrawCircle((float)center.X, (float)center.Y, (float)radius, paint);
-        }
-    }
+    public void DrawCircle(Point center, double radius, ShapeStyle shape)
+        => FillThenStroke(shape, paint => _canvas.DrawCircle((float)center.X, (float)center.Y, (float)radius, paint));
 
     /// <inheritdoc />
-    public void DrawRectangle(Rect rect, Color? fill, Color? stroke, double strokeThickness)
+    public void DrawRectangle(Rect rect, ShapeStyle shape)
     {
         var skRect = new SKRect((float)rect.X, (float)rect.Y,
             (float)(rect.X + rect.Width), (float)(rect.Y + rect.Height));
-        if (fill.HasValue)
-        {
-            using var paint = CreateFillPaint(fill.Value);
-            _canvas.DrawRect(skRect, paint);
-        }
-        if (stroke.HasValue && strokeThickness > 0)
-        {
-            using var paint = CreateStrokePaint(stroke.Value, strokeThickness, LineStyle.Solid);
-            _canvas.DrawRect(skRect, paint);
-        }
+        FillThenStroke(shape, paint => _canvas.DrawRect(skRect, paint));
     }
 
     /// <inheritdoc />
-    public void DrawEllipse(Rect bounds, Color? fill, Color? stroke, double strokeThickness)
+    public void DrawEllipse(Rect bounds, ShapeStyle shape)
     {
         var skRect = new SKRect((float)bounds.X, (float)bounds.Y,
             (float)(bounds.X + bounds.Width), (float)(bounds.Y + bounds.Height));
-        if (fill.HasValue)
-        {
-            using var paint = CreateFillPaint(fill.Value);
-            _canvas.DrawOval(skRect, paint);
-        }
-        if (stroke.HasValue && strokeThickness > 0)
-        {
-            using var paint = CreateStrokePaint(stroke.Value, strokeThickness, LineStyle.Solid);
-            _canvas.DrawOval(skRect, paint);
-        }
+        FillThenStroke(shape, paint => _canvas.DrawOval(skRect, paint));
     }
 
     /// <inheritdoc />
@@ -204,7 +166,7 @@ public sealed class SkiaRenderContext : IRenderContext
     }
 
     /// <inheritdoc />
-    public void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness)
+    public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape)
     {
         using var path = new SKPath();
         foreach (var seg in segments)
@@ -224,8 +186,7 @@ public sealed class SkiaRenderContext : IRenderContext
                 case CloseSegment: path.Close(); break;
             }
         }
-        if (fill.HasValue) { using var p = CreateFillPaint(fill.Value); _canvas.DrawPath(path, p); }
-        if (stroke.HasValue && strokeThickness > 0) { using var p = CreateStrokePaint(stroke.Value, strokeThickness, LineStyle.Solid); _canvas.DrawPath(path, p); }
+        FillThenStroke(shape, p => _canvas.DrawPath(path, p));
     }
 
     /// <inheritdoc />
@@ -244,6 +205,30 @@ public sealed class SkiaRenderContext : IRenderContext
 
     /// <inheritdoc />
     public void SetOpacity(double opacity) => _opacity = Math.Clamp(opacity, 0.0, 1.0);
+
+    /// <summary>Paints <paramref name="draw"/> once with a fill paint when <paramref name="shape"/>
+    /// has a visible fill, then once more with a stroke paint when it has a visible stroke — the
+    /// shared fill-then-stroke sequence every shape-drawing method (<see cref="DrawPolygon"/>,
+    /// <see cref="DrawCircle"/>, <see cref="DrawRectangle"/>, <see cref="DrawEllipse"/>,
+    /// <see cref="DrawPath(IReadOnlyList{PathSegment}, ShapeStyle)"/>) otherwise duplicated inline.
+    /// Fill always paints before stroke so the stroke sits visibly on top of the fill.</summary>
+    /// <param name="shape">The fill/stroke style to test via <see cref="ShapeStyle.HasVisibleFill"/>
+    /// and <see cref="ShapeStyle.HasVisibleStroke"/>.</param>
+    /// <param name="draw">Invoked with the created <see cref="SKPaint"/> — once for fill, once for
+    /// stroke — to perform the actual canvas draw call for the caller's shape geometry.</param>
+    private void FillThenStroke(ShapeStyle shape, Action<SKPaint> draw)
+    {
+        if (shape.HasVisibleFill)
+        {
+            using var paint = CreateFillPaint(shape.Fill!.Value);
+            draw(paint);
+        }
+        if (shape.HasVisibleStroke)
+        {
+            using var paint = CreateStrokePaint(shape.Stroke!.Value, shape.StrokeThickness, LineStyle.Solid);
+            draw(paint);
+        }
+    }
 
     /// <summary>Creates a filled SKPaint from the given color, modulated by the current group opacity.</summary>
     private SKPaint CreateFillPaint(Color color) => new()

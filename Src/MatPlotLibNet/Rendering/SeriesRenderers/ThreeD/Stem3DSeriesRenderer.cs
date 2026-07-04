@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -41,10 +42,10 @@ internal sealed class Stem3DSeriesRenderer : SeriesRenderer<Stem3DSeries>
 
             // Draw stem line at matplotlib's default 1.5 px width (rcParams.lines.linewidth)
             // so the blue pixel density matches the reference.
-            Ctx.DrawLine(basePts[i], tipPt, color, 2.5, Styling.LineStyle.Solid);
+            Ctx.DrawLine(basePts[i], tipPt, new StrokeStyle(color, 2.5, Styling.LineStyle.Solid));
 
             // Draw marker at tip
-            Ctx.DrawCircle(tipPt, series.MarkerSize / 2.0, color, null, 0);
+            Ctx.DrawCircle(tipPt, series.MarkerSize / 2.0, new ShapeStyle(color, null, 0));
         }
 
         // Baseline polyline through all stem base points at z=0, matching matplotlib's
@@ -53,6 +54,6 @@ internal sealed class Stem3DSeriesRenderer : SeriesRenderer<Stem3DSeries>
         // via Stem3DSeries.BaseLineColor.
         var baselineColor = series.BaseLineColor ?? color;
         if (basePts.Length >= 2)
-            Ctx.DrawLines(basePts, baselineColor, 2.5, Styling.LineStyle.Solid);
+            Ctx.DrawLines(basePts, new StrokeStyle(baselineColor, 2.5, Styling.LineStyle.Solid));
     }
 }

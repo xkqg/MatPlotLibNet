@@ -92,16 +92,47 @@ public static class FigureSkiaExtensions
         };
     }
 
+    /// <summary>Cache key for <see cref="ResolveTypeface"/> — the exact (family, weight, slant)
+    /// triple a caller asked for.</summary>
+    private readonly record struct TypefaceResolutionKey(string? Family, SKFontStyleWeight Weight, SKFontStyleSlant Slant);
+
+    /// <summary>
+    /// Process-wide cache of every distinct <see cref="TypefaceResolutionKey"/> ever resolved by
+    /// <see cref="ResolveTypeface"/>. See that method's remarks for the ownership contract.
+    /// </summary>
+    private static readonly ConcurrentDictionary<TypefaceResolutionKey, SKTypeface> ResolvedTypefaces = new();
+
     /// <summary>Resolves a typeface by font-family name. Checks the bundled cache (DejaVu Sans
     /// shipped inside this assembly) before falling back to the host OS via
     /// <see cref="SKTypeface.FromFamilyName(string?, SKFontStyleWeight, SKFontStyleWidth, SKFontStyleSlant)"/>.</summary>
+    /// <remarks>
+    /// <b>Ownership:</b> the returned <see cref="SKTypeface"/> is ALWAYS a cached, process-lifetime
+    /// instance — callers must NEVER dispose it. Every distinct (family, weight, slant) triple is
+    /// resolved at most once and memoized in <see cref="ResolvedTypefaces"/>; subsequent calls with
+    /// an equal triple return the exact same instance. Bundled-font resolutions additionally alias
+    /// an entry already owned by <see cref="BundledTypefaces"/> (also never disposed, by design).
+    /// Host-OS fallback resolutions (via <c>SKTypeface.FromFamilyName</c>) used to return a FRESH
+    /// native typeface on every call that no caller ever disposed — a per-call leak; caching here
+    /// makes the "cache owns it, callers never dispose" contract uniform and explicit instead of
+    /// incidental. This is why <see cref="SkiaRenderContext"/>, <see cref="SkiaFontMetrics"/> and
+    /// <see cref="SkiaGlyphPathProvider"/> never wrap the result in a <c>using</c>.
+    /// </remarks>
     internal static SKTypeface ResolveTypeface(string? family, SKFontStyleWeight weight, SKFontStyleSlant slant)
+    {
+        var key = new TypefaceResolutionKey(family, weight, slant);
+        return ResolvedTypefaces.GetOrAdd(key, static k => ResolveTypefaceUncached(k.Family, k.Weight, k.Slant));
+    }
+
+    private static SKTypeface ResolveTypefaceUncached(string? family, SKFontStyleWeight weight, SKFontStyleSlant slant)
     {
         // Theme fonts often pass a CSS-style stack like "DejaVu Sans, sans-serif" — try each
         // family in order and return the first bundled match.
         if (!string.IsNullOrEmpty(family))
         {
-            var fontStyle = new SKFontStyle(weight, SKFontStyleWidth.Normal, slant);
+            // SKFontStyle is only a match-descriptor for the BuildKey lookups below — the
+            // returned typeface never retains it, so it is safe (and required) to dispose it
+            // here rather than leak the native SkFontStyle on every resolution.
+            using var fontStyle = new SKFontStyle(weight, SKFontStyleWidth.Normal, slant);
             foreach (var candidate in family.Split(','))
             {
                 var trimmed = candidate.Trim().Trim('"', '\'');

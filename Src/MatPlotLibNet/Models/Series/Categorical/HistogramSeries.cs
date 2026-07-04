@@ -64,6 +64,17 @@ public sealed class HistogramSeries : ChartSeries, IHasColor, IHasAlpha, IHasEdg
         Data = Data, Bins = Bins, Color = Color
     };
 
+    /// <summary>Reconstructs a <see cref="HistogramSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static HistogramSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Hist(dto.Data ?? [], dto.Bins ?? 10);
+        s.Color = dto.Color;
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 

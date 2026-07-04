@@ -39,11 +39,15 @@ public sealed class ChartServer : IAsyncDisposable
     internal ChartServer() { }
 
     /// <summary>Ensures the embedded server is started asynchronously. Thread-safe.</summary>
+    /// <remarks>The internal await chain uses <c>ConfigureAwait(false)</c> throughout, so
+    /// blocking on this task from a captured <see cref="SynchronizationContext"/> does not
+    /// deadlock.</remarks>
     internal async Task EnsureStartedAsync(CancellationToken ct = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (_app is not null) return;
 
-        await _startLock.WaitAsync(ct);
+        await _startLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             if (_app is not null) return;
@@ -57,7 +61,7 @@ public sealed class ChartServer : IAsyncDisposable
             ConfigureRoutes(app, _figures, () => Port);
             app.MapChartHub();
 
-            await app.StartAsync(ct);
+            await app.StartAsync(ct).ConfigureAwait(false);
 
             var addresses = app.Services.GetRequiredService<IServer>()
                 .Features.Get<IServerAddressesFeature>()!;
@@ -72,9 +76,6 @@ public sealed class ChartServer : IAsyncDisposable
         }
     }
 
-    /// <summary>Ensures the embedded server is started. Synchronous wrapper for non-async contexts.</summary>
-    internal void EnsureStarted() => EnsureStartedAsync().GetAwaiter().GetResult();
-
     /// <summary>Registers a figure and returns its chart ID.</summary>
     internal string RegisterFigure(Figure figure)
     {
@@ -88,7 +89,7 @@ public sealed class ChartServer : IAsyncDisposable
     {
         _figures[chartId] = figure;
         if (_publisher is not null)
-            await _publisher.PublishSvgAsync(chartId, figure);
+            await _publisher.PublishSvgAsync(chartId, figure).ConfigureAwait(false);
     }
 
     /// <summary>Gets the full URL for a chart page.</summary>
@@ -133,7 +134,7 @@ public sealed class ChartServer : IAsyncDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        await DisposeAsyncCore();
+        await DisposeAsyncCore().ConfigureAwait(false);
         GC.SuppressFinalize(this);
     }
 
@@ -142,8 +143,8 @@ public sealed class ChartServer : IAsyncDisposable
         _startLock.Dispose();
         if (_app is not null)
         {
-            await _app.StopAsync();
-            await _app.DisposeAsync();
+            await _app.StopAsync().ConfigureAwait(false);
+            await _app.DisposeAsync().ConfigureAwait(false);
         }
     }
 }

@@ -27,4 +27,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Golden-JSON serialization corpus (ChartSerializerGoldenCorpusTests) — copied next to the
+         test assembly so AppContext.BaseDirectory-anchored reads find them at run time. -->
+    <Content Include="Serialization\Golden\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"candlestick","open":[10,11],"high":[12,13],"low":[9,10],"close":[11,12],"upColor":"#008000","downColor":"#FF0000","bodyWidth":0.6}]}]}

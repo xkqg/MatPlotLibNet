@@ -46,6 +46,32 @@ public sealed class Trisurf3DSeries : XYZSeries, IColormappable, INormalizable, 
         Label = Label
     };
 
+    /// <summary>Reconstructs a <see cref="Trisurf3DSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static Trisurf3DSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Trisurf(dto.XData ?? [0.0], dto.YData ?? [0.0], dto.ZData ?? [0.0]);
+        if (dto.Color.HasValue)
+        {
+            s.Color = dto.Color.Value;
+        }
+        if (dto.ShowWireframe.HasValue)
+        {
+            s.ShowWireframe = dto.ShowWireframe.Value;
+        }
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        if (dto.ColorMapName is not null)
+        {
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

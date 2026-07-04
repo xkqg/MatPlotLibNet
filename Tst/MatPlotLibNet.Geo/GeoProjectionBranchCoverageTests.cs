@@ -37,8 +37,8 @@ public class GeoProjectionBranchCoverageTests
         {
             var inv = P.Inverse(180, 90);
             Assert.NotNull(inv);
-            Assert.Equal(90, inv.Value.Lat);
-            Assert.Equal(180, inv.Value.Lon);
+            Assert.Equal(90, inv.Value.Latitude);
+            Assert.Equal(180, inv.Value.Longitude);
         }
     }
 
@@ -52,8 +52,8 @@ public class GeoProjectionBranchCoverageTests
         {
             var inv = P.Inverse(0, 0);
             Assert.NotNull(inv);
-            Assert.Equal(0, inv.Value.Lat, 1e-9);
-            Assert.Equal(0, inv.Value.Lon, 1e-9);
+            Assert.Equal(0, inv.Value.Latitude, 1e-9);
+            Assert.Equal(0, inv.Value.Longitude, 1e-9);
         }
 
         [Fact]
@@ -62,8 +62,8 @@ public class GeoProjectionBranchCoverageTests
             var (x, y) = P.Forward(45, 30);
             var inv = P.Inverse(x, y);
             Assert.NotNull(inv);
-            Assert.Equal(45, inv.Value.Lat, 1e-6);
-            Assert.Equal(30, inv.Value.Lon, 1e-6);
+            Assert.Equal(45, inv.Value.Latitude, 1e-6);
+            Assert.Equal(30, inv.Value.Longitude, 1e-6);
         }
 
         [Fact]
@@ -92,8 +92,8 @@ public class GeoProjectionBranchCoverageTests
         {
             var inv = P.Inverse(30, 0);
             Assert.NotNull(inv);
-            Assert.Equal(0, inv.Value.Lat, 1e-9);
-            Assert.Equal(30, inv.Value.Lon, 1e-9);
+            Assert.Equal(0, inv.Value.Latitude, 1e-9);
+            Assert.Equal(30, inv.Value.Longitude, 1e-9);
         }
 
         [Fact]
@@ -109,8 +109,8 @@ public class GeoProjectionBranchCoverageTests
             var (x, y) = P.Forward(45, 30);
             var inv = P.Inverse(x, y);
             Assert.NotNull(inv);
-            Assert.Equal(45, inv.Value.Lat, 1e-6);
-            Assert.Equal(30, inv.Value.Lon, 1e-6);
+            Assert.Equal(45, inv.Value.Latitude, 1e-6);
+            Assert.Equal(30, inv.Value.Longitude, 1e-6);
         }
 
         /// <summary>y = ±90 — passes the |y|&gt;90 guard (90 is NOT &gt; 90)

@@ -27,7 +27,7 @@ internal sealed class FunnelSeriesRenderer : SeriesRenderer<FunnelSeries>
             double y = bounds.Y + i * rowH;
             var color = series.Colors is not null && i < series.Colors.Length ? series.Colors[i]
                 : Theme.Default.CycleColors[i % Theme.Default.CycleColors.Length];
-            Ctx.DrawRectangle(new Rect(x, y + 2, barW, rowH - 4), color, null, 0);
+            Ctx.DrawRectangle(new Rect(x, y + 2, barW, rowH - 4), new ShapeStyle(color, null, 0));
             Ctx.DrawText(series.Labels[i], new Point(bounds.X + bounds.Width / 2, y + rowH / 2 + 4), new Font { Size = 10 }, TextAlignment.Center);
         }
     }

@@ -10,7 +10,17 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 What's next
 
-**v1.12.0 (2026-06-28) — dashboard tiles, timelines & threshold conveniences.** Two new series — `StatTileSeries` (a single-value KPI tile: a big formatted headline number + label, for compact dashboards) and `StateTimelineSeries` (a single-row timeline of discrete coloured state segments over time) — plus two fluent conveniences: **`ThresholdLine`** (`Threshold(value, orientation, …)` composes a dashed reference line + a shaded breach span + an optional label, `ThresholdBreach.Above`/`Below`) and **`LegendValues`** (`WithLegendValues()` appends each XY series' last Y value to its legend entry). All authored to the contrib standard (default-no-op `ISeriesVisitor`, ≥90/90). Prior: **v1.11.2 (2026-05-16)** — RRG absorption + ENB overlays (`AbsorptionRatioPerBar` green→red dot fill, `EnbPerBar` dot-radius ∝ Effective Number of Bets). Future releases are **community-driven**:
+**v1.13.0 (2026-07-04) — refactor & cleanup release** (no new chart features): breaking API
+cleanups — `IGeoProjection.Forward`/`Inverse`/`Bounds` now return record structs instead of
+tuples, `StreamingSeriesBase`/`StreamingIndicatorBase` are renamed to
+`StreamingSeries`/`StreamingIndicator`, `IRenderContext` draw methods take `StrokeStyle`/
+`ShapeStyle` records, and the synchronous `InteractiveExtensions.Show(Figure)` was removed in
+favor of the async-only `ShowAsync()`. Also ships bug fixes (Blazor SignalR reconnect leak,
+Uno/MAUI streaming-detach leak, `WithLegend` no longer dropping prior legend state) and internal
+restructuring (serialization moved to per-series `FromSeriesDto`). Full migration notes in the
+[CHANGELOG](CHANGELOG.md). Prior: **v1.12.0 (2026-06-28)** — dashboard tiles, timelines &
+threshold conveniences (`StatTileSeries`, `StateTimelineSeries`, `ThresholdLine`,
+`LegendValues`). Future releases are **community-driven**:
 
 - 🗺️ **Phase 1 — Annotated & triangular-mask heatmaps**: four new `HeatmapSeries` properties (`ShowLabels`, `LabelFormat`, `MaskMode`, `CellValueColor`) + `HeatmapMaskMode` enum unblock every realistic correlation-matrix figure.
 - 🌲 **Phase 2 — `DendrogramSeries`**: hierarchical-clustering tree as canonical "U"-shape segments. Four `DendrogramOrientation` values (`Top`, `Bottom`, `Left`, `Right`); optional `CutHeight` draws a dashed reference line and recolours each cluster below the cut from a qualitative `IColorMap` (default `Tab10`). Fluent API: `Plt.Create().Dendrogram(root, s => s.CutHeight = 1.5)`.

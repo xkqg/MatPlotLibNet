@@ -63,6 +63,28 @@ public sealed class HexbinSeries : ChartSeries, IColormappable, INormalizable, I
         ColorMapName = ColorMap?.Name
     };
 
+    /// <summary>Reconstructs a <see cref="HexbinSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static HexbinSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Hexbin(dto.XData ?? [], dto.YData ?? []);
+        if (dto.GridSize.HasValue)
+        {
+            s.GridSize = dto.GridSize.Value;
+        }
+        if (dto.MinCount.HasValue)
+        {
+            s.MinCount = dto.MinCount.Value;
+        }
+        if (dto.ColorMapName is not null)
+        {
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 

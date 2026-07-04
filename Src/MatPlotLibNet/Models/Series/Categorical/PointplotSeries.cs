@@ -36,6 +36,36 @@ public sealed class PointplotSeries : DatasetSeries, IHasColor
         ConfidenceLevel = ConfidenceLevel
     };
 
+    /// <summary>Reconstructs a <see cref="PointplotSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static PointplotSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Pointplot(dto.Datasets ?? []);
+        if (dto.MarkerSize.HasValue)
+        {
+            s.MarkerSize = dto.MarkerSize.Value;
+        }
+        if (dto.CapSize.HasValue)
+        {
+            s.CapSize = dto.CapSize.Value;
+        }
+        if (dto.ConfidenceLevel.HasValue)
+        {
+            s.ConfidenceLevel = dto.ConfidenceLevel.Value;
+        }
+        if (dto.Color.HasValue)
+        {
+            s.Color = dto.Color.Value;
+        }
+        if (dto.Categories is not null)
+        {
+            s.Categories = dto.Categories;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

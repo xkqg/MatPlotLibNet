@@ -74,8 +74,15 @@ public class MplLiveChartLifecycleTests : BunitContext
         Assert.Contains("<svg", cut.Markup);
     }
 
+    /// <summary>BUG B4 repro (council-main-a5fe781-20260704.stap3.md, blocking #4) —
+    /// the component must NOT dispose a Client that was injected (unowned) via the
+    /// Client parameter; ownership belongs to the DI container/host app. Pre-fix,
+    /// DisposeAsync unconditionally disposed whatever client was in use, injected
+    /// or not — this test replaces the old (buggy-behavior-pinning) DisposeAsync_
+    /// DisposesClient test, which asserted the opposite (Disposed == true) for an
+    /// injected client.</summary>
     [Fact]
-    public async Task DisposeAsync_DisposesClient()
+    public async Task MplLiveChart_InjectedClient_NotDisposedOnTeardown()
     {
         var fake = new FakeSubscriptionClient();
         var cut = Render<MplLiveChart>(parameters => parameters
@@ -83,7 +90,7 @@ public class MplLiveChartLifecycleTests : BunitContext
             .Add(p => p.Client, fake));
 
         await ((IAsyncDisposable)cut.Instance).DisposeAsync();
-        Assert.True(fake.Disposed);
+        Assert.False(fake.Disposed);
     }
 
     /// <summary>Minimal in-process fake of <see cref="IChartSubscriptionClient"/> used

@@ -23,23 +23,23 @@ internal sealed class RecordingRenderContext : IRenderContext
 
     public int CountOf(string kind) => Calls.Count(c => c.Kind == kind);
 
-    public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style)
-        => Calls.Add(new CallRecord("DrawLine", new { p1, p2, color, thickness, style }));
+    public void DrawLine(Point p1, Point p2, StrokeStyle stroke)
+        => Calls.Add(new CallRecord("DrawLine", new { p1, p2, color = stroke.Color, thickness = stroke.Thickness, style = stroke.Style }));
 
-    public void DrawLines(IReadOnlyList<Point> points, Color color, double thickness, LineStyle style)
-        => Calls.Add(new CallRecord("DrawLines", new { points = points.ToArray(), color, thickness, style }));
+    public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke)
+        => Calls.Add(new CallRecord("DrawLines", new { points = points.ToArray(), color = stroke.Color, thickness = stroke.Thickness, style = stroke.Style }));
 
-    public void DrawPolygon(IReadOnlyList<Point> points, Color? fill, Color? stroke, double strokeThickness)
-        => Calls.Add(new CallRecord("DrawPolygon", new { points = points.ToArray(), fill, stroke, strokeThickness }));
+    public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape)
+        => Calls.Add(new CallRecord("DrawPolygon", new { points = points.ToArray(), fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness }));
 
-    public void DrawCircle(Point center, double radius, Color? fill, Color? stroke, double strokeThickness)
-        => Calls.Add(new CallRecord("DrawCircle", new { center, radius, fill, stroke, strokeThickness }));
+    public void DrawCircle(Point center, double radius, ShapeStyle shape)
+        => Calls.Add(new CallRecord("DrawCircle", new { center, radius, fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness }));
 
-    public void DrawRectangle(Rect rect, Color? fill, Color? stroke, double strokeThickness)
-        => Calls.Add(new CallRecord("DrawRectangle", new { rect, fill, stroke, strokeThickness }));
+    public void DrawRectangle(Rect rect, ShapeStyle shape)
+        => Calls.Add(new CallRecord("DrawRectangle", new { rect, fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness }));
 
-    public void DrawEllipse(Rect bounds, Color? fill, Color? stroke, double strokeThickness)
-        => Calls.Add(new CallRecord("DrawEllipse", new { bounds, fill, stroke, strokeThickness }));
+    public void DrawEllipse(Rect bounds, ShapeStyle shape)
+        => Calls.Add(new CallRecord("DrawEllipse", new { bounds, fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness }));
 
     public void DrawText(string text, Point position, Font font, TextAlignment alignment)
         => Calls.Add(new CallRecord("DrawText", new { text, position, font, alignment, rotation = 0.0 }));
@@ -47,8 +47,8 @@ internal sealed class RecordingRenderContext : IRenderContext
     public void DrawText(string text, Point position, Font font, TextAlignment alignment, double rotation)
         => Calls.Add(new CallRecord("DrawText", new { text, position, font, alignment, rotation }));
 
-    public void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness)
-        => Calls.Add(new CallRecord("DrawPath", new { segments = segments.ToArray(), fill, stroke, strokeThickness }));
+    public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape)
+        => Calls.Add(new CallRecord("DrawPath", new { segments = segments.ToArray(), fill = shape.Fill, stroke = shape.Stroke, strokeThickness = shape.StrokeThickness }));
 
     public void PushClip(Rect clipRect)
         => Calls.Add(new CallRecord("PushClip", new { clipRect }));

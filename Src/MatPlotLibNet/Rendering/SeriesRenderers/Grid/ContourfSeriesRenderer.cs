@@ -45,7 +45,7 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
         // Painter's algorithm: bottom band fills the entire plot area
         double t0 = norm.Normalize(bands[0].LevelLow + (bands[0].LevelHigh - bands[0].LevelLow) * 0.5, zMin, zMax);
         var bottomColor = cmap.GetColor(t0);
-        Ctx.DrawRectangle(Area.PlotBounds, bottomColor, null, 0);
+        Ctx.DrawRectangle(Area.PlotBounds, new ShapeStyle(bottomColor, null, 0));
 
         // Paint each band's polygons ascending
         for (int b = 0; b < bands.Length; b++)
@@ -62,7 +62,7 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
                 foreach (var pt in polygon)
                     pixels.Add(Transform.DataToPixel(pt.X, pt.Y));
 
-                Ctx.DrawPolygon(pixels, color, null, 0);
+                Ctx.DrawPolygon(pixels, new ShapeStyle(color, null, 0));
             }
         }
 
@@ -87,7 +87,7 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
 
             double tLine = norm.Normalize(contour.Level, zMin, zMax);
             var lineColor = cmap.GetColor(tLine);
-            Ctx.DrawLines(pixels, lineColor, series.LineWidth, LineStyle.Solid);
+            Ctx.DrawLines(pixels, new StrokeStyle(lineColor, series.LineWidth, LineStyle.Solid));
         }
     }
 }

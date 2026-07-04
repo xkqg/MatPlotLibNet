@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming Exponential Moving Average. O(1) per append: α * price + (1-α) * prev.</summary>
-public sealed class StreamingEma : StreamingIndicatorBase
+public sealed class StreamingEma : StreamingIndicator
 {
     private readonly int _period;
     private readonly double _multiplier;

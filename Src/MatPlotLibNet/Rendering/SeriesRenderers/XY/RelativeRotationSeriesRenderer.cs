@@ -69,30 +69,30 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
         // Leading: top-right (+/+)
         Ctx.DrawRectangle(
             new Rect(center.X, b.Y, b.Right - center.X, center.Y - b.Y),
-            LeadingColor, null, 0);
+            new ShapeStyle(LeadingColor, null, 0));
 
         // Weakening: bottom-right (+/-)
         Ctx.DrawRectangle(
             new Rect(center.X, center.Y, b.Right - center.X, b.Bottom - center.Y),
-            WeakeningColor, null, 0);
+            new ShapeStyle(WeakeningColor, null, 0));
 
         // Lagging: bottom-left (-/-)
         Ctx.DrawRectangle(
             new Rect(b.X, center.Y, center.X - b.X, b.Bottom - center.Y),
-            LaggingColor, null, 0);
+            new ShapeStyle(LaggingColor, null, 0));
 
         // Improving: top-left (-/+)
         Ctx.DrawRectangle(
             new Rect(b.X, b.Y, center.X - b.X, center.Y - b.Y),
-            ImprovingColor, null, 0);
+            new ShapeStyle(ImprovingColor, null, 0));
 
         // Crosshair lines.
         Ctx.DrawLine(
             new Point(b.X, center.Y), new Point(b.Right, center.Y),
-            CrosshairColor, CrosshairThickness, LineStyle.Dashed);
+            new StrokeStyle(CrosshairColor, CrosshairThickness, LineStyle.Dashed));
         Ctx.DrawLine(
             new Point(center.X, b.Y), new Point(center.X, b.Bottom),
-            CrosshairColor, CrosshairThickness, LineStyle.Dashed);
+            new StrokeStyle(CrosshairColor, CrosshairThickness, LineStyle.Dashed));
     }
 
     private void DrawAsset(
@@ -124,7 +124,7 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
                 double alpha = 0.2 + 0.8 * ((double)i / (points.Count - 1));
                 Ctx.SetOpacity(alpha);
                 Ctx.DrawLine(points[i].Pixel, points[i + 1].Pixel,
-                    new Color(160, 160, 160), TailThickness, LineStyle.Solid);
+                    new StrokeStyle(new Color(160, 160, 160), TailThickness, LineStyle.Solid));
             }
 
             // Per-point dots.
@@ -148,7 +148,7 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
                     : HeadRadius * (isLast ? 1.0 : 0.6);
 
                 double stroke = isLast ? 1.5 : 0.5;
-                Ctx.DrawCircle(pixel, radius, fill, color, strokeThickness: stroke);
+                Ctx.DrawCircle(pixel, radius, new ShapeStyle(fill, color, stroke));
             }
         }
         else
@@ -158,10 +158,10 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
             {
                 double alpha = 0.2 + 0.8 * ((double)i / (points.Count - 1));
                 Ctx.SetOpacity(alpha);
-                Ctx.DrawLine(points[i].Pixel, points[i + 1].Pixel, color, TailThickness, LineStyle.Solid);
+                Ctx.DrawLine(points[i].Pixel, points[i + 1].Pixel, new StrokeStyle(color, TailThickness, LineStyle.Solid));
             }
             Ctx.SetOpacity(1.0);
-            Ctx.DrawCircle(points[^1].Pixel, HeadRadius, color, Colors.Black, strokeThickness: 0.5);
+            Ctx.DrawCircle(points[^1].Pixel, HeadRadius, new ShapeStyle(color, Colors.Black, 0.5));
         }
 
         // Label always at head, full opacity.

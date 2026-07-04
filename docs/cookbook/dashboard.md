@@ -186,6 +186,58 @@ Plt.Mosaic("AAB\nAAC")
     .Save("ops_dashboard.svg");
 ```
 
+## Full ops dashboard — tiles + timeline + thresholded chart
+
+Combine all four v1.12.0 dashboard conveniences in one mosaic: a KPI tile row
+(`StatTileSeries`), a `StateTimelineSeries` for service health, and a line chart
+using the `Threshold(...)` convenience (dashed reference line + breach shading)
+together with `WithLegendValues()` so the legend shows the live reading:
+
+```csharp
+var serviceHistory = new StateSegment[]
+{
+    new(0,  6,  "Up",       Colors.Tab10Green),
+    new(6,  9,  "Degraded", Colors.Tab10Orange),
+    new(9,  14, "Up",       Colors.Tab10Green),
+    new(14, 15, "Down",     Colors.Red),
+    new(15, 24, "Up",       Colors.Tab10Green),
+};
+
+double[] hours = Enumerable.Range(0, 48).Select(i => i * 0.5).ToArray();
+double[] load  = hours.Select(h => 55 + 15 * Math.Sin(h * 0.4) + (h > 20 ? 20 : 0)).ToArray();
+
+Plt.Create()
+    .WithTitle("Ops Dashboard")
+    .WithTheme(Theme.Dark)
+    .WithSize(1000, 750)
+    .WithGridSpec(3, 3, heightRatios: [1.0, 1.0, 1.6])
+    .AddSubPlot(GridPosition.Single(0, 0), ax => ax
+        .StatTile(12, t => { t.Label = "Participants"; t.Format = "0"; }))
+    .AddSubPlot(GridPosition.Single(0, 1), ax => ax
+        .StatTile(1, t => { t.Label = "Alerts"; t.AccentColor = Colors.Red; t.Format = "0"; }))
+    .AddSubPlot(GridPosition.Single(0, 2), ax => ax
+        .StatTile(99.4, t => { t.Label = "Uptime %"; t.Format = "0.0"; }))
+    .AddSubPlot(new GridPosition(1, 2, 0, 3), ax => ax
+        .StateTimeline(serviceHistory, s => s.Label = "API service")
+        .WithTitle("Service state — last 24h"))
+    .AddSubPlot(new GridPosition(2, 3, 0, 3), ax => ax
+        .Plot(hours, load, s => s.Label = "CPU load %")
+        .Threshold(80.0, Orientation.Horizontal, ThresholdBreach.Above,
+            color: Colors.Red, label: "Alarm")
+        .SetXLabel("Hour")
+        .SetYLabel("Load %")
+        .WithLegend()
+        .WithLegendValues())
+    .TightLayout()
+    .Save("ops_dashboard_full.svg");
+```
+
+![Ops dashboard](../images/ops_dashboard_full.png)
+
+See [Threshold convenience](annotations.md#threshold-convenience) and
+[Legend value display](line-charts.md#legend-value-display) for the full parameter
+reference of `Threshold(...)` and `WithLegendValues()`.
+
 ## StatTileSeries — parameter reference
 
 | Property | Type | Default | Description |
@@ -214,4 +266,5 @@ Plt.Mosaic("AAB\nAAC")
 
 - [Subplots & GridSpec](subplots.md) — mosaic and GridSpec layout, row/column ratios
 - [Financial Charts](financial.md) — OHLC/candlestick dashboards with indicator subplots
-- [Annotations](annotations.md) — threshold reference lines and breach shading
+- [Annotations](annotations.md) — threshold reference lines and breach shading, full `Threshold(...)` parameter reference
+- [Line Charts](line-charts.md) — legend value display (`WithLegendValues()`), full parameter reference

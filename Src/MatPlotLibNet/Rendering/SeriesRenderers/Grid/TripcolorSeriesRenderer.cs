@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -43,7 +44,7 @@ internal sealed class TripcolorSeriesRenderer : SeriesRenderer<TripcolorSeries>
                 Transform.DataToPixel(series.X[ib], series.Y[ib]),
                 Transform.DataToPixel(series.X[ic], series.Y[ic])
             };
-            Ctx.DrawPolygon(pts, color, null, 0);
+            Ctx.DrawPolygon(pts, new ShapeStyle(color, null, 0));
         }
     }
 }

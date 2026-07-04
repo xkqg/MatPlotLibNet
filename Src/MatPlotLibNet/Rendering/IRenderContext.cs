@@ -17,22 +17,22 @@ public enum TextAlignment { Left = 0, Center = 1, Right = 2 }
 public interface IRenderContext
 {
     /// <summary>Draws a straight line between two points.</summary>
-    void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style);
+    void DrawLine(Point p1, Point p2, StrokeStyle stroke);
 
     /// <summary>Draws a connected polyline through the specified points.</summary>
-    void DrawLines(IReadOnlyList<Point> points, Color color, double thickness, LineStyle style);
+    void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke);
 
     /// <summary>Draws a filled and/or stroked polygon defined by the given vertices.</summary>
-    void DrawPolygon(IReadOnlyList<Point> points, Color? fill, Color? stroke, double strokeThickness);
+    void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape);
 
     /// <summary>Draws a circle at the specified center with the given radius.</summary>
-    void DrawCircle(Point center, double radius, Color? fill, Color? stroke, double strokeThickness);
+    void DrawCircle(Point center, double radius, ShapeStyle shape);
 
     /// <summary>Draws a filled and/or stroked rectangle.</summary>
-    void DrawRectangle(Rect rect, Color? fill, Color? stroke, double strokeThickness);
+    void DrawRectangle(Rect rect, ShapeStyle shape);
 
     /// <summary>Draws an ellipse inscribed within the specified bounding rectangle.</summary>
-    void DrawEllipse(Rect bounds, Color? fill, Color? stroke, double strokeThickness);
+    void DrawEllipse(Rect bounds, ShapeStyle shape);
 
     /// <summary>Draws a text string at the specified position with the given font and alignment.</summary>
     void DrawText(string text, Point position, Font font, TextAlignment alignment);
@@ -51,7 +51,7 @@ public interface IRenderContext
         => DrawText(text, position, font, alignment);
 
     /// <summary>Draws a complex path composed of move, line, bezier, arc, and close segments.</summary>
-    void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness);
+    void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape);
 
     /// <summary>Pushes a rectangular clipping region onto the clip stack.</summary>
     void PushClip(Rect clipRect);

@@ -22,9 +22,11 @@
 
     private IChartSubscriptionClient _client = default!;
     private string _svgContent = string.Empty;
+    private bool _ownsClient;
 
     protected override void OnInitialized()
     {
+        _ownsClient = Client is null;
         _client = Client ?? new ChartSubscriptionClient();
     }
 
@@ -65,6 +67,9 @@
 
     public async ValueTask DisposeAsync()
     {
-        await _client.DisposeAsync();
+        // BUG B4: an injected (unowned) Client belongs to the DI container/host app —
+        // only dispose a client this component created itself.
+        if (_ownsClient)
+            await _client.DisposeAsync();
     }
 }

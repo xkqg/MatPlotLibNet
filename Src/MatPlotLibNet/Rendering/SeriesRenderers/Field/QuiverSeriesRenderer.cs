@@ -20,12 +20,12 @@ internal sealed class QuiverSeriesRenderer : SeriesRenderer<QuiverSeries>
         {
             var start = Transform.DataToPixel(series.XData[i], series.YData[i]);
             var end = Transform.DataToPixel(series.XData[i] + series.UData[i] * series.Scale, series.YData[i] + series.VData[i] * series.Scale);
-            Ctx.DrawLine(start, end, color, 1.5, LineStyle.Solid);
+            Ctx.DrawLine(start, end, new StrokeStyle(color, 1.5, LineStyle.Solid));
             double dx = end.X - start.X, dy = end.Y - start.Y, len = Math.Sqrt(dx * dx + dy * dy);
             if (len < 1e-6) continue;
             double headLen = len * series.ArrowHeadSize, angle = Math.Atan2(dy, dx);
-            Ctx.DrawLine(end, new Point(end.X + headLen * Math.Cos(angle + 2.5), end.Y + headLen * Math.Sin(angle + 2.5)), color, 1.5, LineStyle.Solid);
-            Ctx.DrawLine(end, new Point(end.X + headLen * Math.Cos(angle - 2.5), end.Y + headLen * Math.Sin(angle - 2.5)), color, 1.5, LineStyle.Solid);
+            Ctx.DrawLine(end, new Point(end.X + headLen * Math.Cos(angle + 2.5), end.Y + headLen * Math.Sin(angle + 2.5)), new StrokeStyle(color, 1.5, LineStyle.Solid));
+            Ctx.DrawLine(end, new Point(end.X + headLen * Math.Cos(angle - 2.5), end.Y + headLen * Math.Sin(angle - 2.5)), new StrokeStyle(color, 1.5, LineStyle.Solid));
         }
     }
 }

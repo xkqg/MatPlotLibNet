@@ -66,7 +66,7 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor
                 var points = new List<Point>();
                 foreach (var (lon, lat) in ring)
                 {
-                    var (px, py) = IsRawProjected ? (lon, lat) : Projection.Forward(lat, lon);
+                    var (px, py) = IsRawProjected ? new ProjectedPoint(lon, lat) : Projection.Forward(lat, lon);
                     if (double.IsNaN(px) || double.IsNaN(py)) continue;
 
                     // Map projected coords to pixel space
@@ -79,9 +79,9 @@ public sealed class GeoPolygonSeries : ChartSeries, IHasColor
                 if (points.Count < 2) continue;
 
                 if (feature.Geometry.Type is "Polygon" or "MultiPolygon")
-                    area.Context.DrawPolygon(points.ToArray(), Color, StrokeColor, StrokeWidth);
+                    area.Context.DrawPolygon(points.ToArray(), new ShapeStyle(Color, StrokeColor, StrokeWidth));
                 else
-                    area.Context.DrawLines(points, StrokeColor ?? Color ?? Colors.Black, StrokeWidth, LineStyle.Solid);
+                    area.Context.DrawLines(points, new StrokeStyle(StrokeColor ?? Color ?? Colors.Black, StrokeWidth, LineStyle.Solid));
             }
         }
     }

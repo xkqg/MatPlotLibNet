@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Geo.GeoJson;
+using MatPlotLibNet.Geo.Projections;
 
 namespace MatPlotLibNet.Geo.Tests;
 
@@ -71,7 +72,7 @@ public class GeoClippingTests
         [Fact]
         public void NoNaN_ReturnsAllPoints()
         {
-            var pts = new List<(double X, double Y)> { (1, 2), (3, 4), (5, 6) };
+            var pts = new List<ProjectedPoint> { new(1, 2), new(3, 4), new(5, 6) };
             var result = GeoClipping.FilterNaN(pts);
             Assert.Equal(3, result.Count);
         }
@@ -79,11 +80,11 @@ public class GeoClippingTests
         [Fact]
         public void AllNaN_ReturnsEmpty()
         {
-            var pts = new List<(double X, double Y)>
+            var pts = new List<ProjectedPoint>
             {
-                (double.NaN, double.NaN),
-                (1, double.NaN),
-                (double.NaN, 2),
+                new(double.NaN, double.NaN),
+                new(1, double.NaN),
+                new(double.NaN, 2),
             };
             var result = GeoClipping.FilterNaN(pts);
             Assert.Empty(result);
@@ -92,25 +93,25 @@ public class GeoClippingTests
         [Fact]
         public void MixedNaN_OnlyKeepsFinite()
         {
-            var pts = new List<(double X, double Y)>
+            var pts = new List<ProjectedPoint>
             {
-                (1, 2),
-                (double.NaN, 3),
-                (4, 5),
-                (6, double.NaN),
-                (7, 8),
+                new(1, 2),
+                new(double.NaN, 3),
+                new(4, 5),
+                new(6, double.NaN),
+                new(7, 8),
             };
             var result = GeoClipping.FilterNaN(pts);
             Assert.Equal(3, result.Count);
-            Assert.Contains((1.0, 2.0), result);
-            Assert.Contains((4.0, 5.0), result);
-            Assert.Contains((7.0, 8.0), result);
+            Assert.Contains(new ProjectedPoint(1.0, 2.0), result);
+            Assert.Contains(new ProjectedPoint(4.0, 5.0), result);
+            Assert.Contains(new ProjectedPoint(7.0, 8.0), result);
         }
 
         [Fact]
         public void EmptyList_ReturnsEmpty()
         {
-            var result = GeoClipping.FilterNaN(new List<(double X, double Y)>());
+            var result = GeoClipping.FilterNaN(new List<ProjectedPoint>());
             Assert.Empty(result);
         }
     }
@@ -121,7 +122,7 @@ public class GeoClippingTests
         [Fact]
         public void AllInside_PointsUnchanged()
         {
-            var pts = new List<(double X, double Y)> { (0, 0), (5, 5), (-5, -5) };
+            var pts = new List<ProjectedPoint> { new(0, 0), new(5, 5), new(-5, -5) };
             var result = GeoClipping.ClipToBounds(pts, -10, 10, -10, 10);
             Assert.Equal(pts.Count, result.Count);
             for (int i = 0; i < pts.Count; i++)
@@ -134,11 +135,11 @@ public class GeoClippingTests
         [Fact]
         public void OutOfBounds_GetsClampedToBoundary()
         {
-            var pts = new List<(double X, double Y)> { (-100, -100), (100, 100), (50, -50) };
+            var pts = new List<ProjectedPoint> { new(-100, -100), new(100, 100), new(50, -50) };
             var result = GeoClipping.ClipToBounds(pts, -10, 10, -20, 20);
-            Assert.Equal((-10.0, -20.0), result[0]);
-            Assert.Equal((10.0, 20.0),   result[1]);
-            Assert.Equal((10.0, -20.0),  result[2]);
+            Assert.Equal(new ProjectedPoint(-10.0, -20.0), result[0]);
+            Assert.Equal(new ProjectedPoint(10.0, 20.0),   result[1]);
+            Assert.Equal(new ProjectedPoint(10.0, -20.0),  result[2]);
         }
 
         [Fact]

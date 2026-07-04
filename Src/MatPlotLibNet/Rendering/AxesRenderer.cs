@@ -279,13 +279,13 @@ public abstract class AxesRenderer
             if (legend.Shadow)
             {
                 var shadowColor = new Color(0, 0, 0, 80);
-                Ctx.DrawRectangle(new Rect(layout.BoxX + 3, layout.BoxY + 3, layout.BoxWidth, layout.BoxHeight), shadowColor, null, 0);
+                Ctx.DrawRectangle(new Rect(layout.BoxX + 3, layout.BoxY + 3, layout.BoxWidth, layout.BoxHeight), new ShapeStyle(shadowColor, null, 0));
             }
 
             // FancyBox: rounded corners are expressed via SVG rx/ry — DrawRectangle doesn't expose
             // corner radius, so we use an SVG comment/group attribute via the context when available.
             // For now render normally; FancyBox is a visual hint recognised by advanced renderers.
-            Ctx.DrawRectangle(new Rect(layout.BoxX, layout.BoxY, layout.BoxWidth, layout.BoxHeight), bgColor, edgeColor, 0.5);
+            Ctx.DrawRectangle(new Rect(layout.BoxX, layout.BoxY, layout.BoxWidth, layout.BoxHeight), new ShapeStyle(bgColor, edgeColor, 0.5));
         }
 
         // Title
@@ -373,28 +373,28 @@ public abstract class AxesRenderer
         {
             case Models.Series.LineSeries ls:
             {
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, ls.LineWidth, ls.LineStyle);
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, ls.LineWidth, ls.LineStyle));
                 if (ls.Marker.HasValue)
                     DrawLegendMarker(x + wMax / 2, midY, ls.Marker.Value, ls.MarkerSize, color);
                 break;
             }
             case Models.Series.SignalSeries ss:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, ss.LineWidth, ss.LineStyle);
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, ss.LineWidth, ss.LineStyle));
                 break;
             case Models.Series.SignalXYSeries sxy:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, sxy.LineWidth, sxy.LineStyle);
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, sxy.LineWidth, sxy.LineStyle));
                 break;
             case Models.Series.SparklineSeries sp:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, sp.LineWidth, LineStyle.Solid);
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, sp.LineWidth, LineStyle.Solid));
                 break;
             case Models.Series.EcdfSeries ec:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, ec.LineWidth, ec.LineStyle);
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, ec.LineWidth, ec.LineStyle));
                 break;
             case Models.Series.RegressionSeries rs:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, rs.LineWidth, rs.LineStyle);
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, rs.LineWidth, rs.LineStyle));
                 break;
             case Models.Series.StepSeries stp:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), color, 1.5, LineStyle.Solid);
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, 1.5, LineStyle.Solid));
                 break;
             case Models.Series.ScatterSeries sc:
             {
@@ -405,9 +405,9 @@ public abstract class AxesRenderer
             }
             case Models.Series.ErrorBarSeries eb:
             {
-                Ctx.DrawLine(new Point(x + 2, midY), new Point(x + wMax - 2, midY), color, eb.LineWidth, LineStyle.Solid);
-                Ctx.DrawLine(new Point(x + 2, midY - 3), new Point(x + 2, midY + 3), color, eb.LineWidth, LineStyle.Solid);
-                Ctx.DrawLine(new Point(x + wMax - 2, midY - 3), new Point(x + wMax - 2, midY + 3), color, eb.LineWidth, LineStyle.Solid);
+                Ctx.DrawLine(new Point(x + 2, midY), new Point(x + wMax - 2, midY), new StrokeStyle(color, eb.LineWidth, LineStyle.Solid));
+                Ctx.DrawLine(new Point(x + 2, midY - 3), new Point(x + 2, midY + 3), new StrokeStyle(color, eb.LineWidth, LineStyle.Solid));
+                Ctx.DrawLine(new Point(x + wMax - 2, midY - 3), new Point(x + wMax - 2, midY + 3), new StrokeStyle(color, eb.LineWidth, LineStyle.Solid));
                 break;
             }
             default:
@@ -415,7 +415,7 @@ public abstract class AxesRenderer
                 // Patch-like: bar/hist/area/violin/pie/etc → filled RECTANGLE (matplotlib uses
                 // handlelength × handleheight; our wMax carries handlelength, h carries handleheight).
                 // Previous `Math.Min(wMax, h)` clamped it to a square which matplotlib never does.
-                Ctx.DrawRectangle(new Rect(x, y, wMax, h), color, null, 0);
+                Ctx.DrawRectangle(new Rect(x, y, wMax, h), new ShapeStyle(color, null, 0));
                 break;
             }
         }
@@ -427,9 +427,9 @@ public abstract class AxesRenderer
     {
         double radius = Math.Sqrt(Math.Max(size_pt2, 1) / Math.PI) * (100.0 / 72.0);
         if (marker == MarkerStyle.Square)
-            Ctx.DrawRectangle(new Rect(cx - radius, cy - radius, 2 * radius, 2 * radius), color, null, 0);
+            Ctx.DrawRectangle(new Rect(cx - radius, cy - radius, 2 * radius, 2 * radius), new ShapeStyle(color, null, 0));
         else
-            Ctx.DrawCircle(new Point(cx, cy), radius, color, null, 0);
+            Ctx.DrawCircle(new Point(cx, cy), radius, new ShapeStyle(color, null, 0));
     }
 
     /// <summary>Renders a color bar gradient alongside the plot area if configured.

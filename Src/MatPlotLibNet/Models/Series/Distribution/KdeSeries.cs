@@ -1,8 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
@@ -61,6 +61,36 @@ public sealed class KdeSeries : ChartSeries, IHasColor, IHasAlpha
         Color = Color,
         LineStyle = LineStyle == LineStyle.Solid ? null : LineStyle.ToString().ToLowerInvariant()
     };
+
+    /// <summary>Reconstructs a <see cref="KdeSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static KdeSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Kde(dto.Data ?? []);
+        if (dto.Bandwidth.HasValue)
+        {
+            s.Bandwidth = dto.Bandwidth.Value;
+        }
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        if (dto.LineWidth.HasValue)
+        {
+            s.LineWidth = dto.LineWidth.Value;
+        }
+        if (dto.Color.HasValue)
+        {
+            s.Color = dto.Color.Value;
+        }
+        if (dto.LineStyle is not null && Enum.TryParse<Styling.LineStyle>(dto.LineStyle, true, out var ls))
+        {
+            s.LineStyle = ls;
+        }
+        return s;
+    }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

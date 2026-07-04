@@ -46,7 +46,7 @@ internal sealed class PolarBarSeriesRenderer : SeriesRenderer<PolarBarSeries>
                 pts.Add(transform.PolarToPixel(0, a));
             }
 
-            Ctx.DrawPolygon(pts, fillColor, baseColor, 0.5);
+            Ctx.DrawPolygon(pts, new ShapeStyle(fillColor, baseColor, 0.5));
         }
     }
 }

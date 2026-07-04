@@ -18,8 +18,8 @@ internal sealed class ProgressBarSeriesRenderer : SeriesRenderer<ProgressBarSeri
         var bounds = Area.PlotBounds;
         double barH = bounds.Height * series.BarHeight;
         double y = bounds.Y + (bounds.Height - barH) / 2;
-        Ctx.DrawRectangle(new Rect(bounds.X, y, bounds.Width, barH), series.TrackColor, null, 0);
-        Ctx.DrawRectangle(new Rect(bounds.X, y, bounds.Width * series.Value, barH), series.FillColor, null, 0);
+        Ctx.DrawRectangle(new Rect(bounds.X, y, bounds.Width, barH), new ShapeStyle(series.TrackColor, null, 0));
+        Ctx.DrawRectangle(new Rect(bounds.X, y, bounds.Width * series.Value, barH), new ShapeStyle(series.FillColor, null, 0));
         Ctx.DrawText($"{series.Value:P0}", new Point(bounds.X + bounds.Width / 2, y + barH / 2 + 4), new Font { Size = 11, Weight = FontWeight.Bold }, TextAlignment.Center);
     }
 }

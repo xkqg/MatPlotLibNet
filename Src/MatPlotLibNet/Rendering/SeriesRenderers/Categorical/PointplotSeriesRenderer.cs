@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -37,19 +38,19 @@ internal sealed class PointplotSeriesRenderer : SeriesRenderer<PointplotSeries>
             var upperPx = Transform.DataToPixel(i, upper);
 
             // Vertical CI line
-            Ctx.DrawLine(lowerPx, upperPx, color, 1.5, Styling.LineStyle.Solid);
+            Ctx.DrawLine(lowerPx, upperPx, new StrokeStyle(color, 1.5, Styling.LineStyle.Solid));
 
             // Cap lines
             var capLeft = Transform.DataToPixel(i - halfCap, lower);
             var capRight = Transform.DataToPixel(i + halfCap, lower);
-            Ctx.DrawLine(capLeft, capRight, color, 1.5, Styling.LineStyle.Solid);
+            Ctx.DrawLine(capLeft, capRight, new StrokeStyle(color, 1.5, Styling.LineStyle.Solid));
 
             capLeft = Transform.DataToPixel(i - halfCap, upper);
             capRight = Transform.DataToPixel(i + halfCap, upper);
-            Ctx.DrawLine(capLeft, capRight, color, 1.5, Styling.LineStyle.Solid);
+            Ctx.DrawLine(capLeft, capRight, new StrokeStyle(color, 1.5, Styling.LineStyle.Solid));
 
             // Mean circle
-            Ctx.DrawCircle(meanPx, r, color, null, 0);
+            Ctx.DrawCircle(meanPx, r, new ShapeStyle(color, null, 0));
         }
     }
 

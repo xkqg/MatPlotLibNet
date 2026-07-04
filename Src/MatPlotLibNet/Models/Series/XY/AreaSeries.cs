@@ -80,6 +80,31 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
         SmoothResolution = Smooth && SmoothResolution != 10 ? SmoothResolution : null
     };
 
+    /// <summary>Reconstructs an <see cref="AreaSeries"/> from its serialization DTO, including the optional second Y dataset for fill-between, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static AreaSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.FillBetween(dto.XData ?? [], dto.YData ?? [], dto.YData2);
+        s.Color = dto.Color;
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        s.LineWidth = dto.LineWidth ?? 1.5;
+        ChartSerializer.ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
+        if (dto.Smooth == true)
+        {
+            s.Smooth = true;
+        }
+        if (dto.SmoothResolution.HasValue)
+        {
+            s.SmoothResolution = dto.SmoothResolution.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

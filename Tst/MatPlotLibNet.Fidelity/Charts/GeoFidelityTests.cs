@@ -26,10 +26,20 @@ public class GeoFidelityTests : FidelityTest
     [FidelityTolerance(Rms = 150, Ssim = 0.40, DeltaE = 120)]
     public void Robinson_WorldMap_MatchesCartopy(string themeId)
     {
+        var theme = ResolveTheme(themeId);
+        if (!FixtureExists(theme, "geo_robinson"))
+        {
+            Assert.Skip(
+                "cartopy reference fixture geo_robinson.png not present in repo — generate via " +
+                "'pip install cartopy && python tools/mpl_reference/generate.py --chart geo_robinson --style both' " +
+                "to enable this fidelity check (cartopy requires system-level GEOS/PROJ libraries and is " +
+                "intentionally excluded from tools/mpl_reference/requirements.txt as a non-hermetic dependency).");
+        }
+
         var proj = GeoProjection.Robinson;
         var figure = Plt.Create()
             .WithSize(FigWidth, FigHeight)
-            .WithTheme(ResolveTheme(themeId))
+            .WithTheme(theme)
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("World Map — Robinson")
                 .WithProjection(proj)

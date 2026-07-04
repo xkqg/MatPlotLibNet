@@ -15,9 +15,16 @@ namespace MatPlotLibNet.Interactive;
 public sealed class BrowserLauncher : IBrowserLauncher
 {
     /// <inheritdoc/>
+    /// <remarks>Failure observability: if the OS cannot launch a browser (no default handler
+    /// for the URL scheme, shell error, …) <see cref="Process.Start(ProcessStartInfo)"/> throws
+    /// (typically <see cref="System.ComponentModel.Win32Exception"/>), so the caller of
+    /// <see cref="InteractiveExtensions.ShowAsync"/> receives the failure rather than a silent
+    /// no-op. A <see langword="null"/> return is normal for shell-launched URLs (an already-running
+    /// browser handles the request without a new process) and is not an error; the returned handle,
+    /// when present, is disposed immediately as it is not needed to keep the browser open.</remarks>
     public Task OpenAsync(string url)
     {
-        Process.Start(new ProcessStartInfo
+        using var process = Process.Start(new ProcessStartInfo
         {
             FileName = url,
             UseShellExecute = true

@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -45,7 +46,7 @@ internal sealed class HexbinSeriesRenderer : SeriesRenderer<HexbinSeries>
                 pixelVerts.Add(Transform.DataToPixel(v.X, v.Y));
 
             var color = cmap.GetColor(norm.Normalize(count, normMin, normMax));
-            Ctx.DrawPolygon(pixelVerts, color, null, 0);
+            Ctx.DrawPolygon(pixelVerts, new ShapeStyle(color, null, 0));
         }
     }
 }

@@ -61,7 +61,7 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         Parallel.For(0, figure.SubPlots.Count, i =>
         {
             var ctx = new SvgRenderContext();
-            Renderer.RenderAxes(figure, figure.SubPlots[i], plotAreas[i], ctx, theme);
+            Renderer.RenderAxes(figure, figure.SubPlots[i], new RenderPass(plotAreas[i], ctx, theme));
             subplotContexts[i] = ctx;
         });
 

@@ -130,14 +130,14 @@ public class RenderContextGroupTests
     /// <summary>A minimal IRenderContext that does nothing (verifies default interface methods work).</summary>
     private sealed class NullRenderContext : IRenderContext
     {
-        public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style) { }
-        public void DrawLines(IReadOnlyList<Point> points, Color color, double thickness, LineStyle style) { }
-        public void DrawPolygon(IReadOnlyList<Point> points, Color? fill, Color? stroke, double strokeThickness) { }
-        public void DrawCircle(Point center, double radius, Color? fill, Color? stroke, double strokeThickness) { }
-        public void DrawRectangle(Rect rect, Color? fill, Color? stroke, double strokeThickness) { }
-        public void DrawEllipse(Rect bounds, Color? fill, Color? stroke, double strokeThickness) { }
+        public void DrawLine(Point p1, Point p2, StrokeStyle stroke) { }
+        public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke) { }
+        public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape) { }
+        public void DrawCircle(Point center, double radius, ShapeStyle shape) { }
+        public void DrawRectangle(Rect rect, ShapeStyle shape) { }
+        public void DrawEllipse(Rect bounds, ShapeStyle shape) { }
         public void DrawText(string text, Point position, Font font, TextAlignment alignment) { }
-        public void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness) { }
+        public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape) { }
         public void PushClip(Rect clipRect) { }
         public void PopClip() { }
         public Size MeasureText(string text, Font font) => new(50, 12);
@@ -147,15 +147,15 @@ public class RenderContextGroupTests
     private sealed class RecordingNullContext : IRenderContext
     {
         public string? LastDrawnText { get; private set; }
-        public void DrawLine(Point p1, Point p2, Color color, double thickness, LineStyle style) { }
-        public void DrawLines(IReadOnlyList<Point> points, Color color, double thickness, LineStyle style) { }
-        public void DrawPolygon(IReadOnlyList<Point> points, Color? fill, Color? stroke, double strokeThickness) { }
-        public void DrawCircle(Point center, double radius, Color? fill, Color? stroke, double strokeThickness) { }
-        public void DrawRectangle(Rect rect, Color? fill, Color? stroke, double strokeThickness) { }
-        public void DrawEllipse(Rect bounds, Color? fill, Color? stroke, double strokeThickness) { }
+        public void DrawLine(Point p1, Point p2, StrokeStyle stroke) { }
+        public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke) { }
+        public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape) { }
+        public void DrawCircle(Point center, double radius, ShapeStyle shape) { }
+        public void DrawRectangle(Rect rect, ShapeStyle shape) { }
+        public void DrawEllipse(Rect bounds, ShapeStyle shape) { }
         public void DrawText(string text, Point position, Font font, TextAlignment alignment)
             => LastDrawnText = text;
-        public void DrawPath(IReadOnlyList<PathSegment> segments, Color? fill, Color? stroke, double strokeThickness) { }
+        public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape) { }
         public void PushClip(Rect clipRect) { }
         public void PopClip() { }
         public Size MeasureText(string text, Font font) => new(50, 12);

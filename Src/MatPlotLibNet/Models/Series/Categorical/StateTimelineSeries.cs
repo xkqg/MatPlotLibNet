@@ -54,6 +54,27 @@ public sealed class StateTimelineSeries : ChartSeries
         StateSegmentColors = Segments.Select(s => s.Color).ToList(),
     };
 
+    /// <summary>Reconstructs a <see cref="StateTimelineSeries"/> from its serialization DTO, restoring
+    /// segment starts, ends, labels, and per-segment colours, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static StateTimelineSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var starts  = dto.Starts     ?? [];
+        var ends    = dto.Ends       ?? [];
+        var labels  = dto.Categories ?? [];
+        var colors  = dto.StateSegmentColors ?? [];
+        int count   = Math.Min(Math.Min(starts.Length, ends.Length),
+                               Math.Min(labels.Length, colors.Count));
+        var segments = new Models.Series.StateSegment[count];
+        for (int i = 0; i < count; i++)
+        {
+            segments[i] = new Models.Series.StateSegment(starts[i], ends[i], labels[i], colors[i]);
+        }
+        return axes.StateTimeline(segments);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

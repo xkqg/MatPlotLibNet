@@ -42,23 +42,26 @@ internal static class SvgWriterExtensions
     /// </summary>
     /// <remarks>
     /// Byte-contract: <c>fill=</c> is emitted first (either the hex value or <c>"none"</c>),
-    /// then <c>fill-opacity</c> if alpha &lt; 255, then stroke attributes only if stroke is
-    /// non-null. Matches <see cref="SvgRenderContext"/>.<c>AppendFillStroke</c> pre-F.2.b.
+    /// then <c>fill-opacity</c> if alpha &lt; 255, then stroke attributes only if the stroke is
+    /// visible. Fill visibility is <see cref="ShapeStyle.HasVisibleFill"/>; stroke visibility is
+    /// <see cref="ShapeStyle.HasVisibleStroke"/> — the centralized guard now also skips the stroke
+    /// when <see cref="ShapeStyle.StrokeThickness"/> is not positive (previously the SVG backend
+    /// emitted <c>stroke-width="0"</c> in that case, which browsers render as no stroke anyway).
     /// </remarks>
-    public static StringBuilder AppendFillStroke(this StringBuilder sb,
-        Color? fill, Color? stroke, double strokeThickness)
+    public static StringBuilder AppendFillStroke(this StringBuilder sb, ShapeStyle shape)
     {
-        if (fill.HasValue)
+        if (shape.HasVisibleFill)
         {
-            sb.Append(" fill=\"").Append(fill.Value.ToHex()).Append('"');
-            if (fill.Value.A < 255)
-                sb.Append(" fill-opacity=\"").Append((fill.Value.A / 255.0).ToSvgNumber()).Append('"');
+            Color fill = shape.Fill!.Value;
+            sb.Append(" fill=\"").Append(fill.ToHex()).Append('"');
+            if (fill.A < 255)
+                sb.Append(" fill-opacity=\"").Append((fill.A / 255.0).ToSvgNumber()).Append('"');
         }
         else
             sb.Append(" fill=\"none\"");
 
-        if (stroke.HasValue)
-            sb.Append(" stroke=\"").Append(stroke.Value.ToHex()).Append("\" stroke-width=\"").Append(strokeThickness.ToSvgNumber()).Append('"');
+        if (shape.HasVisibleStroke)
+            sb.Append(" stroke=\"").Append(shape.Stroke!.Value.ToHex()).Append("\" stroke-width=\"").Append(shape.StrokeThickness.ToSvgNumber()).Append('"');
 
         return sb;
     }

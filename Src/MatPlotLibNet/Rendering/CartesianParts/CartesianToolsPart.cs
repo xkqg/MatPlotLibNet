@@ -48,7 +48,7 @@ internal sealed class CartesianToolsPart : CartesianAxesPart
                 p2 = Transform.DataToPixel(t.X2, t.Y2);
             }
 
-            Ctx.DrawLine(p1, p2, color, t.LineWidth, t.LineStyle);
+            Ctx.DrawLine(p1, p2, new StrokeStyle(color, t.LineWidth, t.LineStyle));
 
             if (t.Label is not null)
             {
@@ -67,7 +67,7 @@ internal sealed class CartesianToolsPart : CartesianAxesPart
             var pt = Transform.DataToPixel(0, l.Value);
             var p1 = new Point(PlotArea.X, pt.Y);
             var p2 = new Point(PlotArea.X + PlotArea.Width, pt.Y);
-            Ctx.DrawLine(p1, p2, color, l.LineWidth, l.LineStyle);
+            Ctx.DrawLine(p1, p2, new StrokeStyle(color, l.LineWidth, l.LineStyle));
 
             if (l.Label is not null)
             {
@@ -88,7 +88,7 @@ internal sealed class CartesianToolsPart : CartesianAxesPart
                 var pt = Transform.DataToPixel(0, level.Price);
                 var p1 = new Point(PlotArea.X, pt.Y);
                 var p2 = new Point(PlotArea.X + PlotArea.Width, pt.Y);
-                Ctx.DrawLine(p1, p2, color, fib.LineWidth, LineStyle.Dashed);
+                Ctx.DrawLine(p1, p2, new StrokeStyle(color, fib.LineWidth, LineStyle.Dashed));
 
                 if (fib.ShowLabels)
                 {

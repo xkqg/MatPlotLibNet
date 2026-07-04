@@ -53,6 +53,28 @@ public sealed class SpectrogramSeries : ChartSeries, IColorBarDataProvider, ICol
         ColorMapName = ColorMap?.Name
     };
 
+    /// <summary>Reconstructs a <see cref="SpectrogramSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static SpectrogramSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Spectrogram(dto.Signal ?? [], dto.SampleRate ?? 1);
+        if (dto.WindowSize.HasValue)
+        {
+            s.WindowSize = dto.WindowSize.Value;
+        }
+        if (dto.Overlap.HasValue)
+        {
+            s.Overlap = dto.Overlap.Value;
+        }
+        if (dto.ColorMapName is not null)
+        {
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

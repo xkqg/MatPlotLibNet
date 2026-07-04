@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"statetimeline","categories":["A","B"],"starts":[0,1],"ends":[1,2],"stateSegmentColors":["#FF0000","#0000FF"]}]}]}

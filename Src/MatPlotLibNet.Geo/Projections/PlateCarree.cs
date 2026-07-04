@@ -12,14 +12,14 @@ public sealed class PlateCarree : IGeoProjection
     public string Name => "PlateCarree";
 
     /// <inheritdoc />
-    public (double X, double Y) Forward(double latitude, double longitude) =>
-        (longitude, latitude);
+    public ProjectedPoint Forward(double latitude, double longitude) =>
+        new(longitude, latitude);
 
     /// <inheritdoc />
-    public (double Lat, double Lon)? Inverse(double x, double y) =>
-        Math.Abs(y) <= 90 && Math.Abs(x) <= 180 ? (y, x) : null;
+    public GeoCoordinate? Inverse(double x, double y) =>
+        Math.Abs(y) <= 90 && Math.Abs(x) <= 180 ? new GeoCoordinate(y, x) : null;
 
     /// <inheritdoc />
-    public (double XMin, double XMax, double YMin, double YMax) Bounds =>
-        (-180, 180, -90, 90);
+    public GeoBounds Bounds =>
+        new(-180, 180, -90, 90);
 }

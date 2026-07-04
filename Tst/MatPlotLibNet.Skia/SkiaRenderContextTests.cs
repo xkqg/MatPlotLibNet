@@ -43,7 +43,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawLine_RendersNonTransparentPixels()
     {
-        _ctx.DrawLine(new Point(10, 50), new Point(90, 50), Colors.Red, 2, LineStyle.Solid);
+        _ctx.DrawLine(new Point(10, 50), new Point(90, 50), new StrokeStyle(Colors.Red, 2, LineStyle.Solid));
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -54,7 +54,7 @@ public class SkiaRenderContextTests : IDisposable
     public void DrawLines_RendersPolyline()
     {
         var points = new List<Point> { new(10, 10), new(50, 90), new(90, 10) };
-        _ctx.DrawLines(points, Colors.Blue, 2, LineStyle.Solid);
+        _ctx.DrawLines(points, new StrokeStyle(Colors.Blue, 2, LineStyle.Solid));
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -65,7 +65,7 @@ public class SkiaRenderContextTests : IDisposable
     public void DrawPolygon_WithFill_RendersFilled()
     {
         var points = new List<Point> { new(10, 10), new(90, 10), new(90, 90), new(10, 90) };
-        _ctx.DrawPolygon(points, fill: Colors.Green, stroke: null, strokeThickness: 0);
+        _ctx.DrawPolygon(points, new ShapeStyle(Colors.Green, null, 0));
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -76,7 +76,7 @@ public class SkiaRenderContextTests : IDisposable
     public void DrawPolygon_WithStroke_RendersOutline()
     {
         var points = new List<Point> { new(10, 10), new(90, 10), new(90, 90), new(10, 90) };
-        _ctx.DrawPolygon(points, fill: null, stroke: Colors.Red, strokeThickness: 2);
+        _ctx.DrawPolygon(points, new ShapeStyle(null, Colors.Red, 2));
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -86,7 +86,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawCircle_WithFill_RendersCenterArea()
     {
-        _ctx.DrawCircle(new Point(50, 50), 30, fill: Colors.Blue, stroke: null, strokeThickness: 0);
+        _ctx.DrawCircle(new Point(50, 50), 30, new ShapeStyle(Colors.Blue, null, 0));
         _canvas.Flush();
 
         // Verify the center area has non-transparent pixels
@@ -98,7 +98,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawCircle_WithStroke_RendersOutline()
     {
-        _ctx.DrawCircle(new Point(50, 50), 30, fill: null, stroke: Colors.Red, strokeThickness: 3);
+        _ctx.DrawCircle(new Point(50, 50), 30, new ShapeStyle(null, Colors.Red, 3));
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -108,7 +108,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawRectangle_WithFill_RendersFilled()
     {
-        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), fill: Colors.Green, stroke: null, strokeThickness: 0);
+        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), new ShapeStyle(Colors.Green, null, 0));
         _canvas.Flush();
 
         var pixel = _bitmap.GetPixel(50, 50);
@@ -119,7 +119,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawRectangle_WithStroke_RendersOutline()
     {
-        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), fill: null, stroke: Colors.Black, strokeThickness: 2);
+        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), new ShapeStyle(null, Colors.Black, 2));
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -129,7 +129,7 @@ public class SkiaRenderContextTests : IDisposable
     [Fact]
     public void DrawEllipse_WithFill_RendersFilled()
     {
-        _ctx.DrawEllipse(new Rect(10, 10, 80, 80), fill: Colors.Magenta, stroke: null, strokeThickness: 0);
+        _ctx.DrawEllipse(new Rect(10, 10, 80, 80), new ShapeStyle(Colors.Magenta, null, 0));
         _canvas.Flush();
 
         var pixel = _bitmap.GetPixel(50, 50);
@@ -157,7 +157,7 @@ public class SkiaRenderContextTests : IDisposable
             new LineToSegment(new Point(90, 50)),
             new LineToSegment(new Point(50, 90))
         };
-        _ctx.DrawPath(segments, fill: null, stroke: Colors.Red, strokeThickness: 2);
+        _ctx.DrawPath(segments, new ShapeStyle(null, Colors.Red, 2));
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -174,7 +174,7 @@ public class SkiaRenderContextTests : IDisposable
             new LineToSegment(new Point(50, 90)),
             new CloseSegment()
         };
-        _ctx.DrawPath(segments, fill: Colors.Cyan, stroke: null, strokeThickness: 0);
+        _ctx.DrawPath(segments, new ShapeStyle(Colors.Cyan, null, 0));
         _canvas.Flush();
 
         Assert.True(HasNonTransparentPixels());
@@ -187,7 +187,7 @@ public class SkiaRenderContextTests : IDisposable
         // Clip to a small region in the top-left
         _ctx.PushClip(new Rect(0, 0, 10, 10));
         // Draw a rectangle in the bottom-right, fully outside the clip
-        _ctx.DrawRectangle(new Rect(50, 50, 40, 40), fill: Colors.Red, stroke: null, strokeThickness: 0);
+        _ctx.DrawRectangle(new Rect(50, 50, 40, 40), new ShapeStyle(Colors.Red, null, 0));
         _canvas.Flush();
 
         // Verify the bottom-right area remains transparent (alpha == 0)
@@ -202,7 +202,7 @@ public class SkiaRenderContextTests : IDisposable
         _ctx.PushClip(new Rect(0, 0, 10, 10));
         _ctx.PopClip();
         // Drawing should now work across the full canvas
-        _ctx.DrawRectangle(new Rect(50, 50, 40, 40), fill: Colors.Blue, stroke: null, strokeThickness: 0);
+        _ctx.DrawRectangle(new Rect(50, 50, 40, 40), new ShapeStyle(Colors.Blue, null, 0));
         _canvas.Flush();
 
         var pixel = _bitmap.GetPixel(70, 70);
@@ -239,13 +239,13 @@ public class SkiaRenderContextTests : IDisposable
         using var opaqueCanvas = new SKCanvas(opaqueBitmap);
         opaqueCanvas.Clear(SKColors.Transparent);
         var opaqueCtx = new SkiaRenderContext(opaqueCanvas);
-        opaqueCtx.DrawRectangle(new Rect(10, 10, 80, 80), fill: Colors.Red, stroke: null, strokeThickness: 0);
+        opaqueCtx.DrawRectangle(new Rect(10, 10, 80, 80), new ShapeStyle(Colors.Red, null, 0));
         opaqueCanvas.Flush();
         var opaquePixel = opaqueBitmap.GetPixel(50, 50);
 
         // Now draw with 50% opacity
         _ctx.SetOpacity(0.5);
-        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), fill: Colors.Red, stroke: null, strokeThickness: 0);
+        _ctx.DrawRectangle(new Rect(10, 10, 80, 80), new ShapeStyle(Colors.Red, null, 0));
         _canvas.Flush();
         var semiPixel = _bitmap.GetPixel(50, 50);
 
@@ -302,14 +302,14 @@ public class SkiaRenderContextCoverageTests : IDisposable
     [Fact]
     public void DrawLines_FewerThanTwoPoints_NoOp()
     {
-        _ctx.DrawLines(new List<Point> { new(10, 10) }, Colors.Red, 1, LineStyle.Solid);
+        _ctx.DrawLines(new List<Point> { new(10, 10) }, new StrokeStyle(Colors.Red, 1, LineStyle.Solid));
     }
 
     [Fact]
     public void DrawLines_TwoOrMorePoints_DrawsPath()
     {
         _ctx.DrawLines(new List<Point> { new(10, 10), new(50, 50), new(90, 30) },
-            Colors.Black, 2, LineStyle.Solid);
+            new StrokeStyle(Colors.Black, 2, LineStyle.Solid));
         Assert.NotEqual(SKColors.Transparent, _bitmap.GetPixel(50, 50));
     }
 
@@ -317,14 +317,13 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void DrawPolygon_FewerThanThreePoints_NoOp()
     {
         _ctx.DrawPolygon(new List<Point> { new(10, 10), new(20, 20) },
-            Colors.Red, Colors.Black, 1);
+            new ShapeStyle(Colors.Red, Colors.Black, 1));
     }
 
     [Fact]
     public void DrawPolygon_StrokeOnly_NoFill_DrawsOutline()
     {
-        _ctx.DrawPolygon(new List<Point> { new(10, 10), new(50, 10), new(30, 50) },
-            fill: null, stroke: Colors.Black, strokeThickness: 2);
+        _ctx.DrawPolygon(new List<Point> { new(10, 10), new(50, 10), new(30, 50) }, new ShapeStyle(null, Colors.Black, 2));
     }
 
     [Theory]
@@ -334,8 +333,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void DrawEllipse_StrokeStrokeThickness_AllArms(bool hasStroke, double thickness)
     {
         Color? stroke = hasStroke ? Colors.Black : (Color?)null;
-        _ctx.DrawEllipse(new Rect(10, 10, 50, 30),
-            fill: Colors.Red, stroke: stroke, strokeThickness: thickness);
+        _ctx.DrawEllipse(new Rect(10, 10, 50, 30), new ShapeStyle(Colors.Red, stroke, thickness));
     }
 
     [Theory]
@@ -395,16 +393,16 @@ public class SkiaRenderContextCoverageTests : IDisposable
             new ArcSegment(new Point(100, 100), 20, 20, 0, 180),
             new CloseSegment(),
         };
-        _ctx.DrawPath(segments, fill: Colors.Blue, stroke: Colors.Black, strokeThickness: 1);
+        _ctx.DrawPath(segments, new ShapeStyle(Colors.Blue, Colors.Black, 1));
     }
 
     [Fact]
     public void PushClip_PopClip_StackDisciplineWorks()
     {
         _ctx.PushClip(new Rect(10, 10, 30, 30));
-        _ctx.DrawRectangle(new Rect(0, 0, 50, 50), Colors.Red, null, 0);
+        _ctx.DrawRectangle(new Rect(0, 0, 50, 50), new ShapeStyle(Colors.Red, null, 0));
         _ctx.PopClip();
-        _ctx.DrawRectangle(new Rect(60, 60, 30, 30), Colors.Green, null, 0);
+        _ctx.DrawRectangle(new Rect(60, 60, 30, 30), new ShapeStyle(Colors.Green, null, 0));
     }
 
     [Theory]
@@ -416,7 +414,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void SetOpacity_ClampedToValidRange(double opacity)
     {
         _ctx.SetOpacity(opacity);
-        _ctx.DrawRectangle(new Rect(10, 10, 30, 30), Colors.Red, null, 0);
+        _ctx.DrawRectangle(new Rect(10, 10, 30, 30), new ShapeStyle(Colors.Red, null, 0));
     }
 
     [Fact]
@@ -491,8 +489,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void SetOpacity_BelowOne_ReducesPixelAlpha()
     {
         _ctx.SetOpacity(0.5);
-        _ctx.DrawRectangle(new Rect(60, 60, 30, 30),
-            new Color(255, 0, 0, 255), stroke: null, strokeThickness: 0);
+        _ctx.DrawRectangle(new Rect(60, 60, 30, 30), new ShapeStyle(new Color(255, 0, 0, 255), null, 0));
         var px = _bitmap.GetPixel(75, 75);
         Assert.InRange(px.Alpha, 100, 160);
     }
@@ -503,8 +500,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     [InlineData(LineStyle.DashDot)]
     public void DrawLine_DashedStyles_PathEffectApplied(LineStyle style)
     {
-        _ctx.DrawLine(new Point(10, 100), new Point(190, 100),
-            Colors.Black, thickness: 2, style);
+        _ctx.DrawLine(new Point(10, 100), new Point(190, 100), new StrokeStyle(Colors.Black, 2, style));
         Assert.NotEqual(SKColors.Transparent, _bitmap.GetPixel(100, 100));
     }
 

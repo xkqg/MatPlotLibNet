@@ -150,6 +150,22 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         BarWidth = BarWidth
     };
 
+    /// <summary>Reconstructs a <see cref="BarSeries"/> from its serialization DTO, including orientation, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static BarSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Bar(dto.Categories ?? [], dto.Values ?? []);
+        s.Color = dto.Color;
+        if (dto.BarWidth.HasValue)
+        {
+            s.BarWidth = dto.BarWidth.Value;
+        }
+        ChartSerializer.ApplyEnum<BarOrientation>(dto.Orientation, v => s.Orientation = v);
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

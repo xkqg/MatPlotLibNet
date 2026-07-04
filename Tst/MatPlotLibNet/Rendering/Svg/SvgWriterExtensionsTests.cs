@@ -81,7 +81,7 @@ public class SvgWriterExtensionsTests
     public void AppendFillStroke_NullFill_EmitsFillNone()
     {
         var sb = new StringBuilder();
-        sb.AppendFillStroke(fill: null, stroke: null, strokeThickness: 1);
+        sb.AppendFillStroke(new ShapeStyle(null, null, 1));
         Assert.Equal(" fill=\"none\"", sb.ToString());
     }
 
@@ -89,7 +89,7 @@ public class SvgWriterExtensionsTests
     public void AppendFillStroke_OpaqueFill_EmitsFillHex_NoOpacity()
     {
         var sb = new StringBuilder();
-        sb.AppendFillStroke(fill: Color.FromHex("#FF0000"), stroke: null, strokeThickness: 0);
+        sb.AppendFillStroke(new ShapeStyle(Color.FromHex("#FF0000"), null, 0));
         Assert.Equal(" fill=\"#FF0000\"", sb.ToString());
     }
 
@@ -98,7 +98,7 @@ public class SvgWriterExtensionsTests
     {
         var sb = new StringBuilder();
         var half = new Color(255, 0, 0, 128);  // alpha 128 / 255
-        sb.AppendFillStroke(fill: half, stroke: null, strokeThickness: 0);
+        sb.AppendFillStroke(new ShapeStyle(half, null, 0));
         var s = sb.ToString();
         Assert.Contains(" fill=\"", s);
         Assert.Contains(" fill-opacity=\"", s);
@@ -109,7 +109,7 @@ public class SvgWriterExtensionsTests
     public void AppendFillStroke_WithStroke_EmitsStrokeAndWidth()
     {
         var sb = new StringBuilder();
-        sb.AppendFillStroke(fill: null, stroke: Color.FromHex("#00FF00"), strokeThickness: 2.5);
+        sb.AppendFillStroke(new ShapeStyle(null, Color.FromHex("#00FF00"), 2.5));
         var s = sb.ToString();
         Assert.Contains(" fill=\"none\"", s);
         Assert.Contains(" stroke=\"#00FF00\"", s);
@@ -120,7 +120,7 @@ public class SvgWriterExtensionsTests
     public void AppendFillStroke_NullStroke_OmitsStrokeAttrs()
     {
         var sb = new StringBuilder();
-        sb.AppendFillStroke(fill: Color.FromHex("#123456"), stroke: null, strokeThickness: 99);
+        sb.AppendFillStroke(new ShapeStyle(Color.FromHex("#123456"), null, 99));
         Assert.DoesNotContain("stroke=", sb.ToString());
     }
 
@@ -128,7 +128,7 @@ public class SvgWriterExtensionsTests
     public void AppendFillStroke_ReturnsSameStringBuilder_ForChaining()
     {
         var sb = new StringBuilder();
-        var result = sb.AppendFillStroke(fill: null, stroke: null, strokeThickness: 0);
+        var result = sb.AppendFillStroke(new ShapeStyle(null, null, 0));
         Assert.Same(sb, result);
     }
 

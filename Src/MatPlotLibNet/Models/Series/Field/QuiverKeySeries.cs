@@ -43,6 +43,13 @@ public sealed class QuiverKeySeries : ChartSeries, IHasColor
         MarkerSize = FontSize
     };
 
+    /// <summary>Reconstructs a <see cref="QuiverKeySeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static QuiverKeySeries FromSeriesDto(Axes axes, SeriesDto dto)
+        => axes.QuiverKey(dto.QuiverKeyX ?? 0.5, dto.QuiverKeyY ?? 0.9, dto.QuiverKeyU ?? 1.0, dto.QuiverKeyLabel ?? "");
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

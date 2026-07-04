@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Reflection;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Serialization;
@@ -12,6 +13,11 @@ namespace MatPlotLibNet.Tests.Serialization;
 /// share one factory dispatch table), so test code that registers a custom factory must
 /// be able to roll back its mutation. <c>ResetForTests</c> rebuilds the default registration
 /// set without leaving stray test factories visible to sibling test runs.</summary>
+/// <remarks>Tagged into the <c>ChartSerializerGlobalState</c> collection (see
+/// <see cref="ChartSerializerGlobalStateCollection"/>): this class mutates the process-global
+/// registry, so it must not run concurrently with any test that reads through it via
+/// <c>ChartSerializer.FromJson</c> / <c>SeriesRegistry.Create</c>.</remarks>
+[Collection("ChartSerializerGlobalState")]
 public class SeriesRegistryTests
 {
     private static readonly object _lock = new();
@@ -28,7 +34,7 @@ public class SeriesRegistryTests
                 var probeBefore = SeriesRegistry.Create("__test_custom__", FreshAxes(), new SeriesDto());
                 Assert.NotNull(probeBefore);
 
-                SeriesRegistry.ResetForTests();
+                SeriesRegistry.ResetForTestsInternal();
 
                 var probeAfter = SeriesRegistry.Create("__test_custom__", FreshAxes(), new SeriesDto());
                 Assert.Null(probeAfter);
@@ -36,7 +42,7 @@ public class SeriesRegistryTests
             finally
             {
                 // Defensive: even if assertions throw, leave the registry in its default state.
-                SeriesRegistry.ResetForTests();
+                SeriesRegistry.ResetForTestsInternal();
             }
         }
     }
@@ -47,7 +53,7 @@ public class SeriesRegistryTests
         lock (_lock)
         {
             SeriesRegistry.Register("line", (axes, _) => null);   // Stomp the default.
-            SeriesRegistry.ResetForTests();
+            SeriesRegistry.ResetForTestsInternal();
 
             // After reset, the built-in "line" factory must produce a real LineSeries again.
             var s = SeriesRegistry.Create("line", FreshAxes(),
@@ -57,4 +63,19 @@ public class SeriesRegistryTests
     }
 
     private static Axes FreshAxes() => new Axes();
+
+    /// <summary>Council fix F3: <c>ResetForTests</c> is a test-infrastructure escape hatch that
+    /// should never have been on the production public API. It becomes an <c>[Obsolete]</c> public
+    /// shim (kept for one release so external consumers' test suites keep compiling) delegating to
+    /// the real, <c>internal</c> reset entry point that in-repo tests reach via
+    /// <c>InternalsVisibleTo</c>.</summary>
+    [Fact]
+    public void SeriesRegistry_ResetForTests_PublicShim_IsObsolete()
+    {
+        var method = typeof(SeriesRegistry).GetMethod(nameof(SeriesRegistry.ResetForTests), BindingFlags.Public | BindingFlags.Static);
+
+        Assert.NotNull(method);
+        var obsolete = method!.GetCustomAttribute<ObsoleteAttribute>();
+        Assert.NotNull(obsolete);
+    }
 }

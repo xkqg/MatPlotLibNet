@@ -59,6 +59,25 @@ public sealed class QuiverSeries : ChartSeries, IHasColor
         Color = Color, Scale = Scale, ArrowHeadSize = ArrowHeadSize
     };
 
+    /// <summary>Reconstructs a <see cref="QuiverSeries"/> from its serialization DTO, including scale and arrowhead size, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static QuiverSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Quiver(dto.XData ?? [], dto.YData ?? [], dto.UData ?? [], dto.VData ?? []);
+        s.Color = dto.Color;
+        if (dto.Scale.HasValue)
+        {
+            s.Scale = dto.Scale.Value;
+        }
+        if (dto.ArrowHeadSize.HasValue)
+        {
+            s.ArrowHeadSize = dto.ArrowHeadSize.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

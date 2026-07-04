@@ -62,7 +62,7 @@ internal sealed class CartesianSecondaryYAxisPart : CartesianAxesPart
             var pt = secTransform.DataToPixel(_secRange.XMax, tick);
             Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, pt.Y),
                 new Point(PlotArea.X + PlotArea.Width + 5, pt.Y),
-                Theme.ForegroundText, 1, LineStyle.Solid);
+                new StrokeStyle(Theme.ForegroundText, 1, LineStyle.Solid));
             Ctx.DrawText(Axes.SecondaryYAxis!.TickFormatter?.Format(tick) ?? secYUniformFormat(tick),
                 new Point(PlotArea.X + PlotArea.Width + 8, pt.Y + 4),
                 tickFont, TextAlignment.Left);

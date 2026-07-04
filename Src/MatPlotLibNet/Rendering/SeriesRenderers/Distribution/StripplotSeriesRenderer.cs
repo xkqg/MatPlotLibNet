@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -29,7 +30,7 @@ internal sealed class StripplotSeriesRenderer : SeriesRenderer<StripplotSeries>
             {
                 double jitter = (rng.NextDouble() * 2 - 1) * series.Jitter;
                 var px = Transform.DataToPixel(i + jitter, value);
-                Ctx.DrawCircle(px, series.MarkerSize / 2.0, dotColor, null, 0);
+                Ctx.DrawCircle(px, series.MarkerSize / 2.0, new ShapeStyle(dotColor, null, 0));
             }
         }
     }

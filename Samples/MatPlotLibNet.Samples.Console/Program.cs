@@ -2015,4 +2015,58 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     Console.WriteLine("Saved rrg_crypto_rotation.svg");
 }
 
+// =====================================================================
+// v1.12.0 — Ops dashboard: StatTiles, StateTimeline, Threshold + LegendValues
+// =====================================================================
+
+// --- 39. Ops dashboard mosaic — KPI tile row + service timeline + thresholded chart ---
+//
+// Demonstrates all four v1.12.0 dashboard conveniences together in one mosaic:
+// a KPI row of StatTileSeries, a StateTimelineSeries showing a day of service
+// health, and a line chart with a breach Threshold(...) + WithLegendValues()
+// so the legend shows the live reading alongside the series name.
+{
+    // 24h service-state timeline: mostly Up, one Degraded blip, one short outage.
+    var serviceHistory = new StateSegment[]
+    {
+        new(0,  6,  "Up",       Colors.Tab10Green),
+        new(6,  9,  "Degraded", Colors.Tab10Orange),
+        new(9,  14, "Up",       Colors.Tab10Green),
+        new(14, 15, "Down",     Colors.Red),
+        new(15, 24, "Up",       Colors.Tab10Green),
+    };
+
+    // Half-hourly CPU load with a late-day ramp that breaches the 80% alarm threshold.
+    double[] hours = Enumerable.Range(0, 48).Select(i => i * 0.5).ToArray();
+    double[] load  = hours.Select(h => 55 + 15 * Math.Sin(h * 0.4) + (h > 20 ? 20 : 0)).ToArray();
+
+    Plt.Create()
+        .WithTitle("Ops Dashboard — v1.12.0")
+        .WithTheme(Theme.Dark)
+        .WithSize(1000, 750)
+        .WithGridSpec(3, 3, heightRatios: [1.0, 1.0, 1.6])
+        .AddSubPlot(GridPosition.Single(0, 0), ax => ax
+            .StatTile(12, t => { t.Label = "Participants"; t.Format = "0"; }))
+        .AddSubPlot(GridPosition.Single(0, 1), ax => ax
+            .StatTile(1, t => { t.Label = "Alerts"; t.AccentColor = Colors.Red; t.Format = "0"; }))
+        .AddSubPlot(GridPosition.Single(0, 2), ax => ax
+            .StatTile(99.4, t => { t.Label = "Uptime %"; t.Format = "0.0"; }))
+        .AddSubPlot(new GridPosition(1, 2, 0, 3), ax => ax
+            .StateTimeline(serviceHistory, s => s.Label = "API service")
+            .WithTitle("Service state — last 24h"))
+        .AddSubPlot(new GridPosition(2, 3, 0, 3), ax => ax
+            .Plot(hours, load, s => s.Label = "CPU load %")
+            .Threshold(80.0, Orientation.Horizontal, ThresholdBreach.Above, color: Colors.Red, label: "Alarm")
+            .SetXLabel("Hour")
+            .SetYLabel("Load %")
+            // NOTE: WithLegend(...) replaces the Legend record wholesale, so it must be
+            // called BEFORE WithLegendValues() — reversing the order silently resets
+            // LegendValues back to false.
+            .WithLegend()
+            .WithLegendValues())
+        .TightLayout()
+        .SaveSvgAndPng(SamplesPath("ops_dashboard_full.svg"));
+    Console.WriteLine("Saved ops_dashboard_full.svg");
+}
+
 Console.WriteLine("Done!");

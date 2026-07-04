@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming Relative Strength Index (Wilder's smoothing). O(1) per append.</summary>
-public sealed class StreamingRsi : StreamingIndicatorBase
+public sealed class StreamingRsi : StreamingIndicator
 {
     private readonly int _period;
     private double _avgGain;

@@ -59,6 +59,48 @@ public sealed class RegressionSeries : ChartSeries, IHasColor
         LineStyle = LineStyle == LineStyle.Solid ? null : LineStyle.ToString().ToLowerInvariant()
     };
 
+    /// <summary>Reconstructs a <see cref="RegressionSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static RegressionSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Regression(dto.XData ?? [], dto.YData ?? []);
+        if (dto.Degree.HasValue)
+        {
+            s.Degree = dto.Degree.Value;
+        }
+        if (dto.ShowConfidence.HasValue)
+        {
+            s.ShowConfidence = dto.ShowConfidence.Value;
+        }
+        if (dto.ConfidenceLevel.HasValue)
+        {
+            s.ConfidenceLevel = dto.ConfidenceLevel.Value;
+        }
+        if (dto.LineWidth.HasValue)
+        {
+            s.LineWidth = dto.LineWidth.Value;
+        }
+        if (dto.Color.HasValue)
+        {
+            s.Color = dto.Color.Value;
+        }
+        if (dto.FillColor.HasValue)
+        {
+            s.BandColor = dto.FillColor.Value;
+        }
+        if (dto.Alpha.HasValue)
+        {
+            s.BandAlpha = dto.Alpha.Value;
+        }
+        if (dto.LineStyle is not null && Enum.TryParse<Styling.LineStyle>(dto.LineStyle, true, out var ls))
+        {
+            s.LineStyle = ls;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

@@ -123,6 +123,6 @@ internal sealed class Contour3DSeriesRenderer : SeriesRenderer<Contour3DSeries>
     private void DrawSeg(Point? a, Point? b, Color color, double lineWidth)
     {
         if (a is not null && b is not null)
-            Ctx.DrawLine(a.Value, b.Value, color, lineWidth, LineStyle.Solid);
+            Ctx.DrawLine(a.Value, b.Value, new StrokeStyle(color, lineWidth, LineStyle.Solid));
     }
 }

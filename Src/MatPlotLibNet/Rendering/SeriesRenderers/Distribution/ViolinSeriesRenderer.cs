@@ -44,18 +44,18 @@ internal sealed class ViolinSeriesRenderer : SeriesRenderer<ViolinSeries>
             }
             right.Reverse();
             var outline = new List<Point>(); outline.AddRange(left); outline.AddRange(right);
-            Ctx.DrawPolygon(outline, ApplyAlpha(bodyColor, series.Alpha), bodyColor, 1);
+            Ctx.DrawPolygon(outline, new ShapeStyle(ApplyAlpha(bodyColor, series.Alpha), bodyColor, 1));
 
             // ShowExtrema: draw vertical bar + horizontal ticks at min/max using stats color.
             if (series.ShowExtrema)
             {
                 double extHalfW = series.Widths * 0.3;
                 // Vertical center bar spanning min→max
-                Ctx.DrawLine(Transform.DataToPixel(pos, min), Transform.DataToPixel(pos, max), statsColor, 1.5, LineStyle.Solid);
+                Ctx.DrawLine(Transform.DataToPixel(pos, min), Transform.DataToPixel(pos, max), new StrokeStyle(statsColor, 1.5, LineStyle.Solid));
                 // Horizontal tick at min
-                Ctx.DrawLine(Transform.DataToPixel(pos - extHalfW, min), Transform.DataToPixel(pos + extHalfW, min), statsColor, 1.5, LineStyle.Solid);
+                Ctx.DrawLine(Transform.DataToPixel(pos - extHalfW, min), Transform.DataToPixel(pos + extHalfW, min), new StrokeStyle(statsColor, 1.5, LineStyle.Solid));
                 // Horizontal tick at max
-                Ctx.DrawLine(Transform.DataToPixel(pos - extHalfW, max), Transform.DataToPixel(pos + extHalfW, max), statsColor, 1.5, LineStyle.Solid);
+                Ctx.DrawLine(Transform.DataToPixel(pos - extHalfW, max), Transform.DataToPixel(pos + extHalfW, max), new StrokeStyle(statsColor, 1.5, LineStyle.Solid));
             }
 
             // ShowMedians: draw median line across full width
@@ -63,7 +63,7 @@ internal sealed class ViolinSeriesRenderer : SeriesRenderer<ViolinSeries>
             {
                 double median = data.Percentile(50);
                 double medHalfW = series.Widths * 0.5;
-                Ctx.DrawLine(Transform.DataToPixel(pos - medHalfW, median), Transform.DataToPixel(pos + medHalfW, median), Colors.White, 2, LineStyle.Solid);
+                Ctx.DrawLine(Transform.DataToPixel(pos - medHalfW, median), Transform.DataToPixel(pos + medHalfW, median), new StrokeStyle(Colors.White, 2, LineStyle.Solid));
             }
 
             // ShowMeans: draw mean line across full width
@@ -71,7 +71,7 @@ internal sealed class ViolinSeriesRenderer : SeriesRenderer<ViolinSeries>
             {
                 double mean = data.Average();
                 double meanHalfW = series.Widths * 0.5;
-                Ctx.DrawLine(Transform.DataToPixel(pos - meanHalfW, mean), Transform.DataToPixel(pos + meanHalfW, mean), Colors.Green, 1.5, LineStyle.Dashed);
+                Ctx.DrawLine(Transform.DataToPixel(pos - meanHalfW, mean), Transform.DataToPixel(pos + meanHalfW, mean), new StrokeStyle(Colors.Green, 1.5, LineStyle.Dashed));
             }
         }
     }

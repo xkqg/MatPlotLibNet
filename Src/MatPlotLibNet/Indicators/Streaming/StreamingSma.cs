@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming Simple Moving Average. O(1) per append via circular sum buffer.</summary>
-public sealed class StreamingSma : StreamingIndicatorBase
+public sealed class StreamingSma : StreamingIndicator
 {
     private readonly int _period;
     private readonly double[] _window;

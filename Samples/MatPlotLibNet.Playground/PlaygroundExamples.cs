@@ -40,14 +40,14 @@ public static class PlaygroundExamples
     /// a line (Phase L.6 of the v1.7.2 plan).</summary>
     public static bool SupportsLineControls(PlaygroundExample example) =>
         example is PlaygroundExample.LineChart or PlaygroundExample.MultiSeries
-            or PlaygroundExample.AxisBreaks or PlaygroundExample.MinorGrid;
+            or PlaygroundExample.AxisBreaks or PlaygroundExample.MinorGrid or PlaygroundExample.ThresholdLine;
 
     /// <summary>True if the example's primary series exposes a <c>MarkerStyle</c> /
     /// <c>MarkerSize</c> — i.e. the playground's Marker / Marker-size controls should be
     /// shown. Scatter (always-on markers) + Line families (optional per-point markers).</summary>
     public static bool SupportsMarkerControls(PlaygroundExample example) =>
         example is PlaygroundExample.LineChart or PlaygroundExample.ScatterPlot or PlaygroundExample.MultiSeries
-            or PlaygroundExample.AxisBreaks or PlaygroundExample.MinorGrid;
+            or PlaygroundExample.AxisBreaks or PlaygroundExample.MinorGrid or PlaygroundExample.ThresholdLine;
 
     /// <summary>True if the example exposes colormap / colorbar controls in the UI.</summary>
     public static bool SupportsColormap(PlaygroundExample example) =>
@@ -64,7 +64,8 @@ public static class PlaygroundExamples
             or PlaygroundExample.RadarChart
             or PlaygroundExample.PieChart
             or PlaygroundExample.SankeyFlow
-            or PlaygroundExample.Treemap);
+            or PlaygroundExample.Treemap
+            or PlaygroundExample.DashboardTiles);
 
     private static readonly Dictionary<PlaygroundExample, Func<PlaygroundOptions, (Figure, string)>> _builders =
         new()
@@ -87,6 +88,8 @@ public static class PlaygroundExamples
             [PlaygroundExample.MultiSubplot] = BuildMulti,
             [PlaygroundExample.AxisBreaks]   = BuildAxisBreaks,
             [PlaygroundExample.MinorGrid]    = BuildMinorGrid,
+            [PlaygroundExample.DashboardTiles] = BuildDashboardTiles,
+            [PlaygroundExample.ThresholdLine]  = BuildThresholdLine,
         };
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -550,6 +553,68 @@ public static class PlaygroundExamples
         return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MinorGrid, opts));
     }
 
+    /// <summary>v1.12.0 — a KPI tile row (<see cref="StatTileSeries"/>) above a single-row
+    /// <see cref="StateTimelineSeries"/>, composed via <c>WithGridSpec</c>. Both series types
+    /// are chartless (no axes/data), so <see cref="HasCartesianSpines"/> excludes this example.</summary>
+    private static (Figure, string) BuildDashboardTiles(PlaygroundOptions opts)
+    {
+        var serviceHistory = new StateSegment[]
+        {
+            new(0,  6,  "Up",       Colors.Tab10Green),
+            new(6,  9,  "Degraded", Colors.Tab10Orange),
+            new(9,  24, "Up",       Colors.Tab10Green),
+        };
+
+        var fb = opts.ApplyToFigure(Plt.Create())
+            .WithGridSpec(2, 2)
+            .AddSubPlot(GridPosition.Single(0, 0), ax =>
+            {
+                ax.StatTile(12, t => { t.Label = "Participants"; t.Format = "0"; });
+                opts.ApplyToAxes(ax);
+            })
+            .AddSubPlot(GridPosition.Single(0, 1), ax =>
+            {
+                ax.StatTile(1, t => { t.Label = "Alerts"; t.AccentColor = Colors.Red; t.Format = "0"; });
+                opts.ApplyToAxes(ax);
+            })
+            .AddSubPlot(new GridPosition(1, 2, 0, 2), ax =>
+            {
+                ax.StateTimeline(serviceHistory, s => s.Label = "Service").WithTitle("Service state — 24h");
+                opts.ApplyToAxes(ax);
+            });
+
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.DashboardTiles, opts));
+    }
+
+    /// <summary>v1.12.0 — the <c>Threshold(...)</c> convenience: a dashed reference line +
+    /// shaded breach span in one call, plus <c>WithLegendValues()</c> so the legend shows
+    /// the series' current reading (e.g. "Load = 87.42").</summary>
+    private static (Figure, string) BuildThresholdLine(PlaygroundOptions opts)
+    {
+        double[] x = Enumerable.Range(0, 60).Select(i => (double)i).ToArray();
+        double[] y = x.Select(v => 50 + 20 * Math.Sin(v * 0.15)).ToArray();
+
+        var fb = opts.ApplyToFigure(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot(x, y, s =>
+                {
+                    s.Label = "Load";
+                    s.LineStyle = opts.LineStyle;
+                    s.LineWidth = opts.LineWidth;
+                    if (opts.Marker != MarkerStyle.None) { s.Marker = opts.Marker; s.MarkerSize = opts.MarkerSize; }
+                });
+                ax.Threshold(70.0, Orientation.Horizontal, ThresholdBreach.Above, color: Colors.Red, label: "Alarm");
+                // NOTE: opts.ApplyToAxes(ax) calls WithLegend(visible: ...), which replaces
+                // the Legend record wholesale — WithLegendValues() must run AFTER it, or the
+                // flag it sets is silently discarded.
+                opts.ApplyToAxes(ax);
+                ax.WithLegendValues();
+            });
+
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ThresholdLine, opts));
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Code snippets — kept inline so users see the EXACT call chain to copy
     // ──────────────────────────────────────────────────────────────────────────
@@ -596,6 +661,15 @@ public static class PlaygroundExamples
             PlaygroundExample.MultiSubplot => "    .AddSubPlot(1, 2, 1, ax => ax.Plot(x, y).WithTitle(\"Line\"))\n    .AddSubPlot(1, 2, 2, ax => ax.Bar(cats, vals).WithTitle(\"Bar\"))",
             PlaygroundExample.AxisBreaks   => "    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, s => s.Label = \"Sensor\").WithYBreak(20, 80))",
             PlaygroundExample.MinorGrid    => "    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y).WithMinorTicks().WithGrid(g => g with { Which = GridWhich.Both }))",
+            PlaygroundExample.DashboardTiles =>
+                "    .WithGridSpec(2, 2)\n" +
+                "    .AddSubPlot(GridPosition.Single(0, 0), ax => ax.StatTile(12, t => t.Label = \"Participants\"))\n" +
+                "    .AddSubPlot(GridPosition.Single(0, 1), ax => ax.StatTile(1, t => { t.Label = \"Alerts\"; t.AccentColor = Colors.Red; }))\n" +
+                "    .AddSubPlot(new GridPosition(1, 2, 0, 2), ax => ax.StateTimeline(segments, s => s.Label = \"Service\"))",
+            PlaygroundExample.ThresholdLine =>
+                "    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, s => s.Label = \"Load\")\n" +
+                "        .Threshold(70.0, Orientation.Horizontal, ThresholdBreach.Above, color: Colors.Red, label: \"Alarm\")\n" +
+                "        .WithLegendValues())",
             _                              => throw new ArgumentOutOfRangeException(nameof(example), example,
                                                   $"CodeFor: no snippet registered for new enum value {example}; update the switch."),
         };

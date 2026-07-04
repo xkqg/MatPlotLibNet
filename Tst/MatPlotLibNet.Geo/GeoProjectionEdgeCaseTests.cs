@@ -44,7 +44,7 @@ public class GeoProjectionEdgeCaseTests
     {
         private static readonly IGeoProjection P = GeoProjection.PlateCarree;
 
-        [Fact] public void Origin_MapsToZero() { Assert.Equal((0d, 0d), P.Forward(0, 0)); }
+        [Fact] public void Origin_MapsToZero() { Assert.Equal(new ProjectedPoint(0, 0), P.Forward(0, 0)); }
 
         [Theory]
         [InlineData(45,   90)]
@@ -68,8 +68,8 @@ public class GeoProjectionEdgeCaseTests
             // Identity projection has trivial inverse.
             var inv = P.Inverse(45, 30);
             if (inv is null) return; // optional Inverse — skip if not implemented
-            Assert.Equal(30,  inv.Value.Lat, 1e-9);
-            Assert.Equal(45,  inv.Value.Lon, 1e-9);
+            Assert.Equal(30,  inv.Value.Latitude, 1e-9);
+            Assert.Equal(45,  inv.Value.Longitude, 1e-9);
         }
     }
 
@@ -155,7 +155,7 @@ public class GeoProjectionEdgeCaseTests
     {
         private static readonly IGeoProjection P = GeoProjection.Sinusoidal;
 
-        [Fact] public void Origin_MapsToZero() { Assert.Equal((0d, 0d), P.Forward(0, 0)); }
+        [Fact] public void Origin_MapsToZero() { Assert.Equal(new ProjectedPoint(0, 0), P.Forward(0, 0)); }
 
         [Theory]
         [InlineData(0,    180,   180,    0)]    // (lat=0, lon=180): cos(0)=1 → x=180, y=0
@@ -405,6 +405,53 @@ public class GeoProjectionEdgeCaseTests
                 var (_, y2) = P.Forward(-lat, 30);
                 Assert.Equal(-y1, y2, 1e-9);
             }
+        }
+
+        [Fact] public void Origin_MapsExactlyToZero() => Assert.Equal(new ProjectedPoint(0, 0), P.Forward(0, 0));
+
+        // Reference values derived from the published Equal Earth formula (Šavrič, Patterson,
+        // Jenny — "The Equal Earth map projection", Int. J. Geographical Information Science
+        // 33(3):454-465, 2018, https://doi.org/10.1080/13658816.2018.1504949):
+        //   sin(θ) = (√3/2) · sin(φ)
+        //   x = 2√3·λ·cos(θ) / [3·(A1 + 3·A2·θ² + 7·A3·θ⁶ + 9·A4·θ⁸)]
+        //   y = θ·(A1 + A2·θ² + A3·θ⁶ + A4·θ⁸)
+        // with A1=1.340264, A2=-0.081106, A3=0.000893, A4=0.003796, λ/φ/θ in radians.
+        // Corroborated by Wikipedia (https://en.wikipedia.org/wiki/Equal_Earth_projection) and
+        // PROJ's `eqearth` operation family (https://proj.org/en/stable/operations/projections/eqearth.html).
+        // This codebase reports planar coordinates in a "radians-run-through-ToDegrees()" unit
+        // (same convention as Mollweide/Robinson/Sinusoidal in this file), so expected values
+        // below are the canonical radian result converted via ToDegrees().
+        [Theory]
+        [InlineData(0,    0,      0.000000000000,   0.000000000000)]
+        [InlineData(0,  180,    155.078474769348,   0.000000000000)]
+        [InlineData(0,   90,     77.539237384674,   0.000000000000)]
+        [InlineData(0,  -90,   -77.539237384674,    0.000000000000)]
+        [InlineData(90,   0,     0.000000000000,   75.479326187429)]
+        [InlineData(-90,  0,     0.000000000000,  -75.479326187429)]
+        [InlineData(45,  45,    33.227383823931,   49.287610606369)]
+        [InlineData(30, -60,   -48.351940337033,   33.972679892375)]
+        public void Forward_MatchesCanonicalEqualEarthFormula(double lat, double lon, double expectedX, double expectedY)
+        {
+            var (x, y) = P.Forward(lat, lon);
+            Assert.Equal(expectedX, x, 1e-9);
+            Assert.Equal(expectedY, y, 1e-9);
+        }
+
+        [Theory]
+        [InlineData(0,   90)]
+        [InlineData(45,  45)]
+        [InlineData(-30, 60)]
+        public void Forward_IsOddFunctionOfLongitude(double lat, double lon)
+        {
+            // x(lat, -lon) must equal -x(lat, lon); y is unchanged (Equal Earth's y depends
+            // only on latitude/theta, never on longitude). A prior bug computed x with
+            // `longitude` multiplied in twice, making x quadratic — and therefore an EVEN,
+            // same-sign function — in longitude. This regression test pins the correct
+            // odd-function behaviour so that bug class cannot silently return.
+            var (xPos, yPos) = P.Forward(lat,  lon);
+            var (xNeg, yNeg) = P.Forward(lat, -lon);
+            Assert.Equal(-xPos, xNeg, 1e-9);
+            Assert.Equal(yPos, yNeg, 1e-9);
         }
     }
 

@@ -1,8 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
-using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -128,6 +128,55 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
         NetworkGraphLayoutIterations   = LayoutIterations != NetworkGraphLayouts.DefaultForceDirectedIterations ? LayoutIterations : null,
         NetworkGraphConvergenceThreshold = ConvergenceThreshold,
     };
+
+    /// <summary>Reconstructs a <see cref="NetworkGraphSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static NetworkGraphSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var nodes = ChartSerializer.FromGraphNodeDtos(dto.GraphNodes);
+        var edges = ChartSerializer.FromGraphEdgeDtos(dto.GraphEdges);
+        var s = axes.NetworkGraph(nodes, edges);
+        if (dto.ColorMapName is not null)
+        {
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        }
+        if (dto.NetworkGraphLayout is not null
+            && Enum.TryParse<Models.Series.GraphLayout>(dto.NetworkGraphLayout, true, out var lay))
+        {
+            s.Layout = lay;
+        }
+        if (dto.NetworkGraphShowNodeLabels.HasValue)
+        {
+            s.ShowNodeLabels     = dto.NetworkGraphShowNodeLabels.Value;
+        }
+        if (dto.NetworkGraphShowEdgeWeights.HasValue)
+        {
+            s.ShowEdgeWeights    = dto.NetworkGraphShowEdgeWeights.Value;
+        }
+        if (dto.NetworkGraphEdgeThicknessScale.HasValue)
+        {
+            s.EdgeThicknessScale = dto.NetworkGraphEdgeThicknessScale.Value;
+        }
+        if (dto.NetworkGraphNodeRadiusScale.HasValue)
+        {
+            s.NodeRadiusScale    = dto.NetworkGraphNodeRadiusScale.Value;
+        }
+        if (dto.NetworkGraphLayoutSeed.HasValue)
+        {
+            s.LayoutSeed         = dto.NetworkGraphLayoutSeed.Value;
+        }
+        if (dto.NetworkGraphLayoutIterations.HasValue)
+        {
+            s.LayoutIterations   = dto.NetworkGraphLayoutIterations.Value;
+        }
+        if (dto.NetworkGraphConvergenceThreshold.HasValue)
+        {
+            s.ConvergenceThreshold = dto.NetworkGraphConvergenceThreshold.Value;
+        }
+        return s;
+    }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

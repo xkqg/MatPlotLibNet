@@ -49,6 +49,13 @@ public sealed class ViolinSeries : DatasetSeries, IHasColor, IHasAlpha
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new() { Type = "violin", Datasets = Datasets };
 
+    /// <summary>Reconstructs a <see cref="ViolinSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static ViolinSeries FromSeriesDto(Axes axes, SeriesDto dto)
+        => axes.Violin(dto.Datasets ?? []);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

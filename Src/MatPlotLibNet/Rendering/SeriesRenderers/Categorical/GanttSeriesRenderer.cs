@@ -21,7 +21,7 @@ internal sealed class GanttSeriesRenderer : SeriesRenderer<GanttSeries>
         {
             var tl = Transform.DataToPixel(series.Starts[i], i + halfH);
             var br = Transform.DataToPixel(series.Ends[i], i - halfH);
-            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, null, 0);
+            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
         }
     }
 }

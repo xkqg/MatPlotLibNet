@@ -60,6 +60,30 @@ public sealed class Text3DSeries : ChartSeries, IHasColor
         Label = Label
     };
 
+    /// <summary>Reconstructs a <see cref="Text3DSeries"/> from its serialization DTO, adds it to the axes,
+    /// and switches the axes to a 3D coordinate system.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static Text3DSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var annotations = dto.Text3DAnnotations?
+            .Select(a => new Text3DAnnotation(a.X, a.Y, a.Z, a.Text))
+            .ToList() ?? [];
+        var s = new Text3DSeries(annotations);
+        if (dto.MarkerSize.HasValue)
+        {
+            s.FontSize = dto.MarkerSize.Value;
+        }
+        if (dto.Color.HasValue)
+        {
+            s.Color = dto.Color.Value;
+        }
+        axes.AddSeries(s);
+        axes.CoordinateSystem = CoordinateSystem.ThreeD;
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

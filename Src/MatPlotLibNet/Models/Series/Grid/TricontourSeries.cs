@@ -47,6 +47,24 @@ public sealed class TricontourSeries : ChartSeries, IColormappable, INormalizabl
         ColorMapName = ColorMap?.Name
     };
 
+    /// <summary>Reconstructs a <see cref="TricontourSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static TricontourSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Tricontour(dto.XData ?? [], dto.YData ?? [], dto.ZData ?? []);
+        if (dto.Levels.HasValue)
+        {
+            s.Levels = dto.Levels.Value;
+        }
+        if (dto.ColorMapName is not null)
+        {
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

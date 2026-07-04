@@ -48,6 +48,24 @@ public sealed class TableSeries : ChartSeries
         RowHeaders = RowHeaders
     };
 
+    /// <summary>Reconstructs a <see cref="TableSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static TableSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Table(dto.TableCellData ?? []);
+        if (dto.ColumnHeaders is not null)
+        {
+            s.ColumnHeaders = dto.ColumnHeaders;
+        }
+        if (dto.RowHeaders is not null)
+        {
+            s.RowHeaders = dto.RowHeaders;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

@@ -21,7 +21,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         ctx.DrawLine(new MplPoint(10, 20), new MplPoint(30, 40),
-            MplColor.Red, 2.0, Styling.LineStyle.Solid);
+            new StrokeStyle(MplColor.Red, 2.0, Styling.LineStyle.Solid));
 
         canvas.Received(1).DrawLine(10f, 20f, 30f, 40f);
     }
@@ -33,7 +33,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         ctx.DrawLine(new MplPoint(0, 0), new MplPoint(10, 10),
-            MplColor.Blue, 1.5, Styling.LineStyle.Solid);
+            new StrokeStyle(MplColor.Blue, 1.5, Styling.LineStyle.Solid));
 
         canvas.Received().StrokeColor = Arg.Is<Microsoft.Maui.Graphics.Color>(c =>
             Math.Abs(c.Red - 0f) < 0.01 && Math.Abs(c.Blue - 1f) < 0.01);
@@ -46,7 +46,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         ctx.DrawLine(new MplPoint(0, 0), new MplPoint(10, 10),
-            MplColor.Red, 3.0, Styling.LineStyle.Solid);
+            new StrokeStyle(MplColor.Red, 3.0, Styling.LineStyle.Solid));
 
         canvas.Received().StrokeSize = 3.0f;
     }
@@ -58,7 +58,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         ctx.DrawLine(new MplPoint(0, 0), new MplPoint(10, 10),
-            MplColor.Black, 1, Styling.LineStyle.Dashed);
+            new StrokeStyle(MplColor.Black, 1, Styling.LineStyle.Dashed));
 
         canvas.Received().StrokeDashPattern = Arg.Is<float[]>(p => p.Length > 0);
     }
@@ -70,7 +70,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         ctx.DrawRectangle(new MplRect(10, 20, 100, 50),
-            fill: MplColor.Blue, stroke: null, strokeThickness: 0);
+            new ShapeStyle(MplColor.Blue, null, 0));
 
         canvas.Received(1).FillRectangle(10f, 20f, 100f, 50f);
     }
@@ -82,7 +82,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         ctx.DrawRectangle(new MplRect(10, 20, 100, 50),
-            fill: null, stroke: MplColor.Red, strokeThickness: 2);
+            new ShapeStyle(null, MplColor.Red, 2));
 
         canvas.Received(1).DrawRectangle(10f, 20f, 100f, 50f);
     }
@@ -94,7 +94,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         ctx.DrawRectangle(new MplRect(10, 20, 100, 50),
-            fill: MplColor.Blue, stroke: MplColor.Red, strokeThickness: 2);
+            new ShapeStyle(MplColor.Blue, MplColor.Red, 2));
 
         canvas.Received(1).FillRectangle(10f, 20f, 100f, 50f);
         canvas.Received(1).DrawRectangle(10f, 20f, 100f, 50f);
@@ -106,7 +106,7 @@ public class MauiGraphicsRenderContextTests
         var canvas = Substitute.For<ICanvas>();
         var ctx = new MauiGraphicsRenderContext(canvas);
 
-        ctx.DrawCircle(new MplPoint(50, 50), 10, MplColor.Green, null, 0);
+        ctx.DrawCircle(new MplPoint(50, 50), 10, new ShapeStyle(MplColor.Green, null, 0));
 
         canvas.Received(1).FillCircle(50f, 50f, 10f);
     }
@@ -155,7 +155,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         var points = new List<MplPoint> { new(0, 0), new(10, 10), new(20, 0) };
-        ctx.DrawLines(points, MplColor.Red, 1.0, Styling.LineStyle.Solid);
+        ctx.DrawLines(points, new StrokeStyle(MplColor.Red, 1.0, Styling.LineStyle.Solid));
 
         canvas.Received(1).DrawPath(Arg.Any<PathF>());
     }
@@ -167,7 +167,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         var points = new List<MplPoint> { new(0, 0), new(50, 0), new(50, 50), new(0, 50) };
-        ctx.DrawPolygon(points, fill: MplColor.Blue, stroke: null, strokeThickness: 0);
+        ctx.DrawPolygon(points, new ShapeStyle(MplColor.Blue, null, 0));
 
         canvas.Received(1).FillPath(Arg.Any<PathF>());
     }
@@ -179,7 +179,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         var points = new List<MplPoint> { new(0, 0), new(50, 0), new(50, 50), new(0, 50) };
-        ctx.DrawPolygon(points, fill: null, stroke: MplColor.Red, strokeThickness: 2);
+        ctx.DrawPolygon(points, new ShapeStyle(null, MplColor.Red, 2));
 
         canvas.Received(1).DrawPath(Arg.Any<PathF>());
     }
@@ -191,7 +191,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         ctx.DrawEllipse(new MplRect(10, 20, 60, 40),
-            fill: MplColor.Green, stroke: null, strokeThickness: 0);
+            new ShapeStyle(MplColor.Green, null, 0));
 
         canvas.Received(1).FillEllipse(10f, 20f, 60f, 40f);
     }
@@ -203,7 +203,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         ctx.DrawEllipse(new MplRect(10, 20, 60, 40),
-            fill: null, stroke: MplColor.Red, strokeThickness: 2);
+            new ShapeStyle(null, MplColor.Red, 2));
 
         canvas.Received(1).DrawEllipse(10f, 20f, 60f, 40f);
     }
@@ -220,7 +220,7 @@ public class MauiGraphicsRenderContextTests
             new MatPlotLibNet.Rendering.LineToSegment(new MplPoint(50, 50)),
             new MatPlotLibNet.Rendering.LineToSegment(new MplPoint(100, 0))
         };
-        ctx.DrawPath(segments, fill: null, stroke: MplColor.Black, strokeThickness: 1);
+        ctx.DrawPath(segments, new ShapeStyle(null, MplColor.Black, 1));
 
         canvas.Received(1).DrawPath(Arg.Any<PathF>());
     }
@@ -265,7 +265,7 @@ public class MauiGraphicsRenderContextTests
         var canvas = Substitute.For<ICanvas>();
         var ctx = new MauiGraphicsRenderContext(canvas);
 
-        ctx.DrawCircle(new MplPoint(50, 50), 10, fill: null, stroke: MplColor.Red, strokeThickness: 2);
+        ctx.DrawCircle(new MplPoint(50, 50), 10, new ShapeStyle(null, MplColor.Red, 2));
 
         canvas.Received(1).DrawCircle(50f, 50f, 10f);
     }
@@ -292,7 +292,7 @@ public class MauiGraphicsRenderContextTests
         var ctx = new MauiGraphicsRenderContext(canvas);
 
         ctx.DrawRectangle(new MplRect(10, 20, 100, 50),
-            fill: null, stroke: null, strokeThickness: 0);
+            new ShapeStyle(null, null, 0));
 
         canvas.DidNotReceive().FillRectangle(Arg.Any<float>(), Arg.Any<float>(),
             Arg.Any<float>(), Arg.Any<float>());

@@ -268,7 +268,7 @@ public class BranchCoverage_IndicatorsTests
 
     // ─── Streaming indicators ────────────────────────────────────────────────────
 
-    // StreamingIndicatorBase line 87% — exercise via concrete StreamingSma operations.
+    // StreamingIndicator line 87% — exercise via concrete StreamingSma operations.
     [Fact] public void StreamingSma_AppendThenWarmup_ExercisesBaseClassPath()
     {
         var sma = new StreamingSma(period: 5);

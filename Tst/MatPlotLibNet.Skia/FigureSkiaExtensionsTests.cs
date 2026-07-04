@@ -96,4 +96,61 @@ public class FigureSkiaExtensionsTests
         var tf = FigureSkiaExtensions.ResolveTypeface(", DejaVu Sans", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
         Assert.NotNull(tf);
     }
+
+    // ── ResolveTypeface cache/ownership (council K5/F8) ─────────────────────
+    // ResolveTypeface must ALWAYS return a cached, process-lifetime SKTypeface: callers
+    // (SkiaRenderContext, SkiaFontMetrics, SkiaGlyphPathProvider) never dispose the result.
+    // Before the fix, non-bundled ("host OS fallback") resolutions returned a FRESH
+    // SKTypeface.FromFamilyName instance on every call — a per-call native leak. These
+    // pins assert same-key calls are reference-identical (cache hit) and that the cache
+    // key is not collapsed across weight/slant variations.
+
+    [Fact]
+    public void ResolveTypeface_SameKey_HostFallbackFamily_ReturnsSameInstance()
+    {
+        // "Arial" is not a bundled font (only DejaVu Sans ships in this assembly), so this
+        // exercises the SKTypeface.FromFamilyName fallback path — the one that leaked pre-fix.
+        var first = FigureSkiaExtensions.ResolveTypeface("Arial", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        var second = FigureSkiaExtensions.ResolveTypeface("Arial", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        Assert.Same(first, second);
+    }
+
+    [Fact]
+    public void ResolveTypeface_SameKey_UnresolvableFamily_ReturnsSameInstance()
+    {
+        // Nonsense family also takes the fallback path (SKTypeface.FromFamilyName returns the
+        // default system typeface) — still must be cached and reference-identical across calls.
+        var first = FigureSkiaExtensions.ResolveTypeface("NoSuchFontXYZ123", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        var second = FigureSkiaExtensions.ResolveTypeface("NoSuchFontXYZ123", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        Assert.Same(first, second);
+    }
+
+    [Fact]
+    public void ResolveTypeface_DistinctWeights_AreCachedSeparately()
+    {
+        var normal = FigureSkiaExtensions.ResolveTypeface("NoSuchFontABC456", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        var bold = FigureSkiaExtensions.ResolveTypeface("NoSuchFontABC456", SKFontStyleWeight.Bold, SKFontStyleSlant.Upright);
+        Assert.NotSame(normal, bold);
+        // Re-resolving the normal weight must still hit the same cache entry, not a fresh one.
+        var normalAgain = FigureSkiaExtensions.ResolveTypeface("NoSuchFontABC456", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        Assert.Same(normal, normalAgain);
+    }
+
+    [Fact]
+    public void ResolveTypeface_DistinctSlants_AreCachedSeparately()
+    {
+        var upright = FigureSkiaExtensions.ResolveTypeface("NoSuchFontDEF789", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        var italic = FigureSkiaExtensions.ResolveTypeface("NoSuchFontDEF789", SKFontStyleWeight.Normal, SKFontStyleSlant.Italic);
+        Assert.NotSame(upright, italic);
+        var uprightAgain = FigureSkiaExtensions.ResolveTypeface("NoSuchFontDEF789", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        Assert.Same(upright, uprightAgain);
+    }
+
+    [Fact]
+    public void ResolveTypeface_SameKey_NullFamily_ReturnsSameInstance()
+    {
+        var first = FigureSkiaExtensions.ResolveTypeface(null, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        var second = FigureSkiaExtensions.ResolveTypeface(null, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        Assert.Same(first, second);
+    }
 }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -28,7 +29,7 @@ internal sealed class RugplotSeriesRenderer : SeriesRenderer<RugplotSeries>
         {
             var bottom = Transform.DataToPixel(value, yDataMin);
             var top = Transform.DataToPixel(value, yDataMin + tickHeightData);
-            Ctx.DrawLine(bottom, top, tickColor, series.LineWidth, Styling.LineStyle.Solid);
+            Ctx.DrawLine(bottom, top, new StrokeStyle(tickColor, series.LineWidth, Styling.LineStyle.Solid));
         }
     }
 }

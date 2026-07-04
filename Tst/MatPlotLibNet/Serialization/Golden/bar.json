@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"bar","values":[1,2],"categories":["A","B"],"barWidth":0.8,"orientation":"vertical"}]}]}

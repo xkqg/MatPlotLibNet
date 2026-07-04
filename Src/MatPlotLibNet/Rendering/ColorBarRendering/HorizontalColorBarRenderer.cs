@@ -44,7 +44,7 @@ internal sealed class HorizontalColorBarRenderer : ColorBarRenderer
         if (drawXMin)
         {
             var underColor = ColorMap.GetUnderColor() ?? ColorMap.GetColor(0.0);
-            Ctx.DrawRectangle(new Rect(barX, barY, extW, barH), underColor, null, 0);
+            Ctx.DrawRectangle(new Rect(barX, barY, extW, barH), new ShapeStyle(underColor, null, 0));
         }
 
         for (int i = 0; i < Steps; i++)
@@ -53,18 +53,18 @@ internal sealed class HorizontalColorBarRenderer : ColorBarRenderer
             var color = ColorMap.GetColor(frac);
             double stepX = gradX + gradW * i / Steps;
             double stepW = gradW / Steps + 1;
-            Ctx.DrawRectangle(new Rect(stepX, barY, stepW, barH), color, null, 0);
+            Ctx.DrawRectangle(new Rect(stepX, barY, stepW, barH), new ShapeStyle(color, null, 0));
             if (Cb.DrawEdges)
-                Ctx.DrawLine(new Point(stepX, barY), new Point(stepX, barY + barH), Theme.ForegroundText, 0.3, LineStyle.Solid);
+                Ctx.DrawLine(new Point(stepX, barY), new Point(stepX, barY + barH), new StrokeStyle(Theme.ForegroundText, 0.3, LineStyle.Solid));
         }
 
         if (drawXMax)
         {
             var overColor = ColorMap.GetOverColor() ?? ColorMap.GetColor(1.0);
-            Ctx.DrawRectangle(new Rect(gradX + gradW, barY, extW, barH), overColor, null, 0);
+            Ctx.DrawRectangle(new Rect(gradX + gradW, barY, extW, barH), new ShapeStyle(overColor, null, 0));
         }
 
-        Ctx.DrawRectangle(new Rect(barX, barY, fullW, barH), null, Theme.ForegroundText, 0.5);
+        Ctx.DrawRectangle(new Rect(barX, barY, fullW, barH), new ShapeStyle(null, Theme.ForegroundText, 0.5));
 
         var tickFont = ThemedFontProvider.TickFont(Theme);
         double labelY = barY + barH + 4 + tickFont.Size;

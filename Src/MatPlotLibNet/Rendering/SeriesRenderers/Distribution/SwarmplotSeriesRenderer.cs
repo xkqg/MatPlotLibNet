@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -34,7 +35,7 @@ internal sealed class SwarmplotSeriesRenderer : SeriesRenderer<SwarmplotSeries>
             for (int j = 0; j < sorted.Length; j++)
             {
                 var px = Transform.DataToPixel(xPositions[j], sorted[j]);
-                Ctx.DrawCircle(px, r, dotColor, null, 0);
+                Ctx.DrawCircle(px, r, new ShapeStyle(dotColor, null, 0));
             }
         }
     }

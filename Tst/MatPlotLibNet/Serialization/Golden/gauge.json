@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"gauge","gaugeValue":0.7,"gaugeMin":0,"gaugeMax":100,"needleColor":"#000000"}]}]}

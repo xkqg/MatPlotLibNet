@@ -53,6 +53,40 @@ public sealed class DendrogramSeries : HierarchicalSeries
         ShowLabels = ShowLabels ? null : false,
     };
 
+    /// <summary>Reconstructs a <see cref="DendrogramSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static DendrogramSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Dendrogram(new TreeNode { Label = "Root" });
+        if (dto.DendrogramOrientation.HasValue)
+        {
+            s.Orientation = dto.DendrogramOrientation.Value;
+        }
+        if (dto.CutHeight.HasValue)
+        {
+            s.CutHeight = dto.CutHeight.Value;
+        }
+        if (dto.CutLineColor.HasValue)
+        {
+            s.CutLineColor = dto.CutLineColor.Value;
+        }
+        if (dto.ColorByCluster.HasValue)
+        {
+            s.ColorByCluster = dto.ColorByCluster.Value;
+        }
+        if (dto.ColorMapName is not null)
+        {
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        }
+        if (dto.ShowLabels.HasValue)
+        {
+            s.ShowLabels = dto.ShowLabels.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Rendering.SeriesRenderers;
+using MatPlotLibNet.Numerics;
 
 namespace MatPlotLibNet.Tests.Models.Series.Graph;
 

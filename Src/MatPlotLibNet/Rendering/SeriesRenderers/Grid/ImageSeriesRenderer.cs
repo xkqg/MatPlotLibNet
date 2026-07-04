@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.Interpolation;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -65,7 +66,7 @@ internal sealed class ImageSeriesRenderer : SeriesRenderer<ImageSeries>
             var color = cmap.GetColor(norm.Normalize(data[r, c], min, max));
             Ctx.DrawRectangle(
                 new Rect(Area.PlotBounds.X + c * cellW, Area.PlotBounds.Y + r * cellH, cellW, cellH),
-                color, null, 0);
+                new ShapeStyle(color, null, 0));
         }
 
         if (series.Alpha < 1.0)

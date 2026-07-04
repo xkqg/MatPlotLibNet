@@ -31,14 +31,14 @@ internal sealed class BoxSeriesRenderer : SeriesRenderer<BoxSeries>
             {
                 var tl = Transform.DataToPixel(pos - halfW, q3);
                 var br = Transform.DataToPixel(pos + halfW, q1);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), null, color, 1.5);
-                Ctx.DrawLine(Transform.DataToPixel(pos - halfW, median), Transform.DataToPixel(pos + halfW, median), series.MedianColor ?? Colors.Red, 2, LineStyle.Solid);
-                Ctx.DrawLine(Transform.DataToPixel(pos, q3), Transform.DataToPixel(pos, whisHi), color, 1, LineStyle.Solid);
-                Ctx.DrawLine(Transform.DataToPixel(pos, q1), Transform.DataToPixel(pos, whisLo), color, 1, LineStyle.Solid);
+                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(null, color, 1.5));
+                Ctx.DrawLine(Transform.DataToPixel(pos - halfW, median), Transform.DataToPixel(pos + halfW, median), new StrokeStyle(series.MedianColor ?? Colors.Red, 2, LineStyle.Solid));
+                Ctx.DrawLine(Transform.DataToPixel(pos, q3), Transform.DataToPixel(pos, whisHi), new StrokeStyle(color, 1, LineStyle.Solid));
+                Ctx.DrawLine(Transform.DataToPixel(pos, q1), Transform.DataToPixel(pos, whisLo), new StrokeStyle(color, 1, LineStyle.Solid));
                 if (series.ShowMeans)
                 {
                     double mean = data.Average();
-                    Ctx.DrawCircle(Transform.DataToPixel(pos, mean), 4, Colors.Green, null, 0);
+                    Ctx.DrawCircle(Transform.DataToPixel(pos, mean), 4, new ShapeStyle(Colors.Green, null, 0));
                 }
             }
             else
@@ -46,14 +46,14 @@ internal sealed class BoxSeriesRenderer : SeriesRenderer<BoxSeries>
                 // Horizontal orientation — swap axes
                 var tl = Transform.DataToPixel(q1, pos - halfW);
                 var br = Transform.DataToPixel(q3, pos + halfW);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), null, color, 1.5);
-                Ctx.DrawLine(Transform.DataToPixel(median, pos - halfW), Transform.DataToPixel(median, pos + halfW), series.MedianColor ?? Colors.Red, 2, LineStyle.Solid);
-                Ctx.DrawLine(Transform.DataToPixel(q3, pos), Transform.DataToPixel(whisHi, pos), color, 1, LineStyle.Solid);
-                Ctx.DrawLine(Transform.DataToPixel(q1, pos), Transform.DataToPixel(whisLo, pos), color, 1, LineStyle.Solid);
+                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(null, color, 1.5));
+                Ctx.DrawLine(Transform.DataToPixel(median, pos - halfW), Transform.DataToPixel(median, pos + halfW), new StrokeStyle(series.MedianColor ?? Colors.Red, 2, LineStyle.Solid));
+                Ctx.DrawLine(Transform.DataToPixel(q3, pos), Transform.DataToPixel(whisHi, pos), new StrokeStyle(color, 1, LineStyle.Solid));
+                Ctx.DrawLine(Transform.DataToPixel(q1, pos), Transform.DataToPixel(whisLo, pos), new StrokeStyle(color, 1, LineStyle.Solid));
                 if (series.ShowMeans)
                 {
                     double mean = data.Average();
-                    Ctx.DrawCircle(Transform.DataToPixel(mean, pos), 4, Colors.Green, null, 0);
+                    Ctx.DrawCircle(Transform.DataToPixel(mean, pos), 4, new ShapeStyle(Colors.Green, null, 0));
                 }
             }
         }

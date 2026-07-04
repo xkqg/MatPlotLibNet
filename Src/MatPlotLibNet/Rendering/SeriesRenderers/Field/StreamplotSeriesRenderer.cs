@@ -69,7 +69,7 @@ internal sealed class StreamplotSeriesRenderer : SeriesRenderer<StreamplotSeries
 
         if (points.Count < 2) return;
 
-        Ctx.DrawLines(points, color, lineWidth, LineStyle.Solid);
+        Ctx.DrawLines(points, new StrokeStyle(color, lineWidth, LineStyle.Solid));
 
         // Draw arrowhead at midpoint
         int mid = points.Count / 2;
@@ -85,10 +85,10 @@ internal sealed class StreamplotSeriesRenderer : SeriesRenderer<StreamplotSeries
                 double angle = Math.Atan2(dy, dx);
                 Ctx.DrawLine(p1,
                     new Point(p1.X - headLen * Math.Cos(angle - 0.4), p1.Y - headLen * Math.Sin(angle - 0.4)),
-                    color, lineWidth, LineStyle.Solid);
+                    new StrokeStyle(color, lineWidth, LineStyle.Solid));
                 Ctx.DrawLine(p1,
                     new Point(p1.X - headLen * Math.Cos(angle + 0.4), p1.Y - headLen * Math.Sin(angle + 0.4)),
-                    color, lineWidth, LineStyle.Solid);
+                    new StrokeStyle(color, lineWidth, LineStyle.Solid));
             }
         }
     }

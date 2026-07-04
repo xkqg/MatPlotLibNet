@@ -6,7 +6,7 @@ using MatPlotLibNet.Models.Series.Streaming;
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming Bollinger Bands. O(1) per append via rolling SMA + Welford's variance.</summary>
-public sealed class StreamingBollinger : StreamingIndicatorBase
+public sealed class StreamingBollinger : StreamingIndicator
 {
     private readonly int _period;
     private readonly double _numStdDev;

@@ -36,6 +36,6 @@ internal sealed class EcdfSeriesRenderer : SeriesRenderer<EcdfSeries>
             pts.Add(new Point(pxArr[i], pyArr[i]));
         }
 
-        Ctx.DrawLines(pts, color, series.LineWidth, series.LineStyle);
+        Ctx.DrawLines(pts, new StrokeStyle(color, series.LineWidth, series.LineStyle));
     }
 }

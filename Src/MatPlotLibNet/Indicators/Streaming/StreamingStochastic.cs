@@ -7,7 +7,7 @@ using MatPlotLibNet.Models.Series.Streaming;
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming Stochastic Oscillator (%K and %D). Uses rolling min/max deque. O(1) amortized.</summary>
-public sealed class StreamingStochastic : StreamingIndicatorBase
+public sealed class StreamingStochastic : StreamingIndicator
 {
     private readonly int _kPeriod;
     private readonly int _dPeriod;

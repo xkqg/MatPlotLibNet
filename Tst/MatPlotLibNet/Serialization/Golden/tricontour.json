@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"tricontour","xData":[0,1,0.5],"yData":[0,0,1],"zData":[1,2,3],"levels":10}]}]}

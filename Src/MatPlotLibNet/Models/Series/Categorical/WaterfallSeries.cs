@@ -52,6 +52,32 @@ public sealed class WaterfallSeries : ChartSeries
         TotalColor = TotalColor, BarWidth = BarWidth
     };
 
+    /// <summary>Reconstructs a <see cref="WaterfallSeries"/> from its serialization DTO, including increase/decrease/total colours, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static WaterfallSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Waterfall(dto.Categories ?? [], dto.Values ?? []);
+        if (dto.IncreaseColor.HasValue)
+        {
+            s.IncreaseColor = dto.IncreaseColor.Value;
+        }
+        if (dto.DecreaseColor.HasValue)
+        {
+            s.DecreaseColor = dto.DecreaseColor.Value;
+        }
+        if (dto.TotalColor.HasValue)
+        {
+            s.TotalColor = dto.TotalColor.Value;
+        }
+        if (dto.BarWidth.HasValue)
+        {
+            s.BarWidth = dto.BarWidth.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

@@ -70,6 +70,24 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
         ColorMapName = ColorMap?.Name
     };
 
+    /// <summary>Reconstructs a <see cref="Histogram2DSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static Histogram2DSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Histogram2D(dto.XData ?? [], dto.YData ?? [], dto.Bins ?? 20);
+        if (dto.BinsY.HasValue)
+        {
+            s.BinsY = dto.BinsY.Value;
+        }
+        if (dto.ColorMapName is not null)
+        {
+            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 

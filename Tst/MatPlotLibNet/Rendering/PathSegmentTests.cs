@@ -60,7 +60,7 @@ public class PathSegmentTests
         };
 
         var ctx = new SvgRenderContext();
-        ctx.DrawPath(segments, Colors.Red, null, 0);
+        ctx.DrawPath(segments, new ShapeStyle(Colors.Red, null, 0));
         string svg = ctx.GetOutput();
 
         Assert.Contains("M 0 0", svg);

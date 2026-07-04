@@ -9,24 +9,24 @@ public sealed class NaturalEarthProjection : IGeoProjection
 {
     public string Name => "NaturalEarth";
 
-    public (double X, double Y) Forward(double latitude, double longitude)
+    public ProjectedPoint Forward(double latitude, double longitude)
     {
-        double phi = latitude * Math.PI / 180.0;
+        double phi = latitude.ToRadians();
         double phi2 = phi * phi, phi4 = phi2 * phi2, phi6 = phi4 * phi2;
         double x = longitude * (0.8707 - 0.131979 * phi2 + 0.003971 * phi4 - 0.001529 * phi6);
         double y = latitude * (1.007226 + 0.015085 * phi2 - 0.044475 * phi4 + 0.028874 * phi6 - 0.005916 * phi2 * phi6);
-        return (x, y);
+        return new(x, y);
     }
 
-    public (double Lat, double Lon)? Inverse(double x, double y) => null;
+    public GeoCoordinate? Inverse(double x, double y) => null;
 
-    public (double XMin, double XMax, double YMin, double YMax) Bounds
+    public GeoBounds Bounds
     {
         get
         {
             var (xMax, _) = Forward(0, 180);
             var (_, yMax) = Forward(90, 0);
-            return (-xMax, xMax, -yMax, yMax);
+            return new(-xMax, xMax, -yMax, yMax);
         }
     }
 }

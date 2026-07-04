@@ -3,6 +3,7 @@
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MatPlotLibNet.Diagnostics;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
@@ -401,56 +402,22 @@ public sealed class ChartSerializer : IChartSerializer
 
     private static void AddSeriesFromDto(Axes axes, SeriesDto dto)
     {
-        var series = SeriesRegistry.Create(dto.Type ?? "unknown", axes, dto);
+        var type = dto.Type ?? "unknown";
+        var series = SeriesRegistry.Create(type, axes, dto);
         if (series is not null)
+        {
             series.Label = dto.Label;
-    }
-
-    /// <summary>Reconstructs a <see cref="LineSeries"/> from the DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static LineSeries CreateLine(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Plot(dto.XData ?? [], dto.YData ?? []);
-        ApplyLineProperties(s, dto);
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="ScatterSeries"/> from the DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static ScatterSeries CreateScatter(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Scatter(dto.XData ?? [], dto.YData ?? []);
-        s.Color = dto.Color;
-        if (dto.MarkerSize.HasValue) s.MarkerSize = dto.MarkerSize.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="BarSeries"/> from the DTO, including orientation, and adds it to the axes.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static BarSeries CreateBar(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Bar(dto.Categories ?? [], dto.Values ?? []);
-        s.Color = dto.Color;
-        if (dto.BarWidth.HasValue) s.BarWidth = dto.BarWidth.Value;
-        ApplyEnum<BarOrientation>(dto.Orientation, v => s.Orientation = v);
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="HistogramSeries"/> from the DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static HistogramSeries CreateHistogram(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Hist(dto.Data ?? [], dto.Bins ?? 10);
-        s.Color = dto.Color;
-        return s;
+        }
+        else
+        {
+            // Wire compat: an unrecognised discriminator (old JSON referencing a kind this build
+            // doesn't know, or a hand-crafted/corrupt payload) is still dropped leniently — the
+            // figure keeps loading — but the drop is no longer silent.
+            ChartDiagnostics.Emit(new ChartDiagnostic(
+                nameof(ChartSerializer),
+                $"Unknown series discriminator '{type}' was skipped during deserialization.",
+                null));
+        }
     }
 
     /// <summary>Reconstructs a <see cref="LineSeries"/> on the secondary Y-axis from the DTO.</summary>
@@ -472,413 +439,10 @@ public sealed class ChartSerializer : IChartSerializer
     {
         var s = axes.ScatterSecondary(dto.XData ?? [], dto.YData ?? []);
         s.Color = dto.Color;
-        if (dto.MarkerSize.HasValue) s.MarkerSize = dto.MarkerSize.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="RadarSeries"/> from the DTO, including fill color and max value.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static RadarSeries CreateRadar(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Radar(dto.Categories ?? [], dto.Values ?? []);
-        s.Color = dto.Color;
-        s.FillColor = dto.FillColor;
-        if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
-        s.LineWidth = dto.LineWidth ?? 2.0;
-        s.MaxValue = dto.MaxValue;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="QuiverSeries"/> from the DTO, including scale and arrowhead size.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static QuiverSeries CreateQuiver(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Quiver(dto.XData ?? [], dto.YData ?? [], dto.UData ?? [], dto.VData ?? []);
-        s.Color = dto.Color;
-        if (dto.Scale.HasValue) s.Scale = dto.Scale.Value;
-        if (dto.ArrowHeadSize.HasValue) s.ArrowHeadSize = dto.ArrowHeadSize.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="StreamplotSeries"/> from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static StreamplotSeries CreateStreamplot(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Streamplot(dto.XData ?? [], dto.YData ?? [], From2DList(dto.HeatmapData), From2DList(dto.VFieldData));
-        if (dto.Color.HasValue) s.Color = dto.Color.Value;
-        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="CandlestickSeries"/> from the DTO, including up/down colors and date labels.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static CandlestickSeries CreateCandlestick(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Candlestick(dto.Open ?? [], dto.High ?? [], dto.Low ?? [], dto.Close ?? [], dto.DateLabels);
-        if (dto.UpColor.HasValue) s.UpColor = dto.UpColor.Value;
-        if (dto.DownColor.HasValue) s.DownColor = dto.DownColor.Value;
-        if (dto.BodyWidth.HasValue) s.BodyWidth = dto.BodyWidth.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs an <see cref="ErrorBarSeries"/> from the DTO, including optional X error bars.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static ErrorBarSeries CreateErrorBar(Axes axes, SeriesDto dto)
-    {
-        var s = axes.ErrorBar(dto.XData ?? [], dto.YData ?? [], dto.YErrorLow ?? [], dto.YErrorHigh ?? []);
-        s.Color = dto.Color;
-        s.LineWidth = dto.LineWidth ?? 1.5;
-        if (dto.CapSize.HasValue) s.CapSize = dto.CapSize.Value;
-        s.XErrorLow = dto.XErrorLow;
-        s.XErrorHigh = dto.XErrorHigh;
-        return s;
-    }
-
-    /// <summary>Reconstructs an <see cref="EcdfSeries"/> from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static EcdfSeries CreateEcdf(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Ecdf(dto.Data ?? []);
-        if (dto.Color.HasValue) s.Color = dto.Color.Value;
-        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
-        if (dto.LineStyle is not null && Enum.TryParse<LineStyle>(dto.LineStyle, true, out var ls)) s.LineStyle = ls;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="HeatmapSeries"/> from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static HeatmapSeries CreateHeatmap(Axes axes, SeriesDto dto)
-    {
-        var hs = axes.Heatmap(From2DList(dto.HeatmapData));
-        if (dto.ColorMapName is not null)
-            hs.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        if (dto.ShowLabels.HasValue) hs.ShowLabels = dto.ShowLabels.Value;
-        if (dto.LabelFormat is not null) hs.LabelFormat = dto.LabelFormat;
-        if (dto.MaskMode is not null && Enum.TryParse<Models.Series.HeatmapMaskMode>(dto.MaskMode, true, out var mm)) hs.MaskMode = mm;
-        if (dto.CellValueColor.HasValue) hs.CellValueColor = dto.CellValueColor.Value;
-        return hs;
-    }
-
-    /// <summary>Reconstructs a <see cref="PairGridSeries"/> from the DTO.</summary>
-    /// <remarks>The hue palette is not serialised — it is the user's runtime preference,
-    /// not part of the persisted figure shape (same project convention as
-    /// <c>HeatmapSeries.Normalizer</c>).</remarks>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static PairGridSeries CreatePairGrid(Axes axes, SeriesDto dto)
-    {
-        var variables = FromJaggedList(dto.Variables);
-        if (variables.Length == 0)
-            throw new InvalidOperationException(
-                "Cannot reconstruct PairGridSeries: the JSON DTO has no Variables. " +
-                "Pair-grid serialization requires at least one variable, matching the model constructor invariant.");
-        var s = axes.PairGrid(variables);
-        if (dto.PairGridLabels    is not null) s.Labels    = dto.PairGridLabels;
-        if (dto.PairGridHueGroups is not null) s.HueGroups = dto.PairGridHueGroups;
-        if (dto.PairGridHueLabels is not null) s.HueLabels = dto.PairGridHueLabels;
-        if (dto.PairGridDiagonal     is not null && Enum.TryParse<Models.Series.PairGridDiagonalKind>(dto.PairGridDiagonal,    true, out var dk)) s.DiagonalKind    = dk;
-        if (dto.PairGridOffDiagonal  is not null && Enum.TryParse<Models.Series.PairGridOffDiagonalKind>(dto.PairGridOffDiagonal, true, out var od)) s.OffDiagonalKind = od;
-        if (dto.PairGridTriangular   is not null && Enum.TryParse<Models.Series.PairGridTriangle>(dto.PairGridTriangular,    true, out var tri)) s.Triangular      = tri;
-        if (dto.PairGridDiagonalBins.HasValue) s.DiagonalBins = dto.PairGridDiagonalBins.Value;
-        if (dto.PairGridMarkerSize  .HasValue) s.MarkerSize   = dto.PairGridMarkerSize.Value;
-        if (dto.PairGridCellSpacing .HasValue) s.CellSpacing  = dto.PairGridCellSpacing.Value;
-        if (dto.PairGridHexbinGridSize.HasValue) s.HexbinGridSize = dto.PairGridHexbinGridSize.Value;
-        if (dto.PairGridOffDiagonalColorMap is not null)
-            s.OffDiagonalColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.PairGridOffDiagonalColorMap);
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="NetworkGraphSeries"/> from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static NetworkGraphSeries CreateNetworkGraph(Axes axes, SeriesDto dto)
-    {
-        var nodes = FromGraphNodeDtos(dto.GraphNodes);
-        var edges = FromGraphEdgeDtos(dto.GraphEdges);
-        var s = axes.NetworkGraph(nodes, edges);
-        if (dto.ColorMapName is not null)
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        if (dto.NetworkGraphLayout is not null
-            && Enum.TryParse<Models.Series.GraphLayout>(dto.NetworkGraphLayout, true, out var lay))
-            s.Layout = lay;
-        if (dto.NetworkGraphShowNodeLabels.HasValue)     s.ShowNodeLabels     = dto.NetworkGraphShowNodeLabels.Value;
-        if (dto.NetworkGraphShowEdgeWeights.HasValue)    s.ShowEdgeWeights    = dto.NetworkGraphShowEdgeWeights.Value;
-        if (dto.NetworkGraphEdgeThicknessScale.HasValue) s.EdgeThicknessScale = dto.NetworkGraphEdgeThicknessScale.Value;
-        if (dto.NetworkGraphNodeRadiusScale.HasValue)    s.NodeRadiusScale    = dto.NetworkGraphNodeRadiusScale.Value;
-        if (dto.NetworkGraphLayoutSeed.HasValue)         s.LayoutSeed         = dto.NetworkGraphLayoutSeed.Value;
-        if (dto.NetworkGraphLayoutIterations.HasValue)   s.LayoutIterations   = dto.NetworkGraphLayoutIterations.Value;
-        if (dto.NetworkGraphConvergenceThreshold.HasValue) s.ConvergenceThreshold = dto.NetworkGraphConvergenceThreshold.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="RelativeRotationSeries"/> from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static RelativeRotationSeries CreateRelativeRotation(Axes axes, SeriesDto dto)
-    {
-        var assetCloses    = (dto.RrgAssetCloses   ?? []).Select(a => a.ToArray()).ToArray();
-        var benchmarkCloses = (dto.RrgBenchmarkCloses ?? []).ToArray();
-        var labels         = dto.RrgAssetLabels ?? [];
-        var s = axes.RelativeRotation(assetCloses, benchmarkCloses, labels);
-        if (dto.ColorMapName is not null)
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        if (dto.RrgFormula is not null)
-            s.Formula = Enum.Parse<Models.Series.RrgFormula>(dto.RrgFormula, ignoreCase: true);
-        if (dto.RrgShortPeriod.HasValue)      s.ShortPeriod      = dto.RrgShortPeriod.Value;
-        if (dto.RrgLongPeriod.HasValue)       s.LongPeriod       = dto.RrgLongPeriod.Value;
-        if (dto.RrgMomentumLookback.HasValue) s.MomentumLookback = dto.RrgMomentumLookback.Value;
-        if (dto.RrgTailLength.HasValue)       s.TailLength            = dto.RrgTailLength.Value;
-        if (dto.RrgShowQuadrantGrid.HasValue) s.ShowQuadrantGrid      = dto.RrgShowQuadrantGrid.Value;
-        if (dto.RrgAbsorptionPerBar is not null) s.AbsorptionRatioPerBar = dto.RrgAbsorptionPerBar.ToArray();
-        if (dto.RrgEnbPerBar        is not null) s.EnbPerBar             = dto.RrgEnbPerBar.ToArray();
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="ClustermapSeries"/> from the DTO.</summary>
-    /// <remarks>Trees and the normalizer are not serialised — they are rebuilt
-    /// as placeholders on restore.</remarks>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static ClustermapSeries CreateClustermap(Axes axes, SeriesDto dto)
-    {
-        var data = From2DList(dto.HeatmapData);
-        var s = axes.Clustermap(data.GetLength(0) > 0 ? data : new double[1, 1]);
-        if (dto.ColorMapName is not null)
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        if (dto.ShowLabels.HasValue) s.ShowLabels = dto.ShowLabels.Value;
-        if (dto.LabelFormat is not null) s.LabelFormat = dto.LabelFormat;
-        if (dto.RowDendrogramWidth.HasValue) s.RowDendrogramWidth = dto.RowDendrogramWidth.Value;
-        if (dto.ColumnDendrogramHeight.HasValue) s.ColumnDendrogramHeight = dto.ColumnDendrogramHeight.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs an <see cref="ImageSeries"/> from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static ImageSeries CreateImage(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Image(ChartSerializer.From2DList(dto.HeatmapData));
-        if (dto.ColorMapName is not null)
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        s.VMin = dto.VMin;
-        s.VMax = dto.VMax;
-        s.Interpolation = dto.Interpolation;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="Histogram2DSeries"/> from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static Histogram2DSeries CreateHistogram2D(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Histogram2D(dto.XData ?? [], dto.YData ?? [], dto.Bins ?? 20);
-        if (dto.BinsY.HasValue) s.BinsY = dto.BinsY.Value;
-        if (dto.ColorMapName is not null)
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="StackedAreaSeries"/> from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static StackedAreaSeries CreateStackedArea(Axes axes, SeriesDto dto)
-    {
-        var s = axes.StackPlot(dto.XData ?? [], dto.Datasets ?? []);
-        s.Labels = dto.PieLabels;
-        if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="StepSeries"/> from the DTO, including step position.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static StepSeries CreateStep(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Step(dto.XData ?? [], dto.YData ?? []);
-        s.Color = dto.Color;
-        s.LineWidth = dto.LineWidth ?? 1.5;
-        ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
-        ApplyEnum<StepPosition>(dto.StepPosition, v => s.StepPosition = v);
-        return s;
-    }
-
-    /// <summary>Reconstructs an <see cref="AreaSeries"/> from the DTO, including optional second Y dataset for fill-between.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static AreaSeries CreateArea(Axes axes, SeriesDto dto)
-    {
-        var s = axes.FillBetween(dto.XData ?? [], dto.YData ?? [], dto.YData2);
-        s.Color = dto.Color;
-        if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
-        s.LineWidth = dto.LineWidth ?? 1.5;
-        ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
-        if (dto.Smooth == true) s.Smooth = true;
-        if (dto.SmoothResolution.HasValue) s.SmoothResolution = dto.SmoothResolution.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="DonutSeries"/> from the DTO, including inner radius and center text.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static DonutSeries CreateDonut(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Donut(dto.Sizes ?? [], dto.PieLabels);
-        if (dto.InnerRadius.HasValue) s.InnerRadius = dto.InnerRadius.Value;
-        s.CenterText = dto.CenterText;
-        if (dto.StartAngle.HasValue) s.StartAngle = dto.StartAngle.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="BubbleSeries"/> from the DTO, including alpha transparency.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static BubbleSeries CreateBubble(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Bubble(dto.XData ?? [], dto.YData ?? [], dto.Sizes ?? []);
-        s.Color = dto.Color;
-        if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs an <see cref="OhlcBarSeries"/> from the DTO, including up/down colors and tick width.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static OhlcBarSeries CreateOhlcBar(Axes axes, SeriesDto dto)
-    {
-        var s = axes.OhlcBar(dto.Open ?? [], dto.High ?? [], dto.Low ?? [], dto.Close ?? [], dto.DateLabels);
-        if (dto.UpColor.HasValue) s.UpColor = dto.UpColor.Value;
-        if (dto.DownColor.HasValue) s.DownColor = dto.DownColor.Value;
-        if (dto.TickWidth.HasValue) s.TickWidth = dto.TickWidth.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="WaterfallSeries"/> from the DTO, including increase/decrease/total colors.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static WaterfallSeries CreateWaterfall(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Waterfall(dto.Categories ?? [], dto.Values ?? []);
-        if (dto.IncreaseColor.HasValue) s.IncreaseColor = dto.IncreaseColor.Value;
-        if (dto.DecreaseColor.HasValue) s.DecreaseColor = dto.DecreaseColor.Value;
-        if (dto.TotalColor.HasValue) s.TotalColor = dto.TotalColor.Value;
-        if (dto.BarWidth.HasValue) s.BarWidth = dto.BarWidth.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="FunnelSeries"/> from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static FunnelSeries CreateFunnel(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Funnel(dto.PieLabels ?? [], dto.Values ?? []);
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="GanttSeries"/> from the DTO, including bar height.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static GanttSeries CreateGantt(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Gantt(dto.Tasks ?? [], dto.Starts ?? [], dto.Ends ?? []);
-        s.Color = dto.Color;
-        if (dto.BarHeight.HasValue) s.BarHeight = dto.BarHeight.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="GaugeSeries"/> from the DTO, including min/max range and needle color.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static GaugeSeries CreateGauge(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Gauge(dto.GaugeValue ?? 0);
-        if (dto.GaugeMin.HasValue) s.Min = dto.GaugeMin.Value;
-        if (dto.GaugeMax.HasValue) s.Max = dto.GaugeMax.Value;
-        if (dto.NeedleColor.HasValue) s.NeedleColor = dto.NeedleColor.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="ProgressBarSeries"/> from the DTO, including fill and track colors.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static ProgressBarSeries CreateProgressBar(Axes axes, SeriesDto dto)
-    {
-        var s = axes.ProgressBar(dto.GaugeValue ?? 0);
-        if (dto.FillColor.HasValue) s.FillColor = dto.FillColor.Value;
-        if (dto.TrackColor.HasValue) s.TrackColor = dto.TrackColor.Value;
-        if (dto.BarHeight.HasValue) s.BarHeight = dto.BarHeight.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="StatTileSeries"/> from the DTO, restoring its value and accent colour.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static StatTileSeries CreateStatTile(Axes axes, SeriesDto dto)
-    {
-        var s = axes.StatTile(dto.GaugeValue ?? 0);
-        if (dto.Color.HasValue) s.AccentColor = dto.Color.Value;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="StateTimelineSeries"/> from the DTO, restoring segment
-    /// starts, ends, labels, and per-segment colours.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static StateTimelineSeries CreateStateTimeline(Axes axes, SeriesDto dto)
-    {
-        var starts  = dto.Starts     ?? [];
-        var ends    = dto.Ends       ?? [];
-        var labels  = dto.Categories ?? [];
-        var colors  = dto.StateSegmentColors ?? [];
-        int count   = Math.Min(Math.Min(starts.Length, ends.Length),
-                               Math.Min(labels.Length, colors.Count));
-        var segments = new Models.Series.StateSegment[count];
-        for (int i = 0; i < count; i++)
-            segments[i] = new Models.Series.StateSegment(starts[i], ends[i], labels[i], colors[i]);
-        return axes.StateTimeline(segments);
-    }
-
-    /// <summary>Reconstructs a <see cref="SparklineSeries"/> from the DTO, including color and line width.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static SparklineSeries CreateSparkline(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Sparkline(dto.Values ?? []);
-        s.Color = dto.Color;
-        s.LineWidth = dto.LineWidth ?? 1.5;
+        if (dto.MarkerSize.HasValue)
+        {
+            s.MarkerSize = dto.MarkerSize.Value;
+        }
         return s;
     }
 
@@ -889,7 +453,9 @@ public sealed class ChartSerializer : IChartSerializer
     internal static void ApplyEnum<T>(string? value, Action<T> setter) where T : struct, Enum
     {
         if (value is not null && Enum.TryParse<T>(value, true, out var parsed))
+        {
             setter(parsed);
+        }
     }
 
     /// <summary>Applies the common line series properties (color, width, style) from a DTO to a <see cref="T:MatPlotLibNet.Models.Series.XY.LineSeries"/>.</summary>
@@ -901,34 +467,14 @@ public sealed class ChartSerializer : IChartSerializer
         s.Color = dto.Color;
         s.LineWidth = dto.LineWidth ?? 1.5;
         ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
-        if (dto.Smooth == true) s.Smooth = true;
-        if (dto.SmoothResolution.HasValue) s.SmoothResolution = dto.SmoothResolution.Value;
-    }
-
-    /// <summary>Reconstructs a <see cref="SignalXYSeries"/> from the DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static SignalXYSeries CreateSignalXY(Axes axes, SeriesDto dto)
-    {
-        var s = axes.SignalXY(dto.XData ?? [], dto.YData ?? []);
-        s.Color = dto.Color;
-        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
-        if (dto.LineStyle is not null && Enum.TryParse<LineStyle>(dto.LineStyle, true, out var ls)) s.LineStyle = ls;
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="SignalSeries"/> from the DTO and adds it to the axes.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static SignalSeries CreateSignal(Axes axes, SeriesDto dto)
-    {
-        var s = axes.Signal(dto.YData ?? [], dto.SignalSampleRate ?? 1.0, dto.SignalXStart ?? 0.0);
-        s.Color = dto.Color;
-        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
-        if (dto.LineStyle is not null && Enum.TryParse<LineStyle>(dto.LineStyle, true, out var ls)) s.LineStyle = ls;
-        return s;
+        if (dto.Smooth == true)
+        {
+            s.Smooth = true;
+        }
+        if (dto.SmoothResolution.HasValue)
+        {
+            s.SmoothResolution = dto.SmoothResolution.Value;
+        }
     }
 
     /// <summary>Converts a rectangular 2D array to a jagged list-of-lists for JSON serialization.</summary>
@@ -952,12 +498,19 @@ public sealed class ChartSerializer : IChartSerializer
     /// <returns>A rectangular <c>double[rows, cols]</c> array.</returns>
     internal static double[,] From2DList(List<List<double>>? data)
     {
-        if (data is null || data.Count == 0) return new double[0, 0];
+        if (data is null || data.Count == 0)
+        {
+            return new double[0, 0];
+        }
         int rows = data.Count, cols = data[0].Count;
         var result = new double[rows, cols];
         for (int r = 0; r < rows; r++)
-        for (int c = 0; c < cols; c++)
-            result[r, c] = data[r][c];
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                result[r, c] = data[r][c];
+            }
+        }
         return result;
     }
 
@@ -978,9 +531,15 @@ public sealed class ChartSerializer : IChartSerializer
     /// <returns>A jagged <c>double[][]</c>.</returns>
     internal static double[][] FromJaggedList(List<List<double>>? data)
     {
-        if (data is null || data.Count == 0) return [];
+        if (data is null || data.Count == 0)
+        {
+            return [];
+        }
         var result = new double[data.Count][];
-        for (int i = 0; i < data.Count; i++) result[i] = [.. data[i]];
+        for (int i = 0; i < data.Count; i++)
+        {
+            result[i] = [.. data[i]];
+        }
         return result;
     }
 
@@ -1014,7 +573,10 @@ public sealed class ChartSerializer : IChartSerializer
     /// <see cref="Models.Series.GraphNode"/> records.</summary>
     internal static Models.Series.GraphNode[] FromGraphNodeDtos(List<GraphNodeDto>? dtos)
     {
-        if (dtos is null || dtos.Count == 0) return [];
+        if (dtos is null || dtos.Count == 0)
+        {
+            return [];
+        }
         var result = new Models.Series.GraphNode[dtos.Count];
         for (int i = 0; i < dtos.Count; i++)
         {
@@ -1028,7 +590,10 @@ public sealed class ChartSerializer : IChartSerializer
     /// <see cref="Models.Series.GraphEdge"/> records.</summary>
     internal static Models.Series.GraphEdge[] FromGraphEdgeDtos(List<GraphEdgeDto>? dtos)
     {
-        if (dtos is null || dtos.Count == 0) return [];
+        if (dtos is null || dtos.Count == 0)
+        {
+            return [];
+        }
         var result = new Models.Series.GraphEdge[dtos.Count];
         for (int i = 0; i < dtos.Count; i++)
         {

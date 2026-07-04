@@ -38,7 +38,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     public override void Render()
     {
         var axesBg = Theme.AxesBackground;
-        Ctx.DrawRectangle(PlotArea, axesBg, null, 0);
+        Ctx.DrawRectangle(PlotArea, new ShapeStyle(axesBg, null, 0));
 
         // Compute data ranges
         var range = ComputeDataRanges();
@@ -400,7 +400,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 _                   => axisEdge + length,           // Out
             };
             if (Math.Abs(endY - startY) > 0.1)
-                Ctx.DrawLine(new Point(tickPos, startY), new Point(tickPos, endY), color, width, LineStyle.Solid);
+                Ctx.DrawLine(new Point(tickPos, startY), new Point(tickPos, endY), new StrokeStyle(color, width, LineStyle.Solid));
         }
         else
         {
@@ -420,7 +420,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 _                   => axisEdge + spineHalfWidth,  // Out: end inside spine
             };
             if (Math.Abs(endX - startX) > 0.1)
-                Ctx.DrawLine(new Point(startX, tickPos), new Point(endX, tickPos), color, width, LineStyle.Solid);
+                Ctx.DrawLine(new Point(startX, tickPos), new Point(endX, tickPos), new StrokeStyle(color, width, LineStyle.Solid));
         }
     }
 
@@ -640,7 +640,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     private void DrawSpineLine(Point p1, Point p2, Color color, double lineWidth, LineStyle lineStyle = LineStyle.Solid)
     {
         Ctx.BeginGroup("spine");
-        Ctx.DrawLine(p1, p2, color, lineWidth, lineStyle);
+        Ctx.DrawLine(p1, p2, new StrokeStyle(color, lineWidth, lineStyle));
         Ctx.EndGroup();
     }
 
@@ -681,9 +681,9 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     {
         const double GapHalf = 4.0;
         if (horizontal)
-            Ctx.DrawRectangle(new Rect(pos - GapHalf, edgeA, GapHalf * 2, edgeB - edgeA), bgColor, null, 0);
+            Ctx.DrawRectangle(new Rect(pos - GapHalf, edgeA, GapHalf * 2, edgeB - edgeA), new ShapeStyle(bgColor, null, 0));
         else
-            Ctx.DrawRectangle(new Rect(edgeA, pos - GapHalf, edgeB - edgeA, GapHalf * 2), bgColor, null, 0);
+            Ctx.DrawRectangle(new Rect(edgeA, pos - GapHalf, edgeB - edgeA, GapHalf * 2), new ShapeStyle(bgColor, null, 0));
 
         DrawBreakSegments(
             horizontal ? Orientation.Horizontal : Orientation.Vertical,
@@ -720,10 +720,10 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                     : transform.DataToPixel(fixedCoord, tick);
                 if (isHorizontal)
                     Ctx.DrawLine(new Point(pt.X, PlotArea.Y), new Point(pt.X, PlotArea.Y + PlotArea.Height),
-                        color, width, style);
+                        new StrokeStyle(color, width, style));
                 else
                     Ctx.DrawLine(new Point(PlotArea.X, pt.Y), new Point(PlotArea.X + PlotArea.Width, pt.Y),
-                        color, width, style);
+                        new StrokeStyle(color, width, style));
             }
         }
         else if (ticks.Length >= 2)
@@ -743,10 +743,10 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 if (pos < areaMin || pos > areaMax) continue;
                 if (isHorizontal)
                     Ctx.DrawLine(new Point(pt.X, PlotArea.Y), new Point(pt.X, PlotArea.Y + PlotArea.Height),
-                        color, width, style);
+                        new StrokeStyle(color, width, style));
                 else
                     Ctx.DrawLine(new Point(PlotArea.X, pt.Y), new Point(PlotArea.X + PlotArea.Width, pt.Y),
-                        color, width, style);
+                        new StrokeStyle(color, width, style));
             }
         }
     }
@@ -813,20 +813,20 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             if (horiz)
             {
                 Ctx.DrawLine(new Point(perpPos - halfSize, crossStart + span * 0.4),
-                    new Point(perpPos, crossStart + span * 0.5), lineColor, thickness, LineStyle.Solid);
+                    new Point(perpPos, crossStart + span * 0.5), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
                 Ctx.DrawLine(new Point(perpPos, crossStart + span * 0.5),
-                    new Point(perpPos + halfSize, crossStart + span * 0.6), lineColor, thickness, LineStyle.Solid);
+                    new Point(perpPos + halfSize, crossStart + span * 0.6), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
                 Ctx.DrawLine(new Point(perpPos - halfSize, crossEnd - span * 0.6),
-                    new Point(perpPos, crossEnd - span * 0.5), lineColor, thickness, LineStyle.Solid);
+                    new Point(perpPos, crossEnd - span * 0.5), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
                 Ctx.DrawLine(new Point(perpPos, crossEnd - span * 0.5),
-                    new Point(perpPos + halfSize, crossEnd - span * 0.4), lineColor, thickness, LineStyle.Solid);
+                    new Point(perpPos + halfSize, crossEnd - span * 0.4), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
             }
             else
             {
                 Ctx.DrawLine(new Point(crossStart + span * 0.4, perpPos - halfSize),
-                    new Point(crossStart + span * 0.5, perpPos), lineColor, thickness, LineStyle.Solid);
+                    new Point(crossStart + span * 0.5, perpPos), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
                 Ctx.DrawLine(new Point(crossStart + span * 0.5, perpPos),
-                    new Point(crossStart + span * 0.6, perpPos + halfSize), lineColor, thickness, LineStyle.Solid);
+                    new Point(crossStart + span * 0.6, perpPos + halfSize), new StrokeStyle(lineColor, thickness, LineStyle.Solid));
             }
         }
         else if (style == BreakStyle.Straight)
@@ -835,19 +835,19 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             {
                 Ctx.DrawLine(new Point(perpPos - halfSize * 0.5, crossStart + span * 0.3),
                     new Point(perpPos + halfSize * 0.5, crossStart + span * 0.7),
-                    lineColor, thickness, LineStyle.Solid);
+                    new StrokeStyle(lineColor, thickness, LineStyle.Solid));
                 Ctx.DrawLine(new Point(perpPos - halfSize * 0.5 + halfSize * 0.6, crossStart + span * 0.3),
                     new Point(perpPos + halfSize * 0.5 + halfSize * 0.6, crossStart + span * 0.7),
-                    lineColor, thickness, LineStyle.Solid);
+                    new StrokeStyle(lineColor, thickness, LineStyle.Solid));
             }
             else
             {
                 Ctx.DrawLine(new Point(crossStart + span * 0.3, perpPos - halfSize * 0.5),
                     new Point(crossStart + span * 0.7, perpPos + halfSize * 0.5),
-                    lineColor, thickness, LineStyle.Solid);
+                    new StrokeStyle(lineColor, thickness, LineStyle.Solid));
                 Ctx.DrawLine(new Point(crossStart + span * 0.3, perpPos - halfSize * 0.5 + halfSize * 0.6),
                     new Point(crossStart + span * 0.7, perpPos + halfSize * 0.5 + halfSize * 0.6),
-                    lineColor, thickness, LineStyle.Solid);
+                    new StrokeStyle(lineColor, thickness, LineStyle.Solid));
             }
         }
     }

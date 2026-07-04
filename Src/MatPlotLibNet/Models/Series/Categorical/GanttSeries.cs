@@ -44,6 +44,21 @@ public sealed class GanttSeries : ChartSeries, IHasColor
         Color = Color, BarHeight = BarHeight
     };
 
+    /// <summary>Reconstructs a <see cref="GanttSeries"/> from its serialization DTO, including bar height, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static GanttSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Gantt(dto.Tasks ?? [], dto.Starts ?? [], dto.Ends ?? []);
+        s.Color = dto.Color;
+        if (dto.BarHeight.HasValue)
+        {
+            s.BarHeight = dto.BarHeight.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

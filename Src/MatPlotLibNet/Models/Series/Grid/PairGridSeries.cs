@@ -155,6 +155,70 @@ public sealed class PairGridSeries : ChartSeries
         PairGridOffDiagonalColorMap  = OffDiagonalColorMap?.Name,
     };
 
+    /// <summary>Reconstructs a <see cref="PairGridSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <remarks>The hue palette is not serialised — it is the user's runtime preference,
+    /// not part of the persisted figure shape (same project convention as
+    /// <c>HeatmapSeries.Normalizer</c>).</remarks>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static PairGridSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var variables = ChartSerializer.FromJaggedList(dto.Variables);
+        if (variables.Length == 0)
+        {
+            throw new InvalidOperationException(
+                "Cannot reconstruct PairGridSeries: the JSON DTO has no Variables. " +
+                "Pair-grid serialization requires at least one variable, matching the model constructor invariant.");
+        }
+        var s = axes.PairGrid(variables);
+        if (dto.PairGridLabels    is not null)
+        {
+            s.Labels    = dto.PairGridLabels;
+        }
+        if (dto.PairGridHueGroups is not null)
+        {
+            s.HueGroups = dto.PairGridHueGroups;
+        }
+        if (dto.PairGridHueLabels is not null)
+        {
+            s.HueLabels = dto.PairGridHueLabels;
+        }
+        if (dto.PairGridDiagonal     is not null && Enum.TryParse<Models.Series.PairGridDiagonalKind>(dto.PairGridDiagonal,    true, out var dk))
+        {
+            s.DiagonalKind    = dk;
+        }
+        if (dto.PairGridOffDiagonal  is not null && Enum.TryParse<Models.Series.PairGridOffDiagonalKind>(dto.PairGridOffDiagonal, true, out var od))
+        {
+            s.OffDiagonalKind = od;
+        }
+        if (dto.PairGridTriangular   is not null && Enum.TryParse<Models.Series.PairGridTriangle>(dto.PairGridTriangular,    true, out var tri))
+        {
+            s.Triangular      = tri;
+        }
+        if (dto.PairGridDiagonalBins.HasValue)
+        {
+            s.DiagonalBins = dto.PairGridDiagonalBins.Value;
+        }
+        if (dto.PairGridMarkerSize  .HasValue)
+        {
+            s.MarkerSize   = dto.PairGridMarkerSize.Value;
+        }
+        if (dto.PairGridCellSpacing .HasValue)
+        {
+            s.CellSpacing  = dto.PairGridCellSpacing.Value;
+        }
+        if (dto.PairGridHexbinGridSize.HasValue)
+        {
+            s.HexbinGridSize = dto.PairGridHexbinGridSize.Value;
+        }
+        if (dto.PairGridOffDiagonalColorMap is not null)
+        {
+            s.OffDiagonalColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.PairGridOffDiagonalColorMap);
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

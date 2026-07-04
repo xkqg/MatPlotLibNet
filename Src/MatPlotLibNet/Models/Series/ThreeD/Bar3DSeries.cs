@@ -43,6 +43,24 @@ public sealed class Bar3DSeries : XYZSeries, IHasColor
         Color = Color
     };
 
+    /// <summary>Reconstructs a <see cref="Bar3DSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static Bar3DSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Bar3D(dto.XData ?? [], dto.YData ?? [], dto.ZData ?? []);
+        if (dto.BarWidth.HasValue)
+        {
+            s.BarWidth = dto.BarWidth.Value;
+        }
+        if (dto.Color.HasValue)
+        {
+            s.Color = dto.Color.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

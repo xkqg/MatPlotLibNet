@@ -40,7 +40,7 @@ internal sealed class WireframeSeriesRenderer : SeriesRenderer<WireframeSeries>
             var points = new List<Point>(cols);
             for (int c = 0; c < cols; c++)
                 points.Add(proj.Project(series.X[c], series.Y[r], series.Z[r, c]));
-            Ctx.DrawLines(points, color, series.LineWidth, LineStyle.Solid);
+            Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, LineStyle.Solid));
         }
 
         // Draw grid lines along Y direction (constant X)
@@ -49,7 +49,7 @@ internal sealed class WireframeSeriesRenderer : SeriesRenderer<WireframeSeries>
             var points = new List<Point>(rows);
             for (int r = 0; r < rows; r++)
                 points.Add(proj.Project(series.X[c], series.Y[r], series.Z[r, c]));
-            Ctx.DrawLines(points, color, series.LineWidth, LineStyle.Solid);
+            Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, LineStyle.Solid));
         }
     }
 }

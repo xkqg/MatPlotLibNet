@@ -1,8 +1,10 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Diagnostics;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -21,8 +23,23 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
 
         int degree = Math.Clamp(series.Degree, 0, 10);
         double[] coeff;
-        try { coeff = LeastSquares.PolyFit(series.XData, series.YData, degree); }
-        catch { return; }
+        try
+        {
+            coeff = LeastSquares.PolyFit(series.XData, series.YData, degree);
+        }
+        catch (Exception ex) when (ex is ArgumentException or IndexOutOfRangeException)
+        {
+            // LeastSquares.PolyFit documents ArgumentException/ArgumentOutOfRangeException for
+            // empty data or an out-of-range degree; IndexOutOfRangeException is the reachable
+            // failure at this call site when XData/YData lengths disagree (identical-X data does
+            // NOT throw — the normal-equations solver degrades to a degenerate-but-valid fit for
+            // singular matrices). Either way: skip this series' regression line, but tell someone.
+            ChartDiagnostics.Emit(new ChartDiagnostic(
+                nameof(RegressionSeriesRenderer),
+                $"Regression fit failed and was skipped: {ex.Message}",
+                ex));
+            return;
+        }
 
         double xMin = series.XData.Min(), xMax = series.XData.Max();
         double step = (xMax - xMin) / (NumEvalPoints - 1);
@@ -41,12 +58,12 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
                 polygon.Add(Transform.DataToPixel(evalX[i], band.Upper[i]));
             for (int i = NumEvalPoints - 1; i >= 0; i--)
                 polygon.Add(Transform.DataToPixel(evalX[i], band.Lower[i]));
-            Ctx.DrawPolygon(polygon, ApplyAlpha(bandColor, series.BandAlpha), null, 0);
+            Ctx.DrawPolygon(polygon, new ShapeStyle(ApplyAlpha(bandColor, series.BandAlpha), null, 0));
         }
 
         var linePoints = new List<Point>(NumEvalPoints);
         for (int i = 0; i < NumEvalPoints; i++)
             linePoints.Add(Transform.DataToPixel(evalX[i], evalY[i]));
-        Ctx.DrawLines(linePoints, color, series.LineWidth, series.LineStyle);
+        Ctx.DrawLines(linePoints, new StrokeStyle(color, series.LineWidth, series.LineStyle));
     }
 }

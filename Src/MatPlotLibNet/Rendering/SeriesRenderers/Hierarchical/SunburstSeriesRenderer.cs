@@ -66,7 +66,7 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
             double childSweep = sweepAngle * (child.TotalValue / total);
             var color = child.Color ?? ResolveColor(null);
 
-            Ctx.DrawPath(BuildWedgePath(cx, cy, innerR, outerR, currentAngle, currentAngle + childSweep), color, Colors.White, 1);
+            Ctx.DrawPath(BuildWedgePath(cx, cy, innerR, outerR, currentAngle, currentAngle + childSweep), new ShapeStyle(color, Colors.White, 1));
 
             // Collect a label for this ring segment when labels are enabled and the wedge
             // is wide enough to plausibly host one. Anchor at the radial+angular midpoint.

@@ -9,35 +9,33 @@ namespace MatPlotLibNet.Geo.Projections;
 public sealed class Mercator : IGeoProjection
 {
     private const double MaxLat = 85.051129;
-    private const double DegToRad = Math.PI / 180.0;
-    private const double RadToDeg = 180.0 / Math.PI;
 
     /// <inheritdoc />
     public string Name => "Mercator";
 
     /// <inheritdoc />
-    public (double X, double Y) Forward(double latitude, double longitude)
+    public ProjectedPoint Forward(double latitude, double longitude)
     {
         double lat = Math.Clamp(latitude, -MaxLat, MaxLat);
         double x = longitude;
-        double y = RadToDeg * Math.Log(Math.Tan(Math.PI / 4 + lat * DegToRad / 2));
-        return (x, y);
+        double y = Math.Log(Math.Tan(Math.PI / 4 + lat.ToRadians() / 2)).ToDegrees();
+        return new(x, y);
     }
 
     /// <inheritdoc />
-    public (double Lat, double Lon)? Inverse(double x, double y)
+    public GeoCoordinate? Inverse(double x, double y)
     {
-        double lat = RadToDeg * (2 * Math.Atan(Math.Exp(y * DegToRad)) - Math.PI / 2);
-        return Math.Abs(lat) <= MaxLat ? (lat, x) : null;
+        double lat = (2 * Math.Atan(Math.Exp(y.ToRadians())) - Math.PI / 2).ToDegrees();
+        return Math.Abs(lat) <= MaxLat ? new GeoCoordinate(lat, x) : null;
     }
 
     /// <inheritdoc />
-    public (double XMin, double XMax, double YMin, double YMax) Bounds
+    public GeoBounds Bounds
     {
         get
         {
             var (_, yMax) = Forward(MaxLat, 0);
-            return (-180, 180, -yMax, yMax);
+            return new(-180, 180, -yMax, yMax);
         }
     }
 }

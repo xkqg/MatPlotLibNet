@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -32,7 +33,7 @@ internal sealed class BarbsSeriesRenderer : SeriesRenderer<BarbsSeries>
             var tip = new Point(origin.X + dx * staffLen, origin.Y - dy * staffLen);
 
             // Draw staff
-            Ctx.DrawLine(origin, tip, color, 1.5, Styling.LineStyle.Solid);
+            Ctx.DrawLine(origin, tip, new StrokeStyle(color, 1.5, Styling.LineStyle.Solid));
 
             // Draw barbs along the staff from tip toward origin
             double remaining = speed;
@@ -66,7 +67,7 @@ internal sealed class BarbsSeriesRenderer : SeriesRenderer<BarbsSeries>
         double by = origin.Y - dy * (staffLen - offset);
         // Perpendicular direction
         var barbTip = new Point(bx + dy * barbLen, by + dx * barbLen);
-        Ctx.DrawLine(new Point(bx, by), barbTip, color, 1.5, Styling.LineStyle.Solid);
+        Ctx.DrawLine(new Point(bx, by), barbTip, new StrokeStyle(color, 1.5, Styling.LineStyle.Solid));
     }
 
     private void DrawFlag(Point origin, double dx, double dy, double staffLen, double offset,
@@ -77,6 +78,6 @@ internal sealed class BarbsSeriesRenderer : SeriesRenderer<BarbsSeries>
         double bx2 = origin.X + dx * (staffLen - offset - size);
         double by2 = origin.Y - dy * (staffLen - offset - size);
         var flagTip = new Point(bx + dy * size, by + dx * size);
-        Ctx.DrawPolygon([new(bx, by), new(bx2, by2), flagTip], color, null, 0);
+        Ctx.DrawPolygon([new(bx, by), new(bx2, by2), flagTip], new ShapeStyle(color, null, 0));
     }
 }

@@ -18,7 +18,7 @@ public class SvgRenderContextTests
     {
         var ctx = new SvgRenderContext();
         ctx.DrawLine(new Point(10, 20), new Point(30, 40),
-            Colors.Red, 2.0, LineStyle.Solid);
+            new StrokeStyle(Colors.Red, 2.0, LineStyle.Solid));
 
         string svg = ctx.GetOutput();
         Assert.Contains("<line", svg);
@@ -32,8 +32,7 @@ public class SvgRenderContextTests
     public void DrawRectangle_ProducesSvgRectElement()
     {
         var ctx = new SvgRenderContext();
-        ctx.DrawRectangle(new Rect(10, 20, 100, 50),
-            fill: Colors.Blue, stroke: null, strokeThickness: 0);
+        ctx.DrawRectangle(new Rect(10, 20, 100, 50), new ShapeStyle(Colors.Blue, null, 0));
 
         string svg = ctx.GetOutput();
         Assert.Contains("<rect", svg);
@@ -57,7 +56,7 @@ public class SvgRenderContextTests
     public void DrawCircle_ProducesSvgCircleElement()
     {
         var ctx = new SvgRenderContext();
-        ctx.DrawCircle(new Point(50, 50), 10, Colors.Green, null, 0);
+        ctx.DrawCircle(new Point(50, 50), 10, new ShapeStyle(Colors.Green, null, 0));
 
         string svg = ctx.GetOutput();
         Assert.Contains("<circle", svg);
@@ -69,7 +68,7 @@ public class SvgRenderContextTests
     {
         var ctx = new SvgRenderContext();
         ctx.DrawLines([new Point(0, 0), new Point(10, 10), new Point(20, 5)],
-            Colors.Blue, 1.5, LineStyle.Solid);
+            new StrokeStyle(Colors.Blue, 1.5, LineStyle.Solid));
 
         string svg = ctx.GetOutput();
         Assert.Contains("<polyline", svg);
@@ -81,7 +80,7 @@ public class SvgRenderContextTests
     {
         var ctx = new SvgRenderContext();
         ctx.DrawLine(new Point(0, 0), new Point(10, 10),
-            Colors.Black, 1, LineStyle.Dashed);
+            new StrokeStyle(Colors.Black, 1, LineStyle.Dashed));
 
         string svg = ctx.GetOutput();
         Assert.Contains("stroke-dasharray", svg);
@@ -94,8 +93,7 @@ public class SvgRenderContextTests
     public void DrawPolygon_WithFill_ContainsPolygonElement()
     {
         var ctx = new SvgRenderContext();
-        ctx.DrawPolygon([new Point(0, 0), new Point(10, 0), new Point(5, 10)],
-            fill: Colors.Red, stroke: null, strokeThickness: 0);
+        ctx.DrawPolygon([new Point(0, 0), new Point(10, 0), new Point(5, 10)], new ShapeStyle(Colors.Red, null, 0));
 
         string svg = ctx.GetOutput();
         Assert.Contains("<polygon", svg);
@@ -106,8 +104,7 @@ public class SvgRenderContextTests
     public void DrawPolygon_WithStroke_HasStrokeAttribute()
     {
         var ctx = new SvgRenderContext();
-        ctx.DrawPolygon([new Point(0, 0), new Point(10, 0), new Point(5, 10)],
-            fill: null, stroke: Colors.Blue, strokeThickness: 2);
+        ctx.DrawPolygon([new Point(0, 0), new Point(10, 0), new Point(5, 10)], new ShapeStyle(null, Colors.Blue, 2));
 
         string svg = ctx.GetOutput();
         Assert.Contains("stroke=", svg);
@@ -118,8 +115,7 @@ public class SvgRenderContextTests
     public void DrawPolygon_WithBothFillAndStroke()
     {
         var ctx = new SvgRenderContext();
-        ctx.DrawPolygon([new Point(0, 0), new Point(10, 0), new Point(5, 10)],
-            fill: Colors.Green, stroke: Colors.Black, strokeThickness: 1);
+        ctx.DrawPolygon([new Point(0, 0), new Point(10, 0), new Point(5, 10)], new ShapeStyle(Colors.Green, Colors.Black, 1));
 
         string svg = ctx.GetOutput();
         Assert.Contains("fill=", svg);
@@ -133,8 +129,7 @@ public class SvgRenderContextTests
     public void DrawEllipse_ContainsEllipseElement()
     {
         var ctx = new SvgRenderContext();
-        ctx.DrawEllipse(new Rect(10, 20, 100, 50),
-            fill: Colors.Red, stroke: null, strokeThickness: 0);
+        ctx.DrawEllipse(new Rect(10, 20, 100, 50), new ShapeStyle(Colors.Red, null, 0));
 
         string svg = ctx.GetOutput();
         Assert.Contains("<ellipse", svg);
@@ -149,8 +144,7 @@ public class SvgRenderContextTests
     public void DrawEllipse_WithFill_HasFillColor()
     {
         var ctx = new SvgRenderContext();
-        ctx.DrawEllipse(new Rect(0, 0, 80, 40),
-            fill: Colors.Blue, stroke: null, strokeThickness: 0);
+        ctx.DrawEllipse(new Rect(0, 0, 80, 40), new ShapeStyle(Colors.Blue, null, 0));
 
         string svg = ctx.GetOutput();
         Assert.Contains("#0000FF", svg);
@@ -164,8 +158,7 @@ public class SvgRenderContextTests
     {
         var ctx = new SvgRenderContext();
         ctx.DrawPath(
-            [new MoveToSegment(new Point(0, 0)), new LineToSegment(new Point(10, 20))],
-            fill: null, stroke: Colors.Black, strokeThickness: 1);
+            [new MoveToSegment(new Point(0, 0)), new LineToSegment(new Point(10, 20))], new ShapeStyle(null, Colors.Black, 1));
 
         string svg = ctx.GetOutput();
         Assert.Contains("<path d=\"", svg);
@@ -180,8 +173,7 @@ public class SvgRenderContextTests
         var ctx = new SvgRenderContext();
         ctx.DrawPath(
             [new MoveToSegment(new Point(0, 0)),
-             new BezierSegment(new Point(5, 10), new Point(15, 10), new Point(20, 0))],
-            fill: null, stroke: Colors.Black, strokeThickness: 1);
+             new BezierSegment(new Point(5, 10), new Point(15, 10), new Point(20, 0))], new ShapeStyle(null, Colors.Black, 1));
 
         string svg = ctx.GetOutput();
         Assert.Contains("C ", svg);
@@ -196,8 +188,7 @@ public class SvgRenderContextTests
             [new MoveToSegment(new Point(0, 0)),
              new LineToSegment(new Point(10, 0)),
              new LineToSegment(new Point(5, 10)),
-             new CloseSegment()],
-            fill: Colors.Red, stroke: null, strokeThickness: 0);
+             new CloseSegment()], new ShapeStyle(Colors.Red, null, 0));
 
         string svg = ctx.GetOutput();
         Assert.Contains("Z", svg);

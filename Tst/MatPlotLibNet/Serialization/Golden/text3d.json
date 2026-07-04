@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"text3d","text3DAnnotations":[{"x":1,"y":2,"z":3,"text":"hello"}]}]}]}

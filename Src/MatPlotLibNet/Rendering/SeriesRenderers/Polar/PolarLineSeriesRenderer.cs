@@ -24,6 +24,6 @@ internal sealed class PolarLineSeriesRenderer : PolarTransformRenderer<PolarLine
             points.Add(transform.PolarToPixel(series.R[i], series.Theta[i]));
 
         if (points.Count > 1)
-            Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);
+            Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, series.LineStyle));
     }
 }

@@ -60,6 +60,17 @@ public class InsetConstrainedLayoutTests
         Assert.Contains("<svg", svg);
     }
 
+    [Fact]
+    public void FigureBuilder_AddInset_InsetBounds_RendersWithoutErrors()
+    {
+        // Canonical InsetBounds overload; the loose-doubles overload forwards to it.
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1, 2, 3], [4, 5, 6]))
+            .AddInset(0, new InsetBounds(0.6, 0.1, 0.35, 0.35), ax => ax.Plot([1, 2], [4, 5]))
+            .ToSvg();
+        Assert.Contains("<svg", svg);
+    }
+
     // ---- Constrained layout inset ------------------------------------------
 
     [Fact]

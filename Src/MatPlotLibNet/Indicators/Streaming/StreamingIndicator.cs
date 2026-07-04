@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Abstract base for streaming indicators. Manages output series, warmup, and the
 /// candlestick subscription pattern. Subclasses implement <see cref="ComputeNext"/> for O(1) incremental logic.</summary>
-public abstract class StreamingIndicatorBase : IStreamingIndicator
+public abstract class StreamingIndicator : IStreamingIndicator
 {
     private readonly StreamingLineSeries _output;
     private double _xCounter;
@@ -36,14 +36,14 @@ public abstract class StreamingIndicatorBase : IStreamingIndicator
     public IReadOnlyList<StreamingLineSeries> OutputSeries { get; }
 
     /// <summary>Initializes the indicator with a shared output series capacity.</summary>
-    protected StreamingIndicatorBase(int capacity = 10_000)
+    protected StreamingIndicator(int capacity = 10_000)
     {
         _output = new StreamingLineSeries(capacity);
         OutputSeries = [_output];
     }
 
     /// <summary>Initializes with multiple output series (for bands/MACD).</summary>
-    protected StreamingIndicatorBase(StreamingLineSeries[] outputs)
+    protected StreamingIndicator(StreamingLineSeries[] outputs)
     {
         _output = outputs[0];
         OutputSeries = outputs;

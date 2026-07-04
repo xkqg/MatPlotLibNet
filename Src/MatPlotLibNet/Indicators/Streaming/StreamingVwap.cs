@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming Volume-Weighted Average Price. O(1) cumulative: sum(price*volume) / sum(volume).</summary>
-public sealed class StreamingVwap : StreamingIndicatorBase
+public sealed class StreamingVwap : StreamingIndicator
 {
     private double _cumulativePriceVolume;
     private double _cumulativeVolume;

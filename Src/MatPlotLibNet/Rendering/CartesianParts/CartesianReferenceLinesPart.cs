@@ -37,7 +37,7 @@ internal sealed class CartesianReferenceLinesPart : CartesianAxesPart
                 Ctx.DrawLine(
                     new Point(PlotArea.X, pt.Y),
                     new Point(PlotArea.X + PlotArea.Width, pt.Y),
-                    lineColor, refLine.LineWidth, refLine.LineStyle);
+                    new StrokeStyle(lineColor, refLine.LineWidth, refLine.LineStyle));
                 if (refLine.Label is not null)
                 {
                     var labelFont = refLabelFont with { Color = lineColor };
@@ -52,7 +52,7 @@ internal sealed class CartesianReferenceLinesPart : CartesianAxesPart
                 Ctx.DrawLine(
                     new Point(pt.X, PlotArea.Y),
                     new Point(pt.X, PlotArea.Y + PlotArea.Height),
-                    lineColor, refLine.LineWidth, refLine.LineStyle);
+                    new StrokeStyle(lineColor, refLine.LineWidth, refLine.LineStyle));
                 if (refLine.Label is not null)
                 {
                     var labelFont = refLabelFont with { Color = lineColor };

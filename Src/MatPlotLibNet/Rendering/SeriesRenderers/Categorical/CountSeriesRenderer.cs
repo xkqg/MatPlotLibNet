@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -28,13 +29,13 @@ internal sealed class CountSeriesRenderer : SeriesRenderer<CountSeries>
             {
                 var tl = Transform.DataToPixel(i - halfW, count);
                 var br = Transform.DataToPixel(i + halfW, 0);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, null, 0);
+                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
             }
             else
             {
                 var tl = Transform.DataToPixel(0, i + halfW);
                 var br = Transform.DataToPixel(count, i - halfW);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, null, 0);
+                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
             }
         }
     }

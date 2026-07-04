@@ -6,7 +6,7 @@ using MatPlotLibNet.Data;
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming Commodity Channel Index. O(n/period) per candle (mean deviation scan).</summary>
-public sealed class StreamingCci : StreamingIndicatorBase
+public sealed class StreamingCci : StreamingIndicator
 {
     private readonly int _period;
     private readonly double[] _typicalPrices;

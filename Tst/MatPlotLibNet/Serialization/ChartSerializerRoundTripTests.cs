@@ -19,6 +19,11 @@ namespace MatPlotLibNet.Tests.Serialization;
 /// that the existing <see cref="ChartSerializerTests"/> /
 /// <see cref="ChartSerializerCoverageTests"/> do not exercise jointly.
 /// </summary>
+/// <remarks>Tagged into the <c>ChartSerializerGlobalState</c> collection (see
+/// <see cref="ChartSerializerGlobalStateCollection"/>): this class round-trips through the
+/// process-global <c>SeriesRegistry</c> and must not run concurrently with
+/// <see cref="SeriesRegistryTests"/>, which temporarily mutates the registry table.</remarks>
+[Collection("ChartSerializerGlobalState")]
 public class ChartSerializerRoundTripTests
 {
     private static readonly ChartSerializer S = new();

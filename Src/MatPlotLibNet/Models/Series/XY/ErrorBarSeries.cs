@@ -73,6 +73,24 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
         Color = Color, LineWidth = LineWidth, CapSize = CapSize
     };
 
+    /// <summary>Reconstructs an <see cref="ErrorBarSeries"/> from its serialization DTO, including optional X error bars, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static ErrorBarSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.ErrorBar(dto.XData ?? [], dto.YData ?? [], dto.YErrorLow ?? [], dto.YErrorHigh ?? []);
+        s.Color = dto.Color;
+        s.LineWidth = dto.LineWidth ?? 1.5;
+        if (dto.CapSize.HasValue)
+        {
+            s.CapSize = dto.CapSize.Value;
+        }
+        s.XErrorLow = dto.XErrorLow;
+        s.XErrorHigh = dto.XErrorHigh;
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

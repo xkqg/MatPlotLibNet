@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -44,7 +45,7 @@ internal sealed class PolarHeatmapSeriesRenderer : SeriesRenderer<PolarHeatmapSe
                 var fillColor = cmap.GetColor(normalized);
 
                 var pts = BuildWedge(transform, startAngle, endAngle, innerR, outerR);
-                Ctx.DrawPolygon(pts, fillColor, fillColor, 0);
+                Ctx.DrawPolygon(pts, new ShapeStyle(fillColor, fillColor, 0));
             }
         }
     }

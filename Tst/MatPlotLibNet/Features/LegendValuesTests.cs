@@ -55,6 +55,46 @@ public class LegendValuesTests
         Assert.False(figure.SubPlots[0].Legend.LegendValues);
     }
 
+    // ── AxesBuilder ordering interplay (WithLegendValues vs WithLegend) ─────
+
+    /// <summary>Regression test: WithLegend(position, visible) used to replace the axes'
+    /// Legend record wholesale (<c>_axes.Legend = new Legend {...}</c>), silently discarding a
+    /// LegendValues flag set earlier in the chain. Root fix must preserve it regardless of
+    /// call order. This is the "WithLegendValues() then WithLegend(...)" ordering.</summary>
+    [Fact]
+    public void AxesBuilder_WithLegendValues_ThenWithLegend_PreservesLegendValues()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Signal")
+                .WithLegendValues()
+                .WithLegend(LegendPosition.UpperRight))
+            .Build();
+
+        var legend = figure.SubPlots[0].Legend;
+        Assert.True(legend.LegendValues);
+        Assert.Equal(LegendPosition.UpperRight, legend.Position);
+    }
+
+    /// <summary>Inverse order — WithLegend(...) then WithLegendValues() — already worked before
+    /// the fix (WithLegendValues does a `with`-mutation on the current Legend). Pinned here so
+    /// the fix for the other ordering doesn't regress this one, making the whole chain
+    /// order-independent.</summary>
+    [Fact]
+    public void AxesBuilder_WithLegend_ThenWithLegendValues_PreservesLegendValues()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "Signal")
+                .WithLegend(LegendPosition.UpperRight)
+                .WithLegendValues())
+            .Build();
+
+        var legend = figure.SubPlots[0].Legend;
+        Assert.True(legend.LegendValues);
+        Assert.Equal(LegendPosition.UpperRight, legend.Position);
+    }
+
     // ── FigureBuilder fluent API tests ──────────────────────────────────────
 
     /// <summary>FigureBuilder.WithLegendValues sets the flag on the default axes' Legend.</summary>

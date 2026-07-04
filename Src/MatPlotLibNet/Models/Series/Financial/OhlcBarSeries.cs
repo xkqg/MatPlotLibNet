@@ -37,6 +37,28 @@ public sealed class OhlcBarSeries : OhlcSeries
         TickWidth = TickWidth
     };
 
+    /// <summary>Reconstructs an <see cref="OhlcBarSeries"/> from its serialization DTO, including up/down colours and tick width, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static OhlcBarSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.OhlcBar(dto.Open ?? [], dto.High ?? [], dto.Low ?? [], dto.Close ?? [], dto.DateLabels);
+        if (dto.UpColor.HasValue)
+        {
+            s.UpColor = dto.UpColor.Value;
+        }
+        if (dto.DownColor.HasValue)
+        {
+            s.DownColor = dto.DownColor.Value;
+        }
+        if (dto.TickWidth.HasValue)
+        {
+            s.TickWidth = dto.TickWidth.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

@@ -178,6 +178,7 @@ public static class EnumOrdinalSnapshot
                 ["RadarChart"] = 9, ["ViolinPlot"] = 10, ["Candlestick"] = 11,
                 ["Treemap"] = 12, ["SankeyFlow"] = 13, ["PolarLine"] = 14,
                 ["MultiSubplot"] = 15, ["AxisBreaks"] = 16, ["MinorGrid"] = 17,
+                ["DashboardTiles"] = 18, ["ThresholdLine"] = 19,
             },
             [typeof(PointerButton)] = new Dictionary<string, int> {
                 ["None"] = 0, ["Left"] = 1, ["Middle"] = 2, ["Right"] = 3,

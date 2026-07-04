@@ -61,7 +61,7 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
             Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Ctx.SetNextElementData("treemap-parent", parentId);
             Ctx.SetNextElementData("treemap-label", node.Label ?? string.Empty);
-            Ctx.DrawRectangle(bounds, color, Colors.White, 1);
+            Ctx.DrawRectangle(bounds, new ShapeStyle(color, Colors.White, 1));
             if (series.ShowLabels && !string.IsNullOrEmpty(node.Label))
             {
                 var font = new Font { Size = fontSize, Color = Colors.White };
@@ -87,7 +87,7 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Ctx.SetNextElementData("treemap-parent", parentId);
         Ctx.SetNextElementData("treemap-label", node.Label ?? string.Empty);
-        Ctx.DrawRectangle(bounds, interiorColor, Colors.White, 1);
+        Ctx.DrawRectangle(bounds, new ShapeStyle(interiorColor, Colors.White, 1));
 
         // Header strip: constant height (paired with the constant 12 pt font, Phase W).
         // Pre-W the header shrank with the depth-driven font; post-W it's fixed at 18 px

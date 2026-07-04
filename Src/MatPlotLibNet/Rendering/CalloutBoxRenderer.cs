@@ -16,7 +16,7 @@ internal static class CalloutBoxRenderer
     /// label's original anchor to its collision-adjusted final position.
     /// </summary>
     public static void DrawLeaderLine(IRenderContext ctx, Point from, Point to, Color color, double width = 0.5)
-        => ctx.DrawLine(from, to, color, width, LineStyle.Solid);
+        => ctx.DrawLine(from, to, new StrokeStyle(color, width, LineStyle.Solid));
 
     /// <summary>Draws a padded box around <paramref name="textBounds"/> using the specified style.</summary>
     public static void Draw(IRenderContext ctx, Rect textBounds, BoxStyle style,
@@ -33,19 +33,19 @@ internal static class CalloutBoxRenderer
         switch (style)
         {
             case BoxStyle.Square:
-                ctx.DrawRectangle(box, faceColor, edgeColor, edgeWidth);
+                ctx.DrawRectangle(box, new ShapeStyle(faceColor, edgeColor, edgeWidth));
                 break;
 
             case BoxStyle.Round:
-                ctx.DrawPath(BuildRoundedRect(box, cornerRadius), faceColor, edgeColor, edgeWidth);
+                ctx.DrawPath(BuildRoundedRect(box, cornerRadius), new ShapeStyle(faceColor, edgeColor, edgeWidth));
                 break;
 
             case BoxStyle.RoundTooth:
-                ctx.DrawPath(BuildRoundTooth(box, cornerRadius), faceColor, edgeColor, edgeWidth);
+                ctx.DrawPath(BuildRoundTooth(box, cornerRadius), new ShapeStyle(faceColor, edgeColor, edgeWidth));
                 break;
 
             case BoxStyle.Sawtooth:
-                ctx.DrawPath(BuildSawtooth(box), faceColor, edgeColor, edgeWidth);
+                ctx.DrawPath(BuildSawtooth(box), new ShapeStyle(faceColor, edgeColor, edgeWidth));
                 break;
         }
     }

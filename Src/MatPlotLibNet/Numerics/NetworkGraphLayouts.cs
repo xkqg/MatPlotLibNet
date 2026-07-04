@@ -2,9 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
-using MatPlotLibNet.Numerics;
 
-namespace MatPlotLibNet.Rendering.SeriesRenderers;
+namespace MatPlotLibNet.Numerics;
 
 /// <summary>Pure-function graph layout algorithms used by
 /// <c>NetworkGraphSeriesRenderer</c>. Each algorithm takes the input nodes (and edges

@@ -6,7 +6,7 @@ using MatPlotLibNet.Data;
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming Average True Range (Wilder's smoothing). O(1) per candle.</summary>
-public sealed class StreamingAtr : StreamingIndicatorBase
+public sealed class StreamingAtr : StreamingIndicator
 {
     private readonly int _period;
     private double _atr;

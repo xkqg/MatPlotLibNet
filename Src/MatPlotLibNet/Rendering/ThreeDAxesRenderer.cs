@@ -22,7 +22,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
     public override void Render()
     {
         var axesBg = Theme.AxesBackground;
-        Ctx.DrawRectangle(PlotArea, axesBg, null, 0);
+        Ctx.DrawRectangle(PlotArea, new ShapeStyle(axesBg, null, 0));
 
         // Compute 3D data ranges from all 3D series
         var range3D = Compute3DDataRanges();
@@ -220,14 +220,14 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
     private void DrawCubeEdge3D(Projection3D proj, double x0, double y0, double z0, double x1, double y1, double z1, Color color)
     {
         EmitV3D(proj, (x0, y0, z0), (x1, y1, z1));
-        Ctx.DrawLine(proj.Project(x0, y0, z0), proj.Project(x1, y1, z1), color, 0.5, LineStyle.Solid);
+        Ctx.DrawLine(proj.Project(x0, y0, z0), proj.Project(x1, y1, z1), new StrokeStyle(color, 0.5, LineStyle.Solid));
     }
 
     /// <summary>Single line at known 3D endpoints (for grid lines + tick marks).</summary>
     private void DrawLine3DAt(Projection3D proj, double x0, double y0, double z0, double x1, double y1, double z1, Color color, double width, LineStyle style)
     {
         EmitV3D(proj, (x0, y0, z0), (x1, y1, z1));
-        Ctx.DrawLine(proj.Project(x0, y0, z0), proj.Project(x1, y1, z1), color, width, style);
+        Ctx.DrawLine(proj.Project(x0, y0, z0), proj.Project(x1, y1, z1), new StrokeStyle(color, width, style));
     }
 
     /// <summary>Phase F.2 of v1.7.2 follow-on — emits <c>data-v3d</c> + <c>data-v3d-edge</c>
@@ -279,7 +279,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         Ctx.DrawPolygon(
             [proj.Project(x0, y0, z0), proj.Project(x1, y0, z0),
              proj.Project(x1, y1, z0), proj.Project(x0, y1, z0)],
-            floorColor, null, 0);
+            new ShapeStyle(floorColor, null, 0));
 
         // Back-left wall: x = x0, winding in YZ plane.
         EmitV3D(proj, (x0, y0, z0), (x0, y1, z0), (x0, y1, z1), (x0, y0, z1));
@@ -287,7 +287,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         Ctx.DrawPolygon(
             [proj.Project(x0, y0, z0), proj.Project(x0, y1, z0),
              proj.Project(x0, y1, z1), proj.Project(x0, y0, z1)],
-            leftColor, null, 0);
+            new ShapeStyle(leftColor, null, 0));
 
         // Back-right wall: y = y1, winding in XZ plane.
         EmitV3D(proj, (x0, y1, z0), (x1, y1, z0), (x1, y1, z1), (x0, y1, z1));
@@ -295,7 +295,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         Ctx.DrawPolygon(
             [proj.Project(x0, y1, z0), proj.Project(x1, y1, z0),
              proj.Project(x1, y1, z1), proj.Project(x0, y1, z1)],
-            rightColor, null, 0);
+            new ShapeStyle(rightColor, null, 0));
     }
 
     /// <summary>
@@ -590,7 +590,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             // Tick mark — both endpoints share the same 3D anchor (it's a 2D mark on the
             // axis edge, but for re-projection purposes both ends pin to the tick's data point).
             EmitV3D(proj, (xd, yd, zd), (xd, yd, zd));
-            Ctx.DrawLine(p, tip, tickColor, major.Width, LineStyle.Solid);
+            Ctx.DrawLine(p, tip, new StrokeStyle(tickColor, major.Width, LineStyle.Solid));
 
             double labelOffset = major.Length + major.Pad + threeDExtraPad;
             var labelPos = new Point(
@@ -619,7 +619,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             var (xd, yd, zd) = tickTo3D(t);
             var tip = new Point(p.X + perp.X * minor.Length, p.Y + perp.Y * minor.Length);
             EmitV3D(proj, (xd, yd, zd), (xd, yd, zd));
-            Ctx.DrawLine(p, tip, minorColor, minor.Width, LineStyle.Solid);
+            Ctx.DrawLine(p, tip, new StrokeStyle(minorColor, minor.Width, LineStyle.Solid));
         }
     }
 

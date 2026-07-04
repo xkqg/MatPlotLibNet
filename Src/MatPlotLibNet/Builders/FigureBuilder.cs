@@ -764,8 +764,21 @@ public sealed class FigureBuilder
         return this;
     }
 
+    /// <summary>Adds an inset axes to the subplot at the given zero-based index. This is the
+    /// canonical form; the loose-doubles
+    /// <see cref="AddInset(int,double,double,double,double,System.Action{Axes})"/> overload forwards here.</summary>
+    /// <param name="subplotIndex">Zero-based index of the parent subplot.</param>
+    /// <param name="bounds">The fractional position and size of the inset within the parent subplot (0–1).</param>
+    /// <param name="configure">Optional action to configure the inset axes.</param>
+    public FigureBuilder AddInset(int subplotIndex, InsetBounds bounds, Action<Axes>? configure = null)
+    {
+        _pendingInsets.Add(new(subplotIndex, bounds.X, bounds.Y, bounds.Width, bounds.Height, configure));
+        return this;
+    }
+
     /// <summary>Adds an inset axes to the subplot at the given zero-based index.
-    /// The bounds are fractional positions within the parent subplot (0–1).</summary>
+    /// The bounds are fractional positions within the parent subplot (0–1). Convenience overload
+    /// that forwards to <see cref="AddInset(int,InsetBounds,System.Action{Axes})"/>.</summary>
     /// <param name="subplotIndex">Zero-based index of the parent subplot.</param>
     /// <param name="x">Horizontal position as a fraction of parent width.</param>
     /// <param name="y">Vertical position as a fraction of parent height.</param>
@@ -774,10 +787,7 @@ public sealed class FigureBuilder
     /// <param name="configure">Optional action to configure the inset axes.</param>
     public FigureBuilder AddInset(int subplotIndex, double x, double y, double width, double height,
         Action<Axes>? configure = null)
-    {
-        _pendingInsets.Add(new(subplotIndex, x, y, width, height, configure));
-        return this;
-    }
+        => AddInset(subplotIndex, new InsetBounds(x, y, width, height), configure);
 
     private readonly record struct DeferredShare(Axes Axes, string? ShareXKey, string? ShareYKey);
 

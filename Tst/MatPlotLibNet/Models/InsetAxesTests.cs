@@ -76,4 +76,15 @@ public class InsetAxesTests
         axes.AddInset(0.7, 0.7, 0.3, 0.3);
         Assert.Equal(2, axes.Insets.Count);
     }
+
+    [Fact]
+    public void AddInset_InsetBounds_StoresBoundsAndAddsInset()
+    {
+        // The InsetBounds overload is the canonical form; the loose-doubles overload forwards to it.
+        var axes = new Axes();
+        var inset = axes.AddInset(new InsetBounds(0.6, 0.1, 0.35, 0.35));
+        Assert.Single(axes.Insets);
+        Assert.Same(axes.Insets[0], inset);
+        Assert.Equal(new InsetBounds(0.6, 0.1, 0.35, 0.35), inset.InsetBounds!.Value);
+    }
 }

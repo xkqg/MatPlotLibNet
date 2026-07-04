@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -25,7 +26,7 @@ internal sealed class BrokenBarSeriesRenderer : SeriesRenderer<BrokenBarSeries>
             {
                 var tl = Transform.DataToPixel(start, i + halfH);
                 var br = Transform.DataToPixel(start + width, i - halfH);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, null, 0);
+                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
             }
         }
     }

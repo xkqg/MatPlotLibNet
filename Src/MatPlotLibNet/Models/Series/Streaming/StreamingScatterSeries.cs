@@ -8,7 +8,7 @@ namespace MatPlotLibNet.Models.Series.Streaming;
 
 /// <summary>A streaming scatter series that accepts data via <see cref="IStreamingSeries.AppendPoint"/>,
 /// backed by a ring buffer. Visual properties mirror <see cref="ScatterSeries"/>.</summary>
-public sealed class StreamingScatterSeries : StreamingSeriesBase, IHasColor, IHasAlpha
+public sealed class StreamingScatterSeries : StreamingSeries, IHasColor, IHasAlpha
 {
     /// <summary>Marker color. When <c>null</c> the theme's prop-cycler assigns one.</summary>
     public Color? Color { get; set; }

@@ -6,7 +6,7 @@ using MatPlotLibNet.Data;
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming Williams %R. Rolling min/max over N periods. O(1) amortized.</summary>
-public sealed class StreamingWilliamsR : StreamingIndicatorBase
+public sealed class StreamingWilliamsR : StreamingIndicator
 {
     private readonly int _period;
     private readonly double[] _highs;

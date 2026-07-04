@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"networkgraph","graphNodes":[{"id":"a","x":1,"y":2,"colorScalar":0.3,"sizeScalar":1.5,"label":"Alpha"},{"id":"b","x":3,"y":4,"colorScalar":0.7,"sizeScalar":2}],"graphEdges":[{"from":"a","to":"b","weight":1.5,"isDirected":true}]}]}]}

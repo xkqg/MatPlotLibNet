@@ -25,6 +25,6 @@ internal sealed class SparklineSeriesRenderer : SeriesRenderer<SparklineSeries>
         var points = new List<Point>(series.Values.Length);
         for (int i = 0; i < series.Values.Length; i++)
             points.Add(new Point(bounds.X + i * xStep, bounds.Y + bounds.Height - (series.Values[i] - yMin) * yScale));
-        Ctx.DrawLines(points, color, series.LineWidth, LineStyle.Solid);
+        Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, LineStyle.Solid));
     }
 }

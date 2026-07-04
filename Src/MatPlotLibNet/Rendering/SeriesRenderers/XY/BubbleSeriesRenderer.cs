@@ -19,6 +19,6 @@ internal sealed class BubbleSeriesRenderer : SeriesRenderer<BubbleSeries>
         var fill = ApplyAlpha(color, series.Alpha);
         var pts = Transform.TransformBatch(series.XData, series.YData);
         for (int i = 0; i < pts.Length; i++)
-            Ctx.DrawCircle(pts[i], Math.Sqrt(series.Sizes[i]) / 2, fill, color, 1);
+            Ctx.DrawCircle(pts[i], Math.Sqrt(series.Sizes[i]) / 2, new ShapeStyle(fill, color, 1));
     }
 }

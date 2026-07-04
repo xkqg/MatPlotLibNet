@@ -4,6 +4,117 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.13.0] — 2026-07-04
+
+Refactor & cleanup release — no new chart features; breaking API cleanups, bug fixes and internal restructuring, with migration notes.
+
+### Changed
+
+- **`IGeoProjection.Forward(latitude, longitude)`** now returns `ProjectedPoint` (was a
+  `(double X, double Y)` tuple) — `readonly record struct ProjectedPoint(double X, double Y)`,
+  with an off-domain `NaN` sentinel documented on the type for points a projection cannot
+  represent (e.g. the far hemisphere of an orthographic globe). **`Inverse(x, y)`** now returns
+  `GeoCoordinate?` (was a `(double Lat, double Lon)?` tuple) — `readonly record struct
+  GeoCoordinate(double Latitude, double Longitude)`. **`Bounds`** now returns the existing
+  `GeoBounds(XMin, XMax, YMin, YMax)` record struct (was a 4-tuple). All 13 projections updated.
+  Deconstruction call sites (`var (x, y) = proj.Forward(lat, lon);`) are unaffected — only
+  named-tuple field access (e.g. `.Item1`) needs updating to the record's named properties.
+- **`StreamingSeriesBase` → `StreamingSeries`, `StreamingIndicatorBase` → `StreamingIndicator`**
+  (repo-wide `*Base` suffix ban). Update direct type references and custom subclasses to the new
+  names; behavior is unchanged.
+- **`IRenderContext` draw methods** now take `StrokeStyle(Color, Thickness, Style)` /
+  `ShapeStyle(Fill, Stroke, StrokeThickness)` records instead of loose parameters. Custom
+  `IRenderContext` implementors must update their method signatures to match. Visibility guards
+  are now centralized: a stroke with `Thickness <= 0` is uniformly skipped across every backend
+  (previously inconsistent between SVG and Skia).
+- **`SeriesRegistry.ResetForTests`** is now an `[Obsolete]` public shim; the real reset logic
+  moved `internal` (`ResetForTestsInternal`, reachable via `InternalsVisibleTo` for in-repo test
+  assemblies). Existing calls still compile but emit an obsolete warning.
+
+### Removed
+
+- **`InteractiveExtensions.Show(Figure)`** removed — the `MatPlotLibNet.Interactive` surface is
+  now async-only. Replace `figure.Show()` with `await figure.ShowAsync()`. A full
+  `ConfigureAwait(false)` sweep landed alongside this change; `EnsureStartedAsync` now throws
+  `ObjectDisposedException` when called after the handle has been disposed (previously undefined
+  behavior).
+
+### Fixed
+
+- **Blazor `ChartSubscriptionClient`** — calling `ConnectAsync` a second time now disposes the
+  prior connection first instead of orphaning it (was a zombie-connection leak:
+  `WithAutomaticReconnect` kept the abandoned hub reconnecting forever). `On(...)` subscription
+  tokens are now captured and explicitly disposed instead of discarded. Teardown races are no
+  longer silently swallowed — they surface via `ChartDiagnostics`.
+- **`MplLiveChart`** no longer disposes a `Client` passed in via its `Client` parameter (an
+  injected/unowned client belongs to its own owner — DI container or host app); it only disposes
+  clients it created itself.
+- **Uno `MplStreamingChartElement`** and **MAUI `MplStreamingChartView`** now detach their
+  `StreamingFigure.RenderRequested` subscription on unload / handler-detach, fixing a memory leak
+  where the streaming figure kept the control alive indefinitely.
+- **`AxesBuilder.WithLegend(position, visible)`** now preserves every other previously-set
+  `Legend` property (e.g. `LegendValues` from `WithLegendValues()`) — it was wholesale-replacing
+  the `Legend` record, silently dropping earlier configuration.
+- **`RegressionSeriesRenderer`** and **`ResidualSeries`** / its renderer — a least-squares fit
+  failure (e.g. degenerate/collinear input) now emits a `ChartDiagnostics` event instead of
+  silently swallowing the failure.
+- **`ChartSerializer.FromJson`** now emits a `ChartDiagnostics` event for unknown series
+  discriminators (deserialization stays lenient — unknown series are still skipped, not thrown).
+- **Skia backend** — `SKFontStyle` native handles were leaking on every glyph-metrics call;
+  `ResolveTypeface` results are now always cached (callers never dispose the returned typeface —
+  ownership is uniform).
+- **`EqualEarth` projection — `Forward()` formula corrected against the canonical Equal Earth
+  definition** (Šavrič, Patterson &amp; Jenny 2018). The shipped implementation deviated on three
+  counts: the θ-constant used sin(π/4) instead of √3/2, the y-equation reused the x-denominator
+  polynomial (derivative coefficients) instead of the plain y-polynomial, and x multiplied
+  longitude in twice (making x an even function of longitude — +90° and −90° projected to the
+  same x). **`EqualEarth.Forward()` output changes for every non-origin point**; 16 test vectors
+  computed independently from the published formula now pin the projection, including
+  odd-symmetry of x in longitude. A dead local-variable store left over from an earlier
+  refactor was removed in the same pass.
+- **Geo fidelity suite** — the two `Robinson_WorldMap_MatchesCartopy` cases now skip loudly
+  (with regeneration instructions) when the cartopy-generated reference fixture is absent,
+  instead of failing. The fixture was never shippable in-repo (cartopy needs system GEOS/PROJ
+  libraries and is deliberately excluded from `tools/mpl_reference/requirements.txt`); the
+  perceptual assertions are untouched and reactivate the moment the fixture is generated locally.
+
+### Added
+
+- **`ChartDiagnostics`** (`MatPlotLibNet.Diagnostics`) — a static event channel for library-wide
+  non-fatal observability (dropped/suppressed errors, lenient-deserialization notices, teardown
+  races). Subscribe once at startup to route these into your own logging; emitting never changes
+  default behavior.
+- **`StrokeStyle`, `ShapeStyle`** (`MatPlotLibNet.Rendering`) — record types bundling stroke/fill
+  parameters for `IRenderContext` draw calls (see Changed above).
+- **`ProjectedPoint`, `GeoCoordinate`** (`MatPlotLibNet.Geo.Projections`) — new record types
+  replacing tuple returns on `IGeoProjection.Forward`/`Inverse` (see Changed above; the third
+  return type, `GeoBounds`, already existed and is now simply what `Bounds` returns).
+- **`AngleExtensions`** (`MatPlotLibNet.Geo`) — `double.ToRadians()` / `double.ToDegrees()`
+  extension methods used throughout the projection implementations.
+- **Canonical `InsetBounds`-based `AddInset`** — the double-argument `AddInset(x, y, width,
+  height)` overloads on `Axes` / `AxesBuilder` now explicitly forward to the
+  `AddInset(InsetBounds)` overload as the single canonical form.
+- **`RenderPass`** (internal record) — carries per-pass rendering state through the shared render
+  pipeline.
+- **Golden-JSON corpus** — a 76-discriminator fixture set asserting `ChartSerializer` wire-format
+  stability; a regression gate against accidental JSON-shape drift.
+- **Samples** — a full ops-dashboard console sample combining `StatTileSeries`,
+  `StateTimelineSeries`, `Threshold(...)`, and `WithLegendValues()`; 2 new Playground examples
+  (`DashboardTiles`, `ThresholdLine`); a new cookbook `dashboard.md` section.
+
+### Internal
+
+- **Serialization** — the deserialize side moved from a central `ChartSerializer` switch to
+  per-series `FromSeriesDto` (Information Expert pattern, mirroring the existing `ToSeriesDto`
+  self-serialization). `SeriesRegistry` shrinks to a thin 76-line discriminator table (cyclomatic
+  complexity 173 → 1); `ChartSerializer` shrinks 1454 → 888 lines. Adding a new series kind now
+  touches exactly 2 files (the series' own `FromSeriesDto` + one `SeriesRegistry` line).
+- **`GaussianKde`** and **`NetworkGraphLayouts`** moved namespace `Rendering.SeriesRenderers` →
+  `Numerics` (both `internal`, no public API impact).
+- Version bump: all `.csproj` files → `1.13.0`.
+
+---
+
 ## [1.12.0] — 2026-06-28
 
 Dashboard-oriented release: two new series (`StatTileSeries`, `StateTimelineSeries`) + two fluent conveniences

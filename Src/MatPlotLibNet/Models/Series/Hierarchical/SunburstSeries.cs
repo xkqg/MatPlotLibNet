@@ -31,6 +31,13 @@ public sealed class SunburstSeries : HierarchicalSeries
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new() { Type = "sunburst" };
 
+    /// <summary>Reconstructs a <see cref="SunburstSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static SunburstSeries FromSeriesDto(Axes axes, SeriesDto dto)
+        => axes.Sunburst(new TreeNode { Label = "Root" });
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

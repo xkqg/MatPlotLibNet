@@ -43,7 +43,7 @@ internal sealed class CartesianAnnotationsPart : CartesianAxesPart
             }
             else if (annotation.BackgroundColor.HasValue)
             {
-                Ctx.DrawRectangle(textBounds, annotation.BackgroundColor.Value, null, 0);
+                Ctx.DrawRectangle(textBounds, new ShapeStyle(annotation.BackgroundColor.Value, null, 0));
             }
 
             // Draw text with alignment and optional rotation (rotation=0 is a no-op in the SVG renderer)
@@ -59,7 +59,7 @@ internal sealed class CartesianAnnotationsPart : CartesianAxesPart
                 // Connection path
                 var connPath = ConnectionPathBuilder.BuildPath(textPos, arrowTarget,
                     annotation.ConnectionStyle, annotation.ConnectionRad);
-                Ctx.DrawPath(connPath, null, arrowColor, 1);
+                Ctx.DrawPath(connPath, new ShapeStyle(null, arrowColor, 1));
 
                 // Arrowhead at target
                 double dx = arrowTarget.X - textPos.X;
@@ -71,12 +71,12 @@ internal sealed class CartesianAnnotationsPart : CartesianAxesPart
                     var headPolygon = ArrowHeadBuilder.BuildPolygon(arrowTarget, ux, uy,
                         annotation.ArrowStyle, annotation.ArrowHeadSize);
                     if (headPolygon.Count > 0)
-                        Ctx.DrawPolygon([.. headPolygon], arrowColor, null, 0);
+                        Ctx.DrawPolygon([.. headPolygon], new ShapeStyle(arrowColor, null, 0));
 
                     var headPath = ArrowHeadBuilder.BuildPath(arrowTarget, ux, uy,
                         annotation.ArrowStyle, annotation.ArrowHeadSize);
                     if (headPath is { Count: > 0 })
-                        Ctx.DrawPath(headPath, null, arrowColor, 1);
+                        Ctx.DrawPath(headPath, new ShapeStyle(null, arrowColor, 1));
                 }
             }
         }

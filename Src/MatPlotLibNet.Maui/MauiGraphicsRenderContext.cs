@@ -4,7 +4,6 @@
 using Microsoft.Maui.Graphics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
-using MplColor = MatPlotLibNet.Styling.Color;
 using MplFont = MatPlotLibNet.Styling.Font;
 using MplPoint = MatPlotLibNet.Rendering.Point;
 using MplSize = MatPlotLibNet.Rendering.Size;
@@ -24,21 +23,21 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     }
 
     /// <inheritdoc />
-    public void DrawLine(MplPoint p1, MplPoint p2, MplColor color, double thickness, Styling.LineStyle style)
+    public void DrawLine(MplPoint p1, MplPoint p2, StrokeStyle stroke)
     {
-        _canvas.StrokeColor = color.ToMauiColor();
-        _canvas.StrokeSize = (float)thickness;
-        _canvas.StrokeDashPattern = style.ToMauiDashPattern();
+        _canvas.StrokeColor = stroke.Color.ToMauiColor();
+        _canvas.StrokeSize = (float)stroke.Thickness;
+        _canvas.StrokeDashPattern = stroke.Style.ToMauiDashPattern();
         _canvas.DrawLine((float)p1.X, (float)p1.Y, (float)p2.X, (float)p2.Y);
     }
 
     /// <inheritdoc />
-    public void DrawLines(IReadOnlyList<MplPoint> points, MplColor color, double thickness, Styling.LineStyle style)
+    public void DrawLines(IReadOnlyList<MplPoint> points, StrokeStyle stroke)
     {
         if (points.Count < 2) return;
-        _canvas.StrokeColor = color.ToMauiColor();
-        _canvas.StrokeSize = (float)thickness;
-        _canvas.StrokeDashPattern = style.ToMauiDashPattern();
+        _canvas.StrokeColor = stroke.Color.ToMauiColor();
+        _canvas.StrokeSize = (float)stroke.Thickness;
+        _canvas.StrokeDashPattern = stroke.Style.ToMauiDashPattern();
 
         var path = new PathF();
         path.MoveTo((float)points[0].X, (float)points[0].Y);
@@ -49,7 +48,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     }
 
     /// <inheritdoc />
-    public void DrawPolygon(IReadOnlyList<MplPoint> points, MplColor? fill, MplColor? stroke, double strokeThickness)
+    public void DrawPolygon(IReadOnlyList<MplPoint> points, ShapeStyle shape)
     {
         var path = new PathF();
         if (points.Count > 0)
@@ -60,63 +59,63 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
             path.Close();
         }
 
-        if (fill.HasValue)
+        if (shape.HasVisibleFill)
         {
-            _canvas.FillColor = fill.Value.ToMauiColor();
+            _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
             _canvas.FillPath(path);
         }
-        if (stroke.HasValue)
+        if (shape.HasVisibleStroke)
         {
-            _canvas.StrokeColor = stroke.Value.ToMauiColor();
-            _canvas.StrokeSize = (float)strokeThickness;
+            _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
+            _canvas.StrokeSize = (float)shape.StrokeThickness;
             _canvas.DrawPath(path);
         }
     }
 
     /// <inheritdoc />
-    public void DrawCircle(MplPoint center, double radius, MplColor? fill, MplColor? stroke, double strokeThickness)
+    public void DrawCircle(MplPoint center, double radius, ShapeStyle shape)
     {
-        if (fill.HasValue)
+        if (shape.HasVisibleFill)
         {
-            _canvas.FillColor = fill.Value.ToMauiColor();
+            _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
             _canvas.FillCircle((float)center.X, (float)center.Y, (float)radius);
         }
-        if (stroke.HasValue)
+        if (shape.HasVisibleStroke)
         {
-            _canvas.StrokeColor = stroke.Value.ToMauiColor();
-            _canvas.StrokeSize = (float)strokeThickness;
+            _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
+            _canvas.StrokeSize = (float)shape.StrokeThickness;
             _canvas.DrawCircle((float)center.X, (float)center.Y, (float)radius);
         }
     }
 
     /// <inheritdoc />
-    public void DrawRectangle(MplRect rect, MplColor? fill, MplColor? stroke, double strokeThickness)
+    public void DrawRectangle(MplRect rect, ShapeStyle shape)
     {
-        if (fill.HasValue)
+        if (shape.HasVisibleFill)
         {
-            _canvas.FillColor = fill.Value.ToMauiColor();
+            _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
             _canvas.FillRectangle((float)rect.X, (float)rect.Y, (float)rect.Width, (float)rect.Height);
         }
-        if (stroke.HasValue)
+        if (shape.HasVisibleStroke)
         {
-            _canvas.StrokeColor = stroke.Value.ToMauiColor();
-            _canvas.StrokeSize = (float)strokeThickness;
+            _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
+            _canvas.StrokeSize = (float)shape.StrokeThickness;
             _canvas.DrawRectangle((float)rect.X, (float)rect.Y, (float)rect.Width, (float)rect.Height);
         }
     }
 
     /// <inheritdoc />
-    public void DrawEllipse(MplRect bounds, MplColor? fill, MplColor? stroke, double strokeThickness)
+    public void DrawEllipse(MplRect bounds, ShapeStyle shape)
     {
-        if (fill.HasValue)
+        if (shape.HasVisibleFill)
         {
-            _canvas.FillColor = fill.Value.ToMauiColor();
+            _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
             _canvas.FillEllipse((float)bounds.X, (float)bounds.Y, (float)bounds.Width, (float)bounds.Height);
         }
-        if (stroke.HasValue)
+        if (shape.HasVisibleStroke)
         {
-            _canvas.StrokeColor = stroke.Value.ToMauiColor();
-            _canvas.StrokeSize = (float)strokeThickness;
+            _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
+            _canvas.StrokeSize = (float)shape.StrokeThickness;
             _canvas.DrawEllipse((float)bounds.X, (float)bounds.Y, (float)bounds.Width, (float)bounds.Height);
         }
     }
@@ -139,7 +138,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     }
 
     /// <inheritdoc />
-    public void DrawPath(IReadOnlyList<PathSegment> segments, MplColor? fill, MplColor? stroke, double strokeThickness)
+    public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape)
     {
         var path = new PathF();
         foreach (var seg in segments)
@@ -164,15 +163,15 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
             }
         }
 
-        if (fill.HasValue)
+        if (shape.HasVisibleFill)
         {
-            _canvas.FillColor = fill.Value.ToMauiColor();
+            _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
             _canvas.FillPath(path);
         }
-        if (stroke.HasValue)
+        if (shape.HasVisibleStroke)
         {
-            _canvas.StrokeColor = stroke.Value.ToMauiColor();
-            _canvas.StrokeSize = (float)strokeThickness;
+            _canvas.StrokeColor = shape.Stroke!.Value.ToMauiColor();
+            _canvas.StrokeSize = (float)shape.StrokeThickness;
             _canvas.DrawPath(path);
         }
     }

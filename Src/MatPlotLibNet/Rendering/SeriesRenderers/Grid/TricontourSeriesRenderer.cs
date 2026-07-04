@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling.ColorMaps;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -47,7 +48,7 @@ internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries
                 {
                     var px1 = Transform.DataToPixel(seg.From.X, seg.From.Y);
                     var px2 = Transform.DataToPixel(seg.To.X, seg.To.Y);
-                    Ctx.DrawLine(px1, px2, color, 1.0, Styling.LineStyle.Solid);
+                    Ctx.DrawLine(px1, px2, new StrokeStyle(color, 1.0, Styling.LineStyle.Solid));
                 }
             }
         }

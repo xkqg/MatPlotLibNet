@@ -120,7 +120,7 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
             }
             Color? stroke = series.ShowWireframe ? (series.EdgeColor ?? Colors.Black.WithAlpha(80)) : null;
             double strokeWidth = series.ShowWireframe ? 0.5 : 0;
-            Ctx.DrawPolygon(q.Vertices, color, stroke, strokeWidth);
+            Ctx.DrawPolygon(q.Vertices, new ShapeStyle(color, stroke, strokeWidth));
         }
 
         Ctx.SetOpacity(1.0);

@@ -143,20 +143,11 @@ public sealed class Axes
 
     public InsetBounds? InsetBounds { get; internal set; }
 
-    /// <summary>Adds an inset axes at the specified fractional position within this axes.</summary>
-    /// <param name="x">Horizontal position as a fraction of parent width (0-1).</param>
-    /// <param name="y">Vertical position as a fraction of parent height (0-1).</param>
-    /// <param name="width">Width as a fraction of parent width.</param>
-    /// <param name="height">Height as a fraction of parent height.</param>
+    /// <summary>Adds an inset axes at the specified bounds within this axes. This is the
+    /// canonical form; the loose-doubles <see cref="AddInset(double,double,double,double)"/>
+    /// overload forwards here.</summary>
+    /// <param name="bounds">The fractional position and size of the inset within this axes.</param>
     /// <returns>The newly created inset <see cref="Axes"/> instance.</returns>
-    public Axes AddInset(double x, double y, double width, double height)
-    {
-        var inset = new Axes { InsetBounds = new InsetBounds(x, y, width, height) };
-        _insets.Add(inset);
-        return inset;
-    }
-
-    /// <summary>Adds an inset axes at the specified bounds.</summary>
     public Axes AddInset(InsetBounds bounds)
     {
         var inset = new Axes { InsetBounds = bounds };
@@ -164,8 +155,18 @@ public sealed class Axes
         return inset;
     }
 
+    /// <summary>Adds an inset axes at the specified fractional position within this axes.
+    /// Convenience overload that forwards to <see cref="AddInset(InsetBounds)"/>.</summary>
+    /// <param name="x">Horizontal position as a fraction of parent width (0-1).</param>
+    /// <param name="y">Vertical position as a fraction of parent height (0-1).</param>
+    /// <param name="width">Width as a fraction of parent width.</param>
+    /// <param name="height">Height as a fraction of parent height.</param>
+    /// <returns>The newly created inset <see cref="Axes"/> instance.</returns>
+    public Axes AddInset(double x, double y, double width, double height)
+        => AddInset(new InsetBounds(x, y, width, height));
+
     /// <summary>Adds an inset axes at the given fractional position. Alias for
-    /// <see cref="AddInset(double,double,double,double)"/>.</summary>
+    /// <see cref="AddInset(InsetBounds)"/>.</summary>
     /// <param name="x">Left edge of the inset as a fraction of the parent axes width [0, 1].</param>
     /// <param name="y">Bottom edge of the inset as a fraction of the parent axes height [0, 1].</param>
     /// <param name="width">Width of the inset as a fraction of the parent axes width [0, 1].</param>

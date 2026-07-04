@@ -48,6 +48,13 @@ public sealed class PieSeries : ChartSeries
         Sizes = Sizes, PieLabels = Labels
     };
 
+    /// <summary>Reconstructs a <see cref="PieSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static PieSeries FromSeriesDto(Axes axes, SeriesDto dto)
+        => axes.Pie(dto.Sizes ?? [], dto.PieLabels);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

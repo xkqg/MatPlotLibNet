@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"histogram2d","xData":[1,2,3],"yData":[1,2,3],"bins":20,"binsY":20}]}]}

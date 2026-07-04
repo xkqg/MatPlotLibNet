@@ -24,10 +24,10 @@ internal sealed class CandlestickSeriesRenderer : SeriesRenderer<CandlestickSeri
             double bodyTop = Math.Max(series.Open[i], series.Close[i]);
             double bodyBottom = Math.Min(series.Open[i], series.Close[i]);
             double center = i + 0.5;
-            Ctx.DrawLine(Transform.DataToPixel(center, series.Low[i]), Transform.DataToPixel(center, series.High[i]), color, 1, LineStyle.Solid);
+            Ctx.DrawLine(Transform.DataToPixel(center, series.Low[i]), Transform.DataToPixel(center, series.High[i]), new StrokeStyle(color, 1, LineStyle.Solid));
             var tl = Transform.DataToPixel(center - halfW, bodyTop);
             var br = Transform.DataToPixel(center + halfW, bodyBottom);
-            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), color, color, 1);
+            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, color, 1));
         }
     }
 }

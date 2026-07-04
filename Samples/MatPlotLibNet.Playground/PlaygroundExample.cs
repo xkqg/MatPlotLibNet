@@ -36,6 +36,10 @@ public enum PlaygroundExample
     [Description("Multi-Subplot")] MultiSubplot = 15,
     [Description("Axis Breaks")]   AxisBreaks   = 16,
     [Description("Minor Grid")]    MinorGrid    = 17,
+
+    // v1.12.0 — dashboard-oriented examples (StatTile/StateTimeline, Threshold + LegendValues).
+    [Description("Dashboard Tiles")] DashboardTiles = 18,
+    [Description("Threshold Line")]  ThresholdLine  = 19,
 }
 
 /// <summary>Display-name helpers for <see cref="PlaygroundExample"/>.</summary>

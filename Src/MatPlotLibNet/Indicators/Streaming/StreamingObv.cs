@@ -6,7 +6,7 @@ using MatPlotLibNet.Data;
 namespace MatPlotLibNet.Indicators.Streaming;
 
 /// <summary>Streaming On-Balance Volume. O(1) cumulative: OBV += sign(close change) * volume.</summary>
-public sealed class StreamingObv : StreamingIndicatorBase
+public sealed class StreamingObv : StreamingIndicator
 {
     private double _obv;
     private double _prevClose;

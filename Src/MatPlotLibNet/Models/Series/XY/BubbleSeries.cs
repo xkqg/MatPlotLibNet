@@ -31,6 +31,21 @@ public sealed class BubbleSeries : XYSeries, IHasColor, IHasAlpha
         Color = Color, Alpha = Alpha
     };
 
+    /// <summary>Reconstructs a <see cref="BubbleSeries"/> from its serialization DTO, including alpha transparency, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static BubbleSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Bubble(dto.XData ?? [], dto.YData ?? [], dto.Sizes ?? []);
+        s.Color = dto.Color;
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

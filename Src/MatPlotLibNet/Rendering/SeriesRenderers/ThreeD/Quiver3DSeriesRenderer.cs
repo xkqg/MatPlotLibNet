@@ -70,7 +70,7 @@ internal sealed class Quiver3DSeriesRenderer : SeriesRenderer<Quiver3DSeries>
             var basePt = arrow.Base;
             var tipPt = arrow.Tip;
             // Draw shaft
-            Ctx.DrawLine(basePt, tipPt, color, 1.5, LineStyle.Solid);
+            Ctx.DrawLine(basePt, tipPt, new StrokeStyle(color, 1.5, LineStyle.Solid));
 
             // Draw arrowhead as two angled lines at the tip
             double dx = tipPt.X - basePt.X;
@@ -87,12 +87,12 @@ internal sealed class Quiver3DSeriesRenderer : SeriesRenderer<Quiver3DSeries>
             // Left barb
             double lx = tipPt.X - arrowHeadSize * (ux * cosA - uy * sinA);
             double ly = tipPt.Y - arrowHeadSize * (uy * cosA + ux * sinA);
-            Ctx.DrawLine(tipPt, new Point(lx, ly), color, 1.5, LineStyle.Solid);
+            Ctx.DrawLine(tipPt, new Point(lx, ly), new StrokeStyle(color, 1.5, LineStyle.Solid));
 
             // Right barb
             double rx = tipPt.X - arrowHeadSize * (ux * cosA + uy * sinA);
             double ry = tipPt.Y - arrowHeadSize * (uy * cosA - ux * sinA);
-            Ctx.DrawLine(tipPt, new Point(rx, ry), color, 1.5, LineStyle.Solid);
+            Ctx.DrawLine(tipPt, new Point(rx, ry), new StrokeStyle(color, 1.5, LineStyle.Solid));
         }
     }
 

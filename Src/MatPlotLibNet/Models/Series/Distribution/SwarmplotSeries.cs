@@ -30,6 +30,28 @@ public sealed class SwarmplotSeries : DatasetSeries, IHasColor, IHasAlpha
         Alpha = Alpha
     };
 
+    /// <summary>Reconstructs a <see cref="SwarmplotSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static SwarmplotSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.Swarmplot(dto.Datasets ?? []);
+        if (dto.MarkerSize.HasValue)
+        {
+            s.MarkerSize = dto.MarkerSize.Value;
+        }
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        if (dto.Color.HasValue)
+        {
+            s.Color = dto.Color.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

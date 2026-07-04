@@ -71,7 +71,7 @@ internal sealed class ScatterOffDiagonalPainter : IPairGridOffDiagonalPainter
             for (int k = 0; k < n; k++)
             {
                 if (!double.IsFinite(xData[k]) || !double.IsFinite(yData[k])) continue;
-                ctx.DrawCircle(PairGridGeometry.MapPoint(xData[k], yData[k], xMin, xSpan, yMin, ySpan, cell), radius, baseColor, null, 0.0);
+                ctx.DrawCircle(PairGridGeometry.MapPoint(xData[k], yData[k], xMin, xSpan, yMin, ySpan, cell), radius, new ShapeStyle(baseColor, null, 0.0));
             }
             return;
         }
@@ -82,7 +82,7 @@ internal sealed class ScatterOffDiagonalPainter : IPairGridOffDiagonalPainter
         for (int k = 0; k < n; k++)
         {
             if (!double.IsFinite(xData[k]) || !double.IsFinite(yData[k])) continue;
-            ctx.DrawCircle(PairGridGeometry.MapPoint(xData[k], yData[k], xMin, xSpan, yMin, ySpan, cell), radius, hueCache![hue[k]], null, 0.0);
+            ctx.DrawCircle(PairGridGeometry.MapPoint(xData[k], yData[k], xMin, xSpan, yMin, ySpan, cell), radius, new ShapeStyle(hueCache![hue[k]], null, 0.0));
         }
     }
 }
@@ -142,7 +142,7 @@ internal sealed class HexbinOffDiagonalPainter : IPairGridOffDiagonalPainter
 
             double normalized = (count - normMin) / (normMax - normMin);
             var fill = cmap.GetColor(Math.Clamp(normalized, 0.0, 1.0));
-            ctx.DrawPolygon(pixelVerts, fill, null, 0);
+            ctx.DrawPolygon(pixelVerts, new ShapeStyle(fill, null, 0));
         }
     }
 }

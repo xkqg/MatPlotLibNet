@@ -7,34 +7,31 @@ namespace MatPlotLibNet.Geo.Projections;
 /// Used for polar maps and aviation route planning.</summary>
 public sealed class AzimuthalEquidistant : IGeoProjection
 {
-    private const double DegToRad = Math.PI / 180.0;
-    private const double RadToDeg = 180.0 / Math.PI;
-
     private readonly double _phi0, _lam0, _cosPhi0, _sinPhi0;
 
     public string Name => "AzimuthalEquidistant";
 
     public AzimuthalEquidistant(double centerLat = 90, double centerLon = 0)
     {
-        _phi0 = centerLat * DegToRad;
-        _lam0 = centerLon * DegToRad;
+        _phi0 = centerLat.ToRadians();
+        _lam0 = centerLon.ToRadians();
         _cosPhi0 = Math.Cos(_phi0);
         _sinPhi0 = Math.Sin(_phi0);
     }
 
-    public (double X, double Y) Forward(double latitude, double longitude)
+    public ProjectedPoint Forward(double latitude, double longitude)
     {
-        double phi = latitude * DegToRad, lam = longitude * DegToRad;
+        double phi = latitude.ToRadians(), lam = longitude.ToRadians();
         double cosPhi = Math.Cos(phi), sinPhi = Math.Sin(phi);
         double cosC = _sinPhi0 * sinPhi + _cosPhi0 * cosPhi * Math.Cos(lam - _lam0);
         double c = Math.Acos(Math.Clamp(cosC, -1, 1));
-        if (c < 1e-10) return (0, 0);
+        if (c < 1e-10) return new(0, 0);
         double k = c / Math.Sin(c);
         double x = k * cosPhi * Math.Sin(lam - _lam0);
         double y = k * (_cosPhi0 * sinPhi - _sinPhi0 * cosPhi * Math.Cos(lam - _lam0));
-        return (x * RadToDeg, y * RadToDeg);
+        return new(x.ToDegrees(), y.ToDegrees());
     }
 
-    public (double Lat, double Lon)? Inverse(double x, double y) => null;
-    public (double XMin, double XMax, double YMin, double YMax) Bounds => (-180, 180, -180, 180);
+    public GeoCoordinate? Inverse(double x, double y) => null;
+    public GeoBounds Bounds => new(-180, 180, -180, 180);
 }

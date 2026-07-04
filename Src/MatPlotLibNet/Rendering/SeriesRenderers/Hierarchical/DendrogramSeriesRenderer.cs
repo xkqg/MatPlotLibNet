@@ -181,7 +181,7 @@ internal sealed class DendrogramSeriesRenderer : SeriesRenderer<DendrogramSeries
             p1 = new Point(mergePx1, leafPx1);
             p2 = new Point(mergePx2, leafPx2);
         }
-        Ctx.DrawLine(p1, p2, stroke, HierarchicalLayout.Dendrogram.LineThickness, LineStyle.Solid);
+        Ctx.DrawLine(p1, p2, new StrokeStyle(stroke, HierarchicalLayout.Dendrogram.LineThickness, LineStyle.Solid));
     }
 
     // ── Cut line ─────────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ internal sealed class DendrogramSeriesRenderer : SeriesRenderer<DendrogramSeries
             p1 = new Point(mergePx, firstLeafPx);
             p2 = new Point(mergePx, lastLeafPx);
         }
-        Ctx.DrawLine(p1, p2, color, HierarchicalLayout.Dendrogram.CutLineThickness, LineStyle.Dashed);
+        Ctx.DrawLine(p1, p2, new StrokeStyle(color, HierarchicalLayout.Dendrogram.CutLineThickness, LineStyle.Dashed));
     }
 
     // ── Labels ───────────────────────────────────────────────────────────────

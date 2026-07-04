@@ -26,11 +26,11 @@ public sealed class Robinson : IGeoProjection
     public string Name => "Robinson";
 
     /// <inheritdoc />
-    public (double X, double Y) Forward(double latitude, double longitude)
+    public ProjectedPoint Forward(double latitude, double longitude)
     {
         // Math.Sign(NaN) THROWS; explicit guard so NaN inputs propagate cleanly
         // (matches matplotlib semantics — series with NaN render gaps, not crashes).
-        if (double.IsNaN(latitude) || double.IsNaN(longitude)) return (double.NaN, double.NaN);
+        if (double.IsNaN(latitude) || double.IsNaN(longitude)) return new(double.NaN, double.NaN);
 
         double absLat = Math.Min(Math.Abs(latitude), 90);
         int index = (int)(absLat / 5);
@@ -43,20 +43,20 @@ public sealed class Robinson : IGeoProjection
         double x = 0.8487 * plen * longitude;
         double y = Math.Sign(latitude) * 1.3523 * pdfe * 90;
 
-        return (x, y);
+        return new(x, y);
     }
 
     /// <inheritdoc />
-    public (double Lat, double Lon)? Inverse(double x, double y) => null; // not invertible analytically
+    public GeoCoordinate? Inverse(double x, double y) => null; // not invertible analytically
 
     /// <inheritdoc />
-    public (double XMin, double XMax, double YMin, double YMax) Bounds
+    public GeoBounds Bounds
     {
         get
         {
             var (xMax, _) = Forward(0, 180);
             var (_, yMax) = Forward(90, 0);
-            return (-xMax, xMax, -yMax, yMax);
+            return new(-xMax, xMax, -yMax, yMax);
         }
     }
 }

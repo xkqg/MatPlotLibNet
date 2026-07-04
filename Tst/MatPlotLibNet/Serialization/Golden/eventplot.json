@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"eventplot","lineWidth":1,"eventPositions":[[1,2,3]],"lineLength":1}]}]}

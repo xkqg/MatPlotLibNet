@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -32,9 +34,9 @@ internal sealed class KdeSeriesRenderer : SeriesRenderer<KdeSeries>
             polygon.AddRange(points);
             polygon.Add(Transform.DataToPixel(xs[^1], 0));
             polygon.Add(Transform.DataToPixel(xs[0], 0));
-            Ctx.DrawPolygon(polygon, ApplyAlpha(color, series.Alpha), null, 0);
+            Ctx.DrawPolygon(polygon, new ShapeStyle(ApplyAlpha(color, series.Alpha), null, 0));
         }
 
-        Ctx.DrawLines(points, color, series.LineWidth, series.LineStyle);
+        Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, series.LineStyle));
     }
 }

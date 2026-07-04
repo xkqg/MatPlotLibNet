@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -30,7 +31,7 @@ internal sealed class Histogram2DSeriesRenderer : SeriesRenderer<Histogram2DSeri
             var color = cmap.GetColor(norm.Normalize(counts[r, c], min, max));
             Ctx.DrawRectangle(
                 new Rect(Area.PlotBounds.X + c * cellW, Area.PlotBounds.Y + r * cellH, cellW, cellH),
-                color, null, 0);
+                new ShapeStyle(color, null, 0));
         }
     }
 }

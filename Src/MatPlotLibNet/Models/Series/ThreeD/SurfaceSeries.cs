@@ -42,6 +42,34 @@ public sealed class SurfaceSeries : GridSeries3D, IColormappable, INormalizable,
         Label = Label
     };
 
+    /// <summary>Reconstructs a <see cref="SurfaceSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static SurfaceSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var z = ChartSerializer.From2DList(dto.ZGridData);
+        var s = axes.Surface(dto.XData ?? [0.0, 1.0], dto.YData ?? [0.0, 1.0],
+            z.GetLength(0) > 0 ? z : new double[,] { { 0, 0 }, { 0, 0 } });
+        if (dto.ShowWireframe.HasValue)
+        {
+            s.ShowWireframe = dto.ShowWireframe.Value;
+        }
+        if (dto.RowStride.HasValue)
+        {
+            s.RowStride = dto.RowStride.Value;
+        }
+        if (dto.ColStride.HasValue)
+        {
+            s.ColStride = dto.ColStride.Value;
+        }
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        return s;
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }
