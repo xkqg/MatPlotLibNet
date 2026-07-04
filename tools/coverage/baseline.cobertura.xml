@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">
-<coverage line-rate="0.9951770769303513" branch-rate="0.9640187381640586" lines-covered="21047" lines-valid="21149" branches-covered="9672" branches-valid="10033" complexity="11871" version="0" timestamp="1783166791">
+<coverage line-rate="0.9955553454064022" branch-rate="0.9718927539120901" lines-covered="21055" lines-valid="21149" branches-covered="9751" branches-valid="10033" complexity="11871" version="0" timestamp="1783175025">
   <sources />
   <packages>
-    <package name="MatPlotLibNet" line-rate="0.995459053186492" branch-rate="0.963599269837861" complexity="10969">
+    <package name="MatPlotLibNet" line-rate="0.995824416723211" branch-rate="0.9718672822935681" complexity="10969">
       <classes>
         <class name="MatPlotLibNet.Animation.AnimationBuilder" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Animation\AnimationBuilder.cs" line-rate="1" branch-rate="1" complexity="6">
           <methods>
@@ -16007,7 +16007,7 @@
             <line number="28" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.AreaSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\AreaSeries.cs" line-rate="0.9736842105263158" branch-rate="0.875" complexity="26">
+        <class name="MatPlotLibNet.Models.Series.AreaSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\AreaSeries.cs" line-rate="1" branch-rate="1" complexity="26">
           <methods>
             <method name=".ctor" signature="(double[], double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -16047,9 +16047,9 @@
                 <line number="81" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="0.9090909090909091" branch-rate="0.7" complexity="10">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="10">
               <lines>
-                <line number="89" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="89" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="90" hits="1" branch="false" />
                 <line number="91" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="93" hits="1" branch="false" />
@@ -16057,8 +16057,8 @@
                 <line number="96" hits="1" branch="false" />
                 <line number="97" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="99" hits="1" branch="false" />
-                <line number="101" hits="1" branch="true" condition-coverage="50% (1/2)" />
-                <line number="103" hits="0" branch="false" />
+                <line number="101" hits="1" branch="true" condition-coverage="100% (2/2)" />
+                <line number="103" hits="1" branch="false" />
                 <line number="105" hits="1" branch="false" />
               </lines>
             </method>
@@ -16095,7 +16095,7 @@
             <line number="79" hits="1" branch="false" />
             <line number="80" hits="1" branch="false" />
             <line number="81" hits="1" branch="false" />
-            <line number="89" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="89" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="90" hits="1" branch="false" />
             <line number="91" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="93" hits="1" branch="false" />
@@ -16103,13 +16103,13 @@
             <line number="96" hits="1" branch="false" />
             <line number="97" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="99" hits="1" branch="false" />
-            <line number="101" hits="1" branch="true" condition-coverage="50% (1/2)" />
-            <line number="103" hits="0" branch="false" />
+            <line number="101" hits="1" branch="true" condition-coverage="100% (2/2)" />
+            <line number="103" hits="1" branch="false" />
             <line number="105" hits="1" branch="false" />
             <line number="109" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.Bar3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Bar3DSeries.cs" line-rate="1" branch-rate="0.75" complexity="15">
+        <class name="MatPlotLibNet.Models.Series.Bar3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Bar3DSeries.cs" line-rate="1" branch-rate="1" complexity="15">
           <methods>
             <method name=".ctor" signature="(MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -16140,9 +16140,9 @@
                 <line number="44" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.7" complexity="10">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="10">
               <lines>
-                <line number="52" hits="1" branch="true" condition-coverage="50% (3/6)" />
+                <line number="52" hits="1" branch="true" condition-coverage="100% (6/6)" />
                 <line number="53" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="55" hits="1" branch="false" />
                 <line number="57" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -16174,7 +16174,7 @@
             <line number="42" hits="1" branch="false" />
             <line number="43" hits="1" branch="false" />
             <line number="44" hits="1" branch="false" />
-            <line number="52" hits="1" branch="true" condition-coverage="50% (3/6)" />
+            <line number="52" hits="1" branch="true" condition-coverage="100% (6/6)" />
             <line number="53" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="55" hits="1" branch="false" />
             <line number="57" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -16183,7 +16183,7 @@
             <line number="65" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.BarbsSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Field\BarbsSeries.cs" line-rate="1" branch-rate="0.7142857142857143" complexity="17">
+        <class name="MatPlotLibNet.Models.Series.BarbsSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Field\BarbsSeries.cs" line-rate="1" branch-rate="1" complexity="17">
           <methods>
             <method name=".ctor" signature="(MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -16213,9 +16213,9 @@
                 <line number="49" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.6666666666666666" complexity="12">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="12">
               <lines>
-                <line number="57" hits="1" branch="true" condition-coverage="50% (4/8)" />
+                <line number="57" hits="1" branch="true" condition-coverage="100% (8/8)" />
                 <line number="58" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="60" hits="1" branch="false" />
                 <line number="62" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -16246,7 +16246,7 @@
             <line number="47" hits="1" branch="false" />
             <line number="48" hits="1" branch="false" />
             <line number="49" hits="1" branch="false" />
-            <line number="57" hits="1" branch="true" condition-coverage="50% (4/8)" />
+            <line number="57" hits="1" branch="true" condition-coverage="100% (8/8)" />
             <line number="58" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="60" hits="1" branch="false" />
             <line number="62" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -16553,7 +16553,7 @@
             <line number="94" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.BubbleSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\BubbleSeries.cs" line-rate="1" branch-rate="0.625" complexity="11">
+        <class name="MatPlotLibNet.Models.Series.BubbleSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\BubbleSeries.cs" line-rate="1" branch-rate="1" complexity="11">
           <methods>
             <method name=".ctor" signature="(double[], double[], double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -16573,9 +16573,9 @@
                 <line number="32" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.625" complexity="8">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="8">
               <lines>
-                <line number="40" hits="1" branch="true" condition-coverage="50% (3/6)" />
+                <line number="40" hits="1" branch="true" condition-coverage="100% (6/6)" />
                 <line number="41" hits="1" branch="false" />
                 <line number="42" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="44" hits="1" branch="false" />
@@ -16599,7 +16599,7 @@
             <line number="30" hits="1" branch="false" />
             <line number="31" hits="1" branch="false" />
             <line number="32" hits="1" branch="false" />
-            <line number="40" hits="1" branch="true" condition-coverage="50% (3/6)" />
+            <line number="40" hits="1" branch="true" condition-coverage="100% (6/6)" />
             <line number="41" hits="1" branch="false" />
             <line number="42" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="44" hits="1" branch="false" />
@@ -16859,7 +16859,7 @@
             <line number="179" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.Contour3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Contour3DSeries.cs" line-rate="0.96" branch-rate="0.8125" complexity="18">
+        <class name="MatPlotLibNet.Models.Series.Contour3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Contour3DSeries.cs" line-rate="1" branch-rate="1" complexity="18">
           <methods>
             <method name=".ctor" signature="(double[], double[], double[0...,0...])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -16883,17 +16883,17 @@
                 <line number="40" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="0.9" branch-rate="0.75" complexity="12">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="12">
               <lines>
-                <line number="48" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="48" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="49" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="51" hits="1" branch="false" />
                 <line number="53" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="55" hits="1" branch="false" />
                 <line number="57" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="59" hits="1" branch="false" />
-                <line number="61" hits="1" branch="true" condition-coverage="50% (1/2)" />
-                <line number="63" hits="0" branch="false" />
+                <line number="61" hits="1" branch="true" condition-coverage="100% (2/2)" />
+                <line number="63" hits="1" branch="false" />
                 <line number="65" hits="1" branch="false" />
               </lines>
             </method>
@@ -16918,20 +16918,20 @@
             <line number="38" hits="1" branch="false" />
             <line number="39" hits="1" branch="false" />
             <line number="40" hits="1" branch="false" />
-            <line number="48" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="48" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="49" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="51" hits="1" branch="false" />
             <line number="53" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="55" hits="1" branch="false" />
             <line number="57" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="59" hits="1" branch="false" />
-            <line number="61" hits="1" branch="true" condition-coverage="50% (1/2)" />
-            <line number="63" hits="0" branch="false" />
+            <line number="61" hits="1" branch="true" condition-coverage="100% (2/2)" />
+            <line number="63" hits="1" branch="false" />
             <line number="65" hits="1" branch="false" />
             <line number="69" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.ContourfSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Grid\ContourfSeries.cs" line-rate="1" branch-rate="0.875" complexity="19">
+        <class name="MatPlotLibNet.Models.Series.ContourfSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Grid\ContourfSeries.cs" line-rate="1" branch-rate="1" complexity="19">
           <methods>
             <method name=".ctor" signature="(double[], double[], double[0...,0...])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -16981,9 +16981,9 @@
                 <line number="86" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.5" complexity="4">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="4">
               <lines>
-                <line number="93" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="93" hits="1" branch="true" condition-coverage="100% (4/4)" />
               </lines>
             </method>
             <method name="Accept" signature="(MatPlotLibNet.Rendering.ISeriesVisitor, MatPlotLibNet.Rendering.RenderArea)" line-rate="1" branch-rate="1" complexity="1">
@@ -17025,11 +17025,11 @@
             <line number="84" hits="1" branch="false" />
             <line number="85" hits="1" branch="false" />
             <line number="86" hits="1" branch="false" />
-            <line number="93" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="93" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="96" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.ContourSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Grid\ContourSeries.cs" line-rate="1" branch-rate="0.75" complexity="11">
+        <class name="MatPlotLibNet.Models.Series.ContourSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Grid\ContourSeries.cs" line-rate="1" branch-rate="1" complexity="11">
           <methods>
             <method name=".ctor" signature="(double[], double[], double[0...,0...])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -17061,9 +17061,9 @@
                 <line number="63" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.5" complexity="4">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="4">
               <lines>
-                <line number="70" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="70" hits="1" branch="true" condition-coverage="100% (4/4)" />
               </lines>
             </method>
             <method name="Accept" signature="(MatPlotLibNet.Rendering.ISeriesVisitor, MatPlotLibNet.Rendering.RenderArea)" line-rate="1" branch-rate="1" complexity="1">
@@ -17091,7 +17091,7 @@
             <line number="61" hits="1" branch="false" />
             <line number="62" hits="1" branch="false" />
             <line number="63" hits="1" branch="false" />
-            <line number="70" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="70" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="73" hits="1" branch="false" />
           </lines>
         </class>
@@ -17289,7 +17289,7 @@
             <line number="91" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.DonutSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Circular\DonutSeries.cs" line-rate="1" branch-rate="0.8333333333333334" complexity="10">
+        <class name="MatPlotLibNet.Models.Series.DonutSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Circular\DonutSeries.cs" line-rate="1" branch-rate="1" complexity="10">
           <methods>
             <method name=".ctor" signature="(double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -17314,9 +17314,9 @@
                 <line number="35" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.8333333333333334" complexity="6">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="6">
               <lines>
-                <line number="43" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="43" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="44" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="46" hits="1" branch="false" />
                 <line number="48" hits="1" branch="false" />
@@ -17343,7 +17343,7 @@
             <line number="33" hits="1" branch="false" />
             <line number="34" hits="1" branch="false" />
             <line number="35" hits="1" branch="false" />
-            <line number="43" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="43" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="44" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="46" hits="1" branch="false" />
             <line number="48" hits="1" branch="false" />
@@ -17621,7 +17621,7 @@
             <line number="76" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.FunnelSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Categorical\FunnelSeries.cs" line-rate="1" branch-rate="0.5" complexity="8">
+        <class name="MatPlotLibNet.Models.Series.FunnelSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Categorical\FunnelSeries.cs" line-rate="1" branch-rate="1" complexity="8">
           <methods>
             <method name=".ctor" signature="(string[], double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -17644,9 +17644,9 @@
                 <line number="34" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.5" complexity="4">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="4">
               <lines>
-                <line number="42" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="42" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="43" hits="1" branch="false" />
               </lines>
             </method>
@@ -17666,12 +17666,12 @@
             <line number="32" hits="1" branch="false" />
             <line number="33" hits="1" branch="false" />
             <line number="34" hits="1" branch="false" />
-            <line number="42" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="42" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="43" hits="1" branch="false" />
             <line number="47" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.GanttSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Categorical\GanttSeries.cs" line-rate="1" branch-rate="0.7" complexity="13">
+        <class name="MatPlotLibNet.Models.Series.GanttSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Categorical\GanttSeries.cs" line-rate="1" branch-rate="1" complexity="13">
           <methods>
             <method name=".ctor" signature="(string[], double[], double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -17701,9 +17701,9 @@
                 <line number="45" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.625" complexity="8">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="8">
               <lines>
-                <line number="53" hits="1" branch="true" condition-coverage="50% (3/6)" />
+                <line number="53" hits="1" branch="true" condition-coverage="100% (6/6)" />
                 <line number="54" hits="1" branch="false" />
                 <line number="55" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="57" hits="1" branch="false" />
@@ -17733,7 +17733,7 @@
             <line number="43" hits="1" branch="false" />
             <line number="44" hits="1" branch="false" />
             <line number="45" hits="1" branch="false" />
-            <line number="53" hits="1" branch="true" condition-coverage="50% (3/6)" />
+            <line number="53" hits="1" branch="true" condition-coverage="100% (6/6)" />
             <line number="54" hits="1" branch="false" />
             <line number="55" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="57" hits="1" branch="false" />
@@ -18087,7 +18087,7 @@
             <line number="22" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.Histogram2DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Grid\Histogram2DSeries.cs" line-rate="1" branch-rate="0.8863636363636364" complexity="46">
+        <class name="MatPlotLibNet.Models.Series.Histogram2DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Grid\Histogram2DSeries.cs" line-rate="1" branch-rate="0.9545454545454546" complexity="46">
           <methods>
             <method name=".ctor" signature="(double[], double[], int, int)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -18099,7 +18099,7 @@
                 <line number="38" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="GetColorBarRange" signature="()" line-rate="1" branch-rate="0.9285714285714286" complexity="14">
+            <method name="GetColorBarRange" signature="()" line-rate="1" branch-rate="1" complexity="14">
               <lines>
                 <line number="43" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="44" hits="1" branch="false" />
@@ -18108,7 +18108,7 @@
                 <line number="47" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="49" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="50" hits="1" branch="true" condition-coverage="100% (2/2)" />
-                <line number="52" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="52" hits="1" branch="true" condition-coverage="100% (2/2)" />
               </lines>
             </method>
             <method name="ComputeDataRange" signature="(MatPlotLibNet.Models.Series.IAxesContext)" line-rate="1" branch-rate="1" complexity="4">
@@ -18130,9 +18130,9 @@
                 <line number="71" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.75" complexity="8">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="8">
               <lines>
-                <line number="79" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="79" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="80" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="82" hits="1" branch="false" />
                 <line number="84" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -18180,7 +18180,7 @@
             <line number="47" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="49" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="50" hits="1" branch="true" condition-coverage="100% (2/2)" />
-            <line number="52" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="52" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="58" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="59" hits="1" branch="false" />
             <line number="63" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -18192,7 +18192,7 @@
             <line number="69" hits="1" branch="false" />
             <line number="70" hits="1" branch="false" />
             <line number="71" hits="1" branch="false" />
-            <line number="79" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="79" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="80" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="82" hits="1" branch="false" />
             <line number="84" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -18499,7 +18499,7 @@
             <line number="96" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.Line3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Line3DSeries.cs" line-rate="1" branch-rate="0.8333333333333334" complexity="20">
+        <class name="MatPlotLibNet.Models.Series.Line3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Line3DSeries.cs" line-rate="1" branch-rate="1" complexity="20">
           <methods>
             <method name=".ctor" signature="(MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -18522,9 +18522,9 @@
                 <line number="37" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.7857142857142857" complexity="14">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="14">
               <lines>
-                <line number="45" hits="1" branch="true" condition-coverage="50% (3/6)" />
+                <line number="45" hits="1" branch="true" condition-coverage="100% (6/6)" />
                 <line number="46" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="48" hits="1" branch="false" />
                 <line number="50" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -18554,7 +18554,7 @@
             <line number="35" hits="1" branch="false" />
             <line number="36" hits="1" branch="false" />
             <line number="37" hits="1" branch="false" />
-            <line number="45" hits="1" branch="true" condition-coverage="50% (3/6)" />
+            <line number="45" hits="1" branch="true" condition-coverage="100% (6/6)" />
             <line number="46" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="48" hits="1" branch="false" />
             <line number="50" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -18771,7 +18771,7 @@
             <line number="182" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.OhlcBarSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Financial\OhlcBarSeries.cs" line-rate="1" branch-rate="0.75" complexity="19">
+        <class name="MatPlotLibNet.Models.Series.OhlcBarSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Financial\OhlcBarSeries.cs" line-rate="1" branch-rate="1" complexity="19">
           <methods>
             <method name=".ctor" signature="(double[], double[], double[], double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -18797,9 +18797,9 @@
                 <line number="38" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.7142857142857143" complexity="14">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="14">
               <lines>
-                <line number="46" hits="1" branch="true" condition-coverage="50% (4/8)" />
+                <line number="46" hits="1" branch="true" condition-coverage="100% (8/8)" />
                 <line number="47" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="49" hits="1" branch="false" />
                 <line number="51" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -18828,7 +18828,7 @@
             <line number="36" hits="1" branch="false" />
             <line number="37" hits="1" branch="false" />
             <line number="38" hits="1" branch="false" />
-            <line number="46" hits="1" branch="true" condition-coverage="50% (4/8)" />
+            <line number="46" hits="1" branch="true" condition-coverage="100% (8/8)" />
             <line number="47" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="49" hits="1" branch="false" />
             <line number="51" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -19122,7 +19122,7 @@
             <line number="81" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.PieSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Circular\PieSeries.cs" line-rate="1" branch-rate="0.5" complexity="6">
+        <class name="MatPlotLibNet.Models.Series.PieSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Circular\PieSeries.cs" line-rate="1" branch-rate="1" complexity="6">
           <methods>
             <method name=".ctor" signature="(double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -19146,9 +19146,9 @@
                 <line number="49" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.5" complexity="2">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="2">
               <lines>
-                <line number="56" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="56" hits="1" branch="true" condition-coverage="100% (2/2)" />
               </lines>
             </method>
             <method name="Accept" signature="(MatPlotLibNet.Rendering.ISeriesVisitor, MatPlotLibNet.Rendering.RenderArea)" line-rate="1" branch-rate="1" complexity="1">
@@ -19168,7 +19168,7 @@
             <line number="47" hits="1" branch="false" />
             <line number="48" hits="1" branch="false" />
             <line number="49" hits="1" branch="false" />
-            <line number="56" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="56" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="59" hits="1" branch="false" />
           </lines>
         </class>
@@ -19568,29 +19568,29 @@
             <line number="59" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.Quiver3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Quiver3DSeries.cs" line-rate="0.9318181818181818" branch-rate="0.7272727272727273" complexity="27">
+        <class name="MatPlotLibNet.Models.Series.Quiver3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Quiver3DSeries.cs" line-rate="1" branch-rate="1" complexity="27">
           <methods>
-            <method name="MatPlotLibNet.Models.Series.I3DPointSeries.get_X" signature="()" line-rate="0" branch-rate="1" complexity="1">
+            <method name="MatPlotLibNet.Models.Series.I3DPointSeries.get_X" signature="()" line-rate="1" branch-rate="1" complexity="1">
               <lines>
-                <line number="40" hits="0" branch="false" />
+                <line number="40" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="MatPlotLibNet.Models.Series.I3DPointSeries.get_Y" signature="()" line-rate="0" branch-rate="1" complexity="1">
+            <method name="MatPlotLibNet.Models.Series.I3DPointSeries.get_Y" signature="()" line-rate="1" branch-rate="1" complexity="1">
               <lines>
-                <line number="41" hits="0" branch="false" />
+                <line number="41" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="MatPlotLibNet.Models.Series.I3DPointSeries.get_Z" signature="()" line-rate="0" branch-rate="1" complexity="1">
+            <method name="MatPlotLibNet.Models.Series.I3DPointSeries.get_Z" signature="()" line-rate="1" branch-rate="1" complexity="1">
               <lines>
-                <line number="42" hits="0" branch="false" />
+                <line number="42" hits="1" branch="false" />
               </lines>
             </method>
-            <method name=".ctor" signature="(MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec)" line-rate="0.625" branch-rate="1" complexity="1">
+            <method name=".ctor" signature="(MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
                 <line number="34" hits="1" branch="false" />
-                <line number="40" hits="0" branch="false" />
-                <line number="41" hits="0" branch="false" />
-                <line number="42" hits="0" branch="false" />
+                <line number="40" hits="1" branch="false" />
+                <line number="41" hits="1" branch="false" />
+                <line number="42" hits="1" branch="false" />
                 <line number="45" hits="1" branch="false" />
                 <line number="47" hits="1" branch="false" />
                 <line number="48" hits="1" branch="false" />
@@ -19633,9 +19633,9 @@
                 <line number="90" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.625" complexity="16">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="16">
               <lines>
-                <line number="98" hits="1" branch="true" condition-coverage="50% (6/12)" />
+                <line number="98" hits="1" branch="true" condition-coverage="100% (12/12)" />
                 <line number="99" hits="1" branch="false" />
                 <line number="100" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="102" hits="1" branch="false" />
@@ -19652,9 +19652,9 @@
           </methods>
           <lines>
             <line number="34" hits="1" branch="false" />
-            <line number="40" hits="0" branch="false" />
-            <line number="41" hits="0" branch="false" />
-            <line number="42" hits="0" branch="false" />
+            <line number="40" hits="1" branch="false" />
+            <line number="41" hits="1" branch="false" />
+            <line number="42" hits="1" branch="false" />
             <line number="45" hits="1" branch="false" />
             <line number="47" hits="1" branch="false" />
             <line number="48" hits="1" branch="false" />
@@ -19687,7 +19687,7 @@
             <line number="88" hits="1" branch="false" />
             <line number="89" hits="1" branch="false" />
             <line number="90" hits="1" branch="false" />
-            <line number="98" hits="1" branch="true" condition-coverage="50% (6/12)" />
+            <line number="98" hits="1" branch="true" condition-coverage="100% (12/12)" />
             <line number="99" hits="1" branch="false" />
             <line number="100" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="102" hits="1" branch="false" />
@@ -19697,7 +19697,7 @@
             <line number="112" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.QuiverKeySeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Field\QuiverKeySeries.cs" line-rate="1" branch-rate="0.5" complexity="6">
+        <class name="MatPlotLibNet.Models.Series.QuiverKeySeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Field\QuiverKeySeries.cs" line-rate="1" branch-rate="1" complexity="6">
           <methods>
             <method name=".ctor" signature="(double, double, double, string)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -19725,9 +19725,9 @@
                 <line number="44" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.5" complexity="2">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="2">
               <lines>
-                <line number="51" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="51" hits="1" branch="true" condition-coverage="100% (2/2)" />
               </lines>
             </method>
             <method name="Accept" signature="(MatPlotLibNet.Rendering.ISeriesVisitor, MatPlotLibNet.Rendering.RenderArea)" line-rate="1" branch-rate="1" complexity="1">
@@ -19751,7 +19751,7 @@
             <line number="42" hits="1" branch="false" />
             <line number="43" hits="1" branch="false" />
             <line number="44" hits="1" branch="false" />
-            <line number="51" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="51" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="54" hits="1" branch="false" />
           </lines>
         </class>
@@ -19847,7 +19847,7 @@
             <line number="82" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.RadarSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Circular\RadarSeries.cs" line-rate="1" branch-rate="0.6666666666666666" complexity="10">
+        <class name="MatPlotLibNet.Models.Series.RadarSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Circular\RadarSeries.cs" line-rate="1" branch-rate="1" complexity="10">
           <methods>
             <method name=".ctor" signature="(string[], double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -19875,9 +19875,9 @@
                 <line number="45" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.6666666666666666" complexity="6">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="6">
               <lines>
-                <line number="53" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="53" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="54" hits="1" branch="false" />
                 <line number="55" hits="1" branch="false" />
                 <line number="56" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -19908,7 +19908,7 @@
             <line number="43" hits="1" branch="false" />
             <line number="44" hits="1" branch="false" />
             <line number="45" hits="1" branch="false" />
-            <line number="53" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="53" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="54" hits="1" branch="false" />
             <line number="55" hits="1" branch="false" />
             <line number="56" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -20779,7 +20779,7 @@
             <line number="73" hits="2" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.SignalSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\SignalSeries.cs" line-rate="1" branch-rate="0.8888888888888888" complexity="23">
+        <class name="MatPlotLibNet.Models.Series.SignalSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\SignalSeries.cs" line-rate="1" branch-rate="1" complexity="23">
           <methods>
             <method name=".ctor" signature="(double[], double, double)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -20795,9 +20795,9 @@
                 <line number="48" hits="1" branch="true" condition-coverage="100% (2/2)" />
               </lines>
             </method>
-            <method name="ComputeDataRange" signature="(MatPlotLibNet.Models.Series.IAxesContext)" line-rate="1" branch-rate="0.5" complexity="2">
+            <method name="ComputeDataRange" signature="(MatPlotLibNet.Models.Series.IAxesContext)" line-rate="1" branch-rate="1" complexity="2">
               <lines>
-                <line number="52" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="52" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="53" hits="1" branch="false" />
                 <line number="54" hits="1" branch="false" />
               </lines>
@@ -20841,9 +20841,9 @@
                 <line number="90" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.875" complexity="8">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="8">
               <lines>
-                <line number="98" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="98" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="99" hits="1" branch="false" />
                 <line number="100" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="102" hits="1" branch="false" />
@@ -20865,7 +20865,7 @@
             <line number="42" hits="1" branch="false" />
             <line number="43" hits="1" branch="false" />
             <line number="48" hits="1" branch="true" condition-coverage="100% (2/2)" />
-            <line number="52" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="52" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="53" hits="1" branch="false" />
             <line number="54" hits="1" branch="false" />
             <line number="59" hits="1" branch="false" />
@@ -20887,7 +20887,7 @@
             <line number="88" hits="1" branch="false" />
             <line number="89" hits="1" branch="false" />
             <line number="90" hits="1" branch="false" />
-            <line number="98" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="98" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="99" hits="1" branch="false" />
             <line number="100" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="102" hits="1" branch="false" />
@@ -20999,7 +20999,7 @@
             <line number="95" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.SparklineSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\SparklineSeries.cs" line-rate="1" branch-rate="0.5" complexity="6">
+        <class name="MatPlotLibNet.Models.Series.SparklineSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\SparklineSeries.cs" line-rate="1" branch-rate="1" complexity="6">
           <methods>
             <method name=".ctor" signature="(double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -21021,9 +21021,9 @@
                 <line number="32" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.5" complexity="2">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="2">
               <lines>
-                <line number="40" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="40" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="41" hits="1" branch="false" />
                 <line number="42" hits="1" branch="false" />
                 <line number="43" hits="1" branch="false" />
@@ -21044,7 +21044,7 @@
             <line number="30" hits="1" branch="false" />
             <line number="31" hits="1" branch="false" />
             <line number="32" hits="1" branch="false" />
-            <line number="40" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="40" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="41" hits="1" branch="false" />
             <line number="42" hits="1" branch="false" />
             <line number="43" hits="1" branch="false" />
@@ -21140,7 +21140,7 @@
             <line number="79" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.StackedAreaSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\StackedAreaSeries.cs" line-rate="1" branch-rate="0.8571428571428571" complexity="31">
+        <class name="MatPlotLibNet.Models.Series.StackedAreaSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\StackedAreaSeries.cs" line-rate="1" branch-rate="0.9642857142857143" complexity="31">
           <methods>
             <method name=".ctor" signature="(double[], double[][])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -21151,7 +21151,7 @@
                 <line number="35" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="ComputeDataRange" signature="(MatPlotLibNet.Models.Series.IAxesContext)" line-rate="1" branch-rate="0.9090909090909091" complexity="22">
+            <method name="ComputeDataRange" signature="(MatPlotLibNet.Models.Series.IAxesContext)" line-rate="1" branch-rate="0.9545454545454546" complexity="22">
               <lines>
                 <line number="40" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="41" hits="1" branch="false" />
@@ -21167,7 +21167,7 @@
                 <line number="58" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="59" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="63" hits="1" branch="true" condition-coverage="50% (1/2)" />
-                <line number="64" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="64" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="67" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="68" hits="1" branch="false" />
                 <line number="69" hits="1" branch="false" />
@@ -21185,9 +21185,9 @@
                 <line number="80" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.6666666666666666" complexity="6">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="6">
               <lines>
-                <line number="88" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="88" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="89" hits="1" branch="false" />
                 <line number="90" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="92" hits="1" branch="false" />
@@ -21220,7 +21220,7 @@
             <line number="58" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="59" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="63" hits="1" branch="true" condition-coverage="50% (1/2)" />
-            <line number="64" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="64" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="67" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="68" hits="1" branch="false" />
             <line number="69" hits="1" branch="false" />
@@ -21232,7 +21232,7 @@
             <line number="78" hits="1" branch="false" />
             <line number="79" hits="1" branch="false" />
             <line number="80" hits="1" branch="false" />
-            <line number="88" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="88" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="89" hits="1" branch="false" />
             <line number="90" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="92" hits="1" branch="false" />
@@ -21374,7 +21374,7 @@
             <line number="59" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.Stem3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Stem3DSeries.cs" line-rate="1" branch-rate="0.7" complexity="13">
+        <class name="MatPlotLibNet.Models.Series.Stem3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Stem3DSeries.cs" line-rate="1" branch-rate="1" complexity="13">
           <methods>
             <method name=".ctor" signature="(MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -21395,9 +21395,9 @@
                 <line number="38" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.7" complexity="10">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="10">
               <lines>
-                <line number="46" hits="1" branch="true" condition-coverage="50% (3/6)" />
+                <line number="46" hits="1" branch="true" condition-coverage="100% (6/6)" />
                 <line number="47" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="49" hits="1" branch="false" />
                 <line number="51" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -21423,7 +21423,7 @@
             <line number="36" hits="1" branch="false" />
             <line number="37" hits="1" branch="false" />
             <line number="38" hits="1" branch="false" />
-            <line number="46" hits="1" branch="true" condition-coverage="50% (3/6)" />
+            <line number="46" hits="1" branch="true" condition-coverage="100% (6/6)" />
             <line number="47" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="49" hits="1" branch="false" />
             <line number="51" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -21432,7 +21432,7 @@
             <line number="59" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.StemSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Field\StemSeries.cs" line-rate="1" branch-rate="0.8333333333333334" complexity="15">
+        <class name="MatPlotLibNet.Models.Series.StemSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Field\StemSeries.cs" line-rate="1" branch-rate="1" complexity="15">
           <methods>
             <method name=".ctor" signature="(double[], double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -21462,9 +21462,9 @@
                 <line number="52" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.5" complexity="4">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="4">
               <lines>
-                <line number="59" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="59" hits="1" branch="true" condition-coverage="100% (4/4)" />
               </lines>
             </method>
             <method name="Accept" signature="(MatPlotLibNet.Rendering.ISeriesVisitor, MatPlotLibNet.Rendering.RenderArea)" line-rate="1" branch-rate="1" complexity="1">
@@ -21490,11 +21490,11 @@
             <line number="47" hits="1" branch="false" />
             <line number="48" hits="1" branch="false" />
             <line number="52" hits="1" branch="false" />
-            <line number="59" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="59" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="62" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.StepSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\StepSeries.cs" line-rate="1" branch-rate="0.5" complexity="7">
+        <class name="MatPlotLibNet.Models.Series.StepSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\XY\StepSeries.cs" line-rate="1" branch-rate="1" complexity="7">
           <methods>
             <method name=".ctor" signature="(double[], double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -21515,9 +21515,9 @@
                 <line number="49" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.5" complexity="4">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="4">
               <lines>
-                <line number="57" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="57" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="58" hits="1" branch="false" />
                 <line number="59" hits="1" branch="false" />
                 <line number="60" hits="1" branch="false" />
@@ -21543,7 +21543,7 @@
             <line number="47" hits="1" branch="false" />
             <line number="48" hits="1" branch="false" />
             <line number="49" hits="1" branch="false" />
-            <line number="57" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="57" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="58" hits="1" branch="false" />
             <line number="59" hits="1" branch="false" />
             <line number="60" hits="1" branch="false" />
@@ -21948,7 +21948,7 @@
             <line number="112" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.StreamplotSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Field\StreamplotSeries.cs" line-rate="1" branch-rate="0.75" complexity="12">
+        <class name="MatPlotLibNet.Models.Series.StreamplotSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Field\StreamplotSeries.cs" line-rate="1" branch-rate="1" complexity="12">
           <methods>
             <method name=".ctor" signature="(double[], double[], double[0...,0...], double[0...,0...])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -21982,9 +21982,9 @@
                 <line number="56" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.75" complexity="8">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="8">
               <lines>
-                <line number="64" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="64" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="65" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="67" hits="1" branch="false" />
                 <line number="69" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22019,7 +22019,7 @@
             <line number="54" hits="1" branch="false" />
             <line number="55" hits="1" branch="false" />
             <line number="56" hits="1" branch="false" />
-            <line number="64" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="64" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="65" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="67" hits="1" branch="false" />
             <line number="69" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22212,7 +22212,7 @@
             <line number="74" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.SwarmplotSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Distribution\SwarmplotSeries.cs" line-rate="1" branch-rate="0.875" complexity="11">
+        <class name="MatPlotLibNet.Models.Series.SwarmplotSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Distribution\SwarmplotSeries.cs" line-rate="1" branch-rate="1" complexity="11">
           <methods>
             <method name=".ctor" signature="(double[][])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -22233,9 +22233,9 @@
                 <line number="31" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.875" complexity="8">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="8">
               <lines>
-                <line number="39" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="39" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="40" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="42" hits="1" branch="false" />
                 <line number="44" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22263,7 +22263,7 @@
             <line number="29" hits="1" branch="false" />
             <line number="30" hits="1" branch="false" />
             <line number="31" hits="1" branch="false" />
-            <line number="39" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="39" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="40" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="42" hits="1" branch="false" />
             <line number="44" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22274,7 +22274,7 @@
             <line number="56" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.TableSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Special\TableSeries.cs" line-rate="1" branch-rate="0.8333333333333334" complexity="10">
+        <class name="MatPlotLibNet.Models.Series.TableSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Special\TableSeries.cs" line-rate="1" branch-rate="1" complexity="10">
           <methods>
             <method name=".ctor" signature="(string[][])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -22302,9 +22302,9 @@
                 <line number="49" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.8333333333333334" complexity="6">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="6">
               <lines>
-                <line number="57" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="57" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="58" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="60" hits="1" branch="false" />
                 <line number="62" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22333,7 +22333,7 @@
             <line number="47" hits="1" branch="false" />
             <line number="48" hits="1" branch="false" />
             <line number="49" hits="1" branch="false" />
-            <line number="57" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="57" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="58" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="60" hits="1" branch="false" />
             <line number="62" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22472,7 +22472,7 @@
             <line number="28" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.TricontourSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Grid\TricontourSeries.cs" line-rate="1" branch-rate="0.7857142857142857" complexity="16">
+        <class name="MatPlotLibNet.Models.Series.TricontourSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Grid\TricontourSeries.cs" line-rate="1" branch-rate="1" complexity="16">
           <methods>
             <method name=".ctor" signature="(MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -22501,9 +22501,9 @@
                 <line number="48" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.7" complexity="10">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="10">
               <lines>
-                <line number="56" hits="1" branch="true" condition-coverage="50% (3/6)" />
+                <line number="56" hits="1" branch="true" condition-coverage="100% (6/6)" />
                 <line number="57" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="59" hits="1" branch="false" />
                 <line number="61" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22533,7 +22533,7 @@
             <line number="46" hits="1" branch="false" />
             <line number="47" hits="1" branch="false" />
             <line number="48" hits="1" branch="false" />
-            <line number="56" hits="1" branch="true" condition-coverage="50% (3/6)" />
+            <line number="56" hits="1" branch="true" condition-coverage="100% (6/6)" />
             <line number="57" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="59" hits="1" branch="false" />
             <line number="61" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22542,7 +22542,7 @@
             <line number="69" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.TripcolorSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Grid\TripcolorSeries.cs" line-rate="1" branch-rate="0.8125" complexity="18">
+        <class name="MatPlotLibNet.Models.Series.TripcolorSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Grid\TripcolorSeries.cs" line-rate="1" branch-rate="1" complexity="18">
           <methods>
             <method name="GetColorBarRange" signature="()" line-rate="1" branch-rate="1" complexity="2">
               <lines>
@@ -22575,9 +22575,9 @@
                 <line number="52" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.7" complexity="10">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="10">
               <lines>
-                <line number="60" hits="1" branch="true" condition-coverage="50% (3/6)" />
+                <line number="60" hits="1" branch="true" condition-coverage="100% (6/6)" />
                 <line number="61" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="63" hits="1" branch="false" />
                 <line number="65" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22607,7 +22607,7 @@
             <line number="50" hits="1" branch="false" />
             <line number="51" hits="1" branch="false" />
             <line number="52" hits="1" branch="false" />
-            <line number="60" hits="1" branch="true" condition-coverage="50% (3/6)" />
+            <line number="60" hits="1" branch="true" condition-coverage="100% (6/6)" />
             <line number="61" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="63" hits="1" branch="false" />
             <line number="65" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22616,7 +22616,7 @@
             <line number="73" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.Trisurf3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Trisurf3DSeries.cs" line-rate="0.92" branch-rate="0.7222222222222222" complexity="20">
+        <class name="MatPlotLibNet.Models.Series.Trisurf3DSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\ThreeD\Trisurf3DSeries.cs" line-rate="1" branch-rate="1" complexity="20">
           <methods>
             <method name=".ctor" signature="(MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec, MatPlotLibNet.Numerics.Vec)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -22640,17 +22640,17 @@
                 <line number="47" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="0.8" branch-rate="0.6428571428571429" complexity="14">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="14">
               <lines>
-                <line number="55" hits="1" branch="true" condition-coverage="50% (3/6)" />
+                <line number="55" hits="1" branch="true" condition-coverage="100% (6/6)" />
                 <line number="56" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="58" hits="1" branch="false" />
-                <line number="60" hits="1" branch="true" condition-coverage="50% (1/2)" />
-                <line number="62" hits="0" branch="false" />
+                <line number="60" hits="1" branch="true" condition-coverage="100% (2/2)" />
+                <line number="62" hits="1" branch="false" />
                 <line number="64" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="66" hits="1" branch="false" />
-                <line number="68" hits="1" branch="true" condition-coverage="50% (1/2)" />
-                <line number="70" hits="0" branch="false" />
+                <line number="68" hits="1" branch="true" condition-coverage="100% (2/2)" />
+                <line number="70" hits="1" branch="false" />
                 <line number="72" hits="1" branch="false" />
               </lines>
             </method>
@@ -22675,15 +22675,15 @@
             <line number="45" hits="1" branch="false" />
             <line number="46" hits="1" branch="false" />
             <line number="47" hits="1" branch="false" />
-            <line number="55" hits="1" branch="true" condition-coverage="50% (3/6)" />
+            <line number="55" hits="1" branch="true" condition-coverage="100% (6/6)" />
             <line number="56" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="58" hits="1" branch="false" />
-            <line number="60" hits="1" branch="true" condition-coverage="50% (1/2)" />
-            <line number="62" hits="0" branch="false" />
+            <line number="60" hits="1" branch="true" condition-coverage="100% (2/2)" />
+            <line number="62" hits="1" branch="false" />
             <line number="64" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="66" hits="1" branch="false" />
-            <line number="68" hits="1" branch="true" condition-coverage="50% (1/2)" />
-            <line number="70" hits="0" branch="false" />
+            <line number="68" hits="1" branch="true" condition-coverage="100% (2/2)" />
+            <line number="70" hits="1" branch="false" />
             <line number="72" hits="1" branch="false" />
             <line number="76" hits="1" branch="false" />
           </lines>
@@ -22876,7 +22876,7 @@
             <line number="111" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Models.Series.WaterfallSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Categorical\WaterfallSeries.cs" line-rate="1" branch-rate="0.8636363636363636" complexity="25">
+        <class name="MatPlotLibNet.Models.Series.WaterfallSeries" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Models\Series\Categorical\WaterfallSeries.cs" line-rate="1" branch-rate="0.9545454545454546" complexity="25">
           <methods>
             <method name=".ctor" signature="(string[], double[])" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -22915,9 +22915,9 @@
                 <line number="53" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="0.8333333333333334" complexity="12">
+            <method name="FromSeriesDto" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Serialization.SeriesDto)" line-rate="1" branch-rate="1" complexity="12">
               <lines>
-                <line number="61" hits="1" branch="true" condition-coverage="50% (2/4)" />
+                <line number="61" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="62" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="64" hits="1" branch="false" />
                 <line number="66" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -22961,7 +22961,7 @@
             <line number="51" hits="1" branch="false" />
             <line number="52" hits="1" branch="false" />
             <line number="53" hits="1" branch="false" />
-            <line number="61" hits="1" branch="true" condition-coverage="50% (2/4)" />
+            <line number="61" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="62" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="64" hits="1" branch="false" />
             <line number="66" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -45219,7 +45219,7 @@
             <line number="72" hits="6" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Rendering.ThreeDAxesRenderer" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Rendering\ThreeDAxesRenderer.cs" line-rate="0.996969696969697" branch-rate="0.9868421052631579" complexity="235">
+        <class name="MatPlotLibNet.Rendering.ThreeDAxesRenderer" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet\Rendering\ThreeDAxesRenderer.cs" line-rate="0.996969696969697" branch-rate="0.9912280701754386" complexity="235">
           <methods>
             <method name=".ctor" signature="(MatPlotLibNet.Models.Axes, MatPlotLibNet.Rendering.Rect, MatPlotLibNet.Rendering.IRenderContext, MatPlotLibNet.Styling.Theme)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
@@ -45563,7 +45563,7 @@
                 <line number="631" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="Compute3DDataRanges" signature="()" line-rate="1" branch-rate="0.9594594594594594" complexity="74">
+            <method name="Compute3DDataRanges" signature="()" line-rate="1" branch-rate="0.972972972972973" complexity="74">
               <lines>
                 <line number="654" hits="1" branch="false" />
                 <line number="655" hits="1" branch="false" />
@@ -45590,7 +45590,7 @@
                 <line number="695" hits="1" branch="true" condition-coverage="75% (3/4)" />
                 <line number="696" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="697" hits="1" branch="true" condition-coverage="100% (4/4)" />
-                <line number="698" hits="1" branch="true" condition-coverage="75% (3/4)" />
+                <line number="698" hits="1" branch="true" condition-coverage="100% (4/4)" />
                 <line number="704" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="705" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="706" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -45924,7 +45924,7 @@
             <line number="695" hits="1" branch="true" condition-coverage="75% (3/4)" />
             <line number="696" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="697" hits="1" branch="true" condition-coverage="100% (4/4)" />
-            <line number="698" hits="1" branch="true" condition-coverage="75% (3/4)" />
+            <line number="698" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="704" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="705" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="706" hits="1" branch="true" condition-coverage="100% (2/2)" />
@@ -54370,7 +54370,7 @@
         </class>
       </classes>
     </package>
-    <package name="MatPlotLibNet.Blazor" line-rate="0.9930555555555556" branch-rate="0.9571428571428572" complexity="83">
+    <package name="MatPlotLibNet.Blazor" line-rate="1" branch-rate="0.9857142857142858" complexity="83">
       <classes>
         <class name="MatPlotLibNet.Blazor.BlazorExtensions" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet.Blazor\Extensions\BlazorExtensions.cs" line-rate="1" branch-rate="1" complexity="1">
           <methods>
@@ -54638,17 +54638,17 @@
             <line number="83" hits="1" branch="false" />
           </lines>
         </class>
-        <class name="MatPlotLibNet.Blazor.MplLiveChart" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet.Blazor\MplLiveChart.razor" line-rate="0.9714285714285714" branch-rate="0.8571428571428571" complexity="12">
+        <class name="MatPlotLibNet.Blazor.MplLiveChart" filename="C:\Ait\MatPlotLibNet\Src\MatPlotLibNet.Blazor\MplLiveChart.razor" line-rate="1" branch-rate="1" complexity="12">
           <methods>
             <method name="BuildRenderTree" signature="(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder)" line-rate="1" branch-rate="1" complexity="1">
               <lines>
                 <line number="9" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="OnInitialized" signature="()" line-rate="1" branch-rate="0.5" complexity="2">
+            <method name="OnInitialized" signature="()" line-rate="1" branch-rate="1" complexity="2">
               <lines>
                 <line number="29" hits="1" branch="false" />
-                <line number="30" hits="1" branch="true" condition-coverage="50% (1/2)" />
+                <line number="30" hits="1" branch="true" condition-coverage="100% (2/2)" />
                 <line number="31" hits="1" branch="false" />
               </lines>
             </method>
@@ -54665,10 +54665,10 @@
                 <line number="24" hits="1" branch="false" />
               </lines>
             </method>
-            <method name="DisposeAsync" signature="()" line-rate="0.6666666666666666" branch-rate="0.5" complexity="2">
+            <method name="DisposeAsync" signature="()" line-rate="1" branch-rate="1" complexity="2">
               <lines>
-                <line number="72" hits="1" branch="true" condition-coverage="50% (1/2)" />
-                <line number="73" hits="0" branch="false" />
+                <line number="72" hits="1" branch="true" condition-coverage="100% (2/2)" />
+                <line number="73" hits="1" branch="false" />
                 <line number="74" hits="1" branch="false" />
               </lines>
             </method>
@@ -54705,7 +54705,7 @@
             <line number="14" hits="1" branch="false" />
             <line number="24" hits="1" branch="false" />
             <line number="29" hits="1" branch="false" />
-            <line number="30" hits="1" branch="true" condition-coverage="50% (1/2)" />
+            <line number="30" hits="1" branch="true" condition-coverage="100% (2/2)" />
             <line number="31" hits="1" branch="false" />
             <line number="35" hits="1" branch="true" condition-coverage="100% (4/4)" />
             <line number="36" hits="1" branch="false" />
@@ -54733,8 +54733,8 @@
             <line number="64" hits="1" branch="false" />
             <line number="65" hits="1" branch="false" />
             <line number="66" hits="1" branch="false" />
-            <line number="72" hits="1" branch="true" condition-coverage="50% (1/2)" />
-            <line number="73" hits="0" branch="false" />
+            <line number="72" hits="1" branch="true" condition-coverage="100% (2/2)" />
+            <line number="73" hits="1" branch="false" />
             <line number="74" hits="1" branch="false" />
           </lines>
         </class>

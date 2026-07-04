@@ -2,6 +2,22 @@
 
 AMD Ryzen 9 3950X (16C/32T, 3.49 GHz base). Windows 11 24H2. .NET 10.0.6, X64 RyuJIT AVX2 / x86-64-v3. BenchmarkDotNet 0.14 / 0.15, Release mode. Raw reports live under [`Benchmarks/MatPlotLibNet.Benchmarks/BenchmarkDotNet.Artifacts/results/`](Benchmarks/MatPlotLibNet.Benchmarks/BenchmarkDotNet.Artifacts/results/) (`*-report.csv`, `*-report-github.md`, `*-report.html`). Historical v0.5.1 / v0.6.0 / v1.1.0 / v1.1.1 comparisons preserved below.
 
+## What's in v1.13.0
+
+v1.13.0 is a **refactor &amp; cleanup release** that touched three hot paths, so the headline numbers
+were re-measured (same Ryzen 9 3950X, .NET 10, BenchmarkDotNet 0.15, Release):
+
+| Claim | v1.9.0 era | v1.13.0 measured | Note |
+|---|---:|---:|---|
+| SVG render, 1 000-point line | 66 µs | **33.4 µs** | render-path work accumulated over v1.10–v1.13 + the `StrokeStyle`/`ShapeStyle` record conversion with centralized visibility guards |
+| SVG render, 100 000 points via LTTB | 1.78 ms | **0.81 ms** | same accumulation |
+| JSON round-trip (Figure ⇄ JSON) | 40 µs | **30.8 µs** | deserialize now dispatches through per-series `FromSeriesDto` method groups (ToJson 16.9 µs / FromJson 13.9 µs) |
+| PNG export via SkiaSharp (simple) | 27 ms | **12.9 ms** | primarily the v1.13.0 typeface fix: `ResolveTypeface` is now process-cached and the per-call `SKFontStyle` native allocation is gone |
+| PDF export (simple / complex) | — | 26.2 / 29.3 ms | first published PDF numbers |
+
+No regression on any measured path; the Skia export halving is the direct payoff of the
+disposable-hygiene fixes. Raw reports in the artifacts folder as usual.
+
 ## What's in v1.9.0
 
 v1.9.0 is a **pure indicator-expansion release** — 12 new indicators across Tier 3a (Volume / Money Flow), Tier 3b (Trend / Transform), and Tier 3c (Advanced / Cross-asset) bring the library total to **52 production-grade indicators**. No hot-path changes: SVG output is byte-identical to v1.8.0 so every render number in the tables below is still current. The v1.8.0 + v1.9.0 indicators (GarmanKlass, YangZhang, Klinger, Supertrend, EhlersITrend, TransferEntropy, and 30 more) use the same stacked-base-class infrastructure as the classical set benchmarked here — their per-indicator cost is in the same ballpark as the ATR / BollingerBands family for the equivalent family (volatility / trend / cycle / microstructure). A dedicated `Tier3IndicatorBenchmarks` suite will land post-v1.9.0 with side-by-side numbers.

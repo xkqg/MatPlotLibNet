@@ -54,6 +54,12 @@ These rules govern how changes land on this repo. They apply without exception.
 - **Write the failing test FIRST.** Build must fail because the new symbol does not exist yet. This is the Red step; skipping it = FAILED TDD regardless of how many tests you later add.
 - Then write the minimum production code to make the test pass (Green).
 - Then flip call sites / wire the composition (Refactor).
+- **Refactors that move logic between classes inherit that logic's test debt.** "Existing tests
+  stay green" is necessary but not sufficient: coverage attribution follows the code, so branches
+  that were diluted inside a large class can drop a small receiving class below the ≥90/90 gate
+  with zero behavior change. Re-run the per-class coverage check (`tools/coverage/run.ps1` +
+  `check-thresholds.ps1 -Strict`) on every receiving class as part of the same PR, and write the
+  missing tests before declaring the refactor done.
 - Anti-patterns that indicate a TDD drift:
   - "Extract X, then add tests." ← tests as trailing phrase = FAILED TDD.
   - "Direct unit tests at 100/100" as a plan footnote = FAILED TDD; that belongs as the leading section.

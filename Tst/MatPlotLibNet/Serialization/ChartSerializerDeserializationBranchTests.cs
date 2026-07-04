@@ -526,4 +526,367 @@ public class ChartSerializerDeserializationBranchTests
         var surface = Assert.IsType<MatPlotLibNet.Models.Series.SurfaceSeries>(fig.SubPlots[0].Series[0]);
         Assert.False(surface.ShowWireframe);
     }
+
+    // ── v1.13.0 FromSeriesDto null-fallback arms (v1.13.0 refactor moved these
+    // `?? []` / `?? [0.0]` arms from ChartSerializer/SeriesRegistry onto each series'
+    // own FromSeriesDto — pinning per-class branch coverage below the 90/90 gate until
+    // covered here, one raw-JSON "no data" case per affected series type). ──────────
+
+    /// <summary>Area with no XData/YData → AreaSeries.FromSeriesDto L89 both ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_AreaWithNoXYData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"area"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Bar3D with no XData/YData/ZData → Bar3DSeries.FromSeriesDto L52 three ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_Bar3DWithNoXYZData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"bar3d"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Barbs with no XData/YData/Speed/Direction → BarbsSeries.FromSeriesDto L57 four ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_BarbsWithNoXYSpeedDirection_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"barbs"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Bubble with no XData/YData/Sizes → BubbleSeries.FromSeriesDto L40 three ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_BubbleWithNoXYSizes_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"bubble"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Contour3D with no XData/YData → Contour3DSeries.FromSeriesDto L48 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_Contour3DWithNoXYData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"contour3d"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Contour3D with an explicit colorMapName → Contour3DSeries.FromSeriesDto L61
+    /// <c>if (dto.ColorMapName is not null)</c> TRUE arm. Contour3DSeries.ToSeriesDto never emits
+    /// ColorMapName (a pre-existing production-code gap out of scope for this TESTS-ONLY pass),
+    /// so a normal ToJson→FromJson round-trip can never reach this arm — only raw JSON can.</summary>
+    [Fact]
+    public void FromJson_Contour3DWithColorMapName_SetsColorMap()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{"series":[{
+                "type":"contour3d",
+                "xData":[0,1],"yData":[0,1],"zGridData":[[0,1],[1,0]],
+                "colorMapName":"viridis"
+            }]}]
+        }
+        """;
+        var fig = S.FromJson(json);
+        var c3 = Assert.IsType<MatPlotLibNet.Models.Series.Contour3DSeries>(fig.SubPlots[0].Series[0]);
+        Assert.NotNull(c3.ColorMap);
+    }
+
+    /// <summary>Contourf with no XData/YData → ContourfSeries.FromSeriesDto L93 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_ContourfWithNoXYData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"contourf"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Contour with no XData/YData → ContourSeries.FromSeriesDto L70 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_ContourWithNoXYData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"contour"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Donut with no sizes field → DonutSeries.FromSeriesDto L43 <c>dto.Sizes ?? []</c>
+    /// TRUE (null) arm fires.</summary>
+    [Fact]
+    public void FromJson_DonutWithNoSizes_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"donut"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Donut with no innerRadius field → DonutSeries.FromSeriesDto L44
+    /// <c>if (dto.InnerRadius.HasValue)</c> FALSE arm (the round-trip idiom always
+    /// serializes InnerRadius unconditionally, so only a raw/minimal JSON omitting the
+    /// field can reach this arm). Already 100%-covered by the time this test was added
+    /// (kept as a forward-regression guard) — the actual remaining gap was L43's
+    /// <c>dto.Sizes ?? []</c> arm above.</summary>
+    [Fact]
+    public void FromJson_DonutWithNoInnerRadius_UsesDefault()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"donut","sizes":[30,70]}]}]}""";
+        var fig = S.FromJson(json);
+        var donut = Assert.IsType<MatPlotLibNet.Models.Series.DonutSeries>(fig.SubPlots[0].Series[0]);
+        Assert.Equal(0.4, donut.InnerRadius);
+    }
+
+    /// <summary>Funnel with no PieLabels/Values → FunnelSeries.FromSeriesDto L42 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_FunnelWithNoLabelsValues_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"funnel"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Gantt with no Tasks/Starts/Ends → GanttSeries.FromSeriesDto L53 three ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_GanttWithNoTasksStartsEnds_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"gantt"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Histogram2D with no XData/YData → Histogram2DSeries.FromSeriesDto L79 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_Histogram2DWithNoXYData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"histogram2d"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Line3D with no XData/YData/ZData → Line3DSeries.FromSeriesDto L45 three ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_Line3DWithNoXYZData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"line3d"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>OhlcBar with no Open/High/Low/Close → OhlcBarSeries.FromSeriesDto L46 four ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_OhlcBarWithNoOHLCData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"ohlcbar"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Pie with no Sizes → PieSeries.FromSeriesDto L56 ?? arm fires.</summary>
+    [Fact]
+    public void FromJson_PieWithNoSizes_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"pie"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Quiver3D with no XData/YData/ZData/UData/VData/WData → Quiver3DSeries.FromSeriesDto
+    /// L98 six ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_Quiver3DWithNoXYZUVWData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"quiver3d"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>QuiverKey with no quiverKeyLabel field → QuiverKeySeries.FromSeriesDto L51
+    /// <c>dto.QuiverKeyLabel ?? ""</c> TRUE (null) arm fires; the round-trip idiom always
+    /// carries an explicit label, so only a raw/minimal JSON omitting it reaches this arm.</summary>
+    [Fact]
+    public void FromJson_QuiverKeyWithNoLabel_UsesDefaultEmptyLabel()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"quiverkey"}]}]}""";
+        var fig = S.FromJson(json);
+        var qk = Assert.IsType<MatPlotLibNet.Models.Series.QuiverKeySeries>(fig.SubPlots[0].Series[0]);
+        Assert.Equal("", qk.Label);
+    }
+
+    /// <summary>Radar with no Categories/Values → RadarSeries.FromSeriesDto L53 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_RadarWithNoCategoriesValues_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"radar"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Signal with no YData → SignalSeries.FromSeriesDto L98 ?? arm fires.</summary>
+    [Fact]
+    public void FromJson_SignalWithNoYData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"signal"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Sparkline with no Values → SparklineSeries.FromSeriesDto L40 ?? arm fires.</summary>
+    [Fact]
+    public void FromJson_SparklineWithNoValues_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"sparkline"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>StackedArea with no XData/Datasets → StackedAreaSeries.FromSeriesDto L88 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_StackedAreaWithNoXDatasets_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"stackedarea"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Stem3D with no XData/YData/ZData → Stem3DSeries.FromSeriesDto L46 three ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_Stem3DWithNoXYZData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"stem3d"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Stem with no XData/YData → StemSeries.FromSeriesDto L59 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_StemWithNoXYData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"stem"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Step with no XData/YData → StepSeries.FromSeriesDto L57 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_StepWithNoXYData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"step"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Streamplot with no XData/YData → StreamplotSeries.FromSeriesDto L64 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_StreamplotWithNoXYData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"streamplot"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Swarmplot with no Datasets → SwarmplotSeries.FromSeriesDto L39 ?? arm fires.</summary>
+    [Fact]
+    public void FromJson_SwarmplotWithNoDatasets_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"swarmplot"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Table with no TableCellData → TableSeries.FromSeriesDto L57 ?? arm fires.</summary>
+    [Fact]
+    public void FromJson_TableWithNoCellData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"table"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Tricontour with no XData/YData/ZData → TricontourSeries.FromSeriesDto L56 three ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_TricontourWithNoXYZData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"tricontour"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Tripcolor with no XData/YData/ZData → TripcolorSeries.FromSeriesDto L60 three ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_TripcolorWithNoXYZData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"tripcolor"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Trisurf with no XData/YData/ZData → Trisurf3DSeries.FromSeriesDto L55 three ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_TrisurfWithNoXYZData_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"trisurf"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
+
+    /// <summary>Trisurf with ShowWireframe=false (non-default; default is true) →
+    /// Trisurf3DSeries.FromSeriesDto L60 <c>if (dto.ShowWireframe.HasValue)</c> TRUE arm fires
+    /// and sets ShowWireframe=false. Mirrors <see cref="FromJson_SurfaceWithShowWireframeFalse_SetsWireframeFalse"/>:
+    /// the round-trip idiom's existing Trisurf test sets <c>ShowWireframe = true</c>, which is the
+    /// series default and therefore serializes as <see langword="null"/> — only an explicit
+    /// non-default raw JSON value reaches this arm.</summary>
+    [Fact]
+    public void FromJson_TrisurfWithShowWireframeFalse_SetsWireframeFalse()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{"series":[{
+                "type":"trisurf",
+                "xData":[0,1,2],"yData":[0,1,2],"zData":[0,1,4],
+                "showWireframe":false
+            }]}]
+        }
+        """;
+        var fig = S.FromJson(json);
+        var trisurf = Assert.IsType<MatPlotLibNet.Models.Series.Trisurf3DSeries>(fig.SubPlots[0].Series[0]);
+        Assert.False(trisurf.ShowWireframe);
+    }
+
+    /// <summary>Trisurf with an explicit colorMapName → Trisurf3DSeries.FromSeriesDto L68
+    /// <c>if (dto.ColorMapName is not null)</c> TRUE arm. Trisurf3DSeries.ToSeriesDto never emits
+    /// ColorMapName (a pre-existing production-code gap out of scope for this TESTS-ONLY pass),
+    /// so a normal ToJson→FromJson round-trip can never reach this arm — only raw JSON can.</summary>
+    [Fact]
+    public void FromJson_TrisurfWithColorMapName_SetsColorMap()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{"series":[{
+                "type":"trisurf",
+                "xData":[0,1,2],"yData":[0,1,2],"zData":[0,1,4],
+                "colorMapName":"plasma"
+            }]}]
+        }
+        """;
+        var fig = S.FromJson(json);
+        var trisurf = Assert.IsType<MatPlotLibNet.Models.Series.Trisurf3DSeries>(fig.SubPlots[0].Series[0]);
+        Assert.NotNull(trisurf.ColorMap);
+    }
+
+    /// <summary>Waterfall with no Categories/Values → WaterfallSeries.FromSeriesDto L61 two ?? arms fire.</summary>
+    [Fact]
+    public void FromJson_WaterfallWithNoCategoriesValues_UsesNullFallback()
+    {
+        const string json = """{"width":800,"height":600,"subPlots":[{"series":[{"type":"waterfall"}]}]}""";
+        var fig = S.FromJson(json);
+        Assert.Single(fig.SubPlots[0].Series);
+    }
 }

@@ -516,6 +516,11 @@ public class ChartSerializerRoundTripTests
         var ts = (Trisurf3DSeries)rt.SubPlots[0].Series[0];
         Assert.True(ts.ShowWireframe);
         Assert.Equal(0.7, ts.Alpha);
+        // NOTE: Trisurf3DSeries.ToSeriesDto doesn't emit ColorMapName (ColorMap isn't
+        // round-tripped at all — a pre-existing gap in production code, out of scope for
+        // this TESTS-ONLY pass), so the `if (dto.ColorMapName is not null)` arm in
+        // FromSeriesDto can only be reached via raw JSON — see
+        // FromJson_TrisurfWithColorMapName_SetsColorMap in ChartSerializerDeserializationBranchTests.
     }
 
     [Fact]
@@ -537,6 +542,9 @@ public class ChartSerializerRoundTripTests
         var c3 = (Contour3DSeries)rt.SubPlots[0].Series[0];
         Assert.Equal(5, c3.Levels);
         Assert.Equal(1.5, c3.LineWidth);
+        // NOTE: Contour3DSeries.ToSeriesDto doesn't emit ColorMapName either (same
+        // pre-existing gap as Trisurf3DSeries above) — see
+        // FromJson_Contour3DWithColorMapName_SetsColorMap in ChartSerializerDeserializationBranchTests.
     }
 
     [Fact]
@@ -972,14 +980,17 @@ public class ChartSerializerRoundTripTests
                 s.LineWidth = 2.0;
                 s.LineStyle = LineStyle.Dashed;
                 s.Smooth = true;
-                s.SmoothResolution = 10;
+                // Non-default (default is 10) — AreaSeries.ToSeriesDto only emits SmoothResolution
+                // when it differs from the default, so a value of 10 here would be a no-op that
+                // never flips FromSeriesDto's `if (dto.SmoothResolution.HasValue)` true arm.
+                s.SmoothResolution = 20;
             }))
             .Build();
         var rt = RoundTrip(fig);
         var ar = (AreaSeries)rt.SubPlots[0].Series[0];
         Assert.Equal(0.6, ar.Alpha);
         Assert.True(ar.Smooth);
-        Assert.Equal(10, ar.SmoothResolution);
+        Assert.Equal(20, ar.SmoothResolution);
     }
 
     [Fact]

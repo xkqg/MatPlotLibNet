@@ -809,6 +809,53 @@ public class BranchCoverage_SeriesTests
         Assert.True(size.Height > 0);
     }
 
+    // ── v1.13.0 series-level edge-case branches (FromSeriesDto's per-series refactor
+    // pinned these below 90/90 — the arms below are pure ComputeDataRange/GetColorBarRange
+    // edge cases unrelated to serialization). ──────────────────────────────────────
+
+    /// <summary>Histogram2DSeries.GetColorBarRange L52 — `min &lt; max ? new(min, max) : new(0, 1)`
+    /// FALSE arm: with a single bin (BinsX=1, BinsY=1) every data point falls into the same
+    /// cell, so min == max and the ternary's default (0, 1) fallback fires.</summary>
+    [Fact]
+    public void Histogram2DSeries_GetColorBarRange_SingleBin_MinEqualsMax_ReturnsZeroOneDefault()
+    {
+        var s = new Histogram2DSeries([1.0, 2.0, 3.0], [1.0, 2.0, 3.0], binsX: 1, binsY: 1);
+        var range = s.GetColorBarRange();
+        Assert.Equal(0, range.Min);
+        Assert.Equal(1, range.Max);
+    }
+
+    /// <summary>SignalSeries.ComputeDataRange L52 — `YData.Length == 0 ? new(0,0,0,0) : ...`
+    /// TRUE arm: an empty-sample signal falls back to the degenerate all-zero range.</summary>
+    [Fact]
+    public void SignalSeries_EmptyYData_ComputeDataRange_ReturnsZeroRange()
+    {
+        var s = new SignalSeries(Array.Empty<double>());
+        var range = s.ComputeDataRange(new TestCtx());
+        Assert.Equal(0, range.XMin);
+        Assert.Equal(0, range.XMax);
+        Assert.Equal(0, range.YMin);
+        Assert.Equal(0, range.YMax);
+    }
+
+    /// <summary>StackedAreaSeries.ComputeDataRange L64 — `if (yMax == double.MinValue) yMax = 1;`
+    /// TRUE arm. A single Zero-baseline layer's `bot` is always the constant 0 (see
+    /// <c>StackedBaselineExtensions.ComputeZero</c>), so `yMin` always updates away from its
+    /// <see cref="double.MaxValue"/> sentinel on the very first point — L63's true arm is
+    /// consequently unreachable given the X.Length/YSets.Length guard above it and is not
+    /// chased here. `top`, however, is `bot + y`, so an all-NaN layer keeps every
+    /// `top &gt; yMax` comparison false (NaN comparisons are always false) and `yMax` never
+    /// leaves its <see cref="double.MinValue"/> sentinel, hitting this arm.</summary>
+    [Fact]
+    public void StackedAreaSeries_AllNaNLayer_YMaxStaysAtDefault()
+    {
+        var s = new StackedAreaSeries(
+            x: [1.0, 2.0],
+            ySets: [[double.NaN, double.NaN]]);
+        var dr = s.ComputeDataRange(new TestCtx());
+        Assert.Equal(1, dr.YMax);
+    }
+
     private sealed class TestCtx : IAxesContext
     {
         public double? XAxisMin => null;

@@ -135,6 +135,28 @@ public class MplLiveChartCoverageTests : BunitContext
         Assert.Contains("<svg", cut.Markup);
     }
 
+    // ── v1.13.0 Wave — ownership arms (_ownsClient / DisposeAsync) ───────────────
+
+    /// <summary>No <c>Client</c> parameter supplied → OnInitialized's L29-30
+    /// <c>_ownsClient = Client is null; _client = Client ?? new ChartSubscriptionClient();</c>
+    /// TRUE arm: the component constructs its own <see cref="ChartSubscriptionClient"/>. That
+    /// assignment completes successfully during <c>OnInitialized</c>; it's only the
+    /// subsequent <c>OnAfterRenderAsync</c> — which every other test in this file bypasses by
+    /// injecting a fake <c>Client</c> — that then attempts a genuine SignalR negotiation via
+    /// the real <see cref="MatPlotLibNet.Blazor.ChartSubscriptionClient"/>, and faults with a
+    /// <see cref="UriFormatException"/> because the default relative <c>HubUrl</c>
+    /// ("/charts-hub") has no scheme/host to resolve against in this test host. bUnit's
+    /// renderer surfaces that as the <c>Render</c> call's own exception. Teardown
+    /// (<see cref="BunitContext.Dispose"/>, run by xunit after this method returns) then
+    /// disposes every component the renderer ever mounted — including this one — which
+    /// drives <c>DisposeAsync</c>'s L72-73 <c>if (_ownsClient)</c> TRUE arm.</summary>
+    [Fact]
+    public void NoClientProvided_OwnsClientConstructionArmFires()
+    {
+        Assert.Throws<UriFormatException>(() =>
+            Render<MplLiveChart>(p => p.Add(x => x.ChartId, "c1")));
+    }
+
     /// <summary>Recording client — captures Connect/Subscribe + exposes the registered
     /// callbacks so tests can fire synthetic UpdateChartSvg / UpdateChart events.</summary>
     private sealed class RecordingClient : IChartSubscriptionClient

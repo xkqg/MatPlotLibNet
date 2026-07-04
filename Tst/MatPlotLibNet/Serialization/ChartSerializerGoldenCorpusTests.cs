@@ -270,7 +270,11 @@ public class ChartSerializerGoldenCorpusTests
             case "pointplot": ax.Pointplot([[1.0, 2, 3], [4.0, 5, 6]]); break;
             case "swarmplot": ax.Swarmplot([[1.0, 2, 3], [4.0, 5, 6]]); break;
             case "spectrogram":
-                ax.Spectrogram(Enumerable.Range(0, 64).Select(i => Math.Sin(i * 0.5)).ToArray(), 1000);
+                // Golden inputs must be platform-deterministic: libm transcendentals (Math.Sin et al.)
+                // differ by 1 ulp between Windows CRT and glibc, which flips the shortest round-trip
+                // representation and breaks the byte-for-byte golden compare on Linux CI. Pure
+                // integer arithmetic is bit-identical everywhere.
+                ax.Spectrogram(Enumerable.Range(0, 64).Select(i => ((i * 37 % 100) - 50) / 50.0).ToArray(), 1000);
                 break;
             case "table": ax.Table([["a", "b"], ["c", "d"]]); break;
             case "tricontour": ax.Tricontour([0.0, 1, 0.5], [0.0, 0, 1], [1.0, 2, 3]); break;

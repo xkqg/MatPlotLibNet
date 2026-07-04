@@ -32,7 +32,7 @@ threshold conveniences (`StatTileSeries`, `StateTimelineSeries`, `ThresholdLine`
   - **`ShowLabels` / `LabelFormat`** (`ILabelable`) — render each cell's value on top of the fill; any .NET numeric format string (e.g. `"P1"`, `"F0"`)
   - **`MaskMode`** — `HeatmapMaskMode` enum hides redundant cells in symmetric matrices (`UpperTriangle`, `LowerTriangle`, and strict variants that include the diagonal)
   - **`CellValueColor`** — explicit label colour; auto black/white contrast via `Color.ContrastingTextColor()` (Rec. 709) when null
-- 🐛 **Bug fixes** — driven by community use and the strict `≥90/90` per-class coverage gate (all classes pass; **8 707 core tests**).
+- 🐛 **Bug fixes** — driven by community use and the strict `≥90/90` per-class coverage gate (all classes pass; **9 386 core tests**).
 - 📚 **Documentation polish** — cookbook examples, API XML doc completeness.
 - 🌱 **Listening** — Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next direction will be guided by what real users need, not by a feature checklist.
 

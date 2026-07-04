@@ -25,6 +25,22 @@ public class ThreeDAxesRendererCoverageTests
         return fig.ToSvg();
     }
 
+    // ── Compute3DDataRanges L672 `else if (series is I3DPointSeries pts)` — Quiver3DSeries
+    // implements I3DPointSeries directly (rather than via the XYZSeries base every other 3D
+    // point series shares), and its explicit dispatch properties (X/Y/Z) were only ever
+    // exercised through unit tests that construct/dispose a Quiver3DSeries directly — never
+    // through a real 3D-axes render pass, leaving them at 0 line hits. Rendering a scene
+    // that contains one exercises the `pts.X`/`pts.Y`/`pts.Z` dispatch calls.
+
+    [Fact]
+    public void Render3D_WithQuiver3DSeries_HitsI3DPointSeriesDispatch()
+    {
+        var svg = Render3D(ax => ax.Quiver3D(
+            [0.0, 1.0], [0.0, 1.0], [0.0, 1.0],
+            [1.0, 0.5], [0.5, 1.0], [0.5, 0.5]));
+        Assert.Contains("<svg", svg);
+    }
+
     // ── L53: Axes.Projection?.Elevation ?? Axes.Elevation — need both arms
 
     [Fact]
