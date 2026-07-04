@@ -144,17 +144,24 @@ public class MplLiveChartCoverageTests : BunitContext
     /// subsequent <c>OnAfterRenderAsync</c> — which every other test in this file bypasses by
     /// injecting a fake <c>Client</c> — that then attempts a genuine SignalR negotiation via
     /// the real <see cref="MatPlotLibNet.Blazor.ChartSubscriptionClient"/>, and faults with a
-    /// <see cref="UriFormatException"/> because the default relative <c>HubUrl</c>
-    /// ("/charts-hub") has no scheme/host to resolve against in this test host. bUnit's
-    /// renderer surfaces that as the <c>Render</c> call's own exception. Teardown
+    /// <see cref="UriFormatException"/> before any network I/O. bUnit's renderer surfaces
+    /// that as the <c>Render</c> call's own exception. Teardown
     /// (<see cref="BunitContext.Dispose"/>, run by xunit after this method returns) then
     /// disposes every component the renderer ever mounted — including this one — which
-    /// drives <c>DisposeAsync</c>'s L72-73 <c>if (_ownsClient)</c> TRUE arm.</summary>
+    /// drives <c>DisposeAsync</c>'s L72-73 <c>if (_ownsClient)</c> TRUE arm.
+    /// <para>The HubUrl is pinned to <c>"http://"</c> (structurally invalid: empty authority)
+    /// instead of relying on the default relative <c>"/charts-hub"</c>: Uri parsing of rooted
+    /// paths is PLATFORM-DEPENDENT — Windows rejects <c>"/charts-hub"</c> with
+    /// <see cref="UriFormatException"/>, but Unix accepts it as an absolute <c>file://</c>
+    /// path, which made this test red on Linux CI while green on Windows. Scheme-level
+    /// invalidity throws identically on every platform.</para></summary>
     [Fact]
     public void NoClientProvided_OwnsClientConstructionArmFires()
     {
         Assert.Throws<UriFormatException>(() =>
-            Render<MplLiveChart>(p => p.Add(x => x.ChartId, "c1")));
+            Render<MplLiveChart>(p => p
+                .Add(x => x.ChartId, "c1")
+                .Add(x => x.HubUrl, "http://")));
     }
 
     /// <summary>Recording client — captures Connect/Subscribe + exposes the registered
