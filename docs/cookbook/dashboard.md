@@ -240,6 +240,16 @@ reference of `Threshold(...)` and `WithLegendValues()`.
 
 ## Operations dashboard template
 
+> **First iteration — expect this to grow.** `OpsDashboard` is an opening pass at a
+> one-screen ops view, not a finished dashboard. It currently composes three of the
+> planned elements (KPI tiles, state timelines, trend panel); gauges, sparklines inside
+> the tiles, a topology panel (`NetworkGraphSeries`) and a recent-events strip
+> (`EventplotSeries` / `TableSeries`) are still to come, and the layout and density are
+> still being shaped. The parameter list and defaults may change while it settles — the
+> underlying series it builds on (`StatTileSeries`, `StateTimelineSeries`) are stable, so
+> composing your own layout with `Plt.Create().WithGridSpec(...)` is the safe route if you
+> need a fixed API today.
+
 For a single-screen bus/observability view, use `FigureTemplates.OpsDashboard`.
 It composes a top row of `StatTileSeries` KPI tiles, a stack of `StateTimelineSeries`
 rows for service health, and a shared trend panel for throughput-style metrics.

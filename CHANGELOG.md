@@ -10,7 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **`FigureTemplates.OpsDashboard`** — single-screen bus/observability composition template
   combining KPI stat tiles, state timelines, and a shared throughput trend panel on one
-  `GridSpec` layout.
+  `GridSpec` layout. **This is a first iteration, not a finished dashboard:** gauges,
+  sparklines inside the tiles, a topology panel and a recent-events strip are still to come,
+  and the layout is still being shaped — the signature and defaults may change while it settles.
 - **`OpsTile`, `OpsStateTimeline`, `OpsTrendLine`** input records and `OpsTile.Threshold(...)`
   convenience for green/orange/red accent thresholds.
 - **Blazor sample `/obs-dashboard`** page plus `BusTelemetrySimulator` hosted service that
