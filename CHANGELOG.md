@@ -57,6 +57,14 @@ composition API grounded in established HMI practice — and three long-standing
   how many ticks happen to fall inside it.
 - **`StatTileSeries` at rest took a colour from the series cycle.** The prop-cycler exists to tell data series
   apart; a state mark is not a data series. A resting tile now wears the theme's neutral shade.
+- **`MplLiveChart` connected to a `file://` URI on Linux.** The 1.13.1 repair of the hub URL decided "is this
+  already an address?" with `Uri.TryCreate(url, UriKind.Absolute, …)` — a predicate that is platform-dependent:
+  for a rooted path it is `false` on Windows (so the `NavigationManager` branch ran) and `true` on Unix, where
+  the runtime parses `/charts-hub` as the absolute URI `file:///charts-hub`. A Linux-hosted Blazor Server app
+  therefore handed SignalR a well-formed URI pointing at the filesystem and never connected — the same silent
+  failure the 1.13.1 change had set out to fix. A hub address is now recognised by its **scheme**
+  (`http`/`https`/`ws`/`wss`); anything else, including the `file://` form a rooted path degrades into, is
+  resolved against the app's base URI.
 
 ### Removed
 
