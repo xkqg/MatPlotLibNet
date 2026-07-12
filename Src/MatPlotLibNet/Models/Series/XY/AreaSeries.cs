@@ -77,7 +77,10 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
         LineStyle = LineStyle.ToString().ToLowerInvariant(),
         LineWidth = LineWidth,
         Smooth = Smooth ? true : null,
-        SmoothResolution = Smooth && SmoothResolution != 10 ? SmoothResolution : null
+        SmoothResolution = Smooth && SmoothResolution != 10 ? SmoothResolution : null,
+        // Null when unhatched, so an unhatched area emits no hatch bytes and its golden stays byte-identical.
+        Hatch = Hatch != HatchPattern.None ? Hatch : null,
+        HatchColor = HatchColor
     };
 
     /// <summary>Reconstructs an <see cref="AreaSeries"/> from its serialization DTO, including the optional second Y dataset for fill-between, and adds it to the axes.</summary>
@@ -102,6 +105,13 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
         {
             s.SmoothResolution = dto.SmoothResolution.Value;
         }
+
+        if (dto.Hatch.HasValue)
+        {
+            s.Hatch = dto.Hatch.Value;
+        }
+
+        s.HatchColor = dto.HatchColor;
         return s;
     }
 

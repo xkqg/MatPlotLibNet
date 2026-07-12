@@ -88,6 +88,41 @@ public sealed class Theme
         DefaultSpacing = defaultSpacing;
     }
 
+    /// <summary>Copy constructor: clones every property of <paramref name="other"/> under a new name.
+    /// <para>This exists because a hand-maintained argument list is a bug waiting to happen. <see cref="Theme"/>
+    /// carries 15 settable properties; <c>ThemeBuilder.Build()</c> used to construct a fresh instance from 8 of
+    /// them, so deriving a theme from <see cref="Dark"/> silently reset its spacing, its patch edge colour, its
+    /// violin colours and its axis margins to library defaults. Cloning cannot drift: a property added tomorrow
+    /// is copied without anyone remembering to update a list.</para></summary>
+    /// <param name="name">The name of the clone.</param>
+    /// <param name="other">The theme to copy every property from.</param>
+    internal Theme(string name, Theme other)
+    {
+        Name = name;
+        Background = other.Background;
+        ForegroundText = other.ForegroundText;
+        AxesBackground = other.AxesBackground;
+        CycleColors = other.CycleColors;
+        DefaultFont = other.DefaultFont;
+        DefaultGrid = other.DefaultGrid;
+        PropCycler = other.PropCycler;
+        DefaultSpacing = other.DefaultSpacing;
+        PatchEdgeColor = other.PatchEdgeColor;
+        ViolinBodyColor = other.ViolinBodyColor;
+        ViolinStatsColor = other.ViolinStatsColor;
+        AxisXMargin = other.AxisXMargin;
+        AxisYMargin = other.AxisYMargin;
+        Pane3DColor = other.Pane3DColor;
+        Alarm = other.Alarm;
+    }
+
+    /// <summary>The theme's alarm palette: the colours reserved for a state that needs attention, and the
+    /// neutral shade every resting state wears.
+    /// <para>Reserved is the operative word. On a monitored wall, colour is a scarce signal — the moment the
+    /// normal state is coloured too, the abnormal one has nothing left to stand out against. So a theme names
+    /// its alarm colours once and nothing else may spend them.</para></summary>
+    public AlarmPalette Alarm { get; init; } = AlarmPalette.Default;
+
     /// <summary>Creates a <see cref="StyleSheet"/> that mirrors this theme's visual settings as rcParam keys.</summary>
     public StyleSheet ToStyleSheet() => StyleSheet.FromTheme(this);
 
@@ -305,6 +340,77 @@ public sealed class Theme
     public static Theme Retro { get; } = ThemePresets.CommunityThemes.Retro();
     /// <summary>Bright neon on black — cyberpunk variant.</summary>
     public static Theme Neon { get; } = ThemePresets.CommunityThemes.Neon();
+
+    // ── Operator backgrounds ──────────────────────────────────────────────────────────────────────
+    // Four grounds an operator may choose between; one alarm contract they may not.
+    //
+    // The ground is a preference: someone who stares at a wall for eight hours gets to pick what they
+    // find restful, and a dim room and a bright control desk are not the same room. What amber and
+    // vermillion MEAN is not a preference. Each preset therefore shifts only the LUMINANCE of the alarm
+    // hues — deeper on a light panel so they do not wash out, brighter on a near-black wall so they
+    // carry through glare at ten metres — and never their hue, never their meaning.
+    //
+    // And none of them colours the resting state. Not even green. A wall of green tiles spends the very
+    // contrast that the one thing going wrong needs to borrow.
+
+    /// <summary>Operator background — cool dark neutral, for a dimmed room. The default control-room ground.</summary>
+    public static Theme OpsNight { get; } = CreateFrom(Dark)
+        .WithName("ops-night")
+        .WithBackground(Color.FromHex("#191C1E"))
+        .WithAxesBackground(Color.FromHex("#22262A"))
+        .WithForegroundText(Color.FromHex("#C8CFD4"))
+        .WithGrid(g => g with { Color = Color.FromHex("#2A3035"), Visible = true })
+        .WithAlarmPalette(new AlarmPalette(
+            Resting: Color.FromHex("#8C979E"),
+            Warning: Color.FromHex("#E69F00"),
+            Critical: Color.FromHex("#D55E00"),
+            Unknown: Color.FromHex("#79838A")))
+        .Build();
+
+    /// <summary>Operator background — the classic ISA-101 daylight grey of a physical panel.</summary>
+    public static Theme OpsPanel { get; } = CreateFrom(Default)
+        .WithName("ops-panel")
+        .WithBackground(Color.FromHex("#C6CACC"))
+        .WithAxesBackground(Color.FromHex("#D2D6D8"))
+        .WithForegroundText(Color.FromHex("#22282B"))
+        .WithGrid(g => g with { Color = Color.FromHex("#B7BDC0"), Visible = true })
+        .WithAlarmPalette(new AlarmPalette(
+            // Deepened against a light ground: the same hues at the same salience, not the same numbers.
+            Resting: Color.FromHex("#5C6469"),
+            Warning: Color.FromHex("#A96A00"),
+            Critical: Color.FromHex("#93380A"),
+            Unknown: Color.FromHex("#8E9599")))
+        .Build();
+
+    /// <summary>Operator background — warm dark, for whom a cool grey reads clinical.</summary>
+    public static Theme OpsWarm { get; } = CreateFrom(Dark)
+        .WithName("ops-warm")
+        .WithBackground(Color.FromHex("#1E1B18"))
+        .WithAxesBackground(Color.FromHex("#272320"))
+        .WithForegroundText(Color.FromHex("#D3CCC2"))
+        .WithGrid(g => g with { Color = Color.FromHex("#332E28"), Visible = true })
+        .WithAlarmPalette(new AlarmPalette(
+            Resting: Color.FromHex("#9A9186"),
+            Warning: Color.FromHex("#E9A21B"),
+            Critical: Color.FromHex("#DB5F1E"),
+            Unknown: Color.FromHex("#8B8277")))
+        .Build();
+
+    /// <summary>Operator background — near-black with brightened alarms, for a video wall read from across
+    /// the room or a desk under daylight.</summary>
+    public static Theme OpsContrast { get; } = CreateFrom(Dark)
+        .WithName("ops-contrast")
+        .WithBackground(Color.FromHex("#0B0D0E"))
+        .WithAxesBackground(Color.FromHex("#14171A"))
+        .WithForegroundText(Color.FromHex("#E7EDF0"))
+        .WithGrid(g => g with { Color = Color.FromHex("#1E252A"), Visible = true })
+        .WithAlarmPalette(new AlarmPalette(
+            // Brightened so they survive ten metres and a reflection, without becoming a different colour.
+            Resting: Color.FromHex("#A9B4BA"),
+            Warning: Color.FromHex("#FFB020"),
+            Critical: Color.FromHex("#FF5A1F"),
+            Unknown: Color.FromHex("#939EA5")))
+        .Build();
 
     /// <summary>
     /// Creates a <see cref="ThemeBuilder"/> initialized from the specified base theme.

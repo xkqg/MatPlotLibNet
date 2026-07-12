@@ -113,4 +113,9 @@ public static class Plt
             return new StyleContext(sheet);
         }
     }
+
+    /// <summary>Starts composing a single-screen operations dashboard: KPI tiles across the top, state
+    /// timelines beneath them, and a shared trend panel — all on one time window.</summary>
+    /// <returns>A new <see cref="OpsDashboardBuilder"/>.</returns>
+    public static OpsDashboardBuilder OpsDashboard() => new();
 }

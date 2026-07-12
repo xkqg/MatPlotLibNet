@@ -4,6 +4,78 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.14.0] — 2026-07-12
+
+Control-room release. The dashboard work that shipped as a first iteration in 1.13.1 is replaced by a
+composition API grounded in established HMI practice — and three long-standing defects it uncovered are fixed.
+
+### Added
+
+- **`Plt.OpsDashboard()`** — a fluent composition API for a single-screen operations view: KPI tiles, state
+  timelines and a shared trend panel, all pinned to **one** time window. `WithWindow(end, span)` takes the end
+  instant **from the caller**: the library never reads a wall clock, so a dashboard is deterministic, testable
+  and replayable for any moment rather than only for this one.
+- **`BulletGraphSeries`** — Stephen Few's designed replacement for the radial dial: a measure, a target tick
+  and qualitative bands in one thin strip. The bands are one hue at varying intensity, never red/amber/green,
+  so they neither exclude colour-blind readers nor spend the alarm palette on a backdrop.
+- **`Theme.Alarm` (`AlarmPalette`)** — a theme now names the colours it reserves for states that need
+  attention (Okabe-Ito amber and vermillion) and the neutral shade a **resting** state wears. Colour is a
+  scarce signal: the moment a healthy state is coloured, the abnormal one has nothing to stand out against.
+- **Four operator backgrounds** — `Theme.OpsNight`, `OpsPanel`, `OpsWarm`, `OpsContrast`. The ground is the
+  operator's to choose; the alarm hues are not. Each preset shifts only their *luminance*, never their meaning.
+- **`StatTileSeries` gains `Target`, `Caption`, `Trend` and `Hatch`** — the full tile anatomy. A bare big
+  number is a failed pattern: without a comparative the reader cannot tell whether it is good or bad. The
+  inline `Trend` is a Tufte sparkline (no axis, no frame, no ticks) rendered by delegating to
+  `SparklineSeriesRenderer`, and it contributes nothing to the data range.
+- **`StateSegment.Hatch`** — a timeline band that says *no information* rather than a state. On a monitored
+  fleet, "I can no longer see you" is the most common failure and it is **not** the same failure as "you are
+  broken"; a wall that paints them the same lies exactly when it matters.
+- **`ThemeBuilder.WithName()` and `.WithAlarmPalette()`**.
+
+### Fixed
+
+- **`HatchPattern` did nothing.** The enum and the `Hatch` / `HatchColor` properties on `BarSeries` and
+  `AreaSeries` had shipped for releases, but **no renderer ever read them**: setting a hatch produced a plain
+  solid fill and no error. Hatching is now implemented end to end — it lives on `ShapeStyle`, so it travels
+  through every shape-drawing operation of every backend, and it is painted by the SVG backend (de-duplicated
+  `<pattern>` defs) and the Skia raster backend alike. `HistogramSeries`, `StackedAreaSeries`, `PieSeries` and
+  `ContourfSeries` were hollow in the same way and now paint too. Where a backend genuinely cannot honour a
+  hatch (the MAUI canvas), it reports the omission on `ChartDiagnostics` instead of dropping it silently.
+- **`GaugeSeries` lost its bands on a round-trip.** `Ranges` was rendered but never serialized: a gauge sent
+  over the wire came back with its threshold bands silently replaced by the defaults.
+- **`StatTileSeries` lost its `Format` on a round-trip** — a tile came back reading `0.3` where it had read
+  `0.3 s`. The unit, and with it the meaning, was dropped in transit.
+- **`ThemeBuilder.Build()` silently discarded half of the base theme.** It reconstructed a `Theme` from 8 of
+  its 15 properties, so a theme derived from `Theme.Dark` came back with its spacing, patch-edge colour, violin
+  colours and axis margins reset to library defaults. It now **clones** the base — a hand-maintained argument
+  list cannot survive the next property; a clone can.
+- **A rolling time axis re-shuffled its labels every frame.** `AutoDateLocator` thinned ticks by *index* from
+  the first tick inside the window, so the instant the window advanced past a tick the whole label row jumped
+  while the trace beneath it glided. Ticks are now chosen by their ordinal in **absolute time** (computed in
+  integer ticks — the previous arithmetic divided an OLE date by a one-second spacing and amplified rounding
+  error into hundreds of seconds), and the step is derived from the window's constant *span* rather than from
+  how many ticks happen to fall inside it.
+- **`StatTileSeries` at rest took a colour from the series cycle.** The prop-cycler exists to tell data series
+  apart; a state mark is not a data series. A resting tile now wears the theme's neutral shade.
+
+### Removed
+
+- **`FigureTemplates.OpsDashboard(...)` and the `OpsTile` / `OpsStateTimeline` / `OpsTrendLine` records**,
+  including `OpsTile.Threshold(ok, warning, critical, …)`. The five-parameter static template shipped two weeks
+  ago in 1.13.1 and was never tagged; it is replaced outright by `Plt.OpsDashboard()`. Its red/amber/green
+  helper actively taught the doctrine this release exists to correct — that a healthy state should be coloured
+  green — so it is deleted rather than deprecated.
+
+  **Migration:** `FigureTemplates.OpsDashboard(tiles, timelines, trends, title, configureTrend)` becomes
+  `Plt.OpsDashboard().WithTitle(title).AddTile(value, t => …).AddTimeline(segments).AddTrend(x, y).Build()`.
+  Tiles, timelines and trends are configured with the same `Action<T>` lambdas every other series in the
+  library uses.
+
+### Changed
+
+- The cookbook's operations-dashboard section is rewritten. It previously demonstrated a green/amber/red tile
+  palette — a shipped document teaching the very convention this release removes.
+
 ## [1.13.1] — 2026-07-12
 
 ### Added

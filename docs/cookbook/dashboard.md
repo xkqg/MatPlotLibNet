@@ -238,90 +238,108 @@ See [Threshold convenience](annotations.md#threshold-convenience) and
 [Legend value display](line-charts.md#legend-value-display) for the full parameter
 reference of `Threshold(...)` and `WithLegendValues()`.
 
-## Operations dashboard template
+## Operations dashboard — `Plt.OpsDashboard()`
 
-> **First iteration — expect this to grow.** `OpsDashboard` is an opening pass at a
-> one-screen ops view, not a finished dashboard. It currently composes three of the
-> planned elements (KPI tiles, state timelines, trend panel); gauges, sparklines inside
-> the tiles, a topology panel (`NetworkGraphSeries`) and a recent-events strip
-> (`EventplotSeries` / `TableSeries`) are still to come, and the layout and density are
-> still being shaped. The parameter list and defaults may change while it settles — the
-> underlying series it builds on (`StatTileSeries`, `StateTimelineSeries`) are stable, so
-> composing your own layout with `Plt.Create().WithGridSpec(...)` is the safe route if you
-> need a fixed API today.
+A control-room screen is not a chart with more charts on it. It is a screen someone must be able to sit
+in front of for eight hours and still notice the one thing that changes. That is a design problem with a
+long-settled literature behind it, and this template follows it rather than inventing its own.
 
-For a single-screen bus/observability view, use `FigureTemplates.OpsDashboard`.
-It composes a top row of `StatTileSeries` KPI tiles, a stack of `StateTimelineSeries`
-rows for service health, and a shared trend panel for throughput-style metrics.
-Everything is placed on one `GridSpec` so the whole dashboard fits on a single screen.
+**Colour is reserved.** At rest the screen carries none — not even green. The moment a healthy state is
+coloured, the abnormal one has nothing left to stand out against, and a wall of cheerful tiles is a wall
+nobody looks at. Colour appears only when something needs attention, and it comes out of the theme's
+`AlarmPalette`: Okabe-Ito amber for *look at this* and vermillion for *act now*, chosen because roughly
+eight percent of men cannot separate red from green and these two stay apart for all of them. Colour is
+never the sole carrier of meaning — every coloured mark says the same thing in words too.
+
+**A silent source is hatched, not coloured.** On a monitored fleet, "I can no longer see you" is the most
+common failure and it is *not* the same failure as "you are broken". A dashboard that paints them the same
+lies exactly when it matters. `StatTileSeries.Hatch` and `StateSegment.Hatch` exist for this.
+
+**The caller owns the clock.** `WithWindow(end, span)` takes the end instant from you. The library never
+reads `DateTime.Now` — a figure that depends on the wall clock cannot be tested, cannot be replayed, and
+cannot render a dashboard for any moment but this one.
 
 ```csharp
-using MatPlotLibNet.Models.Dashboard;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Styling;
 
-var tiles = new OpsTile[]
-{
-    new("Messages/s", 2_412, "0"),
-    new("Lag", 0.28, "0.00' s'")
-    {
-        AccentThreshold = OpsTile.Threshold(null, Colors.Orange, Colors.Red, 0.30, 0.50)
-    },
-    new("Active", 12, "0' of '12")
-    {
-        AccentThreshold = OpsTile.Threshold(Colors.Red, Colors.Orange, Colors.Tab10Green, 9, 12)
-    },
-    new("Errors/s", 0, "0")
-    {
-        AccentThreshold = OpsTile.Threshold(null, Colors.Orange, Colors.Red, 1, 3)
-    },
-    new("Dropped/s", 0, "0.0")
-    {
-        AccentThreshold = OpsTile.Threshold(null, Colors.Orange, Colors.Red, 1, 5)
-    }
-};
+var now = DateTime.UtcNow;                       // the caller's clock, not the library's
+var theme = Theme.OpsNight;                      // or OpsPanel / OpsWarm / OpsContrast
 
-var timelines = new OpsStateTimeline[]
-{
-    new("Service Bus", new[]
+Plt.OpsDashboard()
+    .WithTitle("Synapse — federation")
+    .WithWindow(now, TimeSpan.FromMinutes(5))    // ONE window, shared by every time panel
+    .WithNormalBand(2200, 2700)
+
+    // A tile carries value + target + gap + trend. A bare big number is a failed pattern: without a
+    // comparative the reader cannot tell whether it is good or bad, and must supply the missing context
+    // from memory — which they mostly cannot.
+    .AddTile(15, t =>
     {
-        new StateSegment(0,  30, "Up",       Colors.Tab10Green),
-        new StateSegment(30, 45, "Degraded", Colors.Orange),
-        new StateSegment(45, 90, "Up",       Colors.Tab10Green),
-    }),
-    new("Exchange", new[]
-    {
-        new StateSegment(0, 90, "Up", Colors.Tab10Green),
+        t.Label = "Buses";
+        t.Caption = "all 15 normal";             // no accent → the tile wears the theme's neutral shade
     })
-};
+    .AddTile(28.1, t =>
+    {
+        t.Label = "RFx p99";
+        t.Format = "0.0' ms'";
+        t.Target = 25;
+        t.Caption = "target 25 ms · +3.1 over";
+        t.Trend = p99History;                    // an inline Tufte sparkline: no axis, no frame, no ticks
+        t.AccentColor = theme.Alarm.Warning;     // colour ONLY because it is out of band
+    })
+    .AddTile(0, t =>
+    {
+        t.Label = "Exchange";
+        t.Caption = "no contact";
+        t.Hatch = HatchPattern.ForwardDiagonal;  // unknown ≠ broken — a pattern, never a colour
+    })
 
-double[] t = Enumerable.Range(0, 60).Select(i => (double)i).ToArray();
-double[] publish = t.Select(x => 2000 + 200 * Math.Sin(x * 0.1) + 50 * Math.Sin(x * 0.7)).ToArray();
-double[] consume = publish.Select(v => v * 0.98).ToArray();
-
-var trends = new OpsTrendLine[]
-{
-    new("Publish", t, publish),
-    new("Consume", t, consume)
-};
-
-FigureTemplates.OpsDashboard(tiles, timelines, trends,
-        title: "Bus Telemetry",
-        configureTrend: ax => ax.SetYLabel("Messages / s"))
-    .WithTheme(Theme.Dark)
-    .Save("bus_ops_dashboard.svg");
+    .AddTimeline(busSegments, l => l.Label = "Service Bus")
+    .AddTrend(clock, publish, s => s.Label = "publish")
+    .AddTrend(clock, consume, s => s.Label = "consume")
+    .ConfigureTrend(ax => ax.SetYLabel("messages / s"))
+    .Build()
+    .WithTheme(theme)
+    .Save("control-room.svg");
 ```
 
-`OpsTile` is a plain input record; `AccentThreshold` is an optional `Func<double, Color?>`
-that decides the headline colour from the live value. The static `OpsTile.Threshold(...)`
-helper builds the common green/orange/red step rule used in the example above.
+### The rolling axis
+
+`WithWindow` pins **exact** bounds and lets the locator round only the **ticks**. That distinction is the
+whole difference between a chart that glides and one that lurches: an auto axis expands its bounds outward
+to the nearest nice number, so it stands perfectly still while the data grows into it and then jumps a
+whole step at once. Pinned bounds slide continuously; round ticks glide out of frame with the data they
+belong to.
+
+### Bullet graphs instead of dials
+
+`BulletGraphSeries` is Stephen Few's designed replacement for the radial gauge, which the
+high-performance-HMI literature rejects: a dial spends a quarter of a panel to say what a bar says in a
+fifth of it, and it cannot be stacked. The bullet keeps the measure, the target and the qualitative ranges
+in one thin strip — and its bands are one hue at varying intensity, never red/amber/green, so they neither
+exclude colour-blind readers nor spend the alarm palette on a backdrop.
+
+```csharp
+ax.Bullet(2412, b =>
+{
+    b.Target = 2500;
+    b.Bands = [new(1800, band1), new(2200, band2), new(2800, band3)];
+});
+```
 
 ### Live Blazor sample
 
-The server-side Blazor sample (`Samples/MatPlotLibNet.Samples.Blazor`) includes an
-`/obs-dashboard` page driven by `BusTelemetrySimulator`. The simulator collects fake
-bus telemetry every 200 ms and pushes a fresh SVG over the SignalR `ChartHub`. The
-page lets you switch the display refresh interval (1 s, 2 s, 5 s, 10 s) or pause
-updates — the data collection cadence stays independent of what the browser displays.
+`Samples/MatPlotLibNet.Samples.Blazor` serves `/obs-dashboard`: a simulated federation of 15 buses.
+Measurement runs at a fixed 250 ms and never waits for a render; the refresh knob throttles the *charts*
+only — the tiles never slow down, because history may lag and a warning may not. The window (1 / 5 / 15 min,
+1 hour) re-buckets the same measurements: rates keep a min/max envelope so a five-second burst survives a
+one-minute bucket, and percentiles carry their **maximum**, because a p99 cannot be averaged and averaging
+is precisely how a dashboard hides the spike you came to look for.
+
+The alarm conditioning — on-delay, deadband, off-delay, the worst-child roll-up and the staleness clock —
+lives in the **sample**, not in this library. A charting library that decides when something counts as
+broken has started holding opinions about a domain it cannot see.
 
 ## StatTileSeries — parameter reference
 

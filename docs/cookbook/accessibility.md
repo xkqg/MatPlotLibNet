@@ -49,3 +49,48 @@ All SVG exports automatically include:
 - `<title>` from `.WithTitle()` and `<desc>` from `.WithDescription()`
 - ARIA labels on all structural groups (axes, legend, series)
 - Keyboard-navigable interactive features (pan, zoom, reset, brush-select, legend toggle)
+
+## Never encode meaning in colour alone
+
+Roughly eight percent of men have a red-green colour deficiency. A chart that says "red is bad, green is
+fine" and nothing else has simply not communicated with them — and on a monitoring wall, where the whole
+point is that a glance is enough, that is not a cosmetic failure.
+
+Two mechanisms in the library exist for exactly this, and both are worth reaching for outside a dashboard too.
+
+**A hatch carries meaning that colour cannot.** `HatchPattern` on `ShapeStyle` — and therefore on
+`BarSeries`, `AreaSeries`, `HistogramSeries`, `StackedAreaSeries`, `PieSeries`, `StatTileSeries` and
+`StateSegment` — paints a pattern over a fill. It survives greyscale printing, a colour-blind reader, and a
+bad projector, none of which a hue does.
+
+```csharp
+// "No contact" is hatched, not coloured: the source is silent, not broken — a different fault, and a
+// dashboard that paints them the same lies exactly when it matters.
+ax.StatTile(0, t =>
+{
+    t.Label = "Exchange";
+    t.Caption = "no contact";
+    t.Hatch = HatchPattern.ForwardDiagonal;
+});
+```
+
+The SVG and the raster (Skia PNG/PDF) backends paint the same pattern. Where a backend cannot — the MAUI
+canvas has no hatch primitive — it reports the omission on `ChartDiagnostics` rather than dropping it in
+silence, so an export that quietly loses a mark is something you can see rather than something you discover
+later.
+
+**The alarm palette is colour-blind safe by construction.** `Theme.Alarm` (`AlarmPalette`) names Okabe-Ito
+amber for *attention* and vermillion for *critical*, which stay distinguishable under every common form of
+colour-vision deficiency. It also names the neutral shade a resting state wears — because the strongest
+accessibility measure of all is not spending colour on states that do not need it: when the normal state is
+uncoloured, the abnormal one does not have to compete for attention with anything.
+
+## Motion
+
+If a display uses motion to mean something, use it for exactly one thing and use it rarely. The alarm
+convention reserves a slow (roughly 1 Hz) pulse for a single meaning: *this is new and nobody has
+acknowledged it yet*. Once acknowledged, it goes steady and stays coloured while the problem lasts.
+
+A screen that flickers constantly is not a screen with a lot of problems — it is a screen nobody has looked
+at in a while. And any animation that runs forever gets tuned out within a week, which is a worse outcome
+than never having animated at all. Where a page animates, honour `prefers-reduced-motion`.

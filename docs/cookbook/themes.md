@@ -10,7 +10,7 @@ Plt.Create()
     .Save("dracula.svg");
 ```
 
-## 26 built-in themes
+## 30 built-in themes
 
 ### Light themes
 

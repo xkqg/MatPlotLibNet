@@ -963,6 +963,30 @@ public sealed record SeriesDto
     // v1.12 — StateTimelineSeries
     public List<Color>? StateSegmentColors { get; init; }
 
+    // v1.14 — per-segment hatch: a band that says "no information" rather than a state.
+    public List<HatchPattern>? StateSegmentHatches { get; init; }
+
+    // v1.14 — threshold bands. Rendered by GaugeSeries since v1.9 but never serialized: a gauge sent over the
+    // wire came back with its bands silently replaced by the defaults. Decomposed into parallel arrays, the
+    // same shape StateTimelineSeries already uses for its segments. Named NEUTRALLY, not GaugeBand*: the
+    // bullet graph carries the same (threshold, colour) bands, and two names for one shape is a fork.
+    public double[]?     BandThresholds { get; init; }
+    public List<Color>?  BandColors     { get; init; }
+
+    // v1.14 — StatTileSeries.Format. Rendered since v1.12 but never serialized: a tile restored from the wire
+    // read "0.3" where it had read "0.3 s".
+    public string?       TileFormat { get; init; }
+
+    // v1.14 — BulletGraphSeries.Target (the comparative tick).
+    public double?       BulletTarget { get; init; }
+
+    // v1.14 — hatch fills. NULLABLE by necessity: SeriesDto omits nulls
+    // (DefaultIgnoreCondition.WhenWritingNull), so an unset hatch adds no bytes and the golden corpus of
+    // every existing discriminator stays byte-identical. A non-nullable enum would always serialize and
+    // would rewrite all 76 goldens for nothing.
+    public HatchPattern? Hatch      { get; init; }
+    public Color?        HatchColor { get; init; }
+
     // v1.11 — RelativeRotationSeries
     public List<List<double>>?  RrgAssetCloses       { get; init; }
     public List<double>?        RrgBenchmarkCloses   { get; init; }

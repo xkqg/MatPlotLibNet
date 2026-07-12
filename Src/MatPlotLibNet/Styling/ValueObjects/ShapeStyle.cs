@@ -23,6 +23,21 @@ public readonly record struct ShapeStyle(Color? Fill, Color? Stroke, double Stro
     /// <summary>Gets a value indicating whether the fill should be painted (a fill colour is present).</summary>
     public bool HasVisibleFill => Fill.HasValue;
 
+    /// <summary>The fill pattern painted over <see cref="Fill"/>, or <see cref="HatchPattern.None"/> for a plain
+    /// fill (the default). A pattern is a fill property, so it travels with the fill through every shape-drawing
+    /// operation and every backend resolves it on the one path they already share.</summary>
+    /// <remarks>Declared as an <c>init</c> property rather than a fourth positional parameter: a positional
+    /// addition would break every construction site of this record struct across the renderers.</remarks>
+    public HatchPattern Hatch { get; init; }
+
+    /// <summary>The colour of the hatch strokes. When <see langword="null"/> the backend falls back to a
+    /// contrasting shade of <see cref="Fill"/>, so a caller never has to supply two colours to get a visible hatch.</summary>
+    public Color? HatchColor { get; init; }
+
+    /// <summary>Gets a value indicating whether a hatch pattern must be painted: a pattern is selected AND there is
+    /// a fill for it to sit on. A hatch without a fill has nothing to hatch.</summary>
+    public bool HasVisibleHatch => Hatch != HatchPattern.None && Fill.HasValue;
+
     /// <summary>
     /// Gets a value indicating whether the stroke should be painted: a stroke colour is present
     /// and the thickness is positive. A zero or negative thickness yields no visible stroke.

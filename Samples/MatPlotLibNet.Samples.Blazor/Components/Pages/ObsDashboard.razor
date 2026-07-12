@@ -1,61 +1,168 @@
 @page "/obs-dashboard"
-@using MatPlotLibNet.Models.Dashboard
+@using MatPlotLibNet.Models.Series
 @using MatPlotLibNet.Samples.Blazor.Services
+@using MatPlotLibNet.Styling
+@implements IDisposable
 @inject BusTelemetrySimulator Simulator
 
-<h1>Bus / Observability Dashboard</h1>
+<h1>Synapse — control room</h1>
 
-<p>
-    Display refresh:
-    @foreach (var seconds in new[] { 1, 2, 5, 10 })
+<p class="controls">
+    <span>Window:</span>
+    @foreach (var (label, span) in Windows)
     {
-        var s = seconds;
-        <button @onclick="() => SetInterval(s)"
-                disabled="@(!Simulator.IsPaused && Simulator.RefreshInterval.TotalSeconds == s)">@s s</button>
+        var w = span;
+        <button class="@(Simulator.Window == w ? "on" : null)" @onclick="() => Simulator.Window = w">@label</button>
     }
-    <button @onclick="TogglePause">@(Simulator.IsPaused ? "Resume" : "Pause")</button>
+
+    <span>Refresh:</span>
+    @foreach (var (label, interval) in Refreshes)
+    {
+        var r = interval;
+        <button class="@(!Simulator.IsPaused && Simulator.Refresh == r ? "on" : null)"
+                @onclick="() => { Simulator.IsPaused = false; Simulator.Refresh = r; }">@label</button>
+    }
+    <button class="@(Simulator.IsPaused ? "on" : null)" @onclick="() => Simulator.IsPaused = !Simulator.IsPaused">
+        @(Simulator.IsPaused ? "Resume" : "Pause")
+    </button>
+
+    <button @onclick="() => Simulator.FaultInjected = !Simulator.FaultInjected">
+        @(Simulator.FaultInjected ? "Clear fault" : "Inject fault")
+    </button>
 </p>
 
-<p><em>Server-side SVG pushed over SignalR. Data collection runs independently of the refresh rate.</em></p>
+<p class="hint">
+    Measurement runs at 250&nbsp;ms whatever you pick here. Refresh throttles the <em>charts</em> only —
+    the tiles never slow down: history may lag, a warning may not.
+</p>
 
-<MplLiveChart ChartId="@BusTelemetrySimulator.ChartId" HubUrl="/charts-hub" InitialFigure="_initialFigure" />
+<div class="tiles">
+    @foreach (var tile in Tiles())
+    {
+        <MplChart Figure="@tile" />
+    }
+</div>
+
+<div class="charts">
+    <MplLiveChart ChartId="@BusTelemetrySimulator.ThroughputChartId" HubUrl="/charts-hub" />
+    <MplLiveChart ChartId="@BusTelemetrySimulator.LatencyChartId" HubUrl="/charts-hub" />
+</div>
+
+<p class="hint">
+    Nothing is coloured until something needs attention — not even a healthy state. A tile shows
+    <em>severity</em> in its colour and <em>breadth</em> in its number ("2 of 15"); the names sit behind the
+    drill-down, because what makes an operator stand up is how wide a fault spreads, not what it is called.
+    A silent source is <em>hatched</em>, never coloured: "I can no longer see you" is a different fault from
+    "you are broken", and a wall that paints them the same lies exactly when it matters.
+</p>
 
 @code {
-    private readonly Figure _initialFigure = BuildInitialFigure();
+    private static readonly (string Label, TimeSpan Span)[] Windows =
+    [
+        ("1 min", TimeSpan.FromMinutes(1)),
+        ("5 min", TimeSpan.FromMinutes(5)),
+        ("15 min", TimeSpan.FromMinutes(15)),
+        ("1 hour", TimeSpan.FromHours(1))
+    ];
 
-    private void SetInterval(int seconds)
+    private static readonly (string Label, TimeSpan Interval)[] Refreshes =
+    [
+        ("Live", TimeSpan.FromMilliseconds(250)),
+        ("1 s", TimeSpan.FromSeconds(1)),
+        ("5 s", TimeSpan.FromSeconds(5)),
+        ("10 s", TimeSpan.FromSeconds(10))
+    ];
+
+    private Timer? _tick;
+
+    protected override void OnInitialized()
     {
-        Simulator.IsPaused = false;
-        Simulator.RefreshInterval = TimeSpan.FromSeconds(seconds);
+        // The tiles read the simulator directly and redraw once a second. Dancing digits are unreadable, and
+        // the flicker itself teaches people to look away — but the STATE underneath turns the instant it must.
+        _tick = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
-    private void TogglePause() => Simulator.IsPaused = !Simulator.IsPaused;
+    public void Dispose() => _tick?.Dispose();
 
-    private static Figure BuildInitialFigure()
+    private IEnumerable<Figure> Tiles()
     {
-        var tiles = new OpsTile[]
-        {
-            new("Messages/s", 0, "0"),
-            new("Lag", 0, "0.00' s'"),
-            new("Active", 12, "0' of '12"),
-            new("Errors/s", 0, "0"),
-            new("Dropped/s", 0, "0.0")
-        };
+        var s = Simulator.Latest;
 
-        var timelines = new OpsStateTimeline[]
-        {
-            new("Service Bus", [new StateSegment(0, 1, "Up", Colors.Tab10Green)]),
-            new("Exchange", [new StateSegment(0, 1, "Up", Colors.Tab10Green)])
-        };
+        yield return Tile(
+            s.BusesDeviating > 0 ? s.BusesDeviating : s.Buses,
+            "Buses",
+            s.BusesDeviating > 0 ? $"of {s.Buses} · click to see which" : $"all {s.Buses} normal",
+            s.BusState);
 
-        var trends = new OpsTrendLine[]
-        {
-            new("Publish", [0, 1], [0, 0]),
-            new("Consume", [0, 1], [0, 0])
-        };
+        yield return Tile(
+            s.ProcessesDeviating > 0 ? s.ProcessesDeviating : s.Processes,
+            "Processes",
+            s.ProcessesDeviating > 0 ? $"of {s.Processes} · click to see which" : $"all {s.Processes} normal",
+            s.ProcessState);
 
-        return FigureTemplates.OpsDashboard(tiles, timelines, trends, title: "Bus Telemetry")
-            .WithTheme(Theme.Dark)
+        yield return Tile(s.P99, "RFx p99", $"target ≤ 25 ms · {(s.P99 <= 25 ? "within" : $"+{s.P99 - 25:0.0} over")}",
+            s.P99 > 30 ? OpsState.Critical : s.P99 > 25 ? OpsState.Degraded : OpsState.Normal,
+            format: "0.0' ms'", target: 25);
+
+        yield return Tile(s.Backlog / 30, "Backlog",
+            s.Backlog > 40 ? "oldest unprocessed · growing" : "oldest unprocessed · flat",
+            s.Backlog > 250 ? OpsState.Critical : s.Backlog > 40 ? OpsState.Degraded : OpsState.Normal,
+            format: "0.0' s'");
+
+        yield return Tile(s.Drops, "Loss",
+            s.Drops > 2 ? "telemetry is losing messages" : "no loss",
+            s.Drops > 20 ? OpsState.Critical : s.Drops > 2 ? OpsState.Degraded : OpsState.Normal,
+            format: "0.0'/s'");
+
+        yield return Tile(s.Alarms, "Alarms",
+            s.Alarms > 0 ? "unacknowledged" : "no active alarms",
+            s.Alarms > 0 ? OpsState.Critical : OpsState.Normal);
+    }
+
+    private static Figure Tile(double value, string label, string caption, OpsState state,
+        string format = "0.##", double? target = null)
+    {
+        var theme = Theme.OpsNight;
+
+        return Plt.Create()
+            .WithSize(190, 110)
+            .WithTheme(theme)
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.StatTile(value, t =>
+                {
+                    t.Label = label;
+                    t.Caption = caption;
+                    t.Format = format;
+                    t.Target = target;
+
+                    // Colour ONLY when it means something. A resting tile takes the theme's neutral shade —
+                    // a wall of cheerful tiles spends the contrast the one real alarm needs to borrow.
+                    t.AccentColor = state switch
+                    {
+                        OpsState.Critical => theme.Alarm.Critical,
+                        OpsState.Degraded => theme.Alarm.Warning,
+                        _ => null
+                    };
+
+                    // A silent source is a pattern, not a colour: it is not broken, we simply cannot see it.
+                    if (state == OpsState.Unknown)
+                    {
+                        t.Hatch = HatchPattern.ForwardDiagonal;
+                    }
+                });
+                ax.HideAllAxes();
+                ax.WithLegend(visible: false);
+            })
             .Build();
     }
 }
+
+<style>
+    .controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .controls span { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-left: 12px; }
+    .controls button.on { outline: 2px solid #56B4E9; }
+    .tiles { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    .charts { display: flex; gap: 8px; flex-wrap: wrap; }
+    .hint { font-size: 13px; opacity: .7; max-width: 80ch; }
+</style>

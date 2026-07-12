@@ -44,7 +44,11 @@ public sealed class GaugeSeries : ChartSeries
     {
         Type = "gauge",
         GaugeValue = Value, GaugeMin = Min, GaugeMax = Max,
-        NeedleColor = NeedleColor
+        NeedleColor = NeedleColor,
+        // Null when the caller never set bands, so a default gauge emits no band bytes and its golden stays
+        // byte-identical. An EMPTY array is a different intent ("no bands") and survives as empty.
+        BandThresholds = Ranges?.Select(b => b.Threshold).ToArray(),
+        BandColors = Ranges?.Select(b => b.Color).ToList()
     };
 
     /// <summary>Reconstructs a <see cref="GaugeSeries"/> from its serialization DTO, including min/max range and needle colour, and adds it to the axes.</summary>
@@ -66,6 +70,19 @@ public sealed class GaugeSeries : ChartSeries
         {
             s.NeedleColor = dto.NeedleColor.Value;
         }
+
+        if (dto.BandThresholds is { } thresholds && dto.BandColors is { } colors)
+        {
+            int count = Math.Min(thresholds.Length, colors.Count);
+            var bands = new GaugeBand[count];
+            for (int i = 0; i < count; i++)
+            {
+                bands[i] = new GaugeBand(thresholds[i], colors[i]);
+            }
+
+            s.Ranges = bands;
+        }
+
         return s;
     }
 

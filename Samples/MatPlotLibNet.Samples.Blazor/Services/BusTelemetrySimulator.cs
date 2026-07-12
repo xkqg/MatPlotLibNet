@@ -1,289 +1,346 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Collections.Concurrent;
 using MatPlotLibNet.AspNetCore;
 using MatPlotLibNet.Models;
-using MatPlotLibNet.Models.Dashboard;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Samples.Blazor.Services;
 
-/// <summary>Hosted simulator that publishes fake bus/observability telemetry to the
-/// <c>obs-dashboard</c> SignalR chart. Data is collected on a fixed cadence while the
-/// display refresh interval can be changed (or paused) independently from the UI.</summary>
+/// <summary>Simulates a federation of buses and publishes a control-room view of it.
+///
+/// <para><b>Where the alarm logic lives, and why it lives here.</b> The on-delay, the deadband, the worst-child
+/// roll-up and the staleness clock are all in this file — in the sample, not in the charting library. A library
+/// that decides when something counts as broken has started holding opinions about a domain it cannot see. It
+/// supplies the FORM: the tile, the sparkline, the hatch, the pinned window. What that form MEANS is the
+/// observability layer's business, and this simulator stands in for it.</para>
+///
+/// <para><b>Measurement and display are separate.</b> Collection runs at a fixed 250 ms and never waits for a
+/// render; the publish pump runs on its own cadence and skips a beat rather than queueing up behind a slow
+/// client. The operator can slow the charts down or freeze them — but never the tiles, because history may lag
+/// and a warning may not.</para></summary>
 public sealed class BusTelemetrySimulator : BackgroundService
 {
-    /// <summary>SignalR chart id subscribed to by <see cref="Components.Pages.ObsDashboard"/>.</summary>
-    public const string ChartId = "obs-dashboard";
+    /// <summary>SignalR chart id for the throughput panel.</summary>
+    public const string ThroughputChartId = "obs-throughput";
+
+    /// <summary>SignalR chart id for the latency panel. Two ids, because one figure means one cadence, and
+    /// these two panels are read at different rhythms.</summary>
+    public const string LatencyChartId = "obs-latency";
+
+    private static readonly TimeSpan CollectTick = TimeSpan.FromMilliseconds(250);
+    private static readonly TimeSpan History = TimeSpan.FromHours(1);
 
     private readonly IChartPublisher _publisher;
-    private readonly Random _rng = new();
+    private readonly Random _rng = new(20260712);
 
-    // Written from the UI circuit, read from the background loop: lock-free by design.
-    private long _refreshIntervalTicks = TimeSpan.FromSeconds(2).Ticks;
+    // Written from the UI circuit, read from the pump: lock-free by design.
+    private long _refreshTicks = TimeSpan.FromMilliseconds(250).Ticks;
+    private long _windowTicks = TimeSpan.FromMinutes(1).Ticks;
     private volatile bool _isPaused;
 
-    // Rolling telemetry window.
-    private readonly TimeSpan _collectionTick = TimeSpan.FromMilliseconds(200);
-    private readonly TimeSpan _historyWindow = TimeSpan.FromMinutes(2);
-    private DateTime _startTime;
-    private DateTime _lastCollect;
+    // A publish that outruns the renderer must be dropped, not queued: a dashboard that is ten frames behind
+    // is lying about the present. Interlocked, never a lock — this gate is contended by design.
+    private int _inFlight;
 
-    private readonly List<(DateTime T, double V)> _publishRate = [];
-    private readonly List<(DateTime T, double V)> _consumeRate = [];
+    private readonly ConcurrentQueue<Sample> _samples = new();
+    private readonly List<Bus> _buses = [];
+    private volatile Snapshot _latest = Snapshot.Empty;
 
-    private readonly List<StateChange> _busStateLog = [];
-    private readonly List<StateChange> _exchangeStateLog = [];
-
-    private BusState _busState = BusState.Up;
-    private BusState _exchangeState = BusState.Up;
-
-    private double _messagesPerSecond;
-    private double _lagSeconds;
-    private int _activeConsumers;
-    private double _errorsPerSecond;
-    private double _droppedPerSecond;
+    private DateTime _lastCollect = DateTime.MinValue;
+    private DateTime _lastPublish = DateTime.MinValue;
 
     /// <summary>Creates the simulator using the registered chart publisher.</summary>
-    public BusTelemetrySimulator(IChartPublisher publisher) => _publisher = publisher;
-
-    /// <summary>Current display refresh interval. Changes are picked up by the background loop on its next tick.</summary>
-    public TimeSpan RefreshInterval
+    /// <param name="publisher">The chart publisher.</param>
+    public BusTelemetrySimulator(IChartPublisher publisher)
     {
-        get => TimeSpan.FromTicks(Interlocked.Read(ref _refreshIntervalTicks));
-        set => Interlocked.Exchange(
-            ref _refreshIntervalTicks,
-            value > TimeSpan.Zero ? value.Ticks : TimeSpan.FromSeconds(2).Ticks);
+        _publisher = publisher;
+        for (int i = 0; i < BusNames.Length; i++)
+        {
+            _buses.Add(new Bus(BusNames[i], 10 + (i % 11)));
+        }
     }
 
-    /// <summary>When <c>true</c> the background loop keeps collecting data but stops publishing SVG updates.</summary>
+    /// <summary>Display refresh interval for the CHARTS. The tiles are never throttled.</summary>
+    public TimeSpan Refresh
+    {
+        get => TimeSpan.FromTicks(Interlocked.Read(ref _refreshTicks));
+        set => Interlocked.Exchange(ref _refreshTicks, value > TimeSpan.Zero ? value.Ticks : CollectTick.Ticks);
+    }
+
+    /// <summary>How much history the charts show. Changing it re-buckets the same measurements — it never
+    /// changes what is measured.</summary>
+    public TimeSpan Window
+    {
+        get => TimeSpan.FromTicks(Interlocked.Read(ref _windowTicks));
+        set => Interlocked.Exchange(ref _windowTicks, value.Ticks);
+    }
+
+    /// <summary>Freezes the charts. Collection continues; so do the tiles.</summary>
     public bool IsPaused
     {
         get => _isPaused;
         set => _isPaused = value;
     }
 
+    /// <summary>Latches a fault until it is cleared. A fault that heals itself after thirty seconds cannot be
+    /// inspected, and an operator who cannot inspect it learns to distrust the screen.</summary>
+    public bool FaultInjected { get; set; }
+
+    /// <summary>The current tile state, read by the page every tick. Immutable and swapped atomically, so the
+    /// UI never reads a half-written snapshot.</summary>
+    public Snapshot Latest => _latest;
+
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _startTime = DateTime.UtcNow;
-        _lastCollect = _startTime;
-
-        _busStateLog.Add(new StateChange(_startTime, BusState.Up));
-        _exchangeStateLog.Add(new StateChange(_startTime, BusState.Up));
-
-        // Seed the initial trend buffers so the first chart is not empty.
-        CollectData(_startTime);
-        await PublishAsync(stoppingToken);
-
-        DateTime lastPublish = _startTime;
-
         while (!stoppingToken.IsCancellationRequested)
         {
             var now = DateTime.UtcNow;
 
-            // Always collect telemetry at the fixed collection cadence.
-            if (now - _lastCollect >= _collectionTick)
+            // Collection writes state and returns. It never awaits a publish: a slow client must not be able
+            // to stall the measurement of the thing it is watching.
+            if (now - _lastCollect >= CollectTick)
             {
-                CollectData(now);
                 _lastCollect = now;
+                Collect(now);
             }
 
-            // The deadline is re-derived from the CURRENT interval every tick, so shortening
-            // the refresh rate takes effect immediately instead of after the old deadline.
-            if (!IsPaused && now >= lastPublish + RefreshInterval)
+            if (!_isPaused && now - _lastPublish >= Refresh)
             {
-                await PublishAsync(stoppingToken);
-                lastPublish = now;
+                _lastPublish = now;
+                PumpPublish(now, stoppingToken);
             }
 
-            await Task.Delay(50, stoppingToken);
+            await Task.Delay(25, stoppingToken);
         }
     }
 
-    /// <summary>Publishes one frame. A failing frame is skipped, never fatal: the default
-    /// <see cref="BackgroundServiceExceptionBehavior.StopHost"/> would otherwise tear down the whole sample app.</summary>
-    private async Task PublishAsync(CancellationToken stoppingToken)
+    /// <summary>Publishes one frame — unless the previous one is still rendering, in which case this beat is
+    /// dropped. Fire-and-forget on purpose: the loop above must keep collecting while this runs.</summary>
+    private void PumpPublish(DateTime now, CancellationToken ct)
     {
-        try
+        if (Interlocked.CompareExchange(ref _inFlight, 1, 0) != 0)
         {
-            await _publisher.PublishSvgAsync(ChartId, BuildFigure(), stoppingToken);
-        }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[BusTelemetrySimulator] frame skipped: {ex.Message}");
-        }
-    }
-
-    private void CollectData(DateTime now)
-    {
-        // Slowly drift the publish rate, then add occasional spikes.
-        var baseRate = 2000 + 300 * Math.Sin((now - _startTime).TotalSeconds * 0.05);
-        _messagesPerSecond = Math.Max(0, baseRate + _rng.NextDouble() * 200 + (_rng.NextDouble() < 0.05 ? _rng.NextDouble() * 800 : 0));
-
-        _lagSeconds = 0.05 + _rng.NextDouble() * 0.35;
-        if (_messagesPerSecond > 2400)
-        {
-            _lagSeconds += 0.2;
+            return;   // the renderer is still busy; skip this beat rather than queue behind it
         }
 
-        _activeConsumers = _rng.NextDouble() < 0.05 ? 11 : 12;
-        if (_busState is BusState.Critical or BusState.Degraded)
+        var window = Window;
+        var samples = SamplesWithin(now - window);
+
+        _ = Task.Run(async () =>
         {
-            // Drop far enough to cross the tile's warning (9) AND critical (<9) bands,
-            // otherwise the red "consumers lost" accent can never render.
-            _activeConsumers = Math.Max(5, _activeConsumers - _rng.Next(1, 6));
-        }
-
-        _errorsPerSecond = _rng.NextDouble() < 0.02 ? _rng.Next(1, 6) : 0;
-        _droppedPerSecond = _errorsPerSecond > 0 ? _rng.NextDouble() * _errorsPerSecond * 2 : 0;
-
-        _publishRate.Add((now, _messagesPerSecond));
-        _consumeRate.Add((now, Math.Max(0, _messagesPerSecond - _droppedPerSecond)));
-
-        TrimHistory(now);
-        EvolveState(now, ref _busState, _busStateLog);
-        EvolveState(now, ref _exchangeState, _exchangeStateLog);
-    }
-
-    private void TrimHistory(DateTime now)
-    {
-        var cutoff = now - _historyWindow;
-        _publishRate.RemoveAll(p => p.T < cutoff);
-        _consumeRate.RemoveAll(p => p.T < cutoff);
-        TrimStateLog(_busStateLog, cutoff);
-        TrimStateLog(_exchangeStateLog, cutoff);
-    }
-
-    private static void TrimStateLog(List<StateChange> log, DateTime cutoff)
-    {
-        int keepFrom = 0;
-        for (int i = 0; i < log.Count - 1; i++)
-        {
-            if (log[i + 1].T > cutoff)
+            try
             {
-                break;
+                await _publisher.PublishSvgAsync(ThroughputChartId, BuildThroughput(now, window, samples), ct);
+                await _publisher.PublishSvgAsync(LatencyChartId, BuildLatency(now, window, samples), ct);
             }
-
-            keepFrom = i + 1;
-        }
-
-        if (keepFrom > 0)
-        {
-            log.RemoveRange(0, keepFrom);
-        }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // shutting down
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[BusTelemetrySimulator] frame skipped: {ex.Message}");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _inFlight, 0);
+            }
+        }, ct);
     }
 
-    private void EvolveState(DateTime now, ref BusState state, List<StateChange> log)
-    {
-        // Bands must be ordered narrowest-first and disjoint: a wider bound tested first
-        // swallows every narrower one behind it, which silently makes those states unreachable.
-        var roll = _rng.NextDouble();
-        var newState = state switch
-        {
-            BusState.Up => roll < 0.005 ? BusState.Unknown : roll < 0.025 ? BusState.Degraded : BusState.Up,
-            BusState.Degraded => roll < 0.08 ? BusState.Critical : roll < 0.18 ? BusState.Up : BusState.Degraded,
-            BusState.Critical => roll < 0.04 ? BusState.Up : roll < 0.16 ? BusState.Degraded : BusState.Critical,
-            BusState.Unknown => roll < 0.20 ? BusState.Up : BusState.Unknown,
-            _ => BusState.Up
-        };
+    // ── Measurement ──────────────────────────────────────────────────────────────────────────────
 
-        if (newState != state)
+    private void Collect(DateTime now)
+    {
+        bool faulted = FaultInjected;
+
+        double baseRate = 2400 + 220 * Math.Sin(now.Ticks / (double)TimeSpan.TicksPerSecond / 21);
+        double publish = baseRate + (_rng.NextDouble() - 0.5) * 90;
+        double consume = faulted ? Math.Min(publish, 2280) : publish * (0.995 + _rng.NextDouble() * 0.006);
+        double drops = faulted ? 12 + _rng.NextDouble() * 8 : (_rng.NextDouble() < 0.06 ? _rng.NextDouble() * 6 : 0);
+        double p50 = 4 + _rng.NextDouble() * 1.2 + (faulted ? 2 : 0);
+        double p95 = 11 + _rng.NextDouble() * 3 + (faulted ? 10 : 0);
+        double p99 = 19 + _rng.NextDouble() * 5 + (faulted ? 24 : 0);
+
+        _samples.Enqueue(new Sample(now, publish, consume, drops, p50, p95, p99));
+        while (_samples.TryPeek(out var oldest) && now - oldest.At > History)
         {
-            state = newState;
-            log.Add(new StateChange(now, state));
+            _samples.TryDequeue(out _);
         }
+
+        foreach (var bus in _buses)
+        {
+            bus.Evolve(_rng, now, faulted);
+        }
+
+        _latest = BuildSnapshot(now, publish, consume, drops, p99);
     }
 
-    private Figure BuildFigure()
+    /// <summary>Rolls the fleet up into the six numbers a resting page shows.
+    /// <para>The roll-up is <b>worst-child-wins</b>, never an average: one sick consumer among two hundred is
+    /// exactly the thing you are looking for, and an average is precisely the operation that hides it.</para></summary>
+    private Snapshot BuildSnapshot(DateTime now, double publish, double consume, double drops, double p99)
     {
-        var now = DateTime.UtcNow;
+        var busStates = _buses.Select(b => b.State(now)).ToArray();
+        var procStates = _buses.SelectMany(b => b.ProcessStates(now)).ToArray();
 
-        var tiles = new OpsTile[]
+        return new Snapshot(
+            At: now,
+            Buses: _buses.Count,
+            BusesDeviating: busStates.Count(s => s != OpsState.Normal),
+            BusState: Worst(busStates),
+            Processes: procStates.Length,
+            ProcessesDeviating: procStates.Count(s => s != OpsState.Normal),
+            ProcessState: Worst(procStates),
+            P99: p99,
+            Backlog: Math.Max(0, publish - consume),
+            Drops: drops,
+            Alarms: procStates.Count(s => s == OpsState.Critical));
+    }
+
+    private static OpsState Worst(IEnumerable<OpsState> states) =>
+        states.Aggregate(OpsState.Normal, (worst, s) => s > worst ? s : worst);
+
+    private Sample[] SamplesWithin(DateTime from) => [.. _samples.Where(s => s.At >= from)];
+
+    // ── Figures ──────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Buckets the samples for the chosen window, honestly.
+    /// <para>Rates are averaged, but keep their extremes, so a five-second burst survives a one-minute bucket.
+    /// Percentiles carry their MAXIMUM — a p99 cannot be averaged, and averaging is exactly how a dashboard
+    /// hides the spike you came to look for. Counters are summed.</para></summary>
+    private static Bucket[] Bucketise(Sample[] samples, DateTime end, TimeSpan window)
+    {
+        if (samples.Length == 0)
         {
-            new("Messages/s", _messagesPerSecond, "0"),
-            new("Lag", _lagSeconds, "0.00' s'") { AccentThreshold = OpsTile.Threshold(null, Colors.Orange, Colors.Red, 0.30, 0.50) },
-            new("Active", _activeConsumers, "0' of '12") { AccentThreshold = OpsTile.Threshold(Colors.Red, Colors.Orange, Colors.Tab10Green, 9, 12) },
-            new("Errors/s", _errorsPerSecond, "0") { AccentThreshold = OpsTile.Threshold(null, Colors.Orange, Colors.Red, 1, 3) },
-            new("Dropped/s", _droppedPerSecond, "0.0") { AccentThreshold = OpsTile.Threshold(null, Colors.Orange, Colors.Red, 1, 5) }
-        };
+            return [];
+        }
 
-        var timelines = new OpsStateTimeline[]
-        {
-            new("Service Bus", BuildSegments(_busStateLog, now)),
-            new("Exchange", BuildSegments(_exchangeStateLog, now))
-        };
+        long bucketTicks = Math.Max(TimeSpan.TicksPerSecond, window.Ticks / 200);
+        return [.. samples
+            .GroupBy(s => s.At.Ticks / bucketTicks)
+            .OrderBy(g => g.Key)
+            .Select(g => new Bucket(
+                At: new DateTime(g.Key * bucketTicks, DateTimeKind.Utc),
+                Publish: g.Average(s => s.Publish),
+                PublishLow: g.Min(s => s.Publish),
+                PublishHigh: g.Max(s => s.Publish),
+                Consume: g.Average(s => s.Consume),
+                Drops: g.Sum(s => s.Drops) / g.Count(),
+                P50: g.Average(s => s.P50),
+                P95: g.Max(s => s.P95),      // MAX, never mean
+                P99: g.Max(s => s.P99)))];   // MAX, never mean
+    }
 
-        var trendLines = new OpsTrendLine[]
-        {
-            new("Publish", BuildX(_publishRate), BuildY(_publishRate)),
-            new("Consume", BuildX(_consumeRate), BuildY(_consumeRate))
-        };
+    private Figure BuildThroughput(DateTime now, TimeSpan window, Sample[] samples)
+    {
+        var buckets = Bucketise(samples, now, window);
+        double[] x = [.. buckets.Select(b => b.At.ToOADate())];
 
-        return FigureTemplates.OpsDashboard(
-            tiles,
-            timelines,
-            trendLines,
-            title: $"Bus Telemetry — {now:HH:mm:ss}")
-            .WithTheme(Theme.Dark)
+        return Plt.Create()
+            .WithSize(760, 260)
+            .WithTheme(Theme.OpsNight)
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.AxHSpan(2200, 2700, s => s.Alpha = 0.06);           // the learned normal band
+                ax.FillBetween(x, [.. buckets.Select(b => b.PublishLow)],
+                                  [.. buckets.Select(b => b.PublishHigh)],
+                                  s => s.Alpha = 0.10);                 // the min/max envelope
+                ax.Plot(x, [.. buckets.Select(b => b.Publish)], s => s.Label = "publish");
+                ax.Plot(x, [.. buckets.Select(b => b.Consume)], s => s.Label = "consume");
+                ax.Plot(x, [.. buckets.Select(b => b.Drops)], s => s.Label = "drops");
+                PinWindow(ax, now, window);
+                ax.SetYLabel("msg / s");
+            })
             .Build();
     }
 
-    private IReadOnlyList<StateSegment> BuildSegments(List<StateChange> log, DateTime now)
+    private Figure BuildLatency(DateTime now, TimeSpan window, Sample[] samples)
     {
-        var windowStart = now - _historyWindow;
-        var segments = new List<StateSegment>();
-        for (int i = 0; i < log.Count; i++)
-        {
-            var start = log[i].T;
-            var end = i + 1 < log.Count ? log[i + 1].T : now;
-            if (end <= windowStart)
-            {
-                continue;
-            }
+        var buckets = Bucketise(samples, now, window);
+        double[] x = [.. buckets.Select(b => b.At.ToOADate())];
 
-            if (start < windowStart)
+        return Plt.Create()
+            .WithSize(520, 260)
+            .WithTheme(Theme.OpsNight)
+            .AddSubPlot(1, 1, 1, ax =>
             {
-                start = windowStart;
-            }
-
-            var state = log[i].State;
-            segments.Add(new StateSegment(
-                (start - _startTime).TotalSeconds,
-                (end - _startTime).TotalSeconds,
-                state.ToString(),
-                GetColor(state)));
-        }
-        return segments;
+                ax.AxHSpan(0, 25, s => s.Alpha = 0.06);
+                ax.Plot(x, [.. buckets.Select(b => b.P50)], s => s.Label = "p50");
+                ax.Plot(x, [.. buckets.Select(b => b.P95)], s => s.Label = "p95");
+                ax.Plot(x, [.. buckets.Select(b => b.P99)], s => s.Label = "p99");
+                PinWindow(ax, now, window);
+                ax.SetYLabel("ms");
+            })
+            .Build();
     }
 
-    private double[] BuildX(List<(DateTime T, double V)> series) =>
-        series.Select(p => (p.T - _startTime).TotalSeconds).ToArray();
-
-    private static double[] BuildY(List<(DateTime T, double V)> series) =>
-        series.Select(p => p.V).ToArray();
-
-    private readonly record struct StateChange(DateTime T, BusState State);
-
-    private enum BusState
+    /// <summary>Pins the window: EXACT bounds, ROUND ticks. Rounding the bounds is what makes an axis stand
+    /// still and then jump; pinning them is what makes it glide.</summary>
+    private static void PinWindow(AxesBuilder ax, DateTime now, TimeSpan window)
     {
-        Up,
-        Degraded,
-        Critical,
-        Unknown
+        ax.SetXLim((now - window).ToOADate(), now.ToOADate());
+        ax.SetXDateFormat();
     }
 
-    private static Color GetColor(BusState state) => state switch
-    {
-        BusState.Up => Colors.Tab10Green,
-        BusState.Degraded => Colors.Orange,
-        BusState.Critical => Colors.Red,
-        BusState.Unknown => Colors.Gray,
-        _ => Colors.Gray
-    };
+    private static readonly string[] BusNames =
+    [
+        "synapse-ams-01", "synapse-ams-02", "synapse-rtd-01", "synapse-rtd-02", "synapse-fra-01",
+        "synapse-fra-02", "synapse-lon-01", "synapse-lon-02", "synapse-par-01", "synapse-dub-01",
+        "synapse-osl-01", "synapse-mad-01", "synapse-mil-01", "synapse-waw-01", "synapse-zrh-01"
+    ];
+
+    private readonly record struct Sample(
+        DateTime At, double Publish, double Consume, double Drops, double P50, double P95, double P99);
+
+    private readonly record struct Bucket(
+        DateTime At, double Publish, double PublishLow, double PublishHigh,
+        double Consume, double Drops, double P50, double P95, double P99);
+}
+
+/// <summary>The severity ladder. Ordered so that <c>worst-child-wins</c> is a plain comparison.</summary>
+public enum OpsState
+{
+    /// <summary>Nothing to do. Wears no colour.</summary>
+    Normal = 0,
+
+    /// <summary>The source has gone silent — a gap in knowledge, not a fault. Wears a hatch, not a colour.</summary>
+    Unknown = 1,
+
+    /// <summary>Out of band, but nothing is lost yet.</summary>
+    Degraded = 2,
+
+    /// <summary>Failing now.</summary>
+    Critical = 3
+}
+
+/// <summary>The six numbers a resting control-room page shows.
+/// <para>A RECORD CLASS, not a struct, and that is the point: the collector swaps it in with a single reference
+/// write, which is atomic. A struct would be copied field by field, and the UI could read a snapshot whose bus
+/// count came from one tick and whose alarm count came from the next — a screen that shows a state the system
+/// was never in.</para></summary>
+/// <param name="At">When the snapshot was taken.</param>
+/// <param name="Buses">Total buses in the federation.</param>
+/// <param name="BusesDeviating">How many are not normal — the BREADTH, which is what makes an operator stand up.</param>
+/// <param name="BusState">The worst state among them — the SEVERITY, which is what makes them hurry.</param>
+/// <param name="Processes">Total processes.</param>
+/// <param name="ProcessesDeviating">How many are not normal.</param>
+/// <param name="ProcessState">The worst process state.</param>
+/// <param name="P99">Control-path latency, 99th percentile.</param>
+/// <param name="Backlog">Publish minus consume: the gap that becomes an outage.</param>
+/// <param name="Drops">Telemetry messages lost per second.</param>
+/// <param name="Alarms">Active critical alarms.</param>
+public sealed record Snapshot(
+    DateTime At,
+    int Buses, int BusesDeviating, OpsState BusState,
+    int Processes, int ProcessesDeviating, OpsState ProcessState,
+    double P99, double Backlog, double Drops, int Alarms)
+{
+    /// <summary>An empty federation — what the page shows before the first measurement lands.</summary>
+    public static Snapshot Empty { get; } = new(
+        DateTime.MinValue, 0, 0, OpsState.Normal, 0, 0, OpsState.Normal, 0, 0, 0, 0);
 }

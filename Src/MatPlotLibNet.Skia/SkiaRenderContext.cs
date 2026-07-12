@@ -222,12 +222,112 @@ public sealed class SkiaRenderContext : IRenderContext
         {
             using var paint = CreateFillPaint(shape.Fill!.Value);
             draw(paint);
+
+            // Hatch parity with the SVG backend. A hatch that shows on screen and vanishes from an exported
+            // PNG is the worst divergence there is for an operator who screenshots a wall — so the raster
+            // backend paints the same pattern, as a tiled shader over the fill that was just laid down.
+            if (shape.HasVisibleHatch)
+            {
+                using var tile = CreateHatchPaint(shape);
+                draw(tile);
+            }
         }
         if (shape.HasVisibleStroke)
         {
             using var paint = CreateStrokePaint(shape.Stroke!.Value, shape.StrokeThickness, LineStyle.Solid);
             draw(paint);
         }
+    }
+
+    /// <summary>Tile size in pixels — the same 6 units the SVG hatch registry uses, so the two backends
+    /// produce the same hatch density at the same scale.</summary>
+    private const float HatchTile = 6f;
+
+    /// <summary>Builds a paint whose shader tiles the hatch geometry, so any shape the caller draws with it
+    /// is covered by the pattern. The base fill is already on the canvas; this paints only the strokes.</summary>
+    private SKPaint CreateHatchPaint(ShapeStyle shape)
+    {
+        Color strokes = shape.HatchColor ?? shape.Fill!.Value.ContrastingTextColor();
+
+        using var tile = new SKBitmap((int)HatchTile, (int)HatchTile);
+        using (var canvas = new SKCanvas(tile))
+        using (var paint = new SKPaint
+               {
+                   Color = ToSkColor(strokes),
+                   Style = SKPaintStyle.Stroke,
+                   StrokeWidth = 1f,
+                   IsAntialias = true
+               })
+        {
+            canvas.Clear(SKColors.Transparent);
+            DrawHatchTile(canvas, shape.Hatch, paint, ToSkColor(strokes));
+        }
+
+        return new SKPaint
+        {
+            Shader = SKShader.CreateBitmap(tile.Copy(), SKShaderTileMode.Repeat, SKShaderTileMode.Repeat),
+            IsAntialias = true
+        };
+    }
+
+    /// <summary>Draws one tile of the hatch. Mirrors <c>SvgHatchRegistry.AppendStrokes</c> geometry so the SVG
+    /// and PNG of the same figure carry the same marks.</summary>
+    private static void DrawHatchTile(SKCanvas canvas, HatchPattern hatch, SKPaint stroke, SKColor color)
+    {
+        const float T = HatchTile;
+        switch (hatch)
+        {
+            case HatchPattern.ForwardDiagonal:
+                canvas.DrawLine(0, T, T, 0, stroke);
+                canvas.DrawLine(-1, 1, 1, -1, stroke);
+                canvas.DrawLine(T - 1, T + 1, T + 1, T - 1, stroke);
+                break;
+
+            case HatchPattern.BackDiagonal:
+                canvas.DrawLine(0, 0, T, T, stroke);
+                canvas.DrawLine(-1, T - 1, 1, T + 1, stroke);
+                canvas.DrawLine(T - 1, -1, T + 1, 1, stroke);
+                break;
+
+            case HatchPattern.Horizontal:
+                canvas.DrawLine(0, T / 2, T, T / 2, stroke);
+                break;
+
+            case HatchPattern.Vertical:
+                canvas.DrawLine(T / 2, 0, T / 2, T, stroke);
+                break;
+
+            case HatchPattern.Cross:
+                canvas.DrawLine(0, T / 2, T, T / 2, stroke);
+                canvas.DrawLine(T / 2, 0, T / 2, T, stroke);
+                break;
+
+            case HatchPattern.DiagonalCross:
+                canvas.DrawLine(0, T, T, 0, stroke);
+                canvas.DrawLine(0, 0, T, T, stroke);
+                break;
+
+            case HatchPattern.Dots:
+                DrawHatchDot(canvas, color);
+                break;
+
+            case HatchPattern.Stars:
+                DrawHatchDot(canvas, color);
+                canvas.DrawLine(0, T, T, 0, stroke);
+                canvas.DrawLine(0, 0, T, T, stroke);
+                break;
+
+            default:
+                // An out-of-range cast leaves the tile empty: an undefined hatch draws nothing rather than
+                // throwing inside a render pass. HatchPattern.None never reaches here (HasVisibleHatch guards it).
+                break;
+        }
+    }
+
+    private static void DrawHatchDot(SKCanvas canvas, SKColor color)
+    {
+        using var dot = new SKPaint { Color = color, Style = SKPaintStyle.Fill, IsAntialias = true };
+        canvas.DrawCircle(HatchTile / 2, HatchTile / 2, 1f, dot);
     }
 
     /// <summary>Creates a filled SKPaint from the given color, modulated by the current group opacity.</summary>

@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
-using MatPlotLibNet.Models.Dashboard;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
@@ -198,112 +197,6 @@ public static class FigureTemplates
     /// <param name="bins">Number of histogram bins for diagonal panels (default 20).</param>
     public static FigureBuilder PairPlot(double[][] columns, string[]? columnNames = null, int bins = 20) =>
         new PairPlotFigure(columns) { ColumnNames = columnNames, Bins = bins }.Build();
-
-    /// <summary>Creates a single-screen operations dashboard: KPI tiles, state timelines, and a trend chart.
-    /// Designed for fleet/bus observability — everything visible in one glance.</summary>
-    /// <param name="tiles">KPI stat tiles shown across the top row.</param>
-    /// <param name="timelines">Optional state timelines stacked below the tiles.</param>
-    /// <param name="trendLines">Optional trend lines rendered in the bottom panel.</param>
-    /// <param name="title">Optional figure title.</param>
-    /// <param name="configureTrend">Optional customization for the bottom trend axes.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tiles"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="tiles"/> is empty.</exception>
-    public static FigureBuilder OpsDashboard(
-        IReadOnlyList<OpsTile> tiles,
-        IReadOnlyList<OpsStateTimeline>? timelines = null,
-        IReadOnlyList<OpsTrendLine>? trendLines = null,
-        string? title = null,
-        Action<AxesBuilder>? configureTrend = null)
-    {
-        ArgumentNullException.ThrowIfNull(tiles);
-        if (tiles.Count == 0)
-        {
-            throw new ArgumentException("OpsDashboard requires at least one tile.", nameof(tiles));
-        }
-
-        timelines ??= [];
-        trendLines ??= [];
-
-        int tileCount = tiles.Count;
-        int timelineCount = timelines.Count;
-        int trendRows = trendLines.Count > 0 ? 1 : 0;
-        int totalRows = 1 + timelineCount + trendRows;
-
-        var heightRatios = new double[totalRows];
-        heightRatios[0] = 0.8;
-        for (int i = 0; i < timelineCount; i++)
-        {
-            heightRatios[1 + i] = 1.0;
-        }
-
-        if (trendRows > 0)
-        {
-            heightRatios[^1] = 1.6;
-        }
-
-        var builder = Plt.Create()
-            .WithSize(1200, 220 + (timelineCount * 90) + (trendRows * 320))
-            .WithGridSpec(totalRows, tileCount, heightRatios: heightRatios)
-            .TightLayout();
-
-        if (title is not null)
-        {
-            builder.WithTitle(title);
-        }
-
-        // Row 0: KPI tiles
-        for (int i = 0; i < tileCount; i++)
-        {
-            int col = i;
-            var tile = tiles[col];
-            builder.AddSubPlot(GridPosition.Single(0, col), ax =>
-            {
-                ax.StatTile(tile.Value, s =>
-                {
-                    s.Label = tile.Label;
-                    s.Format = tile.Format;
-                    s.AccentColor = tile.AccentThreshold?.Invoke(tile.Value);
-                });
-                ax.HideAllAxes();
-                ax.WithLegend(visible: false);
-            });
-        }
-
-        // Rows 1..M: state timelines
-        for (int i = 0; i < timelineCount; i++)
-        {
-            int row = 1 + i;
-            var timeline = timelines[i];
-            builder.AddSubPlot(new GridPosition(row, row + 1, 0, tileCount), ax =>
-            {
-                ax.StateTimeline(timeline.Segments, s => s.Label = timeline.Label);
-                ax.SetYLabel(timeline.Label);
-                ax.HideTopSpine();
-                ax.HideRightSpine();
-                ax.WithLegend(visible: false);
-            });
-        }
-
-        // Bottom row: trend lines
-        if (trendRows > 0)
-        {
-            int trendRow = totalRows - 1;
-            builder.AddSubPlot(new GridPosition(trendRow, trendRow + 1, 0, tileCount), ax =>
-            {
-                foreach (var line in trendLines)
-                {
-                    ax.Plot(line.X, line.Y, s => s.Label = line.Label);
-                }
-
-                ax.SetXLabel("Time");
-                ax.SetYLabel("Rate");
-                ax.WithLegend();
-                configureTrend?.Invoke(ax);
-            });
-        }
-
-        return builder;
-    }
 
     /// <summary>Creates a facet grid: one subplot per unique category, grouped into columns.</summary>
     /// <param name="x">X values for all observations.</param>

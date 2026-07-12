@@ -147,7 +147,10 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         Type = "bar",
         Categories = Categories, Values = Values, Color = Color,
         Orientation = Orientation.ToString().ToLowerInvariant(),
-        BarWidth = BarWidth
+        BarWidth = BarWidth,
+        // Null when unhatched, so an unhatched bar emits no hatch bytes and its golden stays byte-identical.
+        Hatch = Hatch != HatchPattern.None ? Hatch : null,
+        HatchColor = HatchColor
     };
 
     /// <summary>Reconstructs a <see cref="BarSeries"/> from its serialization DTO, including orientation, and adds it to the axes.</summary>
@@ -162,6 +165,13 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         {
             s.BarWidth = dto.BarWidth.Value;
         }
+
+        if (dto.Hatch.HasValue)
+        {
+            s.Hatch = dto.Hatch.Value;
+        }
+
+        s.HatchColor = dto.HatchColor;
         ChartSerializer.ApplyEnum<BarOrientation>(dto.Orientation, v => s.Orientation = v);
         return s;
     }

@@ -32,13 +32,22 @@ public sealed class ThemeBuilder
     private GridStyle _defaultGrid;
     private PropCycler? _propCycler;
     private Color? _pane3DColor;
-    private readonly string _baseName;
+    private AlarmPalette _alarm;
+    private string _name;
+
+    /// <summary>The theme this builder derives from. Build() CLONES it and overrides only what the caller
+    /// touched — so a property added to Theme tomorrow survives a derived theme without anyone remembering
+    /// to extend an argument list here.</summary>
+    private readonly Theme _base;
 
     /// <summary>Initializes a new <see cref="ThemeBuilder"/> pre-populated from <paramref name="baseTheme"/>.</summary>
     /// <param name="baseTheme">The theme whose settings are copied as the starting point.</param>
     internal ThemeBuilder(Theme baseTheme)
     {
-        _baseName = baseTheme.Name;
+        _base = baseTheme;
+        _name = $"custom-{baseTheme.Name}";
+        _alarm = baseTheme.Alarm;
+        _pane3DColor = baseTheme.Pane3DColor;
         _background = baseTheme.Background;
         _foregroundText = baseTheme.ForegroundText;
         _axesBackground = baseTheme.AxesBackground;
@@ -96,15 +105,36 @@ public sealed class ThemeBuilder
     /// <returns>This builder for chaining.</returns>
     public ThemeBuilder WithPane3DColor(Color? color) { _pane3DColor = color; return this; }
 
+    /// <summary>Names the theme. Without this a derived theme is called <c>custom-&lt;base&gt;</c>, which makes
+    /// four sibling presets indistinguishable in a style sheet.</summary>
+    /// <param name="name">The theme name.</param>
+    /// <returns>This builder for chaining.</returns>
+    public ThemeBuilder WithName(string name) { _name = name; return this; }
+
+    /// <summary>Sets the alarm palette — the colours reserved for states that need attention, and the neutral
+    /// shade a resting state wears.</summary>
+    /// <param name="palette">The alarm palette.</param>
+    /// <returns>This builder for chaining.</returns>
+    public ThemeBuilder WithAlarmPalette(AlarmPalette palette) { _alarm = palette; return this; }
+
     /// <summary>Builds and returns the customized <see cref="Theme"/>.</summary>
     /// <returns>The constructed theme.</returns>
-    public Theme Build() => new(
-        $"custom-{_baseName}",
-        _background,
-        _foregroundText,
-        _axesBackground,
-        _cycleColors,
-        _defaultFont,
-        _defaultGrid,
-        _propCycler) { Pane3DColor = _pane3DColor };
+    /// <summary>Builds the theme by CLONING the base and overriding only what was set.
+    /// <para>It used to construct a fresh <see cref="Theme"/> from eight of its fifteen properties, so a theme
+    /// derived from <see cref="Theme.Dark"/> came back with its spacing, patch-edge colour, violin colours and
+    /// axis margins silently reset to library defaults. A hand-maintained argument list cannot survive the next
+    /// property; a clone can.</para></summary>
+    /// <returns>The built theme.</returns>
+    public Theme Build() => new(_name, _base)
+    {
+        Background = _background,
+        ForegroundText = _foregroundText,
+        AxesBackground = _axesBackground,
+        CycleColors = _cycleColors,
+        DefaultFont = _defaultFont,
+        DefaultGrid = _defaultGrid,
+        PropCycler = _propCycler,
+        Pane3DColor = _pane3DColor,
+        Alarm = _alarm
+    };
 }

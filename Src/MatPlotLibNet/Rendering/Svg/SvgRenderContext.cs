@@ -19,6 +19,10 @@ public sealed class SvgRenderContext : IRenderContext
     private List<DataAttr>? _pendingData;
     private string? _pendingClass;
 
+    /// <summary>Hatch-pattern defs, created on first hatched shape. Most figures carry no hatch at all,
+    /// so the registry stays unallocated and the output byte-identical to before hatching existed.</summary>
+    private SvgHatchRegistry? _hatches;
+
     /// <summary>Default constructor: wires the gradient registry to the internal buffer
     /// so gradient defs land inline at the point of <see cref="DefineLinearGradient"/>.</summary>
     public SvgRenderContext()
@@ -89,9 +93,33 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.AppendLine(" />");
     }
 
+    /// <summary>Registers the shape's hatch (if any) and returns the pattern id to fill with.
+    /// <para>Called BEFORE the element's opening tag is written: the registry appends its
+    /// <c>&lt;defs&gt;&lt;pattern&gt;</c> block to the same buffer, and a defs block emitted halfway through a
+    /// <c>&lt;rect …</c> would corrupt the document.</para>
+    /// <para>Without an explicit <see cref="ShapeStyle.HatchColor"/> the strokes fall back to a contrasting
+    /// shade of the fill, so one property is enough to get a visible hatch.</para></summary>
+    private string? ResolveHatch(ShapeStyle shape)
+    {
+        if (!shape.HasVisibleHatch)
+        {
+            return null;
+        }
+
+        Color fill = shape.Fill!.Value;
+
+        // ContrastingTextColor is the existing "highest-contrast colour against this fill" primitive
+        // (black on a light fill, white on a dark one). Its name says text, its job is contrast — reuse it
+        // rather than mint a second one that computes the same luminance test.
+        Color strokes = shape.HatchColor ?? fill.ContrastingTextColor();
+
+        return (_hatches ??= new SvgHatchRegistry(_sb)).Register(shape.Hatch, fill, strokes);
+    }
+
     /// <inheritdoc />
     public void DrawPolygon(IReadOnlyList<Point> points, ShapeStyle shape)
     {
+        string? hatch = ResolveHatch(shape);
         _sb.Append("<polygon points=\"");
         for (int i = 0; i < points.Count; i++)
         {
@@ -99,7 +127,7 @@ public sealed class SvgRenderContext : IRenderContext
             _sb.Append(points[i].X.ToSvgNumber()).Append(',').Append(points[i].Y.ToSvgNumber());
         }
         _sb.Append('"');
-        _sb.AppendFillStroke(shape);
+        _sb.AppendFillStroke(shape, hatch);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -107,9 +135,10 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawCircle(Point center, double radius, ShapeStyle shape)
     {
+        string? hatch = ResolveHatch(shape);
         _sb.Append("<circle cx=\"").Append(center.X.ToSvgNumber()).Append("\" cy=\"").Append(center.Y.ToSvgNumber())
            .Append("\" r=\"").Append(radius.ToSvgNumber()).Append('"');
-        _sb.AppendFillStroke(shape);
+        _sb.AppendFillStroke(shape, hatch);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -117,9 +146,10 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawRectangle(Rect rect, ShapeStyle shape)
     {
+        string? hatch = ResolveHatch(shape);
         _sb.Append("<rect x=\"").Append(rect.X.ToSvgNumber()).Append("\" y=\"").Append(rect.Y.ToSvgNumber())
            .Append("\" width=\"").Append(rect.Width.ToSvgNumber()).Append("\" height=\"").Append(rect.Height.ToSvgNumber()).Append('"');
-        _sb.AppendFillStroke(shape);
+        _sb.AppendFillStroke(shape, hatch);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -127,11 +157,12 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawEllipse(Rect bounds, ShapeStyle shape)
     {
+        string? hatch = ResolveHatch(shape);
         double cx = bounds.X + bounds.Width / 2;
         double cy = bounds.Y + bounds.Height / 2;
         _sb.Append("<ellipse cx=\"").Append(cx.ToSvgNumber()).Append("\" cy=\"").Append(cy.ToSvgNumber())
            .Append("\" rx=\"").Append((bounds.Width / 2).ToSvgNumber()).Append("\" ry=\"").Append((bounds.Height / 2).ToSvgNumber()).Append('"');
-        _sb.AppendFillStroke(shape);
+        _sb.AppendFillStroke(shape, hatch);
         FlushPendingData();
         _sb.AppendLine(" />");
     }
@@ -225,11 +256,12 @@ public sealed class SvgRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape)
     {
+        string? hatch = ResolveHatch(shape);
         _sb.Append("<path d=\"");
         foreach (var seg in segments)
             _sb.Append(seg.ToSvgPathData());
         _sb.Append('"');
-        _sb.AppendFillStroke(shape);
+        _sb.AppendFillStroke(shape, hatch);
         // Phase G.7 of v1.7.2 follow-on plan — missing flush here caused
         // SetNextElementData pushes to leak across iterations (e.g. Sankey's
         // per-link data-* attributes stacked onto every subsequent node).

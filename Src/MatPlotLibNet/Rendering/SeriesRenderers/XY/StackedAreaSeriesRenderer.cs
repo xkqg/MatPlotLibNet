@@ -58,7 +58,7 @@ internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeri
             for (int i = n - 1; i >= 0; i--)
                 polygon.Add(new Point(pxArr[i], pyBot[i]));
 
-            Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0));
+            Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0) { Hatch = series.Hatch, HatchColor = series.HatchColor });
         }
     }
 }

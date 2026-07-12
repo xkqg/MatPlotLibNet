@@ -33,8 +33,9 @@ internal sealed class StateTimelineSeriesRenderer : SeriesRenderer<StateTimeline
             double y = yTop;
             double h = yBottom - yTop;
 
-            // Draw the filled rectangle spanning the full plot height
-            Ctx.DrawRectangle(new Rect(x, y, w, h), new ShapeStyle(seg.Color, null, 0));
+            // Draw the filled rectangle spanning the full plot height. A hatched segment reads as "no
+            // information" rather than as a state — see StateSegment.Hatch.
+            Ctx.DrawRectangle(new Rect(x, y, w, h), new ShapeStyle(seg.Color, null, 0) { Hatch = seg.Hatch });
 
             // Centre the label text inside the rectangle
             if (!string.IsNullOrEmpty(seg.Label))

@@ -106,6 +106,7 @@ public class ChartSerializerGoldenCorpusTests
     [InlineData("progressbar")]
     [InlineData("stattile")]
     [InlineData("statetimeline")]
+    [InlineData("bulletgraph")]
     [InlineData("sparkline")]
     [InlineData("treemap")]
     [InlineData("sunburst")]
@@ -227,6 +228,13 @@ public class ChartSerializerGoldenCorpusTests
             case "stattile": ax.StatTile(42.0); break;
             case "statetimeline":
                 ax.StateTimeline([new StateSegment(0, 1, "A", Colors.Red), new StateSegment(1, 2, "B", Colors.Blue)]);
+                break;
+            case "bulletgraph":
+                ax.Bullet(2412, b =>
+                {
+                    b.Target = 2500;
+                    b.Bands = [new(1800, Colors.Red), new(2800, Colors.Blue)];
+                });
                 break;
             case "sparkline": ax.Sparkline([1.0, 2, 3, 4, 5]); break;
             case "treemap": ax.Treemap(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }); break;

@@ -640,6 +640,14 @@ public sealed class AxesBuilder
     public AxesBuilder StatTile(double value, Action<StatTileSeries>? configure = null)
         => AddSeries(ax => ax.StatTile(value), configure);
 
+    /// <summary>Adds a bullet graph to the axes — Few's replacement for the radial dial: a measure, an
+    /// optional target tick, and optional qualitative bands in one thin strip.</summary>
+    /// <param name="value">The measure.</param>
+    /// <param name="configure">Optional configuration of the created series.</param>
+    /// <returns>This builder for chaining.</returns>
+    public AxesBuilder Bullet(double value, Action<BulletGraphSeries>? configure = null)
+        => AddSeries(ax => ax.Bullet(value), configure);
+
     /// <summary>Adds a single-row discrete-state timeline of coloured segments along the X axis.</summary>
     /// <param name="segments">Ordered state segments; each defines a coloured rectangle spanning
     /// <c>[Start, End]</c> in data units with a centred label.</param>

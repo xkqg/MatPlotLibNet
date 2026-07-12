@@ -21,8 +21,39 @@ public sealed class StatTileSeries : ChartSeries
     /// the theme cycle colour is used when null.</summary>
     public Color? AccentColor { get; set; }
 
+    /// <summary>The format string applied when <see cref="Value"/> carries no explicit one.</summary>
+    internal const string DefaultFormat = "0.##";
+
     /// <summary>The numeric format string applied to <see cref="Value"/> (invariant culture; default <c>"0.##"</c>).</summary>
-    public string Format { get; set; } = "0.##";
+    public string Format { get; set; } = DefaultFormat;
+
+    /// <summary>The comparative this value is measured against, or <see langword="null"/> for none.
+    /// <para>A number without a comparative cannot be judged. "68%" is not good or bad until you know what it
+    /// was supposed to be, and a reader who has to supply that from memory usually does not.</para></summary>
+    public double? Target { get; set; }
+
+    /// <summary>The gap line, drawn under the headline — e.g. <c>"target 25 ms · +3.1 over"</c>.
+    /// <para>Supplied by the caller, never computed here: what counts as "over" is a domain judgement, and a
+    /// charting library that decides it has started holding opinions about when something is broken.</para></summary>
+    public string? Caption { get; set; }
+
+    /// <summary>An inline trend — a Tufte sparkline drawn inside the tile: no axis, no frame, no ticks, just
+    /// the line. <see langword="null"/> (default) draws none.
+    /// <para>It deliberately contributes nothing to the axes' data range: the tile's headline is the subject,
+    /// and its own history must not drag the scale around.</para></summary>
+    public IReadOnlyList<double>? Trend { get; set; }
+
+    /// <summary>The colour of the trend line, or <see langword="null"/> for the tile's own headline colour.</summary>
+    public Color? TrendColor { get; set; }
+
+    /// <summary>A fill pattern across the tile, or <see cref="HatchPattern.None"/> (the default) for none.
+    /// <para>This is how a tile says <i>no information</i> — the source has gone silent. It is a pattern and
+    /// not a colour on purpose: "I can no longer see you" is a different fault from "you are broken", and a
+    /// wall that paints them the same lies exactly when it matters most.</para></summary>
+    public HatchPattern Hatch { get; set; } = HatchPattern.None;
+
+    /// <summary>The colour of the hatch strokes, or <see langword="null"/> to contrast automatically.</summary>
+    public Color? HatchColor { get; set; }
 
     /// <summary>Creates a stat tile displaying <paramref name="value"/>.</summary>
     public StatTileSeries(double value) => Value = value;
@@ -39,6 +70,16 @@ public sealed class StatTileSeries : ChartSeries
         Type = "stattile",
         GaugeValue = Value,
         Color = AccentColor,
+        // Null at the default, so an unformatted tile emits no format bytes and its golden stays byte-identical.
+        // Before v1.14 this was simply absent: a tile came back from the wire reading "0.3" where it had read
+        // "0.3 s" — the unit, and with it the meaning, was dropped in transit.
+        TileFormat = Format != DefaultFormat ? Format : null,
+        BulletTarget = Target,
+        CenterText = Caption,
+        Values = Trend?.ToArray(),
+        TrackColor = TrendColor,
+        Hatch = Hatch != HatchPattern.None ? Hatch : null,
+        HatchColor = HatchColor,
     };
 
     /// <summary>Reconstructs a <see cref="StatTileSeries"/> from its serialization DTO, restoring its value and accent colour, and adds it to the axes.</summary>
@@ -52,6 +93,23 @@ public sealed class StatTileSeries : ChartSeries
         {
             s.AccentColor = dto.Color.Value;
         }
+
+        if (dto.TileFormat is not null)
+        {
+            s.Format = dto.TileFormat;
+        }
+
+        s.Target = dto.BulletTarget;
+        s.Caption = dto.CenterText;
+        s.Trend = dto.Values;
+        s.TrendColor = dto.TrackColor;
+
+        if (dto.Hatch.HasValue)
+        {
+            s.Hatch = dto.Hatch.Value;
+        }
+
+        s.HatchColor = dto.HatchColor;
         return s;
     }
 

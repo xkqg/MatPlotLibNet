@@ -48,20 +48,35 @@ internal static class SvgWriterExtensions
     /// when <see cref="ShapeStyle.StrokeThickness"/> is not positive (previously the SVG backend
     /// emitted <c>stroke-width="0"</c> in that case, which browsers render as no stroke anyway).
     /// </remarks>
-    public static StringBuilder AppendFillStroke(this StringBuilder sb, ShapeStyle shape)
+    /// <param name="sb">The output buffer.</param>
+    /// <param name="shape">The fill/stroke bundle to emit.</param>
+    /// <param name="patternRef">A hatch-pattern id (without <c>#</c>) resolved by the render context's hatch
+    /// registry, or <see langword="null"/> for a plain fill. When present it replaces the flat fill colour with a
+    /// <c>url(#id)</c> reference — the pattern tile already carries the base fill, so the two never drift apart.</param>
+    public static StringBuilder AppendFillStroke(this StringBuilder sb, ShapeStyle shape, string? patternRef = null)
     {
-        if (shape.HasVisibleFill)
+        if (patternRef is not null)
+        {
+            sb.Append(" fill=\"url(#").Append(patternRef).Append(")\"");
+        }
+        else if (shape.HasVisibleFill)
         {
             Color fill = shape.Fill!.Value;
             sb.Append(" fill=\"").Append(fill.ToHex()).Append('"');
             if (fill.A < 255)
+            {
                 sb.Append(" fill-opacity=\"").Append((fill.A / 255.0).ToSvgNumber()).Append('"');
+            }
         }
         else
+        {
             sb.Append(" fill=\"none\"");
+        }
 
         if (shape.HasVisibleStroke)
+        {
             sb.Append(" stroke=\"").Append(shape.Stroke!.Value.ToHex()).Append("\" stroke-width=\"").Append(shape.StrokeThickness.ToSvgNumber()).Append('"');
+        }
 
         return sb;
     }

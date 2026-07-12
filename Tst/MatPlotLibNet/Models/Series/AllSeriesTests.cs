@@ -112,6 +112,11 @@ public class AllSeriesTests
         { new GaugeSeries(50), nameof(GaugeSeries) },
         { new ProgressBarSeries(0.5), nameof(ProgressBarSeries) },
         { new SparklineSeries([1.0, 2.0, 3.0]), nameof(SparklineSeries) },
+        // v1.12/v1.13 dashboard primitives — absent from this theory since they shipped, so every
+        // cross-cutting conformance check (Label, Visible, ZOrder, ToSeriesDto, Accept) skipped them.
+        { new StatTileSeries(42), nameof(StatTileSeries) },
+        { new StateTimelineSeries([new StateSegment(0, 1, "Up", Colors.Tab10Green)]), nameof(StateTimelineSeries) },
+        { new BulletGraphSeries(50), nameof(BulletGraphSeries) },
         { new TreemapSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(TreemapSeries) },
         { new SunburstSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(SunburstSeries) },
         { new DendrogramSeries(new TreeNode { Label = "Root", Value = 1.0, Children = [new TreeNode { Label = "A" }, new TreeNode { Label = "B" }] }), nameof(DendrogramSeries) },

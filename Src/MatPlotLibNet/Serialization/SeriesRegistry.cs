@@ -90,6 +90,7 @@ public static class SeriesRegistry
         Register("progressbar", ProgressBarSeries.FromSeriesDto);
         Register("stattile", StatTileSeries.FromSeriesDto);
         Register("statetimeline", StateTimelineSeries.FromSeriesDto);
+        Register("bulletgraph", BulletGraphSeries.FromSeriesDto);
         Register("sparkline", SparklineSeries.FromSeriesDto);
         Register("treemap", TreemapSeries.FromSeriesDto);
         Register("sunburst", SunburstSeries.FromSeriesDto);

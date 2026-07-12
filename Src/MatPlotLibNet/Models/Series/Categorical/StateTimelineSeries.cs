@@ -12,7 +12,18 @@ namespace MatPlotLibNet.Models.Series;
 /// <param name="End">End value along the X axis (data units).</param>
 /// <param name="Label">Display label centred within the segment.</param>
 /// <param name="Color">Fill colour of the segment rectangle.</param>
-public readonly record struct StateSegment(double Start, double End, string Label, Color Color);
+public readonly record struct StateSegment(double Start, double End, string Label, Color Color)
+{
+    /// <summary>An optional fill pattern for this band, or <see cref="HatchPattern.None"/> (the default) for a
+    /// flat fill.
+    /// <para>This is what lets a timeline distinguish a <i>gap in knowledge</i> from a <i>fault</i>. On a monitored
+    /// fleet, "I can no longer see you" is the most common failure and it is not the same failure as "you are
+    /// broken" — a dashboard that paints both in a colour lies exactly when it matters. A hatched band reads as
+    /// "no information" from across a room, and it spends nothing out of the alarm-colour budget.</para></summary>
+    /// <remarks>Declared as an <c>init</c> property rather than a fifth positional parameter: a positional
+    /// addition would break every existing construction site of this record struct.</remarks>
+    public HatchPattern Hatch { get; init; }
+}
 
 /// <summary>A single-row timeline of discrete coloured state segments along the X axis —
 /// e.g. a participant's up/down status over time, or an alarm state over time. Each
@@ -52,6 +63,11 @@ public sealed class StateTimelineSeries : ChartSeries
         Ends       = Segments.Select(s => s.End).ToArray(),
         Categories = Segments.Select(s => s.Label).ToArray(),
         StateSegmentColors = Segments.Select(s => s.Color).ToList(),
+        // Null unless at least one segment is hatched, so an ordinary timeline emits no hatch bytes and its
+        // golden stays byte-identical.
+        StateSegmentHatches = Segments.Any(s => s.Hatch != HatchPattern.None)
+            ? Segments.Select(s => s.Hatch).ToList()
+            : null,
     };
 
     /// <summary>Reconstructs a <see cref="StateTimelineSeries"/> from its serialization DTO, restoring
@@ -65,12 +81,16 @@ public sealed class StateTimelineSeries : ChartSeries
         var ends    = dto.Ends       ?? [];
         var labels  = dto.Categories ?? [];
         var colors  = dto.StateSegmentColors ?? [];
+        var hatches = dto.StateSegmentHatches;
         int count   = Math.Min(Math.Min(starts.Length, ends.Length),
                                Math.Min(labels.Length, colors.Count));
         var segments = new Models.Series.StateSegment[count];
         for (int i = 0; i < count; i++)
         {
-            segments[i] = new Models.Series.StateSegment(starts[i], ends[i], labels[i], colors[i]);
+            segments[i] = new Models.Series.StateSegment(starts[i], ends[i], labels[i], colors[i])
+            {
+                Hatch = hatches is not null && i < hatches.Count ? hatches[i] : HatchPattern.None
+            };
         }
         return axes.StateTimeline(segments);
     }

@@ -39,7 +39,7 @@ dotnet run --project MatPlotLibNet.Samples.Blazor
 
 - `/` — static bar chart and scatter plot using `MatPlotLibNet.Blazor` control
 - `/live` — real-time chart updating every 3 seconds via SignalR
-- `/obs-dashboard` — bus/observability dashboard (first iteration of `FigureTemplates.OpsDashboard`) with KPI tiles, state timelines, and throughput trend, refresh rate 1/2/5/10 s or pause
+- `/obs-dashboard` — control-room view of a simulated 15-bus federation (`Plt.OpsDashboard()`): quiet KPI tiles that carry no colour until something needs attention, a hatched tile for a source that has gone silent, and two rolling panels (throughput and latency percentiles) on a pinned time window. Window 1/5/15 min or 1 hour; refresh throttles the charts only — the tiles never slow down.
 
 ## WPF
 

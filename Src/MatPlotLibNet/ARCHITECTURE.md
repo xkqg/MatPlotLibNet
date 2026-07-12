@@ -35,7 +35,7 @@ MatPlotLibNet/
   DisplayMode.cs                      enum: Inline, Expandable, Popup
   IChartSubscriptionClient.cs         shared SignalR client contract
 
-  FigureTemplates.cs                  pre-built layouts: FinancialDashboard(), ScientificPaper(), SparklineDashboard(), OpsDashboard(), JointPlot(), PairPlot(), FacetGrid(), Clustermap()
+  FigureTemplates.cs                  pre-built layouts: FinancialDashboard(), ScientificPaper(), SparklineDashboard(), JointPlot(), PairPlot(), FacetGrid(), Clustermap()
 
   Plt.Style                           nested static class: Use(), Context() for rcParams configuration
 
@@ -43,7 +43,12 @@ MatPlotLibNet/
     FigureBuilder.cs                  fluent API: Plt.Create().WithTitle().Plot().Build() (build only)
     AxesBuilder.cs                    subplot config: WithTitle(), SetXLabel(), Plot(), Scatter(), Threshold() (ref-line+breach-span+label), WithLegendValues() (last-Y in legend), etc.
     SecondaryAxisBuilder.cs           secondary Y-axis: SetYLabel(), Plot(), Scatter()
-    ThemeBuilder.cs                   custom themes: Theme.CreateFrom().WithFont().Build()
+    ThemeBuilder.cs                   custom themes: Theme.CreateFrom().WithFont().WithName().WithAlarmPalette().Build()
+                                      (v1.14: Build() CLONES the base theme — it used to rebuild from 8 of 15
+                                      properties and silently reset the rest)
+    OpsDashboardBuilder.cs            Plt.OpsDashboard(): tiles + timelines + trend panel on ONE pinned time
+                                      window; the CALLER supplies the clock (WithWindow(end, span)) — the
+                                      library never reads DateTime.Now
 
   Extensions/
     FigureExtensions.cs               Save(), Transform(), ToSvg(), ToJson(), RegisterTransform()
@@ -63,11 +68,7 @@ MatPlotLibNet/
                                       double-argument overloads forward here (v1.13.0)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
 
-    Dashboard/
-      OpsDashboardModels.cs           OpsTile / OpsStateTimeline / OpsTrendLine — input records for
-                                      FigureTemplates.OpsDashboard, plus OpsTile.Threshold() accent rule
-
-    Series/                           81 series types across 15 families
+    Series/                           82 series types across 15 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
       ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
       IHasDataRange.cs                interface: series that expose their own data bounds
@@ -260,7 +261,7 @@ MatPlotLibNet/
                                         / ShapeStyle(Fill,Stroke,StrokeThickness) records (v1.13.0, was loose params —
                                         centralizes the Thickness<=0 visibility guard across every backend);
                                         DrawText, DrawText(…,rotation), DrawRichText (default method)
-    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 81 series types
+    ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 82 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
     Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
@@ -405,7 +406,8 @@ MatPlotLibNet/
                                       EdgeGray, Amber, FibonacciOrange (replace magic hex strings)
     ColorExtensions.cs                Color.Luminance() (Rec. 709 Y'), Color.ContrastingTextColor() — auto black/white for readable cell labels
     Font.cs                           sealed record (Family, Size, Weight, Slant, Color)
-    Theme.cs                          8 built-in themes (+ ColorBlindSafe Okabe-Ito, HighContrast WCAG AAA) + GridStyle sealed record + PropCycler? property (new v0.8.8)
+    Theme.cs                          30 built-in themes (incl. OpsNight/OpsPanel/OpsWarm/OpsContrast operator backgrounds) + AlarmPalette (Resting/Warning/Critical/Unknown — colour is reserved for what needs attention; the resting state wears none)
+    AlarmPalette.cs                   readonly record struct: the colours a theme reserves for abnormal states (+ ColorBlindSafe Okabe-Ito, HighContrast WCAG AAA) + GridStyle sealed record + PropCycler? property (new v0.8.8)
     LineStyle.cs                      enum: Solid, Dashed, Dotted, DashDot, None
     MarkerStyle.cs                    enum: None, Circle, Square, Triangle, Diamond, etc.
     DashPatterns.cs                   canonical dash ratios shared by SVG + MAUI + Skia renderers
@@ -543,7 +545,7 @@ ChartHub               routes to SignalR group by chartId
 | Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D) | multiple output targets and coordinate systems from same model |
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
-| Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 81 series | each series knows how to serialize AND deserialize itself (v1.13.0: no central switch on either side) |
+| Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 82 series | each series knows how to serialize AND deserialize itself (v1.13.0: no central switch on either side) |
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
 | Registry | SeriesRegistry (ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>>) | thread-safe discriminator -> series' own FromSeriesDto factory lookup; thin table only |
 | Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries; CircularRenderer<T>, PolarTransformRenderer<T>, OhlcStreamingIndicatorTests<T> (Phase L) | DRY shared properties and behaviour across series and renderer families |

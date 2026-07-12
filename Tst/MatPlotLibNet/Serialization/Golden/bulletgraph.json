@@ -1,0 +1,1 @@
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"bulletgraph","gaugeValue":2412,"bandThresholds":[1800,2800],"bandColors":["#FF0000","#0000FF"],"bulletTarget":2500}]}]}

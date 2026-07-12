@@ -280,4 +280,10 @@ public interface ISeriesVisitor
     /// <summary>Renders a single-row discrete-state timeline (coloured segments along X).
     /// Default is a no-op for ISP compatibility.</summary>
     [ExcludeFromCodeCoverage] void Visit(StateTimelineSeries series, RenderArea area) { }
+
+    // ── v1.14 Bullet graph (default no-op for ISP compatibility) ──
+
+    /// <summary>Renders a bullet graph (measure, target tick, qualitative bands).
+    /// Default is a no-op for ISP compatibility.</summary>
+    [ExcludeFromCodeCoverage] void Visit(BulletGraphSeries series, RenderArea area) { }
 }

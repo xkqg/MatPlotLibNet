@@ -71,7 +71,7 @@ public sealed class AutoDateLocator : ITickLocator
             ticks.Add(new DateTime(year, 1, 1).ToOADate());
             year++;
         }
-        return Thin(ticks, 10);
+        return Thin(ticks, 10, min, max, 0);
     }
 
     private static double[] LocateMonths(DateTime min, DateTime max)
@@ -84,7 +84,7 @@ public sealed class AutoDateLocator : ITickLocator
             ticks.Add(current.ToOADate());
             current = current.AddMonths(1);
         }
-        return Thin(ticks, 12);
+        return Thin(ticks, 12, min, max, 0);
     }
 
     private static double[] LocateWeeks(DateTime min, DateTime max)
@@ -99,7 +99,7 @@ public sealed class AutoDateLocator : ITickLocator
             ticks.Add(current.ToOADate());
             current = current.AddDays(7);
         }
-        return Thin(ticks, 10);
+        return Thin(ticks, 10, min, max, TimeSpan.TicksPerDay * 7);
     }
 
     private static double[] LocateDays(DateTime min, DateTime max)
@@ -112,7 +112,7 @@ public sealed class AutoDateLocator : ITickLocator
             ticks.Add(current.ToOADate());
             current = current.AddDays(1);
         }
-        return Thin(ticks, 10);
+        return Thin(ticks, 10, min, max, TimeSpan.TicksPerDay);
     }
 
     private static double[] LocateHours(DateTime min, DateTime max)
@@ -125,7 +125,7 @@ public sealed class AutoDateLocator : ITickLocator
             ticks.Add(current.ToOADate());
             current = current.AddHours(1);
         }
-        return Thin(ticks, 8);
+        return Thin(ticks, 8, min, max, TimeSpan.TicksPerHour);
     }
 
     private static double[] LocateMinutes(DateTime min, DateTime max)
@@ -138,7 +138,7 @@ public sealed class AutoDateLocator : ITickLocator
             ticks.Add(current.ToOADate());
             current = current.AddMinutes(1);
         }
-        return Thin(ticks, 6);
+        return Thin(ticks, 6, min, max, TimeSpan.TicksPerMinute);
     }
 
     private static double[] LocateSeconds(DateTime min, DateTime max)
@@ -152,14 +152,63 @@ public sealed class AutoDateLocator : ITickLocator
             ticks.Add(current.ToOADate());
             current = current.AddSeconds(1);
         }
-        return Thin(ticks, 6);
+        return Thin(ticks, 6, min, max, TimeSpan.TicksPerSecond);
     }
 
-    /// <summary>Thins a tick list to at most <paramref name="maxCount"/> evenly-sampled entries.</summary>
-    private static double[] Thin(List<double> ticks, int maxCount)
+    /// <summary>Thins a tick list to at most <paramref name="maxCount"/> entries, anchored on ABSOLUTE time.
+    ///
+    /// <para>It used to keep every k-th entry counting from index 0 — and index 0 is the first tick inside the
+    /// window. On a static chart that is harmless. On a <b>sliding</b> window it is not: the moment the window
+    /// advances past a tick, index 0 becomes a different instant, the whole selection shifts by one, and every
+    /// label on the axis jumps to a new place while the trace beneath it glides smoothly. A rolling strip chart
+    /// looked broken for exactly this reason.</para>
+    ///
+    /// <para>Two things make it phase-stable. The step is derived from the window's <b>span</b> — which is
+    /// constant as the window slides — and not from how many ticks happen to fall inside it, which flickers
+    /// between n and n+1. And the kept ticks are chosen by their ordinal in <b>absolute time</b>, so a given
+    /// clock instant is a labelled tick or it is not, regardless of where the window begins. The labels then
+    /// glide out of frame together with the data they belong to.</para>
+    ///
+    /// <para>The step is also rounded up onto a human ladder (1, 2, 5, 10, 15, 20, 30, 60): an axis labelled
+    /// every 8 seconds is arithmetically fine and unreadable to a person.</para></summary>
+    private static double[] Thin(List<double> ticks, int maxCount, DateTime min, DateTime max, long unitTicks)
     {
-        if (ticks.Count <= maxCount) return [.. ticks];
-        int step = (int)Math.Ceiling((double)ticks.Count / maxCount);
-        return ticks.Where((_, i) => i % step == 0).ToArray();
+        if (ticks.Count <= maxCount)
+        {
+            return [.. ticks];
+        }
+
+        // Calendar intervals (months, years) have no fixed length, and a window measured in years does not
+        // slide frame by frame — index thinning is correct and cheap there.
+        if (unitTicks <= 0)
+        {
+            int stride = (int)Math.Ceiling((double)ticks.Count / maxCount);
+            return ticks.Where((_, i) => i % stride == 0).ToArray();
+        }
+
+        // The step comes from the window's SPAN, which is constant while the window slides — never from the
+        // number of ticks that happen to fall inside it, which flickers between n and n+1 and would change the
+        // step (and thus every label) from one frame to the next.
+        double units = (max - min).Ticks / (double)unitTicks;
+        long step = NiceStep((long)Math.Ceiling(units / maxCount));
+
+        // The ordinal is computed in INTEGER ticks, never by dividing the OLE date by the spacing: an OA date
+        // is ~46,000 and a one-second spacing is ~1.16e-5, so that division amplifies the rounding error of a
+        // double subtraction into hundreds of seconds — and the modulo below turns into noise. Integers do not
+        // have that problem.
+        return ticks
+            .Where(t => DateTime.FromOADate(t).Ticks / unitTicks % step == 0)
+            .ToArray();
+    }
+
+    /// <summary>Rounds a step up onto the ladder people actually read clocks on. An axis labelled every eight
+    /// seconds is arithmetically fine and unreadable to a human.
+    /// <para>The ladder's top rung (60) is the cap by construction: every interval in
+    /// <see cref="Locate"/> is chosen so that the window holds at most ~120 units, and the largest
+    /// <c>maxCount</c> divisor is 6 — so a raw step above 60 cannot arise.</para></summary>
+    private static long NiceStep(long raw)
+    {
+        long[] ladder = [1, 2, 5, 10, 15, 20, 30, 60];
+        return ladder.FirstOrDefault(candidate => raw <= candidate, ladder[^1]);
     }
 }

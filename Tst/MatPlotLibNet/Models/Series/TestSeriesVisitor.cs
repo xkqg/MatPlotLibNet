@@ -94,4 +94,14 @@ internal sealed class TestSeriesVisitor : ISeriesVisitor
     public void Visit(ClustermapSeries series, RenderArea area) => LastVisited = nameof(ClustermapSeries);
     public void Visit(PairGridSeries series, RenderArea area) => LastVisited = nameof(PairGridSeries);
     public void Visit(NetworkGraphSeries series, RenderArea area) => LastVisited = nameof(NetworkGraphSeries);
+
+    // ── v1.12/v1.13 dashboard primitives ──
+    // ISeriesVisitor's members are DEFAULT no-op interface methods, so a visitor that forgets an overload
+    // compiles, runs, and silently draws nothing. These two shipped without one — which is exactly the class
+    // of defect this dispatch theory exists to catch, and it caught it the moment they entered the theory.
+    public void Visit(StatTileSeries series, RenderArea area) => LastVisited = nameof(StatTileSeries);
+    public void Visit(StateTimelineSeries series, RenderArea area) => LastVisited = nameof(StateTimelineSeries);
+
+    // ── v1.14 bullet graph ──
+    public void Visit(BulletGraphSeries series, RenderArea area) => LastVisited = nameof(BulletGraphSeries);
 }

@@ -62,9 +62,12 @@ internal sealed class PieSeriesRenderer : CircularRenderer<PieSeries>
             }
 
             var sliceColor = series.Colors is not null && i < series.Colors.Length ? series.Colors[i] : SeriesColor;
+            var sliceHatch = series.Hatches is not null && i < series.Hatches.Length
+                ? series.Hatches[i]
+                : HatchPattern.None;
             Ctx.DrawPath(
                 BuildSlicePath(sliceCx, sliceCy, radius, startAngle, endAngle),
-                new ShapeStyle(sliceColor, Colors.White, 1));
+                new ShapeStyle(sliceColor, Colors.White, 1) { Hatch = sliceHatch });
 
             // AutoPct: draw percentage text at the centroid of the slice (inside the wedge).
             // Not collision-handled — interior labels are constrained to their own wedges and

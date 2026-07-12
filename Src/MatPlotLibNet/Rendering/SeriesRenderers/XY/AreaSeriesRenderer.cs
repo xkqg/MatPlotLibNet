@@ -59,7 +59,7 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
             for (int i = pxX.Length - 1; i >= 0; i--) polygon.Add(new Point(pxX[i], pyZero));
         }
 
-        Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0));
+        Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0) { Hatch = series.Hatch, HatchColor = series.HatchColor });
 
         // Draw boundary with EdgeColor override if set
         var edgeColor = series.EdgeColor ?? color;
@@ -126,7 +126,7 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
             for (int i = pxX.Length - 1; i >= 0; i--) polygon.Add(new Point(pxX[i], pyZero));
         }
 
-        Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0));
+        Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0) { Hatch = series.Hatch, HatchColor = series.HatchColor });
     }
 
 }

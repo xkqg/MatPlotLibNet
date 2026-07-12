@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using Microsoft.Maui.Graphics;
+using MatPlotLibNet.Diagnostics;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 using MplFont = MatPlotLibNet.Styling.Font;
@@ -50,6 +51,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawPolygon(IReadOnlyList<MplPoint> points, ShapeStyle shape)
     {
+        AnnounceUnsupportedHatch(shape);
         var path = new PathF();
         if (points.Count > 0)
         {
@@ -75,6 +77,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawCircle(MplPoint center, double radius, ShapeStyle shape)
     {
+        AnnounceUnsupportedHatch(shape);
         if (shape.HasVisibleFill)
         {
             _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
@@ -91,6 +94,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawRectangle(MplRect rect, ShapeStyle shape)
     {
+        AnnounceUnsupportedHatch(shape);
         if (shape.HasVisibleFill)
         {
             _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
@@ -107,6 +111,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawEllipse(MplRect bounds, ShapeStyle shape)
     {
+        AnnounceUnsupportedHatch(shape);
         if (shape.HasVisibleFill)
         {
             _canvas.FillColor = shape.Fill!.Value.ToMauiColor();
@@ -140,6 +145,7 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawPath(IReadOnlyList<PathSegment> segments, ShapeStyle shape)
     {
+        AnnounceUnsupportedHatch(shape);
         var path = new PathF();
         foreach (var seg in segments)
         {
@@ -202,5 +208,22 @@ public sealed class MauiGraphicsRenderContext : IRenderContext
     public void SetOpacity(double opacity)
     {
         _canvas.Alpha = (float)opacity;
+    }
+
+    /// <summary>The MAUI canvas has no hatch primitive on this backend, so a hatched shape degrades to its
+    /// flat fill. It does NOT do so silently: a style that renders on one backend and vanishes on another is
+    /// the divergence that makes an operator trust the wrong picture, so the drop is announced on the
+    /// library's diagnostics channel and a subscriber can see exactly what was not painted.</summary>
+    private void AnnounceUnsupportedHatch(ShapeStyle shape)
+    {
+        if (!shape.HasVisibleHatch)
+        {
+            return;
+        }
+
+        ChartDiagnostics.Emit(new ChartDiagnostic(
+            nameof(MauiGraphicsRenderContext),
+            $"Hatch pattern '{shape.Hatch}' is not supported by the MAUI canvas; the shape is painted with its flat fill instead.",
+            null));
     }
 }

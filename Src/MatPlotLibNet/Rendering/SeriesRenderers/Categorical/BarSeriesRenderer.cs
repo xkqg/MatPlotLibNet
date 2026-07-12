@@ -61,7 +61,7 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
             {
                 var tl = Transform.DataToPixel(barLeft, baseline + Math.Max(series.Values[i], 0));
                 var br = Transform.DataToPixel(barRight, baseline + Math.Min(series.Values[i], 0));
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(fillColor, edgeColor, edgeWidth));
+                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
 
                 if (labelCandidates is not null)
                 {
@@ -75,7 +75,7 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
             {
                 var tl = Transform.DataToPixel(baseline + Math.Min(series.Values[i], 0), barRight);
                 var br = Transform.DataToPixel(baseline + Math.Max(series.Values[i], 0), barLeft);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(fillColor, edgeColor, edgeWidth));
+                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
 
                 if (labelCandidates is not null)
                 {

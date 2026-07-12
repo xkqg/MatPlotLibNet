@@ -62,7 +62,10 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
                 foreach (var pt in polygon)
                     pixels.Add(Transform.DataToPixel(pt.X, pt.Y));
 
-                Ctx.DrawPolygon(pixels, new ShapeStyle(color, null, 0));
+                var bandHatch = series.Hatches is not null && b < series.Hatches.Length
+                    ? series.Hatches[b]
+                    : HatchPattern.None;
+                Ctx.DrawPolygon(pixels, new ShapeStyle(color, null, 0) { Hatch = bandHatch });
             }
         }
 
