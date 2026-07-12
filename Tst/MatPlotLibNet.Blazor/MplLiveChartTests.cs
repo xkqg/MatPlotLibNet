@@ -164,11 +164,15 @@ public class MplLiveChartCoverageTests : BunitContext
                 .Add(x => x.HubUrl, "http://")));
     }
 
-    /// <summary>A relative <c>HubUrl</c> (the component default <c>"/charts-hub"</c>) is resolved
-    /// against the app's base URI before it reaches the subscription client. Handing the raw rooted
-    /// path to SignalR is fatal: <c>new Uri("/charts-hub")</c> throws <see cref="UriFormatException"/>
-    /// on Windows (and resolves to a bogus <c>file://</c> URI on Unix), so the live chart would never
-    /// connect — the initial figure renders and then nothing ever updates.</summary>
+    /// <summary>A relative <c>HubUrl</c> (the component default <c>"/charts-hub"</c>) is resolved against the
+    /// app's base URI before it reaches the subscription client, and lands on an <b>HTTP</b> scheme.
+    /// <para>The scheme assertion is the whole point of this test, and its absence is what let a real defect
+    /// ship. Rooted-path URI parsing is platform-dependent: <c>Uri.TryCreate("/charts-hub", UriKind.Absolute,
+    /// out _)</c> is <see langword="false"/> on Windows but <see langword="true"/> on Unix, where it yields
+    /// <c>file:///charts-hub</c>. An earlier version of this test asserted only "absolute" and "ends with
+    /// /charts-hub" — and <c>file:///charts-hub</c> satisfies both. It passed on Linux CI while the component
+    /// was sending a Blazor Server app off to connect to a <i>file URI</i>. A test that cannot tell a hub from
+    /// a file is not a test of a hub.</para></summary>
     [Fact]
     public void RelativeHubUrl_IsResolvedAgainstTheBaseUri()
     {
@@ -179,8 +183,42 @@ public class MplLiveChartCoverageTests : BunitContext
             .Add(x => x.Client, client));
 
         Assert.NotNull(client.HubUrl);
-        Assert.True(Uri.IsWellFormedUriString(client.HubUrl, UriKind.Absolute), $"not absolute: {client.HubUrl}");
+        Assert.True(Uri.TryCreate(client.HubUrl, UriKind.Absolute, out var uri), $"not absolute: {client.HubUrl}");
+        Assert.True(uri!.Scheme is "http" or "https", $"hub URL is not an HTTP address: {client.HubUrl}");
         Assert.EndsWith("/charts-hub", client.HubUrl);
+    }
+
+    /// <summary>A <c>file://</c> hub URL is not a hub address — it is what a rooted path degrades into on Unix.
+    /// It is resolved against the base URI like any other non-HTTP input, never handed to SignalR as-is.
+    /// <para>This pins the platform split on EVERY platform: Windows cannot produce <c>file:///charts-hub</c>
+    /// from a rooted path, so the defect was invisible here. Feeding the degraded form in directly makes the
+    /// regression reproducible everywhere.</para></summary>
+    [Fact]
+    public void AFileSchemeHubUrl_IsResolvedNotPassedThrough()
+    {
+        var client = new RecordingClient();
+
+        Render<MplLiveChart>(p => p
+            .Add(x => x.ChartId, "c1")
+            .Add(x => x.HubUrl, "file:///charts-hub")
+            .Add(x => x.Client, client));
+
+        Assert.StartsWith("http", client.HubUrl!);
+        Assert.DoesNotContain("file:", client.HubUrl!);
+    }
+
+    /// <summary>A <c>ws://</c> hub URL is a legitimate hub address and passes through untouched.</summary>
+    [Fact]
+    public void AWebSocketHubUrl_IsPassedThroughUnchanged()
+    {
+        var client = new RecordingClient();
+
+        Render<MplLiveChart>(p => p
+            .Add(x => x.ChartId, "c1")
+            .Add(x => x.HubUrl, "wss://charts.example.com/charts-hub")
+            .Add(x => x.Client, client));
+
+        Assert.Equal("wss://charts.example.com/charts-hub", client.HubUrl);
     }
 
     /// <summary>An absolute <c>HubUrl</c> is passed through untouched (cross-origin hub hosting).</summary>

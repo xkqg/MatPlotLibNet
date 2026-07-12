@@ -66,13 +66,31 @@
         await _client.SubscribeAsync(ChartId);
     }
 
-    /// <summary>SignalR needs an absolute URI: <c>new Uri("/charts-hub")</c> throws on Windows and
-    /// yields a bogus <c>file://</c> URI on Unix, so a rooted <see cref="HubUrl"/> — the default —
-    /// must be resolved against the app's base URI first. An absolute URL is passed through as-is.</summary>
-    private string ResolveHubUrl() =>
-        Uri.TryCreate(HubUrl, UriKind.Absolute, out var absolute)
-            ? absolute.ToString()
-            : Navigation.ToAbsoluteUri(HubUrl).ToString();
+    /// <summary>SignalR needs an absolute HTTP-family URI, so a rooted <see cref="HubUrl"/> — the component's
+    /// own default — is resolved against the app's base URI. A hub URL that already names an http/https/ws/wss
+    /// host is passed through untouched (a hub served from another origin).
+    /// <para><b>Why the scheme is checked and not merely "is it absolute".</b> Rooted-path URI parsing is
+    /// platform-dependent: <c>Uri.TryCreate("/charts-hub", UriKind.Absolute, out _)</c> returns
+    /// <see langword="false"/> on Windows but <see langword="true"/> on Unix, where it happily yields
+    /// <c>file:///charts-hub</c>. An absoluteness test therefore sends a Linux-hosted app off to connect to a
+    /// file URI — silently, because SignalR is handed a URI that is perfectly well-formed and simply points
+    /// nowhere. Only an HTTP-family scheme means "the caller supplied a real hub address".</para></summary>
+    private string ResolveHubUrl()
+    {
+        bool parsed = Uri.TryCreate(HubUrl, UriKind.Absolute, out var absolute);
+
+        if (parsed && absolute!.Scheme is "http" or "https" or "ws" or "wss")
+        {
+            return absolute.ToString();   // a real hub address, possibly on another origin
+        }
+
+        // Everything else is a path that must hang off the app's own base URI. On Unix that includes the
+        // file:// URI a rooted path silently degrades into — so take its PATH and resolve that, rather than
+        // handing NavigationManager a string that still carries a scheme (it would keep the scheme, and the
+        // app would go looking for its hub on the filesystem).
+        string path = parsed ? absolute!.PathAndQuery : HubUrl;
+        return Navigation.ToAbsoluteUri(path).ToString();
+    }
 
     public async ValueTask DisposeAsync()
     {
