@@ -164,6 +164,39 @@ public class MplLiveChartCoverageTests : BunitContext
                 .Add(x => x.HubUrl, "http://")));
     }
 
+    /// <summary>A relative <c>HubUrl</c> (the component default <c>"/charts-hub"</c>) is resolved
+    /// against the app's base URI before it reaches the subscription client. Handing the raw rooted
+    /// path to SignalR is fatal: <c>new Uri("/charts-hub")</c> throws <see cref="UriFormatException"/>
+    /// on Windows (and resolves to a bogus <c>file://</c> URI on Unix), so the live chart would never
+    /// connect — the initial figure renders and then nothing ever updates.</summary>
+    [Fact]
+    public void RelativeHubUrl_IsResolvedAgainstTheBaseUri()
+    {
+        var client = new RecordingClient();
+
+        Render<MplLiveChart>(p => p
+            .Add(x => x.ChartId, "c1")
+            .Add(x => x.Client, client));
+
+        Assert.NotNull(client.HubUrl);
+        Assert.True(Uri.IsWellFormedUriString(client.HubUrl, UriKind.Absolute), $"not absolute: {client.HubUrl}");
+        Assert.EndsWith("/charts-hub", client.HubUrl);
+    }
+
+    /// <summary>An absolute <c>HubUrl</c> is passed through untouched (cross-origin hub hosting).</summary>
+    [Fact]
+    public void AbsoluteHubUrl_IsPassedThroughUnchanged()
+    {
+        var client = new RecordingClient();
+
+        Render<MplLiveChart>(p => p
+            .Add(x => x.ChartId, "c1")
+            .Add(x => x.HubUrl, "http://charts.example.com/charts-hub")
+            .Add(x => x.Client, client));
+
+        Assert.Equal("http://charts.example.com/charts-hub", client.HubUrl);
+    }
+
     /// <summary>Recording client — captures Connect/Subscribe + exposes the registered
     /// callbacks so tests can fire synthetic UpdateChartSvg / UpdateChart events.</summary>
     private sealed class RecordingClient : IChartSubscriptionClient
@@ -174,10 +207,12 @@ public class MplLiveChartCoverageTests : BunitContext
         public bool Connected { get; private set; }
         public bool IsConnected => Connected;
         public List<string> Subscribed { get; } = new();
+        public string? HubUrl { get; private set; }
 
         public Task ConnectAsync(string hubUrl, CancellationToken ct = default)
         {
             Connected = true;
+            HubUrl = hubUrl;
             return Task.CompletedTask;
         }
 

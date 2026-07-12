@@ -238,6 +238,81 @@ See [Threshold convenience](annotations.md#threshold-convenience) and
 [Legend value display](line-charts.md#legend-value-display) for the full parameter
 reference of `Threshold(...)` and `WithLegendValues()`.
 
+## Operations dashboard template
+
+For a single-screen bus/observability view, use `FigureTemplates.OpsDashboard`.
+It composes a top row of `StatTileSeries` KPI tiles, a stack of `StateTimelineSeries`
+rows for service health, and a shared trend panel for throughput-style metrics.
+Everything is placed on one `GridSpec` so the whole dashboard fits on a single screen.
+
+```csharp
+using MatPlotLibNet.Models.Dashboard;
+using MatPlotLibNet.Models.Series;
+
+var tiles = new OpsTile[]
+{
+    new("Messages/s", 2_412, "0"),
+    new("Lag", 0.28, "0.00' s'")
+    {
+        AccentThreshold = OpsTile.Threshold(null, Colors.Orange, Colors.Red, 0.30, 0.50)
+    },
+    new("Active", 12, "0' of '12")
+    {
+        AccentThreshold = OpsTile.Threshold(Colors.Red, Colors.Orange, Colors.Tab10Green, 9, 12)
+    },
+    new("Errors/s", 0, "0")
+    {
+        AccentThreshold = OpsTile.Threshold(null, Colors.Orange, Colors.Red, 1, 3)
+    },
+    new("Dropped/s", 0, "0.0")
+    {
+        AccentThreshold = OpsTile.Threshold(null, Colors.Orange, Colors.Red, 1, 5)
+    }
+};
+
+var timelines = new OpsStateTimeline[]
+{
+    new("Service Bus", new[]
+    {
+        new StateSegment(0,  30, "Up",       Colors.Tab10Green),
+        new StateSegment(30, 45, "Degraded", Colors.Orange),
+        new StateSegment(45, 90, "Up",       Colors.Tab10Green),
+    }),
+    new("Exchange", new[]
+    {
+        new StateSegment(0, 90, "Up", Colors.Tab10Green),
+    })
+};
+
+double[] t = Enumerable.Range(0, 60).Select(i => (double)i).ToArray();
+double[] publish = t.Select(x => 2000 + 200 * Math.Sin(x * 0.1) + 50 * Math.Sin(x * 0.7)).ToArray();
+double[] consume = publish.Select(v => v * 0.98).ToArray();
+
+var trends = new OpsTrendLine[]
+{
+    new("Publish", t, publish),
+    new("Consume", t, consume)
+};
+
+FigureTemplates.OpsDashboard(tiles, timelines, trends,
+        title: "Bus Telemetry",
+        configureTrend: ax => ax.SetYLabel("Messages / s"))
+    .WithTheme(Theme.Dark)
+    .Save("bus_ops_dashboard.svg");
+```
+
+`OpsTile` is a plain input record; `AccentThreshold` is an optional `Func<double, Color?>`
+that decides the headline colour from the live value. The static `OpsTile.Threshold(...)`
+helper builds the common green/orange/red step rule used in the example above.
+
+### Live Blazor sample
+
+The server-side Blazor sample (`Samples/MatPlotLibNet.Samples.Blazor`) includes an
+`/obs-dashboard` page driven by `BusTelemetrySimulator`. The simulator collects fake
+bus telemetry every 200 ms and pushes a fresh SVG over the SignalR `ChartHub`. The
+page lets you switch the display refresh interval (1 s, 2 s, 5 s, 10 s) or pause
+updates — the data collection cadence stays independent of what the browser displays.
+
 ## StatTileSeries — parameter reference
 
 | Property | Type | Default | Description |

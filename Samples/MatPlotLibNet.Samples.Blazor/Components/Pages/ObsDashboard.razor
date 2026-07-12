@@ -1,0 +1,61 @@
+@page "/obs-dashboard"
+@using MatPlotLibNet.Models.Dashboard
+@using MatPlotLibNet.Samples.Blazor.Services
+@inject BusTelemetrySimulator Simulator
+
+<h1>Bus / Observability Dashboard</h1>
+
+<p>
+    Display refresh:
+    @foreach (var seconds in new[] { 1, 2, 5, 10 })
+    {
+        var s = seconds;
+        <button @onclick="() => SetInterval(s)"
+                disabled="@(!Simulator.IsPaused && Simulator.RefreshInterval.TotalSeconds == s)">@s s</button>
+    }
+    <button @onclick="TogglePause">@(Simulator.IsPaused ? "Resume" : "Pause")</button>
+</p>
+
+<p><em>Server-side SVG pushed over SignalR. Data collection runs independently of the refresh rate.</em></p>
+
+<MplLiveChart ChartId="@BusTelemetrySimulator.ChartId" HubUrl="/charts-hub" InitialFigure="_initialFigure" />
+
+@code {
+    private readonly Figure _initialFigure = BuildInitialFigure();
+
+    private void SetInterval(int seconds)
+    {
+        Simulator.IsPaused = false;
+        Simulator.RefreshInterval = TimeSpan.FromSeconds(seconds);
+    }
+
+    private void TogglePause() => Simulator.IsPaused = !Simulator.IsPaused;
+
+    private static Figure BuildInitialFigure()
+    {
+        var tiles = new OpsTile[]
+        {
+            new("Messages/s", 0, "0"),
+            new("Lag", 0, "0.00' s'"),
+            new("Active", 12, "0' of '12"),
+            new("Errors/s", 0, "0"),
+            new("Dropped/s", 0, "0.0")
+        };
+
+        var timelines = new OpsStateTimeline[]
+        {
+            new("Service Bus", [new StateSegment(0, 1, "Up", Colors.Tab10Green)]),
+            new("Exchange", [new StateSegment(0, 1, "Up", Colors.Tab10Green)])
+        };
+
+        var trends = new OpsTrendLine[]
+        {
+            new("Publish", [0, 1], [0, 0]),
+            new("Consume", [0, 1], [0, 0])
+        };
+
+        return FigureTemplates.OpsDashboard(tiles, timelines, trends, title: "Bus Telemetry")
+            .WithTheme(Theme.Dark)
+            .Build();
+    }
+}

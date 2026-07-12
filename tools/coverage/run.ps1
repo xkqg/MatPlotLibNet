@@ -34,6 +34,9 @@ $outDir     = Join-Path $repoRoot "out\coverage"
 $reportDir  = Join-Path $outDir "report"
 $cobertura  = Join-Path $outDir "coverage.cobertura.xml"
 
+# Use pwsh when available (CI / modern dev boxes), fall back to Windows PowerShell on older hosts.
+$powerShellExe = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
+
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
 # Test assemblies that contribute to coverage (built first below).
@@ -116,7 +119,7 @@ if ($Check) {
     Write-Host "==> Running threshold check..." -ForegroundColor Cyan
     $checkArgs = @("-Cobertura", $cobertura)
     if ($Strict) { $checkArgs += "-Strict" }
-    & pwsh (Join-Path $PSScriptRoot "check-thresholds.ps1") @checkArgs
+    & $powerShellExe -File (Join-Path $PSScriptRoot "check-thresholds.ps1") @checkArgs
     exit $LASTEXITCODE
 }
 

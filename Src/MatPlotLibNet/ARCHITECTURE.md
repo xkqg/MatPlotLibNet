@@ -35,7 +35,7 @@ MatPlotLibNet/
   DisplayMode.cs                      enum: Inline, Expandable, Popup
   IChartSubscriptionClient.cs         shared SignalR client contract
 
-  FigureTemplates.cs                  pre-built layouts: FinancialDashboard(), ScientificPaper(), SparklineDashboard(), JointPlot(), PairPlot(), FacetGrid(), Clustermap()
+  FigureTemplates.cs                  pre-built layouts: FinancialDashboard(), ScientificPaper(), SparklineDashboard(), OpsDashboard(), JointPlot(), PairPlot(), FacetGrid(), Clustermap()
 
   Plt.Style                           nested static class: Use(), Context() for rcParams configuration
 
@@ -62,6 +62,10 @@ MatPlotLibNet/
                                       canonical form for Axes.AddInset / AxesBuilder.AddInset — the
                                       double-argument overloads forward here (v1.13.0)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
+
+    Dashboard/
+      OpsDashboardModels.cs           OpsTile / OpsStateTimeline / OpsTrendLine — input records for
+                                      FigureTemplates.OpsDashboard, plus OpsTile.Threshold() accent rule
 
     Series/                           81 series types across 15 families
       ISeries.cs                      interface: Label, Visible, ZOrder, Accept()

@@ -102,7 +102,12 @@ fi
 if [ "$CHECK" -eq 1 ]; then
     STRICT_FLAG=""
     [ "$STRICT" -eq 1 ] && STRICT_FLAG="-Strict"
-    pwsh "$REPO_ROOT/tools/coverage/check-thresholds.ps1" -Cobertura "$COBERTURA" $STRICT_FLAG
+    # CI Ubuntu runners have pwsh; on Windows dev boxes without PowerShell Core fall back to powershell.
+    if command -v pwsh > /dev/null; then
+        pwsh "$REPO_ROOT/tools/coverage/check-thresholds.ps1" -Cobertura "$COBERTURA" $STRICT_FLAG
+    else
+        powershell -File "$REPO_ROOT/tools/coverage/check-thresholds.ps1" -Cobertura "$COBERTURA" $STRICT_FLAG
+    fi
 fi
 
 echo "==> Done. Cobertura at: $COBERTURA"

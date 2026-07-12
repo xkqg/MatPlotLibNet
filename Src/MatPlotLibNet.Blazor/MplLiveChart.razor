@@ -4,6 +4,7 @@
 @namespace MatPlotLibNet.Blazor
 
 @implements IAsyncDisposable
+@inject NavigationManager Navigation
 
 <div class="mpl-chart mpl-live @CssClass">
     @((MarkupString)_svgContent)
@@ -61,9 +62,17 @@
             return Task.CompletedTask;
         });
 
-        await _client.ConnectAsync(HubUrl);
+        await _client.ConnectAsync(ResolveHubUrl());
         await _client.SubscribeAsync(ChartId);
     }
+
+    /// <summary>SignalR needs an absolute URI: <c>new Uri("/charts-hub")</c> throws on Windows and
+    /// yields a bogus <c>file://</c> URI on Unix, so a rooted <see cref="HubUrl"/> — the default —
+    /// must be resolved against the app's base URI first. An absolute URL is passed through as-is.</summary>
+    private string ResolveHubUrl() =>
+        Uri.TryCreate(HubUrl, UriKind.Absolute, out var absolute)
+            ? absolute.ToString()
+            : Navigation.ToAbsoluteUri(HubUrl).ToString();
 
     public async ValueTask DisposeAsync()
     {

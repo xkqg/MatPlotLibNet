@@ -16,6 +16,11 @@ namespace MatPlotLibNet.Blazor.Tests;
 /// re-render without a running SignalR server.</para></summary>
 public class MplLiveChartLifecycleTests : BunitContext
 {
+    /// <summary>A rooted <c>HubUrl</c> reaches the client RESOLVED against the base URI, not verbatim.
+    /// This assertion used to pin <c>"/hub"</c> — pinning a defect: SignalR feeds the value to
+    /// <c>new Uri(...)</c>, which throws <see cref="UriFormatException"/> on Windows for a rooted path
+    /// (and yields a bogus <c>file://</c> URI on Unix), so a live chart on the component's own default
+    /// <c>"/charts-hub"</c> never connected — the initial figure rendered and nothing ever updated.</summary>
     [Fact]
     public void OnAfterRender_CallsConnectAndSubscribe()
     {
@@ -25,7 +30,7 @@ public class MplLiveChartLifecycleTests : BunitContext
             .Add(p => p.HubUrl, "/hub")
             .Add(p => p.Client, fake));
 
-        Assert.Equal("/hub", fake.ConnectCalledWithHubUrl);
+        Assert.Equal("http://localhost/hub", fake.ConnectCalledWithHubUrl);
         Assert.Equal("chart-1", fake.SubscribedChartId);
     }
 

@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.13.1] — 2026-07-12
+
+### Added
+
+- **`FigureTemplates.OpsDashboard`** — single-screen bus/observability composition template
+  combining KPI stat tiles, state timelines, and a shared throughput trend panel on one
+  `GridSpec` layout.
+- **`OpsTile`, `OpsStateTimeline`, `OpsTrendLine`** input records and `OpsTile.Threshold(...)`
+  convenience for green/orange/red accent thresholds.
+- **Blazor sample `/obs-dashboard`** page plus `BusTelemetrySimulator` hosted service that
+  publishes fake bus telemetry over SignalR every 1–10 s (or paused) while data collection
+  continues independently at 200 ms.
+
+### Fixed
+
+- **`MplLiveChart` never connected when `HubUrl` was relative — including its own default
+  `"/charts-hub"`.** The rooted path was handed straight to SignalR, where `new Uri("/charts-hub")`
+  throws `UriFormatException` on Windows (and resolves to a bogus `file://` URI on Unix): the initial
+  figure rendered and no live update ever arrived. The URL is now resolved against the app's base URI
+  via `NavigationManager`; absolute hub URLs are passed through unchanged.
+
 ## [1.13.0] — 2026-07-04
 
 Refactor & cleanup release — no new chart features; breaking API cleanups, bug fixes and internal restructuring, with migration notes.
