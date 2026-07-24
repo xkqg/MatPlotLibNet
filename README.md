@@ -10,29 +10,32 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 What's next
 
-**v1.13.0 (2026-07-04) — refactor & cleanup release** (no new chart features): breaking API
-cleanups — `IGeoProjection.Forward`/`Inverse`/`Bounds` now return record structs instead of
-tuples, `StreamingSeriesBase`/`StreamingIndicatorBase` are renamed to
-`StreamingSeries`/`StreamingIndicator`, `IRenderContext` draw methods take `StrokeStyle`/
-`ShapeStyle` records, and the synchronous `InteractiveExtensions.Show(Figure)` was removed in
-favor of the async-only `ShowAsync()`. Also ships bug fixes (Blazor SignalR reconnect leak,
-Uno/MAUI streaming-detach leak, `WithLegend` no longer dropping prior legend state) and internal
-restructuring (serialization moved to per-series `FromSeriesDto`). Full migration notes in the
-[CHANGELOG](CHANGELOG.md). Prior: **v1.12.0 (2026-06-28)** — dashboard tiles, timelines &
-threshold conveniences (`StatTileSeries`, `StateTimelineSeries`, `ThresholdLine`,
-`LegendValues`). Future releases are **community-driven**:
+**v1.14.0 (2026-07-12) — control-room pack**: replaces the 1.13.1 dashboard template with
+`Plt.OpsDashboard()`, a fluent composition API for KPI tiles, state timelines, and a shared trend
+panel pinned to one caller-supplied time window (the library never reads the wall clock). Adds
+`BulletGraphSeries` (Stephen Few's bar-plus-target-plus-bands replacement for radial gauges),
+`Theme.Alarm`/`AlarmPalette` (a theme now names its reserved alarm colours), four operator
+backgrounds (`OpsNight`/`OpsPanel`/`OpsWarm`/`OpsContrast`), and the full `StatTileSeries` tile
+anatomy (`Target`, `Caption`, `Trend`, `Hatch`). Also fixes five defects the work surfaced,
+including `HatchPattern` — shipped for releases but never actually painted by any renderer — now
+wired end-to-end through `ShapeStyle` on every backend, a `ThemeBuilder.Build()` that silently
+discarded 7 of its 15 theme properties (now clones instead of rebuilding), and a rolling time axis
+that re-shuffled its tick labels every frame. All 13 packages at 1.14.0; strict coverage gate
+656/656 classes at ≥90/90 (99.6% line / 97.2% branch); 10,252 tests, 0 failures. Design record:
+[docs/contrib/v1-14-control-room-pack.md](docs/contrib/v1-14-control-room-pack.md).
 
-- 🗺️ **Phase 1 — Annotated & triangular-mask heatmaps**: four new `HeatmapSeries` properties (`ShowLabels`, `LabelFormat`, `MaskMode`, `CellValueColor`) + `HeatmapMaskMode` enum unblock every realistic correlation-matrix figure.
-- 🌲 **Phase 2 — `DendrogramSeries`**: hierarchical-clustering tree as canonical "U"-shape segments. Four `DendrogramOrientation` values (`Top`, `Bottom`, `Left`, `Right`); optional `CutHeight` draws a dashed reference line and recolours each cluster below the cut from a qualitative `IColorMap` (default `Tab10`). Fluent API: `Plt.Create().Dendrogram(root, s => s.CutHeight = 1.5)`.
-- 🔥 **Phase 3 — `ClustermapSeries`**: composite heatmap with optional row/column dendrograms (the seaborn `clustermap` idiom). Automatic data-matrix reordering to align cells visually with the leaf order.
-- 📊 **Phase 4 — `PairGridSeries`**: multi-panel scatter matrix (the seaborn `pairplot` idiom). N×N grid: histogram or KDE on the diagonal, scatter or hexbin on the off-diagonal, optional hue groups + `string[]?` `HueLabels` for category-aware EDA.
-- 🔷 **Phase 5 — Hexbin off-diagonal**: activates `PairGridOffDiagonalKind.Hexbin = 2` for high-cardinality EDA where scatter overplots (~1000+ samples per cell).
-- 🧹 **Convergence sweep**: `IColormappable.GetColorMapOrDefault(fallback)` and `int.ColormapFraction(count)` extensions collapse 17 + 3 inline duplications across renderers into one place; shared `HierarchicalLayout.MinPanelPx` and `Numerics/HistogramBinning` source-of-truth.
-- 🗺️ **v1.10.0 heatmap extensions** (released):
-  - **`ShowLabels` / `LabelFormat`** (`ILabelable`) — render each cell's value on top of the fill; any .NET numeric format string (e.g. `"P1"`, `"F0"`)
-  - **`MaskMode`** — `HeatmapMaskMode` enum hides redundant cells in symmetric matrices (`UpperTriangle`, `LowerTriangle`, and strict variants that include the diagonal)
-  - **`CellValueColor`** — explicit label colour; auto black/white contrast via `Color.ContrastingTextColor()` (Rec. 709) when null
-- 🐛 **Bug fixes** — driven by community use and the strict `≥90/90` per-class coverage gate (all classes pass; **9 386 core tests**).
+Prior: **v1.13.1** shipped `FigureTemplates.OpsDashboard` (since superseded by `Plt.OpsDashboard()`
+above) and a fix for `MplLiveChart`'s relative `HubUrl` silently never connecting. **v1.13.0
+(2026-07-04) — refactor & cleanup release** (no new chart features): breaking API cleanups —
+`IGeoProjection.Forward`/`Inverse`/`Bounds` now return record structs instead of tuples,
+`StreamingSeriesBase`/`StreamingIndicatorBase` are renamed to `StreamingSeries`/
+`StreamingIndicator`, `IRenderContext` draw methods take `StrokeStyle`/`ShapeStyle` records, and
+the synchronous `InteractiveExtensions.Show(Figure)` was removed in favor of the async-only
+`ShowAsync()`. Full migration notes for every release are in the [CHANGELOG](CHANGELOG.md).
+
+Future releases are **community-driven** — there is no fixed feature roadmap:
+
+- 🐛 **Bug fixes** — driven by community use and the strict `≥90/90` per-class coverage gate (every class passes; see [Coverage Policy](docs/COVERAGE.md) for the current numbers).
 - 📚 **Documentation polish** — cookbook examples, API XML doc completeness.
 - 🌱 **Listening** — Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next direction will be guided by what real users need, not by a feature checklist.
 
@@ -123,7 +126,7 @@ Plt.Create()
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). Stacked-record event hierarchy, natural coalescing, per-caller hover responses.
 
-**104 colormaps** — viridis, plasma, turbo, coolwarm, and 100 more. NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with **53 technical indicators** (v1.9.0 added 12 — Klinger, Twiggs MF, Ease of Movement, VWAP Z-Score, Supertrend, CG Oscillator, Inverse Fisher, YZ Vol Ratio, Ehlers iTrend, Decycler, Ehlers SuperSmoother, Transfer Entropy; v1.11.0 added Roc). Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
+**142 colormaps** — viridis, plasma, turbo, coolwarm, and 138 more (71 base maps, each with an auto-registered reversed `_r` variant). NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with **53 technical indicators** (v1.9.0 added 12 — Klinger, Twiggs MF, Ease of Movement, VWAP Z-Score, Supertrend, CG Oscillator, Inverse Fisher, YZ Vol Ratio, Ehlers iTrend, Decycler, Ehlers SuperSmoother, Transfer Entropy; v1.11.0 added Roc). Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
 
 ---
 

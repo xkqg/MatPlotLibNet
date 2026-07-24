@@ -22,7 +22,7 @@ Plt.Create()
 
 ## Colormap comparison
 
-MatPlotLibNet ships 104 colormaps. Here are four popular ones side by side:
+MatPlotLibNet ships 142 colormaps (71 base maps, each with an auto-registered reversed `_r` variant). Here are four popular ones side by side:
 
 ```csharp
 string[] maps = ["viridis", "turbo", "coolwarm", "greys"];

@@ -13,7 +13,7 @@ Code examples with rendered output. Every example uses the fluent `Plt.Create()`
 | [Pie & Donut](pie-donut.md) | Pie, donut, nested pie (sunburst), explode, shadow, percentage labels, custom colors, hatches |
 | [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, KDE, rug plot |
 | [Polar Charts](polar.md) | Polar line, multi-series, radar, polar bar, polar scatter, polar heatmap |
-| [Heatmaps & Colormaps](heatmaps.md) | Heatmap, colorbar customization, 104 colormaps, color normalization, 2D histogram, pcolormesh |
+| [Heatmaps & Colormaps](heatmaps.md) | Heatmap, colorbar customization, 142 colormaps, color normalization, 2D histogram, pcolormesh |
 | [Contour Plots](contour.md) | Contour lines with labels, filled contour, custom levels, contour overlay, triangulated contour |
 | [Subplots & GridSpec](subplots.md) | Grid subplots, GridSpec ratios, mosaic layout, spanning subplots, insets, shared axes, spacing |
 | [Financial Charts](financial.md) | Candlestick + MACD + RSI dashboard, technical indicators (Bollinger, Williams %R, OBV, SAR, CCI) |
@@ -34,7 +34,7 @@ Code examples with rendered output. Every example uses the fluent `Plt.Create()`
 | [Animation](animation.md) | FuncAnimation GIF, multi-page PDF, individual frame export, rotating 3D |
 | [Streaming & Realtime](streaming.md) | Live data append, ring buffers, streaming indicators, axis scaling, Rx integration |
 | [Annotations](annotations.md) | Text, arrows, reference lines (horizontal/vertical), shaded spans, threshold convenience (line + breach span in one call), math text in annotations |
-| [Styling & Themes](styling.md) | 26 themes, PropCycler, grid/spine control, tight margins, tick mirroring, templates |
+| [Styling & Themes](styling.md) | 30 themes, PropCycler, grid/spine control, tight margins, tick mirroring, templates |
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators, minor ticks |
 | [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition |
 | [Accessibility](accessibility.md) | Color-blind safe palette, high-contrast theme, ARIA semantics, keyboard navigation |

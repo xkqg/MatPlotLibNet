@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.13.0)
+# MatPlotLibNet Core -- Architecture (v1.14.0)
 
 ## Package dependency graph
 
@@ -120,7 +120,11 @@ MatPlotLibNet/
       GanttSeries.cs                  Tasks, Starts, Ends, BarHeight (Categorical/)
       GaugeSeries.cs                  Value, Min, Max, Ranges (GaugeBand[]?), NeedleColor (Circular/)
       ProgressBarSeries.cs            Value, FillColor, TrackColor (Categorical/)
-      StatTileSeries.cs               Value, AccentColor, Format — single-value KPI tile, no axes (Categorical/)
+      StatTileSeries.cs               Value, AccentColor, Format, Target, Caption, Trend, TrendColor, Hatch, HatchColor
+                                       — single-value KPI tile, no axes; full tile anatomy since v1.14.0 (Categorical/)
+      BulletGraphSeries.cs            Value, Target, Bands (IReadOnlyList&lt;GaugeBand&gt;?), BarColor, TargetColor,
+                                       Orientation — Few's bullet graph (measure + target tick + qualitative bands
+                                       in one hue); new v1.14.0, reuses GaugeBand rather than a second band model (Categorical/)
       StateTimelineSeries.cs          IReadOnlyList&lt;StateSegment&gt; Segments — single-row discrete-state timeline along X (Categorical/)
       SparklineSeries.cs              XYSeries: Values, LineWidth (XY/)
       EcdfSeries.cs                   XYSeries: sorted empirical CDF (XY/)
@@ -317,7 +321,7 @@ MatPlotLibNet/
       SeriesRenderer.cs                 abstract base: ResolveColor(), ApplyAlpha(), ApplyDownsampling(), ApplyMonotonicDownsampling(), ResolveColormapping() + ColormapContext record struct + generic SeriesRenderer<T>
       DrawStyleInterpolation.cs         internal static: Apply(x, y, style) — shared step-mode interpolation; eliminates duplication between LineSeriesRenderer and AreaSeriesRenderer
       XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band), Residual (LeastSquares residuals + optional zero line)
-      Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, StatTile (single-value KPI), Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
+      Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, StatTile (single-value KPI, full tile anatomy since v1.14.0), BulletGraph (Few's measure+target+bands strip, v1.14.0), Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
       Circular/                         CircularRenderer<TSeries> (abstract base: BuildWedgePath, PlaceOuterLabels); Pie, Radar, Donut, Gauge
       Grid/                             Heatmap, Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill), Clustermap (composite: heatmap + row/column dendrograms with sub-pixel-suppressed margin panels), PairGrid (composite: N×N matrix of histograms/KDE on diagonal + scatters/hexbin off-diagonal, optional hue grouping)
                                         PairGridLayout.cs — pure geometry: ComputeCellRects(plotBounds, n, cellSpacing) → Rect[n,n]; MinPanelPx sub-pixel gate
@@ -431,7 +435,10 @@ MatPlotLibNet/
       CyclicColorMaps.cs              3 cyclic (start≈end): Twilight, TwilightShifted, Hsv
       QualitativeColorMaps.cs         11 qualitative: Tab10, Tab20, Set1, Set2, Set3, Pastel1, Pastel2,
                                         Dark2, Accent, Paired, OkabeIto (new v0.8.8 — color-blind safe)
-                                      Total: 53 base colormaps × 2 (+ _r reversed) = 106 registered names
+      AdditionalColorMaps.cs          13 more: Gray, Spring, Summer, Autumn, Winter, Cool, AfmHot, PRGn,
+                                        RdGy, Rainbow, Ocean, Terrain, CMRmap
+      PerceptualColorMaps2.cs         5 Seaborn perceptually-uniform: Rocket, Mako, Crest, Flare, Icefire
+                                      Total: 71 base colormaps × 2 (+ _r reversed) = 142 registered names
       ColormapExtensions.cs           IColormappable.GetColorMapOrDefault(fallback) + int.ColormapFraction(count, singletonT)
                                         — replaces 17 inline `?? Viridis|Tab10` sites and 3 `index/(count-1)` sites
 ```

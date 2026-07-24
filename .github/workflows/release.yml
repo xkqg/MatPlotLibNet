@@ -52,7 +52,7 @@ jobs:
         run: |
           TAG="${{ steps.create_release.outputs.tag }}"
           URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 74 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed. ${URL}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 82 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed. ${URL}"
 
           SESSION=$(curl -s -X POST https://bsky.social/xrpc/com.atproto.server.createSession \
             -H "Content-Type: application/json" \
@@ -82,7 +82,7 @@ jobs:
         run: |
           TAG="${{ steps.create_release.outputs.tag }}"
           URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 74 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 82 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.
 
           ${URL}
 
@@ -101,7 +101,7 @@ jobs:
         run: |
           TAG="${{ steps.create_release.outputs.tag }}"
           URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 74 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.\n\n${URL}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 82 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.\n\n${URL}"
 
           curl -s -X POST "https://api.linkedin.com/v2/ugcPosts" \
             -H "Authorization: Bearer ${LINKEDIN_ACCESS_TOKEN}" \

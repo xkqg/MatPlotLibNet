@@ -1,14 +1,16 @@
 # MatPlotLibNet Documentation
 
-**matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 74 series types, 104 colormaps, 26 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 13 NuGet packages + 3 npm bindings.
+**matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 82 series types, 142 colormaps, 30 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 13 NuGet packages + 3 npm bindings.
 
-v1.9.0 is a pure indicator-expansion release. 12 new indicators extend the quant-finance library from 40 to **52 production-grade indicators**:
+v1.14.0 is the **control-room pack**: `Plt.OpsDashboard()` (fluent KPI-tile + state-timeline +
+trend-panel composition, pinned to a caller-supplied time window), `BulletGraphSeries` (Few's
+measure+target+bands strip replacing radial gauges), `Theme.Alarm`/`AlarmPalette` + four operator
+backgrounds (`OpsNight`/`OpsPanel`/`OpsWarm`/`OpsContrast`), and the full `StatTileSeries` tile
+anatomy (`Target`/`Caption`/`Trend`/`Hatch`). Also fixes `HatchPattern` (shipped for releases but
+never painted by any renderer), a `ThemeBuilder.Build()` that silently discarded 7 of its 15 theme
+properties, and a rolling time axis that re-shuffled its labels every frame.
 
-- **Tier 3a Volume / Money Flow** (4) — `KlingerVolumeOscillator`, `TwiggsMoneyFlow`, `EaseOfMovement`, `VwapZScore`
-- **Tier 3b Trend / Transform** (4) — `Supertrend`, `CgOscillator`, `InverseFisherTransform`, `YangZhangVolRatio`
-- **Tier 3c Advanced / Cross-asset** (4) — `EhlersITrend`, `Decycler`, `EhlersSuperSmoother` (public), `TransferEntropy`
-
-All 622 classes remain at ≥90/90 line/branch coverage under the strict gate. No framework refactors this release — rendering paths are unchanged, SVG output byte-identical to shipped v1.8.0. See [CHANGELOG](https://github.com/xkqg/MatPlotLibNet/blob/main/CHANGELOG.md) for per-indicator details.
+All 656 classes remain at ≥90/90 line/branch coverage under the strict gate (99.6% line / 97.2% branch; 10,252 tests, 0 failures). See [CHANGELOG](https://github.com/xkqg/MatPlotLibNet/blob/main/CHANGELOG.md) for every release's per-feature details.
 
 ## Documentation
 
@@ -17,8 +19,8 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 | Wiki page | Covers |
 |---|---|
 | [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started) | Installation, quick start, output formats |
-| [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) | All 74 series types with code examples |
-| [Matplotlib Themes](https://github.com/xkqg/MatPlotLibNet/wiki/MatplotlibThemes) | 26 theme presets + custom theme authoring |
+| [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) | All 82 series types with code examples |
+| [Matplotlib Themes](https://github.com/xkqg/MatPlotLibNet/wiki/MatplotlibThemes) | 30 theme presets + custom theme authoring |
 | [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet) | One-page reference of the fluent builder API |
 | [Keyboard Shortcuts](https://github.com/xkqg/MatPlotLibNet/wiki/Keyboard-Shortcuts) | Browser-interactive pan / zoom / rotate / toggle |
 | [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling) | Themes, colormaps, PropCycler |
