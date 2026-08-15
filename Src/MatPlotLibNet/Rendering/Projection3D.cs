@@ -215,6 +215,15 @@ public sealed class Projection3D
     /// <see cref="MachineEpsilon"/> of each other (the camera looks straight down one axis), the
     /// tie is broken by the one remaining axis instead of by float noise.
     /// </summary>
+    /// <remarks>
+    /// A SINGLE near-tie (one axis seen exactly edge-on — azimuth ±90° for the X faces, 0°/±180° for
+    /// the Y faces) is left to the same comparison matplotlib uses, deliberately: resolving it from
+    /// the camera basis instead gives the OTHER face at azimuth ±180° (measured), so an "improvement"
+    /// there would be a divergence from the reference. Both faces of an edge-on pair project onto the
+    /// same screen line, so the choice is not visible; every operation after
+    /// <see cref="Math.Cos"/>/<see cref="Math.Sin"/> is IEEE-deterministic, so the two platforms agree
+    /// as long as their trig agrees on these arguments.
+    /// </remarks>
     private CubeFaceSelection SelectFaces()
     {
         Span<double> lo = [_xMin, _yMin, _zMin];
