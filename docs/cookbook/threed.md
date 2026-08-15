@@ -50,6 +50,27 @@ Plt.Create()
 
 ![3D Bar](../images/threed_bar3d_interactive.png)
 
+### The axis frame follows the camera
+
+Any azimuth works, including the ones that swing the cube past the matplotlib default view. The
+shaded panes, the drawn cube edges, the wall grids and the X/Y/Z tick rows are chosen per render
+from the camera — the pane is always on the face pointing *away* from you, and a tick row never
+ends up behind the data (v1.14.1, [#18](https://github.com/xkqg/MatPlotLibNet/issues/18)). Dragging
+an interactive chart past ±90° re-runs the same selection in the browser, so the frame jumps to the
+other side exactly as matplotlib's does.
+
+`Pane3DConfig` colours name the AXIS whose wall they paint, not a fixed side of the cube:
+`LeftWallColor` is the X-axis wall, `RightWallColor` the Y-axis wall, `FloorColor` the Z floor.
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithCamera(elevation: 30, azimuth: -145)   // outside the default quadrant
+        .WithPane3D(p => p with { LeftWallColor = Color.FromHex("#EDF2F7"), Alpha = 0.85 })
+        .Bar3D(x, y, z))
+    .Save("bar3d-rotated.svg");
+```
+
 ## Grouped 3D bars
 
 Multiple Bar3D series share depth sorting automatically:

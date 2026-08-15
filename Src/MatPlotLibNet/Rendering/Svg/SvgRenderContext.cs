@@ -445,11 +445,18 @@ public sealed class SvgRenderContext : IRenderContext
     /// Optional <paramref name="light"/> emits data-light-dir/ambient/diffuse so the JS can recompute
     /// face shading under rotation (Phase 6 of the v1.7.2 interaction-hardening plan).</summary>
     internal void Begin3DSceneGroup(double elevation, double azimuth, double? distance, Rect plotBounds,
-        Lighting.DirectionalLight? light = null)
+        CubeFaceSelection faces, Lighting.DirectionalLight? light = null)
     {
         _sb.Append("<g class=\"mpl-3d-scene\"")
            .Append(" data-elevation=\"").Append(elevation.ToSvgNumber()).Append('"')
            .Append(" data-azimuth=\"").Append(azimuth.ToSvgNumber()).Append('"');
+        // Which side of each axis the SERVER put at the back, as x,y,z of 0 (min) / 1 (max). The JS
+        // re-runs the same selection every frame and mirrors the elements whose axis flipped, so a
+        // drag past ±90° moves the panes, edges and tick rows instead of leaving them behind.
+        _sb.Append(" data-faces=\"")
+           .Append(faces.X.Back == CubeSide.Max ? '1' : '0')
+           .Append(faces.Y.Back == CubeSide.Max ? '1' : '0')
+           .Append(faces.Z.Back == CubeSide.Max ? '1' : '0').Append('"');
         // Phase F.3 of v1.7.2 follow-on plan — always emit data-distance so JS and server
         // stay in lockstep. Projection3D always runs perspective with `dist = distance ?? 10`;
         // without the attribute JS bailed on wheel zoom whenever the caller omitted

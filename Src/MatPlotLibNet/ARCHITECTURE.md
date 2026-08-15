@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.14.0)
+# MatPlotLibNet Core -- Architecture (v1.14.1)
 
 ## Package dependency graph
 
@@ -260,7 +260,11 @@ MatPlotLibNet/
     CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, series, annotations, signals
                                         internal helpers (Phase L): RenderGridLines(Orientation,…), RenderAxisTicks(…)+TickDrawContext, DrawBreakSegments(Orientation,BreakStyle,…)
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
-    ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting
+    ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting.
+                                        Panes / the 9 drawn cube edges / wall grids / tick rows / axis titles all
+                                        read Projection3D.Faces (v1.14.1) instead of literal planes, so the axis
+                                        frame follows the camera at any azimuth (was: correct only for the
+                                        default quadrant elev>=0, azim in [-90,0])
     IRenderContext.cs                  drawing primitives: DrawLine/DrawRect/etc. take StrokeStyle(Color,Thickness,Style)
                                         / ShapeStyle(Fill,Stroke,StrokeThickness) records (v1.13.0, was loose params —
                                         centralizes the Thickness<=0 visibility guard across every backend);
@@ -354,6 +358,21 @@ MatPlotLibNet/
 
   Rendering/
     Normalized3DPoint.cs              readonly record struct(Nx, Ny, Nz) — returned by Projection3D.Normalize()
+    ValueObjects/CubeFaceSelection.cs which of each axis' two parallel cube faces points AWAY from the camera
+                                        (new v1.14.1 — port of matplotlib axis3d._get_coord_info +
+                                        _get_axis_line_edge_points, incl. its edge-on tie handling):
+                                        enum CubeAxis {X,Y,Z} · enum CubeSide {Min,Max}
+                                        readonly record struct CubePlane(CubeAxis Axis, CubeSide Back) — Front,
+                                          Coordinate(Box3D, CubeSide) resolves a side against the CALLER's box
+                                        readonly record struct AxisEdge3D(Vec3 From, Vec3 To) — a tick-bearing edge
+                                        readonly record struct CubeFaceSelection(CubePlane X, Y, Z) — Planes,
+                                          this[CubeAxis], AxisEdge(CubeAxis, Box3D), FarCorner(Box3D)
+                                        Computed once per projection and read as Projection3D.Faces; the selection
+                                        carries SIDES, never coordinates, because a projection may be built over a
+                                        different box than the renderer draws with
+    ValueObjects/PinnedAxes.cs        internal [Flags] enum + PinnedAxesExtensions.ToWire()/OtherAxes() — which
+                                        vertex components sit on a selected face, emitted as data-v3d-pinned so
+                                        Svg3DRotationScript can mirror them when it re-selects mid-drag
 
   Numerics/
     LeastSquares.cs                   public static: PolyFit (normal equations), PolyEval (Horner), ConfidenceBand (t-distribution leverage)
@@ -568,7 +587,7 @@ ChartHub               routes to SignalR group by chartId
 | Default interface method | IRenderContext.DrawRichText | all backends get plain-text fallback; SVG overrides with tspan emission |
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
-| Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand, ColorStop, StreamingPoint, MinMaxRange, MatShape, XYCurve, BarRange, GaugeBand, DataPoint, LineSegment, Size, Vec3 | replace anonymous/named tuples in public API for discoverability and structural equality (v1.8.0 completed the sweep — no anonymous tuples remain) |
+| Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand, ColorStop, StreamingPoint, MinMaxRange, MatShape, XYCurve, BarRange, GaugeBand, DataPoint, LineSegment, Size, Vec3, CubePlane, CubeFaceSelection, AxisEdge3D | replace anonymous/named tuples in public API for discoverability and structural equality (v1.8.0 completed the sweep — no anonymous tuples remain) |
 | Extension methods on value types | `string.EscapeForXml()`, `double[].Percentile()` / `BisectLeft()` / `BisectRight()`, `Color.Modulate()` / `Shade()` | replaces `*Helper` static classes with discoverable dot-access APIs (v1.8.0: SvgXmlHelper → SvgXml, MathHelpers → SortedArrayExtensions, LightingHelper → Vec3 + ColorExtensions) |
 
 ---

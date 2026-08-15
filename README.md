@@ -10,7 +10,20 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 What's next
 
-**v1.14.0 (2026-07-12) — control-room pack**: replaces the 1.13.1 dashboard template with
+**v1.14.1 (2026-08-15) — the 3-D axis frame follows the camera**: the shaded panes, the drawn
+cube edges, the wall grids and the X/Y/Z tick rows were pinned to the faces that are back-facing at
+matplotlib's default view, so any camera outside `azimuth ∈ [−90°, 0°]` painted a pane onto a face
+that had rotated to the front and drew two tick rows behind the data
+([#18](https://github.com/xkqg/MatPlotLibNet/issues/18)). Which faces are at the back is now derived
+from the camera on every render — a port of matplotlib's own rule, verified against matplotlib 3.11.1
+over 144 cameras including its edge-on tie handling — and interactive rotation re-runs the same
+selection per frame instead of re-projecting a fixed frame. Inside the historical quadrant the output
+is unchanged: the five matplotlib pixel-fidelity fixtures pass untouched. Also fixes tick labels
+flipping to the wrong side of their axis on the first drag frame, and `Pane3DConfig.Alpha`, which had
+shipped for releases without any renderer reading it. All 13 packages at 1.14.1; strict coverage gate
+659/659 classes at ≥90/90 (99.6% line / 97.2% branch); 10,709 tests, 0 failures.
+
+Prior: **v1.14.0 (2026-07-12) — control-room pack** replaced the 1.13.1 dashboard template with
 `Plt.OpsDashboard()`, a fluent composition API for KPI tiles, state timelines, and a shared trend
 panel pinned to one caller-supplied time window (the library never reads the wall clock). Adds
 `BulletGraphSeries` (Stephen Few's bar-plus-target-plus-bands replacement for radial gauges),
@@ -20,11 +33,10 @@ anatomy (`Target`, `Caption`, `Trend`, `Hatch`). Also fixes five defects the wor
 including `HatchPattern` — shipped for releases but never actually painted by any renderer — now
 wired end-to-end through `ShapeStyle` on every backend, a `ThemeBuilder.Build()` that silently
 discarded 7 of its 15 theme properties (now clones instead of rebuilding), and a rolling time axis
-that re-shuffled its tick labels every frame. All 13 packages at 1.14.0; strict coverage gate
-656/656 classes at ≥90/90 (99.6% line / 97.2% branch); 10,252 tests, 0 failures. Design record:
+that re-shuffled its tick labels every frame. Strict coverage gate 656/656 classes at ≥90/90;
+10,252 tests. Design record:
 [docs/contrib/v1-14-control-room-pack.md](docs/contrib/v1-14-control-room-pack.md).
-
-Prior: **v1.13.1** shipped `FigureTemplates.OpsDashboard` (since superseded by `Plt.OpsDashboard()`
+**v1.13.1** shipped `FigureTemplates.OpsDashboard` (since superseded by `Plt.OpsDashboard()`
 above) and a fix for `MplLiveChart`'s relative `HubUrl` silently never connecting. **v1.13.0
 (2026-07-04) — refactor & cleanup release** (no new chart features): breaking API cleanups —
 `IGeoProjection.Forward`/`Inverse`/`Bounds` now return record structs instead of tuples,
@@ -118,7 +130,7 @@ Plt.Create()
 
 **MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
 
-**3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). Full `Projection3D` pipeline, `DepthQueue3D` painter's algorithm, `Vec3.FaceNormal` + `Color.Shade()`/`Color.Modulate()` extension-based shading, `Svg3DRotationScript` client-side rotation with depth re-sorting, configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
+**3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). Full `Projection3D` pipeline, `DepthQueue3D` painter's algorithm, `Vec3.FaceNormal` + `Color.Shade()`/`Color.Modulate()` extension-based shading, `Svg3DRotationScript` client-side rotation with depth re-sorting, camera-derived back faces (`CubeFaceSelection` — the panes, cube edges, wall grids and tick rows follow the camera at any azimuth, server-side and during a drag), configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
 
 **Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries`, `StreamingCandlestickSeries` backed by `DoubleRingBuffer` with `AppendPoint(x, y)`. `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 11 streaming indicators (SMA, EMA, RSI, Bollinger, MACD, OBV, ATR, Stochastic, WilliamsR, CCI, VWAP) auto-attach to candlestick data. Streaming controls for Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. SVG diff engine for bandwidth optimization. Rx `IObservable<T>` adapter.
 

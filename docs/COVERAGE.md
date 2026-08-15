@@ -2,6 +2,14 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.14.1, camera-derived 3-D faces, 2026-08-15):** **659/659 classes at ≥90/90**, strict gate
+**PASSES** with no regressions (`pwsh tools/coverage/run.ps1 -Check -Strict` → `PASS: All 659 classes
+meet 90/90 threshold + no regressions`). Total project coverage: **99.6L / 97.2B**; **10,709 tests, 0
+failures** across all 9 CI suites, plus 152 matplotlib pixel-fidelity tests. The three classes added
+this release (`CubeFaceSelection`, `CubePlane`, `AxisEdge3D` — plus the internal `PinnedAxes`) are
+covered by a 144-row matplotlib ground-truth theory, so every branch of the face-selection rule
+including its edge-on tie handling is exercised by a camera matplotlib itself was asked about.
+
 **Status (v1.14.0, control-room pack, 2026-07-12):** **656/656 classes at ≥90/90**, strict gate
 **PASSES** with no regressions. Total project coverage: **99.6L / 97.2B**; **10,252 tests, 0
 failures** across all 9 suites (figures per the release commit message, `94f8a56`). The committed

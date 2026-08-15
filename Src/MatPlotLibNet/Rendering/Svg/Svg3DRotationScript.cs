@@ -108,6 +108,89 @@ internal static class Svg3DRotationScript
                     return b.w[0]*cx + b.w[1]*cy + b.w[2]*cz;
                 }
 
+                // ── Camera-derived cube faces (mirror of Projection3D.SelectFaces / CubeFaceSelection).
+                // Which of each axis' two parallel faces points AWAY from the camera decides where the
+                // panes, the nine drawn cube edges, the wall grids and the tick rows live. The server
+                // stamped its own answer in data-faces; we re-run the same rule per frame and mirror the
+                // elements whose axis flipped. Without this the axis frame stays where the server left it
+                // and a drag past ±90° puts a pane on a face that is now in FRONT of the data (issue #18).
+                var SERVER_FACES = (scene.getAttribute('data-faces') || '001');
+                var HALF = [BOX_AX/2, BOX_AY/2, BOX_AZ/2];
+                var MACHINE_EPS = 2.220446049250313e-16;
+
+                function planeMeanZ(b, axis, side) {
+                    // Mean post-divide projected z over the four corners of one axis-aligned face.
+                    var a1 = (axis + 1) % 3, a2 = (axis + 2) % 3;
+                    var c = [0, 0, 0];
+                    c[axis] = side * HALF[axis];
+                    var sum = 0;
+                    for (var i = -1; i <= 1; i += 2) {
+                        c[a1] = i * HALF[a1];
+                        for (var j = -1; j <= 1; j += 2) {
+                            c[a2] = j * HALF[a2];
+                            // Post-divide projected z, exactly as Projection3D.ProjectedDepth:
+                            // mz = -dist (the persp matrix' c term), mw = dist - viewZ. Larger = FARTHER.
+                            sum += -b.d / (b.d - viewZ(c[0], c[1], c[2], b));
+                        }
+                    }
+                    return sum / 4;
+                }
+
+                function selectFaces(b) {
+                    var backAtMax = [false, false, false], edgeOn = [false, false, false], edgeOnCount = 0;
+                    for (var axis = 0; axis < 3; axis++) {
+                        var meanLo = planeMeanZ(b, axis, -1), meanHi = planeMeanZ(b, axis, +1);
+                        backAtMax[axis] = meanLo < meanHi;
+                        edgeOn[axis] = Math.abs(meanLo - meanHi) <= MACHINE_EPS;
+                        if (edgeOn[axis]) edgeOnCount++;
+                    }
+                    if (edgeOnCount === 2) {
+                        var vertical = !edgeOn[0] ? 0 : (!edgeOn[1] ? 1 : 2);
+                        if (vertical === 2) { backAtMax[0] = true; backAtMax[1] = true; }
+                        else if (vertical === 1) { backAtMax[0] = true; backAtMax[2] = false; }
+                        else { backAtMax[1] = false; backAtMax[2] = false; }
+                    }
+                    return backAtMax;
+                }
+
+                // +1 per axis when this frame agrees with the server, -1 when the face flipped. The
+                // emitted coordinates are centred, so the opposite plane is the exact negation.
+                function faceMirror(b) {
+                    var now = selectFaces(b);
+                    return [
+                        (now[0] === (SERVER_FACES[0] === '1')) ? 1 : -1,
+                        (now[1] === (SERVER_FACES[1] === '1')) ? 1 : -1,
+                        (now[2] === (SERVER_FACES[2] === '1')) ? 1 : -1
+                    ];
+                }
+
+                // Applies the mirror to the components an element declared as pinned to a selected face.
+                function pinnedMirror(el, mirror) {
+                    var pinned = el.getAttribute('data-v3d-pinned');
+                    if (!pinned) return [1, 1, 1];
+                    return [
+                        pinned.indexOf('x') >= 0 ? mirror[0] : 1,
+                        pinned.indexOf('y') >= 0 ? mirror[1] : 1,
+                        pinned.indexOf('z') >= 0 ? mirror[2] : 1
+                    ];
+                }
+
+                // Negates a coordinate by flipping the SIGN CHARACTER, never by re-formatting: the
+                // attribute keeps the server's exact G6 text, so data-v3d stays comparable with a
+                // server render at the same angle.
+                function negateToken(text) {
+                    return text.charAt(0) === '-' ? text.substring(1) : '-' + text;
+                }
+
+                function mirrorV3dText(raw, m) {
+                    return raw.trim().split(' ').map(function(p) {
+                        var c = p.split(',');
+                        return (m[0] < 0 ? negateToken(c[0]) : c[0]) + ',' +
+                               (m[1] < 0 ? negateToken(c[1]) : c[1]) + ',' +
+                               (m[2] < 0 ? negateToken(c[2]) : c[2]);
+                    }).join(' ');
+                }
+
                 function avgViewZ(el, b) {
                     var raw = el.getAttribute('data-v3d');
                     if (!raw) return 0;
@@ -137,8 +220,23 @@ internal static class Svg3DRotationScript
                 function reprojectAll() {
                     var b = buildBasis();
                     var fit = computeFit(b);
+                    var mirror = faceMirror(b);
+                    // The cube centroid is the origin of the centred coordinates the vertices carry;
+                    // labels are pushed away from THIS point, matching the server's
+                    // PerpAwayFromCentroid. (Flipping against the plot-rect centre instead moved
+                    // labels to the wrong side of their axis on the first drag frame.)
+                    var centroid = project(0, 0, 0, b, fit);
                     var polys = scene.querySelectorAll('[data-v3d]');
                     polys.forEach(function(el) {
+                        var m = pinnedMirror(el, mirror);
+                        // Write the mirrored geometry back so data-v3d always describes where the
+                        // element IS. Without this the attribute would keep naming the face the
+                        // server picked, and the next frame would mirror an already-mirrored vertex.
+                        if (m[0] < 0 || m[1] < 0 || m[2] < 0) {
+                            el.setAttribute('data-v3d', mirrorV3dText(el.getAttribute('data-v3d'), m));
+                            var edgeAttr = el.getAttribute('data-v3d-edge');
+                            if (edgeAttr) el.setAttribute('data-v3d-edge', mirrorV3dText(edgeAttr, m));
+                        }
                         var raw = el.getAttribute('data-v3d');
                         var pts = raw.trim().split(' ');
                         var points = pts.map(function(p) {
@@ -173,9 +271,8 @@ internal static class Svg3DRotationScript
                                 var ex = pB[0] - pA[0], ey = pB[1] - pA[1];
                                 var elen = Math.sqrt(ex*ex + ey*ey) || 1;
                                 var perpX = -ey / elen, perpY = ex / elen;
-                                var centreX = plotX + plotW / 2, centreY = plotY + plotH / 2;
-                                // Flip perp so it points AWAY from the plot centre.
-                                if (perpX * (centreX - labelX) + perpY * (centreY - labelY) > 0) {
+                                // Flip perp so it points AWAY from the projected cube centroid.
+                                if (perpX * (centroid[0] - labelX) + perpY * (centroid[1] - labelY) > 0) {
                                     perpX = -perpX; perpY = -perpY;
                                 }
                                 labelX += perpX * pad;
@@ -186,6 +283,11 @@ internal static class Svg3DRotationScript
                         }
                     });
                     resortDepth(b);
+                    // The DOM now holds the geometry for THIS camera, so record the selection it
+                    // was mirrored to; the next frame measures its flips against this one.
+                    var now = selectFaces(b);
+                    SERVER_FACES = (now[0] ? '1' : '0') + (now[1] ? '1' : '0') + (now[2] ? '1' : '0');
+                    scene.setAttribute('data-faces', SERVER_FACES);
                 }
 
                 // Phase 4 — Pointer Events. setPointerCapture binds the pointer to the

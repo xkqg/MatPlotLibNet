@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.14.1] — 2026-08-15
+
+Bug-fix release. The 3-D axis frame now follows the camera.
+
+### Fixed
+
+- **The 3-D panes, cube edges, wall grids and tick rows were pinned to the default view**
+  ([#18](https://github.com/xkqg/MatPlotLibNet/issues/18)). `ThreeDAxesRenderer` hard-coded the three
+  back-facing cube faces (floor `z = zMin`, wall `x = xMin`, wall `y = yMax`) and the three cube edges that
+  carry the X/Y/Z ticks. That is matplotlib's answer only for elevation ≥ 0 with azimuth in [−90°, 0°]:
+  measured against matplotlib 3.11.1 over 144 cameras, it agreed on **18 of 73** sampled azimuths at
+  elevation 30 — the one quadrant it was written for. Outside it a shaded pane was painted onto a face that
+  had rotated to the **front**, and the Y and Z tick rows were drawn **behind the data**, which is what
+  `WithCamera(elevation: 30, azimuth: -145)` showed. The selection is now derived from the camera on every
+  render (new `CubeFaceSelection`, a port of matplotlib's `axis3d._get_coord_info` +
+  `_get_axis_line_edge_points`, including its edge-on tie handling), and every axis-infrastructure call site
+  reads that one value instead of a literal. Inside the historical quadrant the output is unchanged — the five
+  matplotlib pixel-fidelity fixtures pass untouched.
+- **Interactive rotation carried the same defect.** The browser mirror re-projected the vertices the server
+  had emitted but never re-ran the face selection, so dragging past ±90° left the frame behind. It now
+  re-selects per frame and mirrors the pinned components (`data-v3d-pinned`, `data-faces`).
+- **Tick labels flipped to the wrong side of their axis on the first drag frame.** The browser pushed a label
+  away from the centre of the *plot rectangle* while the server pushed it away from the projected *cube
+  centroid*; the two disagree whenever the cube is not centred in its box.
+- **`Pane3DConfig.Alpha` rendered nowhere.** The property had shipped for releases and no renderer read it.
+  It is now applied to the pane fill, and its default changed from `0.8` to `1.0` so wiring it changes no
+  existing output — a colour is used exactly as supplied unless the caller asks for translucency.
+
+### Changed
+
+- **`Pane3DConfig.LeftWallColor` / `RightWallColor` now name an AXIS, not a fixed side.** `LeftWallColor` is
+  the X-axis wall and `RightWallColor` the Y-axis wall, on whichever side of the cube the camera puts them.
+  Inside `azimuth ∈ [−90°, 0°], elevation ≥ 0` this is exactly the previous behaviour; outside it the colours
+  now follow their wall instead of staying on a fixed plane. Member names are unchanged, so no code breaks —
+  but a chart that sets a wall colour and uses a camera outside that quadrant will paint a different face.
+
+### Added
+
+- **`CubeFaceSelection`, `CubePlane`, `AxisEdge3D`, `CubeAxis`, `CubeSide`** (`MatPlotLibNet.Rendering`) —
+  the camera's verdict on which cube faces point away from the viewer, and the cube edges the tick rows and
+  axis titles run along. Exposed as `Projection3D.Faces`, computed once per projection.
+- **`Projection3D.DataBox`** — the data box the projection maps, as a `Box3D`.
+- **`Pane3DConfig.ColorFor(CubeAxis)`** — the configured colour for one axis' pane.
+
 ## [1.14.0] — 2026-07-12
 
 Control-room release. The dashboard work that shipped as a first iteration in 1.13.1 is replaced by a

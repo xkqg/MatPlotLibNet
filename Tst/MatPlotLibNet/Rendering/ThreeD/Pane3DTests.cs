@@ -3,6 +3,7 @@
 
 using MatPlotLibNet;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering.ThreeD;
@@ -14,8 +15,50 @@ public sealed class Pane3DTests
     {
         var config = new Pane3DConfig();
         Assert.True(config.Visible);
-        Assert.Equal(0.8, config.Alpha);
+        // v1.14.1: Alpha was declared 0.8 but no renderer ever read it (a knob that rendered
+        // nowhere). It is wired now, and the default is 1.0 so wiring it changes no existing
+        // output — every pane colour is still used exactly as supplied.
+        Assert.Equal(1.0, config.Alpha);
         Assert.Null(config.FloorColor);
+    }
+
+    /// <summary>Verifies the pane alpha now actually reaches the rendered surface.</summary>
+    [Fact]
+    public void PaneAlpha_ScalesTheRenderedPaneOpacity()
+    {
+        static string Render(double alpha) => Plt.Create()
+            .WithSize(600, 500)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithCamera(elevation: 30, azimuth: -60)
+                .Surface([0.0, 1.0], [0.0, 1.0], new double[,] { { 0, 1 }, { 1, 0 } })
+                .WithPane3D(p => p with { FloorColor = Color.FromHex("#123456"), Alpha = alpha }))
+            .Build()
+            .ToSvg();
+
+        Assert.NotEqual(Render(1.0), Render(0.25));
+    }
+
+    /// <summary>Verifies each pane colour is bound to its AXIS, not to a fixed side of the cube.</summary>
+    [Theory]
+    [InlineData(CubeAxis.X)]
+    [InlineData(CubeAxis.Y)]
+    [InlineData(CubeAxis.Z)]
+    public void ColorFor_ReturnsThePerAxisPaneColour(CubeAxis axis)
+    {
+        var config = new Pane3DConfig
+        {
+            LeftWallColor = Color.FromHex("#111111"),
+            RightWallColor = Color.FromHex("#222222"),
+            FloorColor = Color.FromHex("#333333"),
+        };
+
+        var expected = axis switch
+        {
+            CubeAxis.X => config.LeftWallColor,
+            CubeAxis.Y => config.RightWallColor,
+            _ => config.FloorColor,
+        };
+        Assert.Equal(expected, config.ColorFor(axis));
     }
 
     [Fact]

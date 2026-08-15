@@ -83,6 +83,12 @@ public static class EnumOrdinalSnapshot
             [typeof(CoordinateSystem)] = new Dictionary<string, int> {
                 ["Cartesian"] = 0, ["Polar"] = 1, ["ThreeD"] = 2,
             },
+            [typeof(CubeAxis)] = new Dictionary<string, int> {
+                ["X"] = 0, ["Y"] = 1, ["Z"] = 2,
+            },
+            [typeof(CubeSide)] = new Dictionary<string, int> {
+                ["Min"] = 0, ["Max"] = 1,
+            },
             [typeof(DateInterval)] = new Dictionary<string, int> {
                 ["Years"] = 0, ["Months"] = 1, ["Weeks"] = 2, ["Days"] = 3,
                 ["Hours"] = 4, ["Minutes"] = 5, ["Seconds"] = 6,

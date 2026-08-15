@@ -54,6 +54,15 @@ public sealed class Projection3D
     /// <summary>Camera distance for perspective projection. Null = orthographic. Clamped to minimum 2.0.</summary>
     public double? Distance => _distance;
 
+    /// <summary>The data box this projection maps — the same <c>(xMin…zMax)</c> the constructor received.</summary>
+    public Box3D DataBox { get; }
+
+    /// <summary>
+    /// Which three cube faces this camera puts at the back, and therefore which cube edges carry the
+    /// X, Y and Z ticks. Computed once per projection; see <see cref="CubeFaceSelection"/>.
+    /// </summary>
+    public CubeFaceSelection Faces { get; }
+
     /// <summary>Initializes a new <see cref="Projection3D"/> matching matplotlib's 3-D pipeline.</summary>
     /// <param name="elevation">Camera elevation above the XY plane in degrees.</param>
     /// <param name="azimuth">Camera azimuth rotation around the Z axis in degrees.</param>
@@ -190,6 +199,92 @@ public sealed class Projection3D
         }
         _fitXMin = minX; _fitXMax = maxX;
         _fitYMin = minY; _fitYMax = maxY;
+
+        DataBox = new Box3D(xMin, xMax, yMin, yMax, zMin, zMax);
+        Faces = SelectFaces();
+    }
+
+    // matplotlib's machine epsilon (numpy float64 `np.finfo(float).eps`) — the tolerance
+    // axis3d.py:289 uses to decide that two parallel planes are exactly edge-on.
+    private const double MachineEpsilon = 2.220446049250313e-16;
+
+    /// <summary>
+    /// Port of matplotlib <c>axis3d.Axis._get_coord_info</c> (lines 280-297): for each axis, compare
+    /// the mean PROJECTED depth of the two parallel cube faces; the farther one is the back pane.
+    /// The edge-on special case is carried over verbatim — when exactly two axis-pairs are within
+    /// <see cref="MachineEpsilon"/> of each other (the camera looks straight down one axis), the
+    /// tie is broken by the one remaining axis instead of by float noise.
+    /// </summary>
+    private CubeFaceSelection SelectFaces()
+    {
+        Span<double> lo = [_xMin, _yMin, _zMin];
+        Span<double> hi = [_xMax, _yMax, _zMax];
+        Span<bool> backAtMax = stackalloc bool[3];
+        Span<bool> edgeOn = stackalloc bool[3];
+        int edgeOnCount = 0;
+
+        for (int axis = 0; axis < 3; axis++)
+        {
+            double meanLo = MeanPlaneDepth(axis, lo[axis], lo, hi);
+            double meanHi = MeanPlaneDepth(axis, hi[axis], lo, hi);
+            backAtMax[axis] = meanLo < meanHi;
+            edgeOn[axis] = Math.Abs(meanLo - meanHi) <= MachineEpsilon;
+            if (edgeOn[axis]) edgeOnCount++;
+        }
+
+        if (edgeOnCount == 2)
+        {
+            int vertical = !edgeOn[0] ? 0 : !edgeOn[1] ? 1 : 2;
+            switch (vertical)
+            {
+                case 2:  // looking at the XY plane
+                    backAtMax[0] = true; backAtMax[1] = true;
+                    break;
+                case 1:  // looking at the XZ plane
+                    backAtMax[0] = true; backAtMax[2] = false;
+                    break;
+                default: // looking at the YZ plane
+                    backAtMax[1] = false; backAtMax[2] = false;
+                    break;
+            }
+        }
+
+        return new CubeFaceSelection(
+            new CubePlane(CubeAxis.X, backAtMax[0] ? CubeSide.Max : CubeSide.Min),
+            new CubePlane(CubeAxis.Y, backAtMax[1] ? CubeSide.Max : CubeSide.Min),
+            new CubePlane(CubeAxis.Z, backAtMax[2] ? CubeSide.Max : CubeSide.Min));
+    }
+
+    /// <summary>Mean projected depth of the four corners of one axis-aligned cube face.</summary>
+    private double MeanPlaneDepth(int axis, double coordinate, Span<double> lo, Span<double> hi)
+    {
+        int a = (axis + 1) % 3;
+        int b = (axis + 2) % 3;
+        Span<double> point = stackalloc double[3];
+        point[axis] = coordinate;
+        double sum = 0;
+        for (int i = 0; i < 2; i++)
+        {
+            point[a] = i == 0 ? lo[a] : hi[a];
+            for (int j = 0; j < 2; j++)
+            {
+                point[b] = j == 0 ? lo[b] : hi[b];
+                sum += ProjectedDepth(point[0], point[1], point[2]);
+            }
+        }
+        return sum / 4;
+    }
+
+    /// <summary>
+    /// The POST-divide projected z of a data point — matplotlib's <c>proj_transform</c> third
+    /// component, the statistic its face selection compares. Distinct from <see cref="Depth"/>,
+    /// which is the pre-divide painter's-algorithm sort key.
+    /// </summary>
+    private double ProjectedDepth(double x, double y, double z)
+    {
+        double mz = _m[2, 0] * x + _m[2, 1] * y + _m[2, 2] * z + _m[2, 3];
+        double mw = _m[3, 0] * x + _m[3, 1] * y + _m[3, 2] * z + _m[3, 3];
+        return mz / mw;
     }
 
     /// <summary>Applies the full 4×4 matrix M to a world-box point, returning post-divide NDC (x, y).</summary>
