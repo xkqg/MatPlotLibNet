@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.14.2] — 2026-08-17
+
+Bug-fix release. 3-D axis titles no longer print through their own tick labels.
+
+### Fixed
+
+- **A 3-D axis title could land on top of its own tick labels**
+  ([#18](https://github.com/xkqg/MatPlotLibNet/issues/18), reported after the 1.14.1 frame fix). The
+  title was placed at a CONSTANT perpendicular distance from the axis edge — 42 px for X, 60 px for
+  Y and Z — while the tick labels sit at `tickLength + pad + 14`. Barely a line height separated
+  them, so any label wide enough closed the gap: measured at elevation 30, the X title overlapped a
+  tick label at **every** azimuth tested (−145, −60, −45, 45, 135), not only at the camera in the
+  report. The pad is now MEASURED per render: the renderer takes the widest tick label the axis
+  actually draws, projects both boxes onto the outward perpendicular, and places the title beyond
+  them. Wider tick fonts and custom `TickFormatter`s widen the band and move the title with it —
+  nothing to configure.
+- **Axis titles did not follow the camera-derived face selection in the browser.** They carried no
+  `data-v3d-pinned`, so a drag past a face boundary moved the tick row to the other side and left
+  the title behind.
+
+### Changed
+
+- The 3-D grid, the tick rows and the title-clearance measurement now derive their tick values from
+  **one** rule (`TickLocator` → `MajorTicks.Spacing` → `MaxNLocator`). The grid previously ignored
+  `MajorTicks.Spacing`, so a chart that set it drew grid lines where no tick was.
+
 ## [1.14.1] — 2026-08-15
 
 Bug-fix release. The 3-D axis frame now follows the camera.

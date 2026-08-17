@@ -10,7 +10,17 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 What's next
 
-**v1.14.1 (2026-08-15) — the 3-D axis frame follows the camera**: the shaded panes, the drawn
+**v1.14.2 (2026-08-17) — 3-D axis titles clear their own tick labels**: the title pad was a
+constant (42 px for X, 60 for Y/Z) while the tick labels sit barely a line height inside it, so a
+title printed through a tick label at every camera once the labels were wide enough
+([#18](https://github.com/xkqg/MatPlotLibNet/issues/18) follow-up). The pad is now measured per
+render from the labels the axis actually draws, so a wider tick font or a custom `TickFormatter`
+moves the title with it. Also: axis titles now travel with the camera-derived face selection during
+a drag, and the 3-D grid, the tick rows and the clearance measurement share one tick rule (the grid
+used to ignore `MajorTicks.Spacing`). All 13 packages at 1.14.2; 10,714 tests, 0 failures; strict
+coverage gate 659/659 classes at ≥90/90.
+
+Prior: **v1.14.1 (2026-08-15) — the 3-D axis frame follows the camera**: the shaded panes, the drawn
 cube edges, the wall grids and the X/Y/Z tick rows were pinned to the faces that are back-facing at
 matplotlib's default view, so any camera outside `azimuth ∈ [−90°, 0°]` painted a pane onto a face
 that had rotated to the front and drew two tick rows behind the data

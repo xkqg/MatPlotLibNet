@@ -129,16 +129,19 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         var labelFont = LabelFont();
         var cubeCentroidForLabels = proj.Project((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
         // Phase F.2 — axis-title labels use the same perpendicular-pad emission as tick
-        // labels so they stay outside the cube on interactive rotation. The pad constants
-        // below (42 for X, 60 for Y/Z) are the magnitudes originally passed to
-        // PerpAwayFromCentroid; EmitTextWithPerpPad + JS reproject reconstruct the
-        // per-frame direction from the axis edge endpoints, matching the server's
-        // PerpAwayFromCentroid output at the current camera angle.
+        // labels so they stay outside the cube on interactive rotation; EmitTextWithPerpPad + the
+        // JS reproject reconstruct the per-frame direction from the axis edge endpoints.
+        // The pad is MEASURED, not constant: it clears the tick-label band this axis actually
+        // draws (issue #18 follow-up — the old constants, 42 px for X and 60 for Y/Z, sat inside
+        // that band, so a title printed straight through a tick label at every camera).
         // The Y title sits at 0.35 along its edge rather than the midpoint (matplotlib puts it
         // clear of the corner where the X and Y rows meet); X and Z sit at their midpoints.
-        RenderAxisTitle(proj, Axes.XAxis.Label, faces.AxisEdge(CubeAxis.X, box), 0.5, 42.0, cubeCentroidForLabels, labelFont);
-        RenderAxisTitle(proj, Axes.YAxis.Label, faces.AxisEdge(CubeAxis.Y, box), 0.35, 60.0, cubeCentroidForLabels, labelFont);
-        RenderAxisTitle(proj, Axes.ZAxis.Label, faces.AxisEdge(CubeAxis.Z, box), 0.5, 60.0, cubeCentroidForLabels, labelFont);
+        RenderAxisTitle(proj, CubeAxis.X, Axes.XAxis.Label, faces.AxisEdge(CubeAxis.X, box), 0.5,
+            TitlePad(Axes.XAxis, CubeAxis.X, box.X, proj, faces, box, cubeCentroidForLabels), cubeCentroidForLabels, labelFont);
+        RenderAxisTitle(proj, CubeAxis.Y, Axes.YAxis.Label, faces.AxisEdge(CubeAxis.Y, box), 0.35,
+            TitlePad(Axes.YAxis, CubeAxis.Y, box.Y, proj, faces, box, cubeCentroidForLabels), cubeCentroidForLabels, labelFont);
+        RenderAxisTitle(proj, CubeAxis.Z, Axes.ZAxis.Label, faces.AxisEdge(CubeAxis.Z, box), 0.5,
+            TitlePad(Axes.ZAxis, CubeAxis.Z, ZRange(box), proj, faces, box, cubeCentroidForLabels), cubeCentroidForLabels, labelFont);
 
         // Phase F of v1.7.2 follow-on — close mpl-3d-back tier, open mpl-3d-data.
         if (sceneGroup) { svgCtx!.End3DSubgroup(); svgCtx.Begin3DSubgroup("mpl-3d-data"); }
@@ -171,11 +174,75 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         RenderTitle();
     }
 
+    /// <summary>The Z range the tick row uses — user limits win over the padded data range.</summary>
+    private Range1D ZRange(Box3D box) => new(Axes.ZAxis.Min ?? box.Z.Lo, Axes.ZAxis.Max ?? box.Z.Hi);
+
+    /// <summary>Extra breathing room between the tick-label band and the axis title, in pixels.</summary>
+    private const double TitleGapPx = 8;
+
+    /// <summary>
+    /// Extra 3-D tick-label pad: pushes labels outside the cube silhouette so they do not overlap
+    /// bars/surfaces drawn inside it. matplotlib uses a similar offset to keep the X/Y labels in the
+    /// margin below the cube rather than along the bottom edge where bar front faces live.
+    /// </summary>
+    private const double ThreeDExtraPad = 14;
+
+    /// <summary>
+    /// The perpendicular distance at which an axis title clears its own tick labels.
+    /// <para>
+    /// Both sit on the SAME outward perpendicular — the labels at <c>labelOffset</c> from their own
+    /// tick, the title at this pad from the edge midpoint — so in the worst case (a tick right at the
+    /// midpoint) only the difference between the two offsets separates them. Text boxes are
+    /// axis-aligned on screen, so they are clear as soon as they separate on EITHER screen axis:
+    /// take the cheaper of the two, and let the camera's perpendicular decide which one that is.
+    /// </para>
+    /// Measured per render because it depends on the camera, the tick values and the font — the three
+    /// things a constant cannot know (issue #18 follow-up).
+    /// </summary>
+    private double TitlePad(Axis axis, CubeAxis cubeAxis, Range1D range, Projection3D proj,
+        CubeFaceSelection faces, Box3D box, Point cubeCentroid)
+    {
+        string? title = axis.Label;
+        var major = axis.MajorTicks;
+        var edge = faces.AxisEdge(cubeAxis, box);
+        var edgeA = proj.Project(edge.From.X, edge.From.Y, edge.From.Z);
+        var edgeB = proj.Project(edge.To.X, edge.To.Y, edge.To.Z);
+        var perp = OutwardPerp(edgeA, edgeB, cubeCentroid);
+        double labelOffset = major.Length + major.Pad + ThreeDExtraPad;
+        if (title is null || !major.Visible) return labelOffset + TitleGapPx;
+
+        var labelFont = TickFont();
+        if (major.LabelSize.HasValue) labelFont = labelFont with { Size = major.LabelSize.Value };
+
+        var ticks = ComputeAxisTicks(axis, range, PixelLength(edgeA, edgeB), labelFont.Size);
+        var format = BuildUniformTickFormatter(ticks);
+        double labelW = 0, labelH = 0;
+        foreach (double t in ticks)
+        {
+            var size = Ctx.MeasureText(axis.TickFormatter?.Format(t) ?? format(t), labelFont);
+            if (size.Width > labelW) labelW = size.Width;
+            if (size.Height > labelH) labelH = size.Height;
+        }
+
+        // Separating-axis test along the perpendicular itself: project both boxes onto it (an
+        // axis-aligned box of w×h reaches |perp.X|·w + |perp.Y|·h along a direction) and keep the
+        // two projections apart. Separation on that ONE axis is enough to prove the boxes are
+        // disjoint, whatever position along the edge a tick label happens to sit at — which is why
+        // the cheaper "separate horizontally OR vertically" test does not hold here: the title is
+        // centred on the edge midpoint while its labels are spread along the whole edge.
+        var titleSize = Ctx.MeasureText(title, LabelFont());
+        double perpX = Math.Abs(perp.X), perpY = Math.Abs(perp.Y);
+        double labelReach = perpX * labelW + perpY * labelH;
+        double titleReach = perpX * titleSize.Width + perpY * titleSize.Height;
+
+        return labelOffset + (labelReach + titleReach) / 2 + TitleGapPx;
+    }
+
     /// <summary>
     /// Draws one axis title along its tick-bearing cube edge, pushed perpendicular away from the
     /// cube so it clears the data. <paramref name="fraction"/> positions it along the edge.
     /// </summary>
-    private void RenderAxisTitle(Projection3D proj, string? label, AxisEdge3D edge,
+    private void RenderAxisTitle(Projection3D proj, CubeAxis cubeAxis, string? label, AxisEdge3D edge,
         double fraction, double padPx, Point cubeCentroid, Font font)
     {
         if (label is null) return;
@@ -188,7 +255,10 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             edge.From.X + (edge.To.X - edge.From.X) * fraction,
             edge.From.Y + (edge.To.Y - edge.From.Y) * fraction,
             edge.From.Z + (edge.To.Z - edge.From.Z) * fraction);
-        EmitTextWithPerpPad(proj, anchor, edge, padPx);
+        // A title is pinned to the same two selected faces as its tick row, so the browser mirror
+        // must move it with them — without this it stays on the face the server picked while the
+        // ticks below it jump to the other side.
+        EmitTextWithPerpPad(proj, anchor, edge, padPx, cubeAxis.OtherAxes());
         Ctx.DrawText(label, new Point(mid.X + perp.X, mid.Y + perp.Y), font, TextAlignment.Center);
     }
 
@@ -540,33 +610,17 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         // though Y's data range is smaller.
         double edgePx = PixelLength(edgeA, edgeB);
         double labelFontSize = major.LabelSize ?? Theme.DefaultFont.Size;
-        var ticks = axis.TickLocator is not null
-            ? axis.TickLocator.Locate(lo, hi)
-            : axis.MajorTicks.Spacing.HasValue
-                ? new TickLocators.MultipleLocator(axis.MajorTicks.Spacing.Value).Locate(lo, hi)
-                : ComputeMaxNTicks(lo, hi, edgePx, labelFontSize);
+        var ticks = ComputeAxisTicks(axis, range, edgePx, labelFontSize);
 
-        // Compute the perpendicular, then flip it if it points toward the cube centroid
-        // rather than away from it — this guarantees tick marks and labels always extend
-        // AWAY from the cube regardless of camera angle or edge orientation.
-        var perp = Perp2D(edgeA, edgeB, 1.0);
-        var edgeMid = new Point((edgeA.X + edgeB.X) / 2, (edgeA.Y + edgeB.Y) / 2);
-        double towardCubeX = cubeCentroid.X - edgeMid.X;
-        double towardCubeY = cubeCentroid.Y - edgeMid.Y;
-        if (perp.X * towardCubeX + perp.Y * towardCubeY > 0)
-            perp = new Point(-perp.X, -perp.Y);
+        // Tick marks and labels always extend AWAY from the cube, whatever the camera angle or the
+        // edge orientation — the same perpendicular the axis title is placed along.
+        var perp = OutwardPerp(edgeA, edgeB, cubeCentroid);
 
         var tickColor = major.Color ?? Theme.ForegroundText;
 
         var labelFont = TickFont();
         if (major.LabelSize.HasValue)  labelFont = labelFont with { Size  = major.LabelSize.Value };
         if (major.LabelColor.HasValue) labelFont = labelFont with { Color = major.LabelColor };
-
-        // Extra 3-D tick-label pad: push labels well outside the cube silhouette so they
-        // don't overlap with bars/surfaces drawn inside the cube. matplotlib uses a similar
-        // offset to keep X/Y labels in the margin below the cube rather than along the
-        // bottom edge where bar front faces live.
-        const double threeDExtraPad = 14;
 
         // Build a single uniform-precision formatter from the tick list so every label
         // gets the same decimal places (e.g. "0.0"/"0.5"/"1.0" instead of "0"/"0.5"/"1").
@@ -588,7 +642,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             EmitV3D(proj, pinned, point, point);
             Ctx.DrawLine(p, tip, new StrokeStyle(tickColor, major.Width, LineStyle.Solid));
 
-            double labelOffset = major.Length + major.Pad + threeDExtraPad;
+            double labelOffset = major.Length + major.Pad + ThreeDExtraPad;
             var labelPos = new Point(
                 p.X + perp.X * labelOffset,
                 p.Y + perp.Y * labelOffset);
@@ -618,6 +672,32 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             Ctx.DrawLine(p, tip, new StrokeStyle(minorColor, minor.Width, LineStyle.Solid));
         }
     }
+
+    /// <summary>
+    /// The UNIT perpendicular of a projected axis edge, flipped so it points AWAY from the cube
+    /// centroid. One rule, shared by the tick marks, the tick labels and the axis title — they must
+    /// travel in the same direction or the title lands on a different side than the labels it clears.
+    /// </summary>
+    private static Point OutwardPerp(Point edgeA, Point edgeB, Point cubeCentroid)
+    {
+        var perp = Perp2D(edgeA, edgeB, 1.0);
+        var edgeMid = new Point((edgeA.X + edgeB.X) / 2, (edgeA.Y + edgeB.Y) / 2);
+        double towardCubeX = cubeCentroid.X - edgeMid.X;
+        double towardCubeY = cubeCentroid.Y - edgeMid.Y;
+        return perp.X * towardCubeX + perp.Y * towardCubeY > 0 ? new Point(-perp.X, -perp.Y) : perp;
+    }
+
+    /// <summary>
+    /// The major tick values for one 3-D axis: an explicit locator wins, then a fixed spacing, then
+    /// matplotlib's MaxNLocator over the projected edge length. ONE rule — the grid, the tick row and
+    /// the title-clearance measurement all call this, so they cannot disagree about where a tick is.
+    /// </summary>
+    private static double[] ComputeAxisTicks(Axis axis, Range1D range, double edgePx, double labelFontSize) =>
+        axis.TickLocator is not null
+            ? axis.TickLocator.Locate(range.Lo, range.Hi)
+            : axis.MajorTicks.Spacing.HasValue
+                ? new TickLocators.MultipleLocator(axis.MajorTicks.Spacing.Value).Locate(range.Lo, range.Hi)
+                : ComputeMaxNTicks(range.Lo, range.Hi, edgePx, labelFontSize);
 
     /// <summary>Returns a unit perpendicular from edge A→B (rotated 90° CW, outward from box), scaled to <paramref name="px"/> pixels.</summary>
     private static Point Perp2D(Point a, Point b, double px)

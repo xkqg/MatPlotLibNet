@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.14.1)
+# MatPlotLibNet Core -- Architecture (v1.14.2)
 
 ## Package dependency graph
 
@@ -264,7 +264,11 @@ MatPlotLibNet/
                                         Panes / the 9 drawn cube edges / wall grids / tick rows / axis titles all
                                         read Projection3D.Faces (v1.14.1) instead of literal planes, so the axis
                                         frame follows the camera at any azimuth (was: correct only for the
-                                        default quadrant elev>=0, azim in [-90,0])
+                                        default quadrant elev>=0, azim in [-90,0]).
+                                        v1.14.2: ONE tick rule (ComputeAxisTicks: locator -> spacing -> MaxN) shared by
+                                        grid + tick rows + title clearance, and the axis-title pad is MEASURED
+                                        (TitlePad: widest drawn label, projected onto the outward perpendicular)
+                                        instead of the old 42/60 px constants that sat inside the label band
     IRenderContext.cs                  drawing primitives: DrawLine/DrawRect/etc. take StrokeStyle(Color,Thickness,Style)
                                         / ShapeStyle(Fill,Stroke,StrokeThickness) records (v1.13.0, was loose params —
                                         centralizes the Thickness<=0 visibility guard across every backend);

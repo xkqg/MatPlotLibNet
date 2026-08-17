@@ -62,6 +62,10 @@ other side exactly as matplotlib's does.
 `Pane3DConfig` colours name the AXIS whose wall they paint, not a fixed side of the cube:
 `LeftWallColor` is the X-axis wall, `RightWallColor` the Y-axis wall, `FloorColor` the Z floor.
 
+Axis titles place themselves clear of their own tick labels (v1.14.2): the gap is measured from the
+labels the axis actually draws, so a larger tick font or a custom `TickFormatter` pushes the title
+out with it — there is no pad to tune.
+
 ```csharp
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
