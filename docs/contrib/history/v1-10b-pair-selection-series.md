@@ -1,3 +1,7 @@
+> **HISTORY (moved 2026-08-20).** A completed release build-plan: the version it targets has shipped (the repo is
+> at 1.14.2) and nothing in the code, the docs site or another document references this file. Kept for provenance —
+> the class and test names in it are from the plan, not from today's source.
+
 # v1.10 — Pair-Selection Visualisation Pack (Chart Types)
 
 Second PR of the **v1.10 "Quant & Stats Pack"** — chart-type additions for portfolio / pair-selection workflows. Scope: **three new series types + an extension to `HeatmapSeries`** that any practitioner doing correlation-based asset clustering, dimensional EDA, or hierarchical risk parity will reach for.

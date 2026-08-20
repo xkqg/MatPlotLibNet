@@ -1,3 +1,7 @@
+> **HISTORY (moved 2026-08-20).** A completed release build-plan: the version it targets has shipped (the repo is
+> at 1.14.2) and nothing in the code, the docs site or another document references this file. Kept for provenance —
+> the class and test names in it are from the plan, not from today's source.
+
 # v1.10 — NetworkGraphSeries (Graph category)
 
 Follow-up release after v1.10. Originally specced as Phase 4 of the v1.10 Pair-Selection

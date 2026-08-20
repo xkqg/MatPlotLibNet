@@ -1,3 +1,7 @@
+> **HISTORY (moved 2026-08-20).** A completed release build-plan: the version it targets has shipped (the repo is
+> at 1.14.2) and nothing in the code, the docs site or another document references this file. Kept for provenance —
+> the class and test names in it are from the plan, not from today's source.
+
 # v1.10a — Statistical Diagnostics Pack (Chart Types)
 
 First PR of the **v1.10 "Quant & Stats Pack"** — targeted chart-type additions for quant/scientific workflows. Scope: **three statistical-diagnostic chart types** that matplotlib and seaborn users have come to expect but are absent from current .NET charting libraries.
