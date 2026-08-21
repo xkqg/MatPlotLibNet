@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
@@ -52,7 +52,11 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         double below = cy + 30;
         if (!string.IsNullOrEmpty(series.Label))
         {
-            Ctx.DrawText(series.Label, new Point(cx, below), new Font { Size = 14 }, TextAlignment.Center);
+            // The theme's ink, like the value above and the caption below. Without a Color the SVG text
+            // carries no fill at all and inherits BLACK — invisible on any operator ground, which is
+            // exactly where a tile lives (reported from the Ait console: unreadable tile names).
+            Ctx.DrawText(series.Label, new Point(cx, below),
+                new Font { Size = 14, Color = Context.Theme.ForegroundText }, TextAlignment.Center);
             below += 18;
         }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
@@ -122,5 +122,24 @@ public class StatTileAnatomyTests
         public double? YAxisMax => null;
         public BarMode BarMode => BarMode.Grouped;
         public IReadOnlyList<ISeries> AllSeries => [];
+    }
+
+    /// <summary>The label wears the theme's own ink, like the value and the caption above and below it.
+    /// <para>It did not: the label was drawn with a Font carrying no Color, so it fell back to black — on an
+    /// operator ground (Theme.OpsNight, #191C1E) that is a label nobody can read, while the number right
+    /// above it is perfectly legible. Reported from the Ait console, where it showed up as tiles with
+    /// invisible names.</para></summary>
+    [Fact]
+    public void TheLabel_WearsTheThemesInk_notABlackFallback()
+    {
+        string svg = Plt.Create()
+            .WithTheme(Theme.OpsNight)
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(12.0, s => s.Label = "Latency"))
+            .ToSvg();
+
+        var label = System.Text.RegularExpressions.Regex.Match(svg, "<text[^>]*>Latency</text>");
+        Assert.True(label.Success, "the label must be drawn at all");
+        Assert.Contains("fill=", label.Value, StringComparison.Ordinal);
+        Assert.Contains(Theme.OpsNight.ForegroundText.ToHex(), label.Value, StringComparison.OrdinalIgnoreCase);
     }
 }

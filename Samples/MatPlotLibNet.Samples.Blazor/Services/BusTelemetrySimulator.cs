@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Collections.Concurrent;
@@ -93,6 +93,39 @@ public sealed class BusTelemetrySimulator : BackgroundService
     /// UI never reads a half-written snapshot.</summary>
     public Snapshot Latest => _latest;
 
+    /// <summary>Runs a scripted incident so an operator can watch a fault ARRIVE, not just read a red tile:
+    /// forty seconds quiet, forty seconds faulted, repeat. The manual <see cref="FaultInjected"/> latch still
+    /// wins — a scenario may never override the operator.</summary>
+    public bool ScenarioRunning { get; set; }
+
+    /// <summary>Control-path p99 over the last few minutes, as the inline tile sparkline. Newest last.</summary>
+    public double[] P99Trend => TrendOf(static s => s.P99);
+
+    /// <summary>The publish-minus-consume gap over the last few minutes. Newest last.</summary>
+    public double[] BacklogTrend => TrendOf(static s => Math.Max(0, s.Publish - s.Consume));
+
+    /// <summary>Telemetry loss over the last few minutes. Newest last.</summary>
+    public double[] DropsTrend => TrendOf(static s => s.Drops);
+
+    /// <summary>Publish rate over the last few minutes. Newest last.</summary>
+    public double[] PublishTrend => TrendOf(static s => s.Publish);
+
+    /// <summary>Thins the measured samples down to a sparkline-sized series. A tile sparkline is read as a
+    /// SHAPE, so it takes the most recent points at a fixed stride rather than an average — averaging is the
+    /// operation that removes the spike the reader is looking for.</summary>
+    private double[] TrendOf(Func<Sample, double> pick, int points = 48)
+    {
+        var recent = _samples.ToArray();
+        if (recent.Length == 0) return [];
+        int stride = Math.Max(1, recent.Length / points);
+        var trend = new List<double>(points);
+        for (int i = Math.Max(0, recent.Length - points * stride); i < recent.Length; i += stride)
+        {
+            trend.Add(pick(recent[i]));
+        }
+        return [.. trend];
+    }
+
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -156,7 +189,9 @@ public sealed class BusTelemetrySimulator : BackgroundService
 
     private void Collect(DateTime now)
     {
-        bool faulted = FaultInjected;
+        // The operator's latch wins; the scripted scenario only fills the silence when nobody has latched one.
+        bool faulted = FaultInjected
+            || (ScenarioRunning && (now.Ticks / TimeSpan.TicksPerSecond / 40) % 2 == 1);
 
         double baseRate = 2400 + 220 * Math.Sin(now.Ticks / (double)TimeSpan.TicksPerSecond / 21);
         double publish = baseRate + (_rng.NextDouble() - 0.5) * 90;

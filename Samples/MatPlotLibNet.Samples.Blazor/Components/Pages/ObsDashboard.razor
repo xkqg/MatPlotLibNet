@@ -1,4 +1,4 @@
-@page "/obs-dashboard"
+﻿@page "/obs-dashboard"
 @using MatPlotLibNet.Models.Series
 @using MatPlotLibNet.Samples.Blazor.Services
 @using MatPlotLibNet.Styling
@@ -28,6 +28,11 @@
 
     <button @onclick="() => Simulator.FaultInjected = !Simulator.FaultInjected">
         @(Simulator.FaultInjected ? "Clear fault" : "Inject fault")
+    </button>
+
+    <button class="@(Simulator.ScenarioRunning ? "on" : null)"
+            @onclick="() => Simulator.ScenarioRunning = !Simulator.ScenarioRunning">
+        @(Simulator.ScenarioRunning ? "Stop scenario" : "Run scenario")
     </button>
 </p>
 
@@ -98,21 +103,21 @@
             s.ProcessesDeviating > 0 ? s.ProcessesDeviating : s.Processes,
             "Processes",
             s.ProcessesDeviating > 0 ? $"of {s.Processes} · click to see which" : $"all {s.Processes} normal",
-            s.ProcessState);
+            s.ProcessState, trend: Simulator.PublishTrend);
 
         yield return Tile(s.P99, "RFx p99", $"target ≤ 25 ms · {(s.P99 <= 25 ? "within" : $"+{s.P99 - 25:0.0} over")}",
             s.P99 > 30 ? OpsState.Critical : s.P99 > 25 ? OpsState.Degraded : OpsState.Normal,
-            format: "0.0' ms'", target: 25);
+            format: "0.0' ms'", target: 25, trend: Simulator.P99Trend);
 
         yield return Tile(s.Backlog / 30, "Backlog",
             s.Backlog > 40 ? "oldest unprocessed · growing" : "oldest unprocessed · flat",
             s.Backlog > 250 ? OpsState.Critical : s.Backlog > 40 ? OpsState.Degraded : OpsState.Normal,
-            format: "0.0' s'");
+            format: "0.0' s'", trend: Simulator.BacklogTrend);
 
         yield return Tile(s.Drops, "Loss",
             s.Drops > 2 ? "telemetry is losing messages" : "no loss",
             s.Drops > 20 ? OpsState.Critical : s.Drops > 2 ? OpsState.Degraded : OpsState.Normal,
-            format: "0.0'/s'");
+            format: "0.0'/s'", trend: Simulator.DropsTrend);
 
         yield return Tile(s.Alarms, "Alarms",
             s.Alarms > 0 ? "unacknowledged" : "no active alarms",
@@ -120,7 +125,7 @@
     }
 
     private static Figure Tile(double value, string label, string caption, OpsState state,
-        string format = "0.##", double? target = null)
+        string format = "0.##", double? target = null, double[]? trend = null)
     {
         var theme = Theme.OpsNight;
 
@@ -135,6 +140,10 @@
                     t.Caption = caption;
                     t.Format = format;
                     t.Target = target;
+
+                    // The sparkline is what turns a number into a reading: 28 ms means nothing until you can
+                    // see it climbing. No axis, no frame, no ticks — a shape, read in one glance.
+                    t.Trend = trend;
 
                     // Colour ONLY when it means something. A resting tile takes the theme's neutral shade —
                     // a wall of cheerful tiles spends the contrast the one real alarm needs to borrow.
