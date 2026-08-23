@@ -1668,6 +1668,21 @@ public sealed class SecondaryAxisBuilder
         configure?.Invoke(series);
         return this;
     }
+
+    /// <summary>Adds a STREAMING line series against the secondary Y-axis, so a live chart can carry two
+    /// units at once — one appended on the left, one on the right.</summary>
+    /// <param name="capacity">Maximum data points retained in the ring buffer. Default 10,000.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>The created series, so the caller can <c>AppendPoint</c> to it from any thread — unlike the
+    /// other methods here it does NOT return the builder, because the series IS the handle live data needs
+    /// (the same shape <see cref="AxesBuilder.StreamingPlot"/> already has on the primary axis).</returns>
+    public Models.Series.Streaming.StreamingLineSeries StreamingPlot(
+        int capacity = 10_000, Action<Models.Series.Streaming.StreamingLineSeries>? configure = null)
+    {
+        var series = _axes.AddSecondarySeries(new Models.Series.Streaming.StreamingLineSeries(capacity));
+        configure?.Invoke(series);
+        return series;
+    }
 }
 
 /// <summary>Fluent builder for configuring a secondary X-axis (top edge) and adding series that scale against it.</summary>

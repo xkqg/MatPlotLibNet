@@ -170,4 +170,37 @@ public class LegendDragTests
         Assert.True(string.IsNullOrEmpty(legend.getAttribute("transform")),
             $"hover must not translate the legend; got '{legend.getAttribute("transform")}'");
     }
+
+    [Fact]
+    public void ADroppedLegendIsREMEMBEREDOnTheHost_soAServerRerenderCannotSnapItBack()
+    {
+        // A live chart replaces its whole SVG on every push, so the transform this script sets lived exactly
+        // until the next frame and the legend jumped back under the reader's hand (owner, 2026-08-22: "als ik
+        // de legend verplaats gaat ie weer terug naar zijn oude plek"). The drop is parked on the HOST element
+        // — the container the SVG is swapped inside, which outlives the swap.
+        using var h = BuildLegend();
+        var svg = h.Document.querySelector("svg")!;
+        var host = svg.parentNode!;
+        var key = "data-mpl-legend-offset-" + svg.getAttribute("id");
+
+        h.Simulate("[data-legend-index='0']", "pointerdown", e => { e.clientX = 50;  e.clientY = 50; });
+        h.Simulate("[data-legend-index='0']", "pointermove", e => { e.clientX = 110; e.clientY = 70; });
+        h.Simulate("[data-legend-index='0']", "pointerup",   e => { e.clientX = 110; e.clientY = 70; });
+
+        Assert.Equal("60,20", host.getAttribute(key));
+    }
+
+    [Fact]
+    public void AMovementBELOWTheThresholdRemembersNOTHING()
+    {
+        using var h = BuildLegend();
+        var svg = h.Document.querySelector("svg")!;
+        var key = "data-mpl-legend-offset-" + svg.getAttribute("id");
+
+        h.Simulate("[data-legend-index='0']", "pointerdown", e => { e.clientX = 100; e.clientY = 50; });
+        h.Simulate("[data-legend-index='0']", "pointermove", e => { e.clientX = 103; e.clientY = 50; });
+        h.Simulate("[data-legend-index='0']", "pointerup",   e => { e.clientX = 103; e.clientY = 50; });
+
+        Assert.True(string.IsNullOrEmpty(svg.parentNode!.getAttribute(key)));
+    }
 }

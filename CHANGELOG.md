@@ -4,6 +4,52 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.14.3] — 2026-08-22
+
+The secondary Y-axis becomes a full citizen: it is drawn, named, scaled and readable, and streaming
+series render in SVG at all.
+
+### Fixed
+
+- **A streaming series rendered NOTHING in SVG.** `ISeriesVisitor` declares
+  `Visit(StreamingLineSeries|StreamingScatterSeries|StreamingSignalSeries, RenderArea)` as empty
+  default bodies for ISP compatibility, and `SvgSeriesRenderer` never overrode them — so every
+  `StreamingPlot` / `StreamingScatter` / `StreamingSignal` produced an empty plot area while its data
+  range WAS folded in, leaving axes neatly scaled to data no reader could see. Measured on a live ops
+  wall: three appended points, zero polylines. The three visits now snapshot the ring buffer and
+  delegate to the static line/scatter renderers, so a streamed line is drawn by exactly the code that
+  decides what a line looks like. (`StreamingScatterSeries.MarkerSize` is a DIAMETER while
+  `ScatterSeries.MarkerSize` is an AREA — the adapter squares it, or a streamed marker rendered a
+  sixth of its declared size.) An empty ring still draws nothing: no flat line at zero.
+- **The legend ignored every secondary-axis series.** `RenderLegend` walked `Axes.Series` only, so a
+  dual-axis chart named one of its two lines and a reader had to guess which. Secondary traces now
+  appear, with the colour-cycle index continuing from the primary count — the same offset
+  `CartesianSecondaryYAxisPart` draws them with, so a key can never point at the wrong trace.
+- **The secondary axis did not scale to a streaming series.** `ComputeSecondaryDataRanges` gated on
+  `is IHasDataRange`, a marker interface a streaming series does not carry (it implements the same
+  member through `ISeries`), so the right-hand scale kept its 0..1 sentinel and the trace was drawn
+  off the plot area. It now calls `ISeries.ComputeDataRange`, exactly as the primary path does.
+
+- **The secondary Y-axis label printed through its own tick labels.** The primary Y label has measured
+  its clearance for releases (tick length + pad + the widest MEASURED tick label + a gap, rotated 90);
+  the secondary one kept the constant it was extracted with — plot-right + 45, unrotated — so with
+  three-digit ticks it sat straight on top of them. Measured on a live ops wall: "kB / sec" over
+  225/200/175. It now measures the same way and is rotated the same way.
+- **A dragged legend snapped back on the next server render.** The drag script kept its offset in a
+  local, so a live chart — which replaces its whole SVG on every push — threw the drop away between
+  frames and the legend jumped back under the reader's hand. The offset is now parked on the HOST
+  element (the container the SVG is swapped inside, which outlives the swap) keyed by the SVG's id,
+  and restored the moment a new frame's script runs. Two charts in one host cannot inherit each
+  other's position, and a movement below the drag threshold still remembers nothing.
+
+### Added
+
+- **`SecondaryAxisBuilder.StreamingPlot(capacity, configure)`** — a live chart can now carry two
+  units at once: one appended on the left axis, one on the right. Returns the series (not the
+  builder) because the series is the handle live data needs, matching `AxesBuilder.StreamingPlot`.
+- **`Axes.AddSecondarySeries<TSeries>(series)`** — the seam an already-constructed series arrives
+  through, for series whose data is filled after the figure is built.
+
 ## [1.14.2] — 2026-08-17
 
 Bug-fix release. 3-D axis titles no longer print through their own tick labels.

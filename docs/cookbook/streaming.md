@@ -28,6 +28,38 @@ for (int i = 0; i < 1000; i++)
 sf.Dispose();
 ```
 
+## Two units on one live chart (secondary Y-axis)
+
+A live panel usually carries two things that do not share a scale — a rate and a volume, a count and
+a size. Stream one on each axis; the legend names both.
+
+```csharp
+StreamingLineSeries? delivered = null;
+StreamingLineSeries? traffic   = null;
+
+var sf = Plt.Create()
+    .WithTitle("Ops performance")
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        delivered = ax.StreamingPlot(600, s => s.Label = "Delivered (msg/s)");
+        ax.SetYLabel("messages / sec")
+          .WithSecondaryYAxis(right =>
+          {
+              traffic = right.StreamingPlot(600, s => s.Label = "Traffic (kB/s)");
+              right.SetYLabel("kB / sec");
+          })
+          .WithLegend();
+    })
+    .BuildStreaming(TimeSpan.FromSeconds(1));   // the wall's beat
+
+delivered!.AppendPoint(t, msgPerSecond);
+traffic!.AppendPoint(t, kbPerSecond);
+```
+
+> `SecondaryAxisBuilder.StreamingPlot` returns the SERIES, not the builder — the series is the handle
+> the live data needs. Give the right-hand axis room (`WithSubPlotSpacing(sp => sp with { MarginRight
+> = 100 })`), or its tick labels fall outside the figure and the browser clips them.
+
 ## Streaming candlestick with Bollinger Bands
 
 Financial live chart with auto-attached indicators:

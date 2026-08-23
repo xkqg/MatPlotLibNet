@@ -538,12 +538,13 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         var context = new AxesContextAdapter(Axes);
         foreach (var series in Axes.SecondarySeries)
         {
-            if (series is IHasDataRange hasRange)
-            {
-                var c = hasRange.ComputeDataRange(context);
-                if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
-                if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
-            }
+            // ISeries.ComputeDataRange, not an `is IHasDataRange` test: every series carries the member, but
+            // not every one carries that separate marker interface — a streaming series does not, so the test
+            // skipped it, the range stayed at its 0..1 sentinel and the trace was drawn off the plot area
+            // while the primary path (SnapshotContributions) had ranged it correctly all along.
+            var c = series.ComputeDataRange(context);
+            if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
+            if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
         }
 
         if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Rendering.Lighting;
 using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Styling;
@@ -365,4 +366,68 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(VoxelSeries s, RenderArea a) => (_voxel ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(Text3DSeries s, RenderArea a) => (_text3D ??= new(_context)).Render(s);
+
+    // Streaming v1.4.0 — the ring buffers, drawn.
+    //
+    // The visitor declares these as EMPTY default bodies for ISP compatibility, and SVG never overrode them:
+    // a streaming series therefore rendered nothing at all on either axis, while its data range was folded in
+    // correctly, so the axes scaled to data no reader could see. Measured 2026-08-22 on a live ops wall.
+    //
+    // A snapshot of the ring is exactly the XY pair the static renderers already draw, so this DELEGATES
+    // rather than repeating the line/marker geometry: one place keeps deciding what a line looks like.
+
+    /// <inheritdoc />
+    public void Visit(StreamingLineSeries s, RenderArea a)
+    {
+        var snapshot = s.CreateSnapshot();
+        if (snapshot.XData.Length == 0)
+        {
+            return; // nothing appended yet — an empty ring is not a flat line at zero
+        }
+        Visit(new LineSeries(snapshot.XData, snapshot.YData)
+        {
+            Label = s.Label,
+            Visible = s.Visible,
+            Color = s.Color,
+            LineStyle = s.LineStyle,
+            LineWidth = s.LineWidth,
+        }, a);
+    }
+
+    /// <inheritdoc />
+    public void Visit(StreamingScatterSeries s, RenderArea a)
+    {
+        var snapshot = s.CreateSnapshot();
+        if (snapshot.XData.Length == 0)
+        {
+            return;
+        }
+        Visit(new ScatterSeries(snapshot.XData, snapshot.YData)
+        {
+            Label = s.Label,
+            Visible = s.Visible,
+            Color = s.Color,
+            Alpha = s.Alpha,
+            // ScatterSeries sizes markers by AREA (default 36 = a 6 px marker), the streaming type by
+            // DIAMETER — square it, or every streamed marker renders a sixth of its declared size.
+            MarkerSize = s.MarkerSize * s.MarkerSize,
+        }, a);
+    }
+
+    /// <inheritdoc />
+    public void Visit(StreamingSignalSeries s, RenderArea a)
+    {
+        var snapshot = s.CreateSnapshot();
+        if (snapshot.XData.Length == 0)
+        {
+            return;
+        }
+        Visit(new LineSeries(snapshot.XData, snapshot.YData)
+        {
+            Label = s.Label,
+            Visible = s.Visible,
+            Color = s.Color,
+            LineWidth = s.LineWidth,
+        }, a);
+    }
 }

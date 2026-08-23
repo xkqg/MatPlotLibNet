@@ -57,22 +57,36 @@ internal sealed class CartesianSecondaryYAxisPart : CartesianAxesPart
         // Right-side Y-axis ticks
         var tickFont = TickFont();
         var secYUniformFormat = AxesRenderer.BuildUniformTickFormatter(secYTicks);
+        double widestTick = 0;
         foreach (var tick in secYTicks)
         {
             var pt = secTransform.DataToPixel(_secRange.XMax, tick);
+            var text = Axes.SecondaryYAxis!.TickFormatter?.Format(tick) ?? secYUniformFormat(tick);
             Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, pt.Y),
                 new Point(PlotArea.X + PlotArea.Width + 5, pt.Y),
                 new StrokeStyle(Theme.ForegroundText, 1, LineStyle.Solid));
-            Ctx.DrawText(Axes.SecondaryYAxis!.TickFormatter?.Format(tick) ?? secYUniformFormat(tick),
-                new Point(PlotArea.X + PlotArea.Width + 8, pt.Y + 4),
-                tickFont, TextAlignment.Left);
+            Ctx.DrawText(text, new Point(PlotArea.X + PlotArea.Width + 8, pt.Y + 4), tickFont, TextAlignment.Left);
+            var width = Ctx.MeasureText(text, tickFont).Width;
+            if (width > widestTick)
+            {
+                widestTick = width;
+            }
         }
 
         if (Axes.SecondaryYAxis!.Label is not null)
         {
+            // MEASURED clearance and a 90° rotation, exactly as the PRIMARY Y label has had since the
+            // fixed-offset era (AxesRenderer: tick length + pad + the widest measured tick label + a gap).
+            // This label kept the constant it was extracted with — plot-right + 45, unrotated — so with
+            // three-digit ticks it printed straight through them: measured on a live ops wall 2026-08-22,
+            // "kB / sec" over 225/200/175. Same defect, same fix, one axis later.
+            const double tickMark = 5;
+            const double tickGap = 8;
+            const double labelGap = 12;
+            var offset = widestTick > 0 ? tickMark + tickGap + widestTick + labelGap : 45;
             Ctx.DrawText(Axes.SecondaryYAxis.Label,
-                new Point(PlotArea.X + PlotArea.Width + 45, PlotArea.Y + PlotArea.Height / 2),
-                LabelFont(), TextAlignment.Center);
+                new Point(PlotArea.X + PlotArea.Width + offset, PlotArea.Y + PlotArea.Height / 2),
+                LabelFont(), TextAlignment.Center, 90);
         }
     }
 }

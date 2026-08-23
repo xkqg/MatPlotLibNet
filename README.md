@@ -10,7 +10,17 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 
 ## 🧭 What's next
 
-**v1.14.2 (2026-08-17) — 3-D axis titles clear their own tick labels**: the title pad was a
+**v1.14.3 (2026-08-22) — the secondary Y-axis becomes a full citizen, and streaming draws in SVG**:
+`ISeriesVisitor` declares the streaming visits as empty default bodies and `SvgSeriesRenderer` never
+overrode them, so every `StreamingPlot` produced an empty plot area while its range WAS folded in —
+axes neatly scaled to data no reader could see (measured on a live ops wall: three points, zero
+polylines). The three streaming visits now snapshot the ring and delegate to the static line/scatter
+renderers. On the right-hand axis: the legend names secondary traces (with the colour index the
+secondary renderer actually draws them with), the range walk no longer gates on a marker interface a
+streaming series does not carry, and `SecondaryAxisBuilder.StreamingPlot(...)` lets a live chart
+carry two units at once. On the right-hand axis the label also measures its own clearance and rotates like the primary one (it printed through 225/200/175 on a live wall), and a dragged legend now survives the next server push. All 13 packages at 1.14.3; 10,025 tests, 0 failures.
+
+Prior: **v1.14.2 (2026-08-17) — 3-D axis titles clear their own tick labels**: the title pad was a
 constant (42 px for X, 60 for Y/Z) while the tick labels sit barely a line height inside it, so a
 title printed through a tick label at every camera once the labels were wide enough
 ([#18](https://github.com/xkqg/MatPlotLibNet/issues/18) follow-up). The pad is now measured per

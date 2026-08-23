@@ -233,21 +233,36 @@ public abstract class AxesRenderer
     }
 
     /// <summary>Renders the legend if any series have labels.</summary>
+    /// <summary>Appends one legend entry per LABELLED series in <paramref name="series"/>, indexing the colour
+    /// cycle from <paramref name="cycleOffset"/> so a caller can continue an earlier run's numbering.</summary>
+    private void AddLegendEntries(IReadOnlyList<Models.Series.ISeries> series, int cycleOffset,
+        Legend legend, List<RenderLegendEntry> entries)
+    {
+        for (int i = 0; i < series.Count; i++)
+        {
+            var one = series[i];
+            if (string.IsNullOrEmpty(one.Label)) continue;
+            int cycleIndex = cycleOffset + i;
+            var cycleColor = Theme.PropCycler?[cycleIndex].Color
+                             ?? Theme.CycleColors[cycleIndex % Theme.CycleColors.Length];
+            var seriesColor = one.GetType().GetProperty("Color")?.GetValue(one) as Color?;
+            var displayLabel = BuildLegendDisplayLabel(one.Label, one, legend.LegendValues);
+            entries.Add(new(displayLabel, seriesColor ?? cycleColor, one, cycleIndex));
+        }
+    }
+
     protected void RenderLegend()
     {
         if (!Axes.Legend.Visible) return;
 
         var legend = Axes.Legend;
         var entries = new List<RenderLegendEntry>();
-        for (int i = 0; i < Axes.Series.Count; i++)
-        {
-            var series = Axes.Series[i];
-            if (string.IsNullOrEmpty(series.Label)) continue;
-            var cycleColor = Theme.PropCycler?[i].Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
-            var seriesColor = series.GetType().GetProperty("Color")?.GetValue(series) as Color?;
-            var displayLabel = BuildLegendDisplayLabel(series.Label, series, legend.LegendValues);
-            entries.Add(new(displayLabel, seriesColor ?? cycleColor, series, i));
-        }
+        AddLegendEntries(Axes.Series, 0, legend, entries);
+        // The SECONDARY-axis traces belong in the same legend: a dual-axis chart draws two lines, and a legend
+        // that names one of them reads as "the other line has no name". Their cycle index continues where the
+        // primary series stopped — the same offset CartesianSecondaryYAxisPart.Render draws them with, so the
+        // key and the line cannot disagree about a colour.
+        AddLegendEntries(Axes.SecondarySeries, Axes.Series.Count, legend, entries);
 
         if (entries.Count == 0) return;
 

@@ -47,6 +47,32 @@ internal static class SvgLegendDragScript
 
             // Shared drag state across all legend-item listeners — only one finger drags at a time.
             var dx = 0, dy = 0;                        // current accumulated translate
+
+            // Phase S2 (2026-08-22): the drop must SURVIVE a server re-render. A live chart replaces its
+            // whole SVG on every push, so the transform this script set lived exactly until the next frame
+            // and the legend snapped back under the reader's hand. The offset is therefore parked on the
+            // HOST element — the container the SVG is swapped inside, which outlives the swap — and read
+            // back the moment a new SVG's script runs. Per-chart by construction: each live chart has its
+            // own host, so two charts on one page cannot inherit each other's position.
+            var host = svg.parentNode;
+            // Keyed by the SVG's own id when it has one: a host element can contain more than one chart,
+            // and two legends may never inherit each other's position.
+            var svgId = (svg.getAttribute && svg.getAttribute('id')) || '';
+            var MEM = 'data-mpl-legend-offset' + (svgId ? '-' + svgId : '');
+            function remember() {
+                if (host && host.setAttribute) try { host.setAttribute(MEM, dx + ',' + dy); } catch (_) {}
+            }
+            function restore() {
+                if (!host || !host.getAttribute) return;
+                var saved = null;
+                try { saved = host.getAttribute(MEM); } catch (_) {}
+                if (!saved) return;
+                var parts = String(saved).split(',');
+                var sx = parseFloat(parts[0]), sy = parseFloat(parts[1]);
+                if (isNaN(sx) || isNaN(sy) || (sx === 0 && sy === 0)) return;
+                dx = sx; dy = sy;
+                setTransform();
+            }
             var startX = 0, startY = 0;                // pointer at mousedown
             var startDx = 0, startDy = 0;              // translate at mousedown
             var isDown = false, dragged = false;
@@ -125,6 +151,7 @@ internal static class SvgLegendDragScript
                     isDown = false;
                     legend.style.cursor = 'grab';
                     if (dragged) {
+                        remember();   // the drop outlives this SVG
                         // Suppress the synthetic click that the browser fires after pointerup —
                         // otherwise the toggle handler would hide the series at drag-drop.
                         var swallow = function(ev) {
@@ -138,6 +165,8 @@ internal static class SvgLegendDragScript
                     if (isDown) { isDown = false; legend.style.cursor = 'grab'; }
                 }, true);
             });
+
+            restore();   // a freshly pushed SVG picks the legend up where the reader left it
         })();
         ]]></script>
         """;

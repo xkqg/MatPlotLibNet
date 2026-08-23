@@ -202,6 +202,21 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds an already-constructed series to the secondary Y-axis.</summary>
+    /// <remarks>Implicitly calls <see cref="TwinX"/> to ensure the secondary axis exists. This is the seam a
+    /// STREAMING series arrives through: its ring buffer is filled after the figure is built, so it cannot be
+    /// handed in as two arrays the way <see cref="PlotSecondary"/> takes them.</remarks>
+    /// <param name="series">The series to plot against the right-hand axis.</param>
+    /// <returns>The same series, so the caller can keep appending to it.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="series"/> is null.</exception>
+    public TSeries AddSecondarySeries<TSeries>(TSeries series) where TSeries : ISeries
+    {
+        ArgumentNullException.ThrowIfNull(series);
+        TwinX();
+        _secondarySeries.Add(series);
+        return series;
+    }
+
     /// <summary>Adds a scatter series plotted against the secondary Y-axis.</summary>
     /// <remarks>Implicitly calls <see cref="TwinX"/> to ensure the secondary axis exists.</remarks>
     public ScatterSeries ScatterSecondary(double[] x, double[] y)
