@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Linq;
@@ -196,5 +196,54 @@ public class SecondaryAxisLegendAndStreamingTests
 
         var label = System.Text.RegularExpressions.Regex.Match(svg, "<text[^>]*>right unit</text>").Value;
         Assert.Contains("rotate(", label);
+    }
+
+    /// <summary>A formatter that hides the numbers but keeps the ticks — legitimate on a right-hand axis
+    /// whose scale is carried by its label alone.</summary>
+    private sealed class BlankTickFormatter : MatPlotLibNet.Rendering.TickFormatters.ITickFormatter
+    {
+        public string Format(double value) => string.Empty;
+    }
+
+    [Fact]
+    public void ASecondaryAxisWithBLANKTickLabelsStillPlacesItsLabel()
+    {
+        // The measured clearance needs something to measure. With blank tick labels there is nothing to
+        // clear, and the label falls back to the constant offset — the arm that carries the placement when
+        // the measurement comes back zero.
+        var figure = Plt.Create()
+            .WithSize(600, 300)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(new[] { 0.0, 1, 2 }, new[] { 0.0, 1, 2 }, l => l.Label = "left")
+                .WithSecondaryYAxis(s => s
+                    .Plot(new[] { 0.0, 1, 2 }, new[] { 0.0, 125.0, 225.0 }, l => l.Label = "right")
+                    .SetYLabel("kB / sec")))
+            .Build();
+        figure.SubPlots[0].SecondaryYAxis!.TickFormatter = new BlankTickFormatter();
+
+        var svg = figure.ToSvg();
+
+        Assert.Contains(">kB / sec</text>", svg);
+        Assert.DoesNotContain(">225</text>", svg);
+    }
+
+    [Fact]
+    public void AnEmptyStreamingSCATTERSeriesDrawsNOTHING()
+    {
+        var svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StreamingScatter(100, s => s.Label = "live points"))
+            .ToSvg();
+
+        Assert.DoesNotContain("<circle", svg);
+    }
+
+    [Fact]
+    public void AnEmptyStreamingSIGNALSeriesDrawsNOTHING()
+    {
+        var svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StreamingSignal(100, 1.0, s => s.Label = "live signal"))
+            .ToSvg();
+
+        Assert.DoesNotContain("<polyline", svg);
     }
 }
