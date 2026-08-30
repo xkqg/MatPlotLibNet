@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **A stat tile's caption may carry more than one line.** `StatTileSeries.Caption` splits on
+  `Environment.NewLine` / `\n` and draws the lines stacked and centred under the label, in the caption's own
+  ink. A tile's gap line answers *"is this good or bad"*; a second line can answer *"measured over what"* —
+  and two answers crammed onto one row run wider than the tile (reported from an ops wall, 2026-08-30:
+  `threshold 250 · 2148 msg · 1 s`). A single-line caption renders exactly as before.
+
 ## [1.14.3] — 2026-08-22
 
 The secondary Y-axis becomes a full citizen: it is drawn, named, scaled and readable, and streaming

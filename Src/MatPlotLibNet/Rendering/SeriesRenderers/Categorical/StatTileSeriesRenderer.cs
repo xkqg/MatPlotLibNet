@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
@@ -16,6 +16,12 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
     /// <summary>Vertical share of the tile given to the inline sparkline, measured from the bottom.</summary>
     private const double TrendShare = 0.22;
 
+    /// <summary>Baseline step between two caption lines, at the caption's own 11 pt.</summary>
+    private const double CaptionLineHeight = 14;
+
+    /// <summary>What separates two caption lines — both platforms' newlines, so a caption composed on either
+    /// one stacks the same way.</summary>
+    private static readonly string[] CaptionLineBreaks = [Environment.NewLine, "\n"];
     /// <inheritdoc />
     public StatTileSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
@@ -61,10 +67,17 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         }
 
         // The gap line — the element that answers "is this good or bad" without anyone doing arithmetic.
+        // MULTI-LINE: a caption may carry more than one question ("is this good or bad" and "measured over
+        // what"), and two answers crammed onto one row run wider than the tile (reported from an ops wall,
+        // 2026-08-30). Newline-separated lines are drawn stacked, centred, in the caption's own ink.
         if (!string.IsNullOrEmpty(series.Caption))
         {
-            Ctx.DrawText(series.Caption, new Point(cx, below),
-                new Font { Size = 11, Color = color }, TextAlignment.Center);
+            foreach (var line in series.Caption.Split(CaptionLineBreaks, StringSplitOptions.None))
+            {
+                Ctx.DrawText(line, new Point(cx, below),
+                    new Font { Size = 11, Color = color }, TextAlignment.Center);
+                below += CaptionLineHeight;
+            }
         }
 
         if (hasTrend)

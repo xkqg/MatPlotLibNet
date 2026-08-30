@@ -294,6 +294,15 @@ Plt.OpsDashboard()
         t.Caption = "no contact";
         t.Hatch = HatchPattern.ForwardDiagonal;  // unknown ≠ broken — a pattern, never a colour
     })
+    .AddTile(3.8, t =>
+    {
+        t.Label = "Nexus";
+        t.Format = "0.0' µs/msg'";
+        t.Target = 6;
+        // A caption may answer TWO questions — "is this good or bad" and "measured over what". Newlines
+        // stack, so the second answer gets its own row instead of running the first one off the tile.
+        t.Caption = "threshold 6" + Environment.NewLine + "2148 msg · 1 s";
+    })
 
     .AddTimeline(busSegments, l => l.Label = "Service Bus")
     .AddTrend(clock, publish, s => s.Label = "publish")

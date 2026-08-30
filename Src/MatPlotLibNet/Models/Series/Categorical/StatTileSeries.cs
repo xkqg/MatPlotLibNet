@@ -34,7 +34,10 @@ public sealed class StatTileSeries : ChartSeries
 
     /// <summary>The gap line, drawn under the headline — e.g. <c>"target 25 ms · +3.1 over"</c>.
     /// <para>Supplied by the caller, never computed here: what counts as "over" is a domain judgement, and a
-    /// charting library that decides it has started holding opinions about when something is broken.</para></summary>
+    /// charting library that decides it has started holding opinions about when something is broken.</para>
+    /// <para>NEWLINES stack: a caption may answer more than one question — "is this good or bad" and
+    /// "measured over what" — and two answers on one row run wider than the tile. Split on
+    /// <see cref="System.Environment.NewLine"/> or <c>\n</c>, each line drawn centred under the one above.</para></summary>
     public string? Caption { get; set; }
 
     /// <summary>An inline trend — a Tufte sparkline drawn inside the tile: no axis, no frame, no ticks, just

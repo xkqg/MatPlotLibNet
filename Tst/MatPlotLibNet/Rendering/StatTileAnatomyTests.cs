@@ -1,6 +1,7 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Serialization;
@@ -62,6 +63,29 @@ public class StatTileAnatomyTests
         Assert.Contains("target 25 ms", svg);
         Assert.Contains("RFx p99", svg);
     }
+
+    /// <summary>A caption may carry MORE THAN ONE LINE. A tile's gap line answers "is this good or bad", and a
+    /// second line answers "measured over what" — two different questions that do not belong on one crowded row
+    /// (reported from the Ait ops wall, 2026-08-30: "threshold 250 · 2148 msg · 1 s" ran wider than its tile).
+    /// Newline-separated, drawn stacked and centred like every other line of the anatomy.</summary>
+    [Fact]
+    public void ACaptionWithNewlines_IsDrawnAsSTACKEDLines()
+    {
+        string oneLine = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(3.8, s => s.Caption = "threshold 6 · 2148 msg · 1 s"))
+            .ToSvg();
+        string twoLines = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(3.8, s => s.Caption = "threshold 6" + Environment.NewLine + "2148 msg · 1 s"))
+            .ToSvg();
+
+        Assert.Contains("threshold 6", twoLines);
+        Assert.Contains("2148 msg", twoLines);
+        Assert.DoesNotContain("threshold 6" + Environment.NewLine + "2148", twoLines); // never ONE glued text element
+        Assert.True(CountText(twoLines) == CountText(oneLine) + 1,
+            "the second caption line is its own <text> element, stacked under the first");
+    }
+
+    private static int CountText(string svg) => svg.Split("<text").Length - 1;
 
     /// <summary>A hatched tile reads as "no information" — the source has gone silent, and that is a different
     /// fault from a bad value. It is a pattern, never a colour.</summary>
