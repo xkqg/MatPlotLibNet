@@ -4,8 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
-
+## [1.14.3]
 ### Fixed
 
 - **An ops window's ticks read as TIME.** `Plt.OpsDashboard().WithWindow(...)` installed a fixed `yyyy-MM-dd`
@@ -27,8 +26,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `Environment.NewLine` / `\n` and draws the lines stacked and centred under the label, in the caption's own
   ink. A tile's gap line answers *"is this good or bad"*; a second line can answer *"measured over what"* —
   and two answers crammed onto one row run wider than the tile (reported from an ops wall: `threshold 250 · 2148 msg · 1 s`). A single-line caption renders exactly as before.
-
-## [1.14.3] — 2026-08-22
 
 The secondary Y-axis becomes a full citizen: it is drawn, named, scaled and readable, and streaming
 series render in SVG at all.
@@ -74,8 +71,7 @@ series render in SVG at all.
 - **`Axes.AddSecondarySeries<TSeries>(series)`** — the seam an already-constructed series arrives
   through, for series whose data is filled after the figure is built.
 
-## [1.14.2] — 2026-08-17
-
+## [1.14.2]
 Bug-fix release. 3-D axis titles no longer print through their own tick labels.
 
 ### Fixed
@@ -100,8 +96,7 @@ Bug-fix release. 3-D axis titles no longer print through their own tick labels.
   **one** rule (`TickLocator` → `MajorTicks.Spacing` → `MaxNLocator`). The grid previously ignored
   `MajorTicks.Spacing`, so a chart that set it drew grid lines where no tick was.
 
-## [1.14.1] — 2026-08-15
-
+## [1.14.1]
 Bug-fix release. The 3-D axis frame now follows the camera.
 
 ### Fixed
@@ -144,8 +139,7 @@ Bug-fix release. The 3-D axis frame now follows the camera.
 - **`Projection3D.DataBox`** — the data box the projection maps, as a `Box3D`.
 - **`Pane3DConfig.ColorFor(CubeAxis)`** — the configured colour for one axis' pane.
 
-## [1.14.0] — 2026-07-12
-
+## [1.14.0]
 Control-room release. The dashboard work that shipped as a first iteration in 1.13.1 is replaced by a
 composition API grounded in established HMI practice — and three long-standing defects it uncovered are fixed.
 
@@ -224,8 +218,7 @@ composition API grounded in established HMI practice — and three long-standing
 - The cookbook's operations-dashboard section is rewritten. It previously demonstrated a green/amber/red tile
   palette — a shipped document teaching the very convention this release removes.
 
-## [1.13.1] — 2026-07-12
-
+## [1.13.1]
 ### Added
 
 - **`FigureTemplates.OpsDashboard`** — single-screen bus/observability composition template
@@ -247,8 +240,7 @@ composition API grounded in established HMI practice — and three long-standing
   figure rendered and no live update ever arrived. The URL is now resolved against the app's base URI
   via `NavigationManager`; absolute hub URLs are passed through unchanged.
 
-## [1.13.0] — 2026-07-04
-
+## [1.13.0]
 Refactor & cleanup release — no new chart features; breaking API cleanups, bug fixes and internal restructuring, with migration notes.
 
 ### Changed
@@ -358,8 +350,7 @@ Refactor & cleanup release — no new chart features; breaking API cleanups, bug
 
 ---
 
-## [1.12.0] — 2026-06-28
-
+## [1.12.0]
 Dashboard-oriented release: two new series (`StatTileSeries`, `StateTimelineSeries`) + two fluent conveniences
 (`ThresholdLine`, `LegendValues`), all authored to the contrib standard (default-no-op `ISeriesVisitor`, ≥90/90).
 Build hygiene: the Avalonia projects' `SkiaSharp` pin moves off the pre-GA `3.119.4-preview.1.1` to the floating
@@ -393,8 +384,7 @@ stable `3.*` (SkiaSharp 3 is now GA), resolving the NU1605 downgrade against `Av
   `Axes.StatTile(value)`, `AxesBuilder.StatTile(...)`, and `FigureBuilder.StatTile(...)`; round-trips through the
   `"stattile"` serialization discriminator.
 
-## [1.11.2] — 2026-05-16
-
+## [1.11.2]
 ### Added
 
 - `RelativeRotationSeries.AbsorptionRatioPerBar` (`double[]?`) — optional per-bar absorption ratio [0..1]. When set, each trail dot fill maps through a green→red diverging colormap (low=safe, high=panic); asset colour becomes the edge ring. Null preserves current uniform-fill behaviour.
@@ -407,8 +397,7 @@ stable `3.*` (SkiaSharp 3 is now GA), resolving the NU1605 downgrade against `Av
 
 ---
 
-## [1.11.1] — 2026-05-16
-
+## [1.11.1]
 ### Added
 
 - **`CategoryFormatter`** (`MatPlotLibNet.Rendering.TickFormatters`) — maps integer tick
@@ -435,8 +424,7 @@ stable `3.*` (SkiaSharp 3 is now GA), resolving the NU1605 downgrade against `Av
 
 ---
 
-## [1.11.0] — 2026-05-16
-
+## [1.11.0]
 ### Added — v1.11.0 RelativeRotationSeries (RRG — pair radar)
 
 Relative Rotation Graph (Julius de Kempenaer, 2004–2005): 2D scatter where each asset
@@ -495,8 +483,7 @@ Tier-3 indicator count to 53. Public, mirrors `Ema`/`Sma` class shape.
 
 ---
 
-## [1.10.0] — 2026-05-04
-
+## [1.10.0]
 ### Added — v1.10 chart pack (NetworkGraphSeries — ForceDirected layout)
 
 Activates `GraphLayout.ForceDirected = 1` — Fruchterman–Reingold (1991) spring-embedder
@@ -795,8 +782,7 @@ gains four properties; the renderer emits cell labels and skips masked cells.
 Defaults preserve backward compatibility: existing heatmap fixtures serialize byte-identical
 JSON because the new fields are null-suppressed when their values match the defaults.
 
-## [1.9.0] — 2026-04-23
-
+## [1.9.0]
 ### Indicator expansion release — 12 new indicators, 40 → 52
 
 v1.9.0 is a pure **content-expansion release**: twelve financial / signal-processing
@@ -883,8 +869,7 @@ microstructure, entropy, change-point, and cross-asset families.
 Fluent entry points on `AxesBuilder`: `.Decycler(…)`, `.EhlersITrend(…)`,
 `.EhlersSuperSmoother(…)`, `.TransferEntropy(…)`.
 
-## [1.8.0] — 2026-04-22
-
+## [1.8.0]
 ### Added — 24 new financial / signal-processing indicators
 
 v1.8.0 extends the indicator library from 16 to **40 indicators**. All new classes follow the
@@ -1035,8 +1020,7 @@ reports. v1.8.0 closes the sweep.
 All 8394 core tests pass. Interactive tests pass. SVG output byte-identical to v1.7.3
 (the changes are signature-level; no rendering logic touched).
 
-## [1.7.3] — 2026-04-21
-
+## [1.7.3]
 ### Refactored — Phase L: structural clean-up driven by the strict 90/90 coverage gate
 
 v1.7.2 flipped CI to strict mode — every class must reach 90 % line **and** 90 % branch
@@ -1086,9 +1070,8 @@ helper — TDD at the extracted level. v1.7.3 captures that structural work.
 **CI:** `nuget-publish` job added — packs all 13 packages and pushes to NuGet.org on every
 green merge to `main` (requires `NUGET_API_KEY` secret).
 
-## [1.7.2] — 2026-04-18
-
-### Tested — Phase K (2026-04-21, strict-90 close-out + CI strict flip, 18 new tests, 0 new exemptions)
+## [1.7.2]
+### Tested — Phase K (strict-90 close-out + CI strict flip, 18 new tests, 0 new exemptions)
 
 - **`PlaygroundController` extracted from `Pages/Playground.razor @code`** — pure-C# static class corrects an SRP violation: selection and build logic is now testable without a Blazor runtime. Razor page delegates to `PlaygroundController.SelectThemeByIndex`, `SelectColorMapByIndex`, and `TryBuild`. **12 new tests** in `Tst/MatPlotLibNet/Samples/PlaygroundControllerTests.cs` cover every branch family (null / non-integer / negative / at-length / beyond-length index; `TryBuild` success + exception arms). `PlaygroundExampleEnumTests` extended with 4 more facts: `HasCartesianSpines_ReturnsFalseFor3DAndPolar`, `Build_UnregisteredEnumValue_ThrowsArgumentException`, `DisplayName_NoDescriptionAttribute_FallsBackToEnumName`, `FromDisplayName_UnknownName_ReturnsNull`.
 
@@ -1100,7 +1083,7 @@ green merge to `main` (requires `NUGET_API_KEY` secret).
 
 - **Total project coverage: 98.49 %L / 95.19 %B** across **554 classes**. Strict gate: **PASS — all 554 classes meet 90/90** (0 failures).
 
-### Refactored — strict-90 coverage floor (2026-04-20)
+### Refactored — strict-90 coverage floor
 
 - **Three god-classes decomposed into SOLID hierarchies** (`AxesRenderer.RenderColorBar`,
   `CartesianAxesRenderer.Render`, `SankeySeriesRenderer`): 32 extracted classes, each at
@@ -1113,7 +1096,7 @@ green merge to `main` (requires `NUGET_API_KEY` secret).
 - No behavioural change vs the v1.7.2 release — production API surface and SVG output
   bytes unchanged. Internal structure, tests, and dead-code cleanup only.
 
-### Tested — Phase Ω (2026-04-19, true-90/90-floor attempt, ~165 new tests, 3 new test files, 0 new exemptions)
+### Tested — Phase Ω (true-90/90-floor attempt, ~165 new tests, 3 new test files, 0 new exemptions)
 
 > Pure test uplift, same template as Phase X/Y/Z. Phase Ω attempted to graduate
 > the residual sub-90 set strictly (the user's "minimum 90/90" mandate) by
@@ -1273,7 +1256,7 @@ graduated through stacked-OO test bases + Theory-driven dispatch coverage +
 surgical per-line cobertura targeting + 11 documented exemptions. Strict-mode
 flip blocked pending production refactors.
 
-### Tested — Phase Z (2026-04-19, sub-90/90 second close-out wave, ~142 new tests, 4 new test files, 3 new exemptions, 1 duplicate exemption removed)
+### Tested — Phase Z (sub-90/90 second close-out wave, ~142 new tests, 4 new test files, 3 new exemptions, 1 duplicate exemption removed)
 
 > No production-code change in scope — pure test uplift, same template as Phase X+Y.
 > Phase Z banks the high-leverage tests first (`SeriesRenderer` base class via custom
@@ -1405,7 +1388,7 @@ Substantive sub-90/90 classes: **50 → ~40** on Windows-local; **graduated
 (`AxesRenderer`, `CartesianAxesRenderer`) moved meaningfully but still under
 the 90/90 threshold — strict-mode flip stays deferred.
 
-### Tested — Phase Y (2026-04-19, sub-90/90 close-out wave, ~131 new tests, 9 new test files, 2 new exemptions)
+### Tested — Phase Y (sub-90/90 close-out wave, ~131 new tests, 9 new test files, 2 new exemptions)
 
 > No production-code change in scope — pure test uplift, same template as Phase X.
 > Phase Y graduated the previously-deferred big-axes set (`AxesRenderer`,
@@ -1505,7 +1488,7 @@ the 90/90 threshold — strict-mode flip stays deferred.
 **Exemptions in `thresholds.json`**: 25 → **27** (added `ISeriesVisitor`,
 `IRenderContext` interface-default exemptions in Y.1).
 
-### Tested — Phase X (2026-04-19, sub-90/90 coverage uplift, ~770 new tests, 12 new test files, 6 new exemptions)
+### Tested — Phase X (sub-90/90 coverage uplift, ~770 new tests, 12 new test files, 6 new exemptions)
 
 > No production-code change in scope — pure test uplift. Phase X drove total project
 > coverage from **92.5%L / 81.3%B** to **94.8%L / 84.3%B** by graduating ~46 of 110
@@ -1595,7 +1578,7 @@ Stereographic, StreamingChartSession, HoverModifier, DataCursorModifier,
 ZoomModifier, InteractionController, PieSeriesRenderer, BarSeriesRenderer,
 SvgRenderContext — each with documented `reason` per the gate contract).
 
-### Added / Fixed — Phase W + W follow-up (2026-04-19, depth-3 treemap + steady-pictures UX, 11 new tests)
+### Added / Fixed — Phase W + W follow-up (depth-3 treemap + steady-pictures UX, 11 new tests)
 
 > Two related changes that ship together. **Phase W** added depth-3 treemap support
 > end-to-end (renderer, playground, cookbook), dropped the depth-driven font shrink
@@ -1652,7 +1635,7 @@ SvgRenderContext — each with documented `reason` per the gate contract).
 - **No NuGet bump** — additive `WithAutoSize` is purely additive; behavioural
   changes are interactive-only and already on the v1.7.2 stabilisation track.
 
-### Fixed — Phase T (2026-04-19, test harness uplift, 5 new tests)
+### Fixed — Phase T (test harness uplift, 5 new tests)
 
 > Closes the honest gaps surfaced in the post-Phase-S audit. No source-code
 > behavioural change; the harness can now pin contracts that were previously
@@ -1684,7 +1667,7 @@ SvgRenderContext — each with documented `reason` per the gate contract).
   `document.currentScript.parentNode` self-location pattern used by the other
   scripts.
 
-### Fixed — Phase S (2026-04-19, legend drag + "plot disappears" bug, 5 new tests)
+### Fixed — Phase S (legend drag + "plot disappears" bug, 5 new tests)
 
 > Real-browser repro that pinned a class of bug Jint can't see: the legend
 > toggle's `pointerdown` handler fired the series-toggle BEFORE the user
@@ -1722,7 +1705,7 @@ SvgRenderContext — each with documented `reason` per the gate contract).
   sibling of the group, and the user reported the frame staying put while
   the labels moved (caught mid-session, fixed before commit).
 
-### Fixed — Phase R (2026-04-19, treemap parent-tile click bug, 2-layer fix, 2 new tests)
+### Fixed — Phase R (treemap parent-tile click bug, 2-layer fix, 2 new tests)
 
 > Two compounding bugs that left the treemap drilldown completely
 > unresponsive in real browsers (xUnit covered neither). Surfaced by the
@@ -2014,8 +1997,7 @@ with explicit CHANGELOG notes.
 - `BaselineHelper.ComputeWiggle` / `ComputeWeightedWiggle` throw `IndexOutOfRangeException` on empty input (real bug discovered by Batch A's `EmptyYSets_ReturnsEmptyBaselines` test). Test currently restricted to `Zero` / `Symmetric` strategies; bug tracked for source patch in a future v1.7.x.
 - `SymLogNormalizer.Normalize(NaN)` throws (matplotlib parity bug surfaced by the new `BoundaryDoubles_DoNotThrow` Theory). Theory excludes NaN with explanatory comment until source is patched.
 
-## [1.7.1] — 2026-04-18
-
+## [1.7.1]
 **v1.7.0 follow-up: silent-failure bug fixes + coverage gate + playground polish + 8-phase coverage uplift + post-tag uplift wave + Phase-9 dedup.** Nine real bugs fixed (geo extensions silently dropped series, broken-axis didn't compress data, symlog didn't transform data, playground grid toggle was inverted, `SymlogTransform.Forward`/`Inverse` threw on NaN, `Robinson.Forward` threw on NaN, `AreaSeries`/`BarSeries`/`XYSeries.ComputeDataRange` threw on empty input). Coverage gate added: ≥90% line + ≥90% branch enforced via CI per class with baseline regression protection. Playground refactored with SOLID structure + save/download buttons. 8 new edge-case test files (Phases 2-8 of coverage uplift) covering math primitives, all 13 geo projections, renderers, series models, animation/interaction, builders, indicators. After tagging, a 6-batch coverage uplift (Phases A-F) added another **+1 192 tests across 9 test projects** (4 276 → **5 468**) and a Phase-9 deduplication folded 78 per-series default-property tests into the central `AllSeriesTests` Theory pattern. Sub-90/90 class count went from 241 → 154; baseline regenerated; 13 documented exemptions for sample/interface/JS-template code. Two real bugs surfaced for follow-up (`BaselineHelper.ComputeWiggle/ComputeWeightedWiggle` empty-input crash; `SymLogNormalizer.Normalize(NaN)` throws). **5 468 tests green** across 9 test projects covering 13 NuGet packages.
 
 ### Added
@@ -2070,8 +2052,7 @@ with explicit CHANGELOG notes.
 - `BaselineHelper.ComputeWiggle` / `ComputeWeightedWiggle` throw `IndexOutOfRangeException` on empty input (real bug discovered by the post-tag uplift's `EmptyYSets_ReturnsEmptyBaselines` test). The test currently restricts itself to `Zero` / `Symmetric` strategies; bug tracked for source patch.
 - `SymLogNormalizer.Normalize(NaN)` throws (matplotlib parity bug surfaced by the new `BoundaryDoubles_DoNotThrow` Theory). Theory excludes NaN with explanatory comment until source is patched.
 
-## [1.7.0] — 2026-04-17
-
+## [1.7.0]
 **MathText Extended + Geographic Parity + Themes + WPF + Browser Interactivity.** MathText operator limits (`\int_a^b`, `\sum`, matrices), 13 map projections with embedded Natural Earth data, 26 theme presets, WPF control (13th NuGet), browser-interactive SVG, and 3D origin tick fix. **4 276 tests green** across 13 NuGet packages.
 
 ### Added
@@ -2091,8 +2072,7 @@ with explicit CHANGELOG notes.
 
 - **3D origin tick missing** — `_rawZMin` cached before `ComputeDataRange` fold; z=0 tick filtered out on bar charts. Fixed by moving cache after contributions.
 
-## [1.6.0] — 2026-04-17
-
+## [1.6.0]
 **Polish + Geographic Projections.** Multi-page PDF, declarative animation API, data-aware crosshair, symlog axis scale, and a new `MatPlotLibNet.Geo` package (12th NuGet) with 5 map projections and Natural Earth data support. **4 246 tests green** across 11 test projects.
 
 ### Added — Multi-page PDF
@@ -2125,8 +2105,7 @@ with explicit CHANGELOG notes.
 - **`NaturalEarth110m`** — embedded resource loader for coastlines and country borders.
 - **`GeoAxesExtensions`** — `.WithProjection()`, `.Coastlines()`, `.Borders()`, `.Ocean()`, `.Land()`.
 
-## [1.5.0] — 2026-04-17
-
+## [1.5.0]
 **3-D Enhancements.** Three polish items for the 3D charting pipeline: configurable pane colors, 3D colorbar support, and correct depth sorting during interactive SVG rotation. **4 246 tests green** across 11 test projects.
 
 ### Added
@@ -2136,8 +2115,7 @@ with explicit CHANGELOG notes.
 - **3D colorbar** — `ThreeDAxesRenderer` now calls `RenderColorBar()` after rendering 3D series. Surface, Scatter3D, and other colormapped 3D series with `.WithColorBar()` display a gradient legend strip.
 - **JS depth re-sort on rotation** — `Svg3DRotationScript` now includes `resortDepth()` and `avgViewZ()` functions. After each interactive rotation (mouse drag or arrow keys), polygon DOM elements are re-sorted by view-space depth for correct painter's algorithm occlusion at all angles.
 
-## [1.4.1] — 2026-04-17
-
+## [1.4.1]
 **Interactive Polish.** Closes the interactivity gap with matplotlib: native 3D rotation, rectangle zoom, crosshair cursor, span selector, view history, data cursor, toolbar state model, tick mirroring, and tight margins. **4 234 tests green** across 11 test projects.
 
 ### Added — Interaction modifiers (v1.4.1)
@@ -2160,8 +2138,7 @@ with explicit CHANGELOG notes.
 - **`InteractionController.BuildModifiers`** — expanded from 6 to 9 modifiers in priority order: LegendToggle > Reset > Rotate3D > RectangleZoom > BrushSelect > SpanSelect > Pan > Zoom > Hover.
 - **`MplChartDrawOperation`** (Avalonia) — `_owner` made nullable to support `MplStreamingChartControl` without brush-select overlay.
 
-## [1.4.0] — 2026-04-17
-
+## [1.4.0]
 **Streaming & Realtime.** First-class live data support: dashboards and telemetry feeds can append data points without rebuilding the figure. Ring-buffer-backed streaming series, throttled re-rendering, auto-scaling axes, 11 incremental technical indicators, and streaming controls for all 5 UI hosts. **4 183 tests green** across 11 test projects.
 
 ### Added — Streaming infrastructure
@@ -2218,8 +2195,7 @@ All O(1) per append. Auto-attach to `StreamingCandlestickSeries` via `BarAppende
 - **`SvgDiffEngine`** — compares previous/current SVG, produces minimal `SvgPatch` (replace changed series groups only). Typically 10x smaller than full SVG for streaming updates.
 - **`StreamingSeriesExtensions.SubscribeTo(IObservable<T>)`** — Rx adapter connecting `IObservable<(double, double)>`, `IObservable<OhlcBar>`, and `IObservable<double>` to streaming series. No System.Reactive dependency.
 
-## [1.3.0] — 2026-04-16
-
+## [1.3.0]
 **Cross-platform native UI controls, full interaction polish, 3-D round 2, MathText completion.** Two new NuGet packages (`MatPlotLibNet.Avalonia`, `MatPlotLibNet.Uno`) let desktop .NET developers render and interact with charts natively — no browser, no WebView, no SignalR. The managed interaction layer in core gained full legend-toggle activation, rubber-band selection visuals, hover tooltips with nearest-point lookup, and a server-mode SignalR adapter. Six new 3-D series types (Line3D, Trisurf, Contour3D, Quiver3D, Voxels, Text3D) and a substantially expanded MathText parser round out the release. **4 028 tests green** across 11 test projects.
 
 ### Added — Native controls + interaction layer
@@ -2272,8 +2248,7 @@ All O(1) per append. Auto-attach to `StreamingCandlestickSeries` via `BarAppende
 - All 11 `.csproj` files at `<Version>1.3.0</Version>`.
 
 
-## [1.2.2] — 2026-04-15
-
+## [1.2.2]
 **Brush-select + hover round-trip — the deferred v1.2.0 items.** v1.2.0 shipped four mutation events (Zoom, Pan, Reset, LegendToggle) that rewrite the authoritative `Figure` on the server and broadcast the updated SVG to every group subscriber. v1.2.2 introduces the first two **notification events** — `BrushSelectEvent` and `HoverEvent` — that observe the user's gesture, route it to a per-chart handler in .NET code, and optionally return a caller-only response. Pure .NET round-trip, no mutation, no broadcast. The bidirectional SignalR pipeline now covers observation and request-response alongside the existing mutation flow.
 
 The critical architectural insight: **every v1.2.0 event mutates the figure.** Brush-select and hover don't — they ask the user's code to observe (selection) or respond (tooltip). v1.2.2 treats this as a proper subsystem extension: a new tier-2 abstract record `FigureNotificationEvent` that both new events stack under, mirroring how `AxisRangeEvent` stacks `ZoomEvent` and `ResetEvent`. The bug class "a notification event accidentally mutates the figure" is structurally impossible because `FigureNotificationEvent.ApplyTo` is `sealed override` and a no-op — concrete subclasses cannot override it.
@@ -2342,8 +2317,7 @@ The critical architectural insight: **every v1.2.0 event mutates the figure.** B
 - **Avalonia / Uno / WinUI 3 UI packages** — planned as v1.3.0 "Cross-Platform UI Coverage", reusing the v1.2.2 hub vocabulary unchanged.
 - **3-D round 2**, **mathtext completion** (`\frac`, proper `\sqrt`, matrices, accents), **2-D series gaps** (`fill_betweenx`, `matshow`, `spy`), **geo/map subsystem rebuild** — deferred as in v1.2.0/v1.2.1.
 
-## [1.2.1] — 2026-04-15
-
+## [1.2.1]
 **Font-factory subsystem fix + CI warning sweep.** A small follow-up to v1.2.0 that fixes the root cause of the outside-legend clipping bug, wipes every warning off every non-MAUI project, and unblocks two sample projects that had stopped compiling.
 
 ### The bug, diagnosed properly
@@ -2387,8 +2361,7 @@ The measurer reported a **140 × 84** legend box at 10 pt while the renderer dre
 - **Secondary-X-axis baseline bug** flagged by the drift audit — turned out to be a false positive. The engine's `28 + labelHeight` reservation is sufficient; the regression test is kept as a guard.
 - **`AxesRenderer.TitleFont(int sizeOffset = 4)` default-parameter latent bomb** — gone entirely because the method no longer takes a parameter after the refactor.
 
-## [1.2.0] — 2026-04-15
-
+## [1.2.0]
 **Bidirectional SignalR: live, server-authoritative interactive charts.** v1.1.4 and earlier shipped a one-way SignalR pipeline — the server could push SVG updates to subscribers, but browser interactions stayed purely client-side and the server never heard about them. v1.2.0 closes the loop: wheel-zoom, drag-pan, <kbd>Home</kbd>-reset, and click-to-toggle-legend events flow from the browser through `ChartHub` into a new `FigureRegistry`, which mutates the registered `Figure` on a per-chart background reader task and publishes the updated SVG back through the existing `IChartPublisher.PublishSvgAsync` fan-out. All mutation is structurally serial (one `System.Threading.Channels.Channel<T>` per chart, single reader) so there are no locks, no semaphores, and no shared-state races — the hub method is a one-line `TryWrite` and the render happens off the hub call stack. Test count: **3 499 → 3 477 + 67 new = 3 544 green across core + AspNetCore**, plus 4 real-SignalR round-trip tests using `TestServer` and `HubConnectionBuilder` with zero mocks.
 
 ### Added
@@ -2438,8 +2411,7 @@ The measurer reported a **140 × 84** legend box at 10 pt while the renderer dre
 
 Cross-platform UI coverage (Avalonia, Uno Platform, WinUI 3 — currently zero presence in the repo; each would add a dedicated `MplLiveChart` control reusing v1.2.0's hub vocabulary), brush-select + hover round-trip, pluggable `IFigureInteractionHandler`, multi-viewer sync as a designed feature, React/Vue/Angular sample projects. 3-D round 2 (voxels, trisurf, quiver3d, contour3d, text3d, colorbar3d, JS depth re-sort, pane styling API) and mathtext completion (`\frac`, proper `\sqrt` with overline, matrices, accents) also postponed — v1.2.0 is deliberately a single-pillar release around bidirectional interaction.
 
-## [1.1.4] — 2026-04-15
-
+## [1.1.4]
 Three matplotlib v2 fidelity issues identified by SVG side-by-side comparison: bar charts leaking ~28 px of whitespace between the spines and the first/last bar, 3-D charts rendering no axis tick marks, and — most jarringly — 3-D charts emitting a ghost 2-D Cartesian axes grid *underneath* the 3-D bounding box. All three fixed with 3 379 unit tests still green.
 
 Plus a round of deep-dive layout / rendering-pipeline work that eliminates SVG/PNG divergence, fixes a sticky-edge regression where overlay series clipped underlying data, introduces the `PlanarBar3DSeries` chart type for 2-D bars in 3-D planes, and adds a shared cross-series depth queue for correct alpha compositing across 3-D series. 27 sample figures regenerated with visually matching SVG + PNG.
@@ -2526,8 +2498,7 @@ Note the `LargeLineChart_100K_LTTB` row: 100 000 input points decimated to ~2 00
 
 The `Treemap` / `Sunburst` rows remain the cheapest top-level chart types in the library — both finish in under 25 µs per full render — because their renderers are purely additive and bypass the data-range pipeline entirely (they consume a `TreeNode` tree instead of per-axis numeric contributions).
 
-## [1.1.3] — 2026-04-13
-
+## [1.1.3]
 **`Theme.MatplotlibV2` is now the library default**, every chart now renders with matplotlib's identical bundled DejaVu Sans typeface (no system-font fallback), and the entire fidelity suite runs twice — once per matplotlib era — for **146 pixel-verified tests** total. Plus a long list of multi-subplot rendering corrections discovered by side-by-side comparison against matplotlib references.
 
 ### Added
@@ -2593,8 +2564,7 @@ The `Treemap` / `Sunburst` rows remain the cheapest top-level chart types in the
 49 % RMS reduction, 60 % drop in differing pixels. Bar regions improved dramatically (`bar_alpha` 42 → 16, `plot_area_inner` 36 → 16). Remaining gap is concentrated in **text-glyph regions** (legend, tick labels, title) where matplotlib's freetype + Agg sub-pixel hinting produces glyph stems we can't bit-exactly reproduce with Skia's font rasterizer at the same nominal size — known cosmetic limitation, not a regression.
 
 
-## [1.1.2] — 2026-04-12
-
+## [1.1.2]
 Matplotlib fidelity audit: visible margin / tick / spine corrections, a new perceptual-diff test harness, and 57 fidelity tests anchoring every renderable series that has a matplotlib reference.
 
 ### Added
@@ -2664,8 +2634,7 @@ These series have no matplotlib, seaborn, matplotlib.sankey, or squarify equival
 
 ---
 
-## [1.1.1] — 2026-04-12
-
+## [1.1.1]
 NumPy-style numerics, polar heatmap series, broken/discontinuous axis, and inset axes constrained-layout fix.
 
 ### Added
@@ -2688,8 +2657,7 @@ NumPy-style numerics, polar heatmap series, broken/discontinuous axis, and inset
 
 ---
 
-## [1.1.0] — 2026-04-12
-
+## [1.1.0]
 Feature release adding perceptual colormaps, user-defined gradients, spline smoothing, mosaic subplot layouts, and performance improvements.
 
 ### Added
@@ -2707,8 +2675,7 @@ Feature release adding perceptual colormaps, user-defined gradients, spline smoo
 
 ---
 
-## [1.0.3] — 2026-04-12
-
+## [1.0.3]
 Relicensed from LGPL-3.0 to MIT — no copyleft conditions. Free to use in any project, open-source or commercial, with no restrictions beyond keeping the copyright notice.
 
 ### Changed
@@ -2718,8 +2685,7 @@ Relicensed from LGPL-3.0 to MIT — no copyleft conditions. Free to use in any p
 
 ---
 
-## [1.0.2] — 2026-04-12
-
+## [1.0.2]
 Pipeline fix — `MatPlotLibNet.DataFrame` added to the CI publish pipeline so all 9 packages release automatically on every tagged release.
 
 ### Fixed
@@ -2730,8 +2696,7 @@ Pipeline fix — `MatPlotLibNet.DataFrame` added to the CI publish pipeline so a
 
 ---
 
-## [1.0.1] — 2026-04-12
-
+## [1.0.1]
 Dependency update release — all NuGet packages bumped to latest stable versions.
 
 ### Changed
@@ -2815,8 +2780,7 @@ High-performance signal series, `IEnumerable<T>` fluent extensions, DataFrame pa
 
 ---
 
-## [0.9.1] - 2026-04-12
-
+## [0.9.1]
 Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2` — drop-in matplotlib styling in pure .NET.
 
 ### Added
@@ -2830,8 +2794,7 @@ Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2`
 
 ### Tests: 3,042 → 3,074 (+32)
 
-## [0.9.0] - 2026-04-11
-
+## [0.9.0]
 ### Added
 
 **Phase G — True 3-D (4 sub-phases)**
@@ -2859,8 +2822,7 @@ Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2`
 
 ### Tests: 3,001 → 3,042 (+41)
 
-## [0.8.9] - 2026-04-11
-
+## [0.8.9]
 ### Added
 
 **Phase F — Geo / Map Projections (7 sub-phases)**
@@ -2880,8 +2842,7 @@ Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2`
 
 ### Tests: 2,940 → 3,001 (+61)
 
-## [0.8.8] - 2026-04-11
-
+## [0.8.8]
 ### Added
 
 **Phase E — Accessibility (5 sub-phases)**
@@ -2900,8 +2861,7 @@ Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2`
 
 ### Tests: 2880 → 2940 (+60)
 
-## [0.8.7] - 2026-04-11
-
+## [0.8.7]
 ### Added
 
 **Phase D — Annotation System (5 sub-phases)**
@@ -2924,8 +2884,7 @@ Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2`
 
 ### Tests: 2814 → 2880 (+66)
 
-## [0.8.6] - 2026-04-11
-
+## [0.8.6]
 ### Added
 
 **Gap Phase 3 — Series Enhancements (7 sub-phases)**
@@ -2946,8 +2905,7 @@ Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2`
 
 ### Tests: 2730 → 2814 (+84)
 
-## [0.8.5] - 2026-04-11
-
+## [0.8.5]
 ### Added
 
 **Gap Phase 2 — Chrome Configuration (7 sub-phases)**
@@ -2962,8 +2920,7 @@ Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2`
 
 ### Tests: 2662 → 2730 (+68)
 
-## [0.8.4] - 2026-04-11
-
+## [0.8.4]
 ### Added
 
 **Roadmap Phase B — Colormap Engine**
@@ -3008,8 +2965,7 @@ Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2`
 
 ### Tests: 2432 → 2662 (+230)
 
-## [0.8.2] - 2026-04-11
-
+## [0.8.2]
 ### Fixed
 
 - **Y-axis label rotation** — `RenderAxisLabels` now passes `rotation: 90` to `DrawText` / `DrawRichText`; previously Y-axis labels rendered horizontally flush to the left edge
@@ -3030,8 +2986,7 @@ Matplotlib look-alike themes: `Theme.MatplotlibClassic` and `Theme.MatplotlibV2`
 
 ---
 
-## [0.8.1] - 2026-04-11
-
+## [0.8.1]
 > **Note:** Phase 1 (CSS4 Named Colors — 148 colors + `Color.FromName()`) is deferred to v0.8.3.
 
 ### Added
@@ -3098,8 +3053,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 
 ---
 
-## [0.8.0] - 2026-04-10
-
+## [0.8.0]
 ### Added
 
 **17 new series types (43 → 60)**
@@ -3145,8 +3099,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 
 ---
 
-## [0.7.0] - 2026-04-09
-
+## [0.7.0]
 ### Added
 
 **Feature 4a — KdeSeries + GaussianKde**
@@ -3271,8 +3224,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 
 **Test suite:** 1777 tests (up from 1668), zero regressions.
 
-## [0.6.0] - 2026-04-09
-
+## [0.6.0]
 ### Added
 
 **Batch 1 — VectorMath SIMD Kernel**
@@ -3324,8 +3276,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 ### Fixed
 - `Macd.Compute()` — guard against out-of-range slice when MACD data is shorter than the signal period
 
-## [0.5.1] - 2026-04-09
-
+## [0.5.1]
 ### Added
 
 **Phase C — Text & Annotation**
@@ -3373,8 +3324,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 - `LineSeriesRenderer`, `AreaSeriesRenderer`, `StepSeriesRenderer` — apply viewport culling + LTTB before rendering when `MaxDisplayPoints` is set
 - `ScatterSeriesRenderer` — applies viewport culling when `MaxDisplayPoints` is set
 
-## [0.5.0] - 2026-04-09
-
+## [0.5.0]
 ### Added
 
 - `GridSpec` model — unequal subplot layouts with row/col height/width ratios and cell spanning
@@ -3410,8 +3360,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 - `AxesBuilder.WithColorMap(IColorMap)` — replaced 4-branch `if/else if` type chain with `if (last is IColormappable c)` — now covers all 7 colormappable series (previously missed `SurfaceSeries`, `ScatterSeries`, `HierarchicalSeries`)
 - `AxesBuilder.WithNormalizer(INormalizer)` — replaced 3-branch `if/else if` type chain with `if (last is INormalizable n)`
 
-## [0.4.1] - 2026-04-06
-
+## [0.4.1]
 ### Added
 
 - `ISeriesSerializable` interface on all 34 series — each series serializes itself, eliminating the 152-line `SeriesToDto` switch in `ChartSerializer`
@@ -3438,8 +3387,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 - Publish workflow fix: build before pack for Skia/MAUI projects
 - Warning cleanup: xUnit1051 `CancellationToken` warnings and CS8604 nullable reference warnings resolved
 
-## [0.4.0] - 2026-04-06
-
+## [0.4.0]
 ### Added
 
 - `Projection3D` class for 3D-to-2D projection with elevation/azimuth rotation and depth sorting
@@ -3491,8 +3439,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 - `ChartRenderer.RenderAxes` is now a one-liner: `AxesRenderer.Create(axes, plotArea, ctx, theme).Render()`
 - Tests refactored to use builder output methods (`.ToSvg()`) instead of explicit `.Build()`
 
-## [0.3.2] - 2026-04-05
-
+## [0.3.2]
 ### Added
 
 - `IIndicatorResult` marker interface — all indicator result types must implement it
@@ -3519,8 +3466,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 - Tuple return types replaced with named records (`BandsResult` instead of `(double[], double[], double[])`)
 - JSON serialization fixed for 9 series types that previously fell through to `Type = "unknown"` (DonutSeries, BubbleSeries, OhlcBarSeries, WaterfallSeries, FunnelSeries, GanttSeries, GaugeSeries, ProgressBarSeries, SparklineSeries)
 
-## [0.3.1] - 2026-04-05
-
+## [0.3.1]
 ### Added
 
 - `@matplotlibnet/react` npm package: React 19 hooks (`useMplChart`, `useMplLiveChart`), components (`MplChart`, `MplLiveChart`), TypeScript SignalR client
@@ -3535,8 +3481,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 - Core `MatPlotLibNet.csproj` now targets `net10.0;netstandard2.1` (was `net10.0` only)
 - Solution file updated to include GraphQL source and test projects
 
-## [0.3.0] - 2026-04-05
-
+## [0.3.0]
 ### Added
 
 - 9 new series types organized into chart families: `DonutSeries`, `BubbleSeries`, `OhlcBarSeries`, `WaterfallSeries`, `FunnelSeries`, `GanttSeries`, `GaugeSeries`, `ProgressBarSeries`, `SparklineSeries`
@@ -3556,8 +3501,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 - `SvgSeriesRenderer` refactored from monolithic visitor to thin dispatcher over `SeriesRenderer<T>` instances
 - Series model classes reorganized from flat `Series/` directory into family subdirectories
 
-## [0.2.0] - 2026-04-05
-
+## [0.2.0]
 ### Added
 
 - 6 new series types: `AreaSeries`, `StepSeries`, `ErrorBarSeries`, `CandlestickSeries`, `QuiverSeries`, `RadarSeries`
@@ -3578,8 +3522,7 @@ Added three new examples to `MatPlotLibNet.Samples.Console`:
 - `FigureExtensions` expanded with `Transform()` method
 - `ChartRenderer` expanded for annotations, decorations, and secondary axis rendering
 
-## [0.1.0] - 2026-04-04
-
+## [0.1.0]
 ### Added
 
 - Core library with fluent builder API: `Plt.Create()`, `FigureBuilder`, `AxesBuilder`, `ThemeBuilder`

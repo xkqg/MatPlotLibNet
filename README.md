@@ -1,6 +1,11 @@
 # MatPlotLibNet
 
-A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/). Fluent API, dependency injection, parallel server-side SVG rendering, polymorphic export (SVG / PNG / PDF / animated GIF), and 82 series types across line, scatter, bar, 3D, streaming, polar, financial, statistical, hierarchical, Sankey, vector, and rotation-graph families. Ships with 13 map projections and embedded Natural Earth data, 30 themes, LaTeX-style MathText, O(1) streaming with **53 technical indicators** (classical moving averages + volatility, momentum, trend-follower, cycle, microstructure, entropy, change-point, and cross-asset causality), financial drawing tools (trendlines, Fibonacci retracements, horizontal levels), frame-based animation with 6 easing curves + Pause/Resume playback, native UI controls for **Blazor, WPF, MAUI, Avalonia, Uno Platform, ASP.NET Core**, and TypeScript clients for **Angular, React, and Vue** — no JavaScript framework, no WebView, no SaaS.
+A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/): fluent API, DI-friendly,
+server-side SVG / PNG / PDF / animated-GIF export, and 82 series types. Ships with 13 map projections and embedded
+Natural Earth data, 30 themes, LaTeX-style MathText, O(1) streaming with 53 technical indicators, a control room
+(`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window), and native controls for Blazor, WPF,
+MAUI, Avalonia, Uno and ASP.NET Core, plus TypeScript clients for Angular, React and Vue. No JavaScript framework,
+no WebView, no SaaS.
 
 [![CI](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml/badge.svg)](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
@@ -8,95 +13,31 @@ A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
-## 🧭 What's next
+## Where this is going
 
-**v1.14.3 (2026-08-22) — the secondary Y-axis becomes a full citizen, and streaming draws in SVG**:
-`ISeriesVisitor` declares the streaming visits as empty default bodies and `SvgSeriesRenderer` never
-overrode them, so every `StreamingPlot` produced an empty plot area while its range WAS folded in —
-axes neatly scaled to data no reader could see (measured on a live ops wall: three points, zero
-polylines). The three streaming visits now snapshot the ring and delegate to the static line/scatter
-renderers. On the right-hand axis: the legend names secondary traces (with the colour index the
-secondary renderer actually draws them with), the range walk no longer gates on a marker interface a
-streaming series does not carry, and `SecondaryAxisBuilder.StreamingPlot(...)` lets a live chart
-carry two units at once. On the right-hand axis the label also measures its own clearance and rotates like the primary one (it printed through 225/200/175 on a live wall), and a dragged legend now survives the next server push. All 13 packages at 1.14.3; 10,025 tests, 0 failures.
+The **1.14** line is control-room work: `Plt.OpsDashboard()` and the tile anatomy arrived with it, and the
+releases since are the fixes and extensions a live operator wall asked for — a secondary Y axis that is a full
+citizen, streaming that draws in SVG, 3-D axis titles that clear their own labels, tile captions that wrap and
+stay inside their tile, and an ops window whose ticks read as time.
 
-Prior: **v1.14.2 (2026-08-17) — 3-D axis titles clear their own tick labels**: the title pad was a
-constant (42 px for X, 60 for Y/Z) while the tick labels sit barely a line height inside it, so a
-title printed through a tick label at every camera once the labels were wide enough
-([#18](https://github.com/xkqg/MatPlotLibNet/issues/18) follow-up). The pad is now measured per
-render from the labels the axis actually draws, so a wider tick font or a custom `TickFormatter`
-moves the title with it. Also: axis titles now travel with the camera-derived face selection during
-a drag, and the 3-D grid, the tick rows and the clearance measurement share one tick rule (the grid
-used to ignore `MajorTicks.Spacing`). All 13 packages at 1.14.2; 10,714 tests, 0 failures; strict
-coverage gate 659/659 classes at ≥90/90.
+After that the cadence is community-driven: bug fixes, documentation, and whatever real use turns up. Open a
+[Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
+[Issue](https://github.com/xkqg/MatPlotLibNet/issues) — that is what steers the next release. Every release,
+with its migration notes, is in the [CHANGELOG](CHANGELOG.md).
 
-Prior: **v1.14.1 (2026-08-15) — the 3-D axis frame follows the camera**: the shaded panes, the drawn
-cube edges, the wall grids and the X/Y/Z tick rows were pinned to the faces that are back-facing at
-matplotlib's default view, so any camera outside `azimuth ∈ [−90°, 0°]` painted a pane onto a face
-that had rotated to the front and drew two tick rows behind the data
-([#18](https://github.com/xkqg/MatPlotLibNet/issues/18)). Which faces are at the back is now derived
-from the camera on every render — a port of matplotlib's own rule, verified against matplotlib 3.11.1
-over 144 cameras including its edge-on tie handling — and interactive rotation re-runs the same
-selection per frame instead of re-projecting a fixed frame. Inside the historical quadrant the output
-is unchanged: the five matplotlib pixel-fidelity fixtures pass untouched. Also fixes tick labels
-flipping to the wrong side of their axis on the first drag frame, and `Pane3DConfig.Alpha`, which had
-shipped for releases without any renderer reading it. All 13 packages at 1.14.1; strict coverage gate
-659/659 classes at ≥90/90 (99.6% line / 97.2% branch); 10,709 tests, 0 failures.
-
-Prior: **v1.14.0 (2026-07-12) — control-room pack** replaced the 1.13.1 dashboard template with
-`Plt.OpsDashboard()`, a fluent composition API for KPI tiles, state timelines, and a shared trend
-panel pinned to one caller-supplied time window (the library never reads the wall clock). Adds
-`BulletGraphSeries` (Stephen Few's bar-plus-target-plus-bands replacement for radial gauges),
-`Theme.Alarm`/`AlarmPalette` (a theme now names its reserved alarm colours), four operator
-backgrounds (`OpsNight`/`OpsPanel`/`OpsWarm`/`OpsContrast`), and the full `StatTileSeries` tile
-anatomy (`Target`, `Caption`, `Trend`, `Hatch`). Also fixes five defects the work surfaced,
-including `HatchPattern` — shipped for releases but never actually painted by any renderer — now
-wired end-to-end through `ShapeStyle` on every backend, a `ThemeBuilder.Build()` that silently
-discarded 7 of its 15 theme properties (now clones instead of rebuilding), and a rolling time axis
-that re-shuffled its tick labels every frame. Strict coverage gate 656/656 classes at ≥90/90;
-10,252 tests. Design record:
-[docs/contrib/v1-14-control-room-pack.md](docs/contrib/v1-14-control-room-pack.md).
-**v1.13.1** shipped `FigureTemplates.OpsDashboard` (since superseded by `Plt.OpsDashboard()`
-above) and a fix for `MplLiveChart`'s relative `HubUrl` silently never connecting. **v1.13.0
-(2026-07-04) — refactor & cleanup release** (no new chart features): breaking API cleanups —
-`IGeoProjection.Forward`/`Inverse`/`Bounds` now return record structs instead of tuples,
-`StreamingSeriesBase`/`StreamingIndicatorBase` are renamed to `StreamingSeries`/
-`StreamingIndicator`, `IRenderContext` draw methods take `StrokeStyle`/`ShapeStyle` records, and
-the synchronous `InteractiveExtensions.Show(Figure)` was removed in favor of the async-only
-`ShowAsync()`. Full migration notes for every release are in the [CHANGELOG](CHANGELOG.md).
-
-Future releases are **community-driven** — there is no fixed feature roadmap:
-
-- 🐛 **Bug fixes** — driven by community use and the strict `≥90/90` per-class coverage gate (every class passes; see [Coverage Policy](docs/COVERAGE.md) for the current numbers).
-- 📚 **Documentation polish** — cookbook examples, API XML doc completeness.
-- 🌱 **Listening** — Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or [Issue](https://github.com/xkqg/MatPlotLibNet/issues) with what's missing for your use case. The next direction will be guided by what real users need, not by a feature checklist.
-
-For the full release notes, see the [CHANGELOG](CHANGELOG.md).
+Quality bar: a strict per-class coverage gate at ≥90 % line and branch (659 classes, 99.6 % / 97.2 %) across
+10,025 tests, with rendering verified against matplotlib pixel-fidelity fixtures.
 
 ---
 
 ## Documentation
 
-Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibNet/wiki)**, the **[Cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/)** (runnable examples with rendered images), and the **[API Reference](https://xkqg.github.io/MatPlotLibNet/api/)** (generated from XML doc comments):
-
-- [Playground](https://xkqg.github.io/MatPlotLibNet/playground/) — try charts live in the browser — pick an example, tweak parameters, see the SVG update instantly
-- [Cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/) — copy-paste code examples with rendered output for every chart type
-- [API Reference](https://xkqg.github.io/MatPlotLibNet/api/) — full API documentation from source
-- [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started) — installation, output formats, subplots
-- [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet) — one-page reference for `Plt` / `FigureBuilder` / `AxesBuilder`
-- [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) — all 13 NuGet + 3 npm packages in detail
-- [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) — all 82 series with code examples
-- [Streaming & Realtime](https://github.com/xkqg/MatPlotLibNet/wiki/Streaming) — ring buffers, StreamingFigure, axis scaling, 11 streaming indicators, platform controls
-- [Interactive Controls](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) — Avalonia + Uno native controls, managed interaction layer
-- [Bidirectional SignalR](https://github.com/xkqg/MatPlotLibNet/wiki/Bidirectional-SignalR) — server-authoritative interactive charts, event hierarchy, hub wiring
-- [DataFrame](https://github.com/xkqg/MatPlotLibNet/wiki/DataFrame) — indicators, polynomial regression from `Microsoft.Data.Analysis.DataFrame`
-- [Notebooks](https://github.com/xkqg/MatPlotLibNet/wiki/Notebooks) — Polyglot Notebooks + Jupyter inline rendering
-- [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling) — themes, colormaps, PropCycler
-- [Accessibility](https://github.com/xkqg/MatPlotLibNet/wiki/Accessibility) — SVG semantics, keyboard navigation, color-blind palette
-- [Advanced](https://github.com/xkqg/MatPlotLibNet/wiki/Advanced) — date axes, math text, animations, GIF, real-time
-- [Benchmarks](BENCHMARKS.md) — SVG rendering, SIMD transforms, indicators, Skia export (`BENCHMARKS.md` in the repo root; also mirrored on the [wiki](https://github.com/xkqg/MatPlotLibNet/wiki/Benchmarks))
-- [Roadmap](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap) — version history and planned phases
-- [Contributing](https://github.com/xkqg/MatPlotLibNet/wiki/Contributing) — build, test, coding conventions
+- **[Wiki](https://github.com/xkqg/MatPlotLibNet/wiki)** — getting started, cheatsheet, all 82 chart types, the
+  control room, styling, streaming, SignalR, packages
+- **[Cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/)** — copy-paste examples with rendered output
+- **[Playground](https://xkqg.github.io/MatPlotLibNet/playground/)** — try charts live in the browser
+- **[API Reference](https://xkqg.github.io/MatPlotLibNet/api/)** — generated from the XML docs
+- **[Benchmarks](BENCHMARKS.md)** · **[Coverage policy](docs/COVERAGE.md)** · **[CHANGELOG](CHANGELOG.md)**
 
 ---
 
@@ -146,6 +87,8 @@ Plt.Create()
 
 **82 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
 
+**Control room** — `Plt.OpsDashboard()` composes one operator screen: KPI tiles across the top, state timelines under them, and a shared trend panel, all pinned to one caller-supplied time window (the library never reads the wall clock). The tile carries a `Target`, a wrapping multi-line `Caption`, an inline sparkline and a `Hatch` that means *no information*; `Theme.Alarm` names the reserved alarm colours and four operator backgrounds ship with it. `BulletGraphSeries` replaces the radial gauge.
+
 **Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp — no browser, no WebView, no SignalR required. 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. Toolbar state model, view history (back/forward), data cursor (click-to-pin), tick mirroring, tight margins.
 
 **MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
@@ -158,7 +101,7 @@ Plt.Create()
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). Stacked-record event hierarchy, natural coalescing, per-caller hover responses.
 
-**142 colormaps** — viridis, plasma, turbo, coolwarm, and 138 more (71 base maps, each with an auto-registered reversed `_r` variant). NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with **53 technical indicators** (v1.9.0 added 12 — Klinger, Twiggs MF, Ease of Movement, VWAP Z-Score, Supertrend, CG Oscillator, Inverse Fisher, YZ Vol Ratio, Ehlers iTrend, Decycler, Ehlers SuperSmoother, Transfer Entropy; v1.11.0 added Roc). Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
+**142 colormaps** — viridis, plasma, turbo, coolwarm, and 138 more (71 base maps, each with an auto-registered reversed `_r` variant). NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with **53 technical indicators**. Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
 
 ---
 
