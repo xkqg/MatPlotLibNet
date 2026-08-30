@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Next]
+## [1.14.4]
 ### Added
 
 - **A stat tile can LEAD somewhere.** `StatTileSeries.Url` (matplotlib's `Artist.set_url` idiom) renders the
