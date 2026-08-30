@@ -105,6 +105,11 @@ public interface IRenderContext
     /// <summary>Ends the current hyperlink. Default is a no-op.</summary>
     void EndHyperlink() { }
 
+    /// <summary>Draws text that reports its depth in a tree (<c>aria-level</c>, 1-based) — what makes a tree
+    /// grid navigable rather than merely visible. Backends without markup draw it as ordinary text.</summary>
+    void DrawTextWithLevel(string text, Point position, Font font, int level)
+        => DrawText(text, position, font, TextAlignment.Left);
+
     /// <summary>
     /// Draws a <see cref="RichText"/> value that may contain superscript, subscript, and Unicode-substituted
     /// math characters.  The default implementation concatenates all span text and delegates to

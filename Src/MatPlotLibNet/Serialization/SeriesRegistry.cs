@@ -121,6 +121,7 @@ public static class SeriesRegistry
         Register("swarmplot", SwarmplotSeries.FromSeriesDto);
         Register("spectrogram", SpectrogramSeries.FromSeriesDto);
         Register("table", TableSeries.FromSeriesDto);
+        Register("treegrid", TreeGridSeries.FromSeriesDto);
 
         // v0.8.0 Phase C
         Register("tricontour", TricontourSeries.FromSeriesDto);

@@ -20,6 +20,13 @@ public sealed record TreeNode
     /// <see cref="Color"/> always wins.</summary>
     public double? ColorValue { get; init; }
 
+    /// <summary>The node's MEASURE, drawn big: under the label in a leaf cell, at the right end of the header
+    /// strip in an interior one. A cell that reports a number reads like a stat tile — the name small on top,
+    /// the number underneath in a size you can see from across a room (Grafana's Stat panel puts the value
+    /// under the name for exactly this reason); one line carrying both at one size is a line you must read.
+    /// Null draws nothing, and a headline that does not fit its cell is dropped before the name is.</summary>
+    public string? Headline { get; init; }
+
     /// <summary>A fill pattern over the node's rect, or <see cref="HatchPattern.None"/>. This is how a rect says
     /// <i>no information</i> — the source went silent — a pattern and not a colour, exactly as a stat tile does:
     /// "I can no longer see you" is a different fault from "you are hot", and a wall that paints them the same

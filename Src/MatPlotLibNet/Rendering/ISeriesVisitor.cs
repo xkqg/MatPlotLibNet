@@ -177,6 +177,9 @@ public interface ISeriesVisitor
     /// <summary>Renders a table series.</summary>
     void Visit(TableSeries series, RenderArea area);
 
+    /// <summary>Renders a tree-grid series.</summary>
+    [ExcludeFromCodeCoverage] void Visit(TreeGridSeries series, RenderArea area) { }
+
     /// <summary>Renders a contour series on a triangular mesh.</summary>
     void Visit(TricontourSeries series, RenderArea area);
 

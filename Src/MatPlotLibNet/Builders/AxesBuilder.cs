@@ -931,6 +931,11 @@ public sealed class AxesBuilder
     public AxesBuilder Table(string[][] cellData, Action<TableSeries>? configure = null)
         => AddSeries(ax => ax.Table(cellData), configure);
 
+    /// <summary>Adds a tree grid — indented rows with right-aligned value columns (htop's process tree, the
+    /// ARIA <c>treegrid</c>): what a treemap stops being able to do once the leaves are many and small.</summary>
+    public AxesBuilder TreeGrid(IReadOnlyList<TreeGridRow> rows, Action<TreeGridSeries>? configure = null)
+        => AddSeries(ax => ax.TreeGrid(rows), configure);
+
     /// <summary>Adds a contour series on an unstructured triangular mesh to the axes.</summary>
     public AxesBuilder Tricontour(double[] x, double[] y, double[] z, Action<TricontourSeries>? configure = null)
         => AddSeries(ax => ax.Tricontour(x, y, z), configure);

@@ -107,7 +107,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         // Skip standard grid/ticks/frame for axis-less series (radar, pie, treemap, table).
         // These fill the plot area and don't use a Cartesian coordinate system.
         bool radarOnly = Axes.Series.Count > 0 && Axes.Series.All(s =>
-            s is RadarSeries or PieSeries or HierarchicalSeries or TableSeries);
+            s is RadarSeries or PieSeries or HierarchicalSeries or TableSeries or TreeGridSeries);
         if (!radarOnly)
         {
             // Grid — axes-level setting overrides theme when explicitly set (Visible=true);

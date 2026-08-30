@@ -117,6 +117,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
 
     // Special v0.8 B
     private TableSeriesRenderer? _table;
+    private TreeGridSeriesRenderer? _treeGrid;
 
     // Grid v0.8 C
     private TricontourSeriesRenderer? _tricontour;
@@ -314,6 +315,8 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     public void Visit(SpectrogramSeries s, RenderArea a) => (_spectrogram ??= new(_context)).Render(s);
     /// <inheritdoc />
     public void Visit(TableSeries s, RenderArea a) => (_table ??= new(_context)).Render(s);
+    /// <inheritdoc />
+    public void Visit(TreeGridSeries s, RenderArea a) => (_treeGrid ??= new(_context)).Render(s);
 
     // Phase C additions
     /// <inheritdoc />

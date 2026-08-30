@@ -48,6 +48,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`AddSubPlot(GridPosition, …)` takes the same optional `key`** as the legacy overload, so a grid-position
   subplot can be a `ShareX`/`ShareY` target — it could name one but never be one.
 
+- **A tree grid: `Plt.Create()… ax.TreeGrid(rows)`.** Indented rows with right-aligned value columns — htop's
+  process tree, and the shape ARIA actually names (`treegrid`; a treemap has no role at all). A row carries its
+  depth, its cells, an optional accent and an optional `Url`, so opening a subtree is a plain SVG `<a href>`
+  and needs no script; the row reports `aria-level` and `aria-expanded`, and an expandable row wears the same
+  chevron the stat tile does. It is the companion to the treemap, not a replacement: a map answers "who is big"
+  pre-attentively, a grid answers "by how much" exactly — and once the leaves are many and small (measured on a
+  live fleet: two lanes of twenty-three carried every message in an hour) the map has nothing left to say.
+- **A treemap cell can carry a MEASURE: `TreeNode.Headline`.** Drawn under the label and larger
+  (`TreemapSeries.HeadlineFontSize`, default 20) in a leaf, and at the right end of the header strip in an
+  interior node — the stat tile's anatomy inside the cell, which is how Grafana's Stat panel lays out a value
+  under its name. It is the FIRST thing dropped when the cell cannot hold both: a number without its subject
+  says nothing, so a cell whose name did not fit never shows a bare number either.
+- **`IRenderContext.DrawTextWithLevel`** — text that reports its depth (`aria-level`); a no-op fallback to
+  plain text on backends without markup.
+
 ### Fixed
 
 - **A log axis DRAWS.** An auto-ranged `AxisScale.Log` axis padded its margin in RAW space, expanded to the

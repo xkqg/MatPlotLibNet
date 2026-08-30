@@ -86,6 +86,19 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
                     Ctx.DrawText(label, new Point(bounds.X + 4, bounds.Y + fontSize + 2),
                         font, TextAlignment.Left);
                 }
+                // The MEASURE, under the name and larger — the stat tile's anatomy inside the cell. It is the
+                // FIRST thing dropped when the cell cannot hold both: a number without its subject says
+                // nothing, so a cell whose name did not fit never shows a bare number either.
+                if (label is not null && !string.IsNullOrEmpty(node.Headline))
+                {
+                    var headlineFont = new Font { Size = series.HeadlineFontSize, Weight = FontWeight.Bold, Color = Colors.White };
+                    double top = bounds.Y + fontSize + 2 + series.HeadlineFontSize + 4;
+                    if (top <= bounds.Y + bounds.Height - 2
+                        && Ctx.MeasureText(node.Headline, headlineFont).Width <= bounds.Width - 8)
+                    {
+                        Ctx.DrawText(node.Headline, new Point(bounds.X + 4, top), headlineFont, TextAlignment.Left);
+                    }
+                }
             }
             return;
         }
@@ -126,6 +139,13 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
             Ctx.SetNextElementData("treemap-parent", parentId);
             Ctx.DrawText(node.Label, new Point(bounds.X + 4, bounds.Y + headerH - 4),
                 font, TextAlignment.Left);
+            // The parent's own measure, at the far end of its header strip — the total beside the name.
+            if (!string.IsNullOrEmpty(node.Headline)
+                && Ctx.MeasureText(node.Headline, font).Width + Ctx.MeasureText(node.Label, font).Width + 16 <= bounds.Width)
+            {
+                Ctx.DrawText(node.Headline, new Point(bounds.X + bounds.Width - 4, bounds.Y + headerH - 4),
+                    font, TextAlignment.Right);
+            }
             headerDrawn = true;
         }
         if (headerDrawn)

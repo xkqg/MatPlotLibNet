@@ -33,6 +33,16 @@ public class RenderContextGroupTests
         ctx.EndHyperlink();
     }
 
+    /// <summary>A backend without markup draws a levelled text as ordinary text — the tree grid degrades to a
+    /// flat list rather than throwing at it.</summary>
+    [Fact]
+    public void IRenderContext_DrawTextWithLevel_FallsBackToPlainText()
+    {
+        IRenderContext ctx = new NullRenderContext();
+
+        ctx.DrawTextWithLevel("Ait.Cortex", new Point(0, 0), new Font { Size = 12 }, level: 2); // should not throw
+    }
+
     /// <summary>Verifies that SvgRenderContext.BeginGroup emits a g element.</summary>
     [Fact]
     public void SvgRenderContext_BeginGroup_EmitsGElement()

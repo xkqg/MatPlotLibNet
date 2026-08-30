@@ -996,6 +996,16 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Adds a tree-grid series — indented rows with right-aligned value columns.</summary>
+    /// <param name="rows">The rows, already flattened in the order they are drawn.</param>
+    /// <returns>The newly created <see cref="TreeGridSeries"/> for further configuration.</returns>
+    public TreeGridSeries TreeGrid(IReadOnlyList<TreeGridRow> rows)
+    {
+        var series = new TreeGridSeries(rows);
+        _series.Add(series);
+        return series;
+    }
+
     /// <summary>Adds a contour series on an unstructured triangular mesh.</summary>
     public TricontourSeries Tricontour(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
     {

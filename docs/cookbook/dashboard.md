@@ -415,6 +415,44 @@ ax.Treemap(fleet, s =>
 Measured at 1400×300: nine processes label cleanly; at twenty, `LabelFit.Always` painted nine labels across
 their neighbours — a wall above ~12 processes needs height or `Fit`/`Truncate`. An EMPTY tree draws nothing.
 
+### A tree grid — the numbers a treemap cannot show
+
+Once the leaves are many and small, area stops saying anything: on a live fleet two lanes of twenty-three
+carried every message in an hour, which as a treemap is two rectangles and twenty-one slivers. Rows compare
+exactly, and they are the shape ARIA names (`treegrid`):
+
+```csharp
+TreeGridRow[] rows =
+[
+    new("Ait", ["24 %", "25 323", "10 404 KiB"]) { Expanded = true },
+    new("Ait.Binance", ["10 %", "14 920", "6 972 KiB"])
+        { Depth = 1, Url = "/?process=Ait.Binance", Expanded = false },   // a link, so expanding needs no script
+    new("BinanceKline", ["", "14 920", "6 972 KiB"]) { Depth = 2 },
+];
+
+Plt.Create().WithSize(1400, 300).WithTheme(Theme.OpsNight)
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        ax.TreeGrid(rows, s => { s.ColumnHeaders = ["CPU", "Messages", "Traffic"]; s.ColumnWidth = 140; });
+        ax.HideAllAxes();
+    })
+    .Build();
+```
+
+Values are right-aligned per column so digits line up; a row with a `Url` becomes an `<a href>` carrying
+`aria-expanded`, and every row carries `aria-level`. Rows past the region's edge are dropped rather than drawn
+over the panel below.
+
+### A cell that carries its number
+
+`TreeNode.Headline` puts the measure under the name and larger — the stat tile's anatomy inside a treemap cell:
+
+```csharp
+new TreeNode { Label = "Ait.Cortex", Headline = "13 %", Value = 1, ColorValue = 13 }
+```
+
+The headline is dropped before the name is: a number without its subject says nothing.
+
 ### A log axis for latencies
 
 `SetYScale(AxisScale.Log)` ranges over the POSITIVE values only (a window that priced 0 µs is masked, not drawn),

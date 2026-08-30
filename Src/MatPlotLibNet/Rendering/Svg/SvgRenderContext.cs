@@ -48,6 +48,11 @@ public sealed class SvgRenderContext : IRenderContext
 
     private void FlushPendingData()
     {
+        if (_pendingAriaLevel is { } level)
+        {
+            _sb.Append(" aria-level=\"").Append(level.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append('"');
+            _pendingAriaLevel = null;
+        }
         if (_pendingClass is not null)
         {
             _sb.Append(" class=\"").Append(_pendingClass).Append('"');
@@ -416,6 +421,17 @@ public sealed class SvgRenderContext : IRenderContext
     {
         _sb.AppendLine("</a>");
     }
+
+    /// <summary>Text carrying its <c>aria-level</c> — a tree grid's row depth (ARIA <c>treegrid</c>), which is
+    /// what makes an indented list navigable rather than merely visible.</summary>
+    public void DrawTextWithLevel(string text, Point position, Font font, int level)
+    {
+        _pendingAriaLevel = level;
+        DrawText(text, position, font, TextAlignment.Left);
+        _pendingAriaLevel = null;
+    }
+
+    private int? _pendingAriaLevel;
 
 
     // ──────────────────────────────────────────────────────────────────────────
