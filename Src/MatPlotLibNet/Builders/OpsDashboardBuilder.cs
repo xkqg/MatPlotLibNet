@@ -30,6 +30,17 @@ public sealed class OpsDashboardBuilder
     private readonly List<OpsTimelineSpec> _timelines = [];
     private readonly List<OpsTrendSpec> _trends = [];
 
+    /// <summary>The widest a tile row gets before it wraps onto another row. Eight is what a control-room screen
+    /// reads at a glance; past it the tiles narrow until the number inside stops being scannable.</summary>
+    public const int MaxTilesPerRow = 8;
+
+    /// <summary>The gutter between two tiles, in points — tighter than the generic figure default, which is sized
+    /// for axes that carry tick labels between them.</summary>
+    public const double TileGap = 12;
+
+    /// <summary>What a further tile row costs the figure, in points (the tile row's own height, 220, is in the base).</summary>
+    private const double TileRowHeight = 150;
+
     private string? _title;
     private DateTime? _windowEnd;
     private TimeSpan _windowSpan;
@@ -123,15 +134,23 @@ public sealed class OpsDashboardBuilder
                 "An ops dashboard needs at least one tile: the tile row is what an operator reads first.");
         }
 
-        int columns = _tiles.Count;
+        // A tile row has a maximum WIDTH: past it the row wraps, BALANCED (9 tiles read as 5+4, never 8+1 — a lone
+        // tile on a second row is a layout accident an operator reads as a category). Owner 2026-08-30, on a
+        // fifteen-tile wall: "maximum 8 tegels op een row".
+        int tileRows = ((_tiles.Count - 1) / MaxTilesPerRow) + 1;
+        int columns = ((_tiles.Count - 1) / tileRows) + 1;
         int trendRows = _trends.Count > 0 ? 1 : 0;
-        int rows = 1 + _timelines.Count + trendRows;
+        int rows = tileRows + _timelines.Count + trendRows;
 
         var heightRatios = new double[rows];
-        heightRatios[0] = 0.8;
+        for (int i = 0; i < tileRows; i++)
+        {
+            heightRatios[i] = 0.8;
+        }
+
         for (int i = 0; i < _timelines.Count; i++)
         {
-            heightRatios[1 + i] = 1.0;
+            heightRatios[tileRows + i] = 1.0;
         }
 
         if (trendRows > 0)
@@ -140,9 +159,13 @@ public sealed class OpsDashboardBuilder
         }
 
         var figure = Plt.Create()
-            .WithSize(1200, 220 + (_timelines.Count * 90) + (trendRows * 320))
+            .WithSize(1200, 220 + ((tileRows - 1) * TileRowHeight) + (_timelines.Count * 90) + (trendRows * 320))
             .WithGridSpec(rows, columns, heightRatios: heightRatios)
-            .TightLayout();
+            .TightLayout()
+            // A tile is a CARD, and the gutter between cards is what pushes a wide wall off the screen. The generic
+            // figure gap is sized for axes with tick labels between them; tiles carry none (owner: "tussen space
+            // tussen de tegels mag kleiner").
+            .WithSubPlotSpacing(sp => sp with { HorizontalGap = TileGap });
 
         if (_title is not null)
         {
@@ -152,8 +175,9 @@ public sealed class OpsDashboardBuilder
         for (int i = 0; i < _tiles.Count; i++)
         {
             var spec = _tiles[i];
-            int column = i;
-            figure.AddSubPlot(GridPosition.Single(0, column), ax =>
+            int column = i % columns;
+            int tileRow = i / columns;
+            figure.AddSubPlot(GridPosition.Single(tileRow, column), ax =>
             {
                 ax.StatTile(spec.Value, spec.Configure);
                 ax.HideAllAxes();
@@ -164,7 +188,7 @@ public sealed class OpsDashboardBuilder
         for (int i = 0; i < _timelines.Count; i++)
         {
             var spec = _timelines[i];
-            int row = 1 + i;
+            int row = tileRows + i;
             figure.AddSubPlot(new GridPosition(row, row + 1, 0, columns), ax =>
             {
                 var timeline = ax.StateTimeline(spec.Segments, spec.Configure);

@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Linq;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
@@ -173,4 +174,72 @@ public class OpsDashboardBuilderTests
 
         Assert.Equal(First(), First());
     }
+    /// <summary>A tile row has a MAXIMUM WIDTH (owner 2026-08-30: <i>"maximum 8 tegels op een row"</i>). Past it the
+    /// row wraps, and the wrap is BALANCED — nine tiles read as 5+4, never as 8+1, because a lone tile on a second
+    /// row is a layout accident an operator reads as a category.</summary>
+    [Theory]
+    [InlineData(1, 1, 1)]
+    [InlineData(8, 8, 1)]
+    [InlineData(9, 5, 2)]
+    [InlineData(15, 8, 2)]
+    [InlineData(16, 8, 2)]
+    [InlineData(17, 6, 3)]
+    public void ATileRow_WrapsAtEightAndTheWrapIsBalanced(int tiles, int expectedPerRow, int expectedRows)
+    {
+        var dashboard = Plt.OpsDashboard();
+        for (var i = 0; i < tiles; i++)
+        {
+            dashboard.AddTile(i);
+        }
+
+        var figure = dashboard.Build().Build();
+
+        var placed = figure.SubPlots.Where(a => a.GridPosition is not null).Select(a => a.GridPosition!.Value).ToList();
+        Assert.Equal(tiles, placed.Count);
+        Assert.All(placed, p => Assert.True(p.ColEnd - p.ColStart == 1));
+        Assert.Equal(expectedRows, placed.Select(p => p.RowStart).Distinct().Count());
+        Assert.Equal(expectedPerRow, placed.Count(p => p.RowStart == 0));
+        Assert.True(placed.Max(p => p.ColEnd) <= OpsDashboardBuilder.MaxTilesPerRow);
+        // Every row is filled left to right, and no row is wider than the first.
+        foreach (var row in placed.GroupBy(p => p.RowStart))
+        {
+            Assert.Equal(Enumerable.Range(0, row.Count()).ToArray(), row.Select(p => p.ColStart).OrderBy(c => c).ToArray());
+        }
+    }
+
+    /// <summary>A wrapped tile row grows the FIGURE — the second row of tiles gets its own height instead of
+    /// halving the first one's, which is what makes a tile's inline sparkline unreadable.</summary>
+    [Fact]
+    public void EachExtraTileRow_AddsItsOwnHeight()
+    {
+        static double Height(int tiles)
+        {
+            var dashboard = Plt.OpsDashboard();
+            for (var i = 0; i < tiles; i++)
+            {
+                dashboard.AddTile(i);
+            }
+            return dashboard.Build().Build().Height;
+        }
+
+        var one = Height(8);
+        var two = Height(9);
+        var three = Height(17);
+
+        Assert.True(two > one, "a second tile row needs its own height");
+        Assert.Equal(two - one, three - two, 3); // each further row costs exactly the same
+    }
+
+    /// <summary>The tiles sit CLOSE together (owner 2026-08-30: <i>"tussen space tussen de tegels mag kleiner"</i>) —
+    /// a tile is a card, and the white gutter between cards is what pushes a fifteen-tile wall off the screen.</summary>
+    [Fact]
+    public void TheTiles_SitTighterThanTheDefaultSubplotGap()
+    {
+        var figure = Plt.OpsDashboard().AddTile(1).AddTile(2).Build().Build();
+
+        Assert.True(figure.Spacing.HorizontalGap < new MatPlotLibNet.Models.SubPlotSpacing().HorizontalGap,
+            "the ops wall tightens the gutter it inherits from the generic figure default");
+        Assert.Equal(OpsDashboardBuilder.TileGap, figure.Spacing.HorizontalGap);
+    }
+
 }

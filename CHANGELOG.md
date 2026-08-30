@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.14.4]
+### Changed
+
+- **An ops tile row WRAPS at eight tiles, balanced.** `Plt.OpsDashboard()` put every tile on one row, one grid
+  column each, so a fifteen-tile wall narrowed each card until the number inside stopped being scannable. The row
+  now wraps at `OpsDashboardBuilder.MaxTilesPerRow` (8) and the wrap is BALANCED — nine tiles read as 5+4, never
+  as 8+1, because a lone tile on a second row is a layout accident an operator reads as a category. Each further
+  tile row adds its own height to the figure instead of halving the first row's (a short tile makes the inline
+  sparkline unreadable). Timelines and the trend panel follow below the wrapped rows.
+- **The gutter between tiles is tighter** (`OpsDashboardBuilder.TileGap` = 12 pt against the generic figure's 40):
+  a tile carries no tick labels, so the gap sized for axes was pure white space between cards.
+
 ## [1.14.3]
 ### Fixed
 
