@@ -30,6 +30,13 @@ public sealed class BusTelemetrySimulator : BackgroundService
     /// these two panels are read at different rhythms.</summary>
     public const string LatencyChartId = "obs-latency";
 
+    /// <summary>The chart id of the Processes drill-down — the panel that opens UNDER the tile row when the
+    /// Processes tile is clicked. Published only while a browser is subscribed to it.</summary>
+    public const string ProcessesChartId = "obs-processes";
+
+    /// <summary>The drill-down's second panel: small multiples of the hottest processes.</summary>
+    public const string ProcessTrendChartId = "obs-process-trend";
+
     private static readonly TimeSpan CollectTick = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan History = TimeSpan.FromHours(1);
 
@@ -51,6 +58,16 @@ public sealed class BusTelemetrySimulator : BackgroundService
 
     private DateTime _lastCollect = DateTime.MinValue;
     private DateTime _lastPublish = DateTime.MinValue;
+
+    /// <summary>The simulated fleet, bus by bus, process by process.</summary>
+    public IReadOnlyList<Bus> Buses => _buses;
+
+    private readonly IChartSubscriptions? _subscriptions;
+
+    /// <summary>Creates the simulator with the subscription ledger, so the drill-down panel is rendered only
+    /// while someone is looking at it — a panel nobody opened costs nothing.</summary>
+    public BusTelemetrySimulator(IChartPublisher publisher, IChartSubscriptions subscriptions) : this(publisher)
+        => _subscriptions = subscriptions;
 
     /// <summary>Creates the simulator using the registered chart publisher.</summary>
     /// <param name="publisher">The chart publisher.</param>
@@ -169,6 +186,16 @@ public sealed class BusTelemetrySimulator : BackgroundService
             {
                 await _publisher.PublishSvgAsync(ThroughputChartId, BuildThroughput(now, window, samples), ct);
                 await _publisher.PublishSvgAsync(LatencyChartId, BuildLatency(now, window, samples), ct);
+                // The drill-down is the heaviest figure on the wall (one cell per process, one strip per hot
+                // process) and it is rendered ONLY while a tab has it open — the ledger the hub keeps.
+                if (_subscriptions?.HasSubscribers(ProcessesChartId) == true)
+                {
+                    await _publisher.PublishSvgAsync(ProcessesChartId, BuildProcessGrid(now), ct);
+                }
+                if (_subscriptions?.HasSubscribers(ProcessTrendChartId) == true)
+                {
+                    await _publisher.PublishSvgAsync(ProcessTrendChartId, BuildProcessStrips(now), ct);
+                }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -304,14 +331,98 @@ public sealed class BusTelemetrySimulator : BackgroundService
             .WithTheme(Theme.OpsNight)
             .AddSubPlot(1, 1, 1, ax =>
             {
-                ax.AxHSpan(0, 25, s => s.Alpha = 0.06);
                 ax.Plot(x, [.. buckets.Select(b => b.P50)], s => s.Label = "p50");
                 ax.Plot(x, [.. buckets.Select(b => b.P95)], s => s.Label = "p95");
                 ax.Plot(x, [.. buckets.Select(b => b.P99)], s => s.Label = "p99");
+                // Percentiles, raw — never smoothed: smoothing is the operation that removes the spike an
+                // operator came to see. A LOG axis, because p50 and p99 live an order of magnitude apart and a
+                // linear axis flattens the one that matters; the target is a reference LINE with its label on
+                // the line (never Threshold(...) on a time axis — its label anchors at x = 0 = the year 1899).
+                ax.SetYScale(AxisScale.Log);
+                ax.AxHLine(25, r => { r.Label = "target 25 ms"; r.Color = Theme.OpsNight.Alarm.Warning; });
                 PinWindow(ax, now, window);
-                ax.SetYLabel("ms");
+                ax.SetYLabel("ms (log)");
             })
             .Build();
+    }
+
+    /// <summary>The Processes drill-down, panel one — composition NOW: an equal-cell grid per bus.
+    /// <para>Every process is one cell of the same size (area says nothing, so the layout never moves — a
+    /// treemap whose area is the live number reshuffles on every beat), coloured by its load through the alarm
+    /// palette's ramp: resting at 0, warning at 50 %, critical at 100 % of one core. A bus we cannot see is
+    /// HATCHED, never coloured. Nested per bus, so a second bus is a second frame, not a second panel.</para></summary>
+    private Figure BuildProcessGrid(DateTime now)
+    {
+        var theme = Theme.OpsNight;
+        var fleet = new TreeNode
+        {
+            Label = "fleet",
+            Children = [.. _buses.Select(bus =>
+            {
+                bool silent = bus.State(now) == OpsState.Unknown;
+                return new TreeNode
+                {
+                    Label = bus.Id,
+                    Children = [.. bus.Processes.Select(p => new TreeNode
+                    {
+                        Label = $"{p.Id[(p.Id.IndexOf('/') + 1)..]} · {p.Load:0} %",
+                        Value = 1,                               // equal cells: the layout never jumps
+                        ColorValue = silent ? null : p.Load,     // colour carries the whole signal
+                        Hatch = silent ? HatchPattern.ForwardDiagonal : HatchPattern.None,
+                        HatchColor = silent ? Color.FromHex("#3A4248") : null,
+                    })],
+                };
+            })],
+        };
+
+        return Plt.Create()
+            .WithSize(1040, 420)
+            .WithTheme(theme)
+            .WithTitle($"Processes — {_buses.Sum(b => b.Processes.Count)} on {_buses.Count} buses · colour = CPU as % of ONE core · {now:HH:mm:ss} UTC")
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Treemap(fleet, s =>
+                {
+                    s.ColorMap = theme.Alarm.Ramp;
+                    s.VMin = 0;
+                    s.VMax = 100;
+                    s.LabelFit = TreemapLabelFit.Fit;   // a label wider than its cell is not painted across the neighbours
+                    s.Padding = 1;
+                });
+                ax.HideAllAxes();
+                ax.WithLegend(visible: false);
+            })
+            .Build();
+    }
+
+    /// <summary>The Processes drill-down, panel two — trend SINCE WHEN: small multiples of the hottest eight.
+    /// One strip per process on the SAME 0–150 % axis with the name inside, so the shapes compare; a line at
+    /// 100 marks one full core. Eight lines on one axes would be a legend with a chart behind it.</summary>
+    private Figure BuildProcessStrips(DateTime now)
+    {
+        var theme = Theme.OpsNight;
+        var hottest = _buses.SelectMany(b => b.Processes).OrderByDescending(p => p.Load).Take(8).ToList();
+        double[] x = [.. Enumerable.Range(0, Process.TrendLength).Select(i => now.AddSeconds((i + 1 - Process.TrendLength) * 3).ToOADate())];
+
+        var strips = Plt.SmallMultiples()
+            .WithTitle("Hottest eight — CPU as % of one core, last three minutes")
+            .WithMaxCols(4)
+            .WithPanelSize(260, 110)
+            .WithSharedYLimits(0, 150)
+            .WithWindow(now, TimeSpan.FromSeconds(Process.TrendLength * 3))
+            .ConfigurePanel(ax => ax.AxHLine(100, r => { r.Label = "one core"; r.Color = theme.Alarm.Warning; }));
+        foreach (var p in hottest)
+        {
+            var trend = p.LoadTrend;
+            if (trend.Count < 2)
+            {
+                continue;
+            }
+            var load = p.Load;
+            strips.AddPanel($"{p.Id} · {load:0} %", x[^trend.Count..], [.. trend],
+                s => s.Color = theme.Alarm.Ramp.GetColor(Math.Clamp(load / 100, 0, 1)));
+        }
+        return strips.Build().WithTheme(theme).Build();
     }
 
     /// <summary>Pins the window: EXACT bounds, ROUND ticks. Rounding the bounds is what makes an axis stand

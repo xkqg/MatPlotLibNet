@@ -1,4 +1,5 @@
 ﻿@page "/obs-dashboard"
+@using MatPlotLibNet.Models
 @using MatPlotLibNet.Models.Series
 @using MatPlotLibNet.Samples.Blazor.Services
 @using MatPlotLibNet.Styling
@@ -48,6 +49,18 @@
     }
 </div>
 
+@if (Panel == "processes")
+{
+    @* The drill-down: composition NOW (one equal cell per process, colour = load) above trend SINCE WHEN
+       (small multiples of the hottest eight). Two live charts, rendered by the simulator ONLY while a tab
+       has them open — the hub's subscription ledger is what the simulator asks. The open/closed state is the
+       URL: it survives every redraw, it is keyboard-reachable (the tile is an anchor), and it can be pasted. *@
+    <div class="drilldown">
+        <MplLiveChart ChartId="@BusTelemetrySimulator.ProcessesChartId" HubUrl="/charts-hub" />
+        <MplLiveChart ChartId="@BusTelemetrySimulator.ProcessTrendChartId" HubUrl="/charts-hub" />
+    </div>
+}
+
 <div class="charts">
     <MplLiveChart ChartId="@BusTelemetrySimulator.ThroughputChartId" HubUrl="/charts-hub" />
     <MplLiveChart ChartId="@BusTelemetrySimulator.LatencyChartId" HubUrl="/charts-hub" />
@@ -78,6 +91,11 @@
         ("10 s", TimeSpan.FromSeconds(10))
     ];
 
+    /// <summary>Which drill-down is open — the URL's <c>?panel=</c>. Page state on purpose: the simulator is
+    /// process-wide, and one operator's drill-down must not open on every wall.</summary>
+    [SupplyParameterFromQuery(Name = "panel")]
+    public string? Panel { get; set; }
+
     private Timer? _tick;
 
     protected override void OnInitialized()
@@ -99,11 +117,15 @@
             s.BusesDeviating > 0 ? $"of {s.Buses} · click to see which" : $"all {s.Buses} normal",
             s.BusState);
 
+        bool open = Panel == "processes";
         yield return Tile(
             s.ProcessesDeviating > 0 ? s.ProcessesDeviating : s.Processes,
             "Processes",
             s.ProcessesDeviating > 0 ? $"of {s.Processes} · click to see which" : $"all {s.Processes} normal",
-            s.ProcessState, trend: Simulator.PublishTrend);
+            s.ProcessState, trend: Simulator.PublishTrend,
+            // The tile LEADS somewhere: an SVG anchor (no script), a chevron (▸ closed / ▾ open), a pointer
+            // and an aria-label — three cues, never colour alone. The link toggles the URL's ?panel=.
+            link: new TileLink(open ? "/obs-dashboard" : "/obs-dashboard?panel=processes", open));
 
         yield return Tile(s.P99, "RFx p99", $"target ≤ 25 ms · {(s.P99 <= 25 ? "within" : $"+{s.P99 - 25:0.0} over")}",
             s.P99 > 30 ? OpsState.Critical : s.P99 > 25 ? OpsState.Degraded : OpsState.Normal,
@@ -124,8 +146,11 @@
             s.Alarms > 0 ? OpsState.Critical : OpsState.Normal);
     }
 
+    /// <summary>Where a tile leads, and whether that is currently open.</summary>
+    private readonly record struct TileLink(string Url, bool Expanded);
+
     private static Figure Tile(double value, string label, string caption, OpsState state,
-        string format = "0.##", double? target = null, double[]? trend = null)
+        string format = "0.##", double? target = null, double[]? trend = null, TileLink? link = null)
     {
         var theme = Theme.OpsNight;
 
@@ -144,6 +169,12 @@
                     // The sparkline is what turns a number into a reading: 28 ms means nothing until you can
                     // see it climbing. No axis, no frame, no ticks — a shape, read in one glance.
                     t.Trend = trend;
+
+                    if (link is { } l)
+                    {
+                        t.Url = l.Url;
+                        t.Expanded = l.Expanded;
+                    }
 
                     // Colour ONLY when it means something. A resting tile takes the theme's neutral shade —
                     // a wall of cheerful tiles spends the contrast the one real alarm needs to borrow.
@@ -173,5 +204,8 @@
     .controls button.on { outline: 2px solid #56B4E9; }
     .tiles { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
     .charts { display: flex; gap: 8px; flex-wrap: wrap; }
+    .drilldown { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; }
+    /* The tile is an anchor: a keyboard user needs to SEE where focus is (WCAG 2.4.7). */
+    .tiles a:focus-visible { outline: 2px solid #56B4E9; outline-offset: 2px; }
     .hint { font-size: 13px; opacity: .7; max-width: 80ch; }
 </style>

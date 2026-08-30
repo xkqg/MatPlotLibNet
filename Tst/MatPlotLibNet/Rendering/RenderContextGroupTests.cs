@@ -23,6 +23,16 @@ public class RenderContextGroupTests
         ctx.EndGroup();
     }
 
+    /// <summary>A raster backend has nothing to link: the hyperlink members default to no-ops, so a
+    /// linked tile renders on Skia exactly as an unlinked one.</summary>
+    [Fact]
+    public void IRenderContext_BeginHyperlink_DefaultNoOp()
+    {
+        IRenderContext ctx = new NullRenderContext();
+        ctx.BeginHyperlink("/?panel=processes", "Processes", expanded: true); // should not throw
+        ctx.EndHyperlink();
+    }
+
     /// <summary>Verifies that SvgRenderContext.BeginGroup emits a g element.</summary>
     [Fact]
     public void SvgRenderContext_BeginGroup_EmitsGElement()

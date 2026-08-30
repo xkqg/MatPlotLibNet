@@ -132,13 +132,39 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         output.Write(bytes, 0, bytes.Length);
     }
 
+    private static bool HasHyperlink(Figure figure)
+    {
+        foreach (var axes in figure.SubPlots)
+            foreach (var series in axes.Series)
+                if (series is Models.Series.StatTileSeries { Url: { Length: > 0 } })
+                    return true;
+        return false;
+    }
+
+    private static string TileLabels(Figure figure)
+    {
+        var labels = new List<string>();
+        foreach (var axes in figure.SubPlots)
+            foreach (var series in axes.Series)
+                if (series is Models.Series.StatTileSeries { Label: { Length: > 0 } label })
+                    labels.Add(label);
+        return string.Join(" · ", labels);
+    }
+
     private static string BuildSvgDocument(string w, string h, Figure figure, Action<StringBuilder> writeBody)
     {
         var sb = new StringBuilder(512);
 
         // Determine alt-text: prefer AltText, fall back to Title, then nothing (empty title still written)
-        string altText = figure.AltText ?? figure.Title ?? string.Empty;
+        // An untitled figure still has an accessible NAME: its stat tiles' labels — a tile row deliberately
+        // carries no title (the page prints the heading), and an <svg role="img"> with an empty <title> is a
+        // picture of nothing to a screen reader.
+        string altText = figure.AltText ?? figure.Title ?? TileLabels(figure);
         bool hasDescription = figure.Description is not null;
+        // A figure that contains a hyperlink is a GROUP, not an image: role="img" makes every descendant
+        // presentational, so the link's aria-label and aria-expanded would never be announced (WAI-ARIA
+        // children-presentational rule).
+        string role = HasHyperlink(figure) ? "group" : "img";
 
         sb.Append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ")
           .Append(w).Append(' ').Append(h)
@@ -152,7 +178,7 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
             // affect naturalWidth (read from the width="..." HTML attribute), so PNG
             // export via <img> still sees the intrinsic pixel size.
             sb.Append("\" style=\"width:100%;height:auto");
-        sb.Append("\" role=\"img\"")
+        sb.Append("\" role=\"").Append(role).Append('"')
           .Append(" aria-labelledby=\"chart-title\"");
         if (hasDescription)
             sb.Append(" aria-describedby=\"chart-desc\"");

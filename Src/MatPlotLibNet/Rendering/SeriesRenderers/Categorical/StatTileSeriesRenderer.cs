@@ -41,10 +41,56 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
     /// <inheritdoc />
     public StatTileSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <summary>The chevron's size — the disclosure mark in the tile's top-right corner.</summary>
+    private const double ChevronSize = 8;
+
+    /// <summary>Inset from the tile's corner to the chevron.</summary>
+    private const double ChevronInset = 8;
+
     /// <inheritdoc />
     public override void Render(StatTileSeries series)
     {
         var bounds = Area.PlotBounds;
+
+        // A tile that LEADS somewhere is one anchor around everything it draws, so the whole card is the
+        // target — a reader clicks the number, the label or the sparkline and all three go to the same place.
+        bool linked = !string.IsNullOrEmpty(series.Url);
+        if (linked)
+        {
+            var where = series.Expanded ? "close details" : "open details";
+            var aria = string.IsNullOrEmpty(series.Label) ? where : $"{series.Label} — {where}";
+            Ctx.BeginHyperlink(series.Url!, aria, series.Expanded);
+        }
+
+        RenderBody(series, bounds);
+
+        if (linked)
+        {
+            RenderChevron(series, bounds);
+            Ctx.EndHyperlink();
+        }
+    }
+
+    /// <summary>The disclosure chevron: right-pointing while the linked detail is closed ("there is more"),
+    /// down-pointing while it is open ("shown below"). Drawn in the label's ink so it reads as part of the
+    /// tile, never as an alarm. Wrapped in its own group so a style sheet or a test can find it.</summary>
+    private void RenderChevron(StatTileSeries series, Rect bounds)
+    {
+        double right = bounds.X + bounds.Width - ChevronInset;
+        double top = bounds.Y + ChevronInset;
+        double half = ChevronSize / 2;
+        Point[] points = series.Expanded
+            ? [new(right - ChevronSize, top), new(right, top), new(right - half, top + ChevronSize)]
+            : [new(right - ChevronSize, top), new(right, top + half), new(right - ChevronSize, top + ChevronSize)];
+
+        Ctx.BeginGroup("mpl-tile-chevron");
+        Ctx.DrawPolygon(points, new ShapeStyle(Context.Theme.ForegroundText, null, 0));
+        Ctx.EndGroup();
+    }
+
+    /// <summary>The tile's four things — headline, label, caption, trend — exactly as before the link existed.</summary>
+    private void RenderBody(StatTileSeries series, Rect bounds)
+    {
 
         // A tile at rest wears the theme's NEUTRAL shade — never a colour from the series cycle. The cycler
         // exists to tell data series apart; a state mark is not a data series. Letting a resting tile take a

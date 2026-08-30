@@ -130,11 +130,12 @@ For Blazor, see `MplLiveChart` in `MatPlotLibNet.Blazor` and the `Samples/MatPlo
 
 | Type | Description |
 |------|-------------|
-| `SignalRExtensions.AddMatPlotLibNetSignalR()` | Registers SignalR + renderer + `IChartPublisher` + `FigureRegistry` |
+| `SignalRExtensions.AddMatPlotLibNetSignalR()` | Registers SignalR + renderer + `IChartPublisher` + `FigureRegistry` + `IChartSubscriptions` |
 | `SignalRExtensions.MapChartHub()` | Maps the `ChartHub` SignalR endpoint |
 | `MatPlotLibNetEndpoints.MapChartEndpoint()` | Maps a JSON chart endpoint |
 | `MatPlotLibNetEndpoints.MapChartSvgEndpoint()` | Maps an SVG chart endpoint |
 | `IChartPublisher` | Service for broadcasting chart updates (`PublishAsync`, `PublishSvgAsync`) |
+| `IChartSubscriptions` | The hub's subscription ledger: `HasSubscribers(chartId)` / `Count(chartId)` — ask it before rendering a frame nobody has joined a group to see (SignalR groups carry no membership count) |
 | `ChartHub` | SignalR hub: `Subscribe` / `Unsubscribe` / `OnZoom` / `OnPan` / `OnReset` / `OnLegendToggle` |
 | `FigureRegistry` | Per-chart registry + channel-based pub/sub: `Register` / `UnregisterAsync` / `Publish` |
 | `FigureBuilder.WithServerInteraction` | Fluent opt-in to bidirectional interaction |
@@ -144,6 +145,7 @@ For Blazor, see `MplLiveChart` in `MatPlotLibNet.Blazor` and the `Samples/MatPlo
 
 - **`Samples/MatPlotLibNet.Samples.AspNetCore`** — minimal ASP.NET Core + static HTML page demonstrating the full bidirectional loop without any frontend framework. Run with `dotnet run`, open the browser, wheel-zoom the chart.
 - **`Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Interactive.razor`** — Blazor equivalent at route `/interactive`.
+- **`Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/ObsDashboard.razor`** — the control room at `/obs-dashboard`: a tile row, a Processes drill-down that is rendered only while a tab has it open (`IChartSubscriptions`), and log-scale latency percentiles.
 
 ## License
 

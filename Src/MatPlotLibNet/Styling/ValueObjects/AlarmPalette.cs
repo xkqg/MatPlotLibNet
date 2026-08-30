@@ -32,6 +32,11 @@ public readonly record struct AlarmPalette(Color Resting, Color Warning, Color C
 {
     /// <summary>The library default: a mid-grey resting state with the Okabe-Ito alarm hues over it. Suits any
     /// theme that has not deliberately tuned its own.</summary>
+    /// <summary>The palette as a colour map: <see cref="Resting"/> at 0, <see cref="Warning"/> at 0.5,
+    /// <see cref="Critical"/> at 1 — so "half way is a warning, the end is critical" is decided HERE, once,
+    /// and every ops caller that colours by intensity reaches for the same ramp.</summary>
+    public ColorMaps.IColorMap Ramp => new ColorMaps.LinearColorMap("alarm", [Resting, Warning, Critical]);
+
     public static AlarmPalette Default { get; } = new(
         Resting: Color.FromHex("#8A8A8A"),
         Warning: Color.FromHex("#E69F00"),

@@ -113,11 +113,28 @@ public sealed class Bus
 /// <summary>One process on a bus.</summary>
 public sealed class Process
 {
+    /// <summary>How many load samples a process remembers — enough for a three-minute strip at the sample rate.</summary>
+    public const int TrendLength = 60;
+
     private readonly Conditioned _condition = new();
+    private readonly Queue<double> _loads = new(TrendLength);
+    private readonly double _idle;
 
     /// <summary>Creates a process.</summary>
     /// <param name="id">Its identity.</param>
-    public Process(string id) => Id = id;
+    public Process(string id)
+    {
+        Id = id;
+        // Every process has its own resting load, so the wall is not twenty identical cells.
+        _idle = 2 + (Math.Abs(id.GetHashCode(StringComparison.Ordinal)) % 900) / 100.0;
+    }
+
+    /// <summary>CPU, as a percentage of ONE core — the unit a process measures itself in (a value above 100
+    /// means more than one core). Never divided by the machine's core count: that is how 6 % becomes an alarm.</summary>
+    public double Load { get; private set; }
+
+    /// <summary>The recent loads, oldest first — a small-multiples panel's line.</summary>
+    public IReadOnlyList<double> LoadTrend => [.. _loads];
 
     /// <summary>The process identity.</summary>
     public string Id { get; }
@@ -135,6 +152,15 @@ public sealed class Process
         _condition.Observe(raw, now,
             TimeSpan.FromSeconds(2),    // a critical raises faster than a warning
             TimeSpan.FromSeconds(8));
+
+        // The faulted process pegs a core and a half; everyone else breathes around its resting load.
+        double target = raw == OpsState.Critical ? 140 : _idle;
+        Load = Math.Max(0, Load + (target - Load) * 0.25 + (rng.NextDouble() - 0.5) * 1.5);
+        _loads.Enqueue(Load);
+        while (_loads.Count > TrendLength)
+        {
+            _loads.Dequeue();
+        }
     }
 
     /// <summary>Its conditioned state.</summary>

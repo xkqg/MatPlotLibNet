@@ -53,6 +53,29 @@ public class SignalRIntegrationTests : IAsyncDisposable
         await connection.DisposeAsync();
     }
 
+    /// <summary>The hub keeps the ledger a render lane reads: a subscribed connection is counted, and a
+    /// connection that simply goes away is swept out of every chart it joined.</summary>
+    [Fact]
+    public async Task Subscribe_IsCountedInTheLedger_AndADisconnectSweepsIt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ledger = _host.Services.GetRequiredService<IChartSubscriptions>();
+        var connection = CreateHubConnection();
+        await connection.StartAsync(ct);
+
+        await connection.InvokeAsync("Subscribe", "ledger-chart", cancellationToken: ct);
+        Assert.True(ledger.HasSubscribers("ledger-chart"));
+        Assert.Equal(1, ledger.Count("ledger-chart"));
+
+        await connection.InvokeAsync("Unsubscribe", "ledger-chart", cancellationToken: ct);
+        Assert.False(ledger.HasSubscribers("ledger-chart"));
+
+        await connection.InvokeAsync("Subscribe", "ledger-chart", cancellationToken: ct);
+        await connection.DisposeAsync();
+        Assert.True(SpinWait.SpinUntil(() => !ledger.HasSubscribers("ledger-chart"), TimeSpan.FromSeconds(5)),
+            "the disconnect swept the connection out of the chart");
+    }
+
     /// <summary>Verifies that subscribing to a chart group completes without throwing.</summary>
     [Fact]
     public async Task Subscribe_DoesNotThrow()

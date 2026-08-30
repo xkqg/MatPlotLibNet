@@ -11,16 +11,35 @@ namespace MatPlotLibNet.AspNetCore;
 public sealed class ChartHub : Hub<IChartHubClient>
 {
     private readonly FigureRegistry _registry;
+    private readonly ChartSubscriptions _subscriptions;
 
-    public ChartHub(FigureRegistry registry) => _registry = registry;
+    public ChartHub(FigureRegistry registry, ChartSubscriptions subscriptions)
+    {
+        _registry = registry;
+        _subscriptions = subscriptions;
+    }
 
     /// <summary>Subscribes the calling client to updates for the specified chart.</summary>
-    public Task Subscribe(string chartId) =>
-        Groups.AddToGroupAsync(Context.ConnectionId, chartId);
+    public Task Subscribe(string chartId)
+    {
+        _subscriptions.Subscribe(chartId, Context.ConnectionId);
+        return Groups.AddToGroupAsync(Context.ConnectionId, chartId);
+    }
 
     /// <summary>Unsubscribes the calling client from updates for the specified chart.</summary>
-    public Task Unsubscribe(string chartId) =>
-        Groups.RemoveFromGroupAsync(Context.ConnectionId, chartId);
+    public Task Unsubscribe(string chartId)
+    {
+        _subscriptions.Unsubscribe(chartId, Context.ConnectionId);
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, chartId);
+    }
+
+    /// <summary>A closed browser never calls Unsubscribe: the connection leaves every chart it joined here, so
+    /// a render lane stops spending frames on a tab that is gone.</summary>
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        _subscriptions.Disconnected(Context.ConnectionId);
+        return base.OnDisconnectedAsync(exception);
+    }
 
     /// <summary>Client-to-server: apply a zoom to the registered figure. Fire-and-forget —
     /// mutation + re-render + fan-out happen on the session's reader task.</summary>

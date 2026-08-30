@@ -337,6 +337,90 @@ ax.Bullet(2412, b =>
 });
 ```
 
+### A tile that leads somewhere — progressive disclosure
+
+A wall shows the number; the detail lives UNDER it and opens on a click. The tile says it leads somewhere three
+ways at once, never by colour alone: a chevron in its corner (▸ closed, ▾ open), the pointer cursor, and an
+`aria-label`. `Url` is matplotlib's `Artist.set_url` idiom — the whole tile becomes an SVG `<a href>`, so it
+needs no script (it works in a static file, inline in a Blazor page, in a saved SVG), it is focusable and
+Enter-activatable for free, and the open/closed state lives in the URL — which a wall that redraws its tiles
+twice a second cannot lose, and an operator can paste to a colleague.
+
+```csharp
+bool open = panel == "processes";
+dashboard.AddTile(running, t =>
+{
+    t.Label = "Processes";
+    t.Url = open ? "/" : "/?panel=processes";   // the anchor toggles the detail
+    t.Expanded = open;                          // ▾ while the detail is shown below
+});
+```
+
+In Blazor (`InteractiveServer`), the router intercepts a same-origin SVG anchor exactly as it does an HTML one
+(`findAnchorTarget` matches `SVGAElement`), so the click is a client-side navigation: the circuit survives,
+and a `[SupplyParameterFromQuery(Name = "panel")] string? Panel` on the page re-renders with the detail open.
+
+### Small multiples — twenty processes, compared
+
+Beyond five or six lines on one axes nobody can tell them apart, and the legend becomes the picture. Small
+multiples put the name INSIDE each panel and give every panel the same axes, so twenty processes read as twenty
+comparable shapes (Task Manager's per-core grid, Grafana's repeated panel):
+
+```csharp
+var grid = Plt.SmallMultiples()
+    .WithMaxCols(4)                                  // wraps balanced: 5 panels read as 3+2, never 4+1
+    .WithPanelSize(300, 110)
+    .WithSharedYLimits(0, 100)                       // the SAME y on every panel — that is what compares
+    .WithWindow(now, TimeSpan.FromMinutes(3))        // the same pinned x, time-aware ticks
+    .ConfigurePanel(ax => ax.AxHLine(100, r => { r.Label = "100 % of one core"; r.Color = theme.Alarm.Warning; }));
+foreach (var process in processes)
+{
+    grid.AddPanel($"{process.Name} · {process.Cpu:0} %", process.Times, process.Cpu);
+}
+Figure figure = grid.Build().WithTheme(Theme.OpsNight).Build();
+```
+
+The label is an axes-fraction annotation (`AnnotationCoordinates.AxesFraction`), so it sits top-left whatever
+the limits are. **A threshold on a time axis is `AxHLine(value, r => r.Label = …)`**, never
+`Threshold(…, label)`: the latter anchors its label at x = 0 in DATA coordinates, which on a date axis is the
+year 1899 — off the canvas.
+
+### A treemap of the fleet — area is size, colour is load
+
+A treemap rect carries two variables: its AREA from `TreeNode.Value` and its COLOUR from `TreeNode.ColorValue`
+through the series' normalizer and map. Put the slow-moving quantity on the area (memory — so the layout stays
+put; the squarified layout sorts by value and would reshuffle every beat if the area were CPU) and the live one
+on the colour:
+
+```csharp
+var fleet = new TreeNode
+{
+    Label = "Ait",
+    Children = processes.Select(p => new TreeNode
+    {
+        Label = $"{p.Name} · {p.Cpu:0} %",
+        Value = p.WorkingSetMb,            // area
+        ColorValue = p.Cpu,                // colour: % of ONE core
+        Hatch = p.Silent ? HatchPattern.ForwardDiagonal : HatchPattern.None,   // "no information", never a colour
+    }).ToList(),
+};
+ax.Treemap(fleet, s =>
+{
+    s.ColorMap = theme.Alarm.Ramp;         // resting → warning (50 %) → critical (100 %)
+    s.VMin = 0; s.VMax = 100;
+    s.LabelFit = TreemapLabelFit.Fit;      // a label wider than its rect is not painted across the neighbours
+});
+```
+
+Measured at 1400×300: nine processes label cleanly; at twenty, `LabelFit.Always` painted nine labels across
+their neighbours — a wall above ~12 processes needs height or `Fit`/`Truncate`. An EMPTY tree draws nothing.
+
+### A log axis for latencies
+
+`SetYScale(AxisScale.Log)` ranges over the POSITIVE values only (a window that priced 0 µs is masked, not drawn),
+pads in log space and installs decade ticks (`10¹`, `10²`) by itself. For data that legitimately includes zero,
+`SetYScaleSymLog(linthresh)` keeps a linear band around it instead.
+
 ### Live Blazor sample
 
 `Samples/MatPlotLibNet.Samples.Blazor` serves `/obs-dashboard`: a simulated federation of 15 buses.
@@ -345,6 +429,13 @@ only — the tiles never slow down, because history may lag and a warning may no
 1 hour) re-buckets the same measurements: rates keep a min/max envelope so a five-second burst survives a
 one-minute bucket, and percentiles carry their **maximum**, because a p99 cannot be averaged and averaging
 is precisely how a dashboard hides the spike you came to look for.
+
+Click the **Processes** tile: it is a link (`StatTileSeries.Url`, chevron ▸/▾, `aria-expanded`, a focus ring) that
+opens a drill-down under the tile row — composition NOW (an equal-cell grid per bus, colour = CPU as % of one
+core through `AlarmPalette.Ramp`, a silent bus hatched, `LabelFit.Fit`) above trend SINCE WHEN (small multiples
+of the hottest eight, `Plt.SmallMultiples()`, one shared 0–150 % axis, a line at one core). The open/closed
+state is the URL (`?panel=processes`), so it survives every redraw and can be pasted; the two panels are
+published only while a tab has them open (`IChartSubscriptions`).
 
 The alarm conditioning — on-delay, deadband, off-delay, the worst-child roll-up and the staleness clock —
 lives in the **sample**, not in this library. A charting library that decides when something counts as
@@ -358,6 +449,13 @@ broken has started holding opinions about a domain it cannot see.
 | `Label` | `string?` | `null` | Subtitle text shown beneath the headline. |
 | `AccentColor` | `Color?` | `null` | Foreground colour of the headline number. `null` = theme cycle colour. |
 | `Format` | `string` | `"0.##"` | .NET numeric format string applied to `Value` (invariant culture). |
+| `Target` | `double?` | `null` | The comparative the value is measured against. |
+| `Caption` | `string?` | `null` | The gap line under the label; newlines stack, long lines wrap to the tile. |
+| `Trend` | `IReadOnlyList<double>?` | `null` | Inline sparkline in the tile's lower fifth. |
+| `TrendColor` | `Color?` | `null` | The sparkline's ink; `null` = the headline colour. |
+| `Hatch` / `HatchColor` | `HatchPattern` / `Color?` | `None` / `null` | "No information" — a pattern, never a colour. |
+| `Url` | `string?` | `null` | Where the tile leads: the whole tile becomes an SVG `<a href>` with a chevron, pointer and `aria-label`. |
+| `Expanded` | `bool` | `false` | Chevron direction: ▸ closed, ▾ open. Ignored without `Url`. |
 
 ## StateTimelineSeries — parameter reference
 

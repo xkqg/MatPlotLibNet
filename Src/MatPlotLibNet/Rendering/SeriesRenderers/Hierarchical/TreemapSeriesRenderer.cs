@@ -24,9 +24,19 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
     {
         var bounds = Context.Area.PlotBounds;
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
+        (_cMin, _cMax) = series.ColorRange();
+        // An EMPTY tree draws nothing. A childless root used to render as one full-area leaf — "one healthy
+        // thing fills the fleet" on a wall that in fact knows nothing (measured 2026-08-30).
+        if (series.Root.Children.Count == 0)
+        {
+            return;
+        }
         RenderNode(series.Root, bounds, series, cmap,
             depth: 0, indexInParent: 0, siblingCount: 1, nodeId: "0", parentId: "");
     }
+
+    /// <summary>The colour-value range of this render, resolved once in <see cref="Render"/>.</summary>
+    private double _cMin, _cMax;
 
     /// <summary>
     /// Renders one node and recurses into its children. <paramref name="nodeId"/> is a
@@ -55,21 +65,27 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         if (node.Children.Count == 0)
         {
             // Leaf: fill with node colour, or cmap sample at the sibling fraction.
+            // Explicit colour, else the node's own VALUE through the map, else the sibling-index ramp.
             var color = node.Color
+                ?? series.ColorFromValue(node, cmap, _cMin, _cMax)
                 ?? cmap.GetColor(indexInParent.ColormapFraction(siblingCount));
             Ctx.SetNextElementData("treemap-node", nodeId);
             Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Ctx.SetNextElementData("treemap-parent", parentId);
             Ctx.SetNextElementData("treemap-label", node.Label ?? string.Empty);
-            Ctx.DrawRectangle(bounds, new ShapeStyle(color, Colors.White, 1));
+            Ctx.DrawRectangle(bounds, new ShapeStyle(color, Colors.White, 1) { Hatch = node.Hatch, HatchColor = node.HatchColor });
             if (series.ShowLabels && !string.IsNullOrEmpty(node.Label))
             {
                 var font = new Font { Size = fontSize, Color = Colors.White };
-                Ctx.SetNextElementData("treemap-node", nodeId);
-                Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                Ctx.SetNextElementData("treemap-parent", parentId);
-                Ctx.DrawText(node.Label, new Point(bounds.X + 4, bounds.Y + fontSize + 2),
-                    font, TextAlignment.Left);
+                var label = FitLabel(node.Label, font, bounds.Width - 8, series.LabelFit);
+                if (label is not null)
+                {
+                    Ctx.SetNextElementData("treemap-node", nodeId);
+                    Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    Ctx.SetNextElementData("treemap-parent", parentId);
+                    Ctx.DrawText(label, new Point(bounds.X + 4, bounds.Y + fontSize + 2),
+                        font, TextAlignment.Left);
+                }
             }
             return;
         }
@@ -82,6 +98,7 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         // children edge-to-edge, so the parent label collided with the first child's
         // label and the hierarchy was invisible.
         var interiorColor = node.Color
+            ?? series.ColorFromValue(node, cmap, _cMin, _cMax)
             ?? cmap.GetColor(indexInParent.ColormapFraction(siblingCount));
         Ctx.SetNextElementData("treemap-node", nodeId);
         Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -130,6 +147,29 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
             RenderNode(children[i], rects[i], series, cmap,
                 depth + 1, i, children.Count, childId, nodeId);
         }
+    }
+
+    /// <summary>The label as it will be drawn under <paramref name="fit"/>: the full text, a shortened one with
+    /// an ellipsis, or null for "not drawn" — the rect carries the full text in <c>data-treemap-label</c> either way.</summary>
+    private string? FitLabel(string label, Font font, double width, TreemapLabelFit fit)
+    {
+        if (fit == TreemapLabelFit.Always || Ctx.MeasureText(label, font).Width <= width)
+        {
+            return label;
+        }
+        if (fit == TreemapLabelFit.Fit)
+        {
+            return null;
+        }
+        for (int keep = label.Length - 1; keep > 0; keep--)
+        {
+            var shortened = label[..keep].TrimEnd() + "…";
+            if (Ctx.MeasureText(shortened, font).Width <= width)
+            {
+                return shortened;
+            }
+        }
+        return "…";
     }
 
     /// <summary>Squarified treemap layout (Bruls et al. 1999). Produces rectangles with

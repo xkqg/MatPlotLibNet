@@ -80,10 +80,15 @@ public sealed class SvgRenderContext : IRenderContext
     public void DrawLines(IReadOnlyList<Point> points, StrokeStyle stroke)
     {
         if (points.Count < 2) return;
+        // A point the transform could not place (a non-positive value on a log axis, a value inside an axis
+        // break) is MASKED — left out of the polyline — never written as the literal "NaN" that breaks the
+        // whole element. matplotlib's nonpositive='mask'.
+        int written = 0;
         _sb.Append("<polyline points=\"");
         for (int i = 0; i < points.Count; i++)
         {
-            if (i > 0) _sb.Append(' ');
+            if (double.IsNaN(points[i].X) || double.IsNaN(points[i].Y)) continue;
+            if (written++ > 0) _sb.Append(' ');
             _sb.Append(points[i].X.ToSvgNumber()).Append(',').Append(points[i].Y.ToSvgNumber());
         }
         _sb.Append("\" fill=\"none\" stroke=\"").Append(stroke.Color.ToHex())
@@ -387,6 +392,29 @@ public sealed class SvgRenderContext : IRenderContext
     public void EndGroup()
     {
         _sb.AppendLine("</g>");
+    }
+
+    /// <summary>Opens an SVG hyperlink: <c>&lt;a href="…" style="cursor:pointer" aria-label="…"&gt;</c>.
+    /// <c>href</c> (SVG 2), not <c>xlink:href</c>: every browser the library targets resolves it, inline in HTML
+    /// and as a standalone file alike, and it needs no extra namespace on the root.</summary>
+    public void BeginHyperlink(string url, string? ariaLabel, bool? expanded = null)
+    {
+        _sb.Append("<a href=\"").Append(url.EscapeForXml()).Append("\" style=\"cursor:pointer\"");
+        if (!string.IsNullOrEmpty(ariaLabel))
+        {
+            _sb.Append(" aria-label=\"").Append(ariaLabel.EscapeForXml()).Append('"');
+        }
+        if (expanded is { } state)
+        {
+            _sb.Append(" aria-expanded=\"").Append(state ? "true" : "false").Append('"');
+        }
+        _sb.AppendLine(">");
+    }
+
+    /// <summary>Closes the current SVG hyperlink.</summary>
+    public void EndHyperlink()
+    {
+        _sb.AppendLine("</a>");
     }
 
 

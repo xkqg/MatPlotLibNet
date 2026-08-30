@@ -79,6 +79,19 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             Axes.YAxis.TickLocator = new SymlogLocator(Axes.YAxis.SymLogLinThresh);
         if (Axes.XAxis.Scale == AxisScale.SymLog && Axes.XAxis.TickLocator is null)
             Axes.XAxis.TickLocator = new SymlogLocator(Axes.XAxis.SymLogLinThresh);
+        // Auto-apply LogLocator + LogTickFormatter when scale is Log but no explicit locator is set —
+        // matplotlib's set_yscale("log") installs LogLocator/LogFormatter; without this arm a log axis wore
+        // LINEAR ticks (0, 25, 50 …) over a logarithmic transform (measured 2026-08-30).
+        if (Axes.YAxis.Scale == AxisScale.Log && Axes.YAxis.TickLocator is null)
+        {
+            Axes.YAxis.TickLocator = new LogLocator();
+            Axes.YAxis.TickFormatter ??= new TickFormatters.LogTickFormatter();
+        }
+        if (Axes.XAxis.Scale == AxisScale.Log && Axes.XAxis.TickLocator is null)
+        {
+            Axes.XAxis.TickLocator = new LogLocator();
+            Axes.XAxis.TickFormatter ??= new TickFormatters.LogTickFormatter();
+        }
 
         // Compute tick values once for grid + ticks (respects TickLocator / Spacing / plot size)
         var xTicks = ComputeTickValues(range.XMin, range.XMax, Axes.XAxis, PlotArea.Width);
@@ -499,8 +512,8 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         var yRange = Axes.AggregateYRangeWithSharedAxes(Range1D.FromAxis(Axes.YAxis));
 
         // === 2. Normalize — handle empty / lopsided / zero-width inputs before any math ===
-        xRange = xRange.Normalized();
-        yRange = yRange.Normalized();
+        xRange = xRange.Normalized().PositiveForLog(Axes.XAxis);
+        yRange = yRange.Normalized().PositiveForLog(Axes.YAxis);
 
         // === 3. Snapshot contributions once, then drive padding + sticky + nice-bound ===
         // Calling ComputeDataRange per series is expensive (Histogram rebuilds bins each call),

@@ -44,6 +44,9 @@ public static class EnumOrdinalSnapshot
             [typeof(AnimationPlaybackState)] = new Dictionary<string, int> {
                 ["Stopped"] = 0, ["Playing"] = 1, ["Paused"] = 2,
             },
+            [typeof(AnnotationCoordinates)] = new Dictionary<string, int> {
+                ["Data"] = 0, ["AxesFraction"] = 1,
+            },
             [typeof(ArrowStyle)] = new Dictionary<string, int> {
                 ["None"] = 0, ["Simple"] = 1, ["FancyArrow"] = 2, ["Wedge"] = 3,
                 ["CurveA"] = 4, ["CurveB"] = 5, ["CurveAB"] = 6,
@@ -232,6 +235,9 @@ public static class EnumOrdinalSnapshot
             },
             [typeof(TickDirection)] = new Dictionary<string, int> {
                 ["In"] = 0, ["Out"] = 1, ["InOut"] = 2,
+            },
+            [typeof(TreemapLabelFit)] = new Dictionary<string, int> {
+                ["Always"] = 0, ["Fit"] = 1, ["Truncate"] = 2,
             },
             [typeof(TitleLocation)] = new Dictionary<string, int> {
                 ["Left"] = 0, ["Center"] = 1, ["Right"] = 2,

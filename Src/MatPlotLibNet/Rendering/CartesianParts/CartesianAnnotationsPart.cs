@@ -29,7 +29,11 @@ internal sealed class CartesianAnnotationsPart : CartesianAxesPart
                 Size = 10,
                 Color = annotation.Color ?? Theme.ForegroundText
             };
-            var textPos = Transform.DataToPixel(annotation.X, annotation.Y);
+            // An axes-fraction annotation is placed on the PANEL, not the data: (0,0) bottom-left, (1,1) top-right,
+            // so a panel label sits in its corner whatever the limits are (matplotlib's 'axes fraction').
+            var textPos = annotation.Coordinates == AnnotationCoordinates.AxesFraction
+                ? new Point(PlotArea.X + annotation.X * PlotArea.Width, PlotArea.Y + (1 - annotation.Y) * PlotArea.Height)
+                : Transform.DataToPixel(annotation.X, annotation.Y);
 
             // Background box or legacy background fill behind text
             var textSize = Ctx.MeasureText(annotation.Text, annotFont);

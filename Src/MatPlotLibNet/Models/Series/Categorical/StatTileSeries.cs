@@ -58,6 +58,21 @@ public sealed class StatTileSeries : ChartSeries
     /// <summary>The colour of the hatch strokes, or <see langword="null"/> to contrast automatically.</summary>
     public Color? HatchColor { get; set; }
 
+    /// <summary>Where the tile LEADS, or <see langword="null"/> for a tile that is only read — matplotlib's own
+    /// <c>Artist.set_url</c> idiom, rendered as an SVG <c>&lt;a href&gt;</c> around the whole tile.
+    /// <para>A link and not a click event on purpose: an anchor needs no script, so it works in a static SVG,
+    /// in an inline Blazor render and in a saved file alike; it is focusable and Enter-activatable for free
+    /// (the accessible-card pattern); and the state it leads to lives in the URL, which a wall that redraws its
+    /// tiles twice a second cannot lose and an operator can paste to a colleague.</para>
+    /// <para>The tile SAYS it leads somewhere, three ways at once and never by colour alone (WCAG 1.4.1): the
+    /// pointer cursor, an <c>aria-label</c>, and a chevron drawn in the tile's corner — see <see cref="Expanded"/>.</para></summary>
+    public string? Url { get; set; }
+
+    /// <summary>Whether what <see cref="Url"/> leads to is currently OPEN. Only the chevron reads it: it points
+    /// right (▸ "there is more") while closed and down (▾ "shown below") while open — the disclosure idiom
+    /// every expandable card uses, so nobody has to learn it. Ignored on a tile without a <see cref="Url"/>.</summary>
+    public bool Expanded { get; set; }
+
     /// <summary>Creates a stat tile displaying <paramref name="value"/>.</summary>
     public StatTileSeries(double value) => Value = value;
 
@@ -83,6 +98,8 @@ public sealed class StatTileSeries : ChartSeries
         TrackColor = TrendColor,
         Hatch = Hatch != HatchPattern.None ? Hatch : null,
         HatchColor = HatchColor,
+        TileUrl = Url,
+        TileExpanded = Expanded ? true : null, // null at the default: an unlinked tile adds no bytes
     };
 
     /// <summary>Reconstructs a <see cref="StatTileSeries"/> from its serialization DTO, restoring its value and accent colour, and adds it to the axes.</summary>
@@ -113,6 +130,8 @@ public sealed class StatTileSeries : ChartSeries
         }
 
         s.HatchColor = dto.HatchColor;
+        s.Url = dto.TileUrl;
+        s.Expanded = dto.TileExpanded ?? false;
         return s;
     }
 

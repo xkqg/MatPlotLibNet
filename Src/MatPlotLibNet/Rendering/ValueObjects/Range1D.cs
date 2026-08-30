@@ -73,10 +73,35 @@ public readonly record struct Range1D(double Lo, double Hi)
     /// </summary>
     public Range1D Padded(double margin, Axis axis)
     {
+        if (axis.Scale == AxisScale.Log)
+        {
+            // A log axis pads in LOG space (matplotlib does the same): a linear margin below a floor of 2 is
+            // -10,4, which log10 turns into NaN and the whole panel with it (measured 2026-08-30).
+            double lo = Math.Log10(Lo);
+            double hi = Math.Log10(Hi);
+            double logPad = (hi - lo) * margin;
+            return new(
+                axis.Min.HasValue ? Lo : Math.Pow(10, lo - logPad),
+                axis.Max.HasValue ? Hi : Math.Pow(10, hi + logPad));
+        }
         double pad = Width * margin;
         return new(
             axis.Min.HasValue ? Lo : Lo - pad,
             axis.Max.HasValue ? Hi : Hi + pad);
+    }
+
+    /// <summary>A log axis cannot place a non-positive value; when the floor still is one (an explicit
+    /// <c>Min</c> of 0, a series that does not mask) it is lifted to three decades under the ceiling — a
+    /// visible, finite axis rather than a NaN transform that blanks every point.</summary>
+    public Range1D PositiveForLog(Axis axis)
+    {
+        if (axis.Scale != AxisScale.Log)
+        {
+            return this;
+        }
+        double hi = Hi > 0 ? Hi : 1;
+        double lo = Lo > 0 ? Lo : hi / 1000;
+        return new(Math.Min(lo, hi), hi);
     }
 
     /// <summary>
@@ -113,7 +138,10 @@ public readonly record struct Range1D(double Lo, double Hi)
     {
         if (hasSticky || axis.Min.HasValue || axis.Max.HasValue
             || axis.TickLocator is not null || unpadded.Hi <= unpadded.Lo
-            || axis.Margin == 0)
+            || axis.Margin == 0
+            // A LOG axis has its own decades; the linear "nice bounds" of 2..250 are 0..300, and a floor of 0
+            // is NaN on a log axis — the one step that blanked every log panel (measured 2026-08-30).
+            || axis.Scale == AxisScale.Log)
             return this;
         var (nLo, nHi) = locator.ExpandToNiceBounds(unpadded.Lo, unpadded.Hi);
         return new(Math.Min(Lo, nLo), Math.Max(Hi, nHi));

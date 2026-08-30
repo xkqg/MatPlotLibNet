@@ -118,4 +118,9 @@ public static class Plt
     /// timelines beneath them, and a shared trend panel — all on one time window.</summary>
     /// <returns>A new <see cref="OpsDashboardBuilder"/>.</returns>
     public static OpsDashboardBuilder OpsDashboard() => new();
+
+    /// <summary>Small multiples — one mini panel per series on shared axes, wrapped into a grid, the name
+    /// inside each panel. The shape for "twenty processes, compared", where one axes with twenty lines is a
+    /// legend with a chart behind it.</summary>
+    public static SmallMultiplesBuilder SmallMultiples() => new();
 }

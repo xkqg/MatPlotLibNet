@@ -14,6 +14,21 @@ public sealed record TreeNode
 
     public Color? Color { get; init; }
 
+    /// <summary>A SECOND value the node's colour is read from, through the series' normalizer and colour map —
+    /// so a rect can carry two variables: its area from <see cref="Value"/> and its colour from this (the
+    /// host-map encoding: area = size, colour = load). Null keeps the sibling-index ramp; an explicit
+    /// <see cref="Color"/> always wins.</summary>
+    public double? ColorValue { get; init; }
+
+    /// <summary>A fill pattern over the node's rect, or <see cref="HatchPattern.None"/>. This is how a rect says
+    /// <i>no information</i> — the source went silent — a pattern and not a colour, exactly as a stat tile does:
+    /// "I can no longer see you" is a different fault from "you are hot", and a wall that paints them the same
+    /// lies when it matters most.</summary>
+    public HatchPattern Hatch { get; init; } = HatchPattern.None;
+
+    /// <summary>The hatch strokes' colour, or null to contrast automatically.</summary>
+    public Color? HatchColor { get; init; }
+
     public IReadOnlyList<TreeNode> Children { get; init; } = Array.Empty<TreeNode>();
 
     /// <summary>Computes the total value: own value if leaf, sum of children if branch.</summary>

@@ -93,6 +93,18 @@ public interface IRenderContext
     /// <summary>Ends the current group. Default is a no-op.</summary>
     void EndGroup() { }
 
+    /// <summary>Begins a hyperlink around the elements drawn until <see cref="EndHyperlink"/> — in SVG an
+    /// <c>&lt;a href="…"&gt;</c> with the pointer cursor and an optional <c>aria-label</c>. Default is a no-op:
+    /// a raster backend has nothing to link.</summary>
+    /// <param name="url">The link target.</param>
+    /// <param name="ariaLabel">The accessible name, or null for none.</param>
+    /// <param name="expanded">For a link that discloses something on the same page: whether it is currently
+    /// shown (<c>aria-expanded</c>). Null for an ordinary link.</param>
+    void BeginHyperlink(string url, string? ariaLabel, bool? expanded = null) { }
+
+    /// <summary>Ends the current hyperlink. Default is a no-op.</summary>
+    void EndHyperlink() { }
+
     /// <summary>
     /// Draws a <see cref="RichText"/> value that may contain superscript, subscript, and Unicode-substituted
     /// math characters.  The default implementation concatenates all span text and delegates to

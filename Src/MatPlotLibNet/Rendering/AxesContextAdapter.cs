@@ -27,4 +27,10 @@ internal sealed class AxesContextAdapter : IAxesContext
     public BarMode BarMode => _axes.BarMode;
     /// <inheritdoc />
     public IReadOnlyList<ISeries> AllSeries => _axes.Series;
+
+    /// <inheritdoc />
+    public AxisScale XScale => _axes.XAxis.Scale;
+
+    /// <inheritdoc />
+    public AxisScale YScale => _axes.YAxis.Scale;
 }

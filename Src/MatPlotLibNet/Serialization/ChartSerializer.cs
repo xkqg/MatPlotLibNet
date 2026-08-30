@@ -980,6 +980,11 @@ public sealed record SeriesDto
     // v1.14 — BulletGraphSeries.Target (the comparative tick).
     public double?       BulletTarget { get; init; }
 
+    // StatTileSeries.Url / Expanded — a tile that leads somewhere. Both null at the default so an unlinked
+    // tile adds no bytes and every golden stays byte-identical.
+    public string?       TileUrl      { get; init; }
+    public bool?         TileExpanded { get; init; }
+
     // v1.14 — hatch fills. NULLABLE by necessity: SeriesDto omits nulls
     // (DefaultIgnoreCondition.WhenWritingNull), so an unset hatch adds no bytes and the golden corpus of
     // every existing discriminator stays byte-identical. A non-nullable enum would always serialize and

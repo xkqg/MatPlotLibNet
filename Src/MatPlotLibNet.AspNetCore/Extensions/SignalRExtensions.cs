@@ -25,6 +25,10 @@ public static class SignalRExtensions
         services.AddSingleton<IChartPublisher, ChartPublisher>();
         services.AddSingleton<ICallerPublisher, CallerPublisher>();
         services.AddSingleton<FigureRegistry>();
+        // The subscription ledger: ONE instance, seen by the hub (writes) and by any publisher-side lane that
+        // asks "is anyone looking?" before it renders (reads, through the interface).
+        services.AddSingleton<ChartSubscriptions>();
+        services.AddSingleton<IChartSubscriptions>(sp => sp.GetRequiredService<ChartSubscriptions>());
         return services;
     }
 

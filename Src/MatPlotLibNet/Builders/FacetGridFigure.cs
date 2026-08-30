@@ -56,6 +56,12 @@ public sealed class FacetGridFigure : FacetedFigure
     {
         var categories = _category.Distinct().Order().ToArray();
         int numCats  = categories.Length;
+        // Zero categories used to divide by zero at the grid arithmetic (measured 2026-08-30) — an empty
+        // input is refused with the reason, where the caller can see it (matplotlib's FacetGrid raises too).
+        if (numCats == 0)
+        {
+            throw new InvalidOperationException("A facet grid needs at least one category; the input carried none.");
+        }
         int numCols  = Math.Min(MaxCols, numCats);
         int numRows  = (numCats + numCols - 1) / numCols;
 

@@ -15,6 +15,11 @@ public sealed class Annotation
 
     public double Y { get; }
 
+    /// <summary>The coordinate system <see cref="X"/>/<see cref="Y"/> are read in. <see cref="AnnotationCoordinates.Data"/>
+    /// by default; <see cref="AnnotationCoordinates.AxesFraction"/> pins the text to the panel instead of the data.
+    /// The arrow target, when set, is always in data coordinates — it points AT something.</summary>
+    public AnnotationCoordinates Coordinates { get; set; } = AnnotationCoordinates.Data;
+
     public double? ArrowTargetX { get; set; }
 
     public double? ArrowTargetY { get; set; }

@@ -562,9 +562,10 @@ public sealed class FigureBuilder
     /// <summary>Adds a subplot at the specified <see cref="GridPosition"/> within the current grid spec.</summary>
     /// <param name="position">The cell position (and optional span) within the grid.</param>
     /// <param name="configure">Action to configure the subplot axes.</param>
-    public FigureBuilder AddSubPlot(GridPosition position, Action<AxesBuilder> configure)
+    /// <param name="key">Optional string key for referencing this axes in sharing (<c>ShareX</c>/<c>ShareY</c>).</param>
+    public FigureBuilder AddSubPlot(GridPosition position, Action<AxesBuilder> configure, string? key = null)
     {
-        _subPlots.Add(new SubPlotSpec(position, configure));
+        _subPlots.Add(new SubPlotSpec(position, configure) { Key = key });
         return this;
     }
 

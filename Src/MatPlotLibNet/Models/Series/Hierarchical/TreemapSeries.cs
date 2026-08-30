@@ -11,6 +11,9 @@ public sealed class TreemapSeries : HierarchicalSeries
 {
     public double Padding { get; set; } = 2.0;
 
+    /// <summary>What to do with a label wider than its rect — see <see cref="TreemapLabelFit"/>.</summary>
+    public TreemapLabelFit LabelFit { get; set; } = TreemapLabelFit.Always;
+
     /// <summary>Initializes a new instance of <see cref="TreemapSeries"/> with the specified root node.</summary>
     public TreemapSeries(TreeNode root) : base(root) { }
 

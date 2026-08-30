@@ -4,7 +4,68 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [1.14.4]
+## [Next]
+### Added
+
+- **A stat tile can LEAD somewhere.** `StatTileSeries.Url` (matplotlib's `Artist.set_url` idiom) renders the
+  whole tile as an SVG `<a href>` with the pointer cursor and an `aria-label`, and `Expanded` turns the
+  disclosure chevron drawn in the tile's corner from ▸ ("there is more") to ▾ ("shown below"). A link and not
+  a click event on purpose: an anchor needs no script, so it works in a static SVG, inline in a Blazor page
+  (Blazor's router intercepts SVG anchors) and in a saved file alike; it is focusable and Enter-activatable
+  for free; and the state it leads to lives in the URL, which a wall that redraws its tiles twice a second
+  cannot lose. `IRenderContext.BeginHyperlink/EndHyperlink` carry it (default no-op for raster backends).
+  Both survive serialization (`TileUrl`/`TileExpanded`, null at the default — goldens byte-identical).
+- **Small multiples: `Plt.SmallMultiples()`.** One mini panel per series, wrapped into a grid (balanced — five at
+  four per row read as 3+2, never 4+1), every panel on the SAME axes (`WithSharedYLimits`, `WithWindow`), the
+  name INSIDE the panel (an axes-fraction annotation, not a title, not a legend), `WithPanelSize`, `WithMaxCols`,
+  `ConfigurePanel` for a reference line. The shape for "twenty processes, compared" — one axes with twenty
+  lines is a legend with a chart behind it. Rebuilt per frame by design; it holds no data.
+- **An annotation can be placed in AXES FRACTION.** `Annotation.Coordinates = AnnotationCoordinates.AxesFraction`
+  — matplotlib's `xycoords='axes fraction'`: (0, 0) bottom-left, (1, 1) top-right of the plot area, so a panel
+  label stays in its corner whatever the data limits do. Default `Data`, unchanged.
+- **A treemap rect can carry TWO variables.** `TreeNode.ColorValue` is read through the series' normalizer and
+  colour map (`HierarchicalSeries` is now `INormalizable`: `VMin`, `VMax`, `Normalizer`, the convention every
+  colour-mapped series shares), so area = size and colour = load — the host-map encoding. Without it the ramp was
+  driven by sibling INDEX, which says nothing about the data. An explicit `TreeNode.Color` still wins.
+- **`AlarmPalette.Ramp`** — the palette as a colour map: resting at 0, warning at 0.5, critical at 1, so "half way
+  is a warning" is decided in one place.
+- **A treemap node can wear a HATCH** (`TreeNode.Hatch`/`HatchColor`) — "no information", the same vocabulary a
+  stat tile has: a source that went silent is a pattern, never a colour.
+- **`TreemapSeries.LabelFit`** — `Always` (the default, unchanged), `Fit` (draw a label only when it fits its
+  rect; the rect still carries it in `data-treemap-label`) or `Truncate` (an ellipsis). Measured on a 1400×300
+  wall: at nine processes every label fit, at twenty nine of twenty-one were painted across their neighbours.
+- **The hub keeps a subscription ledger: `IChartSubscriptions`** (`MatPlotLibNet.AspNetCore`). SignalR groups
+  carry no membership count, so a publisher that renders to a group nobody joined does the work for no one — a
+  server-rendered wall pays that per frame, per chart. `ChartHub` records every `Subscribe`/`Unsubscribe` and
+  sweeps a disconnected connection out of every chart; a render lane asks `HasSubscribers(chartId)` before it
+  spends a frame. Registered by `AddMatPlotLibNetSignalR()`.
+- **The control-room sample has a drill-down** (`Samples/MatPlotLibNet.Samples.Blazor`, `/obs-dashboard`): the
+  Processes tile is a link (`?panel=processes`, chevron, `aria-expanded`, focus ring) and opens, under the tile
+  row, an equal-cell grid per bus coloured by CPU (`TreeNode.ColorValue` through `AlarmPalette.Ramp`, a silent
+  bus hatched, `LabelFit.Fit`) above small multiples of the hottest eight (`Plt.SmallMultiples()`, shared
+  0–150 % axis, a line at one core). Both panels are published only while a tab has them open — the ledger
+  above. The latency panel moved to a log axis with its target as a labelled reference line.
+- **`AddSubPlot(GridPosition, …)` takes the same optional `key`** as the legacy overload, so a grid-position
+  subplot can be a `ShareX`/`ShareY` target — it could name one but never be one.
+
+### Fixed
+
+- **A log axis DRAWS.** An auto-ranged `AxisScale.Log` axis padded its margin in RAW space, expanded to the
+  LINEAR nice bounds (2..250 → 0..300), turned that floor into `NaN` and every point with it — a blank panel with
+  linear ticks (measured 2026-08-30 on a µs latency panel). One 0-valued point did the same even under pinned
+  limits. Now: a series on a log axis ranges over its POSITIVE values only (`IAxesContext.XScale`/`YScale`;
+  matplotlib's `nonpositive='mask'`), the margin is padded in log space, the nice-bounds step is skipped for a
+  log axis, a non-positive floor is lifted, a `LogLocator` + `LogTickFormatter` install themselves when no
+  locator is set (the arm `SymLog` and `Date` already had), and a point the transform cannot place is left out
+  of the polyline instead of written as the literal `NaN`.
+- **An EMPTY treemap draws nothing.** A childless root rendered as one full-area leaf — "one healthy thing
+  fills the fleet" on a wall that in fact knows nothing.
+- **A figure that contains a hyperlink is an SVG `role="group"`, not `role="img"`** — `img` makes every
+  descendant presentational, so the link's `aria-label`/`aria-expanded` were never announced. An untitled figure
+  takes its accessible name from its stat tiles' labels instead of an empty `<title>`.
+- **An empty `FacetGridFigure` is refused with the reason** instead of a `DivideByZeroException` from the grid
+  arithmetic.
+
 ### Changed
 
 - **An ops tile row WRAPS at eight tiles, balanced.** `Plt.OpsDashboard()` put every tile on one row, one grid
