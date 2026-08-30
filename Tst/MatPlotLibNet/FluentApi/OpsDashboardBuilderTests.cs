@@ -69,6 +69,29 @@ public class OpsDashboardBuilderTests
         }
     }
 
+    /// <summary>An ops window is minutes wide, so its ticks must read as TIME. The window used to install a
+    /// fixed <c>yyyy-MM-dd</c> format, which printed the same date on every tick of a five-minute screen —
+    /// an axis that says nothing. The granularity now follows the window: minutes and hours read HH:mm,
+    /// seconds HH:mm:ss, and a multi-day window still reads as dates.</summary>
+    [Fact]
+    public void TheWindowsTicks_ReadAsTIMEOnAMinutesWideScreen()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(15)
+            .AddTrend(Clock(60), [.. Enumerable.Repeat(1.0, 60)])
+            .WithWindow(Now, TimeSpan.FromMinutes(5))
+            .Build()
+            .Build();
+
+        var trend = figure.SubPlots[^1];
+        double[] ticks = trend.XAxis.TickLocator!.Locate(trend.XAxis.Min!.Value, trend.XAxis.Max!.Value);
+        string first = trend.XAxis.TickFormatter!.Format(ticks[0]);
+        string last = trend.XAxis.TickFormatter!.Format(ticks[^1]);
+
+        Assert.Contains(":", first);            // a time, not a bare date
+        Assert.NotEqual(first, last);           // ...and the ticks differ across the window
+    }
+
     /// <summary>The trend panel and the timeline rows share ONE window. If each scaled itself, the rows would
     /// drift apart by a few pixels and an operator reading a fault across them would line up the wrong instants.</summary>
     [Fact]

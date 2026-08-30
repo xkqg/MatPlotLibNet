@@ -116,6 +116,28 @@ public class StatTileAnatomyTests
         return ys[^1];
     }
 
+    private static double[] TextYsIn(string svg, string? fontSize)
+    {
+        var ys = new List<double>();
+        foreach (string chunk in svg.Split("<text").Skip(1))
+        {
+            string head = chunk[..chunk.IndexOf('>')];
+            if (fontSize is not null && !head.Contains("font-size=\"" + fontSize, StringComparison.Ordinal))
+            {
+                continue;
+            }
+            int at = head.IndexOf("y=\"", StringComparison.Ordinal);
+            if (at < 0)
+            {
+                continue;
+            }
+            string raw = head[(at + 3)..];
+            ys.Add(double.Parse(raw[..raw.IndexOf('"')], CultureInfo.InvariantCulture));
+        }
+        ys.Sort();
+        return [.. ys];
+    }
+
     private static double[] TextYs(string caption, string? fontSize)
     {
         string svg = Plt.Create()
@@ -178,6 +200,56 @@ public class StatTileAnatomyTests
             }
         }
         return lines;
+    }
+
+    /// <summary>A caption never runs into the sparkline. The trend takes the tile's lower fifth, so on a short
+    /// tile a two-line caption used to be drawn straight through the line (seen on an ops wall). The stack owns
+    /// the body: when the caption needs more room than is left, the SPARKLINE yields — the numbers and what they
+    /// were measured over beat the decoration.</summary>
+    [Fact]
+    public void ACaptionNeverRunsIntoTheSparkline_TheTrendYields()
+    {
+        double[] trend = [4.0, 4.5, 5.0, 6.0, 8.0, 12.0];
+        // The tile as an ops dashboard draws it: its own text only, no axes, no legend.
+        string svg = Plt.Create().WithSize(190, 110)
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.StatTile(3.8, s =>
+                {
+                    s.Label = "Nexus";
+                    s.Caption = "threshold 6" + Environment.NewLine + "2 148 msg · 1 s";
+                    s.Trend = trend;
+                });
+                ax.HideAllAxes();
+                ax.WithLegend(visible: false);
+            })
+            .ToSvg();
+
+        double lowestText = TextYsIn(svg, null)[^1];
+        double sparklineTop = PolylineTop(svg);
+
+        Assert.True(sparklineTop > lowestText,
+            $"the sparkline starts at {sparklineTop:0.#} but the caption's last line sits at {lowestText:0.#}");
+    }
+
+    // The topmost y of the tile's sparkline polyline.
+    private static double PolylineTop(string svg)
+    {
+        int at = svg.IndexOf("<polyline", StringComparison.Ordinal);
+        Assert.True(at >= 0, "the tile drew no sparkline");
+        string points = svg[at..svg.IndexOf("/>", at, StringComparison.Ordinal)];
+        points = points[(points.IndexOf("points=\"", StringComparison.Ordinal) + 8)..];
+        points = points[..points.IndexOf('"')];
+        double top = double.MaxValue;
+        foreach (string pair in points.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string[] xy = pair.Split(',');
+            if (xy.Length == 2 && double.TryParse(xy[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double y))
+            {
+                top = Math.Min(top, y);
+            }
+        }
+        return top;
     }
 
     /// <summary>A hatched tile reads as "no information" — the source has gone silent, and that is a different

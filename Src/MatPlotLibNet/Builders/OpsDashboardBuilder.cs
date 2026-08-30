@@ -213,7 +213,10 @@ public sealed class OpsDashboardBuilder
         }
 
         ax.SetXLim((end - _windowSpan).ToOADate(), end.ToOADate());
-        ax.SetXDateFormat();
+        // The granularity follows the WINDOW: an ops screen is minutes wide, and a fixed yyyy-MM-dd printed the
+        // same date on every tick of it — an axis that says nothing. The auto locator/formatter pair reads the
+        // visible range and picks minutes, hours or days accordingly.
+        ax.SetXDateAxis();
     }
 
     private readonly record struct OpsTileSpec(double Value, Action<StatTileSeries>? Configure);

@@ -20,6 +20,18 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
     /// <summary>Baseline step between two caption lines, at the caption's own 11 pt.</summary>
     private const double CaptionLineHeight = 14;
 
+    /// <summary>The headline's font size on a tile with room for it.</summary>
+    private const double HeadlineSize = 44;
+
+    /// <summary>The smallest the headline may shrink to when the stack has to fit a short tile.</summary>
+    private const double ShortestHeadline = 24;
+
+    /// <summary>Drop from the headline's baseline to the label's — the number plus its breathing room.</summary>
+    private const double HeadlineDrop = 30;
+
+    /// <summary>Baseline step from the label to the first caption line.</summary>
+    private const double LabelLineHeight = 18;
+
     /// <summary>Breathing room left either side of a caption line, so a wrapped line never touches the tile edge.</summary>
     private const double CaptionMargin = 6;
 
@@ -52,7 +64,6 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         }
 
         bool hasTrend = series.Trend is { Count: >= 2 };
-        double bodyHeight = hasTrend ? bounds.Height * (1 - TrendShare) : bounds.Height;
         double cx = bounds.X + bounds.Width / 2;
 
         // The whole STACK is centred — headline, label and every caption line — so a tile that carries more
@@ -61,13 +72,29 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         // of each renders exactly where it always did; each extra line lifts the block by half its height.
         var captionFont = new Font { Size = 11, Color = color };
         string[] captionLines = WrapCaption(series.Caption, captionFont, bounds.Width - 2 * CaptionMargin);
-        double extra = Math.Max(0, captionLines.Length - 1) * CaptionLineHeight;
-        double cy = bounds.Y + bodyHeight / 2 - extra / 2;
+        double bodyHeight = hasTrend ? bounds.Height * (1 - TrendShare) : bounds.Height;
+
+        // THE STACK FITS THE BODY. Headline, label and every caption line are laid out inside the body the
+        // sparkline leaves, and when they do not fit the HEADLINE shrinks — down to ShortestHeadline — rather
+        // than the caption spilling over the sparkline or out of the tile (seen on an ops wall: a two-line
+        // caption on a 110 px tile printed straight through the trend line and past the tile's own edge).
+        double labelDrop = string.IsNullOrEmpty(series.Label) ? 0 : LabelLineHeight;
+        double belowHeadline = labelDrop + (captionLines.Length * CaptionLineHeight);
+        double scale = 1;
+        if (HeadlineDrop + belowHeadline > bodyHeight)
+        {
+            scale = Math.Clamp((bodyHeight - belowHeadline) / HeadlineDrop, ShortestHeadline / HeadlineSize, 1);
+        }
+        double headlineDrop = HeadlineDrop * scale;
+        double stackHeight = headlineDrop + belowHeadline;
+        double cy = bounds.Y + (bodyHeight - stackHeight) / 2 + (headlineDrop / 2);
+        // Where the stack actually ENDS — the sparkline starts under it, never through it.
+        double stackBottom = cy + stackHeight - headlineDrop + CaptionLineHeight / 2;
 
         Ctx.DrawText(series.FormattedValue, new Point(cx, cy),
-            new Font { Size = 44, Weight = FontWeight.Bold, Color = color }, TextAlignment.Center);
+            new Font { Size = HeadlineSize * scale, Weight = FontWeight.Bold, Color = color }, TextAlignment.Center);
 
-        double below = cy + 30;
+        double below = cy + headlineDrop;
         if (!string.IsNullOrEmpty(series.Label))
         {
             // The theme's ink, like the value above and the caption below. Without a Color the SVG text
@@ -75,7 +102,7 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
             // exactly where a tile lives (reported from the Ait console: unreadable tile names).
             Ctx.DrawText(series.Label, new Point(cx, below),
                 new Font { Size = 14, Color = Context.Theme.ForegroundText }, TextAlignment.Center);
-            below += 18;
+            below += LabelLineHeight;
         }
 
         // The gap line — the element that answers "is this good or bad" without anyone doing arithmetic.
@@ -90,7 +117,7 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
 
         if (hasTrend)
         {
-            RenderTrend(series, bounds, color, bodyHeight);
+            RenderTrend(series, bounds, color, Math.Max(bodyHeight, stackBottom - bounds.Y));
         }
     }
 

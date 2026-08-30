@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **An ops window's ticks read as TIME.** `Plt.OpsDashboard().WithWindow(...)` installed a fixed `yyyy-MM-dd`
+  tick format, so a five-minute screen printed the same date on every tick — an axis that says nothing. The
+  window now installs the auto locator/formatter pair, which picks minutes, hours or days from the visible range.
+- **A tile's caption no longer runs through its sparkline — or off the tile.** The stack (headline, label, every
+  caption line) is laid out inside the body, the sparkline starts under it, and when the stack does not fit a
+  short tile the HEADLINE shrinks (to a floor of 24 pt) rather than the caption spilling out. Seen on a 190×110
+  ops tile with a two-line caption.
+
 ### Added
 
 - **A stat tile's caption WRAPS to its tile, and the whole stack stays centred.** A caption longer than its
@@ -16,8 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **A stat tile's caption may carry more than one line.** `StatTileSeries.Caption` splits on
   `Environment.NewLine` / `\n` and draws the lines stacked and centred under the label, in the caption's own
   ink. A tile's gap line answers *"is this good or bad"*; a second line can answer *"measured over what"* —
-  and two answers crammed onto one row run wider than the tile (reported from an ops wall, 2026-08-30:
-  `threshold 250 · 2148 msg · 1 s`). A single-line caption renders exactly as before.
+  and two answers crammed onto one row run wider than the tile (reported from an ops wall: `threshold 250 · 2148 msg · 1 s`). A single-line caption renders exactly as before.
 
 ## [1.14.3] — 2026-08-22
 
