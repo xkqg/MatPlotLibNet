@@ -8,8 +8,6 @@ obj/
 .claude/
 .mcp.json
 
-# codegraph knowledge-graph cache (SQLite index, delta-synced)
-.codegraph/
 
 ## Graphify (knowledge graph tool — generated artifacts)
 .graphify/
