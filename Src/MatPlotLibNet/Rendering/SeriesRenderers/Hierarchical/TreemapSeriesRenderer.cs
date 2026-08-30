@@ -62,6 +62,30 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
         // reader accessible, zoomable via OS controls).
         const double fontSize = 12.0;
 
+        // A node that LEADS somewhere is one anchor around everything it draws — its rect, its text and, for an
+        // interior node, the whole subtree nested inside it.
+        bool linked = !string.IsNullOrEmpty(node.Url);
+        if (linked)
+        {
+            Ctx.BeginHyperlink(node.Url!, node.Label, node.Expanded);
+        }
+        try
+        {
+            RenderNodeCore(node, bounds, series, cmap, depth, indexInParent, siblingCount, nodeId, parentId, fontSize);
+        }
+        finally
+        {
+            if (linked)
+            {
+                Ctx.EndHyperlink();
+            }
+        }
+    }
+
+    private void RenderNodeCore(TreeNode node, Rect bounds, TreemapSeries series,
+        IColorMap cmap, int depth, int indexInParent, int siblingCount,
+        string nodeId, string parentId, double fontSize)
+    {
         if (node.Children.Count == 0)
         {
             // Leaf: fill with node colour, or cmap sample at the sibling fraction.

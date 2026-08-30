@@ -55,6 +55,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   chevron the stat tile does. It is the companion to the treemap, not a replacement: a map answers "who is big"
   pre-attentively, a grid answers "by how much" exactly — and once the leaves are many and small (measured on a
   live fleet: two lanes of twenty-three carried every message in an hour) the map has nothing left to say.
+- **A treemap node can LEAD somewhere: `TreeNode.Url`** (+ `Expanded`). The rect, its label and the whole
+  subtree nested inside it are wrapped in an SVG `<a href>`, so drilling in is a URL and needs no script. The
+  self-contained click script (`WithTreemapDrilldown`) still ships and still works in a saved SVG — but a page
+  that injects the SVG as MARKUP never runs it, because a `<script>` inserted through `innerHTML` does not
+  execute (HTML spec). A link works in both, and the URL is state a server-rendered page can hold.
 - **A treemap cell can carry a MEASURE: `TreeNode.Headline`.** Drawn under the label and larger
   (`TreemapSeries.HeadlineFontSize`, default 20) in a leaf, and at the right end of the header strip in an
   interior node — the stat tile's anatomy inside the cell, which is how Grafana's Stat panel lays out a value

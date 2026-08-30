@@ -27,6 +27,18 @@ public sealed record TreeNode
     /// Null draws nothing, and a headline that does not fit its cell is dropped before the name is.</summary>
     public string? Headline { get; init; }
 
+    /// <summary>Where the node LEADS, or null. The rect, its label and everything nested inside it are wrapped
+    /// in an SVG <c>&lt;a href&gt;</c>, so drilling into a subtree is a URL and needs no script.
+    /// <para>The library also ships a self-contained click script (<c>FigureBuilder.WithTreemapDrilldown</c>),
+    /// and it works in a saved SVG — but a page that injects the SVG as MARKUP never runs it: a
+    /// <c>&lt;script&gt;</c> inserted through <c>innerHTML</c> does not execute (HTML spec). A link works
+    /// everywhere, and the URL is state a server-rendered page can hold and a reader can paste.</para></summary>
+    public string? Url { get; init; }
+
+    /// <summary>Whether the subtree this node leads to is currently shown (<c>aria-expanded</c>); null for a
+    /// link that discloses nothing.</summary>
+    public bool? Expanded { get; init; }
+
     /// <summary>A fill pattern over the node's rect, or <see cref="HatchPattern.None"/>. This is how a rect says
     /// <i>no information</i> — the source went silent — a pattern and not a colour, exactly as a stat tile does:
     /// "I can no longer see you" is a different fault from "you are hot", and a wall that paints them the same
