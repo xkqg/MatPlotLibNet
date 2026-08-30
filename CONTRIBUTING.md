@@ -48,6 +48,11 @@ These rules govern how changes land on this repo. They apply without exception.
 - **Version bumps require a behavioural change** — public API change, different output for the same input, changed defaults, new features. Refactors, tests, dead-code removal, docs, CI changes → **NO bump, stay on current version**.
 - Ambiguous signals ("no v1.7.3", "let's not go to...") → **ASK the maintainer**. Never guess which direction.
 - When a bump is explicitly requested, update `<Version>` in ALL 13 `.csproj` files atomically (loop, not one at a time).
+- **The number is decided at RELEASE time, not when the work lands.** The maintainer releases when enough has
+  changed or when something new arrived, and only then is it clear whether that is a patch, a minor or a major.
+  So work in flight collects under a neutral CHANGELOG heading — `## [Next]` — and the release step renames that
+  heading to the chosen version and bumps the 13 csprojs. Never `[Unreleased]`, never a guessed number.
+- **No dates in the CHANGELOG.** The version numbers are the timeline; a date adds nothing a reader can act on.
 
 ## TDD — Red, Green, Refactor. In that order. Always.
 
