@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Text;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
@@ -18,6 +19,9 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
 
     /// <summary>Baseline step between two caption lines, at the caption's own 11 pt.</summary>
     private const double CaptionLineHeight = 14;
+
+    /// <summary>Breathing room left either side of a caption line, so a wrapped line never touches the tile edge.</summary>
+    private const double CaptionMargin = 6;
 
     /// <summary>What separates two caption lines — both platforms' newlines, so a caption composed on either
     /// one stacks the same way.</summary>
@@ -50,7 +54,15 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         bool hasTrend = series.Trend is { Count: >= 2 };
         double bodyHeight = hasTrend ? bounds.Height * (1 - TrendShare) : bounds.Height;
         double cx = bounds.X + bounds.Width / 2;
-        double cy = bounds.Y + bodyHeight / 2;
+
+        // The whole STACK is centred — headline, label and every caption line — so a tile that carries more
+        // lines takes the free room ABOVE its headline instead of growing down into the sparkline strip
+        // (reported from an ops wall, 2026-08-30: "there is plenty of room at the top of the tile"). One line
+        // of each renders exactly where it always did; each extra line lifts the block by half its height.
+        var captionFont = new Font { Size = 11, Color = color };
+        string[] captionLines = WrapCaption(series.Caption, captionFont, bounds.Width - 2 * CaptionMargin);
+        double extra = Math.Max(0, captionLines.Length - 1) * CaptionLineHeight;
+        double cy = bounds.Y + bodyHeight / 2 - extra / 2;
 
         Ctx.DrawText(series.FormattedValue, new Point(cx, cy),
             new Font { Size = 44, Weight = FontWeight.Bold, Color = color }, TextAlignment.Center);
@@ -70,20 +82,55 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         // MULTI-LINE: a caption may carry more than one question ("is this good or bad" and "measured over
         // what"), and two answers crammed onto one row run wider than the tile (reported from an ops wall,
         // 2026-08-30). Newline-separated lines are drawn stacked, centred, in the caption's own ink.
-        if (!string.IsNullOrEmpty(series.Caption))
+        foreach (var line in captionLines)
         {
-            foreach (var line in series.Caption.Split(CaptionLineBreaks, StringSplitOptions.None))
-            {
-                Ctx.DrawText(line, new Point(cx, below),
-                    new Font { Size = 11, Color = color }, TextAlignment.Center);
-                below += CaptionLineHeight;
-            }
+            Ctx.DrawText(line, new Point(cx, below), captionFont, TextAlignment.Center);
+            below += CaptionLineHeight;
         }
 
         if (hasTrend)
         {
             RenderTrend(series, bounds, color, bodyHeight);
         }
+    }
+
+    // The caption's lines: the caller's own breaks FIRST (they mean something — one answer per line), then a
+    // WRAP of whatever is still wider than the tile, at word boundaries. This is the CSS behaviour a caption
+    // needs on a wall: an ops caption grows with what it has to say, and a tile is a fixed column (reported
+    // 2026-08-30, "threshold 250 · 2148 msg · 1 s" ran out over its neighbours). A word that does not fit on
+    // its own is never cut — it is better to overflow one word than to render half of one.
+    private string[] WrapCaption(string? caption, Font font, double width)
+    {
+        if (string.IsNullOrEmpty(caption))
+        {
+            return [];
+        }
+        var lines = new List<string>();
+        foreach (var declared in caption.Split(CaptionLineBreaks, StringSplitOptions.None))
+        {
+            if (width <= 0 || Ctx.MeasureText(declared, font).Width <= width)
+            {
+                lines.Add(declared);
+                continue;
+            }
+            var line = new StringBuilder();
+            foreach (var word in declared.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var candidate = line.Length == 0 ? word : $"{line} {word}";
+                if (line.Length > 0 && Ctx.MeasureText(candidate, font).Width > width)
+                {
+                    lines.Add(line.ToString());
+                    line.Clear().Append(word);
+                    continue;
+                }
+                line.Clear().Append(candidate);
+            }
+            if (line.Length > 0)
+            {
+                lines.Add(line.ToString());
+            }
+        }
+        return [.. lines];
     }
 
     /// <summary>Draws the inline trend by DELEGATING to <see cref="SparklineSeriesRenderer"/> in a sub-area of

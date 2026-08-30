@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Serialization;
@@ -86,6 +89,96 @@ public class StatTileAnatomyTests
     }
 
     private static int CountText(string svg) => svg.Split("<text").Length - 1;
+
+    /// <summary>The tile centres its whole STACK — value, label and every caption line — inside its body, so a
+    /// second caption line takes the free room at the TOP instead of growing past the bottom into the
+    /// sparkline (owner, 2026-08-30: "there is plenty of room at the top of the tile"). The headline rises by
+    /// half the extra line; the block stays optically centred.</summary>
+    [Fact]
+    public void AnExtraCaptionLine_RaisesTheStack_ItDoesNotGrowOutOfTheBottom()
+    {
+        double OneLine = HeadlineY("threshold 6");
+        double TwoLines = HeadlineY("threshold 6" + Environment.NewLine + "2148 msg · 1 s");
+        double LastCaptionOne = LowestTextY("threshold 6");
+        double LastCaptionTwo = LowestTextY("threshold 6" + Environment.NewLine + "2148 msg · 1 s");
+
+        Assert.True(TwoLines < OneLine, "the headline moved UP to make room for the second line");
+        Assert.True(OneLine - TwoLines >= 6, "by about half the extra line's height");
+        Assert.True(LastCaptionTwo - LastCaptionOne <= 8, "and the stack did not simply grow downward");
+    }
+
+    // The y of the tile's headline (the 44 pt text), and the y of its lowest text — read straight off the SVG.
+    private static double HeadlineY(string caption) => TextYs(caption, "44")[0];
+
+    private static double LowestTextY(string caption)
+    {
+        double[] ys = TextYs(caption, null);
+        return ys[^1];
+    }
+
+    private static double[] TextYs(string caption, string? fontSize)
+    {
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(3.8, s =>
+            {
+                s.Label = "Nexus";
+                s.Caption = caption;
+            }))
+            .ToSvg();
+        var ys = new List<double>();
+        foreach (string chunk in svg.Split("<text").Skip(1))
+        {
+            string head = chunk[..chunk.IndexOf('>')];
+            if (fontSize is not null && !head.Contains("font-size=\"" + fontSize, StringComparison.Ordinal))
+            {
+                continue;
+            }
+            int at = head.IndexOf("y=\"", StringComparison.Ordinal);
+            if (at < 0)
+            {
+                continue;
+            }
+            string raw = head[(at + 3)..];
+            ys.Add(double.Parse(raw[..raw.IndexOf('"')], CultureInfo.InvariantCulture));
+        }
+        ys.Sort();
+        return [.. ys];
+    }
+
+    /// <summary>A caption WRAPS to the tile's width — the CSS behaviour, in the renderer: a caption longer than
+    /// its tile is broken at word boundaries instead of running out over the neighbouring tiles (reported from
+    /// an ops wall, 2026-08-30: "threshold 250 · 2148 msg · 1 s" ran wider than its card). Explicit newlines
+    /// still break where the caller put them; wrapping only adds breaks the width demands.</summary>
+    [Fact]
+    public void ALongCaption_WrapsToTheTilesWidth_AtWordBoundaries()
+    {
+        string wide = Plt.Create().WithSize(600, 200)
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(3.8, s => s.Caption = LongCaption)).ToSvg();
+        string narrow = Plt.Create().WithSize(190, 110)
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(3.8, s => s.Caption = LongCaption)).ToSvg();
+
+        Assert.Equal(1, CaptionLines(wide));
+        Assert.True(CaptionLines(narrow) > 1, "the narrow tile broke the caption over more rows");
+        Assert.Contains("threshold", narrow);
+        Assert.Contains("1 s", narrow);          // every word survives the wrap
+        Assert.DoesNotContain(">thr<", narrow);  // ...and no word is cut through the middle
+    }
+
+    private const string LongCaption = "threshold 250 · 2148 msg · 1 s";
+
+    // The caption lines are the tile's 11 pt texts.
+    private static int CaptionLines(string svg)
+    {
+        int lines = 0;
+        foreach (string chunk in svg.Split("<text").Skip(1))
+        {
+            if (chunk[..chunk.IndexOf('>')].Contains("font-size=\"11", StringComparison.Ordinal))
+            {
+                lines++;
+            }
+        }
+        return lines;
+    }
 
     /// <summary>A hatched tile reads as "no information" — the source has gone silent, and that is a different
     /// fault from a bad value. It is a pattern, never a colour.</summary>

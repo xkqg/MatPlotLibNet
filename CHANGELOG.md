@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **A stat tile's caption WRAPS to its tile, and the whole stack stays centred.** A caption longer than its
+  tile is broken at word boundaries (the CSS behaviour, in the renderer) instead of running out over the
+  neighbouring tiles; a word that does not fit on its own is never cut through. The tile centres its whole
+  STACK — headline, label and every caption line — so extra lines take the free room at the TOP rather than
+  growing down into the sparkline.
 - **A stat tile's caption may carry more than one line.** `StatTileSeries.Caption` splits on
   `Environment.NewLine` / `\n` and draws the lines stacked and centred under the label, in the caption's own
   ink. A tile's gap line answers *"is this good or bad"*; a second line can answer *"measured over what"* —
