@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.14.4]
 ### Added
 
 - **A tree-grid ROW can carry its own shape over time: `TreeGridRow.Trend` + `TrendColor`, and
@@ -15,9 +15,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   draws nothing, and so does a name column with under 20 px to spare. This is what lets ONE panel answer the
   three questions a wall asks — who is nested under whom, what the exact numbers are, and what the last minutes
   looked like — instead of a treemap, a table and a grid of strips repeating each other.
-
-## [1.14.4]
-### Added
 
 - **A stat tile can LEAD somewhere.** `StatTileSeries.Url` (matplotlib's `Artist.set_url` idiom) renders the
   whole tile as an SVG `<a href>` with the pointer cursor and an `aria-label`, and `Expanded` turns the
