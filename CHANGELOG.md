@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+### Added
+
+- **A tree-grid ROW can carry its own shape over time: `TreeGridRow.Trend` + `TrendColor`, and
+  `TreeGridSeries.TrendWidth`.** The same field the stat tile already has, drawn by the same `SparklineSeries`
+  renderer into the strip at the right end of the name column — never over the digits, which is what a grid is
+  read for. It scales to ITS OWN values (`SparklineSeries.ComputeDataRange` is min/max of the row), so a row
+  resting at 1 % has a shape instead of a flat line on the floor of a neighbour's axis; fewer than two samples
+  draws nothing, and so does a name column with under 20 px to spare. This is what lets ONE panel answer the
+  three questions a wall asks — who is nested under whom, what the exact numbers are, and what the last minutes
+  looked like — instead of a treemap, a table and a grid of strips repeating each other.
+
 ## [1.14.4]
 ### Added
 

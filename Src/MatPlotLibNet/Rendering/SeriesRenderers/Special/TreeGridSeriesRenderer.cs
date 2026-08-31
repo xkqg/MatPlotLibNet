@@ -81,6 +81,11 @@ internal sealed class TreeGridSeriesRenderer : SeriesRenderer<TreeGridSeries>
         var rowFont = new Font { Size = series.FontSize, Color = row.Accent ?? ink };
         Ctx.DrawTextWithLevel(row.Label, new Point(x + ChevronColumn, y), rowFont, row.Depth + 1);
 
+        if (row.Trend is { Count: >= 2 })
+        {
+            RenderTrend(series, row, bounds, nameWidth, y, ink);
+        }
+
         for (int c = 0; c < (row.Cells?.Count ?? 0); c++)
         {
             if (string.IsNullOrEmpty(row.Cells![c]))
@@ -94,6 +99,27 @@ internal sealed class TreeGridSeriesRenderer : SeriesRenderer<TreeGridSeries>
         {
             Ctx.EndHyperlink();
         }
+    }
+
+    /// <summary>The row's shape over time, in the strip at the right end of the NAME column — never over the
+    /// digits, which are what a grid is read for. The sparkline renderer already draws an axis-less line that
+    /// fills the area it is handed and scales to its own values, and <see cref="SeriesRenderer"/> exposes that
+    /// area as a seam for exactly this: the stat tile hands it a strip too, and one copy of twelve lines is one
+    /// copy that cannot drift.</summary>
+    private void RenderTrend(TreeGridSeries series, TreeGridRow row, Rect bounds, double nameWidth, double y, Color ink)
+    {
+        double width = Math.Min(series.TrendWidth, Math.Max(0, nameWidth - 80));
+        if (width < 20)
+        {
+            return;     // no room is no line: a two-pixel scribble says less than the number beside it
+        }
+
+        double height = Math.Max(1, series.RowHeight - 8);
+        var strip = new Rect(bounds.X + nameWidth - width - 14, y - series.RowHeight + 6, width, height);
+        var subContext = Context with { Area = new RenderArea(strip, Area.Context) };
+
+        var sparkline = new SparklineSeries([.. row.Trend!]) { Color = row.TrendColor ?? row.Accent ?? ink };
+        new SparklineSeriesRenderer(subContext).Render(sparkline);
     }
 
     private static double ColumnRight(Rect bounds, double nameWidth, TreeGridSeries series, int column)
