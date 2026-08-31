@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.14.4]
 ### Added
 
+- **`TreeGridSeries.RowStripe`** — a band behind every other row. On a wall a row is wide and read from across
+  the room; the band is what carries the eye from a name on the left to its number on the right. Null (the
+  default) paints nothing, so a grid inside a dense figure stays as it was.
 - **A tree-grid ROW can carry its own shape over time: `TreeGridRow.Trend` + `TrendColor`, and
   `TreeGridSeries.TrendWidth`.** The same field the stat tile already has, drawn by the same `SparklineSeries`
   renderer into the strip at the right end of the name column — never over the digits, which is what a grid is

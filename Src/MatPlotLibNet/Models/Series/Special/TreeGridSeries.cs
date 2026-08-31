@@ -70,6 +70,10 @@ public sealed class TreeGridSeries : ChartSeries
     /// <summary>The row text's point size.</summary>
     public double FontSize { get; set; } = 12;
 
+    /// <summary>The band painted behind every OTHER row — what carries the eye from a name on the left to its
+    /// number on the right when a row is wide, as it is on a wall. Null paints nothing.</summary>
+    public Color? RowStripe { get; set; }
+
     /// <summary>The width reserved at the right end of the name column for a row's <see cref="TreeGridRow.Trend"/>
     /// sparkline. It costs nothing when no row carries one.</summary>
     public double TrendWidth { get; set; } = 160;

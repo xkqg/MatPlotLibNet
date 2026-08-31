@@ -53,14 +53,25 @@ internal sealed class TreeGridSeriesRenderer : SeriesRenderer<TreeGridSeries>
             y += series.RowHeight;
         }
 
+        int index = 0;
         foreach (var row in series.Rows)
         {
             if (y > bounds.Y + bounds.Height)
             {
                 break;  // the region is what it is; a row drawn past its edge is a row on top of the next panel
             }
+            if (series.RowStripe is { } stripe && index % 2 == 1)
+            {
+                // The band before the text, never over it, and the row's full width: a band that stops short
+                // stops exactly where the eye needs it, at the numbers.
+                Ctx.BeginGroup("mpl-treegrid-stripe");
+                Ctx.DrawRectangle(new Rect(bounds.X, y - series.RowHeight + 4, bounds.Width, series.RowHeight),
+                    new ShapeStyle(stripe, null, 0));
+                Ctx.EndGroup();
+            }
             RenderRow(series, row, bounds, nameWidth, y, ink);
             y += series.RowHeight;
+            index++;
         }
     }
 
