@@ -26,15 +26,6 @@ public readonly record struct TreeGridRow(string Label, IReadOnlyList<string> Ce
 
     /// <summary>An accent for the row's ink — colour ONLY on deviation, as everywhere else on a wall.</summary>
     public Color? Accent { get; init; }
-
-    /// <summary>The row's shape over time: an inline sparkline drawn between the name and the number columns,
-    /// scaled to ITS OWN values — the same field <see cref="StatTileSeries.Trend"/> carries, drawn by the same
-    /// <see cref="SparklineSeries"/> renderer, because a row and a tile answer the same question. Fewer than two
-    /// samples is not a shape and draws nothing.</summary>
-    public IReadOnlyList<double>? Trend { get; init; }
-
-    /// <summary>The sparkline's ink; null takes <see cref="Accent"/>, then the theme's foreground.</summary>
-    public Color? TrendColor { get; init; }
 }
 
 /// <summary>
@@ -69,10 +60,6 @@ public sealed class TreeGridSeries : ChartSeries
 
     /// <summary>The row text's point size.</summary>
     public double FontSize { get; set; } = 12;
-
-    /// <summary>The width reserved at the right end of the name column for a row's <see cref="TreeGridRow.Trend"/>
-    /// sparkline. It costs nothing when no row carries one.</summary>
-    public double TrendWidth { get; set; } = 160;
 
     /// <summary>Creates a tree grid over <paramref name="rows"/>.</summary>
     public TreeGridSeries(IReadOnlyList<TreeGridRow> rows) => Rows = rows;

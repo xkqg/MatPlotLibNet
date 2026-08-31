@@ -443,25 +443,6 @@ Values are right-aligned per column so digits line up; a row with a `Url` become
 `aria-expanded`, and every row carries `aria-level`. Rows past the region's edge are dropped rather than drawn
 over the panel below.
 
-**A row can carry its own shape over time.** `TreeGridRow.Trend` is the same field `StatTileSeries.Trend` has,
-drawn by the same `SparklineSeries` renderer in the strip at the right end of the NAME column — never over the
-digits. It scales to ITS OWN values, so a row resting at 1 % has a shape instead of a flat line on the floor of
-a neighbour's axis; fewer than two samples draws nothing, and so does a name column too narrow to hold a line.
-
-```csharp
-new("Ait.Bus", ["12 %", "—", "—"]) { Trend = busCpuHistory, TrendColor = theme.Alarm.Warning },
-```
-
-| Property | Type | Default | Meaning |
-|---|---|---|---|
-| `TreeGridRow.Trend` | `IReadOnlyList<double>?` | `null` | The row's inline sparkline; `null` or one sample draws nothing. |
-| `TreeGridRow.TrendColor` | `Color?` | `null` | Its ink; `null` takes `Accent`, then the theme's foreground. |
-| `TreeGridSeries.TrendWidth` | `double` | `160` | Width reserved for it at the right of the name column. |
-
-That is what lets ONE panel answer all three questions a wall asks — who is nested under whom, what the exact
-numbers are, and what shape the last minutes had — instead of a treemap, a table and a grid of strips repeating
-each other.
-
 ### A cell that carries its number
 
 `TreeNode.Headline` puts the measure under the name and larger — the stat tile's anatomy inside a treemap cell:
