@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.14.4]
+### Fixed
+
+- **A row of stat tiles now has ONE anatomy.** The trend strip is reserved whether or not a tile carries a
+  sparkline, so the number, its label and its caption sit at the same height in every tile of a row. A tile
+  without a trend used to centre its stack in the full height and sat ~19 px lower than its neighbours —
+  visible as a broken line of numbers across an ops row (reported 2026-08-31). A tile without a sparkline now
+  leaves that strip empty instead of growing into it.
+
 ### Added
 
 - **`TreeGridSeries.RowStripe`** — a band behind every other row. On a wall a row is wide and read from across

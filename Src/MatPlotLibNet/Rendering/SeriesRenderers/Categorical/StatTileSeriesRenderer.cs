@@ -118,7 +118,11 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         // of each renders exactly where it always did; each extra line lifts the block by half its height.
         var captionFont = new Font { Size = 11, Color = color };
         string[] captionLines = WrapCaption(series.Caption, captionFont, bounds.Width - 2 * CaptionMargin);
-        double bodyHeight = hasTrend ? bounds.Height * (1 - TrendShare) : bounds.Height;
+        // ALWAYS reserved, trend or no trend: a ROW of tiles has ONE anatomy, and a stack that drops by the
+        // strip's height the moment a tile has no sparkline breaks the line of numbers the eye reads across the
+        // row (reported from the Ait ops wall 2026-08-31 — the two tiles without a trend sat visibly lower).
+        // A tile without one leaves the strip empty rather than growing into it.
+        double bodyHeight = bounds.Height * (1 - TrendShare);
 
         // THE STACK FITS THE BODY. Headline, label and every caption line are laid out inside the body the
         // sparkline leaves, and when they do not fit the HEADLINE shrinks — down to ShortestHeadline — rather
