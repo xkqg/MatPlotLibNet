@@ -90,21 +90,36 @@ public class StatTileAnatomyTests
 
     private static int CountText(string svg) => svg.Split("<text").Length - 1;
 
-    /// <summary>The tile centres its whole STACK — value, label and every caption line — inside its body, so a
-    /// second caption line takes the free room at the TOP instead of growing past the bottom into the
-    /// sparkline (owner, 2026-08-30: "there is plenty of room at the top of the tile"). The headline rises by
-    /// half the extra line; the block stays optically centred.</summary>
+    /// <summary>An extra caption line does NOT move the headline. The tile's anatomy is FIXED — number, label,
+    /// captions, trend strip — because a row of tiles is read as one line of numbers and a stack that centres
+    /// itself moves each number by half of whatever that tile happens to carry (measured on the Ait wall
+    /// 2026-08-31: y = 65, 72 and 79 across one row; owner: *"ik zou de getallen en de tekst daaronder op
+    /// dezelfde hoogte plaatsen"*). This supersedes the 2026-08-30 rule that lifted the block instead. The
+    /// second line grows DOWN into the room the anatomy reserves, and still never reaches the tile's edge.</summary>
     [Fact]
-    public void AnExtraCaptionLine_RaisesTheStack_ItDoesNotGrowOutOfTheBottom()
+    public void AnExtraCaptionLine_GrowsDownward_AndTheHeadlineDoesNotMove()
     {
-        double OneLine = HeadlineY("threshold 6");
-        double TwoLines = HeadlineY("threshold 6" + Environment.NewLine + "2148 msg · 1 s");
-        double LastCaptionOne = LowestTextY("threshold 6");
-        double LastCaptionTwo = LowestTextY("threshold 6" + Environment.NewLine + "2148 msg · 1 s");
+        string two = "threshold 6" + Environment.NewLine + "2148 msg · 1 s";
 
-        Assert.True(TwoLines < OneLine, "the headline moved UP to make room for the second line");
-        Assert.True(OneLine - TwoLines >= 6, "by about half the extra line's height");
-        Assert.True(LastCaptionTwo - LastCaptionOne <= 8, "and the stack did not simply grow downward");
+        Assert.Equal(HeadlineY("threshold 6"), HeadlineY(two), 3);
+        Assert.Equal(CaptionY("threshold 6", "threshold 6"), CaptionY(two, "threshold 6"), 3);
+        Assert.Equal(CaptionY(two, "threshold 6") + CaptionLineHeightPx, CaptionY(two, "2148 msg · 1 s"), 3);
+    }
+
+    /// <summary>One caption line, at 11 pt.</summary>
+    private const double CaptionLineHeightPx = 14;
+
+    /// <summary>The y of one caption LINE, found by its own text — an axis tick is text too, so "the lowest
+    /// text element" is not the caption.</summary>
+    private static double CaptionY(string caption, string line)
+    {
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(3.8, s => s.Caption = caption))
+            .ToSvg();
+        var m = System.Text.RegularExpressions.Regex.Match(
+            svg, "<text[^>]*y=\"([-0-9.]+)\"[^>]*>" + System.Text.RegularExpressions.Regex.Escape(line) + "<");
+        Assert.True(m.Success, $"'{line}' was not drawn");
+        return double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
     }
 
     // The y of the tile's headline (the 44 pt text), and the y of its lowest text — read straight off the SVG.

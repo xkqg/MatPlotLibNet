@@ -14,13 +14,14 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// So the trend strip is ALWAYS reserved; a tile without one leaves it empty rather than growing into it.</summary>
 public class StatTileRowAlignmentTests
 {
-    private static (double Value, double Label) Baselines(bool withTrend)
+    private static (double Value, double Label) Baselines(bool withTrend, string? caption = null)
     {
         string svg = Plt.Create().WithSize(200, 220)
             .AddSubPlot(1, 1, 1, ax => ax.StatTile(42, t =>
             {
                 t.Label = "Processes";
                 t.Format = "0";
+                t.Caption = caption;
                 if (withTrend)
                 {
                     t.Trend = [1, 4, 2, 6, 3];
@@ -46,5 +47,23 @@ public class StatTileRowAlignmentTests
 
         Assert.Equal(with.Value, without.Value, 3);
         Assert.Equal(with.Label, without.Label, 3);
+    }
+
+    /// <summary>And a tile with a two-line caption puts its number where a tile with none does. Measured on the
+    /// Ait wall 2026-08-31 the row's numbers sat at y=65, 72 and 79 depending on how many caption lines each
+    /// tile carried, because the stack was CENTRED in the tile: the owner reads the row as one line of numbers
+    /// (*"ik zou de getallen en de tekst daaronder op dezelfde hoogte plaatsen"*), so the stack is anchored at
+    /// the top and the captions grow downward into the room that is left.</summary>
+    [Fact]
+    public void HoweverManyCaptionLines_TheNumberAndItsLabelDoNotMove()
+    {
+        var none = Baselines(withTrend: true);
+        var one = Baselines(withTrend: true, caption: "threshold 250");
+        var two = Baselines(withTrend: true, caption: "threshold 250" + Environment.NewLine + "2081 msg - 9 s");
+
+        Assert.Equal(none.Value, one.Value, 3);
+        Assert.Equal(none.Value, two.Value, 3);
+        Assert.Equal(none.Label, one.Label, 3);
+        Assert.Equal(none.Label, two.Label, 3);
     }
 }

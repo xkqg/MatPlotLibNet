@@ -17,6 +17,10 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
     /// <summary>Vertical share of the tile given to the inline sparkline, measured from the bottom.</summary>
     private const double TrendShare = 0.22;
 
+    /// <summary>The breathing space above the headline, as a share of the body — a FIXED anatomy, so the number
+    /// lands at the same height in every tile of a row however many caption lines its neighbours carry.</summary>
+    private const double TopPadShare = 0.10;
+
     /// <summary>Baseline step between two caption lines, at the caption's own 11 pt.</summary>
     private const double CaptionLineHeight = 14;
 
@@ -137,7 +141,11 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         }
         double headlineDrop = HeadlineDrop * scale;
         double stackHeight = headlineDrop + belowHeadline;
-        double cy = bounds.Y + (bodyHeight - stackHeight) / 2 + (headlineDrop / 2);
+        // ANCHORED AT THE TOP, not centred. A row is read as ONE LINE of numbers, and a centred stack moves the
+        // number by half of whatever each tile happens to carry under it: measured on the Ait wall 2026-08-31 the
+        // row's numbers sat at y = 65, 72 and 79 depending on how many caption lines a tile had. Anchoring puts
+        // every number and every label at one height and lets the captions grow down into the room that is left.
+        double cy = bounds.Y + (bodyHeight * TopPadShare) + headlineDrop;
         // Where the stack actually ENDS — the sparkline starts under it, never through it.
         double stackBottom = cy + stackHeight - headlineDrop + CaptionLineHeight / 2;
 

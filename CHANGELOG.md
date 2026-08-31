@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.14.4]
 ### Fixed
 
+- **A tile's stack is anchored, not centred.** However many caption lines a tile carries, its number and its
+  label sit at the same height — measured on an ops row 2026-08-31: y = 65, 72 and 79 across one row, because a
+  centred stack moves each number by half of whatever that tile happens to carry. The captions grow DOWN into
+  the room the anatomy reserves. This supersedes the 2026-08-30 rule that lifted the block instead.
 - **A row of stat tiles now has ONE anatomy.** The trend strip is reserved whether or not a tile carries a
   sparkline, so the number, its label and its caption sit at the same height in every tile of a row. A tile
   without a trend used to centre its stack in the full height and sat ~19 px lower than its neighbours —
