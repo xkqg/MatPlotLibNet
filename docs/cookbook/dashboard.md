@@ -457,7 +457,6 @@ new("Ait.Bus", ["12 %", "—", "—"]) { Trend = busCpuHistory, TrendColor = the
 | `TreeGridRow.Trend` | `IReadOnlyList<double>?` | `null` | The row's inline sparkline; `null` or one sample draws nothing. |
 | `TreeGridRow.TrendColor` | `Color?` | `null` | Its ink; `null` takes `Accent`, then the theme's foreground. |
 | `TreeGridSeries.TrendWidth` | `double` | `160` | Width reserved for it at the right of the name column. |
-| `TreeGridSeries.RowStripe` | `Color?` | `null` | Band behind every other row — what carries the eye across a WIDE row (a wall's row) from the name to its number. Null paints nothing. |
 
 That is what lets ONE panel answer all three questions a wall asks — who is nested under whom, what the exact
 numbers are, and what shape the last minutes had — instead of a treemap, a table and a grid of strips repeating
