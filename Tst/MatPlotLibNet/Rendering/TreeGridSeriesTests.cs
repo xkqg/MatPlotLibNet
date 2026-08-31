@@ -177,7 +177,7 @@ public class TreeGridSeriesTests
             .AddSubPlot(1, 1, 1, ax => ax.TreeGrid([new("BinanceKline", ["", "14 920", ""]) { Depth = 2 }]))
             .ToSvg();
 
-        Assert.Equal(1, Regex.Matches(svg, "text-anchor=\"end\"").Count);
+        Assert.Single(Regex.Matches(svg, "text-anchor=\"end\""));
     }
 
     [Fact]

@@ -101,22 +101,31 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
             if (series.ShowLabels && !string.IsNullOrEmpty(node.Label))
             {
                 var font = new Font { Size = fontSize, Color = Colors.White };
-                var label = FitLabel(node.Label, font, bounds.Width - 8, series.LabelFit);
-                if (label is not null)
+                // NEWLINES stack: a cell may carry its name and, under it, the measures that do not fit beside
+                // it. Each line is fitted on its own — a name that fits is drawn even when its numbers do not.
+                double y = bounds.Y + fontSize + 2;
+                bool anyLine = false;
+                foreach (var line in node.Label.Split(LabelLineBreaks, StringSplitOptions.None))
                 {
+                    var fitted = FitLabel(line, font, bounds.Width - 8, series.LabelFit);
+                    if (fitted is null || y > bounds.Y + bounds.Height - 2)
+                    {
+                        continue;
+                    }
                     Ctx.SetNextElementData("treemap-node", nodeId);
                     Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
                     Ctx.SetNextElementData("treemap-parent", parentId);
-                    Ctx.DrawText(label, new Point(bounds.X + 4, bounds.Y + fontSize + 2),
-                        font, TextAlignment.Left);
+                    Ctx.DrawText(fitted, new Point(bounds.X + 4, y), font, TextAlignment.Left);
+                    y += fontSize + 2;
+                    anyLine = true;
                 }
-                // The MEASURE, under the name and larger — the stat tile's anatomy inside the cell. It is the
-                // FIRST thing dropped when the cell cannot hold both: a number without its subject says
+                // The MEASURE, under the whole label and larger — the stat tile's anatomy inside the cell. It is
+                // the FIRST thing dropped when the cell cannot hold both: a number without its subject says
                 // nothing, so a cell whose name did not fit never shows a bare number either.
-                if (label is not null && !string.IsNullOrEmpty(node.Headline))
+                if (anyLine && !string.IsNullOrEmpty(node.Headline))
                 {
                     var headlineFont = new Font { Size = series.HeadlineFontSize, Weight = FontWeight.Bold, Color = Colors.White };
-                    double top = bounds.Y + fontSize + 2 + series.HeadlineFontSize + 4;
+                    double top = y + series.HeadlineFontSize + 2;
                     if (top <= bounds.Y + bounds.Height - 2
                         && Ctx.MeasureText(node.Headline, headlineFont).Width <= bounds.Width - 8)
                     {
@@ -161,11 +170,11 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
             Ctx.SetNextElementData("treemap-node", nodeId);
             Ctx.SetNextElementData("treemap-depth", depth.ToString(System.Globalization.CultureInfo.InvariantCulture));
             Ctx.SetNextElementData("treemap-parent", parentId);
-            Ctx.DrawText(node.Label, new Point(bounds.X + 4, bounds.Y + headerH - 4),
+            Ctx.DrawText(FirstLine(node.Label), new Point(bounds.X + 4, bounds.Y + headerH - 4),
                 font, TextAlignment.Left);
             // The parent's own measure, at the far end of its header strip — the total beside the name.
             if (!string.IsNullOrEmpty(node.Headline)
-                && Ctx.MeasureText(node.Headline, font).Width + Ctx.MeasureText(node.Label, font).Width + 16 <= bounds.Width)
+                && Ctx.MeasureText(node.Headline, font).Width + Ctx.MeasureText(FirstLine(node.Label), font).Width + 16 <= bounds.Width)
             {
                 Ctx.DrawText(node.Headline, new Point(bounds.X + bounds.Width - 4, bounds.Y + headerH - 4),
                     font, TextAlignment.Right);
@@ -191,6 +200,17 @@ internal sealed class TreemapSeriesRenderer : SeriesRenderer<TreemapSeries>
             RenderNode(children[i], rects[i], series, cmap,
                 depth + 1, i, children.Count, childId, nodeId);
         }
+    }
+
+    /// <summary>What separates two label lines — both platforms' newlines, so a label composed on either one
+    /// stacks the same way (the stat tile's caption rule).</summary>
+    private static readonly string[] LabelLineBreaks = [Environment.NewLine, "\n"];
+
+    /// <summary>The first line of a label — all an interior node's header strip has room for.</summary>
+    private static string FirstLine(string label)
+    {
+        int at = label.IndexOf('\n', StringComparison.Ordinal);
+        return at < 0 ? label : label[..at].TrimEnd('\r');
     }
 
     /// <summary>The label as it will be drawn under <paramref name="fit"/>: the full text, a shortened one with

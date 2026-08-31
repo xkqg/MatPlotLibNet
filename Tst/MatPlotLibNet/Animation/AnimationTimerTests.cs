@@ -127,14 +127,30 @@ public class AnimationTimerTests
     [Fact]
     public async Task SystemTimer_FireWithoutTickSubscriber_DoesNotThrow()
     {
-        // Drives the `Tick?.Invoke(...)` null-conditional false arm — the timer fires,
-        // the lambda runs, and `Tick` is null (no subscriber), so the `?.` short-circuits.
+        // Drives the `Tick?.Invoke(...)` null-conditional false arm — the timer fires, the lambda runs, and
+        // `Tick` is null (no subscriber), so the `?.` short-circuits.
+        //
+        // A fixed 40 ms sleep used to decide whether that arm was ever reached, which made this class's BRANCH
+        // coverage a function of machine load: under the coverage collector the thread-pool callback sometimes
+        // did not run inside the window and the gate read 87.5 % (measured 2026-08-31). So: first PROVE this
+        // process is scheduling timer callbacks at all — with a subscribed probe that signals — and only then
+        // hold an unsubscribed timer open for a window that is two orders of magnitude wider than its interval.
+        using var fired = new ManualResetEventSlim(false);
+        using (var probe = new SystemThreadingAnimationTimer { Interval = TimeSpan.FromMilliseconds(5) })
+        {
+            probe.Tick += (_, _) => fired.Set();
+            probe.Start();
+            Assert.True(fired.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken),
+                "the process is not scheduling timer callbacks at all — nothing about the timer can be asserted");
+            probe.Stop();
+        }
+
         using var timer = new SystemThreadingAnimationTimer
         {
             Interval = TimeSpan.FromMilliseconds(5)
         };
         timer.Start();
-        await Task.Delay(40, TestContext.Current.CancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
         timer.Stop();
         // No exception expected — the null-conditional path is covered.
     }

@@ -60,6 +60,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   self-contained click script (`WithTreemapDrilldown`) still ships and still works in a saved SVG — but a page
   that injects the SVG as MARKUP never runs it, because a `<script>` inserted through `innerHTML` does not
   execute (HTML spec). A link works in both, and the URL is state a server-rendered page can hold.
+- **A treemap cell's `TreeNode.Label` takes NEWLINES** — a cell may say what it is and, under that, the measures
+  that do not fit beside a big number; each line is fitted to the cell on its own, and an interior node's header
+  strip keeps the first. The same rule `StatTileSeries.Caption` already had, because a tile and a cell answer
+  the same kind of question and a wall should not carry two idioms for it.
 - **A treemap cell can carry a MEASURE: `TreeNode.Headline`.** Drawn under the label and larger
   (`TreemapSeries.HeadlineFontSize`, default 20) in a leaf, and at the right end of the header strip in an
   interior node — the stat tile's anatomy inside the cell, which is how Grafana's Stat panel lays out a value
