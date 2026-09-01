@@ -8,9 +8,6 @@ namespace MatPlotLibNet.Models;
 /// <summary>Represents a node in a hierarchical tree structure, used by Treemap and Sunburst series.</summary>
 public sealed record TreeNode
 {
-    /// <summary>The node's name. NEWLINES stack: a cell may answer more than one question — what it is, and
-    /// the measures that do not fit beside the name — and each line is fitted to the cell on its own. An
-    /// interior node has only its header strip and keeps the first line.</summary>
     public string Label { get; init; } = "";
 
     public double Value { get; init; }
