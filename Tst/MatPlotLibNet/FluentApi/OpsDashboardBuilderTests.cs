@@ -242,4 +242,21 @@ public class OpsDashboardBuilderTests
         Assert.Equal(OpsDashboardBuilder.TileGap, figure.Spacing.HorizontalGap);
     }
 
+    /// <summary>The gutter the tiles are DRAWN with, not the one the builder declared. The test above pins the
+    /// value on the figure; this one pins what survives <see cref="FigureBuilder.TightLayout"/>, which recomputes
+    /// every gap from what each axes needs for its tick labels. A tile hides its axes entirely
+    /// (<c>HideAllAxes</c>), so it needs none of that room — and until this was pinned it was charged for it
+    /// anyway: measured 2026-09-01 on the nine-tile wall, cards 218 pt wide with a 57,5 pt gutter, five times the
+    /// declared 12. Owner, twice: <i>"de tegels mogen wat breder en de tussenruimte van de tegels mag kleiner"</i>.</summary>
+    [Fact]
+    public void TheTilesAreDrawn_WithTheGutterTheBuilderDeclared_NotTheOneTicksWouldNeed()
+    {
+        var figure = Plt.OpsDashboard().AddTile(1).AddTile(2).AddTile(3).Build().WithSize(1400, 260).Build();
+
+        var computed = new MatPlotLibNet.Rendering.Layout.ConstrainedLayoutEngine()
+            .Compute(figure, new MatPlotLibNet.Rendering.Svg.SvgRenderContext());
+
+        Assert.Equal(OpsDashboardBuilder.TileGap, computed.HorizontalGap);
+    }
+
 }

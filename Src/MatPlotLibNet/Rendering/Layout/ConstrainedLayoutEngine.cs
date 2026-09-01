@@ -205,10 +205,20 @@ internal sealed class ConstrainedLayoutEngine
         // Use the same dynamic formula CartesianAxesRenderer.RenderAxisLabels uses, so the
         // layout reserves exactly the space the renderer needs (no clipping, no waste).
         // Tick mark length + tick label pad mirror Axis.MajorTicks defaults from the active theme.
+        // Hidden major ticks draw NOTHING in this margin (CartesianAxesRenderer skips mark AND label on
+        // TickConfig.Visible=false), so an axes that hid them must not be charged for their width. The
+        // reservation is not only a margin: Compute widens the inter-subplot GUTTER to the same number, so a
+        // row of tiles paid it between every pair of cards. Measured 2026-09-01 on the nine-tile ops wall —
+        // cards 218 pt wide with a 57,5 pt gutter against the 12 the template asked for.
         var yMajor = axes.YAxis.MajorTicks;
-        string yTickProbe = EstimateYTickLabel(axes);
-        double maxYTickWidth = ctx.MeasureText(yTickProbe, tickFont).Width;
-        double leftNeeded = yMajor.Length + yMajor.Pad + maxYTickWidth + PadLeft;
+        double yTickExtent = 0;
+        if (yMajor.Visible)
+        {
+            string yTickProbe = EstimateYTickLabel(axes);
+            yTickExtent = yMajor.Length + yMajor.Pad + ctx.MeasureText(yTickProbe, tickFont).Width;
+        }
+
+        double leftNeeded = yTickExtent + PadLeft;
 
         if (axes.YAxis.Label is not null)
         {
@@ -217,7 +227,7 @@ internal sealed class ConstrainedLayoutEngine
             // We add labelHeight + PadLeft so the rotated text fits inside the figure left margin.
             const double YLabelGap = 12;
             double labelHeight = ctx.MeasureText(axes.YAxis.Label, labelFont).Height;
-            leftNeeded = yMajor.Length + yMajor.Pad + maxYTickWidth + YLabelGap + labelHeight + PadLeft;
+            leftNeeded = yTickExtent + YLabelGap + labelHeight + PadLeft;
         }
 
         // --- Bottom margin: X-tick labels + optional X-axis label ---
@@ -226,9 +236,9 @@ internal sealed class ConstrainedLayoutEngine
         //   xLabelBaseline = tickCellBottom + gap + labelAscent (≈ 0.8 × labelFont.Size)
         //   xLabelBottom   = xLabelBaseline + labelDescent (≈ 0.2 × labelFont.Size)
         var xMajor = axes.XAxis.MajorTicks;
-        double tickH = ctx.MeasureText("0", tickFont).Height;
-        double tickCellBottom = xMajor.Length + xMajor.Pad + tickH;
-        double bottomNeeded = XTickBottomGap + tickH + PadBottom;
+        double tickH = xMajor.Visible ? ctx.MeasureText("0", tickFont).Height : 0;
+        double tickCellBottom = xMajor.Visible ? xMajor.Length + xMajor.Pad + tickH : 0;
+        double bottomNeeded = xMajor.Visible ? XTickBottomGap + tickH + PadBottom : PadBottom;
 
         if (axes.XAxis.Label is not null)
         {
