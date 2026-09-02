@@ -9,7 +9,7 @@
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet</PackageId>
     <Version>1.14.4</Version>
-    <Description>A .NET 10 / .NET 8 charting library inspired by matplotlib with fluent API and multi-platform rendering.</Description>
+    <Description>A .NET 10 / .NET 8 charting library inspired by matplotlib: fluent API, DI-friendly, server-rendered SVG / PNG / PDF / animated GIF. 83 series types across 14 categories, 142 colormaps, 30 themes, LaTeX-style MathText, O(1) streaming, and a control room (Plt.OpsDashboard() - KPI tiles, state timelines and one shared trend window on a caller-supplied clock). No JavaScript framework, no WebView, no SaaS.</Description>
     <PackageTags>charting;plotting;charts;svg;blazor;maui;fluent-api</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
