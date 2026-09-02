@@ -3,13 +3,10 @@
 
 using MatPlotLibNet.AspNetCore;
 using MatPlotLibNet.Samples.Blazor.Components;
-using MatPlotLibNet.Samples.Blazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddMatPlotLibNetSignalR();
-builder.Services.AddSingleton<BusTelemetrySimulator>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<BusTelemetrySimulator>());
 
 var app = builder.Build();
 

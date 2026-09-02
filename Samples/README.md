@@ -39,8 +39,24 @@ dotnet run --project MatPlotLibNet.Samples.Blazor
 
 - `/` — static bar chart and scatter plot using `MatPlotLibNet.Blazor` control
 - `/live` — real-time chart updating every 3 seconds via SignalR
-- `/obs-dashboard` — control-room view of a simulated 15-bus federation (`Plt.OpsDashboard()`): quiet KPI tiles that carry no colour until something needs attention, a hatched tile for a source that has gone silent, and two rolling panels (throughput and latency percentiles) on a pinned time window. Window 1/5/15 min or 1 hour; refresh throttles the charts only — the tiles never slow down.
-  **It descends**: fleet → bus → process → lanes, with the level you left kept as a rail on the left so a sibling is one click away. Clicking a block goes one level down; clicking the strip's max or min jumps straight to the member that produced it. Blocks are one fixed size at every level and every count, lanes are rows rather than cards because they are the bottom, and the whole state is the URL (`?bus=`, `?process=`) so a descent can be pasted to a colleague.
+
+## Control room
+
+A sample of its own, because it is not an example of a control — it is a reference implementation of a SCREEN, with its own domain (bus → process → lane, alarm conditioning, a staleness clock) and a simulated federation that keeps running whether or not a browser is looking.
+
+```
+dotnet run --project MatPlotLibNet.Samples.ControlRoom
+```
+
+A simulated 15-bus federation on `Plt.OpsDashboard()`: quiet KPI tiles that carry no colour until something needs attention, a hatched tile for a source that has gone silent, and two rolling panels (throughput and latency percentiles) on a pinned time window. Window 1/5/15 min or 1 hour; refresh throttles the charts only — the tiles never slow down.
+
+**It descends.** Fleet → bus → process → lanes, and nothing is ever replaced: the level you leave becomes the rail on the left, still coloured, so a sibling is one click away and you never lose sight of what stands next to the thing you are reading.
+
+Two gestures, which is why either alone always felt stuck. Clicking a **block** is a drill-down — one level down the hierarchy. Clicking the **max** or the **min** in the strip is a drill-through: it leaves the aggregate for the member that produced it (the *exemplar*), and it is the reason an aggregate is worth clicking at all. At the bottom both stop being doorways, because a door that opens onto nothing is worse than no door.
+
+A block is ONE size at every level and at every count — a fixed track, never a fraction of the row. Two buses are two blocks with an empty row beside them; the emptiness is itself the information. Lanes are rows rather than cards because they are the bottom, and they are judged on a different question: a bus and a process are asked how hard they are working, a lane is asked whether it is keeping up, so it carries backlog, latency and errors instead.
+
+The whole state is the URL (`?bus=`, `?process=`): it survives every redraw, every block is an anchor so the descent is keyboard-reachable, and it can be pasted to a colleague mid-incident.
 
 ## WPF
 

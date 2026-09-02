@@ -145,7 +145,7 @@ For Blazor, see `MplLiveChart` in `MatPlotLibNet.Blazor` and the `Samples/MatPlo
 
 - **`Samples/MatPlotLibNet.Samples.AspNetCore`** — minimal ASP.NET Core + static HTML page demonstrating the full bidirectional loop without any frontend framework. Run with `dotnet run`, open the browser, wheel-zoom the chart.
 - **`Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Interactive.razor`** — Blazor equivalent at route `/interactive`.
-- **`Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/ObsDashboard.razor`** — the control room at `/obs-dashboard`: a tile row, a Processes drill-down that is rendered only while a tab has it open (`IChartSubscriptions`), and log-scale latency percentiles.
+- **`Samples/MatPlotLibNet.Samples.ControlRoom/Components/Pages/ControlRoom.razor`** — the control room, a sample of its own: a tile row, a descent from fleet to bus to process to lanes, two panels rendered only while a tab has them open (`IChartSubscriptions`), and log-scale latency percentiles.
 
 ## License
 

@@ -459,9 +459,10 @@ The headline is dropped before the name is: a number without its subject says no
 pads in log space and installs decade ticks (`10¹`, `10²`) by itself. For data that legitimately includes zero,
 `SetYScaleSymLog(linthresh)` keeps a linear band around it instead.
 
-### Live Blazor sample
+### The control-room sample
 
-`Samples/MatPlotLibNet.Samples.Blazor` serves `/obs-dashboard`: a simulated federation of 15 buses.
+`Samples/MatPlotLibNet.Samples.ControlRoom` serves a simulated federation of 15 buses, and descends into it:
+fleet → bus → process → lanes, with the level you leave kept as a rail so a sibling is one click away.
 Measurement runs at a fixed 250 ms and never waits for a render; the refresh knob throttles the *charts*
 only — the tiles never slow down, because history may lag and a warning may not. The window (1 / 5 / 15 min,
 1 hour) re-buckets the same measurements: rates keep a min/max envelope so a five-second burst survives a

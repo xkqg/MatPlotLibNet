@@ -1,7 +1,7 @@
-﻿@page "/obs-dashboard"
+@page "/"
 @using MatPlotLibNet.Models
 @using MatPlotLibNet.Models.Series
-@using MatPlotLibNet.Samples.Blazor.Services
+@using MatPlotLibNet.Samples.ControlRoom.Services
 @using MatPlotLibNet.Styling
 @implements IDisposable
 @inject BusTelemetrySimulator Simulator
@@ -63,7 +63,7 @@
    every block is an anchor, and it can be pasted into a chat message during an incident. *@
 
 <nav class="crumbs" aria-label="Where you are">
-    <a href="/obs-dashboard" class="@(BusId is null ? "here" : null)">Fleet</a>
+    <a href="/" class="@(BusId is null ? "here" : null)">Fleet</a>
     @if (CurrentBus is { } b)
     {
         <span class="sep">›</span>
@@ -212,10 +212,10 @@
     private Process? CurrentProcess =>
         ProcessId is null ? null : CurrentBus?.Processes.FirstOrDefault(p => p.Id == ProcessId);
 
-    private static string BusUrl(string id) => $"/obs-dashboard?bus={Uri.EscapeDataString(id)}";
+    private static string BusUrl(string id) => $"/?bus={Uri.EscapeDataString(id)}";
 
     private static string ProcessUrl(string busId, string processId) =>
-        $"/obs-dashboard?bus={Uri.EscapeDataString(busId)}&process={Uri.EscapeDataString(processId)}";
+        $"/?bus={Uri.EscapeDataString(busId)}&process={Uri.EscapeDataString(processId)}";
 
     /// <summary>The last segment of an identity — the wall has the path in its breadcrumb already.</summary>
     private static string ShortName(string id) => id[(id.LastIndexOf('/') + 1)..];

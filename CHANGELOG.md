@@ -7,7 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.14.4]
 ### Added
 
-- **The obs-dashboard sample descends.** `/obs-dashboard` now walks fleet → bus → process → lanes, and nothing
+- **The control room is a sample of its own** — `MatPlotLibNet.Samples.ControlRoom`, served at `/`. It is not
+  an example of a control but a reference implementation of a SCREEN, with its own domain (bus → process →
+  lane, alarm conditioning, a staleness clock) and a simulated federation that keeps running whether or not
+  a browser is looking. The Blazor sample goes back to what it is for: the `MplChart` and `MplLiveChart`
+  controls in a Blazor host.
+- **The control room descends.** It walks fleet → bus → process → lanes, and nothing
   is ever replaced: the level you leave becomes the rail on the left, still coloured, so a sibling is one click
   away and you never lose sight of what stands next to the thing you are reading. Two gestures, which is why
   either alone always felt stuck — clicking a BLOCK goes one level down the hierarchy, clicking the max or the
