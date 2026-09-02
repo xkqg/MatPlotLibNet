@@ -34,7 +34,7 @@ public readonly record struct TreeGridRow(string Label, IReadOnlyList<string> Ce
 ///
 /// <para><b>Why beside the treemap and not instead of it.</b> A treemap answers "who is big" pre-attentively and
 /// stops there: NN/g puts its useful depth at two or three levels and says a rectangle too small for its label
-/// must fall back to a tooltip. Measured on this fleet 2026-08-30: two lanes of twenty-three carried every
+/// must fall back to a tooltip. Measured on a live fleet: two lanes of twenty-three carried every
 /// message in an hour — as area that is two rectangles and twenty-one slivers, while as rows it is a column of
 /// numbers you can compare exactly. Composition in the map, comparison in the grid.</para>
 ///
