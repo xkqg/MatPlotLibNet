@@ -174,17 +174,19 @@ public class OpsDashboardBuilderTests
 
         Assert.Equal(First(), First());
     }
-    /// <summary>A tile row has a MAXIMUM WIDTH (owner 2026-08-30: <i>"maximum 8 tegels op een row"</i>). Past it the
-    /// row wraps, and the wrap is BALANCED — nine tiles read as 5+4, never as 8+1, because a lone tile on a second
-    /// row is a layout accident an operator reads as a category.</summary>
+    /// <summary>A tile row is EIGHT TILES WIDE and wraps at eight (owner 2026-08-30: <i>"maximum 8 tegels op een
+    /// row"</i>; again 2026-09-02 on a nine-tile wall: <i>"wat we hadden is 8 tegels / row"</i>). A row FILLS
+    /// before the next one starts — the balanced wrap (9 as 5+4) was tried and rejected: the figure it produces
+    /// is narrower than the wall it hangs on, and a page that fits the SVG to its own width then scales that
+    /// narrower figure UP, so every card comes out bigger than the one size a card is supposed to have.</summary>
     [Theory]
     [InlineData(1, 1, 1)]
     [InlineData(8, 8, 1)]
-    [InlineData(9, 5, 2)]
+    [InlineData(9, 8, 2)]
     [InlineData(15, 8, 2)]
     [InlineData(16, 8, 2)]
-    [InlineData(17, 6, 3)]
-    public void ATileRow_WrapsAtEightAndTheWrapIsBalanced(int tiles, int expectedPerRow, int expectedRows)
+    [InlineData(17, 8, 3)]
+    public void ATileRow_IsEightWide_AndFillsBeforeItWraps(int tiles, int expectedPerRow, int expectedRows)
     {
         var dashboard = Plt.OpsDashboard();
         for (var i = 0; i < tiles; i++)

@@ -134,11 +134,13 @@ public sealed class OpsDashboardBuilder
                 "An ops dashboard needs at least one tile: the tile row is what an operator reads first.");
         }
 
-        // A tile row has a maximum WIDTH: past it the row wraps, BALANCED (9 tiles read as 5+4, never 8+1 — a lone
-        // tile on a second row is a layout accident an operator reads as a category). Owner 2026-08-30, on a
-        // fifteen-tile wall: "maximum 8 tegels op een row".
+        // A tile row is EIGHT tiles wide and FILLS before the next row starts (owner 2026-08-30 "maximum 8
+        // tegels op een row"; again 2026-09-02 on a nine-tile wall: "wat we hadden is 8 tegels / row").
+        // The balanced wrap (9 as 5+4) was tried and rejected on exactly that wall: it makes the FIGURE
+        // narrower than the page it hangs on, and a host that fits the SVG to its own width scales that
+        // narrower figure UP — so the cards come out wider AND taller than the one size a card has.
         int tileRows = ((_tiles.Count - 1) / MaxTilesPerRow) + 1;
-        int columns = ((_tiles.Count - 1) / tileRows) + 1;
+        int columns = Math.Min(_tiles.Count, MaxTilesPerRow);
         int trendRows = _trends.Count > 0 ? 1 : 0;
         int rows = tileRows + _timelines.Count + trendRows;
 

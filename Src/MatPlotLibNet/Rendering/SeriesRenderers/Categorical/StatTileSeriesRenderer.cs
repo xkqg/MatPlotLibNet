@@ -45,8 +45,10 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
     /// <inheritdoc />
     public StatTileSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
-    /// <summary>The chevron's size — the disclosure mark in the tile's top-right corner.</summary>
-    private const double ChevronSize = 8;
+    /// <summary>The chevron's size — the disclosure mark in the tile's top-right corner. It is a POINTING
+    /// DEVICE TARGET, so it is sized to be aimed at rather than merely seen (WCAG 2.5.8 asks 24x24 CSS px for
+    /// one; the whole card is the real target and this is its mark, so it sits under that at 14).</summary>
+    private const double ChevronSize = 14;
 
     /// <summary>Inset from the tile's corner to the chevron.</summary>
     private const double ChevronInset = 8;
@@ -64,6 +66,7 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
             var where = series.Expanded ? "close details" : "open details";
             var aria = string.IsNullOrEmpty(series.Label) ? where : $"{series.Label} — {where}";
             Ctx.BeginHyperlink(series.Url!, aria, series.Expanded);
+            RenderHitArea(bounds);
         }
 
         RenderBody(series, bounds);
@@ -73,6 +76,18 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
             RenderChevron(series, bounds);
             Ctx.EndHyperlink();
         }
+    }
+
+    /// <summary>The card's own hit area: a rectangle over the tile's bounds that paints NOTHING and takes every
+    /// pointer event. An anchor wrapped around text and a sparkline is only hittable where ink actually lands, so
+    /// without this a reader has to aim at a glyph (reported from an ops wall, 2026-09-02). Fill-opacity 0 rather
+    /// than <c>fill="none"</c>: a transparent fill is still PAINTED as far as hit-testing is concerned, an absent
+    /// one is not.</summary>
+    private void RenderHitArea(Rect bounds)
+    {
+        Ctx.BeginGroup("mpl-tile-hit");
+        Ctx.DrawRectangle(bounds, new ShapeStyle(Context.Theme.AxesBackground with { A = 0 }, null, 0));
+        Ctx.EndGroup();
     }
 
     /// <summary>The disclosure chevron: right-pointing while the linked detail is closed ("there is more"),

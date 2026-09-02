@@ -4,8 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [1.14.4]
-### Added
+## [1.14.4]
+### Added
+
+- **A tile row is eight wide and FILLS before it wraps.** The balanced wrap (nine tiles as 5+4) was tried on a
+  real ops wall and rejected: it makes the FIGURE narrower than the page it hangs on, and the SVG root carries
+  `width:100%;height:auto`, so a host fits that narrower figure to its own width and scales it UP — measured at
+  900,5 pt into a 1400 pt page, every card came out 1,55× wider *and* taller than the one size a card has.
+  A row now fills to `MaxTilesPerRow` and the remainder starts the next row.
+- **The whole tile CARD is clickable, not just the ink on it.** An anchor around text and a sparkline is only
+  hittable where something is painted, so a reader had to aim at a glyph. A linked tile now carries a
+  transparent hit rect (`mpl-tile-hit`, fill-opacity 0 — still painted for hit-testing, where `fill="none"` is
+  not) over its own bounds, and the disclosure chevron grew from 8 to 14 px: it is a pointing-device target,
+  not only a mark to be seen.
 
 - **The control room's alarms have a lifecycle.** The Alarms tile was a re-derived count; it is now a doorway
   onto a book (`AlarmBook`, in the sample's observability layer): a condition RAISES an alarm, an operator may
