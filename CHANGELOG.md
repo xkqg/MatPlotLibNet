@@ -5,16 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.14.4]
+### Added
+
+- **The obs-dashboard sample descends.** `/obs-dashboard` now walks fleet → bus → process → lanes, and nothing
+  is ever replaced: the level you leave becomes the rail on the left, still coloured, so a sibling is one click
+  away and you never lose sight of what stands next to the thing you are reading. Two gestures, which is why
+  either alone always felt stuck — clicking a BLOCK goes one level down the hierarchy, clicking the max or the
+  min in the strip leaves the aggregate for the member that produced it (the exemplar). The whole state is the
+  URL (`?bus=`, `?process=`): it survives every redraw, every block is an anchor so it is keyboard-reachable,
+  and it can be pasted into a chat message during an incident.
+- **A block is ONE size, at every level and at every count** — a fixed track, never a fraction of the row. Two
+  buses are two blocks with an empty row beside them; the emptiness is itself the information, where a stretched
+  pair claims a width the fleet does not have.
+- **Lanes are the bottom, and they are judged on a different question.** A bus and a process are asked how hard
+  they are working, and CPU answers that; a lane is asked whether it is KEEPING UP, which CPU cannot answer at
+  all — a lane that has stopped delivering burns none. So the lane row carries backlog, latency and errors with
+  a status chip, and stops being a card: at that level you are comparing five numbers across a handful of lanes,
+  and a grid of cards makes that the hardest thing to do. At the bottom the max and min stop being doorways,
+  because a door that opens onto nothing is worse than no door.
+
 ### Fixed
 
 - **A tile's stack is anchored, not centred.** However many caption lines a tile carries, its number and its
-  label sit at the same height — measured on an ops row 2026-08-31: y = 65, 72 and 79 across one row, because a
+  label sit at the same height — measured on an ops row: y = 65, 72 and 79 across one row, because a
   centred stack moves each number by half of whatever that tile happens to carry. The captions grow DOWN into
-  the room the anatomy reserves. This supersedes the 2026-08-30 rule that lifted the block instead.
+  the room the anatomy reserves. This supersedes the earlier rule that lifted the block instead.
 - **A row of stat tiles now has ONE anatomy.** The trend strip is reserved whether or not a tile carries a
   sparkline, so the number, its label and its caption sit at the same height in every tile of a row. A tile
   without a trend used to centre its stack in the full height and sat ~19 px lower than its neighbours —
-  visible as a broken line of numbers across an ops row (reported 2026-08-31). A tile without a sparkline now
+  visible as a broken line of numbers across an ops row. A tile without a sparkline now
   leaves that strip empty instead of growing into it.
 
 ### Added
@@ -84,7 +103,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **A log axis DRAWS.** An auto-ranged `AxisScale.Log` axis padded its margin in RAW space, expanded to the
   LINEAR nice bounds (2..250 → 0..300), turned that floor into `NaN` and every point with it — a blank panel with
-  linear ticks (measured 2026-08-30 on a µs latency panel). One 0-valued point did the same even under pinned
+  linear ticks (measured on a µs latency panel). One 0-valued point did the same even under pinned
   limits. Now: a series on a log axis ranges over its POSITIVE values only (`IAxesContext.XScale`/`YScale`;
   matplotlib's `nonpositive='mask'`), the margin is padded in log space, the nice-bounds step is skipped for a
   log axis, a non-positive floor is lifted, a `LogLocator` + `LogTickFormatter` install themselves when no

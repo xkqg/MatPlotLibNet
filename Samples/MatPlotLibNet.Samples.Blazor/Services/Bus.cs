@@ -110,14 +110,18 @@ public sealed class Bus
     }
 }
 
-/// <summary>One process on a bus.</summary>
+/// <summary>One process on a bus, with the lanes it carries.</summary>
 public sealed class Process
 {
     /// <summary>How many load samples a process remembers — enough for a three-minute strip at the sample rate.</summary>
     public const int TrendLength = 60;
 
+    private static readonly string[] LaneNames =
+        ["obs-ingest", "metrics-fold", "audit-store", "kline-publish", "log-drain"];
+
     private readonly Conditioned _condition = new();
     private readonly Queue<double> _loads = new(TrendLength);
+    private readonly List<Lane> _lanes = [];
     private readonly double _idle;
 
     /// <summary>Creates a process.</summary>
@@ -127,7 +131,16 @@ public sealed class Process
         Id = id;
         // Every process has its own resting load, so the wall is not twenty identical cells.
         _idle = 2 + (Math.Abs(id.GetHashCode(StringComparison.Ordinal)) % 900) / 100.0;
+        // Its lanes: how many is a property of the process, so a wall of processes is not a wall of clones.
+        int count = 1 + Math.Abs(id.GetHashCode(StringComparison.Ordinal)) % LaneNames.Length;
+        for (int i = 0; i < count; i++)
+        {
+            _lanes.Add(new Lane($"{id}/{LaneNames[i]}"));
+        }
     }
+
+    /// <summary>The lanes this process carries — the bottom of the descent.</summary>
+    public IReadOnlyList<Lane> Lanes => _lanes;
 
     /// <summary>CPU, as a percentage of ONE core — the unit a process measures itself in (a value above 100
     /// means more than one core). Never divided by the machine's core count: that is how 6 % becomes an alarm.</summary>
@@ -161,6 +174,98 @@ public sealed class Process
         {
             _loads.Dequeue();
         }
+
+        foreach (var lane in _lanes)
+        {
+            lane.Evolve(rng, now, Load / _lanes.Count);
+        }
+    }
+
+    /// <summary>Its conditioned state, worst-child-wins across its lanes — the same rule the bus applies to
+    /// its processes, for the same reason: one lane that has stopped keeping up is precisely what you are
+    /// looking for, and an average is precisely the operation that hides it.</summary>
+    /// <param name="now">The current instant.</param>
+    /// <returns>The state.</returns>
+    public OpsState State(DateTime now)
+    {
+        var worst = _condition.State;
+        foreach (var lane in _lanes)
+        {
+            var state = lane.State(now);
+            if (state > worst)
+            {
+                worst = state;
+            }
+        }
+
+        return worst;
+    }
+}
+
+/// <summary>One lane inside a process — the bottom of the descent, and the only level that is judged on a
+/// different question.
+///
+/// <para>A bus and a process are asked <i>how hard are you working</i>, and CPU answers that. A lane is asked
+/// whether it is <b>keeping up</b>, and CPU cannot answer it at all: a lane that has stopped delivering burns
+/// no CPU whatsoever. So the judgement here comes from the backlog it is carrying, the latency it is adding and
+/// the errors it is throwing — and the load is kept only so the colour of a lane means the same thing as the
+/// colour of everything above it.</para></summary>
+public sealed class Lane
+{
+    private readonly Conditioned _condition = new();
+    private readonly double _capacity;
+
+    /// <summary>Creates a lane.</summary>
+    /// <param name="id">Its identity — the process path plus the lane's own name.</param>
+    public Lane(string id)
+    {
+        Id = id;
+        _capacity = 400 + Math.Abs(id.GetHashCode(StringComparison.Ordinal)) % 1200;
+    }
+
+    /// <summary>The lane identity.</summary>
+    public string Id { get; }
+
+    /// <summary>The lane's own name, without the process path in front of it.</summary>
+    public string Name => Id[(Id.LastIndexOf('/') + 1)..];
+
+    /// <summary>Its share of the process's load, so one colour rule holds at every level.</summary>
+    public double Load { get; private set; }
+
+    /// <summary>Messages delivered per second.</summary>
+    public double Delivered { get; private set; }
+
+    /// <summary>Messages accepted and not yet delivered. THE number at this level: a backlog that grows is a
+    /// consumer that has already lost, whatever the CPU says.</summary>
+    public double Backlog { get; private set; }
+
+    /// <summary>Microseconds this lane adds per message.</summary>
+    public double Latency { get; private set; }
+
+    /// <summary>Errors per minute — zero on a healthy lane, and never rounded away to look like zero.</summary>
+    public double Errors { get; private set; }
+
+    /// <summary>Advances the simulation by one tick.</summary>
+    /// <param name="rng">The random source.</param>
+    /// <param name="now">The current instant.</param>
+    /// <param name="share">This lane's share of its process's load.</param>
+    public void Evolve(Random rng, DateTime now, double share)
+    {
+        Load = Math.Max(0, share + (rng.NextDouble() - 0.5) * 4);
+        Delivered = Math.Max(0, _capacity * (0.6 + rng.NextDouble() * 0.5));
+
+        // The backlog is where a lane's trouble becomes visible: it grows while the lane is behind and drains
+        // when it catches up, so it carries HISTORY in a way an instantaneous rate never does.
+        double pressure = Load > 60 ? Load - 60 : -12;
+        Backlog = Math.Max(0, Backlog + pressure * 0.6 + (rng.NextDouble() - 0.5) * 6);
+        Latency = 30 + Backlog * 0.7 + rng.NextDouble() * 40;
+        Errors = Backlog > 250 ? Math.Round((Backlog - 250) / 120.0, 1) : 0;
+
+        // Backlog first, errors second, latency last — the order an operator would read them in.
+        OpsState raw = Errors > 0 || Backlog > 250 ? OpsState.Critical
+            : Backlog > 80 || Latency > 220 ? OpsState.Degraded
+            : OpsState.Normal;
+        _condition.Observe(raw, now, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(8));
     }
 
     /// <summary>Its conditioned state.</summary>

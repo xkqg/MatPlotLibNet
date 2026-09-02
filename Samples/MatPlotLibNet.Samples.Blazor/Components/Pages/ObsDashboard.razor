@@ -49,12 +49,119 @@
     }
 </div>
 
-@if (Panel == "processes")
+@* ── the descent ────────────────────────────────────────────────────────────────────────────────────────
+   Fleet → bus → process → lanes, and NOTHING is ever replaced. The level you leave becomes the rail on the
+   left, still coloured and still live, so you can step sideways to a sibling without going back up first —
+   and you never lose sight of what stands next to the thing you are reading.
+
+   Two different gestures live here, which is why one of them alone always felt stuck. Clicking a BLOCK is a
+   drill-DOWN: one level down the hierarchy. Clicking the max or the min in the strip is a drill-THROUGH: it
+   leaves the aggregate for the member that produced it. The second is what the metrics world calls an
+   EXEMPLAR, and it is the reason an aggregate is worth clicking at all.
+
+   The whole state is the URL (?bus=, ?process=): it survives every redraw, it is keyboard-reachable because
+   every block is an anchor, and it can be pasted into a chat message during an incident. *@
+
+<nav class="crumbs" aria-label="Where you are">
+    <a href="/obs-dashboard" class="@(BusId is null ? "here" : null)">Fleet</a>
+    @if (CurrentBus is { } b)
+    {
+        <span class="sep">›</span>
+        <a href="@BusUrl(b.Id)" class="@(ProcessId is null ? "here" : null)">@ShortName(b.Id)</a>
+    }
+    @if (CurrentProcess is { } p)
+    {
+        <span class="sep">›</span>
+        <span class="here">@ShortName(p.Id)</span>
+    }
+</nav>
+
+@{
+    var level = CurrentLevel();
+}
+
+<div class="strip">
+    <div class="strip-label">
+        <b>@level.Label</b>
+        <i>@level.Count @level.Unit@(level.Deviating > 0 ? $" · {level.Deviating} deviating" : "")</i>
+    </div>
+    <div class="strip-stat">
+        <span class="k">mean load</span>
+        <span class="v">@level.Mean.ToString("0.0")%</span>
+        <span class="w">across all @level.Unit</span>
+    </div>
+    @* A doorway, and it must LOOK walkable. At the bottom there is nowhere left to walk, so the same two
+       numbers render as plain text instead — a door that opens onto nothing is worse than no door. *@
+    @if (level.MaxUrl is null)
+    {
+        <div class="strip-stat"><span class="k">max</span><span class="v">@level.Max.ToString("0.0")%</span><span class="w">@level.MaxOf</span></div>
+        <div class="strip-stat"><span class="k">min</span><span class="v">@level.Min.ToString("0.0")%</span><span class="w">@level.MinOf</span></div>
+    }
+    else
+    {
+        <a class="strip-stat door" href="@level.MaxUrl"><span class="k">max ↳</span><span class="v">@level.Max.ToString("0.0")%</span><span class="w">@level.MaxOf</span></a>
+        <a class="strip-stat door" href="@level.MinUrl"><span class="k">min ↳</span><span class="v">@level.Min.ToString("0.0")%</span><span class="w">@level.MinOf</span></a>
+    }
+</div>
+
+<div class="stage @(CurrentBus is null ? null : "focused")">
+    @if (CurrentBus is { } focused)
+    {
+        <aside class="rail" aria-label="Siblings">
+            @foreach (var (id, url, load, state, current) in Siblings())
+            {
+                <a class="mini @(current ? "on" : null)" href="@url" aria-current="@(current ? "true" : "false")">
+                    <span class="band @StateClass(state)"></span>
+                    <span class="nm">@ShortName(id)</span>
+                    <span class="vl">@load.ToString("0.0")</span>
+                </a>
+            }
+        </aside>
+    }
+
+    <div class="stage-body">
+        @if (CurrentProcess is { } proc)
+        {
+            @* Lanes are the bottom, so they stop being cards and become rows: at this level you are comparing
+               five numbers across a handful of lanes, and a grid of cards makes that the hardest thing to do. *@
+            <div class="lane-head">
+                <span></span><span>lane</span><span>load</span><span>delivered</span><span>backlog</span><span>latency</span><span>errors / min</span><span></span>
+            </div>
+            <div class="lanes">
+                @foreach (var lane in proc.Lanes)
+                {
+                    var st = lane.State(DateTime.UtcNow);
+                    <div class="lane">
+                        <span class="band @StateClass(st)"></span>
+                        <span class="nm">@lane.Name</span>
+                        <span class="cell"><span class="k">load</span><span class="v">@lane.Load.ToString("0.0")%</span></span>
+                        <span class="cell"><span class="k">delivered</span><span class="v">@lane.Delivered.ToString("#,##0")/s</span></span>
+                        <span class="cell"><span class="k">backlog</span><span class="v @(lane.Backlog > 250 ? "bad" : lane.Backlog > 80 ? "flag" : null)">@lane.Backlog.ToString("#,##0")</span></span>
+                        <span class="cell"><span class="k">latency</span><span class="v @(lane.Latency > 220 ? "flag" : null)">@lane.Latency.ToString("0") µs</span></span>
+                        <span class="cell"><span class="k">errors</span><span class="v @(lane.Errors > 0 ? "bad" : null)">@lane.Errors.ToString("0.0")</span></span>
+                        <span class="chip @StateClass(st)">@st.ToString().ToLowerInvariant()</span>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="blocks">
+                @foreach (var block in Blocks())
+                {
+                    <a href="@block.Url" class="block">
+                        <MplChart Figure="@block.Figure" />
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (CurrentBus is not null && CurrentProcess is null)
 {
-    @* The drill-down: composition NOW (one equal cell per process, colour = load) above trend SINCE WHEN
-       (small multiples of the hottest eight). Two live charts, rendered by the simulator ONLY while a tab
-       has them open — the hub's subscription ledger is what the simulator asks. The open/closed state is the
-       URL: it survives every redraw, it is keyboard-reachable (the tile is an anchor), and it can be pasted. *@
+    @* The two LIVE charts, rendered by the simulator ONLY while a tab has them open — the hub's subscription
+       ledger is what the simulator asks. They belong at the bus level: composition NOW above trend SINCE WHEN. *@
     <div class="drilldown">
         <MplLiveChart ChartId="@BusTelemetrySimulator.ProcessesChartId" HubUrl="/charts-hub" />
         <MplLiveChart ChartId="@BusTelemetrySimulator.ProcessTrendChartId" HubUrl="/charts-hub" />
@@ -91,10 +198,135 @@
         ("10 s", TimeSpan.FromSeconds(10))
     ];
 
-    /// <summary>Which drill-down is open — the URL's <c>?panel=</c>. Page state on purpose: the simulator is
-    /// process-wide, and one operator's drill-down must not open on every wall.</summary>
-    [SupplyParameterFromQuery(Name = "panel")]
-    public string? Panel { get; set; }
+    /// <summary>How deep the descent stands — the URL's <c>?bus=</c> and <c>?process=</c>. Page state on
+    /// purpose: the simulator is process-wide, and one operator's descent must not open on every wall.</summary>
+    [SupplyParameterFromQuery(Name = "bus")]
+    public string? BusId { get; set; }
+
+    /// <inheritdoc cref="BusId"/>
+    [SupplyParameterFromQuery(Name = "process")]
+    public string? ProcessId { get; set; }
+
+    private Bus? CurrentBus => BusId is null ? null : Simulator.Buses.FirstOrDefault(b => b.Id == BusId);
+
+    private Process? CurrentProcess =>
+        ProcessId is null ? null : CurrentBus?.Processes.FirstOrDefault(p => p.Id == ProcessId);
+
+    private static string BusUrl(string id) => $"/obs-dashboard?bus={Uri.EscapeDataString(id)}";
+
+    private static string ProcessUrl(string busId, string processId) =>
+        $"/obs-dashboard?bus={Uri.EscapeDataString(busId)}&process={Uri.EscapeDataString(processId)}";
+
+    /// <summary>The last segment of an identity — the wall has the path in its breadcrumb already.</summary>
+    private static string ShortName(string id) => id[(id.LastIndexOf('/') + 1)..];
+
+    private static string StateClass(OpsState state) => state switch
+    {
+        OpsState.Critical => "critical",
+        OpsState.Degraded => "degraded",
+        OpsState.Unknown => "unknown",
+        _ => "normal"
+    };
+
+    /// <summary>What the strip above the stage says at this depth: the mean over the population, the two
+    /// extremes, and — unless this is the bottom — where each extreme leads.</summary>
+    private readonly record struct Level(
+        string Label, string Unit, int Count, int Deviating,
+        double Mean, double Max, double Min, string MaxOf, string MinOf, string? MaxUrl, string? MinUrl);
+
+    private Level CurrentLevel()
+    {
+        var now = DateTime.UtcNow;
+
+        if (CurrentProcess is { } proc)
+        {
+            var lanes = proc.Lanes;
+            return Summarise("Lanes of " + ShortName(proc.Id), "lanes", now,
+                [.. lanes.Select(l => (l.Id, l.Load, l.State(now), (string?)null))]);
+        }
+
+        if (CurrentBus is { } bus)
+        {
+            return Summarise(ShortName(bus.Id), "processes", now,
+                [.. bus.Processes.Select(p => (p.Id, p.Load, p.State(now), (string?)ProcessUrl(bus.Id, p.Id)))]);
+        }
+
+        // The fleet's own load is its busiest process per bus — the same worst-child-wins rule the state uses,
+        // so the number and the colour of a block can never tell two different stories.
+        return Summarise("Fleet", "buses", now,
+            [.. Simulator.Buses.Select(b =>
+                (b.Id, b.Processes.Count == 0 ? 0 : b.Processes.Max(p => p.Load), b.State(now), (string?)BusUrl(b.Id)))]);
+    }
+
+    private static Level Summarise(string label, string unit, DateTime now,
+        IReadOnlyList<(string Id, double Load, OpsState State, string? Url)> members)
+    {
+        if (members.Count == 0)
+        {
+            return new Level(label, unit, 0, 0, 0, 0, 0, "—", "—", null, null);
+        }
+
+        var max = members.MaxBy(m => m.Load);
+        var min = members.MinBy(m => m.Load);
+        return new Level(
+            label, unit, members.Count, members.Count(m => m.State >= OpsState.Degraded),
+            members.Average(m => m.Load), max.Load, min.Load,
+            ShortName(max.Id), ShortName(min.Id), max.Url, min.Url);
+    }
+
+    /// <summary>The rail: the level you LEFT, still coloured, so a sibling is one click away and you never
+    /// lose sight of what stands next to the thing you are reading.</summary>
+    private IEnumerable<(string Id, string Url, double Load, OpsState State, bool Current)> Siblings()
+    {
+        var now = DateTime.UtcNow;
+
+        if (CurrentProcess is not null && CurrentBus is { } owner)
+        {
+            foreach (var p in owner.Processes)
+            {
+                yield return (p.Id, ProcessUrl(owner.Id, p.Id), p.Load, p.State(now), p.Id == ProcessId);
+            }
+            yield break;
+        }
+
+        foreach (var b in Simulator.Buses)
+        {
+            double load = b.Processes.Count == 0 ? 0 : b.Processes.Max(p => p.Load);
+            yield return (b.Id, BusUrl(b.Id), load, b.State(now), b.Id == BusId);
+        }
+    }
+
+    /// <summary>The stage: one block per member of THIS level, every block the same size at every depth and at
+    /// every count. Two buses are two blocks with an empty row beside them — the emptiness is itself the
+    /// information, where a stretched pair would claim a size the fleet does not have.</summary>
+    private IEnumerable<(string Url, Figure Figure)> Blocks()
+    {
+        var now = DateTime.UtcNow;
+
+        if (CurrentBus is { } bus)
+        {
+            foreach (var p in bus.Processes)
+            {
+                yield return (ProcessUrl(bus.Id, p.Id),
+                    Block(ShortName(p.Id), p.Load, p.State(now), $"{p.Lanes.Count} lanes", [.. p.LoadTrend]));
+            }
+            yield break;
+        }
+
+        foreach (var b in Simulator.Buses)
+        {
+            var loads = b.Processes.Select(p => p.Load).DefaultIfEmpty(0).ToArray();
+            yield return (BusUrl(b.Id),
+                Block(ShortName(b.Id), loads.Max(), b.State(now),
+                    $"mean {loads.Average():0.0} · min {loads.Min():0.0} · {b.Processes.Count} proc",
+                    [.. b.Processes.SelectMany(p => p.LoadTrend.TakeLast(1))]));
+        }
+    }
+
+    /// <summary>One block. The number is the MAX of what it contains, because a bus whose busiest process is
+    /// pegged is a busy bus however calm its average looks.</summary>
+    private static Figure Block(string name, double load, OpsState state, string caption, double[] trend)
+        => Tile(load, name, caption, state, format: "0.0'%'", trend: trend.Length > 1 ? trend : null);
 
     private Timer? _tick;
 
@@ -117,15 +349,18 @@
             s.BusesDeviating > 0 ? $"of {s.Buses} · click to see which" : $"all {s.Buses} normal",
             s.BusState);
 
-        bool open = Panel == "processes";
+        // The tile LEADS somewhere: an SVG anchor (no script), a chevron (▸ closed / ▾ open), a pointer and an
+        // aria-label — three cues, never colour alone. It leads to the BUSIEST bus, which is the exemplar
+        // gesture in miniature: the number you are staring at, and one click to whoever produced it.
+        var busiest = Simulator.Buses
+            .OrderByDescending(b => b.Processes.Count == 0 ? 0 : b.Processes.Max(p => p.Load))
+            .FirstOrDefault();
         yield return Tile(
             s.ProcessesDeviating > 0 ? s.ProcessesDeviating : s.Processes,
             "Processes",
             s.ProcessesDeviating > 0 ? $"of {s.Processes} · click to see which" : $"all {s.Processes} normal",
             s.ProcessState, trend: Simulator.PublishTrend,
-            // The tile LEADS somewhere: an SVG anchor (no script), a chevron (▸ closed / ▾ open), a pointer
-            // and an aria-label — three cues, never colour alone. The link toggles the URL's ?panel=.
-            link: new TileLink(open ? "/obs-dashboard" : "/obs-dashboard?panel=processes", open));
+            link: busiest is null ? null : new TileLink(BusUrl(busiest.Id), BusId is not null));
 
         yield return Tile(s.P99, "RFx p99", $"target ≤ 25 ms · {(s.P99 <= 25 ? "within" : $"+{s.P99 - 25:0.0} over")}",
             s.P99 > 30 ? OpsState.Critical : s.P99 > 25 ? OpsState.Degraded : OpsState.Normal,
@@ -206,6 +441,71 @@
     .charts { display: flex; gap: 8px; flex-wrap: wrap; }
     .drilldown { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; }
     /* The tile is an anchor: a keyboard user needs to SEE where focus is (WCAG 2.4.7). */
-    .tiles a:focus-visible { outline: 2px solid #56B4E9; outline-offset: 2px; }
+    .tiles a:focus-visible, .stage a:focus-visible, .crumbs a:focus-visible { outline: 2px solid #56B4E9; outline-offset: 2px; }
     .hint { font-size: 13px; opacity: .7; max-width: 80ch; }
+
+    /* ── the descent ─────────────────────────────────────────────────────────────────────────────
+       The four semantic shades are the tile theme's, so a band in the rail and the accent inside a
+       figure mean the same thing. Colour is never the only cue: every state also has a word. */
+    .band.normal, .chip.normal { --state: #6b7784; }
+    .band.degraded, .chip.degraded { --state: #E69F00; }
+    .band.critical, .chip.critical { --state: #D55E00; }
+    .band.unknown, .chip.unknown { --state: #8a7fa8; }
+
+    .crumbs { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; font-size: 14px; }
+    .crumbs .sep { opacity: .45; }
+    .crumbs .here { font-weight: 600; text-decoration: none; }
+
+    .strip { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; border: 1px solid #d0d5db;
+             border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+    .strip-label { padding: 8px 14px; border-right: 1px solid #d0d5db; display: flex; flex-direction: column; min-width: 170px; }
+    .strip-label b { font-size: 14px; }
+    .strip-label i { font-style: normal; font-size: 11px; opacity: .6; letter-spacing: .06em; text-transform: uppercase; }
+    .strip-stat { padding: 8px 16px; border-right: 1px solid #e3e7eb; display: flex; flex-direction: column; min-width: 130px;
+                  text-decoration: none; color: inherit; }
+    .strip-stat:last-child { border-right: 0; }
+    .strip-stat .k { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; opacity: .55; }
+    .strip-stat .v { font-size: 22px; font-variant-numeric: tabular-nums; }
+    .strip-stat .w { font-size: 11px; opacity: .6; }
+    /* A doorway has to LOOK walkable, or nobody finds the one gesture the strip exists for. */
+    .strip-stat.door { background: #f3f6f9; }
+    .strip-stat.door:hover { background: #e7eef5; }
+    .strip-stat.door .k { opacity: .9; color: #1c6ea4; }
+
+    .stage { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .stage.focused { grid-template-columns: 170px 1fr; }
+    @@media (max-width: 720px) { .stage.focused { grid-template-columns: 1fr; } }
+
+    .rail { display: flex; flex-direction: column; gap: 4px; }
+    .mini { display: grid; grid-template-columns: 3px 1fr auto; align-items: center; gap: 8px;
+            border: 1px solid #e3e7eb; border-radius: 2px; padding: 5px 8px 5px 0; text-decoration: none; color: inherit; }
+    .mini:hover { background: #f3f6f9; }
+    .mini.on { border-color: #56B4E9; background: #f3f6f9; }
+    .mini .band { align-self: stretch; background: var(--state); border-radius: 2px 0 0 2px; }
+    .mini .nm { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mini .vl { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .65; }
+
+    /* One block size, at every level and at every count — never a fraction of the row, so two buses stay two
+       blocks with an empty row beside them instead of stretching to claim a width the fleet does not have. */
+    .blocks { display: grid; grid-template-columns: repeat(auto-fill, 190px); gap: 8px; justify-content: start; }
+    .block { display: block; text-decoration: none; color: inherit; }
+
+    .lane-head { display: grid; grid-template-columns: 3px 1.4fr repeat(5, .9fr) 92px; gap: 12px;
+                 padding: 0 12px 4px 0; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; opacity: .55; }
+    .lanes { display: flex; flex-direction: column; gap: 1px; background: #e3e7eb; border: 1px solid #e3e7eb; border-radius: 3px; overflow: hidden; }
+    .lane { display: grid; grid-template-columns: 3px 1.4fr repeat(5, .9fr) 92px; gap: 12px; align-items: center;
+            background: #fff; padding: 8px 12px 8px 0; }
+    .lane .band { align-self: stretch; background: var(--state); }
+    .lane .nm { font-size: 14px; }
+    .lane .cell { display: flex; flex-direction: column; }
+    .lane .cell .k { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; opacity: .5; }
+    .lane .cell .v { font-size: 14px; font-variant-numeric: tabular-nums; }
+    .lane .cell .v.flag { color: #E69F00; }
+    .lane .cell .v.bad { color: #D55E00; }
+    .chip { justify-self: end; font-size: 11px; letter-spacing: .07em; text-transform: uppercase;
+            padding: 1px 8px; border-radius: 2px; border: 1px solid var(--state); color: var(--state); }
+    @@media (max-width: 720px) {
+        .lane, .lane-head { grid-template-columns: 3px 1fr 1fr; }
+        .lane-head span:nth-child(n+4), .lane .cell:nth-child(n+4), .lane .chip { display: none; }
+    }
 </style>

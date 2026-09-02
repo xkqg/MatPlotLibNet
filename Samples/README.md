@@ -40,6 +40,7 @@ dotnet run --project MatPlotLibNet.Samples.Blazor
 - `/` — static bar chart and scatter plot using `MatPlotLibNet.Blazor` control
 - `/live` — real-time chart updating every 3 seconds via SignalR
 - `/obs-dashboard` — control-room view of a simulated 15-bus federation (`Plt.OpsDashboard()`): quiet KPI tiles that carry no colour until something needs attention, a hatched tile for a source that has gone silent, and two rolling panels (throughput and latency percentiles) on a pinned time window. Window 1/5/15 min or 1 hour; refresh throttles the charts only — the tiles never slow down.
+  **It descends**: fleet → bus → process → lanes, with the level you left kept as a rail on the left so a sibling is one click away. Clicking a block goes one level down; clicking the strip's max or min jumps straight to the member that produced it. Blocks are one fixed size at every level and every count, lanes are rows rather than cards because they are the bottom, and the whole state is the URL (`?bus=`, `?process=`) so a descent can be pasted to a colleague.
 
 ## WPF
 
