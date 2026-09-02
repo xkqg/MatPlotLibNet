@@ -33,6 +33,12 @@ public class AnimationTimerTests
         Assert.Equal(TimeSpan.FromMilliseconds(50), timer.Interval);
     }
 
+    /// <summary>The contract is that a started timer fires REPEATEDLY — not that it manages a given number of
+    /// ticks inside a given number of milliseconds.
+    /// <para>Asserting the second is how this test failed on CI: 20 ms interval, a fixed 100 ms sleep, and a
+    /// shared runner that delivered one tick in that window. Widening the sleep would only move the boundary;
+    /// waiting for the CONDITION removes it — a fast box finishes in ~40 ms, a loaded one takes as long as it
+    /// takes, and the assertion is the same either way.</para></summary>
     [Fact]
     public async Task SystemTimer_FiresTick_AfterStart()
     {
@@ -43,9 +49,17 @@ public class AnimationTimerTests
         int ticks = 0;
         timer.Tick += (_, _) => Interlocked.Increment(ref ticks);
         timer.Start();
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+
+        var budget = TimeSpan.FromSeconds(5);
+        var deadline = DateTime.UtcNow + budget;
+        while (Volatile.Read(ref ticks) < 2 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
         timer.Stop();
-        Assert.True(ticks >= 2, $"Expected at least 2 ticks, got {ticks}");
+        Assert.True(Volatile.Read(ref ticks) >= 2,
+            $"a started timer must fire repeatedly; got {ticks} tick(s) in {budget.TotalSeconds:0} s at a 20 ms interval");
     }
 
     [Fact]
