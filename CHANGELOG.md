@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.14.4]
 ### Added
 
+- **The control room's alarms have a lifecycle.** The Alarms tile was a re-derived count; it is now a doorway
+  onto a book (`AlarmBook`, in the sample's observability layer): a condition RAISES an alarm, an operator may
+  **ack** it — seen, not gone, still counted on the card as `firing · N acked` — and only the condition
+  clearing resolves it. The tile's number is the firing count of the very book the panel lists, so the card
+  and the list can never apply two different rules. The book is lock-free (two writers: the simulator's tick
+  and the operator's click), and an ack racing a clear loses on purpose — a plain write would resurrect an
+  alarm the condition just resolved. What counts as an alarm stays a judgement the SAMPLE makes; the library
+  still holds no opinion about what is broken.
+
 - **The series count is measured, not remembered.** Every document said 82 series types; the assembly ships 83.
   `SeriesCountContractTests` now reads the count off the assembly by reflection and pins it, along with the four
   streaming series that are called out separately and the rule that no series escapes the series namespace —

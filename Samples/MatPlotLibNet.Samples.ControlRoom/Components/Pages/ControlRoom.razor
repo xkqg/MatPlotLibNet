@@ -173,6 +173,37 @@
     <MplLiveChart ChartId="@BusTelemetrySimulator.LatencyChartId" HubUrl="/charts-hub" />
 </div>
 
+@* The Alarms tile's doorway lands here: the tile's number is the FIRING count of this same book, so the card
+   and the list it opens onto can never apply two different rules. Acking is the operator's one gesture and it
+   moves the alarm to the acked list below — seen, not gone — until the CONDITION clears and resolves it. *@
+<div id="alarms" class="alarms">
+    <h2>Alarms</h2>
+    @{ var open = Simulator.Alarms.Snapshot(); }
+    @if (open.Count == 0)
+    {
+        <p class="hint">No open alarms — inject a fault above to raise one.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var alarm in open)
+            {
+                <li class="@(alarm.State == AlarmState.Firing ? "firing" : "acked")">
+                    <strong>@alarm.Title</strong>
+                    @if (alarm.State == AlarmState.Firing)
+                    {
+                        <button @onclick="() => Ack(alarm.Key)">Ack</button>
+                    }
+                    else
+                    {
+                        <em>acked</em>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</div>
+
 <p class="hint">
     Nothing is coloured until something needs attention — not even a healthy state. A tile shows
     <em>severity</em> in its colour and <em>breadth</em> in its number ("2 of 15"); the names sit behind the
@@ -339,6 +370,10 @@
 
     public void Dispose() => _tick?.Dispose();
 
+    /// <summary>The operator saw it: Firing → Acked on the simulator's book. The tile's acked tally keeps it
+    /// visible until the condition clears — the one gesture may never make the wall look better on its own.</summary>
+    private void Ack(string key) => Simulator.Alarms.Ack(key);
+
     private IEnumerable<Figure> Tiles()
     {
         var s = Simulator.Latest;
@@ -376,9 +411,15 @@
             s.Drops > 20 ? OpsState.Critical : s.Drops > 2 ? OpsState.Degraded : OpsState.Normal,
             format: "0.0'/s'", trend: Simulator.DropsTrend);
 
+        // The Alarms tile is a DOORWAY: the number is the firing count, the panel it opens onto lists that
+        // same book, and the acked tally stays on the card — acking may never make the wall look better on
+        // its own while the condition still stands.
         yield return Tile(s.Alarms, "Alarms",
-            s.Alarms > 0 ? "unacknowledged" : "no active alarms",
-            s.Alarms > 0 ? OpsState.Critical : OpsState.Normal);
+            s.Alarms > 0 ? $"firing · {s.AlarmsAcked} acked"
+                : s.AlarmsAcked > 0 ? $"quiet · {s.AlarmsAcked} acked"
+                : "no active alarms",
+            s.Alarms > 0 ? OpsState.Critical : OpsState.Normal,
+            link: new TileLink("#alarms", false));
     }
 
     /// <summary>Where a tile leads, and whether that is currently open.</summary>
@@ -443,6 +484,11 @@
     /* The tile is an anchor: a keyboard user needs to SEE where focus is (WCAG 2.4.7). */
     .tiles a:focus-visible, .stage a:focus-visible, .crumbs a:focus-visible { outline: 2px solid #56B4E9; outline-offset: 2px; }
     .hint { font-size: 13px; opacity: .7; max-width: 80ch; }
+    .alarms ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .alarms li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-left: 3px solid #6b7784; }
+    .alarms li.firing { border-left-color: #D55E00; }
+    .alarms li.acked { border-left-color: #E69F00; opacity: .75; }
+    .alarms button { padding: 2px 12px; }
 
     /* ── the descent ─────────────────────────────────────────────────────────────────────────────
        The four semantic shades are the tile theme's, so a band in the rail and the accent inside a

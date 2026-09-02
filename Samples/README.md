@@ -58,6 +58,8 @@ A block is ONE size at every level and at every count — a fixed track, never a
 
 The whole state is the URL (`?bus=`, `?process=`): it survives every redraw, every block is an anchor so the descent is keyboard-reachable, and it can be pasted to a colleague mid-incident.
 
+**Alarms have a lifecycle.** The Alarms tile is a doorway onto the panel that lists the same book the tile counts: a condition raises an alarm, the operator's one gesture is **ack** — seen, not gone, still counted on the card as `firing · N acked` — and only the condition clearing resolves it. Acking may never make the wall look better on its own.
+
 ## WPF
 
 Native WPF window with `MplChartControl` (Windows). Uses `MatPlotLibNet.Wpf`.

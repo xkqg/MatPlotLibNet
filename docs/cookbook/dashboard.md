@@ -476,9 +476,15 @@ of the hottest eight, `Plt.SmallMultiples()`, one shared 0–150 % axis, a line 
 state is the URL (`?panel=processes`), so it survives every redraw and can be pasted; the two panels are
 published only while a tab has them open (`IChartSubscriptions`).
 
-The alarm conditioning — on-delay, deadband, off-delay, the worst-child roll-up and the staleness clock —
-lives in the **sample**, not in this library. A charting library that decides when something counts as
-broken has started holding opinions about a domain it cannot see.
+The **Alarms** tile is a doorway too: its number is the FIRING count of the sample's `AlarmBook`, and it opens
+onto the panel that lists that same book — one collection, so the card and the list can never apply two
+different rules. An alarm has a lifecycle rather than being re-derived per tick: a condition raises it, the
+operator's one gesture is **ack** (seen, not gone — it stays counted as `firing · N acked` so the click never
+makes the wall look better on its own), and only the condition clearing resolves it.
+
+The alarm conditioning — on-delay, deadband, off-delay, the worst-child roll-up, the staleness clock and the
+alarm lifecycle — lives in the **sample**, not in this library. A charting library that decides when something
+counts as broken has started holding opinions about a domain it cannot see.
 
 ## StatTileSeries — parameter reference
 

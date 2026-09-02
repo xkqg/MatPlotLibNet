@@ -56,6 +56,10 @@ public sealed class BusTelemetrySimulator : BackgroundService
     private readonly List<Bus> _buses = [];
     private volatile Snapshot _latest = Snapshot.Empty;
 
+    /// <summary>The alarm lifecycle the Alarms tile counts and its panel lists — Firing → Acked, resolved by
+    /// the condition clearing, exactly the shape the real wall's registry drives.</summary>
+    public AlarmBook Alarms { get; } = new();
+
     private DateTime _lastCollect = DateTime.MinValue;
     private DateTime _lastPublish = DateTime.MinValue;
 
@@ -250,6 +254,18 @@ public sealed class BusTelemetrySimulator : BackgroundService
         var busStates = _buses.Select(b => b.State(now)).ToArray();
         var procStates = _buses.SelectMany(b => b.ProcessStates(now)).ToArray();
 
+        // The alarm BOOK is fed per condition, so an alarm has a lifecycle instead of being re-derived each
+        // tick: a critical process RAISES its alarm, an operator may ack it, and only the condition clearing
+        // resolves it. The tile then counts the book, and the panel it opens onto lists the very same book.
+        foreach (var bus in _buses)
+        {
+            foreach (var process in bus.Processes)
+            {
+                Alarms.Observe($"critical:{process.Id}", $"Process CRITICAL: {process.Id}",
+                    process.State(now) == OpsState.Critical);
+            }
+        }
+
         return new Snapshot(
             At: now,
             Buses: _buses.Count,
@@ -261,7 +277,8 @@ public sealed class BusTelemetrySimulator : BackgroundService
             P99: p99,
             Backlog: Math.Max(0, publish - consume),
             Drops: drops,
-            Alarms: procStates.Count(s => s == OpsState.Critical));
+            Alarms: Alarms.Firing,
+            AlarmsAcked: Alarms.Acked);
     }
 
     private static OpsState Worst(IEnumerable<OpsState> states) =>
@@ -479,14 +496,16 @@ public enum OpsState
 /// <param name="P99">Control-path latency, 99th percentile.</param>
 /// <param name="Backlog">Publish minus consume: the gap that becomes an outage.</param>
 /// <param name="Drops">Telemetry messages lost per second.</param>
-/// <param name="Alarms">Active critical alarms.</param>
+/// <param name="Alarms">Alarms FIRING — raised by a condition and not yet acknowledged.</param>
+/// <param name="AlarmsAcked">Alarms an operator acknowledged whose condition has not cleared — seen, not gone,
+/// and still counted: the operator's one gesture may never make the wall look better on its own.</param>
 public sealed record Snapshot(
     DateTime At,
     int Buses, int BusesDeviating, OpsState BusState,
     int Processes, int ProcessesDeviating, OpsState ProcessState,
-    double P99, double Backlog, double Drops, int Alarms)
+    double P99, double Backlog, double Drops, int Alarms, int AlarmsAcked)
 {
     /// <summary>An empty federation — what the page shows before the first measurement lands.</summary>
     public static Snapshot Empty { get; } = new(
-        DateTime.MinValue, 0, 0, OpsState.Normal, 0, 0, OpsState.Normal, 0, 0, 0, 0);
+        DateTime.MinValue, 0, 0, OpsState.Normal, 0, 0, OpsState.Normal, 0, 0, 0, 0, 0);
 }
