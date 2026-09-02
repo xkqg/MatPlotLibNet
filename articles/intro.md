@@ -1,6 +1,6 @@
 # MatPlotLibNet Documentation
 
-**matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 82 series types, 142 colormaps, 30 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 13 NuGet packages + 3 npm bindings.
+**matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 83 series types, 142 colormaps, 30 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 13 NuGet packages + 3 npm bindings.
 
 v1.14.0 is the **control-room pack**: `Plt.OpsDashboard()` (fluent KPI-tile + state-timeline +
 trend-panel composition, pinned to a caller-supplied time window), `BulletGraphSeries` (Few's
@@ -19,7 +19,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 | Wiki page | Covers |
 |---|---|
 | [Getting Started](https://github.com/xkqg/MatPlotLibNet/wiki/Getting-Started) | Installation, quick start, output formats |
-| [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) | All 82 series types with code examples |
+| [Chart Types](https://github.com/xkqg/MatPlotLibNet/wiki/Chart-Types) | All 83 series types with code examples |
 | [Matplotlib Themes](https://github.com/xkqg/MatPlotLibNet/wiki/MatplotlibThemes) | 30 theme presets + custom theme authoring |
 | [Fluent Cheatsheet](https://github.com/xkqg/MatPlotLibNet/wiki/Fluent-Cheatsheet) | One-page reference of the fluent builder API |
 | [Keyboard Shortcuts](https://github.com/xkqg/MatPlotLibNet/wiki/Keyboard-Shortcuts) | Browser-interactive pan / zoom / rotate / toggle |

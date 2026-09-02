@@ -1,7 +1,7 @@
 # MatPlotLibNet
 
 A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/): fluent API, DI-friendly,
-server-side SVG / PNG / PDF / animated-GIF export, and 82 series types. Ships with 13 map projections and embedded
+server-side SVG / PNG / PDF / animated-GIF export, and 83 series types. Ships with 13 map projections and embedded
 Natural Earth data, 30 themes, LaTeX-style MathText, O(1) streaming with 53 technical indicators, a control room
 (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window), and native controls for Blazor, WPF,
 MAUI, Avalonia, Uno and ASP.NET Core, plus TypeScript clients for Angular, React and Vue. No JavaScript framework,
@@ -32,7 +32,7 @@ Quality bar: a strict per-class coverage gate at ≥90 % line and branch (659 cl
 
 ## Documentation
 
-- **[Wiki](https://github.com/xkqg/MatPlotLibNet/wiki)** — getting started, cheatsheet, all 82 chart types, the
+- **[Wiki](https://github.com/xkqg/MatPlotLibNet/wiki)** — getting started, cheatsheet, all 83 chart types, the
   control room, styling, streaming, SignalR, packages
 - **[Cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/)** — copy-paste examples with rendered output
 - **[Playground](https://xkqg.github.io/MatPlotLibNet/playground/)** — try charts live in the browser
@@ -85,7 +85,7 @@ Plt.Create()
 
 ## Features
 
-**82 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
+**83 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
 
 **Control room** — `Plt.OpsDashboard()` composes one operator screen: KPI tiles across the top, state timelines under them, and a shared trend panel, all pinned to one caller-supplied time window (the library never reads the wall clock). The tile carries a `Target`, a wrapping multi-line `Caption`, an inline sparkline and a `Hatch` that means *no information*; `Theme.Alarm` names the reserved alarm colours and four operator backgrounds ship with it. `BulletGraphSeries` replaces the radial gauge.
 

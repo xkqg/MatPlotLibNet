@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.14.4]
 ### Added
 
+- **The series count is measured, not remembered.** Every document said 82 series types; the assembly ships 83.
+  `SeriesCountContractTests` now reads the count off the assembly by reflection and pins it, along with the four
+  streaming series that are called out separately and the rule that no series escapes the series namespace —
+  so adding a series turns a test red instead of leaving a dozen documents quietly wrong. README, ARCHITECTURE,
+  the docs site, the wiki and the awesome-list drafts corrected. The same line in ARCHITECTURE also claimed
+  "15 families" for 14 category folders; both are now the measured number.
 - **The control room is a sample of its own** — `MatPlotLibNet.Samples.ControlRoom`, served at `/`. It is not
   an example of a control but a reference implementation of a SCREEN, with its own domain (bus → process →
   lane, alarm conditioning, a staleness clock) and a simulated federation that keeps running whether or not
