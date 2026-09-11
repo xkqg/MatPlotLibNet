@@ -3,6 +3,16 @@ name: Publish to NuGet
 on:
   release:
     types: [published]
+  # A release that `Create Release` makes for itself carries github-actions[bot] as its author, and GitHub does
+  # not start a workflow from an event a bot token raised — so the release event alone published nothing on
+  # v1.15.0, and every earlier release only worked because a human clicked it. This is the way back in: dispatch
+  # it by hand for a tag whose packages never went out.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to publish from (e.g. v1.15.0).'
+        required: true
+        type: string
 
 # Opt JS actions into Node 24 ahead of the Sept 2026 forced migration.
 env:
@@ -14,6 +24,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -62,6 +74,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5

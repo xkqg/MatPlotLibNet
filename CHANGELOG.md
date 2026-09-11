@@ -43,6 +43,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   real `ShowAsync` flow, which then invokes this class's callback with the server's own URL: the assertion reads
   a value another test wrote. It surfaced on CI under coverage instrumentation, which is slow enough to
   interleave them — expected `http://localhost:5000/chart/abc`, got `http://127.0.0.1:40249/chart/d983a71c…`.
+- **A release publishes its packages whoever created it.** `Create Release` makes the GitHub release with the
+  built-in token, and GitHub does not start a workflow from an event a bot token raised — so `publish.yml`, which
+  listens for `release: published`, never fired for the release this repository made for itself. Every earlier
+  release only worked because a human clicked the button. `publish.yml` now also takes a manual dispatch with the
+  tag to publish from, so the chain no longer depends on who pressed what.
 - **SourceLink no longer drags a vulnerable package into every build.** `Microsoft.Build.Tasks.Git` 10.0.202 —
   what `Microsoft.SourceLink.GitHub` pulls — sits inside the range CVE-2026-62900 names, and that band has no
   patched release at all; the floating `8.*` the root build file used lands in a second vulnerable band. Both are
