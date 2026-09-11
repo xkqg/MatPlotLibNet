@@ -1,6 +1,6 @@
 # MatPlotLibNet
 
-**matplotlib for .NET** — 83 series types, 142 colormaps, 13 map projections, 30 themes, native Avalonia + Uno + WPF + MAUI controls, SignalR interactivity, streaming, and publication-quality SVG/PNG/PDF output. 13 NuGet packages.
+**matplotlib for .NET** — 83 series types, 142 colormaps, 13 map projections, 30 themes, native Avalonia + Uno + WPF + MAUI controls, SignalR interactivity, streaming, an MCP server for AI agents, and publication-quality SVG/PNG/PDF output. 14 NuGet packages.
 
 ## Quick start
 
