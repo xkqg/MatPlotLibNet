@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.14.4]
 ### Added
 
+- **Minor ticks take a spacing of their own.** `TickConfig.Spacing` has always existed on the model and the
+  Cartesian renderer never read it for minor ticks: it divided each major interval by a hard-coded five. That
+  default is matplotlib's and stays — an axis that sets no spacing renders exactly as before — but it left one
+  class of question unanswerable: *put a mark every ten seconds on this date axis*. The only other route was
+  `SetXTickLocator`, which replaces the `AutoDateLocator` its paired `AutoDateFormatter` reads, so a caller had
+  to trade the axis LABELS to gain the marks. Now `axis.MinorTicks = axis.MinorTicks with { Spacing = 10.0 /
+  86_400.0 }` (an OLE Automation date counts days) puts marks exactly ten seconds apart and leaves the date
+  pair alone. A non-positive spacing is a computed value that came out wrong, never an instruction, so it
+  falls back to the five-way subdivision rather than dividing by zero.
+
 - **A tile row is eight wide and FILLS before it wraps.** The balanced wrap (nine tiles as 5+4) was tried on a
   real ops wall and rejected: it makes the FIGURE narrower than the page it hangs on, and the SVG root carries
   `width:100%;height:auto`, so a host fits that narrower figure to its own width and scales it UP — measured at

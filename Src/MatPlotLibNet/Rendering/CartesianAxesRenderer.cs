@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
@@ -366,7 +366,10 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         var color = minorConfig.Color ?? Theme.ForegroundText;
         double minorLength = minorConfig.Length;
         double majorStep = majorTicks[1] - majorTicks[0];
-        double minorStep = majorStep / 5;
+        // The caller's own spacing wins when it set one; otherwise matplotlib's five-way subdivision, which is
+        // what every axis that has not asked for anything still gets. A non-positive value is a computed
+        // spacing that came out wrong, never an instruction — it falls back rather than dividing by zero.
+        double minorStep = minorConfig.Spacing is { } spacing && spacing > 0 ? spacing : majorStep / 5;
         double rangeStart = majorTicks[0] - majorStep;
         double rangeEnd   = majorTicks[^1] + majorStep;
         double areaMin = isHorizontal ? PlotArea.X : PlotArea.Y;
