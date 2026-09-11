@@ -1,5 +1,10 @@
 # MatPlotLibNet.Mcp
 
+<!-- The MCP Registry proves that whoever owns the server name also owns the NuGet package by looking for this
+     exact line in the PUBLISHED package's README. It is the ownership handshake, not decoration: without it the
+     registry refuses the listing with "must appear as 'mcp-name: ...' in the package README". -->
+mcp-name: io.github.xkqg/matplotlibnet
+
 An [MCP](https://modelcontextprotocol.io) (Model Context Protocol) server for [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet).
 It gives an AI agent — Claude Code, VS Code, Claude Desktop, any MCP host — four tools:
 

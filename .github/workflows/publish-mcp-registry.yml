@@ -10,6 +10,12 @@ name: Publish MCP server to the MCP Registry
 #
 # Namespace: the server is named `io.github.xkqg/matplotlibnet`, and the registry verifies an `io.github.<user>`
 # namespace through GitHub — the OIDC token this workflow requests IS that proof, so no secret is involved.
+#
+# It also proves the other half — that the same owner owns the NuGet package — by reading the PUBLISHED package's
+# README and looking for the exact line `mcp-name: io.github.xkqg/matplotlibnet`. That line lives in
+# Src/MatPlotLibNet.Mcp/README.md since 1.15.1; a version published without it is refused with
+# "Add it to your README and publish a new package version", so this workflow can only list a version that
+# carries it.
 on:
   workflow_dispatch:
     inputs:

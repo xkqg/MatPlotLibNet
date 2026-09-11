@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Next]
+### Added
+
+- **The MCP server carries its registry ownership marker.** The official MCP Registry proves that whoever claims
+  the server name `io.github.xkqg/matplotlibnet` also owns the NuGet package by reading the PUBLISHED package's
+  README for the line `mcp-name: io.github.xkqg/matplotlibnet`. 1.15.0 went out without it, so the registry
+  refused the listing — the package itself is unaffected, and the next published version carries the line.
+
 ## [1.15.0]
 ### Added
 
