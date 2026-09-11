@@ -599,6 +599,46 @@ ChartHub               routes to SignalR group by chartId
 
 ---
 
+## MatPlotLibNet.Mcp package
+
+A Model Context Protocol server, shipped as a .NET tool (`PackAsTool`, `PackageType=McpServer`, net10.0) that an
+MCP host starts over stdio. The MCP SDK touches exactly one file; everything else is plain classes a test drives
+without a protocol host.
+
+```
+MatPlotLibNet.Mcp/
+  Program.cs                       host + stdio transport + WithTools<ChartTools>(); no decisions, excluded from coverage
+  ChartTools.cs                    the only [McpServerTool] file: four tools, and the one error boundary
+  ChartSpec.cs                     readonly record struct ChartSpec(string Json) — a spec cannot be swapped with a path
+  ChartSpecReader.cs               parse -> normalise -> strict DTO pass -> semantic pass -> ChartSerializer.FromJson
+  SpecVocabulary.cs                the accepted values of every enum-valued spec field, per node kind
+  ChartTypeCatalog.cs              SeriesRegistry.Discriminators minus the types whose reader ignores the document
+  ChartRendering.cs                spec -> Figure -> bytes; one owner, two sinks (inline PNG, or a file)
+  OutputPathResolver.cs            the single directory save_chart may write under
+  ChartSummarizer.cs               FigureSummary / SeriesSummary via the series' own ComputeDataRange
+  RenderLimits.cs                  the canvas and text ceilings (the canvas ceiling IS the token ceiling)
+  ToolRefusalException.cs          a refusal the boundary turns into an McpException the model can act on
+  Extensions/StringDistanceExtensions.cs   edit distance, for "did you mean 'line'?"
+  .mcp/server.json                 the registry manifest; its version is pinned to the project's by a test
+```
+
+### Why a reader at all
+
+`ChartSerializer.FromJson` is a round-trip reader for its own writer: an unknown series type is dropped with a
+diagnostic, an unknown property is skipped by `System.Text.Json`, a misspelled enum value is ignored by
+`Enum.TryParse`, and an absent `width` overwrites the figure default with zero. That lenience is wire
+compatibility for the library's own clients. Handed a document a model typed, every one of those turns a typo
+into a blank picture reported as a success — so the package validates first, against the SAME DTO records the
+serializer reads, and refuses by field and JSON path.
+
+### The two process-wide facts it has to own
+
+The package references `MatPlotLibNet.Skia` for PNG and PDF, whose `[ModuleInitializer]` installs
+`ChartServices.GlyphPathProvider` and `FontMetrics` the first time a method naming a Skia type is prepared.
+`ChartRendering`'s constructor forces that module constructor, so the first chart a process renders is drawn the
+same way as the thousandth. And the SDK forwards only `McpException.Message` to the model, replacing anything
+else with a generic line — so every refusal leaves through that one type.
+
 ## MatPlotLibNet.DataFrame package
 
 Thin extension-method bridge that funnels `Microsoft.Data.Analysis.DataFrame` column names

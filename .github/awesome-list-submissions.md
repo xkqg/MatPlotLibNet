@@ -62,7 +62,8 @@ MatPlotLibNet is a new MIT-licensed charting library for .NET 10 that brings mat
 - Native UI controls for Avalonia 12, Uno Platform, and MAUI
 - Bidirectional SignalR for server-authoritative interactive charts
 - SVG, PNG, PDF, and animated GIF export
-- 11 NuGet packages, 4,000+ tests
+- An MCP server (`MatPlotLibNet.Mcp`) so an AI agent can render any of these chart types from a JSON spec
+- 14 NuGet packages, 11,000+ tests
 
 NuGet: https://www.nuget.org/packages/MatPlotLibNet
 GitHub: https://github.com/xkqg/MatPlotLibNet

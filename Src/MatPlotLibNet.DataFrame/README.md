@@ -164,4 +164,5 @@ code is duplicated — the DataFrame package is ~100 lines of pure plumbing.
 | `MatPlotLibNet` | Core charting library |
 | `MatPlotLibNet.Blazor` | Blazor component + interactive features |
 | `MatPlotLibNet.Notebooks` | Polyglot Notebooks / Jupyter inline rendering |
+| `MatPlotLibNet.Mcp` | MCP server — an AI agent renders charts over stdio |
 | `MatPlotLibNet.AspNetCore` | ASP.NET Core middleware (`/chart` endpoints) |

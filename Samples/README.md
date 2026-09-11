@@ -135,6 +135,7 @@ These NuGet packages don't yet have runnable samples — contributions welcome:
 | `MatPlotLibNet.Geo` | `Geo.Extensions.WithNaturalEarth()` + any of 13 projections; see the `geo_*` cookbook pages |
 | `MatPlotLibNet.Notebooks` | Polyglot Notebooks: `#r "nuget: MatPlotLibNet.Notebooks"`, then any `.ToSvg()` renders inline |
 | `MatPlotLibNet.Interactive` | .NET Interactive kernel extension; same inline rendering as Notebooks |
+| `MatPlotLibNet.Mcp` | Point an MCP host at it (`dnx MatPlotLibNet.Mcp`) and ask the model for a chart; see the [MCP cookbook page](../docs/cookbook/mcp.md) |
 
 Full sample projects for these are planned (no ETA). Until then the patterns above and the cookbook pages are the reference.
 
