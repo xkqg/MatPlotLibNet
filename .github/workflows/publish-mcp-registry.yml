@@ -56,5 +56,11 @@ jobs:
       - name: Log in with GitHub OIDC
         run: ./mcp-publisher login github-oidc
 
+      - name: Validate the manifest against the registry's schema
+        # `mcp-publisher publish [server.json]` takes the path as a POSITIONAL argument and defaults to
+        # ./server.json — there is no --mcp-file flag, and passing one made it look in the working directory and
+        # fail with "server.json not found" (measured on the first dispatch).
+        run: ./mcp-publisher validate Src/MatPlotLibNet.Mcp/.mcp/server.json
+
       - name: Publish
-        run: ./mcp-publisher publish --mcp-file Src/MatPlotLibNet.Mcp/.mcp/server.json
+        run: ./mcp-publisher publish Src/MatPlotLibNet.Mcp/.mcp/server.json
