@@ -4,8 +4,50 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [1.14.4]
-### Added
+## [1.15.0]
+### Added
+
+- **An agent can draw. `MatPlotLibNet.Mcp` is a Model Context Protocol server** — a .NET tool a host starts over
+  stdio (`dnx MatPlotLibNet.Mcp`) — so Claude, VS Code or any MCP client can render this library's charts from a
+  JSON spec and look at the result. Four tools: `render_chart` returns a PNG with a short text summary beside it,
+  `save_chart` writes PNG/SVG/PDF to a file and returns the path it wrote, `list_chart_types` names the accepted
+  chart types, and `describe_chart_schema` describes the spec with a worked example. The spec IS the library's own
+  figure JSON — the same document `figure.ToJson()` writes — so there is one definition of a chart, not two.
+- **The server refuses before it renders, and says which field is wrong.** `ChartSerializer.FromJson` is a
+  round-trip reader for its own writer: it drops an unknown series type leniently, skips an unknown property,
+  ignores a misspelled enum value and substitutes zero for an absent width. That lenience is right for wire
+  compatibility and catastrophic for a document a model typed: every one of those turns a typo into a blank
+  picture reported as a success. So the server validates first — unknown field with its JSON path, unknown chart
+  type with the nearest match, misspelled enum value with the accepted ones, a colour name normalised through the
+  library's own CSS4 table, an `xData` without a `yData`, a canvas past the ceiling — and the message names the
+  field, because a model that is told nothing retries the same mistake.
+- **Every refusal survives the protocol.** The MCP SDK forwards the message of an `McpException` and replaces
+  every other exception with "An error occurred invoking '<tool>'", so the server's single error boundary rethrows
+  as that one type. Measured against SDK 2.2.0, not assumed.
+- **`SeriesRegistry.Discriminators`** — the registry now exposes the key set it dispatches on, sorted. A consumer
+  that has to SHOW the chart types reads the one list the serializer uses instead of keeping a second one that
+  drifts; `list_chart_types` is that consumer.
+- **The release is checked by a test, not by memory.** A release is carried by six hand-kept lists — the CI
+  solution filter, two workflow test blocks, two coverage runners, the version in every csproj — and they had
+  drifted: `ci.yml` built the DataFrame suite and never ran it, `publish.yml` skipped the Skia suite on the very
+  job that publishes, and `release.yml` only fired for tags starting with `v`, so 1.14.3 and 1.14.4 slipped past
+  it and had to be released by hand. `ReleaseContractTests` now pins each of those agreements, including that the
+  MCP manifest carries the same version and package id as its project.
+
+### Fixed
+
+- **SourceLink no longer drags a vulnerable package into every build.** `Microsoft.Build.Tasks.Git` 10.0.202 —
+  what `Microsoft.SourceLink.GitHub` pulls — sits inside the range CVE-2026-62900 names, and that band has no
+  patched release at all; the floating `8.*` the root build file used lands in a second vulnerable band. Both are
+  pinned to 10.0.303, which is the fix, and pinned rather than floated so a range cannot drift back into one.
+- **The MCP tool package no longer ships a quarter of a gigabyte of debug symbols.** A .NET tool carries its whole
+  dependency closure, and SkiaSharp's native assets bring a PDB per architecture: measured, 247 MB of a 301 MB
+  payload. The native binaries stay — a tool has to run where it lands — and their symbols do not.
+
+## [1.14.4]
+
+### Added
+
 
 - **Minor ticks take a spacing of their own.** `TickConfig.Spacing` has always existed on the model and the
   Cartesian renderer never read it for minor ticks: it divided each major interval by a hard-coded five. That

@@ -38,4 +38,5 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | `MatPlotLibNet.Avalonia` | `MatPlotLibNet.Avalonia` | `MplChartControl` for Avalonia |
 | `MatPlotLibNet.Maui` | `MatPlotLibNet.Maui` | `MplChartView` for .NET MAUI (Android/iOS/Mac/Windows) |
 | `MatPlotLibNet.Uno` | `MatPlotLibNet.Uno` | `MplChartElement` for Uno Platform |
+| `MatPlotLibNet.Mcp` | `MatPlotLibNet.Mcp` | MCP server — an AI agent renders charts over stdio |
 | `MatPlotLibNet.Notebooks` | `MatPlotLibNet.Notebooks` | .NET Interactive (Polyglot Notebooks) extension |

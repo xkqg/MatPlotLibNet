@@ -59,7 +59,8 @@ $optionalProjs = @(
     "Tst\MatPlotLibNet.AspNetCore\MatPlotLibNet.AspNetCore.Tests.csproj",
     "Tst\MatPlotLibNet.Interactive\MatPlotLibNet.Interactive.Tests.csproj",
     "Tst\MatPlotLibNet.DataFrame\MatPlotLibNet.DataFrame.Tests.csproj",
-    "Tst\MatPlotLibNet.GraphQL\MatPlotLibNet.GraphQL.Tests.csproj"
+    "Tst\MatPlotLibNet.GraphQL\MatPlotLibNet.GraphQL.Tests.csproj",
+    "Tst\MatPlotLibNet.Mcp\MatPlotLibNet.Mcp.Tests.csproj"
 )
 foreach ($p in $optionalProjs) {
     if (Test-Path (Join-Path $repoRoot $p)) { $testProjects += $p }

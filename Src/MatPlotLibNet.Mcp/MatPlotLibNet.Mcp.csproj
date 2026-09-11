@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Single TFM on purpose: the only shipped PackageType=McpServer reference (Microsoft.McpServer.ProjectTemplates)
+         targets one framework, dnx resolves a tool through the .NET 10 SDK, and multi-targeting a tool package is
+         undocumented territory. RollForward=Major lets a newer installed runtime run it. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RollForward>Major</RollForward>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- NuGet Package Properties -->
+    <PackageId>MatPlotLibNet.Mcp</PackageId>
+    <Version>1.15.0</Version>
+    <Description>MCP (Model Context Protocol) stdio server for MatPlotLibNet. An AI agent renders the library's chart types to PNG, SVG or PDF from a JSON spec, lists the chart types and reads the spec schema — no browser, no service.</Description>
+    <PackageTags>mcp;model-context-protocol;ai;agent;charting;stdio;plot</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+
+    <!-- The package IS the server: a dotnet tool that a host starts over stdio (dnx MatPlotLibNet.Mcp). -->
+    <PackAsTool>true</PackAsTool>
+    <PackageType>McpServer</PackageType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.*" />
+    <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.303" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MatPlotLibNet\MatPlotLibNet.csproj" />
+    <ProjectReference Include="..\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
+  </ItemGroup>
+
+  <!-- A dotnet tool carries its whole dependency closure, and SkiaSharp's native assets bring a PDB per RID:
+       measured, those symbols alone were 247 MB of a 301 MB payload and turned an 86 MB download into the price
+       of asking an agent to draw a line chart. The native binaries stay (a tool has to run on the machine it
+       lands on); their symbols do not belong in a package nobody debugs natively. -->
+  <Target Name="DropNativeSymbolsFromToolBuild" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <ReferenceCopyLocalPaths
+          Remove="@(ReferenceCopyLocalPaths)"
+          Condition="'%(Extension)' == '.pdb' and $([System.String]::Copy('%(ReferenceCopyLocalPaths.DestinationSubDirectory)').Contains('native'))" />
+    </ItemGroup>
+  </Target>
+
+  <!-- `dotnet pack` on a tool packs the PUBLISH closure, which is resolved separately from the build's copy-local
+       set, so the same rule has to be stated on both or the package keeps what the bin folder dropped. -->
+  <Target Name="DropNativeSymbolsFromToolPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish
+          Remove="@(ResolvedFileToPublish)"
+          Condition="'%(Extension)' == '.pdb' and $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').Contains('native'))" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <None Include=".mcp\server.json" Pack="true" PackagePath="/.mcp/" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

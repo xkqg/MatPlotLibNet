@@ -2,8 +2,19 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.15.0, the MCP server):** **679/679 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 679 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.6L / 97.3B**; **11,022 tests, 0 failures** across the 10 CI suites. The twenty classes the
+`MatPlotLibNet.Mcp` package adds went in test-first and reached the gate on the increment that introduced them,
+which is the only way a new project can: a brand-new class is absent from the baseline, so the regression check
+does not apply to it and the absolute 90/90 is its whole gate from the first push. Two of the gaps the first
+run reported were not missing tests but code that could not run — a media-type table with three arms where only
+PNG travels inline, and an exclusion set that was a constant rather than an input — and were removed rather
+than tested. The `MatPlotLibNet.Mcp.Tests` suite joins `coverage.runsettings`, both runners and both workflows;
+its absence from the collector's module allowlist would have let the gate pass over an unmeasured assembly.
+
 **Status (v1.14.2, measured 3-D axis-title clearance, 2026-08-17):** **659/659 classes at ≥90/90**,
-strict gate **PASSES** with no regressions. **10,714 tests, 0 failures** across the 9 CI suites, plus
+strict gate **PASSES** with no regressions. **10,714 tests, 0 failures** across the 9 CI suites of that release, plus
 152 matplotlib pixel-fidelity tests. The two new branches in `ThreeDAxesRenderer.TitlePad` (a custom
 tick `LabelSize` and a custom `TickFormatter`) are covered by a behavioural test — the title must
 still clear the band when either widens it — not by a coverage-shaped smoke test.

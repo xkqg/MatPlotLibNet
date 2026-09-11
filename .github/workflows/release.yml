@@ -3,7 +3,10 @@ name: Create Release
 on:
   push:
     tags:
+      # Both spellings: v1.14.2 carried the prefix, 1.14.3 and 1.14.4 did not, and a 'v*'-only trigger let those
+      # two slip past — their releases had to be made by hand and nothing was announced.
       - 'v*'
+      - '[0-9]+.[0-9]+.[0-9]+'
 
 # Opt JS actions into Node 24 ahead of the Sept 2026 forced migration.
 env:
@@ -52,7 +55,7 @@ jobs:
         run: |
           TAG="${{ steps.create_release.outputs.tag }}"
           URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 82 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed. ${URL}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 83 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed. ${URL}"
 
           SESSION=$(curl -s -X POST https://bsky.social/xrpc/com.atproto.server.createSession \
             -H "Content-Type: application/json" \
@@ -82,7 +85,7 @@ jobs:
         run: |
           TAG="${{ steps.create_release.outputs.tag }}"
           URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 82 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 83 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.
 
           ${URL}
 
@@ -101,7 +104,7 @@ jobs:
         run: |
           TAG="${{ steps.create_release.outputs.tag }}"
           URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 82 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.\n\n${URL}"
+          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 83 series types, 3D charts, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.\n\n${URL}"
 
           curl -s -X POST "https://api.linkedin.com/v2/ugcPosts" \
             -H "Authorization: Bearer ${LINKEDIN_ACCESS_TOKEN}" \

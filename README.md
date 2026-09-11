@@ -1,7 +1,7 @@
 # MatPlotLibNet
 
 A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/): fluent API, DI-friendly,
-server-side SVG / PNG / PDF / animated-GIF export, and 83 series types. Ships with 13 map projections and embedded
+server-side SVG / PNG / PDF / animated-GIF export, an MCP server so an AI agent can draw with it, and 83 series types. Ships with 13 map projections and embedded
 Natural Earth data, 30 themes, LaTeX-style MathText, O(1) streaming with 53 technical indicators, a control room
 (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window), and native controls for Blazor, WPF,
 MAUI, Avalonia, Uno and ASP.NET Core, plus TypeScript clients for Angular, React and Vue. No JavaScript framework,
@@ -20,13 +20,16 @@ releases since are the fixes and extensions a live operator wall asked for — a
 citizen, streaming that draws in SVG, 3-D axis titles that clear their own labels, tile captions that wrap and
 stay inside their tile, and an ops window whose ticks read as time.
 
+The **1.15** line opens the library to agents: `MatPlotLibNet.Mcp` lets a model render any of these chart types
+from a JSON spec and look at the result.
+
 After that the cadence is community-driven: bug fixes, documentation, and whatever real use turns up. Open a
 [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
 [Issue](https://github.com/xkqg/MatPlotLibNet/issues) — that is what steers the next release. Every release,
 with its migration notes, is in the [CHANGELOG](CHANGELOG.md).
 
-Quality bar: a strict per-class coverage gate at ≥90 % line and branch (659 classes, 99.6 % / 97.2 %) across
-10,025 tests, with rendering verified against matplotlib pixel-fidelity fixtures.
+Quality bar: a strict per-class coverage gate at ≥90 % line and branch (679 classes, 99.6 % / 97.3 %) across
+11,022 tests, with rendering verified against matplotlib pixel-fidelity fixtures.
 
 ---
 
@@ -58,6 +61,7 @@ Quality bar: a strict per-class coverage gate at ≥90 % line and branch (659 cl
 | **MatPlotLibNet.Wpf** | `dotnet add package MatPlotLibNet.Wpf` | Native WPF `MplChartControl` via SkiaSharp — all 9 interaction modifiers |
 | **MatPlotLibNet.Geo** | `dotnet add package MatPlotLibNet.Geo` | 13 map projections, GeoJSON parser, Natural Earth 110m data, geographic polygons |
 | **MatPlotLibNet.Notebooks** | `#r "nuget: MatPlotLibNet.Notebooks"` | Inline SVG in Polyglot / Jupyter notebooks |
+| **[MatPlotLibNet.Mcp](https://www.nuget.org/packages/MatPlotLibNet.Mcp)** | `dnx MatPlotLibNet.Mcp` | MCP server — an AI agent renders charts over stdio |
 | **@matplotlibnet/angular** | `npm install @matplotlibnet/angular` | Angular components + TypeScript SignalR client |
 | **@matplotlibnet/react** | `npm install @matplotlibnet/react` | React hooks + components + TypeScript SignalR client |
 | **@matplotlibnet/vue** | `npm install @matplotlibnet/vue` | Vue 3 composables + TypeScript SignalR client |
@@ -86,6 +90,17 @@ Plt.Create()
 ## Features
 
 **83 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
+
+**MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a [Model Context Protocol](https://modelcontextprotocol.io)
+server, shipped as a .NET tool a host starts over stdio. Four tools: `render_chart` (PNG plus a text summary of
+what was drawn), `save_chart` (PNG/SVG/PDF to a file, returning the path it wrote), `list_chart_types` and
+`describe_chart_schema`. The spec is the library's own figure JSON, so anything the library draws, an agent can
+ask for — and the server refuses a wrong spec by field name before it renders, instead of returning a blank
+picture. See the [cookbook](docs/cookbook/mcp.md).
+
+```json
+{ "servers": { "MatPlotLibNet.Mcp": { "type": "stdio", "command": "dnx", "args": ["MatPlotLibNet.Mcp", "--yes"] } } }
+```
 
 **Control room** — `Plt.OpsDashboard()` composes one operator screen: KPI tiles across the top, state timelines under them, and a shared trend panel, all pinned to one caller-supplied time window (the library never reads the wall clock). The tile carries a `Target`, a wrapping multi-line `Caption`, an inline sparkline and a `Hatch` that means *no information*; `Theme.Alarm` names the reserved alarm colours and four operator backgrounds ship with it. `BulletGraphSeries` replaces the radial gauge.
 

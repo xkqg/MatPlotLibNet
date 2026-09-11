@@ -26,6 +26,22 @@
       }
     },
     {
+      "_comment": "MCP server metadata block — MatPlotLibNet.Mcp targets net10.0 only (a dotnet tool is resolved through the .NET 10 SDK), so it cannot ride the net8.0 block above.",
+      "src": [
+        {
+          "files": [
+            "Src/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.csproj"
+          ],
+          "src": ".."
+        }
+      ],
+      "dest": "api",
+      "includePrivateMembers": false,
+      "properties": {
+        "TargetFramework": "net10.0"
+      }
+    },
+    {
       "_comment": "WPF metadata block — re-enabled 2026-04-19 after MatPlotLibNet.Wpf.csproj added <EnableWindowsTargeting Condition=\"'$(OS)' != 'Windows_NT'\">true</EnableWindowsTargeting>. DocFX can now extract net8.0-windows metadata on Linux CI without installing the Windows desktop runtime.",
       "src": [
         {

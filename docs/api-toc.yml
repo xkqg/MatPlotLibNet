@@ -40,6 +40,8 @@ items:
     name: Interactive
   - uid: MatPlotLibNet.GraphQL
     name: GraphQL
+  - uid: MatPlotLibNet.Mcp
+    name: Mcp
   - uid: MatPlotLibNet.Notebooks
     name: Notebooks
   - uid: MatPlotLibNet.Avalonia

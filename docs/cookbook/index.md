@@ -37,4 +37,5 @@ Code examples with rendered output. Every example uses the fluent `Plt.Create()`
 | [Styling & Themes](styling.md) | 30 themes, PropCycler, grid/spine control, tight margins, tick mirroring, templates |
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators, minor ticks |
 | [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition |
+| [MCP server (AI agents)](mcp.md) | Render charts from Claude, VS Code or any MCP host; the spec format, the four tools, the refusal messages |
 | [Accessibility](accessibility.md) | Color-blind safe palette, high-contrast theme, ARIA semantics, keyboard navigation |

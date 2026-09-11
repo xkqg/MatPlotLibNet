@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.xkqg/matplotlibnet",
+  "description": "Renders MatPlotLibNet charts to PNG, SVG or PDF from a JSON spec; lists the chart types and describes the spec schema.",
+  "version": "1.15.0",
+  "packages": [
+    {
+      "registryType": "nuget",
+      "identifier": "MatPlotLibNet.Mcp",
+      "version": "1.15.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [],
+      "environmentVariables": [
+        {
+          "name": "MATPLOTLIBNET_MCP_OUTPUT_ROOT",
+          "description": "The only directory save_chart may write under. Defaults to the system temp directory.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/xkqg/MatPlotLibNet",
+    "source": "github"
+  }
+}

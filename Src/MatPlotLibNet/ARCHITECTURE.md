@@ -15,6 +15,9 @@ MatPlotLibNet (Core)                      net10.0 + net8.0
     |       |
     |       +-- MatPlotLibNet.GraphQL      HotChocolate.AspNetCore (GraphQL queries + subscriptions)
     |
+    +-- MatPlotLibNet.Mcp                 ModelContextProtocol (stdio MCP server, net10.0, dotnet tool)
+    |       + MatPlotLibNet.Skia           (PNG/PDF for the agent's tools)
+    |
     +-- MatPlotLibNet.Notebooks           Microsoft.DotNet.Interactive (Polyglot Notebooks)
     |
     +-- MatPlotLibNet.Maui                Microsoft.Maui.Controls

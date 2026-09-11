@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Blazor</PackageId>
-    <Version>1.14.4</Version>
+    <Version>1.15.0</Version>
     <Description>Blazor components for MatPlotLibNet charting library. Renders charts as inline SVG.</Description>
     <PackageTags>blazor;charting;plotting;svg;components</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.202" />
+    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.303" />
   </ItemGroup>
 
 </Project>

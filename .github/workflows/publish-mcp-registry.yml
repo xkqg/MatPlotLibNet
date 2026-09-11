@@ -1,0 +1,60 @@
+name: Publish MCP server to the MCP Registry
+
+# Lists MatPlotLibNet.Mcp in the official MCP Registry (modelcontextprotocol.io/registry), which is how an
+# MCP host discovers the server by name instead of by NuGet package id.
+#
+# Manual on purpose. The registry resolves the package on nuget.org at publish time, and nuget.org needs a few
+# minutes to validate and index a freshly pushed version — a step wired to `release: published` would race that
+# and paint a red X on an otherwise perfect release. So: cut the release, let publish.yml push the packages,
+# check the version is live, then run this once.
+#
+# Namespace: the server is named `io.github.xkqg/matplotlibnet`, and the registry verifies an `io.github.<user>`
+# namespace through GitHub — the OIDC token this workflow requests IS that proof, so no secret is involved.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The published package version to list (e.g. 1.15.0). Must already be live on nuget.org.'
+        required: true
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  contents: read
+  id-token: write   # the GitHub OIDC token that proves ownership of the io.github.xkqg namespace
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify the version is live on NuGet
+        # The registry rejects a server whose package it cannot resolve. Failing here, with the version in the
+        # message, is a great deal clearer than a rejection from the registry API.
+        run: |
+          VERSION="${{ inputs.version }}"
+          INDEX=$(curl -sSf https://api.nuget.org/v3-flatcontainer/matplotlibnet.mcp/index.json)
+          echo "$INDEX" | jq -e --arg v "$VERSION" '.versions | index($v)' > /dev/null \
+            || { echo "MatPlotLibNet.Mcp $VERSION is not on nuget.org yet. Published versions:"; echo "$INDEX" | jq -r '.versions[]'; exit 1; }
+
+      - name: Check the manifest matches the version being listed
+        run: |
+          MANIFEST="Src/MatPlotLibNet.Mcp/.mcp/server.json"
+          jq -e --arg v "${{ inputs.version }}" '.version == $v and .packages[0].version == $v' "$MANIFEST" > /dev/null \
+            || { echo "$MANIFEST does not carry version ${{ inputs.version }}:"; jq '{version, packages}' "$MANIFEST"; exit 1; }
+
+      - name: Install the MCP publisher
+        run: |
+          curl -sSfL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/').tar.gz" \
+            | tar -xz mcp-publisher
+          ./mcp-publisher --version
+
+      - name: Log in with GitHub OIDC
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish
+        run: ./mcp-publisher publish --mcp-file Src/MatPlotLibNet.Mcp/.mcp/server.json

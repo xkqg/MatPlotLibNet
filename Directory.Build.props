@@ -20,7 +20,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.*" PrivateAssets="All" />
+    <!-- Pinned, not floating: the 8.x line and the 10.0.200-10.0.204 band are both named by CVE-2026-62900
+         (Microsoft.Build.Tasks.Git, the package SourceLink pulls) and neither has a patched release inside it.
+         10.0.303 is the fix; a floating range would drift back into a vulnerable band on its own. -->
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.303" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>

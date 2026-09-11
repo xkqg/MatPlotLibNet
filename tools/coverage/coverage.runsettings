@@ -20,6 +20,7 @@
                 <ModulePath>.*MatPlotLibNet\.Interactive\.dll$</ModulePath>
                 <ModulePath>.*MatPlotLibNet\.DataFrame\.dll$</ModulePath>
                 <ModulePath>.*MatPlotLibNet\.GraphQL\.dll$</ModulePath>
+                <ModulePath>.*MatPlotLibNet\.Mcp\.dll$</ModulePath>
             </Include>
             <Exclude>
                 <ModulePath>.*\.Tests\.dll$</ModulePath>

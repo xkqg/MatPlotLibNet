@@ -28,6 +28,11 @@ public static class SeriesRegistry
         => Factories[typeDiscriminator] = factory;
 
     /// <summary>Creates a series from a DTO using the registered factory.</summary>
+    /// <summary>The discriminators the registry can dispatch, sorted ordinally. A consumer that must SHOW the
+    /// chart types (the MCP server's <c>list_chart_types</c>) reads this instead of keeping a second list that
+    /// drifts from <see cref="Create"/>. Sorted on purpose: a hash collection has no order to lean on.</summary>
+    public static IReadOnlyList<string> Discriminators => Factories.Keys.Order(StringComparer.Ordinal).ToArray();
+
     public static ISeries? Create(string typeDiscriminator, Axes axes, SeriesDto dto)
         => Factories.TryGetValue(typeDiscriminator, out var factory) ? factory(axes, dto) : null;
 

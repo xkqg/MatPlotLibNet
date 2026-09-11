@@ -5,3 +5,6 @@ using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("MatPlotLibNet.Tests")]
 [assembly: InternalsVisibleTo("MatPlotLibNet.Benchmarks")]
+// The MCP server validates a model-authored spec against the SAME DTO shape the serializer reads, and
+// describes that shape to the model, so it reads the internal DTO records rather than keeping a copy.
+[assembly: InternalsVisibleTo("MatPlotLibNet.Mcp")]

@@ -62,6 +62,51 @@ public class SeriesRegistryTests
         }
     }
 
+    /// <summary>The registry exposes the key set it dispatches on, sorted, so a consumer that has to SHOW
+    /// the chart types (the MCP server's <c>list_chart_types</c>) reads the one list the serializer uses
+    /// instead of keeping a second one that drifts. Hash order is not an order, so the list is sorted.</summary>
+    [Fact]
+    public void Discriminators_ListEveryRegisteredType_Sorted_WithoutDuplicates()
+    {
+        lock (_lock)
+        {
+            SeriesRegistry.ResetForTestsInternal();
+
+            var listed = SeriesRegistry.Discriminators;
+
+            Assert.Contains("line", listed);
+            Assert.Contains("candlestick", listed);
+            Assert.Contains("surface", listed);
+            Assert.Equal(listed.Count, listed.Distinct(StringComparer.Ordinal).Count());
+            Assert.Equal(listed.OrderBy(d => d, StringComparer.Ordinal), listed);
+            Assert.NotEmpty(listed);
+        }
+    }
+
+    [Fact]
+    public void Discriminators_FollowARegistration_AndAReset()
+    {
+        lock (_lock)
+        {
+            try
+            {
+                SeriesRegistry.ResetForTestsInternal();
+                int before = SeriesRegistry.Discriminators.Count;
+
+                SeriesRegistry.Register("__test_custom__", (axes, _) => null);
+
+                Assert.Contains("__test_custom__", SeriesRegistry.Discriminators);
+                Assert.Equal(before + 1, SeriesRegistry.Discriminators.Count);
+            }
+            finally
+            {
+                SeriesRegistry.ResetForTestsInternal();
+            }
+
+            Assert.DoesNotContain("__test_custom__", SeriesRegistry.Discriminators);
+        }
+    }
+
     private static Axes FreshAxes() => new Axes();
 
     /// <summary>Council fix F3: <c>ResetForTests</c> is a test-infrastructure escape hatch that

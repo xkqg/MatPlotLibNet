@@ -45,4 +45,5 @@ Plt.Create()
 | `MatPlotLibNet.DataFrame` | DataFrame indicators + regression |
 | `MatPlotLibNet.Wpf` | Native WPF chart control via SkiaSharp |
 | `MatPlotLibNet.Geo` | 13 map projections, GeoJSON, Natural Earth 110m data |
+| `MatPlotLibNet.Mcp` | MCP server — charts for an AI agent |
 | `MatPlotLibNet.Notebooks` | Polyglot / Jupyter inline SVG |
