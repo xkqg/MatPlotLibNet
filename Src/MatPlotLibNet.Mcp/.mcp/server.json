@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.xkqg/matplotlibnet",
-  "description": "Renders MatPlotLibNet charts to PNG, SVG or PDF from a JSON spec; lists the chart types and describes the spec schema.",
+  "description": "Renders MatPlotLibNet charts to PNG, SVG or PDF from a JSON spec an AI agent writes.",
   "version": "1.15.0",
   "packages": [
     {
