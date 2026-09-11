@@ -6,6 +6,9 @@ look at the result.
 
 ## Install
 
+> Ships with **1.15.0**. Until that release is published the server runs from this repository
+> (`dotnet run --project Src/MatPlotLibNet.Mcp`), not from nuget.org.
+
 The package is a .NET tool; the .NET 10 SDK resolves and runs it, so there is nothing to install by hand.
 
 ```json

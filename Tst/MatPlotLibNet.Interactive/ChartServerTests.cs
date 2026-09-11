@@ -356,7 +356,7 @@ public class ChartServerCoverageTests
 /// <see cref="InteractiveExtensions.Browser"/> and/or the <see cref="ChartServer"/>
 /// singleton, so xunit never runs them in parallel (they share mutable static state).
 /// Fixes a pre-existing latent race between the two InteractiveExtensions test classes.</summary>
-[CollectionDefinition("InteractiveDisplayGlobalState")]
+[CollectionDefinition("InteractiveDisplayGlobalState", DisableParallelization = true)]
 public sealed class InteractiveDisplayGlobalStateCollection { }
 
 /// <summary>B2 / F7 (v1.13.0, 2026-07-04) — pins the async-all-the-way fix for the

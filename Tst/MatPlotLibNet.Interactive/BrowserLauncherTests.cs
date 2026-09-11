@@ -7,6 +7,13 @@ using NSubstitute;
 namespace MatPlotLibNet.Interactive.Tests;
 
 /// <summary>Verifies <see cref="BrowserLauncher"/> behavior.</summary>
+/// <summary>Mutates the process-global <see cref="InteractiveExtensions.Browser"/>, so it belongs in the
+/// collection that serialises the classes which do — it was the one writer left outside it. A substitute this
+/// class installs stays reachable while a sibling test drives the real <c>ShowAsync</c> flow, and that flow then
+/// calls THIS class's <c>Arg.Do</c> callback with the server's own URL: the assertion reads a value written by
+/// another test. Measured on CI under coverage instrumentation, which is slow enough to interleave them:
+/// expected "http://localhost:5000/chart/abc", got "http://127.0.0.1:40249/chart/d983a71c...".</summary>
+[Collection("InteractiveDisplayGlobalState")]
 public class BrowserLauncherTests : IDisposable
 {
     private readonly IBrowserLauncher _original;

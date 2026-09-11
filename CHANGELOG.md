@@ -36,6 +36,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The one test class that still raced on a process-global launcher joins the collection that serialises
+  them.** `InteractiveExtensions.Browser` is a static every Interactive test can write, and a collection exists
+  whose own comment says it fixes that race — but `BrowserLauncherTests` was never put in it, and the definition
+  never carried `DisableParallelization`. A substitute it installs stays reachable while a sibling drives the
+  real `ShowAsync` flow, which then invokes this class's callback with the server's own URL: the assertion reads
+  a value another test wrote. It surfaced on CI under coverage instrumentation, which is slow enough to
+  interleave them — expected `http://localhost:5000/chart/abc`, got `http://127.0.0.1:40249/chart/d983a71c…`.
 - **SourceLink no longer drags a vulnerable package into every build.** `Microsoft.Build.Tasks.Git` 10.0.202 —
   what `Microsoft.SourceLink.GitHub` pulls — sits inside the range CVE-2026-62900 names, and that band has no
   patched release at all; the floating `8.*` the root build file used lands in a second vulnerable band. Both are

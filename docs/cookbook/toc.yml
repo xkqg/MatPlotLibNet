@@ -50,3 +50,15 @@
   href: streaming.md
 - name: Tick Formatting
   href: tick-formatting.md
+- name: Clustermap
+  href: clustermap.md
+- name: Dendrograms
+  href: dendrograms.md
+- name: Pair Grid (PairPlot)
+  href: pairplot.md
+- name: Network Graph
+  href: network-graph.md
+- name: Dashboard tiles & timelines
+  href: dashboard.md
+- name: MCP server (AI agents)
+  href: mcp.md

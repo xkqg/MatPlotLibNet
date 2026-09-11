@@ -167,6 +167,24 @@ public class ReleaseContractTests
     };
 
     [Fact]
+    public void EveryCookbookPage_IsInTheTableOfContents()
+    {
+        // docfx builds the site from the TOC, so a page the TOC does not list is a 404 behind a link the index
+        // already carries. Measured: six pages had reached the index and never the TOC, the newest of them
+        // linked from the cookbook's own front page.
+        var pages = Directory.EnumerateFiles(Path.Combine(Root, "docs", "cookbook"), "*.md")
+            .Select(Path.GetFileName)
+            .Where(name => name != "index.md")
+            .OrderBy(name => name, StringComparer.Ordinal);
+        string toc = Read("docs", "cookbook", "toc.yml");
+
+        var missing = pages.Where(name => !toc.Contains($"href: {name}", StringComparison.Ordinal)).ToArray();
+
+        Assert.True(missing.Length == 0,
+            $"These cookbook pages are published but unreachable: {string.Join(", ", missing)}");
+    }
+
+    [Fact]
     public void TheApiDocumentation_CoversEveryPackableProject()
     {
         // docfx metadata is a hand-kept file list too: a package absent from it is absent from the API site.

@@ -15,13 +15,14 @@ no WebView, no SaaS.
 
 ## Where this is going
 
-The **1.14** line is control-room work: `Plt.OpsDashboard()` and the tile anatomy arrived with it, and the
-releases since are the fixes and extensions a live operator wall asked for — a secondary Y axis that is a full
-citizen, streaming that draws in SVG, 3-D axis titles that clear their own labels, tile captions that wrap and
-stay inside their tile, and an ops window whose ticks read as time.
+The **1.15** line opens the library to agents: `MatPlotLibNet.Mcp` is a Model Context Protocol server, so a
+model can render any of these chart types from a JSON spec and look at the result — and is told which field is
+wrong when the spec is not one.
 
-The **1.15** line opens the library to agents: `MatPlotLibNet.Mcp` lets a model render any of these chart types
-from a JSON spec and look at the result.
+The **1.14** line before it was control-room work: `Plt.OpsDashboard()` and the tile anatomy arrived with it,
+and the releases since are the fixes and extensions a live operator wall asked for — a secondary Y axis that is
+a full citizen, streaming that draws in SVG, 3-D axis titles that clear their own labels, tile captions that
+wrap and stay inside their tile, and an ops window whose ticks read as time.
 
 After that the cadence is community-driven: bug fixes, documentation, and whatever real use turns up. Open a
 [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
@@ -61,7 +62,7 @@ Quality bar: a strict per-class coverage gate at ≥90 % line and branch (679 cl
 | **MatPlotLibNet.Wpf** | `dotnet add package MatPlotLibNet.Wpf` | Native WPF `MplChartControl` via SkiaSharp — all 9 interaction modifiers |
 | **MatPlotLibNet.Geo** | `dotnet add package MatPlotLibNet.Geo` | 13 map projections, GeoJSON parser, Natural Earth 110m data, geographic polygons |
 | **MatPlotLibNet.Notebooks** | `#r "nuget: MatPlotLibNet.Notebooks"` | Inline SVG in Polyglot / Jupyter notebooks |
-| **[MatPlotLibNet.Mcp](https://www.nuget.org/packages/MatPlotLibNet.Mcp)** | `dnx MatPlotLibNet.Mcp` | MCP server — an AI agent renders charts over stdio |
+| **[MatPlotLibNet.Mcp](docs/cookbook/mcp.md)** *(from 1.15.0)* | `dnx MatPlotLibNet.Mcp` | MCP server — an AI agent renders charts over stdio |
 | **@matplotlibnet/angular** | `npm install @matplotlibnet/angular` | Angular components + TypeScript SignalR client |
 | **@matplotlibnet/react** | `npm install @matplotlibnet/react` | React hooks + components + TypeScript SignalR client |
 | **@matplotlibnet/vue** | `npm install @matplotlibnet/vue` | Vue 3 composables + TypeScript SignalR client |
@@ -91,8 +92,8 @@ Plt.Create()
 
 **83 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
 
-**MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a [Model Context Protocol](https://modelcontextprotocol.io)
-server, shipped as a .NET tool a host starts over stdio. Four tools: `render_chart` (PNG plus a text summary of
+**MCP server — charts for an AI agent** *(ships with 1.15.0)* — `MatPlotLibNet.Mcp` is a
+[Model Context Protocol](https://modelcontextprotocol.io) server, shipped as a .NET tool a host starts over stdio. Four tools: `render_chart` (PNG plus a text summary of
 what was drawn), `save_chart` (PNG/SVG/PDF to a file, returning the path it wrote), `list_chart_types` and
 `describe_chart_schema`. The spec is the library's own figure JSON, so anything the library draws, an agent can
 ask for — and the server refuses a wrong spec by field name before it renders, instead of returning a blank
