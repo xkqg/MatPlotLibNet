@@ -123,7 +123,7 @@ public class McpStdioTests
         var names = stdout
             .Where(f => f.RootElement.TryGetProperty("result", out var r) && r.TryGetProperty("tools", out _))
             .SelectMany(f => f.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray())
-            .Select(t => t.GetProperty("name").GetString())
+            .Select(t => t.GetProperty("name").GetString() ?? "")
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToArray();
 

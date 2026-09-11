@@ -27,6 +27,14 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.*" />
     <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+    <!-- The managed SkiaSharp package carries no native binary of its own: each platform's libSkiaSharp comes
+         from its own RID package. A library can leave that choice to the application that hosts it, but this
+         package IS the application — a tool a host resolves and starts on whatever machine it lands on — so it
+         has to bring all three. Without the Linux one, every render on a Linux host dies with
+         "Unable to load shared library 'libSkiaSharp'". Same set, same floating range, as the Skia test project. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.*" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.*" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="3.*" />
     <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.303" />
   </ItemGroup>
 

@@ -40,6 +40,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   what `Microsoft.SourceLink.GitHub` pulls — sits inside the range CVE-2026-62900 names, and that band has no
   patched release at all; the floating `8.*` the root build file used lands in a second vulnerable band. Both are
   pinned to 10.0.303, which is the fix, and pinned rather than floated so a range cannot drift back into one.
+- **The MCP server renders on Linux and macOS, not only on Windows.** The managed SkiaSharp package carries no
+  native binary of its own — each platform's `libSkiaSharp` comes from its own RID package, and a library can
+  leave that choice to whoever hosts it. This package IS the host: a tool resolved and started on a machine
+  nobody asked about. Without those references every render on a Linux host died with `Unable to load shared
+  library 'libSkiaSharp'`, which is exactly how the first CI run of the package failed on a suite that was green
+  on Windows. Three theories now demand a binary per platform, so the next omission fails at the gate rather
+  than on the runner.
 - **The MCP tool package no longer ships a quarter of a gigabyte of debug symbols.** A .NET tool carries its whole
   dependency closure, and SkiaSharp's native assets bring a PDB per architecture: measured, 247 MB of a 301 MB
   payload. The native binaries stay — a tool has to run where it lands — and their symbols do not.

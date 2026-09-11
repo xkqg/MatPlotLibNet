@@ -29,15 +29,22 @@ public class ToolPackagingTests
         [.. ServerOutput().EnumerateFiles($"*{extension}", SearchOption.AllDirectories)
             .Where(f => f.FullName.Replace('\\', '/').Contains("/runtimes/", StringComparison.Ordinal))];
 
-    [Fact]
-    public void TheServerCarriesItsNativeRenderer_ForEveryArchitectureItMayLandOn()
+    [Theory]
+    [InlineData(".dll", "win")]
+    [InlineData(".so", "linux")]
+    [InlineData(".dylib", "osx")]
+    public void TheServerCarriesItsNativeRenderer_ForEveryPlatformItMayLandOn(string extension, string platform)
     {
-        // The tool has to run wherever the host starts it, so the native binaries themselves stay.
-        var native = NativeFiles(".dll").Concat(NativeFiles(".so")).Concat(NativeFiles(".dylib"))
-            .Where(f => f.Name.Contains("SkiaSharp", StringComparison.OrdinalIgnoreCase))
+        // The managed SkiaSharp package carries no binary: each platform's comes from its own RID package. A
+        // library may leave that to whoever hosts it; a TOOL is hosted by nobody — it is resolved and started on
+        // a machine nobody asked about. Missing the Linux one is how the first CI run of this package failed,
+        // with "Unable to load shared library 'libSkiaSharp'", on a suite that was green on Windows.
+        var native = NativeFiles(extension)
+            .Where(f => f.Name.Contains("SkiaSharp", StringComparison.OrdinalIgnoreCase)
+                        && f.FullName.Replace(Path.DirectorySeparatorChar, '/').Contains($"/runtimes/{platform}", StringComparison.Ordinal))
             .ToArray();
 
-        Assert.NotEmpty(native);
+        Assert.True(native.Length > 0, $"No libSkiaSharp for {platform}: every render on that platform would die.");
     }
 
     [Fact]
