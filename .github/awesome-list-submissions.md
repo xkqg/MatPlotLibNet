@@ -2,6 +2,10 @@
 
 Pre-written submission texts for .NET community awesome lists. Copy-paste into a PR or issue on each repo.
 
+**None of these is a step in a plan.** The owner does not submit entries to repositories other people keep —
+not as a pull request, not as an issue, not through a form. The texts stay here as material he may use himself
+if he ever chooses to; nobody working on this repository offers to send them for him.
+
 Every entry below was checked against the live README and the live CONTRIBUTING of that repository, and each
 one names the exact place it goes. Two things measured there that an entry has to respect: the four lists want
 a SHORT description — the earlier drafts here ran three lines and would have been sent back — and every list
@@ -16,7 +20,7 @@ descriptions concise, one link per pull request, and the PR body says why it bel
 NOT alphabetical — measured: Oxyplot, OpenTK, Aspose.Drawing, ScottPlot, LiveCharts2, Helix Toolkit — so the
 entry goes at the end of the section. Entries there carry no closing period.
 
-**Status:** prepared, not submitted. MatPlotLibNet is absent (0 hits in the live README).
+**Status:** not to be submitted on the owner's behalf. MatPlotLibNet is absent (0 hits in the live README).
 
 ```markdown
 * [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - matplotlib-inspired charting for .NET: 83 chart types, server-rendered SVG/PNG/PDF/GIF, and native controls for Blazor, WPF, MAUI, Avalonia and Uno
@@ -32,7 +36,7 @@ entry goes at the end of the section. Entries there carry no closing period.
 and *"make sure the alphabetical order is maintained"* — the section is alphabetical, so the entry goes between
 `MagicScaler` and `QRCoder`.
 
-**Status:** prepared, not submitted. MatPlotLibNet is absent (0 hits in the live README).
+**Status:** not to be submitted on the owner's behalf. MatPlotLibNet is absent (0 hits in the live README).
 
 ```markdown
 * [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - Code-first charting inspired by matplotlib, rendering SVG, PNG and PDF without a browser.
@@ -49,7 +53,7 @@ descriptions simple, every description ends with a period, one suggestion per pu
 commit. The star and last-commit badges the existing rows carry are not in the guidelines and are not ours to
 add — leave them to the maintainer.
 
-**Status:** prepared, not submitted. MatPlotLibNet is absent (0 hits in the live README).
+**Status:** not to be submitted on the owner's behalf. MatPlotLibNet is absent (0 hits in the live README).
 
 ```markdown
 * [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - Charting for Blazor as inline SVG, with no JavaScript charting library.
@@ -66,7 +70,7 @@ draft here named · **Format, read from CONTRIBUTING:** `- [Lib Name](link) - De
 rather than an asterisk, short description, and *"we try to keep the list sorted"* — so the entry goes between
 `LiveCharts2` and `Microcharts`.
 
-**Status:** prepared, not submitted. MatPlotLibNet is absent (0 hits in the live README).
+**Status:** not to be submitted on the owner's behalf. MatPlotLibNet is absent (0 hits in the live README).
 
 ```markdown
 - [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - Native Avalonia charting control with a SkiaSharp backend.
@@ -77,6 +81,9 @@ rather than an asterisk, short description, and *"we try to keep the list sorted
 ---
 
 ## 5. NuGet blog community spotlight
+
+**Status:** not to be sent on the owner's behalf — it puts him forward at a venue someone else keeps, exactly
+like the four list entries above. Text only, for him.
 
 **Email to:** nuget-team@microsoft.com (or submit via https://devblogs.microsoft.com/nuget/)
 
