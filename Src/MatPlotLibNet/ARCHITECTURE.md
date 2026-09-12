@@ -35,7 +35,13 @@ MatPlotLibNet (Core)                      net10.0 + net8.0
 
 ```
 Directory.Build.props             imported BEFORE every project: authorship, the repository URL, deterministic
-                                  builds, Source Link, and EnableWindowsTargeting for non-Windows hosts
+                                  builds, Source Link, EnableWindowsTargeting for non-Windows hosts, and the
+                                  package icon all fourteen packages carry
+icon.png                          the 128x128 package icon, at the repository root so the props file above can
+                                  pack it into every package. Drawn BY the library — sample 43 of the console
+                                  sample generator renders it — so the mark cannot drift from what the library
+                                  actually produces. ReleaseContractTests checks the format, the size and the
+                                  1 MB ceiling nuget.org enforces at push time
 Directory.Build.targets           imported AFTER every project, so the version it declared is already known.
                                   Holds the one release-notes sentence all fourteen packages carry, with the
                                   version and the changelog anchor built from that version. Fourteen hand-kept

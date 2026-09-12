@@ -45,6 +45,9 @@ Samples/**/*.gif
 /*.pdf
 /*.gif
 !/images/**
+# The package icon is a SOURCE file, not a rendered stray: Directory.Build.props packs it into all
+# fourteen packages, and a pack on a checkout without it fails with NU5046.
+!/icon.png
 
 ## Test coverage
 TestResults/

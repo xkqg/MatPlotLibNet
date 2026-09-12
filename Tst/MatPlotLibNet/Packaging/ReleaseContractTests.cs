@@ -110,6 +110,60 @@ public class ReleaseContractTests
     }
 
     [Fact]
+    public void EveryPackableProject_ShipsAnIcon()
+    {
+        // Without one, every NuGet search row and every row of the Visual Studio package manager shows a
+        // placeholder — the first thing a developer sees about all fourteen packages. One image in the shared
+        // build file covers them at once; this pins that it is declared and that no project blanks it out.
+        var shared = XDocument.Load(Path.Combine(Root, "Directory.Build.props"));
+        string icon = shared.Descendants("PackageIcon").Single().Value.Trim();
+
+        Assert.Equal("icon.png", icon);
+        Assert.True(File.Exists(Path.Combine(Root, icon)), $"{icon} is declared and not in the repository");
+
+        var blanked = PackableProjects()
+            .Where(p => p.Xml.Descendants("PackageIcon").Any(n => string.IsNullOrWhiteSpace(n.Value)))
+            .Select(p => p.Path)
+            .ToArray();
+
+        Assert.True(blanked.Length == 0,
+            $"These packages override the shared icon with nothing: {string.Join(", ", blanked)}");
+    }
+
+    [Fact]
+    public void TheIcon_SurvivesGitignore()
+    {
+        // Measured the hard way: the repository ignores every PNG at its root, so the icon existed here, packed
+        // here, passed every check here — and was never committed. A pack on a fresh checkout fails with NU5046,
+        // "the icon file does not exist in the package", on the run that publishes.
+        var rules = File.ReadAllLines(Path.Combine(Root, ".gitignore")).Select(l => l.Trim()).ToArray();
+
+        bool ignoredByARootRule = rules.Contains("/*.png") || rules.Contains("*.png");
+        bool rescued = rules.Contains("!/icon.png") || rules.Contains("!icon.png");
+
+        Assert.True(!ignoredByARootRule || rescued,
+            ".gitignore hides every PNG at the repository root and does not make an exception for icon.png");
+    }
+
+    [Fact]
+    public void TheIcon_IsThePngNuGetAsksFor()
+    {
+        // nuget.org takes PNG or JPEG, caps the file at 1 MB and recommends 128x128. A file that misses any of
+        // those is refused at push time, which is the worst moment to find out.
+        byte[] png = File.ReadAllBytes(Path.Combine(Root, "icon.png"));
+
+        Assert.Equal<byte[]>([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], png[..8]);
+
+        // The IHDR chunk carries the dimensions, big-endian, right after the signature and the chunk header.
+        int width = (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19];
+        int height = (png[20] << 24) | (png[21] << 16) | (png[22] << 8) | png[23];
+
+        Assert.Equal(128, width);
+        Assert.Equal(128, height);
+        Assert.True(png.Length < 1024 * 1024, $"the icon is {png.Length} bytes; nuget.org caps it at 1 MB");
+    }
+
+    [Fact]
     public void EveryPackableProject_ShipsReleaseNotes()
     {
         // A package page with an empty Release Notes box tells a reader nothing about what they are upgrading

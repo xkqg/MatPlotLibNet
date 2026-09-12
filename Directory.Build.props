@@ -1,9 +1,14 @@
-<Project>
+﻿<Project>
 
   <PropertyGroup>
     <Authors>H.P. Gansevoort</Authors>
     <Copyright>Copyright (c) 2026 H.P. Gansevoort</Copyright>
     <PackageProjectUrl>https://github.com/xkqg/MatPlotLibNet</PackageProjectUrl>
+
+    <!-- One image for all fourteen packages. Without it every NuGet search row and every row of the Visual
+         Studio package manager shows a placeholder. The file is drawn by the library itself — see sample 43 in
+         Samples/MatPlotLibNet.Samples.Console — so it cannot drift away from what the library actually renders. -->
+    <PackageIcon>icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/xkqg/MatPlotLibNet</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -27,6 +32,10 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <DebugType>embedded</DebugType>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)icon.png" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Pinned, not floating: the 8.x line and the 10.0.200-10.0.204 band are both named by CVE-2026-62900

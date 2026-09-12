@@ -66,6 +66,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **All fourteen packages have an icon.** Every NuGet search row, every facet page and every row of the Visual
+  Studio package manager used to show a placeholder, which is the first thing a developer sees about this
+  library. The mark is a colour field under viridis with one trace over it — the two things the library is for,
+  in the colour map that says scientific plotting without a word, and no text, because at the sixteen pixels a
+  package list gives you a word is a smudge. It is drawn by the library itself, so it cannot drift away from
+  what the library actually renders, and it is declared once for all fourteen.
+
 - **Every package now says what changed.** All fourteen packages carry release notes, so the Release Notes box
   on nuget.org and in the Visual Studio package manager links straight to this changelog at the section for the
   version being installed, instead of standing empty.

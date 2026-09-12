@@ -30,6 +30,16 @@ static string SamplesPath(string name)
     return Path.Combine(imagesDir, name);
 }
 
+// The same walk, but for the few files that belong at the repository ROOT rather than in images/ —
+// the package icon, which Directory.Build.props packs into all fourteen packages from there.
+static string RepoPath(string name)
+{
+    var dir = AppContext.BaseDirectory;
+    while (dir is not null && !File.Exists(Path.Combine(dir, "MatPlotLibNet.CI.slnf")))
+        dir = Path.GetDirectoryName(dir);
+    return dir is not null ? Path.Combine(dir, name) : name;
+}
+
 
 // --- 1. Simple line chart -> SVG ---
 double[] x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -2195,4 +2205,52 @@ Console.WriteLine("Saved international.svg and international.png");
         .WithTheme(theme)
         .SaveSvgAndPng(SamplesPath("ops_topology.svg"));
     Console.WriteLine("Saved ops_topology.svg");
+}
+
+// --- 43. The package icon — drawn by the library it stands for ---
+//
+// 128x128 PNG at the repository root, packed into all fourteen packages by Directory.Build.props. It is a
+// pcolormesh under viridis with one bold trace over it: the two things this library is for, in the one colour
+// map that says "scientific plotting" without a word. No text — at the 16 pixels a package list shows, a word
+// is a smudge. Six cells to a side is as fine as it can go and still read there.
+{
+    const int cells = 6;
+    double[] edges = [.. Enumerable.Range(0, cells + 1).Select(i => (double)i)];
+
+    // A diagonal ramp with a soft peak up in the bright corner, so the map runs its whole length.
+    var field = new double[cells, cells];
+    for (int row = 0; row < cells; row++)
+    {
+        for (int col = 0; col < cells; col++)
+        {
+            double u = (col + 0.5) / cells;
+            double v = (row + 0.5) / cells;
+            field[row, col] = (0.55 * u) + (0.45 * v)
+                + (0.35 * Math.Exp(-(((u - 0.72) * (u - 0.72)) + ((v - 0.7) * (v - 0.7))) / 0.06));
+        }
+    }
+
+    double[] traceX = [.. Enumerable.Range(0, 193).Select(i => i * cells / 192.0)];
+    double[] traceY = [.. traceX.Select(t => (cells * 0.5) + (cells * 0.26 * Math.Sin(t / cells * Math.PI * 1.5)))];
+
+    Plt.Create()
+        .WithSize(128, 128)
+        .WithTheme(Theme.CreateFrom(Theme.Default).WithBackground(Color.FromHex("#0B0F14")).Build())
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Pcolormesh(edges, edges, field, s => s.ColorMap = ColorMaps.Viridis)
+            .Plot(traceX, traceY, s => { s.Color = Color.FromHex("#FFFFFF"); s.LineWidth = 6.0; })
+            .HideAllAxes()
+            .WithGrid(g => g with { Visible = false })
+            .WithLegend(visible: false))
+        // No margins and no gaps: the mark fills the square edge to edge, which is what makes it read as a
+        // mark rather than as a tiny chart with a frame around it.
+        .WithSubPlotSpacing(sp => sp with
+        {
+            MarginLeft = 0, MarginRight = 0, MarginTop = 0, MarginBottom = 0,
+            HorizontalGap = 0, VerticalGap = 0,
+        })
+        .Build()
+        .Transform(new PngTransform())
+        .ToFile(RepoPath("icon.png"));
+    Console.WriteLine("Saved icon.png");
 }
