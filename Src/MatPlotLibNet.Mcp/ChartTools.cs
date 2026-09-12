@@ -83,15 +83,28 @@ internal sealed class ChartTools
             return $"Wrote {result.Path} ({result.ByteCount:N0} bytes, {result.FormatWritten.ToString().ToLowerInvariant()}).\n{result.Summary.ToText()}";
         });
 
+    // Both forms, in the two channels the protocol has for them: the markdown in the text a model reads, and the
+    // same values in structured content a model can compute with. Neither replaces the other — summing a column
+    // used to mean parsing a pipe table back into numbers.
     [McpServerTool(Name = "chart_data_table", Title = "Read a chart's data as a table",
-        ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
-    [Description("Returns the DATA of a chart spec as markdown tables - the numbers the picture is drawn from, "
-        + "which an image cannot be read for. One table per group of series that share an x. Long charts are "
+        ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false,
+        UseStructuredContent = true, OutputSchemaType = typeof(ChartTables))]
+    [Description("Returns the DATA of a chart spec: markdown tables to read - the numbers the picture is drawn "
+        + "from, which an image cannot be read for - and the same values as structured content, so they can be "
+        + "used without parsing the markdown. One table per group of series that share an x. Long charts are "
         + "refused with the limit in the message; save the chart and read the file instead.")]
-    public string ChartDataTable(
+    public CallToolResult ChartDataTable(
         [Description("The chart spec: MatPlotLibNet figure JSON, the same document render_chart takes.")]
         JsonElement spec) =>
-        Guarded(() => _tabulation.Describe(ChartSpec.From(spec)));
+        Guarded(() =>
+        {
+            var tabulated = _tabulation.Tabulate(ChartSpec.From(spec));
+            return new CallToolResult
+            {
+                Content = [new TextContentBlock { Text = tabulated.Markdown }],
+                StructuredContent = JsonSerializer.SerializeToElement(tabulated.Values, McpJsonUtilities.DefaultOptions),
+            };
+        });
 
     [McpServerTool(Name = "list_chart_types", Title = "List the chart types",
         ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]

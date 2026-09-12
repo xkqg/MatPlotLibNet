@@ -177,6 +177,46 @@ public class McpStdioTests
     }
 
     [Fact]
+    public void TheDataTableOverTheWire_CarriesTheMarkdownAndTheValues()
+    {
+        var stdout = Converse(2, Initialize, Initialized,
+            """{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"chart_data_table","arguments":{"spec":{"width":400,"height":300,"title":"Revenue","subPlots":[{"xAxis":{"label":"Quarter"},"series":[{"type":"line","xData":[1,2,3],"yData":[12,18,15],"label":"2026"}]}]}}}}""");
+
+        var result = stdout
+            .Single(f => f.RootElement.TryGetProperty("id", out var id) && id.GetInt32() == 5)
+            .RootElement.GetProperty("result");
+
+        // The text a model reads is the markdown, exactly as before.
+        string markdown = result.GetProperty("content")[0].GetProperty("text").GetString()!;
+        Assert.Contains("| Quarter | 2026 |", markdown);
+        Assert.Contains("| 3 | 15 |", markdown);
+
+        // Beside it, the same values, as values.
+        var table = result.GetProperty("structuredContent").GetProperty("tables")[0];
+        Assert.Equal("Revenue", table.GetProperty("caption").GetString());
+        Assert.Equal(["Quarter", "2026"],
+            table.GetProperty("columns").EnumerateArray().Select(c => c.GetProperty("header").GetString()));
+        Assert.Equal(15.0, table.GetProperty("rows")[2][1].GetDouble());
+    }
+
+    [Fact]
+    public void TheDataTableTool_AdvertisesTheShapeOfThoseValues()
+    {
+        // A client is allowed to check structured content against the schema the tool publishes, and a tool that
+        // returns structured content without one leaves it with nothing to check.
+        var stdout = Converse(2, Initialize, Initialized, """{"jsonrpc":"2.0","id":2,"method":"tools/list"}""");
+
+        var entry = stdout
+            .Where(f => f.RootElement.TryGetProperty("result", out var r) && r.TryGetProperty("tools", out _))
+            .SelectMany(f => f.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray())
+            .Single(t => t.GetProperty("name").GetString() == "chart_data_table");
+
+        var schema = entry.GetProperty("outputSchema");
+        Assert.Equal("object", schema.GetProperty("type").GetString());
+        Assert.True(schema.GetProperty("properties").TryGetProperty("tables", out _));
+    }
+
+    [Fact]
     public void ARefusalOverTheWire_CarriesTheMessageTheModelNeeds()
     {
         var stdout = Converse(2, Initialize, Initialized,

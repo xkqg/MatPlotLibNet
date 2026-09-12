@@ -148,6 +148,22 @@ public class ChartToolsTests : IDisposable
     }
 
     [Fact]
+    public void ChartDataTable_ReturnsTheMarkdownAndTheValuesBesideIt()
+    {
+        // Both channels, neither replacing the other: the markdown a model reads, and the same numbers it can
+        // add up without parsing a pipe table first.
+        var result = _tools.ChartDataTable(Spec(LineJson));
+
+        string markdown = Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text;
+        Assert.Contains("| 3 | 3 |", markdown);
+
+        var rows = result.StructuredContent!.Value.GetProperty("tables")[0].GetProperty("rows");
+        Assert.Equal(3, rows.GetArrayLength());
+        Assert.Equal(3.0, rows[2][0].GetDouble());
+        Assert.Equal(3.0, rows[2][1].GetDouble());
+    }
+
+    [Fact]
     public void ListChartTypes_NamesTheTypesAndWhatIsUnavailable()
     {
         string listed = _tools.ListChartTypes();

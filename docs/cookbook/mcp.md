@@ -37,7 +37,7 @@ separated by `;`. The server registers them when it starts, so a chart can use a
 |---|---|
 | `render_chart(spec, format)` | renders the spec and returns a PNG the model can see, with a text summary beside it |
 | `save_chart(spec, path, format, overwrite)` | writes PNG, SVG or PDF to a file and returns the path it wrote |
-| `chart_data_table(spec)` | returns the chart's data as markdown tables, which are the numbers the picture is drawn from |
+| `chart_data_table(spec)` | returns the chart's data twice: markdown tables to read, and the same values as structured content to compute with |
 | `list_chart_types()` | lists the chart types a spec may name |
 | `describe_chart_schema(seriesType)` | describes the fields of a spec, or of one chart type, with a worked example |
 
@@ -141,7 +141,28 @@ per group of series that share an x, captioned with the chart's name:
 
 The tables come from the same `figure.ToDataTables()` call that every other host serves (see the
 [accessibility page](accessibility.md)), so the numbers a model reads and the table a screen reader reads are the
-same data. A chart with more rows than the server's row ceiling is refused. The refusal gives the row count, the
+same data. The same tables come back a second time beside the markdown, as structured content, so a model
+that wants to add a column up does not have to parse a pipe table back into numbers first:
+
+```json
+{
+  "tables": [
+    {
+      "caption": "Revenue",
+      "columns": [
+        { "header": "Quarter", "kind": "number", "axis": "x" },
+        { "header": "2026", "kind": "number", "axis": "y" }
+      ],
+      "rows": [[1, 12], [2, 18], [3, 15]]
+    }
+  ]
+}
+```
+
+A column says what it holds — `number`, `date` or `text` — and which axis its values are positions on. The two
+forms differ deliberately in one place: markdown is for reading, so a date is spelled the way a person reads it,
+while this is for a machine, so a date is written out in full as `2026-09-12T12:00:00.000`, which sorts correctly
+as text. A chart with more rows than the server's row ceiling is refused. The refusal gives the row count, the
 ceiling and the way around it: call `save_chart`, then read the file. A table is text, and text takes up the
 model's context.
 

@@ -12,7 +12,7 @@ It gives an AI agent (Claude Code, VS Code, Claude Desktop, or any other MCP hos
 |---|---|
 | `render_chart` | renders a chart spec to a PNG image the model can look at |
 | `save_chart` | writes the chart as PNG, SVG or PDF to a file and returns the path it wrote |
-| `chart_data_table` | returns the chart's data as markdown tables, so the model can read exact values, which it cannot read off a picture |
+| `chart_data_table` | returns the chart's data as markdown tables the model can read, and the same values as structured content it can compute with |
 | `list_chart_types` | lists the chart types the spec accepts; the list is read from the library's own registry |
 | `describe_chart_schema` | describes the fields of the spec and gives a worked example for a chart type |
 

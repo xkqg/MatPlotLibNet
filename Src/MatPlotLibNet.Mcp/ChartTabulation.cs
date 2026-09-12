@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
@@ -25,16 +25,19 @@ internal sealed class ChartTabulation
         _limits = limits;
     }
 
-    /// <summary>The chart's data as markdown tables, one per group of series that share an x.</summary>
+    /// <summary>The chart's data, twice over: as markdown tables, one per group of series that share an x, and the
+    /// same values as numbers, dates and texts beside them. The figure is read once for both.</summary>
     /// <exception cref="ToolRefusalException">The spec is not one, or the table is past the row ceiling.</exception>
-    public string Describe(ChartSpec spec)
+    public ChartTabulationResult Tabulate(ChartSpec spec)
     {
         Figure figure = _reader.Read(spec);
         var tables = figure.ToDataTables();
         if (tables.Count == 0)
         {
-            return "This chart has no tabular form: nothing it draws is a series of values. "
-                + "render_chart returns the picture, and describe_chart_schema says which chart types carry data.";
+            return new ChartTabulationResult(
+                "This chart has no tabular form: nothing it draws is a series of values. "
+                + "render_chart returns the picture, and describe_chart_schema says which chart types carry data.",
+                new ChartTables([]));
         }
 
         int rows = tables.Sum(table => table.RowCount);
@@ -56,8 +59,17 @@ internal sealed class ChartTabulation
             text.Append(table.ToMarkdown(_limits.MaxTableRows));
         }
 
-        return text.ToString();
+        return new ChartTabulationResult(text.ToString(), ChartTables.From(tables));
     }
 
     private static string Invariant(FormattableString text) => text.ToString(CultureInfo.InvariantCulture);
+}
+
+/// <summary>A chart's data in both forms: the markdown a model reads, and the same values it can compute with.</summary>
+/// <param name="Markdown">The tables as markdown — what the tool has always returned, unchanged.</param>
+/// <param name="Values">The same tables as values; empty when the chart has no tabular form.</param>
+internal readonly record struct ChartTabulationResult(string Markdown, ChartTables Values)
+{
+    /// <summary>The tables, in order.</summary>
+    public IReadOnlyList<ChartTableData> Tables => Values.Tables;
 }

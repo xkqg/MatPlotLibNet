@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Avalonia and Uno controls pass it on under the same name. Subscribe to open a detail panel, select a row in a
   grid beside the chart, or navigate. It fires whether the chart runs in the control or through a server sink.
 
+- **`chart_data_table` returns the values as values, beside the markdown.** The markdown is unchanged and still
+  comes back in the text the model reads; the same tables now come back a second time as structured content, so a
+  model that wants to add a column up no longer has to parse a pipe table back into numbers. A column says what it
+  holds — number, date or text — and which axis its values are positions on. A date is written out in full there,
+  in the order that sorts correctly, rather than as the number a date axis stores.
+
 ### Changed
 
 - **Every package now says what changed.** All fourteen packages carry release notes, so the Release Notes box
