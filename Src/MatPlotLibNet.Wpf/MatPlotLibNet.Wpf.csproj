@@ -6,11 +6,6 @@
          OpenTK 3 it drags in). 10.0.19041 is the floor SkiaSharp sets for WPF anyway. -->
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF>
-    <!-- Lets DocFX (and any other cross-platform tooling) extract metadata for the
-         net8.0-windows target on a Linux CI runner. WPF assemblies still only run
-         on Windows; this only widens the targeting-pack acceptance for non-runtime
-         tasks. No behavioural change on Windows hosts. -->
-    <EnableWindowsTargeting Condition=" '$(OS)' != 'Windows_NT' ">true</EnableWindowsTargeting>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Version>1.15.1</Version>

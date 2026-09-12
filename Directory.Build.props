@@ -9,6 +9,15 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
+    <!-- Repo-wide, non-Windows only: docfx passes the WPF block's TargetFramework as a GLOBAL property, and a
+         global property spills onto that project's references. On the Linux Pages runner MatPlotLibNet and
+         MatPlotLibNet.Skia then read as Windows-targeting and refuse with "To build a project targeting Windows
+         on this operating system, set the EnableWindowsTargeting property to true" — after which docfx falls
+         back to the raw ref assemblies and the WPF metadata dies on CS1704/CS0246. Setting it here rather than
+         per-project means no project can be caught by that spill again. It only widens targeting-pack
+         acceptance for non-runtime tasks; nothing runs differently on Windows. -->
+    <EnableWindowsTargeting Condition=" '$(OS)' != 'Windows_NT' ">true</EnableWindowsTargeting>
+
     <!-- Deterministic & reproducible builds -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
