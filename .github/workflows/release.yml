@@ -4,7 +4,7 @@ on:
   push:
     tags:
       # Both spellings: v1.14.2 carried the prefix, 1.14.3 and 1.14.4 did not, and a 'v*'-only trigger let those
-      # two slip past — their releases had to be made by hand and nothing was announced.
+      # two slip past, so their releases had to be made by hand.
       - 'v*'
       - '[0-9]+.[0-9]+.[0-9]+'
 
@@ -28,9 +28,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          # Skip creation if a release for this tag already exists (e.g. user created it
-          # manually via the GitHub UI, or a parallel workflow beat us to it). The social
-          # announcements below only need the release URL, which we can always look up.
+          # Skip creation if a release for this tag already exists — the maintainer may have posted it from the
+          # GitHub UI, or from the API, which is in fact the route that makes publish.yml fire at all: a release
+          # this workflow creates for itself carries a bot as its author, and GitHub starts nothing from that.
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists — skipping create."
           else
