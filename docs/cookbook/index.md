@@ -1,8 +1,8 @@
 # Cookbook
 
-> **Want to try these live?** Open the [Playground](https://xkqg.github.io/MatPlotLibNet/playground/) — pick an example, change the theme, resize the chart, and see the SVG update instantly in your browser. No install needed.
+> **Try these examples live.** Open the [Playground](https://xkqg.github.io/MatPlotLibNet/playground/), pick an example, change the theme, resize the chart, and see the SVG update instantly in your browser. No install needed.
 
-Code examples with rendered output. Every example uses the fluent `Plt.Create()` API and can be copy-pasted into a .NET 10 console app with `dotnet add package MatPlotLibNet` (and `MatPlotLibNet.Skia` for PNG/PDF/GIF).
+This cookbook contains code examples with their rendered output. Every example uses the fluent `Plt.Create()` API. You can copy and paste any of them into a .NET 10 console app after running `dotnet add package MatPlotLibNet` (and `MatPlotLibNet.Skia` for PNG/PDF/GIF).
 
 ## Categories
 
@@ -39,3 +39,4 @@ Code examples with rendered output. Every example uses the fluent `Plt.Create()`
 | [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition |
 | [MCP server (AI agents)](mcp.md) | Render charts from Claude, VS Code or any MCP host; the spec format, the five tools, the refusal messages |
 | [Accessibility](accessibility.md) | The data table beside the chart (`ToDataTables()` → HTML/markdown/CSV), color-blind safe palette, high-contrast theme, ARIA semantics, keyboard navigation |
+| [International text](international-text.md) | Arabic and Hebrew out of the box, registering a font file for other scripts (`SkiaFonts.Register`), the `MATPLOTLIBNET_FONTS` variable for the MCP server, what kerning changed |

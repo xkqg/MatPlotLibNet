@@ -1,11 +1,12 @@
 # MatPlotLibNet
 
-A .NET 10 / .NET 8 charting library inspired by [matplotlib](https://matplotlib.org/): fluent API, DI-friendly,
-server-side SVG / PNG / PDF / animated-GIF export, an MCP server so an AI agent can draw with it, and 83 series types. Ships with 13 map projections and embedded
-Natural Earth data, 30 themes, LaTeX-style MathText, O(1) streaming with 53 technical indicators, a control room
-(`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window), and native controls for Blazor, WPF,
-MAUI, Avalonia, Uno and ASP.NET Core, plus TypeScript clients for Angular, React and Vue. No JavaScript framework,
-no WebView, no SaaS.
+MatPlotLibNet is a charting library for .NET 10 and .NET 8, inspired by [matplotlib](https://matplotlib.org/). It
+has a fluent API, it works with dependency injection, it exports SVG, PNG, PDF and animated GIF on the server, it
+includes an MCP server so an AI agent can draw with it, and it offers 83 series types. It also ships with 13 map
+projections and embedded Natural Earth data, 30 themes, LaTeX-style MathText, O(1) streaming with 53 technical
+indicators, a control room (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window), and
+native controls for Blazor, WPF, MAUI, Avalonia, Uno and ASP.NET Core, plus TypeScript clients for Angular, React
+and Vue. It does not need a JavaScript framework, a WebView or a hosted service.
 
 [![CI](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml/badge.svg)](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
@@ -15,26 +16,37 @@ no WebView, no SaaS.
 
 ## Where this is going
 
-The **1.15** line opens the library to agents: `MatPlotLibNet.Mcp` is a Model Context Protocol server, so a
-model can render any of these chart types from a JSON spec and look at the result — and is told which field is
-wrong when the spec is not one.
+**1.17** draws text in any script. Arabic letters join, Hebrew reads right to left, and a number or a Latin word
+inside Arabic or Hebrew text is placed in the correct position, using the font that ships in the package. The
+Unicode bidi algorithm is implemented in full and checked against Unicode's own 861,948 test cases; HarfBuzz shapes
+each run. Other scripts need a font file: `SkiaFonts.Register(path)` registers one, and the MCP server reads font
+files from the `MATPLOTLIBNET_FONTS` variable. Latin text is now kerned too, so text widths changed by up to 2 px
+per letter pair.
 
-Beside the agent is the reader who cannot see the picture at all. `figure.ToDataTables()` gives every chart the
-data table that carries what the picture carries — HTML, markdown or CSV — and every host that serves the SVG
-serves that too.
+**1.16** adds a data table beside every chart, for a reader who cannot see the picture.
+`figure.ToDataTables()` returns the figure's data as tables with typed columns, and you can write each table
+as HTML, Markdown or CSV. Every host serves the table: an ASP.NET Core endpoint next to the SVG endpoint, a
+`ShowDataTable` option on the Blazor component, a `chartDataTable` field in the GraphQL schema, and a fifth MCP
+tool. The same release fixed the streaming series. A point and a candle are now stored as one value, so a snapshot
+can no longer show a point or a bar that never existed. The buffer behind them is now the generic `RingBuffer<T>`.
 
-The **1.14** line before it was control-room work: `Plt.OpsDashboard()` and the tile anatomy arrived with it,
-and the releases since are the fixes and extensions a live operator wall asked for — a secondary Y axis that is
-a full citizen, streaming that draws in SVG, 3-D axis titles that clear their own labels, tile captions that
-wrap and stay inside their tile, and an ops window whose ticks read as time.
+**1.15** added support for AI agents. `MatPlotLibNet.Mcp` is a Model Context Protocol server. A model can render
+any of these chart types from a JSON spec and look at the result. When the spec is wrong, the server reports which
+field is wrong instead of returning a blank picture.
 
-After that the cadence is community-driven: bug fixes, documentation, and whatever real use turns up. Open a
-[Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
-[Issue](https://github.com/xkqg/MatPlotLibNet/issues) — that is what steers the next release. Every release,
-with its migration notes, is in the [CHANGELOG](CHANGELOG.md).
+**1.14** added the control room: `Plt.OpsDashboard()` and the tile anatomy arrived with it. The releases since
+then contain the fixes and extensions that real control-room use required: a secondary Y axis with the same
+capabilities as the primary axis, streaming that draws in SVG, 3-D axis titles that do not overlap their own
+labels, tile captions that wrap and stay inside their tile, and an ops window whose ticks are formatted as time.
 
-Quality bar: a strict per-class coverage gate at ≥90 % line and branch (689 classes, 99.6 % / 97.3 %) across
-11,497 tests, with rendering verified against matplotlib pixel-fidelity fixtures.
+After that, releases follow what the community needs: bug fixes, documentation, and whatever comes up in real use.
+Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
+[Issue](https://github.com/xkqg/MatPlotLibNet/issues); that is what decides the next release. Every release, with
+its migration notes, is listed in the [CHANGELOG](CHANGELOG.md).
+
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (701 classes, at
+99.6 % line / 97.5 % branch) across 11,619 tests. The test suite verifies rendering against matplotlib
+pixel-fidelity fixtures.
 
 ---
 
@@ -97,34 +109,37 @@ Plt.Create()
 **83 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
 
 **MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a
-[Model Context Protocol](https://modelcontextprotocol.io) server, shipped as a .NET tool a host starts over stdio. Five tools: `render_chart` (PNG plus a text summary of
-what was drawn), `save_chart` (PNG/SVG/PDF to a file, returning the path it wrote), `chart_data_table` (the
-numbers the picture is drawn from, as markdown — the one question an image cannot answer), `list_chart_types`
-and `describe_chart_schema`. The spec is the library's own figure JSON, so anything the library draws, an agent can
-ask for — and the server refuses a wrong spec by field name before it renders, instead of returning a blank
-picture. See the [cookbook](docs/cookbook/mcp.md).
+[Model Context Protocol](https://modelcontextprotocol.io) server. It ships as a .NET tool that a host starts over
+stdio. It has five tools: `render_chart` (returns a PNG plus a text summary of what was drawn), `save_chart`
+(writes PNG/SVG/PDF to a file and returns the path it wrote), `chart_data_table` (returns the numbers the picture
+is drawn from, as markdown, which an image alone cannot give), `list_chart_types` and `describe_chart_schema`. The
+spec is the library's own figure JSON, so an agent can ask for anything the library draws. When a spec is wrong,
+the server rejects it before rendering and names the wrong field, instead of returning a blank picture. See the
+[cookbook](docs/cookbook/mcp.md).
 
 ```json
 { "servers": { "MatPlotLibNet.Mcp": { "type": "stdio", "command": "dnx", "args": ["MatPlotLibNet.Mcp", "--yes"] } } }
 ```
 
-**Control room** — `Plt.OpsDashboard()` composes one operator screen: KPI tiles across the top, state timelines under them, and a shared trend panel, all pinned to one caller-supplied time window (the library never reads the wall clock). The tile carries a `Target`, a wrapping multi-line `Caption`, an inline sparkline and a `Hatch` that means *no information*; `Theme.Alarm` names the reserved alarm colours and four operator backgrounds ship with it. `BulletGraphSeries` replaces the radial gauge.
+**Control room** — `Plt.OpsDashboard()` builds one operator screen: KPI tiles across the top, state timelines under them, and a shared trend panel. All of them use one time window that the caller supplies; the library never reads the wall clock. A tile carries a `Target`, a multi-line `Caption` that wraps, an inline sparkline and a `Hatch` that means *no information*. `Theme.Alarm` defines the reserved alarm colours, and four operator backgrounds ship with it. `BulletGraphSeries` replaces the radial gauge.
 
-**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp — no browser, no WebView, no SignalR required. 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. Toolbar state model, view history (back/forward), data cursor (click-to-pin), tick mirroring, tight margins.
+**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp. They need no browser, no WebView and no SignalR. There are 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. The controls also have a toolbar state model, view history (back/forward), a data cursor (click-to-pin), tick mirroring, and tight margins.
 
-**MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
+**MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. It supports 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
 
-**3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). Full `Projection3D` pipeline, `DepthQueue3D` painter's algorithm, `Vec3.FaceNormal` + `Color.Shade()`/`Color.Modulate()` extension-based shading, `Svg3DRotationScript` client-side rotation with depth re-sorting, camera-derived back faces (`CubeFaceSelection` — the panes, cube edges, wall grids and tick rows follow the camera at any azimuth, server-side and during a drag), configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
+**International text** — labels, titles and legend entries in any script. Arabic and Hebrew work with the bundled font: the Unicode bidi algorithm (UAX #9, all 861,948 conformance cases) finds the reading direction, HarfBuzz shapes each run, and the runs are laid out in visual order. `SkiaFonts.Register(path)` adds a font file for Devanagari, Thai, Chinese and other scripts; the MCP server takes them from `MATPLOTLIBNET_FONTS`. The same shaping pass produces the text measurement, the SVG glyph outlines and the PNG pixels.
 
-**Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries`, `StreamingCandlestickSeries` backed by `RingBuffer<T>` with `AppendPoint(x, y)` — a fixed-capacity circular sequence of anything (64 M appends/s, never allocates on append). `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 11 streaming indicators (SMA, EMA, RSI, Bollinger, MACD, OBV, ATR, Stochastic, WilliamsR, CCI, VWAP) auto-attach to candlestick data. Streaming controls for Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. SVG diff engine for bandwidth optimization. Rx `IObservable<T>` adapter.
+**3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). The 3-D support includes a full `Projection3D` pipeline, a `DepthQueue3D` painter's algorithm, shading from `Vec3.FaceNormal` plus the `Color.Shade()`/`Color.Modulate()` extension methods, `Svg3DRotationScript` for client-side rotation with depth re-sorting, camera-derived back faces (`CubeFaceSelection`: the panes, cube edges, wall grids and tick rows follow the camera at any azimuth, both server-side and during a drag), a configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
 
-**Geographic projections** — `MatPlotLibNet.Geo` package with 5 map projections (PlateCarree, Mercator, Robinson, Orthographic, LambertConformal), GeoJSON parser, Natural Earth 110m embedded data, and `GeoPolygonSeries` for coastlines/borders/choropleth. Symlog axis scale for data spanning positive and negative ranges.
+**Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries` and `StreamingCandlestickSeries` are backed by `RingBuffer<T>` and add points with `AppendPoint(x, y)`. A `RingBuffer<T>` is a fixed-capacity circular sequence of any type (64 M appends/s, and it never allocates on append). `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 11 streaming indicators (SMA, EMA, RSI, Bollinger, MACD, OBV, ATR, Stochastic, WilliamsR, CCI, VWAP) attach automatically to candlestick data. Streaming controls exist for Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. The library includes an SVG diff engine to save bandwidth, and an Rx `IObservable<T>` adapter.
 
-**Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). Stacked-record event hierarchy, natural coalescing, per-caller hover responses.
+**Geographic projections** — the `MatPlotLibNet.Geo` package has 5 map projections (PlateCarree, Mercator, Robinson, Orthographic, LambertConformal), a GeoJSON parser, embedded Natural Earth 110m data, and `GeoPolygonSeries` for coastlines, borders and choropleths. A symlog axis scale handles data that spans positive and negative ranges.
 
-**Accessibility** — `figure.ToDataTables()` gives every chart a data table beside the picture (`ToHtml()`, `ToMarkdown()`, `ToCsv()`), which is the text alternative WCAG 1.1.1 asks of a complex image and what an `<svg role="img">` cannot be on its own. Served by `MapChartTableEndpoint`, by `MplChart.ShowDataTable`, by the GraphQL `chartDataTable` field and by the MCP `chart_data_table` tool. Plus ARIA roles and titles, keyboard navigation, the Okabe-Ito colour-blind-safe palette and a high-contrast theme.
+**Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). The events form a hierarchy of stacked records, they merge on their own, and the server sends each caller its own hover response.
 
-**142 colormaps** — viridis, plasma, turbo, coolwarm, and 138 more (71 base maps, each with an auto-registered reversed `_r` variant). NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Matplotlib look-alike themes. DataFrame integration with **53 technical indicators**. Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
+**Accessibility** — `figure.ToDataTables()` gives every chart a data table beside the picture (`ToHtml()`, `ToMarkdown()`, `ToCsv()`). That table is the text alternative that WCAG 1.1.1 requires for a complex image, and an `<svg role="img">` cannot provide it on its own. The table is served by `MapChartTableEndpoint`, by `MplChart.ShowDataTable`, by the GraphQL `chartDataTable` field and by the MCP `chart_data_table` tool. The library also has ARIA roles and titles, keyboard navigation, the Okabe-Ito colour-blind-safe palette and a high-contrast theme.
+
+**142 colormaps** — viridis, plasma, turbo, coolwarm, and 138 more (71 base maps, each with an auto-registered reversed `_r` variant). The library also has NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`), themes that look like matplotlib's, DataFrame integration with **53 technical indicators**, broken axes, and publication-quality SVG/PNG/PDF/GIF export.
 
 ---
 

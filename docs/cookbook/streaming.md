@@ -30,8 +30,8 @@ sf.Dispose();
 
 ## Two units on one live chart (secondary Y-axis)
 
-A live panel usually carries two things that do not share a scale — a rate and a volume, a count and
-a size. Stream one on each axis; the legend names both.
+A live panel usually shows two values that do not share a scale, such as a rate and a volume, or a
+count and a size. Stream one value on each axis and add a legend so that both are named.
 
 ```csharp
 StreamingLineSeries? delivered = null;
@@ -50,19 +50,21 @@ var sf = Plt.Create()
           })
           .WithLegend();
     })
-    .BuildStreaming(TimeSpan.FromSeconds(1));   // the wall's beat
+    .BuildStreaming(TimeSpan.FromSeconds(1));   // one frame per second
 
 delivered!.AppendPoint(t, msgPerSecond);
 traffic!.AppendPoint(t, kbPerSecond);
 ```
 
-> `SecondaryAxisBuilder.StreamingPlot` returns the SERIES, not the builder — the series is the handle
-> the live data needs. Give the right-hand axis room (`WithSubPlotSpacing(sp => sp with { MarginRight
-> = 100 })`), or its tick labels fall outside the figure and the browser clips them.
+> `SecondaryAxisBuilder.StreamingPlot` returns the series, not the builder. You need that series
+> object to append the live data. Give the right-hand axis room with
+> `WithSubPlotSpacing(sp => sp with { MarginRight
+> = 100 })`. Otherwise its tick labels fall outside the figure and the browser clips them.
 
 ## Streaming candlestick with Bollinger Bands
 
-Financial live chart with auto-attached indicators:
+This example builds a live financial chart. The indicators attach to the candlestick series
+automatically:
 
 ```csharp
 var figure = new Figure();
@@ -91,7 +93,8 @@ for (int i = 0; i < 200; i++)
 
 ## Streaming signal (oscilloscope)
 
-Y-only storage — X computed from sample rate. Optimal for audio/sensor data:
+This series stores only the Y values and computes X from the sample rate. It is the best fit for
+audio and sensor data:
 
 ```csharp
 var signal = ax.StreamingSignal(
@@ -125,7 +128,7 @@ sf.DefaultConfig = new StreamingAxesConfig(
 
 ## Rx integration
 
-Connect `IObservable<T>` sources without System.Reactive dependency:
+You can connect `IObservable<T>` sources without taking a dependency on System.Reactive:
 
 ```csharp
 IObservable<StreamingPoint> sensorStream = ...;

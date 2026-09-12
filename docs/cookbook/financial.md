@@ -2,7 +2,7 @@
 
 ## Financial dashboard template
 
-The built-in `FigureTemplates.FinancialDashboard` creates a 3-panel layout: price + Bollinger Bands on top, volume in the middle, and an oscillator (RSI, CCI, etc.) at the bottom.
+The built-in `FigureTemplates.FinancialDashboard` creates a 3-panel layout. The top panel shows the price with Bollinger Bands. The middle panel shows volume. The bottom panel shows an oscillator, such as RSI or CCI.
 
 ```csharp
 FigureTemplates.FinancialDashboard(
@@ -25,7 +25,7 @@ FigureTemplates.FinancialDashboard(
 
 ## Technical indicators
 
-Williams %R, On-Balance Volume, Parabolic SAR, and CCI:
+This example plots four indicators: Williams %R, On-Balance Volume, Parabolic SAR, and CCI:
 
 ```csharp
 Plt.Create()
@@ -62,7 +62,7 @@ Plt.Create()
 ## Relative Rotation Graph (RRG)
 
 The `RelativeRotation` method renders a JdK-style 2D scatter of (RS-Ratio, RS-Momentum) per asset
-vs a benchmark, with a fading tail and 100/100 quadrant grid.
+against a benchmark. It adds a fading tail and a 100/100 quadrant grid.
 
 ### Basic usage
 
@@ -87,8 +87,8 @@ Plt.Create()
 
 ### With absorption + ENB overlays
 
-When portfolio-level absorption ratio and ENB (Effective Number of Bets) are available,
-pass them as overlays so each dot on the trail encodes market-stress information directly:
+When you have a portfolio-level absorption ratio and ENB (Effective Number of Bets),
+pass them as overlays. Each dot on the trail then also shows market stress:
 
 ```csharp
 // absorption[t] ∈ [0..1]: 0 = diversified (green), 1 = panic (red)
@@ -110,10 +110,10 @@ Plt.Create()
 ```
 
 **Visual encoding:**
-- Dot **fill** maps through RdYlGn reversed: green (low absorption) → red (high absorption / panic)
-- Asset colour becomes the **edge ring** of each dot
-- Dot **radius** = `max(1.5, enb × 1.5)` px; head dot 1.5× larger than trail dots
-- **Gray ghost trail** is drawn behind the per-point circles
+- The dot **fill** maps through RdYlGn reversed. Green means low absorption, and red means high absorption (panic).
+- The asset colour becomes the **edge ring** of each dot.
+- The dot **radius** is `max(1.5, enb × 1.5)` px. The head dot is 1.5× larger than the trail dots.
+- A **gray ghost trail** is drawn behind the per-point circles.
 
 ### Formula selection
 

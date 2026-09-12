@@ -83,23 +83,23 @@ public sealed class SkiaRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawText(string text, Point position, Font font, TextAlignment alignment, double rotation)
     {
-        var typeface = FigureSkiaExtensions.ResolveTypeface(font.Family,
-            font.Weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-            font.Slant == FontSlant.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
-        using var skFont = new SKFont(typeface, (float)font.Size);
+        var resolved = SkiaFonts.Resolve(font);
+        using var skFont = new SKFont(resolved.Typeface, (float)font.Size);
         using var paint  = new SKPaint { Color = ToSkColor(font.Color ?? Colors.Black), IsAntialias = true };
 
-        float textWidth = skFont.MeasureText(text);
-        float dx = alignment switch
+        // One shaping pass gives the width the alignment needs AND the glyphs the canvas paints, so the two
+        // cannot disagree — and the same pass is what SkiaFontMetrics measured during layout.
+        var shaped = TextShaper.Shape(text, skFont, resolved.Shaper);
+        float dx = AlignmentOffset(alignment, shaped.Width);
+        using var blob = BuildBlob(shaped, skFont);
+        if (blob is null)
         {
-            TextAlignment.Center => -textWidth / 2,
-            TextAlignment.Right  => -textWidth,
-            _                    => 0,
-        };
+            return;
+        }
 
         if (rotation == 0)
         {
-            _canvas.DrawText(text, (float)position.X + dx, (float)position.Y, skFont, paint);
+            _canvas.DrawText(blob, (float)position.X + dx, (float)position.Y, paint);
         }
         else
         {
@@ -107,7 +107,7 @@ public sealed class SkiaRenderContext : IRenderContext
             // Rotate around the anchor point (matches SVG transform="rotate(angle, x, y)").
             // Note: matplotlib/SVG positive rotation is counter-clockwise; Skia's RotateDegrees is clockwise.
             _canvas.RotateDegrees(-(float)rotation, (float)position.X, (float)position.Y);
-            _canvas.DrawText(text, (float)position.X + dx, (float)position.Y, skFont, paint);
+            _canvas.DrawText(blob, (float)position.X + dx, (float)position.Y, paint);
             _canvas.Restore();
         }
     }
@@ -119,50 +119,85 @@ public sealed class SkiaRenderContext : IRenderContext
     /// <inheritdoc />
     public void DrawRichText(MatPlotLibNet.Rendering.MathText.RichText richText, Point position, Font font, TextAlignment alignment, double rotation)
     {
-        // Concatenate spans for total width measurement (sub/super render at 0.7 scale).
-        var typeface = FigureSkiaExtensions.ResolveTypeface(font.Family,
-            font.Weight == FontWeight.Bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-            font.Slant == FontSlant.Italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright);
+        var resolved = SkiaFonts.Resolve(font);
         using var paint = new SKPaint { Color = ToSkColor(font.Color ?? Colors.Black), IsAntialias = true };
 
-        // Measure total width with per-span scaling.
+        // Each span is shaped ONCE, at its own size: the widths sum to the alignment offset and the same shaped
+        // glyphs are then painted, span after span, along the baseline.
+        var spans = richText.Spans;
+        // A list, not an array: when shaping throws part-way, only the fonts that exist are disposed.
+        var fonts = new List<SKFont>(spans.Count);
+        var shaped = new ShapedText[spans.Count];
         float totalWidth = 0;
-        foreach (var span in richText.Spans)
+        try
         {
-            using var f = new SKFont(typeface, (float)(font.Size * span.FontSizeScale));
-            totalWidth += f.MeasureText(span.Text);
-        }
-
-        float dx = alignment switch
-        {
-            TextAlignment.Center => -totalWidth / 2,
-            TextAlignment.Right  => -totalWidth,
-            _                    => 0,
-        };
-
-        if (rotation != 0)
-        {
-            _canvas.Save();
-            _canvas.RotateDegrees(-(float)rotation, (float)position.X, (float)position.Y);
-        }
-
-        float cursorX = (float)position.X + dx;
-        float baseY   = (float)position.Y;
-        foreach (var span in richText.Spans)
-        {
-            using var f = new SKFont(typeface, (float)(font.Size * span.FontSizeScale));
-            float spanY = span.Kind switch
+            for (int i = 0; i < spans.Count; i++)
             {
-                MatPlotLibNet.Rendering.MathText.TextSpanKind.Superscript => baseY - (float)(font.Size * 0.40),
-                MatPlotLibNet.Rendering.MathText.TextSpanKind.Subscript   => baseY + (float)(font.Size * 0.20),
-                _                                                          => baseY,
-            };
-            _canvas.DrawText(span.Text, cursorX, spanY, f, paint);
-            cursorX += f.MeasureText(span.Text);
+                var skFont = new SKFont(resolved.Typeface, (float)(font.Size * spans[i].FontSizeScale));
+                fonts.Add(skFont);
+                shaped[i] = TextShaper.Shape(spans[i].Text, skFont, resolved.Shaper);
+                totalWidth += shaped[i].Width;
+            }
+
+            float dx = AlignmentOffset(alignment, totalWidth);
+            if (rotation != 0)
+            {
+                _canvas.Save();
+                _canvas.RotateDegrees(-(float)rotation, (float)position.X, (float)position.Y);
+            }
+
+            float cursorX = (float)position.X + dx;
+            float baseY   = (float)position.Y;
+            for (int i = 0; i < spans.Count; i++)
+            {
+                float spanY = spans[i].Kind switch
+                {
+                    MatPlotLibNet.Rendering.MathText.TextSpanKind.Superscript => baseY - (float)(font.Size * 0.40),
+                    MatPlotLibNet.Rendering.MathText.TextSpanKind.Subscript   => baseY + (float)(font.Size * 0.20),
+                    _                                                          => baseY,
+                };
+                using var blob = BuildBlob(shaped[i], fonts[i]);
+                if (blob is not null)
+                {
+                    _canvas.DrawText(blob, cursorX, spanY, paint);
+                }
+
+                cursorX += shaped[i].Width;
+            }
+
+            if (rotation != 0)
+                _canvas.Restore();
+        }
+        finally
+        {
+            foreach (var skFont in fonts)
+            {
+                skFont.Dispose();
+            }
+        }
+    }
+
+    /// <summary>Where the text starts relative to its anchor for the requested alignment.</summary>
+    private static float AlignmentOffset(TextAlignment alignment, float width) => alignment switch
+    {
+        TextAlignment.Center => -width / 2,
+        TextAlignment.Right  => -width,
+        _                    => 0,
+    };
+
+    /// <summary>The shaped glyphs as one positioned text blob, or null when there is nothing to draw.</summary>
+    private static SKTextBlob? BuildBlob(ShapedText shaped, SKFont font)
+    {
+        if (shaped.Glyphs.Length == 0)
+        {
+            return null;
         }
 
-        if (rotation != 0)
-            _canvas.Restore();
+        using var builder = new SKTextBlobBuilder();
+        var run = builder.AllocatePositionedRun(font, shaped.Glyphs.Length);
+        run.SetGlyphs(shaped.Glyphs);
+        run.SetPositions(shaped.Positions);
+        return builder.Build();
     }
 
     /// <inheritdoc />

@@ -270,7 +270,7 @@ fig.Save("geo_projection_grid.svg");
 
 ## Night-side globe
 
-Dark ocean, muted land, glowing coastlines using `Theme.Dark` and `OrthographicAt`.
+This globe uses `Theme.Dark` and `OrthographicAt` to draw a dark ocean, muted land, and glowing coastlines.
 
 ```csharp
 var proj = GeoProjection.OrthographicAt(20, 10);

@@ -24,7 +24,7 @@ See the [Themes cookbook page](themes.md) for visual examples and custom theme b
 
 ## PropCycler
 
-Automatically cycle colors and line styles across multi-series plots:
+A prop cycler cycles colors and line styles automatically across multi-series plots:
 
 ```csharp
 var cycler = new PropCyclerBuilder()
@@ -94,7 +94,7 @@ Plt.Create()
 
 ## Scientific paper template
 
-Publication-quality defaults: 150 DPI, hidden top/right spines, tight layout:
+The template applies publication-quality defaults: 150 DPI, hidden top and right spines, and tight layout:
 
 ```csharp
 FigureTemplates.ScientificPaper(
@@ -111,7 +111,7 @@ FigureTemplates.ScientificPaper(
 
 ## Sparkline dashboard
 
-Compact metric panels — one row per metric, no axes chrome:
+This template draws compact metric panels. Each metric gets one row, and there is no axes chrome:
 
 ```csharp
 FigureTemplates.SparklineDashboard(
@@ -128,7 +128,7 @@ FigureTemplates.SparklineDashboard(
 
 ## Hide all axes chrome
 
-For custom visualizations where you control everything:
+Use this for custom visualizations where you control everything:
 
 ```csharp
 Plt.Create()

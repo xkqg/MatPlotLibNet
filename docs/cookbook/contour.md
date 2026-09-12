@@ -25,7 +25,7 @@ Plt.Create()
 
 ![Contour with labels](../images/contour_labels.png)
 
-> **v1.7.2 Phase L.9 — strict colormap lookup.** `AxesBuilder.WithColorMap(string)` throws `ArgumentException` with a list of registered names if the name is unknown (e.g. a typo like `"virdis"`). Pre-fix the call silently no-op'd and the renderer fell back to Viridis, masking the bug. For defensive lookup that doesn't throw, fetch the instance yourself via `ColorMapRegistry.Get(name)` and use the `WithColorMap(IColorMap)` overload only when non-null.
+> **v1.7.2 Phase L.9 — strict colormap lookup.** `AxesBuilder.WithColorMap(string)` throws `ArgumentException` when the name is unknown, for example the typo `"virdis"`. The exception lists the registered names. Before this fix the call did nothing and the renderer fell back to Viridis, which hid the bug. If you want a lookup that does not throw, fetch the instance yourself with `ColorMapRegistry.Get(name)` and call the `WithColorMap(IColorMap)` overload only when the result is not null.
 
 ## Filled contour (contourf)
 
@@ -94,7 +94,7 @@ Plt.Create()
 
 ## Triangulated contour
 
-For irregularly spaced data (Delaunay triangulation):
+Use a triangulated contour for irregularly spaced data. The points are connected by Delaunay triangulation:
 
 ```csharp
 Plt.Create()
@@ -111,7 +111,7 @@ Plt.Create()
 |---|---|---|---|
 | `Levels` | `int` | `10` | Number of contour levels |
 | `LevelValues` | `double[]` | auto | Explicit contour level values |
-| `Filled` | `bool` | `false` | Filled (contourf) vs lines only |
+| `Filled` | `bool` | `false` | Filled areas (contourf) instead of lines only |
 | `ShowLabels` | `bool` | `false` | Show level values on contour lines |
 | `LabelFormat` | `string` | `"G"` | .NET format string for labels |
 | `LabelFontSize` | `double` | `8` | Label font size |

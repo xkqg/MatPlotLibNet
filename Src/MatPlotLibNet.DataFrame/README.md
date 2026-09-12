@@ -2,8 +2,9 @@
 
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet.DataFrame)](https://www.nuget.org/packages/MatPlotLibNet.DataFrame)
 
-`Microsoft.Data.Analysis.DataFrame` extension methods for [MatPlotLibNet](../../README.md) — plot
-directly from typed DataFrames with optional hue grouping and full fluent API support.
+Extension methods on `Microsoft.Data.Analysis.DataFrame` for [MatPlotLibNet](../../README.md). Plot
+directly from a typed DataFrame, group the series by a hue column when you want to, and keep the
+full fluent API.
 
 ## Install
 
@@ -50,8 +51,8 @@ FigureBuilder df.Hist(string column, int bins = 30, string? hue = null, Color[]?
 
 ### Financial Indicators — `DataFrameIndicatorExtensions`
 
-All indicator methods resolve the named column(s) to `double[]` and delegate to the core indicator types.
-Output arrays are **trimmed** (not NaN-padded) — length equals `n - warmUp` where warmUp depends on the indicator period.
+Every indicator method reads the named column or columns into `double[]` and calls the core indicator types.
+Output arrays are **trimmed**, not NaN-padded. Their length is `n - warmUp`, where warmUp depends on the indicator period.
 
 ```csharp
 // Price indicators (single close/price column)
@@ -136,7 +137,7 @@ string svg = Plt.Create()
     .ToSvg();
 ```
 
-Column name resolution throws `ArgumentException` with the unknown column name when a column is not found.
+If a column is not found, the call throws `ArgumentException` and reports the unknown column name.
 
 ## Column type support
 
@@ -152,17 +153,17 @@ Column name resolution throws `ArgumentException` with the unknown column name w
 
 ## How it works
 
-The extensions materialise named DataFrame columns to `double[]` or `string[]` via
-`DataFrameColumnReader`, then delegate all grouping, palette cycling, and series-creation logic to the
-existing `EnumerableFigureExtensions.Line / Scatter / Hist` methods in the core package. No grouping
-code is duplicated — the DataFrame package is ~100 lines of pure plumbing.
+The extensions use `DataFrameColumnReader` to materialise the named DataFrame columns as `double[]`
+or `string[]`. They then hand all grouping, palette cycling, and series creation to the existing
+`EnumerableFigureExtensions.Line / Scatter / Hist` methods in the core package. No grouping code is
+duplicated. The DataFrame package is about 100 lines that only pass the data along.
 
 ## Related packages
 
 | Package | Purpose |
 |---------|---------|
 | `MatPlotLibNet` | Core charting library |
-| `MatPlotLibNet.Blazor` | Blazor component + interactive features |
-| `MatPlotLibNet.Notebooks` | Polyglot Notebooks / Jupyter inline rendering |
-| `MatPlotLibNet.Mcp` | MCP server — an AI agent renders charts over stdio |
+| `MatPlotLibNet.Blazor` | Blazor component with interactive features |
+| `MatPlotLibNet.Notebooks` | Inline rendering in Polyglot Notebooks and Jupyter |
+| `MatPlotLibNet.Mcp` | MCP server that lets an AI agent render charts over stdio |
 | `MatPlotLibNet.AspNetCore` | ASP.NET Core middleware (`/chart` endpoints) |

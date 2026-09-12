@@ -1,6 +1,6 @@
 # MatPlotLibNet.Interactive
 
-Interactive display for the [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) charting library. Show charts in a browser popup with live SignalR updates.
+MatPlotLibNet.Interactive is the interactive display for the [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) charting library. It shows charts in a browser popup and updates them live over SignalR.
 
 ## Installation
 

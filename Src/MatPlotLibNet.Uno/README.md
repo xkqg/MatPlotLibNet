@@ -1,8 +1,8 @@
 # MatPlotLibNet.Uno
 
 Uno Platform (WinUI 3) chart element for [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet).  
-Renders charts natively via SkiaSharp across Windows, Android, iOS, and macCatalyst —
-no JavaScript, no browser, no SignalR required.
+It renders charts natively with SkiaSharp on Windows, Android, iOS, and macCatalyst.
+It does not need JavaScript, a browser, or SignalR.
 
 ## Installation
 
@@ -29,7 +29,7 @@ MyFigure = figure;
 
 ## Interactive mode
 
-Set `IsInteractive="True"` to enable local pan / zoom / reset / brush-select:
+Set `IsInteractive="True"` and the element handles pan, zoom, reset, and brush-select locally:
 
 ```xml
 <local:MplChartElement

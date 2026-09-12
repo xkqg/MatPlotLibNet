@@ -25,8 +25,8 @@ public readonly record struct ChartDiagnostic(string Source, string Message, Exc
 /// done (e.g. in a test's <c>finally</c>) — this is a static, process-wide event, so a forgotten
 /// subscription outlives the code that registered it. The compiler-generated field-like event
 /// accessors are thread-safe for concurrent add/remove, and <see cref="Emit"/> reads the delegate
-/// through the null-conditional operator, which captures a single snapshot before invoking, so a
-/// concurrent unsubscribe cannot race a null check against invocation.</remarks>
+/// once into a local before invoking, so a concurrent unsubscribe cannot race a null check against
+/// invocation.</remarks>
 public static class ChartDiagnostics
 {
     /// <summary>Raised whenever a component reports a diagnostic via <see cref="Emit"/>. There is
@@ -35,6 +35,26 @@ public static class ChartDiagnostics
     public static event Action<ChartDiagnostic>? Emitted;
 
     /// <summary>Raises <see cref="Emitted"/> with the given diagnostic. No-ops when there are no
-    /// subscribers.</summary>
-    public static void Emit(ChartDiagnostic diagnostic) => Emitted?.Invoke(diagnostic);
+    /// subscribers. Each subscriber is called on its own: one that throws does not stop the others, and does
+    /// not turn the render that reported the diagnostic into an exception — a sink observes, it never decides.</summary>
+    public static void Emit(ChartDiagnostic diagnostic)
+    {
+        var handlers = Emitted;
+        if (handlers is null)
+        {
+            return;
+        }
+
+        foreach (Action<ChartDiagnostic> handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                handler(diagnostic);
+            }
+            catch (Exception)
+            {
+                // The sink's defect, not the library's: the diagnostic was delivered to the sinks that work.
+            }
+        }
+    }
 }

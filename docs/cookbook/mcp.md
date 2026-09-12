@@ -1,12 +1,12 @@
 # MCP server — charts for an AI agent
 
-`MatPlotLibNet.Mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server: a .NET tool that an MCP
-host — Claude Code, Claude Desktop, VS Code — starts over stdio, so a model can render this library's charts and
-look at the result.
+`MatPlotLibNet.Mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. It is a .NET tool that an
+MCP host (Claude Code, Claude Desktop, VS Code) starts over stdio. Through it, a model can render this library's
+charts and look at the result.
 
 ## Install
 
-The package is a .NET tool; the .NET 10 SDK resolves and runs it, so there is nothing to install by hand.
+The package is a .NET tool. The .NET 10 SDK resolves and runs it, so there is nothing to install by hand.
 
 ```json
 {
@@ -20,10 +20,12 @@ The package is a .NET tool; the .NET 10 SDK resolves and runs it, so there is no
 }
 ```
 
-For Claude Code: `claude mcp add matplotlibnet -- dnx MatPlotLibNet.Mcp --yes`.
+For Claude Code, run `claude mcp add matplotlibnet -- dnx MatPlotLibNet.Mcp --yes`.
 
-One optional setting, `MATPLOTLIBNET_MCP_OUTPUT_ROOT`: the only directory `save_chart` may write under. It
-defaults to the system temp directory.
+There are two optional settings. `MATPLOTLIBNET_MCP_OUTPUT_ROOT` is the only directory `save_chart` may write under.
+It defaults to the system temp directory. `MATPLOTLIBNET_FONTS` names font files, or directories of font files,
+separated by `;`. The server registers them when it starts, so a chart can use a script that the bundled font lacks
+(Devanagari, Thai, Chinese). Arabic and Hebrew work without it. See [International text](international-text.md).
 
 ## The five tools
 
@@ -31,17 +33,18 @@ defaults to the system temp directory.
 |---|---|
 | `render_chart(spec, format)` | renders the spec and returns a PNG the model can see, with a text summary beside it |
 | `save_chart(spec, path, format, overwrite)` | writes PNG, SVG or PDF to a file and returns the path it wrote |
-| `chart_data_table(spec)` | the chart's DATA as markdown tables — the numbers the picture is drawn from |
-| `list_chart_types()` | the chart types a spec may name |
-| `describe_chart_schema(seriesType)` | the fields of a spec, or of one chart type, with a worked example |
+| `chart_data_table(spec)` | returns the chart's data as markdown tables, which are the numbers the picture is drawn from |
+| `list_chart_types()` | lists the chart types a spec may name |
+| `describe_chart_schema(seriesType)` | describes the fields of a spec, or of one chart type, with a worked example |
 
-SVG and PDF are not returned inline — a single SVG of a normal chart is tens of thousands of characters of the
-model's context. `save_chart` writes them to a file instead.
+SVG and PDF are not returned inline, because a single SVG of a normal chart is tens of thousands of characters of
+the model's context. `save_chart` writes them to a file instead.
 
 ## The spec
 
-A spec is the library's own figure JSON: the same document `figure.ToJson()` writes and `ChartSerializer.FromJson`
-reads. There is one definition of a chart, so anything the library draws, an agent can ask for.
+A spec is the library's own figure JSON. It is the same document that `figure.ToJson()` writes and
+`ChartSerializer.FromJson` reads. Because there is one definition of a chart, an agent can ask for any chart the
+library draws.
 
 ```json
 {
@@ -76,20 +79,20 @@ string spec = Plt.Create()
     .ToJson(indented: true);
 ```
 
-That is the fastest way to learn the format: build the chart you want with the fluent API, print its JSON, and
-hand that shape to the model.
+That is the fastest way to learn the format. Build the chart you want with the fluent API, print its JSON, and hand
+that JSON to the model.
 
 ## It refuses before it renders
 
-`FromJson` is a round-trip reader for the library's own writer: it drops an unknown series type, skips an unknown
-property and ignores a misspelled enum value, because a newer document must still load in an older build. Handed a
-document a *model* typed, that lenience turns every typo into a blank chart reported as a success. So the server
-validates first, and the message names the field:
+`FromJson` is a round-trip reader for the library's own writer. It drops an unknown series type, skips an unknown
+property and ignores a misspelled enum value, because a newer document must still load in an older build. When a
+model wrote the document, that lenience turns every typo into a blank chart that is reported as a success. So the
+server validates the document before it renders, and the error message names the field:
 
 | what the model wrote | what it gets back |
 |---|---|
 | `"type": "lien"` | `'lien' at $.subPlots[0].series[0].type is not a chart type this server lists — did you mean 'line'?` |
-| `"type": "Line"` | the same, with `'line'` — the serializer's lookup is case-sensitive |
+| `"type": "Line"` | the same message, with `'line'`; the serializer's lookup is case-sensitive |
 | `"x": [...]` | `Unknown field 'x' at $.subPlots[0].series[0]. describe_chart_schema lists the fields a spec accepts.` |
 | `"scale": "logarithmic"` | `'logarithmic' … is not an accepted value; accepted: Linear, Log, SymLog, Logit, Date.` |
 | `"color": "reddish"` | `'reddish' … is not a colour the library knows: use a CSS4 colour name or #RRGGBB.` |
@@ -110,11 +113,11 @@ Colour names go through the library's own CSS4 table, and `#f00` is expanded, so
 ```
 
 The ranges come from the same `ComputeDataRange` call the renderer makes to place the axes, so the text and the
-picture cannot disagree. A count is omitted rather than guessed: a pie has slices, not points.
+picture cannot disagree. A count is left out rather than guessed. A pie, for example, has slices, not points.
 
-`chart_data_table` answers what the PNG cannot: **the values.** A model can see that a line rises; it cannot
-read 18.4 off it. The tool returns the figure's own data tables as markdown — one table per group of series
-that share an x, captioned with the chart's name:
+`chart_data_table` returns the values, which the PNG cannot give. A model can see that a line rises, but it cannot
+read the value 18.4 off the picture. The tool returns the figure's own data tables as markdown. There is one table
+per group of series that share an x, captioned with the chart's name:
 
 ```
 **Revenue**
@@ -126,18 +129,19 @@ that share an x, captioned with the chart's name:
 | 3 | 15 |
 ```
 
-It is the same `figure.ToDataTables()` every other host serves (see the
-[accessibility page](accessibility.md)), so the numbers a model reads and the table a screen reader reads are
-one thing. A chart with more rows than the server's row ceiling is refused with the count, the ceiling and the
-way around it — `save_chart`, then read the file. A table is text, and text is context.
+The tables come from the same `figure.ToDataTables()` call that every other host serves (see the
+[accessibility page](accessibility.md)), so the numbers a model reads and the table a screen reader reads are the
+same data. A chart with more rows than the server's row ceiling is refused. The refusal gives the row count, the
+ceiling and the way around it: call `save_chart`, then read the file. A table is text, and text takes up the
+model's context.
 
 ## Two things worth knowing
 
 **The SVG this server writes carries glyph outlines, not `<text>`.** The PNG backend is loaded in the same
-process, and it installs a glyph-path provider so text is drawn with the library's own embedded font everywhere.
-Self-contained, and identical to the PNG — but not machine-readable as text.
+process, and it installs a glyph-path provider, so text is drawn with the library's own embedded font everywhere.
+The SVG is self-contained and identical to the PNG, but it is not machine-readable as text.
 
 **Seven chart types are not available through the spec.** `sankey`, `sunburst`, `treemap`, `polarbar`,
 `polarline`, `polarscatter` and `treegrid` have a JSON reader that builds a fixed placeholder instead of reading
-the document, so the server refuses them by name rather than draw someone else's data. `list_chart_types` names
-them with the reason.
+the document. The server refuses these types by name, so that it does not draw the placeholder's data in place of
+the data in the spec. `list_chart_types` names them with the reason.

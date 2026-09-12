@@ -20,7 +20,7 @@ Plt.Create()
 
 ## Line styles, markers, and width
 
-Customize every aspect of the line via the configure lambda:
+Set the line properties in the configure lambda:
 
 ```csharp
 Plt.Create()
@@ -58,7 +58,7 @@ Plt.Create()
 
 ## Smooth interpolation
 
-Fritsch-Carlson cubic spline for smooth curves:
+Set `Smooth` to true to draw the line as a Fritsch-Carlson cubic spline, which gives a smooth curve:
 
 ```csharp
 Plt.Create()
@@ -121,7 +121,7 @@ Plt.Create()
 
 ### All marker shapes (v1.7.2 Phase M)
 
-`MarkerStyle` exposes 13 shapes, every one drawn by the shared `MarkerRenderer`:
+`MarkerStyle` has 13 shapes. The shared `MarkerRenderer` draws every one of them:
 
 | Shape | SVG primitive | Notes |
 |---|---|---|
@@ -134,7 +134,7 @@ Plt.Create()
 | `Cross` / `Plus` | `<line>` × 2 | Outline-only (no fill). Stroke thickness falls back to `MarkerSize / 8` when `MarkerEdgeWidth` is zero. |
 | `None` | — | No marker drawn. |
 
-Prior to v1.7.2 Phase M, line charts drew every marker as a circle and scatter plots honoured only `Square`; all other shapes silently collapsed to circles. The shared `MarkerRenderer` dispatches all shapes uniformly across both series types.
+Before v1.7.2 Phase M, line charts drew every marker as a circle, and scatter plots honoured only `Square`. All other shapes silently collapsed to circles. The shared `MarkerRenderer` draws every shape the same way for both series types.
 
 ## Grid and spine control
 
@@ -229,7 +229,7 @@ Plt.Create()
 
 ## Outside legend
 
-Place the legend outside the plot area — the constrained-layout engine reserves margin space automatically:
+Place the legend outside the plot area. The constrained-layout engine reserves the margin space automatically:
 
 ```csharp
 Plt.Create()
@@ -271,9 +271,9 @@ ax.WithLegend(l => l with
 ## Legend value display
 
 `WithLegendValues()` appends each labelled XY series' last Y value to its legend
-entry — useful for live or snapshot charts where the current reading matters as much
-as the series name. The value is formatted as `F2` with `InvariantCulture` (always a
-decimal dot, never a locale comma).
+entry. That helps on live or snapshot charts, where the current reading matters as
+much as the series name. The value is formatted as `F2` with `InvariantCulture`
+(always a decimal dot, never a locale comma).
 
 ```csharp
 double[] x = Enumerable.Range(0, 60).Select(i => (double)i).ToArray();
@@ -287,11 +287,11 @@ Plt.Create()
     .Save("legend_values.svg");
 ```
 
-The result is legend entries like `"sin = −0.44"` and `"cos = 0.90"` — the suffix
+The legend then shows entries like `"sin = −0.44"` and `"cos = 0.90"`. The suffix
 updates automatically if you rebuild the figure with fresh data.
 
-Combine with the transform-based `WithLegend(...)` overload for full control over
-layout while keeping the value suffix:
+You can combine it with the transform-based `WithLegend(...)` overload. That gives
+you full control over the layout and keeps the value suffix:
 
 ```csharp
 Plt.Create()
@@ -304,9 +304,9 @@ Plt.Create()
 ```
 
 **Series eligibility.** Only `XYSeries` descendants (line, scatter, signal, sparkline…)
-contribute a value. Categorical series (bar, pie, treemap…) render their label text
-only — the suffix is silently skipped for them. Unlabelled series never appear in the
-legend regardless.
+contribute a value. Categorical series (bar, pie, treemap…) show their label text
+only, and the suffix is silently skipped for them. Unlabelled series never appear in
+the legend anyway.
 
 **Disabling.** Pass `false` to opt back out: `.WithLegendValues(false)`.
 

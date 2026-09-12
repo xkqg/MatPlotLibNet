@@ -38,6 +38,23 @@ app.MapChartTableEndpoint("/api/chart/sales.table", _ =>
             line => { line.Color = Colors.Blue; line.Label = "Revenue ($k)"; })
         .Build());
 
+// International text without the Skia package: this project renders SVG with <text> elements, and the library marks
+// a right-to-left title with direction="rtl" so the browser shapes and orders it. The Hebrew legend entry and the
+// Latin axis label sit on one chart. The pre-push gate probes this endpoint for that attribute.
+app.MapChartSvgEndpoint("/api/chart/international.svg", _ =>
+    Plt.Create()
+        .WithTitle("درجة الحرارة")   // Arabic: "temperature"
+        .WithTheme(Theme.Seaborn)
+        .AddSubPlot(1, 1, 1, ax =>
+        {
+            ax.SetXLabel("Quarter");
+            ax.SetYLabel("°C");
+            ax.Plot([1, 2, 3, 4], [12.5, 14.0, 13.2, 15.1], s => s.Label = "תל אביב");   // Hebrew: "Tel Aviv"
+            ax.Plot([1, 2, 3, 4], [9.8, 11.2, 10.5, 12.0], s => s.Label = "Amsterdam");
+            ax.WithLegend();
+        })
+        .Build());
+
 // SignalR hub for real-time updates
 app.MapChartHub();
 

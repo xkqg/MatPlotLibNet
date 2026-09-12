@@ -63,7 +63,7 @@ Plt.Create()
 
 ## Nested pie (sunburst)
 
-Inner disc shows departments, outer ring shows product breakdown:
+The inner disc shows departments. The outer ring shows the product breakdown:
 
 ```csharp
 var root = new TreeNode
@@ -127,7 +127,7 @@ Plt.Create()
     .Save("gauge_chart.svg");
 ```
 
-`Ranges` defines color bands: each `GaugeBand(Threshold, Color)` entry covers from the previous threshold (or `Min`) up to `Threshold`.
+`Ranges` defines the color bands. Each `GaugeBand(Threshold, Color)` entry covers the range from the previous threshold (or `Min`) up to `Threshold`.
 
 ![Gauge chart](../images/gauge_chart.png)
 

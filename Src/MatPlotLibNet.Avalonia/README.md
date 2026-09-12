@@ -1,7 +1,7 @@
 # MatPlotLibNet.Avalonia
 
 Avalonia 12 chart control for [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet).  
-Renders charts natively via SkiaSharp — no JavaScript, no browser, no SignalR required.
+It renders charts natively with SkiaSharp. It does not need JavaScript, a browser, or SignalR.
 
 ## Installation
 
@@ -28,7 +28,7 @@ MyFigure = figure;
 
 ## Interactive mode
 
-Set `IsInteractive="True"` to enable local pan / zoom / reset / brush-select:
+Set `IsInteractive="True"` and the control handles pan, zoom, reset, and brush-select locally:
 
 ```xml
 <local:MplChartControl

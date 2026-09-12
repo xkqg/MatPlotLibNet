@@ -101,9 +101,9 @@ Plt.Create()
 ## Annotated heatmap (correlation matrix)
 
 `ShowValues = true` renders each cell's numeric value on top of the colour fill. The text
-colour auto-contrasts black/white per cell using Rec. 709 luminance, so labels stay
+colour is chosen per cell, black or white, using Rec. 709 luminance, so labels stay
 readable across the colour map. Use `CellValueFormat` with any standard .NET numeric
-format string — `"F2"` (default) for two decimals, `"P1"` for percent.
+format string, for example `"F2"` (the default) for two decimals or `"P1"` for percent.
 
 ```csharp
 double[,] corr = ComputeCorrelationMatrix(returns);
@@ -126,9 +126,9 @@ match a brand colour or stay constant across the matrix.
 
 ## Triangular-mask heatmap
 
-Symmetric matrices (correlation, covariance, distance) are redundant above and below the
-diagonal — `MaskMode` hides the redundant half so the eye focuses on each pair once.
-The strict variants also hide the diagonal (constant 1 for correlation matrices).
+A symmetric matrix (correlation, covariance, distance) holds the same values above and
+below the diagonal. `MaskMode` hides the redundant half, so each pair is shown once.
+The strict variants also hide the diagonal, which is a constant 1 for correlation matrices.
 
 ```csharp
 Plt.Create()
@@ -206,7 +206,7 @@ Plt.Create()
 
 ## Calendar heatmap (GitHub-style)
 
-A 52 × 7 heatmap where rows are weeks and columns are days of the week.
+The heatmap is 52 × 7. Each row is a week and each column is a day of the week.
 
 ```csharp
 var rng = new Random(7);

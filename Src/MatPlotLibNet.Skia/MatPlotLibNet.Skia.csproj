@@ -4,7 +4,7 @@
     <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.16.0</Version>
+    <Version>1.17.0</Version>
     <PackageId>MatPlotLibNet.Skia</PackageId>
     <Description>PNG and PDF export for MatPlotLibNet charts using SkiaSharp.</Description>
     <PackageTags>charting;plotting;charts;png;pdf;export;skiasharp</PackageTags>
@@ -15,6 +15,11 @@
 
   <ItemGroup>
     <PackageReference Include="SkiaSharp" Version="3.*" />
+    <!-- Text shaping. SkiaSharp.HarfBuzz follows SkiaSharp's version line and pins the HarfBuzzSharp it was
+         built against (8.3.1.5 for 3.119), so this is the one reference; the native libHarfBuzzSharp comes from
+         per-platform HarfBuzzSharp.NativeAssets packages that a HOST references — the test project and the MCP
+         tool do, at that exact 8.3.1.5, because HarfBuzzSharp has no 3.x line to float in. -->
+    <PackageReference Include="SkiaSharp.HarfBuzz" Version="3.*" />
   </ItemGroup>
 
   <ItemGroup>

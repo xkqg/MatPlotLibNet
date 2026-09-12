@@ -2,7 +2,7 @@
 
 ## Nested pie
 
-Inner disc of departments + outer ring of product breakdown (thin alias for Sunburst):
+An inner disc shows the departments, and an outer ring breaks each department down by product. This is a thin alias for Sunburst:
 
 ```csharp
 Plt.Create()
@@ -16,9 +16,9 @@ Plt.Create()
 
 ## Treemap with expand/collapse
 
-Each interior node renders as a coloured rectangle with a label header along the top; children are squarified into the reduced bounds below that header, so the parent colour visually frames its descendants (matches the d3 `flare.json` nested-treemap style). **The initial interactive view is identical to the static SVG — every node at every depth is visible on first paint** ("steady pictures": no visual jump when entering interactive mode). Clicking a parent rect *collapses* its descendants to focus on the surrounding context; clicking again re-expands. Multiple parents can be collapsed independently. Leaves are not clickable, so the cursor stays default when hovering them.
+Each interior node renders as a coloured rectangle with a label header along the top. The children are squarified into the reduced bounds below that header, so the parent colour frames its descendants. This matches the d3 `flare.json` nested-treemap style. **The initial interactive view is identical to the static SVG — every node at every depth is visible on first paint**. This is called "steady pictures": the picture does not jump when you enter interactive mode. Click a parent rect to *collapse* its descendants and focus on the surrounding context; click it again to expand them. You can collapse several parents independently. Leaves are not clickable, so the cursor stays the default one when you hover over them.
 
-Labels render at a single readable 12 pt size at every depth (v1.7.2 Phase W). Children paint OVER parents (Shneiderman z-order), so the deepest visible label is what the user sees in any overlapping region — the user reads the most-specific label without anything moving. For static SVG output with deep trees, call `.WithAutoSize(root)` on the `FigureBuilder` to pick a canvas big enough to fit every label cleanly without overflow; for interactive output, the user pans/zooms to read overflowing labels.
+Labels render at a single readable 12 pt size at every depth (v1.7.2 Phase W). Children paint over parents (Shneiderman z-order), so where rectangles overlap you read the deepest visible label, which is the most specific one, and nothing has to move to show it. For static SVG output with deep trees, call `.WithAutoSize(root)` on the `FigureBuilder`; it picks a canvas big enough to fit every label cleanly without overflow. In interactive output, the reader pans and zooms to read labels that overflow.
 
 ```csharp
 var catalogue = new TreeNode
@@ -72,12 +72,12 @@ Plt.Create()
 
 `WithBrowserInteraction()` also enables the same expand/collapse behaviour if you prefer the general-purpose fluent method.
 
-> **v1.7.2 Phase R — click delivery in real browsers fixed.** The expand/collapse model
-> itself (Phase P) is unchanged. Two compounding bugs in the click handler were fixed:
-> hover used to latch the drag-suppression flag (so any cursor motion killed the next
-> click), and the pan/zoom script's `setPointerCapture` redirected the synthetic click
-> target to the SVG root (so the rect-walk-up returned null). Now: the move-threshold
-> is gated on an `isPointerDown` flag, and the click handler falls back to
-> `document.elementFromPoint` when the walk-up misses.
+> **v1.7.2 Phase R fixed click delivery in real browsers.** The expand/collapse model
+> itself (Phase P) is unchanged. Two bugs in the click handler compounded each other, and
+> both are fixed. First, hover latched the drag-suppression flag, so any cursor motion
+> suppressed the next click. Second, the pan/zoom script's `setPointerCapture` redirected
+> the synthetic click target to the SVG root, so the walk-up from the rect returned null.
+> The move-threshold is now gated on an `isPointerDown` flag, and the click handler falls
+> back to `document.elementFromPoint` when the walk-up misses.
 
 ![Treemap drilldown](../images/treemap_drilldown.png)

@@ -2,7 +2,7 @@
 
 ## FuncAnimation — declarative animated GIF
 
-Define a frame generator function, produce an animated GIF:
+Define a frame generator function and save the result as an animated GIF:
 
 ```csharp
 double[] x = Enumerable.Range(0, 100).Select(i => i * 0.1).ToArray();

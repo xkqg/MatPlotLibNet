@@ -443,4 +443,108 @@ public class SvgRenderContextTests
         Assert.Contains("&lt;Test&amp;&gt;", svg);
     }
 
+    // ── Reading direction (1.17.0) ───────────────────────────────────────────
+    // Seven of the fourteen packages never load the Skia backend, so the <text> element is their only text
+    // path. A right-to-left label needs the browser told its paragraph direction; the alignment enum stays
+    // geometric, which means the anchor keyword flips with the direction.
+
+    [Fact]
+    public void DrawText_HebrewLeftAligned_HasRtlDirection_AndAnchorsAtTheEnd()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawText("שלום", new Point(50, 50), new Font(), TextAlignment.Left);
+
+        string svg = ctx.GetOutput();
+        Assert.Contains("direction=\"rtl\"", svg);
+        Assert.Contains("text-anchor=\"end\"", svg);
+    }
+
+    [Fact]
+    public void DrawText_HebrewCenterAligned_HasRtlDirection_AndStaysInTheMiddle()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawText("שלום", new Point(50, 50), new Font(), TextAlignment.Center);
+
+        string svg = ctx.GetOutput();
+        Assert.Contains("direction=\"rtl\"", svg);
+        Assert.Contains("text-anchor=\"middle\"", svg);
+    }
+
+    [Fact]
+    public void DrawText_HebrewRightAligned_HasRtlDirection_AndAnchorsAtTheStart()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawText("שלום", new Point(50, 50), new Font(), TextAlignment.Right);
+
+        string svg = ctx.GetOutput();
+        Assert.Contains("direction=\"rtl\"", svg);
+        Assert.Contains("text-anchor=\"start\"", svg);
+    }
+
+    [Fact]
+    public void DrawText_HebrewRotated_KeepsBothTheRotationAndTheDirection()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawText("שלום", new Point(50, 50), new Font(), TextAlignment.Center, 90);
+
+        string svg = ctx.GetOutput();
+        Assert.Contains("direction=\"rtl\"", svg);
+        Assert.Contains("rotate(-90", svg);
+    }
+
+    [Fact]
+    public void DrawText_Latin_CarriesNoDirectionAttribute()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawText("Center", new Point(50, 50), new Font(), TextAlignment.Center);
+
+        string svg = ctx.GetOutput();
+        Assert.DoesNotContain("direction=", svg);
+        Assert.Contains("text-anchor=\"middle\"", svg);
+    }
+
+    [Fact]
+    public void DrawText_LatinWithAnArabicWord_ReadsLeftToRight()
+    {
+        // The first strong character is Latin, so the paragraph is left-to-right; the browser reorders the
+        // Arabic word inside it on its own.
+        var ctx = new SvgRenderContext();
+        ctx.DrawText("Temp درجة", new Point(50, 50), new Font(), TextAlignment.Left);
+
+        string svg = ctx.GetOutput();
+        Assert.DoesNotContain("direction=", svg);
+        Assert.Contains("text-anchor=\"start\"", svg);
+    }
+
+    [Fact]
+    public void DrawText_ArabicWithADigit_ReadsRightToLeft()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawText("درجة 12", new Point(50, 50), new Font(), TextAlignment.Left);
+
+        Assert.Contains("direction=\"rtl\"", ctx.GetOutput());
+    }
+
+    [Fact]
+    public void DrawText_EmptyString_CarriesNoDirectionAttribute()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawText("", new Point(50, 50), new Font(), TextAlignment.Left);
+
+        Assert.DoesNotContain("direction=", ctx.GetOutput());
+    }
+
+    [Fact]
+    public void DrawRichText_HebrewWithASuperscript_HasRtlDirectionOnTheTextElement()
+    {
+        var ctx = new SvgRenderContext();
+        ctx.DrawRichText(MatPlotLibNet.Rendering.MathText.MathTextParser.Parse("שלום$^{2}$"),
+            new Point(50, 50), new Font(), TextAlignment.Left);
+
+        string svg = ctx.GetOutput();
+        Assert.Contains("<text", svg);
+        Assert.Contains("direction=\"rtl\"", svg);
+        Assert.Contains("text-anchor=\"end\"", svg);
+        Assert.Contains("<tspan", svg);
+    }
 }

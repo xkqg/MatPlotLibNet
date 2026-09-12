@@ -100,9 +100,9 @@ Plt.Create()
 
 ## Threshold convenience
 
-`Threshold(...)` is a single-call shortcut that composes a dashed reference line
-**and** a shaded breach-zone span in one step. Use it instead of manually calling
-`AxHLine` + `AxHSpan` when you only care about marking a breach boundary.
+`Threshold(...)` is a single-call shortcut. It adds a dashed reference line and a
+shaded breach-zone span in one step. Use it instead of calling `AxHLine` and
+`AxHSpan` yourself when you only need to mark a breach boundary.
 
 ```csharp
 double[] x = Enumerable.Range(0, 100).Select(i => (double)i).ToArray();
@@ -143,7 +143,7 @@ Plt.Create()
     .Save("threshold_corridor.svg");
 ```
 
-Vertical thresholds work identically — `Orientation.Vertical` marks a constant X:
+Vertical thresholds work the same way. `Orientation.Vertical` marks a constant X:
 
 ```csharp
 // Shade everything to the RIGHT of an event date
@@ -164,14 +164,14 @@ Plt.Create()
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `value` | `double` | (required) | Threshold position in data coordinates. |
-| `orientation` | `Orientation` | (required) | `Horizontal` = constant Y line; `Vertical` = constant X line. |
-| `breach` | `ThresholdBreach` | (required) | `Above` shades above/right of the line; `Below` shades below/left. |
-| `color` | `Color?` | `null` | Colour for both the dashed line and the span fill. `null` = renderer cycle colour. |
-| `label` | `string?` | `null` | Annotation text placed at the threshold value. `null` = no annotation. |
+| `orientation` | `Orientation` | (required) | `Horizontal` draws a constant Y line; `Vertical` draws a constant X line. |
+| `breach` | `ThresholdBreach` | (required) | `Above` shades above or to the right of the line; `Below` shades below or to the left. |
+| `color` | `Color?` | `null` | Colour for both the dashed line and the span fill. `null` uses the renderer cycle colour. |
+| `label` | `string?` | `null` | Annotation text placed at the threshold value. `null` adds no annotation. |
 
-The dashed line is a `ReferenceLine` (`LineStyle.Dashed`, configurable afterwards via
-`axes.ReferenceLines`). The span extends to `double.MaxValue` (Above) or
-`double.MinValue` (Below) so it always reaches the visible plot boundary.
+The dashed line is a `ReferenceLine` with `LineStyle.Dashed`. You can change it
+afterwards through `axes.ReferenceLines`. The span extends to `double.MaxValue` for
+Above or to `double.MinValue` for Below, so it always reaches the visible plot boundary.
 
 ## Combining annotations with math text
 
@@ -198,12 +198,12 @@ Plt.Create()
 | Method | Parameters | Description |
 |---|---|---|
 | `.Annotate(text, x, y, cfg?)` | text, position | Text annotation at (x, y) |
-| `.Annotate(text, x, y, arrowX, arrowY, cfg?)` | + arrow target | Text with arrow pointing to target |
+| `.Annotate(text, x, y, arrowX, arrowY, cfg?)` | text, position, arrow target | Text with an arrow pointing to the target |
 | `.AxHLine(y, cfg?)` | y position | Horizontal reference line |
 | `.AxVLine(x, cfg?)` | x position | Vertical reference line |
 | `.AxHSpan(yMin, yMax, cfg?)` | y range | Horizontal shaded band |
 | `.AxVSpan(xMin, xMax, cfg?)` | x range | Vertical shaded band |
-| `.Threshold(value, orientation, breach, color?, label?)` | value, orientation, breach | Dashed reference line + shaded breach span |
+| `.Threshold(value, orientation, breach, color?, label?)` | value, orientation, breach | Dashed reference line and shaded breach span |
 
 ### Annotation properties
 

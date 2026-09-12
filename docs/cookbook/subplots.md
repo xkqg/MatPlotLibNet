@@ -35,7 +35,7 @@ Plt.Create()
 
 ## Mosaic layout (string-based)
 
-Define subplot layout with a string pattern — each letter is a panel:
+Define the subplot layout with a string pattern. Each letter is a panel:
 
 ```csharp
 Plt.Mosaic("AAB\nCCB")
@@ -88,7 +88,7 @@ Plt.Create()
 
 ## Inset axes
 
-Nested axes within a parent subplot:
+`AddInset` adds a nested axes inside a parent subplot:
 
 ```csharp
 Plt.Create()
@@ -103,7 +103,7 @@ Plt.Create()
 
 ## Shared axes
 
-Subplots with linked axis ranges:
+`ShareX` links the axis ranges of the subplots that pass the same key:
 
 ```csharp
 Plt.Create()
@@ -150,7 +150,7 @@ Plt.Create()
 
 ## Scatter with marginal histograms
 
-Use `WithGridSpec` + `GridPosition` to lay out the scatter (large cell) and two marginal histograms.
+Use `WithGridSpec` and `GridPosition` to lay out the scatter in the large cell, plus two marginal histograms.
 
 ```csharp
 var rng = new Random(17);

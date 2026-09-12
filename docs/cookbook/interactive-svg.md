@@ -2,7 +2,7 @@
 
 ## Browser-interactive charts
 
-Add `.WithBrowserInteraction()` to make SVG output interactive — pan, zoom, tooltips, legend toggle, **legend drag**, treemap drilldown, sankey hover, 3D rotation, brush selection, highlight — no .NET runtime needed on the client:
+Add `.WithBrowserInteraction()` to make SVG output interactive. You get pan, zoom, tooltips, legend toggle, **legend drag**, treemap drilldown, sankey hover, 3D rotation, brush selection and highlight. The client needs no .NET runtime:
 
 ```csharp
 Plt.Create()
@@ -14,19 +14,19 @@ Plt.Create()
     .Save("interactive.svg");
 ```
 
-> **One switch wires everything.** `WithBrowserInteraction()` is the only call you need.
-> The library detects which scripts are relevant per chart (legend drag bails when there
-> is no legend; treemap drilldown bails when there are no treemap nodes) and emits only
-> those. There is no per-feature toggle for the user to manage.
+> **`WithBrowserInteraction()` is the only call you need.** The library works out
+> which scripts each chart needs and emits only those. Legend drag is left out when
+> there is no legend, and treemap drilldown is left out when there are no treemap
+> nodes. You do not have to manage a toggle per feature.
 
 Open the SVG in any browser:
-- **Drag the chart** to pan (hold <kbd>x</kbd> / <kbd>y</kbd> to lock an axis — matplotlib `_base.py:format_deltas` parity)
-- **Scroll** to zoom (`0.85^step` per wheel notch — matches matplotlib `NavigationToolbar2.scroll_handler`)
-- **Double-click** or <kbd>Home</kbd> to reset view
-- Arrow keys to nudge pan, <kbd>+</kbd>/<kbd>-</kbd> for keyboard zoom
-- **Click legend items** to show/hide series (<kbd>Enter</kbd>/<kbd>Space</kbd> keyboard-equivalent, WCAG 2.1.1 Level A)
-- **Press-and-hold a legend item, then drag** to reposition the legend group anywhere on the chart (release to drop). Translation is client-only — lost on full server re-render. New in v1.7.2 Phase S.
-- **Hover data points** to see tooltips (focus via <kbd>Tab</kbd> for keyboard users — tooltip anchors at element bounds)
+- **Drag the chart** to pan (hold <kbd>x</kbd> / <kbd>y</kbd> to lock an axis, the same as matplotlib `_base.py:format_deltas`)
+- **Scroll** to zoom (`0.85^step` per wheel notch, which matches matplotlib `NavigationToolbar2.scroll_handler`)
+- **Double-click** or press <kbd>Home</kbd> to reset the view
+- Press the arrow keys to nudge the pan, and <kbd>+</kbd>/<kbd>-</kbd> to zoom from the keyboard
+- **Click legend items** to show/hide series (<kbd>Enter</kbd>/<kbd>Space</kbd> does the same from the keyboard, which meets WCAG 2.1.1 Level A)
+- **Press-and-hold a legend item, then drag** to reposition the legend group anywhere on the chart (release to drop). The move happens on the client only, so a full server re-render loses it. New in v1.7.2 Phase S.
+- **Hover data points** to see tooltips (keyboard users focus a point with <kbd>Tab</kbd>; the tooltip anchors at the element bounds)
 
 See the [Keyboard Shortcuts wiki page](https://github.com/xkqg/MatPlotLibNet/wiki/Keyboard-Shortcuts) for the complete reference.
 
@@ -64,12 +64,13 @@ Plt.Create()
 
 ## Interactive 3D with rotation
 
-Combine browser interaction with 3D rotation. Drag uses matplotlib's canonical
-formula (`dazim/delev = -(dx/w or dy/h) × 180` — full-axes drag = 180°). Wheel
-zoom works on every 3D chart (Phase F.3 of v1.7.2 removed the need for an
-explicit `distance:`). Labels keep their outside-cube perpendicular offset
-under rotation (Phase F.2). Back panes never paint over surface quads — the
-depth-sort is scoped to the `mpl-3d-data` tier group (Phase F).
+Combine browser interaction with 3D rotation. Dragging uses matplotlib's canonical
+formula (`dazim/delev = -(dx/w or dy/h) × 180`), so a drag across the full axes
+turns the view by 180°. Wheel zoom works on every 3D chart; Phase F.3 of v1.7.2
+removed the need for an explicit `distance:`. Labels keep their perpendicular
+offset outside the cube while the view rotates (Phase F.2). Back panes never paint
+over surface quads, because the depth-sort is scoped to the `mpl-3d-data` tier
+group (Phase F).
 
 ```csharp
 Plt.Create()
@@ -81,8 +82,9 @@ Plt.Create()
     .Save("interactive_3d.svg");
 ```
 
-Keyboard: arrow keys rotate ±5° (az / el), <kbd>+</kbd>/<kbd>-</kbd> change
-camera distance by 0.5, <kbd>Home</kbd> restores the initial camera state.
+From the keyboard: the arrow keys rotate the view by ±5° in azimuth or elevation,
+<kbd>+</kbd>/<kbd>-</kbd> change the camera distance by 0.5, and <kbd>Home</kbd>
+restores the initial camera state.
 
 ## Server-authoritative interaction (SignalR)
 
@@ -102,7 +104,7 @@ Plt.Create()
 
 ## How it works
 
-The SVG embeds self-contained JavaScript (no external dependencies):
+The SVG embeds its own JavaScript, with no external dependencies:
 
 | Script | What it does |
 |---|---|
@@ -114,7 +116,7 @@ The SVG embeds self-contained JavaScript (no external dependencies):
 
 ## Responsive sizing (v1.7.2 Phase L)
 
-By default the SVG root carries an inline `style="max-width:100%;height:auto"` declaration, so the chart scales fluidly with its container while the `viewBox` preserves aspect ratio. The pixel `width` / `height` attributes stay on the element so `naturalWidth` / `naturalHeight` — relied on by client-side PNG export paths — continue to report the intrinsic pixel size.
+By default the SVG root carries an inline `style="max-width:100%;height:auto"` declaration. The chart then scales with its container, while the `viewBox` preserves the aspect ratio. The pixel `width` / `height` attributes stay on the element, so `naturalWidth` / `naturalHeight` keep reporting the intrinsic pixel size. Client-side PNG export paths rely on those two values.
 
 If you need byte-identical pre-v1.7.2 SVG output (e.g. pixel-diff test fixtures), opt out:
 
@@ -141,14 +143,14 @@ The interaction scripts add ~3KB to the SVG file size.
 
 | Method | Description |
 |---|---|
-| `.WithBrowserInteraction()` | Enable all client-side interactions (pan, zoom, tooltips, legend toggle, 3D rotate, treemap drilldown, sankey hover) |
+| `.WithBrowserInteraction()` | Enables all client-side interactions (pan, zoom, tooltips, legend toggle, 3D rotate, treemap drilldown, sankey hover) |
 | `.WithZoomPan()` | Drag to pan, scroll to zoom, `x`/`y` axis-lock modifiers, keyboard `+`/`-`/arrows/Home |
-| `.WithRichTooltips()` | Styled HTML tooltips on hover + focus (ARIA `role="tooltip"`, `aria-live="polite"`) |
-| `.WithLegendToggle()` | Click legend entries (or `Enter`/`Space` for keyboard) to toggle series visibility |
-| `.WithHighlight()` | Dim sibling series on hover; opacity themable via `WithInteractionTheme`; original opacity preserved across hover cycles |
-| `.WithSelection()` | Shift+drag rectangular data selection; `Escape` cancels without dispatching |
+| `.WithRichTooltips()` | Styled HTML tooltips on hover and on focus (ARIA `role="tooltip"`, `aria-live="polite"`) |
+| `.WithLegendToggle()` | Click legend entries (or press `Enter`/`Space` on the keyboard) to toggle series visibility |
+| `.WithHighlight()` | Dims sibling series on hover. The opacity is themable through `WithInteractionTheme`, and the original opacity is preserved across hover cycles |
+| `.WithSelection()` | Shift+drag selects data in a rectangle; `Escape` cancels without dispatching |
 | `.With3DRotation()` | Drag to rotate (matplotlib parity), arrow keys ±5°, `+`/`-` distance, wheel zoom, `Home` reset |
-| `.WithTreemapDrilldown()` | Every depth visible by default (interactive view = static SVG, "steady pictures"); click a parent rect to *collapse* its entire subtree (transitive — descendants' own state preserved); click again to restore. Multiple subtrees can be collapsed independently. Z-order paints children over parents so the deepest visible label wins. (v1.7.2 Phase W; was drill-zoom + Esc-pop in v1.x, expand-on-click in Phase P.) |
-| `.WithSankeyHover()` | Node hover emphasises upstream + downstream flow (ECharts `focus: adjacency` parity), keyboard via `Tab` |
-| `.WithInteractionTheme(theme)` | Themable opacity / transition tokens (highlight opacity, sankey dim opacities, treemap transition ms, tooltip offset) |
+| `.WithTreemapDrilldown()` | Every depth is visible by default, so the interactive view shows the same picture as the static SVG. Click a parent rect to *collapse* its entire subtree, all the way down; each descendant keeps its own state. Click again to restore it. You can collapse several subtrees independently. Z-order paints children over parents, so the deepest visible label wins. (v1.7.2 Phase W; was drill-zoom plus Esc-pop in v1.x, and expand-on-click in Phase P.) |
+| `.WithSankeyHover()` | Hovering a node emphasises its upstream and downstream flow (ECharts `focus: adjacency` parity); keyboard users reach it with `Tab` |
+| `.WithInteractionTheme(theme)` | Themable opacity and transition tokens (highlight opacity, sankey dim opacities, treemap transition ms, tooltip offset) |
 | `.WithServerInteraction(id, cfg)` | Bidirectional SignalR interaction (hub methods `OnZoom` / `OnPan` / `OnReset` / `OnLegendToggle` / `OnBrushSelect` / `OnHover`) |

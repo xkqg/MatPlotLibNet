@@ -2070,3 +2070,23 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 }
 
 Console.WriteLine("Done!");
+
+// --- 40. International text: Arabic title, Hebrew legend entry, Latin ticks ---
+// Arabic and Hebrew work with the bundled font: the letters join, the words read right to left, and the Latin
+// axis label and the digits stay where a reader expects them. Other scripts need SkiaFonts.Register(path).
+var international = Plt.Create()
+    .WithTitle("درجة الحرارة")   // "temperature"
+    .WithTheme(Theme.Seaborn)
+    .WithSize(800, 500)
+    .AddSubPlot(1, 1, 1, ax =>
+    {
+        ax.SetXLabel("Quarter");
+        ax.SetYLabel("°C");
+        ax.Plot([1, 2, 3, 4], [12.5, 14.0, 13.2, 15.1], s => { s.Label = "תל אביב"; s.LineWidth = 2; });   // "Tel Aviv"
+        ax.Plot([1, 2, 3, 4], [9.8, 11.2, 10.5, 12.0], s => { s.Label = "Amsterdam"; s.LineWidth = 2; });
+        ax.WithLegend(LegendPosition.UpperLeft);
+    })
+    .Build();
+international.Transform(new SvgTransform()).ToFile(SamplesPath("international.svg"));
+international.Transform(new PngTransform()).ToFile(SamplesPath("international.png"));
+Console.WriteLine("Saved international.svg and international.png");

@@ -47,6 +47,24 @@ public class ToolPackagingTests
         Assert.True(native.Length > 0, $"No libSkiaSharp for {platform}: every render on that platform would die.");
     }
 
+    [Theory]
+    [InlineData(".dll", "win")]
+    [InlineData(".so", "linux")]
+    [InlineData(".dylib", "osx")]
+    public void TheServerCarriesItsTextShaper_ForEveryPlatformItMayLandOn(string extension, string platform)
+    {
+        // Text is shaped by HarfBuzz, whose managed package (HarfBuzzSharp) carries no binary either: the
+        // libHarfBuzzSharp for each platform comes from its own native-assets package, and there is no 3.x line
+        // of those — the managed 8.3.1.5 that SkiaSharp.HarfBuzz 3.119 pins is what the natives must match.
+        // Without the Linux one, the first Arabic or Hebrew label on a Linux host dies in the shaper.
+        var native = NativeFiles(extension)
+            .Where(f => f.Name.Contains("HarfBuzzSharp", StringComparison.OrdinalIgnoreCase)
+                        && f.FullName.Replace(Path.DirectorySeparatorChar, '/').Contains($"/runtimes/{platform}", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.True(native.Length > 0, $"No libHarfBuzzSharp for {platform}: every shaped label on that platform would die.");
+    }
+
     [Fact]
     public void TheServerCarriesNoNativeDebugSymbols()
     {

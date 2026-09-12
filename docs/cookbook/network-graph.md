@@ -1,9 +1,10 @@
 # Network Graph
 
-Nodes and edges in 2D — for correlation networks, lead-lag flows, Louvain community
-visualisation, and minimum spanning trees. Three deterministic layouts ship in v1.10
-PR 1: `Manual` (pass-through coords), `Circular` (unit-circle), `Hierarchical` (BFS top-down).
-`ForceDirected` (Fruchterman–Reingold) is reserved at enum ordinal `1` and lands in PR 2.
+NetworkGraph draws nodes and edges in 2D. Use it for correlation networks, lead-lag
+flows, Louvain community visualisation, and minimum spanning trees. Three deterministic
+layouts ship in v1.10 PR 1: `Manual` (uses the coordinates you pass), `Circular` (unit
+circle) and `Hierarchical` (BFS top-down). `ForceDirected` (Fruchterman–Reingold) is
+reserved at enum ordinal `1` and lands in PR 2.
 
 ## Basic graph
 
@@ -26,8 +27,8 @@ Plt.Create()
     .ToSvg();
 ```
 
-The default `Circular` layout places nodes evenly on the unit circle; no need to supply
-coordinates yourself.
+The default `Circular` layout places nodes evenly on the unit circle. You do not have to
+supply coordinates yourself.
 
 ## Directed edges with weights
 
@@ -48,8 +49,8 @@ Plt.Create()
     .ToSvg();
 ```
 
-`IsDirected` edges get an arrowhead at the target end, reusing
-`ArrowHeadBuilder.FancyArrow` for visual consistency with annotation arrows.
+An edge with `IsDirected` set gets an arrowhead at the target end. It reuses
+`ArrowHeadBuilder.FancyArrow`, so it looks the same as an annotation arrow.
 
 ## Per-node colour and size
 
@@ -70,28 +71,31 @@ Plt.Create()
     .ToSvg();
 ```
 
-`ColorScalar` is mapped through `ColorMap` (defaults to Viridis); the renderer clamps to
-`[0, 1]`. `SizeScalar` × `NodeRadiusScale` = pixel radius.
+The renderer maps `ColorScalar` through `ColorMap`, which defaults to Viridis, and clamps
+the value to `[0, 1]`. A node's pixel radius is `SizeScalar` multiplied by
+`NodeRadiusScale`.
 
 ## Layouts
 
 ### Circular (default)
-All nodes on the unit circle at evenly-spaced angles. Ignores edges, ignores any
-pre-set `X`/`Y`. O(N), deterministic. Good first pick for any small graph.
+This layout puts every node on the unit circle at evenly spaced angles. It ignores the
+edges and it ignores any pre-set `X`/`Y`. It is O(N) and deterministic. It is a good first
+pick for any small graph.
 
 ### Hierarchical
-BFS top-down layering from node 0. Depth becomes Y; within-depth order becomes X
-(centred around 0, single-node layer at X=0). Cycles are tolerated via the visited set;
-disconnected components stay at depth 0.
+This layout walks the graph breadth-first from node 0 and lays out one layer per depth,
+top down. Depth becomes Y. The order within a depth becomes X, centred around 0, with a
+single-node layer at X=0. A visited set handles cycles. Disconnected components stay
+at depth 0.
 
 ```csharp
 s.Layout = GraphLayout.Hierarchical;
 ```
 
 ### Manual
-Pass-through: each node's pre-set `X` / `Y` is used verbatim. Use this when you have
-a custom layout algorithm of your own (e.g. from a t-SNE embedding) and want
-NetworkGraph to render-only.
+This layout uses each node's pre-set `X` / `Y` exactly as you set it. Use it when you have
+a custom layout algorithm of your own, for example from a t-SNE embedding, and want
+NetworkGraph only to render.
 
 ```csharp
 GraphNode[] nodes =
@@ -111,10 +115,11 @@ Plt.Create()
 
 ### ForceDirected (Fruchterman–Reingold spring-embedder)
 
-Repulsive force `k²/d` between every pair of nodes; attractive spring force `d²/k` on
-each edge; `k = √(area/N)`. Random initial positions seeded by `LayoutSeed` (default 0)
-for bit-identical reproducibility across runs. Step size cools linearly across iterations.
-Final positions are normalised to fit `[-1, 1]²`.
+Every pair of nodes pushes apart with a repulsive force of `k²/d`. Every edge pulls its
+two nodes together with a spring force of `d²/k`. Here `k = √(area/N)`. The starting
+positions are random and seeded by `LayoutSeed` (default 0), so repeated runs are
+bit-identical. The step size cools linearly across the iterations. The final positions are
+normalised to fit `[-1, 1]²`.
 
 ```csharp
 Plt.Create()
@@ -128,30 +133,29 @@ Plt.Create()
     .ToSvg();
 ```
 
-> ⚠️ **Performance cliff.** ForceDirected is **O(N² × iterations)** for the repulsive
+> ⚠️ **Performance limit.** ForceDirected is **O(N² × iterations)** for the repulsive
 > pass. At default 50 iterations the practical limit is roughly **N ≤ 500**. Beyond
-> that, render time grows quadratically — N=1000 takes seconds; N=5000 takes minutes.
-> For larger graphs **switch to `GraphLayout.Hierarchical`** (O(N + E)) or
-> `GraphLayout.Circular` (O(N)). Edge density also matters: dense graphs (E ≈ N²/2)
-> add measurable spring-force overhead on top of the always-quadratic repulsion.
+> that, render time grows quadratically: N=1000 takes seconds, N=5000 takes minutes.
+> For larger graphs, **switch to `GraphLayout.Hierarchical`** (O(N + E)) or
+> `GraphLayout.Circular` (O(N)). Edge density matters too: dense graphs (E ≈ N²/2)
+> add measurable spring-force overhead on top of the repulsion, which is always quadratic.
 > See `Benchmarks/MatPlotLibNet.Benchmarks/NetworkGraphBenchmarks.cs` for the full
 > N × edge-density matrix.
 
-**Seeded determinism.** Two figures rendered with the same `LayoutSeed`, `LayoutIterations`,
-and `ConvergenceThreshold` produce byte-identical SVG. This is what makes ForceDirected
-testable and what unblocks "snapshot" workflows where the layout must be reproducible
-across builds.
+**Seeded determinism.** Two figures rendered with the same `LayoutSeed`, `LayoutIterations`
+and `ConvergenceThreshold` produce byte-identical SVG. That makes ForceDirected testable,
+and it lets you use snapshot workflows that need the same layout on every build.
 
 **Convergence-mode early-stop.** Set `ConvergenceThreshold` to a positive value and the
-loop exits as soon as the per-iteration total displacement-energy drops below that
-threshold. Sparse / well-separated topologies (e.g. clear cluster structure) converge in
-10–20 iterations and benefit; dense uniform graphs typically don't converge below any
-reasonable threshold and run the full `LayoutIterations` count.
+loop exits as soon as the total displacement energy of an iteration drops below that
+threshold. Sparse or well-separated topologies, such as a clear cluster structure,
+converge in 10–20 iterations and benefit from this. Dense uniform graphs usually do not
+converge below any reasonable threshold and run the full `LayoutIterations` count.
 
 ## DataFrame extension
 
-For edge-list DataFrames, `df.NetworkGraph(...)` derives nodes from the union of
-distinct values in the source/target columns (first-seen order):
+For an edge-list DataFrame, `df.NetworkGraph(...)` builds the nodes from the union of the
+distinct values in the source and target columns, in first-seen order:
 
 ```csharp
 using MatPlotLibNet;
@@ -168,9 +172,9 @@ string svg = df.NetworkGraph(
     .ToSvg();
 ```
 
-`weightCol` and `directedCol` are optional. Missing nodes (edges that reference an ID
-not in the union) are silently skipped at render time — defensive fallback rather
-than throwing.
+`weightCol` and `directedCol` are optional. Missing nodes, meaning edges that reference an
+ID that is not in the union, are silently skipped at render time. This is a defensive
+fallback: the renderer does not throw.
 
 ## Configuration reference
 
@@ -179,14 +183,14 @@ than throwing.
 | `Nodes` | `IReadOnlyList<GraphNode>` | (constructor arg) | The graph's nodes. |
 | `Edges` | `IReadOnlyList<GraphEdge>` | (constructor arg) | The graph's edges. |
 | `Layout` | `GraphLayout` | `Circular` | `Manual` / `Circular` / `Hierarchical` / `ForceDirected`. |
-| `ColorMap` | `IColorMap?` | `null` → Viridis | Per-node colour from `ColorScalar`. |
+| `ColorMap` | `IColorMap?` | `null`, meaning Viridis | Per-node colour from `ColorScalar`. |
 | `ShowNodeLabels` | `bool` | `true` | Render `Label` (or `Id`) next to each node. |
 | `ShowEdgeWeights` | `bool` | `false` | Render numeric weight on top of each edge. |
-| `EdgeThicknessScale` | `double` | `1.0` | Multiplier on per-edge `Weight` → stroke width. |
-| `NodeRadiusScale` | `double` | `5.0` | Multiplier on per-node `SizeScalar` → circle radius. |
+| `EdgeThicknessScale` | `double` | `1.0` | Multiplier on per-edge `Weight` to get the stroke width. |
+| `NodeRadiusScale` | `double` | `5.0` | Multiplier on per-node `SizeScalar` to get the circle radius. |
 | `LayoutSeed` | `int` | `0` | Seed for ForceDirected RNG. Ignored by deterministic layouts. |
 | `LayoutIterations` | `int` | `50` | Max iterations for ForceDirected (O(N²) per iteration). Ignored by deterministic layouts. |
-| `ConvergenceThreshold` | `double?` | `null` | Optional early-stop for ForceDirected when per-iter energy drops below this. Null = run full `LayoutIterations`. |
+| `ConvergenceThreshold` | `double?` | `null` | Optional early-stop for ForceDirected when the per-iteration energy drops below this. Null runs the full `LayoutIterations`. |
 
 ## See also
 

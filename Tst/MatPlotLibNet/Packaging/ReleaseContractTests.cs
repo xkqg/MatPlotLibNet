@@ -185,6 +185,17 @@ public class ReleaseContractTests
     }
 
     [Fact]
+    public void TheMcpReadme_CarriesTheRegistryOwnershipMarker()
+    {
+        // The official MCP Registry proves ownership by reading the PUBLISHED package's README for this exact
+        // line. 1.15.0 shipped without it and the listing was refused until 1.15.1 carried it; nuget.org packages
+        // are immutable, so a README edit that loses the line costs a release, not a commit.
+        var lines = File.ReadLines(Path.Combine(Root, "Src", "MatPlotLibNet.Mcp", "README.md")).Select(l => l.Trim());
+
+        Assert.Contains("mcp-name: io.github.xkqg/matplotlibnet", lines);
+    }
+
+    [Fact]
     public void TheAccessibilityPage_NamesEverySeriesWithNoTabularForm()
     {
         // "Every chart has a data table" is the promise the page makes, and it is not quite true: two series

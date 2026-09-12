@@ -1,6 +1,6 @@
 # 3D Charts
 
-MatPlotLibNet includes a full 3D projection pipeline: `Projection3D` (World → View → NDC → Pixel), `DepthQueue3D` painter's algorithm, `Vec3.FaceNormal` face-normal shading via `Color.Shade` / `Color.Modulate` extensions, and `Svg3DRotationScript` for client-side rotation in SVG.
+MatPlotLibNet includes a full 3D projection pipeline. `Projection3D` takes coordinates from World to View to NDC to Pixel. `DepthQueue3D` applies the painter's algorithm. `Vec3.FaceNormal` provides face-normal shading through the `Color.Shade` and `Color.Modulate` extensions. `Svg3DRotationScript` adds client-side rotation to an SVG.
 
 ## Surface plot
 
@@ -52,19 +52,20 @@ Plt.Create()
 
 ### The axis frame follows the camera
 
-Any azimuth works, including the ones that swing the cube past the matplotlib default view. The
-shaded panes, the drawn cube edges, the wall grids and the X/Y/Z tick rows are chosen per render
-from the camera — the pane is always on the face pointing *away* from you, and a tick row never
-ends up behind the data (v1.14.1, [#18](https://github.com/xkqg/MatPlotLibNet/issues/18)). Dragging
-an interactive chart past ±90° re-runs the same selection in the browser, so the frame jumps to the
+Any azimuth works, including the ones that swing the cube past the matplotlib default view. Each
+render picks the shaded panes, the drawn cube edges, the wall grids and the X/Y/Z tick rows from
+the camera. The pane always sits on the face pointing *away* from you, and a tick row never ends up
+behind the data (v1.14.1, [#18](https://github.com/xkqg/MatPlotLibNet/issues/18)). Dragging an
+interactive chart past ±90° re-runs the same selection in the browser, so the frame jumps to the
 other side exactly as matplotlib's does.
 
-`Pane3DConfig` colours name the AXIS whose wall they paint, not a fixed side of the cube:
-`LeftWallColor` is the X-axis wall, `RightWallColor` the Y-axis wall, `FloorColor` the Z floor.
+A `Pane3DConfig` colour names the axis whose wall it paints, not a fixed side of the cube.
+`LeftWallColor` is the X-axis wall, `RightWallColor` is the Y-axis wall, and `FloorColor` is the Z
+floor.
 
-Axis titles place themselves clear of their own tick labels (v1.14.2): the gap is measured from the
-labels the axis actually draws, so a larger tick font or a custom `TickFormatter` pushes the title
-out with it — there is no pad to tune.
+Axis titles keep clear of their own tick labels (v1.14.2). The gap is measured from the labels the
+axis actually draws, so a larger tick font or a custom `TickFormatter` pushes the title further
+out. There is no pad to tune.
 
 ```csharp
 Plt.Create()
@@ -83,7 +84,7 @@ Multiple Bar3D series share depth sorting automatically:
 
 ## Planar 3D bars
 
-Flat translucent rectangles on discrete Y planes:
+Planar 3D bars are flat translucent rectangles on discrete Y planes:
 
 ![Planar 3D bars](../images/threed_planar_bars.png)
 

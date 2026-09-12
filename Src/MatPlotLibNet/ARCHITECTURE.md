@@ -330,6 +330,19 @@ MatPlotLibNet/
 
     TextMeasurement/                    text width estimation (new v0.8.1)
       CharacterWidthTable.cs            internal static: per-char width factors for Helvetica/Arial at 1em
+      IFontMetrics.cs                   interface: Measure(text, font) — DefaultFontMetrics here, SkiaFontMetrics in Skia
+      IGlyphPathProvider.cs             interface: GetPathData(text, font) — text as SVG <path>; null → <text> fallback
+
+    Text/                               the Unicode Bidirectional Algorithm, UAX #9 (v1.17.0)
+      BidiClass.cs                      enum: the 23 Bidi_Class values + BidiDirection (LeftToRight/RightToLeft)
+      BidiClassTable.cs / .g.cs         internal static: GetClass(codePoint) by binary search over 1 267 generated
+                                        ranges (UCD 17.0.0, tools/unicode/generate_bidi_tables.py)
+      BidiBrackets.cs / .g.cs           internal static: the 128 paired brackets for rule N0, canonical equivalents
+      BidiAlgorithm.cs                  internal static: Resolve(text, direction?) → BidiParagraph; rules P2–P3,
+                                        X1–X10, W1–W7, N0–N2, I1–I2, L1, L2 — proven against BidiTest.txt +
+                                        BidiCharacterTest.txt (861 948 cases) in the test suite
+      BidiParagraph.cs                  readonly record struct: Levels per UTF-16 unit (Removed for X9), ParagraphLevel,
+                                        VisualOrder(), RenderLevels(). Internal, visible to MatPlotLibNet.Skia
 
     MathText/                           mini-LaTeX → SVG tspan rendering (new v0.8.1)
       MathTextParser.cs                 state machine: $…$ delimiters, \cmd → Unicode, ^{} / _ → TextSpan
@@ -612,22 +625,23 @@ ChartHub               routes to SignalR group by chartId
 | Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D) | multiple output targets and coordinate systems from same model |
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
-| Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 83 series | each series knows how to serialize AND deserialize itself (v1.13.0: no central switch on either side) |
-| One value, not N fields | StreamingSeries → RingBuffer&lt;StreamingPoint&gt;; StreamingCandlestickSeries → RingBuffer&lt;OhlcBar&gt;; StreamingSignalSeries → RingBuffer&lt;SignalSample&gt; (the sample carries its own ordinal) | what must stay whole is STORED whole, so a reader beside a writer cannot see fields from different samples. Locking each field's buffer gives safe buffers and an unsafe invariant — measured, not theorised |
-| Self-tabulation | ISeries.ToDataTable() overridden per series; FigureDataTableExtensions only GROUPS and captions | same shape as self-serialization: the type that owns the data owns its column names, so a new series type needs no edit anywhere central |
+| Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 83 series | each series knows how to both serialize and deserialize itself (v1.13.0: no central switch on either side) |
+| One value, not N fields | StreamingSeries → RingBuffer&lt;StreamingPoint&gt;; StreamingCandlestickSeries → RingBuffer&lt;OhlcBar&gt;; StreamingSignalSeries → RingBuffer&lt;SignalSample&gt; (the sample carries its own ordinal) | a value that must stay consistent is stored as one object, so a reader running beside the writer never sees fields from different samples. Locking a separate buffer per field keeps each buffer safe, but not the invariant across the buffers. A measured run showed that invariant failing |
+| Self-tabulation | ISeries.ToDataTable() overridden per series; FigureDataTableExtensions only groups the tables and writes their captions | this follows the same principle as self-serialization: the type that owns the data also owns its column names, so a new series type needs no change in any central file |
+| One shaped text, three readers | Skia: TextShaper → ShapedText, read by SkiaFontMetrics (width), SkiaGlyphPathProvider (SVG outlines) and SkiaRenderContext (pixels) | the renderer draws text at the same width the layout measured for it; bidi levels come from Core's BidiAlgorithm and scripts from HarfBuzz, so Arabic letters join and Hebrew runs reverse the same way in every output |
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
-| Registry | SeriesRegistry (ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>>) | thread-safe discriminator -> series' own FromSeriesDto factory lookup; thin table only |
+| Registry | SeriesRegistry (ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>>) | thread-safe lookup from a discriminator to the series' own FromSeriesDto factory; thin table only |
 | Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries; CircularRenderer<T>, PolarTransformRenderer<T>, OhlcStreamingIndicatorTests<T> (Phase L) | DRY shared properties and behaviour across series and renderer families |
 | Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable, IHasColor, IHasAlpha, IHasEdgeColor, ILabelable | narrow contracts for cross-cutting concerns |
 | DI interfaces | IFigureTransform, IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |
-| SRP extension methods | FigureExtensions (Save, Transform, ToSvg, RegisterTransform) | builder only builds; output is separate |
+| SRP extension methods | FigureExtensions (Save, Transform, ToSvg, RegisterTransform) | FigureExtensions holds the output methods, so FigureBuilder only builds the figure |
 | Static defaults | ChartServices | non-DI usage for console apps |
 | Record types | Font, GridStyle, Legend, TickConfig, Color, Point, Rect, TransformResult | immutable value objects |
 | Parallel rendering | SvgTransform + per-subplot SvgRenderContext | multi-core subplot rendering |
 | Thread safety | volatile fields, ConcurrentDictionary for GlobalTransforms, AxesRenderer registry, SeriesRegistry | safe concurrent access |
 | Adapter | LegacyAnimationAdapter | bridges AnimationBuilder to IAnimation\<TState\> |
 | Delegate extraction | SvgTransform.BuildSvgDocument, ChartSerializer.ApplyEnum | DRY via higher-order functions |
-| Default interface method | IRenderContext.DrawRichText; ISeries.ToDataTable() | a new member lands on every implementor without breaking one — the fallback is the honest answer (plain text; "no tabular form") |
+| Default interface method | IRenderContext.DrawRichText; ISeries.ToDataTable() | a new member reaches every implementor without breaking any of them; the default supplies the fallback answer (plain text; "no tabular form") |
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
 | Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand, ColorStop, StreamingPoint, MinMaxRange, MatShape, XYCurve, BarRange, GaugeBand, DataPoint, LineSegment, Size, Vec3, CubePlane, CubeFaceSelection, AxisEdge3D | replace anonymous/named tuples in public API for discoverability and structural equality (v1.8.0 completed the sweep — no anonymous tuples remain) |
@@ -635,11 +649,46 @@ ChartHub               routes to SignalR group by chartId
 
 ---
 
+## MatPlotLibNet.Skia package
+
+This package renders PNG and PDF through SkiaSharp. It also provides the text pipeline that every backend shares once
+the package is loaded: the module initializer installs `SkiaFontMetrics` and `SkiaGlyphPathProvider` on
+`ChartServices`, so an SVG rendered in the same process carries the same glyph outlines that the PNG paints.
+
+```
+MatPlotLibNet.Skia/
+  FigureSkiaExtensions.cs        [ModuleInitializer] Initialize(): registers .png/.pdf, loads the bundled fonts,
+                                 installs the metrics + glyph provider; ToPng(), ToPdf()
+  SkiaFonts.cs                   the font door. Register(path | Stream) → RegisteredFont(Family, Weight, Slant);
+                                 internal Resolve(Font | family, weight, slant) → ResolvedTypeface (typeface +
+                                 one shared SKShaper), memoised; the registry and the cache are replaced WHOLE on a
+                                 registration (volatile fields, no lock); a family found nowhere is named once
+                                 through ChartDiagnostics. Bundled: DejaVu Sans ×4 (Latin, Greek, Cyrillic, Arabic,
+                                 Hebrew); user-over-user registration throws, user-over-bundled replaces + reports
+  TextShaper.cs                  internal static: Shape(text, SKFont, SKShaper) → ShapedText. Core's BidiAlgorithm
+                                 gives the levels, HarfBuzz's UnicodeFunctions the script; runs are shaped one by one
+                                 (Buffer.Direction/Script set explicitly — SKShaper.Shape(string) is single-run) and
+                                 laid out by rule L2 over runs
+  ShapedText.cs                  readonly record struct: Glyphs, Positions (visual order), Width
+  ResolvedTypeface.cs            readonly record struct: Typeface + Shaper, never disposed by callers
+  RegisteredFont.cs              public readonly record struct: what Register returned
+  SkiaFontMetrics.cs             IFontMetrics: Measure = ShapedText.Width
+  SkiaGlyphPathProvider.cs       IGlyphPathProvider: glyph outlines at the shaped positions; MeasureAdvance = Width
+  SkiaRenderContext.cs           IRenderContext over SKCanvas; DrawText/DrawRichText paint a positioned SKTextBlob
+                                 built from ShapedText (each rich-text span shaped once, at its own size)
+  Fonts/DejaVuSans*.ttf          embedded, 4 faces
+```
+
+Packaging: `SkiaSharp.HarfBuzz 3.*` follows SkiaSharp's version line and pins `HarfBuzzSharp 8.3.1.5`. The native
+`libHarfBuzzSharp` comes from `HarfBuzzSharp.NativeAssets.{Linux,Win32,macOS}` at exactly that version; those packages
+have no 3.x line and no `.NoDependencies` Linux variant. They are referenced directly by the two projects that have no
+host application above them: the Skia test project and the MCP tool.
+
 ## MatPlotLibNet.Mcp package
 
-A Model Context Protocol server, shipped as a .NET tool (`PackAsTool`, `PackageType=McpServer`, net10.0) that an
-MCP host starts over stdio. The MCP SDK touches exactly one file; everything else is plain classes a test drives
-without a protocol host.
+This package is a Model Context Protocol server. It ships as a .NET tool (`PackAsTool`, `PackageType=McpServer`,
+net10.0) that an MCP host starts over stdio. Only one file uses the MCP SDK; every other file is a plain class that a
+test can drive without a protocol host.
 
 ```
 MatPlotLibNet.Mcp/
@@ -656,32 +705,34 @@ MatPlotLibNet.Mcp/
                                    question a model cannot put to an image, answered in text
   RenderLimits.cs                  the canvas, text and table-row ceilings (the canvas ceiling IS the token
                                    ceiling; so is the row ceiling)
+  FontDirectory.cs                 the server's font door: Expand(MATPLOTLIBNET_FONTS) → files to register +
+                                   problems to log; a host starts this process, so a font file arrives by variable
   ToolRefusalException.cs          a refusal the boundary turns into an McpException the model can act on
   Extensions/StringDistanceExtensions.cs   edit distance, for "did you mean 'line'?"
   .mcp/server.json                 the registry manifest; its version is pinned to the project's by a test
 ```
 
-### Why a reader at all
+### Why the package has its own reader
 
-`ChartSerializer.FromJson` is a round-trip reader for its own writer: an unknown series type is dropped with a
-diagnostic, an unknown property is skipped by `System.Text.Json`, a misspelled enum value is ignored by
-`Enum.TryParse`, and an absent `width` overwrites the figure default with zero. That lenience is wire
-compatibility for the library's own clients. Handed a document a model typed, every one of those turns a typo
-into a blank picture reported as a success — so the package validates first, against the SAME DTO records the
-serializer reads, and refuses by field and JSON path.
+`ChartSerializer.FromJson` is a round-trip reader for the library's own writer, so it is lenient: an unknown series
+type is dropped with a diagnostic, an unknown property is skipped by `System.Text.Json`, a misspelled enum value is
+ignored by `Enum.TryParse`, and an absent `width` overwrites the figure default with zero. That lenience gives wire
+compatibility for the library's own clients. When a model writes the document, each of those cases turns a typo into a
+blank picture and reports it as a success. So the package validates the document first, against the same DTO records
+the serializer reads, and refuses it with the field name and the JSON path.
 
-### The two process-wide facts it has to own
+### Two process-wide behaviours this package has to handle
 
-The package references `MatPlotLibNet.Skia` for PNG and PDF, whose `[ModuleInitializer]` installs
-`ChartServices.GlyphPathProvider` and `FontMetrics` the first time a method naming a Skia type is prepared.
-`ChartRendering`'s constructor forces that module constructor, so the first chart a process renders is drawn the
-same way as the thousandth. And the SDK forwards only `McpException.Message` to the model, replacing anything
-else with a generic line — so every refusal leaves through that one type.
+The package references `MatPlotLibNet.Skia` for PNG and PDF. That package's `[ModuleInitializer]` installs
+`ChartServices.GlyphPathProvider` and `FontMetrics` the first time the runtime prepares a method that names a Skia
+type. The constructor of `ChartRendering` forces that module constructor to run, so the first chart a process renders
+is drawn the same way as every later one. The SDK forwards only `McpException.Message` to the model and replaces any
+other exception with a generic line, so every refusal leaves the server through that one type.
 
 ## MatPlotLibNet.DataFrame package
 
-Thin extension-method bridge that funnels `Microsoft.Data.Analysis.DataFrame` column names
-into the core charting, indicator, and regression APIs. Zero new logic — all data processing
+A thin extension-method bridge. It passes `Microsoft.Data.Analysis.DataFrame` column names
+into the core charting, indicator, and regression APIs. It adds no logic of its own; all data processing
 happens inside the core library.
 
 ```
@@ -696,7 +747,7 @@ MatPlotLibNet.DataFrame/
 
 Every extension method calls an internal `Col(df, name)` helper that throws
 `ArgumentException` with the column name in the message when a column is not found.
-All column access funnels through `DataFrameColumnReader.ToDoubleArray` / `ToStringArray`.
+All column access goes through `DataFrameColumnReader.ToDoubleArray` / `ToStringArray`.
 
 ### Indicator bridge
 
@@ -718,6 +769,6 @@ All column access funnels through `DataFrameColumnReader.ToDoubleArray` / `ToStr
 
 ### Regression bridge
 
-`DataFrameNumericsExtensions` wraps `LeastSquares` static methods:
-`PolyFit(xCol, yCol, degree)` → coefficients; `PolyEval(xCol, coeffs)` → fitted Y;
-`ConfidenceBand(xCol, yCol, coeffs, evalX, level)` → `ConfidenceBand(Upper[], Lower[])`.
+`DataFrameNumericsExtensions` wraps the `LeastSquares` static methods:
+`PolyFit(xCol, yCol, degree)` returns the coefficients; `PolyEval(xCol, coeffs)` returns the fitted Y;
+`ConfidenceBand(xCol, yCol, coeffs, evalX, level)` returns `ConfidenceBand(Upper[], Lower[])`.

@@ -1,9 +1,9 @@
 # Clustermap
 
-A clustermap composites a heatmap with optional row and column dendrograms into a single
-subplot — the seaborn `sns.clustermap` idiom. When trees are provided, rows and/or columns
-are automatically reordered to match the dendrogram leaf traversal order so cells align
-visually with the tree structure.
+A clustermap combines a heatmap with optional row and column dendrograms in a single
+subplot. It follows the seaborn `sns.clustermap` pattern. When you supply trees, the
+clustermap reorders the rows and/or columns automatically to match the leaf traversal
+order of the dendrogram, so the cells line up with the tree.
 
 ## Basic clustermap (heatmap only)
 

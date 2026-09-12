@@ -1,6 +1,6 @@
 # @matplotlibnet/angular
 
-Angular components for the [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) charting library. Renders charts as inline SVG with optional real-time SignalR updates.
+Angular components for the [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) charting library. They render charts as inline SVG. Real-time updates over SignalR are optional.
 
 ## Installation
 
@@ -12,7 +12,7 @@ npm install @matplotlibnet/angular @microsoft/signalr
 
 ### MplChartComponent -- static chart
 
-Fetches SVG from a MatPlotLibNet.AspNetCore endpoint and renders it inline.
+MplChartComponent fetches an SVG from a MatPlotLibNet.AspNetCore endpoint and renders it inline.
 
 ```html
 <mpl-chart [chartUrl]="'/api/chart.svg'" [cssClass]="'my-chart'"></mpl-chart>
@@ -20,7 +20,7 @@ Fetches SVG from a MatPlotLibNet.AspNetCore endpoint and renders it inline.
 
 ### MplLiveChartComponent -- real-time updates via SignalR
 
-Connects to a ChartHub and updates automatically when the server pushes new data.
+MplLiveChartComponent connects to a ChartHub and updates automatically when the server pushes new data.
 
 ```html
 <mpl-live-chart [chartId]="'sensor-1'" [hubUrl]="'/charts-hub'" [cssClass]="'live'"></mpl-live-chart>
@@ -39,7 +39,7 @@ this.chartService.getJson('/api/chart').subscribe(spec => { ... });
 
 ### ChartSubscriptionClient -- SignalR client
 
-Low-level client mirroring the C# `IChartSubscriptionClient` interface:
+This is a low-level client that mirrors the C# `IChartSubscriptionClient` interface:
 
 ```typescript
 const client = new ChartSubscriptionClient();
@@ -50,7 +50,7 @@ await client.subscribe('sensor-1');
 
 ## Server Setup
 
-Requires a MatPlotLibNet.AspNetCore backend:
+The package needs a MatPlotLibNet.AspNetCore backend:
 
 ```csharp
 builder.Services.AddMatPlotLibNetSignalR();

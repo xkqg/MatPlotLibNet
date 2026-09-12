@@ -93,7 +93,10 @@ if (-not $SkipCoverage) {
 Step "Samples that run: start and probe" {
     $servers = @(
         @{ Name = "ControlRoom"; Project = "Samples/MatPlotLibNet.Samples.ControlRoom"; Port = 5391; Expect = "<svg" },
-        @{ Name = "WebApi";      Project = "Samples/MatPlotLibNet.Samples.WebApi";      Port = 5392; Expect = "<svg"; Path = "api/chart/sales.svg" }
+        @{ Name = "WebApi";      Project = "Samples/MatPlotLibNet.Samples.WebApi";      Port = 5392; Expect = "<svg"; Path = "api/chart/sales.svg" },
+        # The same server, asked for a right-to-left title: this project renders without the Skia package, so the
+        # SVG carries <text> elements and the library must have marked the title with its reading direction.
+        @{ Name = "WebApi-intl"; Project = "Samples/MatPlotLibNet.Samples.WebApi";      Port = 5393; Expect = 'direction="rtl"'; Path = "api/chart/international.svg" }
     )
 
     foreach ($server in $servers) {

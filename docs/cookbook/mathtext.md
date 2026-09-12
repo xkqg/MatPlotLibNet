@@ -51,7 +51,7 @@ Plt.Create()
 
 ## Operator limits — integrals, sums, products (v1.7.0)
 
-Sub/superscripts on large operators render as limits (above/below):
+Subscripts and superscripts on large operators render as limits above and below the operator:
 
 ```csharp
 Plt.Create()
@@ -97,7 +97,7 @@ Plt.Create()
 | `bmatrix` | Brackets [ ] | `$\begin{bmatrix} x \\ y \\ z \end{bmatrix}$` |
 | `vmatrix` | Vertical bars | | | `$\begin{vmatrix} a & b \\ c & d \end{vmatrix}$` |
 
-Cells separated by `&`, rows separated by `\\`.
+Separate cells with `&` and rows with `\\`.
 
 ## Supported features
 

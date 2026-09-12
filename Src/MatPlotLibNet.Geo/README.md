@@ -1,6 +1,6 @@
 # MatPlotLibNet.Geo
 
-Geographic projections and map rendering for MatPlotLibNet.
+MatPlotLibNet.Geo adds geographic projections and map rendering to MatPlotLibNet.
 
 ## Quick Start
 
@@ -29,8 +29,8 @@ Plt.Create()
 
 ## Data
 
-Embeds Natural Earth 110m resolution data:
+The package embeds Natural Earth data at 110m resolution:
 - Coastlines (~50KB)
 - Country borders (~150KB)
 
-Data is public domain from [Natural Earth](https://www.naturalearthdata.com/).
+The data comes from [Natural Earth](https://www.naturalearthdata.com/) and is public domain.

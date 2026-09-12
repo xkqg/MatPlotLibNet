@@ -6,17 +6,17 @@
 mcp-name: io.github.xkqg/matplotlibnet
 
 An [MCP](https://modelcontextprotocol.io) (Model Context Protocol) server for [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet).
-It gives an AI agent — Claude Code, VS Code, Claude Desktop, any MCP host — five tools:
+It gives an AI agent (Claude Code, VS Code, Claude Desktop, or any other MCP host) five tools:
 
 | tool | what it does |
 |---|---|
 | `render_chart` | renders a chart spec to a PNG image the model can look at |
 | `save_chart` | writes the chart as PNG, SVG or PDF to a file and returns the path it wrote |
-| `chart_data_table` | the chart's DATA as markdown tables — a model can see that a line rises, but it cannot read a value off a picture |
-| `list_chart_types` | the chart types the spec accepts, read off the library's own registry |
-| `describe_chart_schema` | the fields of the spec, and a worked example for a chart type |
+| `chart_data_table` | returns the chart's data as markdown tables, so the model can read exact values, which it cannot read off a picture |
+| `list_chart_types` | lists the chart types the spec accepts; the list is read from the library's own registry |
+| `describe_chart_schema` | describes the fields of the spec and gives a worked example for a chart type |
 
-The server speaks stdio. It is a .NET tool: a host runs it with `dnx MatPlotLibNet.Mcp` (the .NET 10 SDK
+The server communicates over stdio. It is a .NET tool: a host runs it with `dnx MatPlotLibNet.Mcp` (the .NET 10 SDK
 resolves and starts it), or with `dotnet tool exec MatPlotLibNet.Mcp`.
 
 ```json
@@ -33,8 +33,8 @@ resolves and starts it), or with `dotnet tool exec MatPlotLibNet.Mcp`.
 
 ## The spec
 
-The spec is the library's own figure JSON — the same document `figure.ToJson()` writes and
-`ChartSerializer.FromJson` reads — so anything the library can draw, the agent can ask for:
+The spec is the library's own figure JSON: the same document that `figure.ToJson()` writes and
+`ChartSerializer.FromJson` reads. The agent can therefore ask for any chart the library can draw:
 
 ```json
 {
@@ -45,25 +45,28 @@ The spec is the library's own figure JSON — the same document `figure.ToJson()
 }
 ```
 
-The server checks the spec before it renders: an unknown field, an unknown chart type, a misspelled enum
-value, a colour the library does not know, a missing size — each is refused with a message that names the
-offending field, so the model can correct itself instead of receiving a blank picture.
+The server validates the spec before it renders. It rejects an unknown field, an unknown chart type, a misspelled
+enum value, a colour the library does not know, or a missing size. The error message names the field that is
+wrong, so the model can correct the spec instead of receiving a blank picture.
 
 ## What comes back
 
-`render_chart` returns the PNG as an image block and, beside it, a short text summary (chart types, series,
-axis ranges) so a model that cannot see the image still knows what it made. SVG and PDF are large; they go
-to a file through `save_chart`, never inline.
+`render_chart` returns the PNG as an image block. Beside it, it returns a short text summary (chart types, series,
+axis ranges), so a model that cannot see the image still knows what it made. SVG and PDF output is large, so it
+goes to a file through `save_chart` and is never returned inline.
 
-The SVG this server writes carries text as glyph outlines (`<path>`), not `<text>` elements — the PNG
-backend is loaded in the same process, and the library then embeds its own font so the drawing is identical
-everywhere.
+The SVG this server writes stores text as glyph outlines (`<path>`), not as `<text>` elements. This is because the
+PNG backend is loaded in the same process, and the library then embeds its own font so that the drawing is
+identical everywhere.
 
 ## Limits
 
 - `save_chart` writes only under one directory: the system temp directory, or the one named by the
   `MATPLOTLIBNET_MCP_OUTPUT_ROOT` environment variable. It never overwrites an existing file unless asked.
-- A canvas larger than the documented ceiling is refused with the ceiling in the message.
+- Arabic and Hebrew text work without setup. For Devanagari, Thai, Chinese, Japanese or Korean, name font files
+  or directories of font files in the `MATPLOTLIBNET_FONTS` environment variable, separated by `;`; they are
+  registered when the server starts. A bad entry is logged and skipped.
+- The server refuses a canvas larger than the documented ceiling, and the error message states the ceiling.
 
 ## License
 

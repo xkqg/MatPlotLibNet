@@ -1,6 +1,6 @@
 # Contributing to MatPlotLibNet
 
-Thank you for your interest in contributing to MatPlotLibNet! This guide covers the practical workflow **and** the engineering discipline the project expects from every contributor (human or AI-assisted).
+Thank you for your interest in contributing to MatPlotLibNet! This guide covers the practical workflow and the engineering discipline the project expects from every contributor, human or AI-assisted.
 
 ## Getting Started
 
@@ -40,57 +40,57 @@ Benchmarks/   BenchmarkDotNet performance suite
 
 # Project rules — read before any PR or commit
 
-These rules govern how changes land on this repo. They apply without exception.
+These rules apply to every change that lands on this repo. There are no exceptions.
 
 ## Versions
 
-- **The maintainer owns version numbers.** Contributors never bump, revert, or "align" versions autonomously.
-- **Version bumps require a behavioural change** — public API change, different output for the same input, changed defaults, new features. Refactors, tests, dead-code removal, docs, CI changes → **NO bump, stay on current version**.
-- Ambiguous signals ("no v1.7.3", "let's not go to...") → **ASK the maintainer**. Never guess which direction.
-- When a bump is explicitly requested, update `<Version>` in ALL 14 `.csproj` files atomically (loop, not one at a time), AND the two version fields in `Src/MatPlotLibNet.Mcp/.mcp/server.json` — an MCP host resolves the server by that manifest, so a version it carries that the package does not have resolves to nothing. `ReleaseContractTests` fails when they disagree.
+- **The maintainer owns version numbers.** Contributors never bump, revert, or "align" a version on their own.
+- **Version bumps require a behavioural change.** That means a public API change, different output for the same input, a changed default, or a new feature. Refactors, tests, dead-code removal, docs and CI changes get **NO bump; they stay on the current version**.
+- If the signal is ambiguous (for example "no v1.7.3" or "let's not go to..."), **ASK the maintainer**. Never guess which direction is meant.
+- When a bump is explicitly requested, update `<Version>` in ALL 14 `.csproj` files atomically (loop over them, not one at a time), AND the two version fields in `Src/MatPlotLibNet.Mcp/.mcp/server.json`. An MCP host resolves the server by that manifest, so if the manifest carries a version that the package does not have, the host finds nothing. `ReleaseContractTests` fails when the two disagree.
 - **The CHANGELOG heading carries the number, never a placeholder.** The maintainer names the version when the
-  work starts, and it stays put — through every commit — until he judges the whole heap good enough to make
-  packages. So the section is `## [1.16.0]` from the first entry under it, and the 14 csprojs plus the MCP
-  manifest carry that same number from that moment. `## [Next]` was the old convention and is no longer used:
-  a heading without a number tells a reader nothing and has to be renamed later by someone who remembers to.
-  Never invent the number yourself — ask, and write what you are told.
-- **No dates in the CHANGELOG.** The version numbers are the timeline; a date adds nothing a reader can act on.
+  work starts, and that number stays in place through every commit until he judges the accumulated work good
+  enough to make packages. So the section is `## [1.16.0]` from the first entry under it, and the 14 csprojs
+  plus the MCP manifest carry that same number from that moment. `## [Next]` was the old convention and is no
+  longer used: a heading without a number tells a reader nothing, and someone has to remember to rename it
+  later. Never invent the number yourself. Ask, and write what you are told.
+- **No dates in the CHANGELOG.** The version numbers are the timeline. A date adds nothing a reader can act on.
 
 ## TDD — Red, Green, Refactor. In that order. Always.
 
-- **Write the failing test FIRST.** Build must fail because the new symbol does not exist yet. This is the Red step; skipping it = FAILED TDD regardless of how many tests you later add.
+- **Write the failing test FIRST.** The build must fail because the new symbol does not exist yet. This is the Red step. If you skip it, the work counts as failed TDD, no matter how many tests you add later.
 - Then write the minimum production code to make the test pass (Green).
-- Then flip call sites / wire the composition (Refactor).
+- Then switch the call sites over and wire up the composition (Refactor).
 - **Refactors that move logic between classes inherit that logic's test debt.** "Existing tests
-  stay green" is necessary but not sufficient: coverage attribution follows the code, so branches
-  that were diluted inside a large class can drop a small receiving class below the ≥90/90 gate
-  with zero behavior change. Re-run the per-class coverage check (`tools/coverage/run.ps1` +
-  `check-thresholds.ps1 -Strict`) on every receiving class as part of the same PR, and write the
-  missing tests before declaring the refactor done.
+  stay green" is necessary but not sufficient. Coverage is attributed to the class that holds the
+  code, so uncovered branches that barely moved the percentage of a large class can drop a small
+  receiving class below the ≥90/90 gate with zero behavior change. Re-run the per-class coverage
+  check (`tools/coverage/run.ps1` + `check-thresholds.ps1 -Strict`) on every receiving class as
+  part of the same PR, and write the missing tests before you declare the refactor done.
 - Anti-patterns that indicate a TDD drift:
-  - "Extract X, then add tests." ← tests as trailing phrase = FAILED TDD.
-  - "Direct unit tests at 100/100" as a plan footnote = FAILED TDD; that belongs as the leading section.
-  - "We'll add tests for this" (future tense) = FAILED TDD.
+  - "Extract X, then add tests." Tests as a trailing phrase counts as failed TDD.
+  - "Direct unit tests at 100/100" as a plan footnote counts as failed TDD; that belongs in the leading section.
+  - "We'll add tests for this" (future tense) counts as failed TDD.
 
 ## Engineering discipline — same level as TDD
 
-Applies to every non-trivial action:
+These rules apply to every non-trivial action:
 
-- **Deep dive.** Read the full context — the whole method, every caller, the related tests, the upstream config — before proposing a change. No surface-level scans.
+- **Deep dive.** Before you propose a change, read the full context: the whole method, every caller, the related tests, and the upstream config. No surface-level scans.
 - **Full understanding.** If you don't understand *why* the code is the way it is, ask before changing it. "It looked wrong so I rewrote it" is a violation.
-- **SOLID.** Single responsibility per class/method. One method doing 15 things = SRP violation, correct before adding line 16.
-- **DRY.** Two copies of the same logic = extract. No "it was faster to copy it".
-- **Stacked classes.** Prefer OO hierarchy + composition over if/switch dispatch. Extend existing abstractions instead of grafting new branches onto a god-method.
-- **No assumptions.** If you're guessing what the maintainer wants, why code exists, or what a method returns — ask or verify. Assumption that goes uncorrected = later rework.
-- **No bandaids.** Fix root causes. "Silence the warning" / "skip the failing test" / "try-catch the exception" without understanding why = bandaid = technical debt.
-- **Be accurate.** No "approximately", "probably", "should work". Measure, verify, cite file:line. False precision ("100% covered") without proof is a trust hit.
-- **Keep overview.** While deep-diving, hold the system-level picture. Don't lose the forest for the tree. Report back in overview form, not a log dump.
+- **SOLID.** One responsibility per class and per method. A method that does 15 things violates SRP; fix that before you add a 16th.
+- **DRY.** Two copies of the same logic must be extracted into one. "It was faster to copy it" is not a reason.
+- **Stacked classes.** Prefer an OO hierarchy plus composition over if/switch dispatch. Extend existing abstractions instead of adding new branches to a god-method.
+- **No assumptions.** If you are guessing what the maintainer wants, why code exists, or what a method returns, ask or verify. An assumption that goes uncorrected becomes rework later.
+- **No bandaids.** Fix root causes. Silencing the warning, skipping the failing test, or wrapping the exception in a try-catch without understanding why it happens is a bandaid, and a bandaid is technical debt.
+- **Be accurate.** Do not write "approximately", "probably", or "should work". Measure, verify, and cite file:line. A precise-sounding claim without proof, such as "100% covered", costs trust.
+- **Keep overview.** While you deep-dive, keep the system-level picture in mind. Report back as an overview, not as a log dump.
 
 ## Class design
 
 - **No static helper classes.** Banned shape: `static class FooHelper { public static ... }`.
-- **Allowed shapes:** extensions (`public static T M(this Type self, ...)`), instance collaborator classes with real state, proper OO subclasses + composition + polymorphism.
-- Factory methods are the single legitimate static-method exception — one static `Create(...)` that dispatches to polymorphic subtypes.
+- **Allowed shapes:** extensions (`public static T M(this Type self, ...)`), instance collaborator classes with real state, and proper OO subclasses with composition and polymorphism.
+- Factory methods are the only legitimate exception for static methods: one static `Create(...)` that dispatches to polymorphic subtypes.
 
 ## Coding conventions
 
@@ -103,15 +103,15 @@ Applies to every non-trivial action:
 ## Dead-code deletion
 
 - Before deleting any file: check the **declaring class visibility**.
-- `internal` class → "dead" means no callers in `Src/` or `Tst/`. Grep confirms, then delete.
-- `public` class → "dead" is a MUCH higher bar. Grep `Src/ + Tst/ + Samples/ + docs/cookbook/`. Cookbook mention = published contract. NEVER delete a `public` class without explicit maintainer sign-off, even if repo-internal grep is empty.
+- For an `internal` class, "dead" means no callers in `Src/` or `Tst/`. Confirm that with grep, then delete.
+- For a `public` class, "dead" is a MUCH higher bar. Grep `Src/ + Tst/ + Samples/ + docs/cookbook/`. A mention in the cookbook is a published contract. NEVER delete a `public` class without explicit maintainer sign-off, even if the repo-internal grep finds nothing.
 
 ## Git — main repo (MatPlotLibNet)
 
 - **Default: AI assistants stage with `git add` only. The maintainer runs `git commit`, `git push`, `git tag`.**
 - Explicit scoped approval ("you may commit to the feature branch") unlocks commits for THAT scope only. When the scope is done, permission expires and must be re-requested.
 - Never add `Co-Authored-By` lines to commits.
-- Never force-push to main. Never push to GitHub autonomously (the maintainer pushes via VS Code).
+- Never force-push to main. Never push to GitHub on your own (the maintainer pushes via VS Code).
 
 ## Git — wiki repo
 
@@ -119,11 +119,11 @@ Applies to every non-trivial action:
 
 ## CHANGELOG
 
-- **CHANGELOG.md is never committed on a feature branch.** It lands on `main` only, at merge time — ideally as part of the squash-merge commit so the release has one curated entry.
+- **CHANGELOG.md is never committed on a feature branch.** It is committed on `main` only, at merge time, ideally as part of the squash-merge commit so that the release has one curated entry.
 
 ## Documentation
 
-- "Update all docs" = README + CHANGELOG + wiki + XML doc comments + samples + docs/cookbook + docs/api + Playground. All of them. No skipping the hard ones.
+- "Update all docs" means README, CHANGELOG, wiki, XML doc comments, samples, docs/cookbook, docs/api and Playground. All of them. Do not skip the hard ones.
 
 ---
 

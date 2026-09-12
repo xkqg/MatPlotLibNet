@@ -1,6 +1,6 @@
 # Symlog Axis
 
-Symmetric logarithmic scale — linear near zero, logarithmic for large values. Perfect for data spanning both positive and negative ranges across orders of magnitude.
+A symmetric logarithmic scale is linear near zero and logarithmic for large values. Use it for data that covers both positive and negative values across orders of magnitude.
 
 ## Basic symlog Y-axis
 
@@ -82,7 +82,7 @@ Plt.Create()
  |x| >  linthresh  →  sign(x) × linthresh × (1 + log₁₀(|x|/linthresh))
 ```
 
-The `linthresh` parameter controls where the transition from linear to logarithmic occurs. Smaller values = more of the axis is logarithmic.
+The `linthresh` parameter sets where the scale changes from linear to logarithmic. A smaller value makes more of the axis logarithmic.
 
 ## Fluent API reference
 

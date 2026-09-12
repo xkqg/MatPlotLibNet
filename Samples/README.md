@@ -1,109 +1,109 @@
 # MatPlotLibNet Samples
 
-Runnable sample projects demonstrating the MatPlotLibNet charting library. All samples use `<ProjectReference>` to build from source — no NuGet packages required.
+Runnable sample projects that demonstrate the MatPlotLibNet charting library. All samples use `<ProjectReference>` to build from source, so no NuGet packages are required.
 
 > **Browser interactions are automatic.** Calling `FigureBuilder.WithBrowserInteraction()`
-> (or, in WPF/Avalonia/Uno, ticking the **Interactive** checkbox) wires every interaction
-> the chart needs in one switch: pan/zoom, **legend toggle + press-and-hold legend drag**
+> (or, in WPF/Avalonia/Uno, ticking the **Interactive** checkbox) enables every interaction
+> the chart needs at once: pan/zoom, **legend toggle + press-and-hold legend drag**
 > (Phase S, v1.7.2), treemap drilldown, sankey hover, 3D rotation, rich tooltips,
-> highlight, brush selection. The library detects which scripts are relevant per chart
-> and emits only those — no per-feature toggle for the user to manage.
+> highlight, brush selection. The library detects which scripts each chart needs and
+> emits only those. There is no per-feature toggle for the user to manage.
 
 ## Playground
 
-Blazor WebAssembly interactive explorer. 16 example charts, flip themes, toggle series styling, copy the generated C# to paste into your own project. Also hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/).
+A Blazor WebAssembly interactive explorer with 16 example charts. You can flip themes, toggle series styling, and copy the generated C# to paste into your own project. It is also hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/).
 
 ```
 dotnet run --project MatPlotLibNet.Playground
 ```
 
-Browse to <http://localhost:5000>. Set `<base href="/">` in `wwwroot/index.html` is auto-detected for localhost; the GitHub Pages deploy uses the `/MatPlotLibNet/playground/` subpath.
+Browse to <http://localhost:5000>. The `<base href="/">` setting in `wwwroot/index.html` is auto-detected for localhost; the GitHub Pages deploy uses the `/MatPlotLibNet/playground/` subpath.
 
 ## Console
 
-Creates every sample image shipped with the wiki and cookbook — ~60 SVG/PNG pairs covering every chart family. Also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
+A console app that creates every sample image shipped with the wiki and cookbook: 72 SVG/PNG pairs covering every chart family. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Console
 ```
 
-Outputs to the repository root `images/` directory. Useful to re-run whenever a rendering change would alter committed sample output (e.g., the Phase G.7 fix that cleaned up stacked `data-*` attributes required a full regen).
+Output goes to the `images/` directory at the repository root. Re-run it whenever a rendering change would alter committed sample output. For example, the Phase G.7 fix that cleaned up stacked `data-*` attributes required a full regeneration.
 
 ## Blazor
 
-Blazor Server app with static and real-time charts.
+A Blazor Server app with static and real-time charts.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Blazor
 ```
 
-- `/` — static bar chart and scatter plot using `MatPlotLibNet.Blazor` control
-- `/live` — real-time chart updating every 3 seconds via SignalR
+- `/` — a static bar chart and a scatter plot using the `MatPlotLibNet.Blazor` control
+- `/live` — a real-time chart that updates every 3 seconds via SignalR
 
 ## Control room
 
-A sample of its own, because it is not an example of a control — it is a reference implementation of a SCREEN, with its own domain (bus → process → lane, alarm conditioning, a staleness clock) and a simulated federation that keeps running whether or not a browser is looking.
+This sample stands on its own because it is not an example of a control. It is a reference implementation of a complete screen. It has its own domain (a hierarchy of bus, process and lane; alarm conditioning; a staleness clock) and a simulated federation that keeps running whether or not a browser is connected.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.ControlRoom
 ```
 
-A simulated 15-bus federation on `Plt.OpsDashboard()`: quiet KPI tiles that carry no colour until something needs attention, a hatched tile for a source that has gone silent, and two rolling panels (throughput and latency percentiles) on a pinned time window. Window 1/5/15 min or 1 hour; refresh throttles the charts only — the tiles never slow down.
+The sample runs a simulated 15-bus federation on `Plt.OpsDashboard()`. The KPI tiles carry no colour until something needs attention. A tile is hatched when its source has gone silent. Two rolling panels show throughput and latency percentiles over a pinned time window. The window is 1, 5 or 15 minutes, or 1 hour. The refresh setting throttles the charts only; the tiles never slow down.
 
-**It descends.** Fleet → bus → process → lanes, and nothing is ever replaced: the level you leave becomes the rail on the left, still coloured, so a sibling is one click away and you never lose sight of what stands next to the thing you are reading.
+**Navigation descends the hierarchy.** The screen goes from fleet to bus to process to lanes. Nothing is replaced on the way down: the level you leave becomes a rail on the left, still coloured. A sibling is one click away, and you always keep sight of what stands next to the item you are reading.
 
-Two gestures, which is why either alone always felt stuck. Clicking a **block** is a drill-down — one level down the hierarchy. Clicking the **max** or the **min** in the strip is a drill-through: it leaves the aggregate for the member that produced it (the *exemplar*), and it is the reason an aggregate is worth clicking at all. At the bottom both stop being doorways, because a door that opens onto nothing is worse than no door.
+There are two click gestures, and the screen needs both. Clicking a **block** is a drill-down: it goes one level down the hierarchy. Clicking the **max** or the **min** in the strip is a drill-through: it leaves the aggregate and opens the member that produced that value (the *exemplar*). The drill-through is what makes an aggregate worth clicking. At the bottom level neither click opens anything, because there is nothing below.
 
-A block is ONE size at every level and at every count — a fixed track, never a fraction of the row. Two buses are two blocks with an empty row beside them; the emptiness is itself the information. Lanes are rows rather than cards because they are the bottom, and they are judged on a different question: a bus and a process are asked how hard they are working, a lane is asked whether it is keeping up, so it carries backlog, latency and errors instead.
+A block has one size at every level and at every count. It occupies a fixed track, never a fraction of the row. Two buses are two blocks with an empty row beside them; the empty space is itself information, because it shows that there are only two. Lanes are rows rather than cards, because they are the bottom level and they answer a different question. A bus and a process show how hard they are working. A lane shows whether it is keeping up, so it carries backlog, latency and errors instead.
 
-The whole state is the URL (`?bus=`, `?process=`): it survives every redraw, every block is an anchor so the descent is keyboard-reachable, and it can be pasted to a colleague mid-incident.
+The whole navigation state is in the URL (`?bus=`, `?process=`). It survives every redraw. Every block is an anchor, so the descent is reachable from the keyboard. The URL can be pasted to a colleague during an incident.
 
-**Alarms have a lifecycle.** The Alarms tile is a doorway onto the panel that lists the same book the tile counts: a condition raises an alarm, the operator's one gesture is **ack** — seen, not gone, still counted on the card as `firing · N acked` — and only the condition clearing resolves it. Acking may never make the wall look better on its own.
+**Alarms have a lifecycle.** The Alarms tile opens a panel that lists the same alarms the tile counts. A condition raises an alarm. The operator's one action is **ack**. An acked alarm is marked as seen but not removed, and the card still counts it as `firing · N acked`. Only the clearing of the condition resolves the alarm. Acking must never make the dashboard look calmer on its own.
 
 ## WPF
 
-Native WPF window with `MplChartControl` (Windows). Uses `MatPlotLibNet.Wpf`.
+A native WPF window with `MplChartControl` (Windows). It uses `MatPlotLibNet.Wpf`.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Wpf
 ```
 
-Four chart-type buttons (Line / Bar / Scatter / 3D Surface) swap the bound `Figure` at runtime. The **Interactive** checkbox toggles `IsInteractive` so you can compare passive vs pan/zoom/3D-rotate behaviour on the same figure.
+Four chart-type buttons (Line / Bar / Scatter / 3D Surface) swap the bound `Figure` at runtime. The **Interactive** checkbox toggles `IsInteractive`, so you can compare passive behaviour with pan/zoom/3D-rotate behaviour on the same figure.
 
 ## Avalonia
 
-Avalonia native control (Windows / macOS / Linux). Uses `MatPlotLibNet.Avalonia`.
+An Avalonia native control (Windows / macOS / Linux). It uses `MatPlotLibNet.Avalonia`.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Avalonia
 ```
 
-Demonstrates the `FigureControl` XAML element, theme switching, and runtime figure mutation.
+The sample demonstrates the `FigureControl` XAML element, theme switching, and runtime figure mutation.
 
 ## Uno
 
-Uno Platform on its Skia renderer, hosted in a WPF window (`Uno.WinUI.Skia.Wpf`). Uses `MatPlotLibNet.Uno`.
+Uno Platform on its Skia renderer, hosted in a WPF window (`Uno.WinUI.Skia.Wpf`). It uses `MatPlotLibNet.Uno`.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Uno
 ```
 
-A Skia head rather than a WinUI one, because Uno's Skia backend is where `MatPlotLibNet.Uno` draws — `SKCanvasElement` exists only there — and a WinUI head cannot load the library at all: its `Uno.UI` reference has no WinUI facade, and the build stops with *"Type universe cannot resolve assembly: Uno.UI, Version=255.255.255.255"*. The App and the page are Uno XAML declared as `UnoApplicationDefinition` / `UnoPage` items — Uno's generator reads those directly, and WPF's own markup compiler in the same project never sees them, in a real build or a design-time one.
+The sample uses a Skia head rather than a WinUI head. `MatPlotLibNet.Uno` draws on Uno's Skia backend, and `SKCanvasElement` exists only there. A WinUI head cannot load the library at all: its `Uno.UI` reference has no WinUI facade, and the build stops with *"Type universe cannot resolve assembly: Uno.UI, Version=255.255.255.255"*. The App and the page are Uno XAML, declared as `UnoApplicationDefinition` / `UnoPage` items. Uno's generator reads those items directly. WPF's own markup compiler in the same project never sees them, in a real build or in a design-time build.
 
 ## ASP.NET Core
 
-Server-side figure registry + SignalR hub. Charts render server-side and stream SVG updates to connected clients (Blazor / Angular / React / Vue).
+A server-side figure registry and a SignalR hub. Charts render on the server and stream SVG updates to connected clients (Blazor / Angular / React / Vue).
 
 ```
 dotnet run --project MatPlotLibNet.Samples.AspNetCore
 ```
 
-- Figure registry pattern — register once, mutate, clients receive live updates
+- Figure registry pattern — register a figure once, mutate it, and clients receive live updates
 - `WithServerInteraction()` wires pan/zoom/reset/legend-toggle through the hub
 
 ## Web API
 
-ASP.NET Core minimal API with REST endpoints and SignalR hub. Aimed at non-.NET frontends.
+An ASP.NET Core minimal API with REST endpoints and a SignalR hub. It is aimed at non-.NET frontends.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.WebApi
@@ -111,12 +111,13 @@ dotnet run --project MatPlotLibNet.Samples.WebApi
 
 - `GET /api/chart/sales` — chart as JSON
 - `GET /api/chart/sales.svg` — chart as SVG
-- `GET /api/chart/sales.table` — the same chart as an HTML data table, for a reader the SVG cannot reach
+- `GET /api/chart/sales.table` — the same chart as an HTML data table, for a reader who cannot use the SVG
+- `GET /api/chart/international.svg` — a chart with an Arabic title and a Hebrew legend entry, rendered without the Skia package. The SVG carries `<text>` with `direction="rtl"`, and the browser shapes the text.
 - `/charts-hub` — SignalR hub (subscribe to `sensor-1` for live updates)
 
 ## GraphQL
 
-HotChocolate GraphQL server with queries and subscriptions.
+A HotChocolate GraphQL server with queries and subscriptions.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.GraphQL
@@ -129,7 +130,7 @@ dotnet run --project MatPlotLibNet.Samples.GraphQL
 
 ## Packages without dedicated sample projects
 
-These NuGet packages don't yet have runnable samples — contributions welcome:
+These NuGet packages do not yet have runnable samples. Contributions are welcome:
 
 | Package | How to try it today |
 |---|---|
@@ -141,8 +142,8 @@ These NuGet packages don't yet have runnable samples — contributions welcome:
 | `MatPlotLibNet.Interactive` | .NET Interactive kernel extension; same inline rendering as Notebooks |
 | `MatPlotLibNet.Mcp` | Point an MCP host at it (`dnx MatPlotLibNet.Mcp`) and ask the model for a chart; see the [MCP cookbook page](../docs/cookbook/mcp.md) |
 
-Full sample projects for these are planned (no ETA). Until then the patterns above and the cookbook pages are the reference.
+Full sample projects for these are planned (no ETA). Until then, the patterns above and the cookbook pages are the reference.
 
 ## Note
 
-All samples use `<ProjectReference>` to build from source. No NuGet packages required — changes to `Src/` propagate immediately.
+All samples use `<ProjectReference>` to build from source. No NuGet packages are required, and changes to `Src/` propagate immediately.

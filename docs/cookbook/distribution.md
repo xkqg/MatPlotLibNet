@@ -54,7 +54,7 @@ Plt.Create()
 
 ## Histogram with hatching
 
-Print-friendly with `Hatch` and `HatchColor`:
+Set `Hatch` and `HatchColor` for a print-friendly histogram:
 
 ```csharp
 Plt.Create()
@@ -165,7 +165,7 @@ Plt.Create()
 
 ## Ridge plot
 
-Show the distribution of multiple groups offset vertically using manual KDE + `FillBetween`.
+A ridge plot shows the distribution of several groups, each offset vertically. This example computes the KDE by hand and draws each ridge with `FillBetween`.
 
 ```csharp
 var rng = new Random(42);

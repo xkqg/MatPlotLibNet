@@ -1,9 +1,10 @@
 # Sankey Diagrams
 
-`.WithSankeyHover()` enables ECharts-style `focus: adjacency`: hovering a node
-dims every link that isn't reachable upstream or downstream from it, so the
-selected flow chain stands out. Keyboard-accessible via `Tab` focus (each node
-has `tabindex="0"`). Dim opacities are themable via
+`.WithSankeyHover()` enables ECharts-style `focus: adjacency`. When you hover a
+node, the chart dims every link that is not reachable upstream or downstream
+from that node, so the selected flow chain stands out. The nodes are keyboard
+accessible: each node has `tabindex="0"`, so `Tab` moves the focus from node to
+node. You can set the dim opacities on the theme with
 `WithInteractionTheme(new InteractionTheme(SankeyDimLinkOpacity: 0.04, SankeyDimNodeOpacity: 0.2))`.
 
 ## Process industry distribution (5-column cascade)
@@ -29,7 +30,8 @@ Plt.Create()
 
 ## Income statement (J&J-style flow)
 
-Sub-labels carry Y/Y change indicators coloured green (profit) or red (cost):
+Sub-labels show year-over-year change indicators. They are coloured green for
+profit and red for cost:
 
 ![Sankey — income statement](../images/sankey_income_statement.png)
 
@@ -57,6 +59,7 @@ Plt.Create()
 
 ## Severity cascade (4 timepoints)
 
-Dense many-to-many transitions where relaxation iterations minimize crossings:
+This chart has dense many-to-many transitions. The relaxation iterations
+minimize the crossings:
 
 ![Sankey — severity cascade](../images/sankey_severity_cascade.png)

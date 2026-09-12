@@ -2,12 +2,12 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.xkqg/matplotlibnet",
   "description": "Renders MatPlotLibNet charts to PNG, SVG or PDF from a JSON spec an AI agent writes.",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "packages": [
     {
       "registryType": "nuget",
       "identifier": "MatPlotLibNet.Mcp",
-      "version": "1.16.0",
+      "version": "1.17.0",
       "transport": {
         "type": "stdio"
       },
@@ -16,6 +16,12 @@
         {
           "name": "MATPLOTLIBNET_MCP_OUTPUT_ROOT",
           "description": "The only directory save_chart may write under. Defaults to the system temp directory.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "MATPLOTLIBNET_FONTS",
+          "description": "Font files (.ttf, .otf) and directories of them, separated by ';', registered at startup so a chart can use a script the bundled font lacks (Devanagari, Thai, Chinese). Arabic and Hebrew work without it.",
           "isRequired": false,
           "isSecret": false
         }

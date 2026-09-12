@@ -31,6 +31,9 @@
     <!-- Golden-JSON serialization corpus (ChartSerializerGoldenCorpusTests) — copied next to the
          test assembly so AppContext.BaseDirectory-anchored reads find them at run time. -->
     <Content Include="Serialization\Golden\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Unicode's own conformance corpora for the bidi algorithm (BidiConformanceTests): 594 055 cases,
+         checked in gzipped (1.7 MB instead of 14.8 MB) and streamed by the tests. Unicode 17.0.0. -->
+    <Content Include="Rendering\Text\Ucd\*.gz" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

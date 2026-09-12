@@ -1,13 +1,14 @@
 # Dendrograms
 
-Hierarchical-clustering visualisation: every internal node is a *merge* whose vertical
-position equals the merge distance produced by the clustering algorithm. Leaves are evenly
-spaced along the leaf-axis; "U"-shaped segments connect each merge to its children, matching
-SciPy's `scipy.cluster.hierarchy.dendrogram` rendering convention.
+A dendrogram draws the result of hierarchical clustering. Every internal node is a *merge*.
+Its vertical position equals the merge distance that the clustering algorithm produced.
+Leaves are spaced evenly along the leaf axis. "U"-shaped segments connect each merge to its
+children, which is how SciPy's `scipy.cluster.hierarchy.dendrogram` renders them.
 
-`DendrogramSeries` accepts any `TreeNode` tree where internal-node `Value` carries the
-merge distance — bring your own clustering output (`HierarchicalClustering.Cluster()` from
-the `MatPlotLibNet.Numerics` namespace, or any external algorithm).
+`DendrogramSeries` accepts any `TreeNode` tree in which the `Value` of an internal node
+carries the merge distance. You supply the clustering yourself: use
+`HierarchicalClustering.Cluster()` from the `MatPlotLibNet.Numerics` namespace, or any
+external algorithm.
 
 ## Basic dendrogram
 
@@ -47,9 +48,10 @@ Plt.Create()
 
 ## Cut-height with cluster colours
 
-Set `CutHeight` to draw a dashed reference line at the chosen merge distance and recolour
-each connected component below the cut from a qualitative colormap. The default
-colormap is `QualitativeColorMaps.Tab10` (10 distinct categorical colours).
+Set `CutHeight` to draw a dashed reference line at the merge distance you choose. Each
+connected component below the cut is then recoloured from a qualitative colormap. The
+default colormap is `QualitativeColorMaps.Tab10`, which holds 10 distinct categorical
+colours.
 
 ```csharp
 Plt.Create()
@@ -65,9 +67,9 @@ Plt.Create()
     .Save("dendrogram_cut.svg");
 ```
 
-`CutHeight` semantics use **strict less-than** (`node.Value < cut`), matching SciPy's
-`dendrogram(color_threshold=…)` visual convention. A node whose `Value` equals the cut
-exactly is treated as *above* the cut and is rendered in the default series colour.
+`CutHeight` compares with **strict less-than** (`node.Value < cut`). That matches how SciPy's
+`dendrogram(color_threshold=…)` colours a tree. A node whose `Value` equals the cut
+exactly counts as *above* the cut, so it keeps the default series colour.
 
 ## Orientations
 
@@ -96,12 +98,13 @@ For `Left` and `Right`, leaf labels are rotated 90° so they read along the leaf
 
 ## Notes
 
-- **Binary-tree assumption.** Internal-node leaf-coordinates are computed as the mean
-  of immediate children. For binary trees (the standard `scipy.linkage` output), this
-  matches SciPy's `(left + right) / 2` placement exactly. N-ary trees are accepted but
-  may render off-centre relative to a leftmost+rightmost-descendant midpoint.
-- **Degenerate inputs.** Single-leaf trees render the lone label at the plot centre.
-  All-zero merge distances collapse the U-shapes to the leaf baseline (the renderer
-  falls back to a unit `maxMerge` to avoid division by zero).
-- **Disable labels.** Set `ShowLabels = false` to suppress every leaf label — useful
-  for embedding the tree in a clustermap margin where the heatmap rows already carry labels.
+- **Binary-tree assumption.** The leaf coordinate of an internal node is the mean of its
+  immediate children. For binary trees, which is what `scipy.linkage` produces, this
+  matches SciPy's `(left + right) / 2` placement exactly. N-ary trees are accepted, but
+  they may render off-centre compared with the midpoint of the leftmost and rightmost
+  descendant.
+- **Degenerate inputs.** A tree with one leaf renders that single label at the centre of
+  the plot. If every merge distance is zero, the U-shapes collapse onto the leaf baseline;
+  the renderer falls back to a `maxMerge` of one so it never divides by zero.
+- **Disable labels.** Set `ShowLabels = false` to hide every leaf label. This helps when
+  you embed the tree in a clustermap margin, where the heatmap rows already carry labels.

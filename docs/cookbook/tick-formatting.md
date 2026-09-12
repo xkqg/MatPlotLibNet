@@ -21,7 +21,7 @@ Plt.Create()
 
 ## Date axes
 
-`DateTime[]` arrays are handled automatically with `AutoDateLocator`:
+Pass a `DateTime[]` array and the axis uses `AutoDateLocator` automatically:
 
 ```csharp
 DateTime[] dates = Enumerable.Range(0, 90)
@@ -42,7 +42,7 @@ Plt.Create()
 
 ## Rotated tick labels (v1.7.2 Phase L.8)
 
-When X-axis tick labels are dense enough to overlap (e.g. 31 daily date labels in a narrow plot), the renderer auto-rotates them to 30° — matches matplotlib's `Figure.autofmt_xdate()` behaviour. Manual control is available for any angle:
+When X-axis tick labels are dense enough to overlap, for example 31 daily date labels in a narrow plot, the renderer rotates them to 30° on its own. This matches matplotlib's `Figure.autofmt_xdate()` behaviour. You can also set any angle yourself:
 
 ```csharp
 Plt.Create()
@@ -53,6 +53,6 @@ Plt.Create()
     .Save("rotated_ticks.svg");
 ```
 
-Both axes support rotation via `WithXTickLabelRotation(double)` / `WithYTickLabelRotation(double)`. Pass `0` to restore horizontal (but dense X-axis labels will still auto-rotate to 30° unless you set a different angle).
+Both axes support rotation, through `WithXTickLabelRotation(double)` and `WithYTickLabelRotation(double)`. Pass `0` to restore horizontal labels. Dense X-axis labels still auto-rotate to 30° unless you set a different angle.
 
-Under the hood the `TickConfig.LabelRotation` property drives the `SvgRenderContext.DrawText` rotation overload, which emits `transform="rotate(...)"` on the `<text>` element. Auto-rotation is detected by comparing adjacent tick pixel spacing against the widest label measurement from `Ctx.MeasureText`.
+Internally, the `TickConfig.LabelRotation` property drives the rotation overload of `SvgRenderContext.DrawText`, which emits `transform="rotate(...)"` on the `<text>` element. The renderer decides to auto-rotate by comparing the pixel spacing between adjacent ticks with the widest label measured by `Ctx.MeasureText`.

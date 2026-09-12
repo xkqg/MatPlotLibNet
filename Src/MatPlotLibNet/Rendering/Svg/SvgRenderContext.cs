@@ -210,17 +210,11 @@ public sealed class SvgRenderContext : IRenderContext
 
     private void EmitTextElement(string text, Point position, Font font, TextAlignment alignment, double rotation)
     {
-        string anchor = alignment switch
-        {
-            TextAlignment.Left   => "start",
-            TextAlignment.Center => "middle",
-            TextAlignment.Right  => "end",
-            _                    => "start",
-        };
-
+        bool rightToLeft = ReadsRightToLeft(text);
         _sb.Append("<text x=\"").Append(position.X.ToSvgNumber()).Append("\" y=\"").Append(position.Y.ToSvgNumber())
            .Append("\" font-family=\"").Append(font.Family).Append("\" font-size=\"").Append(font.Size.ToSvgNumber())
-           .Append("\" text-anchor=\"").Append(anchor).Append('"');
+           .Append("\" text-anchor=\"").Append(ResolveAnchor(alignment, rightToLeft)).Append('"');
+        if (rightToLeft) _sb.Append(" direction=\"rtl\"");
         if (rotation != 0)
         {
             // SVG rotation: negative because SVG y-axis is flipped vs. mathematical convention
@@ -233,6 +227,24 @@ public sealed class SvgRenderContext : IRenderContext
         FlushPendingData();
         _sb.Append('>').Append(text.EscapeForXml()).AppendLine("</text>");
     }
+
+
+    /// <summary>Whether a label reads right to left: its first strong character is Hebrew, Arabic or another
+    /// right-to-left script (rules P2 and P3 of the bidi algorithm). The browser reorders the characters inside a
+    /// <c>&lt;text&gt;</c> element on its own; what it cannot know is the paragraph direction, which decides where
+    /// the punctuation at the end of a Hebrew title lands and which edge <c>text-anchor="start"</c> names.</summary>
+    private static bool ReadsRightToLeft(string text) =>
+        text.Length > 0 && Text.BidiAlgorithm.Resolve(text).IsRightToLeft;
+
+    /// <summary>The <c>text-anchor</c> keyword for an alignment. The alignment is geometric — Left means the left
+    /// edge — while SVG's <c>start</c> and <c>end</c> follow the reading direction, so under <c>direction="rtl"</c>
+    /// the two swap.</summary>
+    private static string ResolveAnchor(TextAlignment alignment, bool rightToLeft) => alignment switch
+    {
+        TextAlignment.Center => "middle",
+        TextAlignment.Right  => rightToLeft ? "start" : "end",
+        _                    => rightToLeft ? "end" : "start",
+    };
 
     private void EmitGlyphPath(string d, string textForMeasure, Point position, Font font, TextAlignment alignment, double rotation)
     {
@@ -315,18 +327,12 @@ public sealed class SvgRenderContext : IRenderContext
             return;
         }
 
-        string anchor = alignment switch
-        {
-            TextAlignment.Left   => "start",
-            TextAlignment.Center => "middle",
-            TextAlignment.Right  => "end",
-            _                    => "start",
-        };
-
+        bool rightToLeft = ReadsRightToLeft(string.Concat(richText.Spans.Select(s => s.Text)));
         _sb.Append("<text x=\"").Append(position.X.ToSvgNumber()).Append("\" y=\"").Append(position.Y.ToSvgNumber())
            .Append("\" font-family=\"").Append(font.Family)
            .Append("\" font-size=\"").Append(font.Size.ToSvgNumber())
-           .Append("\" text-anchor=\"").Append(anchor).Append('"');
+           .Append("\" text-anchor=\"").Append(ResolveAnchor(alignment, rightToLeft)).Append('"');
+        if (rightToLeft) _sb.Append(" direction=\"rtl\"");
         if (rotation != 0)
             _sb.Append(" transform=\"rotate(").Append((-rotation).ToSvgNumber()).Append(',')
                .Append(position.X.ToSvgNumber()).Append(',').Append(position.Y.ToSvgNumber()).Append(")\"");

@@ -30,7 +30,7 @@ Plt.Create()
 
 ## Break styles
 
-Three visual styles for the break marker:
+The break marker has three visual styles:
 
 ```csharp
 var builder = Plt.Create()

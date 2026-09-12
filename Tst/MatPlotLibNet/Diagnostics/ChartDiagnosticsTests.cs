@@ -72,4 +72,29 @@ public class ChartDiagnosticsTests
 
         Assert.Equal(0, callCount);
     }
+
+    [Fact]
+    public void Emit_AThrowingSubscriber_StopsNeitherTheOtherSubscribersNorTheCaller()
+    {
+        // A diagnostic sink is an observer. One that throws must not turn a render into an exception, and must
+        // not silence the sinks registered after it.
+        ChartDiagnostic? received = null;
+        void Throwing(ChartDiagnostic d) => throw new InvalidOperationException("a sink with a bug");
+        void Recording(ChartDiagnostic d) => received = d;
+        ChartDiagnostics.Emitted += Throwing;
+        ChartDiagnostics.Emitted += Recording;
+        try
+        {
+            var ex = Record.Exception(() => ChartDiagnostics.Emit(new ChartDiagnostic("Test", "survives a bad sink", null)));
+
+            Assert.Null(ex);
+            Assert.NotNull(received);
+            Assert.Equal("survives a bad sink", received!.Value.Message);
+        }
+        finally
+        {
+            ChartDiagnostics.Emitted -= Throwing;
+            ChartDiagnostics.Emitted -= Recording;
+        }
+    }
 }

@@ -103,7 +103,7 @@ Plt.Create()
 
 ## Custom PropCycler
 
-Control color + line style cycling for multi-series plots:
+Control how colors and line styles cycle across the series of a multi-series plot:
 
 ```csharp
 var cycler = new PropCyclerBuilder()

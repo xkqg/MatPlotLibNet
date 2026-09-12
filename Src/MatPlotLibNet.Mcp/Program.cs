@@ -40,6 +40,32 @@ public static class Program
             // AOT in the SDK itself, and this package ships as a tool that a host may publish either way.
             .WithTools<ChartTools>();
 
-        await builder.Build().RunAsync();
+        var host = builder.Build();
+
+        // The fonts the host named in MATPLOTLIBNET_FONTS, registered before the first chart. Arabic and Hebrew
+        // work without this (the bundled DejaVu Sans covers them); Devanagari, Thai or Chinese need a font file,
+        // and a tool started by a host has no other way to receive one. A bad entry is logged, never fatal.
+        var fonts = FontDirectory.Expand(Environment.GetEnvironmentVariable(FontDirectory.Variable));
+        var log = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("MatPlotLibNet.Mcp.Fonts");
+        foreach (string problem in fonts.Problems)
+        {
+            log.LogWarning("{Problem}", problem);
+        }
+
+        foreach (string file in fonts.Files)
+        {
+            try
+            {
+                var registered = MatPlotLibNet.Skia.SkiaFonts.Register(file);
+                log.LogInformation("Registered font family '{Family}' ({Weight}, {Slant}) from {File}",
+                    registered.Family, registered.Weight, registered.Slant, file);
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IOException)
+            {
+                log.LogWarning("{Variable}: {File} was not registered: {Reason}", FontDirectory.Variable, file, ex.Message);
+            }
+        }
+
+        await host.RunAsync();
     }
 }

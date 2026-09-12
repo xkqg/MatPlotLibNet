@@ -568,7 +568,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void BuildKey_BoldAndItalic_ReturnsBoldItalicSuffix()
     {
         var style = new SKFontStyle((int)SKFontStyleWeight.Bold, (int)SKFontStyleWidth.Normal, SKFontStyleSlant.Italic);
-        var key = FigureSkiaExtensions.BuildKey("DejaVu Sans", style);
+        var key = SkiaFonts.BuildKey("DejaVu Sans", style);
         Assert.Equal("DejaVu Sans|BoldItalic", key);
     }
 
@@ -576,7 +576,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void BuildKey_BoldNotItalic_ReturnsBoldSuffix()
     {
         var style = new SKFontStyle((int)SKFontStyleWeight.Bold, (int)SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
-        var key = FigureSkiaExtensions.BuildKey("DejaVu Sans", style);
+        var key = SkiaFonts.BuildKey("DejaVu Sans", style);
         Assert.Equal("DejaVu Sans|Bold", key);
     }
 
@@ -584,7 +584,7 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void BuildKey_ItalicNotBold_ReturnsItalicSuffix()
     {
         var style = new SKFontStyle((int)SKFontStyleWeight.Normal, (int)SKFontStyleWidth.Normal, SKFontStyleSlant.Italic);
-        var key = FigureSkiaExtensions.BuildKey("DejaVu Sans", style);
+        var key = SkiaFonts.BuildKey("DejaVu Sans", style);
         Assert.Equal("DejaVu Sans|Italic", key);
     }
 
@@ -592,21 +592,21 @@ public class SkiaRenderContextCoverageTests : IDisposable
     public void BuildKey_NormalWeight_ReturnsBareFamily()
     {
         var style = new SKFontStyle((int)SKFontStyleWeight.Normal, (int)SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
-        var key = FigureSkiaExtensions.BuildKey("DejaVu Sans", style);
+        var key = SkiaFonts.BuildKey("DejaVu Sans", style);
         Assert.Equal("DejaVu Sans", key);
     }
 
     [Fact]
     public void ResolveTypeface_NullFamily_FallsBackToOsLookup()
     {
-        var tf = FigureSkiaExtensions.ResolveTypeface(null, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        var tf = SkiaFonts.Resolve(null, SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
         Assert.NotNull(tf);
     }
 
     [Fact]
     public void ResolveTypeface_UnknownFamily_FallsBackToOsLookup()
     {
-        var tf = FigureSkiaExtensions.ResolveTypeface("NotABundledFont", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        var tf = SkiaFonts.Resolve("NotABundledFont", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
         Assert.NotNull(tf);
     }
 }

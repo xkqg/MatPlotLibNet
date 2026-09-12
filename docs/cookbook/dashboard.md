@@ -1,9 +1,9 @@
 # Dashboard tiles & timelines
 
 Single-panel KPI tiles and horizontal state timelines for operational dashboards,
-fleet status views, and monitoring UIs. Both series types are chartless — they carry
-no axes, just a formatted value or a coloured timeline — and are designed to be
-composed via mosaic or subplot layouts.
+fleet status views, and monitoring UIs. Both series types are chartless: they carry
+no axes, just a formatted value or a coloured timeline. Compose them with mosaic or
+subplot layouts.
 
 ## Stat tile — single KPI number
 
@@ -188,10 +188,10 @@ Plt.Mosaic("AAB\nAAC")
 
 ## Full ops dashboard — tiles + timeline + thresholded chart
 
-Combine all four v1.12.0 dashboard conveniences in one mosaic: a KPI tile row
-(`StatTileSeries`), a `StateTimelineSeries` for service health, and a line chart
-using the `Threshold(...)` convenience (dashed reference line + breach shading)
-together with `WithLegendValues()` so the legend shows the live reading:
+This mosaic combines all four v1.12.0 dashboard conveniences: a KPI tile row
+(`StatTileSeries`), a `StateTimelineSeries` for service health, and a line chart that
+uses the `Threshold(...)` convenience. `Threshold(...)` draws a dashed reference line
+and shades the breach, and `WithLegendValues()` makes the legend show the live reading:
 
 ```csharp
 var serviceHistory = new StateSegment[]
@@ -240,24 +240,25 @@ reference of `Threshold(...)` and `WithLegendValues()`.
 
 ## Operations dashboard — `Plt.OpsDashboard()`
 
-A control-room screen is not a chart with more charts on it. It is a screen someone must be able to sit
-in front of for eight hours and still notice the one thing that changes. That is a design problem with a
-long-settled literature behind it, and this template follows it rather than inventing its own.
+The operations dashboard template builds a control-room screen. An operator may watch such a screen for
+eight hours and must still notice the one thing on it that changes. Designing such a screen is a problem
+with a long-settled literature behind it, and this template follows that literature.
 
-**Colour is reserved.** At rest the screen carries none — not even green. The moment a healthy state is
-coloured, the abnormal one has nothing left to stand out against, and a wall of cheerful tiles is a wall
-nobody looks at. Colour appears only when something needs attention, and it comes out of the theme's
-`AlarmPalette`: Okabe-Ito amber for *look at this* and vermillion for *act now*, chosen because roughly
-eight percent of men cannot separate red from green and these two stay apart for all of them. Colour is
-never the sole carrier of meaning — every coloured mark says the same thing in words too.
+**Colour marks only what needs attention.** When nothing needs attention, the screen shows no colour, not
+even green. Colouring the healthy states would leave an abnormal state nothing to stand out against, and
+operators would stop looking at the tiles. The colours come from the theme's `AlarmPalette`: Okabe-Ito amber
+means *look at this* and vermillion means *act now*. These two colours were chosen because roughly eight
+percent of men cannot tell red from green, and these two stay distinguishable for all of them. Colour is
+never the only signal: every coloured mark also states the same thing in words.
 
-**A silent source is hatched, not coloured.** On a monitored fleet, "I can no longer see you" is the most
-common failure and it is *not* the same failure as "you are broken". A dashboard that paints them the same
-lies exactly when it matters. `StatTileSeries.Hatch` and `StateSegment.Hatch` exist for this.
+**A silent source is hatched, not coloured.** On a monitored fleet, losing contact with a source is the most
+common failure, and it is *not* the same failure as the source being broken. A dashboard that shows both the
+same way misleads the operator. Use `StatTileSeries.Hatch` and `StateSegment.Hatch` to mark a source that has
+gone silent.
 
-**The caller owns the clock.** `WithWindow(end, span)` takes the end instant from you. The library never
-reads `DateTime.Now` — a figure that depends on the wall clock cannot be tested, cannot be replayed, and
-cannot render a dashboard for any moment but this one.
+**The caller supplies the clock.** `WithWindow(end, span)` takes the end instant as an argument. The library
+never reads `DateTime.Now`. A figure that read the wall clock could not be tested, could not be replayed, and
+could only render the dashboard for the current moment.
 
 ```csharp
 using MatPlotLibNet.Models.Series;
@@ -315,19 +316,19 @@ Plt.OpsDashboard()
 
 ### The rolling axis
 
-`WithWindow` pins **exact** bounds and lets the locator round only the **ticks**. That distinction is the
-whole difference between a chart that glides and one that lurches: an auto axis expands its bounds outward
-to the nearest nice number, so it stands perfectly still while the data grows into it and then jumps a
-whole step at once. Pinned bounds slide continuously; round ticks glide out of frame with the data they
-belong to.
+`WithWindow` pins the axis bounds **exactly** and lets the locator round only the **ticks**. This is what
+makes a live chart move smoothly instead of in jumps. An automatic axis expands its bounds outward to the
+nearest round number, so it stands still while the data grows into it and then jumps a whole step at once.
+Pinned bounds slide continuously, and the round ticks move out of frame together with the data they belong
+to.
 
 ### Bullet graphs instead of dials
 
-`BulletGraphSeries` is Stephen Few's designed replacement for the radial gauge, which the
-high-performance-HMI literature rejects: a dial spends a quarter of a panel to say what a bar says in a
-fifth of it, and it cannot be stacked. The bullet keeps the measure, the target and the qualitative ranges
-in one thin strip — and its bands are one hue at varying intensity, never red/amber/green, so they neither
-exclude colour-blind readers nor spend the alarm palette on a backdrop.
+`BulletGraphSeries` is Stephen Few's replacement for the radial gauge. The high-performance-HMI literature
+rejects the dial: a dial uses a quarter of a panel to say what a bar says in a fifth of it, and dials cannot
+be stacked. A bullet graph shows the measure, the target and the qualitative ranges in one thin strip. Its
+bands are one hue at varying intensity, never red/amber/green, so colour-blind readers can read them and the
+bands do not use the alarm palette for a background.
 
 ```csharp
 ax.Bullet(2412, b =>
@@ -339,12 +340,12 @@ ax.Bullet(2412, b =>
 
 ### A tile that leads somewhere — progressive disclosure
 
-A wall shows the number; the detail lives UNDER it and opens on a click. The tile says it leads somewhere three
+A tile can link to a detail panel that opens under it on a click. The tile shows that it is a link in three
 ways at once, never by colour alone: a chevron in its corner (▸ closed, ▾ open), the pointer cursor, and an
-`aria-label`. `Url` is matplotlib's `Artist.set_url` idiom — the whole tile becomes an SVG `<a href>`, so it
-needs no script (it works in a static file, inline in a Blazor page, in a saved SVG), it is focusable and
-Enter-activatable for free, and the open/closed state lives in the URL — which a wall that redraws its tiles
-twice a second cannot lose, and an operator can paste to a colleague.
+`aria-label`. `Url` follows matplotlib's `Artist.set_url` idiom: the whole tile becomes an SVG `<a href>`. This
+needs no script, so it works in a static file, inline in a Blazor page, and in a saved SVG. The tile can take
+keyboard focus and be activated with Enter. The open or closed state is part of the URL, so a monitoring wall
+that redraws its tiles twice a second cannot lose it, and an operator can paste the URL to a colleague.
 
 ```csharp
 bool open = panel == "processes";
@@ -356,15 +357,17 @@ dashboard.AddTile(running, t =>
 });
 ```
 
-In Blazor (`InteractiveServer`), the router intercepts a same-origin SVG anchor exactly as it does an HTML one
-(`findAnchorTarget` matches `SVGAElement`), so the click is a client-side navigation: the circuit survives,
-and a `[SupplyParameterFromQuery(Name = "panel")] string? Panel` on the page re-renders with the detail open.
+In Blazor (`InteractiveServer`), the router intercepts a same-origin SVG anchor in the same way as an HTML one
+(`findAnchorTarget` matches `SVGAElement`). The click is therefore a client-side navigation: the circuit
+survives, and a `[SupplyParameterFromQuery(Name = "panel")] string? Panel` property on the page re-renders
+with the detail open.
 
 ### Small multiples — twenty processes, compared
 
-Beyond five or six lines on one axes nobody can tell them apart, and the legend becomes the picture. Small
-multiples put the name INSIDE each panel and give every panel the same axes, so twenty processes read as twenty
-comparable shapes (Task Manager's per-core grid, Grafana's repeated panel):
+With more than five or six lines on one axes, a reader can no longer tell the lines apart and ends up reading
+the legend instead of the chart. Small multiples put the name inside each panel and give every panel the same
+axes, so twenty processes appear as twenty comparable shapes. Task Manager's per-core grid and Grafana's
+repeated panel are familiar examples:
 
 ```csharp
 var grid = Plt.SmallMultiples()
@@ -381,16 +384,16 @@ Figure figure = grid.Build().WithTheme(Theme.OpsNight).Build();
 ```
 
 The label is an axes-fraction annotation (`AnnotationCoordinates.AxesFraction`), so it sits top-left whatever
-the limits are. **A threshold on a time axis is `AxHLine(value, r => r.Label = …)`**, never
-`Threshold(…, label)`: the latter anchors its label at x = 0 in DATA coordinates, which on a date axis is the
-year 1899 — off the canvas.
+the limits are. **For a threshold on a time axis, use `AxHLine(value, r => r.Label = …)`**, never
+`Threshold(…, label)`. The latter anchors its label at x = 0 in data coordinates, which on a date axis is the
+year 1899, off the canvas.
 
 ### A treemap of the fleet — area is size, colour is load
 
-A treemap rect carries two variables: its AREA from `TreeNode.Value` and its COLOUR from `TreeNode.ColorValue`
-through the series' normalizer and map. Put the slow-moving quantity on the area (memory — so the layout stays
-put; the squarified layout sorts by value and would reshuffle every beat if the area were CPU) and the live one
-on the colour:
+A treemap rectangle shows two variables: its area comes from `TreeNode.Value` and its colour comes from
+`TreeNode.ColorValue` through the series' normalizer and colour map. Put the slow-moving quantity on the area
+and the live quantity on the colour. Here the area is memory, so the layout stays put. The squarified layout
+sorts by value, so if the area were CPU the layout would reshuffle on every update:
 
 ```csharp
 var fleet = new TreeNode
@@ -412,14 +415,16 @@ ax.Treemap(fleet, s =>
 });
 ```
 
-Measured at 1400×300: nine processes label cleanly; at twenty, `LabelFit.Always` painted nine labels across
-their neighbours — a wall above ~12 processes needs height or `Fit`/`Truncate`. An EMPTY tree draws nothing.
+Measured at 1400×300: nine processes label cleanly. At twenty processes, `LabelFit.Always` painted nine labels
+across their neighbours. A wall with more than about 12 processes needs more height, or `Fit`/`Truncate`. An
+empty tree draws nothing.
 
 ### A tree grid — the numbers a treemap cannot show
 
-Once the leaves are many and small, area stops saying anything: on a live fleet two lanes of twenty-three
-carried every message in an hour, which as a treemap is two rectangles and twenty-one slivers. Rows compare
-exactly, and they are the shape ARIA names (`treegrid`):
+When the leaves are many and small, area no longer shows anything useful. On a live fleet, two lanes out of
+twenty-three carried every message in an hour. Shown as a treemap, that is two rectangles and twenty-one
+slivers. A tree grid shows the numbers in rows instead. Rows can be compared exactly, and ARIA has a role for
+this shape, `treegrid`:
 
 ```csharp
 TreeGridRow[] rows =
@@ -445,25 +450,27 @@ over the panel below.
 
 ### A cell that carries its number
 
-`TreeNode.Headline` puts the measure under the name and larger — the stat tile's anatomy inside a treemap cell:
+`TreeNode.Headline` puts the measure under the name in larger text, so a treemap cell has the same layout as a
+stat tile:
 
 ```csharp
 new TreeNode { Label = "Ait.Cortex", Headline = "13 %", Value = 1, ColorValue = 13 }
 ```
 
-The headline is dropped before the name is: a number without its subject says nothing.
+The headline is dropped before the name, because a number on its own does not tell the reader what it
+measures.
 
 ### A log axis for latencies
 
-`SetYScale(AxisScale.Log)` ranges over the POSITIVE values only (a window that priced 0 µs is masked, not drawn),
-pads in log space and installs decade ticks (`10¹`, `10²`) by itself. For data that legitimately includes zero,
-`SetYScaleSymLog(linthresh)` keeps a linear band around it instead.
+`SetYScale(AxisScale.Log)` ranges over the positive values only: a measurement bucket whose value is 0 µs is
+masked, not drawn. The axis pads in log space and installs decade ticks (`10¹`, `10²`) by itself. For data
+that legitimately includes zero, use `SetYScaleSymLog(linthresh)` instead; it keeps a linear band around zero.
 
 ### The wall, read rather than seen
 
-A monitoring wall is exactly the display an operator may have to read over the phone, from a text terminal, or
-with a screen reader — and `role="img"` on the SVG means the chart itself says nothing but its title. So the
-dashboard tables:
+An operator may have to read a monitoring wall over the phone, from a text terminal, or with a screen reader.
+The SVG carries `role="img"`, which means the chart itself says nothing but its title. So the dashboard also
+provides its data as tables:
 
 ```csharp
 foreach (var table in dashboard.ToDataTables())
@@ -472,41 +479,44 @@ foreach (var table in dashboard.ToDataTables())
 }
 ```
 
-A tile carries its whole anatomy into the table — `label · value · target · caption · trend`, with an empty
-cell for what it has not got — and the tile ROW is one table with a row per tile, because a tile being its own
-subplot is layout rather than data. A timeline's `start` and `end` are positions on the pinned date axis, so
-they print as clock times (`2026-09-12 07:58:20`) at the precision the value carries, never as OLE day numbers
-and never rounded to a minute a 30-second sample would collide in.
+Each tile puts all its parts into the table: `label · value · target · caption · trend`, with an empty cell for
+each part the tile does not have. The whole tile row becomes one table with one row per tile, because giving
+each tile its own subplot is a layout choice, not data. A timeline's `start` and `end` are positions on the
+pinned date axis, so they print as clock times (`2026-09-12 07:58:20`) at the precision the value carries. They
+are never printed as OLE day numbers, and never rounded to a minute, because samples taken 30 seconds apart
+would then collide.
 
 In a page, `<MplChart Figure="fig" ShowDataTable="true" />` puts it in a `<details>` under the chart. The whole
 rule set is on the [accessibility page](accessibility.md).
 
 ### The control-room sample
 
-`Samples/MatPlotLibNet.Samples.ControlRoom` serves a simulated federation of 15 buses, and descends into it:
-fleet → bus → process → lanes, with the level you leave kept as a rail so a sibling is one click away.
-Measurement runs at a fixed 250 ms and never waits for a render; the refresh knob throttles the *charts*
-only — the tiles never slow down, because history may lag and a warning may not. The window (1 / 5 / 15 min,
-1 hour) re-buckets the same measurements: rates keep a min/max envelope so a five-second burst survives a
-one-minute bucket, and percentiles carry their **maximum**, because a p99 cannot be averaged and averaging
-is precisely how a dashboard hides the spike you came to look for.
+`Samples/MatPlotLibNet.Samples.ControlRoom` serves a simulated federation of 15 buses. You can drill down from
+fleet to bus to process to lanes. The level you leave stays on screen as a rail, so another item at that level
+is one click away. Measurement runs at a fixed 250 ms and never waits for a render. The refresh knob throttles
+only the *charts*. The tiles are never throttled, because it is acceptable for history to lag behind, but not
+for a warning. The window (1 / 5 / 15 min, 1 hour) re-buckets the same measurements. Rates keep a min/max
+envelope, so a five-second burst survives a one-minute bucket. Percentiles keep their **maximum**, because a
+p99 cannot be averaged, and averaging would hide the spike the operator is looking for.
 
-Click the **Processes** tile: it is a link (`StatTileSeries.Url`, chevron ▸/▾, `aria-expanded`, a focus ring) that
-opens a drill-down under the tile row — composition NOW (an equal-cell grid per bus, colour = CPU as % of one
-core through `AlarmPalette.Ramp`, a silent bus hatched, `LabelFit.Fit`) above trend SINCE WHEN (small multiples
-of the hottest eight, `Plt.SmallMultiples()`, one shared 0–150 % axis, a line at one core). The open/closed
-state is the URL (`?panel=processes`), so it survives every redraw and can be pasted; the two panels are
-published only while a tab has them open (`IChartSubscriptions`).
+The **Processes** tile is a link (`StatTileSeries.Url`, chevron ▸/▾, `aria-expanded`, a focus ring). Clicking it
+opens a drill-down under the tile row with two panels. The upper panel shows the current composition: an
+equal-cell grid per bus, with colour showing CPU as % of one core through `AlarmPalette.Ramp`, a silent bus
+hatched, and `LabelFit.Fit`. The lower panel shows the trend over time: small multiples of the hottest eight
+(`Plt.SmallMultiples()`), one shared 0–150 % axis, and a line at one core. The open or closed state is the URL
+(`?panel=processes`), so it survives every redraw and can be pasted. The two panels are published only while a
+tab has them open (`IChartSubscriptions`).
 
-The **Alarms** tile is a doorway too: its number is the FIRING count of the sample's `AlarmBook`, and it opens
-onto the panel that lists that same book — one collection, so the card and the list can never apply two
-different rules. An alarm has a lifecycle rather than being re-derived per tick: a condition raises it, the
-operator's one gesture is **ack** (seen, not gone — it stays counted as `firing · N acked` so the click never
-makes the wall look better on its own), and only the condition clearing resolves it.
+The **Alarms** tile is also a link. Its number is the firing count of the sample's `AlarmBook`, and it opens the
+panel that lists that same book. Both read one collection, so the tile and the list can never apply two
+different rules. An alarm has a lifecycle: a condition raises it, and it is not re-derived on every tick. The
+operator's only action is **ack**, which marks the alarm as seen but does not remove it. The alarm stays counted
+as `firing · N acked`, so acknowledging it does not lower the count on its own. Only the condition clearing
+resolves the alarm.
 
-The alarm conditioning — on-delay, deadband, off-delay, the worst-child roll-up, the staleness clock and the
-alarm lifecycle — lives in the **sample**, not in this library. A charting library that decides when something
-counts as broken has started holding opinions about a domain it cannot see.
+The alarm conditioning (on-delay, deadband, off-delay, the worst-child roll-up, the staleness clock and the
+alarm lifecycle) lives in the **sample**, not in this library. Deciding when something counts as broken is a
+domain decision, and a charting library has no view of that domain, so it leaves the decision to you.
 
 ## StatTileSeries — parameter reference
 
@@ -516,12 +526,12 @@ counts as broken has started holding opinions about a domain it cannot see.
 | `Label` | `string?` | `null` | Subtitle text shown beneath the headline. |
 | `AccentColor` | `Color?` | `null` | Foreground colour of the headline number. `null` = theme cycle colour. |
 | `Format` | `string` | `"0.##"` | .NET numeric format string applied to `Value` (invariant culture). |
-| `Target` | `double?` | `null` | The comparative the value is measured against. |
-| `Caption` | `string?` | `null` | The gap line under the label; newlines stack, long lines wrap to the tile. |
+| `Target` | `double?` | `null` | The target the value is compared against. |
+| `Caption` | `string?` | `null` | The gap line under the label. Newlines stack, and long lines wrap to the tile. |
 | `Trend` | `IReadOnlyList<double>?` | `null` | Inline sparkline in the tile's lower fifth. |
-| `TrendColor` | `Color?` | `null` | The sparkline's ink; `null` = the headline colour. |
-| `Hatch` / `HatchColor` | `HatchPattern` / `Color?` | `None` / `null` | "No information" — a pattern, never a colour. |
-| `Url` | `string?` | `null` | Where the tile leads: the whole tile becomes an SVG `<a href>` with a chevron, pointer and `aria-label`. |
+| `TrendColor` | `Color?` | `null` | Colour of the sparkline; `null` = the headline colour. |
+| `Hatch` / `HatchColor` | `HatchPattern` / `Color?` | `None` / `null` | Marks a source with no information. It uses a pattern rather than a colour. |
+| `Url` | `string?` | `null` | Link target. The whole tile becomes an SVG `<a href>` with a chevron, a pointer cursor and an `aria-label`. |
 | `Expanded` | `bool` | `false` | Chevron direction: ▸ closed, ▾ open. Ignored without `Url`. |
 
 ## StateTimelineSeries — parameter reference
@@ -541,7 +551,7 @@ counts as broken has started holding opinions about a domain it cannot see.
 
 ## See also
 
-- [Accessibility](accessibility.md) — the data table beside the wall: tile anatomy, the united tile row, times instead of OLE numbers
+- [Accessibility](accessibility.md) — the data table for a dashboard: the parts of a tile, one table for the tile row, clock times instead of OLE numbers
 - [Subplots & GridSpec](subplots.md) — mosaic and GridSpec layout, row/column ratios
 - [Financial Charts](financial.md) — OHLC/candlestick dashboards with indicator subplots
 - [Annotations](annotations.md) — threshold reference lines and breach shading, full `Threshold(...)` parameter reference

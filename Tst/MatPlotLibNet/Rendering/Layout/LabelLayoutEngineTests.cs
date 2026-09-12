@@ -259,4 +259,24 @@ public class LabelLayoutEngineTests
         double dy = a.Y - b.Y;
         return Math.Sqrt(dx * dx + dy * dy);
     }
+
+    [Theory]
+    [InlineData(138.0, false)]  // overlap 12 px, each label moves 6.0 — exactly the threshold: no leader line
+    [InlineData(137.98, true)]  // overlap 12.02 px, each moves 6.01 — just past it: a leader line for both
+    public void Place_TheLeaderLineAppearsExactlyPastTheThreshold(double secondAnchorX, bool expectLeader)
+    {
+        // Two 50 px labels centred 38 px apart overlap by 12 px along X and share the displacement equally.
+        // Shaped text moves widths by up to 2 px per kerning pair, so the boundary the connector line appears
+        // at is pinned here: a width change that crosses it changes the picture, and this says where that is.
+        var candidates = new[]
+        {
+            new LabelCandidate(new Point(100, 100), "AAAAA", TestFont),
+            new LabelCandidate(new Point(secondAnchorX, 100), "BBBBB", TestFont),
+        };
+
+        var placed = LabelLayoutEngine.Place(candidates, BigBounds, Metrics, leaderThreshold: 6.0);
+
+        Assert.Equal(expectLeader, placed[0].LeaderLineStart is not null);
+        Assert.Equal(expectLeader, placed[1].LeaderLineStart is not null);
+    }
 }

@@ -23,6 +23,13 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.*" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.*" />
     <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="3.*" />
+    <!-- libHarfBuzzSharp, the same way: the managed HarfBuzzSharp carries no binary. Pinned exactly, not floated:
+         HarfBuzzSharp has no 3.x line (its majors are 1, 2, 7, 8 and 14), and 8.3.1.5 is what SkiaSharp.HarfBuzz
+         3.119 was built against — a floating "*" would put 14.x natives beside 8.3.1.5 managed code. There is no
+         .NoDependencies variant for Linux; the plain asset is the only one. -->
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.5" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="8.3.1.5" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="8.3.1.5" />
     <PackageReference Include="coverlet.msbuild" Version="6.*" PrivateAssets="all" />
   </ItemGroup>
 
@@ -32,6 +39,13 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A font the bundled set does not carry (Noto Sans Hebrew, SIL Open Font License, see Fonts\OFL-NotoSansHebrew.txt):
+         the fixture for registering a font FILE, whose family must not collide with DejaVu Sans. -->
+    <Content Include="Fonts\*.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Fonts\OFL-*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
