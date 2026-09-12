@@ -92,3 +92,77 @@ MIT licensed, .NET 10, 4,000+ tests.
 - Cookbook: https://xkqg.github.io/MatPlotLibNet/cookbook/
 
 Would love feedback!
+
+---
+
+## 7. MCP audience — where an MCP server actually gets found
+
+The canonical one is done: the server is listed in the official
+[MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.xkqg/matplotlibnet`, which is what a host
+resolves against when it looks a server up by name. `modelcontextprotocol/servers` no longer takes community
+pull requests — its README now points at the registry — so what is left is the human-browsable side.
+
+### 7a. mcpservers.org (submission form, feeds wong2/awesome-mcp-servers)
+
+**Submit at:** https://mcpservers.org/submit
+
+**Name:** MatPlotLibNet
+**Repository:** https://github.com/xkqg/MatPlotLibNet
+**Category:** Data Visualization
+
+**Description:**
+
+```
+Charts an agent can look at. Hand it the JSON for a figure and it renders a PNG and describes what it drew;
+ask for SVG or PDF and it writes the file and tells you where. It knows 83 chart types — line, bar, scatter,
+heatmap, candlestick, treemap, and a dozen 3-D ones — and it checks the spec before it draws, so a typo comes
+back as "unknown field 'x', did you mean 'xData'" instead of a blank picture. Runs on your machine as a .NET
+tool; no browser, no service, nothing leaves the box.
+```
+
+### 7b. punkpeye/awesome-mcp-servers (pull request)
+
+**Section:** Data Visualization · **Format:** `[owner/repo](url) <emoji> - description`, `#️⃣` marks a C# codebase.
+
+```markdown
+* [xkqg/MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) #️⃣ 🏠 🍎 🪟 🐧 - Charts an agent can look at: hand it the JSON for a figure and it returns a PNG with a short description of what it drew, or writes SVG/PDF to a file. 83 chart types, from a line plot to a candlestick to a 3-D surface, and the spec is checked before anything is drawn so a typo comes back named instead of blank. Runs locally as a .NET tool.
+```
+
+**PR title:** Add MatPlotLibNet under Data Visualization
+
+### 7c. appcypher/awesome-mcp-servers (pull request)
+
+**Section:** 📊 Data Visualization · **Format:** simpleicons image, then the link, then one line.
+
+```markdown
+<img src="https://cdn.simpleicons.org/dotnet/512BD4" height="14"/> [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - Renders charts from a JSON spec and hands back a PNG the model can see, or writes SVG/PDF to a file; 83 chart types, validated before drawing, runs locally as a .NET tool
+```
+
+**PR title:** Add MatPlotLibNet under Data Visualization
+
+### 7d. r/mcp, r/dotnet, Hacker News — for the owner to post
+
+**Title:** MatPlotLibNet now ships an MCP server — a .NET charting library an agent can draw with
+
+**Body:**
+
+```
+I maintain a matplotlib-inspired charting library for .NET, and the thing I kept running into is that a model
+can ask for a chart but never gets to see one. So the library now ships an MCP server.
+
+You hand it the same JSON the library's own `figure.ToJson()` writes, and it hands back a PNG plus a line of
+text saying what it drew — "Revenue — 800x600, 1 subplot, 1 series; line '2026', 4 points, x 1..4, y 12..22" —
+so a model that cannot see the image still knows what it made. SVG and PDF go to a file instead, because one
+SVG is tens of thousands of characters of context.
+
+The part I spent the most time on is refusing well. The library's JSON reader is lenient by design: it skips an
+unknown property so a newer document still loads in an older build. Handed a document a model typed, that turns
+every typo into a blank chart reported as a success. So the server validates first and names the field —
+"'lien' is not a chart type, did you mean 'line'?" — because a model that is told nothing retries the same
+mistake.
+
+It is a .NET tool, so a host starts it with `dnx MatPlotLibNet.Mcp`. MIT, and it is in the MCP registry as
+io.github.xkqg/matplotlibnet.
+```
+
+**Note:** section 6 above still describes v1.3.0 (82 series types, 4,000 tests) — rewrite it before posting.
