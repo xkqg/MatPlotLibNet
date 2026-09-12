@@ -2,9 +2,10 @@
 
 Pre-written submission texts for .NET community awesome lists. Copy-paste into a PR or issue on each repo.
 
-**None of these is a step in a plan.** The owner does not submit entries to repositories other people keep —
-not as a pull request, not as an issue, not through a form. The texts stay here as material he may use himself
-if he ever chooses to; nobody working on this repository offers to send them for him.
+**None of these is a step in a plan, and nobody sends one on the owner's behalf.** Submitting a project to a
+list someone else keeps is his own act, signed with his own name — punkpeye/awesome-mcp-servers#14213 and the
+mcpservers.org listing below are his. The texts here are prepared material for him to use if and when he wants
+to; they are never work anyone else picks up.
 
 Every entry below was checked against the live README and the live CONTRIBUTING of that repository, and each
 one names the exact place it goes. Two things measured there that an entry has to respect: the four lists want
