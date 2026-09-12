@@ -47,30 +47,6 @@ jobs:
       # Configure in repo Settings > Secrets > Actions.
       # ---------------------------------------------------------------
 
-      - name: Post to Bluesky
-        if: env.BLUESKY_HANDLE != ''
-        env:
-          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
-          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
-          TAG: ${{ steps.create_release.outputs.tag }}
-          URL: ${{ steps.create_release.outputs.url }}
-        run: |
-          set -euo pipefail
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 83 series types, 3D charts, an MCP server so an AI agent can draw with it, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed. ${URL}"
-
-          # jq builds every body below. Hand-quoted JSON inside a shell string breaks the first time the text
-          # carries a quote, a backslash or a newline, and it breaks quietly: the API answers 400 and nothing
-          # here used to read the answer.
-          SESSION=$(jq -n --arg id "$BLUESKY_HANDLE" --arg pw "$BLUESKY_APP_PASSWORD" '{identifier:$id, password:$pw}' | curl -sS -X POST https://bsky.social/xrpc/com.atproto.server.createSession -H "Content-Type: application/json" -d @-)
-          DID=$(echo "$SESSION" | jq -r '.did // empty')
-          TOKEN=$(echo "$SESSION" | jq -r '.accessJwt // empty')
-          [ -n "$DID" ] && [ -n "$TOKEN" ] || { echo "Bluesky login failed:"; echo "$SESSION"; exit 1; }
-
-          NOW=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
-          CODE=$(jq -n --arg repo "$DID" --arg text "$TEXT" --arg now "$NOW" '{repo:$repo, collection:"app.bsky.feed.post", record:{"$type":"app.bsky.feed.post", text:$text, createdAt:$now}}' | curl -sS -o /tmp/bsky.json -w '%{http_code}' -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d @-)
-          echo "Bluesky HTTP $CODE"; cat /tmp/bsky.json; echo
-          [ "$CODE" -lt 400 ] || exit 1
-
       - name: Post to Mastodon
         if: env.MASTODON_ACCESS_TOKEN != ''
         env:
