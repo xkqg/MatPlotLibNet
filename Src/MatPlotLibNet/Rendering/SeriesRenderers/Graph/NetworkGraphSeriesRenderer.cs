@@ -27,7 +27,11 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
         if (series.Nodes.Count == 0) return;
 
         // 1. Apply layout to get positioned nodes (X/Y in data space).
-        var positioned = NetworkGraphLayouts.Apply(series.Layout, series.Nodes, series.Edges);
+        // The seed, the iteration count and the convergence threshold come from the series, exactly as they do
+        // in NetworkGraphSeries.ComputeDataRange. Leave them out here and the axes are scaled to the
+        // caller's layout while the nodes are drawn from the default one, which puts nodes outside the plot.
+        var positioned = NetworkGraphLayouts.Apply(series.Layout, series.Nodes, series.Edges,
+            series.LayoutSeed, series.LayoutIterations, series.ConvergenceThreshold);
 
         // 2. Build ID → index → pixel-position map for fast edge lookup.
         var idToIndex = new Dictionary<string, int>(positioned.Length);

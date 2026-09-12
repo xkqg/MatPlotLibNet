@@ -7,6 +7,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.17.1]
 ### Fixed
 
+- **A force-directed graph is drawn with the layout you asked for.** `LayoutSeed`, `LayoutIterations` and
+  `ConvergenceThreshold` reached the pass that computes the axis range and not the pass that places the nodes, so a
+  graph was measured with one layout and drawn with another. Nodes could land outside the plot area: on a twelve-node
+  ring at `LayoutIterations = 1`, two of them did, and at 5 iterations, five. The seed changed nothing about the
+  picture at all, while being saved to JSON and read back. The sample that ships as the 1.10.0 cover image asks for
+  seed 42 and 250 iterations and was drawn with neither; it is regenerated here.
+
 - **A chart on a log or symlog axis no longer loses points when downsampling is on.** Asking for a point budget with
   `WithDownsampling(...)` or `MaxDisplayPoints` made the renderer compare the axis range against the raw data values,
   and on those scales the range is held in log space: an axis running from 1 to 100 000 was compared as 0 to 5, so
