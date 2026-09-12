@@ -141,7 +141,7 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **Accessibility** — `figure.ToDataTables()` gives every chart a data table beside the picture (`ToHtml()`, `ToMarkdown()`, `ToCsv()`). That table is the text alternative that WCAG 1.1.1 requires for a complex image, and an `<svg role="img">` cannot provide it on its own. The table is served by `MapChartTableEndpoint`, by `MplChart.ShowDataTable`, by the GraphQL `chartDataTable` field and by the MCP `chart_data_table` tool. The library also has ARIA roles and titles, keyboard navigation, the Okabe-Ito colour-blind-safe palette and a high-contrast theme.
 
-**142 colormaps** — viridis, plasma, turbo, coolwarm, and 138 more (71 base maps, each with an auto-registered reversed `_r` variant). The library also has NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`), themes that look like matplotlib's, DataFrame integration with **53 technical indicators**, broken axes, and publication-quality SVG/PNG/PDF/GIF export.
+**142 colormaps** — viridis, plasma, turbo, coolwarm, and 138 more (71 base maps, each with an auto-registered reversed `_r` variant). The library also has NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`), themes that look like matplotlib's, DataFrame integration with **58 technical indicators**, broken axes, and publication-quality SVG/PNG/PDF/GIF export.
 
 ---
 
