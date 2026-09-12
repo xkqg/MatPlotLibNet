@@ -17,7 +17,7 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Pie & Donut](pie-donut.md) | Pie, donut, nested pie (sunburst), explode, shadow, percentage labels, custom colors, hatches |
 | [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, KDE, rug plot |
 | [Polar Charts](polar.md) | Polar line, multi-series, radar, polar bar, polar scatter, polar heatmap |
-| [Heatmaps & Colormaps](heatmaps.md) | Heatmap, colorbar customization, 142 colormaps, color normalization, 2D histogram, pcolormesh |
+| [Heatmaps & Colormaps](heatmaps.md) | Heatmap, colorbar customization, 148 colormaps, color normalization, 2D histogram, pcolormesh |
 | [Contour Plots](contour.md) | Contour lines with labels, filled contour, custom levels, contour overlay, triangulated contour |
 | [Subplots & GridSpec](subplots.md) | Grid subplots, GridSpec ratios, mosaic layout, spanning subplots, insets, shared axes, spacing |
 | [Financial Charts](financial.md) | Candlestick + MACD + RSI dashboard, technical indicators (Bollinger, Williams %R, OBV, SAR, CCI) |

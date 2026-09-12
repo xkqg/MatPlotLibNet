@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 namespace MatPlotLibNet.Styling.ColorMaps;
@@ -167,5 +167,56 @@ public static class QualitativeColorMaps
         Color.FromHex("#D55E00"), // vermillion
         Color.FromHex("#CC79A7"), // reddish purple
         Color.FromHex("#000000"), // black
+    ]);
+
+    /// <summary>
+    /// Petroff 6-color sequence — the shortest of the three, and the one with the most contrast between
+    /// neighbours. From Petroff, "Accessible Color Sequences for Data Visualization" (2021): every pair inside a
+    /// sequence stays distinguishable under the common forms of color vision deficiency, and the sequences are
+    /// also readable in grayscale. Same values matplotlib ships as its `petroff6` style.
+    /// </summary>
+    public static IColorMap Petroff6 { get; } = new ListedColorMap("petroff6",
+    [
+        Color.FromHex("#5790FC"), // blue
+        Color.FromHex("#F89C20"), // orange
+        Color.FromHex("#E42536"), // red
+        Color.FromHex("#964A8B"), // purple
+        Color.FromHex("#9C9CA1"), // grey
+        Color.FromHex("#7A21DD"), // violet
+    ]);
+
+    /// <summary>
+    /// Petroff 8-color sequence — for eight series that must all stay apart. See <see cref="Petroff6"/> for the
+    /// source; same values as matplotlib's `petroff8` style.
+    /// </summary>
+    public static IColorMap Petroff8 { get; } = new ListedColorMap("petroff8",
+    [
+        Color.FromHex("#1845FB"), // blue
+        Color.FromHex("#FF5E02"), // orange
+        Color.FromHex("#C91F16"), // red
+        Color.FromHex("#C849A9"), // pink
+        Color.FromHex("#ADAD7D"), // khaki
+        Color.FromHex("#86C8DD"), // light blue
+        Color.FromHex("#578DFF"), // mid blue
+        Color.FromHex("#656364"), // grey
+    ]);
+
+    /// <summary>
+    /// Petroff 10-color sequence — the longest of the three, and the one to reach for when a chart has ten
+    /// categories and they all matter. See <see cref="Petroff6"/> for the source; same values as matplotlib's
+    /// `petroff10` style.
+    /// </summary>
+    public static IColorMap Petroff10 { get; } = new ListedColorMap("petroff10",
+    [
+        Color.FromHex("#3F90DA"), // blue
+        Color.FromHex("#FFA90E"), // amber
+        Color.FromHex("#BD1F01"), // brick
+        Color.FromHex("#94A4A2"), // grey green
+        Color.FromHex("#832DB6"), // purple
+        Color.FromHex("#A96B59"), // brown
+        Color.FromHex("#E76300"), // orange
+        Color.FromHex("#B9AC70"), // sand
+        Color.FromHex("#717581"), // slate
+        Color.FromHex("#92DADD"), // pale cyan
     ]);
 }

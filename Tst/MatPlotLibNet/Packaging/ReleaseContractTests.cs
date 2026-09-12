@@ -1,6 +1,7 @@
 ﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -263,6 +264,52 @@ public class ReleaseContractTests
 
         Assert.True(unnamed.Length == 0,
             $"The accessibility page promises a table for every chart but never names these exceptions: {string.Join(", ", unnamed)}");
+    }
+
+    /// <summary>The documents that describe what the library is today. The changelog is left out on purpose — it
+    /// records what each release added, and those numbers are meant to stay at the value they had — and so are the
+    /// path manifests, which are working records rather than published text.</summary>
+    private static string[] CurrentStateDocuments() =>
+        [.. Directory.EnumerateFiles(Root, "*.md", SearchOption.AllDirectories)
+            .Select(file => Path.GetRelativePath(Root, file).Replace('\\', '/'))
+            .Where(path => !path.Contains("/bin/", StringComparison.Ordinal)
+                        && !path.Contains("/obj/", StringComparison.Ordinal)
+                        && !path.Contains("node_modules/", StringComparison.Ordinal)
+                        && !path.StartsWith(".path-manifests/", StringComparison.Ordinal)
+                        && path != "CHANGELOG.md")
+            .OrderBy(path => path, StringComparer.Ordinal)];
+
+    [Fact]
+    public void EveryDocumentThatCountsTheColormaps_CountsWhatTheLibraryActuallyShips()
+    {
+        // Seven documents printed "142 colormaps" and nothing held them to it: the only check asked for "at least
+        // 114", so the number could have been wrong by twenty-eight and stayed green. The registry is the source
+        // of the number, and these are the documents that repeat it.
+        int registered = Styling.ColorMapRegistryTests.DeclaredColorMaps().Length * 2;
+        int baseMaps = registered / 2;
+
+        foreach (string path in CurrentStateDocuments())
+        {
+            string text = Read(path);
+            foreach (Match m in Regex.Matches(text, @"(\d+) colormaps"))
+            {
+                Assert.True(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) == registered,
+                    $"{path} says \"{m.Value}\"; the library registers {registered}.");
+            }
+
+            foreach (Match m in Regex.Matches(text, @"(\d+) base (?:maps|colormaps)"))
+            {
+                Assert.True(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) == baseMaps,
+                    $"{path} says \"{m.Value}\"; the library declares {baseMaps}.");
+            }
+
+            // "viridis, plasma, turbo, coolwarm and N more" — four named, the rest counted.
+            foreach (Match m in Regex.Matches(text, @"coolwarm,? and (\d+) more"))
+            {
+                Assert.True(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) == registered - 4,
+                    $"{path} names four colormaps and says \"{m.Value}\"; there are {registered - 4} others.");
+            }
+        }
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 # MatPlotLibNet Documentation
 
-**matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 83 series types, 142 colormaps, 30 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 14 NuGet packages + 3 npm bindings.
+**matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 83 series types, 148 colormaps, 30 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 14 NuGet packages + 3 npm bindings.
 
 v1.14.0 is the **control-room pack**: `Plt.OpsDashboard()` (fluent KPI-tile + state-timeline +
 trend-panel composition, pinned to a caller-supplied time window), `BulletGraphSeries` (Few's

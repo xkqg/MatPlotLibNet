@@ -9,7 +9,7 @@ Pre-written submission texts for .NET community awesome lists. Copy-paste into a
 **Section:** Graphics / Charting
 
 ```markdown
-* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) — matplotlib-inspired charting for .NET 10. 83 series types, 142 colormaps, 3D projection pipeline, MathText (LaTeX-like labels), native Avalonia/Uno/MAUI controls, bidirectional SignalR, SVG/PNG/PDF/GIF export. MIT licensed.
+* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) — matplotlib-inspired charting for .NET 10. 83 series types, 148 colormaps, 3D projection pipeline, MathText (LaTeX-like labels), native Avalonia/Uno/MAUI controls, bidirectional SignalR, SVG/PNG/PDF/GIF export. MIT licensed.
 ```
 
 **PR title:** Add MatPlotLibNet to Graphics section
@@ -21,7 +21,7 @@ Pre-written submission texts for .NET community awesome lists. Copy-paste into a
 **Section:** Graphics
 
 ```markdown
-* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) — Code-first charting library inspired by matplotlib. Fluent API, 83 series types (including 12 3D types), 142 colormaps, SIMD numerics, native UI controls (Avalonia 12, Uno, MAUI), SignalR interactivity, and headless SVG/PNG/PDF rendering.
+* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) — Code-first charting library inspired by matplotlib. Fluent API, 83 series types (including 12 3D types), 148 colormaps, SIMD numerics, native UI controls (Avalonia 12, Uno, MAUI), SignalR interactivity, and headless SVG/PNG/PDF rendering.
 ```
 
 ---
@@ -57,7 +57,7 @@ Pre-written submission texts for .NET community awesome lists. Copy-paste into a
 MatPlotLibNet is a new MIT-licensed charting library for .NET 10 that brings matplotlib's code-first philosophy to the .NET ecosystem. Key features:
 
 - 83 series types covering line, bar, scatter, heatmap, contour, candlestick, Sankey, treemap, sunburst, polar, and 12 3D chart types
-- 142 colormaps (viridis, plasma, turbo, etc.)
+- 148 colormaps (viridis, plasma, turbo, etc.)
 - LaTeX-like MathText for publication-quality labels
 - Native UI controls for Avalonia 12, Uno Platform, and MAUI
 - Bidirectional SignalR for server-authoritative interactive charts
@@ -85,7 +85,7 @@ Where it stands now:
 - **MathText** — LaTeX-like labels with fractions, square roots, accents, Greek letters (96 symbol mappings)
 - **Text in any script** — Arabic and Hebrew read the right way round, because the Unicode bidirectional algorithm and HarfBuzz shaping are both in there
 - **SignalR interactivity** — server-authoritative charts with mutation + notification events
-- **142 colormaps**, SIMD numerics, DataFrame integration with 58 technical indicators, Jupyter notebooks
+- **148 colormaps**, SIMD numerics, DataFrame integration with 58 technical indicators, Jupyter notebooks
 - **An MCP server** so an agent can draw one of these charts and then look at it
 
 MIT licensed, .NET 10 and .NET 8, 11,619 tests, and every class has to clear 90 % line and branch coverage.

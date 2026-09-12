@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Collections.Concurrent;
@@ -97,6 +97,9 @@ public static class ColorMapRegistry
         RegisterBuiltIn(QualitativeColorMaps.Accent);
         RegisterBuiltIn(QualitativeColorMaps.Paired);
         RegisterBuiltIn(QualitativeColorMaps.OkabeIto);
+        RegisterBuiltIn(QualitativeColorMaps.Petroff6);
+        RegisterBuiltIn(QualitativeColorMaps.Petroff8);
+        RegisterBuiltIn(QualitativeColorMaps.Petroff10);
     }
 
     /// <summary>Registers a colormap and its reversed variant.</summary>

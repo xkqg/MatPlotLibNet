@@ -4,7 +4,7 @@ MatPlotLibNet is a charting library for C#, .NET 10 and .NET 8, inspired by
 [matplotlib](https://matplotlib.org/). It draws 83 chart types and saves them as SVG, PNG, PDF or an animated GIF,
 straight from your server code. It does not need a JavaScript framework, a WebView or a hosted service.
 
-It has a fluent API and it works with dependency injection. It ships with 142 colormaps, 30 themes, 13 map
+It has a fluent API and it works with dependency injection. It ships with 148 colormaps, 30 themes, 13 map
 projections with embedded Natural Earth data, LaTeX-style MathText, text in any script, O(1) streaming with 53
 technical indicators, a control room (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window),
 and an MCP server so an AI agent can draw with it. Charts render natively in Blazor, WPF, MAUI, Avalonia, Uno and
@@ -141,7 +141,7 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **Accessibility** — `figure.ToDataTables()` gives every chart a data table beside the picture (`ToHtml()`, `ToMarkdown()`, `ToCsv()`). That table is the text alternative that WCAG 1.1.1 requires for a complex image, and an `<svg role="img">` cannot provide it on its own. The table is served by `MapChartTableEndpoint`, by `MplChart.ShowDataTable`, by the GraphQL `chartDataTable` field and by the MCP `chart_data_table` tool. The library also has ARIA roles and titles, keyboard navigation, the Okabe-Ito colour-blind-safe palette and a high-contrast theme.
 
-**142 colormaps** — viridis, plasma, turbo, coolwarm, and 138 more (71 base maps, each with an auto-registered reversed `_r` variant). The library also has NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`), themes that look like matplotlib's, DataFrame integration with **58 technical indicators**, broken axes, and publication-quality SVG/PNG/PDF/GIF export.
+**148 colormaps** — viridis, plasma, turbo, coolwarm, and 144 more (74 base maps, each with an auto-registered reversed `_r` variant). The library also has NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`), themes that look like matplotlib's, DataFrame integration with **58 technical indicators**, broken axes, and publication-quality SVG/PNG/PDF/GIF export.
 
 ---
 

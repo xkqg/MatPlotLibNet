@@ -1,6 +1,7 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Reflection;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -62,51 +63,63 @@ public class ColorMapRegistryTests
         Assert.Equal("viridis_r", map!.Name);
     }
 
-    [Fact]
-    public void Registry_AllBuiltInsRegistered()
-    {
-        var names = new[]
-        {
-            // Perceptually-uniform
-            "viridis", "plasma", "inferno", "magma", "coolwarm", "blues", "reds",
-            "turbo", "jet",
-            // Sequential
-            "cividis", "greens", "oranges", "purples", "greys",
-            "ylorbr", "ylorrd", "orrd", "pubu", "ylgn", "bugn",
-            "hot", "copper", "bone", "bupu", "gnbu", "purd", "rdpu", "ylgnbu", "pubugn",
-            "cubehelix",
-            // Diverging
-            "rdbu", "rdylgn", "rdylbu", "brbg", "piyg", "spectral",
-            "puor", "seismic", "bwr",
-            // Cyclic
-            "twilight", "twilight_shifted", "hsv",
-            // Seaborn perceptually-uniform
-            "rocket", "mako", "crest", "flare", "icefire",
-            // Qualitative
-            "tab10", "tab20", "set1", "set2", "set3", "pastel1",
-            "pastel2", "dark2", "accent", "paired",
-        };
+    /// <summary>Every colormap the library declares, found the way the registry's own constructor finds them:
+    /// the static colormap properties of the seven classes that hold them. A hand-kept list of names went stale
+    /// the moment a category was added — it was missing thirteen maps and Okabe-Ito when this replaced it.</summary>
+    internal static IColorMap[] DeclaredColorMaps() =>
+        [.. new[]
+            {
+                typeof(ColorMaps), typeof(SequentialColorMaps), typeof(DivergingColorMaps), typeof(CyclicColorMaps),
+                typeof(AdditionalColorMaps), typeof(PerceptualColorMaps2), typeof(QualitativeColorMaps),
+            }
+            .SelectMany(type => type.GetProperties(BindingFlags.Public | BindingFlags.Static))
+            .Where(property => typeof(IColorMap).IsAssignableFrom(property.PropertyType))
+            .Select(property => (IColorMap)property.GetValue(null)!)];
 
-        foreach (var name in names)
-        {
-            Assert.NotNull(ColorMapRegistry.Get(name));
-            Assert.NotNull(ColorMapRegistry.Get(name + "_r"));
-        }
+    [Fact]
+    public void TheLibraryShips_TheNumberOfColormapsItSaysItDoes()
+    {
+        // README, the documentation index, the cookbook index, the heatmaps page, the intro article and
+        // ARCHITECTURE all print this number, and until this test none of them was held to it: the old check
+        // asked for "at least 114" while the registry had grown to 142, so a map could be lost without a word.
+        Assert.Equal(74, DeclaredColorMaps().Length);
+        Assert.Equal(148, DeclaredColorMaps().Length * 2);
     }
 
     [Fact]
-    public void Registry_TotalMapCount()
+    public void EveryColormapTheLibraryDeclares_IsRegisteredWithItsReversedTwin()
     {
-        // 57 base maps × 2 (forward + _r reversed) = 114
-        // Custom registrations may add more, so assert >= 114
-        Assert.True(ColorMapRegistry.Names.Count() >= 114,
-            $"Expected at least 114 registered colormaps (57 × 2), got {ColorMapRegistry.Names.Count()}");
+        var missing = DeclaredColorMaps()
+            .SelectMany(map => new[] { map.Name, map.Name + "_r" })
+            .Where(name => ColorMapRegistry.Get(name) is null)
+            .ToArray();
+
+        Assert.True(missing.Length == 0,
+            "These colormaps are declared and cannot be looked up: " + string.Join(", ", missing));
     }
 
     [Fact]
-    public void ColorMapsAll_ReturnsAtLeast114Maps()
+    public void EveryColormapName_IsItsOwn()
     {
-        Assert.True(ColorMaps.All.Count() >= 114);
+        // Two maps under one name would leave the registry one short of its count with nothing to show for it.
+        var duplicates = DeclaredColorMaps()
+            .GroupBy(map => map.Name, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .Select(group => group.Key)
+            .ToArray();
+
+        Assert.True(duplicates.Length == 0, "Declared twice: " + string.Join(", ", duplicates));
+    }
+
+    [Fact]
+    public void TheRegistry_HoldsEveryBuiltInNameAndReadsThemBack()
+    {
+        var builtIn = DeclaredColorMaps().SelectMany(map => new[] { map.Name, map.Name + "_r" }).ToArray();
+
+        // A custom registration by another test can add to this registry, so the count is a floor of its own
+        // built-ins; what is exact is the list above, and that every one of these names reads back.
+        Assert.Equal(148, builtIn.Length);
+        Assert.All(builtIn, name => Assert.Equal(name, ColorMaps.Get(name)!.Name));
     }
 
     // --- PerceptualColorMaps2 (Seaborn) ---
@@ -163,5 +176,38 @@ public class ColorMapRegistryTests
     public void Registry_UnknownReturnsNull()
     {
         Assert.Null(ColorMapRegistry.Get("nonexistent_colormap_xyz"));
+    }
+
+    // --- Petroff (accessible sequences for data visualization, arXiv:2107.02270) ---
+    //
+    // Three sequences of six, eight and ten colours, each designed so that every pair inside it stays
+    // distinguishable for the common forms of colour-vision deficiency. matplotlib ships the same three as
+    // style sheets; the values here are its own, so a chart drawn either side of the fence looks the same.
+
+    [Theory]
+    [InlineData("petroff6", 6)]
+    [InlineData("petroff8", 8)]
+    [InlineData("petroff10", 10)]
+    public void APetroffSequence_IsRegisteredAndHasTheColoursItsNameCounts(string name, int colors)
+    {
+        var map = ColorMapRegistry.Get(name);
+
+        Assert.NotNull(map);
+        Assert.Equal(name, map!.Name);
+        Assert.NotNull(ColorMapRegistry.Get(name + "_r"));
+        // A listed map returns one of its colours for every position, so walking the range finds each of them.
+        var distinct = Enumerable.Range(0, 1001).Select(step => map.GetColor(step / 1000.0)).Distinct().ToArray();
+        Assert.Equal(colors, distinct.Length);
+    }
+
+    [Fact]
+    public void ThePetroffSequences_CarryMatplotlibsOwnValues()
+    {
+        Assert.Equal("#5790FC", ColorMapRegistry.Get("petroff6")!.GetColor(0).ToHex());
+        Assert.Equal("#7A21DD", ColorMapRegistry.Get("petroff6")!.GetColor(1).ToHex());
+        Assert.Equal("#1845FB", ColorMapRegistry.Get("petroff8")!.GetColor(0).ToHex());
+        Assert.Equal("#656364", ColorMapRegistry.Get("petroff8")!.GetColor(1).ToHex());
+        Assert.Equal("#3F90DA", ColorMapRegistry.Get("petroff10")!.GetColor(0).ToHex());
+        Assert.Equal("#92DADD", ColorMapRegistry.Get("petroff10")!.GetColor(1).ToHex());
     }
 }

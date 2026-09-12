@@ -506,12 +506,13 @@ MatPlotLibNet/
       DivergingColorMaps.cs           9 diverging: RdBu, RdYlGn, RdYlBu, BrBG, PiYG, Spectral, PuOr,
                                         Seismic, Bwr
       CyclicColorMaps.cs              3 cyclic (start≈end): Twilight, TwilightShifted, Hsv
-      QualitativeColorMaps.cs         11 qualitative: Tab10, Tab20, Set1, Set2, Set3, Pastel1, Pastel2,
-                                        Dark2, Accent, Paired, OkabeIto (new v0.8.8 — color-blind safe)
+      QualitativeColorMaps.cs         14 qualitative: Tab10, Tab20, Set1, Set2, Set3, Pastel1, Pastel2,
+                                        Dark2, Accent, Paired, OkabeIto (color-blind safe),
+                                        Petroff6, Petroff8, Petroff10 (accessible sequences, Petroff 2021)
       AdditionalColorMaps.cs          13 more: Gray, Spring, Summer, Autumn, Winter, Cool, AfmHot, PRGn,
                                         RdGy, Rainbow, Ocean, Terrain, CMRmap
       PerceptualColorMaps2.cs         5 Seaborn perceptually-uniform: Rocket, Mako, Crest, Flare, Icefire
-                                      Total: 71 base colormaps × 2 (+ _r reversed) = 142 registered names
+                                      Total: 74 base colormaps × 2 (+ _r reversed) = 148 registered names
       ColormapExtensions.cs           IColormappable.GetColorMapOrDefault(fallback) + int.ColormapFraction(count, singletonT)
                                         — replaces 17 inline `?? Viridis|Tab10` sites and 3 `index/(count-1)` sites
 ```

@@ -1,5 +1,5 @@
 ---
-description: "Draw heatmaps in C# with 142 colormaps, annotated cells, colorbars and custom normalisation."
+description: "Draw heatmaps in C# with 148 colormaps, annotated cells, colorbars and custom normalisation."
 ---
 
 # Heatmaps & Colormaps
@@ -26,7 +26,7 @@ Plt.Create()
 
 ## Colormap comparison
 
-MatPlotLibNet ships 142 colormaps (71 base maps, each with an auto-registered reversed `_r` variant). Here are four popular ones side by side:
+MatPlotLibNet ships 148 colormaps (74 base maps, each with an auto-registered reversed `_r` variant). Here are four popular ones side by side:
 
 ```csharp
 string[] maps = ["viridis", "turbo", "coolwarm", "greys"];
@@ -206,7 +206,16 @@ Plt.Create()
 | Diverging | coolwarm, RdBu, PiYG, PRGn, BrBG, seismic |
 | Cyclic | twilight, hsv |
 | Qualitative | tab10, tab20, Set1, Set2, Set3, Pastel1, Paired |
+| Accessible | okabe_ito, petroff6, petroff8, petroff10 |
 | Other | turbo, jet, hot, cool, spring, summer, autumn, winter |
+
+The accessible row is the one to reach for when a chart has to be read by everyone. `okabe_ito` is the
+eight-colour palette from Okabe and Ito; `petroff6`, `petroff8` and `petroff10` are the sequences from
+Petroff's *Accessible Color Sequences for Data Visualization*, which pick colours so that every pair inside
+a sequence stays apart under the common forms of colour blindness, and in grayscale as well. Pick the one
+whose number matches how many things you are drawing: a six-series chart drawn with the ten-colour sequence
+gets six colours that were chosen to sit beside four others. They are the same values matplotlib ships under
+those names.
 
 ## Calendar heatmap (GitHub-style)
 

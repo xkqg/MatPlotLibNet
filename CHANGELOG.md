@@ -20,6 +20,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   holds — number, date or text — and which axis its values are positions on. A date is written out in full there,
   in the order that sorts correctly, rather than as the number a date axis stores.
 
+- **Three accessible colour sequences: `petroff6`, `petroff8` and `petroff10`.** From Petroff's *Accessible Color
+  Sequences for Data Visualization*, they pick colours so that every pair inside a sequence stays apart under the
+  common forms of colour blindness, and in grayscale as well. Pick the one whose number matches how many things
+  you are drawing. They carry the same values matplotlib ships under those names, so a chart drawn either side of
+  the fence looks the same. That brings the library to 148 colormaps, 74 base maps each with its reversed variant.
+
 ### Changed
 
 - **Every package now says what changed.** All fourteen packages carry release notes, so the Release Notes box
