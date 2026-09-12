@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet;
@@ -2090,3 +2090,105 @@ var international = Plt.Create()
 international.Transform(new SvgTransform()).ToFile(SamplesPath("international.svg"));
 international.Transform(new PngTransform()).ToFile(SamplesPath("international.png"));
 Console.WriteLine("Saved international.svg and international.png");
+
+// --- 41. Latency heatmap — a real clock across, latency buckets up, counts in the cells ---
+//
+// The chart a control room reads to answer "did the slow requests get slower, or are there just more of them".
+// A bar chart of an average cannot answer it, and a percentile line hides the shape. Pcolormesh takes the edges
+// of the buckets, so the clock stays a clock and the buckets stay milliseconds.
+{
+    var start = new DateTime(2026, 9, 12, 14, 0, 0, DateTimeKind.Utc);
+    double[] minutes = [.. Enumerable.Range(0, 31).Select(i => start.AddMinutes(i).ToOADate())];
+    double[] buckets = [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000, 2500];   // ms, one edge more than there are rows
+
+    var counts = new double[buckets.Length - 1, minutes.Length - 1];
+    var latencyNoise = new Random(11);
+    for (int minute = 0; minute < minutes.Length - 1; minute++)
+    {
+        // A normal ten minutes, then a slow patch that moves mass into the high buckets, then recovery.
+        double centre = minute is >= 12 and < 20 ? 7.0 : 4.0;
+        for (int bucket = 0; bucket < buckets.Length - 1; bucket++)
+        {
+            double distance = bucket - centre;
+            counts[bucket, minute] = Math.Round(420 * Math.Exp(-distance * distance / 2.2) + (latencyNoise.NextDouble() * 12));
+        }
+    }
+
+    Plt.Create()
+        .WithTitle("Request latency — one column per minute")
+        .WithTheme(Theme.OpsPanel)
+        .WithSize(1000, 520)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Pcolormesh(minutes, buckets, counts, s => { s.ColorMap = PerceptualColorMaps2.Rocket; s.Label = "requests"; })
+            .SetXDateAxis()
+            .SetYScale(AxisScale.Log)
+            .SetXLabel("Time (UTC)")
+            .SetYLabel("Latency (ms)")
+            .WithColorBar(cb => cb with { Label = "requests" }))
+        .TightLayout()
+        .SaveSvgAndPng(SamplesPath("latency_heatmap.svg"));
+    Console.WriteLine("Saved latency_heatmap.svg");
+}
+
+// --- 42. Topology panel — the service map that sits beside the tiles on a control-room wall ---
+//
+// Which service is talking to which, and which one is the sick one. A force-directed layout with a fixed seed
+// draws the same picture every refresh, so an operator learns where each node lives.
+{
+    var services = new List<GraphNode>
+    {
+        new("gateway",  Label: "gateway",  SizeScalar: 2.0, ColorScalar: 0.10),
+        new("auth",     Label: "auth",     SizeScalar: 1.4, ColorScalar: 0.10),
+        new("orders",   Label: "orders",   SizeScalar: 1.6, ColorScalar: 0.10),
+        new("payments", Label: "payments", SizeScalar: 1.6, ColorScalar: 0.95),   // the one that needs attention
+        new("ledger",   Label: "ledger",   SizeScalar: 1.2, ColorScalar: 0.45),
+        new("search",   Label: "search",   SizeScalar: 1.2, ColorScalar: 0.10),
+        new("catalogue", Label: "catalogue", SizeScalar: 1.2, ColorScalar: 0.10),
+        new("mail",     Label: "mail",     SizeScalar: 1.0, ColorScalar: 0.10),
+    };
+
+    var calls = new List<GraphEdge>
+    {
+        new("gateway", "auth", 3.0, IsDirected: true),
+        new("gateway", "orders", 4.0, IsDirected: true),
+        new("gateway", "search", 2.0, IsDirected: true),
+        new("orders", "payments", 3.0, IsDirected: true),
+        new("orders", "catalogue", 2.0, IsDirected: true),
+        new("payments", "ledger", 2.0, IsDirected: true),
+        new("orders", "mail", 1.0, IsDirected: true),
+        new("search", "catalogue", 1.0, IsDirected: true),
+    };
+
+    Plt.Create()
+        .WithTitle("Service topology — payments is the one to look at")
+        .WithTheme(Theme.OpsPanel)
+        .WithSize(900, 560)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .NetworkGraph(services, calls, s =>
+            {
+                s.Layout = GraphLayout.ForceDirected;
+                s.LayoutSeed = 42;              // the same picture on every refresh
+                s.LayoutIterations = 300;
+                s.ColorMap = Theme.OpsPanel.Alarm.Ramp;
+                s.NodeRadiusScale = 22.0;
+                s.EdgeThicknessScale = 4.0;
+                s.ShowNodeLabels = true;
+            })
+            // A topology has no coordinates to read, so the panel shows none: no ticks, no frame, no grid.
+            // Room on the right is for the node labels, which are drawn beside their node.
+            .SetXLim(-1.15, 1.35)
+            .SetYLim(-1.15, 1.15)
+            .SetXTickLocator(new FixedLocator([]))
+            .SetYTickLocator(new FixedLocator([]))
+            .WithGrid(g => g with { Visible = false })
+            .WithSpines(sp => sp with
+            {
+                Top = sp.Top with { Visible = false },
+                Bottom = sp.Bottom with { Visible = false },
+                Left = sp.Left with { Visible = false },
+                Right = sp.Right with { Visible = false },
+            }))
+        .TightLayout()
+        .SaveSvgAndPng(SamplesPath("ops_topology.svg"));
+    Console.WriteLine("Saved ops_topology.svg");
+}

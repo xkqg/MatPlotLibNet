@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Fidelity;
@@ -97,7 +97,11 @@ public class GridChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 75, Ssim = 0.40, DeltaE = 55)]   // half-cell spatial offset vs matplotlib (corner vs center) lowers SSIM; ΔE=17 confirms colormap is correct
+    // The mesh now reaches the spines, the way matplotlib's does. Measured before and after on this fixture:
+    // the classic theme was already exact (its margins are zero), and v2 went from RMS 73.3 / SSIM 0.476 to
+    // 67.3 / 0.538. What is left is the half-cell offset (our corner convention against matplotlib's centres);
+    // ΔE 17.6 on both themes says the colours themselves are right.
+    [FidelityTolerance(Rms = 62, Ssim = 0.48, DeltaE = 20)]
     public void Pcolormesh_SinCos_MatchesMatplotlib(string themeId)
     {
         int n = 30;

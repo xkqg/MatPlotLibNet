@@ -18,6 +18,7 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, KDE, rug plot |
 | [Polar Charts](polar.md) | Polar line, multi-series, radar, polar bar, polar scatter, polar heatmap |
 | [Heatmaps & Colormaps](heatmaps.md) | Heatmap, colorbar customization, 148 colormaps, color normalization, 2D histogram, pcolormesh |
+| [Latency Heatmaps](latency-heatmap.md) | A histogram over time: a real clock across, log-scaled latency bucket edges up the side, counts in the cells, with a percentile line on top |
 | [Contour Plots](contour.md) | Contour lines with labels, filled contour, custom levels, contour overlay, triangulated contour |
 | [Subplots & GridSpec](subplots.md) | Grid subplots, GridSpec ratios, mosaic layout, spanning subplots, insets, shared axes, spacing |
 | [Financial Charts](financial.md) | Candlestick + MACD + RSI dashboard, technical indicators (Bollinger, Williams %R, OBV, SAR, CCI) |
@@ -40,7 +41,7 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Annotations](annotations.md) | Text, arrows, reference lines (horizontal/vertical), shaded spans, threshold convenience (line + breach span in one call), math text in annotations |
 | [Styling & Themes](styling.md) | 30 themes, PropCycler, grid/spine control, tight margins, tick mirroring, templates |
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators, minor ticks |
-| [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition |
+| [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition, topology panel (the service map) |
 | [MCP server (AI agents)](mcp.md) | Render charts from Claude, VS Code or any MCP host; the spec format, the five tools, the refusal messages |
 | [Accessibility](accessibility.md) | The data table beside the chart (`ToDataTables()` → HTML/markdown/CSV), color-blind safe palette, high-contrast theme, ARIA semantics, keyboard navigation |
 | [International text](international-text.md) | Arabic and Hebrew out of the box, registering a font file for other scripts (`SkiaFonts.Register`), the `MATPLOTLIBNET_FONTS` variable for the MCP server, what kerning changed |

@@ -198,6 +198,7 @@ fallback: the renderer does not throw.
 
 ## See also
 
+- [Dashboard tiles & timelines](dashboard.md#a-topology-panel--which-service-is-talking-to-which) — the same graph as a control-room topology panel: fixed seed, no axes, the alarm ramp on the nodes
 - [Sankey Diagrams](sankey.md) — flow visualisation when edges have explicit thicknesses
 - [Treemaps](treemaps.md) — hierarchical containers when the relationship is strictly nesting
 - [Dendrograms](dendrograms.md) — hierarchical clustering trees with merge distances

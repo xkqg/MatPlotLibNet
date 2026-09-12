@@ -21,7 +21,7 @@ Browse to <http://localhost:5000>. The `<base href="/">` setting in `wwwroot/ind
 
 ## Console
 
-A console app that creates every sample image shipped with the wiki and cookbook: 72 SVG/PNG pairs covering every chart family. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
+A console app that creates every sample image shipped with the wiki and cookbook: 74 SVG/PNG pairs covering every chart family. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Console

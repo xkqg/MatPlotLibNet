@@ -6,6 +6,8 @@
   href: bar-charts.md
 - name: Heatmaps & Colormaps
   href: heatmaps.md
+- name: Latency Heatmaps
+  href: latency-heatmap.md
 - name: Subplots & GridSpec
   href: subplots.md
 - name: Contour Plots

@@ -26,6 +26,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   you are drawing. They carry the same values matplotlib ships under those names, so a chart drawn either side of
   the fence looks the same. That brings the library to 148 colormaps, 74 base maps each with its reversed variant.
 
+- **A latency heatmap recipe, and a topology panel recipe.** Both charts could already be drawn and neither was
+  written down. The cookbook now has a page for the latency heatmap — a histogram over time, a real clock across
+  the bottom, log-scaled latency buckets up the side, counts in the cells, a percentile line on top — with the
+  bucket edges, the counting loop and the data table it produces. The dashboard page gained the topology panel:
+  a service map beside the tiles, with a fixed layout seed so the map does not move between refreshes, no
+  coordinates on the axes, and the alarm ramp colouring only the node that needs attention. Both ship as sample
+  images.
+
 ### Changed
 
 - **Every package now says what changed.** All fourteen packages carry release notes, so the Release Notes box
@@ -40,6 +48,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   picture.
 
 ### Fixed
+
+- **A pcolormesh fills its plot area.** The mesh reported its extent without marking its edges, so the axes added
+  their usual 5 % of breathing room and every mesh was drawn inside a gutter, with the spines standing off the
+  cells. A heatmap has always filled its rectangle exactly and a mesh is the same picture over coordinates you
+  choose, so it does too now. Measured against matplotlib's own output on the sin/cos fixture: the classic theme
+  was already exact because its margins are zero, and the modern theme went from RMS 73.3 of 255 and SSIM 0.476
+  to 67.3 and 0.538.
+
+- **A pcolormesh table names its cells by their coordinates.** Asking a mesh for its data gave `row` and `column`
+  indices — 0, 1, 2 — even though a mesh is the one grid chart that carries real coordinates. It now reports the
+  clock time and the bucket edge each cell starts at, and marks both as positions on their axes, so a date axis
+  spells them as times. This is what a screen reader reads and what the `chart_data_table` tool returns.
 
 - **A force-directed graph is drawn with the layout you asked for.** `LayoutSeed`, `LayoutIterations` and
   `ConvergenceThreshold` reached the pass that computes the axis range and not the pass that places the nodes, so a
