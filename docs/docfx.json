@@ -65,7 +65,7 @@
       { "files": ["toc.yml", "*.md"] }
     ],
     "resource": [
-      { "files": ["images/**", "robots.txt", "*.txt"] }
+      { "files": ["images/**", "robots.txt", "*.txt", "google*.html"] }
     ],
     "dest": "_site",
     "template": ["default", "modern"],

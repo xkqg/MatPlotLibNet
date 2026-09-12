@@ -240,6 +240,27 @@ public class ReleaseContractTests
             "docs/docfx.json does not copy the IndexNow key into the built site");
     }
 
+    [Fact]
+    public void TheSearchConsoleVerification_IsPublishedWithTheSiteAndNamesItself()
+    {
+        // Google verifies ownership of a site by fetching one file it named, whose single line repeats that
+        // file's own name. It is fetched again from time to time, not only once: delete the file, or stop
+        // copying it into the built site, and the property silently falls back to unverified — with it goes
+        // every crawl statistic and the ability to submit a sitemap.
+        var files = Directory.EnumerateFiles(Path.Combine(Root, "docs"), "google*.html").ToArray();
+
+        string verification = Assert.Single(files);
+        Assert.Equal($"google-site-verification: {Path.GetFileName(verification)}", File.ReadAllText(verification).Trim());
+
+        using var config = JsonDocument.Parse(Read("docs", "docfx.json"));
+        var resources = config.RootElement.GetProperty("build").GetProperty("resource")[0].GetProperty("files")
+            .EnumerateArray().Select(f => f.GetString()).ToArray();
+
+        Assert.True(resources.Contains("google*.html", StringComparer.Ordinal)
+                 || resources.Contains(Path.GetFileName(verification), StringComparer.Ordinal),
+            "docs/docfx.json does not copy the Search Console verification file into the built site");
+    }
+
     // ---- the numbers a package page prints --------------------------------------------------------------------
 
     /// <summary>Every counted claim a <c>&lt;Description&gt;</c> may carry, beside the code that measures it.</summary>

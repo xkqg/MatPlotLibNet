@@ -169,6 +169,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   measured over the built site, none of its 772 pages had structured data of any kind, and the name reads to a
   search engine as "matplotlib" plus ".net", which is two other projects. Both are pinned by a contract test.
 
+- **The site proves it is ours to Google, and can tell a search engine that a page changed.** Search Console
+  verifies ownership by fetching one file it named, whose single line repeats that file's own name; it refetches
+  it, so a file that stops being published takes the verification, the crawl statistics and the ability to submit
+  a sitemap with it. A contract test pins that both it and the IndexNow key are copied into the built site.
+
 - **The documentation site can tell a search engine that a page changed.** IndexNow needs no account anywhere:
   a file served from the site, whose content is its own name, is the proof that whoever submits a URL owns the
   site. The site is served from a project path and the host root is not ours, so the key is submitted with an
