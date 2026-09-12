@@ -82,11 +82,13 @@ Demonstrates the `FigureControl` XAML element, theme switching, and runtime figu
 
 ## Uno
 
-Uno Platform (Windows / macOS / Linux / WebAssembly / iOS / Android). Uses `MatPlotLibNet.Uno`.
+Uno Platform on its Skia renderer, hosted in a WPF window (`Uno.WinUI.Skia.Wpf`). Uses `MatPlotLibNet.Uno`.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Uno
 ```
+
+A Skia head rather than a WinUI one, because Uno's Skia backend is where `MatPlotLibNet.Uno` draws — `SKCanvasElement` exists only there — and a WinUI head cannot load the library at all: its `Uno.UI` reference has no WinUI facade, and the build stops with *"Type universe cannot resolve assembly: Uno.UI, Version=255.255.255.255"*. The App and the page are Uno XAML declared as `UnoApplicationDefinition` / `UnoPage` items — Uno's generator reads those directly, and WPF's own markup compiler in the same project never sees them, in a real build or a design-time one.
 
 ## ASP.NET Core
 

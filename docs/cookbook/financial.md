@@ -127,4 +127,4 @@ ax.RelativeRotation(closes, benchmark, labels, s =>
 });
 ```
 
-See [RelativeRotationSeries](../../../wiki/RelativeRotationSeries) for minimum data requirements per formula.
+See [RelativeRotationSeries](https://github.com/xkqg/MatPlotLibNet/wiki/RelativeRotationSeries) for minimum data requirements per formula.

@@ -33,6 +33,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   applied that rule inside the transform with the fallback private to it; the data table needs the same answer,
   and two layers deciding one identity is how they come to disagree.
 
+### Changed
+
+- **`MatPlotLibNet.Wpf` targets `net8.0-windows10.0.19041.0`** (was `net8.0-windows`, platform version 7.0) and
+  pins `SkiaSharp.Views.WPF` to 3.119.2. The floating `3.*` had resolved to 3.119.4, which no longer ships a
+  net8.0 asset, so NuGet fell back to the .NET Framework build — and to the OpenTK 3 it drags in — with three
+  NU1701 warnings on every restore. 10.0.19041 is the floor SkiaSharp itself sets for WPF, and 3.119.2 is the
+  last 3.x with a net8.0-windows10.0.19041 asset: the same cut, and the same pin, the Uno view took. A consumer
+  on `net8.0-windows` with a lower platform version needs to raise it to reference this package.
+
 ### Fixed
 
 - **A label containing a double quote no longer breaks the SVG.** `EscapeForXml` escaped `&`, `<` and `>` —

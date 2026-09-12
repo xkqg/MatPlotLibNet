@@ -1,7 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- net8.0-windows (platform version 7.0) cannot consume SkiaSharp.Views.WPF's net8.0-windows10.0.19041
+         asset, so NuGet fell back to its .NET Framework build and warned NU1701 three times (the view, and the
+         OpenTK 3 it drags in). 10.0.19041 is the floor SkiaSharp sets for WPF anyway. -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <UseWPF>true</UseWPF>
     <!-- Lets DocFX (and any other cross-platform tooling) extract metadata for the
          net8.0-windows target on a Linux CI runner. WPF assemblies still only run
@@ -20,7 +23,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SkiaSharp.Views.WPF" Version="3.*" />
+    <!-- Pinned: SkiaSharp.Views.WPF 3.119.4+ DROPPED net8.0 (supports net9/net10 only), the same cut the Uno
+         view took. 3.119.2 is the last 3.x that ships a net8.0-windows10.0.19041 asset; the floating "3.*"
+         resolved to 3.119.4 and fell back to the net48 build. Revisit when this project moves off net8.0. -->
+    <PackageReference Include="SkiaSharp.Views.WPF" Version="3.119.2" />
   </ItemGroup>
 
   <ItemGroup>

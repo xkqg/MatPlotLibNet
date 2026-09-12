@@ -1,25 +1,65 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <OutputType>WinExe</OutputType>
+    <!-- A WPF window hosting Uno's Skia renderer - the backend MatPlotLibNet.Uno draws on, because
+         SKCanvasElement exists only on Uno's Skia rendering path. A WinUI head cannot load that library: its
+         Uno.UI reference has no WinUI facade, which is what "Type universe cannot resolve assembly: Uno.UI,
+         Version=255.255.255.255" was saying about the earlier shape of this sample.
+         net8.0-windows WITHOUT a platform version on purpose: Uno.WinUI's net8.0-windows10.0.19041.0 folder holds
+         the WinUI toolkit only, and NuGet would pick it for a 10.0.19041.0 target. Platform version 7.0 makes
+         NuGet fall through to lib/net8.0 - the Skia reference assemblies, which is what
+         Uno.WinUI.Runtime.Skia.Wpf (lib/net8.0 as well) is built for. -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <StartupObject>MatPlotLibNet.Samples.Uno.Program</StartupObject>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RuntimeIdentifiers>win-x64;win-x86;win-arm64</RuntimeIdentifiers>
-    <WindowsPackageType>None</WindowsPackageType>
-    <UseRidGraph>false</UseRidGraph>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Uno.WinUI" Version="5.*" />
-    <PackageReference Include="SkiaSharp.Views.Uno.WinUI" Version="3.*" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.*" />
+    <!-- Same Uno line as MatPlotLibNet.Uno. -->
+    <PackageReference Include="Uno.WinUI.Skia.Wpf" Version="5.6.99" />
+    <!-- Uno.WinUI's Windows dependency group drags Microsoft.WindowsAppSDK in, and its build assets do two
+         things a Skia head cannot have: the 1.4 MrtCore targets inject win10-* RuntimeIdentifiers the SDK
+         rejects (NETSDK1083), and the WinUI props set WindowsAppSDKWinUI=true, which switches Uno's targets
+         to WinUI mode - no Skia runtime, and WPF's markup compiler gets the Uno XAML. Same recipe as
+         Src/MatPlotLibNet.Uno: reference every sub-package, exclude all of their build assets. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Base" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.DWrite" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
-    <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
     <ProjectReference Include="..\..\Src\MatPlotLibNet.Uno\MatPlotLibNet.Uno.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- Two XAML compilers meet in a UseWPF project. WPF's markup compiler takes every Page and
+         ApplicationDefinition; Uno's generator reads UnoPage and UnoApplicationDefinition directly
+         (Uno.UI.SourceGenerators.props, _InjectAdditionalFiles). Declaring the XAML under Uno's own item names
+         keeps it out of WPF's compiler in every kind of build - a design-time build in the IDE does not run the
+         CleanupMarkupPass1 target that would otherwise move XamlRuntime=WinUI pages across, and the editor
+         then reports InitializeComponent() and the x:Name fields as missing. -->
+    <EnableDefaultPageItems>false</EnableDefaultPageItems>
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <UnoApplicationDefinition Include="App.xaml" />
+    <UnoPage Include="**\*.xaml" Exclude="App.xaml;bin\**;obj\**" />
+    <Compile Update="**\*.xaml.cs">
+      <DependentUpon>%(Filename)</DependentUpon>
+    </Compile>
+    <UpToDateCheckInput Include="**\*.xaml" Exclude="bin\**;obj\**" />
   </ItemGroup>
 
 </Project>
