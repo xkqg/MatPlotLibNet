@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics;
@@ -128,6 +128,36 @@ public class McpStdioTests
             .ToArray();
 
         Assert.Equal(["chart_data_table", "describe_chart_schema", "list_chart_types", "render_chart", "save_chart"], names);
+    }
+
+    [Theory]
+    //          tool                     title                            read-only  destructive  idempotent  open world
+    [InlineData("render_chart",          "Render a chart as an image",    true,      false,       true,       false)]
+    [InlineData("save_chart",            "Save a chart to a file",        false,     true,        true,       false)]
+    [InlineData("chart_data_table",      "Read a chart's data as a table", true,     false,       true,       false)]
+    [InlineData("list_chart_types",      "List the chart types",          true,      false,       true,       false)]
+    [InlineData("describe_chart_schema", "Describe the chart spec",       true,      false,       true,       false)]
+    public void TheToolList_CarriesTheTitleAndTheHintsAHostReads(
+        string tool, string title, bool readOnly, bool destructive, bool idempotent, bool openWorld)
+    {
+        // The attributes are one thing; what a host actually receives is another. Two of the four hints default
+        // the wrong way round in the protocol — a tool nobody annotates is assumed destructive and assumed to
+        // reach an open world — so this reads them off the wire rather than off the attribute.
+        var stdout = Converse(2, Initialize, Initialized, """{"jsonrpc":"2.0","id":2,"method":"tools/list"}""");
+
+        var entry = stdout
+            .Where(f => f.RootElement.TryGetProperty("result", out var r) && r.TryGetProperty("tools", out _))
+            .SelectMany(f => f.RootElement.GetProperty("result").GetProperty("tools").EnumerateArray())
+            .Single(t => t.GetProperty("name").GetString() == tool);
+
+        Assert.Equal(title, entry.GetProperty("title").GetString());
+
+        var hints = entry.GetProperty("annotations");
+        Assert.Equal(title, hints.GetProperty("title").GetString());
+        Assert.Equal(readOnly, hints.GetProperty("readOnlyHint").GetBoolean());
+        Assert.Equal(destructive, hints.GetProperty("destructiveHint").GetBoolean());
+        Assert.Equal(idempotent, hints.GetProperty("idempotentHint").GetBoolean());
+        Assert.Equal(openWorld, hints.GetProperty("openWorldHint").GetBoolean());
     }
 
     [Fact]

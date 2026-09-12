@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Reflection;
@@ -82,17 +82,46 @@ public class ChartToolsTests : IDisposable
         }
     }
 
-    [Fact]
-    public void TheReadOnlyTools_SayThatTheyAreReadOnly()
-    {
-        bool ReadOnlyOf(string tool) =>
-            ToolMethods().Single(m => m.GetCustomAttribute<McpServerToolAttribute>()!.Name == tool)
-                .GetCustomAttribute<McpServerToolAttribute>()!.ReadOnly;
+    private static McpServerToolAttribute Annotation(string tool) =>
+        ToolMethods().Single(m => m.GetCustomAttribute<McpServerToolAttribute>()!.Name == tool)
+            .GetCustomAttribute<McpServerToolAttribute>()!;
 
-        Assert.True(ReadOnlyOf("render_chart"));
-        Assert.True(ReadOnlyOf("list_chart_types"));
-        Assert.True(ReadOnlyOf("describe_chart_schema"));
-        Assert.False(ReadOnlyOf("save_chart"));   // it writes a file
+    /// <summary>Each tool, and the four things a host is allowed to assume about it: whether it changes anything,
+    /// whether it can destroy something, whether calling it twice does more than calling it once, and whether it
+    /// reaches out to an unpredictable world. Left unsaid, two of the four are assumed the WRONG way round — the
+    /// protocol defaults a tool to destructive and to open-world — so a host may warn a user about a tool that
+    /// only draws a picture, or refuse to auto-run one that reads nothing but its own arguments.</summary>
+    [Theory]
+    //          tool                     read-only  destructive  idempotent  open world
+    [InlineData("render_chart",          true,      false,       true,       false)]
+    [InlineData("save_chart",            false,     true,        true,       false)]
+    [InlineData("chart_data_table",      true,      false,       true,       false)]
+    [InlineData("list_chart_types",      true,      false,       true,       false)]
+    [InlineData("describe_chart_schema", true,      false,       true,       false)]
+    public void EveryTool_SaysWhatItDoesToItsEnvironment(string tool, bool readOnly, bool destructive, bool idempotent, bool openWorld)
+    {
+        var annotation = Annotation(tool);
+
+        // save_chart writes a file, and with overwrite: true it replaces one it did not make — that is destructive
+        // and the annotation says so rather than softening it. It is still idempotent: the same call twice leaves
+        // the same bytes on disk, because the second one either refuses or writes the same picture again.
+        Assert.Equal(readOnly, annotation.ReadOnly);
+        Assert.Equal(destructive, annotation.Destructive);
+        Assert.Equal(idempotent, annotation.Idempotent);
+        Assert.Equal(openWorld, annotation.OpenWorld);
+    }
+
+    [Theory]
+    [InlineData("render_chart", "Render a chart as an image")]
+    [InlineData("save_chart", "Save a chart to a file")]
+    [InlineData("chart_data_table", "Read a chart's data as a table")]
+    [InlineData("list_chart_types", "List the chart types")]
+    [InlineData("describe_chart_schema", "Describe the chart spec")]
+    public void EveryTool_CarriesATitleAPersonCanRead(string tool, string title)
+    {
+        // The name is for the protocol; the title is what a user sees in the list of tools a server offers.
+        // Without one, a host shows "chart_data_table".
+        Assert.Equal(title, Annotation(tool).Title);
     }
 
     // ---- what the tools return -------------------------------------------------------------------------------

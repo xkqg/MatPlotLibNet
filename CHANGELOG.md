@@ -11,6 +11,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   on nuget.org and in the Visual Studio package manager links straight to this changelog at the section for the
   version being installed, instead of standing empty.
 
+- **The MCP server's five tools say what they do to your machine.** Each tool now carries a title a person can read
+  and the four hints a host uses to decide whether to run it without asking: `render_chart`, `chart_data_table`,
+  `list_chart_types` and `describe_chart_schema` change nothing, `save_chart` writes a file and can replace one, and
+  none of the five reaches anything outside its own arguments. Unsaid, the protocol assumes a tool is destructive
+  and assumes it reaches the open internet, so a host had reason to warn a user about a tool that only draws a
+  picture.
+
 ### Fixed
 
 - **A force-directed graph is drawn with the layout you asked for.** `LayoutSeed`, `LayoutIterations` and

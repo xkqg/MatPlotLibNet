@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.ComponentModel;
@@ -39,7 +39,8 @@ internal sealed class ChartTools
         _output = output;
     }
 
-    [McpServerTool(Name = "render_chart", ReadOnly = true)]
+    [McpServerTool(Name = "render_chart", Title = "Render a chart as an image",
+        ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Renders a chart from a MatPlotLibNet figure-JSON spec and returns it as a PNG image, with a short "
         + "text summary of what was drawn. Call describe_chart_schema for the shape of the spec and list_chart_types "
         + "for the chart types. For SVG or PDF, use save_chart — they are too large to return inline.")]
@@ -58,7 +59,12 @@ internal sealed class ChartTools
             ];
         });
 
-    [McpServerTool(Name = "save_chart")]
+    // Destructive, and it says so: with overwrite: true it replaces a file it did not make. Idempotent all the
+    // same — the same call twice leaves the same bytes on disk, because the second one either refuses or draws the
+    // same picture again. Left unsaid, the protocol assumes a tool is destructive AND reaches an open world, so
+    // the four values are written out rather than inherited.
+    [McpServerTool(Name = "save_chart", Title = "Save a chart to a file",
+        ReadOnly = false, Destructive = true, Idempotent = true, OpenWorld = false)]
     [Description("Renders a chart from a MatPlotLibNet figure-JSON spec and writes it to a file, returning the path "
         + "it wrote. Use this for SVG and PDF, and for images too large to return inline. The file is written under "
         + "the server's output directory; an existing file is kept unless overwrite is true.")]
@@ -77,7 +83,8 @@ internal sealed class ChartTools
             return $"Wrote {result.Path} ({result.ByteCount:N0} bytes, {result.FormatWritten.ToString().ToLowerInvariant()}).\n{result.Summary.ToText()}";
         });
 
-    [McpServerTool(Name = "chart_data_table", ReadOnly = true)]
+    [McpServerTool(Name = "chart_data_table", Title = "Read a chart's data as a table",
+        ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Returns the DATA of a chart spec as markdown tables - the numbers the picture is drawn from, "
         + "which an image cannot be read for. One table per group of series that share an x. Long charts are "
         + "refused with the limit in the message; save the chart and read the file instead.")]
@@ -86,7 +93,8 @@ internal sealed class ChartTools
         JsonElement spec) =>
         Guarded(() => _tabulation.Describe(ChartSpec.From(spec)));
 
-    [McpServerTool(Name = "list_chart_types", ReadOnly = true)]
+    [McpServerTool(Name = "list_chart_types", Title = "List the chart types",
+        ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Lists the chart types a spec may name in a series' \"type\" field.")]
     public string ListChartTypes() => Guarded(() =>
     {
@@ -97,7 +105,8 @@ internal sealed class ChartTools
                 + string.Join("\n  ", _catalog.Excluded.Select(pair => $"{pair.Key} — {pair.Value}"));
     });
 
-    [McpServerTool(Name = "describe_chart_schema", ReadOnly = true)]
+    [McpServerTool(Name = "describe_chart_schema", Title = "Describe the chart spec",
+        ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("Describes the fields of a chart spec, with a worked example. Pass a chart type to see the fields "
         + "of that type; omit it for the shape of the whole spec.")]
     public string DescribeChartSchema(

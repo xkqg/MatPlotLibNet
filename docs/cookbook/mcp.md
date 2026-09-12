@@ -44,6 +44,12 @@ separated by `;`. The server registers them when it starts, so a chart can use a
 SVG and PDF are not returned inline, because a single SVG of a normal chart is tens of thousands of characters of
 the model's context. `save_chart` writes them to a file instead.
 
+Each tool also tells the host what it does to the machine it runs on, which is what decides whether a host runs it
+without asking. Four of the five change nothing at all, so they are marked read-only. `save_chart` writes a file,
+and with `overwrite: true` it replaces one, so it is marked as changing things and as able to destroy something.
+None of the five reaches out to the internet or to anything else outside its own arguments. Left unsaid, the
+protocol assumes the opposite on both counts, so a host would warn about a tool that only draws a picture.
+
 ## The spec
 
 A spec is the library's own figure JSON. It is the same document that `figure.ToJson()` writes and
