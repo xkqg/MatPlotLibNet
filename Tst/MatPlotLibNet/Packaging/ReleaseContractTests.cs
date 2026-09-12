@@ -163,6 +163,47 @@ public class ReleaseContractTests
         Assert.True(png.Length < 1024 * 1024, $"the icon is {png.Length} bytes; nuget.org caps it at 1 MB");
     }
 
+    // ---- the numbers a package page prints --------------------------------------------------------------------
+
+    /// <summary>Every counted claim a <c>&lt;Description&gt;</c> may carry, beside the code that measures it.</summary>
+    private static (string Pattern, int Measured, string What)[] PublishedCounts() =>
+    [
+        (@"(\d+) colormaps", Styling.ColorMapRegistryTests.DeclaredColorMaps().Length * 2, "colormaps"),
+        (@"(\d+) base (?:maps|colormaps)", Styling.ColorMapRegistryTests.DeclaredColorMaps().Length, "base maps"),
+        (@"(\d+) (?:series types|chart types)", Models.SeriesCountContractTests.ConcreteSeries().Length, "concrete series"),
+        (@"(\d+) themes", ThemeCount(), "themes"),
+        // The indicator count is NOT here: it is package-specific. The core assembly ships 58 indicator types and
+        // the DataFrame package exposes its own extension surface over them, so one number checked against one
+        // assembly would be wrong for the other package. DataFrame pins its own, in its own test project.
+    ];
+
+    private static int ThemeCount() =>
+        typeof(global::MatPlotLibNet.Styling.Theme)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Count(p => p.PropertyType == typeof(global::MatPlotLibNet.Styling.Theme));
+
+    [Fact]
+    public void EveryPackageDescription_CountsWhatTheLibraryActuallyShips()
+    {
+        // The colormap count is pinned across every *.md in the repository — and the number that reaches the most
+        // readers is in no *.md at all. It is <Description>: the text nuget.org prints on the package page and the
+        // package manager prints in its search row. The core package advertised 142 colormaps there while the
+        // registry held 148, and nothing was red. The same hole as the tags — product text no test reads.
+        foreach (var (path, xml) in PackableProjects())
+        {
+            string description = xml.Descendants("Description").FirstOrDefault()?.Value ?? string.Empty;
+
+            foreach (var (pattern, measured, what) in PublishedCounts())
+            {
+                foreach (Match m in Regex.Matches(description, pattern))
+                {
+                    Assert.True(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture) == measured,
+                        $"{path} says \"{m.Value}\"; the library ships {measured} {what}.");
+                }
+            }
+        }
+    }
+
     // ---- what a reader types into the search box ------------------------------------------------------------
 
     /// <summary>The tags of one package, however the project spelled its separator.</summary>

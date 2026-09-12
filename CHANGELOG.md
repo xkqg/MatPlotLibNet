@@ -145,6 +145,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   pinned, and also checks that every streaming indicator has a batch counterpart of the same name — so adding one
   turns a test red instead of leaving two documents quietly wrong.
 
+- **Every package can be found by the name of what it is.** On nuget.org's own search, the query "matplotlib"
+  returned thirty-one packages and this library's core package sat at rank fourteen, below two packages with a
+  hundredth of its downloads. Only `MatPlotLibNet.DataFrame` reached the first page, and it was the one package
+  of the fourteen whose tags spelled the word: a search index cannot rank on a word no package carries. All
+  fourteen now lead with `matplotlib` and carry `visualization`; nothing was removed. `MatPlotLibNet.DataFrame`
+  also separated its tags with spaces where the other thirteen used semicolons — NuGet accepts both, so the next
+  tag appended with a semicolon would have merged silently into the one before it. A contract test pins both.
+
+- **The package page counted two things wrong.** `<Description>` is the text nuget.org prints on the package
+  page and the package manager prints in its search row, and no test read it: the core package advertised 142
+  colormaps where the registry holds 148, and `MatPlotLibNet.DataFrame` advertised 52 indicators where it
+  exposes 51. The colormap count was already pinned across every Markdown file in the repository, which is why
+  it was right everywhere a reader looks except the page most readers land on. Every counted claim in a
+  description — colormaps, base maps, series types, themes — is now measured against the library, and the
+  DataFrame package's own indicator count is measured against its own extension methods.
+
 ## [1.17.0]
 ### Added
 

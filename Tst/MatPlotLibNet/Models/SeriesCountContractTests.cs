@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Reflection;
@@ -21,7 +21,7 @@ public class SeriesCountContractTests
     /// <summary>Every concrete, public series the core package ships: what a caller can actually draw. Abstract
     /// bases (<see cref="ChartSeries"/>, <c>XYSeries</c>, <c>PolarSeries</c>, …) are scaffolding, not chart
     /// types, and nothing in the documents ever meant to count them.</summary>
-    private static Type[] ConcreteSeries() =>
+    internal static Type[] ConcreteSeries() =>
         [.. typeof(ChartSeries).Assembly
             .GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.IsPublic
