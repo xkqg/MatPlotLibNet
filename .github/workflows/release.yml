@@ -41,27 +41,3 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           RELEASE_URL=$(gh release view "$TAG" --json url --jq '.url')
           echo "url=$RELEASE_URL" >> "$GITHUB_OUTPUT"
-
-      # ---------------------------------------------------------------
-      # Social media announcements — each step is gated by its secrets.
-      # Configure in repo Settings > Secrets > Actions.
-      # ---------------------------------------------------------------
-
-      - name: Post to Mastodon
-        if: env.MASTODON_ACCESS_TOKEN != ''
-        env:
-          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
-          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
-          TAG: ${{ steps.create_release.outputs.tag }}
-          URL: ${{ steps.create_release.outputs.url }}
-        run: |
-          set -euo pipefail
-          # Built line by line rather than as one quoted block: a multi-line string inside this YAML carries the
-          # YAML's own indentation into the post, which arrives as ten stray spaces in front of every line.
-          HEAD="MatPlotLibNet ${TAG} released — matplotlib for .NET with 83 series types, 3D charts, an MCP server so an AI agent can draw with it, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed."
-          TAGS="#dotnet #csharp #dataviz #charting #opensource"
-          TEXT=$(printf '%s\n\n%s\n\n%s' "$HEAD" "$URL" "$TAGS")
-
-          CODE=$(curl -sS -o /tmp/masto.json -w '%{http_code}' -X POST "https://${MASTODON_INSTANCE}/api/v1/statuses" -H "Authorization: Bearer ${MASTODON_ACCESS_TOKEN}" -F "status=${TEXT}" -F "visibility=public")
-          echo "Mastodon HTTP $CODE"; cat /tmp/masto.json; echo
-          [ "$CODE" -lt 400 ] || exit 1
