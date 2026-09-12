@@ -55,6 +55,10 @@ These rules apply to every change that lands on this repo. There are no exceptio
   longer used: a heading without a number tells a reader nothing, and someone has to remember to rename it
   later. Never invent the number yourself. Ask, and write what you are told.
 - **No dates in the CHANGELOG.** The version numbers are the timeline. A date adds nothing a reader can act on.
+- **Release notes come from one file.** `Directory.Build.targets` at the repository root builds the sentence
+  every package carries, out of the version the project already declares, and links into the changelog section
+  for that version. Nothing per-package to edit, and `ReleaseContractTests` checks the link lands on a heading
+  that exists.
 
 ## TDD — Red, Green, Refactor. In that order. Always.
 
@@ -124,6 +128,14 @@ These rules apply to every non-trivial action:
 ## Documentation
 
 - "Update all docs" means README, CHANGELOG, wiki, XML doc comments, samples, docs/cookbook, docs/api and Playground. All of them. Do not skip the hard ones.
+- A new cookbook page needs three edits, not one: the page itself, a `href` in `docs/cookbook/toc.yml` and a row
+  in `docs/cookbook/index.md`. A page missing from the table of contents is a 404 behind a link the index already
+  carries; `ReleaseContractTests` fails on it.
+- A number a document states about the library is a claim, and a claim that can be checked gets a test. The
+  colormap count is held against the registry in every current-state document; the series and indicator counts
+  are held against the assembly. Add the test with the number. The class and test counts are the exception: a
+  test that counts tests fails on the next test anyone writes, so those two are measured at the gate and copied
+  into the documents before a release.
 
 ---
 

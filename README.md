@@ -46,8 +46,8 @@ Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
 [Issue](https://github.com/xkqg/MatPlotLibNet/issues); that is what decides the next release. Every release, with
 its migration notes, is listed in the [CHANGELOG](CHANGELOG.md).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (701 classes, at
-99.6 % line / 97.5 % branch) across 11,619 tests. The test suite verifies rendering against matplotlib
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (705 classes, at
+99.6 % line / 97.5 % branch) across 11,700 tests. The test suite verifies rendering against matplotlib
 pixel-fidelity fixtures.
 
 ---
@@ -125,7 +125,7 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **Control room** — `Plt.OpsDashboard()` builds one operator screen: KPI tiles across the top, state timelines under them, and a shared trend panel. All of them use one time window that the caller supplies; the library never reads the wall clock. A tile carries a `Target`, a multi-line `Caption` that wraps, an inline sparkline and a `Hatch` that means *no information*. `Theme.Alarm` defines the reserved alarm colours, and four operator backgrounds ship with it. `BulletGraphSeries` replaces the radial gauge.
 
-**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp. They need no browser, no WebView and no SignalR. There are 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. The controls also have a toolbar state model, view history (back/forward), a data cursor (click-to-pin), tick mirroring, and tight margins.
+**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp. They need no browser, no WebView and no SignalR. There are 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. The controls also have a toolbar state model, view history (back/forward), a data cursor (click-to-pin), tick mirroring, and tight margins. Clicking a data point raises `DataPointClicked` with the point the reader clicked — series, value, pixel position and axes — so an application can open a detail panel or select a row beside the chart.
 
 **MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. It supports 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
 
@@ -139,7 +139,7 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). The events form a hierarchy of stacked records, they merge on their own, and the server sends each caller its own hover response.
 
-**Accessibility** — `figure.ToDataTables()` gives every chart a data table beside the picture (`ToHtml()`, `ToMarkdown()`, `ToCsv()`). That table is the text alternative that WCAG 1.1.1 requires for a complex image, and an `<svg role="img">` cannot provide it on its own. The table is served by `MapChartTableEndpoint`, by `MplChart.ShowDataTable`, by the GraphQL `chartDataTable` field and by the MCP `chart_data_table` tool. The library also has ARIA roles and titles, keyboard navigation, the Okabe-Ito colour-blind-safe palette and a high-contrast theme.
+**Accessibility** — `figure.ToDataTables()` gives every chart a data table beside the picture (`ToHtml()`, `ToMarkdown()`, `ToCsv()`). That table is the text alternative that WCAG 1.1.1 requires for a complex image, and an `<svg role="img">` cannot provide it on its own. The table is served by `MapChartTableEndpoint`, by `MplChart.ShowDataTable`, by the GraphQL `chartDataTable` field and by the MCP `chart_data_table` tool, which returns it as markdown to read and as structured values to compute with. The library also has ARIA roles and titles, keyboard navigation, the Okabe-Ito colour-blind-safe palette, the three Petroff accessible colour sequences and a high-contrast theme.
 
 **148 colormaps** — viridis, plasma, turbo, coolwarm, and 144 more (74 base maps, each with an auto-registered reversed `_r` variant). The library also has NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`), themes that look like matplotlib's, DataFrame integration with **58 technical indicators**, broken axes, and publication-quality SVG/PNG/PDF/GIF export.
 

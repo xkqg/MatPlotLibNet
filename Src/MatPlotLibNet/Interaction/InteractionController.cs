@@ -6,8 +6,8 @@ using MatPlotLibNet.Models;
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Default implementation of <see cref="IInteractionController"/>.
-/// Composes the six standard <see cref="IInteractionModifier"/> implementations and dispatches
-/// input events to the first matching one. Supports two event sinks:
+/// Composes the fifteen <see cref="IInteractionModifier"/> implementations in a fixed order and gives the event to
+/// the first one that claims it. Supports two event sinks:
 /// <list type="bullet">
 ///   <item><b>Local mode</b> (default): <see cref="CreateLocal"/> — applies events directly to
 ///   the figure in-process and fires <see cref="InvalidateRequested"/>.</item>

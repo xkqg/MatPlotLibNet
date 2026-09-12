@@ -69,7 +69,7 @@
     ],
     "dest": "_site",
     "template": ["default", "modern"],
-    "_comment_sitemap": "Every page is listed, but not every page is equally worth crawling: 726 of the 761 urls are generated API reference pages, and they were competing for crawl attention with the 33 cookbook pages people actually search for. fileOptions ranks them.",
+    "_comment_sitemap": "Every page is listed, but not every page is equally worth crawling: 729 of the 765 urls are generated API reference pages, and they were competing for crawl attention with the 34 cookbook pages people actually search for. fileOptions ranks them.",
     "sitemap": {
       "baseUrl": "https://xkqg.github.io/MatPlotLibNet/",
       "priority": 0.5,

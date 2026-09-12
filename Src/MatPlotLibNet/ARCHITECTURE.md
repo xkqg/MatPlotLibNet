@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.14.2)
+# MatPlotLibNet Core -- Architecture (v1.17.1)
 
 ## Package dependency graph
 
@@ -18,7 +18,9 @@ MatPlotLibNet (Core)                      net10.0 + net8.0
     +-- MatPlotLibNet.Mcp                 ModelContextProtocol (stdio MCP server, net10.0, dotnet tool)
     |       + MatPlotLibNet.Skia           (PNG/PDF for the agent's tools)
     |
-    +-- MatPlotLibNet.Notebooks           Microsoft.DotNet.Interactive (Polyglot Notebooks)
+    +-- MatPlotLibNet.Notebooks           Microsoft.DotNet.Interactive (Polyglot Notebooks) -- the runtime
+    |                                       underneath has been ended by Microsoft; new work goes to
+    |                                       MatPlotLibNet.Interactive
     |
     +-- MatPlotLibNet.Maui                Microsoft.Maui.Controls
     |
@@ -27,6 +29,17 @@ MatPlotLibNet (Core)                      net10.0 + net8.0
     +-- @matplotlibnet/react (npm)        @microsoft/signalr + React 19
     |
     +-- @matplotlibnet/vue (npm)          @microsoft/signalr + Vue 3
+```
+
+## Repository-wide build files
+
+```
+Directory.Build.props             imported BEFORE every project: authorship, the repository URL, deterministic
+                                  builds, Source Link, and EnableWindowsTargeting for non-Windows hosts
+Directory.Build.targets           imported AFTER every project, so the version it declared is already known.
+                                  Holds the one release-notes sentence all fourteen packages carry, with the
+                                  version and the changelog anchor built from that version. Fourteen hand-kept
+                                  copies would drift the first time one was forgotten
 ```
 
 ## Core library structure
@@ -416,6 +429,36 @@ MatPlotLibNet/
                                         vertex components sit on a selected face, emitted as data-v3d-pinned so
                                         Svg3DRotationScript can mirror them when it re-selects mid-drag
 
+  Interaction/                        the managed interaction layer — in the CORE package, so a native control
+                                      only has to translate its own pointer and key events into three neutral
+                                      records; no platform type reaches this folder
+    IInteractionController.cs         what a host talks to: five Handle* methods, three read-only state
+                                      properties, UpdateLayout, and InvalidateRequested
+    InteractionController.cs          the one implementation. It builds the fifteen modifiers in a fixed order
+                                      and gives the first one whose Handles* returns true the event. Two
+                                      factories: CreateLocal applies events to the figure in-process,
+                                      Create takes any sink (a SignalR publisher, say). BOTH are wrapped in the
+                                      constructor, so DataPointClicked — the point the reader clicked — reaches
+                                      the application in either mode
+    Modifiers/IInteractionModifier.cs one gesture, one class: Handles*(args) claims, On*(args) acts. Fifteen of
+                                      them — pan, zoom, reset, legend toggle, brush/span/rectangle select,
+                                      3-D rotate, crosshair, hover, data cursor, three drawing tools and their
+                                      selection. Order is the priority; it is written out where they are built
+    ChartLayout.cs / IChartLayout.cs  the snapshot a modifier measures against: plot rectangles, axis limits,
+                                      HitTestAxes(x, y), PixelToData. Rebuilt after every render
+    NearestPointFinder.cs             which data point is under the cursor, across every visible XY series in
+                                      one axes, with the pixel distance it was found at
+    FigureInteractionEvent.cs         the abstract event with ApplyTo(figure). Fifteen leaves: Pan, Zoom,
+                                      AxisRange, Reset, LegendToggle, BrushSelect, SpanSelect, RectangleZoom,
+                                      Rotate3D, Hover, DataCursor, the three add-drawing events and the remove
+    FigureNotificationEvent.cs        the events that ask a question rather than change anything: ApplyTo is a
+                                      sealed no-op, so a host cannot accidentally mutate a figure with one
+    SignalREventSink.cs               the sink that publishes events to a hub instead of applying them
+    InteractionToolbar.cs             which drawing tool is active; ToolbarState + ToolbarButton
+    ViewHistoryManager.cs             back/forward over axis limits
+    PinnedAnnotation.cs               a clicked point: series label, data x/y, pixel x/y, axes index — what
+                                      DataCursorEvent carries and what DataPointClicked hands the application
+
   Data/
     RingBuffer.cs                     public sealed RingBuffer<T> — fixed-capacity circular SEQUENCE, oldest
                                       first; one writer / many readers (ReaderWriterLockSlim), never allocates
@@ -702,8 +745,11 @@ MatPlotLibNet.Mcp/
   ChartRendering.cs                spec -> Figure -> bytes; one owner, two sinks (inline PNG, or a file)
   OutputPathResolver.cs            the single directory save_chart may write under
   ChartSummarizer.cs               FigureSummary / SeriesSummary via the series' own ComputeDataRange
-  ChartTabulation.cs               chart_data_table: the figure's own ToDataTables() as markdown — the one
-                                   question a model cannot put to an image, answered in text
+  ChartTabulation.cs               chart_data_table: the figure's own ToDataTables(), in both forms — the one
+                                   question a model cannot put to an image, answered in text and in values
+  ChartTables.cs                   those tables as the wire vocabulary: header/kind/axis per column, rows of
+                                   numbers, dates written out in full, and texts. The tool returns it as
+                                   structured content BESIDE the markdown, never instead of it
   RenderLimits.cs                  the canvas, text and table-row ceilings (the canvas ceiling IS the token
                                    ceiling; so is the row ceiling)
   FontDirectory.cs                 the server's font door: Expand(MATPLOTLIBNET_FONTS) → files to register +

@@ -120,6 +120,10 @@ public class ColorMapRegistryTests
         // built-ins; what is exact is the list above, and that every one of these names reads back.
         Assert.Equal(148, builtIn.Length);
         Assert.All(builtIn, name => Assert.Equal(name, ColorMaps.Get(name)!.Name));
+
+        // ColorMaps.All is the enumeration a caller reaches for to list what is available.
+        var all = ColorMaps.All.Select(map => map.Name).ToArray();
+        Assert.Empty(builtIn.Except(all, StringComparer.OrdinalIgnoreCase));
     }
 
     // --- PerceptualColorMaps2 (Seaborn) ---
