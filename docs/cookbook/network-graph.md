@@ -1,3 +1,7 @@
+---
+description: "Draw network graphs in C#: nodes and edges with deterministic layouts, for correlation networks, communities and spanning trees."
+---
+
 # Network Graph
 
 NetworkGraph draws nodes and edges in 2D. Use it for correlation networks, lead-lag

@@ -1,3 +1,7 @@
+---
+description: "Make an SVG chart interactive in C#: pan, zoom, tooltips, legend toggle, brush selection and 3D rotation, with no JavaScript framework."
+---
+
 # Interactive SVG
 
 ## Browser-interactive charts

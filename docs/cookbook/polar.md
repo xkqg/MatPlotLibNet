@@ -1,3 +1,7 @@
+---
+description: "Draw polar charts in C#: radar plots, rose diagrams, polar scatter and polar line charts with angular ticks."
+---
+
 # Polar Charts
 
 ## Polar line

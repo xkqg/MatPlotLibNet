@@ -1,3 +1,7 @@
+---
+description: "Draw heatmaps in C# with 142 colormaps, annotated cells, colorbars and custom normalisation."
+---
+
 # Heatmaps & Colormaps
 
 ## Heatmap with colorbar

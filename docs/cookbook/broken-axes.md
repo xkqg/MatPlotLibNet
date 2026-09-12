@@ -1,3 +1,7 @@
+---
+description: "Draw a broken axis in C#. Cut an empty range out of the axis so widely separated values share one chart without wasted space."
+---
+
 # Broken / Discontinuous Axes
 
 Remove a range from the axis to show widely separated data without wasting space.

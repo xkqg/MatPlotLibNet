@@ -1,3 +1,7 @@
+---
+description: "Switch a C# chart between 30 themes, light and dark, and build a theme of your own."
+---
+
 # Themes
 
 ## Applying a theme

@@ -1,3 +1,7 @@
+---
+description: "Animate a chart in C# and save it as an animated GIF. Write a frame generator, pick a frame rate, and the library renders every frame for you."
+---
+
 # Animation
 
 ## FuncAnimation — declarative animated GIF

@@ -1,3 +1,7 @@
+---
+description: "Draw treemaps and sunburst charts in C# to show a hierarchy where each rectangle or ring segment is sized by value."
+---
+
 # Treemaps & Hierarchical Charts
 
 ## Nested pie

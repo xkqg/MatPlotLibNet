@@ -1,3 +1,7 @@
+---
+description: "Format axis ticks in C#: engineering and percent notation, currency, dates and times, and your own tick formatter."
+---
+
 # Tick Formatting
 
 ## Engineering notation

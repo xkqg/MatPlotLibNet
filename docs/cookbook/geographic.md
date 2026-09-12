@@ -1,3 +1,7 @@
+---
+description: "Draw maps in C# with 13 map projections, embedded Natural Earth coastlines and borders, GeoJSON and choropleth shading."
+---
+
 # Geographic Maps
 
 > **Requires:** `dotnet add package MatPlotLibNet.Geo`

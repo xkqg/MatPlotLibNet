@@ -1,3 +1,7 @@
+---
+description: "Stream live data into a C# chart. Append points from any thread and the chart updates at the frame rate you set."
+---
+
 # Streaming & Realtime
 
 ## Live line chart

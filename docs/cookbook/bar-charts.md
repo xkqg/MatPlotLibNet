@@ -1,3 +1,7 @@
+---
+description: "Draw bar charts in C# and .NET: vertical, horizontal, grouped and stacked bars, with labels, colors and value annotations."
+---
+
 # Bar Charts
 
 ## Bar chart with labels

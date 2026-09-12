@@ -1,3 +1,7 @@
+---
+description: "Write chart labels in any script from C#. Arabic joins its letters, Hebrew reads right to left, and Latin words inside them keep their place."
+---
+
 # International text
 
 Labels, titles and legend entries can be written in any script. Arabic and Hebrew work without any setup: the letters

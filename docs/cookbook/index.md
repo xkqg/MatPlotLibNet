@@ -1,3 +1,7 @@
+---
+description: "Copy-paste chart examples for C# and .NET, each with the code and the picture it produces. Line, bar, heatmap, financial, 3D, map and dashboard charts."
+---
+
 # Cookbook
 
 > **Try these examples live.** Open the [Playground](https://xkqg.github.io/MatPlotLibNet/playground/), pick an example, change the theme, resize the chart, and see the SVG update instantly in your browser. No install needed.

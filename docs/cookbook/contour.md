@@ -1,3 +1,7 @@
+---
+description: "Draw contour and filled contour plots in C# from a two-dimensional grid, with colormaps and labelled contour levels."
+---
+
 # Contour Plots
 
 ## Contour lines with labels

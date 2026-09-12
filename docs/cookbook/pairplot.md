@@ -1,3 +1,7 @@
+---
+description: "Draw a pair grid in C#: an N by N matrix of subplots with distributions on the diagonal and scatter plots off it."
+---
+
 # Pair Grid (PairPlot)
 
 A pair grid renders an N×N matrix of subplots from N variables. Each diagonal cell shows

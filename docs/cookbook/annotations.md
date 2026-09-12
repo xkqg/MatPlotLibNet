@@ -1,3 +1,7 @@
+---
+description: "Add text, arrows and callouts to a C# chart. Point at a value, label a peak, or highlight a region with a few lines of fluent code."
+---
+
 # Annotations
 
 ## Arrow annotations with background

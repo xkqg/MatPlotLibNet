@@ -1,3 +1,7 @@
+---
+description: "MatPlotLibNet is a charting library for C# and .NET, inspired by matplotlib. Draw 83 chart types and save them as SVG, PNG, PDF or an animated GIF."
+---
+
 # MatPlotLibNet
 
 **MatPlotLibNet is matplotlib for .NET.** It has 83 series types, 142 colormaps, 13 map projections, 30 themes, native Avalonia, Uno, WPF and MAUI controls, SignalR interactivity, streaming, an MCP server for AI agents, and publication-quality SVG, PNG and PDF output. It comes as 14 NuGet packages.

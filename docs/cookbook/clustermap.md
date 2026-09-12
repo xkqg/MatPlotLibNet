@@ -1,3 +1,7 @@
+---
+description: "Draw a clustermap in C#: a heatmap with row and column dendrograms, following the seaborn clustermap pattern."
+---
+
 # Clustermap
 
 A clustermap combines a heatmap with optional row and column dendrograms in a single

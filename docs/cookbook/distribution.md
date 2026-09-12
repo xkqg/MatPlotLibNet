@@ -1,3 +1,7 @@
+---
+description: "Draw distributions in C#: histograms, box plots, violin plots, KDE curves, ECDF and strip plots over your data."
+---
+
 # Distribution Charts
 
 ## Histogram

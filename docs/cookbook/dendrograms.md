@@ -1,3 +1,7 @@
+---
+description: "Draw a dendrogram in C# from hierarchical clustering, with merge distances, color thresholds and truncated trees."
+---
+
 # Dendrograms
 
 A dendrogram draws the result of hierarchical clustering. Every internal node is a *merge*.

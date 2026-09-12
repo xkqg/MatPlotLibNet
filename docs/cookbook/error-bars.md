@@ -1,3 +1,7 @@
+---
+description: "Draw error bars in C# charts: symmetric and asymmetric errors, caps, confidence bands and filled uncertainty regions."
+---
+
 # Error Bars
 
 ## Symmetric error bars

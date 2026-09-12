@@ -1,3 +1,7 @@
+---
+description: "Let an AI agent draw charts. The MatPlotLibNet MCP server renders any chart type to PNG, SVG or PDF from a JSON spec, over stdio."
+---
+
 # MCP server — charts for an AI agent
 
 `MatPlotLibNet.Mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. It is a .NET tool that an
