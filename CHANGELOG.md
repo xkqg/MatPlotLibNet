@@ -69,9 +69,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   NU1701 warnings on every restore. 10.0.19041 is the floor SkiaSharp itself sets for WPF, and 3.119.2 is the
   last 3.x with a net8.0-windows10.0.19041 asset: the same cut, and the same pin, the Uno view took. A consumer
   on `net8.0-windows` with a lower platform version needs to raise it to reference this package.
-
-### Changed
-
 - **The control-room sample keeps its windows in rings.** A process trend was a `Queue<double>` trimmed by a
   `while` loop on every tick, and the fleet's hour of telemetry a `ConcurrentQueue` that peeked and dequeued on
   every one of the 14 400 samples it holds. Both are `RingBuffer<T>` now, where the append IS the eviction and
