@@ -34,6 +34,19 @@ public sealed class DataTransform
     /// <summary>Gets the maximum Y value in data space (compressed if breaks active).</summary>
     public double DataYMax => _dataYMax;
 
+    /// <summary>The lowest X value the axis shows, in the space the DATA lives in.</summary>
+    /// <remarks>
+    /// On a log or symlog axis <see cref="DataXMin"/> is the SCALED bound — 0 for data that starts at 1, because
+    /// the pixel mapping works in log space. Anything that compares the axis range against raw sample values, such
+    /// as viewport culling, must use this instead, or it cuts away every point above 10^DataXMax while the axis
+    /// goes on drawing ticks for them. On a linear axis the two are the same number.
+    /// </remarks>
+    internal double UnscaledXMin => _fullXMin;
+
+    /// <summary>The highest X value the axis shows, in the space the DATA lives in.</summary>
+    /// <inheritdoc cref="UnscaledXMin"/>
+    internal double UnscaledXMax => _fullXMax;
+
     /// <summary>Initializes a new linear transform mapping the specified data range onto the given pixel bounds.</summary>
     /// <param name="dataXMin">Minimum X value in data space.</param>
     /// <param name="dataXMax">Maximum X value in data space.</param>

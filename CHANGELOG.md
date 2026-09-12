@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.17.1]
+### Fixed
+
+- **A chart on a log or symlog axis no longer loses points when downsampling is on.** Asking for a point budget with
+  `WithDownsampling(...)` or `MaxDisplayPoints` made the renderer compare the axis range against the raw data values,
+  and on those scales the range is held in log space: an axis running from 1 to 100 000 was compared as 0 to 5, so
+  every sample above 10^5-in-log-space was dropped as "outside the plot". The axis went on drawing its ticks for the
+  whole range, so the picture looked complete and was not. Measured on six points from 1 to 100 000 with a budget of
+  four: a line drew 2 of them, a step series 3, a scatter 2. All of them now draw what the budget asks for.
+- **A scatter keeps each marker's own size and colour.** Culling to the viewport renumbers the points from zero while
+  `Sizes`, `Colors`, `EdgeColors` and `LineWidths` are indexed by the position in the data, so a cull that started
+  past the first sample handed every marker another point's size and colour. A scatter that carries any of those
+  per-point arrays is now drawn whole, the way it already was when `C` was set.
+- **`WithDownsampling` says what it does.** Its documentation promised LTTB reduction for a scatter series; a scatter
+  is culled to the viewport and never reduced further. The text now says so.
+
 ## [1.17.0]
 ### Added
 

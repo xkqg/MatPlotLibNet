@@ -72,7 +72,9 @@ internal abstract class SeriesRenderer
     protected XYData ApplyDownsampling(double[] x, double[] y, int? maxPoints)
     {
         if (maxPoints is null || x.Length <= maxPoints.Value) return new(x, y);
-        var culled = ViewportCuller.Cull(x, y, Transform.DataXMin, Transform.DataXMax);
+        // The unscaled range, not DataXMin/DataXMax: the culler compares against raw sample values, and on a log
+        // or symlog axis the transform's range is in scaled space.
+        var culled = ViewportCuller.Cull(x, y, Transform.UnscaledXMin, Transform.UnscaledXMax);
         if (culled.X.Length <= maxPoints.Value) return culled;
         return new LttbDownsampler().Downsample(culled.X, culled.Y, maxPoints.Value);
     }
@@ -81,7 +83,7 @@ internal abstract class SeriesRenderer
     /// then applies LTTB downsampling when the slice exceeds <paramref name="maxPoints"/>.</summary>
     protected XYData ApplyMonotonicDownsampling<T>(T src, int? maxPoints)
         where T : IMonotonicXY =>
-        MonotonicViewportSlicer.Slice(src, Transform.DataXMin, Transform.DataXMax, maxPoints);
+        MonotonicViewportSlicer.Slice(src, Transform.UnscaledXMin, Transform.UnscaledXMax, maxPoints);
 
     /// <summary>Scans <paramref name="data"/> for its value range, then resolves the colour map and
     /// normalizer from the series. The <c>min == max</c> edge case is guarded with <c>max = min + 1</c>

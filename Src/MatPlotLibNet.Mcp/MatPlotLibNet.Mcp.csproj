@@ -12,7 +12,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Mcp</PackageId>
-    <Version>1.17.0</Version>
+    <Version>1.17.1</Version>
     <Description>MCP (Model Context Protocol) stdio server for MatPlotLibNet. An AI agent renders the library's chart types to PNG, SVG or PDF from a JSON spec, reads the chart's data back as a markdown table, lists the chart types and reads the spec schema — no browser, no service.</Description>
     <PackageTags>mcp;model-context-protocol;ai;agent;charting;stdio;plot</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

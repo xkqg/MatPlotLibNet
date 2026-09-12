@@ -19,14 +19,16 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
     {
         var defaultColor = ResolveColor(series.Color);
 
-        // When C is set, skip viewport culling — colors are index-tied to data array
-        XYData data;
-        if (series.C is not null)
-            data = new XYData(series.XData, series.YData);
-        else
-            data = series.MaxDisplayPoints.HasValue
-                ? ViewportCuller.Cull(series.XData, series.YData, Transform.DataXMin, Transform.DataXMax)
-                : new XYData(series.XData, series.YData);
+        // Culling re-bases the arrays to index 0, and every per-point array below is indexed by the position in
+        // the DATA, so a cull that starts past the first sample would hand each marker another point's size,
+        // colour or edge. Any of them set means the points are drawn whole.
+        bool indexTied = series.C is not null || series.Colors is not null || series.Sizes is not null
+                      || series.EdgeColors is not null || series.LineWidths is not null;
+        XYData data = !indexTied && series.MaxDisplayPoints.HasValue
+            // The unscaled range: the culler compares against raw sample values, and on a log or symlog axis the
+            // transform's range is in scaled space.
+            ? ViewportCuller.Cull(series.XData, series.YData, Transform.UnscaledXMin, Transform.UnscaledXMax)
+            : new XYData(series.XData, series.YData);
 
         // Pre-compute C normalization bounds once
         double cMin = 0, cMax = 1;

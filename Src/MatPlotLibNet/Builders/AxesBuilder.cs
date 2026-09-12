@@ -440,8 +440,10 @@ public sealed class AxesBuilder
     }
 
     /// <summary>
-    /// Enables LTTB downsampling on the last XY series (Line, Area, Scatter, Step) added to this axes.
+    /// Enables LTTB downsampling on the last XY series (Line, Area, Step, Signal, SignalXY) added to this axes.
     /// Viewport culling is applied first; if the result still exceeds <paramref name="maxPoints"/>, LTTB reduces it.
+    /// A scatter series is culled to the viewport but never reduced further, because each marker may carry its own
+    /// size and colour; a scatter that carries any of those per-point arrays is drawn whole.
     /// </summary>
     /// <param name="maxPoints">Maximum number of points to display. Default is 2000.</param>
     /// <remarks>Only the last XY series is affected; call after each series you want to downsample. The two-stage pipeline (viewport cull → LTTB) is opt-in — series without <c>MaxDisplayPoints</c> set are rendered at full resolution.</remarks>
