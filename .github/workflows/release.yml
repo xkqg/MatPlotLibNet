@@ -52,71 +52,63 @@ jobs:
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          TAG: ${{ steps.create_release.outputs.tag }}
+          URL: ${{ steps.create_release.outputs.url }}
         run: |
-          TAG="${{ steps.create_release.outputs.tag }}"
-          URL="${{ steps.create_release.outputs.url }}"
+          set -euo pipefail
           TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 83 series types, 3D charts, an MCP server so an AI agent can draw with it, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed. ${URL}"
 
-          SESSION=$(curl -s -X POST https://bsky.social/xrpc/com.atproto.server.createSession \
-            -H "Content-Type: application/json" \
-            -d "{\"identifier\":\"${BLUESKY_HANDLE}\",\"password\":\"${BLUESKY_APP_PASSWORD}\"}")
-          DID=$(echo "$SESSION" | jq -r '.did')
-          TOKEN=$(echo "$SESSION" | jq -r '.accessJwt')
+          # jq builds every body below. Hand-quoted JSON inside a shell string breaks the first time the text
+          # carries a quote, a backslash or a newline, and it breaks quietly: the API answers 400 and nothing
+          # here used to read the answer.
+          SESSION=$(jq -n --arg id "$BLUESKY_HANDLE" --arg pw "$BLUESKY_APP_PASSWORD" '{identifier:$id, password:$pw}' | curl -sS -X POST https://bsky.social/xrpc/com.atproto.server.createSession -H "Content-Type: application/json" -d @-)
+          DID=$(echo "$SESSION" | jq -r '.did // empty')
+          TOKEN=$(echo "$SESSION" | jq -r '.accessJwt // empty')
+          [ -n "$DID" ] && [ -n "$TOKEN" ] || { echo "Bluesky login failed:"; echo "$SESSION"; exit 1; }
 
-          NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
-          curl -s -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord \
-            -H "Authorization: Bearer ${TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"repo\": \"${DID}\",
-              \"collection\": \"app.bsky.feed.post\",
-              \"record\": {
-                \"\$type\": \"app.bsky.feed.post\",
-                \"text\": \"${TEXT}\",
-                \"createdAt\": \"${NOW}\"
-              }
-            }"
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+          CODE=$(jq -n --arg repo "$DID" --arg text "$TEXT" --arg now "$NOW" '{repo:$repo, collection:"app.bsky.feed.post", record:{"$type":"app.bsky.feed.post", text:$text, createdAt:$now}}' | curl -sS -o /tmp/bsky.json -w '%{http_code}' -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d @-)
+          echo "Bluesky HTTP $CODE"; cat /tmp/bsky.json; echo
+          [ "$CODE" -lt 400 ] || exit 1
 
       - name: Post to Mastodon
         if: env.MASTODON_ACCESS_TOKEN != ''
         env:
           MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
           MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
+          TAG: ${{ steps.create_release.outputs.tag }}
+          URL: ${{ steps.create_release.outputs.url }}
         run: |
-          TAG="${{ steps.create_release.outputs.tag }}"
-          URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 83 series types, 3D charts, an MCP server so an AI agent can draw with it, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.
+          set -euo pipefail
+          # Built line by line rather than as one quoted block: a multi-line string inside this YAML carries the
+          # YAML's own indentation into the post, which arrives as ten stray spaces in front of every line.
+          HEAD="MatPlotLibNet ${TAG} released — matplotlib for .NET with 83 series types, 3D charts, an MCP server so an AI agent can draw with it, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed."
+          TAGS="#dotnet #csharp #dataviz #charting #opensource"
+          TEXT=$(printf '%s\n\n%s\n\n%s' "$HEAD" "$URL" "$TAGS")
 
-          ${URL}
-
-          #dotnet #csharp #dataviz #charting #opensource"
-
-          curl -s -X POST "https://${MASTODON_INSTANCE}/api/v1/statuses" \
-            -H "Authorization: Bearer ${MASTODON_ACCESS_TOKEN}" \
-            -F "status=${TEXT}" \
-            -F "visibility=public"
+          CODE=$(curl -sS -o /tmp/masto.json -w '%{http_code}' -X POST "https://${MASTODON_INSTANCE}/api/v1/statuses" -H "Authorization: Bearer ${MASTODON_ACCESS_TOKEN}" -F "status=${TEXT}" -F "visibility=public")
+          echo "Mastodon HTTP $CODE"; cat /tmp/masto.json; echo
+          [ "$CODE" -lt 400 ] || exit 1
 
       - name: Post to LinkedIn
         if: env.LINKEDIN_ACCESS_TOKEN != ''
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           LINKEDIN_PERSON_URN: ${{ secrets.LINKEDIN_PERSON_URN }}
+          # LinkedIn dates its API by month and keeps a version alive for roughly a year; a stale one comes back
+          # as 426 Upgrade Required. Override it without touching this file by setting the repository VARIABLE
+          # LINKEDIN_API_VERSION under Settings > Secrets and variables > Actions > Variables.
+          LINKEDIN_VERSION: ${{ vars.LINKEDIN_API_VERSION || '202609' }}
+          TAG: ${{ steps.create_release.outputs.tag }}
+          URL: ${{ steps.create_release.outputs.url }}
         run: |
-          TAG="${{ steps.create_release.outputs.tag }}"
-          URL="${{ steps.create_release.outputs.url }}"
-          TEXT="MatPlotLibNet ${TAG} released — matplotlib for .NET with 83 series types, 3D charts, an MCP server so an AI agent can draw with it, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed.\n\n${URL}"
+          set -euo pipefail
+          # /v2/ugcPosts is the legacy endpoint — LinkedIn stopped handing it to new integrations in 2023 and no
+          # longer promises it works. /rest/posts is what a freshly created app is allowed to call, and it wants
+          # the LinkedIn-Version and X-Restli-Protocol-Version headers with every request.
+          HEAD="MatPlotLibNet ${TAG} released — matplotlib for .NET with 83 series types, 3D charts, an MCP server so an AI agent can draw with it, native Avalonia + Uno controls, and SignalR interactivity. MIT licensed."
+          TEXT=$(printf '%s\n\n%s' "$HEAD" "$URL")
 
-          curl -s -X POST "https://api.linkedin.com/v2/ugcPosts" \
-            -H "Authorization: Bearer ${LINKEDIN_ACCESS_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"author\": \"${LINKEDIN_PERSON_URN}\",
-              \"lifecycleState\": \"PUBLISHED\",
-              \"specificContent\": {
-                \"com.linkedin.ugc.ShareContent\": {
-                  \"shareCommentary\": { \"text\": \"${TEXT}\" },
-                  \"shareMediaCategory\": \"NONE\"
-                }
-              },
-              \"visibility\": { \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\" }
-            }"
+          CODE=$(jq -n --arg author "$LINKEDIN_PERSON_URN" --arg text "$TEXT" '{author:$author, commentary:$text, visibility:"PUBLIC", distribution:{feedDistribution:"MAIN_FEED", targetEntities:[], thirdPartyDistributionChannels:[]}, lifecycleState:"PUBLISHED", isReshareDisabledByAuthor:false}' | curl -sS -o /tmp/li.json -w '%{http_code}' -X POST https://api.linkedin.com/rest/posts -H "Authorization: Bearer ${LINKEDIN_ACCESS_TOKEN}" -H "LinkedIn-Version: ${LINKEDIN_VERSION}" -H "X-Restli-Protocol-Version: 2.0.0" -H "Content-Type: application/json" -d @-)
+          echo "LinkedIn HTTP $CODE"; cat /tmp/li.json; echo
+          [ "$CODE" -lt 400 ] || exit 1
