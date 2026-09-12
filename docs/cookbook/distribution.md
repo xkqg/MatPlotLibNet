@@ -150,6 +150,40 @@ Plt.Create()
     .Save("hist_kde_rug.svg");
 ```
 
+## Density scatter — where the points pile up
+
+A scatter of ten thousand points is a black blob. The markers overlap, and where they overlap most is the one
+thing a reader wants to know and cannot see. `DensityScatter` gives each marker its colour from how many points
+share its neighbourhood:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .DensityScatter(x, y)
+        .SetXLabel("latency (ms)")
+        .SetYLabel("payload (kB)")
+        .WithColorBar(cb => cb with { Label = "points" }))
+    .Save("density_scatter.svg");
+```
+
+The crowding is **counted**, not estimated with a kernel. A two-dimensional kernel estimate walks every other
+point for every point, so it costs the square of the sample size — and this chart is only worth drawing when
+there are enough points that the markers overlap, which is exactly where that cost becomes unpayable. Instead a
+grid is laid over the cloud and each point takes the count of its own cell.
+
+The grid sizes itself to the point count, aiming at roughly ten points per cell. Pass `bins` to choose:
+
+```csharp
+ax.DensityScatter(x, y, bins: 40);
+```
+
+Your own configuration runs afterwards, so a better number than crowding can take the colour instead, and the
+marker colouring stays:
+
+```csharp
+ax.DensityScatter(x, y, s => { s.C = error; s.ColorMap = DivergingColorMaps.RdBu; });
+```
+
 ## Fluent API reference — HistogramSeries
 
 | Property | Type | Default | Description |

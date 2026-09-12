@@ -6,23 +6,32 @@ Pre-written submission texts for .NET community awesome lists. Copy-paste into a
 
 ## 1. awesome-dotnet (quozd/awesome-dotnet — 19k+ stars)
 
-**Section:** Graphics / Charting
+**Section:** `## Graphics` · **Format checked against the live README:** `* [Name](url) - description`, a plain
+hyphen between the link and the text, no bold, one line per entry, alphabetical within the section.
+
+**Status:** prepared, not submitted. MatPlotLibNet is absent from the list (checked against the raw README).
+Submitting means opening a pull request on someone else's repository, so it waits for the maintainer.
 
 ```markdown
-* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) — matplotlib-inspired charting for .NET 10. 83 series types, 148 colormaps, 3D projection pipeline, MathText (LaTeX-like labels), native Avalonia/Uno/MAUI controls, bidirectional SignalR, SVG/PNG/PDF/GIF export. MIT licensed.
+* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - matplotlib-inspired charting for .NET 10 and .NET 8. 83 series types, 148 colormaps, 3D projection pipeline, MathText, right-to-left and complex-script text, native WPF/Avalonia/Uno/MAUI controls, an MCP server for AI agents, and SVG/PNG/PDF/GIF export. MIT licensed.
 ```
 
-**PR title:** Add MatPlotLibNet to Graphics section
+**PR title:** Add MatPlotLibNet to Graphics
 
 ---
 
 ## 2. awesome-dotnet-core (thangchung/awesome-dotnet-core — 20k+ stars)
 
-**Section:** Graphics
+**Section:** `### Graphics` · **Format checked against the live README:** `* [Name](url) - description.`, a plain
+hyphen, and the description ends in a full stop.
+
+**Status:** prepared, not submitted. MatPlotLibNet is absent from the list (checked against the raw README).
 
 ```markdown
-* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) — Code-first charting library inspired by matplotlib. Fluent API, 83 series types (including 12 3D types), 148 colormaps, SIMD numerics, native UI controls (Avalonia 12, Uno, MAUI), SignalR interactivity, and headless SVG/PNG/PDF rendering.
+* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - Code-first charting inspired by matplotlib. Fluent API, 83 series types including 12 in 3D, 148 colormaps, SIMD numerics, native UI controls for Avalonia, Uno and MAUI, SignalR interactivity, and headless SVG/PNG/PDF rendering.
 ```
+
+**PR title:** Add MatPlotLibNet to Graphics
 
 ---
 
@@ -88,7 +97,7 @@ Where it stands now:
 - **148 colormaps**, SIMD numerics, DataFrame integration with 58 technical indicators, Jupyter notebooks
 - **An MCP server** so an agent can draw one of these charts and then look at it
 
-MIT licensed, .NET 10 and .NET 8, 11,700 tests, and every class has to clear 90 % line and branch coverage.
+MIT licensed, .NET 10 and .NET 8, 11,757 tests, and every class has to clear 90 % line and branch coverage.
 
 - GitHub: https://github.com/xkqg/MatPlotLibNet
 - NuGet: https://www.nuget.org/packages/MatPlotLibNet

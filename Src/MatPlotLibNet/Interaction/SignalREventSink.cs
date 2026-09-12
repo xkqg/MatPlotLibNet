@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 namespace MatPlotLibNet.Interaction;
@@ -24,6 +24,7 @@ public static class SignalREventSink
             LegendToggleEvent l => sendAsync("OnLegendToggle", l),
             BrushSelectEvent b  => sendAsync("OnBrushSelect", b),
             HoverEvent h        => sendAsync("OnHover", h),
+            DataCursorEvent d   => sendAsync("OnDataCursor", d),
             _                   => Task.CompletedTask
         };
     }

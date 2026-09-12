@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Linq;
@@ -261,4 +261,124 @@ public class OpsDashboardBuilderTests
         Assert.Equal(OpsDashboardBuilder.TileGap, computed.HorizontalGap);
     }
 
+    // ── the topology panel ─────────────────────────────────────────────────────
+    //
+    // A tile row says WHAT is wrong. A topology panel says WHERE it is wrong and what sits downstream of it.
+    // The row it lands on is the whole risk: the trend is the last row and takes the tallest ratio, so a panel
+    // appended after it would take that ratio and leave the trend at zero — a panel that renders, occupies no
+    // height, and reports no error. The topology therefore sits BETWEEN the timelines and the trend.
+
+    private static readonly IReadOnlyList<GraphNode> Services =
+    [
+        new("gateway", Label: "gateway"),
+        new("orders", Label: "orders"),
+        new("payments", Label: "payments", ColorScalar: 0.95),
+    ];
+
+    private static readonly IReadOnlyList<GraphEdge> Calls =
+    [
+        new("gateway", "orders", 2.0, IsDirected: true),
+        new("orders", "payments", 1.0, IsDirected: true),
+    ];
+
+    [Fact]
+    public void ATopologyPanel_GetsItsOwnRow()
+    {
+        var figure = Plt.OpsDashboard().AddTile(15).AddTopology(Services, Calls).Build().Build();
+
+        Assert.Equal(2, figure.SubPlots.Count);
+        Assert.Equal(2, figure.GridSpec!.Rows);
+        Assert.Single(figure.SubPlots[1].Series.OfType<NetworkGraphSeries>());
+    }
+
+    [Fact]
+    public void ATopologyPanel_SitsBetweenTheTimelinesAndTheTrend()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(15)
+            .AddTimeline([new StateSegment(0, 1, "Up", Colors.Tab10Green)])
+            .AddTopology(Services, Calls)
+            .AddTrend([0, 1], [1, 2])
+            .Build()
+            .Build();
+
+        Assert.Equal(4, figure.SubPlots.Count);
+        Assert.Single(figure.SubPlots[1].Series.OfType<StateTimelineSeries>());
+        Assert.Single(figure.SubPlots[2].Series.OfType<NetworkGraphSeries>());
+        Assert.Single(figure.SubPlots[3].Series.OfType<LineSeries>());
+    }
+
+    [Fact]
+    public void ATopologyPanel_DoesNotTakeTheTrendsHeight()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(15)
+            .AddTimeline([new StateSegment(0, 1, "Up", Colors.Tab10Green)])
+            .AddTopology(Services, Calls)
+            .AddTrend([0, 1], [1, 2])
+            .Build()
+            .Build();
+
+        var ratios = figure.GridSpec!.HeightRatios!;
+
+        Assert.Equal(4, ratios.Length);
+        Assert.All(ratios, ratio => Assert.True(ratio > 0, "every row is given a height: " + string.Join(", ", ratios)));
+        Assert.Equal(ratios[2], ratios[3]);   // a panel is a panel, whether it draws a graph or a trace
+    }
+
+    [Fact]
+    public void ATopologyPanel_HasNoCoordinatesToRead()
+    {
+        // The numbers on the axes of a service map mean nothing: they are whatever the layout happened to produce.
+        var figure = Plt.OpsDashboard().AddTile(15).AddTopology(Services, Calls).Build().Build();
+
+        var panel = figure.SubPlots[1];
+
+        Assert.False(panel.Spines.Left.Visible);
+        Assert.False(panel.Spines.Bottom.Visible);
+        Assert.False(panel.XAxis.MajorTicks.Visible);
+        Assert.False(panel.YAxis.MajorTicks.Visible);
+    }
+
+    [Fact]
+    public void ATopologyPanel_MakesTheFigureTaller()
+    {
+        double without = Plt.OpsDashboard().AddTile(15).Build().Build().Height;
+        double with = Plt.OpsDashboard().AddTile(15).AddTopology(Services, Calls).Build().Build().Height;
+
+        Assert.True(with > without, $"a panel needs room: {without} -> {with}");
+    }
+
+    [Fact]
+    public void TheCaller_ConfiguresTheGraphItself()
+    {
+        // A map that moves between refreshes is a map an operator has to learn again every time, so the seed is
+        // the caller's to fix — the builder does not choose it for them.
+        var figure = Plt.OpsDashboard()
+            .AddTile(15)
+            .AddTopology(Services, Calls, s => { s.Layout = GraphLayout.ForceDirected; s.LayoutSeed = 42; })
+            .Build()
+            .Build();
+
+        var graph = figure.SubPlots[1].Series.OfType<NetworkGraphSeries>().Single();
+
+        Assert.Equal(GraphLayout.ForceDirected, graph.Layout);
+        Assert.Equal(42, graph.LayoutSeed);
+    }
+
+    [Fact]
+    public void TwoTopologyPanels_EachGetTheirOwnRow()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(15)
+            .AddTopology(Services, Calls)
+            .AddTopology(Services, Calls)
+            .AddTrend([0, 1], [1, 2])
+            .Build()
+            .Build();
+
+        Assert.Equal(4, figure.SubPlots.Count);
+        Assert.Equal(4, figure.GridSpec!.HeightRatios!.Length);
+        Assert.Equal(2, figure.SubPlots.Count(ax => ax.Series.OfType<NetworkGraphSeries>().Any()));
+    }
 }

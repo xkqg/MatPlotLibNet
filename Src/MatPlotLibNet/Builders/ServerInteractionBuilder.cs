@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 namespace MatPlotLibNet.Builders;
@@ -16,6 +16,7 @@ public sealed class ServerInteractionBuilder
     internal bool LegendToggle { get; private set; }
     internal bool BrushSelect { get; private set; }
     internal bool Hover { get; private set; }
+    internal bool DataCursor { get; private set; }
 
     /// <summary>Opt in to <c>ZoomEvent</c> round-trips.</summary>
     public ServerInteractionBuilder EnableZoom() { Zoom = true; return this; }
@@ -38,6 +39,11 @@ public sealed class ServerInteractionBuilder
     /// originating client only.</summary>
     public ServerInteractionBuilder EnableHover() { Hover = true; return this; }
 
+    /// <summary>Opt in to <c>DataCursorEvent</c> round-trips. A click on a marker becomes a server-side
+    /// notification delivered to the chart's data-cursor handler, naming the series the reader clicked and
+    /// where on the axes they clicked it.</summary>
+    public ServerInteractionBuilder EnableDataCursor() { DataCursor = true; return this; }
+
     /// <summary>Opt in to every event type (v1.2.0 + v1.2.2).</summary>
     public ServerInteractionBuilder All()
     {
@@ -47,6 +53,7 @@ public sealed class ServerInteractionBuilder
         LegendToggle = true;
         BrushSelect = true;
         Hover = true;
+        DataCursor = true;
         return this;
     }
 }

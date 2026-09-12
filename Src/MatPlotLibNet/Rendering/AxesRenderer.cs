@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Collections.Concurrent;
@@ -155,27 +155,33 @@ public abstract class AxesRenderer
     /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
     protected void RenderSeries(DataTransform transform)
     {
-        // Bar grouping: when multiple vertical non-stacked bar series share the same categories,
-        // assign offsets so bars sit side-by-side (matching matplotlib grouped bar behaviour).
-        var barGroups = Axes.Series
-            .OfType<Models.Series.BarSeries>()
-            .Where(b => b.Orientation == Models.Series.BarOrientation.Vertical && b.StackBaseline is null)
-            .ToList();
-        if (barGroups.Count > 1)
+        // Bar grouping: when several non-stacked bar series share the same categories, they step aside for
+        // each other so the bars sit side by side, the way matplotlib's grouped bars do. Each ORIENTATION is
+        // grouped among its own — a vertical bar offset against a horizontal one compares nothing — and until
+        // 1.17.1 the horizontal ones were skipped altogether, so two of them were drawn exactly on top of each
+        // other with the last one painted over the rest.
+        foreach (var orientation in new[] { Models.Series.BarOrientation.Vertical, Models.Series.BarOrientation.Horizontal })
         {
-            // Total group width = 0.7 (same as matplotlib default bar width 0.8 but snug for groups).
-            double groupW = 0.7;
-            double barW   = groupW / barGroups.Count;
-            for (int bi = 0; bi < barGroups.Count; bi++)
+            var barGroups = Axes.Series
+                .OfType<Models.Series.BarSeries>()
+                .Where(b => b.Orientation == orientation && b.StackBaseline is null)
+                .ToList();
+            if (barGroups.Count > 1)
             {
-                barGroups[bi].BarGroupOffset = (bi - (barGroups.Count - 1) / 2.0) * barW;
-                barGroups[bi].BarGroupWidth  = barW;
+                // Total group width = 0.7 (same as matplotlib default bar width 0.8 but snug for groups).
+                double groupW = 0.7;
+                double barW   = groupW / barGroups.Count;
+                for (int bi = 0; bi < barGroups.Count; bi++)
+                {
+                    barGroups[bi].BarGroupOffset = (bi - (barGroups.Count - 1) / 2.0) * barW;
+                    barGroups[bi].BarGroupWidth  = barW;
+                }
             }
-        }
-        else if (barGroups.Count == 1)
-        {
-            barGroups[0].BarGroupOffset = 0;
-            barGroups[0].BarGroupWidth  = null; // use series.BarWidth
+            else if (barGroups.Count == 1)
+            {
+                barGroups[0].BarGroupOffset = 0;
+                barGroups[0].BarGroupWidth  = null; // use series.BarWidth
+            }
         }
 
         var svgCtx = Ctx as SvgRenderContext;

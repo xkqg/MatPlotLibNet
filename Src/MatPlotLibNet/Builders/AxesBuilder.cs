@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Indicators;
@@ -554,7 +554,13 @@ public sealed class AxesBuilder
     /// <summary>Configures the grid style using a transform function, preserving all other properties.</summary>
     public AxesBuilder WithGrid(Func<GridStyle, GridStyle> configure)
     {
+        ArgumentNullException.ThrowIfNull(configure);
         _axes.Grid = configure(_axes.Grid);
+        // The CHANGE is kept as well as its result, because what a caller means by this on a themed chart is
+        // "the theme's grid, but ...". Keeping only the result cost them the theme (the grid arrives with every
+        // unmentioned property back at its bare default), and reading only the result's Visible could not tell
+        // "no grid, please" from "nothing said" — so asking for no grid under a gridded theme drew one anyway.
+        _axes.GridOverride = configure;
         return this;
     }
 
@@ -566,9 +572,86 @@ public sealed class AxesBuilder
     public AxesBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null)
         => AddSeries(ax => ax.Scatter(x, y), configure);
 
+    /// <summary>Adds a scatter whose markers are coloured by how crowded their neighbourhood is.
+    /// <para>A scatter of ten thousand points is a black blob: the markers overlap, and where they overlap most
+    /// is exactly what the reader wants to know and cannot see. This counts how many points share each point's
+    /// cell of a grid laid over the cloud, puts that count on the series as its colour value, and gives it a
+    /// perceptually uniform colour map to read it with.</para>
+    /// <para>Counted, not estimated: a two-dimensional kernel estimate walks every other point for every point,
+    /// which is unaffordable at exactly the sample sizes that make this chart worth drawing.
+    /// <paramref name="configure"/> runs afterwards, so a caller with a better number than crowding - an age, a
+    /// score, an error - can assign their own and keep everything else.</para></summary>
+    /// <param name="x">The X coordinates.</param>
+    /// <param name="y">The Y coordinates, one per X.</param>
+    /// <param name="bins">Cells to a side of the counting grid; 0 chooses one from the point count, aiming at
+    /// roughly ten points per cell.</param>
+    /// <param name="configure">Optional configuration, applied after the density is assigned.</param>
+    /// <returns>This builder for chaining.</returns>
+    /// <exception cref="ArgumentException">The two axes carry different numbers of points.</exception>
+    public AxesBuilder DensityScatter(double[] x, double[] y, Action<ScatterSeries>? configure = null, int bins = 0)
+    {
+        ArgumentNullException.ThrowIfNull(x);
+        ArgumentNullException.ThrowIfNull(y);
+
+        double[] density = Numerics.PointDensity.PerPoint(
+            x, y, bins > 0 ? bins : Numerics.PointDensity.BinsFor(x.Length));
+
+        return AddSeries(ax => ax.Scatter(x, y), series =>
+        {
+            series.C = density;
+            series.ColorMap = Styling.ColorMaps.ColorMaps.Viridis;
+            configure?.Invoke(series);
+        });
+    }
+
     /// <summary>Adds a bar series to the axes.</summary>
     public AxesBuilder Bar(string[] categories, double[] values, Action<BarSeries>? configure = null)
         => AddSeries(ax => ax.Bar(categories, values), configure);
+
+    /// <summary>Adds several bars per category in one call: one series per group, each labelled with the
+    /// group's name, drawn side by side inside every category.
+    /// <para>The groups are an ordered list, not a map. The order is the picture — it decides which bar sits
+    /// where in each category and which colour it takes from the theme's cycle — and a map has no order to give.
+    /// <paramref name="configure"/> runs on every one of them, so set the orientation, the alpha or the hatch
+    /// once rather than per group.</para></summary>
+    /// <param name="categories">The categories along the axis, shared by every group.</param>
+    /// <param name="groups">The groups, in the order they should be drawn. At least one, and each must carry
+    /// exactly one value per category.</param>
+    /// <param name="configure">Optional configuration applied to every series.</param>
+    /// <returns>This builder for chaining.</returns>
+    /// <exception cref="ArgumentException">No groups, or a group whose value count does not match the
+    /// categories — named, so the caller knows which one.</exception>
+    public AxesBuilder GroupedBar(string[] categories, IReadOnlyList<BarGroup> groups,
+        Action<BarSeries>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(categories);
+        ArgumentNullException.ThrowIfNull(groups);
+        if (groups.Count == 0)
+        {
+            throw new ArgumentException("A grouped bar chart needs at least one group.", nameof(groups));
+        }
+
+        foreach (var group in groups)
+        {
+            if (group.Values.Length != categories.Length)
+            {
+                throw new ArgumentException(
+                    $"Group '{group.Label}' carries {group.Values.Length} values; there are {categories.Length} categories.",
+                    nameof(groups));
+            }
+        }
+
+        foreach (var group in groups)
+        {
+            Bar(categories, group.Values, series =>
+            {
+                series.Label = group.Label;
+                configure?.Invoke(series);
+            });
+        }
+
+        return this;
+    }
 
     /// <summary>Adds a histogram series to the axes.</summary>
     public AxesBuilder Hist(double[] data, int bins = 10, Action<HistogramSeries>? configure = null)

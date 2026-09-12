@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Interaction;
@@ -73,6 +73,42 @@ public class SignalRInteractionTestsV122 : IAsyncDisposable
 
         await conn.DisposeAsync();
         await registry.UnregisterAsync("brush-1");
+    }
+
+    /// <summary>The clicked data point, over the real transport. It is the brush-select shape rather than the
+    /// hover shape: the handler is told, and nothing is sent back or broadcast, because a click asks about the
+    /// data rather than changing it. Before this the sink dropped it into its discard arm and the hub had no
+    /// method to receive it.</summary>
+    [Fact]
+    public async Task OnDataCursor_FiresTheHandler_WithThePointClicked_AndBroadcastsNothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var registry = _host.Services.GetRequiredService<FigureRegistry>();
+        var figure = Plt.Create().Plot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]).Build();
+        var received = new TaskCompletionSource<DataCursorEvent>();
+        registry.Register("click-1", figure, opts =>
+            opts.OnDataCursor(evt => { received.TrySetResult(evt); return default; }));
+
+        var conn = CreateConnection();
+        var svgReceived = new TaskCompletionSource<string>();
+        conn.On<string, string>("UpdateChartSvg", (_, svg) => svgReceived.TrySetResult(svg));
+        await conn.StartAsync(ct);
+        await conn.InvokeAsync("Subscribe", "click-1", cancellationToken: ct);
+
+        var clicked = new DataCursorEvent("click-1", 0, new PinnedAnnotation("load", 2.0, 5.0, 120, 60, 0));
+        await conn.InvokeAsync(nameof(ChartHub.OnDataCursor), clicked, cancellationToken: ct);
+
+        var handled = await received.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        Assert.Equal("load", handled.Annotation.SeriesLabel);
+        Assert.Equal(2.0, handled.Annotation.DataX);
+        Assert.Equal(5.0, handled.Annotation.DataY);
+        Assert.Equal(0, handled.AxesIndex);
+
+        await Task.Delay(250, ct);
+        Assert.False(svgReceived.Task.IsCompleted, "a click must not trigger an UpdateChartSvg broadcast");
+
+        await conn.DisposeAsync();
+        await registry.UnregisterAsync("click-1");
     }
 
     [Fact]

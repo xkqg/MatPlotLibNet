@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Interaction;
@@ -42,5 +42,24 @@ public class ChartSessionOptionsTests
     {
         var opts = new ChartSessionOptions();
         Assert.Throws<ArgumentNullException>(() => opts.OnHover(null!));
+    }
+
+    /// <summary>A data-cursor handler is registered fluently, like the other two.</summary>
+    [Fact]
+    public void OnDataCursor_ReturnsTheSameOptions_ForChaining()
+    {
+        var opts = new ChartSessionOptions();
+
+        Assert.Same(opts, opts.OnDataCursor(_ => default));
+    }
+
+    /// <summary>And a null one is refused rather than stored, so the failure names the argument instead of
+    /// arriving later as a click that does nothing.</summary>
+    [Fact]
+    public void OnDataCursor_NullHandler_ThrowsArgumentNullException()
+    {
+        var opts = new ChartSessionOptions();
+
+        Assert.Throws<ArgumentNullException>(() => opts.OnDataCursor(null!));
     }
 }

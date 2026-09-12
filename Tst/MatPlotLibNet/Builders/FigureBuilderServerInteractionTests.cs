@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Builders;
@@ -150,5 +150,38 @@ public class FigureBuilderServerInteractionTests
         Assert.True(figure.EnableLegendToggle);
         Assert.True(figure.EnableSelection);
         Assert.True(figure.EnableRichTooltips);
+    }
+
+    [Fact]
+    public void EnableDataCursor_TurnsOnTheDataCursor()
+    {
+        var figure = Plt.Create()
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .WithServerInteraction("c", i => i.EnableDataCursor())
+            .Build();
+
+        Assert.True(figure.EnableDataCursor);
+    }
+
+    [Fact]
+    public void WithoutIt_TheDataCursorStaysOff()
+    {
+        var figure = Plt.Create()
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .WithServerInteraction("c", i => i.EnableZoom())
+            .Build();
+
+        Assert.False(figure.EnableDataCursor);
+    }
+
+    [Fact]
+    public void All_IncludesTheDataCursor()
+    {
+        var figure = Plt.Create()
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .WithServerInteraction("c", i => i.All())
+            .Build();
+
+        Assert.True(figure.EnableDataCursor);
     }
 }

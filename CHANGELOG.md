@@ -26,6 +26,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   you are drawing. They carry the same values matplotlib ships under those names, so a chart drawn either side of
   the fence looks the same. That brings the library to 148 colormaps, 74 base maps each with its reversed variant.
 
+- **A topology panel on the operations dashboard: `AddTopology(nodes, edges)`.** A service map of what is
+  calling what, beside the tiles that say something is wrong, so a reader can see where it is wrong and what
+  sits downstream of it. It is drawn as a network graph with the panel conventions applied: no ticks, no grid,
+  no spines, because the coordinates a layout happens to produce mean nothing. Fix the layout seed and a map
+  stops rearranging itself between refreshes. It lands between the timelines and the trend, never after it —
+  the trend is the last row and carries the tallest height ratio, so a panel appended after it would take that
+  ratio and leave the trend at zero height, drawing nothing and reporting no error.
+
+- **Several bars per category in one call: `GroupedBar(categories, groups)`.** The renderer has always placed
+  multiple bar series side by side; what was missing was the entry point that takes the groups. Each group
+  becomes its own series, labelled with the group's name, and one configuration action reaches all of them.
+  The groups are an ordered list rather than a map from name to values, because that order is the picture: it
+  decides which bar sits where inside every category and which colour it takes from the theme's cycle, and a
+  map has no order to give.
+
+- **A scatter coloured by how crowded it is: `DensityScatter(x, y)`.** Ten thousand points is a black blob —
+  the markers overlap, and where they overlap most is the one thing the reader wants to know and cannot see.
+  Each marker now takes its colour from how many points share its cell of a grid laid over the cloud. Counted
+  rather than estimated with a kernel: a two-dimensional kernel estimate walks every other point for every
+  point, which is unaffordable at exactly the sample sizes that make the chart worth drawing. The grid sizes
+  itself to the point count unless you say otherwise, and your own configuration runs afterwards, so a better
+  number than crowding can replace it.
+
+- **The clicked point travels the server route too.** `EnableDataCursor()` opts a server-driven chart in, the
+  browser reports a click on a marker to the hub, and `ChartSessionOptions.OnDataCursor` delivers it to your
+  handler with the series that was clicked and where on the axes. Fire-and-forget like a brush-select: a click
+  asks about the data rather than changing it, so nothing is re-rendered and nothing is broadcast. The native
+  controls already raise `DataPointClicked` in process; this is the same gesture for a chart whose figure lives
+  on the server.
+
 - **A latency heatmap recipe, and a topology panel recipe.** Both charts could already be drawn and neither was
   written down. The cookbook now has a page for the latency heatmap — a histogram over time, a real clock across
   the bottom, log-scaled latency buckets up the side, counts in the cells, a percentile line on top — with the
@@ -54,6 +84,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   keep working, nothing new is coming, and new work belongs in `MatPlotLibNet.Interactive`.
 
 ### Fixed
+
+- **`WithGrid` changes the theme's grid instead of replacing it, and can turn it off.** The renderer took the
+  axes' grid when it happened to be visible and the theme's otherwise, which could not tell "no grid, please"
+  from "nothing said". Two things followed. Asking for no grid under a theme that draws one drew one anyway.
+  And a request that did not mention visibility was discarded whole — asking for minor grid lines gave back the
+  theme's major-only grid, which is what the Playground's own minor-grid example had been showing. An axes that
+  asks for something now gets the theme's grid with that change applied; one that asks nothing still gets the
+  theme's grid untouched.
+
+- **Horizontal bars step aside for each other.** The pass that places several bar series side by side looked
+  only at vertical ones, so two horizontal series over the same categories were drawn exactly on top of each
+  other and the last one painted over the rest. Each orientation is now grouped among its own kind, which is
+  the only comparison that means anything.
 
 - **A pcolormesh fills its plot area.** The mesh reported its extent without marking its edges, so the axes added
   their usual 5 % of breathing room and every mesh was drawn inside a gutter, with the spines standing off the

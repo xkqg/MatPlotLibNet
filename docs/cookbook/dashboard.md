@@ -395,9 +395,9 @@ year 1899, off the canvas.
 ### A topology panel — which service is talking to which
 
 A tile row says what is wrong. A topology panel — a service map, a dependency graph, call it what your team
-calls it — says *where* it is wrong and *what else is downstream of it*. It is a network graph with one node per
-service and one directed edge per call, coloured by the same alarm ramp the tiles use, so the sick node is the
-only coloured thing on the panel.
+calls it — says *where* it is wrong and *what else is downstream of it*. `AddTopology` puts one on the
+dashboard: one node per service, one directed edge per call, coloured by the same alarm ramp the tiles use, so
+the sick node is the only coloured thing on the panel.
 
 ![Service topology](../images/ops_topology.png)
 
@@ -417,25 +417,24 @@ var calls = new List<GraphEdge>
     new("payments", "ledger", 2.0, IsDirected: true),
 };
 
-ax.NetworkGraph(services, calls, s =>
-{
-    s.Layout = GraphLayout.ForceDirected;
-    s.LayoutSeed = 42;                       // the SAME picture on every refresh — an operator learns the map
-    s.LayoutIterations = 300;
-    s.ColorMap = theme.Alarm.Ramp;           // resting → warning → critical, the same ramp as the tiles
-    s.NodeRadiusScale = 22.0;
-    s.EdgeThicknessScale = 4.0;
-})
-.SetXTickLocator(new FixedLocator([]))       // a topology has no coordinates to read
-.SetYTickLocator(new FixedLocator([]))
-.WithGrid(g => g with { Visible = false })
-.WithSpines(sp => sp with
-{
-    Top = sp.Top with { Visible = false },
-    Bottom = sp.Bottom with { Visible = false },
-    Left = sp.Left with { Visible = false },
-    Right = sp.Right with { Visible = false },
-});
+Plt.OpsDashboard()
+    .WithTitle("Payments — federation")
+    .WithWindow(now, TimeSpan.FromMinutes(5))
+    .AddTile(15, t => t.Label = "Buses")
+    .AddTimeline(busSegments, l => l.Label = "Service Bus")
+    .AddTopology(services, calls, s =>
+    {
+        s.Layout = GraphLayout.ForceDirected;
+        s.LayoutSeed = 42;                   // the SAME picture on every refresh
+        s.LayoutIterations = 300;
+        s.ColorMap = theme.Alarm.Ramp;       // resting → warning → critical, the same ramp as the tiles
+        s.NodeRadiusScale = 22.0;
+        s.EdgeThicknessScale = 4.0;
+    })
+    .AddTrend(clock, publish, s => s.Label = "publish")
+    .Build()
+    .WithTheme(theme)
+    .Save("control-room.svg");
 ```
 
 Three things make it a panel an operator can live with:
@@ -443,12 +442,14 @@ Three things make it a panel an operator can live with:
 - **Fix the seed.** A force-directed layout is deterministic only when it is given a seed and an iteration
   count. Without them the map rearranges itself on every refresh, and an operator who has learned where
   `payments` sits has to find it again every time.
-- **Hide the coordinates.** The numbers on the axes of a topology mean nothing. Ticks, grid and spines all go.
+- **The coordinates are hidden for you.** The numbers on the axes of a topology mean nothing, so the panel
+  draws no ticks, no grid and no spines. That is `AddTopology`'s doing, not yours.
 - **Colour only the sick node.** `ColorScalar` runs through the theme's alarm ramp, so a healthy fleet is a
   panel with no colour on it and the one node that needs attention is the only thing that draws the eye.
 
-The panel sits beside the tiles rather than inside `Plt.OpsDashboard()`: build it as its own figure and place it
-next to the dashboard, or add it as one cell of a `WithGridSpec` mosaic.
+**Where the row lands is not yours to choose, and that is deliberate.** The panel goes between the timelines
+and the trend. The trend is the last row and carries the tallest height ratio; a panel appended after it would
+take that ratio and leave the trend at zero height — drawing nothing, and reporting no error.
 
 ### A treemap of the fleet — area is size, colour is load
 

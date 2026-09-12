@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Interaction;
@@ -24,6 +24,7 @@ public sealed class ChartSessionOptions
 {
     internal Func<BrushSelectEvent, ValueTask>? BrushSelectHandler { get; private set; }
     internal Func<HoverEvent, ValueTask<string?>>? HoverHandler { get; private set; }
+    internal Func<DataCursorEvent, ValueTask>? DataCursorHandler { get; private set; }
 
     /// <summary>Register a callback invoked when the user Shift+drags a rubber-band rectangle
     /// over the plot area. The callback receives the data-space rectangle and runs fire-and-forget
@@ -43,6 +44,16 @@ public sealed class ChartSessionOptions
     public ChartSessionOptions OnHover(Func<HoverEvent, ValueTask<string?>> handler)
     {
         HoverHandler = handler ?? throw new ArgumentNullException(nameof(handler));
+        return this;
+    }
+
+    /// <summary>Register a callback invoked when the reader clicks a data point. The callback receives the
+    /// point they clicked — the series it belongs to, where on the axes it sits, and where on screen — and runs
+    /// fire-and-forget: the figure is not re-rendered, because a click is a question about the data rather than
+    /// a change to it. Use it to open a detail panel, select a row beside the chart, or start a query.</summary>
+    public ChartSessionOptions OnDataCursor(Func<DataCursorEvent, ValueTask> handler)
+    {
+        DataCursorHandler = handler ?? throw new ArgumentNullException(nameof(handler));
         return this;
     }
 }

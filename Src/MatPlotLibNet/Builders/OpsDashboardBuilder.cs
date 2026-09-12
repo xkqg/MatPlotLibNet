@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
@@ -28,6 +28,7 @@ public sealed class OpsDashboardBuilder
 {
     private readonly List<OpsTileSpec> _tiles = [];
     private readonly List<OpsTimelineSpec> _timelines = [];
+    private readonly List<OpsTopologySpec> _topologies = [];
     private readonly List<OpsTrendSpec> _trends = [];
 
     /// <summary>The widest a tile row gets before it wraps onto another row. Eight is what a control-room screen
@@ -40,6 +41,14 @@ public sealed class OpsDashboardBuilder
 
     /// <summary>What a further tile row costs the figure, in points (the tile row's own height, 220, is in the base).</summary>
     private const double TileRowHeight = 150;
+
+    /// <summary>What a panel row costs the figure, in points. A topology and a trend are both panels: something a
+    /// reader looks INTO rather than glances at, so they get the same room and the same height ratio.</summary>
+    private const double PanelHeight = 320;
+
+    private const double TileRatio = 0.8;
+    private const double TimelineRatio = 1.0;
+    private const double PanelRatio = 1.6;
 
     private string? _title;
     private DateTime? _windowEnd;
@@ -102,6 +111,28 @@ public sealed class OpsDashboardBuilder
         return this;
     }
 
+    /// <summary>Adds a topology panel: a service map of what is calling what, drawn as a network graph with the
+    /// panel conventions applied. No ticks, no grid, no spines, because the coordinates a layout happens to
+    /// produce mean nothing to a reader; what the reader learns is the shape.
+    /// <para>It lands BETWEEN the timelines and the trend, never after it. That is not a matter of taste: the
+    /// trend is the last row and carries the tallest ratio, so a panel appended after it would take that ratio
+    /// and leave the trend at zero height, drawing nothing and reporting no error.</para>
+    /// <para>Fix the layout seed and the iteration count in <paramref name="configure"/>. A force-directed map
+    /// that is not seeded rearranges itself on every refresh, and an operator who has learned where a service
+    /// sits then has to find it again each time.</para></summary>
+    /// <param name="nodes">The services, one node each.</param>
+    /// <param name="edges">Who calls whom; an edge weight sets the line thickness.</param>
+    /// <param name="configure">Optional configuration of the graph: layout, seed, colour map, node radius.</param>
+    /// <returns>This builder for chaining.</returns>
+    public OpsDashboardBuilder AddTopology(
+        IReadOnlyList<GraphNode> nodes,
+        IReadOnlyList<GraphEdge> edges,
+        Action<NetworkGraphSeries>? configure = null)
+    {
+        _topologies.Add(new OpsTopologySpec(nodes, edges, configure));
+        return this;
+    }
+
     /// <summary>Adds a trace to the shared trend panel.</summary>
     /// <param name="x">X values — clock instants as OLE Automation dates when a window is pinned.</param>
     /// <param name="y">Y values.</param>
@@ -142,26 +173,36 @@ public sealed class OpsDashboardBuilder
         int tileRows = ((_tiles.Count - 1) / MaxTilesPerRow) + 1;
         int columns = Math.Min(_tiles.Count, MaxTilesPerRow);
         int trendRows = _trends.Count > 0 ? 1 : 0;
-        int rows = tileRows + _timelines.Count + trendRows;
+        int rows = tileRows + _timelines.Count + _topologies.Count + trendRows;
 
+        // Filled by ONE running cursor, in the order the rows are laid out. Writing the trend's ratio into the
+        // LAST slot read the same while nothing came after it, and became a silent zero-height panel the moment
+        // something did.
         var heightRatios = new double[rows];
+        int nextRow = 0;
         for (int i = 0; i < tileRows; i++)
         {
-            heightRatios[i] = 0.8;
+            heightRatios[nextRow++] = TileRatio;
         }
 
         for (int i = 0; i < _timelines.Count; i++)
         {
-            heightRatios[tileRows + i] = 1.0;
+            heightRatios[nextRow++] = TimelineRatio;
+        }
+
+        for (int i = 0; i < _topologies.Count; i++)
+        {
+            heightRatios[nextRow++] = PanelRatio;
         }
 
         if (trendRows > 0)
         {
-            heightRatios[^1] = 1.6;
+            heightRatios[nextRow++] = PanelRatio;
         }
 
         var figure = Plt.Create()
-            .WithSize(1200, 220 + ((tileRows - 1) * TileRowHeight) + (_timelines.Count * 90) + (trendRows * 320))
+            .WithSize(1200, 220 + ((tileRows - 1) * TileRowHeight) + (_timelines.Count * 90)
+                + ((_topologies.Count + trendRows) * PanelHeight))
             .WithGridSpec(rows, columns, heightRatios: heightRatios)
             .TightLayout()
             // A tile is a CARD, and the gutter between cards is what pushes a wide wall off the screen. The generic
@@ -197,6 +238,19 @@ public sealed class OpsDashboardBuilder
                 PinWindow(ax);
                 ax.HideTopSpine();
                 ax.HideRightSpine();
+                ax.WithLegend(visible: false);
+            });
+        }
+
+        for (int i = 0; i < _topologies.Count; i++)
+        {
+            var spec = _topologies[i];
+            int row = tileRows + _timelines.Count + i;
+            figure.AddSubPlot(new GridPosition(row, row + 1, 0, columns), ax =>
+            {
+                ax.NetworkGraph(spec.Nodes, spec.Edges, spec.Configure);
+                ax.HideAllAxes();
+                ax.WithGrid(g => g with { Visible = false });
                 ax.WithLegend(visible: false);
             });
         }
@@ -250,6 +304,11 @@ public sealed class OpsDashboardBuilder
     private readonly record struct OpsTimelineSpec(
         IReadOnlyList<StateSegment> Segments,
         Action<StateTimelineSeries>? Configure);
+
+    private readonly record struct OpsTopologySpec(
+        IReadOnlyList<GraphNode> Nodes,
+        IReadOnlyList<GraphEdge> Edges,
+        Action<NetworkGraphSeries>? Configure);
 
     private readonly record struct OpsTrendSpec(double[] X, double[] Y, Action<LineSeries>? Configure);
 }

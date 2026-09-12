@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
@@ -27,6 +27,11 @@ public sealed class Axes
     public Legend Legend { get; set; } = new();
 
     public GridStyle Grid { get; set; } = new();
+
+    /// <summary>What this axes asked to change about the grid, if anything. It is the CHANGE rather than the
+    /// result, because the thing being changed is the theme's grid and the theme is not known when the subplot
+    /// is built. An axes that asked nothing takes the theme's grid whole.</summary>
+    internal Func<GridStyle, GridStyle>? GridOverride { get; set; }
 
     public SpinesConfig Spines { get; set; } = new();
 

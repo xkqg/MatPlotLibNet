@@ -62,9 +62,12 @@ MatPlotLibNet/
     ThemeBuilder.cs                   custom themes: Theme.CreateFrom().WithFont().WithName().WithAlarmPalette().Build()
                                       (v1.14: Build() CLONES the base theme — it used to rebuild from 8 of 15
                                       properties and silently reset the rest)
-    OpsDashboardBuilder.cs            Plt.OpsDashboard(): tiles + timelines + trend panel on ONE pinned time
-                                      window; the CALLER supplies the clock (WithWindow(end, span)) — the
-                                      library never reads DateTime.Now
+    OpsDashboardBuilder.cs            Plt.OpsDashboard(): tiles + timelines + topology panels + trend panel
+                                      on ONE pinned time window; the CALLER supplies the clock
+                                      (WithWindow(end, span)) — the library never reads DateTime.Now. Row
+                                      ratios are filled by ONE running cursor, so no row can inherit another's
+                                      height; a panel appended after the trend would otherwise have taken the
+                                      trend's ratio and left it at zero, drawing nothing and reporting nothing
 
   Extensions/
     FigureExtensions.cs               Save(), Transform(), ToSvg(), ToJson(), RegisterTransform(),
@@ -472,6 +475,10 @@ MatPlotLibNet/
                                       forwarder, so the wrap arithmetic exists once
 
   Numerics/
+    PointDensity.cs                   how crowded each point's neighbourhood is, counted on a grid rather than
+                                      estimated with a kernel: a 2-D kernel estimate walks every other point
+                                      for every point, and this chart is only worth drawing where that cost is
+                                      unpayable. Read by AxesBuilder.DensityScatter
     LeastSquares.cs                   public static: PolyFit (normal equations), PolyEval (Horner), ConfidenceBand (t-distribution leverage)
     ConfidenceBand.cs                 sealed record(Upper[], Lower[]) — returned by LeastSquares.ConfidenceBand()
     Vec.cs                            readonly record struct: Data[], Length, Min/Max/Mean/Std/Sum/Percentile(p)/Quantile(q), element-wise ops, implicit double[] conversions

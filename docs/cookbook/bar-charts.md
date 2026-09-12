@@ -52,10 +52,37 @@ Plt.Create()
 
 ## Grouped bars
 
+Several bars per category, in one call:
+
 ```csharp
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .SetBarMode(BarMode.Grouped)
+        .GroupedBar(quarters,
+        [
+            new BarGroup("north", [12, 18, 15, 21]),
+            new BarGroup("south", [ 9, 14, 17, 16]),
+            new BarGroup("east",  [ 7, 11, 13, 19]),
+        ])
+        .WithLegend(LegendPosition.UpperLeft))
+    .Save("bar_grouped.svg");
+```
+
+Each group becomes its own series, labelled with the group's name, and the bars step aside for each other
+inside every category. One optional configuration action reaches all of them at once:
+
+```csharp
+ax.GroupedBar(quarters, regions, s => s.Orientation = BarOrientation.Horizontal);
+```
+
+**The groups are an ordered list, not a dictionary.** That order is the picture: it decides which bar sits
+where inside every category and which colour each group takes from the theme's cycle. A dictionary has no
+order to give, so it cannot express that.
+
+Adding the series one at a time still works and is the way to give each one a different colour by hand:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
         .Bar(products, q1, s => { s.Color = Colors.CornflowerBlue; s.Label = "Q1"; })
         .Bar(products, q2, s => { s.Color = Colors.Salmon;         s.Label = "Q2"; })
         .WithLegend(LegendPosition.UpperLeft))

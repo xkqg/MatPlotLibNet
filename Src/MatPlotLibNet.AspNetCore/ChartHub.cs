@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Interaction;
@@ -66,6 +66,11 @@ public sealed class ChartHub : Hub<IChartHubClient>
     /// server-side so a client cannot spoof another user's connection. The session's hover
     /// handler computes tooltip HTML which is delivered to the originating caller only via
     /// <see cref="IChartHubClient.ReceiveTooltipContent"/>.</summary>
+    /// <summary>Client-to-server: the reader clicked a data point. Routes to the session's data-cursor
+    /// handler, if any. Non-mutating, like a brush-select: a click asks about the data, it does not change it,
+    /// so the figure is never re-rendered from one.</summary>
+    public void OnDataCursor(DataCursorEvent evt) => _registry.Publish(evt.ChartId, evt);
+
     public void OnHover(HoverEventPayload payload)
     {
         var evt = new HoverEvent(

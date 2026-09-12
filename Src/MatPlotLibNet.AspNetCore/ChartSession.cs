@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Threading.Channels;
@@ -69,6 +69,10 @@ internal sealed class ChartSession : IAsyncDisposable
                                 tooltipHtml = html;
                                 tooltipConnectionId = hover.CallerConnectionId;
                             }
+                            break;
+
+                        case DataCursorEvent clicked when _options.DataCursorHandler is { } h:
+                            await h(clicked).ConfigureAwait(false);
                             break;
 
                         case FigureNotificationEvent:

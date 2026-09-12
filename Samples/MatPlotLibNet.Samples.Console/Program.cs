@@ -2130,21 +2130,25 @@ Console.WriteLine("Saved international.svg and international.png");
     Console.WriteLine("Saved latency_heatmap.svg");
 }
 
-// --- 42. Topology panel — the service map that sits beside the tiles on a control-room wall ---
+// --- 42. Topology panel — the service map beside the tiles on a control-room wall ---
 //
-// Which service is talking to which, and which one is the sick one. A force-directed layout with a fixed seed
-// draws the same picture every refresh, so an operator learns where each node lives.
+// Which service is talking to which, and which one is the sick one. AddTopology puts it on the dashboard
+// between the timelines and the trend; a fixed layout seed draws the same picture on every refresh, so an
+// operator learns where each node lives.
 {
+    var theme = Theme.OpsPanel;
+    var now = new DateTime(2026, 9, 12, 14, 30, 0, DateTimeKind.Utc);
+
     var services = new List<GraphNode>
     {
-        new("gateway",  Label: "gateway",  SizeScalar: 2.0, ColorScalar: 0.10),
-        new("auth",     Label: "auth",     SizeScalar: 1.4, ColorScalar: 0.10),
-        new("orders",   Label: "orders",   SizeScalar: 1.6, ColorScalar: 0.10),
-        new("payments", Label: "payments", SizeScalar: 1.6, ColorScalar: 0.95),   // the one that needs attention
-        new("ledger",   Label: "ledger",   SizeScalar: 1.2, ColorScalar: 0.45),
-        new("search",   Label: "search",   SizeScalar: 1.2, ColorScalar: 0.10),
+        new("gateway",   Label: "gateway",   SizeScalar: 2.0, ColorScalar: 0.10),
+        new("auth",      Label: "auth",      SizeScalar: 1.4, ColorScalar: 0.10),
+        new("orders",    Label: "orders",    SizeScalar: 1.6, ColorScalar: 0.10),
+        new("payments",  Label: "payments",  SizeScalar: 1.6, ColorScalar: 0.95),   // needs attention
+        new("ledger",    Label: "ledger",    SizeScalar: 1.2, ColorScalar: 0.45),
+        new("search",    Label: "search",    SizeScalar: 1.2, ColorScalar: 0.10),
         new("catalogue", Label: "catalogue", SizeScalar: 1.2, ColorScalar: 0.10),
-        new("mail",     Label: "mail",     SizeScalar: 1.0, ColorScalar: 0.10),
+        new("mail",      Label: "mail",      SizeScalar: 1.0, ColorScalar: 0.10),
     };
 
     var calls = new List<GraphEdge>
@@ -2159,36 +2163,36 @@ Console.WriteLine("Saved international.svg and international.png");
         new("search", "catalogue", 1.0, IsDirected: true),
     };
 
-    Plt.Create()
-        .WithTitle("Service topology — payments is the one to look at")
-        .WithTheme(Theme.OpsPanel)
-        .WithSize(900, 560)
-        .AddSubPlot(1, 1, 1, ax => ax
-            .NetworkGraph(services, calls, s =>
-            {
-                s.Layout = GraphLayout.ForceDirected;
-                s.LayoutSeed = 42;              // the same picture on every refresh
-                s.LayoutIterations = 300;
-                s.ColorMap = Theme.OpsPanel.Alarm.Ramp;
-                s.NodeRadiusScale = 22.0;
-                s.EdgeThicknessScale = 4.0;
-                s.ShowNodeLabels = true;
-            })
-            // A topology has no coordinates to read, so the panel shows none: no ticks, no frame, no grid.
-            // Room on the right is for the node labels, which are drawn beside their node.
-            .SetXLim(-1.15, 1.35)
-            .SetYLim(-1.15, 1.15)
-            .SetXTickLocator(new FixedLocator([]))
-            .SetYTickLocator(new FixedLocator([]))
-            .WithGrid(g => g with { Visible = false })
-            .WithSpines(sp => sp with
-            {
-                Top = sp.Top with { Visible = false },
-                Bottom = sp.Bottom with { Visible = false },
-                Left = sp.Left with { Visible = false },
-                Right = sp.Right with { Visible = false },
-            }))
-        .TightLayout()
+    double[] clock = [.. Enumerable.Range(0, 60).Select(i => now.AddSeconds(i - 60).ToOADate())];
+    double[] published = [.. Enumerable.Range(0, 60).Select(i => 2400 + (120 * Math.Sin(i * 0.2)))];
+
+    Plt.OpsDashboard()
+        .WithTitle("Payments — federation")
+        .WithWindow(now, TimeSpan.FromMinutes(1))
+        .AddTile(8, t => { t.Label = "Services"; t.Caption = "7 normal · 1 critical"; })
+        .AddTile(184.2, t =>
+        {
+            t.Label = "payments p99";
+            t.Format = "0.0' ms'";
+            t.Target = 120;
+            t.Caption = "target 120 ms · +64 over";
+            t.AccentColor = theme.Alarm.Critical;
+        })
+        .AddTile(0.4, t => { t.Label = "ledger lag"; t.Format = "0.0' s'"; t.Target = 1; t.Caption = "threshold 1 s"; })
+        .AddTopology(services, calls, s =>
+        {
+            s.Layout = GraphLayout.ForceDirected;
+            s.LayoutSeed = 42;                  // the same picture on every refresh
+            s.LayoutIterations = 300;
+            s.ColorMap = theme.Alarm.Ramp;
+            s.NodeRadiusScale = 18.0;
+            s.EdgeThicknessScale = 3.0;
+            s.ShowNodeLabels = true;
+        })
+        .AddTrend(clock, published, s => s.Label = "published / s")
+        .ConfigureTrend(ax => ax.SetYLabel("messages / s"))
+        .Build()
+        .WithTheme(theme)
         .SaveSvgAndPng(SamplesPath("ops_topology.svg"));
     Console.WriteLine("Saved ops_topology.svg");
 }

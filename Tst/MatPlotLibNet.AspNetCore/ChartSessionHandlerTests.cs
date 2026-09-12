@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Collections.Concurrent;
@@ -194,5 +194,52 @@ public class ChartSessionHandlerTests
             while (Calls.Count < n && DateTime.UtcNow < deadline)
                 await Task.Delay(10);
         }
+    }
+
+    /// <summary>A clicked point reaches the handler with the point in it, and nothing else happens: no
+    /// re-render, no broadcast, no caller round-trip. It is the brush-select shape, not the hover shape,
+    /// because there is no answer to send back.</summary>
+    [Fact]
+    public async Task DataCursorHandler_FiresWithTheClickedPoint_AndNothingIsRepublished()
+    {
+        var publisher = new RecordingPublisher();
+        var caller    = new RecordingCallerPublisher();
+        var registry  = new FigureRegistry(publisher, caller);
+
+        var received = new TaskCompletionSource<DataCursorEvent>();
+        registry.Register("c1", NewFigure(), opts =>
+            opts.OnDataCursor(evt => { received.SetResult(evt); return default; }));
+
+        Assert.True(registry.Publish("c1", new DataCursorEvent("c1", 0,
+            new PinnedAnnotation("load", 1.5, 5.5, 100, 50, 0))));
+
+        var evt = await received.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        Assert.Equal("load", evt.Annotation.SeriesLabel);
+        Assert.Equal(1.5, evt.Annotation.DataX);
+        Assert.Equal(5.5, evt.Annotation.DataY);
+
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        Assert.Empty(publisher.Calls);   // a click asks about the data; it never re-renders it
+        Assert.Empty(caller.Calls);      // and there is no answer to send back
+
+        await registry.UnregisterAsync("c1");
+    }
+
+    /// <summary>With no handler registered the click goes where every unhandled notification goes: nowhere,
+    /// quietly. It must not fall through to the mutation arm.</summary>
+    [Fact]
+    public async Task ADataCursorEvent_WithNoHandler_ChangesNothing()
+    {
+        var publisher = new RecordingPublisher();
+        var caller    = new RecordingCallerPublisher();
+        var registry  = new FigureRegistry(publisher, caller);
+
+        registry.Register("c1", NewFigure());
+        registry.Publish("c1", new DataCursorEvent("c1", 0, new PinnedAnnotation("load", 1.5, 5.5, 100, 50, 0)));
+        await Task.Delay(150, TestContext.Current.CancellationToken);
+
+        Assert.Empty(publisher.Calls);
+        Assert.Empty(caller.Calls);
+        await registry.UnregisterAsync("c1");
     }
 }

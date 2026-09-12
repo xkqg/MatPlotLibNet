@@ -46,8 +46,8 @@ Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
 [Issue](https://github.com/xkqg/MatPlotLibNet/issues); that is what decides the next release. Every release, with
 its migration notes, is listed in the [CHANGELOG](CHANGELOG.md).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (705 classes, at
-99.6 % line / 97.5 % branch) across 11,700 tests. The test suite verifies rendering against matplotlib
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (706 classes, at
+99.6 % line / 97.5 % branch) across 11,757 tests. The test suite verifies rendering against matplotlib
 pixel-fidelity fixtures.
 
 ---
@@ -108,7 +108,7 @@ Plt.Create()
 
 ## Features
 
-**83 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
+**83 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
 
 **MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a
 [Model Context Protocol](https://modelcontextprotocol.io) server. It ships as a .NET tool that a host starts over
@@ -123,9 +123,9 @@ the server rejects it before rendering and names the wrong field, instead of ret
 { "servers": { "MatPlotLibNet.Mcp": { "type": "stdio", "command": "dnx", "args": ["MatPlotLibNet.Mcp", "--yes"] } } }
 ```
 
-**Control room** — `Plt.OpsDashboard()` builds one operator screen: KPI tiles across the top, state timelines under them, and a shared trend panel. All of them use one time window that the caller supplies; the library never reads the wall clock. A tile carries a `Target`, a multi-line `Caption` that wraps, an inline sparkline and a `Hatch` that means *no information*. `Theme.Alarm` defines the reserved alarm colours, and four operator backgrounds ship with it. `BulletGraphSeries` replaces the radial gauge.
+**Control room** — `Plt.OpsDashboard()` builds one operator screen: KPI tiles across the top, state timelines under them, a topology panel showing which service calls which (`AddTopology`), and a shared trend panel. All of them use one time window that the caller supplies; the library never reads the wall clock. A tile carries a `Target`, a multi-line `Caption` that wraps, an inline sparkline and a `Hatch` that means *no information*. `Theme.Alarm` defines the reserved alarm colours, and four operator backgrounds ship with it. `BulletGraphSeries` replaces the radial gauge.
 
-**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp. They need no browser, no WebView and no SignalR. There are 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. The controls also have a toolbar state model, view history (back/forward), a data cursor (click-to-pin), tick mirroring, and tight margins. Clicking a data point raises `DataPointClicked` with the point the reader clicked — series, value, pixel position and axes — so an application can open a detail panel or select a row beside the chart.
+**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp. They need no browser, no WebView and no SignalR. There are 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. The controls also have a toolbar state model, view history (back/forward), a data cursor (click-to-pin), tick mirroring, and tight margins. Clicking a data point raises `DataPointClicked` with the point the reader clicked — series, value, pixel position and axes — so an application can open a detail panel or select a row beside the chart. A server-driven chart reports the same click to its `OnDataCursor` handler.
 
 **MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. It supports 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
 
@@ -137,7 +137,7 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **Geographic projections** — the `MatPlotLibNet.Geo` package has 5 map projections (PlateCarree, Mercator, Robinson, Orthographic, LambertConformal), a GeoJSON parser, embedded Natural Earth 110m data, and `GeoPolygonSeries` for coastlines, borders and choropleths. A symlog axis scale handles data that spans positive and negative ranges.
 
-**Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). The events form a hierarchy of stacked records, they merge on their own, and the server sends each caller its own hover response.
+**Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover, the clicked data point). The events form a hierarchy of stacked records, they merge on their own, and the server sends each caller its own hover response.
 
 **Accessibility** — `figure.ToDataTables()` gives every chart a data table beside the picture (`ToHtml()`, `ToMarkdown()`, `ToCsv()`). That table is the text alternative that WCAG 1.1.1 requires for a complex image, and an `<svg role="img">` cannot provide it on its own. The table is served by `MapChartTableEndpoint`, by `MplChart.ShowDataTable`, by the GraphQL `chartDataTable` field and by the MCP `chart_data_table` tool, which returns it as markdown to read and as structured values to compute with. The library also has ARIA roles and titles, keyboard navigation, the Okabe-Ito colour-blind-safe palette, the three Petroff accessible colour sequences and a high-contrast theme.
 

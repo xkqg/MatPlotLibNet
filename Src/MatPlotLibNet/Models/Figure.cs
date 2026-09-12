@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Styling;
@@ -55,6 +55,10 @@ public sealed class Figure
 
     public bool EnableSelection { get; set; }
 
+    /// <summary>Whether a click on a data point is reported to the server as a data-cursor event. Server
+    /// interaction only; the native controls raise their own <c>DataPointClicked</c> event in process.</summary>
+    public bool EnableDataCursor { get; set; }
+
     /// <summary>When true, embeds a JavaScript 3D rotation handler in the SVG output.</summary>
     public bool Enable3DRotation { get; set; }
 
@@ -72,7 +76,7 @@ public sealed class Figure
     public bool EnableSankeyHover { get; set; }
 
     /// <summary>Returns <see langword="true"/> if any interactive JS feature is enabled.</summary>
-    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || Enable3DRotation || EnableTreemapDrilldown || EnableSankeyHover || ServerInteraction;
+    public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || EnableDataCursor || Enable3DRotation || EnableTreemapDrilldown || EnableSankeyHover || ServerInteraction;
 
     /// <summary>Configurable opacity / transition tokens for the embedded interaction
     /// scripts. Defaults to <see cref="InteractionTheme.Default"/> (identical to v1.7.1

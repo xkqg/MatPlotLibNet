@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Builders;
@@ -264,8 +264,12 @@ public sealed class FigureBuilder
             _enableSelection = true;
         if (builder.Hover)
             _enableRichTooltips = true;
+        if (builder.DataCursor)
+            _enableDataCursor = true;
         return this;
     }
+
+    private bool _enableDataCursor;
 
     private bool _enable3DRotation;
 
@@ -602,6 +606,7 @@ public sealed class FigureBuilder
             EnableRichTooltips = _enableRichTooltips,
             EnableHighlight = _enableHighlight,
             EnableSelection = _enableSelection,
+            EnableDataCursor = _enableDataCursor,
             Enable3DRotation = _enable3DRotation,
             EnableTreemapDrilldown = _enableTreemapDrilldown,
             EnableSankeyHover = _enableSankeyHover,

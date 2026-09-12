@@ -112,7 +112,13 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         {
             // Grid — axes-level setting overrides theme when explicitly set (Visible=true);
             // otherwise fall back to Theme.DefaultGrid so the theme controls the default.
-            var effectiveGrid = Axes.Grid.Visible ? Axes.Grid : Theme.DefaultGrid;
+            // An axes that asked for something gets the theme's grid WITH that change applied; one that asked
+            // nothing gets the theme's grid whole. The older reading — the axes grid when it happened to be
+            // visible, the theme's otherwise — dropped a change that did not mention visibility, and could not
+            // express "no grid" at all under a theme that draws one.
+            var effectiveGrid = Axes.GridOverride is { } change
+                ? change(Theme.DefaultGrid)
+                : (Axes.Grid.Visible ? Axes.Grid : Theme.DefaultGrid);
             if (effectiveGrid.Visible)
                 RenderGrid(xTicks, yTicks, range.YMin, transform, effectiveGrid);
 

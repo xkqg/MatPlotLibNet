@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Text;
@@ -22,7 +22,8 @@ internal static class SvgSignalRInteractionScript
     /// hover branches are conditionally appended when the caller sets the respective flags
     /// via <see cref="Builders.ServerInteractionBuilder.EnableBrushSelect"/> /
     /// <see cref="Builders.ServerInteractionBuilder.EnableHover"/>.</summary>
-    internal static string GetScript(bool enableBrushSelect = false, bool enableHover = false)
+    internal static string GetScript(bool enableBrushSelect = false, bool enableHover = false,
+        bool enableDataCursor = false)
     {
         var sb = new StringBuilder();
         sb.Append(V120Header);
@@ -32,6 +33,9 @@ internal static class SvgSignalRInteractionScript
 
         if (enableHover)
             sb.Append(HoverBranch);
+
+        if (enableDataCursor)
+            sb.Append(DataCursorBranch);
 
         sb.Append(V120Footer);
         return sb.ToString();
@@ -294,6 +298,37 @@ internal static class SvgSignalRInteractionScript
                     }
                 });
             }
+
+        """;
+
+    private const string DataCursorBranch = """
+            // -- mplDataCursor -- click a marker -> OnDataCursor --
+            // Every series is drawn inside a group carrying data-series-index and the series' own aria-label,
+            // so the click knows WHICH series it landed on without the page holding any of the data. Where on
+            // the axes it landed is read the same way hover reads it, from the pointer against the cached
+            // limits -- one conversion in this file, not two.
+            svg.addEventListener('click', function (e) {
+                var target = e.target;
+                if (!target || typeof target.closest !== 'function') return;
+                var group = target.closest('[data-series-index]');
+                if (!group) return;
+                if (group.hasAttribute('data-legend-index')) return;
+                var rect = svg.getBoundingClientRect();
+                var x = xMin + ((e.clientX - rect.left) / rect.width) * (xMax - xMin);
+                var y = yMax - ((e.clientY - rect.top) / rect.height) * (yMax - yMin);
+                invoke('OnDataCursor', {
+                    chartId: chartId,
+                    axesIndex: 0,
+                    annotation: {
+                        seriesLabel: group.getAttribute('aria-label'),
+                        dataX: x,
+                        dataY: y,
+                        pixelX: e.clientX - rect.left,
+                        pixelY: e.clientY - rect.top,
+                        axesIndex: 0
+                    }
+                });
+            });
 
         """;
 
