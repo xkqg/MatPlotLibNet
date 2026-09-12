@@ -169,6 +169,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   measured over the built site, none of its 772 pages had structured data of any kind, and the name reads to a
   search engine as "matplotlib" plus ".net", which is two other projects. Both are pinned by a contract test.
 
+- **The sitemap no longer starts with three bytes that are not XML.** docfx writes it as UTF-8 with a byte-order
+  mark in front of the XML declaration, and Search Console answered "sitemap could not be read" with 0 pages
+  discovered. Nothing else about the file was wrong — 766 urls, all inside the property, no duplicates, valid
+  priorities and lastmods, served as application/xml over a 200 — so the workflow that publishes the site takes
+  the mark off after the build, and a contract test pins that it still does.
+
 - **The site proves it is ours to Google, and can tell a search engine that a page changed.** Search Console
   verifies ownership by fetching one file it named, whose single line repeats that file's own name; it refetches
   it, so a file that stops being published takes the verification, the crawl statistics and the ability to submit

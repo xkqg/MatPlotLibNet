@@ -52,6 +52,16 @@ jobs:
           cp docs/api-toc.yml docs/api/toc.yml
           docfx build docs/docfx.json
 
+      # docfx writes the sitemap as UTF-8 WITH a byte-order mark, and those three bytes sit in front of the XML
+      # declaration. Search Console read the file and answered "Sitemap could not be read" with 0 pages
+      # discovered, while the file itself conformed: 766 urls, every one inside the property, no duplicates,
+      # valid priorities and lastmods, served as application/xml over a 200. The mark is the only thing about it
+      # that is not plain XML, so it goes.
+      - name: Strip the byte-order mark from the sitemap
+        run: |
+          sed -i '1s/^\xEF\xBB\xBF//' docs/_site/sitemap.xml
+          head -c 5 docs/_site/sitemap.xml | od -c | head -1
+
       - name: Publish Blazor WASM Playground
         run: dotnet publish Samples/MatPlotLibNet.Playground/MatPlotLibNet.Playground.csproj -c Release -o playground-out
 

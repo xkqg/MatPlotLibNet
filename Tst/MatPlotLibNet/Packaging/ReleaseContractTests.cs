@@ -241,6 +241,22 @@ public class ReleaseContractTests
     }
 
     [Fact]
+    public void ThePagesWorkflow_StripsTheByteOrderMarkFromTheSitemap()
+    {
+        // docfx writes the sitemap as UTF-8 WITH a byte-order mark, three bytes in front of the XML
+        // declaration, and there is no docfx setting for it — so the workflow that publishes the site takes
+        // them off again. Nothing else about the file was wrong when Search Console refused it: 766 urls,
+        // every one inside the property, no duplicates, valid priorities and lastmods, served as
+        // application/xml over a 200 to a Googlebot user agent.
+        string workflow = Read(".github", "workflows", "pages.yml");
+        int build = workflow.IndexOf("docfx build", StringComparison.Ordinal);
+        int strip = workflow.IndexOf("_site/sitemap.xml", StringComparison.Ordinal);
+
+        Assert.True(strip > build && build >= 0,
+            "pages.yml no longer strips the byte-order mark from docs/_site/sitemap.xml after the docfx build");
+    }
+
+    [Fact]
     public void TheSearchConsoleVerification_IsPublishedWithTheSiteAndNamesItself()
     {
         // Google verifies ownership of a site by fetching one file it named, whose single line repeats that
