@@ -1,4 +1,5 @@
 ---
+title: "Chart themes in C#: light, dark and your own"
 description: "Switch a C# chart between 30 themes, light and dark, and build a theme of your own."
 ---
 

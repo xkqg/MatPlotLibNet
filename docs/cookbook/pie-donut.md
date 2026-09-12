@@ -1,4 +1,5 @@
 ---
+title: "Pie and donut charts in C#"
 description: "Draw pie and donut charts in C# with exploded slices, percentage labels, custom colors and a legend."
 ---
 

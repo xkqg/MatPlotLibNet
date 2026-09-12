@@ -1,4 +1,5 @@
 ---
+title: "MCP chart server: let an AI agent draw charts"
 description: "Let an AI agent draw charts. The MatPlotLibNet MCP server renders any chart type to PNG, SVG or PDF from a JSON spec, over stdio."
 ---
 

@@ -163,6 +163,58 @@ public class ReleaseContractTests
         Assert.True(png.Length < 1024 * 1024, $"the icon is {png.Length} bytes; nuget.org caps it at 1 MB");
     }
 
+    // ---- what a search engine reads ---------------------------------------------------------------------------
+
+    /// <summary>The YAML header of a documentation page, or an empty string if it has none.</summary>
+    private static string FrontMatter(string markdown)
+    {
+        if (!markdown.StartsWith("---", StringComparison.Ordinal)) { return string.Empty; }
+
+        int end = markdown.IndexOf("\n---", 3, StringComparison.Ordinal);
+        return end < 0 ? string.Empty : markdown[3..end];
+    }
+
+    [Fact]
+    public void EveryCookbookPage_TellsASearchEngineWhatItIsAndWhatItAnswers()
+    {
+        // A cookbook page is the page a stranger can actually land on: they search for the thing they want to
+        // draw, not for this library's name. Two lines of YAML decide what they see in the result. Without a
+        // title docfx falls back to the heading, which is written for a reader who is already here — "Line
+        // Charts" — instead of the words that were typed to find it.
+        var missing = Directory.EnumerateFiles(Path.Combine(Root, "docs", "cookbook"), "*.md")
+            .Select(file => (Name: Path.GetFileName(file), Head: FrontMatter(File.ReadAllText(file))))
+            .Where(p => !p.Head.Contains("\ntitle:", StringComparison.Ordinal)
+                     || !p.Head.Contains("\ndescription:", StringComparison.Ordinal))
+            .Select(p => p.Name)
+            .ToArray();
+
+        Assert.True(missing.Length == 0,
+            $"These cookbook pages carry no title or no description of their own: {string.Join(", ", missing)}");
+    }
+
+    [Fact]
+    public void TheDocumentationHomePage_SaysWhatThisIsInTheFormATSearchEngineReads()
+    {
+        // Measured over the built site: 0 of 772 pages carried structured data of any kind, so a search engine
+        // had nothing but prose to decide what this project even is — and the name reads as "matplotlib" plus
+        // ".net", which is two other projects' names. One JSON-LD block on the page that matters states it.
+        // It is raw HTML in the Markdown, which markdig passes straight through; no forked docfx template.
+        string home = Read("docs", "index.md");
+        var block = Regex.Match(home, @"<script type=""application/ld\+json"">\s*(?<json>\{.*?\})\s*</script>", RegexOptions.Singleline);
+
+        Assert.True(block.Success, "docs/index.md carries no JSON-LD block");
+
+        using var data = JsonDocument.Parse(block.Groups["json"].Value);
+        var root = data.RootElement;
+
+        Assert.Equal("https://schema.org", root.GetProperty("@context").GetString());
+        Assert.Equal("SoftwareApplication", root.GetProperty("@type").GetString());
+        Assert.Equal("MatPlotLibNet", root.GetProperty("name").GetString());
+        Assert.Equal("https://xkqg.github.io/MatPlotLibNet/", root.GetProperty("url").GetString());
+        Assert.Equal("https://github.com/xkqg/MatPlotLibNet", root.GetProperty("codeRepository").GetString());
+        Assert.Equal("https://www.nuget.org/packages/MatPlotLibNet", root.GetProperty("downloadUrl").GetString());
+    }
+
     // ---- the numbers a package page prints --------------------------------------------------------------------
 
     /// <summary>Every counted claim a <c>&lt;Description&gt;</c> may carry, beside the code that measures it.</summary>

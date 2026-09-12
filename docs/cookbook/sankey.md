@@ -1,4 +1,5 @@
 ---
+title: "Sankey diagrams in C#"
 description: "Draw Sankey diagrams in C#: weighted flows between nodes, with hover focus that dims everything the node does not reach."
 ---
 

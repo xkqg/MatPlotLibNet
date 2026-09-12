@@ -1,4 +1,5 @@
 ---
+title: "C# chart examples for .NET"
 description: "Copy-paste chart examples for C# and .NET, each with the code and the picture it produces. Line, bar, heatmap, financial, 3D, map and dashboard charts."
 ---
 

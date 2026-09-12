@@ -1,4 +1,5 @@
 ---
+title: "Line charts in C# and .NET"
 description: "Draw line charts in C# and .NET: multiple series, markers, dashed lines, log and symlog scales, legends and themes."
 ---
 

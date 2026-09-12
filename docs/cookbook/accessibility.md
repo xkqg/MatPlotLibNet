@@ -1,4 +1,5 @@
 ---
+title: "Accessible charts in C#: alt text and a data table"
 description: "Make C# charts readable for everyone: a color-blind-safe palette, alt text, and a data table beside the picture for readers who cannot see it."
 ---
 

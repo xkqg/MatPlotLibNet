@@ -1,4 +1,5 @@
 ---
+title: "Dendrograms in C# from hierarchical clustering"
 description: "Draw a dendrogram in C# from hierarchical clustering, with merge distances, color thresholds and truncated trees."
 ---
 

@@ -1,4 +1,5 @@
 ---
+title: "Build a control-room dashboard in C#"
 description: "Build a control-room dashboard in C#: KPI tiles, state timelines and a shared trend window for monitoring and fleet status views."
 ---
 

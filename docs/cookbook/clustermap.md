@@ -1,4 +1,5 @@
 ---
+title: "Clustermap in C#: a heatmap with dendrograms"
 description: "Draw a clustermap in C#: a heatmap with row and column dendrograms, following the seaborn clustermap pattern."
 ---
 

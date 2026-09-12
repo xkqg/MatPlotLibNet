@@ -1,4 +1,5 @@
 ---
+title: "Pair plot matrix in C#"
 description: "Draw a pair grid in C#: an N by N matrix of subplots with distributions on the diagonal and scatter plots off it."
 ---
 

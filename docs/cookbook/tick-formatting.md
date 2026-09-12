@@ -1,4 +1,5 @@
 ---
+title: "Format axis ticks in C#: dates, percent and currency"
 description: "Format axis ticks in C#: engineering and percent notation, currency, dates and times, and your own tick formatter."
 ---
 

@@ -1,4 +1,5 @@
 ---
+title: "Live streaming charts in C#"
 description: "Stream live data into a C# chart. Append points from any thread and the chart updates at the frame rate you set."
 ---
 

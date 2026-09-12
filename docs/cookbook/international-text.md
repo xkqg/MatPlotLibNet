@@ -1,4 +1,5 @@
 ---
+title: "Arabic, Hebrew and Devanagari chart labels in C#"
 description: "Write chart labels in any script from C#. Arabic joins its letters, Hebrew reads right to left, and Latin words inside them keep their place."
 ---
 

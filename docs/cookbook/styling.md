@@ -1,4 +1,5 @@
 ---
+title: "Style a C# chart: themes, fonts and colors"
 description: "Style C# charts: 30 built-in themes, fonts, colors, line styles, grids and spines, plus your own theme."
 ---
 

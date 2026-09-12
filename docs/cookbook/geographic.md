@@ -1,4 +1,5 @@
 ---
+title: "Maps and map projections in C#"
 description: "Draw maps in C# with 13 map projections, embedded Natural Earth coastlines and borders, GeoJSON and choropleth shading."
 ---
 

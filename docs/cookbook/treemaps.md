@@ -1,4 +1,5 @@
 ---
+title: "Treemap and sunburst charts in C#"
 description: "Draw treemaps and sunburst charts in C# to show a hierarchy where each rectangle or ring segment is sized by value."
 ---
 

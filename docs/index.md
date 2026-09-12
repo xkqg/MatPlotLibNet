@@ -2,6 +2,11 @@
 description: "MatPlotLibNet is a charting library for C# and .NET, inspired by matplotlib. Draw 83 chart types and save them as SVG, PNG, PDF or an animated GIF."
 ---
 
+<script type="application/ld+json">
+{"@context": "https://schema.org","@type": "SoftwareApplication","name": "MatPlotLibNet","alternateName": "matplotlib for .NET","applicationCategory": "DeveloperApplication","operatingSystem": "Windows, Linux, macOS","description": "A charting library for C# and .NET, inspired by matplotlib. Draws 83 chart types and saves them as SVG, PNG, PDF or an animated GIF from server code, with no JavaScript framework, WebView or hosted service.","url": "https://xkqg.github.io/MatPlotLibNet/","codeRepository": "https://github.com/xkqg/MatPlotLibNet","downloadUrl": "https://www.nuget.org/packages/MatPlotLibNet","programmingLanguage": "C#","license": "https://opensource.org/licenses/MIT","author": {"@type": "Person","name": "H.P. Gansevoort"},"offers": {"@type": "Offer","price": "0","priceCurrency": "EUR"}}
+</script>
+
+
 # MatPlotLibNet — matplotlib for .NET
 
 **A charting library for C#, .NET 10 and .NET 8.** It draws 83 chart types and saves them as SVG, PNG, PDF or an animated GIF, straight from your server code. It comes with 148 colormaps, 13 map projections, 30 themes, streaming, an MCP server for AI agents, and native controls for Blazor, WPF, MAUI, Avalonia and Uno. It comes as 14 NuGet packages, and it needs no JavaScript framework, no WebView and no hosted service.

@@ -1,4 +1,5 @@
 ---
+title: "Candlestick and OHLC charts in C#"
 description: "Draw financial charts in C#: candlesticks, OHLC bars, volume panels, Bollinger Bands, RSI and other technical indicators."
 ---
 

@@ -1,4 +1,5 @@
 ---
+title: "Subplots and GridSpec layouts in C#"
 description: "Lay out several charts in one figure from C# with subplots and GridSpec, including shared axes and spanning cells."
 ---
 

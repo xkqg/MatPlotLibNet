@@ -1,4 +1,5 @@
 ---
+title: "3D charts in C#: surface, wireframe and scatter"
 description: "Draw 3D charts in C#: surfaces, wireframes, scatter and bars, with depth sorting, face shading and rotation in the browser."
 ---
 

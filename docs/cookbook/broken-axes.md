@@ -1,4 +1,5 @@
 ---
+title: "Broken axis charts in C#"
 description: "Draw a broken axis in C#. Cut an empty range out of the axis so widely separated values share one chart without wasted space."
 ---
 

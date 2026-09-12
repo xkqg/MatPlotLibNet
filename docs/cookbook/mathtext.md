@@ -1,4 +1,5 @@
 ---
+title: "LaTeX-style math in C# chart labels"
 description: "Write LaTeX-style math in C# chart titles, labels and annotations: fractions, superscripts, Greek letters and symbols."
 ---
 

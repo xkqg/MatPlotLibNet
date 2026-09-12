@@ -1,4 +1,5 @@
 ---
+title: "Network graph charts in C#"
 description: "Draw network graphs in C#: nodes and edges with deterministic layouts, for correlation networks, communities and spanning trees."
 ---
 

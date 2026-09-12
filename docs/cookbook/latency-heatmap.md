@@ -1,4 +1,5 @@
 ---
+title: "Latency heatmap in C# for percentile monitoring"
 description: "Draw a latency heatmap in C#: a histogram over time with a real clock on one axis and log-scaled latency bucket edges on the other, for response times, p99 and queue delays."
 ---
 

@@ -1,4 +1,5 @@
 ---
+title: "Symlog axis in C# for positive and negative data"
 description: "Use a symmetric log axis in C# for data that spans positive and negative values across orders of magnitude."
 ---
 

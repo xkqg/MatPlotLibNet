@@ -161,6 +161,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   description — colormaps, base maps, series types, themes — is now measured against the library, and the
   DataFrame package's own indicator count is measured against its own extension methods.
 
+- **The documentation site says what it is in the words people search for.** Every cookbook page took its browser
+  title from its heading, which is written for a reader who already arrived — "Line Charts" — rather than for the
+  words someone types to find it; each page now carries a title of its own, so the financial page is
+  "Candlestick and OHLC charts in C#" and the 3-D page is "3D charts in C#: surface, wireframe and scatter". The
+  home page also carries a structured-data block naming the project, the repository, the package and the licence:
+  measured over the built site, none of its 772 pages had structured data of any kind, and the name reads to a
+  search engine as "matplotlib" plus ".net", which is two other projects. Both are pinned by a contract test.
+
 ## [1.17.0]
 ### Added
 
