@@ -403,6 +403,18 @@ MatPlotLibNet/
                                         vertex components sit on a selected face, emitted as data-v3d-pinned so
                                         Svg3DRotationScript can mirror them when it re-selects mid-drag
 
+  Data/
+    RingBuffer.cs                     public sealed RingBuffer<T> — fixed-capacity circular SEQUENCE, oldest
+                                      first; one writer / many readers (ReaderWriterLockSlim), never allocates
+                                      on Append. The append IS the eviction: nothing is paid per item to keep
+                                      the window bounded. A SEQUENCE, not a set — "is this key in the window"
+                                      is a different shape and does not belong here
+    RingBufferExtensions.cs           Min()/Max() over INumber<T> folded under one read lock without
+                                      allocating, + MinOrNaN()/MaxOrNaN() for the double ring an axis reads.
+                                      Arithmetic over the VALUES lives here, never inside the ring
+    DoubleRingBuffer.cs               RingBuffer<double> under the name it has carried since v1.7 — a thin
+                                      forwarder, so the wrap arithmetic exists once
+
   Numerics/
     LeastSquares.cs                   public static: PolyFit (normal equations), PolyEval (Horner), ConfidenceBand (t-distribution leverage)
     ConfidenceBand.cs                 sealed record(Upper[], Lower[]) — returned by LeastSquares.ConfidenceBand()
@@ -601,6 +613,7 @@ ChartHub               routes to SignalR group by chartId
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
 | Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 83 series | each series knows how to serialize AND deserialize itself (v1.13.0: no central switch on either side) |
+| One value, not N fields | StreamingSeries → RingBuffer&lt;StreamingPoint&gt;; StreamingCandlestickSeries → RingBuffer&lt;OhlcBar&gt;; StreamingSignalSeries → RingBuffer&lt;SignalSample&gt; (the sample carries its own ordinal) | what must stay whole is STORED whole, so a reader beside a writer cannot see fields from different samples. Locking each field's buffer gives safe buffers and an unsafe invariant — measured, not theorised |
 | Self-tabulation | ISeries.ToDataTable() overridden per series; FigureDataTableExtensions only GROUPS and captions | same shape as self-serialization: the type that owns the data owns its column names, so a new series type needs no edit anywhere central |
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
 | Registry | SeriesRegistry (ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>>) | thread-safe discriminator -> series' own FromSeriesDto factory lookup; thin table only |
@@ -618,7 +631,7 @@ ChartHub               routes to SignalR group by chartId
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
 | Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand, ColorStop, StreamingPoint, MinMaxRange, MatShape, XYCurve, BarRange, GaugeBand, DataPoint, LineSegment, Size, Vec3, CubePlane, CubeFaceSelection, AxisEdge3D | replace anonymous/named tuples in public API for discoverability and structural equality (v1.8.0 completed the sweep — no anonymous tuples remain) |
-| Extension methods on value types | `string.EscapeForXml()`, `double[].Percentile()` / `BisectLeft()` / `BisectRight()`, `Color.Modulate()` / `Shade()` | replaces `*Helper` static classes with discoverable dot-access APIs (v1.8.0: SvgXmlHelper → SvgXml, MathHelpers → SortedArrayExtensions, LightingHelper → Vec3 + ColorExtensions) |
+| Extension methods on value types | `string.EscapeForXml()`, `double[].Percentile()` / `BisectLeft()` / `BisectRight()`, `Color.Modulate()` / `Shade()`, `RingBuffer<T>.Min()` / `Max()` (INumber-constrained) | replaces `*Helper` static classes with discoverable dot-access APIs (v1.8.0: SvgXmlHelper → SvgXml, MathHelpers → SortedArrayExtensions, LightingHelper → Vec3 + ColorExtensions) |
 
 ---
 

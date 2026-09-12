@@ -29,6 +29,41 @@ public sealed class V170Benchmarks
         Assert.True(opsPerSec > 1_000_000, "Should exceed 1M ops/sec");
     }
 
+    /// <summary>The ring is generic now, and a generic over a STRUCT is where a careless implementation pays:
+    /// the CLR specialises value-type generics, so this must stay in the same order of magnitude as the double
+    /// ring rather than fall to a boxed-per-append shape. The control room's telemetry window is exactly this.</summary>
+    [Fact]
+    public void RingBuffer_Generic_StructAppendThroughput()
+    {
+        var buf = new RingBuffer<(DateTime At, double Publish, double Consume, double Drops)>(100_000);
+        var at = new DateTime(2026, 9, 12, 8, 0, 0, DateTimeKind.Utc);
+        var sw = Stopwatch.StartNew();
+        const int iterations = 1_000_000;
+        for (int i = 0; i < iterations; i++)
+            buf.Append((at, i, i, 0));
+        sw.Stop();
+        double opsPerSec = iterations / sw.Elapsed.TotalSeconds;
+        Console.WriteLine($"RingBuffer<struct>.Append: {opsPerSec:N0} ops/sec ({sw.Elapsed.TotalMilliseconds:F2}ms for {iterations:N0})");
+        Assert.True(opsPerSec > 1_000_000, "Should exceed 1M ops/sec");
+    }
+
+    /// <summary>Min over the whole ring, which used to be a property on the double-only buffer and is now an
+    /// extension: one read lock, no array, so it must not have become a ToArray in disguise.</summary>
+    [Fact]
+    public void RingBuffer_MinThroughput()
+    {
+        var buf = new RingBuffer<double>(10_000);
+        for (int i = 0; i < 10_000; i++) buf.Append(i);
+        var sw = Stopwatch.StartNew();
+        const int iterations = 10_000;
+        for (int i = 0; i < iterations; i++)
+            _ = buf.Min();
+        sw.Stop();
+        double opsPerSec = iterations / sw.Elapsed.TotalSeconds;
+        Console.WriteLine($"RingBuffer<double>.Min(10K): {opsPerSec:N0} scans/sec ({sw.Elapsed.TotalMilliseconds:F2}ms)");
+        Assert.True(opsPerSec > 100, "Should exceed 100 full scans/sec");
+    }
+
     [Fact]
     public void RingBuffer_SnapshotThroughput()
     {

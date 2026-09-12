@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Data;
 using System.Collections.Concurrent;
 using MatPlotLibNet.AspNetCore;
 using MatPlotLibNet.Models;
@@ -52,7 +53,9 @@ public sealed class BusTelemetrySimulator : BackgroundService
     // is lying about the present. Interlocked, never a lock — this gate is contended by design.
     private int _inFlight;
 
-    private readonly ConcurrentQueue<Sample> _samples = new();
+    // An hour at a fixed 250 ms collect is a KNOWN number of samples, so the window is a ring sized once
+    // rather than a queue that pays a peek and a dequeue on every tick for the rest of the run.
+    private readonly RingBuffer<Sample> _samples = new((int)(History.Ticks / CollectTick.Ticks));
     private readonly List<Bus> _buses = [];
     private volatile Snapshot _latest = Snapshot.Empty;
 
@@ -232,11 +235,7 @@ public sealed class BusTelemetrySimulator : BackgroundService
         double p95 = 11 + _rng.NextDouble() * 3 + (faulted ? 10 : 0);
         double p99 = 19 + _rng.NextDouble() * 5 + (faulted ? 24 : 0);
 
-        _samples.Enqueue(new Sample(now, publish, consume, drops, p50, p95, p99));
-        while (_samples.TryPeek(out var oldest) && now - oldest.At > History)
-        {
-            _samples.TryDequeue(out _);
-        }
+        _samples.Append(new Sample(now, publish, consume, drops, p50, p95, p99));
 
         foreach (var bus in _buses)
         {
@@ -284,7 +283,14 @@ public sealed class BusTelemetrySimulator : BackgroundService
     private static OpsState Worst(IEnumerable<OpsState> states) =>
         states.Aggregate(OpsState.Normal, (worst, s) => s > worst ? s : worst);
 
-    private Sample[] SamplesWithin(DateTime from) => [.. _samples.Where(s => s.At >= from)];
+    // The ring is in time order, so the window is a slice: find where it starts and take the tail, instead of
+    // testing an hour of samples to answer a question about the last minute.
+    private Sample[] SamplesWithin(DateTime from)
+    {
+        var held = _samples.ToArray();
+        int start = Array.FindIndex(held, s => s.At >= from);
+        return start < 0 ? [] : held[start..];
+    }
 
     // ── Figures ──────────────────────────────────────────────────────────────────────────────────
 

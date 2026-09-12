@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Data;
 namespace MatPlotLibNet.Samples.ControlRoom.Services;
 
 /// <summary>One bus in the federation, with its processes.
@@ -120,7 +121,7 @@ public sealed class Process
         ["obs-ingest", "metrics-fold", "audit-store", "kline-publish", "log-drain"];
 
     private readonly Conditioned _condition = new();
-    private readonly Queue<double> _loads = new(TrendLength);
+    private readonly RingBuffer<double> _loads = new(TrendLength);
     private readonly List<Lane> _lanes = [];
     private readonly double _idle;
 
@@ -147,7 +148,7 @@ public sealed class Process
     public double Load { get; private set; }
 
     /// <summary>The recent loads, oldest first — a small-multiples panel's line.</summary>
-    public IReadOnlyList<double> LoadTrend => [.. _loads];
+    public IReadOnlyList<double> LoadTrend => _loads.ToArray();
 
     /// <summary>The process identity.</summary>
     public string Id { get; }
@@ -169,11 +170,8 @@ public sealed class Process
         // The faulted process pegs a core and a half; everyone else breathes around its resting load.
         double target = raw == OpsState.Critical ? 140 : _idle;
         Load = Math.Max(0, Load + (target - Load) * 0.25 + (rng.NextDouble() - 0.5) * 1.5);
-        _loads.Enqueue(Load);
-        while (_loads.Count > TrendLength)
-        {
-            _loads.Dequeue();
-        }
+        // A ring: the append IS the eviction, so nothing is paid per sample to keep the window bounded.
+        _loads.Append(Load);
 
         foreach (var lane in _lanes)
         {

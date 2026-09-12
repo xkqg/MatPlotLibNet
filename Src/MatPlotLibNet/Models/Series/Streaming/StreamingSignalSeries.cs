@@ -7,14 +7,26 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series.Streaming;
 
-/// <summary>A streaming signal series optimized for uniformly-sampled data. Only Y values are stored;
-/// X is computed from <see cref="SampleRate"/> and <see cref="XStart"/>. Ideal for oscilloscope,
-/// audio, and telemetry data at fixed sample rates.</summary>
+/// <summary>A streaming signal series optimized for uniformly-sampled data. X is computed from
+/// <see cref="SampleRate"/> and <see cref="XStart"/> rather than stored, so a sample carries its own absolute
+/// ORDINAL — the count of samples ever appended before it — and that ordinal is what X is derived from.
+///
+/// <para>The ordinal used to live in a separate <c>_totalAppended</c> counter, advanced in a second act right
+/// after the buffer. A reader between the two computed the first sample's ordinal from a total that had not
+/// caught up, and every X in the snapshot shifted by a sample. Keeping the ordinal WITH its value makes that
+/// unrepresentable; the counter is now the writer's own and is never read on the read path.</para>
+///
+/// <para>Ideal for oscilloscope, audio, and telemetry data at fixed sample rates.</para></summary>
 public sealed class StreamingSignalSeries : ChartSeries, IHasColor
 {
-    private readonly DoubleRingBuffer _yBuffer;
+    // The writer's own counter: it hands out the next ordinal and is never read to answer a question.
+    private readonly RingBuffer<SignalSample> _samples;
     private long _version;
-    private long _totalAppended;
+    private long _nextOrdinal;
+
+    /// <summary>One sample and the ordinal it was appended at — together, because X is derived from the
+    /// ordinal and a Y under someone else's ordinal is drawn in the wrong place.</summary>
+    private readonly record struct SignalSample(long Ordinal, double Y);
 
     /// <summary>Signal color. When <c>null</c> the theme's prop-cycler assigns one.</summary>
     public Color? Color { get; set; }
@@ -32,7 +44,7 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
     public long Version => Interlocked.Read(ref _version);
 
     /// <summary>Number of samples currently in the buffer.</summary>
-    public int Count => _yBuffer.Count;
+    public int Count => _samples.Count;
 
     /// <summary>Maximum number of samples the buffer can hold.</summary>
     public int Capacity { get; }
@@ -46,59 +58,81 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
         Capacity = capacity;
         SampleRate = sampleRate;
         XStart = xStart;
-        _yBuffer = new DoubleRingBuffer(capacity);
+        _samples = new RingBuffer<SignalSample>(capacity);
     }
 
     /// <summary>Appends a single Y sample. X is computed automatically.</summary>
     public void AppendSample(double y)
     {
-        _yBuffer.Append(y);
-        Interlocked.Increment(ref _totalAppended);
+        _samples.Append(new SignalSample(_nextOrdinal++, y));
         Interlocked.Increment(ref _version);
     }
 
     /// <summary>Appends a batch of Y samples.</summary>
     public void AppendSamples(ReadOnlySpan<double> y)
     {
-        _yBuffer.AppendRange(y);
-        Interlocked.Add(ref _totalAppended, y.Length);
+        var samples = new SignalSample[y.Length];
+        for (int i = 0; i < y.Length; i++)
+        {
+            samples[i] = new SignalSample(_nextOrdinal++, y[i]);
+        }
+
+        _samples.AppendRange(samples);
         Interlocked.Increment(ref _version);
     }
 
     /// <summary>Removes all samples from the buffer.</summary>
     public void Clear()
     {
-        _yBuffer.Clear();
-        Interlocked.Exchange(ref _totalAppended, 0);
+        _samples.Clear();
+        _nextOrdinal = 0;
         Interlocked.Increment(ref _version);
     }
 
-    /// <summary>Computes the X-coordinate for the sample at logical index <paramref name="index"/>.</summary>
-    public double XAt(int index)
-    {
-        long firstSampleIndex = _totalAppended - _yBuffer.Count;
-        return XStart + (firstSampleIndex + index) / SampleRate;
-    }
+    /// <summary>Computes the X-coordinate for the sample at logical index <paramref name="index"/>
+    /// (0 = oldest retained), from that sample's OWN ordinal.</summary>
+    /// <param name="index">The logical index into what is retained.</param>
+    /// <returns>The X coordinate of that sample.</returns>
+    public double XAt(int index) => XOf(_samples[index].Ordinal);
+
+    private double XOf(long ordinal) => XStart + ordinal / SampleRate;
 
     /// <summary>Creates an immutable snapshot. X values are computed from sample rate.</summary>
     public StreamingSnapshot CreateSnapshot()
     {
-        var yData = _yBuffer.ToArray();
-        var xData = new double[yData.Length];
-        long firstSampleIndex = Interlocked.Read(ref _totalAppended) - yData.Length;
-        for (int i = 0; i < xData.Length; i++)
-            xData[i] = XStart + (firstSampleIndex + i) / SampleRate;
-        return new StreamingSnapshot(xData, yData, Version);
+        // ONE read. Every X comes from the ordinal its own Y was appended under, so no separately-advancing
+        // counter can shift the whole trace by a sample.
+        long version = Version;
+        var samples = _samples.ToArray();
+        var xData = new double[samples.Length];
+        var yData = new double[samples.Length];
+        for (int i = 0; i < samples.Length; i++)
+        {
+            xData[i] = XOf(samples[i].Ordinal);
+            yData[i] = samples[i].Y;
+        }
+
+        return new StreamingSnapshot(xData, yData, version);
     }
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        int count = _yBuffer.Count;
-        if (count == 0) return new(null, null, null, null);
-        double xMin = XAt(0);
-        double xMax = XAt(count - 1);
-        return new(xMin, xMax, _yBuffer.Min, _yBuffer.Max);
+        // One read, one state: the X ends and the Y extremes describe the same moment or none.
+        var samples = _samples.ToArray();
+        if (samples.Length == 0)
+        {
+            return new(null, null, null, null);
+        }
+
+        double yMin = samples[0].Y, yMax = samples[0].Y;
+        for (int i = 1; i < samples.Length; i++)
+        {
+            yMin = Math.Min(yMin, samples[i].Y);
+            yMax = Math.Max(yMax, samples[i].Y);
+        }
+
+        return new(XOf(samples[0].Ordinal), XOf(samples[^1].Ordinal), yMin, yMax);
     }
 
     /// <inheritdoc />

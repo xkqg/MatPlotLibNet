@@ -38,6 +38,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   carries a `DataAxis`, so a state timeline's `start` and `end` print as clock times on a date axis instead of
   as OLE day numbers, and a y column on a date axis does too. The series knows its values are x coordinates;
   only the axes knows x reads as dates, and a chart that looks dated must table as dated.
+- **`RingBuffer<T>`** — the fixed-capacity circular SEQUENCE the streaming series have always run on, now
+  holding anything rather than only `double`: a sample record, a state, an instant. One writer and many readers,
+  and it still never allocates on `Append` — measured on this line at **64 M appends/s** for `double` and
+  **59 M/s** for a four-field struct, because the CLR specialises value-type generics and nothing is boxed.
+  `DoubleRingBuffer` keeps its name and its behaviour and forwards to it, so the index arithmetic that makes a
+  wrapped buffer read back in order is written once instead of once per element type.
+- **`RingBufferExtensions`** — `Min()` and `Max()` over any `INumber<T>` (so an `int` ring gets them too),
+  folding under one read lock without allocating, plus `MinOrNaN()` / `MaxOrNaN()` for the `double` ring an axis
+  reads, where NaN is the value the rendering pipeline already knows to skip. Arithmetic over the VALUES does
+  not belong inside a ring that also has to hold timestamps — the same rule that keeps this repository free of
+  `*Helper` classes.
 - **`figure.AccessibleName()`** — the alt text, else the title, else a tile row's own labels. The SVG `<title>`
   applied that rule inside the transform with the fallback private to it; the data table needs the same answer,
   and two layers deciding one identity is how they come to disagree.
@@ -51,8 +62,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   last 3.x with a net8.0-windows10.0.19041 asset: the same cut, and the same pin, the Uno view took. A consumer
   on `net8.0-windows` with a lower platform version needs to raise it to reference this package.
 
+### Changed
+
+- **The control-room sample keeps its windows in rings.** A process trend was a `Queue<double>` trimmed by a
+  `while` loop on every tick, and the fleet's hour of telemetry a `ConcurrentQueue` that peeked and dequeued on
+  every one of the 14 400 samples it holds. Both are `RingBuffer<T>` now, where the append IS the eviction and
+  nothing is paid per sample to keep the window bounded. The windowed read is a slice of a time-ordered ring
+  rather than a `Where` over the whole hour.
+
 ### Fixed
 
+- **A streaming snapshot can no longer show a point, a bar or a range that never existed.** A streaming series
+  stored a point as TWO ring buffers and an OHLC bar as FOUR — while the library already owned the types that
+  name the whole thing, `StreamingPoint` and `OhlcBar`. Every buffer was individually thread-safe, so an append
+  was two or four separate acts and a snapshot two or four separate reads, and the one thing that mattered —
+  that those fields belong to the SAME sample — was guarded by nothing. Measured with a reader beside a writer,
+  within milliseconds: a point `x=41895, y=83826` where y should have been 83790, and a candle whose high came
+  from seventeen ticks after its own open, drawn as a body on a price chart. Each series now holds ONE buffer of
+  the whole value, so a snapshot is one read and the mismatch is unrepresentable. `StreamingSignalSeries` loses
+  its separately-advanced `_totalAppended` the same way: a sample carries its own ordinal, so no counter that
+  has not caught up can shift every X by a sample. No public signature changed and no consumer was touched —
+  the boundary was already the snapshot.
 - **A date cell keeps the precision it was given.** Cells printed to the minute, so an ops window sampled every
   thirty seconds produced rows that read `07:55`, `07:55`, `07:56` — two rows a reader cannot tell apart, and a
   CSV a machine cannot either. A cell now prints as far into `HH:mm:ss.fff` as its own value carries, and no

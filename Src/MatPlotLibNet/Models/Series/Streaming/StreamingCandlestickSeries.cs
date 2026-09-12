@@ -8,14 +8,18 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series.Streaming;
 
 /// <summary>A streaming candlestick series that accepts OHLC bars via <see cref="AppendBar(OhlcBar)"/>,
-/// backed by four parallel ring buffers. Supports indicator auto-attachment via the
-/// <see cref="BarAppended"/> event.</summary>
+/// backed by ONE <see cref="RingBuffer{T}"/> of <see cref="OhlcBar"/> — a bar is the value this series is a
+/// sequence of, and its four prices belong to one tick or to none.
+///
+/// <para>It used to be four parallel buffers. Each was thread-safe; a bar was not. An append was four separate
+/// acts and a snapshot four separate reads, so a reader beside a writer could get a candle whose high came
+/// from tick N and whose close came from N-1 — a bar that never traded, drawn as a body. Measured:
+/// <c>o=60365, h=60382, l=60380</c> within milliseconds of starting.</para>
+///
+/// <para>Supports indicator auto-attachment via the <see cref="BarAppended"/> event.</para></summary>
 public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeries, IHasColor
 {
-    private readonly DoubleRingBuffer _openBuffer;
-    private readonly DoubleRingBuffer _highBuffer;
-    private readonly DoubleRingBuffer _lowBuffer;
-    private readonly DoubleRingBuffer _closeBuffer;
+    private readonly RingBuffer<OhlcBar> _bars;
     private long _version;
 
     /// <summary>Up-candle (close &gt; open) body color.</summary>
@@ -28,7 +32,7 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     public long Version => Interlocked.Read(ref _version);
 
     /// <inheritdoc />
-    public int Count => _openBuffer.Count;
+    public int Count => _bars.Count;
 
     /// <inheritdoc />
     public int Capacity { get; }
@@ -41,53 +45,69 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     public StreamingCandlestickSeries(int capacity = 5_000)
     {
         Capacity = capacity;
-        _openBuffer = new DoubleRingBuffer(capacity);
-        _highBuffer = new DoubleRingBuffer(capacity);
-        _lowBuffer = new DoubleRingBuffer(capacity);
-        _closeBuffer = new DoubleRingBuffer(capacity);
+        _bars = new RingBuffer<OhlcBar>(capacity);
     }
 
     /// <inheritdoc />
-    public void AppendBar(double open, double high, double low, double close)
+    public void AppendBar(double open, double high, double low, double close) =>
+        AppendBar(new OhlcBar(open, high, low, close));
+
+    /// <inheritdoc />
+    public void AppendBar(OhlcBar bar)
     {
-        _openBuffer.Append(open);
-        _highBuffer.Append(high);
-        _lowBuffer.Append(low);
-        _closeBuffer.Append(close);
+        _bars.Append(bar);
         Interlocked.Increment(ref _version);
-        BarAppended?.Invoke(new OhlcBar(open, high, low, close));
+        BarAppended?.Invoke(bar);
     }
-
-    /// <inheritdoc />
-    public void AppendBar(OhlcBar bar) => AppendBar(bar.Open, bar.High, bar.Low, bar.Close);
 
     /// <inheritdoc />
     public void Clear()
     {
-        _openBuffer.Clear();
-        _highBuffer.Clear();
-        _lowBuffer.Clear();
-        _closeBuffer.Clear();
+        _bars.Clear();
         Interlocked.Increment(ref _version);
     }
 
     /// <inheritdoc />
     public OhlcStreamingSnapshot CreateOhlcSnapshot()
     {
-        return new OhlcStreamingSnapshot(
-            _openBuffer.ToArray(),
-            _highBuffer.ToArray(),
-            _lowBuffer.ToArray(),
-            _closeBuffer.ToArray(),
-            Version);
+        // ONE read of ONE buffer, then split — the four arrays consumers expect, off a value nothing can
+        // change any more.
+        long version = Version;
+        var bars = _bars.ToArray();
+        var open = new double[bars.Length];
+        var high = new double[bars.Length];
+        var low = new double[bars.Length];
+        var close = new double[bars.Length];
+        for (int i = 0; i < bars.Length; i++)
+        {
+            open[i] = bars[i].Open;
+            high[i] = bars[i].High;
+            low[i] = bars[i].Low;
+            close[i] = bars[i].Close;
+        }
+
+        return new OhlcStreamingSnapshot(open, high, low, close, version);
     }
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        int count = Count;
-        if (count == 0) return new(null, null, null, null);
-        return new(0, count - 1, _lowBuffer.Min, _highBuffer.Max);
+        // The lowest low and the highest high of ONE state: read separately they can come from either side of
+        // an append, and a candle chart would be scaled to a range no bar ever occupied.
+        var bars = _bars.ToArray();
+        if (bars.Length == 0)
+        {
+            return new(null, null, null, null);
+        }
+
+        double low = bars[0].Low, high = bars[0].High;
+        for (int i = 1; i < bars.Length; i++)
+        {
+            low = Math.Min(low, bars[i].Low);
+            high = Math.Max(high, bars[i].High);
+        }
+
+        return new(0, bars.Length - 1, low, high);
     }
 
     /// <inheritdoc />
