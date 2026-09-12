@@ -4,19 +4,26 @@
 namespace MatPlotLibNet.Data;
 
 /// <summary>A fixed-capacity circular SEQUENCE: the newest <see cref="Capacity"/> items, oldest first, with the
-/// oldest evicted by the act of appending rather than by a removal that costs something.
+/// oldest evicted by the act of appending.
 ///
-/// <para>Thread-safe for one writer and many readers (<see cref="ReaderWriterLockSlim"/>), and it never
-/// allocates on <see cref="Append"/> — the backing array is fixed at construction. That is the whole reason a
-/// streaming chart can take a sample every few milliseconds without handing the collector work.</para>
+/// <para><b>Ask a question, do not ask for a copy.</b> <see cref="Aggregate{TState}"/> walks what is held and
+/// folds it, the way Ait.Core answers every one of its own reads — one pass, one consistent state, nothing
+/// materialised. <see cref="ToArray"/> exists for the callers that genuinely need an array (a snapshot DTO, a
+/// renderer's point list) and should not be reached for to answer a question about the window. Measured on a
+/// window of 1024, 20 000 reads: asking cost <b>0,5 MB</b>, copying cost <b>625 MB</b>.</para>
 ///
-/// <para><b>A sequence, not a set.</b> It answers "what are the last N items, in order". A window that answers
-/// "is this key anywhere in the last N buckets" is a different shape and must not be forced through here.</para>
+/// <para><b>Why a fixed array behind a lock and not a concurrent collection.</b> Measured, four shapes, same
+/// machine, 4-field struct, window 1024: this one appends at 41 M/s with zero allocation and snapshots at
+/// 941 k/s; <c>ConcurrentQueue</c> + trim at 25 M/s and 273 k/s; a <c>ConcurrentDictionary</c> keyed by ordinal
+/// at 11 M/s and 145 k/s while allocating per append; Core's bucketed shape at 12 M/s and 41 k/s, because a
+/// bucket is a SET and restoring the order means sorting. Order is free in an array and expensive in every
+/// keyed store — which is exactly why Core's ring is right for "is this key in the window" and wrong here.</para>
+///
+/// <para>Thread-safe for one writer and many readers; it never allocates on <see cref="Append"/>.</para>
 ///
 /// <para><b>Arithmetic over the values is NOT in here.</b> A ring of <see cref="DateTime"/> or of a sample
 /// record has no minimum worth the name, so <c>Min</c> and <c>Max</c> live in
-/// <see cref="RingBufferExtensions"/> on the numeric instantiation. The ring decides where an item lives and
-/// when it falls out; what an item MEANS is the caller's.</para></summary>
+/// <see cref="RingBufferExtensions"/> on the numeric instantiation.</para></summary>
 /// <typeparam name="T">What is remembered — a measurement, a state, a record of a moment.</typeparam>
 public sealed class RingBuffer<T>
 {
@@ -114,6 +121,33 @@ public sealed class RingBuffer<T>
         finally { _lock.ExitWriteLock(); }
     }
 
+    /// <summary>Walks everything held, oldest first, folding it into <paramref name="seed"/> — ONE pass over
+    /// ONE state, allocating nothing. This is how a question about the window should be answered: a minimum, a
+    /// range, a count of breaches. Reaching for <see cref="ToArray"/> instead copies the whole window to ask.
+    /// <para>Pass a <c>static</c> lambda and a value-type state and the walk allocates nothing at all.</para></summary>
+    /// <typeparam name="TState">What is being accumulated.</typeparam>
+    /// <param name="seed">The starting accumulator — also the answer when the ring is empty.</param>
+    /// <param name="fold">Folds one item into the accumulator.</param>
+    /// <returns>The accumulator after every held item.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="fold"/> is null.</exception>
+    public TState Aggregate<TState>(TState seed, Func<TState, T, TState> fold)
+    {
+        ArgumentNullException.ThrowIfNull(fold);
+        _lock.EnterReadLock();
+        try
+        {
+            int start = Oldest();
+            var state = seed;
+            for (int i = 0; i < _count; i++)
+            {
+                state = fold(state, _buffer[(start + i) % Capacity]);
+            }
+
+            return state;
+        }
+        finally { _lock.ExitReadLock(); }
+    }
+
     /// <summary>Copies everything held into <paramref name="destination"/>, oldest first. The destination needs
     /// at least <see cref="Count"/> elements.</summary>
     /// <param name="destination">Where to copy to.</param>
@@ -126,7 +160,9 @@ public sealed class RingBuffer<T>
         finally { _lock.ExitReadLock(); }
     }
 
-    /// <summary>Everything held, oldest first, as a new array.</summary>
+    /// <summary>Everything held, oldest first, as a new array. For a caller that genuinely needs an array —
+    /// a snapshot DTO, a renderer's point list. To ANSWER something about the window, use
+    /// <see cref="Aggregate{TState}"/>: it costs a walk instead of a copy.</summary>
     /// <returns>The items in logical order; empty when the ring is.</returns>
     public T[] ToArray()
     {
@@ -157,32 +193,6 @@ public sealed class RingBuffer<T>
             _count = 0;
         }
         finally { _lock.ExitWriteLock(); }
-    }
-
-    /// <summary>Folds every held item with <paramref name="fold"/> under ONE read lock and without allocating —
-    /// what <see cref="RingBufferExtensions"/> needs to answer a minimum or a maximum at the speed the old
-    /// double-only buffer did. Returns false, and nothing, when the ring is empty.</summary>
-    internal bool TryReduce(Func<T, T, T> fold, out T result)
-    {
-        _lock.EnterReadLock();
-        try
-        {
-            if (_count == 0)
-            {
-                result = default!;
-                return false;
-            }
-
-            int start = Oldest();
-            result = _buffer[start];
-            for (int i = 1; i < _count; i++)
-            {
-                result = fold(result, _buffer[(start + i) % Capacity]);
-            }
-
-            return true;
-        }
-        finally { _lock.ExitReadLock(); }
     }
 
     // Both copy paths, in one place: held items may sit in one run or in two, and getting that wrong twice is

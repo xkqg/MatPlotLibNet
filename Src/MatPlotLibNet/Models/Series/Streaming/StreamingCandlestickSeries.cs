@@ -92,22 +92,12 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        // The lowest low and the highest high of ONE state: read separately they can come from either side of
-        // an append, and a candle chart would be scaled to a range no bar ever occupied.
-        var bars = _bars.ToArray();
-        if (bars.Length == 0)
-        {
-            return new(null, null, null, null);
-        }
-
-        double low = bars[0].Low, high = bars[0].High;
-        for (int i = 1; i < bars.Length; i++)
-        {
-            low = Math.Min(low, bars[i].Low);
-            high = Math.Max(high, bars[i].High);
-        }
-
-        return new(0, bars.Length - 1, low, high);
+        // The lowest low and the highest high of ONE state, found by walking: read separately they can come
+        // from either side of an append, and a candle chart would be scaled to a range no bar ever occupied.
+        var extent = _bars.Aggregate(StreamingSeries.Box.Empty, static (box, bar) => box.Extend(bar.Low, bar.High));
+        return extent.IsEmpty
+            ? new(null, null, null, null)
+            : new(0, Count - 1, extent.XMin, extent.YMax);
     }
 
     /// <inheritdoc />

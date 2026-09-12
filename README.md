@@ -33,8 +33,8 @@ After that the cadence is community-driven: bug fixes, documentation, and whatev
 [Issue](https://github.com/xkqg/MatPlotLibNet/issues) — that is what steers the next release. Every release,
 with its migration notes, is in the [CHANGELOG](CHANGELOG.md).
 
-Quality bar: a strict per-class coverage gate at ≥90 % line and branch (685 classes, 99.6 % / 97.3 %) across
-11,471 tests, with rendering verified against matplotlib pixel-fidelity fixtures.
+Quality bar: a strict per-class coverage gate at ≥90 % line and branch (689 classes, 99.6 % / 97.3 %) across
+11,497 tests, with rendering verified against matplotlib pixel-fidelity fixtures.
 
 ---
 

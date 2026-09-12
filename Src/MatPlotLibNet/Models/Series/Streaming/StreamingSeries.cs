@@ -91,25 +91,21 @@ public abstract class StreamingSeries : ChartSeries, IStreamingSeries
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        // One read, one state. Four separate Min/Max calls could each land on a different append, and a range
-        // whose corners come from different moments describes a window that never existed.
-        var points = _points.ToArray();
-        if (points.Length == 0)
-        {
-            return new(null, null, null, null);
-        }
+        // One WALK, one state: the four corners come from the same moment or from none — and a render that
+        // asks for the range no longer copies the whole window to find out.
+        var box = _points.Aggregate(Box.Empty, static (box, point) => box.Extend(point.X, point.Y));
+        return box.IsEmpty ? new(null, null, null, null) : new(box.XMin, box.XMax, box.YMin, box.YMax);
+    }
 
-        double xMin = points[0].X, xMax = points[0].X, yMin = points[0].Y, yMax = points[0].Y;
-        for (int i = 1; i < points.Length; i++)
-        {
-            var point = points[i];
-            xMin = Math.Min(xMin, point.X);
-            xMax = Math.Max(xMax, point.X);
-            yMin = Math.Min(yMin, point.Y);
-            yMax = Math.Max(yMax, point.Y);
-        }
+    /// <summary>The bounding box of what has been walked so far — the accumulator a range is folded into, so
+    /// the four corners are one value and cannot come from four different moments.</summary>
+    internal readonly record struct Box(double XMin, double XMax, double YMin, double YMax, bool IsEmpty)
+    {
+        public static Box Empty { get; } = new(0, 0, 0, 0, true);
 
-        return new(xMin, xMax, yMin, yMax);
+        public Box Extend(double x, double y) => IsEmpty
+            ? new(x, x, y, y, false)
+            : new(Math.Min(XMin, x), Math.Max(XMax, x), Math.Min(YMin, y), Math.Max(YMax, y), false);
     }
 
     /// <inheritdoc />

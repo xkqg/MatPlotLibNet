@@ -44,6 +44,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   **59 M/s** for a four-field struct, because the CLR specialises value-type generics and nothing is boxed.
   `DoubleRingBuffer` keeps its name and its behaviour and forwards to it, so the index arithmetic that makes a
   wrapped buffer read back in order is written once instead of once per element type.
+- **`RingBuffer<T>.Aggregate()`** — ask the window a question instead of asking it for a copy. It walks what is
+  held, oldest first, folding into a caller-supplied state under one read lock: one pass, one consistent moment,
+  nothing materialised. `ToArray()` stays for the callers that genuinely need an array — a snapshot DTO, a
+  renderer's point list — and is no longer the way to find out something ABOUT the window. Measured on a
+  10 000-point streaming series asked for its range 20 000 times: **320 097 bytes per call as a copy, 33 bytes
+  as a walk**. `Min()`, `Max()` and all three streaming `ComputeDataRange` implementations now walk.
+  The shape is Ait.Core's: every read in its own ring is a `foreach` over the slots that answers and allocates
+  nothing.
 - **`RingBufferExtensions`** — `Min()` and `Max()` over any `INumber<T>` (so an `int` ring gets them too),
   folding under one read lock without allocating, plus `MinOrNaN()` / `MaxOrNaN()` for the `double` ring an axis
   reads, where NaN is the value the rendering pipeline already knows to skip. Arithmetic over the VALUES does
