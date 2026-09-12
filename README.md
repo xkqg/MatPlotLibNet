@@ -1,12 +1,14 @@
-# MatPlotLibNet
+# MatPlotLibNet — matplotlib for .NET
 
-MatPlotLibNet is a charting library for .NET 10 and .NET 8, inspired by [matplotlib](https://matplotlib.org/). It
-has a fluent API, it works with dependency injection, it exports SVG, PNG, PDF and animated GIF on the server, it
-includes an MCP server so an AI agent can draw with it, and it offers 83 series types. It also ships with 13 map
-projections and embedded Natural Earth data, 30 themes, LaTeX-style MathText, O(1) streaming with 53 technical
-indicators, a control room (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window), and
-native controls for Blazor, WPF, MAUI, Avalonia, Uno and ASP.NET Core, plus TypeScript clients for Angular, React
-and Vue. It does not need a JavaScript framework, a WebView or a hosted service.
+MatPlotLibNet is a charting library for C#, .NET 10 and .NET 8, inspired by
+[matplotlib](https://matplotlib.org/). It draws 83 chart types and saves them as SVG, PNG, PDF or an animated GIF,
+straight from your server code. It does not need a JavaScript framework, a WebView or a hosted service.
+
+It has a fluent API and it works with dependency injection. It ships with 142 colormaps, 30 themes, 13 map
+projections with embedded Natural Earth data, LaTeX-style MathText, text in any script, O(1) streaming with 53
+technical indicators, a control room (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window),
+and an MCP server so an AI agent can draw with it. Charts render natively in Blazor, WPF, MAUI, Avalonia, Uno and
+ASP.NET Core, and TypeScript clients are there for Angular, React and Vue.
 
 [![CI](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml/badge.svg)](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
