@@ -128,17 +128,15 @@ tool; no browser, no service, nothing leaves the box.
 * [xkqg/MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) #️⃣ 🏠 🍎 🪟 🐧 - Charts an agent can look at: hand it the JSON for a figure and it returns a PNG with a short description of what it drew, or writes SVG/PDF to a file. 83 chart types, from a line plot to a candlestick to a 3-D surface, and the spec is checked before anything is drawn so a typo comes back named instead of blank. Runs locally as a .NET tool.
 ```
 
-**PR title:** Add MatPlotLibNet under Data Visualization
+**Status:** opened as [punkpeye/awesome-mcp-servers#14213](https://github.com/punkpeye/awesome-mcp-servers/pull/14213).
+Their CONTRIBUTING asks an automated contributor to end the PR title with three robot emoji to opt into the
+fast-track lane, so the title carries them.
 
-### 7c. appcypher/awesome-mcp-servers (pull request)
+### 7c. appcypher/awesome-mcp-servers — CLOSED, do not try again
 
-**Section:** 📊 Data Visualization · **Format:** simpleicons image, then the link, then one line.
-
-```markdown
-<img src="https://cdn.simpleicons.org/dotnet/512BD4" height="14"/> [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - Renders charts from a JSON spec and hands back a PNG the model can see, or writes SVG/PDF to a file; 83 chart types, validated before drawing, runs locally as a .NET tool
-```
-
-**PR title:** Add MatPlotLibNet under Data Visualization
+The repository is **archived** (measured 2026-09-12: `archived: true`, issues off), so it takes no pull request;
+the API answers a PR attempt with a bare 404. Its list is frozen wherever it stood. The text that was written
+for it is folded into 7a instead.
 
 ### 7d. r/mcp, r/dotnet, Hacker News — for the owner to post
 
