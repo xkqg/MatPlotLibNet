@@ -69,13 +69,20 @@
     ],
     "dest": "_site",
     "template": ["default", "modern"],
+    "_comment_sitemap": "Every page is listed, but not every page is equally worth crawling: 726 of the 761 urls are generated API reference pages, and they were competing for crawl attention with the 33 cookbook pages people actually search for. fileOptions ranks them.",
     "sitemap": {
       "baseUrl": "https://xkqg.github.io/MatPlotLibNet/",
       "priority": 0.5,
-      "changefreq": "weekly"
+      "changefreq": "weekly",
+      "fileOptions": {
+        "index.md": { "priority": 1.0, "changefreq": "weekly" },
+        "cookbook/**": { "priority": 0.8, "changefreq": "weekly" },
+        "api/**": { "priority": 0.3, "changefreq": "monthly" }
+      }
     },
     "globalMetadata": {
       "_appTitle": "MatPlotLibNet",
+      "_comment_canonical": "No _canonicalUrlPrefix here on purpose: measured against docfx 2.78.5 with the default+modern template, it emits no <link rel=\"canonical\"> at all (0 of 767 built pages). Only three pages are reachable under two addresses — the site root, the cookbook index and the api index, each served for both /x/ and /x/index.html — and the sitemap names one form of each. Making canonical real needs a forked copy of docfx's head partial, which is a bigger maintenance debt than the three pages are worth.",
       "_appFooter": "MatPlotLibNet — matplotlib for .NET &bull; MIT License",
       "_enableSearch": true,
       "_disableContribution": false,
