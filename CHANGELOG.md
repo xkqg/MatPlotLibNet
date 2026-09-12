@@ -47,6 +47,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and assumes it reaches the open internet, so a host had reason to warn a user about a tool that only draws a
   picture.
 
+- **The package list says what has become of `MatPlotLibNet.Notebooks`.** The wiki has warned for a while that
+  Microsoft ended Polyglot Notebooks and .NET Interactive, which that package builds on. The README, the
+  documentation site and the introduction article still presented it as being as current as the other thirteen,
+  and the README is the page nuget.org shows. All three now say the same thing as the wiki: existing notebooks
+  keep working, nothing new is coming, and new work belongs in `MatPlotLibNet.Interactive`.
+
 ### Fixed
 
 - **A pcolormesh fills its plot area.** The mesh reported its extent without marking its edges, so the axes added

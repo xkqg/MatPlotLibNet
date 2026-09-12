@@ -29,7 +29,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 | [Accessibility](https://github.com/xkqg/MatPlotLibNet/wiki/Accessibility) | ARIA, colorblind-safe palettes, high-contrast theme |
 | [Advanced](https://github.com/xkqg/MatPlotLibNet/wiki/Advanced) | Layouts, date axes, math text, animations, real-time |
 | [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) | All 14 NuGet packages + 3 npm bindings in detail |
-| [Notebooks](https://github.com/xkqg/MatPlotLibNet/wiki/Notebooks) | Polyglot Notebooks + Jupyter inline rendering |
+| [Notebooks](https://github.com/xkqg/MatPlotLibNet/wiki/Notebooks) | Polyglot Notebooks + Jupyter inline rendering. The runtime underneath has been ended by Microsoft; new work belongs in MatPlotLibNet.Interactive |
 | [Benchmarks](https://github.com/xkqg/MatPlotLibNet/wiki/Benchmarks) | SVG rendering, SIMD transforms, indicators, PNG/PDF |
 | [Roadmap](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap) | Version history and planned phases |
 | [Contributing](https://github.com/xkqg/MatPlotLibNet/wiki/Contributing) | Build, test, coding conventions |

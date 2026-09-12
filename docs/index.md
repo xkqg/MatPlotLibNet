@@ -50,4 +50,4 @@ Plt.Create()
 | `MatPlotLibNet.Wpf` | Native WPF chart control via SkiaSharp |
 | `MatPlotLibNet.Geo` | 13 map projections, GeoJSON, Natural Earth 110m data |
 | `MatPlotLibNet.Mcp` | MCP server that provides charts for an AI agent |
-| `MatPlotLibNet.Notebooks` | Inline SVG in Polyglot or Jupyter notebooks |
+| `MatPlotLibNet.Notebooks` | Inline SVG in Polyglot or Jupyter notebooks. Microsoft has ended the runtime underneath it, so existing notebooks keep working and new work belongs in `MatPlotLibNet.Interactive` |
