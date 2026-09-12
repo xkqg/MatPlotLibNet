@@ -2,56 +2,77 @@
 
 Pre-written submission texts for .NET community awesome lists. Copy-paste into a PR or issue on each repo.
 
+Every entry below was checked against the live README and the live CONTRIBUTING of that repository, and each
+one names the exact place it goes. Two things measured there that an entry has to respect: the four lists want
+a SHORT description — the earlier drafts here ran three lines and would have been sent back — and every list
+asks for one link per pull request.
+
 ---
 
-## 1. awesome-dotnet (quozd/awesome-dotnet — 19k+ stars)
+## 1. awesome-dotnet (quozd/awesome-dotnet — 21.6k stars)
 
-**Section:** `## Graphics` · **Format checked against the live README:** `* [Name](url) - description`, a plain
-hyphen between the link and the text, no bold, one line per entry, alphabetical within the section.
+**Section:** `## Graphics` (README line 520) · **Format, read from CONTRIBUTING:** `* [LIBRARY](LINK) - DESCRIPTION`,
+descriptions concise, one link per pull request, and the PR body says why it belongs on the list. The section is
+NOT alphabetical — measured: Oxyplot, OpenTK, Aspose.Drawing, ScottPlot, LiveCharts2, Helix Toolkit — so the
+entry goes at the end of the section. Entries there carry no closing period.
 
-**Status:** prepared, not submitted. MatPlotLibNet is absent from the list (checked against the raw README).
-Submitting means opening a pull request on someone else's repository, so it waits for the maintainer.
+**Status:** prepared, not submitted. MatPlotLibNet is absent (0 hits in the live README).
 
 ```markdown
-* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - matplotlib-inspired charting for .NET 10 and .NET 8. 83 series types, 148 colormaps, 3D projection pipeline, MathText, right-to-left and complex-script text, native WPF/Avalonia/Uno/MAUI controls, an MCP server for AI agents, and SVG/PNG/PDF/GIF export. MIT licensed.
+* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - matplotlib-inspired charting for .NET: 83 chart types, server-rendered SVG/PNG/PDF/GIF, and native controls for Blazor, WPF, MAUI, Avalonia and Uno
 ```
 
 **PR title:** Add MatPlotLibNet to Graphics
 
 ---
 
-## 2. awesome-dotnet-core (thangchung/awesome-dotnet-core — 20k+ stars)
+## 2. awesome-dotnet-core (thangchung/awesome-dotnet-core — 21.4k stars)
 
-**Section:** `### Graphics` · **Format checked against the live README:** `* [Name](url) - description.`, a plain
-hyphen, and the description ends in a full stop.
+**Section:** `### Graphics` (README line 414) · **Format, read from contributing.md:** `* [LIBRARY](LINK) - DESCRIPTION.`,
+and *"make sure the alphabetical order is maintained"* — the section is alphabetical, so the entry goes between
+`MagicScaler` and `QRCoder`.
 
-**Status:** prepared, not submitted. MatPlotLibNet is absent from the list (checked against the raw README).
+**Status:** prepared, not submitted. MatPlotLibNet is absent (0 hits in the live README).
 
 ```markdown
-* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - Code-first charting inspired by matplotlib. Fluent API, 83 series types including 12 in 3D, 148 colormaps, SIMD numerics, native UI controls for Avalonia, Uno and MAUI, SignalR interactivity, and headless SVG/PNG/PDF rendering.
+* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - Code-first charting inspired by matplotlib, rendering SVG, PNG and PDF without a browser.
 ```
 
 **PR title:** Add MatPlotLibNet to Graphics
 
 ---
 
-## 3. awesome-blazor (AdrienTorris/awesome-blazor)
+## 3. awesome-blazor (AdrienTorris/awesome-blazor — 9.4k stars)
 
-**Section:** Libraries & Extensions / Charts
+**Section:** `#### Charts` (README line 205) · **Format, read from CONTRIBUTING:** `* [NAME](LINK) - DESCRIPTION.`,
+descriptions simple, every description ends with a period, one suggestion per pull request, squashed to one
+commit. The star and last-commit badges the existing rows carry are not in the guidelines and are not ours to
+add — leave them to the maintainer.
+
+**Status:** prepared, not submitted. MatPlotLibNet is absent (0 hits in the live README).
 
 ```markdown
-* [MatPlotLibNet.Blazor](https://github.com/xkqg/MatPlotLibNet) — Blazor charting with `MplChart` and `MplLiveChart` Razor components. 83 series types rendered as SVG, bidirectional SignalR for server-authoritative pan/zoom/hover, no JavaScript charting library dependency.
+* [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - Charting for Blazor as inline SVG, with no JavaScript charting library.
 ```
+
+**PR title:** Add MatPlotLibNet to Charts
 
 ---
 
-## 4. awesome-avalonia (AvaloniaCommunity/awesome-avalonia)
+## 4. awesome-avalonia (AvaloniaCommunity/awesome-avalonia — 3.2k stars)
 
-**Section:** Libraries & Extensions
+**Section:** `### Charts & Plots & Diagrams` (README line 259) — NOT "Libraries & Extensions", which an earlier
+draft here named · **Format, read from CONTRIBUTING:** `- [Lib Name](link) - Description.` with a hyphen marker
+rather than an asterisk, short description, and *"we try to keep the list sorted"* — so the entry goes between
+`LiveCharts2` and `Microcharts`.
+
+**Status:** prepared, not submitted. MatPlotLibNet is absent (0 hits in the live README).
 
 ```markdown
-* [MatPlotLibNet.Avalonia](https://github.com/xkqg/MatPlotLibNet) — Native Avalonia 12 charting control (`MplChartControl`) with SkiaSharp backend. 83 series types, local pan/zoom/reset/brush-select via managed interaction layer, optional SignalR server mode. MIT licensed.
+- [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet) - Native Avalonia charting control with a SkiaSharp backend.
 ```
+
+**PR title:** Add MatPlotLibNet to Charts & Plots & Diagrams
 
 ---
 
