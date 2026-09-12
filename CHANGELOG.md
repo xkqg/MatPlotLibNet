@@ -80,12 +80,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   every sample above 10^5-in-log-space was dropped as "outside the plot". The axis went on drawing its ticks for the
   whole range, so the picture looked complete and was not. Measured on six points from 1 to 100 000 with a budget of
   four: a line drew 2 of them, a step series 3, a scatter 2. All of them now draw what the budget asks for.
+
 - **A scatter keeps each marker's own size and colour.** Culling to the viewport renumbers the points from zero while
   `Sizes`, `Colors`, `EdgeColors` and `LineWidths` are indexed by the position in the data, so a cull that started
   past the first sample handed every marker another point's size and colour. A scatter that carries any of those
   per-point arrays is now drawn whole, the way it already was when `C` was set.
+
 - **`WithDownsampling` says what it does.** Its documentation promised LTTB reduction for a scatter series; a scatter
   is culled to the viewport and never reduced further. The text now says so.
+
+- **The indicator count said 53; the assembly ships 58.** The README and the wiki's front page both carried the
+  older number. Counted by reflection over the public types that expose a `Calculate` or `Compute` method: 58
+  batch indicators, plus 11 in the streaming tier. A contract test now pins both, the way the series count is
+  pinned, and also checks that every streaming indicator has a batch counterpart of the same name — so adding one
+  turns a test red instead of leaving two documents quietly wrong.
 
 ## [1.17.0]
 ### Added
