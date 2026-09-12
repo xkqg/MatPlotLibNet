@@ -66,6 +66,27 @@ public sealed class PointplotSeries : DatasetSeries, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>Long form over the samples, named by the category the point plot draws them under.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new List<IReadOnlyList<DataCell>>();
+        for (int d = 0; d < Datasets.Length; d++)
+        {
+            string name = Categories is { } categories && d < categories.Length
+                ? categories[d]
+                : (d + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var label = DataCell.FromText(name);
+            foreach (var value in Datasets[d])
+            {
+                rows.Add([label, DataCell.FromNumber(value)]);
+            }
+        }
+
+        return new ChartDataTable(null, [new("category", DataColumnKind.Text), new(Label ?? "value")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

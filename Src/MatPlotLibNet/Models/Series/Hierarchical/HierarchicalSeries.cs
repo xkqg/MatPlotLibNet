@@ -64,4 +64,25 @@ public abstract class HierarchicalSeries : ChartSeries, IColormappable, INormali
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    /// <remarks>The tree walked depth-first: every node's label, its depth, and its value. A treemap's
+    /// rectangles ARE the tree, so the table is the tree — flattened, with the depth kept as a number so the
+    /// hierarchy survives the flattening.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new List<IReadOnlyList<DataCell>>();
+        Walk(Root, 0);
+        return new ChartDataTable(null,
+            [new("label", DataColumnKind.Text), new("depth"), new(Label ?? "value")], rows);
+
+        void Walk(TreeNode node, int depth)
+        {
+            rows.Add([DataCell.FromText(node.Label), DataCell.FromNumber(depth), DataCell.FromNumber(node.Value)]);
+            foreach (var child in node.Children)
+            {
+                Walk(child, depth + 1);
+            }
+        }
+    }
 }

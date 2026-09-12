@@ -74,6 +74,13 @@ public sealed class PlanarBar3DSeries : XYZSeries, IHasColor, IHasAlpha, IHasEdg
         // convention of keeping per-element arrays and cosmetic overrides client-side.
     };
 
+
+    /// <inheritdoc />
+    /// <remarks>Where each plate sits and how tall it is.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns(
+            [new("x"), new("y"), new(Label ?? "z")], [X.Data, Y.Data, Z.Data]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

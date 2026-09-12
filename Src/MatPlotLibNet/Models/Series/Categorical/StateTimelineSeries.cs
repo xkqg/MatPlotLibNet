@@ -95,6 +95,21 @@ public sealed class StateTimelineSeries : ChartSeries
         return axes.StateTimeline(segments);
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>One row per segment: the state it names and the span it covers. The colour and the hatch are how
+    /// the segment is DRAWN; the state name is what it MEANS, and that is what a reader needs.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new List<IReadOnlyList<DataCell>>(Segments.Count);
+        foreach (var segment in Segments)
+        {
+            rows.Add([DataCell.FromText(segment.Label), DataCell.FromNumber(segment.Start), DataCell.FromNumber(segment.End)]);
+        }
+
+        return new ChartDataTable(null, [new("state", DataColumnKind.Text), new("start"), new("end")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

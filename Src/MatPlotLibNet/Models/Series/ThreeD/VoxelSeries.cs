@@ -87,6 +87,30 @@ public sealed class VoxelSeries : ChartSeries, IHasColor, IHasAlpha
         return result;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>One row per FILLED cell: an empty cell is the absence of data, and a table of mostly-false
+    /// would bury the shape it is supposed to describe.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new List<IReadOnlyList<DataCell>>();
+        for (int x = 0; x < Filled.GetLength(0); x++)
+        {
+            for (int y = 0; y < Filled.GetLength(1); y++)
+            {
+                for (int z = 0; z < Filled.GetLength(2); z++)
+                {
+                    if (Filled[x, y, z])
+                    {
+                        rows.Add([DataCell.FromNumber(x), DataCell.FromNumber(y), DataCell.FromNumber(z)]);
+                    }
+                }
+            }
+        }
+
+        return new ChartDataTable(null, [new("x"), new("y"), new("z")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 

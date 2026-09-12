@@ -25,12 +25,13 @@ For Claude Code: `claude mcp add matplotlibnet -- dnx MatPlotLibNet.Mcp --yes`.
 One optional setting, `MATPLOTLIBNET_MCP_OUTPUT_ROOT`: the only directory `save_chart` may write under. It
 defaults to the system temp directory.
 
-## The four tools
+## The five tools
 
 | tool | what it does |
 |---|---|
 | `render_chart(spec, format)` | renders the spec and returns a PNG the model can see, with a text summary beside it |
 | `save_chart(spec, path, format, overwrite)` | writes PNG, SVG or PDF to a file and returns the path it wrote |
+| `chart_data_table(spec)` | the chart's DATA as markdown tables — the numbers the picture is drawn from |
 | `list_chart_types()` | the chart types a spec may name |
 | `describe_chart_schema(seriesType)` | the fields of a spec, or of one chart type, with a worked example |
 
@@ -110,6 +111,25 @@ Colour names go through the library's own CSS4 table, and `#f00` is expanded, so
 
 The ranges come from the same `ComputeDataRange` call the renderer makes to place the axes, so the text and the
 picture cannot disagree. A count is omitted rather than guessed: a pie has slices, not points.
+
+`chart_data_table` answers what the PNG cannot: **the values.** A model can see that a line rises; it cannot
+read 18.4 off it. The tool returns the figure's own data tables as markdown — one table per group of series
+that share an x, captioned with the chart's name:
+
+```
+**Revenue**
+
+| Quarter | 2026 |
+| --- | --- |
+| 1 | 12 |
+| 2 | 18 |
+| 3 | 15 |
+```
+
+It is the same `figure.ToDataTables()` every other host serves (see the
+[accessibility page](accessibility.md)), so the numbers a model reads and the table a screen reader reads are
+one thing. A chart with more rows than the server's row ceiling is refused with the count, the ceiling and the
+way around it — `save_chart`, then read the file. A table is text, and text is context.
 
 ## Two things worth knowing
 

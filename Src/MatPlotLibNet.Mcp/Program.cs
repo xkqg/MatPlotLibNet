@@ -29,6 +29,7 @@ public static class Program
         builder.Services.AddSingleton<ChartSchemaDescription>();
         builder.Services.AddSingleton(sp => new ChartSpecReader(sp.GetRequiredService<ChartTypeCatalog>(), RenderLimits.Default));
         builder.Services.AddSingleton<ChartRendering>();
+        builder.Services.AddSingleton(sp => new ChartTabulation(sp.GetRequiredService<ChartSpecReader>(), RenderLimits.Default));
         builder.Services.AddSingleton(_ =>
             OutputPathResolver.FromEnvironment(Environment.GetEnvironmentVariable(OutputPathResolver.RootVariable)));
 

@@ -83,6 +83,20 @@
             </div>
         </div>
 
+        <div class="param-group">
+            @* The accessible alternative: the same numbers, in a form a screen reader, a text browser and a
+               spreadsheet all reach. It changes nothing about the figure, so it is a preview toggle, not a
+               figure option - which is why it does not appear in the copyable snippet. *@
+            <label>
+                <input type="checkbox" @bind="_showDataTable" @bind:after="Rebuild" /> Show data table (accessible alternative)
+            </label>
+            <div class="hint">
+                What <code>figure.ToDataTables()</code> returns, as HTML. On your own page:
+                <code>&lt;MplChart Figure="fig" ShowDataTable="true" /&gt;</code>, or
+                <code>MapChartTableEndpoint</code> in ASP.NET Core. Also available as markdown and as CSV.
+            </div>
+        </div>
+
         <div class="section-title">Axes</div>
 
         <div class="param-group">
@@ -222,6 +236,15 @@
                 @((MarkupString)_svg)
             </div>
         }
+        @* After the chart, not before: the reading order is picture-then-detail, and a disclosure costs a
+           sighted reader one closed line. This is what MplChart's ShowDataTable renders on your own page. *@
+        @if (_showDataTable && _dataTable.Length > 0)
+        {
+            <details class="mpl-data-table-details">
+                <summary>Data table</summary>
+                @((MarkupString)_dataTable)
+            </details>
+        }
     </div>
 </div>
 
@@ -307,8 +330,11 @@
     private IColorMap         _colorMap        = ColorMaps.Viridis;
     private bool              _showColorBar    = true;
 
-    private string _svg  = "";
-    private string _code = "";
+    private bool   _showDataTable;
+
+    private string _svg       = "";
+    private string _code      = "";
+    private string _dataTable = "";
 
     protected override void OnInitialized() => Rebuild();
 
@@ -354,6 +380,8 @@
     private void Rebuild()
     {
         PlaygroundController.TryBuild(_selectedExample, CurrentOptions, out _svg, out _code, out _);
+        // Only when it is on screen: the table walks every data point, and the toggle is off by default.
+        _dataTable = _showDataTable ? PlaygroundController.BuildDataTable(_selectedExample, CurrentOptions) : "";
     }
 
     private async Task CopyCode()       => await JS.InvokeVoidAsync("copyToClipboard", _code);

@@ -73,6 +73,28 @@ public sealed class CountSeries : ChartSeries, ICategoryLabeled, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>What the chart draws is the COUNT per distinct value, so that is what the table says - the same
+    /// reduction the renderer makes, not the raw sample list.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var value in Values)
+        {
+            counts.TryGetValue(value, out int seen);
+            counts[value] = seen + 1;
+        }
+
+        var rows = new List<IReadOnlyList<DataCell>>(counts.Count);
+        foreach (var pair in counts)
+        {
+            rows.Add([DataCell.FromText(pair.Key), DataCell.FromNumber(pair.Value)]);
+        }
+
+        return new ChartDataTable(null, [new("category", DataColumnKind.Text), new(Label ?? "count")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

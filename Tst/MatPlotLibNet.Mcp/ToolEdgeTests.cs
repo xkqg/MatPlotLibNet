@@ -20,10 +20,11 @@ public class ToolEdgeTests : IDisposable
     }
 
     private static readonly ChartTypeCatalog Catalog = new();
-    private static readonly ChartRendering Rendering =
-        new(new ChartSpecReader(Catalog, RenderLimits.Default), new ChartSummarizer());
+    private static readonly ChartSpecReader Reader = new(Catalog, RenderLimits.Default);
+    private static readonly ChartRendering Rendering = new(Reader, new ChartSummarizer());
+    private static readonly ChartTabulation Tabulation = new(Reader, RenderLimits.Default);
 
-    private ChartTools Tools => new(Rendering, Catalog, new ChartSchemaDescription(Catalog), new OutputPathResolver(_output.FullName));
+    private ChartTools Tools => new(Rendering, Tabulation, Catalog, new ChartSchemaDescription(Catalog), new OutputPathResolver(_output.FullName));
 
     private static JsonElement Spec(string json) => JsonDocument.Parse(json).RootElement;
 
@@ -75,7 +76,7 @@ public class ToolEdgeTests : IDisposable
     public void AServerWithNothingToExclude_ListsTheTypesWithoutACaveat()
     {
         var everything = new ChartTypeCatalog(new Dictionary<string, string>());
-        var tools = new ChartTools(Rendering, everything, new ChartSchemaDescription(everything), new OutputPathResolver(_output.FullName));
+        var tools = new ChartTools(Rendering, Tabulation, everything, new ChartSchemaDescription(everything), new OutputPathResolver(_output.FullName));
 
         string listed = tools.ListChartTypes();
 

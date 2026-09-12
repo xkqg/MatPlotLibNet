@@ -49,4 +49,9 @@ public abstract class XYZSeries : ChartSeries, I3DPointSeries
             Y.Min(), Y.Max(),
             ZMin: Z.Min(), ZMax: Z.Max());
     }
+
+    /// <inheritdoc />
+    /// <remarks>Three columns, one row per point.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns([new("x"), new("y"), new("z")], [X.Data, Y.Data, Z.Data]);
 }

@@ -25,4 +25,12 @@ public interface ISeries
 
     /// <summary>Creates a serialization DTO representing this series.</summary>
     SeriesDto ToSeriesDto();
+
+    /// <summary>This series' data as a table — its own columns and rows, no caption — or <see langword="null"/>
+    /// when the series has no tabular form (an annotation, a label placed in a scene). It is the DATA at full
+    /// resolution, never what the renderer drew: a downsampled line and a viewport-sliced signal both draw fewer
+    /// points than the series holds, and the table says what the series holds.
+    /// <para>The default answers <see langword="null"/>, so a series type that has nothing to say says nothing.
+    /// The types that DO are listed in the accessibility cookbook page, and a test pins the list against it.</para></summary>
+    Models.ChartDataTable? ToDataTable() => null;
 }

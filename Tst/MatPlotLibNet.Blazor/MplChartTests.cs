@@ -322,6 +322,87 @@ public class MplChartCoverageTests : BunitContext
         Assert.Contains("mpl-expanded", cut.Find("div.mpl-expandable").GetAttribute("class")!);
     }
 
+    /// <summary>The table is off by default: a component that suddenly grew a table under every chart would
+    /// change every page that already uses it.</summary>
+    [Fact]
+    public void ShowDataTable_DefaultsToOff()
+    {
+        var fig = Plt.Create().Plot([1.0], [2.0]).Build();
+
+        var cut = Render<MplChart>(p => p.Add(x => x.Figure, fig));
+
+        Assert.Throws<Bunit.ElementNotFoundException>(() => cut.Find("details.mpl-data-table-details"));
+    }
+
+    /// <summary>Switched on, the table sits beside the picture in a disclosure a keyboard can open - the
+    /// placement the WCAG guidance names, and the one a host can style.</summary>
+    [Fact]
+    public void ShowDataTable_RendersTheTableInADisclosureAfterTheChart()
+    {
+        var fig = Plt.Create()
+            .WithTitle("Revenue")
+            .AddSubPlot(1, 1, 1, ax => ax.SetXLabel("Quarter").Plot([1.0, 2.0], [12.0, 18.0], s => s.Label = "value"))
+            .Build();
+
+        var cut = Render<MplChart>(p =>
+        {
+            p.Add(x => x.Figure, fig);
+            p.Add(x => x.ShowDataTable, true);
+        });
+
+        var details = cut.Find("details.mpl-data-table-details");
+        Assert.Equal("Data table", details.QuerySelector("summary")!.TextContent);
+        Assert.Contains("Revenue", details.QuerySelector("caption")!.TextContent);
+        Assert.Equal("Quarter", details.QuerySelector("th[scope=col]")!.TextContent);
+    }
+
+    /// <summary>The disclosure follows the chart in every display mode - a popup and an expandable chart are
+    /// the same chart, and an accessible alternative that appears in one layout and not another is a trap.</summary>
+    [Theory]
+    [InlineData(DisplayMode.Popup)]
+    [InlineData(DisplayMode.Expandable)]
+    public void ShowDataTable_RendersInEveryDisplayMode(DisplayMode mode)
+    {
+        var fig = Plt.Create().WithTitle("Revenue").Plot([1.0, 2.0], [3.0, 4.0]).Build();
+
+        var cut = Render<MplChart>(p =>
+        {
+            p.Add(x => x.Figure, fig);
+            p.Add(x => x.DisplayMode, mode);
+            p.Add(x => x.ShowDataTable, true);
+        });
+
+        Assert.NotNull(cut.Find("details.mpl-data-table-details"));
+    }
+
+    /// <summary>A chart whose only series has no tabular form renders no empty disclosure: a control that
+    /// promises data and opens on nothing is worse than no control.</summary>
+    [Fact]
+    public void ShowDataTable_WithNothingTabular_RendersNoDisclosure()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(
+                new MatPlotLibNet.Models.Series.QuiverKeySeries(0.5, 0.9, 1.0, "1 m/s")))
+            .Build();
+
+        var cut = Render<MplChart>(p =>
+        {
+            p.Add(x => x.Figure, fig);
+            p.Add(x => x.ShowDataTable, true);
+        });
+
+        Assert.Throws<Bunit.ElementNotFoundException>(() => cut.Find("details.mpl-data-table-details"));
+    }
+
+    /// <summary>A figure with nothing to table renders no empty disclosure.</summary>
+    [Fact]
+    public void ShowDataTable_WithoutAFigure_RendersNothing()
+    {
+        var cut = Render<MplChart>(p => p.Add(x => x.ShowDataTable, true));
+
+        Assert.Throws<Bunit.ElementNotFoundException>(() => cut.Find("details.mpl-data-table-details"));
+    }
+
     /// <summary>Click twice — toggles back to collapsed (covers the false arm of
     /// `_expanded` after a flip).</summary>
     [Fact]

@@ -94,6 +94,26 @@ public sealed class StackedAreaSeries : ChartSeries, IHasAlpha
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>One column per stack, named by its own label: the stacks share an x, so the wide form is the
+    /// readable one. The values are what each stack CONTRIBUTES, not the cumulative top it is drawn at.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var columns = new List<ChartDataColumn>(YSets.Length + 1) { new("x") };
+        var values = new List<IReadOnlyList<double>>(YSets.Length + 1) { X };
+        for (int i = 0; i < YSets.Length; i++)
+        {
+            string header = Labels is { } labels && i < labels.Length
+                ? labels[i]
+                : "series " + (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            columns.Add(new(header));
+            values.Add(YSets[i]);
+        }
+
+        return ChartDataTable.FromNumberColumns(columns, values);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

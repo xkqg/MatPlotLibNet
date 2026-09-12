@@ -14,6 +14,11 @@ public abstract class PolarSeries : ChartSeries, IPolarSeries
     protected PolarSeries(double[] r, double[] theta) { R = r; Theta = theta; }
 
     /// <inheritdoc />
+    /// <remarks>Angle first, then the radius under the series' own label — the order the reader thinks in.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns([new("theta"), new(Label ?? "r")], [Theta, R]);
+
+    /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
 }

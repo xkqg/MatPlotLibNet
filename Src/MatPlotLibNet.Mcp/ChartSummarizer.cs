@@ -76,7 +76,7 @@ internal sealed class ChartSummarizer
         foreach (var axes in figure.SubPlots)
         {
             var context = new AxesSnapshot(axes);
-            foreach (var item in axes.Series.Concat(axes.SecondarySeries))
+            foreach (var item in axes.AllSeries)
             {
                 series.Add(Describe(item, context));
             }

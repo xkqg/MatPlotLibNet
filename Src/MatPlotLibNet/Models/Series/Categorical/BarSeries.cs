@@ -176,6 +176,21 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The categories as text, then the values under the series' own label.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        int count = Math.Min(Categories.Length, Values.Length);
+        var rows = new IReadOnlyList<DataCell>[count];
+        for (int i = 0; i < count; i++)
+        {
+            rows[i] = [DataCell.FromText(Categories[i]), DataCell.FromNumber(Values[i])];
+        }
+
+        return new ChartDataTable(null, [new("category", DataColumnKind.Text), new(Label ?? "value")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

@@ -91,6 +91,41 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The point, then every error arm the series carries. An error bar without its errors is a
+    /// scatter plot, so the arms are columns, not a footnote.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var columns = new List<ChartDataColumn> { new("x"), new(Label ?? "y") };
+        var values = new List<IReadOnlyList<double>> { XData, YData };
+        if (YErrorLow is { Length: > 0 } yLow)
+        {
+            columns.Add(new("y error low"));
+            values.Add(yLow);
+        }
+
+        if (YErrorHigh is { Length: > 0 } yHigh)
+        {
+            columns.Add(new("y error high"));
+            values.Add(yHigh);
+        }
+
+        if (XErrorLow is { Length: > 0 } xLow)
+        {
+            columns.Add(new("x error low"));
+            values.Add(xLow);
+        }
+
+        if (XErrorHigh is { Length: > 0 } xHigh)
+        {
+            columns.Add(new("x error high"));
+            values.Add(xHigh);
+        }
+
+        return ChartDataTable.FromNumberColumns(columns, values);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

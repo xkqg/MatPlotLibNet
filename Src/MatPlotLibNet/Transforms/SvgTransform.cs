@@ -141,25 +141,14 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         return false;
     }
 
-    private static string TileLabels(Figure figure)
-    {
-        var labels = new List<string>();
-        foreach (var axes in figure.SubPlots)
-            foreach (var series in axes.Series)
-                if (series is Models.Series.StatTileSeries { Label: { Length: > 0 } label })
-                    labels.Add(label);
-        return string.Join(" · ", labels);
-    }
-
     private static string BuildSvgDocument(string w, string h, Figure figure, Action<StringBuilder> writeBody)
     {
         var sb = new StringBuilder(512);
 
-        // Determine alt-text: prefer AltText, fall back to Title, then nothing (empty title still written)
-        // An untitled figure still has an accessible NAME: its stat tiles' labels — a tile row deliberately
-        // carries no title (the page prints the heading), and an <svg role="img"> with an empty <title> is a
-        // picture of nothing to a screen reader.
-        string altText = figure.AltText ?? figure.Title ?? TileLabels(figure);
+        // The accessible name — alt text, else the title, else a tile row's labels — is ONE rule the figure owns
+        // (FigureExtensions.AccessibleName); the data table's caption reads the same rule, so the two can never
+        // name the same picture differently. An empty name still writes an empty <title>.
+        string altText = figure.AccessibleName();
         bool hasDescription = figure.Description is not null;
         // A figure that contains a hyperlink is a GROUP, not an image: role="img" makes every descendant
         // presentational, so the link's aria-label and aria-expanded would never be announced (WAI-ARIA

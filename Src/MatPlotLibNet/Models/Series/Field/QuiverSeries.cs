@@ -78,6 +78,13 @@ public sealed class QuiverSeries : ChartSeries, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>Where each arrow sits and what it points at.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns(
+            [new("x"), new("y"), new("u"), new("v")], [XData, YData, UData, VData]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

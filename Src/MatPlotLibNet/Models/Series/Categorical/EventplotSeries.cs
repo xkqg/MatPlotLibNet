@@ -72,6 +72,24 @@ public sealed class EventplotSeries : ChartSeries
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>Long form: one row per event, named by the 1-based row it sits on.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new List<IReadOnlyList<DataCell>>();
+        for (int r = 0; r < Positions.Length; r++)
+        {
+            var row = DataCell.FromText((r + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            foreach (var position in Positions[r])
+            {
+                rows.Add([row, DataCell.FromNumber(position)]);
+            }
+        }
+
+        return new ChartDataTable(null, [new("row", DataColumnKind.Text), new(Label ?? "position")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

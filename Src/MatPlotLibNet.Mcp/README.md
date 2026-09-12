@@ -6,12 +6,13 @@
 mcp-name: io.github.xkqg/matplotlibnet
 
 An [MCP](https://modelcontextprotocol.io) (Model Context Protocol) server for [MatPlotLibNet](https://github.com/xkqg/MatPlotLibNet).
-It gives an AI agent — Claude Code, VS Code, Claude Desktop, any MCP host — four tools:
+It gives an AI agent — Claude Code, VS Code, Claude Desktop, any MCP host — five tools:
 
 | tool | what it does |
 |---|---|
 | `render_chart` | renders a chart spec to a PNG image the model can look at |
 | `save_chart` | writes the chart as PNG, SVG or PDF to a file and returns the path it wrote |
+| `chart_data_table` | the chart's DATA as markdown tables — a model can see that a line rises, but it cannot read a value off a picture |
 | `list_chart_types` | the chart types the spec accepts, read off the library's own registry |
 | `describe_chart_schema` | the fields of the spec, and a worked example for a chart type |
 

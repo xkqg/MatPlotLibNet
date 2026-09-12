@@ -130,6 +130,26 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>Long form over the matrix, in the ORDER THE MAP DRAWS — the clustering reorders rows and
+    /// columns, and a table in input order would name different cells than the picture does.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rowOrder = ResolveLeafOrder(RowTree, Data.GetLength(0));
+        var columnOrder = ResolveLeafOrder(ColumnTree, Data.GetLength(1));
+        var out_ = new List<IReadOnlyList<DataCell>>(rowOrder.Length * columnOrder.Length);
+        foreach (int r in rowOrder)
+        {
+            foreach (int c in columnOrder)
+            {
+                out_.Add([DataCell.FromNumber(r), DataCell.FromNumber(c), DataCell.FromNumber(Data[r, c])]);
+            }
+        }
+
+        return new ChartDataTable(null, [new("row"), new("column"), new(Label ?? "value")], out_);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 

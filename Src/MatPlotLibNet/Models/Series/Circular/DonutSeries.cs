@@ -53,6 +53,23 @@ public sealed class DonutSeries : ChartSeries
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>One row per slice: its label - or "slice N" when the series carries none - and its size.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new IReadOnlyList<DataCell>[Sizes.Length];
+        for (int i = 0; i < Sizes.Length; i++)
+        {
+            string label = Labels is { } labels && i < labels.Length
+                ? labels[i]
+                : "slice " + (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            rows[i] = [DataCell.FromText(label), DataCell.FromNumber(Sizes[i])];
+        }
+
+        return new ChartDataTable(null, [new("label", DataColumnKind.Text), new(Label ?? "size")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

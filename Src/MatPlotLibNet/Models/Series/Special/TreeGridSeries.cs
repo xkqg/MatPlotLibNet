@@ -73,6 +73,43 @@ public sealed class TreeGridSeries : ChartSeries
 
     internal static TreeGridSeries FromSeriesDto(Axes axes, SeriesDto dto) => axes.TreeGrid([]);
 
+
+    /// <inheritdoc />
+    /// <remarks>One row per tree row, its depth kept as a column: an indent is a picture of a hierarchy, a depth
+    /// number is the hierarchy itself.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        int width = Rows.Count == 0 ? 0 : Rows.Max(row => row.Cells.Count);
+        width = Math.Max(width, ColumnHeaders?.Length ?? 0);
+
+        var columns = new List<ChartDataColumn> { new("label", DataColumnKind.Text), new("depth") };
+        for (int c = 0; c < width; c++)
+        {
+            string header = ColumnHeaders is { } headers && c < headers.Length
+                ? headers[c]
+                : "column " + (c + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            columns.Add(new(header, DataColumnKind.Text));
+        }
+
+        var rows = new List<IReadOnlyList<DataCell>>(Rows.Count);
+        foreach (var row in Rows)
+        {
+            var cells = new List<DataCell>(columns.Count)
+            {
+                DataCell.FromText(row.Label),
+                DataCell.FromNumber(row.Depth),
+            };
+            for (int c = 0; c < width; c++)
+            {
+                cells.Add(DataCell.FromText(c < row.Cells.Count ? row.Cells[c] : ""));
+            }
+
+            rows.Add(cells);
+        }
+
+        return new ChartDataTable(null, columns, rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

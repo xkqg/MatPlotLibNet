@@ -85,6 +85,12 @@ public sealed class HexbinSeries : ChartSeries, IColormappable, INormalizable, I
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The observations the hexagons are binned from.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns([new("x"), new("y")], [X, Y]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 

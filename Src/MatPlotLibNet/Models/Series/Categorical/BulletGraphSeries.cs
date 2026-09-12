@@ -122,6 +122,23 @@ public sealed class BulletGraphSeries : ChartSeries
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The measure and, when the graph carries one, the target it is read against - the two numbers a
+    /// bullet graph exists to compare.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var columns = new List<ChartDataColumn> { new("label", DataColumnKind.Text), new(Label ?? "value") };
+        var cells = new List<DataCell> { DataCell.FromText(Label ?? ""), DataCell.FromNumber(Value) };
+        if (Target is { } target)
+        {
+            columns.Add(new("target"));
+            cells.Add(DataCell.FromNumber(target));
+        }
+
+        return new ChartDataTable(null, columns, [cells]);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

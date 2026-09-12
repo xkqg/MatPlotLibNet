@@ -78,6 +78,13 @@ public sealed class Axes
     public IReadOnlyList<ISeries> Series => _series;
     private readonly List<ISeries> _series = [];
 
+    /// <summary>Every series drawn on this subplot, in draw order: <see cref="Series"/>, then
+    /// <see cref="SecondarySeries"/>, then <see cref="XSecondarySeries"/>. This is the answer to "what does the
+    /// picture show" — the data table reads it, and so does anything that describes the subplot. It is NOT
+    /// <see cref="Series.IAxesContext.AllSeries"/>, which names only the series that share ONE axis pair (the set a
+    /// stacked bar sums over); the two differ on purpose, and each is documented against the other.</summary>
+    public IEnumerable<ISeries> AllSeries => _series.Concat(_secondarySeries).Concat(_xSecondarySeries);
+
     /// <summary>Adds a pre-constructed series to the axes.</summary>
     public T AddSeries<T>(T series) where T : ISeries
     {

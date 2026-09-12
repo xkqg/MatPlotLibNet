@@ -30,6 +30,33 @@ public class ChartQueryTypeTests
         Assert.Contains("Query Test", svg);
     }
 
+    /// <summary>A client that cannot render an SVG - a screen reader, a text client, an agent - asks for the
+    /// same chart as a table, over the same id.</summary>
+    [Fact]
+    public void GetChartDataTable_ReturnsTheChartAsHtmlRows()
+    {
+        var factory = new ChartFigureFactory(_ => Plt.Create()
+            .WithTitle("Query Table")
+            .AddSubPlot(1, 1, 1, ax => ax.SetXLabel("Quarter").Plot([1.0, 2.0], [12.0, 18.0], s => s.Label = "value"))
+            .Build());
+        var query = new ChartQueryType();
+
+        var html = query.GetChartDataTable("test", factory);
+
+        Assert.Contains("<caption>Query Table</caption>", html);
+        Assert.Contains("<th scope=\"col\">Quarter</th>", html);
+        Assert.Contains("<td>18</td>", html);
+    }
+
+    /// <summary>A figure with nothing to table answers with an empty string, never a broken fragment.</summary>
+    [Fact]
+    public void GetChartDataTable_EmptyInput_IsAnEmptyString()
+    {
+        var factory = new ChartFigureFactory(_ => Plt.Create().Build());
+
+        Assert.Equal("", new ChartQueryType().GetChartDataTable("test", factory));
+    }
+
     /// <summary>Verifies that GetChartJson returns valid JSON containing the chart title.</summary>
     [Fact]
     public void GetChartJson_ReturnsValidJson()

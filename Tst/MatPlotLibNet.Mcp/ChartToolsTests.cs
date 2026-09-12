@@ -25,6 +25,7 @@ public class ChartToolsTests : IDisposable
         var reader = new ChartSpecReader(catalog, RenderLimits.Default);
         _tools = new ChartTools(
             new ChartRendering(reader, new ChartSummarizer()),
+            new ChartTabulation(reader, RenderLimits.Default),
             catalog,
             new ChartSchemaDescription(catalog),
             new OutputPathResolver(_output.FullName));
@@ -54,10 +55,11 @@ public class ChartToolsTests : IDisposable
             .Select(m => m.GetCustomAttribute<McpServerToolAttribute>()!.Name)
             .OrderBy(n => n, StringComparer.Ordinal);
 
-        Assert.Equal(["describe_chart_schema", "list_chart_types", "render_chart", "save_chart"], names);
+        Assert.Equal(["chart_data_table", "describe_chart_schema", "list_chart_types", "render_chart", "save_chart"], names);
     }
 
     [Theory]
+    [InlineData("chart_data_table", "spec")]
     [InlineData("render_chart", "spec,format")]
     [InlineData("save_chart", "spec,path,format,overwrite")]
     [InlineData("list_chart_types", "")]

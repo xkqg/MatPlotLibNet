@@ -73,6 +73,31 @@ public sealed class StreamplotSeries : ChartSeries, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>Long form over the vector grid: the point, and the vector at it. The streamlines are integrated
+    /// from this field by the renderer — the field is the data.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        int rows = U.GetLength(0), cols = U.GetLength(1);
+        var out_ = new List<IReadOnlyList<DataCell>>(rows * cols);
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                out_.Add(
+                [
+                    DataCell.FromNumber(c < X.Length ? X[c] : c),
+                    DataCell.FromNumber(r < Y.Length ? Y[r] : r),
+                    DataCell.FromNumber(U[r, c]),
+                    DataCell.FromNumber(V[r, c]),
+                ]);
+            }
+        }
+
+        return new ChartDataTable(null, [new("x"), new("y"), new("u"), new("v")], out_);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

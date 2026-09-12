@@ -90,6 +90,28 @@ public sealed class BrokenBarSeries : ChartSeries, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>Long form: one row per bar segment, named by its row's own label where the series carries one.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new List<IReadOnlyList<DataCell>>();
+        for (int r = 0; r < Ranges.Length; r++)
+        {
+            string name = Labels is { } labels && r < labels.Length
+                ? labels[r]
+                : (r + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var label = DataCell.FromText(name);
+            foreach (var range in Ranges[r])
+            {
+                rows.Add([label, DataCell.FromNumber(range.Start), DataCell.FromNumber(range.Width)]);
+            }
+        }
+
+        return new ChartDataTable(null,
+            [new("row", DataColumnKind.Text), new("start"), new("width")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

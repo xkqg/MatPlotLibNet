@@ -29,6 +29,22 @@ public static class FigureExtensions
     /// <summary>Renders the figure as a standalone SVG string.</summary>
     public static string ToSvg(this Figure figure) => ChartServices.SvgRenderer.Render(figure);
 
+    /// <summary>The figure's accessible name — what the SVG <c>&lt;title&gt;</c> says and what the data table's
+    /// caption says, from one rule: the <see cref="Figure.AltText"/> an author wrote, else the
+    /// <see cref="Figure.Title"/>, else, for a tile row that deliberately carries no title, the labels of its
+    /// <see cref="Models.Series.StatTileSeries"/> joined by " · ". Empty when none of the three names it.</summary>
+    public static string AccessibleName(this Figure figure)
+    {
+        if (figure.AltText is not null) return figure.AltText;
+        if (figure.Title is not null) return figure.Title;
+        var labels = new List<string>();
+        foreach (var axes in figure.SubPlots)
+            foreach (var series in axes.Series)
+                if (series is Models.Series.StatTileSeries { Label: { Length: > 0 } label })
+                    labels.Add(label);
+        return string.Join(" · ", labels);
+    }
+
     /// <summary>Serializes the figure to JSON.</summary>
     public static string ToJson(this Figure figure, bool indented = false) =>
         ChartServices.Serializer.ToJson(figure, indented);

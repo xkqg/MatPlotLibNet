@@ -13,6 +13,7 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | `AxesBuilder` | Per-subplot builder: series, labels, legends, ticks, camera |
 | `Figure` | Immutable chart model — the output of `.Build()` |
 | `ChartSeries` | Abstract base for all 83 series types |
+| `ChartDataTable` | The figure's data as a table — `figure.ToDataTables()`, then `ToHtml()` / `ToMarkdown()` / `ToCsv()` |
 | `Theme` | Theme presets and custom theme builder |
 | `ColorMaps` | 104 colormap presets |
 

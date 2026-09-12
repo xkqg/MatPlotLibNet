@@ -86,6 +86,14 @@ public sealed class GaugeSeries : ChartSeries
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The needle's value and the dial it is read against.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        new(null,
+            [new("label", DataColumnKind.Text), new(Label ?? "value"), new("min"), new("max")],
+            [[DataCell.FromText(Label ?? ""), DataCell.FromNumber(Value), DataCell.FromNumber(Min), DataCell.FromNumber(Max)]]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

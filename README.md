@@ -19,6 +19,10 @@ The **1.15** line opens the library to agents: `MatPlotLibNet.Mcp` is a Model Co
 model can render any of these chart types from a JSON spec and look at the result — and is told which field is
 wrong when the spec is not one.
 
+Beside the agent is the reader who cannot see the picture at all. `figure.ToDataTables()` gives every chart the
+data table that carries what the picture carries — HTML, markdown or CSV — and every host that serves the SVG
+serves that too.
+
 The **1.14** line before it was control-room work: `Plt.OpsDashboard()` and the tile anatomy arrived with it,
 and the releases since are the fixes and extensions a live operator wall asked for — a secondary Y axis that is
 a full citizen, streaming that draws in SVG, 3-D axis titles that clear their own labels, tile captions that
@@ -29,8 +33,8 @@ After that the cadence is community-driven: bug fixes, documentation, and whatev
 [Issue](https://github.com/xkqg/MatPlotLibNet/issues) — that is what steers the next release. Every release,
 with its migration notes, is in the [CHANGELOG](CHANGELOG.md).
 
-Quality bar: a strict per-class coverage gate at ≥90 % line and branch (679 classes, 99.6 % / 97.3 %) across
-11,022 tests, with rendering verified against matplotlib pixel-fidelity fixtures.
+Quality bar: a strict per-class coverage gate at ≥90 % line and branch (685 classes, 99.6 % / 97.3 %) across
+11,457 tests, with rendering verified against matplotlib pixel-fidelity fixtures.
 
 ---
 
@@ -93,9 +97,10 @@ Plt.Create()
 **83 series types** — line, scatter, bar, histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
 
 **MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a
-[Model Context Protocol](https://modelcontextprotocol.io) server, shipped as a .NET tool a host starts over stdio. Four tools: `render_chart` (PNG plus a text summary of
-what was drawn), `save_chart` (PNG/SVG/PDF to a file, returning the path it wrote), `list_chart_types` and
-`describe_chart_schema`. The spec is the library's own figure JSON, so anything the library draws, an agent can
+[Model Context Protocol](https://modelcontextprotocol.io) server, shipped as a .NET tool a host starts over stdio. Five tools: `render_chart` (PNG plus a text summary of
+what was drawn), `save_chart` (PNG/SVG/PDF to a file, returning the path it wrote), `chart_data_table` (the
+numbers the picture is drawn from, as markdown — the one question an image cannot answer), `list_chart_types`
+and `describe_chart_schema`. The spec is the library's own figure JSON, so anything the library draws, an agent can
 ask for — and the server refuses a wrong spec by field name before it renders, instead of returning a blank
 picture. See the [cookbook](docs/cookbook/mcp.md).
 
@@ -117,7 +122,9 @@ picture. See the [cookbook](docs/cookbook/mcp.md).
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover). Stacked-record event hierarchy, natural coalescing, per-caller hover responses.
 
-**142 colormaps** — viridis, plasma, turbo, coolwarm, and 138 more (71 base maps, each with an auto-registered reversed `_r` variant). NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Accessibility (ARIA, keyboard, Okabe-Ito palette, high-contrast theme). Matplotlib look-alike themes. DataFrame integration with **53 technical indicators**. Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
+**Accessibility** — `figure.ToDataTables()` gives every chart a data table beside the picture (`ToHtml()`, `ToMarkdown()`, `ToCsv()`), which is the text alternative WCAG 1.1.1 asks of a complex image and what an `<svg role="img">` cannot be on its own. Served by `MapChartTableEndpoint`, by `MplChart.ShowDataTable`, by the GraphQL `chartDataTable` field and by the MCP `chart_data_table` tool. Plus ARIA roles and titles, keyboard navigation, the Okabe-Ito colour-blind-safe palette and a high-contrast theme.
+
+**142 colormaps** — viridis, plasma, turbo, coolwarm, and 138 more (71 base maps, each with an auto-registered reversed `_r` variant). NumPy-style SIMD numerics (`Vec`, `Mat`, `Linalg`, `Fft`). Matplotlib look-alike themes. DataFrame integration with **53 technical indicators**. Broken axes. Publication-quality SVG/PNG/PDF/GIF export.
 
 ---
 

@@ -77,4 +77,14 @@ public abstract class StreamingSeries : ChartSeries, IStreamingSeries
         Type = "streaming",
         Label = Label
     };
+
+    /// <inheritdoc />
+    /// <remarks>The ring buffer's current snapshot — what the series holds at the moment it is asked, which is
+    /// the same thing the next render draws.</remarks>
+    public override Models.ChartDataTable? ToDataTable()
+    {
+        var snapshot = CreateSnapshot();
+        return Models.ChartDataTable.FromNumberColumns(
+            [new("x"), new(Label ?? "y")], [snapshot.XData, snapshot.YData]);
+    }
 }

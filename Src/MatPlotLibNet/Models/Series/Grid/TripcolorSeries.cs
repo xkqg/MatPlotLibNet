@@ -69,6 +69,13 @@ public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The unstructured points the triangulation is built over.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns(
+            [new("x"), new("y"), new(Label ?? "z")], [X.Data, Y.Data, Z.Data]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

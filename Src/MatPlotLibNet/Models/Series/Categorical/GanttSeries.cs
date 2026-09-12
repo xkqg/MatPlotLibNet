@@ -59,6 +59,21 @@ public sealed class GanttSeries : ChartSeries, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>One row per task: its name, and the two ends of its bar.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        int count = Math.Min(Tasks.Length, Math.Min(Starts.Length, Ends.Length));
+        var rows = new IReadOnlyList<DataCell>[count];
+        for (int i = 0; i < count; i++)
+        {
+            rows[i] = [DataCell.FromText(Tasks[i]), DataCell.FromNumber(Starts[i]), DataCell.FromNumber(Ends[i])];
+        }
+
+        return new ChartDataTable(null, [new("task", DataColumnKind.Text), new("start"), new("end")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

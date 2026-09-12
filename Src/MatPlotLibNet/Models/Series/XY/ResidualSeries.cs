@@ -94,6 +94,12 @@ public sealed class ResidualSeries : ChartSeries, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The observations; the residual the chart draws is derived from them by the renderer.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns([new("x"), new(Label ?? "y")], [XData.Data, YData.Data]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

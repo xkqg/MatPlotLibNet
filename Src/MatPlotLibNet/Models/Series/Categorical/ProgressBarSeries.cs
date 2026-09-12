@@ -55,6 +55,14 @@ public sealed class ProgressBarSeries : ChartSeries
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>One row: the fraction the bar fills.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        new(null,
+            [new("label", DataColumnKind.Text), new(Label ?? "value")],
+            [[DataCell.FromText(Label ?? ""), DataCell.FromNumber(Value)]]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

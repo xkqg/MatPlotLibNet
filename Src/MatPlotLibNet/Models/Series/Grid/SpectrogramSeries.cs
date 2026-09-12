@@ -75,6 +75,22 @@ public sealed class SpectrogramSeries : ChartSeries, IColorBarDataProvider, ICol
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The signal the spectrogram is computed from: the STFT is a view of it, and a reader asked for
+    /// the data gets the samples, with the sample rate turning the index into a time.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new IReadOnlyList<DataCell>[Signal.Length];
+        double step = SampleRate > 0 ? 1.0 / SampleRate : 1.0;
+        for (int i = 0; i < Signal.Length; i++)
+        {
+            rows[i] = [DataCell.FromNumber(i * step), DataCell.FromNumber(Signal[i])];
+        }
+
+        return new ChartDataTable(null, [new("time"), new(Label ?? "amplitude")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

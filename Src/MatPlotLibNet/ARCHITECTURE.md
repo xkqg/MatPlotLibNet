@@ -54,12 +54,19 @@ MatPlotLibNet/
                                       library never reads DateTime.Now
 
   Extensions/
-    FigureExtensions.cs               Save(), Transform(), ToSvg(), ToJson(), RegisterTransform()
+    FigureExtensions.cs               Save(), Transform(), ToSvg(), ToJson(), RegisterTransform(),
+                                      AccessibleName() (alt text -> title -> tile labels; the SVG <title> and
+                                      the data-table caption read ONE rule, not two)
                                       (SRP: all output responsibility moved here from FigureBuilder)
+    FigureDataTableExtensions.cs      ToDataTables() on Figure and on Axes: the figure's data as tables, for the
+                                      reader who cannot see the picture. Series sharing an x VALUE merge into
+                                      one table; the rest each get their own
 
   Models/
     Figure.cs                         top-level container (Title, Width, Height, Theme, EnableZoomPan, EnableLegendToggle, EnableRichTooltips, EnableHighlight, EnableSelection, HasInteractivity)
-    Axes.cs                           subplot: series, annotations, ref lines, spans, secondary axis, insets, ShareX/ShareY, EnableInteractiveAttributes
+    Axes.cs                           subplot: series, annotations, ref lines, spans, secondary axis, insets, ShareX/ShareY, EnableInteractiveAttributes,
+                                      AllSeries (primary + secondary-Y + secondary-X in draw order — the one
+                                      answer to "what does this subplot show")
     Axis.cs                           label, min/max, scale, ticks
     Annotation.cs                     text annotation: Text, X, Y, ArrowTarget, Alignment, Rotation, ArrowStyle, BackgroundColor
     ArrowStyle.cs                     enum: None, Simple, FancyArrow
@@ -70,9 +77,19 @@ MatPlotLibNet/
                                       canonical form for Axes.AddInset / AxesBuilder.AddInset — the
                                       double-argument overloads forward here (v1.13.0)
     SpinesConfig.cs                   per-spine visibility/position: Top, Bottom, Left, Right
+    ChartDataTable.cs                 the accessible alternative to the picture: Caption, Columns, Rows, and
+                                      ToHtml() / ToMarkdown() / ToCsv() (HTML and markdown cap at
+                                      DefaultMaxRows = 1000 with a "... N more rows" trailer; CSV never caps)
+    ChartDataColumn.cs                readonly record struct (Header, DataColumnKind) — Number | Date | Text;
+                                      the kind decides how a cell PRINTS, so a date axis reads as a date
+    DataCell.cs                       readonly record struct: Empty | Number | Text. A jagged row is a real
+                                      shape (an OHLC row has no volume) and an empty cell says so without a
+                                      sentinel number
 
     Series/                           83 series types across 14 categories (Streaming is one of them)
-      ISeries.cs                      interface: Label, Visible, ZOrder, Accept()
+      ISeries.cs                      interface: Label, Visible, ZOrder, Accept(), ToDataTable() (default
+                                      interface method returning null — a series with no tabular form, like a
+                                      quiver key, says so by not overriding it)
       ISeriesSerializable.cs          interface: each series serializes itself (eliminates SeriesToDto switch)
       IHasDataRange.cs                interface: series that expose their own data bounds
       IPolarSeries.cs                 interface: polar coordinate series
@@ -88,7 +105,9 @@ MatPlotLibNet/
       IHasAlpha.cs                    interface: double Alpha — polymorphic alpha access (~7 series)
       IHasEdgeColor.cs                interface: Color? EdgeColor — polymorphic edge-color access (~3 series)
       ILabelable.cs                   interface: bool ShowLabels; string? LabelFormat — series with data-point labels
-      ChartSeries.cs                  abstract base: implements ISeries + ISeriesSerializable
+      ChartSeries.cs                  abstract base: implements ISeries + ISeriesSerializable; declares the
+                                      virtual ToDataTable() 63 types override — 8 family bases plus 55 leaves (a class cannot
+                                      override a default interface member — the base must own the virtual)
       XYSeries.cs                     generic base: XData, YData, MaxDisplayPoints (Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Stem, Ecdf)
       OhlcSeries.cs                   financial base: Open, High, Low, Close, DateLabels, UpColor, DownColor, PriceData (Candlestick, OhlcBar)
       DatasetSeries.cs                distribution base: Datasets[][], default ComputeDataRange (Stripplot, Swarmplot, Pointplot, Box, Violin)
@@ -579,6 +598,7 @@ ChartHub               routes to SignalR group by chartId
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
 | Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 83 series | each series knows how to serialize AND deserialize itself (v1.13.0: no central switch on either side) |
+| Self-tabulation | ISeries.ToDataTable() overridden per series; FigureDataTableExtensions only GROUPS and captions | same shape as self-serialization: the type that owns the data owns its column names, so a new series type needs no edit anywhere central |
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
 | Registry | SeriesRegistry (ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>>) | thread-safe discriminator -> series' own FromSeriesDto factory lookup; thin table only |
 | Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries; CircularRenderer<T>, PolarTransformRenderer<T>, OhlcStreamingIndicatorTests<T> (Phase L) | DRY shared properties and behaviour across series and renderer families |
@@ -591,7 +611,7 @@ ChartHub               routes to SignalR group by chartId
 | Thread safety | volatile fields, ConcurrentDictionary for GlobalTransforms, AxesRenderer registry, SeriesRegistry | safe concurrent access |
 | Adapter | LegacyAnimationAdapter | bridges AnimationBuilder to IAnimation\<TState\> |
 | Delegate extraction | SvgTransform.BuildSvgDocument, ChartSerializer.ApplyEnum | DRY via higher-order functions |
-| Default interface method | IRenderContext.DrawRichText | all backends get plain-text fallback; SVG overrides with tspan emission |
+| Default interface method | IRenderContext.DrawRichText; ISeries.ToDataTable() | a new member lands on every implementor without breaking one — the fallback is the honest answer (plain text; "no tabular form") |
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
 | Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand, ColorStop, StreamingPoint, MinMaxRange, MatShape, XYCurve, BarRange, GaugeBand, DataPoint, LineSegment, Size, Vec3, CubePlane, CubeFaceSelection, AxisEdge3D | replace anonymous/named tuples in public API for discoverability and structural equality (v1.8.0 completed the sweep — no anonymous tuples remain) |
@@ -608,7 +628,7 @@ without a protocol host.
 ```
 MatPlotLibNet.Mcp/
   Program.cs                       host + stdio transport + WithTools<ChartTools>(); no decisions, excluded from coverage
-  ChartTools.cs                    the only [McpServerTool] file: four tools, and the one error boundary
+  ChartTools.cs                    the only [McpServerTool] file: five tools, and the one error boundary
   ChartSpec.cs                     readonly record struct ChartSpec(string Json) — a spec cannot be swapped with a path
   ChartSpecReader.cs               parse -> normalise -> strict DTO pass -> semantic pass -> ChartSerializer.FromJson
   SpecVocabulary.cs                the accepted values of every enum-valued spec field, per node kind
@@ -616,7 +636,10 @@ MatPlotLibNet.Mcp/
   ChartRendering.cs                spec -> Figure -> bytes; one owner, two sinks (inline PNG, or a file)
   OutputPathResolver.cs            the single directory save_chart may write under
   ChartSummarizer.cs               FigureSummary / SeriesSummary via the series' own ComputeDataRange
-  RenderLimits.cs                  the canvas and text ceilings (the canvas ceiling IS the token ceiling)
+  ChartTabulation.cs               chart_data_table: the figure's own ToDataTables() as markdown — the one
+                                   question a model cannot put to an image, answered in text
+  RenderLimits.cs                  the canvas, text and table-row ceilings (the canvas ceiling IS the token
+                                   ceiling; so is the row ceiling)
   ToolRefusalException.cs          a refusal the boundary turns into an McpException the model can act on
   Extensions/StringDistanceExtensions.cs   edit distance, for "did you mean 'line'?"
   .mcp/server.json                 the registry manifest; its version is pinned to the project's by a test

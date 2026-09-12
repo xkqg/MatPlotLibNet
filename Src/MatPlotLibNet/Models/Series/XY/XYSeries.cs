@@ -19,6 +19,13 @@ public abstract class XYSeries : ChartSeries, IPriceSeries
     protected XYSeries(double[] xData, double[] yData) { XData = xData; YData = yData; }
 
     /// <inheritdoc />
+    /// <remarks>Two columns: the x values, and the y values under the series' own label.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns(
+            [new("x"), new(Label ?? "y")],
+            [XData, YData]);
+
+    /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         // Empty series contributes no data range. Min()/Max() throw on empty.

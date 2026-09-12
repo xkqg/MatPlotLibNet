@@ -109,6 +109,7 @@ dotnet run --project MatPlotLibNet.Samples.WebApi
 
 - `GET /api/chart/sales` — chart as JSON
 - `GET /api/chart/sales.svg` — chart as SVG
+- `GET /api/chart/sales.table` — the same chart as an HTML data table, for a reader the SVG cannot reach
 - `/charts-hub` — SignalR hub (subscribe to `sensor-1` for live updates)
 
 ## GraphQL
@@ -121,6 +122,7 @@ dotnet run --project MatPlotLibNet.Samples.GraphQL
 
 - `/graphql` — BananaCakePop playground
 - Query: `{ chartSvg(chartId: "demo") }`
+- Query: `{ chartDataTable(chartId: "demo") }` — the same chart as an HTML data table
 - Subscription: `subscription { onChartSvgUpdated(chartId: "live-sensor") }`
 
 ## Packages without dedicated sample projects

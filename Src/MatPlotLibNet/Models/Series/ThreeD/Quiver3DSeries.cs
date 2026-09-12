@@ -108,6 +108,14 @@ public sealed class Quiver3DSeries : ChartSeries, I3DPointSeries, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>Where each arrow sits in the scene, and the vector it carries.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns(
+            [new("x"), new("y"), new("z"), new("u"), new("v"), new("w")],
+            [X.Data, Y.Data, Z.Data, U.Data, V.Data, W.Data]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

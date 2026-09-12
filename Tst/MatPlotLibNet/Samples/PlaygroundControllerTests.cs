@@ -106,4 +106,24 @@ public class PlaygroundControllerTests
         Assert.Equal("", code);
         Assert.False(string.IsNullOrWhiteSpace(error));
     }
+
+    // ─── BuildDataTable ───────────────────────────────────────────────────────
+
+    /// <summary>The playground shows what the library does, and what it does now is give the picture a readable
+    /// alternative. The preview pane can show it because the figure can produce it — same figure, same options.</summary>
+    [Fact]
+    public void BuildDataTable_ValidExample_IsTheFiguresDataAsAnHtmlTable()
+    {
+        string html = PlaygroundController.BuildDataTable(PlaygroundExample.LineChart, new PlaygroundOptions { Title = "Test" });
+
+        Assert.Contains("<table", html);
+        Assert.Contains("<caption>Test", html);
+        Assert.Contains("scope=\"col\"", html);
+    }
+
+    /// <summary>An example that cannot be built has no table either — and says so with nothing, not with an
+    /// exception: the preview pane already reports the failure once, on the chart.</summary>
+    [Fact]
+    public void BuildDataTable_UnregisteredExample_IsEmpty()
+        => Assert.Equal("", PlaygroundController.BuildDataTable((PlaygroundExample)999, new PlaygroundOptions()));
 }

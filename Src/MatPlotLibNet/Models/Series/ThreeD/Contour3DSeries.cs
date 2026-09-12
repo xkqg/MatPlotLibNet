@@ -65,6 +65,7 @@ public sealed class Contour3DSeries : GridSeries3D, IColormappable, IHasColor
         return s;
     }
 
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

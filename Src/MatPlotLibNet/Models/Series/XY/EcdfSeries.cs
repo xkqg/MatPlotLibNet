@@ -72,6 +72,20 @@ public sealed class EcdfSeries : ChartSeries, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The samples the curve is computed from.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new IReadOnlyList<DataCell>[Data.Length];
+        for (int i = 0; i < Data.Length; i++)
+        {
+            rows[i] = [DataCell.FromNumber(i), DataCell.FromNumber(Data[i])];
+        }
+
+        return new ChartDataTable(null, [new("index"), new(Label ?? "value")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

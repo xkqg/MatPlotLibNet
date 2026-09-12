@@ -108,6 +108,16 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
         Label = Label
     };
 
+
+    /// <inheritdoc />
+    /// <remarks>The buffer's current snapshot, with the sample rate turning the index into a time.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var snapshot = CreateSnapshot();
+        return ChartDataTable.FromNumberColumns(
+            [new("x"), new(Label ?? "y")], [snapshot.XData, snapshot.YData]);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

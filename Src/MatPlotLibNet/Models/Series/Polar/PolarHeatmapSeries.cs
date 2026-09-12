@@ -73,6 +73,24 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>Long form over the wedge grid: which ring, which sector, and the value in that cell.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        int rows = Data.GetLength(0), cols = Data.GetLength(1);
+        var out_ = new List<IReadOnlyList<DataCell>>(rows * cols);
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                out_.Add([DataCell.FromNumber(r), DataCell.FromNumber(c), DataCell.FromNumber(Data[r, c])]);
+            }
+        }
+
+        return new ChartDataTable(null, [new("r bin"), new("theta bin"), new(Label ?? "value")], out_);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

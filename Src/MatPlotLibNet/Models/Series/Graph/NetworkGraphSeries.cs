@@ -178,6 +178,21 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The edges, by node id and weight — the topology, which is what the layout draws a picture of.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new List<IReadOnlyList<DataCell>>(Edges.Count);
+        foreach (var edge in Edges)
+        {
+            rows.Add([DataCell.FromText(edge.From), DataCell.FromText(edge.To), DataCell.FromNumber(edge.Weight)]);
+        }
+
+        return new ChartDataTable(null,
+            [new("from", DataColumnKind.Text), new("to", DataColumnKind.Text), new(Label ?? "weight")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

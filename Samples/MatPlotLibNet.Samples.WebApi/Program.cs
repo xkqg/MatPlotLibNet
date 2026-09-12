@@ -28,6 +28,16 @@ app.MapChartSvgEndpoint("/api/chart/sales.svg", _ =>
             line => { line.Color = Colors.Blue; line.Label = "Revenue ($k)"; })
         .Build());
 
+// The same chart as its DATA - an HTML table fragment. A client that cannot render an SVG, a reader using a
+// screen reader, and a spreadsheet all want this endpoint, not the picture.
+app.MapChartTableEndpoint("/api/chart/sales.table", _ =>
+    Plt.Create()
+        .WithTitle("Monthly Sales")
+        .WithTheme(Theme.Seaborn)
+        .Plot([1, 2, 3, 4, 5, 6], [120, 340, 250, 410, 380, 520],
+            line => { line.Color = Colors.Blue; line.Label = "Revenue ($k)"; })
+        .Build());
+
 // SignalR hub for real-time updates
 app.MapChartHub();
 
@@ -50,6 +60,6 @@ _ = Task.Run(async () =>
     }
 });
 
-Console.WriteLine("Endpoints: GET /api/chart/sales (JSON), GET /api/chart/sales.svg (SVG)");
+Console.WriteLine("Endpoints: GET /api/chart/sales (JSON), GET /api/chart/sales.svg (SVG), GET /api/chart/sales.table (HTML data table)");
 Console.WriteLine("SignalR hub: /charts-hub (subscribe to 'sensor-1' for live updates)");
 app.Run();

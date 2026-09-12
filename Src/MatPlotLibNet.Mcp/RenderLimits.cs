@@ -10,8 +10,10 @@ namespace MatPlotLibNet.Mcp;
 /// <param name="MaxWidth">Largest accepted figure width, in points.</param>
 /// <param name="MaxHeight">Largest accepted figure height, in points.</param>
 /// <param name="MaxTextLength">Longest accepted title, label or description.</param>
-internal readonly record struct RenderLimits(int MaxWidth, int MaxHeight, int MaxTextLength)
+/// <param name="MaxTableRows">Most rows <c>chart_data_table</c> writes out. A table is text, and text is the
+/// scarce thing here: a ten-thousand-row answer costs more context than the chart it describes.</param>
+internal readonly record struct RenderLimits(int MaxWidth, int MaxHeight, int MaxTextLength, int MaxTableRows)
 {
     /// <summary>The limits the server ships with.</summary>
-    public static RenderLimits Default => new(4000, 4000, 512);
+    public static RenderLimits Default => new(4000, 4000, 512, 500);
 }

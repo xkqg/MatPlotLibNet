@@ -16,6 +16,25 @@ public abstract class DatasetSeries : ChartSeries
     }
 
     /// <inheritdoc />
+    /// <remarks>Long form: one row per sample, named by the 1-based dataset it belongs to. A wide form would
+    /// need every dataset to have the same length, which is exactly what a distribution series does not
+    /// promise.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new List<IReadOnlyList<DataCell>>();
+        for (int d = 0; d < Datasets.Length; d++)
+        {
+            var label = DataCell.FromText((d + 1).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            foreach (var value in Datasets[d])
+            {
+                rows.Add([label, DataCell.FromNumber(value)]);
+            }
+        }
+
+        return new ChartDataTable(null, [new("dataset", DataColumnKind.Text), new("value")], rows);
+    }
+
+    /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (Datasets.Length == 0) return new(0, 1, 0, 1);

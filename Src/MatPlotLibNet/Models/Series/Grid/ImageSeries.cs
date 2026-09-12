@@ -86,6 +86,25 @@ public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormapp
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>Long form: one row per cell. A wide grid would make the column headers indices, which say
+    /// nothing a reader can use; row and column as numbers are readable at any size.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        int rows = Data.GetLength(0), cols = Data.GetLength(1);
+        var out_ = new List<IReadOnlyList<DataCell>>(rows * cols);
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                out_.Add([DataCell.FromNumber(r), DataCell.FromNumber(c), DataCell.FromNumber(Data[r, c])]);
+            }
+        }
+
+        return new ChartDataTable(null, [new("row"), new("column"), new(Label ?? "value")], out_);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

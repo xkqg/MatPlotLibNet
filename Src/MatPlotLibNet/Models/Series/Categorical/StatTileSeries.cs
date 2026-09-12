@@ -135,6 +135,14 @@ public sealed class StatTileSeries : ChartSeries
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>A tile is one number, so the table is one row: what the tile is called and what it reads.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        new(null,
+            [new("label", DataColumnKind.Text), new(Label ?? "value")],
+            [[DataCell.FromText(Label ?? ""), DataCell.FromNumber(Value)]]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

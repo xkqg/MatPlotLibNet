@@ -116,7 +116,7 @@ public class McpStdioTests
     }
 
     [Fact]
-    public void TheServerAnnouncesItsFourTools()
+    public void TheServerAnnouncesItsFiveTools()
     {
         var stdout = Converse(2, Initialize, Initialized, """{"jsonrpc":"2.0","id":2,"method":"tools/list"}""");
 
@@ -127,7 +127,7 @@ public class McpStdioTests
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(["describe_chart_schema", "list_chart_types", "render_chart", "save_chart"], names);
+        Assert.Equal(["chart_data_table", "describe_chart_schema", "list_chart_types", "render_chart", "save_chart"], names);
     }
 
     [Fact]

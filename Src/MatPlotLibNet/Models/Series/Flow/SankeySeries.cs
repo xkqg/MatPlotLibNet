@@ -102,6 +102,31 @@ public sealed class SankeySeries : ChartSeries
     internal static SankeySeries FromSeriesDto(Axes axes, SeriesDto dto)
         => axes.Sankey([new SankeyNode("A")], []);
 
+
+    /// <inheritdoc />
+    /// <remarks>The links, by the names of the nodes they join: a Sankey diagram IS its flows, and a reader
+    /// needs "A to B, 10", not a node list and an index.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new List<IReadOnlyList<DataCell>>(Links.Count);
+        foreach (var link in Links)
+        {
+            rows.Add(
+            [
+                DataCell.FromText(NodeName(link.SourceIndex)),
+                DataCell.FromText(NodeName(link.TargetIndex)),
+                DataCell.FromNumber(link.Value),
+            ]);
+        }
+
+        return new ChartDataTable(null,
+            [new("source", DataColumnKind.Text), new("target", DataColumnKind.Text), new(Label ?? "value")], rows);
+
+        string NodeName(int index) => index >= 0 && index < Nodes.Count
+            ? Nodes[index].Label
+            : index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

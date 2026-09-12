@@ -66,6 +66,56 @@ public sealed class TableSeries : ChartSeries
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>A table series is already a table; it hands over its own cells and headers unchanged. Its cells
+    /// are pre-formatted strings, so every column is text. A row-header column keeps its place at the front under
+    /// an empty header - the shape an HTML table wants.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        int width = CellData.Length == 0 ? 0 : CellData.Max(row => row.Length);
+        width = Math.Max(width, ColumnHeaders?.Length ?? 0);
+        bool rowHeaders = RowHeaders is { Length: > 0 };
+
+        var columns = new List<ChartDataColumn>(width + 1);
+        if (rowHeaders)
+        {
+            columns.Add(new("", DataColumnKind.Text));
+        }
+
+        for (int c = 0; c < width; c++)
+        {
+            string header = ColumnHeaders is { } headers && c < headers.Length
+                ? headers[c]
+                : "column " + (c + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            columns.Add(new(header, DataColumnKind.Text));
+        }
+
+        if (columns.Count == 0)
+        {
+            columns.Add(new("", DataColumnKind.Text));
+        }
+
+        var rows = new List<IReadOnlyList<DataCell>>(CellData.Length);
+        for (int r = 0; r < CellData.Length; r++)
+        {
+            var cells = new List<DataCell>(columns.Count);
+            if (rowHeaders)
+            {
+                cells.Add(DataCell.FromText(r < RowHeaders!.Length ? RowHeaders[r] : ""));
+            }
+
+            for (int c = 0; c < width; c++)
+            {
+                cells.Add(DataCell.FromText(c < CellData[r].Length ? CellData[r][c] : ""));
+            }
+
+            rows.Add(cells);
+        }
+
+        return new ChartDataTable(null, columns, rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

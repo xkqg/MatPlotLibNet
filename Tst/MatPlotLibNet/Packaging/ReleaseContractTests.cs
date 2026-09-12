@@ -185,6 +185,24 @@ public class ReleaseContractTests
     }
 
     [Fact]
+    public void TheAccessibilityPage_NamesEverySeriesWithNoTabularForm()
+    {
+        // "Every chart has a data table" is the promise the page makes, and it is not quite true: two series
+        // are annotations rather than data. A reader who builds an accessible page on that promise and finds
+        // nothing has been misled by a document, not by the library. The exceptions are a hand-kept list in
+        // one test file; this pins the page to it, so adding a third one fails here rather than silently
+        // widening the gap between what the page says and what the code does.
+        string page = Read("docs", "cookbook", "accessibility.md");
+
+        var unnamed = Models.Series.SeriesDataTableTests.WithoutATabularForm
+            .Where(name => !page.Contains(name, StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.True(unnamed.Length == 0,
+            $"The accessibility page promises a table for every chart but never names these exceptions: {string.Join(", ", unnamed)}");
+    }
+
+    [Fact]
     public void TheApiDocumentation_CoversEveryPackableProject()
     {
         // docfx metadata is a hand-kept file list too: a package absent from it is absent from the API site.

@@ -115,6 +115,15 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>A fill between two lines carries both of them; a fill to the baseline carries one.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        YData2 is { Length: > 0 } second
+            ? ChartDataTable.FromNumberColumns(
+                [new("x"), new(Label ?? "y"), new("y2")], [XData, YData, second])
+            : base.ToDataTable();
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

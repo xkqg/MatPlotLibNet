@@ -34,4 +34,31 @@ public abstract class OhlcSeries : ChartSeries, IPriceSeries
         Low = low;
         Close = close;
     }
+
+    /// <inheritdoc />
+    /// <remarks>Five columns. The first is the bar's <see cref="DateLabels"/> entry when the series carries
+    /// them — that is the only thing a bar knows about its own x position — and its index otherwise.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        int count = Math.Min(Math.Min(Open.Length, High.Length), Math.Min(Low.Length, Close.Length));
+        bool dated = DateLabels is { Length: > 0 };
+        var columns = new ChartDataColumn[]
+        {
+            dated ? new("date", DataColumnKind.Text) : new("x"),
+            new("open"), new("high"), new("low"), new("close"),
+        };
+
+        var rows = new IReadOnlyList<DataCell>[count];
+        for (int i = 0; i < count; i++)
+        {
+            rows[i] =
+            [
+                dated ? DataCell.FromText(i < DateLabels!.Length ? DateLabels[i] : "") : DataCell.FromNumber(i),
+                DataCell.FromNumber(Open[i]), DataCell.FromNumber(High[i]),
+                DataCell.FromNumber(Low[i]), DataCell.FromNumber(Close[i]),
+            ];
+        }
+
+        return new ChartDataTable(null, columns, rows);
+    }
 }

@@ -58,6 +58,12 @@ public sealed class StemSeries : ChartSeries
     internal static StemSeries FromSeriesDto(Axes axes, SeriesDto dto)
         => axes.Stem(dto.XData ?? [], dto.YData ?? []);
 
+
+    /// <inheritdoc />
+    /// <remarks>The stems' feet and heads.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns([new("x"), new(Label ?? "y")], [XData, YData]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

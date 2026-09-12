@@ -75,6 +75,22 @@ public sealed class HistogramSeries : ChartSeries, IHasColor, IHasAlpha, IHasEdg
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>What a histogram draws is its BINS, so that is what the table says: where each bar starts and
+    /// how many samples fell in it — the same reduction the renderer makes, through the same call.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var bins = ComputeBins();
+        var rows = new IReadOnlyList<DataCell>[bins.Counts.Length];
+        for (int i = 0; i < bins.Counts.Length; i++)
+        {
+            rows[i] = [DataCell.FromNumber(bins.Min + (i * bins.BinWidth)), DataCell.FromNumber(bins.Counts[i])];
+        }
+
+        return new ChartDataTable(null, [new("bin start"), new(Label ?? "count")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 

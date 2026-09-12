@@ -43,6 +43,20 @@ public sealed class SparklineSeries : ChartSeries, IHasColor
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>A sparkline has no x of its own: the index IS the x.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new IReadOnlyList<DataCell>[Values.Length];
+        for (int i = 0; i < Values.Length; i++)
+        {
+            rows[i] = [DataCell.FromNumber(i), DataCell.FromNumber(Values[i])];
+        }
+
+        return new ChartDataTable(null, [new("index"), new(Label ?? "value")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

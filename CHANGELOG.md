@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Next]
+### Added
+
+- **A chart can be read, not only seen.** `figure.ToDataTables()` returns the figure's data as `ChartDataTable`
+  values — columns that carry a kind, rows of cells, a caption that is the figure's own accessible name — and
+  each one writes itself as `ToHtml()`, `ToMarkdown()` or `ToCsv()`. Alt text says what a chart *is*; the table
+  carries what it *says*, which is what WCAG 1.1.1 asks of a complex image and what an `<svg role="img">`
+  structurally cannot give: that role makes every descendant presentational, so the `aria-label` already on each
+  series group is markup a screen reader never announces. The table is the alternative that does.
+- **Every series states its own data.** `ISeries.ToDataTable()` — one definition per type, the way
+  `ToSeriesDto()` already works, with no central switch to keep in step: an XY series is x and y, an OHLC series
+  is five columns, a heatmap is long-form row/column/value, a histogram is its bins, a treemap is its tree
+  flattened with the depth kept as a column. Two series that share an x become two columns of one table; two
+  that do not each get their own. The table is the data at full resolution — a downsampled line and a
+  viewport-sliced signal draw fewer points than the series holds, and the table says what the series holds.
+- **The hosts serve it.** `MapChartTableEndpoint` returns it as `text/html; charset=utf-8` beside the SVG
+  endpoint; `MplChart` gained `ShowDataTable` (off by default), which renders it in a `<details>` disclosure
+  after the chart — the placement the WCAG technique names — in every display mode; the GraphQL schema gained
+  `chartDataTable` beside `chartSvg`; and the MCP server gained a fifth tool, `chart_data_table`, which answers
+  the one question a model cannot put to an image — what are the values — in markdown, capped, with the ceiling
+  and the way around it named in the refusal.
+- **`Axes.AllSeries`** — every series drawn on a subplot in draw order: primary, then secondary-Y, then
+  secondary-X. Three lists held three different answers to "what does this subplot show", the one Core-side
+  abstraction returned the first list under the name `AllSeries`, and the only caller that concatenated caught
+  two of the three. A secondary-X series is drawn; now it is described too.
+- **`figure.AccessibleName()`** — the alt text, else the title, else a tile row's own labels. The SVG `<title>`
+  applied that rule inside the transform with the fallback private to it; the data table needs the same answer,
+  and two layers deciding one identity is how they come to disagree.
+
+### Fixed
+
+- **A label containing a double quote no longer breaks the SVG.** `EscapeForXml` escaped `&`, `<` and `>` —
+  correct for text content, and the same string is written into `aria-label="…"`, where an unescaped quote ends
+  the attribute early and the parse stops there. It now escapes `"` as well. The apostrophe is deliberately left
+  alone: the renderer writes no single-quoted attribute, and escaping it would change every title that has one.
+
 ## [1.15.1]
 ### Added
 

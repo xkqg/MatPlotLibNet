@@ -2,6 +2,17 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (Next, the chart data table):** **685/685 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 685 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.6L / 97.3B**; **11,457 tests, 0 failures** across the 10 CI suites. The six classes the data table adds
+went in test-first, but the row that made the gate interesting was the existing one: `ToDataTable()` on
+63 series types (8 family bases + 55 leaves) is 63 new branches spread thin across classes already at the
+threshold, and the first strict run reported **14 below and 16 regressed** — every one of them a fallback arm no test walked (a pie
+with fewer labels than slices, a contour whose axes are shorter than its grid, an error bar with no X error).
+They are covered by a test each that says what the fallback IS, not by a smoke test that merely reaches the
+line. One reported gap was neither: `RelativeRotationSeries` guarded a label index its own constructor makes
+impossible, so the guard was deleted rather than tested.
+
 **Status (v1.15.0, the MCP server):** **679/679 classes at ≥90/90**, strict gate **PASSES** with no
 regressions (`PASS: All 679 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.6L / 97.3B**; **11,022 tests, 0 failures** across the 10 CI suites. The twenty classes the

@@ -11,6 +11,7 @@
         {
             @((MarkupString)_svgContent)
         }
+        @DataTable()
         @if (!string.IsNullOrEmpty(PopupUrl))
         {
             <a class="mpl-popup-link" href="@PopupUrl" target="_blank" rel="noopener">Open in new tab</a>
@@ -25,6 +26,7 @@ else if (DisplayMode == DisplayMode.Expandable)
         {
             @((MarkupString)_svgContent)
         }
+        @DataTable()
     </div>
 }
 else
@@ -34,6 +36,7 @@ else
         {
             @((MarkupString)_svgContent)
         }
+        @DataTable()
     </div>
 }
 
@@ -45,6 +48,12 @@ else
     [Parameter] public DisplayMode DisplayMode { get; set; } = DisplayMode.Inline;
     [Parameter] public string? PopupUrl { get; set; }
     [Parameter] public IAnimationSource? AnimationSource { get; set; }
+
+    /// <summary>When true, the figure's data is rendered as a table in a disclosure below the chart - the
+    /// accessible alternative to the picture, which an <c>&lt;svg role="img"&gt;</c> and its alt text cannot be on
+    /// their own (WCAG 1.1.1). Off by default: it changes what every existing page renders. The host supplies the
+    /// CSS; the markup carries the <c>mpl-data-table</c> class to hang it on.</summary>
+    [Parameter] public bool ShowDataTable { get; set; }
 
     private string _svgContent = string.Empty;
     private bool _expanded;
@@ -75,6 +84,30 @@ else
     {
         if (_subscribedSource is not null)
             _subscribedSource.FrameReady -= OnAnimationFrameReady;
+    }
+
+    /// <summary>The disclosure holding the figure's data table, or nothing at all when the parameter is off or
+    /// the figure has nothing tabular to say - an empty disclosure is a control that promises data and has none.</summary>
+    private MarkupString DataTable()
+    {
+        if (!ShowDataTable || Figure is null)
+        {
+            return default;
+        }
+
+        var tables = Figure.ToDataTables();
+        if (tables.Count == 0)
+        {
+            return default;
+        }
+
+        var html = new System.Text.StringBuilder("<details class=\"mpl-data-table-details\"><summary>Data table</summary>");
+        foreach (var table in tables)
+        {
+            html.Append(table.ToHtml());
+        }
+
+        return (MarkupString)html.Append("</details>").ToString();
     }
 
     private void ToggleExpand()

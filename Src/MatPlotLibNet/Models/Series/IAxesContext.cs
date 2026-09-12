@@ -16,6 +16,9 @@ public interface IAxesContext
 
     BarMode BarMode { get; }
 
+    /// <summary>The series that share this context's axis pair — the set a stacked bar sums over and a range
+    /// computation ranges with. NOT every series drawn on the subplot: secondary-axis series live in their own
+    /// context. For "everything the picture shows" read <see cref="Models.Axes.AllSeries"/>.</summary>
     IReadOnlyList<ISeries> AllSeries { get; }
 
     /// <summary>The x axis scale. A <see cref="AxisScale.Log"/> axis ranges over POSITIVE data only — a

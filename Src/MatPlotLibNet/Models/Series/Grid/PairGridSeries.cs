@@ -219,6 +219,28 @@ public sealed class PairGridSeries : ChartSeries
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>Long form over the variables: one row per sample per variable, named by the variable's own
+    /// label. The grid draws every PAIR of them; the data is the variables.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var rows = new List<IReadOnlyList<DataCell>>();
+        for (int v = 0; v < Variables.Length; v++)
+        {
+            string name = Labels is { } labels && v < labels.Length
+                ? labels[v]
+                : "variable " + (v + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var label = DataCell.FromText(name);
+            foreach (var value in Variables[v])
+            {
+                rows.Add([label, DataCell.FromNumber(value)]);
+            }
+        }
+
+        return new ChartDataTable(null, [new("variable", DataColumnKind.Text), new(Label ?? "value")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

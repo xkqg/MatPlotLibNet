@@ -32,4 +32,26 @@ public abstract class GridSeries3D : ChartSeries, I3DGridSeries
         }
         return result;
     }
+
+    /// <inheritdoc />
+    /// <remarks>Long form over the surface grid: the x and y a vertex sits at, and its height.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        int rows = Z.GetLength(0), cols = Z.GetLength(1);
+        var out_ = new List<IReadOnlyList<DataCell>>(rows * cols);
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                out_.Add(
+                [
+                    DataCell.FromNumber(c < X.Length ? X[c] : c),
+                    DataCell.FromNumber(r < Y.Length ? Y[r] : r),
+                    DataCell.FromNumber(Z[r, c]),
+                ]);
+            }
+        }
+
+        return new ChartDataTable(null, [new("x"), new("y"), new(Label ?? "z")], out_);
+    }
 }

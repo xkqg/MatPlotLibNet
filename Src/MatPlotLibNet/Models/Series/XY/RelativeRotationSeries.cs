@@ -350,6 +350,32 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The computed RS-ratio and RS-momentum per asset per period — what the quadrants show. The raw
+    /// closes are the input; the coordinates are what the reader is looking at.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var points = ComputeRsData();
+        var rows = new List<IReadOnlyList<DataCell>>();
+        for (int a = 0; a < points.Length; a++)
+        {
+            // The constructor refuses a label count that differs from the asset count, so there is one label
+            // per asset here by construction — no fallback to guard a case the type cannot be built in.
+            var label = DataCell.FromText(AssetLabels[a]);
+            var ratio = points[a].RsRatio;
+            var momentum = points[a].RsMomentum;
+            int count = Math.Min(ratio.Length, momentum.Length);
+            for (int i = 0; i < count; i++)
+            {
+                rows.Add([label, DataCell.FromNumber(ratio[i]), DataCell.FromNumber(momentum[i])]);
+            }
+        }
+
+        return new ChartDataTable(null,
+            [new("asset", DataColumnKind.Text), new("rs-ratio"), new("rs-momentum")], rows);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

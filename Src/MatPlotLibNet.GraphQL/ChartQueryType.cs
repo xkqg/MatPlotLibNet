@@ -20,6 +20,16 @@ public sealed class ChartQueryType
         return svgRenderer.Render(figure);
     }
 
+    /// <summary>Returns the chart's DATA as HTML tables - the accessible alternative to the rendered picture,
+    /// over the same chart id. Empty when the chart has nothing tabular to say.</summary>
+    public string GetChartDataTable(
+        string chartId,
+        [Service] ChartFigureFactory factory)
+    {
+        var figure = factory.Create(chartId);
+        return string.Concat(figure.ToDataTables().Select(table => table.ToHtml()));
+    }
+
     /// <summary>Returns the chart as a JSON specification string.</summary>
     public string GetChartJson(
         string chartId,

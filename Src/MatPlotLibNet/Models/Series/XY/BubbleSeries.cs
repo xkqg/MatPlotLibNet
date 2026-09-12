@@ -46,6 +46,13 @@ public sealed class BubbleSeries : XYSeries, IHasColor, IHasAlpha
         return s;
     }
 
+
+    /// <inheritdoc />
+    /// <remarks>The point, and the size that is its third variable.</remarks>
+    public override ChartDataTable? ToDataTable() =>
+        ChartDataTable.FromNumberColumns(
+            [new("x"), new(Label ?? "y"), new("size")], [XData, YData, Sizes]);
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

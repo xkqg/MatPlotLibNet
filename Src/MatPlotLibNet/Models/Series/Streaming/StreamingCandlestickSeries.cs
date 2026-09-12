@@ -97,6 +97,20 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
         Label = Label
     };
 
+
+    /// <inheritdoc />
+    /// <remarks>The buffer's current bars, five columns like any other OHLC series.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        var snapshot = CreateOhlcSnapshot();
+        return ChartDataTable.FromNumberColumns(
+            [new("x"), new("open"), new("high"), new("low"), new("close")],
+            [
+                Enumerable.Range(0, snapshot.Close.Length).Select(i => (double)i).ToArray(),
+                snapshot.Open, snapshot.High, snapshot.Low, snapshot.Close,
+            ]);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

@@ -64,4 +64,23 @@ public static class PlaygroundController
             return false;
         }
     }
+
+    /// <summary>
+    /// Builds the example's DATA as HTML tables - the accessible alternative to the picture
+    /// (<see cref="FigureDataTableExtensions.ToDataTables(Models.Figure)"/>), concatenated into one fragment.
+    /// Returns "" when the example cannot be built: <see cref="TryBuild"/> already reports that failure once,
+    /// on the chart, and a second copy of the same exception is noise, not information.
+    /// </summary>
+    public static string BuildDataTable(PlaygroundExample example, PlaygroundOptions options)
+    {
+        try
+        {
+            var (figure, _) = PlaygroundExamples.Build(example, options);
+            return string.Concat(figure.ToDataTables().Select(table => table.ToHtml()));
+        }
+        catch (Exception)
+        {
+            return "";
+        }
+    }
 }

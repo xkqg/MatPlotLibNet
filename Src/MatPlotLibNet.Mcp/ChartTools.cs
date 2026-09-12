@@ -9,7 +9,7 @@ using ModelContextProtocol.Server;
 
 namespace MatPlotLibNet.Mcp;
 
-/// <summary>The four tools, and the only file in this package that the MCP SDK touches. Everything it calls is a
+/// <summary>The five tools, and the only file in this package that the MCP SDK touches. Everything it calls is a
 /// plain class a test can drive without a protocol host; what lives here is the wire contract — the tool names, the
 /// parameter names and the one error boundary.
 /// <para>That boundary is load-bearing: the SDK forwards the message of an <see cref="McpException"/> and replaces
@@ -19,14 +19,21 @@ namespace MatPlotLibNet.Mcp;
 internal sealed class ChartTools
 {
     private readonly ChartRendering _rendering;
+    private readonly ChartTabulation _tabulation;
     private readonly ChartTypeCatalog _catalog;
     private readonly ChartSchemaDescription _schema;
     private readonly OutputPathResolver _output;
 
     /// <summary>Creates the tool surface over the collaborators the host resolves.</summary>
-    public ChartTools(ChartRendering rendering, ChartTypeCatalog catalog, ChartSchemaDescription schema, OutputPathResolver output)
+    public ChartTools(
+        ChartRendering rendering,
+        ChartTabulation tabulation,
+        ChartTypeCatalog catalog,
+        ChartSchemaDescription schema,
+        OutputPathResolver output)
     {
         _rendering = rendering;
+        _tabulation = tabulation;
         _catalog = catalog;
         _schema = schema;
         _output = output;
@@ -69,6 +76,15 @@ internal sealed class ChartTools
             var result = _rendering.Save(ChartSpec.From(spec), format, path, overwrite, _output);
             return $"Wrote {result.Path} ({result.ByteCount:N0} bytes, {result.FormatWritten.ToString().ToLowerInvariant()}).\n{result.Summary.ToText()}";
         });
+
+    [McpServerTool(Name = "chart_data_table", ReadOnly = true)]
+    [Description("Returns the DATA of a chart spec as markdown tables - the numbers the picture is drawn from, "
+        + "which an image cannot be read for. One table per group of series that share an x. Long charts are "
+        + "refused with the limit in the message; save the chart and read the file instead.")]
+    public string ChartDataTable(
+        [Description("The chart spec: MatPlotLibNet figure JSON, the same document render_chart takes.")]
+        JsonElement spec) =>
+        Guarded(() => _tabulation.Describe(ChartSpec.From(spec)));
 
     [McpServerTool(Name = "list_chart_types", ReadOnly = true)]
     [Description("Lists the chart types a spec may name in a series' \"type\" field.")]

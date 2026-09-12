@@ -92,6 +92,29 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
     internal static ContourfSeries FromSeriesDto(Axes axes, SeriesDto dto)
         => axes.Contourf(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData));
 
+
+    /// <inheritdoc />
+    /// <remarks>Long form over the grid: the x and y the cell sits at, and its z.</remarks>
+    public override ChartDataTable? ToDataTable()
+    {
+        int rows = ZData.GetLength(0), cols = ZData.GetLength(1);
+        var out_ = new List<IReadOnlyList<DataCell>>(rows * cols);
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                out_.Add(
+                [
+                    DataCell.FromNumber(c < XData.Length ? XData[c] : c),
+                    DataCell.FromNumber(r < YData.Length ? YData[r] : r),
+                    DataCell.FromNumber(ZData[r, c]),
+                ]);
+            }
+        }
+
+        return new ChartDataTable(null, [new("x"), new("y"), new(Label ?? "z")], out_);
+    }
+
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
 }

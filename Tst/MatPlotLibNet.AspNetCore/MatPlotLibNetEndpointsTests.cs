@@ -47,6 +47,14 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
                                 .WithTitle("SVG Chart")
                                 .Plot([1.0, 2.0], [3.0, 4.0])
                                 .Build());
+
+                        endpoints.MapChartTableEndpoint("/api/chart/test.table", _ =>
+                            Plt.Create()
+                                .WithTitle("Table Chart")
+                                .AddSubPlot(1, 1, 1, ax => ax
+                                    .SetXLabel("Quarter")
+                                    .Plot([1.0, 2.0], [12.0, 18.0], s => s.Label = "€M"))
+                                .Build());
                     });
                 });
             })
@@ -128,6 +136,39 @@ public class MatPlotLibNetEndpointsTests : IAsyncDisposable
         Assert.StartsWith("<svg", svg.TrimStart());
         Assert.Contains("</svg>", svg);
         Assert.Contains("SVG Chart", svg);
+    }
+
+    /// <summary>The data table beside the picture is a page a browser can render, so it is served as HTML.</summary>
+    [Fact]
+    public async Task MapChartTableEndpoint_ReturnsOk()
+    {
+        var response = await _client.GetAsync("/api/chart/test.table", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>An HTML fragment carries no charset of its own, so the header must say it — otherwise a label
+    /// like "€M" arrives as mojibake on any client that guesses Latin-1.</summary>
+    [Fact]
+    public async Task MapChartTableEndpoint_DeclaresHtmlAndUtf8()
+    {
+        var response = await _client.GetAsync("/api/chart/test.table", TestContext.Current.CancellationToken);
+
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("utf-8", response.Content.Headers.ContentType?.CharSet);
+    }
+
+    /// <summary>Verifies the endpoint serves the figure's own table: caption, headers with a scope, and values.</summary>
+    [Fact]
+    public async Task MapChartTableEndpoint_ReturnsTheFiguresTable()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var response = await _client.GetAsync("/api/chart/test.table", ct);
+        var html = await response.Content.ReadAsStringAsync(ct);
+
+        Assert.Contains("<caption>Table Chart</caption>", html);
+        Assert.Contains("<th scope=\"col\">Quarter</th>", html);
+        Assert.Contains("<th scope=\"col\">\u20acM</th>", html);
+        Assert.Contains("<td>18</td>", html);
     }
 
     public async ValueTask DisposeAsync()
