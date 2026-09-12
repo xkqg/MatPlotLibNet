@@ -85,7 +85,51 @@ if (-not $SkipCoverage) {
     Write-Host "==> Tests + coverage gate SKIPPED (-SkipCoverage)" -ForegroundColor Yellow
 }
 
-# --- 3. The site the Pages workflow builds -------------------------------------------------------------------
+# --- 3. The samples that RUN, actually run -------------------------------------------------------------------
+# A build is not a run. A change to a collection the control room keeps its history in compiles, passes every
+# unit test, and can still put nothing on the wall -- and committing that was the omission this step exists to
+# make impossible. Two samples are servers and can be probed headlessly; the desktop heads are named here so
+# their absence is a decision rather than an oversight.
+Step "Samples that run: start and probe" {
+    $servers = @(
+        @{ Name = "ControlRoom"; Project = "Samples/MatPlotLibNet.Samples.ControlRoom"; Port = 5391; Expect = "<svg" },
+        @{ Name = "WebApi";      Project = "Samples/MatPlotLibNet.Samples.WebApi";      Port = 5392; Expect = "<svg"; Path = "api/chart/sales.svg" }
+    )
+
+    foreach ($server in $servers) {
+        $log = Join-Path $env:TEMP "prepush-$($server.Name).log"
+        Remove-Item -Force $log -ErrorAction SilentlyContinue
+        $url = "http://127.0.0.1:$($server.Port)"
+        $proc = Start-Process -FilePath "dotnet" -PassThru -WindowStyle Hidden -RedirectStandardOutput $log `
+            -ArgumentList @("run", "--project", $server.Project, "-c", $Configuration, "--urls", $url)
+        try {
+            $body = $null
+            foreach ($attempt in 1..40) {
+                Start-Sleep -Milliseconds 750
+                if ($proc.HasExited) { throw "$($server.Name) exited with $($proc.ExitCode) before serving -- see $log" }
+                try {
+                    $body = (Invoke-WebRequest "$url/$($server.Path)" -UseBasicParsing -TimeoutSec 20).Content
+                    break
+                } catch { }
+            }
+
+            if ($null -eq $body) { throw "$($server.Name) never answered on $url -- see $log" }
+            if ($body -notmatch [regex]::Escape($server.Expect)) {
+                throw "$($server.Name) answered without '$($server.Expect)' -- it served a page with no chart on it"
+            }
+
+            $charts = ([regex]::Matches($body, "<svg")).Count
+            Write-Host ("    {0,-14} {1,7} bytes, {2} chart(s)" -f $server.Name, $body.Length, $charts)
+        } finally {
+            if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+        }
+    }
+
+    Write-Host "    NOT probed here: Blazor, GraphQL, AspNetCore (servers, no chart on the root page),"
+    Write-Host "    Playground (WASM), and the desktop heads Wpf / Avalonia / Uno -- those need a window."
+}
+
+# --- 4. The site the Pages workflow builds -------------------------------------------------------------------
 Step "docfx metadata + site" {
     $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
     if (-not (Get-Command docfx -ErrorAction SilentlyContinue)) { throw "docfx not installed: dotnet tool install -g docfx" }
