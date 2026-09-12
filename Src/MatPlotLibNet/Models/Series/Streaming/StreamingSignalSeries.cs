@@ -115,7 +115,7 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
     {
         var snapshot = CreateSnapshot();
         return ChartDataTable.FromNumberColumns(
-            [new("x"), new(Label ?? "y")], [snapshot.XData, snapshot.YData]);
+            [new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y)], [snapshot.XData, snapshot.YData]);
     }
 
     /// <inheritdoc />

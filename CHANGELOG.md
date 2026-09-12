@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Next]
+## [1.16.0]
 ### Added
 
 - **A chart can be read, not only seen.** `figure.ToDataTables()` returns the figure's data as `ChartDataTable`
@@ -29,6 +29,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   secondary-X. Three lists held three different answers to "what does this subplot show", the one Core-side
   abstraction returned the first list under the name `AllSeries`, and the only caller that concatenated caught
   two of the three. A secondary-X series is drawn; now it is described too.
+- **A control room tables as a control room.** A KPI tile now says its whole anatomy — value, target, caption
+  and inline trend, under fixed headers with an empty cell for what it has not got — instead of one nameless
+  number, and a row of tile subplots becomes ONE table with a row per tile. A tile row being five subplots is
+  layout, not data, and a reader handed five one-row grids has to do the joining the picture already did for
+  everyone else. Two bullet graphs on one axes unite the same way.
+- **A column says which axis it is a position on**, and the composition resolves it there: `ChartDataColumn`
+  carries a `DataAxis`, so a state timeline's `start` and `end` print as clock times on a date axis instead of
+  as OLE day numbers, and a y column on a date axis does too. The series knows its values are x coordinates;
+  only the axes knows x reads as dates, and a chart that looks dated must table as dated.
 - **`figure.AccessibleName()`** — the alt text, else the title, else a tile row's own labels. The SVG `<title>`
   applied that rule inside the transform with the fallback private to it; the data table needs the same answer,
   and two layers deciding one identity is how they come to disagree.
@@ -44,6 +53,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A date cell keeps the precision it was given.** Cells printed to the minute, so an ops window sampled every
+  thirty seconds produced rows that read `07:55`, `07:55`, `07:56` — two rows a reader cannot tell apart, and a
+  CSV a machine cannot either. A cell now prints as far into `HH:mm:ss.fff` as its own value carries, and no
+  further: a midnight is still a date and a whole minute is still a minute.
 - **A label containing a double quote no longer breaks the SVG.** `EscapeForXml` escaped `&`, `<` and `>` —
   correct for text content, and the same string is written into `aria-label="…"`, where an unescaped quote ends
   the attribute early and the parse stops there. It now escapes `"` as well. The apostrophe is deliberately left

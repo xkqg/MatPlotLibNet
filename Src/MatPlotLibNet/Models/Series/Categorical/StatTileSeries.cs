@@ -138,10 +138,26 @@ public sealed class StatTileSeries : ChartSeries
 
     /// <inheritdoc />
     /// <remarks>A tile is one number, so the table is one row: what the tile is called and what it reads.</remarks>
-    public override ChartDataTable? ToDataTable() =>
-        new(null,
-            [new("label", DataColumnKind.Text), new(Label ?? "value")],
-            [[DataCell.FromText(Label ?? ""), DataCell.FromNumber(Value)]]);
+    public override ChartDataTable? ToDataTable()
+    {
+        // The same columns for every tile, whatever this one has: a tile row is a row of subplots, and only
+        // tables of one shape can become the one table the operator reads that row as. What a tile does not
+        // have is an empty cell - not a zero, not a fake.
+        var trend = Trend is { Count: > 0 } history
+            ? DataCell.FromText(string.Join(", ", history.Select(v => v.ToString("G", CultureInfo.InvariantCulture))))
+            : DataCell.Empty;
+        return new ChartDataTable(null,
+            [
+                new("label", DataColumnKind.Text), new("value"), new("target"),
+                new("caption", DataColumnKind.Text), new("trend", DataColumnKind.Text),
+            ],
+            [[
+                DataCell.FromText(Label ?? ""), DataCell.FromNumber(Value),
+                Target is { } target ? DataCell.FromNumber(target) : DataCell.Empty,
+                Caption is { Length: > 0 } caption ? DataCell.FromText(caption) : DataCell.Empty,
+                trend,
+            ]]);
+    }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

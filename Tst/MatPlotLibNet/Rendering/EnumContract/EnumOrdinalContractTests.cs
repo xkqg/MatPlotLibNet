@@ -137,6 +137,9 @@ public static class EnumOrdinalSnapshot
             [typeof(DataColumnKind)] = new Dictionary<string, int> {
                 ["Number"] = 0, ["Date"] = 1, ["Text"] = 2,
             },
+            [typeof(DataAxis)] = new Dictionary<string, int> {
+                ["None"] = 0, ["X"] = 1, ["Y"] = 2,
+            },
             [typeof(DendrogramOrientation)] = new Dictionary<string, int> {
                 ["Top"] = 0, ["Bottom"] = 1, ["Left"] = 2, ["Right"] = 3,
             },

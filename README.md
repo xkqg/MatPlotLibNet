@@ -34,7 +34,7 @@ After that the cadence is community-driven: bug fixes, documentation, and whatev
 with its migration notes, is in the [CHANGELOG](CHANGELOG.md).
 
 Quality bar: a strict per-class coverage gate at ≥90 % line and branch (685 classes, 99.6 % / 97.3 %) across
-11,457 tests, with rendering verified against matplotlib pixel-fidelity fixtures.
+11,471 tests, with rendering verified against matplotlib pixel-fidelity fixtures.
 
 ---
 

@@ -97,29 +97,29 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
     /// scatter plot, so the arms are columns, not a footnote.</remarks>
     public override ChartDataTable? ToDataTable()
     {
-        var columns = new List<ChartDataColumn> { new("x"), new(Label ?? "y") };
+        var columns = new List<ChartDataColumn> { new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y) };
         var values = new List<IReadOnlyList<double>> { XData, YData };
         if (YErrorLow is { Length: > 0 } yLow)
         {
-            columns.Add(new("y error low"));
+            columns.Add(new("y error low", Axis: DataAxis.Y));
             values.Add(yLow);
         }
 
         if (YErrorHigh is { Length: > 0 } yHigh)
         {
-            columns.Add(new("y error high"));
+            columns.Add(new("y error high", Axis: DataAxis.Y));
             values.Add(yHigh);
         }
 
         if (XErrorLow is { Length: > 0 } xLow)
         {
-            columns.Add(new("x error low"));
+            columns.Add(new("x error low", Axis: DataAxis.X));
             values.Add(xLow);
         }
 
         if (XErrorHigh is { Length: > 0 } xHigh)
         {
-            columns.Add(new("x error high"));
+            columns.Add(new("x error high", Axis: DataAxis.X));
             values.Add(xHigh);
         }
 

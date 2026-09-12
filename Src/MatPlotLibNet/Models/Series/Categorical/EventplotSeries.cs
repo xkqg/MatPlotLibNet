@@ -87,7 +87,7 @@ public sealed class EventplotSeries : ChartSeries
             }
         }
 
-        return new ChartDataTable(null, [new("row", DataColumnKind.Text), new(Label ?? "position")], rows);
+        return new ChartDataTable(null, [new("row", DataColumnKind.Text), new(Label ?? "position", Axis: DataAxis.X)], rows);
     }
 
     /// <inheritdoc />

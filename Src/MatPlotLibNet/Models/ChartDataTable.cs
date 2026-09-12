@@ -200,7 +200,8 @@ public sealed class ChartDataTable
 
     /// <summary>How a cell is spelled, in every form. A number prints in full ("G", invariant: NaN as
     /// <c>NaN</c>, the infinities as <c>Infinity</c>/<c>-Infinity</c>); in a <see cref="DataColumnKind.Date"/>
-    /// column a finite number inside the OLE Automation range prints as a date, anything else as the number.</summary>
+    /// column a finite number inside the OLE Automation range prints as a date - to the minute, second or
+    /// millisecond, whichever its own value carries - anything else as the number.</summary>
     internal static string CellText(DataCell cell, DataColumnKind kind)
     {
         switch (cell.Kind)
@@ -211,10 +212,15 @@ public sealed class ChartDataTable
                 double value = cell.Number;
                 if (kind == DataColumnKind.Date && IsOleDate(value))
                 {
+                    // As far into the time as the value goes and no further: a midnight is a date, a whole
+                    // minute is a minute. Cutting at the minute looked tidy and threw away exactly what told a
+                    // control room's 30-second samples apart.
                     var when = DateTime.FromOADate(value);
-                    return when.TimeOfDay == TimeSpan.Zero
-                        ? when.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-                        : when.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+                    string format = when.TimeOfDay == TimeSpan.Zero ? "yyyy-MM-dd"
+                        : when.Second == 0 && when.Millisecond == 0 ? "yyyy-MM-dd HH:mm"
+                        : when.Millisecond == 0 ? "yyyy-MM-dd HH:mm:ss"
+                        : "yyyy-MM-dd HH:mm:ss.fff";
+                    return when.ToString(format, CultureInfo.InvariantCulture);
                 }
 
                 return value.ToString("G", CultureInfo.InvariantCulture);

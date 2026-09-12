@@ -2,12 +2,12 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.xkqg/matplotlibnet",
   "description": "Renders MatPlotLibNet charts to PNG, SVG or PDF from a JSON spec an AI agent writes.",
-  "version": "1.15.1",
+  "version": "1.16.0",
   "packages": [
     {
       "registryType": "nuget",
       "identifier": "MatPlotLibNet.Mcp",
-      "version": "1.15.1",
+      "version": "1.16.0",
       "transport": {
         "type": "stdio"
       },

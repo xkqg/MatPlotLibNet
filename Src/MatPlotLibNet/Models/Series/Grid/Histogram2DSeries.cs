@@ -92,7 +92,7 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
     /// <inheritdoc />
     /// <remarks>The observations the bins are computed from; the binning is the renderer's reduction of them.</remarks>
     public override ChartDataTable? ToDataTable() =>
-        ChartDataTable.FromNumberColumns([new("x"), new("y")], [X, Y]);
+        ChartDataTable.FromNumberColumns([new("x", Axis: DataAxis.X), new("y", Axis: DataAxis.Y)], [X, Y]);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

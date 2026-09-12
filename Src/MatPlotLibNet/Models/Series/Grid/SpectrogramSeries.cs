@@ -88,7 +88,7 @@ public sealed class SpectrogramSeries : ChartSeries, IColorBarDataProvider, ICol
             rows[i] = [DataCell.FromNumber(i * step), DataCell.FromNumber(Signal[i])];
         }
 
-        return new ChartDataTable(null, [new("time"), new(Label ?? "amplitude")], rows);
+        return new ChartDataTable(null, [new("time", Axis: DataAxis.X), new(Label ?? "amplitude")], rows);
     }
 
     /// <inheritdoc />

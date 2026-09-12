@@ -77,7 +77,7 @@ public sealed class Trisurf3DSeries : XYZSeries, IColormappable, INormalizable, 
     /// <remarks>The unstructured vertices the surface is triangulated from.</remarks>
     public override ChartDataTable? ToDataTable() =>
         ChartDataTable.FromNumberColumns(
-            [new("x"), new("y"), new("z")], [X.Data, Y.Data, Z.Data]);
+            [new("x", Axis: DataAxis.X), new("y", Axis: DataAxis.Y), new("z")], [X.Data, Y.Data, Z.Data]);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

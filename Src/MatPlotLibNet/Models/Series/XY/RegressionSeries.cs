@@ -105,7 +105,7 @@ public sealed class RegressionSeries : ChartSeries, IHasColor
     /// <inheritdoc />
     /// <remarks>The observations the fit was computed from — the line itself is derived, the points are data.</remarks>
     public override ChartDataTable? ToDataTable() =>
-        ChartDataTable.FromNumberColumns([new("x"), new(Label ?? "y")], [XData, YData]);
+        ChartDataTable.FromNumberColumns([new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y)], [XData, YData]);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

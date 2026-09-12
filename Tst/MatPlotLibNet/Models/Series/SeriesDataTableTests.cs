@@ -64,8 +64,11 @@ public class SeriesDataTableTests
 
         // A labelled series is named in the table the way it is named in the legend — for the families that have
         // exactly one value column. A multi-column family (OHLC, Gantt, a stack) keeps its own column names.
+        // StatTileSeries and BulletGraphSeries are deliberately NOT here: a tile reports its whole anatomy
+        // (value, target, caption, trend) under fixed headers, and the label names the ROW instead — which is
+        // what lets a row of tile subplots become the one table an operator reads.
         if (series is XYSeries or PolarSeries or BarSeries or WaterfallSeries or RadarSeries or FunnelSeries
-            or PieSeries or DonutSeries or CountSeries or StatTileSeries or SparklineSeries)
+            or PieSeries or DonutSeries or CountSeries or SparklineSeries)
         {
             Assert.Contains(table.Columns, column => column.Header == "Revenue");
         }
@@ -271,13 +274,17 @@ public class SeriesDataTableTests
     }
 
     [Fact]
-    public void AStatTile_IsOneRow()
+    public void AStatTile_IsOneRow_CarryingTheWholeTileAnatomy()
     {
-        var table = new StatTileSeries(42) { Label = "Processes" }.ToDataTable()!;
+        var table = new StatTileSeries(42) { Label = "Processes", Target = 40, Caption = "2 over" }.ToDataTable()!;
 
-        Assert.Equal(["label", "Processes"], table.Columns.Select(c => c.Header));
+        Assert.Equal(["label", "value", "target", "caption", "trend"], table.Columns.Select(c => c.Header));
         Assert.Equal(1, table.RowCount);
+        Assert.Equal("Processes", table.Rows[0][0].Text);
         Assert.Equal(42.0, table.Rows[0][1].Number);
+        Assert.Equal(40.0, table.Rows[0][2].Number);
+        Assert.Equal("2 over", table.Rows[0][3].Text);
+        Assert.Equal(DataCellKind.Empty, table.Rows[0][4].Kind);
     }
 
     [Fact]

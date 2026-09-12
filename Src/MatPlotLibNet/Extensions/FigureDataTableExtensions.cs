@@ -21,14 +21,67 @@ public static class FigureDataTableExtensions
     {
         ArgumentNullException.ThrowIfNull(figure);
         string name = figure.AccessibleName();
-        var tables = new List<ChartDataTable>();
+        var candidates = new List<(ChartDataTable Table, bool Unitable)>();
         foreach (var axes in figure.SubPlots)
         {
-            tables.AddRange(axes.ToDataTables(name));
+            // A subplot that names itself has a name to lose, so its table is never swallowed into a row.
+            bool unitable = axes.Title is not { Length: > 0 };
+            foreach (var table in axes.ToDataTables(name))
+            {
+                candidates.Add((table, unitable));
+            }
         }
 
-        return tables;
+        return UniteSingleRowRuns(candidates, name);
     }
+
+    /// <summary>Runs of neighbouring tables that are the SAME single row said about different things become one
+    /// table with a row each. A KPI tile row is a row of subplots — that is layout, not data — and a reader
+    /// handed five one-row grids has to do the joining the picture already did for everyone else.
+    /// <para>The test is deliberately narrow: identical headers, exactly one row, and a first column of text
+    /// that names the row. Anything with an x of its own keeps its own table.</para></summary>
+    private static List<ChartDataTable> UniteSingleRowRuns(
+        List<(ChartDataTable Table, bool Unitable)> candidates, string figureName)
+    {
+        var united = new List<ChartDataTable>(candidates.Count);
+        for (int i = 0; i < candidates.Count;)
+        {
+            int j = i;
+            while (candidates[i].Unitable && j + 1 < candidates.Count && candidates[j + 1].Unitable
+                   && IsSameSingleRowShape(candidates[i].Table, candidates[j + 1].Table))
+            {
+                j++;
+            }
+
+            if (j == i)
+            {
+                united.Add(candidates[i].Table);
+                i++;
+                continue;
+            }
+
+            var rows = new List<IReadOnlyList<DataCell>>(j - i + 1);
+            for (int k = i; k <= j; k++)
+            {
+                rows.Add(candidates[k].Table.Rows[0]);
+            }
+
+            // The row names itself in its first cell, so the united table takes the figure's name and drops the
+            // per-table suffix that told the single rows apart.
+            united.Add(new ChartDataTable(figureName.Length > 0 ? figureName : null, candidates[i].Table.Columns, rows));
+            i = j + 1;
+        }
+
+        return united;
+    }
+
+    /// <summary>Whether two tables are one row of the same shape: the same headers and kinds, one row each, and
+    /// a leading text column — the row's own name.</summary>
+    private static bool IsSameSingleRowShape(ChartDataTable left, ChartDataTable right) =>
+        left.RowCount == 1 && right.RowCount == 1
+        && left.Columns[0].Kind == DataColumnKind.Text
+        && left.Columns.Count == right.Columns.Count
+        && left.Columns.SequenceEqual(right.Columns);
 
     /// <summary>The tables for ONE subplot. <paramref name="figureName"/> is the figure's accessible name, which
     /// the caption is built from; pass an empty string for a table that stands alone.</summary>
@@ -53,9 +106,13 @@ public static class FigureDataTableExtensions
         var tables = new List<ChartDataTable>(groups.Count);
         foreach (var group in groups)
         {
-            // A caption names ONE table. When a subplot yields several, each says which series it is; two
-            // anonymous grids under one heading are two things a reader cannot tell apart.
-            string? suffix = groups.Count > 1 ? group[0].Series.Label : null;
+            // A caption names ONE table. Several tables from one subplot MUST each say which series they are —
+            // two anonymous grids under one heading are two things a reader cannot tell apart. A lone table says
+            // it too, unless a column header already carries the word, which is the common case for an x/y pair.
+            string? label = group[0].Series.Label;
+            bool alreadySaid = groups.Count == 1 && label is { Length: > 0 }
+                && group.Any(f => f.Table.Columns.Any(c => c.Header == label));
+            string? suffix = alreadySaid ? null : label;
             tables.Add(Merge(group, axes, Caption(figureName, axes.Title, suffix)));
         }
 
@@ -108,16 +165,17 @@ public static class FigureDataTableExtensions
     }
 
     /// <summary>One table from a run of fragments: the shared first column under the axis' own name, then every
-    /// fragment's remaining columns.</summary>
+    /// fragment's remaining columns. Every column that is a POSITION is resolved against the axis it is a
+    /// position on — that is the whole reason a series marks them.</summary>
     private static ChartDataTable Merge(List<SeriesFragment> group, Axes axes, string? caption)
     {
         var seed = group[0].Table;
-        var columns = new List<ChartDataColumn> { FirstColumn(seed, axes) };
+        var columns = new List<ChartDataColumn> { Resolve(seed.Columns[0], axes) };
         foreach (var fragment in group)
         {
             for (int c = 1; c < fragment.Table.Columns.Count; c++)
             {
-                columns.Add(fragment.Table.Columns[c]);
+                columns.Add(Resolve(fragment.Table.Columns[c], axes));
             }
         }
 
@@ -139,15 +197,28 @@ public static class FigureDataTableExtensions
         return new ChartDataTable(caption, columns, rows);
     }
 
-    /// <summary>The first column, named and typed by the AXES: its label where it has one, and a date kind when
-    /// the axis reads as dates — either because its scale says so, or because its tick formatter does. The two
-    /// are set by different builder calls, and a chart that looks dated must table as dated.</summary>
-    private static ChartDataColumn FirstColumn(ChartDataTable seed, Axes axes)
+    /// <summary>A column, named and typed by the AXIS it is a position on. A series knows its <c>start</c> and
+    /// <c>end</c> are x coordinates; only the axes knows x reads as dates — so a positional column becomes a
+    /// date column here, and an anonymous "x" takes the axis' own label. A column that is not a position
+    /// (a count, a size, a category) is returned untouched: it is nobody's coordinate.
+    /// <para>Only the bare <c>x</c> is renamed. A y column already carries the SERIES' label, which is the name
+    /// the legend gives it and the only thing that tells two series in one table apart.</para></summary>
+    private static ChartDataColumn Resolve(ChartDataColumn column, Axes axes)
     {
-        var column = seed.Columns[0];
-        string header = column.Header == "x" && axes.XAxis.Label is { Length: > 0 } label ? label : column.Header;
-        var kind = column.Kind == DataColumnKind.Number && ReadsAsDates(axes.XAxis) ? DataColumnKind.Date : column.Kind;
-        return new ChartDataColumn(header, kind);
+        var axis = column.Axis switch
+        {
+            DataAxis.X => axes.XAxis,
+            DataAxis.Y => axes.YAxis,
+            _ => null,
+        };
+        if (axis is null)
+        {
+            return column;
+        }
+
+        string header = column.Header == "x" && axis.Label is { Length: > 0 } label ? label : column.Header;
+        var kind = column.Kind == DataColumnKind.Number && ReadsAsDates(axis) ? DataColumnKind.Date : column.Kind;
+        return new ChartDataColumn(header, kind, column.Axis);
     }
 
     /// <summary>Whether an axis reads as dates: <see cref="AxisScale.Date"/>, or a date tick formatter set on its

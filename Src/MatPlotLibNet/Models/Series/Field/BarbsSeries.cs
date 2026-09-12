@@ -71,7 +71,7 @@ public sealed class BarbsSeries : ChartSeries, IHasColor
     /// <remarks>Where each barb sits, and the wind it reports.</remarks>
     public override ChartDataTable? ToDataTable() =>
         ChartDataTable.FromNumberColumns(
-            [new("x"), new("y"), new("speed"), new("direction")], [X.Data, Y.Data, Speed.Data, Direction.Data]);
+            [new("x", Axis: DataAxis.X), new("y", Axis: DataAxis.Y), new("speed"), new("direction")], [X.Data, Y.Data, Speed.Data, Direction.Data]);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

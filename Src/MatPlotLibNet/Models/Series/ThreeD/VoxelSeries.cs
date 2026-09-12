@@ -108,7 +108,7 @@ public sealed class VoxelSeries : ChartSeries, IHasColor, IHasAlpha
             }
         }
 
-        return new ChartDataTable(null, [new("x"), new("y"), new("z")], rows);
+        return new ChartDataTable(null, [new("x", Axis: DataAxis.X), new("y", Axis: DataAxis.Y), new("z")], rows);
     }
 
     /// <inheritdoc />

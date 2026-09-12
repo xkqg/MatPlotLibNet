@@ -100,7 +100,7 @@ public sealed class StackedAreaSeries : ChartSeries, IHasAlpha
     /// readable one. The values are what each stack CONTRIBUTES, not the cumulative top it is drawn at.</remarks>
     public override ChartDataTable? ToDataTable()
     {
-        var columns = new List<ChartDataColumn>(YSets.Length + 1) { new("x") };
+        var columns = new List<ChartDataColumn>(YSets.Length + 1) { new("x", Axis: DataAxis.X) };
         var values = new List<IReadOnlyList<double>>(YSets.Length + 1) { X };
         for (int i = 0; i < YSets.Length; i++)
         {

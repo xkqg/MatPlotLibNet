@@ -22,7 +22,7 @@ public abstract class XYSeries : ChartSeries, IPriceSeries
     /// <remarks>Two columns: the x values, and the y values under the series' own label.</remarks>
     public override ChartDataTable? ToDataTable() =>
         ChartDataTable.FromNumberColumns(
-            [new("x"), new(Label ?? "y")],
+            [new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y)],
             [XData, YData]);
 
     /// <inheritdoc />

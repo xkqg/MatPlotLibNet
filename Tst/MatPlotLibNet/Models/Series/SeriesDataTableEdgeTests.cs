@@ -197,9 +197,13 @@ public class SeriesDataTableEdgeTests
     }
 
     [Fact]
-    public void ABulletGraphWithoutATarget_IsTwoColumns()
+    public void ABulletGraphWithoutATarget_StillHasTheTargetColumn_Empty()
     {
-        Assert.Equal(2, new BulletGraphSeries(5).ToDataTable()!.Columns.Count);
+        // One shape for every bullet graph, so two of them on one axes are one table rather than two.
+        var table = new BulletGraphSeries(5).ToDataTable()!;
+
+        Assert.Equal(["label", "value", "target"], table.Columns.Select(c => c.Header));
+        Assert.Equal(DataCellKind.Empty, table.Rows[0][2].Kind);
     }
 
     [Fact]

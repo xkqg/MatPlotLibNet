@@ -48,10 +48,12 @@ These rules govern how changes land on this repo. They apply without exception.
 - **Version bumps require a behavioural change** — public API change, different output for the same input, changed defaults, new features. Refactors, tests, dead-code removal, docs, CI changes → **NO bump, stay on current version**.
 - Ambiguous signals ("no v1.7.3", "let's not go to...") → **ASK the maintainer**. Never guess which direction.
 - When a bump is explicitly requested, update `<Version>` in ALL 14 `.csproj` files atomically (loop, not one at a time), AND the two version fields in `Src/MatPlotLibNet.Mcp/.mcp/server.json` — an MCP host resolves the server by that manifest, so a version it carries that the package does not have resolves to nothing. `ReleaseContractTests` fails when they disagree.
-- **The number is decided at RELEASE time, not when the work lands.** The maintainer releases when enough has
-  changed or when something new arrived, and only then is it clear whether that is a patch, a minor or a major.
-  So work in flight collects under a neutral CHANGELOG heading — `## [Next]` — and the release step renames that
-  heading to the chosen version and bumps the 13 csprojs. Never `[Unreleased]`, never a guessed number.
+- **The CHANGELOG heading carries the number, never a placeholder.** The maintainer names the version when the
+  work starts, and it stays put — through every commit — until he judges the whole heap good enough to make
+  packages. So the section is `## [1.16.0]` from the first entry under it, and the 14 csprojs plus the MCP
+  manifest carry that same number from that moment. `## [Next]` was the old convention and is no longer used:
+  a heading without a number tells a reader nothing and has to be renamed later by someone who remembers to.
+  Never invent the number yourself — ask, and write what you are told.
 - **No dates in the CHANGELOG.** The version numbers are the timeline; a date adds nothing a reader can act on.
 
 ## TDD — Red, Green, Refactor. In that order. Always.

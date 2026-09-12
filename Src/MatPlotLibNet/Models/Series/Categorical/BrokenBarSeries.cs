@@ -109,7 +109,7 @@ public sealed class BrokenBarSeries : ChartSeries, IHasColor
         }
 
         return new ChartDataTable(null,
-            [new("row", DataColumnKind.Text), new("start"), new("width")], rows);
+            [new("row", DataColumnKind.Text), new("start", Axis: DataAxis.X), new("width")], rows);
     }
 
     /// <inheritdoc />

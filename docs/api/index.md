@@ -14,6 +14,7 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | `Figure` | Immutable chart model — the output of `.Build()` |
 | `ChartSeries` | Abstract base for all 83 series types |
 | `ChartDataTable` | The figure's data as a table — `figure.ToDataTables()`, then `ToHtml()` / `ToMarkdown()` / `ToCsv()` |
+| `ChartDataColumn` | One column: its header, its `DataColumnKind` (Number/Date/Text) and the `DataAxis` its values are positions on |
 | `Theme` | Theme presets and custom theme builder |
 | `ColorMaps` | 104 colormap presets |
 

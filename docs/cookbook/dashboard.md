@@ -459,6 +459,28 @@ The headline is dropped before the name is: a number without its subject says no
 pads in log space and installs decade ticks (`10¹`, `10²`) by itself. For data that legitimately includes zero,
 `SetYScaleSymLog(linthresh)` keeps a linear band around it instead.
 
+### The wall, read rather than seen
+
+A monitoring wall is exactly the display an operator may have to read over the phone, from a text terminal, or
+with a screen reader — and `role="img"` on the SVG means the chart itself says nothing but its title. So the
+dashboard tables:
+
+```csharp
+foreach (var table in dashboard.ToDataTables())
+{
+    Console.WriteLine(table.ToMarkdown());   // or ToHtml() into the page, or ToCsv() behind a download
+}
+```
+
+A tile carries its whole anatomy into the table — `label · value · target · caption · trend`, with an empty
+cell for what it has not got — and the tile ROW is one table with a row per tile, because a tile being its own
+subplot is layout rather than data. A timeline's `start` and `end` are positions on the pinned date axis, so
+they print as clock times (`2026-09-12 07:58:20`) at the precision the value carries, never as OLE day numbers
+and never rounded to a minute a 30-second sample would collide in.
+
+In a page, `<MplChart Figure="fig" ShowDataTable="true" />` puts it in a `<details>` under the chart. The whole
+rule set is on the [accessibility page](accessibility.md).
+
 ### The control-room sample
 
 `Samples/MatPlotLibNet.Samples.ControlRoom` serves a simulated federation of 15 buses, and descends into it:
@@ -519,6 +541,7 @@ counts as broken has started holding opinions about a domain it cannot see.
 
 ## See also
 
+- [Accessibility](accessibility.md) — the data table beside the wall: tile anatomy, the united tile row, times instead of OLE numbers
 - [Subplots & GridSpec](subplots.md) — mosaic and GridSpec layout, row/column ratios
 - [Financial Charts](financial.md) — OHLC/candlestick dashboards with indicator subplots
 - [Annotations](annotations.md) — threshold reference lines and breach shading, full `Threshold(...)` parameter reference

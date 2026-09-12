@@ -88,7 +88,7 @@ public sealed class HistogramSeries : ChartSeries, IHasColor, IHasAlpha, IHasEdg
             rows[i] = [DataCell.FromNumber(bins.Min + (i * bins.BinWidth)), DataCell.FromNumber(bins.Counts[i])];
         }
 
-        return new ChartDataTable(null, [new("bin start"), new(Label ?? "count")], rows);
+        return new ChartDataTable(null, [new("bin start", Axis: DataAxis.X), new(Label ?? "count")], rows);
     }
 
     /// <inheritdoc />

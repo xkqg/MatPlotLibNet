@@ -60,7 +60,9 @@ MatPlotLibNet/
                                       (SRP: all output responsibility moved here from FigureBuilder)
     FigureDataTableExtensions.cs      ToDataTables() on Figure and on Axes: the figure's data as tables, for the
                                       reader who cannot see the picture. Series sharing an x VALUE merge into
-                                      one table; the rest each get their own
+                                      one table; the rest each get their own; neighbouring subplots that are the
+                                      same single row (a KPI tile row) merge into one table with a row each;
+                                      every positional column is resolved against the axis it is a position on
 
   Models/
     Figure.cs                         top-level container (Title, Width, Height, Theme, EnableZoomPan, EnableLegendToggle, EnableRichTooltips, EnableHighlight, EnableSelection, HasInteractivity)
@@ -80,8 +82,9 @@ MatPlotLibNet/
     ChartDataTable.cs                 the accessible alternative to the picture: Caption, Columns, Rows, and
                                       ToHtml() / ToMarkdown() / ToCsv() (HTML and markdown cap at
                                       DefaultMaxRows = 1000 with a "... N more rows" trailer; CSV never caps)
-    ChartDataColumn.cs                readonly record struct (Header, DataColumnKind) — Number | Date | Text;
-                                      the kind decides how a cell PRINTS, so a date axis reads as a date
+    ChartDataColumn.cs                readonly record struct (Header, DataColumnKind, DataAxis) — the kind
+                                      decides how a cell PRINTS; the axis says WHOSE coordinate it is, so the
+                                      composition can turn a position on a date axis into a date
     DataCell.cs                       readonly record struct: Empty | Number | Text. A jagged row is a real
                                       shape (an OHLC row has no volume) and an empty cell says so without a
                                       sentinel number

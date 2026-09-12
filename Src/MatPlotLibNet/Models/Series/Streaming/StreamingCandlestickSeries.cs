@@ -104,7 +104,7 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     {
         var snapshot = CreateOhlcSnapshot();
         return ChartDataTable.FromNumberColumns(
-            [new("x"), new("open"), new("high"), new("low"), new("close")],
+            [new("x", Axis: DataAxis.X), new("open", Axis: DataAxis.Y), new("high", Axis: DataAxis.Y), new("low", Axis: DataAxis.Y), new("close", Axis: DataAxis.Y)],
             [
                 Enumerable.Range(0, snapshot.Close.Length).Select(i => (double)i).ToArray(),
                 snapshot.Open, snapshot.High, snapshot.Low, snapshot.Close,

@@ -95,7 +95,7 @@ public sealed class StreamplotSeries : ChartSeries, IHasColor
             }
         }
 
-        return new ChartDataTable(null, [new("x"), new("y"), new("u"), new("v")], out_);
+        return new ChartDataTable(null, [new("x", Axis: DataAxis.X), new("y", Axis: DataAxis.Y), new("u"), new("v")], out_);
     }
 
     /// <inheritdoc />

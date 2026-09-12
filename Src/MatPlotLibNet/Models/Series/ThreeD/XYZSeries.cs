@@ -53,5 +53,5 @@ public abstract class XYZSeries : ChartSeries, I3DPointSeries
     /// <inheritdoc />
     /// <remarks>Three columns, one row per point.</remarks>
     public override ChartDataTable? ToDataTable() =>
-        ChartDataTable.FromNumberColumns([new("x"), new("y"), new("z")], [X.Data, Y.Data, Z.Data]);
+        ChartDataTable.FromNumberColumns([new("x", Axis: DataAxis.X), new("y", Axis: DataAxis.Y), new("z")], [X.Data, Y.Data, Z.Data]);
 }

@@ -121,7 +121,7 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor
     public override ChartDataTable? ToDataTable() =>
         YData2 is { Length: > 0 } second
             ? ChartDataTable.FromNumberColumns(
-                [new("x"), new(Label ?? "y"), new("y2")], [XData, YData, second])
+                [new("x", Axis: DataAxis.X), new(Label ?? "y", Axis: DataAxis.Y), new("y2", Axis: DataAxis.Y)], [XData, YData, second])
             : base.ToDataTable();
 
     /// <inheritdoc />

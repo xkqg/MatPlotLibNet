@@ -107,7 +107,7 @@ public sealed class StateTimelineSeries : ChartSeries
             rows.Add([DataCell.FromText(segment.Label), DataCell.FromNumber(segment.Start), DataCell.FromNumber(segment.End)]);
         }
 
-        return new ChartDataTable(null, [new("state", DataColumnKind.Text), new("start"), new("end")], rows);
+        return new ChartDataTable(null, [new("state", DataColumnKind.Text), new("start", Axis: DataAxis.X), new("end", Axis: DataAxis.X)], rows);
     }
 
     /// <inheritdoc />

@@ -111,6 +111,45 @@ point in a 3-D scene). They return `null` and simply do not appear. A figure who
 returns an empty list from `ToDataTables()`, and `ShowDataTable` renders no disclosure at all rather than an
 empty one — a control that promises data and opens on nothing is worse than no control.
 
+### A dashboard
+
+A control room is the figure this has to be right for, and it is where a naive table is least useful.
+Three rules do the work:
+
+**A tile says its whole anatomy.** `StatTileSeries` tables as `label · value · target · caption · trend` —
+the comparative is the reason the tile exists, and a bare number is the pattern it was built to avoid. What a
+tile has not got is an empty cell, not a zero.
+
+**A row of tiles is one table.** Every tile sits in its own subplot, which is layout rather than data;
+neighbouring subplots that produce the same single row are united into one table with a row per tile, so the
+reader gets the row the operator sees instead of five one-row grids to join by hand.
+
+**A position on a date axis reads as a time.** A state timeline's `start` and `end` are x coordinates, and
+`Plt.OpsDashboard()` pins a date axis on the shared window — so the table prints `2026-09-12 07:58:20`, not
+`46277.332`. A cell keeps the precision it was given: a midnight prints as a date, a whole minute to the
+minute, a thirty-second sample to the second. That last one matters more than it looks — rounding to the
+minute makes two consecutive samples identical.
+
+```csharp
+// The dashboard the cookbook builds above, read rather than seen:
+foreach (var table in dashboard.ToDataTables())
+{
+    Console.WriteLine(table.ToMarkdown());
+}
+
+// **Synapse — federation**
+// | label   | value | target | caption            | trend                  |
+// | ---     | ---   | ---    | ---                | ---                    |
+// | Buses   | 15    |        | all 15 normal      |                        |
+// | RFx p99 | 28.1  | 25     | target 25 ms · +3.1| 24.1, 24.8, 25.3, 26…  |
+//
+// **Synapse — federation — Exchange feed**
+// | state    | start               | end                 |
+// | ---      | ---                 | ---                 |
+// | normal   | 2026-09-12 07:55    | 2026-09-12 07:57    |
+// | degraded | 2026-09-12 07:57    | 2026-09-12 07:58:20 |
+```
+
 ### Putting it on the page
 
 | Host | How |

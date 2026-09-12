@@ -71,7 +71,7 @@ public sealed class GanttSeries : ChartSeries, IHasColor
             rows[i] = [DataCell.FromText(Tasks[i]), DataCell.FromNumber(Starts[i]), DataCell.FromNumber(Ends[i])];
         }
 
-        return new ChartDataTable(null, [new("task", DataColumnKind.Text), new("start"), new("end")], rows);
+        return new ChartDataTable(null, [new("task", DataColumnKind.Text), new("start", Axis: DataAxis.X), new("end", Axis: DataAxis.X)], rows);
     }
 
     /// <inheritdoc />

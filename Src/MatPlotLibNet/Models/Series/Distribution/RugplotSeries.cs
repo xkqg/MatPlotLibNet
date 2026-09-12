@@ -85,7 +85,7 @@ public sealed class RugplotSeries : ChartSeries, IHasColor, IHasAlpha
             rows[i] = [DataCell.FromNumber(i), DataCell.FromNumber(Data[i])];
         }
 
-        return new ChartDataTable(null, [new("index"), new(Label ?? "value")], rows);
+        return new ChartDataTable(null, [new("index"), new(Label ?? "value", Axis: DataAxis.X)], rows);
     }
 
     /// <inheritdoc />

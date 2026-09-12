@@ -44,8 +44,8 @@ public abstract class OhlcSeries : ChartSeries, IPriceSeries
         bool dated = DateLabels is { Length: > 0 };
         var columns = new ChartDataColumn[]
         {
-            dated ? new("date", DataColumnKind.Text) : new("x"),
-            new("open"), new("high"), new("low"), new("close"),
+            dated ? new("date", DataColumnKind.Text) : new("x", Axis: DataAxis.X),
+            new("open", Axis: DataAxis.Y), new("high", Axis: DataAxis.Y), new("low", Axis: DataAxis.Y), new("close", Axis: DataAxis.Y),
         };
 
         var rows = new IReadOnlyList<DataCell>[count];

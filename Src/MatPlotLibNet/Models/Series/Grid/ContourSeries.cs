@@ -89,7 +89,7 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
             }
         }
 
-        return new ChartDataTable(null, [new("x"), new("y"), new(Label ?? "z")], out_);
+        return new ChartDataTable(null, [new("x", Axis: DataAxis.X), new("y", Axis: DataAxis.Y), new(Label ?? "z")], out_);
     }
 
     /// <inheritdoc />
