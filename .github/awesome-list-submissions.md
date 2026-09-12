@@ -26,7 +26,7 @@ Pre-written submission texts for .NET community awesome lists. Copy-paste into a
 
 ---
 
-## 3. awesome-blazor (AdrienTorworthy/awesome-blazor)
+## 3. awesome-blazor (AdrienTorris/awesome-blazor)
 
 **Section:** Libraries & Extensions / Charts
 
@@ -73,19 +73,22 @@ Cookbook: https://xkqg.github.io/MatPlotLibNet/cookbook/
 
 ## 6. Reddit r/dotnet + r/csharp
 
-**Title:** MatPlotLibNet v1.3.0 — matplotlib-inspired charting for .NET with 82 series types, 3D, MathText, and native Avalonia/Uno controls
+**Title:** MatPlotLibNet — matplotlib-inspired charting for .NET, with 3D, MathText and native Avalonia/Uno controls
 
 **Body:**
 
-I've been building a charting library for .NET that takes matplotlib's code-first approach and brings it to C#. After several months of development, v1.3.0 is out with:
+I've been building a charting library for .NET that takes matplotlib's code-first approach and brings it to C#.
+Where it stands now:
 
-- **82 series types** — everything from line/bar/scatter to Sankey diagrams, treemaps, and 12 3D chart types
+- **83 series types** — everything from line/bar/scatter to Sankey diagrams, treemaps, and 12 3D chart types
 - **Native UI controls** — Avalonia 12 (`MplChartControl`) and Uno Platform (`MplChartElement`) render via SkiaSharp with local pan/zoom/brush-select
 - **MathText** — LaTeX-like labels with fractions, square roots, accents, Greek letters (96 symbol mappings)
+- **Text in any script** — Arabic and Hebrew read the right way round, because the Unicode bidirectional algorithm and HarfBuzz shaping are both in there
 - **SignalR interactivity** — server-authoritative charts with mutation + notification events
-- **142 colormaps**, SIMD numerics, DataFrame integration, Jupyter notebooks
+- **142 colormaps**, SIMD numerics, DataFrame integration with 58 technical indicators, Jupyter notebooks
+- **An MCP server** so an agent can draw one of these charts and then look at it
 
-MIT licensed, .NET 10, 4,000+ tests.
+MIT licensed, .NET 10 and .NET 8, 11,619 tests, and every class has to clear 90 % line and branch coverage.
 
 - GitHub: https://github.com/xkqg/MatPlotLibNet
 - NuGet: https://www.nuget.org/packages/MatPlotLibNet
@@ -176,5 +179,3 @@ mistake.
 It is a .NET tool, so a host starts it with `dnx MatPlotLibNet.Mcp`. MIT, and it is in the MCP registry as
 io.github.xkqg/matplotlibnet.
 ```
-
-**Note:** section 6 above still describes v1.3.0 (82 series types, 4,000 tests) — rewrite it before posting.

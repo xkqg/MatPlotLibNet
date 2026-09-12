@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.17.1]
+### Changed
+
+- **Every package now says what changed.** All fourteen packages carry release notes, so the Release Notes box
+  on nuget.org and in the Visual Studio package manager links straight to this changelog at the section for the
+  version being installed, instead of standing empty.
+
 ### Fixed
 
 - **A force-directed graph is drawn with the layout you asked for.** `LayoutSeed`, `LayoutIterations` and

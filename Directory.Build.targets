@@ -1,0 +1,11 @@
+<Project>
+
+  <!-- Imported after every project file, so the version the project set is already known here. Fourteen packages
+       share one release-notes sentence: written once, it cannot drift, and the deep link follows the version on
+       its own. ReleaseContractTests pins both halves against the changelog. -->
+  <PropertyGroup>
+    <ChangelogAnchor>$(Version.Replace('.',''))</ChangelogAnchor>
+    <PackageReleaseNotes>MatPlotLibNet $(Version). What changed in this release, and in every release before it, is written out in the changelog: https://github.com/xkqg/MatPlotLibNet/blob/main/CHANGELOG.md#$(ChangelogAnchor)</PackageReleaseNotes>
+  </PropertyGroup>
+
+</Project>

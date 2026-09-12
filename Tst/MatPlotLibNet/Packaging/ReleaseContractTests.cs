@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Text.Json;
@@ -98,6 +98,58 @@ public class ReleaseContractTests
         Assert.Equal(packageId, package.GetProperty("identifier").GetString());
         Assert.Equal("nuget", package.GetProperty("registryType").GetString());
         Assert.Equal("stdio", package.GetProperty("transport").GetProperty("type").GetString());
+    }
+
+    /// <summary>The release notes every package inherits, read from the one file that defines them.</summary>
+    private static string ReleaseNotesTemplate()
+    {
+        var shared = XDocument.Load(Path.Combine(Root, "Directory.Build.targets"));
+        return shared.Descendants("PackageReleaseNotes").SingleOrDefault()?.Value.Trim()
+            ?? throw new InvalidOperationException("Directory.Build.targets defines no <PackageReleaseNotes>");
+    }
+
+    [Fact]
+    public void EveryPackableProject_ShipsReleaseNotes()
+    {
+        // A package page with an empty Release Notes box tells a reader nothing about what they are upgrading
+        // into. Fourteen hand-kept copies of the same sentence would drift the moment one of them is forgotten,
+        // so the text lives in one shared build file and every project inherits it; this pins that it is there
+        // and that no project quietly blanks it out.
+        Assert.False(string.IsNullOrWhiteSpace(ReleaseNotesTemplate()));
+
+        var overriding = PackableProjects()
+            .Where(p => p.Xml.Descendants("PackageReleaseNotes").Any(n => string.IsNullOrWhiteSpace(n.Value)))
+            .Select(p => p.Path)
+            .ToArray();
+
+        Assert.True(overriding.Length == 0,
+            $"These packages override the shared release notes with nothing: {string.Join(", ", overriding)}");
+    }
+
+    [Fact]
+    public void TheReleaseNotes_LinkToAChangelogSectionThatExists()
+    {
+        // The notes carry a deep link, and a deep link to a heading that is not there lands the reader at the top
+        // of a long file with no idea which part was theirs. Both halves are built from the version, so this
+        // check is what keeps the link honest after the next bump.
+        string version = VersionOf(PackableProjects()[0].Xml);
+        string notes = ReleaseNotesTemplate()
+            .Replace("$(ChangelogAnchor)", version.Replace(".", string.Empty), StringComparison.Ordinal)
+            .Replace("$(Version)", version, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("$(", notes, StringComparison.Ordinal);
+        Assert.Contains(version, notes, StringComparison.Ordinal);
+
+        string anchor = Regex.Match(notes, @"CHANGELOG\.md#([A-Za-z0-9-]+)").Groups[1].Value;
+        Assert.False(string.IsNullOrEmpty(anchor), "the release notes carry no link into the changelog");
+
+        // GitHub builds a heading anchor by lower-casing, dropping punctuation and joining words with hyphens,
+        // so "## [1.17.1]" becomes "#1171".
+        var headings = Regex.Matches(Read("CHANGELOG.md"), @"^## (.+)$", RegexOptions.Multiline)
+            .Select(m => Regex.Replace(m.Groups[1].Value.ToLowerInvariant(), @"[^a-z0-9 -]", string.Empty).Trim().Replace(' ', '-'))
+            .ToArray();
+
+        Assert.Contains(anchor, headings);
     }
 
     // ---- the lists that decide what CI guards and what a release ships ---------------------------------------
