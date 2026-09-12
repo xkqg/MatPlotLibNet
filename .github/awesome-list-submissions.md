@@ -120,6 +120,8 @@ tools sit.
 | Contact Email | the maintainer's own address |
 | Premium Submit (€/$39) | leave unticked — it buys a queue jump, a badge and a dofollow link, none of which the listing needs |
 
+**Status:** submitted by the maintainer — the form answered *“Your MCP server ‘MatPlotLibNet’ has been submitted successfully… reviewed within 12 hours”* and promised an email on approval. Nothing to chase before that mail arrives; if it does not, the form takes a second submission.
+
 The longer description below is for anywhere that takes more than one line.
 
 **Description:**
