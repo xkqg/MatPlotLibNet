@@ -215,6 +215,31 @@ public class ReleaseContractTests
         Assert.Equal("https://www.nuget.org/packages/MatPlotLibNet", root.GetProperty("downloadUrl").GetString());
     }
 
+    [Fact]
+    public void TheIndexNowKey_IsPublishedWithTheSiteAndSaysItsOwnName()
+    {
+        // IndexNow is how a site tells Bing and Yandex that a page changed without holding an account anywhere:
+        // the proof of ownership is a file, served from the site itself, whose CONTENT is its own name. This
+        // site lives under a project path and the host root answers 404, so the key is submitted with an
+        // explicit keyLocation — which means the file has to be reachable at exactly that address. A key docfx
+        // does not copy into the site answers 404 there, and every submission made with it is refused.
+        var keys = Directory.EnumerateFiles(Path.Combine(Root, "docs"), "*.txt")
+            .Where(file => Path.GetFileNameWithoutExtension(file) is { Length: 32 } name
+                        && name.All(Uri.IsHexDigit))
+            .ToArray();
+
+        string key = Assert.Single(keys);
+        Assert.Equal(Path.GetFileNameWithoutExtension(key), File.ReadAllText(key).Trim());
+
+        using var config = JsonDocument.Parse(Read("docs", "docfx.json"));
+        var resources = config.RootElement.GetProperty("build").GetProperty("resource")[0].GetProperty("files")
+            .EnumerateArray().Select(f => f.GetString()).ToArray();
+
+        Assert.True(resources.Contains("*.txt", StringComparer.Ordinal)
+                 || resources.Contains(Path.GetFileName(key), StringComparer.Ordinal),
+            "docs/docfx.json does not copy the IndexNow key into the built site");
+    }
+
     // ---- the numbers a package page prints --------------------------------------------------------------------
 
     /// <summary>Every counted claim a <c>&lt;Description&gt;</c> may carry, beside the code that measures it.</summary>

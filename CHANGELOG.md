@@ -169,6 +169,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   measured over the built site, none of its 772 pages had structured data of any kind, and the name reads to a
   search engine as "matplotlib" plus ".net", which is two other projects. Both are pinned by a contract test.
 
+- **The documentation site can tell a search engine that a page changed.** IndexNow needs no account anywhere:
+  a file served from the site, whose content is its own name, is the proof that whoever submits a URL owns the
+  site. The site is served from a project path and the host root is not ours, so the key is submitted with an
+  explicit key location; a contract test pins that docfx copies the key into the built site, because a key that
+  answers 404 makes every submission fail.
+
 ## [1.17.0]
 ### Added
 
