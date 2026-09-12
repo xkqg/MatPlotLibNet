@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using Avalonia;
@@ -82,6 +82,12 @@ public sealed class MplChartControl : Control
     /// <summary>Returns the active brush select state for overlay rendering, or <c>null</c>.</summary>
     internal BrushSelectState? ActiveBrushSelect => _controller?.ActiveBrushSelect;
 
+    /// <summary>Raised when the reader clicks a data point, with the point they clicked: the series it belongs to,
+    /// its value, where it is on screen and which axes it is in. Subscribe to open a detail panel, select a row in a
+    /// grid beside the chart, or navigate. It needs <see cref="IsInteractive"/>, and it fires whether the chart runs
+    /// locally or through a server sink.</summary>
+    public event Action<PinnedAnnotation>? DataPointClicked;
+
     /// <inheritdoc />
     public override void Render(DrawingContext context)
     {
@@ -103,16 +109,26 @@ public sealed class MplChartControl : Control
             var layout = ChartLayout.Create(figure, layoutResult);
             if (_controller is null)
             {
-                _controller = _serverEventSink is not null
-                    ? InteractionController.Create(figure, layout, _serverEventSink)
-                    : InteractionController.CreateLocal(figure, layout);
-                _controller.InvalidateRequested += InvalidateVisual;
+                _controller = Attach(figure, layout);
             }
             else
             {
                 _controller.UpdateLayout(layout);
             }
         });
+    }
+
+    /// <summary>Builds the controller for this figure and connects it to the control: a repaint on every change,
+    /// and a clicked data point passed on to whoever subscribed. Separate from the render callback above because
+    /// that one runs on the dispatcher and this is the part worth testing.</summary>
+    internal InteractionController Attach(Figure figure, ChartLayout layout)
+    {
+        var controller = _serverEventSink is not null
+            ? InteractionController.Create(figure, layout, _serverEventSink)
+            : InteractionController.CreateLocal(figure, layout);
+        controller.InvalidateRequested += InvalidateVisual;
+        controller.DataPointClicked += point => DataPointClicked?.Invoke(point);
+        return controller;
     }
 
     /// <inheritdoc />

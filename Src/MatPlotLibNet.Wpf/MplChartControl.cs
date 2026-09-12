@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Windows;
@@ -31,6 +31,11 @@ public sealed class MplChartControl : SKElement
 
     private InteractionController? _controller;
     private IAnimationSource? _animationSource;
+
+    /// <summary>Raised when the reader clicks a data point, with the point they clicked: the series it belongs to,
+    /// its value, where it is on screen and which axes it is in. Subscribe to open a detail panel, select a row in a
+    /// grid beside the chart, or navigate. It needs <see cref="IsInteractive"/>.</summary>
+    public event Action<PinnedAnnotation>? DataPointClicked;
 
     /// <summary>Gets or sets the animation source whose <see cref="IAnimationSource.FrameReady"/>
     /// event drives figure updates and visual invalidation.</summary>
@@ -83,6 +88,7 @@ public sealed class MplChartControl : SKElement
             {
                 _controller = InteractionController.CreateLocal(figure, layout);
                 _controller.InvalidateRequested += InvalidateVisual;
+                _controller.DataPointClicked += point => DataPointClicked?.Invoke(point);
             }
             else
             {

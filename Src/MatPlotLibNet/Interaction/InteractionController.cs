@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
@@ -30,6 +30,17 @@ public sealed class InteractionController : IInteractionController
     /// <inheritdoc />
     public event Action? InvalidateRequested;
 
+    /// <summary>Raised when the reader clicks a data point, with the point they clicked: the series it belongs to,
+    /// its value, where it is on screen and which axes it is in. Subscribe to open a detail panel, follow a link or
+    /// select a row beside the chart.
+    /// <para>It is raised in both hosting modes — the one that keeps the figure in the control and the one that
+    /// publishes to a server — because a click is a question about the data, not a change to it. Nothing else
+    /// receives it: applying the event to the figure does nothing by design, and a server sink has no arm for it.
+    /// The sink is told first, so a handler that throws cannot stop the event reaching it.</para>
+    /// <para>This sits on the controller itself rather than on <see cref="IInteractionController"/>: every control
+    /// in this repository holds the concrete type, and the interface is what a custom host implements.</para></summary>
+    public event Action<PinnedAnnotation>? DataPointClicked;
+
     /// <inheritdoc />
     public BrushSelectState? ActiveBrushSelect =>
         _modifiers.OfType<BrushSelectModifier>().FirstOrDefault()?.ActiveBrush;
@@ -46,10 +57,22 @@ public sealed class InteractionController : IInteractionController
         IChartLayout layout,
         Action<FigureInteractionEvent> sink)
     {
-        _figure    = figure;
-        _layout    = layout;
-        _sink      = sink;
-        _modifiers = BuildModifiers(figure.ChartId ?? string.Empty, layout, sink, figure, Toolbar);
+        _figure = figure;
+        _layout = layout;
+
+        // Every modifier writes through this one wrapper, so a clicked point is seen whichever sink the caller
+        // gave us. Wrapping here rather than inside CreateLocal is the whole point: the server-driven hosts build
+        // the controller with their own sink and never go through that factory.
+        _sink = evt =>
+        {
+            sink(evt);
+            if (evt is DataCursorEvent pinned)
+            {
+                DataPointClicked?.Invoke(pinned.Annotation);
+            }
+        };
+
+        _modifiers = BuildModifiers(figure.ChartId ?? string.Empty, layout, _sink, figure, Toolbar);
     }
 
     /// <summary>Creates a controller in local mode: events are applied directly to the figure

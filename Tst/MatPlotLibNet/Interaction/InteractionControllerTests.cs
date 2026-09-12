@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Interaction;
@@ -327,5 +327,108 @@ public class InteractionControllerCoverageTests
         ctrl.HandlePointerMoved(new PointerInputArgs(60, 35, PointerButton.None, ModifierKeys.None));
         ctrl.HandlePointerMoved(new PointerInputArgs(500, 500, PointerButton.None, ModifierKeys.None));
         Assert.Null(ctrl.ActiveTooltip);
+    }
+
+    // ── the clicked data point ─────────────────────────────────────────────────
+    //
+    // A click on a point produced a DataCursorEvent, the sink swallowed it, and that was the end of it: local
+    // mode applies it to the figure, where its ApplyTo is a no-op by design, and the SignalR sink drops it into
+    // a discard arm. So the one gesture whose whole purpose is to tell the application which point was clicked
+    // told nobody. The event below is raised from the wrapper the constructor puts around whichever sink it was
+    // given, so it reaches the application in both hosting modes.
+
+    /// <summary>A figure with points at (0,0), (1,5) and (2,10) over a 200x100 plot area, so the middle point
+    /// sits exactly at pixel (100, 50) and a click there is a hit.</summary>
+    private static (Figure Figure, ChartLayout Layout) Pinnable()
+    {
+        var figure = Plt.Create().Plot([0.0, 1.0, 2.0], [0.0, 5.0, 10.0], s => s.Label = "load").Build();
+        figure.ChartId = "chart-1";
+        figure.SubPlots[0].XAxis.Min = 0; figure.SubPlots[0].XAxis.Max = 2;
+        figure.SubPlots[0].YAxis.Min = 0; figure.SubPlots[0].YAxis.Max = 10;
+        return (figure, ChartLayout.Create(figure, [new Rect(0, 0, 200, 100)]));
+    }
+
+    private static PointerInputArgs Click(double x, double y) =>
+        new(x, y, PointerButton.Left, ModifierKeys.None);
+
+    [Fact]
+    public void AClickOnADataPoint_SaysWhichPointItWas()
+    {
+        var (figure, layout) = Pinnable();
+        var ctrl = InteractionController.CreateLocal(figure, layout);
+        var pinned = new List<PinnedAnnotation>();
+        ctrl.DataPointClicked += pinned.Add;
+
+        ctrl.HandlePointerPressed(Click(100, 50));
+
+        var point = Assert.Single(pinned);
+        Assert.Equal("load", point.SeriesLabel);
+        Assert.Equal(1.0, point.DataX);
+        Assert.Equal(5.0, point.DataY);
+        Assert.Equal(100.0, point.PixelX);
+        Assert.Equal(50.0, point.PixelY);
+        Assert.Equal(0, point.AxesIndex);
+    }
+
+    [Fact]
+    public void AClickOnADataPoint_SaysSoWithACustomSinkToo()
+    {
+        // The server-driven hosts build the controller with their own sink, which publishes over SignalR. If the
+        // event were raised from the local factory's closure, this arm — the one with a server to tell — would be
+        // the one where nothing happens.
+        var (figure, layout) = Pinnable();
+        var published = new List<FigureInteractionEvent>();
+        var ctrl = InteractionController.Create(figure, layout, published.Add);
+        var pinned = new List<PinnedAnnotation>();
+        ctrl.DataPointClicked += pinned.Add;
+
+        ctrl.HandlePointerPressed(Click(100, 50));
+
+        Assert.Equal(1.0, Assert.Single(pinned).DataX);
+        Assert.IsType<DataCursorEvent>(Assert.Single(published));
+    }
+
+    [Fact]
+    public void AClickThatMissesEveryPoint_SaysNothing()
+    {
+        // A miss is not a data cursor at all: the modifier declines and pan takes the drag, so a PanEvent runs
+        // through the same wrapper and must not be mistaken for a pinned point.
+        var (figure, layout) = Pinnable();
+        var seen = new List<FigureInteractionEvent>();
+        var ctrl = InteractionController.Create(figure, layout, seen.Add);
+        var pinned = new List<PinnedAnnotation>();
+        ctrl.DataPointClicked += pinned.Add;
+
+        ctrl.HandlePointerPressed(Click(160, 20));
+        ctrl.HandlePointerMoved(Click(150, 20));
+
+        Assert.Empty(pinned);
+        Assert.IsType<PanEvent>(Assert.Single(seen));   // the wrapper did see an event, and let it through
+    }
+
+    [Fact]
+    public void AClickOnADataPoint_WithNobodyListening_IsStillJustAClick()
+    {
+        var (figure, layout) = Pinnable();
+        var ctrl = InteractionController.CreateLocal(figure, layout);
+
+        ctrl.HandlePointerPressed(Click(100, 50));
+
+        Assert.Null(ctrl.ActiveTooltip);
+    }
+
+    [Fact]
+    public void AClickOnADataPoint_AfterTheLayoutIsRebuilt_StillSaysWhichPointItWas()
+    {
+        // UpdateLayout builds a fresh set of modifiers; they have to be given the wrapped sink, not the raw one.
+        var (figure, layout) = Pinnable();
+        var ctrl = InteractionController.CreateLocal(figure, layout);
+        var pinned = new List<PinnedAnnotation>();
+        ctrl.DataPointClicked += pinned.Add;
+
+        ctrl.UpdateLayout(ChartLayout.Create(figure, [new Rect(0, 0, 200, 100)]));
+        ctrl.HandlePointerPressed(Click(100, 50));
+
+        Assert.Equal(5.0, Assert.Single(pinned).DataY);
     }
 }

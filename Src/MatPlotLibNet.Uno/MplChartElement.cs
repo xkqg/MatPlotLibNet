@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using Microsoft.UI.Dispatching;
@@ -66,6 +66,12 @@ public sealed class MplChartElement : SKCanvasElement
     /// <summary>Returns the active brush select state for overlay rendering, or <c>null</c>.</summary>
     internal BrushSelectState? ActiveBrushSelect => _controller?.ActiveBrushSelect;
 
+    /// <summary>Raised when the reader clicks a data point, with the point they clicked: the series it belongs to,
+    /// its value, where it is on screen and which axes it is in. Subscribe to open a detail panel, select a row in a
+    /// grid beside the chart, or navigate. It needs <see cref="IsInteractive"/>, and it fires whether the chart runs
+    /// locally or through a server sink.</summary>
+    public event Action<PinnedAnnotation>? DataPointClicked;
+
     /// <summary>Initializes a new chart element.</summary>
     public MplChartElement()
     {
@@ -124,6 +130,7 @@ public sealed class MplChartElement : SKCanvasElement
                     ? InteractionController.Create(figure, layout, _serverEventSink)
                     : InteractionController.CreateLocal(figure, layout);
                 _controller.InvalidateRequested += Invalidate;
+                _controller.DataPointClicked += point => DataPointClicked?.Invoke(point);
             }
             else
             {

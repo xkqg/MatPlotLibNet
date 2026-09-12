@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [1.17.1]
+### Added
+
+- **The point the reader clicked reaches your application.** Clicking a data point has always pinned an
+  annotation, and the click itself went nowhere: the event was applied to the figure, where it does nothing by
+  design, or published to a server that had no handler for it. `InteractionController` now raises
+  `DataPointClicked` with the series label, the value, the pixel position and the axes index, and the WPF,
+  Avalonia and Uno controls pass it on under the same name. Subscribe to open a detail panel, select a row in a
+  grid beside the chart, or navigate. It fires whether the chart runs in the control or through a server sink.
+
 ### Changed
 
 - **Every package now says what changed.** All fourteen packages carry release notes, so the Release Notes box
