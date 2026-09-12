@@ -104,11 +104,23 @@ pull requests — its README now points at the registry — so what is left is t
 
 ### 7a. mcpservers.org (submission form, feeds wong2/awesome-mcp-servers)
 
-**Submit at:** https://mcpservers.org/submit
+**Submit at:** https://mcpservers.org/submit — five fields, one optional paid upgrade.
 
-**Name:** MatPlotLibNet
-**Repository:** https://github.com/xkqg/MatPlotLibNet
-**Category:** Data Visualization
+The dropdown has no data-visualisation category. Measured from the page itself: Development, Productivity,
+Database, Search, Web Scraping, File System, Version Control, Communication, Cloud Service, Cloud Storage,
+Marketing, Finance, Design, Memory, Other. **Development** is the honest fit — Design is where the Figma-style
+tools sit.
+
+| field | what to type |
+|---|---|
+| Server Name | `MatPlotLibNet` |
+| Category | `Development` |
+| Short Description | `Hand it the JSON for a chart and it renders a PNG the model can actually look at — 83 chart types, SVG and PDF written to file, running locally as a .NET tool.` |
+| Repository, Website or Documentation | `https://github.com/xkqg/MatPlotLibNet` |
+| Contact Email | the maintainer's own address |
+| Premium Submit (€/$39) | leave unticked — it buys a queue jump, a badge and a dofollow link, none of which the listing needs |
+
+The longer description below is for anywhere that takes more than one line.
 
 **Description:**
 
