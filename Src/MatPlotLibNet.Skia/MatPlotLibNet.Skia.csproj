@@ -7,7 +7,7 @@
     <Version>1.17.1</Version>
     <PackageId>MatPlotLibNet.Skia</PackageId>
     <Description>PNG and PDF export for MatPlotLibNet charts using SkiaSharp.</Description>
-    <PackageTags>charting;plotting;charts;png;pdf;export;skiasharp</PackageTags>
+    <PackageTags>matplotlib;charting;plotting;charts;visualization;png;pdf;export;skiasharp</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

@@ -9,7 +9,7 @@
     <PackageId>MatPlotLibNet.Blazor</PackageId>
     <Version>1.17.1</Version>
     <Description>Blazor components for MatPlotLibNet charting library. Renders charts as inline SVG.</Description>
-    <PackageTags>blazor;charting;plotting;svg;components</PackageTags>
+    <PackageTags>matplotlib;charting;plotting;visualization;blazor;svg;components</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

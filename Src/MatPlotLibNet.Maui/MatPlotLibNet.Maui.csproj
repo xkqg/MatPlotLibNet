@@ -13,7 +13,7 @@
     <PackageId>MatPlotLibNet.Maui</PackageId>
     <Version>1.17.1</Version>
     <Description>MAUI controls for MatPlotLibNet charting library. Renders charts via Microsoft.Maui.Graphics.</Description>
-    <PackageTags>maui;charting;plotting;mobile;cross-platform</PackageTags>
+    <PackageTags>matplotlib;charting;plotting;visualization;maui;mobile;cross-platform</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

@@ -9,7 +9,7 @@
     <PackageId>MatPlotLibNet.GraphQL</PackageId>
     <Version>1.17.1</Version>
     <Description>GraphQL integration for MatPlotLibNet using HotChocolate. Queries and subscriptions for real-time chart updates.</Description>
-    <PackageTags>graphql;hotchocolate;charting;realtime;subscriptions</PackageTags>
+    <PackageTags>matplotlib;charting;plotting;visualization;graphql;hotchocolate;realtime;subscriptions</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

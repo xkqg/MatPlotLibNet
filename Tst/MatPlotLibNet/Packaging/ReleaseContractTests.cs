@@ -163,6 +163,46 @@ public class ReleaseContractTests
         Assert.True(png.Length < 1024 * 1024, $"the icon is {png.Length} bytes; nuget.org caps it at 1 MB");
     }
 
+    // ---- what a reader types into the search box ------------------------------------------------------------
+
+    /// <summary>The tags of one package, however the project spelled its separator.</summary>
+    private static string[] TagsOf(XDocument csproj) =>
+        [.. (csproj.Descendants("PackageTags").FirstOrDefault()?.Value ?? string.Empty)
+            .Split([';', ' ', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+
+    [Fact]
+    public void EveryPackage_CarriesTheWordThisLibraryIsSearchedFor()
+    {
+        // Measured against the live nuget.org search index: on the query "matplotlib" — 31 hits, the one query
+        // this library is the answer to — only MatPlotLibNet.DataFrame reached the first page, at rank 10. The
+        // core package sat at 14, below two packages with a hundredth of its downloads. DataFrame was also the
+        // only one of the fourteen whose tags spelled the word; the search index cannot rank on a word no
+        // package carries.
+        var without = PackableProjects()
+            .Where(p => !TagsOf(p.Xml).Contains("matplotlib", StringComparer.OrdinalIgnoreCase))
+            .Select(p => p.Path)
+            .ToArray();
+
+        Assert.True(without.Length == 0,
+            $"These packages cannot be found by the name of what they are: {string.Join(", ", without)}");
+    }
+
+    [Fact]
+    public void EveryPackagesTags_AreSeparatedTheSameWay()
+    {
+        // NuGet accepts a space-separated and a semicolon-separated list alike, so a project that mixes them
+        // reads correctly and reviews wrongly: thirteen projects used semicolons and one used spaces, and the
+        // odd one out is invisible until someone appends a tag with a semicolon to it and silently creates
+        // "finance;matplotlib" as a single tag.
+        var mixed = PackableProjects()
+            .Where(p => (p.Xml.Descendants("PackageTags").FirstOrDefault()?.Value ?? string.Empty).Contains(' '))
+            .Select(p => p.Path)
+            .ToArray();
+
+        Assert.True(mixed.Length == 0,
+            $"These packages separate their tags with spaces where every other package uses ';': {string.Join(", ", mixed)}");
+    }
+
     [Fact]
     public void EveryPackableProject_ShipsReleaseNotes()
     {

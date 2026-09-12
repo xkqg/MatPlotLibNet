@@ -11,7 +11,7 @@
     <Version>1.17.1</Version>
     <PackageId>MatPlotLibNet.Wpf</PackageId>
     <Description>WPF chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/3D rotation interaction.</Description>
-    <PackageTags>charting;plotting;charts;wpf;skiasharp;interactive</PackageTags>
+    <PackageTags>matplotlib;charting;plotting;charts;visualization;wpf;skiasharp;interactive</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

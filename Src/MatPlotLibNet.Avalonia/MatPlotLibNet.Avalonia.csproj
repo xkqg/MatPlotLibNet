@@ -7,7 +7,7 @@
     <Version>1.17.1</Version>
     <PackageId>MatPlotLibNet.Avalonia</PackageId>
     <Description>Avalonia 12 chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/reset/brush-select interaction.</Description>
-    <PackageTags>charting;plotting;charts;avalonia;skiasharp;cross-platform;interactive</PackageTags>
+    <PackageTags>matplotlib;charting;plotting;charts;visualization;avalonia;skiasharp;cross-platform;interactive</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
