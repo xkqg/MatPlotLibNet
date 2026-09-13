@@ -5,6 +5,8 @@ description: "Switch a C# chart between 30 themes, light and dark, and build a t
 
 # Themes
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Applying a theme
 
 ```csharp

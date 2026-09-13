@@ -5,6 +5,8 @@ description: "Draw bar charts in C# and .NET: vertical, horizontal, grouped and 
 
 # Bar Charts
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Bar chart with labels
 
 ```csharp

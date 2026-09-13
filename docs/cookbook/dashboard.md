@@ -5,6 +5,8 @@ description: "Build a control-room dashboard in C#: KPI tiles, state timelines a
 
 # Dashboard tiles & timelines
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 Single-panel KPI tiles and horizontal state timelines for operational dashboards,
 fleet status views, and monitoring UIs. Both series types are chartless: they carry
 no axes, just a formatted value or a coloured timeline. Compose them with mosaic or

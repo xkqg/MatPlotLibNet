@@ -5,6 +5,8 @@ description: "Draw treemaps and sunburst charts in C# to show a hierarchy where 
 
 # Treemaps & Hierarchical Charts
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Nested pie
 
 An inner disc shows the departments, and an outer ring breaks each department down by product. This is a thin alias for Sunburst:

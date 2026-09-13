@@ -5,6 +5,8 @@ description: "Draw contour and filled contour plots in C# from a two-dimensional
 
 # Contour Plots
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Contour lines with labels
 
 ```csharp

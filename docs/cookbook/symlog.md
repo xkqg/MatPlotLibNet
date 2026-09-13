@@ -5,6 +5,8 @@ description: "Use a symmetric log axis in C# for data that spans positive and ne
 
 # Symlog Axis
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 A symmetric logarithmic scale is linear near zero and logarithmic for large values. Use it for data that covers both positive and negative values across orders of magnitude.
 
 ## Basic symlog Y-axis

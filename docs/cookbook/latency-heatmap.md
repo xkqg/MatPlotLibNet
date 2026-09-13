@@ -5,6 +5,8 @@ description: "Draw a latency heatmap in C#: a histogram over time with a real cl
 
 # Latency heatmaps
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 A latency heatmap answers the question an average cannot: **did the slow requests get slower, or are there
 simply more of them?** It is a histogram over time. Each column is one slice of the clock, each row is one
 latency bucket, and the colour of a cell is how many requests landed in that bucket during that minute.

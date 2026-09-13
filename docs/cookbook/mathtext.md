@@ -5,6 +5,8 @@ description: "Write LaTeX-style math in C# chart titles, labels and annotations:
 
 # Math Text
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 MatPlotLibNet supports LaTeX-like inline math in any label, title, or annotation. Wrap expressions in `$...$`.
 
 ## Greek letters and super/subscript

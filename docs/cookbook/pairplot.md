@@ -5,6 +5,8 @@ description: "Draw a pair grid in C#: an N by N matrix of subplots with distribu
 
 # Pair Grid (PairPlot)
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 A pair grid renders an N×N matrix of subplots from N variables. Each diagonal cell shows
 the univariate distribution of variable *i*, as a histogram or a KDE. Each off-diagonal
 cell shows a bivariate scatter of *(i, j)*. Optional hue groups colour the off-diagonal

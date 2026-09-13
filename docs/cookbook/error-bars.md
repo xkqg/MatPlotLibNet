@@ -5,6 +5,8 @@ description: "Draw error bars in C# charts: symmetric and asymmetric errors, cap
 
 # Error Bars
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Symmetric error bars
 
 ```csharp

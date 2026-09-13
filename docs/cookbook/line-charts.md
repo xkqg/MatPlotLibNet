@@ -5,6 +5,8 @@ description: "Draw line charts in C# and .NET: multiple series, markers, dashed 
 
 # Line Charts
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 > **Tips:** Try `.WithBrowserInteraction()` to make your line chart zoomable in the browser. Use `.WithSymlogYScale()` for data spanning large ranges. Switch themes with `.WithTheme(Theme.Nord)`.
 
 ## Simple line chart

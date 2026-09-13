@@ -5,6 +5,8 @@ description: "Stream live data into a C# chart. Append points from any thread an
 
 # Streaming & Realtime
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Live line chart
 
 Append data points from any thread. The chart auto-updates at the configured frame rate:

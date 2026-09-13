@@ -5,6 +5,8 @@ description: "Draw Sankey diagrams in C#: weighted flows between nodes, with hov
 
 # Sankey Diagrams
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 `.WithSankeyHover()` enables ECharts-style `focus: adjacency`. When you hover a
 node, the chart dims every link that is not reachable upstream or downstream
 from that node, so the selected flow chain stands out. The nodes are keyboard

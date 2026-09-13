@@ -5,6 +5,8 @@ description: "Draw a clustermap in C#: a heatmap with row and column dendrograms
 
 # Clustermap
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 A clustermap combines a heatmap with optional row and column dendrograms in a single
 subplot. It follows the seaborn `sns.clustermap` pattern. When you supply trees, the
 clustermap reorders the rows and/or columns automatically to match the leaf traversal

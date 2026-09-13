@@ -5,6 +5,8 @@ description: "Add text, arrows and callouts to a C# chart. Point at a value, lab
 
 # Annotations
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Arrow annotations with background
 
 ```csharp

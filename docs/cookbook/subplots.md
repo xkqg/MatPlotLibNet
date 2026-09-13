@@ -5,6 +5,8 @@ description: "Lay out several charts in one figure from C# with subplots and Gri
 
 # Subplots & GridSpec
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Multi-subplot dashboard
 
 ```csharp

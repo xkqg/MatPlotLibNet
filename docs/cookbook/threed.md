@@ -5,6 +5,8 @@ description: "Draw 3D charts in C#: surfaces, wireframes, scatter and bars, with
 
 # 3D Charts
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 MatPlotLibNet includes a full 3D projection pipeline. `Projection3D` takes coordinates from World to View to NDC to Pixel. `DepthQueue3D` applies the painter's algorithm. `Vec3.FaceNormal` provides face-normal shading through the `Color.Shade` and `Color.Modulate` extensions. `Svg3DRotationScript` adds client-side rotation to an SVG.
 
 ## Surface plot

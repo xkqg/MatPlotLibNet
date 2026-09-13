@@ -5,6 +5,8 @@ description: "Draw polar charts in C#: radar plots, rose diagrams, polar scatter
 
 # Polar Charts
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Polar line
 
 ```csharp

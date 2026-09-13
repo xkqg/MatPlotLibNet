@@ -5,6 +5,8 @@ description: "Draw heatmaps in C# with 148 colormaps, annotated cells, colorbars
 
 # Heatmaps & Colormaps
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Heatmap with colorbar
 
 ```csharp

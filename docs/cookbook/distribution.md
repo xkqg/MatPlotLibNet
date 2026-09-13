@@ -5,6 +5,8 @@ description: "Draw distributions in C#: histograms, box plots, violin plots, KDE
 
 # Distribution Charts
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Histogram
 
 ```csharp

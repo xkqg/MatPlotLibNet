@@ -5,6 +5,8 @@ description: "Write chart labels in any script from C#. Arabic joins its letters
 
 # International text
 
+> **Install:** `dotnet add package MatPlotLibNet` and `dotnet add package MatPlotLibNet.Skia` for the text shaping and the PNG export
+
 Labels, titles and legend entries can be written in any script. Arabic and Hebrew work without any setup: the letters
 join where the script joins them, the words read from right to left, and a Latin word or a number inside them stays
 where a reader expects it. Other scripts, such as Devanagari, Thai or Chinese, need a font that has their letters.

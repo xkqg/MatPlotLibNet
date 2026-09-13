@@ -5,6 +5,8 @@ description: "Draw network graphs in C#: nodes and edges with deterministic layo
 
 # Network Graph
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 NetworkGraph draws nodes and edges in 2D. Use it for correlation networks, lead-lag
 flows, Louvain community visualisation, and minimum spanning trees. Three deterministic
 layouts ship in v1.10 PR 1: `Manual` (uses the coordinates you pass), `Circular` (unit

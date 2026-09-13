@@ -5,6 +5,8 @@ description: "Make C# charts readable for everyone: a color-blind-safe palette, 
 
 # Accessibility
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Color-blind safe palette
 
 `Theme.ColorBlindSafe` uses the Okabe-Ito palette. Its colors stay distinguishable for people with all forms of

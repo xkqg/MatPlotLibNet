@@ -5,6 +5,8 @@ description: "Draw a broken axis in C#. Cut an empty range out of the axis so wi
 
 # Broken / Discontinuous Axes
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 Remove a range from the axis to show widely separated data without wasting space.
 
 ## Y-axis break

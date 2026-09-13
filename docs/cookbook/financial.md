@@ -5,6 +5,8 @@ description: "Draw financial charts in C#: candlesticks, OHLC bars, volume panel
 
 # Financial Charts
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Financial dashboard template
 
 The built-in `FigureTemplates.FinancialDashboard` creates a 3-panel layout. The top panel shows the price with Bollinger Bands. The middle panel shows volume. The bottom panel shows an oscillator, such as RSI or CCI.

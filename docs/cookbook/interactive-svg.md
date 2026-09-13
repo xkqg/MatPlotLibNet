@@ -5,6 +5,8 @@ description: "Make an SVG chart interactive in C#: pan, zoom, tooltips, legend t
 
 # Interactive SVG
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Browser-interactive charts
 
 Add `.WithBrowserInteraction()` to make SVG output interactive. You get pan, zoom, tooltips, legend toggle, **legend drag**, treemap drilldown, sankey hover, 3D rotation, brush selection and highlight. The client needs no .NET runtime:

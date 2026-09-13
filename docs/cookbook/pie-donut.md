@@ -5,6 +5,8 @@ description: "Draw pie and donut charts in C# with exploded slices, percentage l
 
 # Pie & Donut Charts
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Pie chart
 
 ```csharp

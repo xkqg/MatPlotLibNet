@@ -241,6 +241,22 @@ public class ReleaseContractTests
     }
 
     [Fact]
+    public void EveryCookbookPage_SaysWhichPackageItNeeds()
+    {
+        // A cookbook page is where a stranger lands from a search — "candlestick chart in C#" — and every one of
+        // the 34 arrived without naming a package or an install line. They are the pages that have to answer
+        // "and how do I get this", because the reader has no reason to walk back to the home page for it.
+        var silent = Directory.EnumerateFiles(Path.Combine(Root, "docs", "cookbook"), "*.md")
+            .Where(file => !File.ReadAllText(file).Contains("dotnet add package", StringComparison.Ordinal)
+                        && !File.ReadAllText(file).Contains("dotnet tool install", StringComparison.Ordinal))
+            .Select(Path.GetFileName)
+            .ToArray();
+
+        Assert.True(silent.Length == 0,
+            $"These cookbook pages never say what to install: {string.Join(", ", silent)}");
+    }
+
+    [Fact]
     public void TheDocumentationHomePage_LinksEveryPackageToWhereItIsInstalledFrom()
     {
         // Someone who arrives at the documentation from a search is there to USE the library, and the package

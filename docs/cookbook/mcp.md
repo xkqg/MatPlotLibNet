@@ -5,6 +5,8 @@ description: "Let an AI agent draw charts. The MatPlotLibNet MCP server renders 
 
 # MCP server — charts for an AI agent
 
+> **Install:** `dotnet tool install --global MatPlotLibNet.Mcp`
+
 `MatPlotLibNet.Mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. It is a .NET tool that an
 MCP host (Claude Code, Claude Desktop, VS Code) starts over stdio. Through it, a model can render this library's
 charts and look at the result.

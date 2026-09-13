@@ -5,6 +5,8 @@ description: "Format axis ticks in C#: engineering and percent notation, currenc
 
 # Tick Formatting
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## Engineering notation
 
 `EngFormatter` displays values as `100k`, `50M`, `2.5G`:

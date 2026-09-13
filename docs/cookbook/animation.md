@@ -5,6 +5,8 @@ description: "Animate a chart in C# and save it as an animated GIF. Write a fram
 
 # Animation
 
+> **Install:** `dotnet add package MatPlotLibNet` and `dotnet add package MatPlotLibNet.Skia` for the GIF and PDF export
+
 ## FuncAnimation — declarative animated GIF
 
 Define a frame generator function and save the result as an animated GIF:

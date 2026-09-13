@@ -5,6 +5,8 @@ description: "Style C# charts: 30 built-in themes, fonts, colors, line styles, g
 
 # Styling & Themes
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 ## 26 built-in themes
 
 | Light themes | Dark themes | Accessibility |

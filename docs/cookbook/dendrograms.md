@@ -5,6 +5,8 @@ description: "Draw a dendrogram in C# from hierarchical clustering, with merge d
 
 # Dendrograms
 
+> **Install:** `dotnet add package MatPlotLibNet`
+
 A dendrogram draws the result of hierarchical clustering. Every internal node is a *merge*.
 Its vertical position equals the merge distance that the clustering algorithm produced.
 Leaves are spaced evenly along the leaf axis. "U"-shaped segments connect each merge to its
