@@ -201,6 +201,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   explicit key location; a contract test pins that docfx copies the key into the built site, because a key that
   answers 404 makes every submission fail.
 
+- **A clicked point says which point it is.** The search that resolves a click walks your arrays by index, and
+  it knew exactly which sample it had picked — then built the event without it, so an application that wanted
+  to open the row the reader clicked had to search its own data for a matching pair of doubles. Two samples at
+  the same instant are indistinguishable that way. `DataPointClicked` now carries `PointIndex` and
+  `SeriesIndex` beside the label and the coordinates, and hovering reports the same two numbers on the tooltip,
+  so a table beside the chart can highlight the row the cursor is over. Both are `-1` when they were never
+  resolved, and both are optional members: no existing call site changes.
+
 ## [1.17.0]
 ### Added
 

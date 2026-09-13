@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Interaction;
@@ -132,4 +132,28 @@ public class DataCursorModifierTests
         // NearestPointFinder returns null because there are no series.
         Assert.False(mod.HandlesPointerPressed(P(100, 50)));
     }
+    // ── the click says which point, not only where ─────────────────────────────
+
+    [Fact]
+    public void TheClick_CarriesThePointIndexAndTheSeriesIndex()
+    {
+        var (mod, _, events) = Setup();
+
+        Assert.True(mod.HandlesPointerPressed(P(100, 50)));
+        mod.OnPointerPressed(P(100, 50));
+
+        var pinned = Assert.IsType<DataCursorEvent>(Assert.Single(events)).Annotation;
+        Assert.Equal(1, pinned.PointIndex);
+        Assert.Equal(0, pinned.SeriesIndex);
+    }
+
+    [Fact]
+    public void AnAnnotationConstructedWithoutIndices_SaysSoRatherThanPointingAtTheFirstPoint()
+    {
+        var annotation = new PinnedAnnotation("s", 1.0, 2.0, 3.0, 4.0, 0);
+
+        Assert.Equal(-1, annotation.PointIndex);
+        Assert.Equal(-1, annotation.SeriesIndex);
+    }
+
 }

@@ -465,8 +465,9 @@ MatPlotLibNet/
     SignalREventSink.cs               the sink that publishes events to a hub instead of applying them
     InteractionToolbar.cs             which drawing tool is active; ToolbarState + ToolbarButton
     ViewHistoryManager.cs             back/forward over axis limits
-    PinnedAnnotation.cs               a clicked point: series label, data x/y, pixel x/y, axes index — what
-                                      DataCursorEvent carries and what DataPointClicked hands the application
+    PinnedAnnotation.cs               a clicked point: series label, data x/y, pixel x/y, axes index, and the
+                                      point's own position in the caller's arrays — what DataCursorEvent
+                                      carries and what DataPointClicked hands the application
 
   Data/
     RingBuffer.cs                     public sealed RingBuffer<T> — fixed-capacity circular SEQUENCE, oldest

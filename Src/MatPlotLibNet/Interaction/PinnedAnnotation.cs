@@ -15,4 +15,16 @@ public readonly record struct PinnedAnnotation(
     string? SeriesLabel,
     double DataX, double DataY,
     double PixelX, double PixelY,
-    int AxesIndex);
+    int AxesIndex)
+{
+    /// <summary>Position of the clicked point in the series' own arrays, or <c>-1</c> when the annotation was
+    /// constructed without one.
+    /// <para>The label is not an identifier: a series without one is named <c>"Series 0"</c> at the moment the
+    /// hit is resolved, and two series can carry the same label. The index is what lets an application open the
+    /// row the reader clicked instead of searching its data for a matching pair of doubles.</para></summary>
+    public int PointIndex { get; init; } = -1;
+
+    /// <summary>Position of the series within the axes, or <c>-1</c> when the annotation was constructed
+    /// without one. Together with <see cref="PointIndex"/> it addresses exactly one sample.</summary>
+    public int SeriesIndex { get; init; } = -1;
+}

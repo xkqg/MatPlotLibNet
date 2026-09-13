@@ -7,4 +7,15 @@ namespace MatPlotLibNet.Interaction;
 /// formatted text and the pixel position where the tooltip should appear.</summary>
 public sealed record HoverTooltipContent(
     string Text,
-    double PixelX, double PixelY);
+    double PixelX, double PixelY)
+{
+    /// <summary>Position of the hovered point in the series' own arrays, or <c>-1</c> when the tooltip was
+    /// built without one. Hover and click resolve their point through the same search; only the click used to
+    /// pass the identity on, so a host that highlights the matching row on hover had nothing to match it
+    /// by.</summary>
+    public int PointIndex { get; init; } = -1;
+
+    /// <summary>Position of the hovered series within the axes, or <c>-1</c> when the tooltip was built
+    /// without one.</summary>
+    public int SeriesIndex { get; init; } = -1;
+}

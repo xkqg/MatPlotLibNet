@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Interaction;
@@ -139,4 +139,53 @@ public class NearestPointFinderTests
         var result = NearestPointFinder.Find(figure, 0, 5.0, 3.0, layout);
         Assert.Null(result);
     }
+    // ── which point, not just where ────────────────────────────────────────────
+    //
+    // The finder walks XData/YData by index and had the index in hand at the moment it chose a point, then
+    // built a result without it. An application that wants to know WHICH of its own rows was hit had to
+    // compare two doubles against its source array — and two samples at the same instant are indistinguishable
+    // that way. The index is carried now.
+
+    [Fact]
+    public void TheResult_CarriesTheIndexOfThePointItChose()
+    {
+        var (figure, layout) = MakeFigure([2.0, 5.0, 8.0], [1.0, 3.0, 4.0], "Line");
+
+        var result = NearestPointFinder.Find(figure, 0, 5.0, 3.0, layout, maxPixelDistance: 20.0);
+
+        Assert.NotNull(result);
+        Assert.Equal(1, result.PointIndex);
+        Assert.Equal(0, result.SeriesIndex);
+    }
+
+    [Fact]
+    public void TheResult_CarriesTheIndexOfTheFirstPointToo()
+    {
+        var (figure, layout) = MakeFigure([2.0, 5.0, 8.0], [1.0, 3.0, 4.0], "Line");
+
+        var result = NearestPointFinder.Find(figure, 0, 2.0, 1.0, layout, maxPixelDistance: 20.0);
+
+        Assert.NotNull(result);
+        Assert.Equal(0, result.PointIndex);
+    }
+
+    [Fact]
+    public void AResultConstructedWithoutAnIndex_SaysSoRatherThanPointingAtTheFirstPoint()
+    {
+        var result = new NearestPointResult("s", 0, 1.0, 2.0, 3.0);
+
+        Assert.Equal(-1, result.PointIndex);
+    }
+
+    [Fact]
+    public void TwoArraysOfDifferentLength_NeverReachTheFinderAtAll()
+    {
+        // The index is only useful if it addresses a sample in BOTH arrays. It always does, and not because
+        // the finder is careful: a series with mismatched arrays cannot be built in the first place. The
+        // finder's own Math.Min stays as the second line of defence for a series assembled by hand.
+        var ex = Assert.Throws<ArgumentException>(() => Plt.Create().Plot([2.0, 5.0, 8.0], [1.0, 3.0]).Build());
+
+        Assert.Contains("Array lengths must match", ex.Message, StringComparison.Ordinal);
+    }
+
 }

@@ -68,7 +68,12 @@ public static class NearestPointFinder
                         xySeries.Label ?? $"Series {sIdx}",
                         sIdx,
                         xData[i], yData[i],
-                        pixelDist);
+                        pixelDist)
+                    {
+                        // The loop walks the shorter of the two arrays, so this index addresses a sample in
+                        // both. It is the only value here that keys back to the caller's own row.
+                        PointIndex = i,
+                    };
                 }
             }
         }

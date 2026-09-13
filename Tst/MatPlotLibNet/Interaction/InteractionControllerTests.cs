@@ -431,4 +431,47 @@ public class InteractionControllerCoverageTests
 
         Assert.Equal(5.0, Assert.Single(pinned).DataY);
     }
+    // ── hover names the same point the click does ──────────────────────────────
+    //
+    // Both gestures resolve their point through the same finder, and only the click carried the identity:
+    // hover flattened the result into a sentence. A host that highlights a row on hover had nothing to
+    // highlight it by.
+
+    [Fact]
+    public void AHoverOverADataPoint_NamesWhichPointItIs()
+    {
+        var (figure, layout) = Pinnable();
+        var ctrl = InteractionController.CreateLocal(figure, layout);
+
+        ctrl.HandlePointerMoved(new PointerInputArgs(100, 50, PointerButton.None, ModifierKeys.None));
+
+        Assert.NotNull(ctrl.ActiveTooltip);
+        Assert.Equal(1, ctrl.ActiveTooltip.PointIndex);
+        Assert.Equal(0, ctrl.ActiveTooltip.SeriesIndex);
+    }
+
+    [Fact]
+    public void ATooltipConstructedWithoutAPoint_SaysSo()
+    {
+        var tooltip = new HoverTooltipContent("text", 1.0, 2.0);
+
+        Assert.Equal(-1, tooltip.PointIndex);
+        Assert.Equal(-1, tooltip.SeriesIndex);
+    }
+
+    [Fact]
+    public void AClickOnADataPoint_SaysWhichPointItWasByIndexToo()
+    {
+        var (figure, layout) = Pinnable();
+        var ctrl = InteractionController.CreateLocal(figure, layout);
+        var pinned = new List<PinnedAnnotation>();
+        ctrl.DataPointClicked += pinned.Add;
+
+        ctrl.HandlePointerPressed(Click(100, 50));
+
+        var point = Assert.Single(pinned);
+        Assert.Equal(1, point.PointIndex);
+        Assert.Equal(0, point.SeriesIndex);
+    }
+
 }

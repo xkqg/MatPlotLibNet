@@ -109,6 +109,24 @@ Plt.Create()
     .Save("server_interactive.svg");
 ```
 
+## Which point did the reader click?
+
+A click on a data point tells your application which one it was — not only where it was on the axes:
+
+```csharp
+chartControl.DataPointClicked += point =>
+{
+    // PointIndex is the position in the arrays you plotted, so you can go straight back to your own row.
+    var row = readings[point.PointIndex];
+    ShowDetail(row);
+};
+```
+
+`PointIndex` and `SeriesIndex` are `-1` when the point came from somewhere that did not resolve them. The
+series label is not an identifier: a series without a label is named `Series 0` at the moment of the hit, and
+two series may carry the same one. Hovering reports the same two numbers on the tooltip content, so a table
+beside the chart can highlight the row the cursor is over.
+
 ## How it works
 
 The SVG embeds its own JavaScript, with no external dependencies:

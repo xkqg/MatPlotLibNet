@@ -164,6 +164,12 @@ public sealed class InteractionController : IInteractionController
                         ? new HoverTooltipContent(
                             $"{nearest.SeriesLabel}: ({nearest.DataX:G5}, {nearest.DataY:G5})",
                             args.X, args.Y)
+                        {
+                            // Hover resolves its point through the same search the click uses; a host that
+                            // highlights the matching row needs the same two numbers.
+                            PointIndex = nearest.PointIndex,
+                            SeriesIndex = nearest.SeriesIndex,
+                        }
                         : null;
                 }
                 else

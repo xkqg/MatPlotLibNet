@@ -69,7 +69,13 @@ public sealed class DataCursorModifier : IInteractionModifier
             _pendingHit.SeriesLabel,
             _pendingHit.DataX, _pendingHit.DataY,
             _pendingHitPointer.X, _pendingHitPointer.Y,
-            _pendingHitAxes);
+            _pendingHitAxes)
+        {
+            // Both indices were resolved by the search; passing on only the label would make the application
+            // search its own data for a matching pair of doubles to find the row the reader clicked.
+            PointIndex = _pendingHit.PointIndex,
+            SeriesIndex = _pendingHit.SeriesIndex,
+        };
         _sink(new DataCursorEvent(_chartId, _pendingHitAxes, annotation));
         _pendingHit = null;
     }
