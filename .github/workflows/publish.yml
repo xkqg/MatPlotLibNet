@@ -1,4 +1,4 @@
-name: Publish to NuGet
+﻿name: Publish to NuGet
 
 on:
   release:
@@ -67,7 +67,11 @@ jobs:
         run: dotnet pack MatPlotLibNet.CI.slnf --no-build --configuration Release --output nupkgs
 
       - name: Push to NuGet
-        run: dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: |
+          count=$(ls nupkgs/*.nupkg 2>/dev/null | wc -l)
+          echo "Pushing $count package(s)"
+          test "$count" -gt 0 || { echo "Pack reported success and produced no package"; exit 1; }
+          dotnet nuget push "nupkgs/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   publish-platform:
     runs-on: windows-latest
@@ -113,8 +117,21 @@ jobs:
       - name: Pack WPF
         run: dotnet pack Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj --no-build --configuration Release --output nupkgs
 
+      # The loop pushed each package and said nothing about what it had done, so the step read the same
+      # whether it pushed three packages, one, or none at all: an empty directory simply skips the body. That
+      # matters at exactly the wrong moment -- a release where a pack step quietly produced nothing looks like
+      # a release that went out. It now names what it is pushing, treats an empty directory as an error, and
+      # checks each push where it happens rather than leaving the step's verdict to the last one.
       - name: Push to NuGet
         run: |
-          foreach ($pkg in Get-ChildItem nupkgs/*.nupkg) {
+          $pkgs = @(Get-ChildItem nupkgs/*.nupkg)
+          if ($pkgs.Count -eq 0) {
+            throw "The pack steps reported success and produced no package; there is nothing to push."
+          }
+          Write-Host "Pushing $($pkgs.Count) package(s): $($pkgs.Name -join ', ')"
+          foreach ($pkg in $pkgs) {
             dotnet nuget push $pkg.FullName --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0) {
+              throw "dotnet nuget push failed for $($pkg.Name) with exit code $LASTEXITCODE"
+            }
           }

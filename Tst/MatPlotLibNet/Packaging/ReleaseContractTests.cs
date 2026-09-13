@@ -743,5 +743,22 @@ public class ReleaseContractTests
         Assert.True(checkedCalls >= 40,
             $"the translation table checks {checkedCalls} calls; it is meant to cover the pyplot surface people search for");
     }
-}
 
+    [Fact]
+    public void ThePublishWorkflow_CannotReportSuccessWhileItPushedNothing()
+    {
+        // The release is the one run nobody watches closely, and the push step was written so that it reads
+        // the same whether it pushed every package or none: the loop body simply does not run on an empty
+        // directory, and a failure partway through leaves the step's verdict to whichever push happened to be
+        // last. A pack step that quietly produces nothing would then look exactly like a release that went out.
+        // The step now names the count, refuses an empty directory, and checks each push where it happens.
+        string workflow = Read(".github", "workflows", "publish.yml");
+
+        Assert.Contains("$pkgs.Count -eq 0", workflow, StringComparison.Ordinal);
+        Assert.Contains("if ($LASTEXITCODE -ne 0)", workflow, StringComparison.Ordinal);
+
+        // The Linux job pushes with one glob, which reports nothing to push as an error of its own -- but only
+        // if something checks that the glob matched at all.
+        Assert.Contains("count=$(ls nupkgs/*.nupkg", workflow, StringComparison.Ordinal);
+    }
+}
