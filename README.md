@@ -18,6 +18,13 @@ ASP.NET Core, and TypeScript clients are there for Angular, React and Vue.
 
 ## Where this is going
 
+**1.17.1** is a patch on top of it. A clicked data point now reaches your own code — the desktop controls and
+the SignalR route both hand it over with its series, its value and where it was. The control room gained a
+service-topology panel, `GroupedBar` draws several bars per category in one call, `DensityScatter` colours a
+scatter by how crowded it is, and three accessible colour sequences arrived (`petroff6`, `petroff8`,
+`petroff10`). All fourteen packages carry an icon and release notes now, and the documentation site has a page
+that [translates matplotlib into C#, call by call](https://xkqg.github.io/MatPlotLibNet/cookbook/matplotlib-to-csharp.html).
+
 **1.17** draws text in any script. Arabic letters join, Hebrew reads right to left, and a number or a Latin word
 inside Arabic or Hebrew text is placed in the correct position, using the font that ships in the package. The
 Unicode bidi algorithm is implemented in full and checked against Unicode's own 861,948 test cases; HarfBuzz shapes
