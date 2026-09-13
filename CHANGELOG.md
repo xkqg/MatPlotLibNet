@@ -169,6 +169,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   measured over the built site, none of its 772 pages had structured data of any kind, and the name reads to a
   search engine as "matplotlib" plus ".net", which is two other projects. Both are pinned by a contract test.
 
+- **Every package on the documentation home page is a link to where you install it.** The table listed all
+  fourteen names as plain text, so a reader who came to use the library had to retype one into nuget.org. A
+  contract test now requires a link for every package that ships, so one added later cannot be left behind.
+
 - **The sitemap no longer starts with three bytes that are not XML.** docfx writes it as UTF-8 with a byte-order
   mark in front of the XML declaration, and Search Console answered "sitemap could not be read" with 0 pages
   discovered. Nothing else about the file was wrong — 766 urls, all inside the property, no duplicates, valid

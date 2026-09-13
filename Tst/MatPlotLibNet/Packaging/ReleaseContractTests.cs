@@ -241,6 +241,24 @@ public class ReleaseContractTests
     }
 
     [Fact]
+    public void TheDocumentationHomePage_LinksEveryPackageToWhereItIsInstalledFrom()
+    {
+        // Someone who arrives at the documentation from a search is there to USE the library, and the package
+        // table listed all fourteen names as plain text — the reader had to retype one into nuget.org. Every
+        // name is a link now, and a package added later has to be one too, or the table quietly stops being
+        // the way out of the site.
+        string home = Read("docs", "index.md");
+
+        var missing = PackableProjects()
+            .Select(p => p.Xml.Descendants("PackageId").First().Value.Trim())
+            .Where(id => !home.Contains($"[`{id}`](https://www.nuget.org/packages/{id})", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.True(missing.Length == 0,
+            $"The package table does not link these to nuget.org: {string.Join(", ", missing)}");
+    }
+
+    [Fact]
     public void ThePagesWorkflow_StripsTheByteOrderMarkFromTheSitemap()
     {
         // docfx writes the sitemap as UTF-8 WITH a byte-order mark, three bytes in front of the XML

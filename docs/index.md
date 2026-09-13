@@ -42,17 +42,17 @@ Plt.Create()
 
 | Package | Purpose |
 |---|---|
-| `MatPlotLibNet` | Core: models, fluent API, SVG rendering |
-| `MatPlotLibNet.Skia` | PNG, PDF, GIF export via SkiaSharp |
-| `MatPlotLibNet.Blazor` | Razor components with SignalR |
-| `MatPlotLibNet.AspNetCore` | REST, a SignalR hub and `IChartPublisher` |
-| `MatPlotLibNet.Interactive` | Browser popup — no server needed |
-| `MatPlotLibNet.GraphQL` | HotChocolate queries and subscriptions |
-| `MatPlotLibNet.Maui` | Native MAUI control |
-| `MatPlotLibNet.Avalonia` | Native Avalonia 12 control |
-| `MatPlotLibNet.Uno` | Native Uno Platform control |
-| `MatPlotLibNet.DataFrame` | DataFrame indicators and regression |
-| `MatPlotLibNet.Wpf` | Native WPF chart control via SkiaSharp |
-| `MatPlotLibNet.Geo` | 13 map projections, GeoJSON, Natural Earth 110m data |
-| `MatPlotLibNet.Mcp` | MCP server that provides charts for an AI agent |
-| `MatPlotLibNet.Notebooks` | Inline SVG in Polyglot or Jupyter notebooks. Microsoft has ended the runtime underneath it, so existing notebooks keep working and new work belongs in `MatPlotLibNet.Interactive` |
+| [`MatPlotLibNet`](https://www.nuget.org/packages/MatPlotLibNet) | Core: models, fluent API, SVG rendering |
+| [`MatPlotLibNet.Skia`](https://www.nuget.org/packages/MatPlotLibNet.Skia) | PNG, PDF, GIF export via SkiaSharp |
+| [`MatPlotLibNet.Blazor`](https://www.nuget.org/packages/MatPlotLibNet.Blazor) | Razor components with SignalR |
+| [`MatPlotLibNet.AspNetCore`](https://www.nuget.org/packages/MatPlotLibNet.AspNetCore) | REST, a SignalR hub and `IChartPublisher` |
+| [`MatPlotLibNet.Interactive`](https://www.nuget.org/packages/MatPlotLibNet.Interactive) | Browser popup — no server needed |
+| [`MatPlotLibNet.GraphQL`](https://www.nuget.org/packages/MatPlotLibNet.GraphQL) | HotChocolate queries and subscriptions |
+| [`MatPlotLibNet.Maui`](https://www.nuget.org/packages/MatPlotLibNet.Maui) | Native MAUI control |
+| [`MatPlotLibNet.Avalonia`](https://www.nuget.org/packages/MatPlotLibNet.Avalonia) | Native Avalonia 12 control |
+| [`MatPlotLibNet.Uno`](https://www.nuget.org/packages/MatPlotLibNet.Uno) | Native Uno Platform control |
+| [`MatPlotLibNet.DataFrame`](https://www.nuget.org/packages/MatPlotLibNet.DataFrame) | DataFrame indicators and regression |
+| [`MatPlotLibNet.Wpf`](https://www.nuget.org/packages/MatPlotLibNet.Wpf) | Native WPF chart control via SkiaSharp |
+| [`MatPlotLibNet.Geo`](https://www.nuget.org/packages/MatPlotLibNet.Geo) | 13 map projections, GeoJSON, Natural Earth 110m data |
+| [`MatPlotLibNet.Mcp`](https://www.nuget.org/packages/MatPlotLibNet.Mcp) | MCP server that provides charts for an AI agent |
+| [`MatPlotLibNet.Notebooks`](https://www.nuget.org/packages/MatPlotLibNet.Notebooks) | Inline SVG in Polyglot or Jupyter notebooks. Microsoft has ended the runtime underneath it, so existing notebooks keep working and new work belongs in `MatPlotLibNet.Interactive` |
