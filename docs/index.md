@@ -1,4 +1,4 @@
----
+﻿---
 description: "MatPlotLibNet is a charting library for C# and .NET, inspired by matplotlib. Draw 83 chart types and save them as SVG, PNG, PDF or an animated GIF."
 ---
 
@@ -32,6 +32,7 @@ Plt.Create()
 
 | Section | Description |
 |---|---|
+| [From matplotlib to C#](https://xkqg.github.io/MatPlotLibNet/cookbook/matplotlib-to-csharp.html) | Know `plt.plot` and `plt.subplots`? This is the same table in C#, call by call. |
 | [Playground](https://xkqg.github.io/MatPlotLibNet/playground/) | Try charts live in the browser. Pick an example, change it and see the SVG update. |
 | [Cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/) | Code examples with rendered images. Copy the code, paste it, and you get the chart. |
 | [API Reference](https://xkqg.github.io/MatPlotLibNet/api/) | Full API documentation generated from XML doc comments |

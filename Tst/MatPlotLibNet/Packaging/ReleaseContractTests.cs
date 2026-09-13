@@ -621,4 +621,127 @@ public class ReleaseContractTests
         Assert.True(missing.Length == 0,
             $"These packages would be missing from the published API reference: {string.Join(", ", missing)}");
     }
+
+    // ---- what reaches a search engine at all -------------------------------------------------------------------
+
+    /// <summary>The address the site is served at, as the sitemap is built with it. One source, so a tool that
+    /// writes addresses into pages cannot disagree with the sitemap that lists them.</summary>
+    private static string SiteBaseUrl()
+    {
+        using var config = JsonDocument.Parse(Read("docs", "docfx.json"));
+        return config.RootElement.GetProperty("build").GetProperty("sitemap").GetProperty("baseUrl").GetString()!;
+    }
+
+    [Fact]
+    public void ThePagesWorkflow_GivesEveryBuiltPageOneAddressAndAPreviewCard()
+    {
+        // Measured on the live site: 0 of 766 pages carried a canonical address or a link-preview tag, and
+        // neither can be switched on from docfx's own configuration — _canonicalUrlPrefix emits nothing in
+        // 2.78.5 and an unknown frontmatter key is dropped in silence. So the site is finished after the build
+        // instead. The step is worth nothing unless it runs and is checked, so this pins all three: the tool's
+        // own cases run first, it is applied, and the result is verified before anything is uploaded.
+        string workflow = Read(".github", "workflows", "pages.yml");
+
+        Assert.Contains("tools/seo/page-metadata.py --self-test", workflow, StringComparison.Ordinal);
+        Assert.Contains("tools/seo/page-metadata.py --site docs/_site", workflow, StringComparison.Ordinal);
+        Assert.Contains("--apply", workflow, StringComparison.Ordinal);
+        Assert.Contains("--verify", workflow, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(Root, "tools", "seo", "page-metadata.py")),
+            "the workflow runs tools/seo/page-metadata.py and it is not in the repository");
+
+        Assert.Contains($"--base-url {SiteBaseUrl()}", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ThePagesWorkflow_TellsIndexNowWhichPagesChanged()
+    {
+        // A key file nobody ever submits a URL with tells nobody anything, and that is exactly what was here:
+        // the key was published, verified by its own test, and never used. This pins the other half. It has to
+        // run after the deployment, because a crawler asked to fetch a page that is not live yet reads the old
+        // one, and it has to derive the key from the published file rather than repeat it, because a key in two
+        // places drifts and every submission made with the stale one is refused.
+        string workflow = Read(".github", "workflows", "pages.yml");
+
+        Assert.Contains("tools/seo/indexnow.py --self-test", workflow, StringComparison.Ordinal);
+        Assert.Contains("tools/seo/indexnow.py", workflow, StringComparison.Ordinal);
+        Assert.Contains("--key-dir docs", workflow, StringComparison.Ordinal);
+        Assert.Contains("--submit", workflow, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(Root, "tools", "seo", "indexnow.py")),
+            "the workflow runs tools/seo/indexnow.py and it is not in the repository");
+
+        int deployed = workflow.IndexOf("actions/deploy-pages", StringComparison.Ordinal);
+        int submitted = workflow.IndexOf("tools/seo/indexnow.py --base-url", StringComparison.Ordinal);
+        Assert.True(deployed >= 0 && submitted > deployed,
+            "IndexNow is told about the pages before they are deployed, so a crawler would read the old ones");
+
+        var key = Directory.EnumerateFiles(Path.Combine(Root, "docs"), "*.txt")
+            .Select(Path.GetFileNameWithoutExtension)
+            .Single(name => name is { Length: 32 } && name.All(Uri.IsHexDigit));
+
+        Assert.DoesNotContain(key!, workflow, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TheSocialCard_IsTheSizeALinkPreviewAsksFor()
+    {
+        // Every page points its preview at one image. A link posted in a chat, a forum or an issue is rendered
+        // from it, and a preview that is too small is dropped and the link shows as bare text. 1200x630 is the
+        // size every renderer accepts as the wide card; anything under 600x315 is refused outright.
+        byte[] png = File.ReadAllBytes(Path.Combine(Root, "images", "social-card.png"));
+
+        Assert.Equal<byte[]>([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], png[..8]);
+
+        int width = (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19];
+        int height = (png[20] << 24) | (png[21] << 16) | (png[22] << 8) | png[23];
+
+        Assert.Equal(1200, width);
+        Assert.Equal(630, height);
+        Assert.True(png.Length < 5 * 1024 * 1024, $"the card is {png.Length} bytes; a preview is capped at 5 MB");
+    }
+
+    /// <summary>The receiver each example in the translation table is written on, and the type it stands for.</summary>
+    private static Type ReceiverType(string receiver) => receiver switch
+    {
+        "ax" => typeof(AxesBuilder),
+        "figure" => typeof(FigureBuilder),
+        _ => typeof(Plt).Assembly.GetExportedTypes().SingleOrDefault(t => t.Name == receiver)
+             ?? throw new Xunit.Sdk.XunitException(
+                 $"the translation table writes \"{receiver}.\", which is neither a known receiver nor a public type"),
+    };
+
+    [Fact]
+    public void TheMatplotlibTranslationPage_NamesOnlyCallsThisLibraryHas()
+    {
+        // The page exists because the words people search for are matplotlib's, not this library's: they know
+        // plt.plot and want the line that draws it in C#. That only works while every line in it compiles, and
+        // a table of code that nothing builds rots on the first rename. This reads the table back and asks the
+        // assembly whether each call is real.
+        string page = Read("docs", "cookbook", "matplotlib-to-csharp.md");
+        var rows = Regex.Matches(page, @"^\|(?<cells>.+)\|\s*$", RegexOptions.Multiline);
+
+        int checkedCalls = 0;
+        foreach (Match row in rows)
+        {
+            var cells = row.Groups["cells"].Value.Split('|');
+            if (cells.Length < 3 || cells[1].Trim().StartsWith("---", StringComparison.Ordinal)) { continue; }
+
+            var span = Regex.Match(cells[1], @"`(?<code>[^`]+)`");
+            if (!span.Success) { continue; }
+
+            var call = Regex.Match(span.Groups["code"].Value.Trim(), @"^(?<receiver>[A-Za-z_]\w*)\.(?<member>[A-Za-z_]\w*)");
+            Assert.True(call.Success,
+                $"this row's C# is not a call on a receiver: \"{span.Groups["code"].Value}\"");
+
+            var type = ReceiverType(call.Groups["receiver"].Value);
+            string member = call.Groups["member"].Value;
+
+            Assert.True(type.GetMember(member).Length > 0,
+                $"the table says {call.Groups["receiver"].Value}.{member}, and {type.Name} has no such member");
+            checkedCalls++;
+        }
+
+        Assert.True(checkedCalls >= 40,
+            $"the translation table checks {checkedCalls} calls; it is meant to cover the pyplot surface people search for");
+    }
 }
+

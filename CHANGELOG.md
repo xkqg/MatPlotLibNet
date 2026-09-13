@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -64,6 +64,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   coordinates on the axes, and the alarm ramp colouring only the node that needs attention. Both ship as sample
   images.
 
+- **A page that translates matplotlib into C#, call by call.** People who need this library search for the thing
+  they already know — `plt.plot`, `plt.subplots`, `savefig` — not for a name they have never heard. The cookbook
+  now opens with a lookup table: the pyplot call on the left, the line that draws the same chart on the right,
+  across figures, plots, labels and limits, colour and style, distributions, images and fields, three dimensions
+  and polar. It says plainly which calls have no equivalent and why — there is no current figure to get, so
+  `gca`, `gcf`, `clf` and `close` have nothing to do. A test reads the table back and asks the assembly whether
+  every call in it is real, so it cannot rot on a rename.
+
+- **Every published page says which address it belongs at, and carries a preview card.** Neither could be
+  switched on from docfx's configuration: measured against 2.78.5, `_canonicalUrlPrefix` emits nothing and a
+  frontmatter key the template does not know is dropped in silence. The built site is finished afterwards
+  instead — a canonical link, the Open Graph and Twitter tags, and one 1200x630 card drawn by the library itself
+  (sample 44, beside the package icon). A link to the documentation posted in a chat, a forum or an issue now
+  renders as a card rather than as bare text. The tool checks its own work and the build fails if any page
+  misses either tag.
+
+- **The site now tells Bing, Yandex, DuckDuckGo and Copilot when a page changed.** The IndexNow key has been
+  published since the sitemap landed and nothing had ever submitted a single URL with it, so it told nobody
+  anything. After each deployment the pages that actually changed in that push are submitted, mapped from the
+  files that changed; a manual run of the workflow resubmits everything in the sitemap. The key is read from the
+  published file rather than repeated in the workflow, so the two cannot drift apart.
+
 ### Changed
 
 - **All fourteen packages have an icon.** Every NuGet search row, every facet page and every row of the Visual
@@ -91,6 +113,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   keep working, nothing new is coming, and new work belongs in `MatPlotLibNet.Interactive`.
 
 ### Fixed
+
+- **An annotation is drawn in the colour you gave it, even when you also gave it a font.** A font carries an
+  optional colour of its own, and the colour set beside it on the annotation was only ever read when no font was
+  supplied at all. So asking for bigger text threw the colour away without saying so, and the label came out
+  black whatever the theme was. The font a caller supplies now takes the annotation's colour when it has none of
+  its own, and the theme's text colour when neither says anything; a colour written on the font itself is the
+  more specific instruction and still wins. Found while drawing the documentation site's preview card.
 
 - **`WithGrid` changes the theme's grid instead of replacing it, and can turn it off.** The renderer took the
   axes' grid when it happened to be visible and the theme's otherwise, which could not tell "no grid, please"

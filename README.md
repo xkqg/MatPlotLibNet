@@ -1,4 +1,4 @@
-# MatPlotLibNet — matplotlib for .NET
+﻿# MatPlotLibNet — matplotlib for .NET
 
 MatPlotLibNet is a charting library for C#, .NET 10 and .NET 8, inspired by
 [matplotlib](https://matplotlib.org/). It draws 83 chart types and saves them as SVG, PNG, PDF or an animated GIF,
@@ -56,6 +56,7 @@ pixel-fidelity fixtures.
 
 - **[Wiki](https://github.com/xkqg/MatPlotLibNet/wiki)** — getting started, cheatsheet, all 83 chart types, the
   control room, styling, streaming, SignalR, packages
+- **[From matplotlib to C#](https://xkqg.github.io/MatPlotLibNet/cookbook/matplotlib-to-csharp.html)** — the pyplot call you know, and the line that draws it here
 - **[Cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/)** — copy-paste examples with rendered output
 - **[Playground](https://xkqg.github.io/MatPlotLibNet/playground/)** — try charts live in the browser
 - **[API Reference](https://xkqg.github.io/MatPlotLibNet/api/)** — generated from the XML docs

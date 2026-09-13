@@ -1,4 +1,4 @@
-name: GitHub Pages — Cookbook + API Reference
+﻿name: GitHub Pages — Cookbook + API Reference
 
 on:
   push:
@@ -62,6 +62,17 @@ jobs:
           sed -i '1s/^\xEF\xBB\xBF//' docs/_site/sitemap.xml
           head -c 5 docs/_site/sitemap.xml | od -c | head -1
 
+      # docfx gives a page a title and a description and stops there. Two things it still needs cannot be
+      # switched on from docfx's own configuration — the one address it should be indexed under, and the card
+      # a link to it renders as — so the built site is finished here instead of by forking docfx's template.
+      # The tool runs its own cases first and the result is verified, because a step that silently does
+      # nothing is worse than no step at all.
+      - name: Give every page an address and a preview card
+        run: |
+          python3 tools/seo/page-metadata.py --self-test
+          python3 tools/seo/page-metadata.py --site docs/_site --base-url https://xkqg.github.io/MatPlotLibNet/ --apply
+          python3 tools/seo/page-metadata.py --site docs/_site --verify
+
       - name: Publish Blazor WASM Playground
         run: dotnet publish Samples/MatPlotLibNet.Playground/MatPlotLibNet.Playground.csproj -c Release -o playground-out
 
@@ -84,3 +95,24 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # A search engine finds a change by coming back to look for it. IndexNow turns that around: the site
+      # names the addresses that changed and they are fetched within hours, by Bing, Yandex, DuckDuckGo and
+      # Copilot, without an account anywhere. The key has been published since the sitemap landed and nothing
+      # had ever submitted a single URL with it. This runs after the deployment, because a crawler sent to a
+      # page that is not live yet reads the one it replaces. A manual run resubmits the whole sitemap.
+      - name: Tell IndexNow which pages changed
+        run: |
+          python3 tools/seo/indexnow.py --self-test
+          SITE=https://xkqg.github.io/MatPlotLibNet/
+          BEFORE="${{ github.event.before }}"
+          if [ "${{ github.event_name }}" = "push" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            git diff --name-only "$BEFORE" "${{ github.sha }}" \
+              | python3 tools/seo/indexnow.py --base-url "$SITE" --key-dir docs --changed - --submit
+          else
+            python3 tools/seo/indexnow.py --base-url "$SITE" --key-dir docs --sitemap --submit
+          fi

@@ -2254,3 +2254,71 @@ Console.WriteLine("Saved international.svg and international.png");
         .ToFile(RepoPath("icon.png"));
     Console.WriteLine("Saved icon.png");
 }
+
+
+// --- 44. The link preview card — the same mark, wide enough to read ---
+//
+// 1200x630 PNG in images/, which the docs site publishes and every page points its preview at. A link to the
+// documentation posted in a chat, a forum or an issue is rendered from this file; without it the link shows as
+// bare text. Same language as the package icon — a viridis field with one bold trace over it — but landscape,
+// with the field kept dark on the left so the name can sit on top of it and still be read at thumbnail size.
+{
+    const int columns = 20;
+    const int rows = 10;
+    double[] xEdges = [.. Enumerable.Range(0, columns + 1).Select(i => (double)i)];
+    double[] yEdges = [.. Enumerable.Range(0, rows + 1).Select(i => (double)i)];
+
+    // The ramp runs left to right, so the left half stays dark enough to carry white text and the right half
+    // shows what the colour map actually looks like.
+    var field = new double[rows, columns];
+    for (int row = 0; row < rows; row++)
+    {
+        for (int col = 0; col < columns; col++)
+        {
+            double u = (col + 0.5) / columns;
+            double v = (row + 0.5) / rows;
+            field[row, col] = (0.80 * u * u) + (0.18 * v)
+                + (0.30 * Math.Exp(-(((u - 0.86) * (u - 0.86)) + ((v - 0.62) * (v - 0.62))) / 0.03));
+        }
+    }
+
+    double[] traceX = [.. Enumerable.Range(0, 241).Select(i => i * columns / 240.0)];
+    double[] traceY = [.. traceX.Select(t => (rows * 0.5) + (rows * 0.30 * Math.Sin(t / columns * Math.PI * 1.5)))];
+
+    Plt.Create()
+        .WithSize(1200, 630)
+        .WithTheme(Theme.CreateFrom(Theme.Default).WithBackground(Color.FromHex("#0B0F14")).Build())
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Pcolormesh(xEdges, yEdges, field, s => s.ColorMap = ColorMaps.Viridis)
+            .Plot(traceX, traceY, s => { s.Color = Color.FromHex("#FFFFFF"); s.LineWidth = 7.0; })
+            .Annotate("MatPlotLibNet", 0.05, 0.60, a =>
+            {
+                a.Coordinates = AnnotationCoordinates.AxesFraction;
+                a.Font = new Font { Family = "sans-serif", Size = 86, Weight = FontWeight.Bold };
+                a.Color = Color.FromHex("#FFFFFF");
+            })
+            .Annotate("matplotlib for .NET", 0.055, 0.45, a =>
+            {
+                a.Coordinates = AnnotationCoordinates.AxesFraction;
+                a.Font = new Font { Family = "sans-serif", Size = 38 };
+                a.Color = Color.FromHex("#9BE7C4");
+            })
+            .Annotate("83 chart types in C#  ·  SVG, PNG, PDF, GIF", 0.055, 0.31, a =>
+            {
+                a.Coordinates = AnnotationCoordinates.AxesFraction;
+                a.Font = new Font { Family = "sans-serif", Size = 26 };
+                a.Color = Color.FromHex("#C8D3DE");
+            })
+            .HideAllAxes()
+            .WithGrid(g => g with { Visible = false })
+            .WithLegend(visible: false))
+        .WithSubPlotSpacing(sp => sp with
+        {
+            MarginLeft = 0, MarginRight = 0, MarginTop = 0, MarginBottom = 0,
+            HorizontalGap = 0, VerticalGap = 0,
+        })
+        .Build()
+        .Transform(new PngTransform())
+        .ToFile(SamplesPath("social-card.png"));
+    Console.WriteLine("Saved social-card.png");
+}

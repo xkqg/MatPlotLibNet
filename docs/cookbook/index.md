@@ -1,4 +1,4 @@
----
+﻿---
 title: "C# chart examples for .NET"
 description: "Copy-paste chart examples for C# and .NET, each with the code and the picture it produces. Line, bar, heatmap, financial, 3D, map and dashboard charts."
 ---
@@ -13,6 +13,7 @@ This cookbook contains code examples with their rendered output. Every example u
 
 | Category | Examples |
 |---|---|
+| [From matplotlib to C#](matplotlib-to-csharp.md) | The pyplot call you already know and the line that draws the same chart here — figures, plots, labels, colour, statistics, images, 3D and polar |
 | [Line Charts](line-charts.md) | Line styles, markers, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, secondary Y-axis, outside legend, legend value display |
 | [Bar Charts](bar-charts.md) | Vertical/horizontal bars, stacked, grouped, bar labels, hatching, width/alpha control |
 | [Pie & Donut](pie-donut.md) | Pie, donut, nested pie (sunburst), explode, shadow, percentage labels, custom colors, hatches |

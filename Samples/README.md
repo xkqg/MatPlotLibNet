@@ -1,4 +1,4 @@
-# MatPlotLibNet Samples
+﻿# MatPlotLibNet Samples
 
 Runnable sample projects that demonstrate the MatPlotLibNet charting library. All samples use `<ProjectReference>` to build from source, so no NuGet packages are required.
 
@@ -21,7 +21,7 @@ Browse to <http://localhost:5000>. The `<base href="/">` setting in `wwwroot/ind
 
 ## Console
 
-A console app that creates every sample image shipped with the wiki and cookbook: 74 SVG/PNG pairs covering every chart family, plus the package icon at the repository root. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
+A console app that creates every sample image shipped with the wiki and cookbook: 74 SVG/PNG pairs covering every chart family, plus the package icon at the repository root and the documentation site's 1200x630 link preview card. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Console

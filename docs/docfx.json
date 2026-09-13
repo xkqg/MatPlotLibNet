@@ -1,4 +1,4 @@
-{
+﻿{
   "metadata": [
     {
       "src": [
@@ -83,7 +83,7 @@
     "globalMetadata": {
       "_appTitle": "MatPlotLibNet",
       "_googleAnalyticsTagId": "G-SDBNWXCG7S",
-      "_comment_canonical": "No _canonicalUrlPrefix here on purpose: measured against docfx 2.78.5 with the default+modern template, it emits no <link rel=\"canonical\"> at all (0 of 767 built pages). Only three pages are reachable under two addresses — the site root, the cookbook index and the api index, each served for both /x/ and /x/index.html — and the sitemap names one form of each. Making canonical real needs a forked copy of docfx's head partial, which is a bigger maintenance debt than the three pages are worth.",
+      "_comment_canonical": "No _canonicalUrlPrefix here on purpose: measured against docfx 2.78.5 with the default+modern template, it emits nothing at all, and so does any frontmatter key the template does not know. The canonical address and the link-preview tags are written into the built pages afterwards instead, by tools/seo/page-metadata.py in the Pages workflow, which owns no copy of docfx's template and only needs a </head> to exist.",
       "_appFooter": "MatPlotLibNet — matplotlib for .NET &bull; MIT License",
       "_enableSearch": true,
       "_disableContribution": false,

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
@@ -178,5 +178,56 @@ public class AnnotationRenderTests
         // Background color draws a rect — check it exists
         Assert.Contains("<rect", svg);
         Assert.Contains("<text", svg);
+    }
+
+    /// <summary>An annotation is drawn in the colour it was given, whether or not a font came with it.</summary>
+    [Fact]
+    public void Annotation_GivenItsOwnFont_IsStillDrawnInItsOwnColour()
+    {
+        // Measured while drawing a 1200x630 card: an annotation with Font and Color set rendered black. The
+        // font a caller supplies carries no colour of its own, and the colour they set beside it was only ever
+        // read when no font was supplied at all — so asking for bigger text silently threw the colour away.
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        ax.Plot([0.0, 3.0], [0.0, 3.0]);
+        var ann = ax.Annotate("label", 1.0, 1.0);
+        ann.Color = MatPlotLibNet.Styling.Color.FromHex("#FF00AA");
+        ann.Font = new MatPlotLibNet.Styling.Font { Family = "sans-serif", Size = 24 };
+
+        string svg = figure.ToSvg();
+
+        Assert.Contains("#FF00AA", svg, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>A colour written on the font itself is the more specific instruction, and it wins.</summary>
+    [Fact]
+    public void Annotation_WhoseFontCarriesAColour_KeepsTheFontsColour()
+    {
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        ax.Plot([0.0, 3.0], [0.0, 3.0]);
+        var ann = ax.Annotate("label", 1.0, 1.0);
+        ann.Color = MatPlotLibNet.Styling.Color.FromHex("#FF00AA");
+        ann.Font = new MatPlotLibNet.Styling.Font { Size = 24, Color = MatPlotLibNet.Styling.Color.FromHex("#0044FF") };
+
+        string svg = figure.ToSvg();
+
+        Assert.Contains("#0044FF", svg, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("#FF00AA", svg, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>A font with no colour and an annotation with no colour fall back to the theme's text colour.</summary>
+    [Fact]
+    public void Annotation_WithNeitherColour_IsDrawnInTheThemesTextColour()
+    {
+        var figure = new Figure();
+        var ax = figure.AddSubPlot();
+        ax.Plot([0.0, 3.0], [0.0, 3.0]);
+        var ann = ax.Annotate("label", 1.0, 1.0);
+        ann.Font = new MatPlotLibNet.Styling.Font { Size = 24 };
+
+        string svg = figure.ToSvg();
+
+        Assert.Contains($"fill=\"{figure.Theme.ForegroundText.ToHex()}\"", svg, StringComparison.OrdinalIgnoreCase);
     }
 }
