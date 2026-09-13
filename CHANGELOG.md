@@ -169,6 +169,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   measured over the built site, none of its 772 pages had structured data of any kind, and the name reads to a
   search engine as "matplotlib" plus ".net", which is two other projects. Both are pinned by a contract test.
 
+- **The documentation site counts its visitors.** One key in the docfx configuration, rendered into every page
+  by the template, so there is no script to maintain and no page that can be forgotten — measured over the built
+  site: every page carries it. It says how people arrive and which recipes they read; it changes nothing about
+  how the site is found, which is what Search Console is for.
+
 - **Every cookbook page says what to install.** A recipe page is where a reader arrives from a search, and all
   34 of them named no package and no install line — the reader had to walk back to the home page to find out how
   to get the library. Each page now opens with one, naming the extra package where a recipe needs one: the maps

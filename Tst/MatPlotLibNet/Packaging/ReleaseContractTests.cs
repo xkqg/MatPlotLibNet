@@ -241,6 +241,19 @@ public class ReleaseContractTests
     }
 
     [Fact]
+    public void TheDocumentationSite_CarriesItsAnalyticsTag()
+    {
+        // The tag is one key in globalMetadata and the modern template renders it into every page's head, so
+        // there is nothing to maintain — but there is something to lose: a key removed or misspelled produces a
+        // site that builds, deploys and reports nothing, and an empty report reads exactly like no visitors.
+        using var config = JsonDocument.Parse(Read("docs", "docfx.json"));
+        string? tag = config.RootElement.GetProperty("build").GetProperty("globalMetadata")
+            .GetProperty("_googleAnalyticsTagId").GetString();
+
+        Assert.Matches("^G-[A-Z0-9]{10}$", tag ?? string.Empty);
+    }
+
+    [Fact]
     public void EveryCookbookPage_SaysWhichPackageItNeeds()
     {
         // A cookbook page is where a stranger lands from a search — "candlestick chart in C#" — and every one of
