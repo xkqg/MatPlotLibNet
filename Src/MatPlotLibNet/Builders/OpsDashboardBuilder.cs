@@ -50,6 +50,7 @@ public sealed class OpsDashboardBuilder
     private const double TimelineRatio = 1.0;
     private const double PanelRatio = 1.6;
 
+    private readonly List<OpsEventMarkerSpec> _markers = [];
     private string? _title;
     private DateTime? _windowEnd;
     private TimeSpan _windowSpan;
@@ -76,6 +77,21 @@ public sealed class OpsDashboardBuilder
     {
         _windowEnd = end;
         _windowSpan = span;
+        return this;
+    }
+
+    /// <summary>Marks one moment — a deploy, a restart, an incident — on every panel that has a clock.
+    /// <para>Set once, drawn on the trend AND on every timeline, for the same reason the window has a single
+    /// owner: a reader comparing two panels has to be able to trust that the same vertical line means the same
+    /// instant. The tile row and the topology panel carry no time axis, so they never receive it.</para>
+    /// <para>Ordinary to call more than once: a deploy and the incident it caused sit in the same window.</para>
+    /// </summary>
+    /// <param name="at">The moment to mark, on the same clock the window uses.</param>
+    /// <param name="configure">Optional styling of the marker line — its label, colour or dash.</param>
+    /// <returns>This builder for chaining.</returns>
+    public OpsDashboardBuilder WithEventMarker(DateTime at, Action<ReferenceLine>? configure = null)
+    {
+        _markers.Add(new OpsEventMarkerSpec(at, configure));
         return this;
     }
 
@@ -234,8 +250,9 @@ public sealed class OpsDashboardBuilder
             int row = tileRows + i;
             figure.AddSubPlot(new GridPosition(row, row + 1, 0, columns), ax =>
             {
-                var timeline = ax.StateTimeline(spec.Segments, spec.Configure);
+                ax.StateTimeline(spec.Segments, spec.Configure);
                 PinWindow(ax);
+                MarkEvents(ax);
                 ax.HideTopSpine();
                 ax.HideRightSpine();
                 ax.WithLegend(visible: false);
@@ -271,6 +288,7 @@ public sealed class OpsDashboardBuilder
                 }
 
                 PinWindow(ax);
+                MarkEvents(ax);
                 ax.WithLegend();
                 _configureTrend?.Invoke(ax);
             });
@@ -285,6 +303,16 @@ public sealed class OpsDashboardBuilder
     /// them outward to the nearest nice number, which makes the axis stand perfectly still while the data grows
     /// into it and then jump a whole step at once. Pinning the bounds and letting the locator round only the
     /// ticks is what turns that lurch into a glide.</para></summary>
+    /// <summary>Draws every event marker on one panel. Called from the same places <see cref="PinWindow"/> is,
+    /// because a marker without a clock behind it marks nothing.</summary>
+    private void MarkEvents(AxesBuilder ax)
+    {
+        foreach (var marker in _markers)
+        {
+            ax.AxVLine(marker.At.ToOADate(), marker.Configure);
+        }
+    }
+
     private void PinWindow(AxesBuilder ax)
     {
         if (_windowEnd is not { } end)
@@ -311,4 +339,6 @@ public sealed class OpsDashboardBuilder
         Action<NetworkGraphSeries>? Configure);
 
     private readonly record struct OpsTrendSpec(double[] X, double[] Y, Action<LineSeries>? Configure);
+
+    private readonly record struct OpsEventMarkerSpec(DateTime At, Action<ReferenceLine>? Configure);
 }

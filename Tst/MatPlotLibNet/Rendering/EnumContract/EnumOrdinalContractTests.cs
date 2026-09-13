@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Reflection;
@@ -142,6 +142,12 @@ public static class EnumOrdinalSnapshot
             },
             [typeof(DendrogramOrientation)] = new Dictionary<string, int> {
                 ["Top"] = 0, ["Bottom"] = 1, ["Left"] = 2, ["Right"] = 3,
+            },
+            [typeof(OpsSeverity)] = new Dictionary<string, int> {
+                ["Normal"] = 0, ["Warning"] = 1, ["Critical"] = 2,
+            },
+            [typeof(OpsVisibility)] = new Dictionary<string, int> {
+                ["Observed"] = 0, ["Unknown"] = 1, ["Shelved"] = 2,
             },
             [typeof(PairGridDiagonalKind)] = new Dictionary<string, int> {
                 ["Histogram"] = 0, ["Kde"] = 1, ["None"] = 2,

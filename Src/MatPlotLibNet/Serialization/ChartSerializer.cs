@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Text.Json;
@@ -966,6 +966,10 @@ public sealed record SeriesDto
     // v1.14 — per-segment hatch: a band that says "no information" rather than a state.
     public List<HatchPattern>? StateSegmentHatches { get; init; }
 
+    // The condition per band, decomposed the same way the colours and hatches are. Null when no band names one.
+    public List<OpsSeverity>?   StateSegmentSeverities  { get; init; }
+    public List<OpsVisibility>? StateSegmentVisibilities { get; init; }
+
     // v1.14 — threshold bands. Rendered by GaugeSeries since v1.9 but never serialized: a gauge sent over the
     // wire came back with its bands silently replaced by the defaults. Decomposed into parallel arrays, the
     // same shape StateTimelineSeries already uses for its segments. Named NEUTRALLY, not GaugeBand*: the
@@ -984,6 +988,12 @@ public sealed record SeriesDto
     // tile adds no bytes and every golden stays byte-identical.
     public string?       TileUrl      { get; init; }
     public bool?         TileExpanded { get; init; }
+
+    // The condition a tile or a band was judged to be in. Null at rest so a chart that never names one writes
+    // exactly the bytes it wrote before the axis existed — a tile whose state is dropped on the wire comes back
+    // drawn as quiet, which is the one failure that turns an alarm into calm.
+    public OpsSeverity?   ConditionSeverity   { get; init; }
+    public OpsVisibility? ConditionVisibility { get; init; }
 
     // v1.14 — hatch fills. NULLABLE by necessity: SeriesDto omits nulls
     // (DefaultIgnoreCondition.WhenWritingNull), so an unset hatch adds no bytes and the golden corpus of

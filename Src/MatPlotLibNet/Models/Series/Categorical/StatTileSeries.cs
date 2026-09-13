@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
@@ -58,6 +58,14 @@ public sealed class StatTileSeries : ChartSeries
     /// <summary>The colour of the hatch strokes, or <see langword="null"/> to contrast automatically.</summary>
     public Color? HatchColor { get; set; }
 
+    /// <summary>What this reading is in — how bad, and whether it can be believed. Resting by default, so a
+    /// tile nobody judged draws quiet rather than alarmed.
+    /// <para>The caller decides what counts as bad; this says only what was decided. Set it and the tile takes
+    /// the colour its severity earned and the pattern its visibility demands, in one place instead of at every
+    /// call site. An explicit <see cref="AccentColor"/> or <see cref="Hatch"/> still wins: the condition is the
+    /// default form, never an override of what the caller said in so many words.</para></summary>
+    public OpsCondition Condition { get; set; } = OpsCondition.Resting;
+
     /// <summary>Where the tile LEADS, or <see langword="null"/> for a tile that is only read — matplotlib's own
     /// <c>Artist.set_url</c> idiom, rendered as an SVG <c>&lt;a href&gt;</c> around the whole tile.
     /// <para>A link and not a click event on purpose: an anchor needs no script, so it works in a static SVG,
@@ -100,6 +108,8 @@ public sealed class StatTileSeries : ChartSeries
         HatchColor = HatchColor,
         TileUrl = Url,
         TileExpanded = Expanded ? true : null, // null at the default: an unlinked tile adds no bytes
+        ConditionSeverity = Condition.Severity != OpsSeverity.Normal ? Condition.Severity : null,
+        ConditionVisibility = Condition.Visibility != OpsVisibility.Observed ? Condition.Visibility : null,
     };
 
     /// <summary>Reconstructs a <see cref="StatTileSeries"/> from its serialization DTO, restoring its value and accent colour, and adds it to the axes.</summary>
@@ -118,6 +128,10 @@ public sealed class StatTileSeries : ChartSeries
         {
             s.Format = dto.TileFormat;
         }
+
+        s.Condition = new OpsCondition(
+            dto.ConditionSeverity ?? OpsSeverity.Normal,
+            dto.ConditionVisibility ?? OpsVisibility.Observed);
 
         s.Target = dto.BulletTarget;
         s.Caption = dto.CenterText;

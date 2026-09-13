@@ -1,4 +1,4 @@
-@page "/"
+﻿@page "/"
 @using MatPlotLibNet.Models
 @using MatPlotLibNet.Models.Series
 @using MatPlotLibNet.Samples.ControlRoom.Services
@@ -251,12 +251,19 @@
     /// <summary>The last segment of an identity — the wall has the path in its breadcrumb already.</summary>
     private static string ShortName(string id) => id[(id.LastIndexOf('/') + 1)..];
 
-    private static string StateClass(OpsState state) => state switch
+    // The markup's own vocabulary. The CHART needs no such map any more — a tile is handed the condition and
+    // resolves its own form — but the surrounding HTML still wants a class name, and it reads the two axes in
+    // the order an operator does: can we see it at all, and if so, how bad.
+    private static string StateClass(OpsCondition state) => state.Visibility switch
     {
-        OpsState.Critical => "critical",
-        OpsState.Degraded => "degraded",
-        OpsState.Unknown => "unknown",
-        _ => "normal"
+        OpsVisibility.Unknown => "unknown",
+        OpsVisibility.Shelved => "shelved",
+        _ => state.Severity switch
+        {
+            OpsSeverity.Critical => "critical",
+            OpsSeverity.Warning => "degraded",
+            _ => "normal"
+        }
     };
 
     /// <summary>What the strip above the stage says at this depth: the mean over the population, the two
@@ -290,7 +297,7 @@
     }
 
     private static Level Summarise(string label, string unit, DateTime now,
-        IReadOnlyList<(string Id, double Load, OpsState State, string? Url)> members)
+        IReadOnlyList<(string Id, double Load, OpsCondition State, string? Url)> members)
     {
         if (members.Count == 0)
         {
@@ -300,14 +307,14 @@
         var max = members.MaxBy(m => m.Load);
         var min = members.MinBy(m => m.Load);
         return new Level(
-            label, unit, members.Count, members.Count(m => m.State >= OpsState.Degraded),
+            label, unit, members.Count, members.Count(m => m.State.Severity >= OpsSeverity.Warning),
             members.Average(m => m.Load), max.Load, min.Load,
             ShortName(max.Id), ShortName(min.Id), max.Url, min.Url);
     }
 
     /// <summary>The rail: the level you LEFT, still coloured, so a sibling is one click away and you never
     /// lose sight of what stands next to the thing you are reading.</summary>
-    private IEnumerable<(string Id, string Url, double Load, OpsState State, bool Current)> Siblings()
+    private IEnumerable<(string Id, string Url, double Load, OpsCondition State, bool Current)> Siblings()
     {
         var now = DateTime.UtcNow;
 
@@ -356,7 +363,7 @@
 
     /// <summary>One block. The number is the MAX of what it contains, because a bus whose busiest process is
     /// pegged is a busy bus however calm its average looks.</summary>
-    private static Figure Block(string name, double load, OpsState state, string caption, double[] trend)
+    private static Figure Block(string name, double load, OpsCondition state, string caption, double[] trend)
         => Tile(load, name, caption, state, format: "0.0'%'", trend: trend.Length > 1 ? trend : null);
 
     private Timer? _tick;
@@ -398,17 +405,17 @@
             link: busiest is null ? null : new TileLink(BusUrl(busiest.Id), BusId is not null));
 
         yield return Tile(s.P99, "RFx p99", $"target ≤ 25 ms · {(s.P99 <= 25 ? "within" : $"+{s.P99 - 25:0.0} over")}",
-            s.P99 > 30 ? OpsState.Critical : s.P99 > 25 ? OpsState.Degraded : OpsState.Normal,
+            s.P99 > 30 ? new OpsCondition(OpsSeverity.Critical) : s.P99 > 25 ? new OpsCondition(OpsSeverity.Warning) : OpsCondition.Resting,
             format: "0.0' ms'", target: 25, trend: Simulator.P99Trend);
 
         yield return Tile(s.Backlog / 30, "Backlog",
             s.Backlog > 40 ? "oldest unprocessed · growing" : "oldest unprocessed · flat",
-            s.Backlog > 250 ? OpsState.Critical : s.Backlog > 40 ? OpsState.Degraded : OpsState.Normal,
+            s.Backlog > 250 ? new OpsCondition(OpsSeverity.Critical) : s.Backlog > 40 ? new OpsCondition(OpsSeverity.Warning) : OpsCondition.Resting,
             format: "0.0' s'", trend: Simulator.BacklogTrend);
 
         yield return Tile(s.Drops, "Loss",
             s.Drops > 2 ? "telemetry is losing messages" : "no loss",
-            s.Drops > 20 ? OpsState.Critical : s.Drops > 2 ? OpsState.Degraded : OpsState.Normal,
+            s.Drops > 20 ? new OpsCondition(OpsSeverity.Critical) : s.Drops > 2 ? new OpsCondition(OpsSeverity.Warning) : OpsCondition.Resting,
             format: "0.0'/s'", trend: Simulator.DropsTrend);
 
         // The Alarms tile is a DOORWAY: the number is the firing count, the panel it opens onto lists that
@@ -418,14 +425,14 @@
             s.Alarms > 0 ? $"firing · {s.AlarmsAcked} acked"
                 : s.AlarmsAcked > 0 ? $"quiet · {s.AlarmsAcked} acked"
                 : "no active alarms",
-            s.Alarms > 0 ? OpsState.Critical : OpsState.Normal,
+            s.Alarms > 0 ? new OpsCondition(OpsSeverity.Critical) : OpsCondition.Resting,
             link: new TileLink("#alarms", false));
     }
 
     /// <summary>Where a tile leads, and whether that is currently open.</summary>
     private readonly record struct TileLink(string Url, bool Expanded);
 
-    private static Figure Tile(double value, string label, string caption, OpsState state,
+    private static Figure Tile(double value, string label, string caption, OpsCondition state,
         string format = "0.##", double? target = null, double[]? trend = null, TileLink? link = null)
     {
         var theme = Theme.OpsNight;
@@ -452,20 +459,11 @@
                         t.Expanded = l.Expanded;
                     }
 
-                    // Colour ONLY when it means something. A resting tile takes the theme's neutral shade —
-                    // a wall of cheerful tiles spends the contrast the one real alarm needs to borrow.
-                    t.AccentColor = state switch
-                    {
-                        OpsState.Critical => theme.Alarm.Critical,
-                        OpsState.Degraded => theme.Alarm.Warning,
-                        _ => null
-                    };
-
-                    // A silent source is a pattern, not a colour: it is not broken, we simply cannot see it.
-                    if (state == OpsState.Unknown)
-                    {
-                        t.Hatch = HatchPattern.ForwardDiagonal;
-                    }
+                    // The tile is handed the condition and works out its own form: colour only when the
+                    // severity earned one, a pattern when the reading cannot be believed or has been muted.
+                    // This page used to spell that mapping out twice — once here for the chart and once above
+                    // for the markup — and two copies of a rule this small drift without anyone noticing.
+                    t.Condition = state;
                 });
                 ax.HideAllAxes();
                 ax.WithLegend(visible: false);

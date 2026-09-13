@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Linq;
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
@@ -381,4 +382,135 @@ public class OpsDashboardBuilderTests
         Assert.Equal(4, figure.GridSpec!.HeightRatios!.Length);
         Assert.Equal(2, figure.SubPlots.Count(ax => ax.Series.OfType<NetworkGraphSeries>().Any()));
     }
+    // ── the condition a tile is in ─────────────────────────────────────────────
+
+    /// <summary>A tile that was judged draws itself: the caller hands over the condition, not a colour.</summary>
+    [Fact]
+    public void ATileInACriticalCondition_TakesTheThemesCriticalColour()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(412, t => t.Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Observed))
+            .Build()
+            .Build();
+
+        string svg = figure.ToSvg();
+
+        Assert.Contains(figure.Theme.Alarm.Critical.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>A shelved tile is drawn with a pattern: someone silenced it, and a wall that hides that is
+    /// telling the operator the system is calm when it is only muted.</summary>
+    [Fact]
+    public void AShelvedTile_CarriesAPattern()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(412, t => t.Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Shelved))
+            .Build()
+            .Build();
+
+        Assert.Contains("<pattern", figure.ToSvg(), StringComparison.Ordinal);
+    }
+
+    /// <summary>An explicit colour still wins: the condition is a default, never an override of what the
+    /// caller said in so many words.</summary>
+    [Fact]
+    public void AnExplicitAccentColour_WinsOverTheCondition()
+    {
+        var tile = new StatTileSeries(412)
+        {
+            Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Observed),
+            AccentColor = Colors.Tab10Blue,
+        };
+
+        Assert.Equal(Colors.Tab10Blue, tile.AccentColor);
+    }
+
+    // ── one marker, every panel that has a clock ───────────────────────────────
+
+    /// <summary>A deploy or an incident is one fact about the whole screen. Set once, it lands on the trend
+    /// and on every timeline — the same reason the window has a single owner.</summary>
+    [Fact]
+    public void AnEventMarker_LandsOnTheTrendAndOnEveryTimeline()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(1)
+            .AddTimeline([new StateSegment(Now.AddMinutes(-10).ToOADate(), Now.ToOADate(), "Up", Colors.Tab10Green)])
+            .AddTimeline([new StateSegment(Now.AddMinutes(-10).ToOADate(), Now.ToOADate(), "Up", Colors.Tab10Green)])
+            .AddTrend(Clock(60), [.. Enumerable.Repeat(1.0, 60)])
+            .WithWindow(Now, TimeSpan.FromMinutes(10))
+            .WithEventMarker(Now.AddMinutes(-5), m => m.Label = "deploy")
+            .Build()
+            .Build();
+
+        var withLine = figure.SubPlots.Count(ax => ax.ReferenceLines.Count > 0);
+
+        Assert.Equal(3, withLine);
+    }
+
+    /// <summary>No marker asked for, no marker drawn.</summary>
+    [Fact]
+    public void WithoutAnEventMarker_NoPanelCarriesAReferenceLine()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(1)
+            .AddTimeline([new StateSegment(0, 1, "Up", Colors.Tab10Green)])
+            .AddTrend([0, 1], [1, 2])
+            .Build()
+            .Build();
+
+        Assert.All(figure.SubPlots, ax => Assert.Empty(ax.ReferenceLines));
+    }
+
+    /// <summary>A dashboard with no timeline still marks its trend.</summary>
+    [Fact]
+    public void AnEventMarker_OnADashboardWithoutTimelines_StillMarksTheTrend()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(1)
+            .AddTrend(Clock(60), [.. Enumerable.Repeat(1.0, 60)])
+            .WithWindow(Now, TimeSpan.FromMinutes(10))
+            .WithEventMarker(Now.AddMinutes(-5))
+            .Build()
+            .Build();
+
+        Assert.Equal(1, figure.SubPlots.Count(ax => ax.ReferenceLines.Count > 0));
+    }
+
+    /// <summary>The tile row has no clock, so a moment in time means nothing there — and a topology panel
+    /// carries no time axis either. Neither gets the marker.</summary>
+    [Fact]
+    public void AnEventMarker_NeverLandsOnATileOrATopologyPanel()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(1)
+            .AddTopology(Services, Calls)
+            .AddTrend(Clock(60), [.. Enumerable.Repeat(1.0, 60)])
+            .WithWindow(Now, TimeSpan.FromMinutes(10))
+            .WithEventMarker(Now.AddMinutes(-5))
+            .Build()
+            .Build();
+
+        // Three panels: tile, topology, trend. Only the trend has a clock.
+        Assert.Equal(1, figure.SubPlots.Count(ax => ax.ReferenceLines.Count > 0));
+    }
+
+    /// <summary>More than one marker is ordinary: a deploy and an incident inside one window.</summary>
+    [Fact]
+    public void TwoEventMarkers_BothLandOnEveryPanelWithAClock()
+    {
+        var figure = Plt.OpsDashboard()
+            .AddTile(1)
+            .AddTimeline([new StateSegment(Now.AddMinutes(-10).ToOADate(), Now.ToOADate(), "Up", Colors.Tab10Green)])
+            .AddTrend(Clock(60), [.. Enumerable.Repeat(1.0, 60)])
+            .WithWindow(Now, TimeSpan.FromMinutes(10))
+            .WithEventMarker(Now.AddMinutes(-5))
+            .WithEventMarker(Now.AddMinutes(-2))
+            .Build()
+            .Build();
+
+        Assert.All(
+            figure.SubPlots.Where(ax => ax.ReferenceLines.Count > 0),
+            ax => Assert.Equal(2, ax.ReferenceLines.Count));
+    }
+
 }

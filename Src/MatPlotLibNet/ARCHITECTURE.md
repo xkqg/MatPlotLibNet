@@ -93,6 +93,17 @@ MatPlotLibNet/
                                       answer to "what does this subplot show")
     Axis.cs                           label, min/max, scale, ticks
     Annotation.cs                     text annotation: Text, X, Y, ArrowTarget, Alignment, Rotation, ArrowStyle, BackgroundColor
+    ValueObjects/OpsCondition.cs      what an operations reading is in, on TWO axes that must never be one:
+                                        enum OpsSeverity {Normal, Warning, Critical} — the only one that
+                                          compares; a roll-up takes the worst
+                                        enum OpsVisibility {Observed, Unknown, Shelved} — whether the reading
+                                          can be believed and whether someone silenced it; never ranked
+                                        readonly record struct OpsCondition(Severity, Visibility) — Resting,
+                                          Unknown, Shelve(), RollUp(children) -> OpsRollUp
+                                        readonly record struct OpsRollUp(Condition, Observed, Unknown, Shelved)
+                                          — worst SEEN child decides; unseen and muted are counted, not ranked
+                                        readonly record struct OpsMark(Accent, Hatch) — the form a condition
+                                          takes, resolved by Styling/OpsConditionExtensions against AlarmPalette
     ArrowStyle.cs                     enum: None, Simple, FancyArrow
     ReferenceLine.cs                  horizontal/vertical reference line (AxHLine, AxVLine)
     SpanRegion.cs                     shaded horizontal/vertical region (AxHSpan, AxVSpan)

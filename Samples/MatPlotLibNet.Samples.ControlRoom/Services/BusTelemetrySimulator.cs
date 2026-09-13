@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
@@ -261,17 +261,17 @@ public sealed class BusTelemetrySimulator : BackgroundService
             foreach (var process in bus.Processes)
             {
                 Alarms.Observe($"critical:{process.Id}", $"Process CRITICAL: {process.Id}",
-                    process.State(now) == OpsState.Critical);
+                    process.State(now) == new OpsCondition(OpsSeverity.Critical));
             }
         }
 
         return new Snapshot(
             At: now,
             Buses: _buses.Count,
-            BusesDeviating: busStates.Count(s => s != OpsState.Normal),
+            BusesDeviating: busStates.Count(s => s != OpsCondition.Resting),
             BusState: Worst(busStates),
             Processes: procStates.Length,
-            ProcessesDeviating: procStates.Count(s => s != OpsState.Normal),
+            ProcessesDeviating: procStates.Count(s => s != OpsCondition.Resting),
             ProcessState: Worst(procStates),
             P99: p99,
             Backlog: Math.Max(0, publish - consume),
@@ -280,8 +280,11 @@ public sealed class BusTelemetrySimulator : BackgroundService
             AlarmsAcked: Alarms.Acked);
     }
 
-    private static OpsState Worst(IEnumerable<OpsState> states) =>
-        states.Aggregate(OpsState.Normal, (worst, s) => s > worst ? s : worst);
+    // The library owns this now: the worst child that can actually be SEEN decides the parent, and the ones
+    // that went silent or were muted are counted instead of ranked. Comparing the old five-member ladder with
+    // ">" quietly asked whether a silent source is worse than a degraded one — a question with no answer.
+    private static OpsCondition Worst(IEnumerable<OpsCondition> states) =>
+        OpsCondition.RollUp(states).Condition;
 
     // The ring is in time order, so the window is a slice: find where it starts and take the tail, instead of
     // testing an hour of samples to answer a question about the last minute.
@@ -382,7 +385,7 @@ public sealed class BusTelemetrySimulator : BackgroundService
             Label = "fleet",
             Children = [.. _buses.Select(bus =>
             {
-                bool silent = bus.State(now) == OpsState.Unknown;
+                bool silent = bus.State(now) == OpsCondition.Unknown;
                 return new TreeNode
                 {
                     Label = bus.Id,
@@ -471,21 +474,10 @@ public sealed class BusTelemetrySimulator : BackgroundService
         double Consume, double Drops, double P50, double P95, double P99);
 }
 
-/// <summary>The severity ladder. Ordered so that <c>worst-child-wins</c> is a plain comparison.</summary>
-public enum OpsState
-{
-    /// <summary>Nothing to do. Wears no colour.</summary>
-    Normal = 0,
-
-    /// <summary>The source has gone silent — a gap in knowledge, not a fault. Wears a hatch, not a colour.</summary>
-    Unknown = 1,
-
-    /// <summary>Out of band, but nothing is lost yet.</summary>
-    Degraded = 2,
-
-    /// <summary>Failing now.</summary>
-    Critical = 3
-}
+// The operational state model lives in the library now, split across two axes: OpsSeverity says how bad a
+// reading is, OpsVisibility says whether it can be believed and whether anyone silenced it. It used to be one
+// ordered enum here, which quietly asked whether a silent source outranks a degraded one — a question no alarm
+// standard asks.
 
 /// <summary>The six numbers a resting control-room page shows.
 /// <para>A RECORD CLASS, not a struct, and that is the point: the collector swaps it in with a single reference
@@ -507,11 +499,11 @@ public enum OpsState
 /// and still counted: the operator's one gesture may never make the wall look better on its own.</param>
 public sealed record Snapshot(
     DateTime At,
-    int Buses, int BusesDeviating, OpsState BusState,
-    int Processes, int ProcessesDeviating, OpsState ProcessState,
+    int Buses, int BusesDeviating, OpsCondition BusState,
+    int Processes, int ProcessesDeviating, OpsCondition ProcessState,
     double P99, double Backlog, double Drops, int Alarms, int AlarmsAcked)
 {
     /// <summary>An empty federation — what the page shows before the first measurement lands.</summary>
     public static Snapshot Empty { get; } = new(
-        DateTime.MinValue, 0, 0, OpsState.Normal, 0, 0, OpsState.Normal, 0, 0, 0, 0, 0);
+        DateTime.MinValue, 0, 0, OpsCondition.Resting, 0, 0, OpsCondition.Resting, 0, 0, 0, 0, 0);
 }

@@ -209,6 +209,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   so a table beside the chart can highlight the row the cursor is over. Both are `-1` when they were never
   resolved, and both are optional members: no existing call site changes.
 
+- **A tile says what it is in, and the library draws it.** How bad a reading is and whether it can be believed
+  were one ordered list in every application that drew a control room — normal, unknown, degraded, critical —
+  compared with a single operator, which quietly asked whether a silent source is worse than a degraded one.
+  Nothing answers that, and no alarm standard asks it. There are two axes now: `OpsSeverity` (normal, warning,
+  critical) is the only one that compares, and `OpsVisibility` (observed, unknown, shelved) says whether the
+  reading can be believed and whether an operator silenced it. A tile or a timeline band carries one
+  `OpsCondition` holding both, and takes the colour its severity earned and the pattern its visibility
+  demands — a shelved alarm on its own pattern, so it can never be read as a gap in the data. What the caller
+  states outright still wins. The threshold stays where it was: the application decides what counts as bad.
+
+- **Rolling children up follows the rule the alarm standards use.** `OpsCondition.RollUp` gives the parent the
+  worst child that can actually be SEEN, and counts the ones that went silent or were muted instead of ranking
+  them — a shelved child leaves the colour alone but may never leave the screen, and a parent whose children
+  have all gone quiet is itself unseen. Two windows of one signal, the burn-rate shape, settle with `Worst`.
+
+- **One marker for the whole screen: `WithEventMarker`.** A deploy, a restart or an incident is one fact about
+  the dashboard, so it is set once and lands on the trend and on every timeline — the panels that have a clock.
+  The tile row and the topology panel have none and never receive it. Call it more than once for a deploy and
+  the incident it caused.
+
 ## [1.17.0]
 ### Added
 

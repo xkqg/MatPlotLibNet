@@ -48,7 +48,7 @@ This sample stands on its own because it is not an example of a control. It is a
 dotnet run --project MatPlotLibNet.Samples.ControlRoom
 ```
 
-The sample runs a simulated 15-bus federation on `Plt.OpsDashboard()`. The KPI tiles carry no colour until something needs attention. A tile is hatched when its source has gone silent. Two rolling panels show throughput and latency percentiles over a pinned time window. The window is 1, 5 or 15 minutes, or 1 hour. The refresh setting throttles the charts only; the tiles never slow down.
+The sample runs a simulated 15-bus federation on `Plt.OpsDashboard()`. The KPI tiles carry no colour until something needs attention. Each tile is handed an `OpsCondition` — how bad the reading is, and whether it can be believed — and works out its own colour and pattern from it; the simulator decides what counts as bad, the library only draws the verdict. A tile is hatched when its source has gone silent, and hatched differently when an operator has muted it. Two rolling panels show throughput and latency percentiles over a pinned time window. The window is 1, 5 or 15 minutes, or 1 hour. The refresh setting throttles the charts only; the tiles never slow down.
 
 **Navigation descends the hierarchy.** The screen goes from fleet to bus to process to lanes. Nothing is replaced on the way down: the level you leave becomes a rail on the left, still coloured. A sibling is one click away, and you always keep sight of what stands next to the item you are reading.
 

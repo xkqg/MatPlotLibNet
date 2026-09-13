@@ -116,14 +116,19 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
         // cycle colour is how a wall ends up in five cheerful hues, and then the one tile that actually needs
         // attention has nothing to stand out against. Colour appears only when the caller sets an accent, and
         // an accent means something is wrong.
-        var color = series.AccentColor ?? Context.Theme.Alarm.Resting;
+        // The condition the caller judged, turned into form in the one place that owns that mapping. What the
+        // caller stated outright still wins — the condition supplies the default, it does not overrule.
+        var mark = series.Condition.Resolve(Context.Theme.Alarm);
+        var color = series.AccentColor ?? mark.Accent ?? Context.Theme.Alarm.Resting;
+        var hatch = series.Hatch != HatchPattern.None ? series.Hatch : mark.Hatch;
 
-        // "No information" is a pattern, not a colour: a silent source is not a broken one.
-        if (series.Hatch != HatchPattern.None)
+        // "No information" is a pattern, not a colour: a silent source is not a broken one. A shelved reading
+        // wears the other diagonal — muted is not the same fact as unseen.
+        if (hatch != HatchPattern.None)
         {
             Ctx.DrawRectangle(bounds, new ShapeStyle(Context.Theme.AxesBackground, null, 0)
             {
-                Hatch = series.Hatch,
+                Hatch = hatch,
                 HatchColor = series.HatchColor
             });
         }

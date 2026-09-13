@@ -213,6 +213,26 @@ ax.StatTile(0, t =>
 });
 ```
 
+Saying it as a *condition* rather than as a pattern gets the same mark with the reasoning attached, and keeps
+the two cases apart — a reading nobody can see and a reading somebody silenced wear different patterns, never
+the same one:
+
+```csharp
+ax.StatTile(0, t =>
+{
+    t.Label = "Exchange";
+    t.Caption = "no contact";
+    t.Condition = OpsCondition.Unknown;                       // hatched: we cannot see it
+});
+
+ax.StatTile(412, t =>
+{
+    t.Label = "RFx p99";
+    t.Caption = "muted by the night shift";
+    t.Condition = new OpsCondition(OpsSeverity.Critical).Shelve();   // its own pattern: muted, still critical
+});
+```
+
 The SVG backend and the raster (Skia PNG/PDF) backends paint the same pattern. Where a backend cannot paint a
 hatch (the MAUI canvas has no hatch primitive), it reports the omission on `ChartDiagnostics` instead of
 dropping the hatch silently. You can then see that an export lost a mark, instead of discovering it later.

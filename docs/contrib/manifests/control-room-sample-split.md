@@ -24,7 +24,7 @@ harder one to read, and every control-room change now risks a file the Blazor sa
 | item | verdict |
 |---|---|
 | `Components/Pages/ObsDashboard.razor` | MOVES — it is the control room |
-| `Services/Bus.cs` (Bus · Process · Lane · Conditioned · OpsState) | MOVES — the observability domain, and nothing else references it |
+| `Services/Bus.cs` (Bus · Process · Lane · Conditioned) | MOVES — the observability domain, and nothing else references it. The state model itself moved into the library as `OpsCondition`, split across a severity and a visibility axis |
 | `Services/BusTelemetrySimulator.cs` | MOVES — its four chart ids are the control room's own |
 | `Program.cs` lines registering `BusTelemetrySimulator` (singleton + hosted service) | MOVE to the new host; the Blazor sample stops hosting a background service it no longer shows |
 | `Home.razor`'s link to `/obs-dashboard` | REMOVED from the Blazor sample — a link into an app that is no longer running there is worse than no link |

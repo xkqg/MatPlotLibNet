@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Rendering;
@@ -23,6 +23,14 @@ public readonly record struct StateSegment(double Start, double End, string Labe
     /// <remarks>Declared as an <c>init</c> property rather than a fifth positional parameter: a positional
     /// addition would break every existing construction site of this record struct.</remarks>
     public HatchPattern Hatch { get; init; }
+
+    /// <summary>What this band is in — how bad, and whether it can be believed. Resting by default.
+    /// <para>Set it and the band takes the pattern its visibility demands without the caller repeating the
+    /// mapping: a silent stretch hatched one way, a shelved one the other. An explicit <see cref="Hatch"/>
+    /// still wins. The band's <see cref="Color"/> is left alone — a timeline's colours name the states
+    /// themselves ("Up", "Draining"), which is a different vocabulary from severity.</para></summary>
+    /// <remarks>An <c>init</c> property for the same reason <see cref="Hatch"/> is one.</remarks>
+    public OpsCondition Condition { get; init; } = OpsCondition.Resting;
 }
 
 /// <summary>A single-row timeline of discrete coloured state segments along the X axis —
@@ -68,6 +76,14 @@ public sealed class StateTimelineSeries : ChartSeries
         StateSegmentHatches = Segments.Any(s => s.Hatch != HatchPattern.None)
             ? Segments.Select(s => s.Hatch).ToList()
             : null,
+        // Same rule for the condition: written only when a band names one, so nothing changes on the wire for
+        // a timeline that never did.
+        StateSegmentSeverities = Segments.Any(s => s.Condition.Severity != OpsSeverity.Normal)
+            ? Segments.Select(s => s.Condition.Severity).ToList()
+            : null,
+        StateSegmentVisibilities = Segments.Any(s => s.Condition.Visibility != OpsVisibility.Observed)
+            ? Segments.Select(s => s.Condition.Visibility).ToList()
+            : null,
     };
 
     /// <summary>Reconstructs a <see cref="StateTimelineSeries"/> from its serialization DTO, restoring
@@ -82,6 +98,8 @@ public sealed class StateTimelineSeries : ChartSeries
         var labels  = dto.Categories ?? [];
         var colors  = dto.StateSegmentColors ?? [];
         var hatches = dto.StateSegmentHatches;
+        var severities = dto.StateSegmentSeverities;
+        var visibilities = dto.StateSegmentVisibilities;
         int count   = Math.Min(Math.Min(starts.Length, ends.Length),
                                Math.Min(labels.Length, colors.Count));
         var segments = new Models.Series.StateSegment[count];
@@ -89,7 +107,10 @@ public sealed class StateTimelineSeries : ChartSeries
         {
             segments[i] = new Models.Series.StateSegment(starts[i], ends[i], labels[i], colors[i])
             {
-                Hatch = hatches is not null && i < hatches.Count ? hatches[i] : HatchPattern.None
+                Hatch = hatches is not null && i < hatches.Count ? hatches[i] : HatchPattern.None,
+                Condition = new OpsCondition(
+                    severities is not null && i < severities.Count ? severities[i] : OpsSeverity.Normal,
+                    visibilities is not null && i < visibilities.Count ? visibilities[i] : OpsVisibility.Observed)
             };
         }
         return axes.StateTimeline(segments);

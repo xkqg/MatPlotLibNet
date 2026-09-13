@@ -615,6 +615,75 @@ domain decision, and a charting library has no view of that domain, so it leaves
 | `Label` | `string` | Centred text rendered inside the segment rectangle. |
 | `Color` | `Color` | Fill colour of the segment rectangle. |
 
+### What a tile is in, and who decides it
+
+A number on a wall is not a state. The caller decides what counts as bad — a charting library that decides has
+started holding opinions about when something is broken — and hands the tile the verdict:
+
+```csharp
+Plt.OpsDashboard()
+    .AddTile(p99, t =>
+    {
+        t.Label = "RFx p99";
+        t.Condition = p99 > 30 ? new OpsCondition(OpsSeverity.Critical)
+                    : p99 > 25 ? new OpsCondition(OpsSeverity.Warning)
+                    : OpsCondition.Resting;
+    })
+    .Build();
+```
+
+The condition carries two answers, and they are different questions:
+
+| Axis | Values | What it says |
+|---|---|---|
+| `OpsSeverity` | `Normal`, `Warning`, `Critical` | How bad the reading is. The only one that compares: worse outranks better. |
+| `OpsVisibility` | `Observed`, `Unknown`, `Shelved` | Whether the reading can be believed, and whether someone silenced it. Never compared as a severity. |
+
+A silent source is not a degraded one, and a muted alarm is not a solved problem — so neither sits on the
+severity ladder. `Normal` wears no colour at all; `Warning` and `Critical` take the theme's alarm colours;
+`Unknown` and `Shelved` wear a pattern instead, each its own, so an operator can tell at a glance which of the
+two is on the wall. A `State` segment on a timeline takes the same condition and hatches itself the same way.
+
+Rolling a set of children up into one parent reading follows the rule the alarm standards use:
+
+```csharp
+var rolled = OpsCondition.RollUp(buses.Select(b => b.Condition));
+
+// rolled.Severity  — the worst child that could actually be SEEN
+// rolled.Unknown   — how many went silent (counted, never ranked)
+// rolled.Shelved   — how many an operator muted (counted, never ranked)
+```
+
+A child nobody can see does not outrank a degraded one, and a shelved child leaves the colour alone — but both
+are counted, because a wall that hides them reports calm where there is only silence. When every child is
+unseen, the parent is unseen too.
+
+Two windows of one signal — the burn-rate shape, where a fast window catches the acute failure and a slow one
+the smoulder — are judged by the caller and settled with `Worst`:
+
+```csharp
+t.Condition = new OpsCondition(fastWindow.Worst(slowWindow));
+```
+
+### Marking a deploy across every panel
+
+A deploy, a restart or an incident is one fact about the whole screen, so it is set once:
+
+```csharp
+Plt.OpsDashboard()
+    .WithWindow(now, TimeSpan.FromMinutes(30))
+    .WithEventMarker(deployedAt, m => m.Label = "deploy 1.4.2")
+    .AddTile(errors, t => t.Label = "Errors")
+    .AddTimeline(segments)
+    .AddTrend(clock, latency)
+    .Build();
+```
+
+The line lands on the trend and on every timeline — the panels that have a clock — for the same reason the
+window has a single owner: a reader comparing two panels has to be able to trust that the same vertical line
+means the same instant. The tile row and the topology panel carry no time axis, so they never receive it. Call
+it more than once for a deploy and the incident it caused.
+
 ## See also
 
 - [Accessibility](accessibility.md) — the data table for a dashboard: the parts of a tile, one table for the tile row, clock times instead of OLE numbers

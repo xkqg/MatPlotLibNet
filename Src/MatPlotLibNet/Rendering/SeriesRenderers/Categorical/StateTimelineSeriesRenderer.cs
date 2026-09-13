@@ -34,8 +34,13 @@ internal sealed class StateTimelineSeriesRenderer : SeriesRenderer<StateTimeline
             double h = yBottom - yTop;
 
             // Draw the filled rectangle spanning the full plot height. A hatched segment reads as "no
-            // information" rather than as a state — see StateSegment.Hatch.
-            Ctx.DrawRectangle(new Rect(x, y, w, h), new ShapeStyle(seg.Color, null, 0) { Hatch = seg.Hatch });
+            // information" rather than as a state — see StateSegment.Hatch. When the caller stated a
+            // condition instead of a pattern, the condition supplies one; an explicit hatch still wins.
+            var hatch = seg.Hatch != HatchPattern.None
+                ? seg.Hatch
+                : seg.Condition.Resolve(Context.Theme.Alarm).Hatch;
+
+            Ctx.DrawRectangle(new Rect(x, y, w, h), new ShapeStyle(seg.Color, null, 0) { Hatch = hatch });
 
             // Centre the label text inside the rectangle
             if (!string.IsNullOrEmpty(seg.Label))

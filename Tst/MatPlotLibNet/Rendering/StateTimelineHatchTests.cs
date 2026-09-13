@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
@@ -99,4 +99,41 @@ public class StateTimelineHatchTests
 
         return count;
     }
+    /// <summary>A band that carries a condition instead of a pattern still draws one: the mapping lives in the
+    /// library, so a caller does not repeat it per segment.</summary>
+    [Fact]
+    public void ASegmentInAShelvedCondition_RendersAsAPattern()
+    {
+        string svg = Render(new StateSegment(0, 10, "Muted", Colors.Gray)
+        {
+            Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Shelved)
+        });
+
+        Assert.Contains("<pattern", svg);
+    }
+
+    /// <summary>An explicit hatch wins over the condition's: what the caller said outright is never
+    /// overruled.</summary>
+    [Fact]
+    public void AnExplicitHatch_WinsOverTheCondition()
+    {
+        var segment = new StateSegment(0, 10, "Muted", Colors.Gray)
+        {
+            Hatch = HatchPattern.Dots,
+            Condition = OpsCondition.Unknown
+        };
+
+        Assert.Equal(HatchPattern.Dots, segment.Hatch);
+        Assert.Contains("<pattern", Render(segment));
+    }
+
+    /// <summary>A resting band draws flat — no pattern appears from a condition nobody set.</summary>
+    [Fact]
+    public void ARestingSegment_StaysFlat()
+    {
+        string svg = Render(new StateSegment(0, 10, "Up", Colors.Tab10Green));
+
+        Assert.DoesNotContain("<pattern", svg);
+    }
+
 }

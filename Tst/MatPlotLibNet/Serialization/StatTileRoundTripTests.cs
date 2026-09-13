@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
@@ -72,4 +72,32 @@ public class StatTileRoundTripTests
 
         Assert.DoesNotContain("0.##", json);
     }
+    /// <summary>The condition survives too. A tile whose state is dropped on the wire comes back drawn as a
+    /// quiet one — the failure mode that matters most, because it turns an alarm into calm.</summary>
+    [Fact]
+    public void TheCondition_SurvivesRoundTrip()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StatTile(412, t =>
+                t.Condition = new OpsCondition(OpsSeverity.Critical, OpsVisibility.Shelved)))
+            .Build();
+
+        var restored = Tile(RoundTrip(figure));
+
+        Assert.Equal(OpsSeverity.Critical, restored.Condition.Severity);
+        Assert.Equal(OpsVisibility.Shelved, restored.Condition.Visibility);
+    }
+
+    /// <summary>A tile nobody judged adds nothing to the wire: the default condition is absent from the JSON,
+    /// so the golden corpus stays byte-identical for every chart that does not use one.</summary>
+    [Fact]
+    public void ARestingTile_WritesNoConditionAtAll()
+    {
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.StatTile(412)).Build();
+
+        string json = new ChartSerializer().ToJson(figure);
+
+        Assert.DoesNotContain("condition", json, StringComparison.OrdinalIgnoreCase);
+    }
+
 }

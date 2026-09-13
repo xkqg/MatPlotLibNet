@@ -1,7 +1,9 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Data;
+using MatPlotLibNet.Models;
+
 namespace MatPlotLibNet.Samples.ControlRoom.Services;
 
 /// <summary>One bus in the federation, with its processes.
@@ -62,9 +64,9 @@ public sealed class Bus
             _lastHeartbeat = now;
         }
 
-        OpsState raw = faulted && Id.EndsWith("ams-02", StringComparison.Ordinal)
-            ? OpsState.Degraded
-            : OpsState.Normal;
+        OpsCondition raw = faulted && Id.EndsWith("ams-02", StringComparison.Ordinal)
+            ? new OpsCondition(OpsSeverity.Warning)
+            : OpsCondition.Resting;
 
         _condition.Observe(raw, now, OnDelay, OffDelay);
 
@@ -79,18 +81,18 @@ public sealed class Bus
     /// operation that hides it.</summary>
     /// <param name="now">The current instant.</param>
     /// <returns>The rolled-up state.</returns>
-    public OpsState State(DateTime now)
+    public OpsCondition State(DateTime now)
     {
         if (now - _lastHeartbeat > StaleAfter)
         {
-            return OpsState.Unknown;
+            return OpsCondition.Unknown;
         }
 
         var worst = _condition.State;
         foreach (var process in _processes)
         {
             var state = process.State(now);
-            if (state > worst)
+            if (state.Severity > worst.Severity)
             {
                 worst = state;
             }
@@ -102,11 +104,11 @@ public sealed class Bus
     /// <summary>The states of every process on this bus.</summary>
     /// <param name="now">The current instant.</param>
     /// <returns>One state per process.</returns>
-    public IEnumerable<OpsState> ProcessStates(DateTime now)
+    public IEnumerable<OpsCondition> ProcessStates(DateTime now)
     {
         bool stale = now - _lastHeartbeat > StaleAfter;
         return stale
-            ? _processes.Select(_ => OpsState.Unknown)   // we cannot see the bus, so we cannot see its processes
+            ? _processes.Select(_ => OpsCondition.Unknown)   // we cannot see the bus, so we cannot see its processes
             : _processes.Select(p => p.State(now));
     }
 }
@@ -159,16 +161,16 @@ public sealed class Process
     /// <param name="faulted">Whether a fault has been injected.</param>
     public void Evolve(Random rng, DateTime now, bool faulted)
     {
-        OpsState raw = faulted && Id.Contains("ams-02/proc-03", StringComparison.Ordinal)
-            ? OpsState.Critical
-            : OpsState.Normal;
+        OpsCondition raw = faulted && Id.Contains("ams-02/proc-03", StringComparison.Ordinal)
+            ? new OpsCondition(OpsSeverity.Critical)
+            : OpsCondition.Resting;
 
         _condition.Observe(raw, now,
             TimeSpan.FromSeconds(2),    // a critical raises faster than a warning
             TimeSpan.FromSeconds(8));
 
         // The faulted process pegs a core and a half; everyone else breathes around its resting load.
-        double target = raw == OpsState.Critical ? 140 : _idle;
+        double target = raw == new OpsCondition(OpsSeverity.Critical) ? 140 : _idle;
         Load = Math.Max(0, Load + (target - Load) * 0.25 + (rng.NextDouble() - 0.5) * 1.5);
         // A ring: the append IS the eviction, so nothing is paid per sample to keep the window bounded.
         _loads.Append(Load);
@@ -184,13 +186,13 @@ public sealed class Process
     /// looking for, and an average is precisely the operation that hides it.</summary>
     /// <param name="now">The current instant.</param>
     /// <returns>The state.</returns>
-    public OpsState State(DateTime now)
+    public OpsCondition State(DateTime now)
     {
         var worst = _condition.State;
         foreach (var lane in _lanes)
         {
             var state = lane.State(now);
-            if (state > worst)
+            if (state.Severity > worst.Severity)
             {
                 worst = state;
             }
@@ -260,16 +262,16 @@ public sealed class Lane
         Errors = Backlog > 250 ? Math.Round((Backlog - 250) / 120.0, 1) : 0;
 
         // Backlog first, errors second, latency last — the order an operator would read them in.
-        OpsState raw = Errors > 0 || Backlog > 250 ? OpsState.Critical
-            : Backlog > 80 || Latency > 220 ? OpsState.Degraded
-            : OpsState.Normal;
+        OpsCondition raw = Errors > 0 || Backlog > 250 ? new OpsCondition(OpsSeverity.Critical)
+            : Backlog > 80 || Latency > 220 ? new OpsCondition(OpsSeverity.Warning)
+            : OpsCondition.Resting;
         _condition.Observe(raw, now, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(8));
     }
 
     /// <summary>Its conditioned state.</summary>
     /// <param name="now">The current instant.</param>
     /// <returns>The state.</returns>
-    public OpsState State(DateTime now) => _condition.State;
+    public OpsCondition State(DateTime now) => _condition.State;
 }
 
 /// <summary>Alarm conditioning: a raw reading becomes a state only after it has held.
@@ -284,18 +286,18 @@ public sealed class Lane
 /// than having no dashboard at all, because now the operators believe they are covered.</para></summary>
 internal sealed class Conditioned
 {
-    private OpsState _candidate = OpsState.Normal;
+    private OpsCondition _candidate = OpsCondition.Resting;
     private DateTime _since = DateTime.MinValue;
 
     /// <summary>The conditioned state.</summary>
-    public OpsState State { get; private set; } = OpsState.Normal;
+    public OpsCondition State { get; private set; } = OpsCondition.Resting;
 
     /// <summary>Feeds one raw observation.</summary>
     /// <param name="raw">What the measurement says right now.</param>
     /// <param name="now">The current instant.</param>
     /// <param name="onDelay">How long a worsening must hold before it is believed.</param>
     /// <param name="offDelay">How long an improvement must hold before it is believed.</param>
-    public void Observe(OpsState raw, DateTime now, TimeSpan onDelay, TimeSpan offDelay)
+    public void Observe(OpsCondition raw, DateTime now, TimeSpan onDelay, TimeSpan offDelay)
     {
         if (raw == State)
         {
@@ -310,7 +312,7 @@ internal sealed class Conditioned
             _since = now;
         }
 
-        var required = raw > State ? onDelay : offDelay;
+        var required = raw.Severity > State.Severity ? onDelay : offDelay;
         if (now - _since >= required)
         {
             State = raw;
