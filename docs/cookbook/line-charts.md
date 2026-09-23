@@ -74,7 +74,7 @@ Plt.Create()
         {
             s.Smooth = true;
             s.SmoothResolution = 20;  // 20 sub-points per interval
-            s.Color = Colors.Purple;
+            s.Color = Css4Colors.Purple;
             s.Label = "Smoothed";
         })
         .Scatter(x, y, s =>
@@ -95,14 +95,14 @@ Control step placement with `DrawStyle`:
 Plt.Create()
     .WithSize(900, 400)
     .AddSubPlot(1, 3, 1, ax => ax
-        .Plot(x, y, s => { s.DrawStyle = DrawStyle.Steps; s.Label = "Steps"; })
-        .WithTitle("Steps").WithLegend())
+        .Plot(x, y, s => { s.DrawStyle = DrawStyle.StepsPost; s.Label = "StepsPost"; })
+        .WithTitle("StepsPost").WithLegend())
     .AddSubPlot(1, 3, 2, ax => ax
-        .Plot(x, y, s => { s.DrawStyle = DrawStyle.StepPre; s.Label = "StepPre"; })
-        .WithTitle("StepPre").WithLegend())
+        .Plot(x, y, s => { s.DrawStyle = DrawStyle.StepsPre; s.Label = "StepsPre"; })
+        .WithTitle("StepsPre").WithLegend())
     .AddSubPlot(1, 3, 3, ax => ax
-        .Plot(x, y, s => { s.DrawStyle = DrawStyle.StepMid; s.Label = "StepMid"; })
-        .WithTitle("StepMid").WithLegend())
+        .Plot(x, y, s => { s.DrawStyle = DrawStyle.StepsMid; s.Label = "StepsMid"; })
+        .WithTitle("StepsMid").WithLegend())
     .TightLayout()
     .Save("step_styles.svg");
 ```
@@ -117,9 +117,9 @@ Plt.Create()
             s.Marker = MarkerStyle.Diamond;
             s.MarkerSize = 10;
             s.MarkerFaceColor = Colors.Gold;
-            s.MarkerEdgeColor = Colors.DarkRed;
+            s.MarkerEdgeColor = Css4Colors.DarkRed;
             s.MarkerEdgeWidth = 1.5;
-            s.Color = Colors.DarkRed;
+            s.Color = Css4Colors.DarkRed;
             s.Label = "Diamond markers";
         })
         .WithLegend())

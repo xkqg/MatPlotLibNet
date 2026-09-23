@@ -84,7 +84,7 @@ Plt.Create()
         // Horizontal span: highlight a Y range
         .AxHSpan(4.0, 7.0, s =>
         {
-            s.Color = Colors.LightBlue;
+            s.Color = Css4Colors.LightBlue;
             s.Alpha = 0.2;
             s.Label = "Target range";
         })
@@ -189,7 +189,7 @@ Plt.Create()
         .Annotate(@"$R^{2} = 0.97$", 3, 7, ann =>
         {
             ann.BackgroundColor = Colors.White;
-            ann.FontSize = 14;
+            ann.Font = new Font { Size = 14 };
         })
         .Annotate(@"$\frac{\partial f}{\partial x} = 0$", 8, 3, ann =>
         {

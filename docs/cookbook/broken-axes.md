@@ -48,7 +48,7 @@ builder.AddSubPlot(1, 3, 1, ax => ax
     .Plot(x, y).WithYBreak(25, 85, BreakStyle.Zigzag).WithTitle("Zigzag (default)"));
 
 builder.AddSubPlot(1, 3, 2, ax => ax
-    .Plot(x, y).WithYBreak(25, 85, BreakStyle.Diagonal).WithTitle("Diagonal"));
+    .Plot(x, y).WithYBreak(25, 85, BreakStyle.Straight).WithTitle("Straight"));
 
 builder.AddSubPlot(1, 3, 3, ax => ax
     .Plot(x, y).WithYBreak(25, 85, BreakStyle.None).WithTitle("None (invisible)"));
@@ -63,7 +63,7 @@ Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
         .Scatter(x, y, s => { s.Color = Colors.Red; s.MarkerSize = 8; })
         .WithXBreak(5, 15, BreakStyle.Zigzag)
-        .WithYBreak(25, 85, BreakStyle.Diagonal)
+        .WithYBreak(25, 85, BreakStyle.Straight)
         .WithTitle("Both axes broken"))
     .Save("broken_both.svg");
 ```
@@ -96,5 +96,5 @@ Plt.Create()
 | BreakStyle | Description |
 |---|---|
 | `Zigzag` | Zigzag lines at break (default) |
-| `Diagonal` | Straight diagonal lines |
+| `Diagonal` | Straight straight lines |
 | `None` | No visual marker |

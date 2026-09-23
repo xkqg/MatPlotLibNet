@@ -43,9 +43,9 @@ Plt.Create()
 Plt.Create()
     .Pie(sizes, labels, s =>
     {
-        s.Colors = [Colors.Tab10Blue, Colors.Orange, Colors.Green, Colors.Red, Colors.Purple];
-        s.Hatches = [HatchPattern.None, HatchPattern.Slash, HatchPattern.None,
-                     HatchPattern.BackslashDouble, HatchPattern.None];
+        s.Colors = [Colors.Tab10Blue, Colors.Orange, Colors.Green, Colors.Red, Css4Colors.Purple];
+        s.Hatches = [HatchPattern.None, HatchPattern.ForwardDiagonal, HatchPattern.None,
+                     HatchPattern.BackDiagonal, HatchPattern.None];
         s.Radius = 0.9;  // slightly smaller
     })
     .Save("pie_styled.svg");
@@ -61,9 +61,9 @@ Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
         .Donut(sizes, labels, s =>
         {
-            s.InnerRadius = 0.4;   // 40% hole
-            s.Shadow = true;
-            s.AutoPct = "%.0f%%";
+            s.InnerRadius = 0.4;          // 40% hole
+            s.CenterText = "€4.2M";       // the hole is the place for the total
+            s.StartAngle = 90;
         }))
     .Save("donut.svg");
 ```
@@ -83,7 +83,7 @@ var root = new TreeNode
             Label = "Electronics", Value = 42, Color = Colors.Blue,
             Children = new[]
             {
-                new TreeNode { Label = "Phones", Value = 25, Color = Colors.LightBlue },
+                new TreeNode { Label = "Phones", Value = 25, Color = Css4Colors.LightBlue },
                 new TreeNode { Label = "Laptops", Value = 17, Color = Colors.SteelBlue },
             }
         },

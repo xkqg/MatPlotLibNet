@@ -52,7 +52,7 @@ Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
         .Scatter(xData, yData, s =>
         {
-            s.Color = Colors.Purple;
+            s.Color = Css4Colors.Purple;
             s.MarkerSize = 8;
             s.Label = "Measurements";
         })

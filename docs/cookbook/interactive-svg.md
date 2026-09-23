@@ -99,12 +99,11 @@ For bidirectional interactive charts with server-side state:
 
 ```csharp
 Plt.Create()
-    .WithServerInteraction("chart-1", opt =>
-    {
-        opt.OnZoom = (chartId, ev) => Console.WriteLine($"Zoomed: {ev}");
-        opt.OnBrushSelect = (chartId, ev) => Console.WriteLine($"Selected: {ev}");
-        opt.OnHover = (chartId, ev) => Console.WriteLine($"Hover: {ev}");
-    })
+    .WithServerInteraction("chart-1", opt => opt
+        .EnableZoom()
+        .EnablePan()
+        .EnableBrushSelect()
+        .EnableHover())
     .Plot(x, y, s => s.Label = "Live Data")
     .Save("server_interactive.svg");
 ```

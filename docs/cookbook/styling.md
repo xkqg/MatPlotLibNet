@@ -72,10 +72,10 @@ Plt.Create()
         // Spine visibility
         .WithSpines(s => s with
         {
-            Top = false,     // hide top spine
-            Right = false,   // hide right spine
-            Left = true,
-            Bottom = true
+            Top = s.Top with { Visible = false },       // hide top spine
+            Right = s.Right with { Visible = false },   // hide right spine
+            Left = s.Left with { LineWidth = 1.2 },
+            Bottom = s.Bottom with { LineWidth = 1.2 }
         })
         // Or use the shorthand:
         // .HideTopSpine()

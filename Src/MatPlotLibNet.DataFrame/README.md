@@ -95,7 +95,7 @@ string svg = Plt.Create()
     {
         ax.UseBarSlotX()
           .Candlestick(open, high, low, close)
-          .Signal(sma20, label: "SMA 20")
+          .Signal(sma20, configure: s => s.Label = "SMA 20")
           .FillBetween(xVals, bb.Upper, bb.Lower, s => s.Alpha = 0.2);
     })
     .WithTitle("Price + Bollinger Bands")

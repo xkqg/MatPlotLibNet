@@ -52,7 +52,6 @@ Plt.Create()
             s.Cumulative = true;
             s.Color = Colors.Salmon;
             s.HistType = HistType.Step;   // step outline (no fill)
-            s.LineWidth = 2.0;
             s.Label = "Cumulative";
         })
         .WithLegend())
@@ -68,10 +67,10 @@ Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
         .Hist(data, 20, s =>
         {
-            s.Color = Colors.LightBlue;
-            s.Hatch = HatchPattern.Slash;
-            s.HatchColor = Colors.DarkBlue;
-            s.EdgeColor = Colors.DarkBlue;
+            s.Color = Css4Colors.LightBlue;
+            s.Hatch = HatchPattern.ForwardDiagonal;
+            s.HatchColor = Css4Colors.DarkBlue;
+            s.EdgeColor = Css4Colors.DarkBlue;
             s.RWidth = 0.9;   // bar width as fraction of bin width
         }))
     .Save("hist_hatched.svg");
@@ -81,8 +80,11 @@ Plt.Create()
 
 ```csharp
 var rng = new Random(42);
-double[] group1 = Enumerable.Range(0, 500).Select(_ => rng.NextGaussian(5, 1.5)).ToArray();
-double[] group2 = Enumerable.Range(0, 500).Select(_ => rng.NextGaussian(7, 2.0)).ToArray();
+// Box-Muller: a normally distributed sample built from two uniform ones.
+double Gaussian(double mean, double sd) =>
+    mean + sd * Math.Sqrt(-2 * Math.Log(rng.NextDouble())) * Math.Cos(2 * Math.PI * rng.NextDouble());
+double[] group1 = Enumerable.Range(0, 500).Select(_ => Gaussian(5, 1.5)).ToArray();
+double[] group2 = Enumerable.Range(0, 500).Select(_ => Gaussian(7, 2.0)).ToArray();
 
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
@@ -103,11 +105,11 @@ double[][] groups = [
 
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .Box(groups, ["Group A", "Group B", "Group C"], s =>
+        .BoxPlot(groups, s =>
         {
             s.Color = Colors.CornflowerBlue;
-            s.Alpha = 0.8;
-            s.EdgeColor = Colors.Navy;
+            s.MedianColor = Colors.Navy;
+            s.ShowMeans = true;
         }))
     .Save("boxplot.svg");
 ```
@@ -119,11 +121,11 @@ Plt.Create()
 ```csharp
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .Violin(groups, ["A", "B", "C"], s =>
+        .Violin(groups, s =>
         {
-            s.Color = Colors.MediumPurple;
+            s.Color = Css4Colors.MediumPurple;
             s.Alpha = 0.6;
-            s.EdgeColor = Colors.DarkViolet;
+            s.ShowMedians = true;
         }))
     .Save("violin.svg");
 ```
@@ -135,7 +137,7 @@ Plt.Create()
 ```csharp
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .Kde(data, s => { s.Label = "Density"; s.Color = Colors.Purple; s.LineWidth = 2.0; })
+        .Kde(data, s => { s.Label = "Density"; s.Color = Css4Colors.Purple; s.LineWidth = 2.0; })
         .WithLegend())
     .Save("kde.svg");
 ```
@@ -145,9 +147,9 @@ Plt.Create()
 ```csharp
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .Hist(data, 30, s => { s.Color = Colors.LightBlue; s.Alpha = 0.5; s.Density = true; })
-        .Kde(data, s => { s.Color = Colors.DarkBlue; s.LineWidth = 2; s.Label = "KDE"; })
-        .Rugplot(data, s => { s.Color = Colors.DarkBlue; s.Alpha = 0.3; })
+        .Hist(data, 30, s => { s.Color = Css4Colors.LightBlue; s.Alpha = 0.5; s.Density = true; })
+        .Kde(data, s => { s.Color = Css4Colors.DarkBlue; s.LineWidth = 2; s.Label = "KDE"; })
+        .Rugplot(data, s => { s.Color = Css4Colors.DarkBlue; s.Alpha = 0.3; })
         .SetYLabel("Density")
         .WithLegend())
     .Save("hist_kde_rug.svg");
@@ -202,7 +204,6 @@ ax.DensityScatter(x, y, s => { s.C = error; s.ColorMap = DivergingColorMaps.RdBu
 | `Alpha` | `double` | `1.0` | Transparency (0–1) |
 | `Hatch` | `HatchPattern` | `None` | Texture pattern |
 | `HatchColor` | `Color` | auto | Hatch pattern color |
-| `LineWidth` | `double` | `0.5` | Edge/step line width |
 
 ## Ridge plot
 

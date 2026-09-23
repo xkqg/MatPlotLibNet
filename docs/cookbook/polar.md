@@ -16,8 +16,7 @@ double[] r = theta.Select(t => 1 + Math.Cos(3 * t)).ToArray();
 
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .SetPolar()
-        .PolarPlot(theta, r, s =>
+        .PolarPlot(r, theta, s =>
         {
             s.Color = Colors.Blue;
             s.LineWidth = 2.0;
@@ -35,9 +34,8 @@ Plt.Create()
 ```csharp
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .SetPolar()
-        .PolarPlot(theta, r1, s => { s.Color = Colors.Blue; s.Label = "cos(3θ)"; })
-        .PolarPlot(theta, r2, s => { s.Color = Colors.Red; s.LineStyle = LineStyle.Dashed; s.Label = "sin(2θ)"; })
+        .PolarPlot(r1, theta, s => { s.Color = Colors.Blue; s.Label = "cos(3θ)"; })
+        .PolarPlot(r2, theta, s => { s.Color = Colors.Red; s.LineStyle = LineStyle.Dashed; s.Label = "sin(2θ)"; })
         .WithLegend(LegendPosition.UpperRight))
     .Save("polar_multi.svg");
 ```
@@ -82,12 +80,11 @@ double[] barR = [3, 5, 7, 4, 6, 8, 2, 5];
 
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .SetPolar()
-        .PolarBar(barTheta, barR, s =>
+        .PolarBar(barR, barTheta, s =>
         {
             s.Color = Colors.Teal;
             s.Alpha = 0.7;
-            s.EdgeColor = Colors.DarkCyan;
+            s.BarWidth = 0.35;
         }))
     .Save("polar_bar.svg");
 ```
@@ -97,12 +94,10 @@ Plt.Create()
 ```csharp
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .SetPolar()
-        .PolarScatter(theta, r, s =>
+        .PolarScatter(r, theta, s =>
         {
-            s.Color = Colors.Purple;
+            s.Color = Css4Colors.Purple;
             s.MarkerSize = 4;
-            s.Alpha = 0.6;
             s.Label = "Measurements";
         })
         .WithLegend())
@@ -119,7 +114,6 @@ for (int t = 0; t < 12; t++)
 
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .SetPolar()
         .PolarHeatmap(data, thetaBins: 12, rBins: 8)
         .WithColorMap("viridis")
         .WithColorBar())

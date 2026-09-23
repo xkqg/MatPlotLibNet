@@ -83,7 +83,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax.Clustermap(data, s =>
     {
-        s.ColorMap = ColorMaps.RdBu;
+        s.ColorMap = DivergingColorMaps.RdBu;
         s.ShowLabels = true;
         s.LabelFormat = "F2";
     }))

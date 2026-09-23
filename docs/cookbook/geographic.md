@@ -38,9 +38,9 @@ Plt.Create()
     .WithSize(600, 600)
     .AddSubPlot(1, 1, 1, ax => ax
         .WithProjection(proj)
-        .Ocean(proj, Colors.LightBlue)
-        .Land(proj, Colors.LightGreen)
-        .Coastlines(proj, Colors.DarkBlue, lineWidth: 0.8)
+        .Ocean(proj, Css4Colors.LightBlue)
+        .Land(proj, Css4Colors.LightGreen)
+        .Coastlines(proj, Css4Colors.DarkBlue, lineWidth: 0.8)
         .Borders(proj, Colors.Gray, lineWidth: 0.3))
     .Save("globe.svg");
 ```
@@ -111,7 +111,7 @@ for (int i = 0; i < 4; i++)
     var (name, proj) = projections[i];
     builder.AddSubPlot(2, 2, i + 1, ax => ax
         .WithProjection(proj)
-        .Coastlines(proj, Colors.DarkBlue, lineWidth: 0.6)
+        .Coastlines(proj, Css4Colors.DarkBlue, lineWidth: 0.6)
         .Land(proj, Colors.Wheat)
         .WithTitle(name));
 }
@@ -157,14 +157,13 @@ foreach (var feature in features)
 }
 
 // Add custom features as a GeoPolygonSeries
-var series = new GeoPolygonSeries(proj)
+var series = new GeoPolygonSeries(features, proj)
 {
     Color = Colors.CornflowerBlue,
-    StrokeColor = Colors.DarkBlue,
+    StrokeColor = Css4Colors.DarkBlue,
     StrokeWidth = 0.5,
     Label = "My Regions"
 };
-series.Features.AddRange(features);
 ```
 
 ## Edge handling
@@ -181,7 +180,7 @@ Plt.Create()
     .WithTitle("Dateline Handling — Russia renders correctly")
     .AddSubPlot(1, 1, 1, ax => ax
         .WithProjection(proj)
-        .Land(proj, Colors.LightGreen)
+        .Land(proj, Css4Colors.LightGreen)
         .Coastlines(proj))
     .Save("dateline.svg");
 

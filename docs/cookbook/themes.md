@@ -89,7 +89,7 @@ var custom = Theme.CreateFrom(Theme.Dark)
     .WithBackground(Color.FromHex("#1e1e2e"))
     .WithForegroundText(Colors.White)
     .WithAxesBackground(Color.FromHex("#282a36"))
-    .WithCycleColors(Colors.Cyan, Colors.Pink, Colors.Green, Colors.Yellow)
+    .WithCycleColors(Colors.Cyan, Css4Colors.Pink, Colors.Green, Colors.Yellow)
     .WithFont(f => f with { Family = "JetBrains Mono", Size = 11 })
     .WithGrid(g => g with
     {
@@ -114,7 +114,7 @@ Control how colors and line styles cycle across the series of a multi-series plo
 
 ```csharp
 var cycler = new PropCyclerBuilder()
-    .WithColors(Colors.Cyan, Colors.Magenta, Colors.Gold, Colors.LimeGreen)
+    .WithColors(Colors.Cyan, Colors.Magenta, Colors.Gold, Css4Colors.LimeGreen)
     .WithLineStyles(LineStyle.Solid, LineStyle.Dashed, LineStyle.DashDot, LineStyle.Dotted)
     .Build();
 

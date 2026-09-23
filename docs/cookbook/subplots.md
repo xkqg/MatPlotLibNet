@@ -77,15 +77,11 @@ Plt.Create()
 
 ```csharp
 Plt.Create()
-    .WithSubPlotSpacing(s => s with
-    {
-        Left = 0.1,
-        Right = 0.95,
-        Top = 0.9,
-        Bottom = 0.1,
-        WSpace = 0.3,   // horizontal gap between subplots
-        HSpace = 0.4,   // vertical gap between subplots
-    })
+    // Margins as fractions of the figure, the way matplotlib's subplot params read. The gaps between
+    // panels are pixels, so they stay the same whatever size the figure is.
+    .WithSubPlotSpacing(_ => SubPlotSpacing.FromFractions(
+        left: 0.10, right: 0.05, top: 0.10, bottom: 0.10,
+        horizontalGap: 30, verticalGap: 40))
     .AddSubPlot(2, 2, 1, ax => ax.Plot(x, y1).WithTitle("A"))
     .AddSubPlot(2, 2, 2, ax => ax.Plot(x, y2).WithTitle("B"))
     .AddSubPlot(2, 2, 3, ax => ax.Plot(x, y3).WithTitle("C"))

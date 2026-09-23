@@ -87,7 +87,7 @@ Plt.Create()
         .RelativeRotation(altCloses, btcWeekly, labels, s =>
         {
             s.TailLength = 12;
-            s.ColorMap   = ColorMaps.Tab10;
+            s.ColorMap   = QualitativeColorMaps.Tab10;
         }))
     .Save("rrg_crypto.svg");
 ```

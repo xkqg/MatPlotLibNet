@@ -34,6 +34,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `AddSubPlot`. Both are corrected, and so is the C# example on the MCP page, which set its axis labels the same
   way. All were checked by compiling them.
 
+- **And so does every other example in the documentation.** Checking that one page led to checking all of them:
+  every C# block in the documentation was extracted and compiled, and 94 of them did not build. They reached for
+  colours that live on `Css4Colors` rather than the forty on `Colors`, set axis and legend verbs on the figure
+  builder instead of on an axes, and named members the library had since renamed — `ShowValues`, `AutoPct`,
+  `SetPolar`, `HatchPattern.Slash`, `DrawStyle.StepPre`, `SubPlotSpacing.Left`. Two were worse than a compile
+  error: the polar samples passed their pair as `(theta, r)` where the call takes `(r, theta)`, so they drew a
+  different chart than the one they described, and the box and violin samples passed a label array the call has
+  never had. Every example on the site now compiles against the assemblies of this release.
+
 ## [1.17.1]
 ### Added
 

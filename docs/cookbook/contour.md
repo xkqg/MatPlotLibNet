@@ -60,7 +60,6 @@ Plt.Create()
             s.LevelValues = [-0.8, -0.4, 0, 0.4, 0.8];
             s.ShowLabels = true;
             s.LabelFormat = "F1";
-            s.LineWidth = 1.5;
         })
         .WithColorMap("RdBu"))
     .Save("contour_custom_levels.svg");
@@ -93,7 +92,6 @@ Plt.Create()
             s.Levels = 12;
             s.ShowLabels = true;
             s.LabelFormat = "F2";
-            s.LineWidth = 0.8;
         })
         .WithColorBar())
     .Save("contour_overlay.svg");
@@ -123,4 +121,3 @@ Plt.Create()
 | `LabelFormat` | `string` | `"G"` | .NET format string for labels |
 | `LabelFontSize` | `double` | `8` | Label font size |
 | `ColorMap` | `IColorMap` | auto | Colormap for level colors |
-| `LineWidth` | `double` | `1.0` | Contour line width |

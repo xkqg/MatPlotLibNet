@@ -107,9 +107,9 @@ Plt.Create()
 
 ## Annotated heatmap (correlation matrix)
 
-`ShowValues = true` renders each cell's numeric value on top of the colour fill. The text
+`ShowLabels = true` renders each cell's numeric value on top of the colour fill. The text
 colour is chosen per cell, black or white, using Rec. 709 luminance, so labels stay
-readable across the colour map. Use `CellValueFormat` with any standard .NET numeric
+readable across the colour map. Use `LabelFormat` with any standard .NET numeric
 format string, for example `"F2"` (the default) for two decimals or `"P1"` for percent.
 
 ```csharp
@@ -120,9 +120,9 @@ Plt.Create()
         .WithTitle("Asset Correlation Matrix")
         .Heatmap(corr, s =>
         {
-            s.ColorMap = ColorMaps.RdBu_r;
-            s.ShowValues = true;
-            s.CellValueFormat = "F2";
+            s.ColorMap = new ReversedColorMap(DivergingColorMaps.RdBu);
+            s.ShowLabels = true;
+            s.LabelFormat = "F2";
         })
         .WithColorBar())
     .Save("heatmap_annotated.svg");
@@ -143,8 +143,8 @@ Plt.Create()
         .WithTitle("Lower-triangle correlation")
         .Heatmap(corr, s =>
         {
-            s.ColorMap = ColorMaps.RdBu_r;
-            s.ShowValues = true;
+            s.ColorMap = new ReversedColorMap(DivergingColorMaps.RdBu);
+            s.ShowLabels = true;
             s.MaskMode = HeatmapMaskMode.UpperTriangleStrict;  // hide upper half + diagonal
         })
         .WithColorBar())
@@ -178,8 +178,11 @@ Plt.Create()
 
 ```csharp
 var rng = new Random(42);
-double[] x = Enumerable.Range(0, 5000).Select(_ => rng.NextGaussian(0, 1)).ToArray();
-double[] y = Enumerable.Range(0, 5000).Select(_ => rng.NextGaussian(0, 1)).ToArray();
+// Box-Muller: a normally distributed sample built from two uniform ones.
+double Gaussian(double mean, double sd) =>
+    mean + sd * Math.Sqrt(-2 * Math.Log(rng.NextDouble())) * Math.Cos(2 * Math.PI * rng.NextDouble());
+double[] x = Enumerable.Range(0, 5000).Select(_ => Gaussian(0, 1)).ToArray();
+double[] y = Enumerable.Range(0, 5000).Select(_ => Gaussian(0, 1)).ToArray();
 
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax

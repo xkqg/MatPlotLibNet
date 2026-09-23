@@ -118,16 +118,16 @@ Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
         .Bar(products, q1, s =>
         {
-            s.Color = Colors.LightBlue;
-            s.Hatch = HatchPattern.Slash;
-            s.HatchColor = Colors.DarkBlue;
+            s.Color = Css4Colors.LightBlue;
+            s.Hatch = HatchPattern.ForwardDiagonal;
+            s.HatchColor = Css4Colors.DarkBlue;
             s.Label = "Q1";
         })
         .Bar(products, q2, s =>
         {
-            s.Color = Colors.LightCoral;
-            s.Hatch = HatchPattern.BackslashDouble;
-            s.HatchColor = Colors.DarkRed;
+            s.Color = Css4Colors.LightCoral;
+            s.Hatch = HatchPattern.BackDiagonal;
+            s.HatchColor = Css4Colors.DarkRed;
             s.Label = "Q2";
         })
         .WithLegend())

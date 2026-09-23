@@ -48,20 +48,21 @@ pattern string becomes a panel:
 
 ```csharp
 Plt.Mosaic("ABC\nDEF")
-    .Panel('A', ax => ax.StatTile(12,       t => { t.Label = "Participants"; t.Format = "0"; }))
-    .Panel('B', ax => ax.StatTile(0,        t => { t.Label = "Alerts";       t.Format = "0"; }))
-    .Panel('C', ax => ax.StatTile(99.4,     t => { t.Label = "Uptime %";     t.Format = "0.0"; }))
-    .Panel('D', ax => ax.StatTile(1_042,    t => { t.Label = "Messages/s";   t.Format = "0"; }))
-    .Panel('E', ax => ax.StatTile(3.7,      t => { t.Label = "Latency ms";   t.Format = "0.0"; }))
-    .Panel('F', ax => ax.StatTile(2,        t =>
+    .Panel("A", ax => ax.StatTile(12,       t => { t.Label = "Participants"; t.Format = "0"; }))
+    .Panel("B", ax => ax.StatTile(0,        t => { t.Label = "Alerts";       t.Format = "0"; }))
+    .Panel("C", ax => ax.StatTile(99.4,     t => { t.Label = "Uptime %";     t.Format = "0.0"; }))
+    .Panel("D", ax => ax.StatTile(1_042,    t => { t.Label = "Messages/s";   t.Format = "0"; }))
+    .Panel("E", ax => ax.StatTile(3.7,      t => { t.Label = "Latency ms";   t.Format = "0.0"; }))
+    .Panel("F", ax => ax.StatTile(2,        t =>
     {
         t.Label       = "Errors";
         t.AccentColor = Colors.Red;
         t.Format      = "0";
     }))
-    .WithTitle("Fleet Overview")
-    .WithTheme(Theme.Dark)
-    .WithSize(900, 300)
+    .Configure(fig => fig
+        .WithTitle("Fleet Overview")
+        .WithTheme(Theme.Dark)
+        .WithSize(900, 300))
     .Save("fleet_tiles.svg");
 ```
 
@@ -160,12 +161,13 @@ var workerC = new StateSegment[]
 };
 
 Plt.Mosaic("A\nB\nC")
-    .Panel('A', ax => ax.StateTimeline(workerA, s => s.Label = "Worker A").WithTitle("Worker A"))
-    .Panel('B', ax => ax.StateTimeline(workerB, s => s.Label = "Worker B").WithTitle("Worker B"))
-    .Panel('C', ax => ax.StateTimeline(workerC, s => s.Label = "Worker C").WithTitle("Worker C"))
-    .WithTitle("Fleet state timeline")
-    .WithSize(900, 350)
-    .TightLayout()
+    .Panel("A", ax => ax.StateTimeline(workerA, s => s.Label = "Worker A").WithTitle("Worker A"))
+    .Panel("B", ax => ax.StateTimeline(workerB, s => s.Label = "Worker B").WithTitle("Worker B"))
+    .Panel("C", ax => ax.StateTimeline(workerC, s => s.Label = "Worker C").WithTitle("Worker C"))
+    .Configure(fig => fig
+        .WithTitle("Fleet state timeline")
+        .WithSize(900, 350)
+        .TightLayout())
     .Save("fleet_timelines.svg");
 ```
 
@@ -182,14 +184,15 @@ var alarmHistory = new StateSegment[]
 };
 
 Plt.Mosaic("AAB\nAAC")
-    .Panel('A', ax => ax
+    .Panel("A", ax => ax
         .StateTimeline(alarmHistory)
         .WithTitle("Alarm history (minutes)"))
-    .Panel('B', ax => ax.StatTile(2, t => { t.Label = "Alerts today"; t.AccentColor = Colors.Red; t.Format = "0"; }))
-    .Panel('C', ax => ax.StatTile(99.3, t => { t.Label = "Uptime %"; t.Format = "0.0"; }))
-    .WithTheme(Theme.Dark)
-    .WithSize(900, 400)
-    .TightLayout()
+    .Panel("B", ax => ax.StatTile(2, t => { t.Label = "Alerts today"; t.AccentColor = Colors.Red; t.Format = "0"; }))
+    .Panel("C", ax => ax.StatTile(99.3, t => { t.Label = "Uptime %"; t.Format = "0.0"; }))
+    .Configure(fig => fig
+        .WithTheme(Theme.Dark)
+        .WithSize(900, 400)
+        .TightLayout())
     .Save("ops_dashboard.svg");
 ```
 

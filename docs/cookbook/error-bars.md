@@ -16,7 +16,8 @@ double[] yerr = [0.5, 0.3, 0.8, 0.4, 0.6];
 
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .ErrorBar(x, y, yerr, s =>
+        // One error array up and down: the same values are passed twice, which is what symmetric means.
+        .ErrorBar(x, y, yerr, yerr, s =>
         {
             s.Color = Colors.Blue;
             s.Label = "Measurement";
@@ -35,7 +36,7 @@ Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
         .ErrorBar(x, y, yerrLow, yerrHigh, s =>
         {
-            s.Color = Colors.DarkRed;
+            s.Color = Css4Colors.DarkRed;
             s.CapSize = 6;        // width of the error bar caps
             s.LineWidth = 1.5;
         }))
