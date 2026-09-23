@@ -21,6 +21,7 @@
                 <ModulePath>.*MatPlotLibNet\.DataFrame\.dll$</ModulePath>
                 <ModulePath>.*MatPlotLibNet\.GraphQL\.dll$</ModulePath>
                 <ModulePath>.*MatPlotLibNet\.Mcp\.dll$</ModulePath>
+                <ModulePath>.*MatPlotLibNet\.Verso\.dll$</ModulePath>
             </Include>
             <Exclude>
                 <ModulePath>.*\.Tests\.dll$</ModulePath>

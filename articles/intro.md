@@ -1,6 +1,6 @@
 # MatPlotLibNet Documentation
 
-**matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 83 series types, 148 colormaps, 30 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 14 NuGet packages + 3 npm bindings.
+**matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 83 series types, 148 colormaps, 30 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 15 NuGet packages + 3 npm bindings.
 
 v1.14.0 is the **control-room pack**: `Plt.OpsDashboard()` (fluent KPI-tile + state-timeline +
 trend-panel composition, pinned to a caller-supplied time window), `BulletGraphSeries` (Few's
@@ -28,8 +28,8 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 | [Bidirectional SignalR](https://github.com/xkqg/MatPlotLibNet/wiki/Bidirectional-SignalR) | Server-side interaction with live figure re-render |
 | [Accessibility](https://github.com/xkqg/MatPlotLibNet/wiki/Accessibility) | ARIA, colorblind-safe palettes, high-contrast theme |
 | [Advanced](https://github.com/xkqg/MatPlotLibNet/wiki/Advanced) | Layouts, date axes, math text, animations, real-time |
-| [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) | All 14 NuGet packages + 3 npm bindings in detail |
-| [Notebooks](https://github.com/xkqg/MatPlotLibNet/wiki/Notebooks) | Polyglot Notebooks + Jupyter inline rendering. The runtime underneath has been ended by Microsoft; new work belongs in MatPlotLibNet.Interactive |
+| [Package Map](https://github.com/xkqg/MatPlotLibNet/wiki/Package-Map) | All 15 NuGet packages + 3 npm bindings in detail |
+| [Notebooks](https://github.com/xkqg/MatPlotLibNet/wiki/Notebooks) | Polyglot Notebooks + Jupyter inline rendering. The runtime underneath has been ended by Microsoft; new work belongs in MatPlotLibNet.Verso, the extension for the notebook built to replace it |
 | [Benchmarks](https://github.com/xkqg/MatPlotLibNet/wiki/Benchmarks) | SVG rendering, SIMD transforms, indicators, PNG/PDF |
 | [Roadmap](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap) | Version history and planned phases |
 | [Contributing](https://github.com/xkqg/MatPlotLibNet/wiki/Contributing) | Build, test, coding conventions |

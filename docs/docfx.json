@@ -14,6 +14,7 @@
             "Src/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.csproj",
             "Src/MatPlotLibNet.Geo/MatPlotLibNet.Geo.csproj",
             "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj",
+            "Src/MatPlotLibNet.Verso/MatPlotLibNet.Verso.csproj",
             "Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj"
           ],
           "src": ".."

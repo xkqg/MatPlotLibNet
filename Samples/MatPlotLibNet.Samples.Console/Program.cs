@@ -31,7 +31,7 @@ static string SamplesPath(string name)
 }
 
 // The same walk, but for the few files that belong at the repository ROOT rather than in images/ —
-// the package icon, which Directory.Build.props packs into all fourteen packages from there.
+// the package icon, which Directory.Build.props packs into all fifteen packages from there.
 static string RepoPath(string name)
 {
     var dir = AppContext.BaseDirectory;
@@ -2209,7 +2209,7 @@ Console.WriteLine("Saved international.svg and international.png");
 
 // --- 43. The package icon — drawn by the library it stands for ---
 //
-// 128x128 PNG at the repository root, packed into all fourteen packages by Directory.Build.props. It is a
+// 128x128 PNG at the repository root, packed into all fifteen packages by Directory.Build.props. It is a
 // pcolormesh under viridis with one bold trace over it: the two things this library is for, in the one colour
 // map that says "scientific plotting" without a word. No text — at the 16 pixels a package list shows, a word
 // is a smudge. Six cells to a side is as fine as it can go and still read there.

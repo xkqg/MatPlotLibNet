@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- One target, deliberately. Verso's own documentation says a single net8.0 target works on newer
+         runtimes, and Verso.Abstractions 1.0.0 — the version this package compiles against — ships net8.0
+         only, so a second target would compile twice against the same reference for nothing. -->
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- NuGet Package Properties -->
+    <PackageId>MatPlotLibNet.Verso</PackageId>
+    <Version>1.18.0</Version>
+    <Description>Charts in Verso notebooks. Return a figure — or the builder that makes one — from a C# cell and it draws inline as SVG, with no import and nothing to call. Install it from Verso's own Extensions panel; Verso is the open-source notebook that replaces Polyglot Notebooks. The chart is drawn by matplotlib for .NET: 83 chart types, 148 colormaps.</Description>
+    <PackageTags>matplotlib;verso;notebook;charting;plotting;visualization;svg;dotnet</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The ONLY reference, and pinned exactly at the oldest version that carries every member this package
+         calls. The host refuses an extension compiled against a NEWER minor of the abstractions than it runs
+         itself, and the official extension template's floating `1.*` silently rises on any later restore —
+         which would lock out every reader still on an older Verso. -->
+    <PackageReference Include="Verso.Abstractions" Version="[1.0.0]" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

@@ -8,7 +8,7 @@ It has a fluent API and it works with dependency injection. It ships with 148 co
 projections with embedded Natural Earth data, LaTeX-style MathText, text in any script, O(1) streaming with 53
 technical indicators, a control room (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window),
 and an MCP server so an AI agent can draw with it. Charts render natively in Blazor, WPF, MAUI, Avalonia, Uno and
-ASP.NET Core, and TypeScript clients are there for Angular, React and Vue.
+ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for Angular, React and Vue.
 
 [![CI](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml/badge.svg)](https://github.com/xkqg/MatPlotLibNet/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/MatPlotLibNet)](https://www.nuget.org/packages/MatPlotLibNet)
@@ -17,6 +17,16 @@ ASP.NET Core, and TypeScript clients are there for Angular, React and Vue.
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
 ## Where this is going
+
+**1.18** draws charts inside a [Verso](https://www.versonotebooks.com/) notebook. Verso is the open-source
+notebook built to replace Polyglot Notebooks, and `MatPlotLibNet.Verso` is an extension you install from its
+Extensions panel. After that a cell that ends on a figure — or on the builder that makes one, without
+`.Build()` — shows the chart instead of a line of type names. The chart fills the width of the cell, and one
+taller than the cell can show gets a scroll box rather than being squeezed into a size nobody chose. The package
+carries the extension and nothing else on purpose: a notebook loads an extension in its own context, so a second
+copy of the charting library shipped alongside would be a different `Figure` from the one the cell made.
+`MatPlotLibNet.Notebooks` stands still at the version it reached; the runtime under Polyglot Notebooks has ended,
+and notebook work belongs in Verso now.
 
 **1.17.1** is a patch on top of it. A clicked data point now reaches your own code — the desktop controls and
 the SignalR route both hand it over with its series, its value and where it was. The control room gained a
@@ -87,7 +97,8 @@ pixel-fidelity fixtures.
 | **MatPlotLibNet.Uno** | `dotnet add package MatPlotLibNet.Uno` | Native `MplChartElement` for Uno Platform (WinUI 3 / Android / iOS / macCatalyst) |
 | **MatPlotLibNet.Wpf** | `dotnet add package MatPlotLibNet.Wpf` | Native WPF `MplChartControl` via SkiaSharp — all 9 interaction modifiers |
 | **MatPlotLibNet.Geo** | `dotnet add package MatPlotLibNet.Geo` | 13 map projections, GeoJSON parser, Natural Earth 110m data, geographic polygons |
-| **MatPlotLibNet.Notebooks** | `#r "nuget: MatPlotLibNet.Notebooks"` | Inline SVG in Polyglot / Jupyter notebooks. Microsoft has ended Polyglot Notebooks and .NET Interactive, which this package builds on, so existing notebooks keep working but nothing new is coming — for new work use **MatPlotLibNet.Interactive** |
+| **[MatPlotLibNet.Verso](https://www.nuget.org/packages/MatPlotLibNet.Verso)** | Verso → Extensions panel | A chart inside a Verso notebook cell, drawn as SVG ([cookbook](docs/cookbook/verso.md)) |
+| **MatPlotLibNet.Notebooks** | `#r "nuget: MatPlotLibNet.Notebooks"` | Inline SVG in Polyglot / Jupyter notebooks. Microsoft has ended Polyglot Notebooks and .NET Interactive, which this package builds on, so existing notebooks keep working but nothing new is coming — for new work use **MatPlotLibNet.Verso** |
 | **[MatPlotLibNet.Mcp](https://www.nuget.org/packages/MatPlotLibNet.Mcp)** | `dnx MatPlotLibNet.Mcp` | MCP server — an AI agent renders charts over stdio ([cookbook](docs/cookbook/mcp.md)) |
 | **@matplotlibnet/angular** | `npm install @matplotlibnet/angular` | Angular components + TypeScript SignalR client |
 | **@matplotlibnet/react** | `npm install @matplotlibnet/react` | React hooks + components + TypeScript SignalR client |
@@ -107,8 +118,9 @@ double[] y = [2, 4, 3, 5, 1];
 Plt.Create()
     .WithTitle("My First Chart")
     .WithTheme(Theme.Dark)
-    .Plot(x, y, s => { s.Color = Color.Blue; s.Label = "Data"; })
-    .WithLegend()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s => { s.Color = Colors.Blue; s.Label = "Data"; })
+        .WithLegend())
     .Save("chart.svg");
 ```
 

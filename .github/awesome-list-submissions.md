@@ -101,7 +101,7 @@ MatPlotLibNet is a new MIT-licensed charting library for .NET 10 that brings mat
 - Bidirectional SignalR for server-authoritative interactive charts
 - SVG, PNG, PDF, and animated GIF export
 - An MCP server (`MatPlotLibNet.Mcp`) so an AI agent can render any of these chart types from a JSON spec
-- 14 NuGet packages, 11,000+ tests
+- 15 NuGet packages, 11,000+ tests
 
 NuGet: https://www.nuget.org/packages/MatPlotLibNet
 GitHub: https://github.com/xkqg/MatPlotLibNet

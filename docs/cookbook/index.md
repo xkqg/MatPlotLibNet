@@ -45,5 +45,6 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators, minor ticks |
 | [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition, topology panel (the service map) |
 | [MCP server (AI agents)](mcp.md) | Render charts from Claude, VS Code or any MCP host; the spec format, the five tools, the refusal messages |
+| [Verso notebooks](verso.md) | A chart inside a notebook cell: end the cell on a figure or a builder, how tall a chart may be, what a failed render says |
 | [Accessibility](accessibility.md) | The data table beside the chart (`ToDataTables()` → HTML/markdown/CSV), color-blind safe palette, high-contrast theme, ARIA semantics, keyboard navigation |
 | [International text](international-text.md) | Arabic and Hebrew out of the box, registering a font file for other scripts (`SkiaFonts.Register`), the `MATPLOTLIBNET_FONTS` variable for the MCP server, what kerning changed |

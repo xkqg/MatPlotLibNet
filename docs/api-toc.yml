@@ -42,6 +42,8 @@ items:
     name: GraphQL
   - uid: MatPlotLibNet.Mcp
     name: Mcp
+  - uid: MatPlotLibNet.Verso
+    name: Verso
   - uid: MatPlotLibNet.Notebooks
     name: Notebooks
   - uid: MatPlotLibNet.Avalonia

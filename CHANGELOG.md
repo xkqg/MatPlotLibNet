@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.18.0]
+
+### Added
+
+- **Charts in Verso notebooks.** `MatPlotLibNet.Verso` is a formatter extension for
+  [Verso](https://www.versonotebooks.com/), the open-source notebook that replaces Polyglot Notebooks. Install
+  it from Verso's own Extensions panel, return a figure — or the builder that makes one — from a C# cell, and
+  it draws inline as SVG. Nothing to import and nothing to call: the cell's last expression is the chart.
+
+### Changed
+
+- **`MatPlotLibNet.Notebooks` stands still at 1.17.1.** It renders into Polyglot Notebooks, whose runtime
+  Microsoft has ended, so the package keeps the version it was last released at while the rest of the family
+  moves on. It stays on NuGet and existing notebooks keep working; new notebook work belongs in
+  `MatPlotLibNet.Verso`. Nothing builds, publishes or measures it any more, and that is now written into the
+  release contract with its reason rather than left to memory.
+
+- **The coverage gate can no longer pass over an assembly it never saw.** Two hand-kept lists decide what the
+  gate measures — the collector's allowlist and the suites the runner executes — and neither was read by any
+  test, so a package could be built by CI, shipped to readers and measured by nothing while the gate reported
+  every class above the threshold. A contract test now holds both lists against the packages CI builds.
+
+### Fixed
+
+- **The first example on the front page compiles.** The quick start in the README and on the documentation home
+  page reached for a colour that is not there (`Color.Blue`; the palette is `Colors`) and called `WithLegend()`
+  on the figure builder, where it does not exist — a legend belongs to an axes, which a chart reaches through
+  `AddSubPlot`. Both are corrected, and so is the C# example on the MCP page, which set its axis labels the same
+  way. All were checked by compiling them.
+
 ## [1.17.1]
 ### Added
 

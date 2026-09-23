@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.17.1)
+# MatPlotLibNet Core -- Architecture (v1.18.0)
 
 ## Package dependency graph
 
@@ -18,9 +18,16 @@ MatPlotLibNet (Core)                      net10.0 + net8.0
     +-- MatPlotLibNet.Mcp                 ModelContextProtocol (stdio MCP server, net10.0, dotnet tool)
     |       + MatPlotLibNet.Skia           (PNG/PDF for the agent's tools)
     |
+    +-- MatPlotLibNet.Verso               Verso.Abstractions ONLY (net8.0) -- a notebook loads an extension in
+    |                                       its own AssemblyLoadContext, so the chart type is matched BY NAME
+    |                                       and rendered through the assembly the cell's own value came from.
+    |                                       Shipping the core alongside would load it twice and give the
+    |                                       extension a different Figure from the cell's
+    |
     +-- MatPlotLibNet.Notebooks           Microsoft.DotNet.Interactive (Polyglot Notebooks) -- the runtime
-    |                                       underneath has been ended by Microsoft; new work goes to
-    |                                       MatPlotLibNet.Interactive
+    |                                       underneath has been ended by Microsoft. Frozen at the version it
+    |                                       reached, built and pushed by nothing; new work goes to
+    |                                       MatPlotLibNet.Verso
     |
     +-- MatPlotLibNet.Maui                Microsoft.Maui.Controls
     |
@@ -36,15 +43,15 @@ MatPlotLibNet (Core)                      net10.0 + net8.0
 ```
 Directory.Build.props             imported BEFORE every project: authorship, the repository URL, deterministic
                                   builds, Source Link, EnableWindowsTargeting for non-Windows hosts, and the
-                                  package icon all fourteen packages carry
+                                  package icon all fifteen packages carry
 icon.png                          the 128x128 package icon, at the repository root so the props file above can
                                   pack it into every package. Drawn BY the library — sample 43 of the console
                                   sample generator renders it — so the mark cannot drift from what the library
                                   actually produces. ReleaseContractTests checks the format, the size and the
                                   1 MB ceiling nuget.org enforces at push time
 Directory.Build.targets           imported AFTER every project, so the version it declared is already known.
-                                  Holds the one release-notes sentence all fourteen packages carry, with the
-                                  version and the changelog anchor built from that version. Fourteen hand-kept
+                                  Holds the one release-notes sentence all fifteen packages carry, with the
+                                  version and the changelog anchor built from that version. Fifteen hand-kept
                                   copies would drift the first time one was forgotten
 ```
 

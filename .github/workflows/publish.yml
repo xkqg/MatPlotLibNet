@@ -62,6 +62,7 @@ jobs:
           dotnet run --project Tst/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.Tests.csproj --no-build --configuration Release
+          dotnet run --project Tst/MatPlotLibNet.Verso/MatPlotLibNet.Verso.Tests.csproj --no-build --configuration Release
 
       - name: Pack
         run: dotnet pack MatPlotLibNet.CI.slnf --no-build --configuration Release --output nupkgs

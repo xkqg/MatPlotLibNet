@@ -85,9 +85,10 @@ using MatPlotLibNet.Styling;
 string spec = Plt.Create()
     .WithSize(800, 600)
     .WithTitle("Revenue")
-    .SetXLabel("Quarter")
-    .SetYLabel("€M")
-    .Plot([1, 2, 3, 4], [12, 18, 15, 22], s => { s.Label = "2026"; s.Color = Color.FromName("steelblue"); })
+    .AddSubPlot(1, 1, 1, ax => ax
+        .SetXLabel("Quarter")
+        .SetYLabel("€M")
+        .Plot([1, 2, 3, 4], [12, 18, 15, 22], s => { s.Label = "2026"; s.Color = Color.FromName("steelblue"); }))
     .Build()
     .ToJson(indented: true);
 ```

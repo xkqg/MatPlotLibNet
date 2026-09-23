@@ -57,6 +57,7 @@ jobs:
           # DataFrame was built by the filter and never run here — eight suites guarded nine projects.
           dotnet run --project Tst/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.Tests.csproj --no-build --configuration Release
+          dotnet run --project Tst/MatPlotLibNet.Verso/MatPlotLibNet.Verso.Tests.csproj --no-build --configuration Release
 
   coverage:
     runs-on: ubuntu-latest

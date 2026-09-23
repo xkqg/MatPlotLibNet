@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <!-- Single TFM on purpose: the only shipped PackageType=McpServer reference (Microsoft.McpServer.ProjectTemplates)
@@ -12,7 +12,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Mcp</PackageId>
-    <Version>1.17.1</Version>
+    <Version>1.18.0</Version>
     <Description>MCP (Model Context Protocol) stdio server for MatPlotLibNet. An AI agent renders the library's chart types to PNG, SVG or PDF from a JSON spec, reads the chart's data back as a markdown table, lists the chart types and reads the spec schema — no browser, no service.</Description>
     <PackageTags>matplotlib;mcp;model-context-protocol;ai;agent;charting;plotting;visualization;stdio;plot</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

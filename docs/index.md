@@ -9,7 +9,7 @@ description: "MatPlotLibNet is a charting library for C# and .NET, inspired by m
 
 # MatPlotLibNet — matplotlib for .NET
 
-**A charting library for C#, .NET 10 and .NET 8.** It draws 83 chart types and saves them as SVG, PNG, PDF or an animated GIF, straight from your server code. It comes with 148 colormaps, 13 map projections, 30 themes, streaming, an MCP server for AI agents, and native controls for Blazor, WPF, MAUI, Avalonia and Uno. It comes as 14 NuGet packages, and it needs no JavaScript framework, no WebView and no hosted service.
+**A charting library for C#, .NET 10 and .NET 8.** It draws 83 chart types and saves them as SVG, PNG, PDF or an animated GIF, straight from your server code. It comes with 148 colormaps, 13 map projections, 30 themes, streaming, an MCP server for AI agents, and native controls for Blazor, WPF, MAUI, Avalonia and Uno. It comes as 15 NuGet packages, and it needs no JavaScript framework, no WebView and no hosted service.
 
 ## Quick start
 
@@ -23,8 +23,9 @@ double[] y = [2, 4, 3, 5, 1];
 Plt.Create()
     .WithTitle("My First Chart")
     .WithTheme(Theme.Dark)
-    .Plot(x, y, s => { s.Color = Color.Blue; s.Label = "Data"; })
-    .WithLegend()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(x, y, s => { s.Color = Colors.Blue; s.Label = "Data"; })
+        .WithLegend())
     .Save("chart.svg");
 ```
 
@@ -56,4 +57,5 @@ Plt.Create()
 | [`MatPlotLibNet.Wpf`](https://www.nuget.org/packages/MatPlotLibNet.Wpf) | Native WPF chart control via SkiaSharp |
 | [`MatPlotLibNet.Geo`](https://www.nuget.org/packages/MatPlotLibNet.Geo) | 13 map projections, GeoJSON, Natural Earth 110m data |
 | [`MatPlotLibNet.Mcp`](https://www.nuget.org/packages/MatPlotLibNet.Mcp) | MCP server that provides charts for an AI agent |
-| [`MatPlotLibNet.Notebooks`](https://www.nuget.org/packages/MatPlotLibNet.Notebooks) | Inline SVG in Polyglot or Jupyter notebooks. Microsoft has ended the runtime underneath it, so existing notebooks keep working and new work belongs in `MatPlotLibNet.Interactive` |
+| [`MatPlotLibNet.Verso`](https://www.nuget.org/packages/MatPlotLibNet.Verso) | Charts inside a Verso notebook cell, drawn as SVG |
+| [`MatPlotLibNet.Notebooks`](https://www.nuget.org/packages/MatPlotLibNet.Notebooks) | Inline SVG in Polyglot or Jupyter notebooks. Microsoft has ended the runtime underneath it, so existing notebooks keep working and new work belongs in `MatPlotLibNet.Verso` |

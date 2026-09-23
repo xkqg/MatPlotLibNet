@@ -68,3 +68,5 @@
   href: dashboard.md
 - name: MCP server (AI agents)
   href: mcp.md
+- name: Verso notebooks
+  href: verso.md

@@ -10,7 +10,7 @@ namespace MatPlotLibNet.Tests.Packaging;
 
 /// <summary>
 /// A release is carried by six hand-kept lists — the CI solution filter, two workflow test blocks, two coverage
-/// runners and the version in every csproj — and nothing checks that they agree. They already had drifted:
+/// runners and the version in every csproj — and nothing checked that they agree. They already had drifted:
 /// <c>ci.yml</c> ran eight test projects and skipped DataFrame, <c>publish.yml</c> ran eight and skipped Skia, so
 /// two suites guarded nothing on the very run that publishes. A list that must be edited by hand is only as good
 /// as the memory of whoever edits it; this file turns each of those agreements into a failing test instead.
@@ -67,12 +67,112 @@ public class ReleaseContractTests
         csproj.Descendants("Version").FirstOrDefault()?.Value.Trim()
         ?? throw new InvalidOperationException("no <Version>");
 
+    // ---- packages that are finished, and say so ---------------------------------------------------------------
+
+    /// <summary>Packages that are deliberately standing still: they keep the version they were last released at,
+    /// nothing builds them, nothing publishes them, and nothing measures them. A frozen package is not a forgotten
+    /// one, and the difference has to be written down or six months from now nobody can tell them apart — which is
+    /// why every test that would otherwise go red for a frozen package reads this list and says the reason.</summary>
+    private static readonly IReadOnlyDictionary<string, string> Frozen = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj"] =
+            "it renders into Polyglot Notebooks, whose runtime Microsoft has ended; MatPlotLibNet.Verso is the successor",
+    };
+
+    private static (string Path, XDocument Xml)[] LivePackages() =>
+        [.. PackableProjects().Where(p => !Frozen.ContainsKey(p.Path))];
+
+    /// <summary>The version the living packages carry — the one a release ships.</summary>
+    private static string LiveVersion() => VersionOf(LivePackages()[0].Xml);
+
+    [Fact]
+    public void AFrozenPackage_KeepsTheVersionItWasFrozenAt()
+    {
+        // Frozen means the number stops moving. If it ever equals the live version again, either somebody bumped
+        // it along with the rest out of habit, or it was never really frozen — and both read as "all fifteen agree"
+        // to every other test in this file.
+        var moved = PackableProjects()
+            .Where(p => Frozen.ContainsKey(p.Path))
+            .Where(p => string.Equals(VersionOf(p.Xml), LiveVersion(), StringComparison.Ordinal))
+            .Select(p => p.Path)
+            .ToArray();
+
+        Assert.True(moved.Length == 0,
+            $"These packages are declared frozen and carry the live version {LiveVersion()} anyway: "
+            + string.Join(", ", moved));
+    }
+
+    [Fact]
+    public void AFrozenPackage_IsBuiltByNothingAndPushedByNothing()
+    {
+        // The other half of standing still: a package that is still in the CI filter is still packed by
+        // publish-core and still pushed, so the freeze would last exactly until the next release.
+        var filter = CiFilterProjects();
+        string publish = Read(".github", "workflows", "publish.yml");
+        string uno = Read(".github", "workflows", "push-uno.yml");
+
+        var stillMoving = Frozen.Keys
+            .Where(path => filter.Contains(path, StringComparer.Ordinal)
+                        || publish.Contains(path, StringComparison.Ordinal)
+                        || uno.Contains(path, StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.True(stillMoving.Length == 0,
+            "These packages are declared frozen and a workflow still builds or pushes them: "
+            + string.Join(", ", stillMoving));
+    }
+
+    // ---- the gate can only see what it is told about ----------------------------------------------------------
+
+    /// <summary>The assemblies the coverage collector is allowed to record, read back from the
+    /// <c>&lt;ModulePath&gt;</c> regexes as the plain assembly names they match.</summary>
+    private static string[] AssembliesTheCollectorRecords() =>
+        [.. XDocument.Load(Path.Combine(Root, "tools", "coverage", "coverage.runsettings"))
+            .Descendants("ModulePath")
+            .Select(m => Regex.Match(m.Value.Trim(), @"^\.\*(.+)\\\.dll\$$").Groups[1].Value
+                              .Replace("\\.", ".", StringComparison.Ordinal))
+            .Where(name => name.Length > 0)];
+
+    /// <summary>The suites the coverage runner actually executes.</summary>
+    private static string[] SuitesTheCoverageRunnerExecutes() =>
+        [.. Regex.Matches(Read("tools", "coverage", "run.sh"), @"""(Tst/\S+\.csproj)""")
+            .Select(m => m.Groups[1].Value)];
+
+    [Fact]
+    public void EveryPackageCiBuilds_IsBothMeasuredAndExercised()
+    {
+        // The gate reads a Cobertura file, and a class that is in no Cobertura file cannot fail it. Two separate
+        // things have to be true before the gate can see an assembly at all: the collector's allowlist has to name
+        // it, and some suite the coverage runner executes has to load it. Either one alone is a green that means
+        // nothing — an allowlisted assembly no test process loads produces no rows, and a suite for an assembly
+        // outside the allowlist produces none either. This file's own summary has claimed since it was written
+        // that it pins the two coverage runners; until now no test in the solution read either of them.
+        var recorded = AssembliesTheCollectorRecords();
+        var exercised = SuitesTheCoverageRunnerExecutes();
+        var built = CiFilterProjects();
+
+        var unseen = LivePackages()
+            .Select(p => p.Xml.Descendants("PackageId").First().Value.Trim())
+            .Where(id => built.Contains($"Src/{id}/{id}.csproj", StringComparer.Ordinal))
+            .Select(id => (Id: id, Missing: string.Join(" and ", new[]
+            {
+                recorded.Contains(id, StringComparer.Ordinal) ? null : "no <ModulePath> in coverage.runsettings",
+                exercised.Contains($"Tst/{id}/{id}.Tests.csproj", StringComparer.Ordinal) ? null : "no suite in run.sh",
+            }.Where(reason => reason is not null))))
+            .Where(p => p.Missing.Length > 0)
+            .ToArray();
+
+        Assert.True(unseen.Length == 0,
+            "CI builds these packages and the coverage gate never sees a class of them: "
+            + string.Join(", ", unseen.Select(p => $"{p.Id} ({p.Missing})")));
+    }
+
     // ---- the version, in every place it is written ----------------------------------------------------------
 
     [Fact]
     public void EveryPackableProject_CarriesTheSameVersion()
     {
-        var byVersion = PackableProjects()
+        var byVersion = LivePackages()
             .GroupBy(p => VersionOf(p.Xml), StringComparer.Ordinal)
             .OrderByDescending(g => g.Count())
             .ToArray();
@@ -484,7 +584,7 @@ public class ReleaseContractTests
         string publish = Read(".github", "workflows", "publish.yml");
         string uno = Read(".github", "workflows", "push-uno.yml");
 
-        var unpublished = PackableProjects()
+        var unpublished = LivePackages()
             .Select(p => p.Path)
             .Where(path => !inFilter.Contains(path, StringComparer.Ordinal)
                            && !publish.Contains(path, StringComparison.Ordinal)

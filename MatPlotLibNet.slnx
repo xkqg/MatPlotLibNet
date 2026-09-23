@@ -14,9 +14,11 @@
     <Project Path="Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj" />
     <Project Path="Src/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.csproj" />
     <Project Path="Src/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.csproj" />
+    <Project Path="Src/MatPlotLibNet.Verso/MatPlotLibNet.Verso.csproj" />
   </Folder>
   <Folder Name="/Tst/">
     <Project Path="Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Verso/MatPlotLibNet.Verso.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Geo/MatPlotLibNet.Geo.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Skia/MatPlotLibNet.Skia.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Blazor/MatPlotLibNet.Blazor.Tests.csproj" />
