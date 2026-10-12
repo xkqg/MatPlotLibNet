@@ -18,6 +18,13 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.18.1** gives WPF a streaming chart. `MplStreamingChartControl` joins the three its siblings already had:
+bind a `StreamingFigure` to it once and the chart follows the data, where the ordinary control needed a new
+figure for every frame. The same release makes `StreamingFigure.MinRenderInterval` mean what it says — the clock
+behind it was started once when the figure was built, so asking for a calmer chart quietly kept giving you
+thirty frames a second. A clustermap now also draws the row and column labels it is given, each beside the row
+or column it names, wherever the clustering puts it.
+
 **1.18** draws charts inside a [Verso](https://www.versonotebooks.com/) notebook. Verso is the open-source
 notebook built to replace Polyglot Notebooks, and `MatPlotLibNet.Verso` is an extension you install from its
 Extensions panel. After that a cell that ends on a figure — or on the builder that makes one, without
@@ -34,29 +41,6 @@ service-topology panel, `GroupedBar` draws several bars per category in one call
 scatter by how crowded it is, and three accessible colour sequences arrived (`petroff6`, `petroff8`,
 `petroff10`). All fourteen packages carry an icon and release notes now, and the documentation site has a page
 that [translates matplotlib into C#, call by call](https://xkqg.github.io/MatPlotLibNet/cookbook/matplotlib-to-csharp.html).
-
-**1.17** draws text in any script. Arabic letters join, Hebrew reads right to left, and a number or a Latin word
-inside Arabic or Hebrew text is placed in the correct position, using the font that ships in the package. The
-Unicode bidi algorithm is implemented in full and checked against Unicode's own 861,948 test cases; HarfBuzz shapes
-each run. Other scripts need a font file: `SkiaFonts.Register(path)` registers one, and the MCP server reads font
-files from the `MATPLOTLIBNET_FONTS` variable. Latin text is now kerned too, so text widths changed by up to 2 px
-per letter pair.
-
-**1.16** adds a data table beside every chart, for a reader who cannot see the picture.
-`figure.ToDataTables()` returns the figure's data as tables with typed columns, and you can write each table
-as HTML, Markdown or CSV. Every host serves the table: an ASP.NET Core endpoint next to the SVG endpoint, a
-`ShowDataTable` option on the Blazor component, a `chartDataTable` field in the GraphQL schema, and a fifth MCP
-tool. The same release fixed the streaming series. A point and a candle are now stored as one value, so a snapshot
-can no longer show a point or a bar that never existed. The buffer behind them is now the generic `RingBuffer<T>`.
-
-**1.15** added support for AI agents. `MatPlotLibNet.Mcp` is a Model Context Protocol server. A model can render
-any of these chart types from a JSON spec and look at the result. When the spec is wrong, the server reports which
-field is wrong instead of returning a blank picture.
-
-**1.14** added the control room: `Plt.OpsDashboard()` and the tile anatomy arrived with it. The releases since
-then contain the fixes and extensions that real control-room use required: a secondary Y axis with the same
-capabilities as the primary axis, streaming that draws in SVG, 3-D axis titles that do not overlap their own
-labels, tile captions that wrap and stay inside their tile, and an ops window whose ticks are formatted as time.
 
 After that, releases follow what the community needs: bug fixes, documentation, and whatever comes up in real use.
 Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
