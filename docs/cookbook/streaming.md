@@ -133,6 +133,33 @@ sf.DefaultConfig = new StreamingAxesConfig(
     new AxisScaleMode.Fixed());
 ```
 
+## Putting it on screen in a desktop application
+
+Each native host has a control that takes the `StreamingFigure` itself. Bind it once and leave it there: the
+control subscribes to the figure, marshals the redraw to the UI thread, and scales the axes before each draw.
+
+```xml
+<!-- WPF -->
+<wpf:MplStreamingChartControl StreamingFigure="{Binding LiveChart}" />
+
+<!-- Avalonia -->
+<avalonia:MplStreamingChartControl StreamingFigure="{Binding LiveChart}" />
+
+<!-- Uno -->
+<uno:MplStreamingChartElement StreamingFigure="{Binding LiveChart}" />
+```
+
+Reach for these rather than the ordinary chart control. `MplChartControl` takes a `Figure` and redraws when
+that property changes — which, for a dependency property, means when the *reference* changes. A streaming
+figure keeps its identity while its data moves, so the ordinary control shows the first frame and nothing
+after it unless you hand it a different figure.
+
+How fast it redraws is the figure's decision, not the control's:
+
+```csharp
+sf.MinRenderInterval = TimeSpan.FromMilliseconds(100);   // ten frames a second instead of thirty
+```
+
 ## Rx integration
 
 You can connect `IObservable<T>` sources without taking a dependency on System.Reactive:

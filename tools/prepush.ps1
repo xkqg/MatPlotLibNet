@@ -63,6 +63,7 @@ Step "Build (projects outside the CI filter)" {
     # MAUI is excluded on purpose: no workload on this box, and none on the Pages runner either.
     $outside = @(
         "Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj",
+        "Tst/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.Tests.csproj",
         "Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj",
         "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj",
         "Benchmarks/MatPlotLibNet.Benchmarks/MatPlotLibNet.Benchmarks.csproj"
@@ -83,6 +84,20 @@ if (-not $SkipCoverage) {
 } else {
     Write-Host ""
     Write-Host "==> Tests + coverage gate SKIPPED (-SkipCoverage)" -ForegroundColor Yellow
+}
+
+# --- 2b. The Windows-only suite the runners cannot reach -----------------------------------------------------
+# MatPlotLibNet.Wpf is not in the CI filter and not in the coverage runsettings, because the CI runners are
+# ubuntu. Its suite therefore runs in exactly one place: here. Building it is not the same as running it, and a
+# test nothing runs is a comment.
+Step "WPF suite (Windows only, runs nowhere else)" {
+    $exe = Get-ChildItem "Tst/MatPlotLibNet.Wpf/bin/$Configuration" -Recurse -Filter "MatPlotLibNet.Wpf.Tests.exe" -ErrorAction SilentlyContinue |
+           Select-Object -First 1
+    if (-not $exe) { throw "the WPF suite was not built; nothing to run" }
+    & $exe.FullName | Tee-Object -Variable wpf | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "the WPF suite failed" }
+    $summary = ($wpf -join "`n")
+    if ($summary -notmatch "Failed:\s*0") { throw "no clean summary line from the WPF suite" }
 }
 
 # --- 3. The samples that RUN, actually run -------------------------------------------------------------------

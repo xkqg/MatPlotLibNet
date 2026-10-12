@@ -208,4 +208,51 @@ public sealed class StreamingFigureTests
         Assert.Equal(TimeSpan.FromMilliseconds(33), sf.MinRenderInterval);
         sf.Dispose();
     }
+
+    [Fact]
+    public void MinRenderInterval_SetAfterConstruction_SlowsTheRenderRequests()
+    {
+        // The property is the documented minimum interval between renders, and the only way to ask for a
+        // slower chart. The timer was armed once in the constructor and never re-armed, so a caller who set
+        // it kept getting 33 ms and could not find out: the property returned the value it was given while
+        // the cadence ignored it. `BuildStreaming(renderInterval)` sets it the same way, so every caller of
+        // that overload was affected too.
+        var (sf, series) = CreateSimple();
+        using var _ = sf;
+
+        sf.MinRenderInterval = TimeSpan.FromSeconds(10);
+
+        int fired = 0;
+        sf.RenderRequested += () => Interlocked.Increment(ref fired);
+
+        for (int i = 0; i < 10; i++)
+        {
+            series.AppendPoint(i, i);
+        }
+
+        // At the default 33 ms this window holds a dozen ticks; at ten seconds it holds none.
+        Thread.Sleep(400);
+
+        Assert.Equal(0, Volatile.Read(ref fired));
+    }
+
+    [Fact]
+    public void MinRenderInterval_LoweredAgain_LetsTheRenderRequestsResume()
+    {
+        // The other direction, so the fix cannot be "stop the timer and never restart it".
+        var (sf, series) = CreateSimple();
+        using var _ = sf;
+
+        sf.MinRenderInterval = TimeSpan.FromSeconds(10);
+        sf.MinRenderInterval = TimeSpan.FromMilliseconds(20);
+
+        int fired = 0;
+        sf.RenderRequested += () => Interlocked.Increment(ref fired);
+        series.AppendPoint(1, 1);
+
+        Thread.Sleep(400);
+
+        Assert.True(Volatile.Read(ref fired) >= 1,
+            "a 20 ms interval must deliver at least one render request in 400 ms");
+    }
 }

@@ -36,7 +36,7 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | `MatPlotLibNet.Interactive` | `MatPlotLibNet.Interactive` | Embedded Kestrel server + `Show()` extension |
 | `MatPlotLibNet.GraphQL` | `MatPlotLibNet.GraphQL` | Hot Chocolate subscription type |
 | `MatPlotLibNet.Blazor` | `MatPlotLibNet.Blazor` | `MplChart`, `MplLiveChart`, `MplStreamingChart` Razor components |
-| `MatPlotLibNet.Wpf` | `MatPlotLibNet.Wpf` | `MplChartControl` for WPF (Skia-backed) |
+| `MatPlotLibNet.Wpf` | `MatPlotLibNet.Wpf` | `MplChartControl` and `MplStreamingChartControl` for WPF (Skia-backed) |
 | `MatPlotLibNet.Avalonia` | `MatPlotLibNet.Avalonia` | `MplChartControl` for Avalonia |
 | `MatPlotLibNet.Maui` | `MatPlotLibNet.Maui` | `MplChartView` for .NET MAUI (Android/iOS/Mac/Windows) |
 | `MatPlotLibNet.Uno` | `MatPlotLibNet.Uno` | `MplChartElement` for Uno Platform |

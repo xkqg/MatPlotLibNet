@@ -25,6 +25,7 @@
     <Project Path="Tst/MatPlotLibNet.Maui/MatPlotLibNet.Maui.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Uno/MatPlotLibNet.Uno.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.AspNetCore/MatPlotLibNet.AspNetCore.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Interactive/MatPlotLibNet.Interactive.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.Tests.csproj" />

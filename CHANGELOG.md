@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.18.1]
+
+### Added
+
+- **A streaming chart control for WPF.** `MplStreamingChartControl` joins the three its siblings already had:
+  bind a `StreamingFigure` to it once and the chart follows the data. The ordinary `MplChartControl` takes a
+  `Figure` and redraws when that property changes — which, for a dependency property, means when the reference
+  changes — so a WPF application streaming into one figure had to hand the control `null` and the same figure
+  again to fake a change. The new control listens to the figure instead, marshals the request to the
+  dispatcher — the figure raises it off a thread pool thread — scales the axes before each draw, and lets go
+  of the figure when it is unloaded. Reported in discussion #20.
+
+### Fixed
+
+- **A slower chart is actually slower.** `StreamingFigure.MinRenderInterval` is the documented minimum between
+  renders and the only way to ask for a calmer chart, but it was read once when the figure was built and never
+  again, so a caller who set it — directly, or through `BuildStreaming(renderInterval)` — kept getting the
+  default thirty-three milliseconds. Nothing said so: the property returned the value it had been given while
+  the clock behind it ignored it. Measured before the fix: twenty appends over two hundred milliseconds with a
+  half-second interval asked for, ten render requests delivered where half a second allows at most one.
+
+- **`FigureTemplates.Clustermap` draws the labels it is given.** `rowLabels` and `colLabels` were declared and documented
+  and never read, so a clustermap came without a name beside any row or column — and names written for the rows in the order
+  they were given would have gone wrong anyway, because the map reorders its rows and columns by the clustering. Each label
+  now goes with the row or column it was given for and is drawn beside it wherever the clustering puts it, and a list with
+  another length than the matrix has is refused, naming the parameter.
+
 ## [1.18.0]
 
 ### Added
@@ -27,12 +54,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   every class above the threshold. A contract test now holds both lists against the packages CI builds.
 
 ### Fixed
-
-- **`FigureTemplates.Clustermap` draws the labels it is given.** `rowLabels` and `colLabels` were declared and documented
-  and never read, so a clustermap came without a name beside any row or column — and names written for the rows in the order
-  they were given would have gone wrong anyway, because the map reorders its rows and columns by the clustering. Each label
-  now goes with the row or column it was given for and is drawn beside it wherever the clustering puts it, and a list with
-  another length than the matrix has is refused, naming the parameter.
 
 - **The first example on the front page compiles.** The quick start in the README and on the documentation home
   page reached for a colour that is not there (`Color.Blue`; the palette is `Colors`) and called `WithLegend()`

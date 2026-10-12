@@ -12,6 +12,7 @@ namespace MatPlotLibNet.Models.Streaming;
 public sealed class StreamingFigure : IDisposable
 {
     private readonly Timer _timer;
+    private TimeSpan _minRenderInterval = TimeSpan.FromMilliseconds(33);
     private long _lastRenderedVersion;
     private bool _disposed;
 
@@ -25,7 +26,22 @@ public sealed class StreamingFigure : IDisposable
     public StreamingAxesConfig DefaultConfig { get; set; } = StreamingAxesConfig.Default();
 
     /// <summary>Minimum interval between renders. Default 33ms (~30fps).</summary>
-    public TimeSpan MinRenderInterval { get; set; } = TimeSpan.FromMilliseconds(33);
+    /// <remarks>Setting this re-arms the clock behind it. It used to be read once, when the figure was
+    /// constructed, so a caller who asked for a slower chart — directly or through
+    /// <c>BuildStreaming(renderInterval)</c> — kept getting 33 ms and had no way to find out: the property
+    /// returned the value it had been given while the cadence ignored it.</remarks>
+    public TimeSpan MinRenderInterval
+    {
+        get => _minRenderInterval;
+        set
+        {
+            _minRenderInterval = value;
+            if (!_disposed)
+            {
+                _timer.Change(value, value);
+            }
+        }
+    }
 
     /// <summary>Fired when data has changed and a re-render should occur.
     /// Subscribers should marshal to their UI thread before rendering.</summary>
