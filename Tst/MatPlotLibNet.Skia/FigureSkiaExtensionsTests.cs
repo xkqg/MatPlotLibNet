@@ -128,22 +128,45 @@ public class FigureSkiaExtensionsTests
     [Fact]
     public void ResolveTypeface_DistinctWeights_AreCachedSeparately()
     {
-        var normal = SkiaFonts.Resolve("NoSuchFontABC456", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        var bold = SkiaFonts.Resolve("NoSuchFontABC456", SKFontStyleWeight.Bold, SKFontStyleSlant.Upright).Typeface;
-        Assert.NotSame(normal, bold);
+        // The same correction as its slant twin below, and for the same reason: comparing the two TYPEFACES
+        // tests whether this machine owns a bold face, not whether the cache keys on weight. It happens to hold
+        // on both platforms today — a bare Linux container does have a bold face where it has no italic — which
+        // is exactly why it is worth fixing before it is the one that goes red.
+        var normal = SkiaFonts.Resolve("NoSuchFontABC456", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        var bold = SkiaFonts.Resolve("NoSuchFontABC456", SKFontStyleWeight.Bold, SKFontStyleSlant.Upright);
+        Assert.NotSame(normal.Shaper, bold.Shaper);
+
         // Re-resolving the normal weight must still hit the same cache entry, not a fresh one.
-        var normalAgain = SkiaFonts.Resolve("NoSuchFontABC456", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        Assert.Same(normal, normalAgain);
+        var normalAgain = SkiaFonts.Resolve("NoSuchFontABC456", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        Assert.Same(normal.Shaper, normalAgain.Shaper);
+        Assert.Same(normal.Typeface, normalAgain.Typeface);
     }
 
     [Fact]
     public void ResolveTypeface_DistinctSlants_AreCachedSeparately()
     {
-        var upright = SkiaFonts.Resolve("NoSuchFontDEF789", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        var italic = SkiaFonts.Resolve("NoSuchFontDEF789", SKFontStyleWeight.Normal, SKFontStyleSlant.Italic).Typeface;
-        Assert.NotSame(upright, italic);
-        var uprightAgain = SkiaFonts.Resolve("NoSuchFontDEF789", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright).Typeface;
-        Assert.Same(upright, uprightAgain);
+        // WHAT THIS PINS IS THE CACHE, NOT THE MACHINE'S FONTS — corrected after CI went red on ubuntu-latest
+        // while Windows stayed green (run 38284548775, and reproduced in mcr.microsoft.com/dotnet/sdk:10.0).
+        // The old assertion compared the two TYPEFACES and expected different instances. For an unknown family
+        // that comes from SKTypeface.FromFamilyName's fallback, and whether the fallback hands back a separate
+        // object per slant is a property of the installed fonts: a Windows box has a real italic face, a bare
+        // Linux container has one family with no italic, so it returns the SAME instance for both slants. The
+        // test was asserting the environment.
+        //
+        // The contract is that ResolutionKey carries the slant, so upright and italic are SEPARATE cache
+        // entries. Each entry builds its own SKShaper, so the shaper identity shows the entries apart whatever
+        // the platform's fallback does with the face itself.
+        var upright = SkiaFonts.Resolve("NoSuchFontDEF789", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        var italic = SkiaFonts.Resolve("NoSuchFontDEF789", SKFontStyleWeight.Normal, SKFontStyleSlant.Italic);
+        Assert.NotSame(upright.Shaper, italic.Shaper);
+
+        // And each entry is STABLE: a re-resolve hits the same one rather than minting a second.
+        var uprightAgain = SkiaFonts.Resolve("NoSuchFontDEF789", SKFontStyleWeight.Normal, SKFontStyleSlant.Upright);
+        Assert.Same(upright.Shaper, uprightAgain.Shaper);
+        Assert.Same(upright.Typeface, uprightAgain.Typeface);
+
+        var italicAgain = SkiaFonts.Resolve("NoSuchFontDEF789", SKFontStyleWeight.Normal, SKFontStyleSlant.Italic);
+        Assert.Same(italic.Shaper, italicAgain.Shaper);
     }
 
     [Fact]
