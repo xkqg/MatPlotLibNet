@@ -79,7 +79,7 @@ pixel-fidelity fixtures.
 | **MatPlotLibNet.Maui** | `dotnet add package MatPlotLibNet.Maui` | Native `MplChartView` via Microsoft.Maui.Graphics |
 | **MatPlotLibNet.Avalonia** | `dotnet add package MatPlotLibNet.Avalonia` | Native `MplChartControl` for Avalonia 12 — Skia backend, optional local interaction |
 | **MatPlotLibNet.Uno** | `dotnet add package MatPlotLibNet.Uno` | Native `MplChartElement` for Uno Platform (WinUI 3 / Android / iOS / macCatalyst) |
-| **MatPlotLibNet.Wpf** | `dotnet add package MatPlotLibNet.Wpf` | Native WPF `MplChartControl` via SkiaSharp — all 9 interaction modifiers — and `MplStreamingChartControl` for live data |
+| **MatPlotLibNet.Wpf** | `dotnet add package MatPlotLibNet.Wpf` | Native WPF `MplChartControl` via SkiaSharp — all 9 interaction modifiers — and `MplStreamingChartControl` for live data; your project targets `netX.0-windows10.0.19041.0` |
 | **MatPlotLibNet.Geo** | `dotnet add package MatPlotLibNet.Geo` | 13 map projections, GeoJSON parser, Natural Earth 110m data, geographic polygons |
 | **[MatPlotLibNet.Verso](https://www.nuget.org/packages/MatPlotLibNet.Verso)** | Verso → Extensions panel | A chart inside a Verso notebook cell, drawn as SVG ([cookbook](docs/cookbook/verso.md)) |
 | **MatPlotLibNet.Notebooks** | `#r "nuget: MatPlotLibNet.Notebooks"` | Inline SVG in Polyglot / Jupyter notebooks. Microsoft has ended Polyglot Notebooks and .NET Interactive, which this package builds on, so existing notebooks keep working but nothing new is coming — for new work use **MatPlotLibNet.Verso** |
