@@ -18,6 +18,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **The WPF package says why it needs Windows 10.0.19041.** `MatPlotLibNet.Wpf` targets
+  `net8.0-windows10.0.19041.0`, so a project on a bare `netX.0-windows` (platform version 7.0) cannot restore it
+  (NU1202), and nothing in the package said whether that was a choice or an accident. It is neither: the floor is
+  `SkiaSharp.Views.WPF`'s, which has no WPF view below it, and a lower target would drop to its .NET Framework build.
+  The package README now names the floor and the one-line change a consuming project makes, and a contract test
+  holds the README to the csproj's own value. Reported in issue #21.
+
 - **A slower chart is actually slower.** `StreamingFigure.MinRenderInterval` is the documented minimum between
   renders and the only way to ask for a calmer chart, but it was read once when the figure was built and never
   again, so a caller who set it — directly, or through `BuildStreaming(renderInterval)` — kept getting the

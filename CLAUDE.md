@@ -5,6 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All contributor rules — versions, TDD, class design, dead-code deletion, git workflow, CHANGELOG, the
 documentation sweep — live in [**CONTRIBUTING.md**](CONTRIBUTING.md). Read it before any commit. This file
 covers only what that document does not: the commands that actually work, and the shape of the code.
+CONTRIBUTING.md's "Running Tests" section still says `dotnet test` — that is the dead signal described below.
+Deeper design notes: `Src/MatPlotLibNet/ARCHITECTURE.md` (there is no root-level ARCHITECTURE.md).
 
 ## Commands
 
@@ -31,7 +33,8 @@ dotnet-coverage profiler fails to attach ("Profiler was not initialized") and me
 
 ## The two solution views, and why a green build can still be red
 
-- `MatPlotLibNet.slnx` — everything (18 `Src/` folders: 15 packages + 3 npm binding folders, 14 test projects).
+- `MatPlotLibNet.slnx` — everything (18 `Src/` folders: 15 packages + 3 npm binding folders; 15 test projects
+  incl. `Fidelity`, `Wpf`, `Uno`, `Maui`, which CI does not run).
 - `MatPlotLibNet.CI.slnf` — a **subset** (22 projects). CI builds this and runs **11** suites. Wpf, Uno and
   Maui are outside it: they need Windows or a workload.
 - `docs/docfx.json` — loads **15** csproj, including Uno (net8.0) and Wpf (net8.0-windows), which are *not* in

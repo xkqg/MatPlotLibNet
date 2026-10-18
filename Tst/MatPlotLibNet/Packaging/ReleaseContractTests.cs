@@ -861,4 +861,21 @@ public class ReleaseContractTests
         // if something checks that the glob matched at all.
         Assert.Contains("count=$(ls nupkgs/*.nupkg", workflow, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void TheWpfReadme_SaysWhichWindowsPlatformVersionAProjectMustTarget()
+    {
+        // MatPlotLibNet.Wpf targets net8.0-windows10.0.19041.0 because SkiaSharp.Views.WPF ships no asset below
+        // that platform version. A project on a bare netX.0-windows (platform version 7.0) cannot restore the
+        // package (NU1202), and issue 21 had to ask what the floor was and who imposed it. The csproj is where
+        // the floor is set; the README is where a consumer looks first, so it must quote the csproj's own value.
+        string target = XDocument.Load(Path.Combine(Root, "Src", "MatPlotLibNet.Wpf", "MatPlotLibNet.Wpf.csproj"))
+            .Descendants("TargetFramework").Single().Value.Trim();
+        string platformVersion = Regex.Match(target, @"windows(?<v>[\d.]+)$").Groups["v"].Value;
+        string readme = Read("Src", "MatPlotLibNet.Wpf", "README.md");
+
+        Assert.NotEqual(string.Empty, platformVersion);
+        Assert.Contains(platformVersion, readme, StringComparison.Ordinal);
+        Assert.Contains("SkiaSharp.Views.WPF", readme, StringComparison.Ordinal);
+    }
 }

@@ -2,6 +2,18 @@
 
 MatPlotLibNet.Wpf is a WPF chart control for MatPlotLibNet. It renders charts natively with SkiaSharp.
 
+## Requirements
+
+The package targets `net8.0-windows10.0.19041.0`, because `SkiaSharp.Views.WPF` ships no WPF view for a lower
+Windows platform version. A project on a bare `net8.0-windows`, `net9.0-windows` or `net10.0-windows` has platform
+version 7.0 and fails to restore with NU1202. Name the version in your own project file:
+
+```xml
+<TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+```
+
+The same works for `net9.0-` and `net10.0-windows10.0.19041.0`.
+
 ## Quick Start
 
 ```xml
