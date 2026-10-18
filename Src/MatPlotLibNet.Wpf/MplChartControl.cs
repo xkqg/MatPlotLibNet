@@ -22,7 +22,7 @@ public sealed class MplChartControl : SKElement
     /// <summary>Identifies the <see cref="Figure"/> dependency property.</summary>
     public static readonly DependencyProperty FigureProperty =
         DependencyProperty.Register(nameof(Figure), typeof(Figure), typeof(MplChartControl),
-            new PropertyMetadata(null, static (d, _) => ((MplChartControl)d).InvalidateVisual()));
+            new PropertyMetadata(null, static (d, _) => ((MplChartControl)d).OnFigureChanged()));
 
     /// <summary>Identifies the <see cref="IsInteractive"/> dependency property.</summary>
     public static readonly DependencyProperty IsInteractiveProperty =
@@ -146,6 +146,14 @@ public sealed class MplChartControl : SKElement
         base.OnKeyDown(e);
         if (_controller is null || !IsInteractive) return;
         _controller.HandleKeyDown(new KeyInputArgs(e.Key.ToString(), GetModifiers()));
+    }
+
+    /// <summary>The interaction controller is aimed at one figure when it is built, so a control handed a different
+    /// figure drops it: the next paint builds one for the figure now on screen, and pan and zoom act on that one.</summary>
+    private void OnFigureChanged()
+    {
+        _controller = null;
+        InvalidateVisual();
     }
 
     private void OnAnimationFrameReady(object? sender, Figure fig) =>

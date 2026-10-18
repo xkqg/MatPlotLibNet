@@ -32,7 +32,10 @@ public enum ThresholdBreach
 /// <summary>Represents a horizontal or vertical reference line at a specific data value.</summary>
 public sealed class ReferenceLine
 {
-    public double Value { get; }
+    /// <summary>The data value the line sits at. Settable, so a line that tracks something — a playback position,
+    /// a live threshold — moves in place instead of the whole figure being rebuilt, which would also throw away the
+    /// reader's zoom.</summary>
+    public double Value { get; set; }
 
     public Orientation Orientation { get; }
 

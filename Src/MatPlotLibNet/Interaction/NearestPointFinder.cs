@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 
@@ -42,6 +43,22 @@ public static class NearestPointFinder
 
         for (int sIdx = 0; sIdx < axes.Series.Count; sIdx++)
         {
+            if (axes.Series[sIdx] is StateTimelineSeries timeline)
+            {
+                var segment = SegmentUnder(timeline, dataX);
+                if (segment is { } hit)
+                {
+                    var span = timeline.Segments[hit];
+                    best = new NearestPointResult(timeline.Label ?? $"Series {sIdx}", sIdx, dataX, dataY, 0.0)
+                    {
+                        PointIndex = hit,
+                        Detail = $"{span.Label} ({AsText(span.Start, axes)}–{AsText(span.End, axes)})",
+                    };
+                }
+
+                continue;
+            }
+
             if (axes.Series[sIdx] is not XYSeries xySeries) continue;
             if (!xySeries.Visible) continue;
 
@@ -79,5 +96,35 @@ public static class NearestPointFinder
         }
 
         return best;
+    }
+
+    /// <summary>A position along X as a reader would say it: a date and time on a date axis, a plain number
+    /// otherwise. A value no date can hold falls back to the number rather than failing a hover.</summary>
+    private static string AsText(double x, Axes axes)
+    {
+        bool isDate = axes.XAxis.Scale == AxisScale.Date && x >= MinOADate && x <= MaxOADate;
+        return isDate
+            ? DateTime.FromOADate(x).ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+            : x.ToString("G5", CultureInfo.InvariantCulture);
+    }
+
+    // The span of OLE Automation dates DateTime can represent (0001-01-01 to 9999-12-31).
+    private const double MinOADate = -657434.0;
+    private const double MaxOADate = 2958465.99999999;
+
+    /// <summary>Index of the segment under <paramref name="dataX"/>, or <c>null</c> in a gap or on a hidden
+    /// timeline. A segment is a span, so it is hit by containing the cursor, edges included; where segments
+    /// overlap the one drawn last is the one the reader sees, so it answers.</summary>
+    private static int? SegmentUnder(StateTimelineSeries timeline, double dataX)
+    {
+        if (!timeline.Visible) return null;
+
+        for (int i = timeline.Segments.Count - 1; i >= 0; i--)
+        {
+            var segment = timeline.Segments[i];
+            if (dataX >= segment.Start && dataX <= segment.End) return i;
+        }
+
+        return null;
     }
 }

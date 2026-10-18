@@ -162,7 +162,9 @@ public sealed class InteractionController : IInteractionController
                     var nearest = NearestPointFinder.Find(_figure, axesIndex.Value, c.DataX, c.DataY, _layout);
                     _activeTooltip = nearest is not null
                         ? new HoverTooltipContent(
-                            $"{nearest.SeriesLabel}: ({nearest.DataX:G5}, {nearest.DataY:G5})",
+                            nearest.Detail is { } detail
+                                ? $"{nearest.SeriesLabel}: {detail}"
+                                : $"{nearest.SeriesLabel}: ({nearest.DataX:G5}, {nearest.DataY:G5})",
                             args.X, args.Y)
                         {
                             // Hover resolves its point through the same search the click uses; a host that
@@ -238,6 +240,7 @@ public sealed class InteractionController : IInteractionController
         //  11. DataCursor: proximity click (passive when drawing tools active)
         //  12. Crosshair: passive — every move (v1.4.1)
         //  13. Hover: passive, always last
+        var pan = new PanModifier(chartId, layout, sink);
         return
         [
             new LegendToggleModifier(chartId, layout, sink),
@@ -254,8 +257,8 @@ public sealed class InteractionController : IInteractionController
             // of an actual data point (via NearestPointFinder). Placed before PanModifier
             // so hit-test wins; when the click misses, HandlesPointerPressed returns false
             // and Pan takes over.
-            new DataCursorModifier(chartId, layout, figure, sink),
-            new PanModifier(chartId, layout, sink),
+            new DataCursorModifier(chartId, layout, figure, sink, pan),
+            pan,
             new ZoomModifier(chartId, layout, sink),
             new CrosshairModifier(layout),
             new HoverModifier(chartId, layout, sink),

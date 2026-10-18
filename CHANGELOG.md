@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.18.2]
+
+### Added
+
+- **A timeline segment answers hover and click.** Pointing at a `StateTimelineSeries` segment now shows the event
+  and the stretch it covers (`Replay: Event 2 (30–45)`, with dates and times on a date axis), and clicking it raises
+  `DataPointClicked` with the segment's index in `Segments` and the instant under the cursor, so a replay application
+  can seek to the event the reader chose. Both gestures resolve their target through `NearestPointFinder`, which only
+  looked at `XYSeries`, so a segment never gave a tooltip or a click at all. A segment is hit by containing the
+  cursor, edges included; where segments overlap the one drawn last answers. A segment fills most of its axes, so a
+  press on one waits for the button to come up: a release within a few pixels is the click, and anything further is a
+  drag that pans, anchored where the button went down. Reported in discussion #22.
+
+- **A reference line can be moved.** `ReferenceLine.Value` was fixed at construction, so a line that follows
+  something — a playback position — meant rebuilding the whole figure on every tick, and with it losing the
+  reader's zoom. It is settable now. Reported in discussion #22.
+
+### Fixed
+
+- **Dragging pans a chart that scales itself.** `PanEvent` could only shift limits the axes already had, so on any
+  chart whose axes scaled themselves a drag did nothing until the reader had zoomed once. Measured before the fix: a
+  drag across a line chart and across a timeline left both limits unset. The event now carries the range that was on
+  screen when the pointer moved, and the pan pins that range and moves it, in the control and across SignalR alike. A
+  limit the axes already has still wins. Found while answering discussion #22.
+
+- **A timeline pans and zooms along time only.** The vertical range of a state timeline is fixed and its bars fill the
+  axes, but pan and zoom still moved and rescaled it, shifting the bars off the plot. An axes made of timelines alone
+  now ignores the vertical part of a pan or zoom; an axes that mixes them with other series moves both ways as before.
+
+- **Stacked axes that share X move together.** `ShareX` shared only the automatic scale, so zooming or dragging one
+  lane of a stacked timeline left the others on another stretch of time. A pan or zoom now applies to every axes
+  linked by `ShareX`, in either direction, and axes that are not linked are left alone.
+
+- **Pan and zoom follow the figure a WPF chart is handed.** `MplChartControl` built its interaction controller on
+  the first paint and aimed it at the figure it had then. An application that gives the control a new figure —
+  a replay that redraws its playback marker, or a chart swapped for another — kept drawing the new one while
+  dragging and scrolling moved the first, which nobody was looking at any more. Measured before the fix: after
+  the swap, a scroll set the zoom limits on the old figure and left the new one untouched. The control now drops
+  the controller when its figure changes, and the next paint builds one for the figure on screen. Found while
+  answering discussion #22.
+
+- **The WPF package says why it needs Windows 10.0.19041.** `MatPlotLibNet.Wpf` targets
+  `net8.0-windows10.0.19041.0`, so a project on a bare `netX.0-windows` (platform version 7.0) cannot restore it
+  (NU1202), and nothing in the package said whether that was a choice or an accident. It is neither: the floor is
+  `SkiaSharp.Views.WPF`'s, which has no WPF view below it, and a lower target would drop to its .NET Framework build.
+  The package README now names the floor and the one-line change a consuming project makes, and a contract test
+  holds the README to the csproj's own value. Reported in issue #21.
+
 ## [1.18.1]
 
 ### Added
@@ -17,13 +65,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   of the figure when it is unloaded. Reported in discussion #20.
 
 ### Fixed
-
-- **The WPF package says why it needs Windows 10.0.19041.** `MatPlotLibNet.Wpf` targets
-  `net8.0-windows10.0.19041.0`, so a project on a bare `netX.0-windows` (platform version 7.0) cannot restore it
-  (NU1202), and nothing in the package said whether that was a choice or an accident. It is neither: the floor is
-  `SkiaSharp.Views.WPF`'s, which has no WPF view below it, and a lower target would drop to its .NET Framework build.
-  The package README now names the floor and the one-line change a consuming project makes, and a contract test
-  holds the README to the csproj's own value. Reported in issue #21.
 
 - **A slower chart is actually slower.** `StreamingFigure.MinRenderInterval` is the documented minimum between
   renders and the only way to ask for a calmer chart, but it was read once when the figure was built and never
@@ -558,7 +599,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [1.14.4]
 
 ### Added
-
 
 - **Minor ticks can have their own spacing: `TickConfig.Spacing` now applies to them.** The property has always
   existed on the model, but the Cartesian renderer never read it for minor ticks: it divided each major interval
@@ -1566,7 +1606,6 @@ tiers. There are no public API refactors, no new packages and no framework chang
 twelve indicators extend the existing `Indicator<TResult>` / `CandleIndicator<TResult>` /
 `PriceIndicator<TResult>` stacked base classes. SVG output for existing charts is
 byte-identical to v1.8.0.
-
 
 ### Added — Tier 3a: 4 volume / money-flow indicators
 
@@ -2745,8 +2784,6 @@ deferred to the next session, with explicit CHANGELOG notes.
 
 - **Phase F — 3D depth-sort tier isolation.** New `<g class="mpl-3d-back"/.mpl-3d-data/.mpl-3d-front>` subgroups inside the 3D scene group, with the JS `resortDepth` scoped to `.mpl-3d-data` only. Panes are tagged `class="mpl-pane"` so they can be selected and asserted on. The new behavioural test file `ThreeDPaneOcclusionTests.cs` holds a stacked Theory over 5 camera-angle pairs (matplotlib default, playground default, looking down +X, shallow sideways, high elevation), asserting that no pane polygon ever appears in the DOM after any series polygon once a drag has triggered reprojectAll. The parity tests from Phase B are still green: coordinate parity was never broken, only the DOM order was.
 
-
-
 > **Summary:** The 13-phase interaction hardening shipped earlier in v1.7.2 fixed the wiring (one-call `WithBrowserInteraction()`, per-chart isolation, pointer events, 3D scene-group axes), but two end-to-end behaviours were still wrong. (1) On a 3D chart, the drag was captured by the 2D pan handler instead of the 3D rotation handler, so the user could only translate the chart. (2) Even when 3D rotation did fire, the JS reprojection used a simplified projection that did not match the server-side `Projection3D`, so the cube visually jumped on the first drag. This follow-on fixes both root causes with two independent fixes, either of which alone would prevent the collision: the 3D handler stops propagation, and the 2D handler bails out on SVGs that contain 3D. It also ports matplotlib's full view, perspective and fit projection pipeline to JS, so the server and the client stay pixel-identical at every camera angle. The drag maths and the 2D wheel-zoom rate now match matplotlib's canonical formulas exactly.
 
 - **3D drag now rotates the camera instead of panning the chart** — the symptom after the 13 phases, "I can only move the plot, can't see a different angle", was a 2D/3D event collision. `WithBrowserInteraction()` enabled both `SvgInteractivityScript` (root-SVG pan and zoom) and `Svg3DRotationScript` (scene rotation). On a drag both handlers fired, and the SVG-root handler called `setPointerCapture` after the scene handler, which overrode the scene's capture (the last call wins, per the W3C Pointer Events spec) and stole the drag for the 2D pan. There are two independent fixes, one in each script, and either alone would prevent the collision: (1) the 3D rotation script now calls `e.stopPropagation()` on pointerdown and wheel; (2) the 2D pan/zoom script bails out at init when its owning SVG contains any `.mpl-3d-scene`, which mirrors matplotlib's `NavigationToolbar2` disabling Pan and Zoom on 3D axes for the same reason.
@@ -3053,7 +3090,6 @@ Every indicator costs O(1) per append. Each one attaches itself to a `StreamingC
 - `MatPlotLibNet.CI.slnf` — the Linux CI filter now includes Skia and Avalonia.
 - `publish.yml` — the Windows platform job builds, tests and packs Uno; the Linux core job packs Avalonia.
 - All 11 `.csproj` files carry `<Version>1.3.0</Version>`.
-
 
 ## [1.2.2]
 **Brush-select and hover round-trip.** These are the two items deferred from v1.2.0. v1.2.0 shipped four mutation events (Zoom, Pan, Reset, LegendToggle). Each of them rewrites the authoritative `Figure` on the server and broadcasts the updated SVG to every group subscriber. v1.2.2 adds the first two **notification events**, `BrushSelectEvent` and `HoverEvent`. They observe the user's gesture, route it to a per-chart handler in .NET code, and can return a response to the calling client only. The whole round-trip stays in .NET: nothing mutates the figure and nothing is broadcast. The bidirectional SignalR pipeline now covers observation and request-response next to the existing mutation flow.
@@ -3369,7 +3405,6 @@ The `Treemap` / `Sunburst` rows remain the cheapest top-level chart types in the
 | After all v1.1.3 fixes | **21.99** | **3.55 %** |
 
 RMS dropped by 49 % and the share of differing pixels dropped by 60 %. Bar regions improved a lot (`bar_alpha` from 42 to 16, `plot_area_inner` from 36 to 16). The remaining gap sits in the **text-glyph regions**: legend, tick labels and title. matplotlib's freetype and Agg sub-pixel hinting produce glyph stems that Skia's font rasterizer cannot reproduce bit for bit at the same nominal size. This is a known cosmetic limitation, not a regression.
-
 
 ## [1.1.2]
 A matplotlib fidelity audit makes visible corrections to margins, ticks and spines. It also adds a perceptual-diff test harness and 57 fidelity tests, which cover every renderable series that has a matplotlib reference.

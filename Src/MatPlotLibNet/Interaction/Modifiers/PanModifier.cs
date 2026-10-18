@@ -63,7 +63,7 @@ public sealed class PanModifier : IInteractionModifier
 
         if (dx == 0 && dy == 0) return;
 
-        _sink(new PanEvent(_chartId, _activeAxes, dx, dy));
+        _sink(new PanEvent(_chartId, _activeAxes, dx, dy) { InView = _layout.GetDataRange(_activeAxes) });
 
         // Update start so each move emits an incremental delta, not cumulative.
         _startPixelX = args.X;

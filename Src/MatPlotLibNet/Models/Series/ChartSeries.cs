@@ -33,4 +33,9 @@ public abstract class ChartSeries : ISeries, IHasDataRange, ISeriesSerializable
     /// the ones that DO override this one method. (The interface carries the same default for a series outside
     /// this hierarchy; a class cannot override a default interface member, so the base declares it too.)</remarks>
     public virtual ChartDataTable? ToDataTable() => null;
+
+    /// <summary>Whether this series owns the vertical range of its axes outright, so that range carries no data a
+    /// reader could pan or zoom to. A state timeline is the case: its segments fill the bar from edge to edge.
+    /// Pan and zoom leave the Y range of an axes alone when every series on it says so.</summary>
+    internal virtual bool FixesYRange => false;
 }

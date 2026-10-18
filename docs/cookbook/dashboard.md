@@ -171,6 +171,49 @@ Plt.Mosaic("A\nB\nC")
     .Save("fleet_timelines.svg");
 ```
 
+### Replay: click an event, follow the playback position
+
+A timeline of events beside a video answers two questions: which event did the reader point at, and where is
+the playback now. Hovering a segment shows the event and the stretch it covers (`Replay: Event 2 (30–45)`),
+and a click tells your application which segment it was. The marker for the current position is a reference
+line whose `Value` you change as playback moves, so the figure is not rebuilt and the reader's zoom survives.
+
+```csharp
+StateSegment[] events =
+[
+    new(0, 15, "Event 1", Colors.Blue),
+    new(30, 45, "Event 2", Colors.Orange),
+    new(60, 90, "Event 3", Colors.Green),
+];
+
+ReferenceLine? playhead = null;
+var figure = Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .StateTimeline(events, s => s.Label = "Replay")
+        .SetXLim(0, 90)
+        .AxVLine(0, line => playhead = line))
+    .Build();
+
+// PointIndex is the segment's position in `events`; point.DataX is the instant under the cursor instead.
+chartControl.DataPointClicked += point =>
+{
+    video.Seek(events[point.PointIndex].Start);
+};
+
+// Each playback tick moves the line in place, then asks the control to repaint (WPF: InvalidateVisual).
+void OnPlaybackTick(double seconds)
+{
+    playhead!.Value = seconds;
+    chartControl.InvalidateVisual();
+}
+```
+
+A segment is hit by containing the cursor, edges included; where segments overlap, the one drawn last answers.
+A click is a press and a release on the same spot, and needs `IsInteractive`; moving the pointer further makes it a
+drag, which pans along time. The wheel zooms along time, and lanes that share one time axis move together. The whole
+window, with several lanes, a date axis and a marker that follows playback, is on the page
+[State timeline in WPF](wpf-timeline.md).
+
 ### Tiles + timelines combined
 
 Mix stat tiles and state timelines in a single dashboard:

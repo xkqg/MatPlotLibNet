@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private void OnBarClicked(object sender, RoutedEventArgs e)     => BuildBar();
     private void OnScatterClicked(object sender, RoutedEventArgs e) => BuildScatter();
     private void OnSurfaceClicked(object sender, RoutedEventArgs e) => BuildSurface();
+    private void OnReplayClicked(object sender, RoutedEventArgs e) => new ReplayWindow { Owner = this }.Show();
     private void OnInteractiveChanged(object sender, RoutedEventArgs e)
         => Chart.IsInteractive = InteractiveToggle.IsChecked == true;
 

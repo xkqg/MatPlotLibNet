@@ -20,4 +20,10 @@ public sealed record NearestPointResult(
     /// every existing construction site, the same reason <c>StateSegment.Hatch</c> is an <c>init</c>
     /// property.</para></summary>
     public int PointIndex { get; init; } = -1;
+
+    /// <summary>What the hit is, in words, when a coordinate pair would not say it — or <c>null</c> for an
+    /// ordinary point. A timeline segment is a span, not a point: "(35, 0.5)" tells a reader nothing, while
+    /// "Event 2 (30–45)" names it. A host that shows a tooltip uses this in place of the coordinates.
+    /// <para>An <c>init</c> member for the same reason <see cref="PointIndex"/> is one.</para></summary>
+    public string? Detail { get; init; }
 }

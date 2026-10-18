@@ -43,6 +43,7 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Annotations](annotations.md) | Text, arrows, reference lines (horizontal/vertical), shaded spans, threshold convenience (line + breach span in one call), math text in annotations |
 | [Styling & Themes](styling.md) | 30 themes, PropCycler, grid/spine control, tight margins, tick mirroring, templates |
 | [Tick Formatting](tick-formatting.md) | Engineering notation, date axes, custom locators, minor ticks |
+| [State timeline in WPF](wpf-timeline.md) | A WPF window with a state timeline: tooltip and click per event, pan and zoom along time, stacked categories on one time axis, a marker for the playback position |
 | [Dashboard tiles & timelines](dashboard.md) | Stat tile (KPI headline number), state timeline (discrete coloured segments), mosaic dashboard composition, topology panel (the service map) |
 | [MCP server (AI agents)](mcp.md) | Render charts from Claude, VS Code or any MCP host; the spec format, the five tools, the refusal messages |
 | [Verso notebooks](verso.md) | A chart inside a notebook cell: end the cell on a figure or a builder, how tall a chart may be, what a failed render says |

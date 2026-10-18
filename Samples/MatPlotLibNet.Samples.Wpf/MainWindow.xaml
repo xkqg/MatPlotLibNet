@@ -14,6 +14,7 @@
             <Button x:Name="BarButton"       Content="Bar"       Margin="0,0,8,0" Padding="12,4" Click="OnBarClicked" />
             <Button x:Name="ScatterButton"   Content="Scatter"   Margin="0,0,8,0" Padding="12,4" Click="OnScatterClicked" />
             <Button x:Name="SurfaceButton"   Content="3D Surface" Margin="0,0,8,0" Padding="12,4" Click="OnSurfaceClicked" />
+            <Button x:Name="ReplayButton"    Content="Replay timeline…" Margin="0,0,8,0" Padding="12,4" Click="OnReplayClicked" />
             <CheckBox x:Name="InteractiveToggle" Content="Interactive (pan / zoom / 3D rotate)"
                       VerticalAlignment="Center" Margin="16,0,0,0" IsChecked="True"
                       Checked="OnInteractiveChanged" Unchecked="OnInteractiveChanged" />

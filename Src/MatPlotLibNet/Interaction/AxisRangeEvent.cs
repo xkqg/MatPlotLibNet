@@ -21,8 +21,15 @@ public abstract record AxisRangeEvent(
     public sealed override void ApplyTo(Figure figure)
     {
         var axes = TargetAxes(figure);
-        axes.XAxis.Min = XMin;
-        axes.XAxis.Max = XMax;
+        foreach (var linked in XLinkedAxes(figure))
+        {
+            linked.XAxis.Min = XMin;
+            linked.XAxis.Max = XMax;
+        }
+
+        // A timeline's bar fills the axes whatever the range, so there is no vertical position to move to.
+        if (axes.HasFixedYRange) return;
+
         axes.YAxis.Min = YMin;
         axes.YAxis.Max = YMax;
     }

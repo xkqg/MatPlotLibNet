@@ -18,6 +18,14 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.18.2** lets a replay application work with a state timeline. Hovering a segment names the event and the
+stretch it covers, clicking it tells your application which segment it was, and a reference line can be moved
+after it is drawn, which is what a playback marker needs. Dragging now pans a chart that scales itself, which did
+nothing until the first zoom; a timeline pans and zooms along time only; and stacked charts that share an X axis move
+together. The WPF chart control also keeps panning and zooming the figure it was last handed, where before it went on
+acting on the first one, and the package now says which Windows version a project has to target to use it. There is a
+[complete WPF example](https://xkqg.github.io/MatPlotLibNet/cookbook/wpf-timeline.html) of a replay timeline.
+
 **1.18.1** gives WPF a streaming chart. `MplStreamingChartControl` joins the three its siblings already had:
 bind a `StreamingFigure` to it once and the chart follows the data, where the ordinary control needed a new
 figure for every frame. The same release makes `StreamingFigure.MinRenderInterval` mean what it says — the clock
@@ -34,13 +42,6 @@ carries the extension and nothing else on purpose: a notebook loads an extension
 copy of the charting library shipped alongside would be a different `Figure` from the one the cell made.
 `MatPlotLibNet.Notebooks` stands still at the version it reached; the runtime under Polyglot Notebooks has ended,
 and notebook work belongs in Verso now.
-
-**1.17.1** is a patch on top of it. A clicked data point now reaches your own code — the desktop controls and
-the SignalR route both hand it over with its series, its value and where it was. The control room gained a
-service-topology panel, `GroupedBar` draws several bars per category in one call, `DensityScatter` colours a
-scatter by how crowded it is, and three accessible colour sequences arrived (`petroff6`, `petroff8`,
-`petroff10`). All fourteen packages carry an icon and release notes now, and the documentation site has a page
-that [translates matplotlib into C#, call by call](https://xkqg.github.io/MatPlotLibNet/cookbook/matplotlib-to-csharp.html).
 
 After that, releases follow what the community needs: bug fixes, documentation, and whatever comes up in real use.
 Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an

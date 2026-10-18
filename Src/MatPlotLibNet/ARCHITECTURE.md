@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.18.1)
+# MatPlotLibNet Core -- Architecture (v1.18.2)
 
 ## Package dependency graph
 
@@ -470,11 +470,15 @@ MatPlotLibNet/
     Modifiers/IInteractionModifier.cs one gesture, one class: Handles*(args) claims, On*(args) acts. Fifteen of
                                       them — pan, zoom, reset, legend toggle, brush/span/rectangle select,
                                       3-D rotate, crosshair, hover, data cursor, three drawing tools and their
-                                      selection. Order is the priority; it is written out where they are built
+                                      selection. Order is the priority; it is written out where they are built.
+                                      DataCursorModifier is handed the PanModifier: a press on a span (a timeline
+                                      segment) waits for the release, so a click selects and a drag still pans
     ChartLayout.cs / IChartLayout.cs  the snapshot a modifier measures against: plot rectangles, axis limits,
                                       HitTestAxes(x, y), PixelToData. Rebuilt after every render
     NearestPointFinder.cs             which data point is under the cursor, across every visible XY series in
-                                      one axes, with the pixel distance it was found at
+                                      one axes, with the pixel distance it was found at; a StateTimelineSeries
+                                      segment is hit by containing the cursor (last drawn wins) and reports its
+                                      index in Segments plus a Detail sentence the tooltip shows
     FigureInteractionEvent.cs         the abstract event with ApplyTo(figure). Fifteen leaves: Pan, Zoom,
                                       AxisRange, Reset, LegendToggle, BrushSelect, SpanSelect, RectangleZoom,
                                       Rotate3D, Hover, DataCursor, the three add-drawing events and the remove
@@ -483,6 +487,9 @@ MatPlotLibNet/
     SignalREventSink.cs               the sink that publishes events to a hub instead of applying them
     InteractionToolbar.cs             which drawing tool is active; ToolbarState + ToolbarButton
     ViewHistoryManager.cs             back/forward over axis limits
+    PanEvent.cs / AxisRangeEvent.cs   apply to the target axes AND every axes linked to it by ShareX; an axes made
+                                      of series that fix their own Y range (timelines) ignores the vertical part.
+                                      PanEvent.InView carries the range on screen so a pan can pin an auto-scaled axes
     PinnedAnnotation.cs               a clicked point: series label, data x/y, pixel x/y, axes index, and the
                                       point's own position in the caller's arrays — what DataCursorEvent
                                       carries and what DataPointClicked hands the application

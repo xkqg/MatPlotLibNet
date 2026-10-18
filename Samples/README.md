@@ -62,7 +62,7 @@ The whole navigation state is in the URL (`?bus=`, `?process=`). It survives eve
 
 ## WPF
 
-A native WPF window with `MplChartControl` (Windows). It uses `MatPlotLibNet.Wpf`.
+A native WPF window with `MplChartControl` (Windows). It uses `MatPlotLibNet.Wpf`. The **Replay timeline…** button opens a second window: three stacked state timelines on one time axis, a clock standing in for a video, a click on an event that seeks to it, drag to pan, scroll to zoom, and buttons that set the visible range from code. Its walkthrough is the cookbook page [State timeline in WPF](https://xkqg.github.io/MatPlotLibNet/cookbook/wpf-timeline.html).
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Wpf

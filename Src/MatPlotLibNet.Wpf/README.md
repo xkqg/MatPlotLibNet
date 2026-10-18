@@ -32,3 +32,11 @@ the figure and redraws itself when data arrives, so the figure stays the same ob
 ## Interaction
 
 The chart control supports all 10 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), **legend drag (press-and-hold a legend item to reposition; v1.7.2)**, crosshair, and hover tooltip.
+
+Clicking a data point raises `DataPointClicked` with the point's position in the arrays you plotted; on a
+`StateTimelineSeries` it is the segment's position in the list you passed, and hovering a segment shows the event
+and the stretch it covers. A timeline pans and zooms along time only, and stacked timelines that share one time axis
+(`ShareX`) move together. The complete window, with a click that seeks and a marker that follows playback, is
+[State timeline in WPF](https://xkqg.github.io/MatPlotLibNet/cookbook/wpf-timeline.html). To move a line while the chart is on screen, such as a playback marker, change its
+`ReferenceLine.Value` and call `InvalidateVisual()` on the control. When you hand the control a different
+`Figure`, pan and zoom follow the new one.

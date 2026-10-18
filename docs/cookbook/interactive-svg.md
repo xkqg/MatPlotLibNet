@@ -126,6 +126,10 @@ series label is not an identifier: a series without a label is named `Series 0` 
 two series may carry the same one. Hovering reports the same two numbers on the tooltip content, so a table
 beside the chart can highlight the row the cursor is over.
 
+A state timeline works the same way, with a segment in place of a point: `PointIndex` is the segment's position in
+the list you passed, and the tooltip names the event and the stretch it covers. See
+[the replay example](dashboard.md#replay-click-an-event-follow-the-playback-position).
+
 ## How it works
 
 The SVG embeds its own JavaScript, with no external dependencies:

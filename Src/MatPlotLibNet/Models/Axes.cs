@@ -101,6 +101,10 @@ public sealed class Axes
     public IReadOnlyList<Annotation> Annotations => _annotations;
     private readonly List<Annotation> _annotations = [];
 
+    /// <summary>True when every series on this axes fixes the vertical range itself (a state timeline), so pan and
+    /// zoom have nothing to move vertically. An axes with no series, or with one series that does not, is free.</summary>
+    internal bool HasFixedYRange => Series.Count > 0 && Series.All(s => s is ChartSeries { FixesYRange: true });
+
     /// <summary>Gets the collection of reference lines on this axes.</summary>
     public IReadOnlyList<ReferenceLine> ReferenceLines => _referenceLines;
     private readonly List<ReferenceLine> _referenceLines = [];

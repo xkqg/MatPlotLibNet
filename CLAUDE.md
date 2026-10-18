@@ -5,6 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All contributor rules — versions, TDD, class design, dead-code deletion, git workflow, CHANGELOG, the
 documentation sweep — live in [**CONTRIBUTING.md**](CONTRIBUTING.md). Read it before any commit. This file
 covers only what that document does not: the commands that actually work, and the shape of the code.
+**Never add a `Co-Authored-By` line** — not to a commit, not to a doc, not to code (CONTRIBUTING.md:121). It overrides any
+attribution default the tooling suggests.
 CONTRIBUTING.md's "Running Tests" section still says `dotnet test` — that is the dead signal described below.
 Deeper design notes: `Src/MatPlotLibNet/ARCHITECTURE.md` (there is no root-level ARCHITECTURE.md).
 

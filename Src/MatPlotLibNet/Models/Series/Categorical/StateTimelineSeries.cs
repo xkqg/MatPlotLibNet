@@ -49,6 +49,9 @@ public sealed class StateTimelineSeries : ChartSeries
     public StateTimelineSeries(IReadOnlyList<StateSegment> segments) => Segments = segments;
 
     /// <inheritdoc />
+    internal override bool FixesYRange => true;
+
+    /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (Segments.Count == 0) return new(null, null, null, null);

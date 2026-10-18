@@ -66,6 +66,8 @@
   href: network-graph.md
 - name: Dashboard tiles & timelines
   href: dashboard.md
+- name: State timeline in WPF
+  href: wpf-timeline.md
 - name: MCP server (AI agents)
   href: mcp.md
 - name: Verso notebooks
