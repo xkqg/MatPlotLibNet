@@ -237,7 +237,7 @@ public sealed class StreamingFigureTests
     }
 
     [Fact]
-    public void MinRenderInterval_LoweredAgain_LetsTheRenderRequestsResume()
+    public async Task MinRenderInterval_LoweredAgain_LetsTheRenderRequestsResume()
     {
         // The other direction, so the fix cannot be "stop the timer and never restart it".
         var (sf, series) = CreateSimple();
@@ -246,13 +246,15 @@ public sealed class StreamingFigureTests
         sf.MinRenderInterval = TimeSpan.FromSeconds(10);
         sf.MinRenderInterval = TimeSpan.FromMilliseconds(20);
 
-        int fired = 0;
-        sf.RenderRequested += () => Interlocked.Increment(ref fired);
+        var fired = new TaskCompletionSource();
+        sf.RenderRequested += () => fired.TrySetResult();
         series.AppendPoint(1, 1);
 
-        Thread.Sleep(400);
+        // Wait for the event instead of sleeping a fixed time: a runner that is busy measuring coverage can starve the
+        // 20 ms timer for longer than any short window, while an interval still held at ten seconds delivers nothing
+        // within five.
+        var completed = await Task.WhenAny(fired.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
 
-        Assert.True(Volatile.Read(ref fired) >= 1,
-            "a 20 ms interval must deliver at least one render request in 400 ms");
+        Assert.Equal(fired.Task, completed);
     }
 }
