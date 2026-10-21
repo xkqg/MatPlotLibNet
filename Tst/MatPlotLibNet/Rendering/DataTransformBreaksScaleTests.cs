@@ -208,6 +208,45 @@ public class DataTransformBreaksScaleTests
             Assert.Equal(t.DataToPixel(xs[i], 0).X, px[i], 1e-6);
     }
 
+    /// <summary>TransformY with a SymLog Y scale takes the per-point path and maps every value the way
+    /// <see cref="DataTransform.DataToPixel"/> does.</summary>
+    [Fact]
+    public void TransformY_WithSymLogYScale_AppliesSymLogToYValues()
+    {
+        double scaledMin = SymlogTransform.Forward(-125000, 100);
+        double scaledMax = SymlogTransform.Forward(125000, 100);
+
+        var t = new DataTransform(
+            0, 10, scaledMin, scaledMax, Plot,
+            null, null,
+            0, 10, -125000, 125000,
+            AxisScale.Linear, AxisScale.SymLog, 1.0, 100.0);
+
+        double[] ys = [-100000, -1000, 0, 1000, 100000];
+        var py = t.TransformY(ys);
+
+        for (int i = 0; i < ys.Length; i++)
+            Assert.Equal(t.DataToPixel(5, ys[i]).Y, py[i], 1e-6);
+    }
+
+    /// <summary>TransformY with Y-axis breaks takes the per-point path and remaps every value around the break.</summary>
+    [Fact]
+    public void TransformY_WithYBreaks_RemapsValuesAroundBreak()
+    {
+        var yBreaks = new List<AxisBreak> { new(20, 80) };
+        // Full Y range 0..120, break removes [20,80] → compressed 0..60
+        var t = new DataTransform(
+            0, 10, 0, 60, Plot,
+            xBreaks: null, yBreaks: yBreaks,
+            0, 10, 0, 120);
+
+        double[] ys = [0, 10, 90, 100];
+        var py = t.TransformY(ys);
+
+        for (int i = 0; i < ys.Length; i++)
+            Assert.Equal(t.DataToPixel(0, ys[i]).Y, py[i], 1e-6);
+    }
+
     /// <summary>TransformX with xScale==0 — fills midpoint.</summary>
     [Fact]
     public void TransformX_ZeroXRange_FillsMidpoint()

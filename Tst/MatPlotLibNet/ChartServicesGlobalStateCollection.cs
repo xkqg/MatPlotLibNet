@@ -15,7 +15,7 @@ namespace MatPlotLibNet.Tests;
 /// surfaced on the Linux CI's slower, coverage-instrumented scheduling (the 3D axis-label tests). Tagging the
 /// writer classes into this <see cref="CollectionDefinitionAttribute.DisableParallelization"/> collection makes
 /// them run ALONE — no render test ever runs concurrently with a global-state mutation. (Mirrors the
-/// Ait.Observability <c>SqlIsolated</c> serialization pattern for shared process-global / external state.)
+/// isolated-collection pattern for shared process-global / external state.)
 /// </summary>
 [CollectionDefinition("ChartServicesGlobalState", DisableParallelization = true)]
 public sealed class ChartServicesGlobalStateCollection

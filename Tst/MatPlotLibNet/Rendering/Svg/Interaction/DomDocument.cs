@@ -179,6 +179,10 @@ internal static class DomSelector
             yield return e;
     }
 
+    /// <summary>True when <paramref name="el"/> itself matches the simple selector <paramref name="selector"/> (the form
+    /// <c>closest</c> takes in the embedded scripts).</summary>
+    public static bool Matches(XElement el, string selector) => MatchesSimple(el, selector.Trim());
+
     /// <summary>True when <paramref name="el"/> matches <paramref name="simple"/>.
     /// Forms supported: <c>tag</c>, <c>#id</c>, <c>[attr]</c>, <c>[attr="value"]</c>,
     /// <c>tag[attr=...]</c>, <c>.classname</c>, <c>tag.classname</c>.</summary>

@@ -55,6 +55,84 @@ public class SecondaryAxisLegendAndStreamingTests
         Assert.Contains("#123456", svg);
     }
 
+    private static readonly PropCycler RedGreenBlue =
+        new PropCyclerBuilder().WithColors(Colors.Red, Colors.Green, Colors.Blue).Build();
+
+    private static string DualAxisLines(Theme theme) => Plt.Create()
+        .WithTheme(theme)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot(EdgeCaseData.Ramp(5), EdgeCaseData.Sin(5), l => l.Label = "left-line")
+            .WithSecondaryYAxis(s => s
+                .Plot(EdgeCaseData.Ramp(5), new[] { 10.0, 20, 30, 40, 50 }, l => l.Label = "right-line"))
+            .WithLegend())
+        .ToSvg();
+
+    [Fact]
+    public void TheSecondaryLineWearsThePropCyclersColour()
+    {
+        // The legend took a secondary series' colour from the PropCycler while the secondary part drew the line in
+        // the plain cycle colour, so under a cycler theme the swatch named a colour no line on the chart had.
+        var theme = Theme.CreateFrom(Theme.Default).WithPropCycler(RedGreenBlue).Build();
+        // At slot 1 the cycler and the plain cycle disagree, so this cannot pass by accident.
+        Assert.NotEqual(RedGreenBlue[1].Color, Theme.Default.CycleColors[1]);
+
+        var svg = DualAxisLines(theme);
+
+        // One primary series, so the secondary line holds slot 1 (primary count + its own index 0).
+        var expected = RedGreenBlue[1].Color.ToHex();
+        var lines = Tests.Rendering.AxesRendererCoverageTests.PolylineStrokes(svg);
+        var swatches = Tests.Rendering.AxesRendererCoverageTests.LegendSwatchStrokes(svg);
+        Assert.Equal(2, lines.Length);
+        Assert.Equal(2, swatches.Length);
+        Assert.Equal(expected, lines[1]);
+        Assert.Equal(expected, swatches[1]);
+    }
+
+    [Fact]
+    public void TheCyclerChangesOnlyTheSecondaryLinesCOLOUR_notItsWidthOrDash()
+    {
+        // The secondary part now hands the renderer the cycled properties and the active theme, as the primary pass
+        // does. For a line that may move its colour and nothing else: width and dash come from the series.
+        var plain = SecondaryPolyline(DualAxisLines(Theme.Default));
+        var cycled = SecondaryPolyline(DualAxisLines(Theme.CreateFrom(Theme.Default).WithPropCycler(RedGreenBlue).Build()));
+
+        Assert.Equal(WithoutStrokeColour(plain), WithoutStrokeColour(cycled));
+
+        static string SecondaryPolyline(string svg) =>
+            System.Text.RegularExpressions.Regex.Matches(svg, "<polyline[^>]*>")[1].Value;
+        static string WithoutStrokeColour(string element) =>
+            System.Text.RegularExpressions.Regex.Replace(element, " stroke=\"#[0-9A-F]{6}\"", " stroke=\"\"");
+    }
+
+    [Fact]
+    public void ASecondaryScatterCarriesTooltips_likeAPrimaryOne()
+    {
+        // The secondary part built its renderer without the axes' tooltip switch, so with tooltips on the
+        // right-hand points had none while the left-hand ones did.
+        var svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithTooltips()
+                .Scatter(new[] { 0.0, 1 }, new[] { 0.0, 1 })
+                .WithSecondaryYAxis(s => s.Scatter(new[] { 0.0, 1 }, new[] { 100.0, 200 })))
+            .ToSvg();
+
+        Assert.Contains("<title>x=1, y=1</title>", svg);
+        Assert.Contains("<title>x=1, y=200</title>", svg);
+    }
+
+    [Fact]
+    public void ATopAxisScatterCarriesTooltips_likeAPrimaryOne()
+    {
+        var svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithTooltips()
+                .Scatter(new[] { 0.0, 1 }, new[] { 0.0, 1 })
+                .WithSecondaryXAxis(s => s.ScatterXSecondary(new[] { 0.0, 300 }, new[] { 0.0, 1 })))
+            .ToSvg();
+
+        Assert.Contains("<title>x=300, y=1</title>", svg);
+    }
+
     [Fact]
     public void AnUnlabelledSecondarySeriesAddsNoLegendEntry()
     {

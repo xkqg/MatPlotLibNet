@@ -15,6 +15,7 @@ This cookbook contains code examples with their rendered output. Every example u
 |---|---|
 | [From matplotlib to C#](matplotlib-to-csharp.md) | The pyplot call you already know and the line that draws the same chart here — figures, plots, labels, colour, statistics, images, 3D and polar |
 | [Line Charts](line-charts.md) | Line styles, markers, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, secondary Y-axis, outside legend, legend value display |
+| [Direct labels & axis colours](direct-labels-and-axis-colours.md) | A line's name at the end of the line instead of in the legend, each Y axis coloured like its line, a dual-axis chart that needs no legend, what is kept in JSON |
 | [Bar Charts](bar-charts.md) | Vertical/horizontal bars, stacked, grouped, bar labels, hatching, width/alpha control |
 | [Pie & Donut](pie-donut.md) | Pie, donut, nested pie (sunburst), explode, shadow, percentage labels, custom colors, hatches |
 | [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, KDE, rug plot |
@@ -36,7 +37,7 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Broken Axes](broken-axes.md) | X/Y breaks, zigzag/diagonal/none styles, combined breaks, outlier handling |
 | [Symlog Axis](symlog.md) | Symmetric log Y/X, financial P&L, scale comparison (linear vs log vs symlog) |
 | [Geographic Maps](geographic.md) | 13 projections, globe view, coastlines, borders, land/ocean fill, custom GeoJSON, edge handling |
-| [Themes](themes.md) | 26 built-in themes, custom ThemeBuilder, PropCycler, 3D pane colors |
+| [Themes](themes.md) | 30 built-in themes, custom ThemeBuilder, PropCycler, 3D pane colors |
 | [Interactive SVG](interactive-svg.md) | Browser pan/zoom/tooltips/legend toggle, highlight, selection, 3D rotation, SignalR |
 | [Animation](animation.md) | FuncAnimation GIF, multi-page PDF, individual frame export, rotating 3D |
 | [Streaming & Realtime](streaming.md) | Live data append, ring buffers, streaming indicators, axis scaling, Rx integration |

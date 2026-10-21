@@ -461,9 +461,9 @@ public sealed class BusTelemetrySimulator : BackgroundService
 
     private static readonly string[] BusNames =
     [
-        "synapse-ams-01", "synapse-ams-02", "synapse-rtd-01", "synapse-rtd-02", "synapse-fra-01",
-        "synapse-fra-02", "synapse-lon-01", "synapse-lon-02", "synapse-par-01", "synapse-dub-01",
-        "synapse-osl-01", "synapse-mad-01", "synapse-mil-01", "synapse-waw-01", "synapse-zrh-01"
+        "gateway-ams-01", "gateway-ams-02", "gateway-rtd-01", "gateway-rtd-02", "gateway-fra-01",
+        "gateway-fra-02", "gateway-lon-01", "gateway-lon-02", "gateway-par-01", "gateway-dub-01",
+        "gateway-osl-01", "gateway-mad-01", "gateway-mil-01", "gateway-waw-01", "gateway-zrh-01"
     ];
 
     private readonly record struct Sample(

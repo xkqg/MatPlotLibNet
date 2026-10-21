@@ -461,6 +461,34 @@ public class ChartSerializerDeserializationBranchTests
         Assert.Single(fig.SubPlots[0].Series);
     }
 
+    /// <summary>A line or scatter on either secondary axis with no xData/yData loads as an empty series of that kind,
+    /// on that axis (CreateSecondaryLine / CreateSecondaryScatter / CreateXSecondaryLine / CreateXSecondaryScatter,
+    /// both <c>?? []</c> arms each), the same leniency the primary line and scatter have.</summary>
+    [Theory]
+    [InlineData("secondaryYAxis", "secondarySeries", "line")]
+    [InlineData("secondaryYAxis", "secondarySeries", "scatter")]
+    [InlineData("secondaryXAxis", "xSecondarySeries", "line")]
+    [InlineData("secondaryXAxis", "xSecondarySeries", "scatter")]
+    public void FromJson_SecondaryAxisSeriesWithNoXYData_LoadsAnEmptySeriesOnThatAxis(
+        string axisField, string seriesField, string type)
+    {
+        string json = $$"""
+            {"width":800,"height":600,"subPlots":[{
+              "{{axisField}}":{"label":"other"},
+              "{{seriesField}}":[{"type":"{{type}}","label":"empty"}]}]}
+            """;
+
+        var axes = S.FromJson(json).SubPlots[0];
+
+        var list = axisField == "secondaryYAxis" ? axes.SecondarySeries : axes.XSecondarySeries;
+        var series = Assert.Single(list);
+        Assert.Equal("empty", series.Label);
+        var xy = Assert.IsAssignableFrom<MatPlotLibNet.Models.Series.XYSeries>(series);
+        Assert.Equal(type == "line", xy is MatPlotLibNet.Models.Series.LineSeries);
+        Assert.Empty(xy.XData);
+        Assert.Empty(xy.YData);
+    }
+
     /// <summary>Bar with no Categories/Values → CreateBar L389 two ?? arms fire.</summary>
     [Fact]
     public void FromJson_BarWithNoCategories_UsesNullFallback()

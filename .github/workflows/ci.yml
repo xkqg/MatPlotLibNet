@@ -20,6 +20,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # The wiki's code is compiled by a test (Tst/MatPlotLibNet.Wiki), as the README's samples are. GitHub keeps a
+      # wiki as a repository of its own, so it is cloned beside this one, where it stands on a contributor's machine
+      # and where the test looks for it. The address is the upstream one, not github.repository: a fork has no wiki
+      # of its own, so a clone built from the fork's name would fail a contributor's run.
+      - name: Clone the wiki beside the repository
+        run: git clone --depth 1 https://github.com/xkqg/MatPlotLibNet.wiki.git ../MatPlotLibNet.wiki
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
@@ -58,6 +65,9 @@ jobs:
           dotnet run --project Tst/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Verso/MatPlotLibNet.Verso.Tests.csproj --no-build --configuration Release
+          # Every C# block of the wiki, compiled against the packages this job just built. Not in the coverage job: it
+          # holds no product code to measure, and it compiles text rather than exercising a class.
+          dotnet run --project Tst/MatPlotLibNet.Wiki/MatPlotLibNet.Wiki.Tests.csproj --no-build --configuration Release
 
   coverage:
     runs-on: ubuntu-latest

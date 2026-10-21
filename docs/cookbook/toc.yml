@@ -4,6 +4,8 @@
   href: matplotlib-to-csharp.md
 - name: Line Charts
   href: line-charts.md
+- name: Direct labels & axis colours
+  href: direct-labels-and-axis-colours.md
 - name: Bar Charts
   href: bar-charts.md
 - name: Heatmaps & Colormaps

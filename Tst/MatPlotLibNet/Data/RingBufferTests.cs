@@ -135,7 +135,7 @@ public sealed class RingBufferTests
 
 /// <summary>Arithmetic over a ring is arithmetic over its VALUES, so it sits on the numeric instantiation
 /// rather than inside the buffer — the same rule that keeps this repo free of <c>*Helper</c> classes, and the
-/// same rule Ait.Core's own ring states for itself.</summary>
+/// same rule the ring states for itself.</summary>
 public sealed class RingBufferExtensionsTests
 {
     [Fact]

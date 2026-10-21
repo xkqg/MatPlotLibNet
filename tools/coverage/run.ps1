@@ -8,11 +8,12 @@
 # Update baseline:  pwsh tools/coverage/run.ps1 -SetBaseline (writes baseline.cobertura.xml)
 #
 # Why a custom script?
-# The project uses xunit v3 Exe pattern (dotnet run, not dotnet test) which doesn't
-# auto-trigger coverlet.msbuild. We use Microsoft's `dotnet-coverage` tool (the
-# official cross-platform coverage collector for the Microsoft Testing Platform that
-# xUnit v3 runs on) plus `dotnet-reportgenerator-globaltool` (both installed as
-# global tools) and stitch the multiple test assemblies together.
+# The project uses xunit v3 Exe pattern (dotnet run, not dotnet test), so there is no VSTest
+# run for an in-build collector such as coverlet.msbuild to hook into (no suite references it).
+# We use Microsoft's `dotnet-coverage` tool (the official cross-platform coverage
+# collector for the Microsoft Testing Platform that xUnit v3 runs on) plus
+# `dotnet-reportgenerator-globaltool` (both installed as global tools) and stitch the
+# multiple test assemblies together.
 #
 # Why not coverlet.console? coverlet.console 10.0.0 (released 2026-04-17) added MTP
 # integration but its attach path silently captures zero coverage on Ubuntu CI runners
@@ -46,6 +47,8 @@ New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 # (Phase O follow-on 2026-04-18: added Blazor, Avalonia, AspNetCore, Interactive,
 #  DataFrame, GraphQL — previously only Tests + Skia + Geo were measured, so the
 #  other 6 test projects' contributions were invisible to the coverage report.)
+# One CI suite is NOT here on purpose: Tst\MatPlotLibNet.Wiki compiles the wiki's text and exercises no class,
+# so it adds nothing to measure; ci.yml runs it in build-and-test.
 $testProjects = @(
     "Tst\MatPlotLibNet\MatPlotLibNet.Tests.csproj",
     "Tst\MatPlotLibNet.Skia\MatPlotLibNet.Skia.Tests.csproj"

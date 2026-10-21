@@ -44,6 +44,8 @@ mkdir -p "$OUT_DIR"
 # appear uncovered in the baseline and the 90/90 gate reports false gaps.
 # (Phase O follow-on 2026-04-18: added Blazor, Avalonia, AspNetCore, Interactive,
 #  DataFrame, GraphQL — previously only Tests + Skia + Geo were measured.)
+# One CI suite is NOT here on purpose: Tst/MatPlotLibNet.Wiki compiles the wiki's text and exercises no class,
+# so it adds nothing to measure; ci.yml runs it in build-and-test.
 TEST_PROJECTS=(
     "Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj"
     "Tst/MatPlotLibNet.Skia/MatPlotLibNet.Skia.Tests.csproj"

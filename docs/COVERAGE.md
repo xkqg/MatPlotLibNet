@@ -2,6 +2,13 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.19.0, direct labels, axis colours and the interaction layer in data units):** **729/729 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 729 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.6L / 97.9B**; **12,441 tests, 0 failures** across the 11 measured suites (the wiki suite and the WPF suite run beside the gate and are not
+measured by it). The first strict run of the release reported four classes short on branches (`DataTransform`, `ChartLayout`,
+`SvgSeriesRenderer`, `ChartSerializer`), all fallbacks the interaction work had added. Each is now pinned by a test that was
+shown to fail when its branch is flipped, and two guards no caller could reach were deleted instead.
+
 **Status (v1.16.0, the chart data table + the streaming windows):** **689/689 classes at ≥90/90**, strict gate **PASSES** with no
 regressions (`PASS: All 689 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.6L / 97.3B**; **11,497 tests, 0 failures** across the 10 CI suites. The ten classes the data table adds
@@ -173,7 +180,7 @@ Per-class baselines protect against subtle quality erosion — e.g., someone del
 | Theory tests | `[Theory] [InlineData]` / `[MemberData]` | Parametrised over input matrices to exercise every branch |
 | Visual regression tests | `Tst/MatPlotLibNet/Rendering/` | Extract SVG geometry, assert points fall in canvas, ticks don't overlap |
 | Numpy/matplotlib parity | `Tst/MatPlotLibNet/.../*EdgeCaseTests.cs` | Math formulas verified against pre-computed numpy/matplotlib values from `TestFixtures/NumpyReference.cs` |
-| Fidelity tests | `Tst/MatPlotLibNet.Fidelity/` | Render PNG, compare to matplotlib reference via `PerceptualDiff` (RMS / SSIM / ΔE) |
+| Fidelity tests | `Tst/MatPlotLibNet.Fidelity/` | Render PNG, compare to matplotlib reference via `PerceptualDiff` (RMS / SSIM / ΔE). Run by hand: no workflow builds or runs this project |
 | Performance benchmarks | `Tst/MatPlotLibNet/Benchmarks/` | Throughput numbers (not gated, informational) |
 
 ## Edge case checklist (enforced via test naming)

@@ -220,13 +220,15 @@ public class PlaygroundExampleTests
     // ── Registry sanity ──────────────────────────────────────────────────────
 
     [Fact]
-    public void Examples_Contains_TwentyMembers()
+    public void Examples_Contains_TwentyOneMembers()
     {
         // Phase L (v1.7.2, 2026-04-21) — AxisBreaks + MinorGrid added (17th and 18th examples)
         // to showcase the refactored DrawBreakSegments + RenderGridLines helpers.
         // v1.12.0 — DashboardTiles + ThresholdLine added (19th and 20th examples) to showcase
         // StatTileSeries/StateTimelineSeries and the Threshold + LegendValues conveniences.
-        Assert.Equal(20, PlaygroundExamples.Examples.Count);
+        // v1.19.0 — DirectLabels added (21st): end labels on a dual axis whose axes wear their line's colour.
+        // Samples/README.md and articles/intro.md print this number.
+        Assert.Equal(21, PlaygroundExamples.Examples.Count);
     }
 
     [Fact]
@@ -238,6 +240,7 @@ public class PlaygroundExampleTests
         Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.MultiSeries));
         Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.AxisBreaks));
         Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.MinorGrid));
+        Assert.True(PlaygroundExamples.SupportsLineControls(PlaygroundExample.DirectLabels));
         Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.ScatterPlot));
         Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.Heatmap));
         Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.PieChart));
@@ -254,6 +257,7 @@ public class PlaygroundExampleTests
         Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.MultiSeries));
         Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.AxisBreaks));
         Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.MinorGrid));
+        Assert.True(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.DirectLabels));
         Assert.False(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.Heatmap));
         Assert.False(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.PieChart));
     }
@@ -333,6 +337,58 @@ public class PlaygroundExampleTests
         Assert.Single(figure.SubPlots[0].ReferenceLines);
         Assert.Single(figure.SubPlots[0].Spans);
         Assert.True(figure.SubPlots[0].Legend.LegendValues);
+    }
+
+    // ── v1.19.0 direct labels on a coloured dual axis ────────────────────────
+
+    [Fact]
+    public void DirectLabels_NamesBothLinesAtTheirEnd_AndColoursEachYAxisLikeItsLine()
+    {
+        var (figure, code) = PlaygroundExamples.Build(PlaygroundExample.DirectLabels, Defaults());
+        var axes = figure.SubPlots[0];
+        var left = Assert.IsType<LineSeries>(Assert.Single(axes.Series));
+        var right = Assert.IsType<LineSeries>(Assert.Single(axes.SecondarySeries));
+
+        Assert.Equal(SeriesLabelPlacement.LineEnd, left.LabelPlacement);
+        Assert.Equal(SeriesLabelPlacement.LineEnd, right.LabelPlacement);
+
+        // Each Y axis wears the colour of the line it measures ...
+        Assert.NotNull(left.Color);
+        Assert.NotNull(right.Color);
+        Assert.NotEqual(left.Color, right.Color);
+        Assert.Equal(left.Color, axes.YAxis.MajorTicks.LabelColor);
+        Assert.Equal(left.Color, axes.Spines.Left.Color);
+        Assert.Equal(right.Color, axes.SecondaryYAxis!.MajorTicks.LabelColor);
+        Assert.Equal(right.Color, axes.Spines.Right.Color);
+
+        // ... and the colour is never the only cue: both axes keep a title in words.
+        Assert.False(string.IsNullOrEmpty(axes.YAxis.Label));
+        Assert.False(string.IsNullOrEmpty(axes.SecondaryYAxis.Label));
+
+        // The names are drawn at the line ends, so no legend is drawn at all.
+        string svg = figure.ToSvg();
+        Assert.Contains($">{left.Label}</text>", svg);
+        Assert.Contains($">{right.Label}</text>", svg);
+        Assert.DoesNotContain("class=\"legend\"", svg);
+
+        // The snippet a user copies carries the two verbs the example is about.
+        Assert.Contains("WithDirectLabel()", code);
+        Assert.Contains("SetYAxisColor(", code);
+    }
+
+    [Fact]
+    public void DirectLabels_AppliesLineAndMarkerOptions_ToBothLines()
+    {
+        var opts = Defaults() with { LineStyle = LineStyle.Dashed, LineWidth = 3.5, Marker = MarkerStyle.Square, MarkerSize = 9 };
+        var axes = PlaygroundExamples.Build(PlaygroundExample.DirectLabels, opts).Figure.SubPlots[0];
+
+        foreach (var line in axes.Series.Concat(axes.SecondarySeries).Cast<LineSeries>())
+        {
+            Assert.Equal(LineStyle.Dashed, line.LineStyle);
+            Assert.Equal(3.5, line.LineWidth);
+            Assert.Equal(MarkerStyle.Square, line.Marker);
+            Assert.Equal(9, line.MarkerSize);
+        }
     }
 
     [Fact]

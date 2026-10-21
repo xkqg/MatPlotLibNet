@@ -63,6 +63,7 @@ internal sealed class SpecVocabulary
         [(SpecNodeKind.HorizontalLevel, "lineStyle")] = Names<LineStyle>(),
         [(SpecNodeKind.AxisBreak, "style")] = Names<BreakStyle>(),
         [(SpecNodeKind.Series, "lineStyle")] = Names<LineStyle>(),
+        [(SpecNodeKind.Series, "labelPlacement")] = Names<SeriesLabelPlacement>(),
         [(SpecNodeKind.Series, "stepPosition")] = Names<StepPosition>(),
         [(SpecNodeKind.Series, "maskMode")] = Names<HeatmapMaskMode>(),
         [(SpecNodeKind.Series, "pairGridDiagonal")] = Names<PairGridDiagonalKind>(),

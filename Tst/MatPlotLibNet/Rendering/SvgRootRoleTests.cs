@@ -47,8 +47,8 @@ public class SvgRootRoleTests
     [Fact]
     public void ATitle_StillWins()
     {
-        string svg = Render(t => t.Label = "Processes", title: "Ait — fleet");
+        string svg = Render(t => t.Label = "Processes", title: "Order service — fleet");
 
-        Assert.Contains("<title id=\"chart-title\">Ait — fleet</title>", svg);
+        Assert.Contains("<title id=\"chart-title\">Order service — fleet</title>", svg);
     }
 }

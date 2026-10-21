@@ -11,103 +11,164 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
 
-/// <summary>Per-axis draw parameters bundled for <see cref="CartesianAxesRenderer.RenderAxisTicks"/>.</summary>
-internal readonly struct TickDrawContext
-{
-    public Font LabelFont { get; init; }
-    public ITickFormatter? Formatter { get; init; }
-    public Func<double, string> UniformFormat { get; init; }
-    public double AxisEdge { get; init; }
-    public double SpineHalf { get; init; }
-    public double LabelRotation { get; init; }
-    public TextAlignment Alignment { get; init; }
-    public double Pad { get; init; }
-    /// <summary>When true (mirror-Y right side), label X is AxisEdge + tickLength + Pad.
-    /// When false (normal Y left side), label X is AxisEdge - tickLength - Pad.</summary>
-    public bool LabelBeyondAxis { get; init; }
-}
-
 /// <summary>Renders axes using the standard Cartesian (X, Y) coordinate system.</summary>
-public sealed class CartesianAxesRenderer : AxesRenderer
+/// <remarks>Not sealed so that inset axes can answer the end-label question differently
+/// (<c>CartesianInsetAxesRenderer</c>); the drawing itself (<see cref="Render"/>) is sealed.</remarks>
+public class CartesianAxesRenderer : AxesRenderer
 {
     /// <summary>Initializes a new Cartesian axes renderer.</summary>
     public CartesianAxesRenderer(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme)
         : base(axes, plotArea, ctx, theme) { }
 
     /// <inheritdoc />
-    public override void Render()
+    /// <remarks>Cartesian axes draw end-of-line labels, so a series that asked for one leaves the legend here.</remarks>
+    internal override bool DrawsDirectLabels => true;
+
+    /// <summary>The end labels of the axes being rendered; placed by <see cref="Render"/> before the series pass.</summary>
+    private CartesianParts.CartesianDirectLabelsPart? _directLabels;
+
+    /// <inheritdoc />
+    /// <remarks>Draws the series' end label, when it asked for one, inside the series' own group.</remarks>
+    internal override void DrawInsideSeriesGroup(int seriesIndex) =>
+        _directLabels!.DrawLabelOf(SeriesAxisPair.Primary, seriesIndex);
+
+    /// <summary>The band the mirrored Y tick labels took past the right spine in this render; 0 when none were drawn.
+    /// The end labels start past it.</summary>
+    private double _mirroredYTickBand;
+
+    /// <summary>Whether a secondary Y axis is drawn: it has series. A drawn secondary axis owns the right edge.</summary>
+    private bool DrawsSecondaryY => Axes.SecondaryYAxis is not null && Axes.SecondarySeries.Count > 0;
+
+    /// <summary>Whether a secondary X axis is drawn: it has series. A drawn secondary axis owns the top edge.</summary>
+    private bool DrawsSecondaryX => Axes.SecondaryXAxis is not null && Axes.XSecondarySeries.Count > 0;
+
+    /// <summary>Whether the primary X ticks are mirrored on the top edge: asked for, and no drawn secondary X axis owns
+    /// that edge (matplotlib's <c>twiny</c> moves the host's ticks to the bottom the same way).</summary>
+    private bool MirrorsXTicks => Axes.XAxis.MajorTicks.Mirror && !DrawsSecondaryX;
+
+    /// <summary>Whether the primary Y ticks are mirrored on the right edge: asked for, and no drawn secondary Y axis owns
+    /// that edge (matplotlib's <c>twinx</c> moves the host's ticks to the left the same way).</summary>
+    private bool MirrorsYTicks => Axes.YAxis.MajorTicks.Mirror && !DrawsSecondaryY;
+
+    /// <summary>Whether every series fills the plot without Cartesian axes (radar, pie, treemap, table): then no grid,
+    /// ticks or frame are drawn.</summary>
+    private bool IsAxisLess => Axes.Series.Count > 0 && Axes.Series.All(s =>
+        s is RadarSeries or PieSeries or HierarchicalSeries or TableSeries or TreeGridSeries);
+
+    /// <inheritdoc />
+    /// <remarks>Measured with what <see cref="Render"/> draws them with: the same predicates, tick values (the Y ticks
+    /// for this renderer's plot height), formatter, label font and band rule
+    /// (<see cref="AxisTickExtensions.TickLabelBand"/>). A tick label's height depends on its font only, so the
+    /// mirrored top band is measured on one label. Categorical X labels are drawn without a mirror, but their band is
+    /// still charged: a reservation that is too wide never clips. A drawn secondary X axis owns the top edge, so the top
+    /// band is then its band (<see cref="CartesianParts.CartesianSecondaryXAxisPart.MeasureBand"/>), which it draws
+    /// whatever the series.</remarks>
+    internal override Layout.EdgeBands MeasureEdgeBands()
+    {
+        double secondaryTop = DrawsSecondaryX
+            ? CartesianParts.CartesianSecondaryXAxisPart.MeasureBand(Axes, Ctx, Theme, ComputeSecondaryXDataRanges(0, 1))
+            : 0;
+        if (IsAxisLess) return new Layout.EdgeBands(secondaryTop, 0);
+        var baseFont = TickFont();
+        var xMajor = Axes.XAxis.MajorTicks;
+        double top = MirrorsXTicks && xMajor.Visible
+            ? xMajor.TickLabelBand(Ctx.MeasureText("0", xMajor.LabelFont(baseFont)).Height)
+            : secondaryTop;
+        var yMajor = Axes.YAxis.MajorTicks;
+        double right = 0;
+        if (MirrorsYTicks && yMajor.Visible)
+        {
+            var yTicks = PrimaryYTicks(ComputeDataRanges());
+            var uniform = BuildUniformTickFormatter(yTicks);
+            var formatter = PrimaryYFormatter;
+            var font = yMajor.LabelFont(baseFont);
+            double widest = 0;
+            foreach (var tick in yTicks)
+                widest = Math.Max(widest, Ctx.MeasureText(formatter?.Format(tick) ?? uniform(tick), font).Width);
+            right = yMajor.TickLabelBand(widest);
+        }
+        return new Layout.EdgeBands(top, right);
+    }
+
+    /// <summary>The tick locator a scale brings when the axis has none: <see cref="AutoDateLocator"/> for a date X
+    /// axis, <see cref="SymlogLocator"/> for symlog, <see cref="LogLocator"/> for log; <see langword="null"/>
+    /// otherwise.</summary>
+    private static ITickLocator? ScaleLocator(Axis axis, bool isX) => axis.Scale switch
+    {
+        AxisScale.Date when isX => new AutoDateLocator(),
+        AxisScale.SymLog        => new SymlogLocator(axis.SymLogLinThresh),
+        AxisScale.Log           => new LogLocator(),
+        _                       => null,
+    };
+
+    /// <summary>The formatter that comes with a scale's locator: <see cref="AutoDateFormatter"/> with the date
+    /// locator, <see cref="LogTickFormatter"/> with the log locator; <see langword="null"/> otherwise.</summary>
+    private static ITickFormatter? ScaleFormatter(ITickLocator? locator) => locator switch
+    {
+        AutoDateLocator date => new AutoDateFormatter(date),
+        LogLocator           => new LogTickFormatter(),
+        _                    => null,
+    };
+
+    /// <summary>Installs the locator and formatter the axis' scale brings when the axis has no locator; the axis'
+    /// own formatter is kept.</summary>
+    private static void InstallScaleTicks(Axis axis, bool isX)
+    {
+        if (axis.TickLocator is not null) return;
+        axis.TickLocator = ScaleLocator(axis, isX);
+        axis.TickFormatter ??= ScaleFormatter(axis.TickLocator);
+    }
+
+    /// <summary>The primary Y tick values the axes draws for <paramref name="range"/>: placed by the axis' locator or
+    /// the one its scale brings, otherwise by the default placement for this renderer's plot height; ticks inside a Y
+    /// break are left out. Read before anything is installed (layout) and after (drawing) alike.</summary>
+    private double[] PrimaryYTicks(DataRange range)
+    {
+        var axis = Axes.YAxis;
+        var ticks = (axis.TickLocator ?? ScaleLocator(axis, isX: false)) is { } locator
+            ? locator.LocateInterval(range.YMin, range.YMax)
+            : ComputeTickValues(range.YMin, range.YMax, axis, PlotArea.Height);
+        return Axes.YBreaks.Count > 0
+            ? ticks.Where(t => !AxisBreakMapper.IsInBreak(Axes.YBreaks, t)).ToArray()
+            : ticks;
+    }
+
+    /// <summary>The formatter of the primary Y tick labels: the axis' own, or the one its scale brings while the scale
+    /// has not installed it yet.</summary>
+    private ITickFormatter? PrimaryYFormatter => Axes.YAxis.TickFormatter
+        ?? (Axes.YAxis.TickLocator is null ? ScaleFormatter(ScaleLocator(Axes.YAxis, isX: false)) : null);
+
+    /// <inheritdoc />
+    public sealed override void Render()
     {
         var axesBg = Theme.AxesBackground;
         Ctx.DrawRectangle(PlotArea, new ShapeStyle(axesBg, null, 0));
 
-        // Compute data ranges
+        // Compute data ranges, and the transform the primary series are drawn with
         var range = ComputeDataRanges();
+        var transform = ViewTransform(range);
+        DrawnTransform = transform;
 
-        // Apply axis breaks: compress the visible range by removing break gaps
-        var (cXMin, cXMax) = Axes.XBreaks.Count > 0
-            ? AxisBreakMapper.CompressedRange(Axes.XBreaks, range.XMin, range.XMax)
-            : new MinMaxRange(range.XMin, range.XMax);
-        var (cYMin, cYMax) = Axes.YBreaks.Count > 0
-            ? AxisBreakMapper.CompressedRange(Axes.YBreaks, range.YMin, range.YMax)
-            : new MinMaxRange(range.YMin, range.YMax);
-
-        // For non-linear scales (Log / SymLog), the displayed range must be in scaled space
-        // so that ticks at e.g. 100, 1000, 10000 land at evenly-spaced pixel positions.
-        var (txMin, txMax) = ScaleRange(cXMin, cXMax, Axes.XAxis.Scale, Axes.XAxis.SymLogLinThresh);
-        var (tyMin, tyMax) = ScaleRange(cYMin, cYMax, Axes.YAxis.Scale, Axes.YAxis.SymLogLinThresh);
-
-        var transform = (Axes.XBreaks.Count > 0 || Axes.YBreaks.Count > 0
-                         || Axes.XAxis.Scale is AxisScale.Log or AxisScale.SymLog
-                         || Axes.YAxis.Scale is AxisScale.Log or AxisScale.SymLog)
-            ? new DataTransform(txMin, txMax, tyMin, tyMax, PlotArea,
-                Axes.XBreaks, Axes.YBreaks,
-                range.XMin, range.XMax, range.YMin, range.YMax,
-                Axes.XAxis.Scale, Axes.YAxis.Scale, Axes.XAxis.SymLogLinThresh, Axes.YAxis.SymLogLinThresh)
-            : new DataTransform(cXMin, cXMax, cYMin, cYMax, PlotArea);
-
-        // Auto-apply AutoDateLocator + AutoDateFormatter when scale is Date but no locator is set
-        // (handles legacy SetXDateFormat() calls that only set scale + formatter, not a locator)
-        if (Axes.XAxis.Scale == AxisScale.Date && Axes.XAxis.TickLocator is null)
-        {
-            var autoLocator = new AutoDateLocator();
-            Axes.XAxis.TickLocator = autoLocator;
-            Axes.XAxis.TickFormatter ??= new AutoDateFormatter(autoLocator);
-        }
-        // Auto-apply SymlogLocator when scale is SymLog but no explicit locator is set —
-        // matches matplotlib's set_yscale("symlog") which installs SymmetricalLogLocator.
-        if (Axes.YAxis.Scale == AxisScale.SymLog && Axes.YAxis.TickLocator is null)
-            Axes.YAxis.TickLocator = new SymlogLocator(Axes.YAxis.SymLogLinThresh);
-        if (Axes.XAxis.Scale == AxisScale.SymLog && Axes.XAxis.TickLocator is null)
-            Axes.XAxis.TickLocator = new SymlogLocator(Axes.XAxis.SymLogLinThresh);
-        // Auto-apply LogLocator + LogTickFormatter when scale is Log but no explicit locator is set —
-        // matplotlib's set_yscale("log") installs LogLocator/LogFormatter; without this arm a log axis wore
-        // LINEAR ticks (0, 25, 50 …) over a logarithmic transform (measured 2026-08-30).
-        if (Axes.YAxis.Scale == AxisScale.Log && Axes.YAxis.TickLocator is null)
-        {
-            Axes.YAxis.TickLocator = new LogLocator();
-            Axes.YAxis.TickFormatter ??= new TickFormatters.LogTickFormatter();
-        }
-        if (Axes.XAxis.Scale == AxisScale.Log && Axes.XAxis.TickLocator is null)
-        {
-            Axes.XAxis.TickLocator = new LogLocator();
-            Axes.XAxis.TickFormatter ??= new TickFormatters.LogTickFormatter();
-        }
+        // A scale with its own tick placement installs it when the axis has no locator: AutoDateLocator +
+        // AutoDateFormatter for a date X axis (handles legacy SetXDateFormat() calls that only set scale + formatter),
+        // SymlogLocator for symlog (matplotlib's set_yscale("symlog") installs SymmetricalLogLocator), LogLocator +
+        // LogTickFormatter for log (without that arm a log axis wore LINEAR ticks 0, 25, 50 … over a logarithmic
+        // transform, measured 2026-08-30).
+        InstallScaleTicks(Axes.XAxis, isX: true);
+        InstallScaleTicks(Axes.YAxis, isX: false);
 
         // Compute tick values once for grid + ticks (respects TickLocator / Spacing / plot size)
         var xTicks = ComputeTickValues(range.XMin, range.XMax, Axes.XAxis, PlotArea.Width);
-        var yTicks = ComputeTickValues(range.YMin, range.YMax, Axes.YAxis, PlotArea.Height);
+        var yTicks = PrimaryYTicks(range);
 
         // Filter out ticks that fall strictly inside any break region — they would render
         // in empty space (or on top of the break marker).
         if (Axes.XBreaks.Count > 0)
             xTicks = xTicks.Where(t => !AxisBreakMapper.IsInBreak(Axes.XBreaks, t)).ToArray();
-        if (Axes.YBreaks.Count > 0)
-            yTicks = yTicks.Where(t => !AxisBreakMapper.IsInBreak(Axes.YBreaks, t)).ToArray();
 
         // Skip standard grid/ticks/frame for axis-less series (radar, pie, treemap, table).
         // These fill the plot area and don't use a Cartesian coordinate system.
-        bool radarOnly = Axes.Series.Count > 0 && Axes.Series.All(s =>
-            s is RadarSeries or PieSeries or HierarchicalSeries or TableSeries or TreeGridSeries);
+        bool radarOnly = IsAxisLess;
         if (!radarOnly)
         {
             // Grid — axes-level setting overrides theme when explicitly set (Visible=true);
@@ -152,6 +213,22 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             }
         }
 
+        // The secondary Y transform is built ONCE: the secondary part draws its lines with it and the end-label part
+        // places a secondary line's label with the same value.
+        DataRange secYRange = default;
+        DataTransform? secYTransform = null;
+        if (DrawsSecondaryY)
+        {
+            secYRange = ComputeSecondaryDataRanges(range.XMin, range.XMax);
+            secYTransform = new DataTransform(secYRange.XMin, secYRange.XMax, secYRange.YMin, secYRange.YMax, PlotArea);
+        }
+
+        // End-of-line labels: placed once, across every series, before any is drawn. Each label is drawn inside its own
+        // series' group — by the primary pass (DrawInsideSeriesGroup) or the secondary Y part — so whatever hides the
+        // series hides its label.
+        _directLabels = new CartesianParts.CartesianDirectLabelsPart(Axes, PlotArea, Ctx, Theme, transform,
+            secYTransform, new MinMaxRange(range.XMin, range.XMax), _mirroredYTickBand);
+
         // Series
         RenderSeries(transform);
 
@@ -160,21 +237,21 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         if (Axes.YBreaks.Count > 0) RenderBreakMarkers(Axes.YBreaks, transform, isXAxis: false);
 
         // Secondary Y-axis series (Phase B.7 — extracted to CartesianSecondaryYAxisPart)
-        if (Axes.SecondaryYAxis is not null && Axes.SecondarySeries.Count > 0)
+        if (secYTransform is not null)
         {
-            var secYRange = ComputeSecondaryDataRanges(range.XMin, range.XMax);
             new CartesianParts.CartesianSecondaryYAxisPart(
-                Axes, PlotArea, Ctx, Theme, transform, secYRange,
-                primarySeriesCount: Axes.Series.Count).Render();
+                Axes, PlotArea, Ctx, Theme, transform, secYRange, secYTransform, _directLabels).Render();
         }
 
-        // Secondary X-axis series (Phase B.8 — extracted to CartesianSecondaryXAxisPart)
-        if (Axes.SecondaryXAxis is not null && Axes.XSecondarySeries.Count > 0)
+        // Secondary X-axis series (Phase B.8 — extracted to CartesianSecondaryXAxisPart). It owns the top edge, so the
+        // band it draws there is what the axes title rises by.
+        if (DrawsSecondaryX)
         {
             var secXRange = ComputeSecondaryXDataRanges(range.YMin, range.YMax);
-            new CartesianParts.CartesianSecondaryXAxisPart(
-                Axes, PlotArea, Ctx, Theme, transform, secXRange,
-                colorOffset: Axes.Series.Count + Axes.SecondarySeries.Count).Render();
+            var secondaryX = new CartesianParts.CartesianSecondaryXAxisPart(
+                Axes, PlotArea, Ctx, Theme, transform, secXRange);
+            secondaryX.Render();
+            MeasuredTopTickBand = secondaryX.Band;
         }
 
         // Annotations (Phase B.4 — extracted to CartesianAnnotationsPart via Composite pattern)
@@ -200,16 +277,43 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         RenderAxisLabels();
     }
 
+    /// <inheritdoc />
+    /// <remarks>The range is <see cref="ComputeDataRanges"/>' and the transform is built by <see cref="ViewTransform"/>,
+    /// the two calls <see cref="Render"/> makes before it draws anything.</remarks>
+    internal override DataTransform ComputeViewTransform() => ViewTransform(ComputeDataRanges());
+
+    /// <summary>The transform that maps <paramref name="range"/> onto the plot area: axis breaks compress it, and on a
+    /// log or symlog axis the pixel mapping works in the scaled space (<see cref="AxisScaleExtensions.Forward"/>) so
+    /// that ticks at 100, 1000, 10000 land evenly spaced.</summary>
+    private DataTransform ViewTransform(DataRange range)
+    {
+        // Apply axis breaks: compress the visible range by removing break gaps
+        var (cXMin, cXMax) = Axes.XBreaks.Count > 0
+            ? AxisBreakMapper.CompressedRange(Axes.XBreaks, range.XMin, range.XMax)
+            : new MinMaxRange(range.XMin, range.XMax);
+        var (cYMin, cYMax) = Axes.YBreaks.Count > 0
+            ? AxisBreakMapper.CompressedRange(Axes.YBreaks, range.YMin, range.YMax)
+            : new MinMaxRange(range.YMin, range.YMax);
+
+        var (txMin, txMax) = ScaleRange(cXMin, cXMax, Axes.XAxis.Scale, Axes.XAxis.SymLogLinThresh);
+        var (tyMin, tyMax) = ScaleRange(cYMin, cYMax, Axes.YAxis.Scale, Axes.YAxis.SymLogLinThresh);
+
+        return (Axes.XBreaks.Count > 0 || Axes.YBreaks.Count > 0
+                || Axes.XAxis.Scale is AxisScale.Log or AxisScale.SymLog
+                || Axes.YAxis.Scale is AxisScale.Log or AxisScale.SymLog)
+            ? new DataTransform(txMin, txMax, tyMin, tyMax, PlotArea,
+                Axes.XBreaks, Axes.YBreaks,
+                range.XMin, range.XMax, range.YMin, range.YMax,
+                Axes.XAxis.Scale, Axes.YAxis.Scale, Axes.XAxis.SymLogLinThresh, Axes.YAxis.SymLogLinThresh)
+            : new DataTransform(cXMin, cXMax, cYMin, cYMax, PlotArea);
+    }
+
     /// <summary>Maps a (raw) data range through the axis scale's Forward function so the
     /// resulting scaled range can be used by <see cref="DataTransform"/> for pixel scaling.
     /// Linear scale is identity; SymLog applies <see cref="SymlogTransform.Forward"/>; Log
     /// applies log10. Returns the scaled (min, max) pair.</summary>
-    private static MinMaxRange ScaleRange(double min, double max, AxisScale scale, double linthresh) => scale switch
-    {
-        AxisScale.SymLog => new(SymlogTransform.Forward(min, linthresh), SymlogTransform.Forward(max, linthresh)),
-        AxisScale.Log    => new(min > 0 ? Math.Log10(min) : double.NaN, max > 0 ? Math.Log10(max) : double.NaN),
-        _                => new(min, max),
-    };
+    private static MinMaxRange ScaleRange(double min, double max, AxisScale scale, double linthresh) =>
+        new(scale.Forward(min, linthresh), scale.Forward(max, linthresh));
 
     /// <summary>Renders major and/or minor grid lines behind the plot area at each tick position.</summary>
     private void RenderGrid(double[] xTicks, double[] yTicks, double yMin, DataTransform transform, GridStyle grid)
@@ -242,20 +346,8 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         // --- X axis ticks ---
         var xMajor = Axes.XAxis.MajorTicks;
         var xMinor = Axes.XAxis.MinorTicks;
-        var xTickColor  = xMajor.Color ?? Theme.ForegroundText;
-        var xTickLength = xMajor.Length;
-        var xTickWidth  = xMajor.Width;
-
-        // Build tick label font from theme, applying overrides
-        var baseFont = TickFont();
-        var xLabelFont = baseFont;
-        if (xMajor.LabelSize.HasValue)  xLabelFont = xLabelFont with { Size  = xMajor.LabelSize.Value };
-        if (xMajor.LabelColor.HasValue) xLabelFont = xLabelFont with { Color = xMajor.LabelColor };
-
-        var yLabelFont = baseFont;
         var yMajor = Axes.YAxis.MajorTicks;
-        if (yMajor.LabelSize.HasValue)  yLabelFont = yLabelFont with { Size  = yMajor.LabelSize.Value };
-        if (yMajor.LabelColor.HasValue) yLabelFont = yLabelFont with { Color = yMajor.LabelColor };
+        var baseFont = TickFont();
 
         // Don't treat a BarSeries with numeric XCoordinate as categorical — it opts into a
         // continuous X axis and shares it with companion line series (e.g. MACD histogram
@@ -283,72 +375,68 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             // no manual rotation and adjacent tick labels would overlap, default to 30°
             // (matplotlib Figure.autofmt_xdate parity). We use label text + font width +
             // spacing to detect the collision and only rotate when it matters.
-            double xRotation = ResolveXLabelRotation(xTicks, xMajor.LabelRotation, xFormatter, xUniformFormat, xLabelFont, transform, yMin);
-            var xAlign = xRotation == 0 ? TextAlignment.Center : TextAlignment.Right;
-            MeasuredXTickMaxHeight = RenderAxisTicks(xTicks, Orientation.Horizontal, yMin,
-                xTickLength, xTickColor, xTickWidth, xMajor.Direction, transform,
-                new TickDrawContext
+            double xRotation = ResolveXLabelRotation(xTicks, xMajor.LabelRotation, xFormatter, xUniformFormat,
+                xMajor.LabelFont(baseFont), transform, yMin);
+            var xDraw = new TickDrawContext
+            {
+                Side          = TickSide.Bottom,
+                AxisEdge      = xAxisY,
+                SpineHalf     = xSpineHalf,
+                BaseFont      = baseFont,
+                Formatter     = xFormatter,
+                UniformFormat = xUniformFormat,
+                Foreground    = Theme.ForegroundText,
+                LabelRotation = xRotation,
+                Alignment     = xRotation == 0 ? TextAlignment.Center : TextAlignment.Right,
+            };
+            MeasuredXTickMaxHeight = Ctx.RenderAxisTicks(xTicks, yMin, transform, xMajor, xDraw);
+
+            // Mirrored X ticks on the top spine: the same ticks, labels above the edge. A rotated label is anchored
+            // at its start so it rises away from the axis, the point reflection of the bottom label. The band they
+            // take is what the axes title rises by.
+            if (MirrorsXTicks)
+            {
+                MeasuredTopTickBand = xMajor.TickLabelBand(Ctx.RenderAxisTicks(xTicks, yMin, transform, xMajor, xDraw with
                 {
-                    LabelFont     = xLabelFont,
-                    Formatter     = xFormatter,
-                    UniformFormat = xUniformFormat,
-                    AxisEdge      = xAxisY,
-                    SpineHalf     = xSpineHalf,
-                    LabelRotation = xRotation,
-                    Alignment     = xAlign,
-                    Pad           = xMajor.Pad,
-                });
+                    Side      = TickSide.Top,
+                    AxisEdge  = PlotArea.Y,
+                    SpineHalf = Axes.Spines.Top.LineWidth / 2.0,
+                    Alignment = xRotation == 0 ? TextAlignment.Center : TextAlignment.Left,
+                }));
+            }
 
             // Minor X ticks (no labels, shorter mark)
             RenderMinorTicks(xTicks, xMinor, isHorizontal: true, transform, xAxisY, xSpineHalf, yMin);
         }
 
         // --- Y axis ticks ---
-        var yTickColor  = yMajor.Color ?? Theme.ForegroundText;
-        var yTickLength = yMajor.Length;
-        var yTickWidth  = yMajor.Width;
         double yAxisX = PlotArea.X;
         double ySpineHalf = Axes.Spines.Left.LineWidth / 2.0;
-
-        var yFormatter = Axes.YAxis.TickFormatter;
-        var yUniformFormat = BuildUniformTickFormatter(yTicks);
-        if (yMajor.Visible)
+        var yDraw = new TickDrawContext
         {
-            MeasuredYTickMaxWidth = RenderAxisTicks(yTicks, Orientation.Vertical, Axes.XAxis.Min ?? 0,
-                yTickLength, yTickColor, yTickWidth, yMajor.Direction, transform,
-                new TickDrawContext
-                {
-                    LabelFont     = yLabelFont,
-                    Formatter     = yFormatter,
-                    UniformFormat = yUniformFormat,
-                    AxisEdge      = yAxisX,
-                    SpineHalf     = ySpineHalf,
-                    LabelRotation = yMajor.LabelRotation,
-                    Alignment     = TextAlignment.Right,
-                    Pad           = yMajor.Pad,
-                });
-        }
-        else MeasuredYTickMaxWidth = 0;
+            Side          = TickSide.Left,
+            AxisEdge      = yAxisX,
+            SpineHalf     = ySpineHalf,
+            BaseFont      = baseFont,
+            Formatter     = PrimaryYFormatter,
+            UniformFormat = BuildUniformTickFormatter(yTicks),
+            Foreground    = Theme.ForegroundText,
+            LabelRotation = yMajor.LabelRotation,
+            Alignment     = TextAlignment.Right,
+        };
+        MeasuredYTickMaxWidth = Ctx.RenderAxisTicks(yTicks, Axes.XAxis.Min ?? 0, transform, yMajor, yDraw);
 
-        // Mirrored Y ticks on right spine (v1.4.1)
-        if (yMajor.Mirror && yMajor.Visible)
+        // Mirrored Y ticks on the right spine: the same ticks, labels past the right edge. The end labels start past
+        // the band they take.
+        if (MirrorsYTicks)
         {
-            double rightAxisX = PlotArea.X + PlotArea.Width;
-            double rightSpineHalf = Axes.Spines.Right.LineWidth / 2.0;
-            RenderAxisTicks(yTicks, Orientation.Vertical, Axes.XAxis.Min ?? 0,
-                yTickLength, yTickColor, yTickWidth, yMajor.Direction, transform,
-                new TickDrawContext
-                {
-                    LabelFont       = yLabelFont,
-                    Formatter       = yFormatter,
-                    UniformFormat   = yUniformFormat,
-                    AxisEdge        = rightAxisX,
-                    SpineHalf       = -rightSpineHalf,
-                    LabelRotation   = 0,
-                    Alignment       = TextAlignment.Left,
-                    Pad             = yMajor.Pad,
-                    LabelBeyondAxis = true,
-                });
+            _mirroredYTickBand = yMajor.TickLabelBand(Ctx.RenderAxisTicks(yTicks, Axes.XAxis.Min ?? 0, transform, yMajor, yDraw with
+            {
+                Side      = TickSide.Right,
+                AxisEdge  = PlotArea.X + PlotArea.Width,
+                SpineHalf = Axes.Spines.Right.LineWidth / 2.0,
+                Alignment = TextAlignment.Left,
+            }));
         }
 
         // Minor Y ticks (no labels, shorter mark)
@@ -387,62 +475,8 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             var pt = isHorizontal ? transform.DataToPixel(mt, fixedCoord) : transform.DataToPixel(fixedCoord, mt);
             double pos = isHorizontal ? pt.X : pt.Y;
             if (pos < areaMin || pos > areaMax) continue;
-            DrawTickMark(pos, axisEdge, isHorizontal, minorLength, color, minorConfig.Width, minorConfig.Direction, spineHalf);
-        }
-    }
-
-    /// <summary>
-    /// Draws a single tick mark at the given axis edge position.
-    /// For vertical ticks (X-axis): tickX is the data pixel position, axisEdge is the axis Y coordinate.
-    /// For horizontal ticks (Y-axis): axisEdge is the axis X coordinate, tickY is the data pixel position.
-    /// <para>
-    /// <paramref name="spineHalfWidth"/> is half the spine stroke width; the tick is extended
-    /// inward by this amount so it visually touches (overlaps) the spine regardless of subpixel
-    /// rounding — matching matplotlib's behaviour where ticks are drawn through the spine line.
-    /// </para>
-    /// </summary>
-    private void DrawTickMark(double tickPos, double axisEdge, bool isVertical,
-        double length, Color color, double width, TickDirection direction, double spineHalfWidth = 0.0)
-    {
-        if (isVertical)
-        {
-            // X-axis tick: axisEdge is the bottom spine Y.
-            // Out → extends downward (Y+); the inward end is pulled up into the spine stroke.
-            // In  → extends upward (Y-); the inward end is pushed down into the spine stroke.
-            double startY = direction switch
-            {
-                TickDirection.In    => axisEdge - length,
-                TickDirection.InOut => axisEdge - length,
-                _                   => axisEdge - spineHalfWidth, // Out: start inside spine
-            };
-            double endY = direction switch
-            {
-                TickDirection.In    => axisEdge + spineHalfWidth,  // In: end inside spine
-                TickDirection.InOut => axisEdge + length,
-                _                   => axisEdge + length,           // Out
-            };
-            if (Math.Abs(endY - startY) > 0.1)
-                Ctx.DrawLine(new Point(tickPos, startY), new Point(tickPos, endY), new StrokeStyle(color, width, LineStyle.Solid));
-        }
-        else
-        {
-            // Y-axis tick: axisEdge is the left spine X.
-            // Out → extends leftward (X-); the inward end is pulled right into the spine stroke.
-            // In  → extends rightward (X+); the inward end is pushed left into the spine stroke.
-            double startX = direction switch
-            {
-                TickDirection.In    => axisEdge + spineHalfWidth,  // In: start inside spine
-                TickDirection.InOut => axisEdge - length,
-                _                   => axisEdge - length,           // Out
-            };
-            double endX = direction switch
-            {
-                TickDirection.In    => axisEdge + length,
-                TickDirection.InOut => axisEdge + length,
-                _                   => axisEdge + spineHalfWidth,  // Out: end inside spine
-            };
-            if (Math.Abs(endX - startX) > 0.1)
-                Ctx.DrawLine(new Point(startX, tickPos), new Point(endX, tickPos), new StrokeStyle(color, width, LineStyle.Solid));
+            Ctx.DrawTickMark(pos, axisEdge, isHorizontal ? TickSide.Bottom : TickSide.Left,
+                minorLength, color, minorConfig.Width, minorConfig.Direction, spineHalf);
         }
     }
 
@@ -500,7 +534,7 @@ public sealed class CartesianAxesRenderer : AxesRenderer
         {
             // Bar slot [i, i+1] has its center at i+0.5 — place the label there.
             var pt = transform.DataToPixel(i + 0.5, yMin);
-            DrawTickMark(pt.X, xAxisY, isVertical: true, xTickLength, xTickColor, xTickWidth, xMajor.Direction, xSpineHalf);
+            Ctx.DrawTickMark(pt.X, xAxisY, TickSide.Bottom, xTickLength, xTickColor, xTickWidth, xMajor.Direction, xSpineHalf);
             Ctx.DrawText(labels[i],
                 new Point(pt.X, PlotArea.Y + PlotArea.Height + 15),
                 tickFont, TextAlignment.Center);
@@ -516,9 +550,9 @@ public sealed class CartesianAxesRenderer : AxesRenderer
     /// </summary>
     internal DataRange ComputeDataRanges()
     {
-        // === 1. Aggregate — seed from axis-level limits, fold in own + shared series ===
-        var xRange = Axes.AggregateXRangeWithSharedAxes(Range1D.FromAxis(Axes.XAxis));
-        var yRange = Axes.AggregateYRangeWithSharedAxes(Range1D.FromAxis(Axes.YAxis));
+        // === 1. Aggregate — seed from axis-level limits, fold in own + shared series; a set limit is exact ===
+        var xRange = Axes.AggregateXRangeWithSharedAxes(Range1D.FromAxis(Axes.XAxis)).WithExplicitLimits(Axes.XAxis);
+        var yRange = Axes.AggregateYRangeWithSharedAxes(Range1D.FromAxis(Axes.YAxis)).WithExplicitLimits(Axes.YAxis);
 
         // === 2. Normalize — handle empty / lopsided / zero-width inputs before any math ===
         xRange = xRange.Normalized().PositiveForLog(Axes.XAxis);
@@ -569,6 +603,11 @@ public sealed class CartesianAxesRenderer : AxesRenderer
             if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
         }
 
+        // A set limit is exact, the same rule the primary axes follow (Range1D.WithExplicitLimits).
+        var exact = new Range1D(yMin, yMax).WithExplicitLimits(Axes.SecondaryYAxis!);
+        yMin = exact.Lo;
+        yMax = exact.Hi;
+
         if (yMin == double.MaxValue) { yMin = 0; yMax = 1; }
         if (Math.Abs(yMax - yMin) < 1e-10) { yMin -= 0.5; yMax += 0.5; }
 
@@ -595,6 +634,11 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                 if (c.XMax.HasValue && c.XMax.Value > xMax) xMax = c.XMax.Value;
             }
         }
+
+        // A set limit is exact, the same rule the primary axes follow (Range1D.WithExplicitLimits).
+        var exact = new Range1D(xMin, xMax).WithExplicitLimits(Axes.SecondaryXAxis!);
+        xMin = exact.Lo;
+        xMax = exact.Hi;
 
         if (xMin == double.MaxValue) { xMin = 0; xMax = 1; }
         if (Math.Abs(xMax - xMin) < 1e-10) { xMin -= 0.5; xMax += 0.5; }
@@ -772,49 +816,6 @@ public sealed class CartesianAxesRenderer : AxesRenderer
                         new StrokeStyle(color, width, style));
             }
         }
-    }
-
-    /// <summary>Draws one tick mark and its label for a single tick value.
-    /// Returns the measured label height (Horizontal) or width (Vertical) for max-dim tracking.
-    /// Call in a loop over all ticks; accumulate the return value to get <c>MeasuredX/YTickMax*</c>.</summary>
-    internal double RenderAxisTicks(
-        double[] ticks,
-        Orientation orientation,
-        double fixedCoord,
-        double tickLength,
-        Color tickColor, double tickWidth,
-        TickDirection direction,
-        DataTransform transform,
-        TickDrawContext ctx)
-    {
-        bool isHorizontal = orientation == Orientation.Horizontal;
-        double maxDim = 0;
-        foreach (var tick in ticks)
-        {
-            if (isHorizontal)
-            {
-                var pt = transform.DataToPixel(tick, fixedCoord);
-                DrawTickMark(pt.X, ctx.AxisEdge, isVertical: true, tickLength, tickColor, tickWidth, direction, ctx.SpineHalf);
-                double labelY = ctx.AxisEdge + tickLength + ctx.Pad + ctx.LabelFont.Size;
-                var text = ctx.Formatter?.Format(tick) ?? ctx.UniformFormat(tick);
-                var h = Ctx.MeasureText(text, ctx.LabelFont).Height;
-                if (h > maxDim) maxDim = h;
-                Ctx.DrawText(text, new Point(pt.X, labelY), ctx.LabelFont, ctx.Alignment, ctx.LabelRotation);
-            }
-            else
-            {
-                var pt = transform.DataToPixel(fixedCoord, tick);
-                DrawTickMark(pt.Y, ctx.AxisEdge, isVertical: false, tickLength, tickColor, tickWidth, direction, ctx.SpineHalf);
-                double labelX = ctx.LabelBeyondAxis
-                    ? ctx.AxisEdge + tickLength + ctx.Pad
-                    : ctx.AxisEdge - tickLength - ctx.Pad;
-                var text = ctx.Formatter?.Format(tick) ?? ctx.UniformFormat(tick);
-                var w = Ctx.MeasureText(text, ctx.LabelFont).Width;
-                if (w > maxDim) maxDim = w;
-                Ctx.DrawText(text, new Point(labelX, pt.Y + 4), ctx.LabelFont, ctx.Alignment, ctx.LabelRotation);
-            }
-        }
-        return maxDim;
     }
 
     /// <summary>Draws the zigzag or straight-line segments of an axis break marker.

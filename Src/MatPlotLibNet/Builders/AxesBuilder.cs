@@ -74,6 +74,32 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Colours the left Y axis in one call: its spine, its tick marks, its tick labels and its title.
+    /// Pairs the axis with a series drawn in the same colour; keep <see cref="SetYLabel(string)"/> naming the series and
+    /// its unit, so the colour is never the only thing that says which series the axis belongs to.</summary>
+    /// <param name="color">The colour all four take.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <remarks>Everything else the axis carries (tick length, label rotation, font size, spine width) is kept.
+    /// The right-hand axis is coloured with <see cref="SecondaryAxisBuilder.SetYAxisColor"/>.</remarks>
+    public AxesBuilder SetYAxisColor(Color color)
+    {
+        _axes.YAxis.ApplyAxisColor(color);
+        _axes.Spines = _axes.Spines with { Left = _axes.Spines.Left with { Color = color } };
+        return this;
+    }
+
+    /// <summary>Colours the bottom X axis in one call: its spine, its tick marks, its tick labels and its title.</summary>
+    /// <param name="color">The colour all four take.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <remarks>Everything else the axis carries (tick length, label rotation, font size, spine width) is kept.
+    /// The top axis is coloured with <see cref="SecondaryXAxisBuilder.SetXAxisColor"/>.</remarks>
+    public AxesBuilder SetXAxisColor(Color color)
+    {
+        _axes.XAxis.ApplyAxisColor(color);
+        _axes.Spines = _axes.Spines with { Bottom = _axes.Spines.Bottom with { Color = color } };
+        return this;
+    }
+
     /// <summary>Sets the X-axis data range limits.</summary>
     public AxesBuilder SetXLim(double min, double max) { _axes.XAxis.Min = min; _axes.XAxis.Max = max; return this; }
 
@@ -123,6 +149,8 @@ public sealed class AxesBuilder
 
     /// <summary>Mirrors Y-axis ticks and labels on both left and right spines.
     /// Useful for wide figures where reading the Y scale from the right side is more convenient.</summary>
+    /// <remarks>The layout makes room for the right-hand labels, and end-of-line labels start past them. A secondary Y
+    /// axis with series takes the right spine for its own ticks, so the mirrored ticks are not drawn there.</remarks>
     public AxesBuilder WithYTicksMirrored()
     {
         _axes.YAxis.MajorTicks = _axes.YAxis.MajorTicks with { Mirror = true };
@@ -130,6 +158,8 @@ public sealed class AxesBuilder
     }
 
     /// <summary>Mirrors X-axis ticks and labels on both top and bottom spines.</summary>
+    /// <remarks>The axes title moves up above the top labels and the layout makes room for both. A secondary X axis
+    /// with series takes the top spine for its own ticks, so the mirrored ticks are not drawn there.</remarks>
     public AxesBuilder WithXTicksMirrored()
     {
         _axes.XAxis.MajorTicks = _axes.XAxis.MajorTicks with { Mirror = true };
@@ -487,6 +517,18 @@ public sealed class AxesBuilder
     public AxesBuilder WithNormalizer(Styling.ColorMaps.INormalizer normalizer)
     {
         if (_axes.Series.LastOrDefault() is Models.Series.INormalizable n) n.Normalizer = normalizer;
+        return this;
+    }
+
+    /// <summary>Draws the name of the series added last at the end of its line, in the line's colour, instead of
+    /// in the legend. Applies to a line or a streaming line (<see cref="Models.Series.IHasLabelPlacement"/>) that
+    /// carries a label; when the last series cannot carry a placement, nothing changes.</summary>
+    /// <remarks>The same as setting <c>LabelPlacement = SeriesLabelPlacement.LineEnd</c> on the series. Polar and 3D axes
+    /// draw no end labels, so there the series keeps its legend entry.</remarks>
+    /// <returns>This builder, for chaining.</returns>
+    public AxesBuilder WithDirectLabel()
+    {
+        if (_axes.Series.LastOrDefault() is Models.Series.IHasLabelPlacement p) p.LabelPlacement = Models.Series.SeriesLabelPlacement.LineEnd;
         return this;
     }
 
@@ -1740,6 +1782,18 @@ public sealed class SecondaryAxisBuilder
     /// <summary>Sets the label displayed alongside the right-side Y-axis.</summary>
     public SecondaryAxisBuilder SetYLabel(string label) { _axes.SecondaryYAxis!.Label = label; return this; }
 
+    /// <summary>Colours the right-hand Y axis in one call: its spine, its tick marks, its tick labels and its title,
+    /// so the axis reads as belonging to the series drawn in that colour. Keep <see cref="SetYLabel"/> naming the
+    /// series and its unit, so the colour is never the only thing that says which series the axis belongs to.</summary>
+    /// <param name="color">The colour all four take.</param>
+    /// <returns>This builder, for chaining.</returns>
+    public SecondaryAxisBuilder SetYAxisColor(Color color)
+    {
+        _axes.SecondaryYAxis!.ApplyAxisColor(color);
+        _axes.Spines = _axes.Spines with { Right = _axes.Spines.Right with { Color = color } };
+        return this;
+    }
+
     /// <summary>Sets explicit min/max limits for the secondary Y-axis data range.</summary>
     public SecondaryAxisBuilder SetYLim(double min, double max) { _axes.SecondaryYAxis!.Min = min; _axes.SecondaryYAxis!.Max = max; return this; }
 
@@ -1773,6 +1827,17 @@ public sealed class SecondaryAxisBuilder
         configure?.Invoke(series);
         return series;
     }
+
+    /// <summary>Draws the name of the secondary-axis series added last at the end of its line, in the line's
+    /// colour, instead of in the legend. Applies to a line or a streaming line
+    /// (<see cref="Models.Series.IHasLabelPlacement"/>) that carries a label; when the last secondary series cannot
+    /// carry a placement, or there is none, nothing changes.</summary>
+    /// <returns>This builder, for chaining.</returns>
+    public SecondaryAxisBuilder WithDirectLabel()
+    {
+        if (_axes.SecondarySeries.LastOrDefault() is Models.Series.IHasLabelPlacement p) p.LabelPlacement = Models.Series.SeriesLabelPlacement.LineEnd;
+        return this;
+    }
 }
 
 /// <summary>Fluent builder for configuring a secondary X-axis (top edge) and adding series that scale against it.</summary>
@@ -1787,6 +1852,16 @@ public sealed class SecondaryXAxisBuilder
 
     /// <summary>Sets the label displayed above the top-edge X-axis.</summary>
     public SecondaryXAxisBuilder SetXLabel(string label) { _axes.SecondaryXAxis!.Label = label; return this; }
+
+    /// <summary>Colours the top X axis in one call: its spine, its tick marks, its tick labels and its title.</summary>
+    /// <param name="color">The colour all four take.</param>
+    /// <returns>This builder, for chaining.</returns>
+    public SecondaryXAxisBuilder SetXAxisColor(Color color)
+    {
+        _axes.SecondaryXAxis!.ApplyAxisColor(color);
+        _axes.Spines = _axes.Spines with { Top = _axes.Spines.Top with { Color = color } };
+        return this;
+    }
 
     /// <summary>Sets explicit min/max limits for the secondary X-axis data range.</summary>
     public SecondaryXAxisBuilder SetXLim(double min, double max) { _axes.SecondaryXAxis!.Min = min; _axes.SecondaryXAxis!.Max = max; return this; }

@@ -24,14 +24,10 @@ public sealed class CrosshairModifier : IInteractionModifier
         if (axesIndex is null) { _state = null; return; }
 
         var plotArea = _layout.GetPlotArea(axesIndex.Value);
-        var range = _layout.GetDataRange(axesIndex.Value);
+        // The value under the pointer by the rule every other modifier converts with: the range and scale drawn.
+        var data = _layout.ViewOf(axesIndex.Value).PixelToData(new Rendering.Point(pixelX, pixelY));
 
-        double fracX = (pixelX - plotArea.X) / plotArea.Width;
-        double fracY = 1.0 - (pixelY - plotArea.Y) / plotArea.Height;
-        double dataX = range.XMin + fracX * (range.XMax - range.XMin);
-        double dataY = range.YMin + fracY * (range.YMax - range.YMin);
-
-        _state = new CrosshairState(pixelX, pixelY, dataX, dataY, axesIndex.Value, plotArea);
+        _state = new CrosshairState(pixelX, pixelY, data.X, data.Y, axesIndex.Value, plotArea);
     }
 
     // Passive modifier — does not claim any events

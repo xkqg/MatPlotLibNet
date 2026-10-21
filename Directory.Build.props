@@ -33,15 +33,42 @@
     <DebugType>embedded</DebugType>
   </PropertyGroup>
 
+  <!-- A pack is compared with the release before it: `dotnet pack` takes that package from nuget.org, compares the
+       public API of every target framework it shipped and fails on a break (a removed or changed member, a
+       missing target framework); an addition passes. Every package builds with GeneratePackageOnBuild, so a build
+       is a pack and a break is caught by the build that makes it.
+
+       The baseline is named HERE and nowhere else. The release moves it together with the version: it is the
+       release just before the one being made, and ReleaseContractTests fails when it is not. The packages that
+       opt out: the frozen Notebooks package (it never had that release) and the .NET tool package, which the SDK
+       switches off by itself because a command line has no API to compare.
+
+       Scoped to Src/ because that is where the packages are and nothing else is one: two samples are packable by
+       default, a baseline for them would be looked up on nuget.org as a package that does not exist, and the
+       project's own `IsPackable` is not yet known in this file. -->
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.StartsWith($([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', 'Src'))))">
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>1.18.2</PackageValidationBaselineVersion>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)icon.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
+  <!-- The one place the SourceLink version is written. Every project inherits the reference below, so none of them
+       restates it (ReleaseContractTests.TheSourceLinkVersion_LivesInOnePlace holds that), and a bump is one edit.
+
+       Pinned, not floating: CVE-2026-62900 names four bands of Microsoft.Build.Tasks.Git, the package SourceLink
+       pulls: 8.0.0, 10.0.102-10.0.110, 10.0.200-10.0.204 and 10.0.300-10.0.301. The 8.0.0 and 10.0.200-10.0.204
+       bands have no patched release inside them (the fix there is a newer SDK); 10.0.111 and 10.0.303 are the
+       fixes of the other two. 10.0.402 lies above every band, so it is outside all four, and a floating range
+       could drift back into one of them on its own. -->
+  <PropertyGroup>
+    <SourceLinkVersion>10.0.402</SourceLinkVersion>
+  </PropertyGroup>
+
   <ItemGroup>
-    <!-- Pinned, not floating: the 8.x line and the 10.0.200-10.0.204 band are both named by CVE-2026-62900
-         (Microsoft.Build.Tasks.Git, the package SourceLink pulls) and neither has a patched release inside it.
-         10.0.303 is the fix; a floating range would drift back into a vulnerable band on its own. -->
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.303" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="$(SourceLinkVersion)" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>

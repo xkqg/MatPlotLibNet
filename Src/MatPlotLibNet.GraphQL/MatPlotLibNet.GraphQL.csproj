@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.GraphQL</PackageId>
-    <Version>1.18.2</Version>
+    <Version>1.19.0</Version>
     <Description>GraphQL integration for MatPlotLibNet using HotChocolate. Queries and subscriptions for real-time chart updates.</Description>
     <PackageTags>matplotlib;charting;plotting;visualization;graphql;hotchocolate;realtime;subscriptions</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -16,7 +16,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="HotChocolate.AspNetCore" Version="15.1.14" />
+    <!-- HotChocolate stays on 15.x. Its major is part of this package's contract: ChartEventSender's public
+         constructor takes HotChocolate's ITopicEventSender, ChartQueryType and ChartSubscriptionType carry
+         HotChocolate's [Service], [Subscribe] and [EventMessage] attributes, and AddMatPlotLibNetGraphQL registers
+         the server into the consumer's own application, so the HotChocolate a consumer runs is the one this
+         package was built on. 16.x (16.6.9, which also builds for net8.0) is a new major of that contract and does
+         not ride in a minor release. HotChocolateContractTests keeps the premise visible. -->
+    <PackageReference Include="HotChocolate.AspNetCore" Version="15.*" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,10 +33,6 @@
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.303" />
   </ItemGroup>
 
   <ItemGroup>

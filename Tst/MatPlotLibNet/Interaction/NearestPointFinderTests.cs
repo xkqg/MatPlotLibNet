@@ -108,20 +108,45 @@ public class NearestPointFinderTests
         Assert.Null(result);
     }
 
-    /// <summary>Degenerate range (xMax == xMin) — covers the `xSpan == 0 || ySpan == 0`
-    /// early-return arm.</summary>
+    /// <summary>Equal X limits are not drawn as a zero-width range: the renderer widens them around the value, so the
+    /// point there is on screen and the search measures to it like to any other.</summary>
     [Fact]
-    public void ReturnsNull_WhenXAxisHasZeroSpan()
+    public void EqualXLimits_AreDrawnWidened_AndThePointThereIsFound()
     {
         var figure = Plt.Create().Plot([5.0], [3.0]).Build();
         figure.SubPlots[0].XAxis.Min = 5;
-        figure.SubPlots[0].XAxis.Max = 5;       // zero span
+        figure.SubPlots[0].XAxis.Max = 5;
         figure.SubPlots[0].YAxis.Min = 0;
         figure.SubPlots[0].YAxis.Max = 5;
         var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
 
         var result = NearestPointFinder.Find(figure, 0, 5.0, 3.0, layout);
-        Assert.Null(result);
+
+        Assert.NotNull(result);
+        Assert.Equal(0.0, result!.PixelDistance, precision: 9);
+    }
+
+    /// <summary>A layout that states a zero-width range (a host's own <see cref="IChartLayout"/>) has no distances to
+    /// measure, so the search finds nothing.</summary>
+    [Theory]
+    [InlineData(5, 5, 0, 5)]
+    [InlineData(0, 10, 3, 3)]
+    public void ReturnsNull_WhenTheLayoutStatesAZeroSpan(double xMin, double xMax, double yMin, double yMax)
+    {
+        var figure = Plt.Create().Plot([5.0], [3.0]).Build();
+        var layout = new StatedLayout(new Rect(10, 10, 100, 50), new DataRange(xMin, xMax, yMin, yMax));
+
+        Assert.Null(NearestPointFinder.Find(figure, 0, 5.0, 3.0, layout));
+    }
+
+    /// <summary>A host's layout: one plot area and the range it states, nothing else.</summary>
+    private sealed class StatedLayout(Rect area, DataRange range) : IChartLayout
+    {
+        public int AxesCount => 1;
+        public Rect GetPlotArea(int axesIndex) => area;
+        public DataRange GetDataRange(int axesIndex) => range;
+        public int? HitTestAxes(double pixelX, double pixelY) => 0;
+        public int? HitTestLegendItem(double pixelX, double pixelY, int axesIndex) => null;
     }
 
     /// <summary>Series that is not an XYSeries (e.g. a PieSeries) is skipped — covers

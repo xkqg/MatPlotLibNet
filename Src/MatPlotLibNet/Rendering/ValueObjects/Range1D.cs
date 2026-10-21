@@ -36,12 +36,44 @@ public readonly record struct Range1D(double Lo, double Hi)
     /// Guards against the <c>double.MaxValue - double.MinValue = +Inf</c> edge case.</summary>
     public bool IsLopsided => Lo != double.MaxValue && Hi == double.MinValue;
 
-    /// <summary>Seeds a running range from an <see cref="Axis"/>. When the user has set
-    /// <see cref="Axis.Min"/> / <see cref="Axis.Max"/>, those become the accumulator starting
-    /// values; a series point only widens the range when it extends beyond them.</summary>
+    /// <summary>The same interval with <see cref="Lo"/> &lt;= <see cref="Hi"/>. A reversed limit (<c>SetYLim(5.5, 0.5)</c>,
+    /// matplotlib's way to put rank 1 at the top) is drawn upside down, but what lies on the axis (its ticks, its decades,
+    /// the data it shows) is what lies in this interval; only where it is drawn follows the drawn orientation, which the
+    /// transform takes care of.</summary>
+    internal Range1D Interval => Lo <= Hi ? this : new(Hi, Lo);
+
+    /// <summary>This range turned the way <paramref name="drawn"/> runs: unchanged when <paramref name="drawn"/> runs
+    /// low to high, swapped when it is reversed. The way back from <see cref="Interval"/>.</summary>
+    /// <param name="drawn">The range whose orientation is kept.</param>
+    /// <returns>This range in the orientation of <paramref name="drawn"/>.</returns>
+    internal Range1D OrientedLike(Range1D drawn) => drawn.Lo > drawn.Hi ? new(Hi, Lo) : this;
+
+    /// <summary>Seeds a running range from an <see cref="Axis"/>: a side the user has set
+    /// (<see cref="Axis.Min"/> / <see cref="Axis.Max"/>) starts the accumulator, an unset side starts empty. The
+    /// series fold (<see cref="Merge"/>) can widen the seed; the renderer then puts every set side back with
+    /// <see cref="WithExplicitLimits"/>, so a set limit is the range drawn even when data lies beyond it.</summary>
     public static Range1D FromAxis(Axis axis) => new(
         axis.Min ?? double.MaxValue,
         axis.Max ?? double.MinValue);
+
+    /// <summary>The range drawn when <paramref name="axis"/> has explicit limits: every side the axis sets
+    /// (by <c>SetXLim</c>/<c>SetYLim</c>, or a zoom or pan applied to it) is exactly that value, whatever the data
+    /// reach, and the plot area clips what lies beyond it (matplotlib's <c>set_xlim</c>). An unset side keeps the value
+    /// the data folded into it. When only one side is set and every data point lies beyond it, the free side is put one
+    /// unit to the other side of it, so the axis is never inverted by data it does not show.</summary>
+    /// <param name="axis">The axis whose explicit limits are applied.</param>
+    /// <returns>This range with the axis' explicit sides in place.</returns>
+    internal Range1D WithExplicitLimits(Axis axis)
+    {
+        double lo = axis.Min ?? Lo;
+        double hi = axis.Max ?? Hi;
+        if (axis.Min.HasValue != axis.Max.HasValue && lo >= hi)
+        {
+            if (axis.Min.HasValue) hi = lo + 1;
+            else lo = hi - 1;
+        }
+        return new(lo, hi);
+    }
 
     /// <summary>Expands this range to include a single series' contribution on one axis.
     /// Null inputs (no data on that axis) leave the running range untouched.</summary>
@@ -92,16 +124,18 @@ public readonly record struct Range1D(double Lo, double Hi)
 
     /// <summary>A log axis cannot place a non-positive value; when the floor still is one (an explicit
     /// <c>Min</c> of 0, a series that does not mask) it is lifted to three decades under the ceiling — a
-    /// visible, finite axis rather than a NaN transform that blanks every point.</summary>
+    /// visible, finite axis rather than a NaN transform that blanks every point. A reversed range is lifted as its
+    /// <see cref="Interval"/> and keeps its orientation.</summary>
     public Range1D PositiveForLog(Axis axis)
     {
         if (axis.Scale != AxisScale.Log)
         {
             return this;
         }
-        double hi = Hi > 0 ? Hi : 1;
-        double lo = Lo > 0 ? Lo : hi / 1000;
-        return new(Math.Min(lo, hi), hi);
+        var interval = Interval;
+        double hi = interval.Hi > 0 ? interval.Hi : 1;
+        double lo = interval.Lo > 0 ? interval.Lo : hi / 1000;
+        return new Range1D(Math.Min(lo, hi), hi).OrientedLike(this);
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <!-- net8.0 targets the Uno Platform Skia desktop backend. SKCanvasElement
@@ -7,7 +7,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.18.2</Version>
+    <Version>1.19.0</Version>
     <PackageId>MatPlotLibNet.Uno</PackageId>
     <Description>Uno Platform chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/reset interaction.</Description>
     <PackageTags>matplotlib;charting;plotting;charts;visualization;uno;winui;skiasharp;cross-platform;interactive</PackageTags>
@@ -19,25 +19,36 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Uno.WinUI and Uno.WinUI.Graphics2DSK stay on 5.x. The Uno line is part of this package's contract: the
+         controls derive from SKCanvasElement (Graphics2DSK), and a consumer's own Uno has to be the line the
+         package was built on. The 6.x packages (6.7.135, the newest) ship assets for net9.0, net10.0 and the
+         mobile targets only; measured on a net8.0 project, both fail restore with NU1202. Moving to 6.x therefore
+         means moving this package off net8.0, which package validation rejects as a missing target framework and
+         which locks out every net8.0 consumer: a decision of its own, not a dependency bump. The test project
+         builds against 6.x for a different reason, written there. -->
     <PackageReference Include="Uno.WinUI" Version="5.6.99" />
     <PackageReference Include="Uno.WinUI.Graphics2DSK" Version="5.6.99" />
     <!-- Pinned: SkiaSharp.Views.Uno.WinUI 3.119.4+ DROPPED net8.0 (supports net9/net10 only). This project's
          Uno Skia desktop backend targets net8.0, so the floating "3.*" broke restore with NU1202. 3.119.2 is the
-         last 3.x that still ships a net8.0 asset. Revisit when this project moves off net8.0. -->
+         last 3.x that still ships a net8.0 asset; the 4.x line (4.153.1) fails the same way and belongs to the
+         SkiaSharp family that moves as one (see MatPlotLibNet.Skia.csproj). Revisit when this project moves off
+         net8.0. -->
     <PackageReference Include="SkiaSharp.Views.Uno.WinUI" Version="3.119.2" />
     <!-- Suppress ALL WindowsAppSDK sub-package build targets. On net8.0 (Skia backend)
          these targets assume a Windows TFM and crash on empty TargetPlatformVersion.
-         Uno handles platform abstraction — WindowsAppSDK targets are only needed for native WinUI. -->
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Base" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.DWrite" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+         Uno handles platform abstraction — WindowsAppSDK targets are only needed for native WinUI. They carry
+         no asset and no dependency into the package (PrivateAssets all), so they take the newest line: 2.x, the
+         same as the sample head and the test project (the bare "*" used to float across majors). -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Base" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.DWrite" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

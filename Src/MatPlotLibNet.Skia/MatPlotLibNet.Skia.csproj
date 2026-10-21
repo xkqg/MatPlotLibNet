@@ -1,10 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.18.2</Version>
+    <Version>1.19.0</Version>
     <PackageId>MatPlotLibNet.Skia</PackageId>
     <Description>PNG and PDF export for MatPlotLibNet charts using SkiaSharp.</Description>
     <PackageTags>matplotlib;charting;plotting;charts;visualization;png;pdf;export;skiasharp</PackageTags>
@@ -14,6 +14,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- SkiaSharp stays on 3.x, and with it SkiaSharp.HarfBuzz 3.x and HarfBuzzSharp 8.x. The SkiaSharp major is
+         part of this package's contract: its public surface takes SkiaSharp types (SkiaRenderContext wraps an
+         SKCanvas, TextShaper.Shape takes an SKFont and an SKShaper), so a consumer's own SkiaSharp has to be the
+         one this package was built on. 4.x (4.153.1, with HarfBuzzSharp 14.2) is one release line with the WPF and
+         Uno view packages, and at 4.x those two ship assets for net9.0 and net10.0 only. MatPlotLibNet.Wpf and
+         MatPlotLibNet.Uno target net8.0 and cannot follow: measured on a net8.0 project, SkiaSharp.Views.WPF
+         4.153.1 restores its .NET Framework build and OpenTK 3 with three NU1701 warnings, and
+         SkiaSharp.Views.Uno.WinUI 4.153.1 fails restore with NU1202. Avalonia.Skia 12.1.4, the newest 12.x, is
+         built on SkiaSharp 3.119.4. The family moves together, and only after Wpf and Uno leave net8.0;
+         DependencyMajorContractTests keeps it on one major and says when the reason is gone. -->
     <PackageReference Include="SkiaSharp" Version="3.*" />
     <!-- Text shaping. SkiaSharp.HarfBuzz follows SkiaSharp's version line and pins the HarfBuzzSharp it was
          built against (8.3.1.5 for 3.119), so this is the one reference; the native libHarfBuzzSharp comes from
@@ -41,8 +51,4 @@
     <EmbeddedResource Include="Fonts\DejaVuSans-Oblique.ttf" />
     <EmbeddedResource Include="Fonts\DejaVuSans-BoldOblique.ttf" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Update="Microsoft.SourceLink.GitHub" Version="10.0.303" />
-  </ItemGroup>
-
 </Project>

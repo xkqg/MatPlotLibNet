@@ -4,6 +4,279 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.19.0]
+
+This release is for charts with more than one line and more than one axis. A line can carry its name at its end
+instead of in the legend, an axis can take the colour of its line in one call, and the right-hand and top axes now
+behave like the main ones: they follow their own tick settings, get room of their own in the layout, keep their
+colours through JSON, hide when their legend entry is clicked and report values in their own units. Pointer gestures
+on a server-interactive chart and in the WPF, Avalonia and Uno controls now work in data units, on log axes and under
+explicit limits too, and an explicit limit is exactly the range drawn, reversed or not. Every C# example in the wiki
+compiles, and a test suite keeps it that way.
+
+### Added
+
+- **A line can be named where it ends.** Call `WithDirectLabel()` right after adding a line, on the axes builder or
+  inside `WithSecondaryYAxis`, or set `s.LabelPlacement = SeriesLabelPlacement.LineEnd`: the line's name is drawn in a
+  column right of the plot, in the line's own colour, at the height where the line ends, and the line leaves the
+  legend. Labels never overlap: neighbours stay at least one label height apart and keep the order in which the lines
+  end, measured for 2, 4, 8 and 12 lines ending 1 px apart and for a cluster at the bottom edge. The end of a line is
+  the last point that can be drawn, so a trailing NaN or points cut off by the X limits are skipped and a label never
+  reads "NaN"; a line with no such point gets no label. With `WithLegendValues()` the label carries the value it
+  stands next to, written with a decimal point in every culture. The layout makes room for the column in both layout
+  paths, past the secondary Y axis' tick labels and title when there is one. In an interactive SVG the label sits
+  inside its line's group, so hiding or highlighting the line takes the label along; PNG and PDF output draw it too.
+  Only `LineSeries` and `StreamingLineSeries` carry the setting (`IHasLabelPlacement`); after any other series
+  `WithDirectLabel()` changes nothing. Polar axes, 3-D axes and insets draw no end labels, so there the line keeps
+  its legend entry.
+
+- **The label placement is saved with the figure.** A line named at its end stays that way through `ToJson` and
+  `FromJson`, and so through REST, SignalR, Blazor and the MCP server, on the main, the right-hand and the top axis. A
+  figure that never asks for it writes exactly the JSON it wrote before, and JSON from an earlier version reads as a
+  legend entry. The MCP server refuses a misspelled `labelPlacement` with the field's path and the accepted values
+  (`Legend`, `LineEnd`), and its schema text says a label is a legend entry unless the placement says `lineEnd`.
+
+- **An axis takes a colour in one call.** `SetYAxisColor(color)` and `SetXAxisColor(color)` colour an axis' spine,
+  tick marks, tick labels and title. They are on the axes builder (left Y, bottom X), on `WithSecondaryYAxis` (right
+  Y) and on `WithSecondaryXAxis` (top X). Everything else on the axis (tick length, label rotation, font size, spine
+  width) is left as it was. Pair the coloured axis with a series drawn in the same colour and keep an axis label that
+  names the series and its unit, so the colour is never the only thing that says which series an axis belongs to.
+  The colour survives `ToJson` and `FromJson`.
+
+- **An Examples page in the wiki.** Every new call of this release in a short program that compiles, with what you
+  should see when you run it and five pictures: end-of-line names, coloured left and right axes, a coloured top axis
+  under the title, inward right-hand ticks and mirrored ticks. Home, the sidebar, the cheatsheet, Styling and Chart
+  Types link to it.
+
+- **Every C# example in the wiki is compiled on every CI run.** A test suite of its own (`Tst/MatPlotLibNet.Wiki`)
+  compiles each C# block of the wiki against the packages as built, and a warning, an obsolete call included, fails
+  it. It runs in the CI build and in `tools/prepush.ps1`. Contributors clone the wiki beside the repository:
+  `git clone https://github.com/xkqg/MatPlotLibNet.wiki.git ../MatPlotLibNet.wiki`.
+
+### Changed
+
+- **The ticks of a secondary axis follow that axis' own settings.** On the right-hand axis (`TwinX`,
+  `WithSecondaryYAxis`) and the top axis (`TwinY`, `WithSecondaryXAxis`) the colour, length, width, direction, label
+  size, label colour, padding, rotation and `Visible = false` of the axis' tick settings now apply, and the axis title
+  takes its `LabelStyle` (font, colour, size, pad). Before, every one of them was ignored there. Left untouched, a
+  secondary axis now looks like a primary one: marks 4.86 px long and 1.11 px wide (were 5 px and 1 px), labels
+  9.72 px from the edge (were 8 px), and the right-hand title 3.3 px closer to its tick labels.
+
+- **The layout reserves what is drawn at the right and top edges.** The secondary Y axis' tick labels and title, the
+  end-of-line labels after them, mirrored tick labels and the secondary X axis with its title are all measured, with
+  and without `TightLayout`; before, only a fixed 45 px for the secondary Y title was charged, and nothing at all in
+  the default layout. The 140 px cap on the right margin, the 150 px cap on the gutter between subplots and the 120 px
+  caps on the top margin and the row gap no longer cut measured content, the way an outside legend already lifted
+  them. Figures without a secondary axis, mirrored ticks or end labels lay out exactly as before; a figure with a
+  secondary Y axis in the default layout can get a wider right margin.
+
+- **A secondary axis with series owns its edge.** Mirrored Y ticks are not drawn on the right when a secondary Y axis
+  has series, nor mirrored X ticks on top when a secondary X axis has series, as with matplotlib's `twinx` and
+  `twiny`; before, both sets of labels were drawn over each other. A secondary X axis without series draws nothing
+  and no longer takes room at the top of the figure.
+
+- **One list of legend entries.** The legend that is drawn, the area a click can hit and the space the layout
+  reserves now come from the same entries. An outside legend on a chart with a secondary axis or with legend values
+  is reserved at the size it is drawn (it used to be measured from the primary series and plain labels only, so the
+  box could be clipped or leave a gap), and the clickable entries include the secondary-axis series and the
+  legend-values text.
+
+- **One rule decides the colour of a series that sets none,** for the main axes, the secondary axes and the legend
+  swatch alike. Series on a secondary axis now also follow the axes' tooltip switch and the active theme: with
+  `WithTooltips()` the right-hand and top-axis scatter points carry tooltips, and theme settings such as the violin
+  body colour reach a secondary-axis series instead of the default theme's.
+
+- **Ticks.** Inward ticks (`TickDirection.In`) on the left axis now reach through the spine stroke as the bottom
+  axis' do (they stopped 0.8 px short), and mirrored Y labels take the axis' label rotation like the left ones.
+
+- **Pointer gestures on a server-interactive chart.** The wheel zooms about the point under the pointer instead of the
+  middle of the view, a drag pans an axes that scales itself (the page sends the view it moved, so the first drag no
+  longer does nothing), Home returns every axes to the view it was first drawn with, and on a figure with several axes
+  each gesture names the axes under the pointer. `PanEvent` moves a log or symlog axis in the space it is drawn in, so
+  both ends move by the same number of decades; on a linear axis the delta is the plain data delta it always was.
+
+- **Package versions.** SourceLink 10.0.303 → 10.0.402, now written once in the shared build file instead of nine
+  times, above every range CVE-2026-62900 names for Microsoft.Build.Tasks.Git. ModelContextProtocol 2.2.0 → 2.3.0 in
+  the MCP server; the one breaking change of that release is a client API this server does not use.
+  HotChocolate.AspNetCore 15.1.14 → the newest 15.x (15.1.19). The build-only Windows App SDK references of the Uno
+  package move from 1.8.x, or no bound at all, to 2.x; they never reach the package's dependencies. For the test
+  suites: xunit.v3 3.2.2 → 4.0.2, NSubstitute 5.3.0 → 6.2.0, bunit 2.11.3 → 2.12.5, Uno.WinUI 6.5.153 → 6.7.135, and
+  the unused `coverlet.msbuild` is gone (coverage is collected by `dotnet-coverage`).
+
+- **Dependency majors that are part of a package's contract stay where they are,** each with its reason written at the
+  reference, and contract tests fail when one crosses its major or loses its reason:
+  - SkiaSharp and SkiaSharp.HarfBuzz stay on 3.x (with HarfBuzzSharp 8.x). The Skia package's public surface takes
+    SkiaSharp types (`SkiaRenderContext` wraps an `SKCanvas`, `TextShaper.Shape` takes an `SKFont` and an
+    `SKShaper`), so a consumer's SkiaSharp has to be the one the package was built on, and 4.x is one release line
+    with the WPF and Uno view packages, which at 4.x ship assets for net9.0 and net10.0 only.
+  - SkiaSharp.Views.WPF and SkiaSharp.Views.Uno.WinUI stay on 3.119.2, the last 3.x that ships a net8.0 asset; the
+    WPF and Uno packages target net8.0, and 4.153.1 has the same gap.
+  - The Avalonia package stays on SkiaSharp 3.x: Avalonia.Skia 12.1.4, the newest 12.x, is built on SkiaSharp
+    3.119.4, and the control draws on the canvas Avalonia hands over.
+  - Uno.WinUI and Uno.WinUI.Graphics2DSK stay on 5.6.99: the controls derive from `SKCanvasElement`, and every 6.x
+    ships assets for net9.0, net10.0 and the mobile targets only, so it fails restore on net8.0.
+  - HotChocolate.AspNetCore stays on 15.x: `ChartEventSender`'s public constructor takes HotChocolate's
+    `ITopicEventSender` and the query and subscription types carry HotChocolate's attributes, so 16.x is a new major
+    of the GraphQL package's own contract.
+
+- **The Playground runs on .NET 10** with the 10.x WebAssembly packages (was .NET 8). It lists the same 20 examples,
+  and the two charts compared on both runtimes came out byte for byte the same.
+
+- **Packs are compared with the previous release.** Each time a package is packed, its public API is compared with
+  1.18.2, and a break (a removed or changed public member, a missing target framework) fails the build instead of
+  reaching a consumer; additions pass. Measured: making `Plt.Create()` internal fails with a compatibility error on
+  both net8.0 and net10.0. The comparison covers 13 of the 14 live packages: the MCP server is a .NET tool with no
+  library API, and the frozen Notebooks package never had the release it would be compared with.
+
+- **Publishing checks the tag.** A release tag that names another version than the packages carry (with or without
+  a leading `v` or `v.`) stops the publish job, so a tag on the wrong commit can no longer publish nothing under a
+  green run.
+
+### Fixed
+
+- **A click on a legend entry hides its own series.** With an unlabelled series drawn before a labelled one, the
+  labelled series' entry carried the wrong index and a click hid the unlabelled series instead. A secondary-axis
+  entry now toggles its own series, never a primary one.
+
+- **A secondary line wears the colour its legend swatch shows.** Under a theme with a property cycler
+  (`ThemeBuilder.WithPropCycler`), a line on the right-hand or top axis took the plain cycle colour while its swatch
+  showed the cycler's: one primary and one secondary line under a red/green/blue cycler drew the secondary line
+  `#FF7F0E` beside a `#008000` swatch. Both are `#008000` now. Only themes built with a cycler change (no shipped theme
+  has one), and the line's width and dash do not.
+
+- **Mirrored ticks.** `WithXTicksMirrored()` set a flag nothing read; it now draws the X ticks and labels along the
+  top edge. Mirrored Y ticks with the default outward direction pointed into the plot on the right edge; they point
+  away from it now.
+
+- **Nothing overlaps at the top or runs off the right.** With `TightLayout` a secondary Y axis' tick labels ran off
+  the figure (a "10000" label ended at 831 px on an 800 px figure). The axes title was drawn on mirrored X tick labels
+  (on a 600 × 400 figure its lower edge was 21 px below their top) and inside a secondary X axis' tick labels, and that
+  axis' own title sat a fixed 28 px above the plot whatever its labels measured; each now stands above what is under
+  it. Mirrored Y tick labels up to "900000" need 68 px; the right margin was 20 px with `TightLayout` and 60 px
+  without, and now holds them.
+
+- **A line on a secondary axis can be hidden and highlighted.** It is drawn inside a series group of its own, like a
+  line on the main axes, so a click on its legend entry hides it (before, the click hid nothing), the hover highlight
+  reaches it, and a streaming SVG diff reports a change on it as a patch of that series (before, the patch was empty).
+  A legend entry of a secondary line also toggles it on the server and in the native controls, which ignored every
+  index past the main-axes series.
+
+- **Clicking a plotted line no longer hides it.** With server interaction, a click on a line sent a legend toggle
+  together with the data-cursor request, so the line the reader clicked disappeared. Only a click on a legend entry
+  toggles a series now.
+
+- **The data cursor reports the value on the clicked line's own axis.** A line on the right-hand axis reports Y in
+  right-hand units and a line on the top axis X in top-axis units, measured against the plot area and the range the
+  axes actually show. Before, every click was converted with the main axes' explicit limits over the whole picture:
+  on a 600 × 500 autoscaled figure the point (3, 20) was reported as (0.86, 0.38), and with limits 1..3 and 10..40 the
+  point (2, 40) came back as (2.03, 36.4).
+
+- **Hover, brush select, zoom and pan work in data units.** Each axes now writes the area it plots in and the range it
+  drew, and the page converts the pointer with the axes under it. Before, on a 600 × 500 autoscaled figure, hovering
+  the point (2, 40) reported x = 12.9 and a brush from (1, 10) to (3, 20) started at x = 2.31. A figure with only hover
+  switched on no longer stops its hover with a script error.
+
+- **Log and symlog axes report data values.** Hover, Shift-drag brush select, the data cursor, wheel zoom, drag pan
+  and Home reported the logarithm: hovering the point at x = 10 on a log axis reported 1, and a click on the point at
+  1000 reported 3. The wheel now zooms evenly across decades, and `DataTransform.PixelToData` returns data values on
+  log and symlog axes too.
+
+- **An axis limit you set is the range drawn,** as in matplotlib. `SetXLim(1.5, 2.5)` on data from 1 to 3 was drawn
+  from 1 to 3, because every series widened a limit narrower than its data; a wheel zoom into the data redrew the full
+  range, and a pan to x 0.66..2.86 was redrawn 0.66..3. A side you leave unset still scales itself to the data. When
+  an axes has a limit, its series on the main, right-hand and top axes are clipped to the plot area, and end-of-line
+  labels stay visible beside it. Figures without limits produce exactly the output they produced before.
+
+- **Two server-interactive charts on one page each send their own events.** Both charts' scripts listened on the
+  first chart: a wheel on the second sent nothing, and a wheel on the first sent its zoom twice (measured in a
+  browser).
+
+- **A reversed axis limit draws the axis upside down with all of its ticks.** `SetYLim(5.5, 0.5)`, the way to put rank
+  1 at the top, now draws the same 11 labels 0.5 to 5.5 as `SetYLim(0.5, 5.5)`, each where its value is; it drew the
+  single label "5.5". The same holds for the X axis, the right-hand axis and a log axis (`SetYLim(1000, 0.1)` keeps its
+  five decades). On a reversed X axis a line with `MaxDisplayPoints` keeps its points (it drew none), a hexbin keeps
+  its grid, and a rug's ticks rise from the bottom edge into the plot. Versions before this one ignored a reversed
+  limit and drew the axis the right way up.
+
+- **A redrawn server-interactive chart keeps one tooltip.** A page that mounts a redrawn chart runs its script again;
+  each run used to add its own tooltip element and its own tooltip handler on the connection, so after two redraws
+  there were two of each and a tooltip shown before a redraw stayed on screen. Now each chart has one tooltip element
+  and the connection one handler, and a redraw hides the tooltip of the picture it replaced.
+
+- **The WPF, Avalonia and Uno controls work in data units.** Hover, the data cursor, the crosshair, Shift-drag brush
+  select, Alt-drag span select, Ctrl-drag rectangle zoom, the wheel, drag pan and Home now convert the pointer with
+  the range and scale each axes is drawn with: after autoscale, under explicit limits, and on log and symlog axes.
+  Before, they used the axes' explicit limits, or 0 to 1 when the axes scaled itself, and a linear scale on every
+  axis. Measured on a 600 × 500 autoscaled chart of (1, 10), (2, 40), (3, 20): the pointer on the point (2, 40) read
+  x = 0.5, and a wheel notch at the centre of the plot set the X limits to 0.075..0.925, left of all the data. On a log
+  axis the point at 100 read 0.65 and hover found no point, and a drag of a third of the width on a 1..1000 log axis
+  set a limit to infinity instead of moving it to 10..10000. Now the wheel zooms about the point under the pointer and
+  narrows every decade alike, a drag moves every point with the pointer, and hover finds the nearest point by its
+  distance on screen. With a line of a million points a pointer move costs about 1.7 ms, because the conversion is
+  kept until a gesture changes a limit or a scale. `ChartLayout.GetDataRange` returns the range drawn, in data units.
+
+- **The samples mount an SVG so that its script runs.** A browser never runs a `<script>` that arrives through
+  `innerHTML`, and a server-interactive SVG carries its interaction script inside it. The ASP.NET Core sample page
+  inserted the SVG that way, so its script never ran and no gesture reached the server (measured in Edge). The ASP.NET
+  Core and Blazor samples and both package READMEs now mount every SVG with a small `mplMountSvg(host, svg)` function
+  that re-creates the script elements, and a contract test fails when a page that receives chart updates assigns
+  `innerHTML` outside it.
+
+- **The sample images are drawn by this release.** The bump chart is upside down as its reversed limit asks, with
+  rank 1 at the top. Because the plot area now clips at an explicit limit, the Pareto chart's cumulative axis runs to
+  105 % with its legend right of centre, and the lollipop chart's X axis has half a slot of room at each end, so no
+  point is cut in half at the plot edge.
+
+- **A directly-labelled line in an inset keeps its legend entry.** An inset has no right margin of its own, so its
+  end label was drawn over the parent plot (at x = 633 inside a parent plot spanning 100 to 720).
+
+- **Colours and the top axis survive JSON.** A spine whose only change was its colour or width was not written at all,
+  and tick colours, tick-label colours and the axis title colour were never written. The top X axis
+  (`WithSecondaryXAxis`) with its label, limits, scale and line or scatter series vanished on the way through. All of
+  it is written now; JSON written by earlier versions reads as no colour, and an uncoloured figure writes exactly the
+  JSON it wrote before.
+
+- **The wiki's examples compile.** 190 of the 192 C# blocks the wiki held did not compile against the library: they
+  left out their data and usings, called axes-level methods on the figure builder, or named calls that do not exist
+  (`Surface3D`, an `ApplyEvent` on the SignalR hub). Two code fences on the Styling page were opened and never closed.
+  The wiki now holds 195 programs that compile as written, 7 notebook cells and one block that belongs to the
+  repository's own tests. Its text was corrected where it disagreed with the code: the native-controls page lists all
+  15 interaction modifiers (it showed 6), the 3-D shading text gives matplotlib's `0.65 + 0.35·dot` formula, and the
+  SignalR page and `FigureNotificationEvent`'s documentation describe how the server routes each event.
+
+### Public API
+
+Everything below is new; nothing was removed or changed, which the pack checks against 1.18.2.
+
+- `SeriesLabelPlacement` — where a labelled series shows its name: `Legend` (the default) or `LineEnd`.
+- `IHasLabelPlacement` — a series whose name can be drawn at its end, with its `LabelPlacement` property.
+- `LineSeries.LabelPlacement` and `StreamingLineSeries.LabelPlacement`.
+- `AxesBuilder.WithDirectLabel()` and `SecondaryAxisBuilder.WithDirectLabel()` — name the line added last at its end.
+- `AxesBuilder.SetYAxisColor(Color)`, `AxesBuilder.SetXAxisColor(Color)`, `SecondaryAxisBuilder.SetYAxisColor(Color)`
+  and `SecondaryXAxisBuilder.SetXAxisColor(Color)` — colour one axis' spine, ticks, tick labels and title.
+- `SeriesDto.LabelPlacement` — the placement in the figure JSON (`"lineend"`; absent for the legend).
+- `AxesRenderer.MeasuredTopTickBand` (protected) — the band drawn above the top spine under the axes title, which the
+  title is raised above.
+- `CartesianAxesRenderer` is no longer sealed; its `Render()` is.
+
+### Known limitations
+
+`MplLiveChart` shows server-side redraws but does not send interaction events by itself: the interaction script runs
+inside it, but the component's connection lives in .NET and is not offered to the script, so the page has to expose a
+JavaScript SignalR connection as `window.__mpl_signalr_connection`, as the bidirectional sample does. A streaming
+series writes its label placement to JSON, but is still not rebuilt from JSON.
+
+A page of your own that inserts a server-interactive SVG with `innerHTML` still does not run its script, because
+browsers never run a script that arrives that way; mount it as the samples do, with `mplMountSvg`.
+
+Zoom and pan answered by the server, and those of the native controls, change the main X and Y axes; a right-hand or
+top axis is not zoomed or panned with them. The MAUI view draws and streams a chart and has no gestures: it does not pan, zoom or
+select. In the WPF, Avalonia and Uno controls, Home returns to the view on screen after a zoom and its repaint, not to
+the view first drawn.
+
+`WithDpi` and `SaveOptions` are accepted and kept, and no export reads them: a PNG is drawn at the figure's
+`WithSize` in pixels, so a larger PNG takes a larger size.
+
 ## [1.18.2]
 
 ### Added

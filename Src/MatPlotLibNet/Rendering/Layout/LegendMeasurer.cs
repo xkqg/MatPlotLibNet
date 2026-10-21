@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
 
@@ -53,14 +54,11 @@ internal static class LegendMeasurer
     {
         if (!axes.Legend.Visible) return Size.Empty;
 
-        // Collect labelled series — mirrors AxesRenderer.RenderLegend
-        var labels = new List<string>();
-        for (int i = 0; i < axes.Series.Count; i++)
-        {
-            var series = axes.Series[i];
-            if (!string.IsNullOrEmpty(series.Label))
-                labels.Add(series.Label);
-        }
+        // The SAME entry list AxesRenderer.RenderLegend draws and ComputeLegendBounds hit-tests. Whether an end-label
+        // series leaves the legend is the renderer's answer, asked of the renderer the factory builds for these axes —
+        // the one that will draw them — so the margin is reserved for exactly the box that is drawn.
+        bool directLabelsDrawn = AxesRenderer.Create(axes, default, ctx, theme).DrawsDirectLabels;
+        var labels = axes.LegendEntries(directLabelsDrawn).Select(e => e.Label).ToList();
         if (labels.Count == 0) return Size.Empty;
 
         var legend = axes.Legend;

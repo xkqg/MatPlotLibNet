@@ -22,8 +22,8 @@ internal sealed class RugplotSeriesRenderer : SeriesRenderer<RugplotSeries>
 
         double yDataMin = Transform.DataYMin;
         double yDataMax = Transform.DataYMax;
-        double yRange = Math.Abs(yDataMax - yDataMin);
-        double tickHeightData = series.Height * yRange;
+        // Signed: DataYMin is the bottom edge as drawn, so on a reversed axis the tick rises towards a smaller value.
+        double tickHeightData = series.Height * (yDataMax - yDataMin);
 
         foreach (double value in series.Data.Data)
         {

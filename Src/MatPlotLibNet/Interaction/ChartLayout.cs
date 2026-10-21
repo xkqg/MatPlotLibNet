@@ -3,11 +3,13 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.Svg;
 
 namespace MatPlotLibNet.Interaction;
 
-/// <summary>Snapshot of a rendered figure's layout used by interaction modifiers to convert
-/// pixel-space pointer positions to data-space coordinates.
+/// <summary>A rendered figure's layout, used by interaction modifiers to convert pixel-space pointer positions to
+/// data-space coordinates. It holds the plot areas and legend entries of the render; the data range and scale of each
+/// axes are the renderer's own (<see cref="PixelToData"/>, <see cref="GetDataRange"/>).
 /// Construct after each render by calling <see cref="Create(Figure, LayoutResult)"/>.</summary>
 public sealed class ChartLayout : IChartLayout
 {
@@ -15,12 +17,20 @@ public sealed class ChartLayout : IChartLayout
     private readonly IReadOnlyList<Rect> _plotAreas;
     private readonly IReadOnlyList<IReadOnlyList<LegendItemBounds>> _legendItems;
 
+    /// <summary>The surface the axes renderer is built on to compute a view (<see cref="View"/>). Computing a view draws
+    /// and measures nothing, so nothing is ever written to it.</summary>
+    private readonly SvgRenderContext _viewSurface = new();
+
+    /// <summary>The last view computed per axes (<see cref="View"/>), with the inputs it was computed for.</summary>
+    private readonly CachedView?[] _views;
+
     private ChartLayout(Figure figure, IReadOnlyList<Rect> plotAreas,
         IReadOnlyList<IReadOnlyList<LegendItemBounds>> legendItems)
     {
         _figure      = figure;
         _plotAreas   = plotAreas;
         _legendItems = legendItems;
+        _views       = new CachedView?[plotAreas.Count];
     }
 
     /// <summary>Creates a <see cref="ChartLayout"/> from a <see cref="LayoutResult"/>
@@ -49,16 +59,44 @@ public sealed class ChartLayout : IChartLayout
     public Rect GetPlotArea(int axesIndex) => _plotAreas[axesIndex];
 
     /// <inheritdoc />
-    public DataRange GetDataRange(int axesIndex)
+    /// <remarks>The range the renderer draws: after autoscale, margins and limits, in data units on every scale, in drawn
+    /// orientation (a reversed limit stays reversed). See <see cref="View"/>.</remarks>
+    public DataRange GetDataRange(int axesIndex) => View(axesIndex).DrawnRange;
+
+    /// <summary>The transform the renderer draws axes <paramref name="axesIndex"/> with, for the figure as it is now
+    /// (<see cref="AxesRenderer.ComputeViewTransform"/>, the call <c>Render</c> makes): the plot area, the range after
+    /// autoscale, margins and limits, and the axes' scales. After a paint that is the picture on screen; after a gesture
+    /// applied to the figure in place and before the repaint, it is the picture the repaint draws, so a second wheel
+    /// notch zooms on from the first. Axes that draw no Cartesian range (polar, 3-D) map their explicit limits, or 0..1,
+    /// linearly over the plot area.</summary>
+    /// <remarks>Computing a view folds every series' data range (8 ms for a line of a million points), and a pointer move
+    /// converts several times, so each axes keeps its view until what a gesture changes — the limits and the scales —
+    /// has changed. Data that changes without a gesture is followed by a repaint, which builds a new layout.</remarks>
+    internal DataTransform View(int axesIndex)
     {
         var axes = _figure.SubPlots[axesIndex];
-        // Fall back to 0-1 when axis limits are not yet materialised (auto-range).
-        double xMin = axes.XAxis.Min ?? 0.0;
-        double xMax = axes.XAxis.Max ?? 1.0;
-        double yMin = axes.YAxis.Min ?? 0.0;
-        double yMax = axes.YAxis.Max ?? 1.0;
-        return new(xMin, xMax, yMin, yMax);
+        var area = _plotAreas[axesIndex];
+        var inputs = ViewInputs.Of(axes);
+        if (_views[axesIndex] is { } cached && cached.Inputs == inputs) return cached.Transform;
+
+        var transform = AxesRenderer.Create(axes, area, _viewSurface, _figure.Theme).ComputeViewTransform()
+            ?? new DataTransform(axes.XAxis.Min ?? 0.0, axes.XAxis.Max ?? 1.0, axes.YAxis.Min ?? 0.0, axes.YAxis.Max ?? 1.0, area);
+        _views[axesIndex] = new CachedView(inputs, transform);
+        return transform;
     }
+
+    /// <summary>What a gesture can change about the range an axes draws: its limits and its scales.</summary>
+    private readonly record struct ViewInputs(
+        double? XMin, double? XMax, double? YMin, double? YMax,
+        AxisScale XScale, AxisScale YScale, double XLinThresh, double YLinThresh)
+    {
+        public static ViewInputs Of(Axes axes) => new(
+            axes.XAxis.Min, axes.XAxis.Max, axes.YAxis.Min, axes.YAxis.Max,
+            axes.XAxis.Scale, axes.YAxis.Scale, axes.XAxis.SymLogLinThresh, axes.YAxis.SymLogLinThresh);
+    }
+
+    /// <summary>A view and the inputs it was computed for.</summary>
+    private sealed record CachedView(ViewInputs Inputs, DataTransform Transform);
 
     /// <inheritdoc />
     public int? HitTestAxes(double pixelX, double pixelY)
@@ -88,8 +126,9 @@ public sealed class ChartLayout : IChartLayout
         return null;
     }
 
-    /// <summary>Converts a pixel position to data-space coordinates for the given axes.
-    /// Returns <c>null</c> if the pixel is outside the axes plot area.</summary>
+    /// <summary>Converts a pixel position to data-space coordinates for the given axes, with the range and the scale the
+    /// renderer draws (<see cref="DataTransform.PixelToData"/>): the value under the pointer on an autoscaled, limited,
+    /// log or symlog axis. Returns <c>null</c> if the pixel is outside the axes plot area.</summary>
     public DataPoint? PixelToData(double pixelX, double pixelY, int axesIndex)
     {
         var area = _plotAreas[axesIndex];
@@ -97,12 +136,7 @@ public sealed class ChartLayout : IChartLayout
             pixelY < area.Y || pixelY > area.Y + area.Height)
             return null;
 
-        var (xMin, xMax, yMin, yMax) = GetDataRange(axesIndex);
-
-        double dataX = xMin + (pixelX - area.X) / area.Width  * (xMax - xMin);
-        // Y is inverted: top of plot = yMax, bottom = yMin (screen-Y increases downward).
-        double dataY = yMax - (pixelY - area.Y) / area.Height * (yMax - yMin);
-
-        return new DataPoint(dataX, dataY);
+        var data = View(axesIndex).PixelToData(new Point(pixelX, pixelY));
+        return new DataPoint(data.X, data.Y);
     }
 }

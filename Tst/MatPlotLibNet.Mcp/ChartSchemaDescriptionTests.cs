@@ -58,6 +58,28 @@ public class ChartSchemaDescriptionTests
     }
 
     [Fact]
+    public void TheLabelNote_SaysALabelIsALegendEntryUnlessThePlacementSaysLineEnd()
+    {
+        string schema = Description.Describe("line");
+
+        var label = schema.Split(Environment.NewLine).Single(line => line.TrimStart().StartsWith("label:", StringComparison.Ordinal));
+        Assert.Contains("legend", label, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("labelPlacement", label);
+        Assert.Contains("lineEnd", label, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ThePlacementField_IsListedWithItsAcceptedValues()
+    {
+        string schema = Description.Describe("line");
+
+        var placement = schema.Split(Environment.NewLine).Single(line => line.TrimStart().StartsWith("labelPlacement:", StringComparison.Ordinal));
+        Assert.Contains("Legend", placement);
+        Assert.Contains("LineEnd", placement);
+        Assert.Contains("line", placement, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void TheFieldNames_AreTheWireNames_NotTheClrNames()
     {
         string schema = Description.Describe(null);

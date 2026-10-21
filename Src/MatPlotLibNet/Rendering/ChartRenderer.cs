@@ -61,7 +61,8 @@ public sealed class ChartRenderer : IChartRenderer
     /// When <see cref="SubPlotSpacing.TightLayout"/> or <see cref="SubPlotSpacing.ConstrainedLayout"/>
     /// is enabled, runs <see cref="ConstrainedLayoutEngine.Compute"/> to auto-size margins from
     /// measured text extents. Otherwise falls back to the theme's default spacing via
-    /// <see cref="ResolveSpacing"/>.
+    /// <see cref="ResolveSpacing"/>, widened by <see cref="ConstrainedLayoutEngine.ReserveEdgeBands"/> for what is
+    /// drawn past the right and the top spines.
     /// </summary>
     /// <remarks>
     /// Pure function — does NOT mutate <paramref name="figure"/>. The returned spacing is used
@@ -72,9 +73,13 @@ public sealed class ChartRenderer : IChartRenderer
     /// </remarks>
     internal SubPlotSpacing PrepareSpacing(Figure figure, IRenderContext measureCtx)
     {
+        var engine = new ConstrainedLayoutEngine();
         if (figure.Spacing.TightLayout || figure.Spacing.ConstrainedLayout)
-            return new ConstrainedLayoutEngine().Compute(figure, measureCtx);
-        return ResolveSpacing(figure);
+            return engine.Compute(figure, measureCtx);
+        // The default path measures nothing else, but what is drawn past the right spines (the secondary Y axis, the
+        // mirrored Y tick labels and the end-of-line labels) and past the top spines (the mirrored X tick labels or the
+        // secondary X axis) is reserved by the same rule the engine applies in the branch above.
+        return engine.ReserveEdgeBands(figure, ResolveSpacing(figure), measureCtx);
     }
 
     /// <summary>Renders the figure background and title, returning the top Y coordinate for subplots.</summary>
@@ -273,6 +278,7 @@ public sealed class ChartRenderer : IChartRenderer
         var figSize = (Size?)new Size(figure.Width, figure.Height);
         var axesRenderer = AxesRenderer.Create(axes, pass.PlotArea, pass.Context, pass.Theme, figSize);
         axesRenderer.Render();
+        axesRenderer.WriteServerView();
 
         // Render inset axes recursively (max depth guard)
         if (depth < 3)

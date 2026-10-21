@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net10.0 like every other suite: the runners and the scripts look for a suite under bin/<config>/net10.0. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="4.*" />
+    <!-- The compiler the wiki's blocks are compiled with. Its newest stable release, pinned: a floating range here
+         would change which C# a block is judged by without any edit in this repository. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+  </ItemGroup>
+
+  <!-- Every package CI builds on ubuntu, because a wiki block may use any of them and is compiled against all the
+       assemblies this suite runs with. These references live here and NOT in Tst/MatPlotLibNet on purpose: loading
+       MatPlotLibNet.Skia installs a glyph-path provider through a module initializer, which turns the core suite's
+       <text> output into <path> outlines. This suite renders nothing and asserts no rendered text; it only hands the
+       assemblies to the compiler as metadata, so that provider does not matter here. Wpf, Uno and Maui are not
+       referenced: the runner cannot build them, and a block that needs one carries the needs-marker instead. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\MatPlotLibNet\MatPlotLibNet.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Skia\MatPlotLibNet.Skia.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.DataFrame\MatPlotLibNet.DataFrame.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Geo\MatPlotLibNet.Geo.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.AspNetCore\MatPlotLibNet.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Blazor\MatPlotLibNet.Blazor.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Interactive\MatPlotLibNet.Interactive.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.GraphQL\MatPlotLibNet.GraphQL.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Mcp\MatPlotLibNet.Mcp.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Avalonia\MatPlotLibNet.Avalonia.csproj" />
+    <ProjectReference Include="..\..\Src\MatPlotLibNet.Verso\MatPlotLibNet.Verso.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

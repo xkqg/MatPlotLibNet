@@ -34,6 +34,122 @@ public class InteractionScriptHarnessTests
         Assert.NotEqual("none", h.GetStyle("[data-series-index='1']", "display"));
     }
 
+    /// <summary>The legend entry of a series carries that SERIES' index, not the entry's position in the legend.
+    /// With series 0 unlabelled and series 1 labelled "B", B's entry is the legend's first row, and a click on it
+    /// must hide series 1 — before the legend carried one list for drawing, hit-testing and layout, the group read
+    /// <c>data-legend-index="0"</c> and the click hid the unlabelled series 0 instead.</summary>
+    [Fact]
+    public void LegendToggle_ClickOnTheEntryOfSeriesB_HidesSeriesB_whenAnEarlierSeriesHasNoEntry()
+    {
+        using var h = InteractionScriptHarness.FromBuilder(b => b
+            .WithLegendToggle()
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .Plot([1.0, 2.0], [5.0, 6.0], s => s.Label = "B"));
+
+        Assert.Null(h.GetStyle("[data-series-index='1']", "display"));
+
+        var n = h.Simulate("[data-legend-index]", "click");
+        Assert.Equal(1, n);
+
+        Assert.Equal("none", h.GetStyle("[data-series-index='1']", "display"));
+        Assert.NotEqual("none", h.GetStyle("[data-series-index='0']", "display"));
+    }
+
+    /// <summary>A secondary-axis series is a legend entry too, and its entry carries the index it has in the whole
+    /// legend list (primary series first, then the secondary ones). The secondary line is drawn inside a series group
+    /// carrying that same index, so a click on the entry hides that line — and never a primary series that happens to
+    /// sit at the entry's position.</summary>
+    [Fact]
+    public void LegendToggle_ClickOnASecondaryEntry_HidesThatSecondarySeries_AndNoPrimarySeries()
+    {
+        using var h = InteractionScriptHarness.FromBuilder(b => b
+            .WithLegendToggle()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A")
+                .Plot([1.0, 2.0], [5.0, 6.0])
+                .WithSecondaryYAxis(y2 => y2.Plot([1.0, 2.0], [50.0, 60.0], s => s.Label = "S"))));
+
+        var entry = System.Text.RegularExpressions.Regex.Match(
+            h.Svg, "data-legend-index=\"(?<i>\\d+)\"[^>]*aria-label=\"S\"");
+        Assert.True(entry.Success, "the secondary series has no legend entry");
+        string index = entry.Groups["i"].Value;
+        Assert.Equal("2", index);
+
+        h.Simulate($"[data-legend-index='{index}']", "click");
+
+        Assert.Equal("none", h.GetStyle($"[data-series-index='{index}']", "display"));
+        Assert.NotEqual("none", h.GetStyle("[data-series-index='0']", "display"));
+        Assert.NotEqual("none", h.GetStyle("[data-series-index='1']", "display"));
+    }
+
+    /// <summary>A secondary line's end label is drawn inside the group of its own series, the way a primary one is:
+    /// the group carries the series' slot (primary series first, then the secondary ones), so whatever hides that index
+    /// takes the label along, and a click on another entry — here the other secondary line's — leaves it shown.</summary>
+    [Fact]
+    public void LegendToggle_ASecondaryEndLabel_LivesInItsOwnSeriesGroup_AndAnotherEntryLeavesItShown()
+    {
+        using var h = InteractionScriptHarness.FromBuilder(b => b
+            .WithLegendToggle()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A")
+                .WithSecondaryYAxis(y2 => y2
+                    .Plot([1.0, 2.0], [50.0, 60.0], s => s.Label = "S")
+                    .Plot([1.0, 2.0], [70.0, 80.0], s => s.Label = "T").WithDirectLabel())));
+
+        var label = System.Xml.Linq.XDocument.Parse(h.Svg).Descendants()
+            .Single(e => e.Name.LocalName == "text" && e.Value == "T");
+        var group = label.Parent!;
+        Assert.Equal("2", (string?)group.Attribute("data-series-index"));
+        Assert.Single(group.Descendants(), e => e.Name.LocalName == "polyline");
+
+        h.Simulate("[data-legend-index='1']", "click");
+
+        Assert.Equal("none", h.GetStyle("[data-series-index='1']", "display"));
+        Assert.NotEqual("none", h.GetStyle("[data-series-index='2']", "display"));
+        Assert.NotEqual("none", h.GetStyle("[data-series-index='0']", "display"));
+    }
+
+    /// <summary>The hover highlight dims every series group but the one under the pointer. A secondary line has a
+    /// group of its own, so hovering it dims the primary line and keeps the secondary one at full opacity.</summary>
+    [Fact]
+    public void Highlight_HoverOnASecondaryLine_DimsThePrimaryLine_AndKeepsTheSecondaryOne()
+    {
+        using var h = InteractionScriptHarness.FromBuilder(b => b
+            .WithHighlight()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A")
+                .WithSecondaryYAxis(y2 => y2.Plot([1.0, 2.0], [50.0, 60.0], s => s.Label = "S"))));
+
+        int hovered = h.Simulate("[data-series-index='1']", "mouseenter");
+
+        Assert.Equal(1, hovered);
+        Assert.Equal("1", h.GetStyle("[data-series-index='1']", "opacity"));
+        Assert.Equal("0.3", h.GetStyle("[data-series-index='0']", "opacity"));
+    }
+
+    /// <summary>An end label is drawn inside the group of its own series, so the toggle script — which hides every
+    /// element carrying the clicked <c>data-series-index</c> — takes the label along with its line, and a click on
+    /// ANOTHER series' entry leaves the label shown. (A directly-labelled series has no legend entry of its own; the
+    /// server-side <c>LegendToggleEvent</c> hides it by its <c>Visible</c> flag, and a hidden series draws no label.)</summary>
+    [Fact]
+    public void LegendToggle_HidesTheGroupThatHoldsTheEndLabel_AndOnlyThatOne()
+    {
+        using var h = InteractionScriptHarness.FromBuilder(b => b
+            .WithLegendToggle()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A")
+                .Plot([1.0, 2.0], [5.0, 6.0], s => s.Label = "B").WithDirectLabel()));
+
+        var label = System.Xml.Linq.XDocument.Parse(h.Svg).Descendants()
+            .Single(e => e.Name.LocalName == "text" && e.Value == "B");
+        Assert.Equal("1", (string?)label.Parent!.Attribute("data-series-index"));
+
+        h.Simulate("[data-legend-index='0']", "click");
+
+        Assert.Equal("none", h.GetStyle("[data-series-index='0']", "display"));
+        Assert.NotEqual("none", h.GetStyle("[data-series-index='1']", "display"));
+    }
+
     /// <summary>Toggling the same legend item twice restores visibility — proves the
     /// script's hidden-state branch works in both directions.</summary>
     [Fact]

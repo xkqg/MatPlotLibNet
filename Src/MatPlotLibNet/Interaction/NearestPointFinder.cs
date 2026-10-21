@@ -32,12 +32,11 @@ public static class NearestPointFinder
             return null;
 
         var axes = figure.SubPlots[axesIndex];
-        var plotArea = layout.GetPlotArea(axesIndex);
-        var (xMin, xMax, yMin, yMax) = layout.GetDataRange(axesIndex);
-
-        double xSpan = xMax - xMin;
-        double ySpan = yMax - yMin;
-        if (xSpan == 0 || ySpan == 0) return null;
+        // Distances are measured on screen: every point and the cursor go through the transform the axes are drawn with,
+        // so a log or symlog axis measures what the reader sees, not a linear stretch of its range.
+        var view = layout.ViewOf(axesIndex);
+        if (view.DataXMax == view.DataXMin || view.DataYMax == view.DataYMin) return null;
+        var cursor = view.DataToPixel(dataX, dataY);
 
         NearestPointResult? best = null;
 
@@ -69,15 +68,14 @@ public static class NearestPointFinder
             int count = Math.Min(xData.Length, yData.Length);
             for (int i = 0; i < count; i++)
             {
-                double dx = xData[i] - dataX;
-                double dy = yData[i] - dataY;
-
-                // Convert data-space deltas to pixel-space deltas.
-                double pxDx = dx / xSpan * plotArea.Width;
-                double pxDy = dy / ySpan * plotArea.Height;
+                var at = view.DataToPixel(xData[i], yData[i]);
+                double pxDx = at.X - cursor.X;
+                double pxDy = at.Y - cursor.Y;
                 double pixelDist = Math.Sqrt(pxDx * pxDx + pxDy * pxDy);
 
-                if (pixelDist > maxPixelDistance) continue;
+                // Not "> max": a point that maps to no pixel (NaN, inside an axis break or at or below zero on a log
+                // axis) is never within reach.
+                if (!(pixelDist <= maxPixelDistance)) continue;
 
                 if (best is null || pixelDist < best.PixelDistance)
                 {

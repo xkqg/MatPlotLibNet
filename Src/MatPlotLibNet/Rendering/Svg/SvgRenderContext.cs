@@ -3,6 +3,7 @@
 
 using System.Text;
 using MatPlotLibNet;
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Rendering.TextMeasurement;
 using MatPlotLibNet.Styling;
@@ -482,13 +483,65 @@ public sealed class SvgRenderContext : IRenderContext
     }
 
     /// <summary>Opens an SVG group with a CSS class and <c>data-series-index</c> attribute for JS interactivity, with optional <c>aria-label</c>.</summary>
-    internal void BeginDataGroup(string cssClass, int seriesIndex, string? ariaLabel = null)
+    /// <param name="cssClass">The group's class.</param>
+    /// <param name="seriesIndex">The value of <c>data-series-index</c>.</param>
+    /// <param name="ariaLabel">The accessible name; none when empty.</param>
+    /// <param name="mapping">The transform the series inside is drawn with. When given, the group also carries it as
+    /// <c>data-plot-x/y/w/h</c> (the plot area) and <c>data-xmin/xmax/ymin/ymax</c> (the data range), the inverse of
+    /// which is <see cref="DataTransform.PixelToData"/> — what the data cursor converts a click with.</param>
+    internal void BeginDataGroup(string cssClass, int seriesIndex, string? ariaLabel = null, DataTransform? mapping = null)
     {
         _sb.Append("<g class=\"").Append(cssClass)
            .Append("\" data-series-index=\"").Append(seriesIndex).Append('"');
         if (!string.IsNullOrEmpty(ariaLabel))
             _sb.Append(" aria-label=\"").Append(ariaLabel.EscapeForXml()).Append('"');
+        if (mapping is not null)
+            AppendView(mapping.PlotBounds, mapping);
         _sb.AppendLine(">");
+    }
+
+    /// <summary>Writes the view of one axes for the server-interaction script: an empty group carrying
+    /// <c>data-axes-index</c>, the plot area (<c>data-plot-x/y/w/h</c>) and, when the axes drew a Cartesian range, that
+    /// range (<c>data-xmin/xmax/ymin/ymax</c>) — the same attributes, written by the same code, as a series group's
+    /// mapping. The script finds the axes under the pointer by its plot area and converts with its range; an axes
+    /// without a range (polar, 3-D) is still found, and the script falls back to the limits cached on the root.</summary>
+    /// <param name="axesIndex">The axes' index in the figure's subplots — what the script sends as <c>axesIndex</c>.</param>
+    /// <param name="plotArea">The axes' plot area, used when <paramref name="drawnWith"/> is <see langword="null"/>.</param>
+    /// <param name="drawnWith">The transform the axes drew its primary series with, or <see langword="null"/>.</param>
+    internal void WriteAxesView(int axesIndex, Rect plotArea, DataTransform? drawnWith)
+    {
+        _sb.Append("<g data-axes-index=\"").Append(axesIndex).Append('"');
+        AppendView(drawnWith?.PlotBounds ?? plotArea, drawnWith);
+        _sb.AppendLine(" />");
+    }
+
+    /// <summary>The one writer of a view: the plot area, then the data range of <paramref name="range"/> when given. The
+    /// range is in the space the axis is drawn in; a log or symlog axis also writes its scale (<c>data-xscale</c> /
+    /// <c>data-yscale</c>, and the symlog threshold as <c>data-xlinthresh</c> / <c>data-ylinthresh</c>), so the script
+    /// can invert it. The inverse of the whole is <see cref="DataTransform.PixelToData"/>, the rule the script converts
+    /// the pointer by. A linear axis writes no scale, so its bytes are unchanged.</summary>
+    private void AppendView(Rect plot, DataTransform? range)
+    {
+        _sb.Append(" data-plot-x=\"").Append(plot.X.ToSvgNumber())
+           .Append("\" data-plot-y=\"").Append(plot.Y.ToSvgNumber())
+           .Append("\" data-plot-w=\"").Append(plot.Width.ToSvgNumber())
+           .Append("\" data-plot-h=\"").Append(plot.Height.ToSvgNumber()).Append('"');
+        if (range is null) return;
+        _sb.Append(" data-xmin=\"").Append(range.DataXMin.ToSvgNumber())
+           .Append("\" data-xmax=\"").Append(range.DataXMax.ToSvgNumber())
+           .Append("\" data-ymin=\"").Append(range.DataYMin.ToSvgNumber())
+           .Append("\" data-ymax=\"").Append(range.DataYMax.ToSvgNumber()).Append('"');
+        AppendViewScale('x', range.XScale, range.XLinThresh);
+        AppendViewScale('y', range.YScale, range.YLinThresh);
+    }
+
+    /// <summary>Writes one axis' scale into a view, when it is drawn in a space other than the data's own.</summary>
+    private void AppendViewScale(char axis, AxisScale scale, double linthresh)
+    {
+        if (scale.ViewName() is not { } name) return;
+        _sb.Append(" data-").Append(axis).Append("scale=\"").Append(name).Append('"');
+        if (scale == AxisScale.SymLog)
+            _sb.Append(" data-").Append(axis).Append("linthresh=\"").Append(linthresh.ToSvgNumber()).Append('"');
     }
 
     /// <summary>Opens an SVG group for a 3D scene with camera parameters as data attributes for JS rotation.

@@ -53,7 +53,8 @@ public static class FigureExtensions
     public static void SaveSvg(this Figure figure, string path) =>
         File.WriteAllText(path, figure.ToSvg());
 
-    /// <summary>Saves the figure to a file. Format is auto-detected from the file extension. No extension defaults to SVG.</summary>
+    /// <summary>Saves the figure to a file. Format is auto-detected from the file extension. No extension defaults to SVG.
+    /// <paramref name="options"/> is accepted and not read yet: the file is the same with or without it.</summary>
     public static void Save(this Figure figure, string path, SaveOptions? options = null)
     {
         var ext = Path.GetExtension(path).ToLowerInvariant();

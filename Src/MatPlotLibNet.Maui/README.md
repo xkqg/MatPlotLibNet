@@ -33,7 +33,8 @@ var chart = new MplChartView
 };
 ```
 
-`MplChartView` extends `GraphicsView` and re-renders automatically when the `Figure` property changes.
+`MplChartView` extends `GraphicsView` and re-renders automatically when the `Figure` property changes. It draws the
+chart and has no gestures: unlike the WPF, Avalonia and Uno controls it does not pan, zoom or select.
 
 ## Supported platforms
 

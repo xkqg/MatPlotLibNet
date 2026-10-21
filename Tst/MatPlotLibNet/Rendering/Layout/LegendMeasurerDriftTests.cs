@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using System.Text.RegularExpressions;
+using MatPlotLibNet.Builders;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Rendering.Svg;
@@ -284,27 +285,230 @@ public class MeasurerRendererDriftTests
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.Plot([0.0, 1.0], [0.0, 1.0]);
-                ax.WithSecondaryXAxis(secondary =>
-                {
-                    secondary.SetXLabel("Secondary X");
-                });
+                // The secondary X axis is drawn only when it has series; without one there is no label to reserve.
+                ax.WithSecondaryXAxis(secondary => secondary.PlotXSecondary([0.0, 100.0], [0.0, 1.0]).SetXLabel("Secondary X"));
             })
+            .Build();
+
+        string svg = new Transforms.SvgTransform().Render(figure);
+        var label = Texts(svg).Single(t => t.Text == "Secondary X");
+        double labelTop = label.Y - ChartServices.FontMetrics.Measure("Secondary X", new Font { Size = label.FontSize }).Height;
+
+        Assert.True(labelTop >= 0, $"Secondary X-axis label clip: its top is at {labelTop:F2} < 0");
+    }
+
+    // ── 8. End-of-line label (1.19.0) ──
+    //   The label sits a gap past the end of its line, in the legend's font; the engine reserves that gap + width.
+
+    [Fact]
+    public void EndLabel_LayoutEngineReserves_EnoughRightMargin()
+    {
+        var figure = Plt.Create()
+            .WithSize(600, 400)
+            .TightLayout()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 1.0], [0.0, 1.0], s => s.Label = "Revenue").WithDirectLabel())
             .Build();
 
         string svg = new Transforms.SvgTransform().Render(figure);
         var (plotX, plotY, plotW, plotH) = ParsePlotAreaRect(svg);
 
-        var labelFont = new Font
-        {
-            Family = figure.Theme.DefaultFont.Family,
-            Size   = figure.Theme.DefaultFont.Size,
-        };
-        double labelHeight = ChartServices.FontMetrics.Measure("Secondary X", labelFont).Height;
-        // The renderer draws the secondary X label with its baseline at PlotArea.Y - 28.
-        // Its actual top is (PlotArea.Y - 28 - 0.8 * labelHeight). For fit: plotY >= 28 + 0.8*h + 0.2*h = 28 + h.
-        double minRequired = 28 + labelHeight;
+        var font = RendererTickFont(figure.Theme);
+        double labelWidth = ChartServices.FontMetrics.Measure("Revenue", font).Width;
+        double minRequired = DirectLabelMetrics.Gap + labelWidth;
+        double marginRight = 600 - (plotX + plotW);
 
-        Assert.True(plotY >= minRequired,
-            $"Secondary X-axis label clip: MarginTop={plotY:F2} < required {minRequired:F2}");
+        Assert.True(marginRight >= minRequired,
+            $"End label clip: MarginRight={marginRight:F2} < required {minRequired:F2}");
+    }
+
+    // ── 9. Secondary Y tick labels (1.19.0) ──
+    //   Drawn left-aligned at Length + Pad past the right spine. Before 1.19.0 the engine charged only the secondary
+    //   TITLE, so without one the tick labels ran past the figure edge.
+
+    [Fact]
+    public void SecondaryYTickLabels_LayoutEngineReserves_EnoughRightMargin()
+    {
+        var figure = Plt.Create()
+            .WithSize(600, 400)
+            .TightLayout()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 1.0], [0.0, 1.0])
+                .WithSecondaryYAxis(y2 => y2.Plot([0.0, 1.0], [100_000.0, 900_000.0])))
+            .Build();
+
+        string svg = new Transforms.SvgTransform().Render(figure);
+        var (plotX, plotY, plotW, plotH) = ParsePlotAreaRect(svg);
+        double plotRight = plotX + plotW;
+
+        var font = RendererTickFont(figure.Theme);
+        var labels = Regex.Matches(svg, @"<text x=""(?<x>[0-9.]+)""[^>]*text-anchor=""start""[^>]*>(?<t>[^<]+)</text>")
+            .Select(m => (X: double.Parse(m.Groups["x"].Value, CultureInfo.InvariantCulture), Text: m.Groups["t"].Value))
+            .Where(l => l.X > plotRight)
+            .ToList();
+        Assert.NotEmpty(labels);
+        foreach (var (x, text) in labels)
+        {
+            double right = x + ChartServices.FontMetrics.Measure(text, font).Width;
+            Assert.True(right <= 600, $"Secondary Y tick label '{text}' clip: ends at {right:F2} > 600");
+        }
+    }
+
+    // ── shared parsing for the drawn text of 10-12 ──
+
+    private readonly record struct DrawnText(double X, double Y, double FontSize, string Anchor, string Text);
+
+    private static List<DrawnText> Texts(string svg) =>
+        Regex.Matches(svg, @"<text x=""(?<x>-?[0-9.]+)"" y=""(?<y>-?[0-9.]+)"" font-family=""[^""]*"" font-size=""(?<fs>[0-9.]+)"" text-anchor=""(?<a>[a-z]+)""[^>]*>(?<t>[^<]*)</text>")
+            .Select(m => new DrawnText(
+                double.Parse(m.Groups["x"].Value, CultureInfo.InvariantCulture),
+                double.Parse(m.Groups["y"].Value, CultureInfo.InvariantCulture),
+                double.Parse(m.Groups["fs"].Value, CultureInfo.InvariantCulture),
+                m.Groups["a"].Value,
+                m.Groups["t"].Value))
+            .ToList();
+
+    private static FigureBuilder Layout(bool tight) =>
+        tight ? Plt.Create().WithSize(600, 400).TightLayout() : Plt.Create().WithSize(600, 400);
+
+    // ── 10. Secondary Y title (1.19.0) ──
+    //   The part centres the rotated title at TickConfig.AxisLabelOffset(widest tick label) + LabelStyle.Pad past the
+    //   right spine; the engine reserves the same offset plus the title height. The two read one owner, so the title
+    //   fits whatever the tick label width or the tick mark length and pad.
+
+    [Theory]
+    [InlineData(true, 1.0, 3.5, 3.5)]
+    [InlineData(true, 100_000.0, 3.5, 3.5)]
+    [InlineData(true, 100_000.0, 14.0, 11.0)]
+    [InlineData(true, 0.001, 9.0, 2.0)]
+    [InlineData(false, 1.0, 3.5, 3.5)]
+    [InlineData(false, 100_000.0, 14.0, 11.0)]
+    public void SecondaryYTitle_LayoutReservesItsRightEdge(bool tight, double scale, double length, double pad)
+    {
+        const string Title = "Secondary title";
+        var figure = Layout(tight)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 1.0], [0.0, 1.0])
+                .WithSecondaryYAxis(y2 => y2.Plot([0.0, 1.0], [1 * scale, 9 * scale]).SetYLabel(Title)))
+            .Build();
+        var axis = figure.SubPlots[0].SecondaryYAxis!;
+        axis.MajorTicks = axis.MajorTicks with { Length = length, Pad = pad };
+
+        string svg = new Transforms.SvgTransform().Render(figure);
+        var title = Texts(svg).Single(t => t.Text == Title);
+        double height = ChartServices.FontMetrics.Measure(Title, new Font { Size = title.FontSize }).Height;
+
+        Assert.True(title.X + height <= 600,
+            $"Secondary Y title clip: its far edge is at {title.X + height:F2} > 600 (tight={tight}, scale={scale}, length={length}, pad={pad})");
+    }
+
+    // ── 11. Mirrored X tick labels under the axes title (1.19.0) ──
+    //   WithXTicksMirrored draws the X tick labels above the top spine, where the axes title used to sit. The title
+    //   rises above them and the top margin holds both.
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void MirroredXTicks_TheAxesTitleSitsAboveTheTopTickLabels(bool tight)
+    {
+        const string Title = "A Title";
+        var figure = Layout(tight)
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 1.0, 2.0], [0.0, 1.0, 2.0]).WithXTicksMirrored().WithTitle(Title))
+            .Build();
+
+        string svg = new Transforms.SvgTransform().Render(figure);
+        var (_, plotY, _, _) = ParsePlotAreaRect(svg);
+        var texts = Texts(svg);
+        var title = texts.Single(t => t.Text == Title);
+        var topLabels = texts.Where(t => t.Text != Title && t.Y < plotY).ToList();
+        Assert.NotEmpty(topLabels);
+
+        double labelTop = topLabels.Min(t => t.Y - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Height);
+        double titleBottom = title.Y + 0.2 * title.FontSize;
+        double titleTop = title.Y - ChartServices.FontMetrics.Measure(Title, new Font { Size = title.FontSize }).Height;
+        Assert.True(titleBottom <= labelTop,
+            $"Axes title overlaps the mirrored X tick labels: title bottom {titleBottom:F2} > tick label top {labelTop:F2} (tight={tight})");
+        Assert.True(titleTop >= 0, $"Axes title clip: its top is at {titleTop:F2} < 0 (tight={tight})");
+    }
+
+    // ── 12. Mirrored Y tick labels (1.19.0) ──
+    //   WithYTicksMirrored draws the Y tick labels left-aligned at Length + Pad past the right spine; the right margin
+    //   holds the mark, the pad and the widest of them.
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void MirroredYTicks_LayoutReservesTheRightTickLabels(bool tight)
+    {
+        var figure = Layout(tight)
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 1.0], [100_000.0, 900_000.0]).WithYTicksMirrored())
+            .Build();
+
+        string svg = new Transforms.SvgTransform().Render(figure);
+        var (plotX, _, plotW, _) = ParsePlotAreaRect(svg);
+        double plotRight = plotX + plotW;
+        var labels = Texts(svg).Where(t => t.Anchor == "start" && t.X > plotRight).ToList();
+        Assert.NotEmpty(labels);
+
+        var major = figure.SubPlots[0].YAxis.MajorTicks;
+        double widest = labels.Max(t => ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width);
+        double required = major.Length + major.Pad + widest;
+        double marginRight = 600 - plotRight;
+        Assert.True(marginRight >= required,
+            $"Mirrored Y tick label clip: MarginRight={marginRight:F2} < mark + pad + widest label {required:F2} (tight={tight})");
+    }
+
+    // ── 13. Secondary X axis under the axes title (1.19.0) ──
+    //   The secondary X axis draws its tick labels above the top spine and its own title above them; the axes title
+    //   rises above both, the secondary title stands clear of the tick labels, and the top margin holds all of it,
+    //   whatever the tick label size, the mark length and pad, or the secondary title's font.
+
+    [Theory]
+    [InlineData(true, null, 3.5, 3.5, null, true)]
+    [InlineData(true, 20.0, 3.5, 3.5, null, true)]
+    [InlineData(true, 9.0, 12.0, 9.0, 18.0, true)]
+    [InlineData(true, 28.0, 14.0, 11.0, 30.0, true)]
+    [InlineData(true, null, 3.5, 3.5, null, false)]
+    [InlineData(false, null, 3.5, 3.5, null, true)]
+    [InlineData(false, 20.0, 12.0, 9.0, 18.0, true)]
+    [InlineData(false, 28.0, 14.0, 11.0, 30.0, true)]
+    [InlineData(false, null, 3.5, 3.5, null, false)]
+    public void SecondaryXAxis_TheTitlesClearTheTopTickLabels(bool tight, double? labelSize, double length, double pad,
+                                                              double? axisTitleSize, bool withAxisTitle)
+    {
+        const string Title = "A Title", AxisTitle = "Secondary X";
+        var figure = Layout(tight)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 1.0, 2.0], [0.0, 1.0, 2.0]).WithTitle(Title)
+                .WithSecondaryXAxis(x2 =>
+                {
+                    x2.PlotXSecondary([1_000.0, 3_000.0, 5_000.0], [0.0, 1.0, 2.0]);
+                    if (withAxisTitle) x2.SetXLabel(AxisTitle);
+                }))
+            .Build();
+        var axis = figure.SubPlots[0].SecondaryXAxis!;
+        axis.MajorTicks = axis.MajorTicks with { Length = length, Pad = pad, LabelSize = labelSize };
+        if (axisTitleSize is { } size) axis.LabelStyle = new TextStyle { FontSize = size };
+        string context = $"tight={tight}, labelSize={labelSize}, length={length}, pad={pad}, axisTitleSize={axisTitleSize}";
+
+        string svg = new Transforms.SvgTransform().Render(figure);
+        var (_, plotY, _, _) = ParsePlotAreaRect(svg);
+        var texts = Texts(svg);
+        static double Top(DrawnText t) => t.Y - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Height;
+        static double Bottom(DrawnText t) => t.Y + 0.2 * t.FontSize;
+        var title = texts.Single(t => t.Text == Title);
+        var tickLabels = texts.Where(t => t.Text != Title && t.Text != AxisTitle && t.Y < plotY).ToList();
+        Assert.NotEmpty(tickLabels);
+        double tickTop = tickLabels.Min(Top);
+
+        Assert.True(Bottom(title) <= tickTop,
+            $"Axes title overlaps the secondary X tick labels: title bottom {Bottom(title):F2} > tick label top {tickTop:F2} ({context})");
+        Assert.True(Top(title) >= 0, $"Axes title clip: its top is at {Top(title):F2} < 0 ({context})");
+        if (!withAxisTitle) return;
+        var axisTitle = texts.Single(t => t.Text == AxisTitle);
+        Assert.True(Bottom(axisTitle) <= tickTop,
+            $"Secondary X title overlaps its tick labels: title bottom {Bottom(axisTitle):F2} > tick label top {tickTop:F2} ({context})");
+        Assert.True(Bottom(title) <= Top(axisTitle),
+            $"Axes title overlaps the secondary X title: {Bottom(title):F2} > {Top(axisTitle):F2} ({context})");
+        Assert.True(Top(axisTitle) >= 0, $"Secondary X title clip: its top is at {Top(axisTitle):F2} < 0 ({context})");
     }
 }

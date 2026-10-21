@@ -167,6 +167,9 @@ public static class EnumOrdinalSnapshot
             [typeof(HistType)] = new Dictionary<string, int> {
                 ["Bar"] = 0, ["Step"] = 1, ["StepFilled"] = 2,
             },
+            [typeof(SeriesLabelPlacement)] = new Dictionary<string, int> {
+                ["Legend"] = 0, ["LineEnd"] = 1,
+            },
             [typeof(MatPlotLibNet.Rendering.Layout.LabelPriority)] = new Dictionary<string, int> {
                 ["Low"] = 0, ["Normal"] = 1, ["High"] = 2,
             },
@@ -203,6 +206,7 @@ public static class EnumOrdinalSnapshot
                 ["Treemap"] = 12, ["SankeyFlow"] = 13, ["PolarLine"] = 14,
                 ["MultiSubplot"] = 15, ["AxisBreaks"] = 16, ["MinorGrid"] = 17,
                 ["DashboardTiles"] = 18, ["ThresholdLine"] = 19,
+                ["DirectLabels"] = 20,
             },
             [typeof(PointerButton)] = new Dictionary<string, int> {
                 ["None"] = 0, ["Left"] = 1, ["Middle"] = 2, ["Right"] = 3,

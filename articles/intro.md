@@ -38,7 +38,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 
 Runnable sample projects are in the [Samples/](../Samples/) directory:
 
-- **[Playground](../Samples/MatPlotLibNet.Playground/)** — Blazor WASM interactive explorer. Switch between 16 example charts, flip themes, toggle series styling, copy the generated C# — hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/)
+- **[Playground](../Samples/MatPlotLibNet.Playground/)** — Blazor WASM interactive explorer. Switch between 21 example charts, flip themes, toggle series styling, copy the generated C# — hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/)
 - **[Console](../Samples/MatPlotLibNet.Samples.Console/)** — export charts to SVG, PNG, PDF; subplots; themes; JSON round-trip; generates every image in the wiki / cookbook
 - **[Blazor](../Samples/MatPlotLibNet.Samples.Blazor/)** — static and real-time charts with SignalR
 - **[WPF](../Samples/MatPlotLibNet.Samples.Wpf/)** — native WPF window with `MplChartControl`, 4 chart types + live interactive toggle

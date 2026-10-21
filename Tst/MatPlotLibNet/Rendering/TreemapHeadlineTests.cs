@@ -33,12 +33,12 @@ public class TreemapHeadlineTests
 
     private static TreeNode Fleet(string? headline = null) => new()
     {
-        Label = "Ait",
+        Label = "Svc",
         Headline = headline,
         Children =
         [
-            new() { Label = "Ait.Cortex", Headline = "13 %", Value = 1 },
-            new() { Label = "Ait.Obs", Headline = "11 %", Value = 1 },
+            new() { Label = "Svc.Ingest", Headline = "13 %", Value = 1 },
+            new() { Label = "Svc.Obs", Headline = "11 %", Value = 1 },
         ],
     };
 
@@ -47,7 +47,7 @@ public class TreemapHeadlineTests
     {
         var texts = Texts(Fleet());
 
-        var name = texts.Single(t => t.Value == "Ait.Cortex");
+        var name = texts.Single(t => t.Value == "Svc.Ingest");
         var headline = texts.Single(t => t.Value == "13 %");
         Assert.True(headline.Y > name.Y, "the number sits UNDER the name");
         Assert.True(headline.Size > name.Size, "and it is the thing you can see from across a room");
@@ -65,12 +65,12 @@ public class TreemapHeadlineTests
     [Fact]
     public void WithoutAHeadline_ACellIsExactlyWhatItWas()
     {
-        var plain = new TreeNode { Label = "Ait", Children = [new() { Label = "Ait.Cortex", Value = 1 }] };
+        var plain = new TreeNode { Label = "Svc", Children = [new() { Label = "Svc.Ingest", Value = 1 }] };
 
         var texts = Texts(plain);
 
         Assert.DoesNotContain(texts, t => t.Value == "13 %");
-        Assert.Equal(1, texts.Count(t => t.Value == "Ait.Cortex"));
+        Assert.Equal(1, texts.Count(t => t.Value == "Svc.Ingest"));
     }
 
     /// <summary>An interior node has an 18-px header strip and no body of its own: its headline — the parent's
@@ -80,7 +80,7 @@ public class TreemapHeadlineTests
     {
         var texts = Texts(Fleet("24 % · 25k msg"));
 
-        var label = texts.Single(t => t.Value == "Ait");
+        var label = texts.Single(t => t.Value == "Svc");
         var total = texts.Single(t => t.Value == "24 % · 25k msg");
         Assert.Equal(label.Y, total.Y);                     // the same header line
         Assert.True(total.X > label.X + 100, "at the far end of it");
@@ -95,7 +95,7 @@ public class TreemapHeadlineTests
         // Six cells across 600 px: a short name fits, a long measure does not.
         var crowded = new TreeNode
         {
-            Label = "Ait",
+            Label = "Svc",
             Children = [.. Enumerable.Range(0, 6).Select(i => new TreeNode
             {
                 Label = $"P{i}", Headline = $"{i}0 % · 12 345 msg · 6 972 KiB", Value = 1,
@@ -114,16 +114,16 @@ public class TreemapHeadlineTests
     {
         var crowded = new TreeNode
         {
-            Label = "Ait",
+            Label = "Svc",
             Children = [.. Enumerable.Range(0, 24).Select(i => new TreeNode
             {
-                Label = $"Ait.LongProcessName{i}", Headline = $"{i} %", Value = 1,
+                Label = $"Svc.LongProcessName{i}", Headline = $"{i} %", Value = 1,
             })],
         };
 
         var texts = Texts(crowded, s => s.LabelFit = TreemapLabelFit.Fit);
 
-        Assert.DoesNotContain(texts, t => t.Value.StartsWith("Ait.LongProcessName", StringComparison.Ordinal));
+        Assert.DoesNotContain(texts, t => t.Value.StartsWith("Svc.LongProcessName", StringComparison.Ordinal));
         Assert.DoesNotContain(texts, t => t.Value.EndsWith(" %", StringComparison.Ordinal));
     }
 

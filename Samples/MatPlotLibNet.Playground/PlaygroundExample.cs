@@ -40,6 +40,9 @@ public enum PlaygroundExample
     // v1.12.0 — dashboard-oriented examples (StatTile/StateTimeline, Threshold + LegendValues).
     [Description("Dashboard Tiles")] DashboardTiles = 18,
     [Description("Threshold Line")]  ThresholdLine  = 19,
+
+    // v1.19.0 — lines named at their end on a dual axis whose axes wear their line's colour.
+    [Description("Direct Labels")]   DirectLabels   = 20,
 }
 
 /// <summary>Display-name helpers for <see cref="PlaygroundExample"/>.</summary>

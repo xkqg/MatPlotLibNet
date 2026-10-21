@@ -106,8 +106,7 @@ public sealed class InteractionScriptHarness : IDisposable
 
         // Strip XML declarations + namespace decls so XDocument can parse the multi-SVG bag
         // wrapped in a synthetic <html> root.
-        var stripped = Regex.Replace(combined, @"<\?xml[^>]*\?>", "").Trim();
-        stripped = Regex.Replace(stripped, @"xmlns\s*=\s*""[^""]*""", "");
+        var stripped = Strip(combined);
 
         var wrapped = $"<html>{stripped}</html>";
         var xdoc = XDocument.Parse(wrapped);
@@ -125,8 +124,51 @@ public sealed class InteractionScriptHarness : IDisposable
         var engine = new Engine(opts => opts.Strict(false));
         var harness = new InteractionScriptHarness(combined, dom, engine);
         harness.WireGlobals();
-        harness.RunEmbeddedScripts(stripped);
+        harness.RunEmbeddedScripts(dom.QuerySelectorAllRaw("script"));
         return harness;
+    }
+
+    /// <summary>Strips the XML declaration and the default namespace, so a figure's SVG parses into the synthetic
+    /// document the harness holds.</summary>
+    private static string Strip(string svg)
+    {
+        var stripped = Regex.Replace(svg, @"<\?xml[^>]*\?>", "").Trim();
+        return Regex.Replace(stripped, @"xmlns\s*=\s*""[^""]*""", "");
+    }
+
+    /// <summary>Mounts a redrawn chart the way a page does after an update: the <c>&lt;svg&gt;</c> carrying the same
+    /// <c>data-chart-id</c> is replaced by the new figure's SVG (the rest of the document, the body with anything a script
+    /// appended to it included, stays), and the new SVG's scripts run in the same engine, as a page that re-runs the
+    /// scripts of the markup it mounts does. Listeners on the replaced SVG stay registered but can never fire again,
+    /// as in a browser.</summary>
+    /// <param name="configure">The redrawn figure; it must carry the chart id of the SVG it replaces.</param>
+    public void Remount(Action<FigureBuilder> configure)
+    {
+        var fb = Plt.Create();
+        configure(fb);
+        var replacement = XElement.Parse(Strip(fb.ToSvg()));
+        string? chartId = replacement.Attribute("data-chart-id")?.Value;
+        var old = Document.Xml.Descendants("svg").First(e => e.Attribute("data-chart-id")?.Value == chartId);
+        replacement.SetAttributeValue("id", old.Attribute("id")?.Value);
+        old.ReplaceWith(replacement);
+        RunEmbeddedScripts(Document.Wrap(replacement).querySelectorAllRaw("script"));
+    }
+
+    /// <summary>Installs a SignalR connection written in JavaScript at <c>window.__mpl_signalr_connection</c>, the
+    /// shape a page hands the script (a <c>HubConnection</c> is a plain JS object): it records the methods invoked and
+    /// the handlers registered with <c>on</c>, and lets a test deliver a server message to those handlers. Unlike
+    /// <see cref="WireSignalRMock"/> the connection must be in place before the scripts that read it at start-up run,
+    /// so a test wires it and then <see cref="Remount"/>s.</summary>
+    public JsSignalRHub WireJsSignalRHub()
+    {
+        _engine.Execute("""
+            window = { __mpl_signalr_connection: {
+                invoked: [], handlers: [],
+                invoke: function (method, payload) { this.invoked.push(method); },
+                on: function (name, fn) { this.handlers.push({ name: name, fn: fn }); }
+            } };
+            """);
+        return new JsSignalRHub(_engine);
     }
 
     private void WireGlobals()
@@ -136,6 +178,9 @@ public sealed class InteractionScriptHarness : IDisposable
         _engine.SetValue("window", new { });
         _engine.SetValue("console", new { log = (Action<object>)(o => System.Console.WriteLine(o)) });
         _engine.SetValue("location", new { hash = "" });
+        // The hover round trip arms a timer to clear its in-flight flag. The harness has no event loop, so the timer is
+        // accepted and never fires: a test sees the state right after the event, the way a browser does before the timer.
+        _engine.SetValue("setTimeout", new Func<Jint.Native.JsValue, Jint.Native.JsValue, int>((_, _) => 0));
         // Phase G.5 of v1.7.2 follow-on plan — CustomEvent is needed by the selection
         // script's `svg.dispatchEvent(new CustomEvent('mpl:selection', { detail: {...} }))`.
         // Jint's `new` requires a concrete function-value, so we register a factory that
@@ -143,13 +188,11 @@ public sealed class InteractionScriptHarness : IDisposable
         _engine.SetValue("CustomEvent", TypeReference.CreateTypeReference<DomEvent>(_engine));
     }
 
-    private void RunEmbeddedScripts(string svgText)
+    private void RunEmbeddedScripts(IEnumerable<DomElement> scriptElements)
     {
-        // Walk the parsed DOM looking for <script> elements in document order. For EACH script,
-        // set document.currentScript to its DOM wrapper, so any script that calls
-        // `document.currentScript.parentNode` gets its OWN owning <svg> — the multi-chart
-        // isolation pattern this whole phase exists to support.
-        var scriptElements = Document.QuerySelectorAllRaw("script");
+        // Run the <script> elements in document order. For EACH script, set document.currentScript to its DOM
+        // wrapper, so any script that calls `document.currentScript.parentNode` gets its OWN owning <svg> — the
+        // multi-chart isolation pattern this whole phase exists to support.
         foreach (var scriptEl in scriptElements)
         {
             // Extract the script body — Jint runs the JS, not the wrapper tags.
@@ -246,4 +289,27 @@ public sealed class SignalRInvokeMock
 {
     public List<(string Method, object? Payload)> Calls { get; } = new();
     public void invoke(string method, object? payload) => Calls.Add((method, payload));
+}
+
+/// <summary>Test-side view of the JavaScript connection <see cref="InteractionScriptHarness.WireJsSignalRHub"/> installs.</summary>
+public sealed class JsSignalRHub
+{
+    private readonly Engine _engine;
+    internal JsSignalRHub(Engine engine) => _engine = engine;
+
+    /// <summary>How many handlers the scripts registered for the server message <paramref name="name"/>.</summary>
+    public int HandlerCount(string name) => (int)_engine.Evaluate(
+        $"window.__mpl_signalr_connection.handlers.filter(function (h) {{ return h.name === '{name}'; }}).length").AsNumber();
+
+    /// <summary>Delivers a server message to every handler registered for it, as the connection does.</summary>
+    public void Deliver(string name, string chartId, string html) => _engine.Invoke(_engine.Evaluate("""
+        (function (name, id, html) {
+            var hs = window.__mpl_signalr_connection.handlers;
+            for (var i = 0; i < hs.length; i++) if (hs[i].name === name) hs[i].fn(id, html);
+        })
+        """), name, chartId, html);
+
+    /// <summary>The hub methods the scripts invoked, in order.</summary>
+    public string[] Invoked => _engine.Evaluate("window.__mpl_signalr_connection.invoked.join(',')").AsString()
+        .Split(',', StringSplitOptions.RemoveEmptyEntries);
 }

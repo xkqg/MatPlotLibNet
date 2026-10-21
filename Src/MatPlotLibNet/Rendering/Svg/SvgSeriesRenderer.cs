@@ -135,18 +135,18 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
     /// <param name="ctx">The drawing target for this render pass.</param>
     /// <param name="seriesColor">The theme cycle color for this series slot.</param>
+    /// <param name="theme">The active visual theme, forwarded to per-series renderers for theme-specific defaults.</param>
     /// <param name="cycledProps">Optional additional cycled style properties (line style, marker, width).</param>
     /// <param name="tooltipsEnabled">Whether to emit SVG tooltip group wrappers.</param>
     /// <param name="plotArea">The pixel bounds of the current plot area.</param>
     /// <param name="projection">Unified 3D projection to pass through to 3D series renderers.</param>
     /// <param name="lightSource">Optional light source for per-face lighting on 3D surfaces.</param>
     /// <param name="emit3DData">When true, 3D renderers emit data-v3d attributes for interactive rotation.</param>
-    /// <param name="theme">The active visual theme, forwarded to per-series renderers for theme-specific defaults.</param>
     /// <param name="depthQueue">Optional shared depth queue for cross-series back-to-front compositing on 3D axes.</param>
-    public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor,
+    public SvgSeriesRenderer(DataTransform transform, IRenderContext ctx, Color seriesColor, Styling.Theme theme,
         CycledProperties? cycledProps = null, bool tooltipsEnabled = false, Rect plotArea = default,
         Projection3D? projection = null, ILightSource? lightSource = null, bool emit3DData = false,
-        Styling.Theme? theme = null, DepthQueue3D? depthQueue = null)
+        DepthQueue3D? depthQueue = null)
     {
         _context = new SeriesRenderContext(transform, ctx, seriesColor, new RenderArea(plotArea, ctx))
         {
@@ -155,7 +155,7 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
             Projection3D    = projection,
             LightSource     = lightSource,
             Emit3DData      = emit3DData,
-            Theme           = theme ?? Styling.Theme.Default,
+            Theme           = theme,
             DepthQueue      = depthQueue,
         };
     }

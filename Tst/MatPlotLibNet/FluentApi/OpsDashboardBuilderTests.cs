@@ -149,14 +149,14 @@ public class OpsDashboardBuilderTests
     public void TitleAndTrendConfiguration_AreApplied()
     {
         string svg = Plt.OpsDashboard()
-            .WithTitle("Synapse")
+            .WithTitle("Order service")
             .AddTile(15)
             .AddTrend([0, 1], [1, 2])
             .ConfigureTrend(ax => ax.SetYLabel("Messages / s"))
             .Build()
             .ToSvg();
 
-        Assert.Contains("Synapse", svg);
+        Assert.Contains("Order service", svg);
         Assert.Contains("Messages / s", svg);
     }
 

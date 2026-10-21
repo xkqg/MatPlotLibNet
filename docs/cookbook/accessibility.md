@@ -147,13 +147,13 @@ foreach (var table in dashboard.ToDataTables())
     Console.WriteLine(table.ToMarkdown());
 }
 
-// **Synapse — federation**
+// **Order service — gateway**
 // | label   | value | target | caption            | trend                  |
 // | ---     | ---   | ---    | ---                | ---                    |
 // | Buses   | 15    |        | all 15 normal      |                        |
 // | RFx p99 | 28.1  | 25     | target 25 ms · +3.1| 24.1, 24.8, 25.3, 26…  |
 //
-// **Synapse — federation — Exchange feed**
+// **Order service — gateway — Exchange feed**
 // | state    | start               | end                 |
 // | ---      | ---                 | ---                 |
 // | normal   | 2026-09-12 07:55    | 2026-09-12 07:57    |
@@ -242,6 +242,45 @@ amber for *attention* and vermillion for *critical*. The two stay distinguishabl
 colour-vision deficiency. It also names the neutral shade for a resting state. The strongest accessibility
 measure of all is to spend no colour on states that do not need it: when the normal state is uncoloured, the
 abnormal one does not have to compete for attention.
+
+### A coloured axis keeps its title, and a line keeps its name
+
+`SetYAxisColor` colours an axis like the line it measures (see
+[Direct labels and axis colours](direct-labels-and-axis-colours.md)). That colour is a second cue, never the only
+one. Give **both** Y axes a title that names the quantity and its unit, and name each line, either in the legend or
+at the end of the line with `WithDirectLabel()`. A reader who cannot tell the two colours apart can still see which
+line belongs to which axis:
+
+```csharp
+ax.Plot(hours, temperature, s => { s.Label = "Temperature"; s.Color = warm; })
+  .WithDirectLabel()
+  .SetYLabel("Temperature (°C)")              // the title says in words what the colour says
+  .SetYAxisColor(warm)
+  .WithSecondaryYAxis(right => right
+      .Plot(hours, humidity, s => { s.Label = "Humidity"; s.Color = cool; })
+      .WithDirectLabel()
+      .SetYLabel("Relative humidity (%)")
+      .SetYAxisColor(cool));
+```
+
+A name drawn at the end of a line is more than pixels. Every labelled series is drawn in a group of its own that
+carries the name, and the end label is drawn inside that group. This is the SVG of the right-hand line above:
+
+```xml
+<g class="series" aria-label="Humidity">
+  <polyline points="…" … />
+  <text x="709.5" y="116.53" … text-anchor="start" fill="#1F77B4">Humidity</text>
+</g>
+```
+
+With `WithBrowserInteraction()` the same group also carries `data-series-index="1"`: the index the legend toggle,
+the hover highlight and the keyboard focus use. The label therefore hides and highlights together with its line,
+on the right-hand axis just as on the left. When the `MatPlotLibNet.Skia` package is loaded, text is drawn as glyph
+outlines (`<path>`) instead of `<text>`, and the name stays in the group's `aria-label`.
+
+As the [SVG semantics](#svg-semantics) section explains, a screen reader does not announce those group labels while
+the root is `role="img"`. For that reader, the [data table](#the-data-table) names both lines in its column
+headers: for the chart above, `Hour of the day`, `Temperature` and `Humidity`, in one table.
 
 ## Motion
 

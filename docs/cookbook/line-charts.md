@@ -187,6 +187,9 @@ Plt.Create()
     .Save("dual_axis.svg");
 ```
 
+To name each line where it ends and colour each axis like its line, so the chart needs no legend, see
+[Direct labels and axis colours](direct-labels-and-axis-colours.md).
+
 ## PropCycler — automatic color + line style cycling
 
 When plotting multiple series, `PropCycler` automatically assigns distinct colors and line styles:
@@ -333,7 +336,8 @@ the legend anyway.
 | `DrawStyle` | `DrawStyle` | `Default` | Default, Steps, StepPre, StepMid, StepPost |
 | `Smooth` | `bool` | `false` | Fritsch-Carlson cubic interpolation |
 | `SmoothResolution` | `int` | `10` | Sub-points per interval when smoothing |
-| `Label` | `string` | none | Legend label |
+| `Label` | `string` | none | The series name, in the legend or at the end of the line |
+| `LabelPlacement` | `SeriesLabelPlacement` | `Legend` | `LineEnd` draws the name at the end of the line instead of in the legend ([direct labels](direct-labels-and-axis-colours.md)) |
 | `Visible` | `bool` | `true` | Show/hide series |
 | `ZOrder` | `int` | `0` | Render order (higher = on top) |
 

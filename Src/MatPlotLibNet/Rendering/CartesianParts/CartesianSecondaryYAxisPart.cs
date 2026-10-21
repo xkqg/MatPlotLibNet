@@ -13,10 +13,15 @@ namespace MatPlotLibNet.Rendering.CartesianParts;
 /// Extracted verbatim from <c>CartesianAxesRenderer.Render</c> lines 201-238
 /// (pre-B.7).
 /// </summary>
+/// <remarks>Each series is drawn inside the series group the primary pass opens for a primary one
+/// (<see cref="SeriesGroupExtensions.BeginSeriesGroup"/>, keyed by the series' slot, the index its legend entry carries),
+/// and its end label is drawn inside that group, so the legend toggle and the hover highlight reach the line and its
+/// label together.</remarks>
 internal sealed class CartesianSecondaryYAxisPart : CartesianAxesPart
 {
     private readonly DataRange _secRange;
-    private readonly int _primarySeriesCount;
+    private readonly DataTransform _secTransform;
+    private readonly CartesianDirectLabelsPart _directLabels;
 
     /// <summary>Constructs a secondary-Y-axis part.</summary>
     /// <param name="axes">The axes model (reads secondary series + secondary axis config from here).</param>
@@ -26,67 +31,70 @@ internal sealed class CartesianSecondaryYAxisPart : CartesianAxesPart
     /// <param name="primaryTransform">Data→pixel transform for the primary axes; passed to the base class.</param>
     /// <param name="secRange">The computed secondary-axis range (via the orchestrator's
     /// <c>ComputeSecondaryDataRanges</c>).</param>
-    /// <param name="primarySeriesCount">Offset for color-cycle indexing so secondary
-    /// series pick up where primary series left off.</param>
+    /// <param name="secTransform">The data→pixel transform of the secondary axis, built once from
+    /// <paramref name="secRange"/> by the orchestrator, which hands the same value to the end-label part so a
+    /// secondary label sits on the line this part draws.</param>
+    /// <param name="directLabels">The end labels of the axes; this part asks it for a secondary series' label while that
+    /// series' group is open.</param>
     public CartesianSecondaryYAxisPart(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme,
-                                         DataTransform primaryTransform, DataRange secRange,
-                                         int primarySeriesCount)
+                                         DataTransform primaryTransform, DataRange secRange, DataTransform secTransform,
+                                         CartesianDirectLabelsPart directLabels)
         : base(axes, plotArea, ctx, theme, primaryTransform)
     {
         _secRange = secRange;
-        _primarySeriesCount = primarySeriesCount;
+        _secTransform = secTransform;
+        _directLabels = directLabels;
     }
 
     /// <inheritdoc />
     public override void Render()
     {
-        var secTransform = new DataTransform(_secRange.XMin, _secRange.XMax, _secRange.YMin, _secRange.YMax, PlotArea);
+        var secTransform = _secTransform;
         var secYTicks = AxesRenderer.ComputeTickValuesInternal(_secRange.YMin, _secRange.YMax);
 
         for (int i = 0; i < Axes.SecondarySeries.Count; i++)
         {
             var series = Axes.SecondarySeries[i];
             if (!series.Visible) continue;
-            int colorIndex = _primarySeriesCount + i;
-            var seriesColor = Theme.CycleColors[colorIndex % Theme.CycleColors.Length];
-            var renderer = new SvgSeriesRenderer(secTransform, Ctx, seriesColor, plotArea: PlotArea);
+            // The same slot, cycled properties, tooltip switch and theme the primary series pass hands over, so a
+            // secondary line wears the colour its legend swatch shows.
+            var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.SecondaryY, i);
+            bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, Axes.SlotIndex(SeriesAxisPair.SecondaryY, i), secTransform);
+            bool clipped = Ctx.BeginSeriesClip(Axes, PlotArea);
+            var renderer = new SvgSeriesRenderer(secTransform, Ctx, slot.CycleColor, Theme, slot.CycledProperties,
+                Axes.EnableTooltips, PlotArea);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
+            if (clipped) Ctx.PopClip();
+            _directLabels.DrawLabelOf(SeriesAxisPair.SecondaryY, i);
+            if (openedGroup) Ctx.EndGroup();
         }
 
-        // Right-side Y-axis ticks
-        var tickFont = TickFont();
-        var secYUniformFormat = AxesRenderer.BuildUniformTickFormatter(secYTicks);
-        double widestTick = 0;
-        foreach (var tick in secYTicks)
-        {
-            var pt = secTransform.DataToPixel(_secRange.XMax, tick);
-            var text = Axes.SecondaryYAxis!.TickFormatter?.Format(tick) ?? secYUniformFormat(tick);
-            Ctx.DrawLine(new Point(PlotArea.X + PlotArea.Width, pt.Y),
-                new Point(PlotArea.X + PlotArea.Width + 5, pt.Y),
-                new StrokeStyle(Theme.ForegroundText, 1, LineStyle.Solid));
-            Ctx.DrawText(text, new Point(PlotArea.X + PlotArea.Width + 8, pt.Y + 4), tickFont, TextAlignment.Left);
-            var width = Ctx.MeasureText(text, tickFont).Width;
-            if (width > widestTick)
+        // Right-edge ticks, drawn by the axis' own TickConfig through the one tick drawing the primary axes use.
+        var axis = Axes.SecondaryYAxis!;
+        var right = PlotArea.X + PlotArea.Width;
+        double widestTick = Ctx.RenderAxisTicks(secYTicks, _secRange.XMax, secTransform, axis.MajorTicks,
+            new TickDrawContext
             {
-                widestTick = width;
-            }
-        }
+                Side          = TickSide.Right,
+                AxisEdge      = right,
+                SpineHalf     = Axes.Spines.Right.LineWidth / 2.0,
+                BaseFont      = TickFont(),
+                Formatter     = axis.TickFormatter,
+                UniformFormat = AxesRenderer.BuildUniformTickFormatter(secYTicks),
+                Foreground    = Theme.ForegroundText,
+                LabelRotation = axis.MajorTicks.LabelRotation,
+                Alignment     = TextAlignment.Left,
+            });
 
-        if (Axes.SecondaryYAxis!.Label is not null)
+        if (axis.Label is not null)
         {
-            // MEASURED clearance and a 90° rotation, exactly as the PRIMARY Y label has had since the
-            // fixed-offset era (AxesRenderer: tick length + pad + the widest measured tick label + a gap).
-            // This label kept the constant it was extracted with — plot-right + 45, unrotated — so with
-            // three-digit ticks it printed straight through them: measured on a live ops wall 2026-08-22,
-            // "kB / sec" over 225/200/175. Same defect, same fix, one axis later.
-            const double tickMark = 5;
-            const double tickGap = 8;
-            const double labelGap = 12;
-            var offset = widestTick > 0 ? tickMark + tickGap + widestTick + labelGap : 45;
-            Ctx.DrawText(Axes.SecondaryYAxis.Label,
-                new Point(PlotArea.X + PlotArea.Width + offset, PlotArea.Y + PlotArea.Height / 2),
-                LabelFont(), TextAlignment.Center, 90);
+            // Measured clearance and a 90° rotation by the rule the primary Y label follows; the label style's
+            // font and pad apply the same way.
+            var font = axis.LabelStyle?.ApplyTo(LabelFont()) ?? LabelFont();
+            var offset = axis.MajorTicks.AxisLabelOffset(widestTick) + (axis.LabelStyle?.Pad ?? 0);
+            Ctx.DrawText(axis.Label, new Point(right + offset, PlotArea.Y + PlotArea.Height / 2),
+                font, TextAlignment.Center, 90);
         }
     }
 }

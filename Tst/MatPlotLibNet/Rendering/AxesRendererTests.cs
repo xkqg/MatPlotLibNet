@@ -500,7 +500,7 @@ public class AxesRendererCoverageTests
         // L188-189 / L232 - Theme.PropCycler?[i] non-null arm
         var fig = Plt.Create()
             .WithSize(500, 400)
-            .WithTheme(Theme.MatplotlibClassic)  // matplotlib classic has a PropCycler
+            .WithTheme(Theme.MatplotlibClassic)  // no shipped theme carries a PropCycler: this is the null-cycler arm
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2], [3.0, 4])
                 .Plot([1.0, 2], [4.0, 5])
@@ -768,10 +768,10 @@ public class AxesRendererCoverageTests
         Assert.Contains(">Spark<", svg);
     }
 
-    /// <summary>L109/110/188/189 non-null arm — explicit PropCycler on theme →
-    /// cycledProps is non-null → cycledProps.Color used for seriesColor.</summary>
+    /// <summary>A theme's PropCycler hands each primary series its colour: the line is drawn in it and the legend
+    /// swatch shows the same one. No shipped theme carries a cycler, so the test builds its own.</summary>
     [Fact]
-    public void Render_WithExplicitPropCycler_UsesCyclerColor()
+    public void PrimarySeriesWearThePropCyclersColours()
     {
         var cycler = new PropCyclerBuilder()
             .WithColors(Colors.Red, Colors.Green, Colors.Blue)
@@ -785,7 +785,24 @@ public class AxesRendererCoverageTests
                 .Plot([1.0, 2], [4.0, 5], s => s.Label = "B")
                 .WithLegend())
             .ToSvg();
-        Assert.Contains("<svg", svg);
+
+        Assert.Equal(["#FF0000", "#008000"], PolylineStrokes(svg));
+        Assert.Equal(["#FF0000", "#008000"], LegendSwatchStrokes(svg));
+    }
+
+    /// <summary>The stroke colour of every <c>&lt;polyline&gt;</c>, in document order.</summary>
+    internal static string[] PolylineStrokes(string svg) =>
+        System.Text.RegularExpressions.Regex.Matches(svg, "<polyline[^>]*? stroke=\"(#[0-9A-F]{6})\"")
+            .Select(m => m.Groups[1].Value).ToArray();
+
+    /// <summary>The stroke colour of every line swatch inside the legend group, in entry order. The legend is drawn
+    /// after the series, ticks and spines, and nothing after it draws a line.</summary>
+    internal static string[] LegendSwatchStrokes(string svg)
+    {
+        int legend = svg.IndexOf("<g class=\"legend\"", StringComparison.Ordinal);
+        Assert.True(legend >= 0, "the figure has no legend group");
+        return System.Text.RegularExpressions.Regex.Matches(svg[legend..], "<line[^>]*? stroke=\"(#[0-9A-F]{6})\"")
+            .Select(m => m.Groups[1].Value).ToArray();
     }
 
     /// <summary>L113 FALSE arm (series is PieSeries AND pie.Colors is NOT null) →

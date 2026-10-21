@@ -15,13 +15,13 @@ namespace MatPlotLibNet.Tests.Rendering;
 /// server-rendered page can hold.</para></summary>
 public class TreemapLinkTests
 {
-    private static TreeNode Fleet(string? url = "/?process=Ait.Binance", bool? expanded = null) => new()
+    private static TreeNode Fleet(string? url = "/?process=Svc.Billing", bool? expanded = null) => new()
     {
-        Label = "Ait",
+        Label = "Svc",
         Children =
         [
-            new() { Label = "Ait.Binance", Value = 1, Url = url, Expanded = expanded },
-            new() { Label = "Ait.Cortex", Value = 1 },
+            new() { Label = "Svc.Billing", Value = 1, Url = url, Expanded = expanded },
+            new() { Label = "Svc.Ingest", Value = 1 },
         ],
     };
 
@@ -35,9 +35,9 @@ public class TreemapLinkTests
     {
         string svg = Render(Fleet());
 
-        Assert.Contains("<a href=\"/?process=Ait.Binance\"", svg);
+        Assert.Contains("<a href=\"/?process=Svc.Billing\"", svg);
         Assert.Contains("cursor:pointer", svg);
-        Assert.Contains("aria-label=\"Ait.Binance\"", svg);
+        Assert.Contains("aria-label=\"Svc.Billing\"", svg);
         Assert.Contains("</a>", svg);
     }
 
@@ -50,7 +50,7 @@ public class TreemapLinkTests
         int close = svg.IndexOf("</a>", StringComparison.Ordinal);
         string inside = svg[open..close];
         Assert.Contains("<rect", inside);
-        Assert.Contains("Ait.Binance", inside);
+        Assert.Contains("Svc.Billing", inside);
     }
 
     [Fact]
@@ -76,13 +76,13 @@ public class TreemapLinkTests
     {
         var nested = new TreeNode
         {
-            Label = "Ait",
+            Label = "Svc",
             Children =
             [
                 new()
                 {
-                    Label = "Ait.Binance", Url = "/?process=", Expanded = true,
-                    Children = [new() { Label = "BinanceKline", Value = 10 }],
+                    Label = "Svc.Billing", Url = "/?process=", Expanded = true,
+                    Children = [new() { Label = "BillingCycle", Value = 10 }],
                 },
             ],
         };
@@ -91,7 +91,7 @@ public class TreemapLinkTests
 
         int open = svg.IndexOf("<a href", StringComparison.Ordinal);
         int close = svg.IndexOf("</a>", StringComparison.Ordinal);
-        Assert.Contains("BinanceKline", svg[open..close]);
+        Assert.Contains("BillingCycle", svg[open..close]);
     }
 
     [Fact]

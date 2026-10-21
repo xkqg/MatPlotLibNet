@@ -49,6 +49,17 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
             foreach (var axes in figure.SubPlots)
                 axes.EnableInteractiveAttributes = true;
 
+        // The server data cursor converts a click with the mapping of the series group it lands in; only a figure
+        // that asked for it carries that weight.
+        bool dataCursorMapping = figure.ServerInteraction && figure.EnableDataCursor;
+        foreach (var axes in figure.SubPlots)
+            axes.EmitDataCursorMapping = dataCursorMapping;
+
+        // Hover, brush select, zoom and pan convert the pointer with the view of the axes under it, so a figure with
+        // server interaction has every axes write the view it drew, under its index; no other figure carries it.
+        for (int i = 0; i < figure.SubPlots.Count; i++)
+            figure.SubPlots[i].ServerViewIndex = figure.ServerInteraction ? i : null;
+
         // Propagate 3D rotation flag to 3D axes
         if (figure.Enable3DRotation)
             foreach (var axes in figure.SubPlots)

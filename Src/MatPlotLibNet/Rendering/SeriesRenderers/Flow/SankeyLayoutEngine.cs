@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.Layout;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers.Flow;
 
@@ -297,36 +298,17 @@ public sealed class SankeyLayoutEngine
 
         foreach (var (_, nodeIndices) in colGroups)
         {
-            nodeIndices.Sort((a, b) =>
-                CrossCentre(nodeRects[a], vert).CompareTo(CrossCentre(nodeRects[b], vert)));
+            var spans = new Interval1D[nodeIndices.Count];
+            for (int k = 0; k < spans.Length; k++)
+                spans[k] = new Interval1D(CrossStart(nodeRects[nodeIndices[k]], vert),
+                                          CrossSize(nodeRects[nodeIndices[k]], vert));
 
-            double cursor = crossMin;
-            foreach (int idx in nodeIndices)
-            {
-                var r = nodeRects[idx];
-                double newStart = Math.Max(CrossStart(r, vert), cursor);
-                nodeRects[idx] = WithCrossStart(r, newStart, vert);
-                cursor = newStart + CrossSize(r, vert) + nodePadding;
-            }
+            spans.SpreadApart(nodePadding, crossMin, crossMax);
 
-            double overshoot = cursor - nodePadding - crossMax;
-            if (overshoot > 0)
+            for (int k = 0; k < spans.Length; k++)
             {
-                for (int k = nodeIndices.Count - 1; k >= 0; k--)
-                {
-                    int idx = nodeIndices[k];
-                    var r = nodeRects[idx];
-                    double newStart = CrossStart(r, vert) - overshoot;
-                    nodeRects[idx] = WithCrossStart(r, newStart, vert);
-                    if (k > 0)
-                    {
-                        int prev = nodeIndices[k - 1];
-                        var pr = nodeRects[prev];
-                        double maxAllowedPrevEnd = newStart - nodePadding;
-                        double prevEnd = CrossStart(pr, vert) + CrossSize(pr, vert);
-                        overshoot = prevEnd > maxAllowedPrevEnd ? prevEnd - maxAllowedPrevEnd : 0;
-                    }
-                }
+                int idx = nodeIndices[k];
+                nodeRects[idx] = WithCrossStart(nodeRects[idx], spans[k].Start, vert);
             }
         }
     }

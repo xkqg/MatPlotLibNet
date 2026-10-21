@@ -45,8 +45,7 @@ using MatPlotLibNet;
 using MatPlotLibNet.Styling;
 
 Plt.Create()
-    .WithSize(800, 600)
-    .WithDpi(150)
+    .WithSize(800, 600)   // the PNG is 800 x 600 pixels: savefig's dpi has no counterpart yet
     .AddSubPlot(1, 1, 1, ax => ax
         .Plot(x, y, s => { s.Color = Colors.SteelBlue; s.LineWidth = 2; s.Label = "Signal"; })
         .SetXLabel("Time (s)")
@@ -65,7 +64,7 @@ Plt.Create()
 | `plt.subplots()` | `figure.AddSubPlot(1, 1, 1, ax => …)` | The axes is handed to the lambda instead of returned. |
 | `plt.subplots(2, 3)` | `figure.AddSubPlot(2, 3, index, ax => …)` | Called once per panel; `index` runs 1…6, row by row, as in matplotlib. |
 | `plt.figure(figsize=(8, 6))` | `figure.WithSize(800, 600)` | Pixels, not inches — there is no implicit DPI multiply. |
-| `plt.figure(dpi=150)` | `figure.WithDpi(150)` | Scales the raster export; the SVG stays resolution-free. |
+| `plt.figure(dpi=150)` | `figure.WithDpi(150)` | Kept with the figure and written to its JSON, but no export reads it yet: a PNG is drawn at the `WithSize` size in pixels. For a larger PNG, give a larger `WithSize`. |
 | `fig.suptitle('…')` | `figure.WithTitle("…")` | The figure's own title, above the panels. |
 | `plt.tight_layout()` | `figure.TightLayout()` | |
 | `plt.subplots(constrained_layout=True)` | `figure.ConstrainedLayout()` | |
@@ -115,11 +114,13 @@ Plt.Create()
 | `ax.set_yscale('log')` | `ax.SetYScale(AxisScale.Log)` | |
 | `ax.legend()` | `ax.WithLegend()` | |
 | `ax.legend(loc='upper left')` | `ax.WithLegend(LegendPosition.UpperLeft)` | |
+| `ax.text(x[-1], y[-1], 'Web', color=line.get_color())` | `ax.WithDirectLabel()` | Names the series added last at the end of its line, in its colour, instead of in the legend. See [direct labels](direct-labels-and-axis-colours.md). |
 | `ax.grid(True)` | `ax.WithGrid(g => g with { Visible = true })` | The grid is a value you change, so one call sets colour, style and which axis at once. |
 | `ax.minorticks_on()` | `ax.WithMinorTicks()` | |
 | `ax.margins(x=0.1)` | `ax.SetXMargin(0.1)` | |
 | `ax.margins(0)` | `ax.WithTightMargins()` | |
 | `ax.spines['top'].set_visible(False)` | `ax.HideTopSpine()` | `HideRightSpine()` for the other one. |
+| `ax.tick_params(axis='y', colors='C1')` and `ax.spines['left'].set_color('C1')` | `ax.SetYAxisColor(Colors.Tab10Orange)` | One call colours the spine, the tick marks, the tick labels and the title. `SetXAxisColor` for X; the secondary-axis builders have the same verbs. |
 | `ax.axhline(y=0)` | `ax.AxHLine(0)` | |
 | `ax.axvline(x=0)` | `ax.AxVLine(0)` | |
 | `ax.axhspan(1, 2)` | `ax.AxHSpan(1, 2)` | |

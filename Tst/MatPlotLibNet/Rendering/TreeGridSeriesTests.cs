@@ -19,10 +19,10 @@ public class TreeGridSeriesTests
 {
     private static readonly TreeGridRow[] Fleet =
     [
-        new("Ait", ["24 %", "25 323", "10 404 KiB"]) { Expanded = true },
-        new("Ait.Binance", ["10 %", "14 920", "6 972 KiB"]) { Depth = 1, Url = "/?process=Ait.Binance", Expanded = false },
-        new("Ait.Bitvavo", ["2 %", "10 403", "3 432 KiB"]) { Depth = 1, Url = "/?process=Ait.Bitvavo", Expanded = false },
-        new("BinanceKline", ["", "14 920", "6 972 KiB"]) { Depth = 2 },
+        new("Svc", ["24 %", "25 323", "10 404 KiB"]) { Expanded = true },
+        new("Svc.Billing", ["10 %", "14 920", "6 972 KiB"]) { Depth = 1, Url = "/?process=Svc.Billing", Expanded = false },
+        new("Svc.Orders", ["2 %", "10 403", "3 432 KiB"]) { Depth = 1, Url = "/?process=Svc.Orders", Expanded = false },
+        new("BillingCycle", ["", "14 920", "6 972 KiB"]) { Depth = 2 },
     ];
 
     private static string Render(Action<TreeGridSeries>? configure = null, TreeGridRow[]? rows = null) =>
@@ -53,8 +53,8 @@ public class TreeGridSeriesTests
     {
         string svg = Render();
 
-        Assert.Contains(">Ait<", svg);
-        Assert.Contains(">Ait.Binance<", svg);
+        Assert.Contains(">Svc<", svg);
+        Assert.Contains(">Svc.Billing<", svg);
         Assert.Contains(">14 920<", svg);
         Assert.Contains(">6 972 KiB<", svg);
         Assert.Contains(">Messages<", svg);
@@ -65,8 +65,8 @@ public class TreeGridSeriesTests
     {
         string svg = Render();
 
-        Assert.True(X(svg, "Ait.Binance") > X(svg, "Ait"), "a child sits right of its parent");
-        Assert.True(X(svg, "BinanceKline") > X(svg, "Ait.Binance"), "and a grandchild right of that");
+        Assert.True(X(svg, "Svc.Billing") > X(svg, "Svc"), "a child sits right of its parent");
+        Assert.True(X(svg, "BillingCycle") > X(svg, "Svc.Billing"), "and a grandchild right of that");
     }
 
     [Fact]
@@ -74,8 +74,8 @@ public class TreeGridSeriesTests
     {
         string svg = Render();
 
-        Assert.True(Y(svg, "Ait.Binance") > Y(svg, "Ait"));
-        Assert.True(Y(svg, "BinanceKline") > Y(svg, "Ait.Bitvavo"));
+        Assert.True(Y(svg, "Svc.Billing") > Y(svg, "Svc"));
+        Assert.True(Y(svg, "BillingCycle") > Y(svg, "Svc.Orders"));
     }
 
     /// <summary>The numbers are RIGHT-aligned in their column — the whole reason a grid beats an area: digits
@@ -94,7 +94,7 @@ public class TreeGridSeriesTests
     {
         string svg = Render();
 
-        Assert.Contains("<a href=\"/?process=Ait.Binance\"", svg);
+        Assert.Contains("<a href=\"/?process=Svc.Billing\"", svg);
         Assert.Contains("aria-expanded=\"false\"", svg);
         Assert.Contains("cursor:pointer", svg);
     }
@@ -102,7 +102,7 @@ public class TreeGridSeriesTests
     [Fact]
     public void ARowWithoutAUrl_IsNotAnAnchor()
     {
-        string svg = Render(rows: [new("BinanceKline", ["", "14 920", ""]) { Depth = 2 }]);
+        string svg = Render(rows: [new("BillingCycle", ["", "14 920", ""]) { Depth = 2 }]);
 
         Assert.DoesNotContain("<a href", svg);
     }
@@ -131,7 +131,7 @@ public class TreeGridSeriesTests
     [Fact]
     public void ARowMayCarryAnAccent_AndTheRestStayNeutral()
     {
-        string svg = Render(rows: [new("Ait.Binance", ["120 %"]) { Accent = Colors.Red }]);
+        string svg = Render(rows: [new("Svc.Billing", ["120 %"]) { Accent = Colors.Red }]);
 
         Assert.Contains(Colors.Red.ToHex(), svg, StringComparison.OrdinalIgnoreCase);
     }
@@ -153,7 +153,7 @@ public class TreeGridSeriesTests
             .ToSvg();
 
         Assert.DoesNotContain(">Messages<", svg);
-        Assert.Contains(">Ait<", svg);
+        Assert.Contains(">Svc<", svg);
     }
 
     /// <summary>More rows than the region can hold: the overflow is DROPPED, never drawn over the panel below.</summary>
@@ -174,7 +174,7 @@ public class TreeGridSeriesTests
     public void AnEmptyCell_DrawsNothingRatherThanABlank()
     {
         string svg = Plt.Create().WithSize(900, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.TreeGrid([new("BinanceKline", ["", "14 920", ""]) { Depth = 2 }]))
+            .AddSubPlot(1, 1, 1, ax => ax.TreeGrid([new("BillingCycle", ["", "14 920", ""]) { Depth = 2 }]))
             .ToSvg();
 
         Assert.Single(Regex.Matches(svg, "text-anchor=\"end\""));
@@ -183,9 +183,9 @@ public class TreeGridSeriesTests
     [Fact]
     public void ARowWithNoCellsAtAll_IsStillDrawn()
     {
-        string svg = Render(rows: [new("Ait", [])]);
+        string svg = Render(rows: [new("Svc", [])]);
 
-        Assert.Contains(">Ait<", svg);
+        Assert.Contains(">Svc<", svg);
     }
 
     /// <summary>More headers than any row has cells: the extra column is still titled, and nothing throws.</summary>
@@ -193,7 +193,7 @@ public class TreeGridSeriesTests
     public void MoreHeadersThanCells_IsHarmless()
     {
         string svg = Plt.Create().WithSize(900, 300)
-            .AddSubPlot(1, 1, 1, ax => ax.TreeGrid([new("Ait", ["1"])], s => s.ColumnHeaders = ["CPU", "Messages", "Traffic"]))
+            .AddSubPlot(1, 1, 1, ax => ax.TreeGrid([new("Svc", ["1"])], s => s.ColumnHeaders = ["CPU", "Messages", "Traffic"]))
             .ToSvg();
 
         Assert.Contains(">Traffic<", svg);
@@ -217,7 +217,7 @@ public class TreeGridSeriesTests
         string narrow = Render(s => { s.IndentWidth = 4; s.ColumnWidth = 60; });
         string wide = Render(s => { s.IndentWidth = 40; s.ColumnWidth = 200; });
 
-        Assert.True(X(wide, "BinanceKline") > X(narrow, "BinanceKline"));
+        Assert.True(X(wide, "BillingCycle") > X(narrow, "BillingCycle"));
         Assert.True(X(wide, "14 920") < X(narrow, "14 920"), "a wider value column starts further left");
     }
 
@@ -227,6 +227,6 @@ public class TreeGridSeriesTests
         string tight = Render(s => s.RowHeight = 14);
         string loose = Render(s => s.RowHeight = 40);
 
-        Assert.True(Y(loose, "BinanceKline") > Y(tight, "BinanceKline"));
+        Assert.True(Y(loose, "BillingCycle") > Y(tight, "BillingCycle"));
     }
 }

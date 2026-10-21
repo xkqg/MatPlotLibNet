@@ -72,4 +72,27 @@ public class MultiChartIsolationTests
         Assert.True(string.IsNullOrEmpty(legend0.getAttribute("transform")),
             $"chart-0 legend must NOT translate when chart-1 was dragged; got '{legend0.getAttribute("transform")}'");
     }
+
+    /// <summary>The server-interaction script scopes to its own chart the same way: a wheel on the second of two
+    /// server-interactive charts sends one zoom, for that chart. Before, the script took the first
+    /// <c>svg[data-chart-id]</c> of the document, so (measured in a browser, two charts mounted the way Blazor mounts a
+    /// MarkupString) a wheel on the second chart sent nothing and a wheel on the first sent its zoom twice.</summary>
+    [Fact]
+    public void ServerInteraction_WheelOnChart1_SendsOneZoom_ForChart1()
+    {
+        using var h = InteractionScriptHarness.FromBuilders(
+            b => b.WithServerInteraction("chart-a", s => s.EnableZoom()).Plot([1.0, 2.0], [3.0, 4.0]),
+            b => b.WithServerInteraction("chart-b", s => s.EnableZoom()).Plot([1.0, 2.0], [3.0, 4.0]));
+        var mock = h.WireSignalRMock();
+        var svgs = h.Document.QuerySelectorAllRaw("svg").ToList();
+        Assert.Equal(2, svgs.Count);
+        var svg1 = svgs[1];
+        Assert.Equal("chart-b", svg1.getAttribute("data-chart-id"));
+
+        svg1.Fire(new DomEvent("wheel") { target = svg1, clientX = 300, clientY = 200, deltaY = -100 });
+
+        var zoom = Assert.Single(mock.Calls, c => c.Method == "OnZoom");
+        var payload = Assert.IsAssignableFrom<IDictionary<string, object?>>(zoom.Payload);
+        Assert.Equal("chart-b", payload["chartId"]);
+    }
 }

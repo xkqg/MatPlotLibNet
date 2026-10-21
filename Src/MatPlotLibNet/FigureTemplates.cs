@@ -85,7 +85,8 @@ public static class FigureTemplates
     }
 
     /// <summary>Creates a clean single-panel scientific-paper figure:
-    /// 150 DPI, tight layout, hidden top/right spines, caller-supplied data via <paramref name="configure"/>.</summary>
+    /// tight layout, hidden top/right spines, caller-supplied data via <paramref name="configure"/>. It records 150 DPI
+    /// with the figure, which no export reads yet.</summary>
     /// <param name="configure">Callback that receives the subplot's <see cref="AxesBuilder"/> for plotting data, setting labels, etc.</param>
     /// <param name="title">Optional figure title.</param>
     /// <param name="width">Figure width in pixels (default 800).</param>

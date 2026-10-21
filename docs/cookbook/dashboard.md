@@ -321,7 +321,7 @@ var now = DateTime.UtcNow;                       // the caller's clock, not the 
 var theme = Theme.OpsNight;                      // or OpsPanel / OpsWarm / OpsContrast
 
 Plt.OpsDashboard()
-    .WithTitle("Synapse — federation")
+    .WithTitle("Order service — gateway")
     .WithWindow(now, TimeSpan.FromMinutes(5))    // ONE window, shared by every time panel
     .WithNormalBand(2200, 2700)
 
@@ -510,7 +510,7 @@ sorts by value, so if the area were CPU the layout would reshuffle on every upda
 ```csharp
 var fleet = new TreeNode
 {
-    Label = "Ait",
+    Label = "Svc",
     Children = processes.Select(p => new TreeNode
     {
         Label = $"{p.Name} · {p.Cpu:0} %",
@@ -533,7 +533,7 @@ empty tree draws nothing.
 
 ### A tree grid — the numbers a treemap cannot show
 
-When the leaves are many and small, area no longer shows anything useful. On a live fleet, two lanes out of
+When the leaves are many and small, area no longer shows anything useful. In one running system, two lanes out of
 twenty-three carried every message in an hour. Shown as a treemap, that is two rectangles and twenty-one
 slivers. A tree grid shows the numbers in rows instead. Rows can be compared exactly, and ARIA has a role for
 this shape, `treegrid`:
@@ -541,10 +541,10 @@ this shape, `treegrid`:
 ```csharp
 TreeGridRow[] rows =
 [
-    new("Ait", ["24 %", "25 323", "10 404 KiB"]) { Expanded = true },
-    new("Ait.Binance", ["10 %", "14 920", "6 972 KiB"])
-        { Depth = 1, Url = "/?process=Ait.Binance", Expanded = false },   // a link, so expanding needs no script
-    new("BinanceKline", ["", "14 920", "6 972 KiB"]) { Depth = 2 },
+    new("Svc", ["24 %", "25 323", "10 404 KiB"]) { Expanded = true },
+    new("Svc.Billing", ["10 %", "14 920", "6 972 KiB"])
+        { Depth = 1, Url = "/?process=Svc.Billing", Expanded = false },   // a link, so expanding needs no script
+    new("BillingCycle", ["", "14 920", "6 972 KiB"]) { Depth = 2 },
 ];
 
 Plt.Create().WithSize(1400, 300).WithTheme(Theme.OpsNight)
@@ -566,7 +566,7 @@ over the panel below.
 stat tile:
 
 ```csharp
-new TreeNode { Label = "Ait.Cortex", Headline = "13 %", Value = 1, ColorValue = 13 }
+new TreeNode { Label = "Svc.Ingest", Headline = "13 %", Value = 1, ColorValue = 13 }
 ```
 
 The headline is dropped before the name, because a number on its own does not tell the reader what it

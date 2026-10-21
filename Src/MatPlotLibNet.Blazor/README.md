@@ -55,11 +55,24 @@ For client-side-only interaction (no server round-trip), use `.WithBrowserIntera
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
     (function () {
+        // Mounts a chart's SVG markup in host and runs the scripts inside it. A <script> that arrives through
+        // innerHTML never runs, so each one is replaced by a fresh copy, which the browser runs as it is inserted.
+        function mplMountSvg(host, svgMarkup) {
+            host.innerHTML = svgMarkup;
+            host.querySelectorAll('script').forEach(function (inert) {
+                var live = document.createElementNS(inert.namespaceURI, 'script');
+                for (var i = 0; i < inert.attributes.length; i++)
+                    live.setAttribute(inert.attributes[i].name, inert.attributes[i].value);
+                live.textContent = inert.textContent;
+                inert.parentNode.replaceChild(live, inert);
+            });
+        }
+
         var conn = new signalR.HubConnectionBuilder()
             .withUrl('/charts-hub').withAutomaticReconnect().build();
         window.__mpl_signalr_connection = conn;
         conn.on('UpdateChartSvg', function (id, svg) {
-            if (id === 'blazor-interactive') document.getElementById('host').innerHTML = svg;
+            if (id === 'blazor-interactive') mplMountSvg(document.getElementById('host'), svg);
         });
         conn.start().then(function () { return conn.invoke('Subscribe', 'blazor-interactive'); });
     })();

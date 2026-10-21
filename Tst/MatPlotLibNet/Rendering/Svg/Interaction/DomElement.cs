@@ -40,11 +40,23 @@ public sealed class DomElement
 
     public string? getAttribute(string name) => Xml.Attribute(name)?.Value;
 
+    /// <summary>Mirrors DOM <c>element.innerHTML</c> as text: what is assigned is kept as the element's content, not
+    /// parsed (the server tooltip writes its HTML here).</summary>
+    public string innerHTML { get => Xml.Value; set => Xml.Value = value ?? ""; }
+
+    /// <summary>C#-only: the <c>&lt;script&gt;</c> (or other) descendants of this element as a typed array.</summary>
+    internal DomElement[] querySelectorAllRaw(string selector) => DomSelector.Find(Xml, selector).Select(_doc.Wrap).ToArray();
+
     public bool hasAttribute(string name) => Xml.Attribute(name) is not null;
 
     public void setAttribute(string name, object value) => Xml.SetAttributeValue(name, value?.ToString() ?? "");
 
     public void removeAttribute(string name) => Xml.Attribute(name)?.Remove();
+
+    /// <summary>Mirrors DOM <c>element.closest(selector)</c>: this element or the nearest ancestor that matches a simple
+    /// selector (<see cref="DomSelector.Matches"/>), or <c>null</c>.</summary>
+    public DomElement? closest(string selector) =>
+        Xml.AncestorsAndSelf().FirstOrDefault(e => DomSelector.Matches(e, selector)) is { } match ? _doc.Wrap(match) : null;
 
     public DomElement? querySelector(string selector) =>
         DomSelector.Find(Xml, selector).FirstOrDefault() is { } e ? _doc.Wrap(e) : null;

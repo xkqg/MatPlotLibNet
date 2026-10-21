@@ -62,7 +62,7 @@ public sealed class ChartSerializer : IChartSerializer
             Rows = gs.Rows, Cols = gs.Cols,
             HeightRatios = gs.HeightRatios, WidthRatios = gs.WidthRatios
         } : null,
-        SubPlots = figure.SubPlots.Select(AxesToDto).ToList(),
+        SubPlots = AxesToDtos(figure.SubPlots),
         Enable3DRotation = figure.Enable3DRotation ? true : null
     };
 
@@ -82,7 +82,7 @@ public sealed class ChartSerializer : IChartSerializer
         YAxis = AxisToDto(axes.YAxis),
         Grid = new GridDto { Visible = axes.Grid.Visible },
         BarMode = axes.BarMode == BarMode.Stacked ? "stacked" : null,
-        Series = axes.Series.Select(SeriesToDto).ToList(),
+        Series = SeriesToDtos(axes.Series),
         Annotations = axes.Annotations.Count > 0 ? axes.Annotations.Select(a => new AnnotationDto
         {
             Text = a.Text, X = a.X, Y = a.Y,
@@ -100,7 +100,9 @@ public sealed class ChartSerializer : IChartSerializer
             LineStyle = r.LineStyle.ToString().ToLowerInvariant(), LineWidth = r.LineWidth, Label = r.Label
         }).ToList() : null,
         SecondaryYAxis = axes.SecondaryYAxis is not null ? AxisToDto(axes.SecondaryYAxis) : null,
-        SecondarySeries = axes.SecondarySeries.Count > 0 ? axes.SecondarySeries.Select(SeriesToDto).ToList() : null,
+        SecondarySeries = axes.SecondarySeries.Count > 0 ? SeriesToDtos(axes.SecondarySeries) : null,
+        SecondaryXAxis = axes.SecondaryXAxis is not null ? AxisToDto(axes.SecondaryXAxis) : null,
+        XSecondarySeries = axes.XSecondarySeries.Count > 0 ? SeriesToDtos(axes.XSecondarySeries) : null,
         Spans = axes.Spans.Count > 0 ? axes.Spans.Select(s => new SpanRegionDto
         {
             Min = s.Min, Max = s.Max, Orientation = s.Orientation.ToString().ToLowerInvariant(),
@@ -133,7 +135,7 @@ public sealed class ChartSerializer : IChartSerializer
         {
             X = ib.X, Y = ib.Y, Width = ib.Width, Height = ib.Height
         } : null,
-        Insets = axes.Insets.Count > 0 ? axes.Insets.Select(AxesToDto).ToList() : null,
+        Insets = axes.Insets.Count > 0 ? AxesToDtos(axes.Insets) : null,
         Elevation = axes.Elevation != 30 ? axes.Elevation : null,
         Azimuth = axes.Azimuth != -60 ? axes.Azimuth : null,
         CameraDistance = axes.CameraDistance,
@@ -144,18 +146,36 @@ public sealed class ChartSerializer : IChartSerializer
         YBreaks = axes.YBreaks.Count > 0 ? axes.YBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null
     };
 
+    /// <summary>The ONE place a list of axes is written: the figure's subplots and an axes' insets, each through
+    /// <see cref="AxesToDto"/>.</summary>
+    private static List<AxesDto> AxesToDtos(IEnumerable<Axes> axes) => axes.Select(AxesToDto).ToList();
+
+    /// <summary>The ONE place a list of series is written: the primary list and both secondary axes, each series through
+    /// <see cref="SeriesToDto"/>.</summary>
+    private static List<SeriesDto> SeriesToDtos(IEnumerable<ISeries> series) => series.Select(SeriesToDto).ToList();
+
     private static AxisDto AxisToDto(Axis axis) => new()
     {
         Label = axis.Label,
         Min = axis.Min,
         Max = axis.Max,
-        Scale = axis.Scale.ToString().ToLowerInvariant()
+        Scale = axis.Scale.ToString().ToLowerInvariant(),
+        TickColor = axis.MajorTicks.Color,
+        TickLabelColor = axis.MajorTicks.LabelColor,
+        LabelColor = axis.LabelStyle?.Color
     };
 
     private static bool SpinesAreDefault(SpinesConfig s) =>
-        s.Top.Visible && s.Bottom.Visible && s.Left.Visible && s.Right.Visible
-        && s.Top.Position == SpinePosition.Edge && s.Bottom.Position == SpinePosition.Edge
-        && s.Left.Position == SpinePosition.Edge && s.Right.Position == SpinePosition.Edge;
+        SpineIsDefault(s.Top) && SpineIsDefault(s.Bottom) && SpineIsDefault(s.Left) && SpineIsDefault(s.Right);
+
+    /// <summary>A spine is default when every facet the DTO persists equals a new <see cref="SpineConfig"/>; a spine
+    /// that differs in any of them must be written, or the difference is lost on the way through JSON.</summary>
+    private static bool SpineIsDefault(SpineConfig spine)
+    {
+        var d = new SpineConfig();
+        return spine.Visible == d.Visible && spine.Position == d.Position
+            && spine.LineWidth == d.LineWidth && Nullable.Equals(spine.Color, d.Color);
+    }
 
     private static SpinesConfigDto SpinesToDto(SpinesConfig s) => new()
     {
@@ -170,7 +190,8 @@ public sealed class ChartSerializer : IChartSerializer
         Visible = s.Visible,
         Position = s.Position == SpinePosition.Edge ? null : s.Position.ToString().ToLowerInvariant(),
         PositionValue = s.PositionValue,
-        LineWidth = s.LineWidth
+        LineWidth = s.LineWidth,
+        Color = s.Color
     };
 
     private static SpinesConfig DtoToSpines(SpinesConfigDto dto) => new()
@@ -191,14 +212,28 @@ public sealed class ChartSerializer : IChartSerializer
             _ => SpinePosition.Edge
         },
         PositionValue = dto.PositionValue,
-        LineWidth = dto.LineWidth
+        LineWidth = dto.LineWidth,
+        Color = dto.Color
     };
 
+    /// <summary>The ONE place a series' name leaves the model: its label, and where it is shown when that is not the
+    /// legend. Every series list (primary, both secondary axes, insets) is written through here.</summary>
     private static SeriesDto SeriesToDto(ISeries series)
     {
         var dto = series.ToSeriesDto();
         dto.Label = series.Label;
+        if (series is IHasLabelPlacement { LabelPlacement: not SeriesLabelPlacement.Legend } carrier)
+            dto.LabelPlacement = carrier.LabelPlacement.ToString().ToLowerInvariant();
         return dto;
+    }
+
+    /// <summary>The ONE place a series' name enters the model: the counterpart of <see cref="SeriesToDto"/>, shared by
+    /// the primary list and both secondary axes. A missing or unknown placement leaves the default, the legend.</summary>
+    private static void RestoreLabel(ISeries series, SeriesDto dto)
+    {
+        series.Label = dto.Label;
+        if (series is IHasLabelPlacement carrier)
+            ApplyEnum<SeriesLabelPlacement>(dto.LabelPlacement, v => carrier.LabelPlacement = v);
     }
 
     private static Figure DtoToFigure(FigureDto dto)
@@ -292,17 +327,18 @@ public sealed class ChartSerializer : IChartSerializer
             {
                 axes.TwinX();
                 ApplyAxis(axes.SecondaryYAxis!, axDto.SecondaryYAxis);
-                foreach (var sDto in axDto.SecondarySeries ?? [])
-                {
-                    // Route secondary series through PlotSecondary/ScatterSecondary
-                    ISeries? sec = sDto.Type switch
-                    {
-                        "line" => CreateSecondaryLine(axes, sDto),
-                        "scatter" => CreateSecondaryScatter(axes, sDto),
-                        _ => null
-                    };
-                    if (sec is not null) sec.Label = sDto.Label;
-                }
+                // Route secondary series through PlotSecondary/ScatterSecondary
+                AddSecondarySeriesFromDtos(axDto.SecondarySeries,
+                    sDto => CreateSecondaryLine(axes, sDto), sDto => CreateSecondaryScatter(axes, sDto));
+            }
+
+            if (axDto.SecondaryXAxis is not null)
+            {
+                axes.TwinY();
+                ApplyAxis(axes.SecondaryXAxis!, axDto.SecondaryXAxis);
+                // Route top-axis series through PlotXSecondary/ScatterXSecondary
+                AddSecondarySeriesFromDtos(axDto.XSecondarySeries,
+                    sDto => CreateXSecondaryLine(axes, sDto), sDto => CreateXSecondaryScatter(axes, sDto));
             }
 
             foreach (var sDto in axDto.Spans ?? [])
@@ -398,6 +434,26 @@ public sealed class ChartSerializer : IChartSerializer
         axis.Max = dto.Max;
         if (dto.Scale is not null && Enum.TryParse<AxisScale>(dto.Scale, true, out var scale))
             axis.Scale = scale;
+        if (dto.TickColor is { } tickColor) axis.MajorTicks = axis.MajorTicks with { Color = tickColor };
+        if (dto.TickLabelColor is { } tickLabelColor) axis.MajorTicks = axis.MajorTicks with { LabelColor = tickLabelColor };
+        if (dto.LabelColor is { } labelColor) axis.LabelStyle = (axis.LabelStyle ?? new TextStyle()) with { Color = labelColor };
+    }
+
+    /// <summary>Restores the series of one secondary axis: a line or a scatter is rebuilt by the axis' own factory
+    /// and keeps its label; any other kind is skipped, as it always was on the right-hand axis.</summary>
+    private static void AddSecondarySeriesFromDtos(IEnumerable<SeriesDto>? dtos,
+        Func<SeriesDto, LineSeries> createLine, Func<SeriesDto, ScatterSeries> createScatter)
+    {
+        foreach (var sDto in dtos ?? [])
+        {
+            ISeries? sec = sDto.Type switch
+            {
+                "line" => createLine(sDto),
+                "scatter" => createScatter(sDto),
+                _ => null
+            };
+            if (sec is not null) RestoreLabel(sec, sDto);
+        }
     }
 
     private static void AddSeriesFromDto(Axes axes, SeriesDto dto)
@@ -406,7 +462,7 @@ public sealed class ChartSerializer : IChartSerializer
         var series = SeriesRegistry.Create(type, axes, dto);
         if (series is not null)
         {
-            series.Label = dto.Label;
+            RestoreLabel(series, dto);
         }
         else
         {
@@ -438,12 +494,39 @@ public sealed class ChartSerializer : IChartSerializer
     internal static ScatterSeries CreateSecondaryScatter(Axes axes, SeriesDto dto)
     {
         var s = axes.ScatterSecondary(dto.XData ?? [], dto.YData ?? []);
+        ApplyScatterProperties(s, dto);
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="LineSeries"/> on the secondary X-axis (top edge) from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static LineSeries CreateXSecondaryLine(Axes axes, SeriesDto dto)
+    {
+        var s = axes.PlotXSecondary(dto.XData ?? [], dto.YData ?? []);
+        ApplyLineProperties(s, dto);
+        return s;
+    }
+
+    /// <summary>Reconstructs a <see cref="ScatterSeries"/> on the secondary X-axis (top edge) from the DTO.</summary>
+    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
+    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static ScatterSeries CreateXSecondaryScatter(Axes axes, SeriesDto dto)
+    {
+        var s = axes.ScatterXSecondary(dto.XData ?? [], dto.YData ?? []);
+        ApplyScatterProperties(s, dto);
+        return s;
+    }
+
+    private static void ApplyScatterProperties(ScatterSeries s, SeriesDto dto)
+    {
         s.Color = dto.Color;
         if (dto.MarkerSize.HasValue)
         {
             s.MarkerSize = dto.MarkerSize.Value;
         }
-        return s;
     }
 
     /// <summary>Parses a string to an enum value and applies it via the <paramref name="setter"/> delegate if successful.</summary>
@@ -656,6 +739,7 @@ internal sealed record SpineConfigDto
     public string? Position { get; init; }
     public double PositionValue { get; init; }
     public double LineWidth { get; init; } = 1.0;
+    public Color? Color { get; init; }
 }
 
 /// <summary>JSON-serializable representation of an <see cref="Models.Axes"/> subplot, including series, annotations, and decorations.</summary>
@@ -674,6 +758,8 @@ internal sealed record AxesDto
     public List<SeriesDto>? Series { get; init; }
     public AxisDto? SecondaryYAxis { get; init; }
     public List<SeriesDto>? SecondarySeries { get; init; }
+    public AxisDto? SecondaryXAxis { get; init; }
+    public List<SeriesDto>? XSecondarySeries { get; init; }
     public List<AnnotationDto>? Annotations { get; init; }
     public List<ReferenceLineDto>? ReferenceLines { get; init; }
     public List<SpanRegionDto>? Spans { get; init; }
@@ -775,13 +861,19 @@ internal sealed record FibonacciRetracementDto
     public bool ShowLabels { get; init; } = true;
 }
 
-/// <summary>Data-transfer object for an axis configuration (label, limits, and scale).</summary>
+/// <summary>Data-transfer object for an axis configuration (label, limits, scale, and the colours of its ticks and title).</summary>
 internal sealed record AxisDto
 {
     public string? Label { get; init; }
     public double? Min { get; init; }
     public double? Max { get; init; }
     public string? Scale { get; init; }
+    /// <summary>Colour of the major tick marks; absent in a JSON written before axis colours existed.</summary>
+    public Color? TickColor { get; init; }
+    /// <summary>Colour of the major tick labels; absent in a JSON written before axis colours existed.</summary>
+    public Color? TickLabelColor { get; init; }
+    /// <summary>Colour of the axis title; absent in a JSON written before axis colours existed.</summary>
+    public Color? LabelColor { get; init; }
 }
 
 /// <summary>Data-transfer object for the grid visibility setting on a subplot.</summary>
@@ -797,6 +889,10 @@ public sealed record SeriesDto
 {
     public string? Type { get; init; }
     public string? Label { get; set; }
+    /// <summary>Where the series shows its <see cref="Label"/> when that is not the legend: <c>"lineend"</c> draws it at
+    /// the end of the line. Absent for the default and in a JSON written before the setting existed, which reads as the
+    /// legend. Only a line and a streaming line carry it.</summary>
+    public string? LabelPlacement { get; set; }
     public double[]? XData { get; init; }
     public double[]? YData { get; init; }
     public double[]? Data { get; init; }

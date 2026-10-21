@@ -21,8 +21,10 @@ namespace MatPlotLibNet.Interaction;
 /// that makes "notification events don't touch the figure" a compile-time property rather
 /// than a runtime convention.</para>
 ///
-/// <para>Routing discrimination: <c>ChartSession.DrainAsync</c> does one <c>is</c> test against
-/// this type to decide whether to skip the publish step. No switch chain, no visitor.</para>
+/// <para>Routing discrimination: <c>ChartSession.DrainAsync</c> switches on the event's type. A
+/// notification event with a registered handler runs that handler; one without a handler matches
+/// this type and is dropped; every other event is a mutation that applies itself and marks the batch
+/// for one publish. A notification event therefore never re-renders the figure.</para>
 /// </remarks>
 public abstract record FigureNotificationEvent(string ChartId, int AxesIndex)
     : FigureInteractionEvent(ChartId, AxesIndex)

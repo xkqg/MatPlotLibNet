@@ -77,10 +77,9 @@ public class CartesianAxesRendererRangeTests
     /// <summary>
     /// A user-supplied axis limit wins over padding and nice-bound rounding. The branch
     /// gates all three passes on <c>Axis.Min.HasValue</c> / <c>Axis.Max.HasValue</c>;
-    /// this test proves that user-set limits pass through ComputeDataRanges unchanged
-    /// provided the data fits inside them (the seed values from the axis become the
-    /// floor/ceiling of the reduction). Data outside the limits would still widen the
-    /// computed range — that is a separate concern handled by clip/transform later.
+    /// this test proves that user-set limits wider than the data pass through ComputeDataRanges
+    /// unchanged. Limits narrower than the data are exact as well, and the plot area clips the
+    /// series: <see cref="ExplicitAxisLimitTests"/>.
     /// </summary>
     [Fact]
     public void NiceBoundExpansion_UserSetLimits_AreNotPaddedOrRounded()

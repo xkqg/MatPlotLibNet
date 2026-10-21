@@ -60,6 +60,18 @@ Plt.Create()
 | `Theme.ColorBlindSafe` | Okabe-Ito palette |
 | `Theme.HighContrast` | WCAG AAA |
 
+### Operator themes
+
+Four grounds for a control-room wall. They differ in background and in the brightness of the alarm colours, never in
+what those colours mean. Each carries an `AlarmPalette` (`theme.Alarm`) for the dashboard tiles and timelines.
+
+| Theme | Usage |
+|---|---|
+| `Theme.OpsNight` | Cool dark neutral, for a dimmed room |
+| `Theme.OpsPanel` | The light grey of a physical control panel |
+| `Theme.OpsWarm` | Warm dark, where a cool grey reads clinical |
+| `Theme.OpsContrast` | Near-black with brightened alarms, for a video wall read from across the room |
+
 ## Theme comparison
 
 ```csharp

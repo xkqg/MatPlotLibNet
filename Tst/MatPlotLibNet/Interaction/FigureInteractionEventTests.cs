@@ -88,6 +88,28 @@ public class FigureInteractionEventTests
         Assert.True(series.Visible);
     }
 
+    /// <summary>The index a legend entry sends is the series' slot: the primary series, then the secondary-Y series,
+    /// then the secondary-X series. The toggle flips the series at that slot and no other; a slot past the last one
+    /// changes nothing.</summary>
+    [Theory]
+    [InlineData(0, "primary")]
+    [InlineData(1, "secondaryY")]
+    [InlineData(2, "secondaryX")]
+    [InlineData(3, null)]
+    public void LegendToggleEvent_ApplyTo_FlipsTheSeriesAtTheSlot_OnEitherAxis(int slot, string? hidden)
+    {
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+            .Plot([1.0, 2.0], [1.0, 2.0], s => s.Label = "primary")
+            .WithSecondaryYAxis(y2 => y2.Plot([1.0, 2.0], [10.0, 20.0], s => s.Label = "secondaryY"))
+            .WithSecondaryXAxis(x2 => x2.PlotXSecondary([100.0, 200.0], [1.0, 2.0], s => s.Label = "secondaryX"))).Build();
+        var axes = figure.SubPlots[0];
+
+        new LegendToggleEvent("c", 0, slot).ApplyTo(figure);
+
+        var all = axes.Series.Concat(axes.SecondarySeries).Concat(axes.XSecondarySeries).Cast<ChartSeries>();
+        Assert.All(all, s => Assert.Equal(s.Label != hidden, s.Visible));
+    }
+
     [Fact]
     public void FigureInteractionEvent_IsAbstract()
     {

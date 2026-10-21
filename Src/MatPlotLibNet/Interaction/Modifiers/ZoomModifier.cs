@@ -3,7 +3,8 @@
 
 namespace MatPlotLibNet.Interaction;
 
-/// <summary>Zooms the axes range centered on the cursor position in response to scroll-wheel events.</summary>
+/// <summary>Zooms the axes range centered on the cursor position in response to scroll-wheel events. The zoom is taken on
+/// screen and read through the range and scale the axes are drawn with, so the point under the pointer stays there.</summary>
 public sealed class ZoomModifier : IInteractionModifier
 {
     private const double ZoomFactor = 0.15; // 15 % zoom per scroll notch
@@ -37,24 +38,24 @@ public sealed class ZoomModifier : IInteractionModifier
     public void OnScroll(ScrollInputArgs args)
     {
         int axesIndex = (_layout.HitTestAxes(args.X, args.Y)).GetValueOrDefault();
-        var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex);
-
-        var (xMin, xMax, yMin, yMax) = _layout.GetDataRange(axesIndex);
+        var view = _layout.ViewOf(axesIndex);
+        var area = _layout.GetPlotArea(axesIndex);
 
         // Negative deltaY = scroll up = zoom in (reduce range).
         double scale = args.DeltaY < 0
             ? 1.0 - ZoomFactor
             : 1.0 + ZoomFactor;
 
-        double cx = coords!.Value.DataX;
-        double cy = coords.Value.DataY;
+        // The edges move toward (or away from) the pointer on screen, and the new edges are read through the view: the
+        // point under the pointer stays there, and on a log or symlog axis every decade narrows alike.
+        double left   = args.X - (args.X - area.X) * scale;
+        double right  = args.X + (area.X + area.Width - args.X) * scale;
+        double bottom = args.Y + (area.Y + area.Height - args.Y) * scale;
+        double top    = args.Y - (args.Y - area.Y) * scale;
+        var low  = view.PixelToData(new Rendering.Point(left, bottom));
+        var high = view.PixelToData(new Rendering.Point(right, top));
 
-        double newXMin = cx - (cx - xMin) * scale;
-        double newXMax = cx + (xMax - cx) * scale;
-        double newYMin = cy - (cy - yMin) * scale;
-        double newYMax = cy + (yMax - cy) * scale;
-
-        _sink(new ZoomEvent(_chartId, axesIndex, newXMin, newXMax, newYMin, newYMax));
+        _sink(new ZoomEvent(_chartId, axesIndex, low.X, high.X, low.Y, high.Y));
     }
 
     /// <inheritdoc />

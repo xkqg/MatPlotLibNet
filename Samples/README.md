@@ -11,7 +11,7 @@ Runnable sample projects that demonstrate the MatPlotLibNet charting library. Al
 
 ## Playground
 
-A Blazor WebAssembly interactive explorer with 16 example charts. You can flip themes, toggle series styling, and copy the generated C# to paste into your own project. It is also hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/).
+A Blazor WebAssembly interactive explorer with 21 example charts. You can flip themes, toggle series styling, and copy the generated C# to paste into your own project. It is also hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/).
 
 ```
 dotnet run --project MatPlotLibNet.Playground
@@ -21,7 +21,7 @@ Browse to <http://localhost:5000>. The `<base href="/">` setting in `wwwroot/ind
 
 ## Console
 
-A console app that creates every sample image shipped with the wiki and cookbook: 74 SVG/PNG pairs covering every chart family, plus the package icon at the repository root and the documentation site's 1200x630 link preview card. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
+A console app that creates every sample image shipped with the wiki and cookbook: 76 SVG/PNG pairs covering every chart family, plus the package icon at the repository root and the documentation site's 1200x630 link preview card. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Console

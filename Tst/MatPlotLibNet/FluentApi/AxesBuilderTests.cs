@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.FluentApi;
@@ -471,5 +472,46 @@ public class AxesBuilderTests
         Assert.NotNull(axes.ColorBar);
         Assert.True(axes.ColorBar!.Visible);
         Assert.Equal("First", axes.ColorBar!.Label);
+    }
+
+    /// <summary>Verifies that a coloured left Y axis keeps its spine, tick marks, tick labels and title colour through
+    /// JSON — the verb works in-process and must not vanish in transit.</summary>
+    [Fact]
+    public void SetYAxisColor_SurvivesJsonRoundTrip()
+    {
+        var colour = Color.FromHex("#E4007C");
+        var json = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.SetYLabel("Level").SetYAxisColor(colour))
+            .ToJson();
+
+        var axes = new ChartSerializer().FromJson(json).SubPlots[0];
+
+        Assert.Equal(colour, axes.Spines.Left.Color);
+        Assert.Equal(colour, axes.YAxis.MajorTicks.Color);
+        Assert.Equal(colour, axes.YAxis.MajorTicks.LabelColor);
+        Assert.Equal(colour, axes.YAxis.LabelStyle!.Color);
+        Assert.Equal("Level", axes.YAxis.Label);
+        Assert.Null(axes.Spines.Bottom.Color);
+        Assert.Null(axes.XAxis.MajorTicks.Color);
+    }
+
+    /// <summary>Verifies that a coloured bottom X axis keeps its spine, tick marks, tick labels and title colour through JSON.</summary>
+    [Fact]
+    public void SetXAxisColor_SurvivesJsonRoundTrip()
+    {
+        var colour = Color.FromHex("#0A7E8C");
+        var json = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.SetXLabel("Time").SetXAxisColor(colour))
+            .ToJson();
+
+        var axes = new ChartSerializer().FromJson(json).SubPlots[0];
+
+        Assert.Equal(colour, axes.Spines.Bottom.Color);
+        Assert.Equal(colour, axes.XAxis.MajorTicks.Color);
+        Assert.Equal(colour, axes.XAxis.MajorTicks.LabelColor);
+        Assert.Equal(colour, axes.XAxis.LabelStyle!.Color);
+        Assert.Equal("Time", axes.XAxis.Label);
+        Assert.Null(axes.Spines.Left.Color);
+        Assert.Null(axes.YAxis.MajorTicks.Color);
     }
 }

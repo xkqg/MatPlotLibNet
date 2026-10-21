@@ -53,6 +53,17 @@ public sealed class Axes
 
     public bool EnableInteractiveAttributes { get; set; }
 
+    /// <summary>When true (set by the SVG transform for a figure with the server data cursor), every interactive series
+    /// group also carries the mapping its series was drawn with — the plot area and the data range of the series' own
+    /// axes — so a click converts to the units of the axis the clicked line belongs to.</summary>
+    internal bool EmitDataCursorMapping { get; set; }
+
+    /// <summary>This axes' index in <see cref="Figure.SubPlots"/> while the figure is rendered with server interaction
+    /// (set by the SVG transform), otherwise <see langword="null"/>. With an index the renderer writes the axes' view —
+    /// its plot area and the range it actually drew — so the page converts hover, brush select, zoom and pan with the
+    /// axes under the pointer and names that axes in what it sends.</summary>
+    internal int? ServerViewIndex { get; set; }
+
     public BarMode BarMode { get; set; } = BarMode.Grouped;
 
     public CoordinateSystem CoordinateSystem { get; set; } = CoordinateSystem.Cartesian;
@@ -104,6 +115,13 @@ public sealed class Axes
     /// <summary>True when every series on this axes fixes the vertical range itself (a state timeline), so pan and
     /// zoom have nothing to move vertically. An axes with no series, or with one series that does not, is free.</summary>
     internal bool HasFixedYRange => Series.Count > 0 && Series.All(s => s is ChartSeries { FixesYRange: true });
+
+    /// <summary>True when any axis of this axes (X, Y, the secondary Y or the secondary X) has a limit set, by
+    /// <c>SetXLim</c>/<c>SetYLim</c> or by a zoom or pan applied to it. A set limit is exact, so data can then lie past
+    /// the plot area and the series are clipped to it; a range that scaled itself encloses every series and needs no
+    /// clip.</summary>
+    internal bool HasExplicitLimit =>
+        XAxis.HasLimit || YAxis.HasLimit || SecondaryYAxis is { HasLimit: true } || SecondaryXAxis is { HasLimit: true };
 
     /// <summary>Gets the collection of reference lines on this axes.</summary>
     public IReadOnlyList<ReferenceLine> ReferenceLines => _referenceLines;

@@ -107,22 +107,44 @@ Opting in sets `Figure.ChartId` and `Figure.ServerInteraction = true`. It also t
 
 ### Frontend hookup
 
-Any environment that can create a `@microsoft/signalr` `HubConnection` will work. The script inside the SVG looks up `window.__mpl_signalr_connection` when the first event fires. The host page therefore only has to expose the connection globally once:
+Any environment that can create a `@microsoft/signalr` `HubConnection` will work. The script inside the SVG reads `window.__mpl_signalr_connection` each time it sends an event, and registers its hover-tooltip handler on that connection when it runs, so the host page exposes the connection globally once, before it mounts the first SVG.
+
+The interaction script travels inside the SVG, and a browser never runs a `<script>` that arrives through `innerHTML`. Mount every SVG, the first one and each update, with a function that puts the markup in place and re-creates its script elements, such as `mplMountSvg` below. With a plain `innerHTML` the chart is drawn but no gesture reaches the server.
 
 ```html
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
+    // Mounts a chart's SVG markup in host and runs the scripts inside it. A <script> that arrives through
+    // innerHTML never runs, so each one is replaced by a fresh copy, which the browser runs as it is inserted.
+    function mplMountSvg(host, svgMarkup) {
+        host.innerHTML = svgMarkup;
+        host.querySelectorAll('script').forEach(function (inert) {
+            var live = document.createElementNS(inert.namespaceURI, 'script');
+            for (var i = 0; i < inert.attributes.length; i++)
+                live.setAttribute(inert.attributes[i].name, inert.attributes[i].value);
+            live.textContent = inert.textContent;
+            inert.parentNode.replaceChild(live, inert);
+        });
+    }
+
+    const host = document.getElementById('chart-host');
     const conn = new signalR.HubConnectionBuilder()
         .withUrl('/charts-hub')
         .withAutomaticReconnect()
         .build();
     window.__mpl_signalr_connection = conn;
     conn.on('UpdateChartSvg', (id, svg) => {
-        if (id === 'live-1') document.getElementById('chart-host').innerHTML = svg;
+        if (id === 'live-1') mplMountSvg(host, svg);
     });
-    conn.start().then(() => conn.invoke('Subscribe', 'live-1'));
+    conn.start()
+        .then(() => conn.invoke('Subscribe', 'live-1'))
+        .then(() => fetch('/api/chart/live.svg'))
+        .then(resp => resp.text())
+        .then(svg => mplMountSvg(host, svg));
 </script>
 ```
+
+The script runs again on every mount and wires the new SVG; the hover tooltip and its handler on the connection are kept once per chart.
 
 For Blazor, see `MplLiveChart` in `MatPlotLibNet.Blazor` and the `Samples/MatPlotLibNet.Samples.Blazor/Components/Pages/Interactive.razor` example.
 

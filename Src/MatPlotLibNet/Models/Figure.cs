@@ -20,6 +20,8 @@ public sealed class Figure
 
     public double Height { get; set; } = 600;
 
+    /// <summary>The figure DPI. It is kept with the figure and written to its JSON; no export reads it yet, so a raster
+    /// export is drawn at <see cref="Width"/> by <see cref="Height"/> pixels.</summary>
     public double Dpi { get; set; } = 96;
 
     public Color? BackgroundColor { get; set; }

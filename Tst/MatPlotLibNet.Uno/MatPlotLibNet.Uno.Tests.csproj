@@ -20,13 +20,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit.v3" Version="3.*" />
-    <PackageReference Include="NSubstitute" Version="5.*" />
-    <PackageReference Include="Uno.WinUI" Version="6.5.153" />
+    <PackageReference Include="xunit.v3" Version="4.*" />
+    <PackageReference Include="NSubstitute" Version="6.*" />
+    <!-- Uno.WinUI is on 6.x here while MatPlotLibNet.Uno stays on 5.x. The package cannot take 6.x (its 6.x
+         packages ship no net8.0 asset and the package targets net8.0; the reason is written on the reference in
+         Src/MatPlotLibNet.Uno). This suite targets net10.0-windows10.0.19041.0, where 6.x is the current line, and
+         compiles only UnoInputAdapter.cs, the one file of the package that uses plain WinUI input types and no
+         SKCanvasElement. The package build compiles that same file against 5.6.99, so the adapter is proven to
+         build on both lines. -->
+    <PackageReference Include="Uno.WinUI" Version="6.7.135" />
     <PackageReference Include="SkiaSharp.Views.Uno.WinUI" Version="3.*" />
     <!-- Force WindowsAppSDK >= 1.8 to avoid MrtCore.PriGen.targets VS-only task dependency
-         present in 1.4 which Uno.WinUI 5.x would otherwise resolve to. -->
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.*" />
+         present in 1.4 which Uno.WinUI 5.x would otherwise resolve to. Takes the 2.x line (2.5.1): the suite
+         builds and its 10 tests pass on it exactly as on 1.8. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.*" />
   </ItemGroup>
 
   <ItemGroup>

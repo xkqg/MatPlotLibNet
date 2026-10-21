@@ -27,6 +27,22 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
 
+      # A tag publishes, and a package on nuget.org cannot be taken back. A tag on the commit before the version bump
+      # would push the previous release again, every package skipped by --skip-duplicate and the run green with
+      # nothing new; a typo tag (v.1.18.0 exists) reads the same. The tag, without an optional 'v' or 'v.', must be
+      # the version the packages carry.
+      - name: The tag names the version the packages carry
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          tag="$TAG"
+          tag="${tag#v}"
+          tag="${tag#.}"
+          declared=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Src/MatPlotLibNet/MatPlotLibNet.csproj | head -n 1)
+          test -n "$declared" || { echo "Src/MatPlotLibNet/MatPlotLibNet.csproj declares no <Version>"; exit 1; }
+          test "$tag" = "$declared" || { echo "The tag $TAG names $tag; the packages carry $declared"; exit 1; }
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
@@ -63,6 +79,9 @@ jobs:
           dotnet run --project Tst/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.Tests.csproj --no-build --configuration Release
           dotnet run --project Tst/MatPlotLibNet.Verso/MatPlotLibNet.Verso.Tests.csproj --no-build --configuration Release
+          # Not run here: Tst/MatPlotLibNet.Wiki. This job checks out the release TAG, and the wiki has no tags -- a clone
+          # takes the wiki as it is today. A wiki that already shows a later release's API would then be compiled
+          # against this older code and block the release. CI compiles the wiki on every push to main instead.
 
       - name: Pack
         run: dotnet pack MatPlotLibNet.CI.slnf --no-build --configuration Release --output nupkgs
@@ -81,6 +100,22 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
+
+      # A tag publishes, and a package on nuget.org cannot be taken back. A tag on the commit before the version bump
+      # would push the previous release again, every package skipped by --skip-duplicate and the run green with
+      # nothing new; a typo tag (v.1.18.0 exists) reads the same. The tag, without an optional 'v' or 'v.', must be
+      # the version the packages carry.
+      - name: The tag names the version the packages carry
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          tag="$TAG"
+          tag="${tag#v}"
+          tag="${tag#.}"
+          declared=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Src/MatPlotLibNet/MatPlotLibNet.csproj | head -n 1)
+          test -n "$declared" || { echo "Src/MatPlotLibNet/MatPlotLibNet.csproj declares no <Version>"; exit 1; }
+          test "$tag" = "$declared" || { echo "The tag $TAG names $tag; the packages carry $declared"; exit 1; }
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5

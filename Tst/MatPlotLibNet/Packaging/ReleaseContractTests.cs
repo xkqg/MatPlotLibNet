@@ -122,6 +122,24 @@ public class ReleaseContractTests
             + string.Join(", ", stillMoving));
     }
 
+    [Fact]
+    public void AFrozenPackage_IsNotComparedWithAReleaseItNeverHad()
+    {
+        // The pack baseline is the previous release of the LIVE line. A frozen package stopped at an older number
+        // and never had that release, so restore would look on nuget.org for a version of it that does not exist
+        // and fail every build that touches the package. It says so in its own project file, where the next
+        // person to open it will read why.
+        var compared = PackableProjects()
+            .Where(p => Frozen.ContainsKey(p.Path))
+            .Where(p => !p.Xml.Descendants("EnablePackageValidation").Any(n => n.Value.Trim() == "false"))
+            .Select(p => p.Path)
+            .ToArray();
+
+        Assert.True(compared.Length == 0,
+            "These packages are declared frozen and are still packed against the live line's previous release; "
+            + "set <EnablePackageValidation>false</EnablePackageValidation> in them: " + string.Join(", ", compared));
+    }
+
     // ---- the gate can only see what it is told about ----------------------------------------------------------
 
     /// <summary>The assemblies the coverage collector is allowed to record, read back from the
@@ -180,6 +198,175 @@ public class ReleaseContractTests
         Assert.True(byVersion.Length == 1,
             "A release bumps every package together, or the odd one out ships an old number under a new tag. Found: "
             + string.Join(" | ", byVersion.Select(g => $"{g.Key}: {string.Join(", ", g.Select(p => p.Path))}")));
+    }
+
+    // ---- a pack is compared with the release before it ---------------------------------------------------------
+
+    /// <summary>Every value the shared build file gives one MSBuild property, in document order. More than one
+    /// element means the setting lives in two places, which is how a baseline drifts.</summary>
+    private static string[] SharedBuildProperty(string name) =>
+        [.. XDocument.Load(Path.Combine(Root, "Directory.Build.props")).Descendants(name).Select(n => n.Value.Trim())];
+
+    /// <summary>The switches that decide whether, and against what, a package is validated. A live package may
+    /// not set any of them: the shared build file is the one place that does.</summary>
+    private static readonly string[] PackageValidationSwitches =
+    [
+        "EnablePackageValidation",
+        "PackageValidationBaselineVersion",
+        "PackageValidationBaselinePath",
+        "DisablePackageBaselineValidation",
+    ];
+
+    /// <summary>A .NET tool is a command line, not a library: the SDK switches package validation off for it on
+    /// its own, because there is no API surface a consumer compiles against.</summary>
+    private static bool IsToolPackage(XDocument csproj) =>
+        csproj.Descendants("PackAsTool").Any(n => n.Value.Trim() == "true");
+
+    private static System.Version ValidationBaseline()
+    {
+        var values = SharedBuildProperty("PackageValidationBaselineVersion");
+        Assert.True(values.Length == 1 && System.Version.TryParse(values[0], out _),
+            "Directory.Build.props must name the release every pack is compared with, once, as a version number "
+            + $"(<PackageValidationBaselineVersion>); it names it {values.Length} time(s): {string.Join(", ", values)}");
+        return System.Version.Parse(values[0]);
+    }
+
+    [Fact]
+    public void EveryLivePackage_IsPackedAgainstThePreviousRelease()
+    {
+        // Until this was on, a pack compared nothing: a public member could be renamed, removed or narrowed in a
+        // minor release and the first person to find out was a consumer whose build stopped compiling after an
+        // update. With package validation on, `dotnet pack` takes the previous release from nuget.org, compares
+        // the public API of every target framework it shipped, and fails on a break; an addition passes.
+        var enabled = SharedBuildProperty("EnablePackageValidation");
+        Assert.True(enabled.Length == 1 && enabled[0] == "true",
+            "Directory.Build.props must switch package validation on exactly once "
+            + $"(<EnablePackageValidation>true); found: [{string.Join(", ", enabled)}]");
+
+        _ = ValidationBaseline();
+
+        // One baseline in one place. A package that carries its own copy, or switches validation off, is the
+        // first one to be left behind when the baseline moves.
+        var overriding = LivePackages()
+            .Where(p => !IsToolPackage(p.Xml))
+            .Where(p => PackageValidationSwitches.Any(name => p.Xml.Descendants(name).Any()))
+            .Select(p => p.Path)
+            .ToArray();
+
+        Assert.True(overriding.Length == 0,
+            "These packages set their own package-validation switches instead of inheriting the shared ones: "
+            + string.Join(", ", overriding));
+    }
+
+    [Fact]
+    public void ThePackBaseline_IsOlderThanTheVersionBeingReleased()
+    {
+        // A baseline equal to the new version compares the package with itself and can never fail; a baseline
+        // above it compares with the future. That is exactly what a version sweep that rewrites every occurrence
+        // of the old number does to the one line that was meant to keep it.
+        var baseline = ValidationBaseline();
+        var version = System.Version.Parse(LiveVersion());
+
+        Assert.True(baseline < version,
+            $"packs are compared with {baseline}, which is not older than the version being released ({version})");
+    }
+
+    [Fact]
+    public void ThePackBaseline_IsTheReleaseJustBeforeThisOne()
+    {
+        // "The previous release" is not "some older one": a baseline left at the release before last silently
+        // lets everything that release shipped be broken. The changelog lists the releases in order, so the
+        // section under the current version names the one the baseline has to be.
+        var releases = Regex.Matches(Read("CHANGELOG.md"), @"^## \[(\d+\.\d+\.\d+)\]", RegexOptions.Multiline)
+            .Select(m => m.Groups[1].Value)
+            .ToArray();
+        int at = Array.IndexOf(releases, LiveVersion());
+
+        Assert.True(at >= 0 && at + 1 < releases.Length,
+            $"the changelog has no release section under {LiveVersion()} to take the previous release from");
+
+        Assert.True(System.Version.Parse(releases[at + 1]) == ValidationBaseline(),
+            $"packs are compared with {ValidationBaseline()}, and the release before {LiveVersion()} is {releases[at + 1]}: "
+            + "move <PackageValidationBaselineVersion> in Directory.Build.props together with the version");
+    }
+
+    // ---- SourceLink: one version, one place --------------------------------------------------------------------
+
+    private const string SourceLinkPackage = "Microsoft.SourceLink.GitHub";
+
+    /// <summary>The oldest SourceLink that is outside every range CVE-2026-62900 names. The comment above the
+    /// reference in <c>Directory.Build.props</c> carries the reasoning; this is the number a bump may not go below.</summary>
+    private static readonly System.Version SourceLinkFirstPatched = new(10, 0, 303);
+
+    /// <summary>Every project file the repository builds: the packages, their suites, the samples and the benchmarks.</summary>
+    private static string[] RepositoryProjects() =>
+        [.. new[] { "Src", "Tst", "Samples", "Benchmarks" }
+            .Select(folder => Path.Combine(Root, folder))
+            .Where(Directory.Exists)
+            .SelectMany(folder => Directory.EnumerateFiles(folder, "*.csproj", SearchOption.AllDirectories))
+            .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .OrderBy(file => file, StringComparer.Ordinal)];
+
+    [Fact]
+    public void TheSourceLinkVersion_LivesInOnePlace()
+    {
+        // The reference is declared once, in the shared build file, and every project inherits it. It used to be
+        // restated as a literal `Update` line in eight packages as well: nine copies of one number, so a bump that
+        // missed one left that package on the old version while the other eight moved, and nothing said so.
+        var restated = RepositoryProjects()
+            .Where(file => XDocument.Load(file).Descendants()
+                .Where(n => n.Name.LocalName is "PackageReference" or "PackageVersion")
+                .Where(n => string.Equals((string?)n.Attribute("Include") ?? (string?)n.Attribute("Update"),
+                                          SourceLinkPackage, StringComparison.Ordinal))
+                .Select(n => (string?)n.Attribute("Version") ?? (string?)n.Attribute("VersionOverride"))
+                .Any(version => version is not null && !version.StartsWith("$(", StringComparison.Ordinal)))
+            .Select(file => Path.GetRelativePath(Root, file).Replace('\\', '/'))
+            .ToArray();
+
+        Assert.True(restated.Length == 0,
+            $"These projects write a literal {SourceLinkPackage} version instead of inheriting the one in "
+            + "Directory.Build.props: " + string.Join(", ", restated));
+
+        var defined = SharedBuildProperty("SourceLinkVersion");
+        Assert.True(defined.Length == 1 && System.Version.TryParse(defined[0], out _),
+            "Directory.Build.props must define the SourceLink version once, as a version number "
+            + $"(<SourceLinkVersion>); it defines it {defined.Length} time(s): {string.Join(", ", defined)}");
+
+        var reference = XDocument.Load(Path.Combine(Root, "Directory.Build.props")).Descendants("PackageReference")
+            .Single(n => (string?)n.Attribute("Include") == SourceLinkPackage);
+        Assert.Equal("$(SourceLinkVersion)", (string?)reference.Attribute("Version"));
+
+        Assert.True(System.Version.Parse(defined[0]) >= SourceLinkFirstPatched,
+            $"{SourceLinkPackage} {defined[0]} is older than {SourceLinkFirstPatched}, the first release outside "
+            + "the ranges CVE-2026-62900 names");
+    }
+
+    [Fact]
+    public void TheCoverageCollector_IsDotnetCoverage_AndNoProjectCarriesACoverletPackage()
+    {
+        // Coverage is collected by `dotnet-coverage collect` around the built test executable; both runners say so
+        // and neither passes `CollectCoverage`. A coverlet package in a suite is therefore never switched on: the
+        // only thing it still does is write a source-root mapping file next to the test binaries on every build.
+        // Three suites carried `coverlet.msbuild` as a floating "6.*" for exactly that, and the line sat there
+        // looking like the coverage mechanism, which sent the next reader to bump it instead of to the runner.
+        // A package that nothing triggers is deleted, not kept current.
+        foreach (string runner in new[] { "run.sh", "run.ps1" })
+        {
+            Assert.True(Read("tools", "coverage", runner).Contains("dotnet-coverage collect", StringComparison.Ordinal),
+                $"tools/coverage/{runner} no longer collects with dotnet-coverage; this contract assumed it did.");
+        }
+
+        var carriers = RepositoryProjects()
+            .Where(file => XDocument.Load(file).Descendants()
+                .Where(n => n.Name.LocalName is "PackageReference" or "PackageVersion")
+                .Select(n => (string?)n.Attribute("Include") ?? (string?)n.Attribute("Update") ?? string.Empty)
+                .Any(id => id.StartsWith("coverlet.", StringComparison.OrdinalIgnoreCase)))
+            .Select(file => Path.GetRelativePath(Root, file).Replace('\\', '/'))
+            .ToArray();
+
+        Assert.True(carriers.Length == 0,
+            "These projects reference a coverlet package that nothing in the coverage pipeline triggers "
+            + "(dotnet-coverage measures them): " + string.Join(", ", carriers));
     }
 
     [Fact]
@@ -551,16 +738,127 @@ public class ReleaseContractTests
 
     // ---- the lists that decide what CI guards and what a release ships ---------------------------------------
 
+    /// <summary>Suites of the CI filter a workflow builds and deliberately does not run, each with the reason.</summary>
+    private static readonly IReadOnlyDictionary<WorkflowSuite, string> NotRunByTheWorkflow = new Dictionary<WorkflowSuite, string>
+    {
+        [new("publish.yml", "Tst/MatPlotLibNet.Wiki/MatPlotLibNet.Wiki.Tests.csproj")] =
+            "publish checks out the release tag and the wiki has no tags: a wiki newer than the tag would compile against older code and block the release",
+    };
+
     [Theory]
     [InlineData("ci.yml")]
     [InlineData("publish.yml")]
     public void EveryTestProjectInTheCiFilter_IsRunByTheWorkflow(string workflow)
     {
         var run = TestProjectsRunBy(workflow);
-        var missing = CiFilterTestProjects().Except(run, StringComparer.Ordinal).ToArray();
+        var missing = CiFilterTestProjects()
+            .Except(run, StringComparer.Ordinal)
+            .Where(suite => !NotRunByTheWorkflow.ContainsKey(new(workflow, suite)))
+            .ToArray();
 
         Assert.True(missing.Length == 0,
             $"{workflow} builds these suites and never runs them: {string.Join(", ", missing)}");
+    }
+
+    [Fact]
+    public void ASuiteAWorkflowIsSaidNotToRun_IsNotRunByIt()
+    {
+        // An exception that no longer holds is a reason nobody can trust: drop it from the list the day the workflow
+        // starts running the suite after all.
+        var stale = NotRunByTheWorkflow.Keys
+            .Where(key => TestProjectsRunBy(key.Workflow).Contains(key.Suite, StringComparer.Ordinal))
+            .Select(key => $"{key.Workflow} runs {key.Suite}")
+            .ToArray();
+
+        Assert.True(stale.Length == 0, "Listed as not run, and run anyway: " + string.Join(", ", stale));
+    }
+
+    /// <summary>The jobs of a workflow: each job's name and its text, up to the next job.</summary>
+    private static WorkflowJob[] JobsOf(string workflow)
+    {
+        var text = Read(".github", "workflows", workflow).ReplaceLineEndings("\n");
+        var body = text[(text.IndexOf("\njobs:\n", StringComparison.Ordinal) + "\njobs:\n".Length)..];
+        var starts = Regex.Matches(body, @"^  (?<name>[A-Za-z0-9_-]+):\s*$", RegexOptions.Multiline);
+
+        return [.. starts.Select((start, at) => new WorkflowJob(
+            workflow + ":" + start.Groups["name"].Value,
+            body[start.Index..(at + 1 < starts.Count ? starts[at + 1].Index : body.Length)]))];
+    }
+
+    private const string WikiSuite = "Tst/MatPlotLibNet.Wiki/MatPlotLibNet.Wiki.Tests.csproj";
+
+    [Fact]
+    public void EveryJobThatRunsTheWikiSuite_ClonesTheWikiBesideTheRepositoryFirst()
+    {
+        // The wiki is a repository of its own, so a runner has it only when a step clones it -- and the suite looks
+        // for it beside this repository. A job that runs the suite without that step fails on the runner only.
+        var clone = new Regex(@"git clone [^\n]*\.wiki\.git""?\s+\.\./MatPlotLibNet\.wiki\s*$", RegexOptions.Multiline);
+        var jobs = Directory.GetFiles(Path.Combine(Root, ".github", "workflows"), "*.yml")
+            .SelectMany(path => JobsOf(Path.GetFileName(path)))
+            .Where(job => job.Text.Contains("dotnet run --project " + WikiSuite, StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Contains(jobs, job => job.Name == "ci.yml:build-and-test");
+
+        var unready = jobs
+            .Where(job => clone.Match(job.Text) is not { Success: true } cloned
+                          || cloned.Index > job.Text.IndexOf("dotnet run --project " + WikiSuite, StringComparison.Ordinal))
+            .Select(job => job.Name)
+            .ToArray();
+
+        Assert.True(unready.Length == 0,
+            "These jobs run the wiki suite without first cloning the wiki into ../MatPlotLibNet.wiki: " + string.Join(", ", unready));
+    }
+
+    [Fact]
+    public void EveryWikiClone_UsesTheUpstreamAddress_NotTheRepositoryTheRunBelongsTo()
+    {
+        // In a fork github.repository is the fork, and a fork has no wiki of its own: a clone built from it fails at
+        // the clone and turns a contributor's push run red for a reason that is not theirs.
+        const string upstream = "https://github.com/xkqg/MatPlotLibNet.wiki.git";
+        var clones = Directory.GetFiles(Path.Combine(Root, ".github", "workflows"), "*.yml")
+            .SelectMany(path => JobsOf(Path.GetFileName(path)))
+            .SelectMany(job => Regex.Matches(job.Text, @"^\s*run:\s*git clone [^\n]*\.wiki\.git[^\n]*$", RegexOptions.Multiline)
+                .Select(match => job.Name + ": " + match.Value.Trim()))
+            .ToArray();
+
+        Assert.NotEmpty(clones);
+
+        var wrong = clones.Where(clone => !clone.Contains(upstream, StringComparison.Ordinal)
+                                          || clone.Contains("github.repository", StringComparison.Ordinal)).ToArray();
+
+        Assert.True(wrong.Length == 0,
+            "These wiki clones do not use the fixed upstream address " + upstream + ": " + string.Join(" | ", wrong));
+    }
+
+    [Fact]
+    public void EveryPublishJobThatPushesPackages_ChecksTheTagAgainstTheVersionFirst()
+    {
+        // A tag on the commit before the version bump would push the previous release again: --skip-duplicate skips
+        // every package and the run is green with nothing new on nuget.org. A typo tag (v.1.18.0 exists) reads the
+        // same. The step strips an optional 'v' or 'v.' and compares with the core package's <Version>.
+        const string check = "- name: The tag names the version the packages carry";
+        var pushing = JobsOf("publish.yml").Where(job => job.Text.Contains("dotnet nuget push", StringComparison.Ordinal)).ToArray();
+
+        Assert.NotEmpty(pushing);
+
+        foreach (var job in pushing)
+        {
+            var at = job.Text.IndexOf(check, StringComparison.Ordinal);
+
+            Assert.True(at >= 0, $"{job.Name} pushes packages and never checks the tag against the version they carry.");
+            Assert.True(
+                at < job.Text.IndexOf("dotnet pack", StringComparison.Ordinal),
+                $"{job.Name} checks the tag only after it packs.");
+
+            var step = job.Text[at..];
+            step = step[..(step.IndexOf("\n      - ", 1, StringComparison.Ordinal) is var next and > 0 ? next : step.Length)];
+
+            Assert.Contains("Src/MatPlotLibNet/MatPlotLibNet.csproj", step, StringComparison.Ordinal);
+            Assert.Contains("${tag#v}", step, StringComparison.Ordinal);
+            Assert.Contains("${tag#.}", step, StringComparison.Ordinal);
+            Assert.Contains("exit 1", step, StringComparison.Ordinal);
+        }
     }
 
     [Theory]
@@ -706,6 +1004,48 @@ public class ReleaseContractTests
                     $"{path} names four colormaps and says \"{m.Value}\"; there are {registered - 4} others.");
             }
         }
+    }
+
+    [Fact]
+    public void TheVersionTheArchitectureDocumentNamesOnItsFirstLine_IsTheVersionThePackagesCarry()
+    {
+        // The first line of the architecture document says "(v1.18.2)" long after the packages moved on: nothing tied
+        // the hand-written number to the one the csproj files carry.
+        string firstLine = Read("Src", "MatPlotLibNet", "ARCHITECTURE.md").Split('\n')[0];
+        var named = Regex.Match(firstLine, @"\(v(\d+\.\d+\.\d+)\)");
+
+        Assert.True(named.Success, $"The first line of ARCHITECTURE.md names no version as \"(vX.Y.Z)\": {firstLine.Trim()}");
+        Assert.True(named.Groups[1].Value == LiveVersion(),
+            $"ARCHITECTURE.md names v{named.Groups[1].Value} on its first line; the packages carry {LiveVersion()}.");
+    }
+
+    [Fact]
+    public void TheNewestVersionTheReadmeDescribes_IsTheVersionThePackagesCarry()
+    {
+        // "Where this is going" opens each release with its number in bold. The first of them is the newest, and it
+        // must be the release being built, or the page tells a reader the library stopped a release ago.
+        string readme = Read("README.md");
+        int heading = readme.IndexOf("## Where this is going", StringComparison.Ordinal);
+        Assert.True(heading >= 0, "README.md has no \"Where this is going\" section.");
+
+        var newest = Regex.Match(readme[heading..], @"\*\*(\d+\.\d+\.\d+)\*\*");
+        Assert.True(newest.Success, "\"Where this is going\" opens no release with its bold version number.");
+        Assert.True(newest.Groups[1].Value == LiveVersion(),
+            $"README.md describes {newest.Groups[1].Value} as the newest release; the packages carry {LiveVersion()}.");
+    }
+
+    [Fact]
+    public void TheLineTheSecurityPolicySupports_IsTheMinorLineThePackagesCarry()
+    {
+        // SECURITY.md listed 0.3.x as the supported line while the packages carried 1.19.0: the table is a hand-kept
+        // copy of the version, so it is held to the one the csproj files carry.
+        string policy = Read("SECURITY.md");
+        var supported = Regex.Match(policy, @"^\|\s*(\d+\.\d+)\.x\s*\|\s*:white_check_mark:", RegexOptions.Multiline);
+        var live = Regex.Match(LiveVersion(), @"^\d+\.\d+").Value;
+
+        Assert.True(supported.Success, "SECURITY.md lists no supported line as \"| X.Y.x | :white_check_mark: |\".");
+        Assert.True(supported.Groups[1].Value == live,
+            $"SECURITY.md supports {supported.Groups[1].Value}.x; the packages carry {LiveVersion()}.");
     }
 
     [Fact]
@@ -879,3 +1219,13 @@ public class ReleaseContractTests
         Assert.Contains("SkiaSharp.Views.WPF", readme, StringComparison.Ordinal);
     }
 }
+
+/// <summary>A suite named together with the workflow it is said of.</summary>
+/// <param name="Workflow">The workflow's file name.</param>
+/// <param name="Suite">The suite's project path.</param>
+internal readonly record struct WorkflowSuite(string Workflow, string Suite);
+
+/// <summary>One job of a workflow.</summary>
+/// <param name="Name">The workflow's file name and the job's name, as <c>ci.yml:build-and-test</c>.</param>
+/// <param name="Text">The job's text, up to the next job.</param>
+internal readonly record struct WorkflowJob(string Name, string Text);

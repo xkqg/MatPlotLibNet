@@ -23,7 +23,7 @@ public class OpsDashboardDataTablesTests
         var theme = Theme.OpsNight;
         double[] t = [At(300), At(270), At(240), At(210), At(180)];
         return Plt.OpsDashboard()
-            .WithTitle("Synapse - federation")
+            .WithTitle("Order service - gateway")
             .WithWindow(Now, TimeSpan.FromMinutes(5))
             .AddTile(15, tile => { tile.Label = "Buses"; tile.Caption = "all 15 normal"; })
             .AddTile(28.1, tile =>
@@ -53,7 +53,7 @@ public class OpsDashboardDataTablesTests
     {
         var tiles = Dashboard().ToDataTables()[0];
 
-        Assert.Equal("Synapse - federation", tiles.Caption);
+        Assert.Equal("Order service - gateway", tiles.Caption);
         Assert.Equal(["label", "value", "target", "caption", "trend"], tiles.Columns.Select(c => c.Header));
         Assert.Equal(["Buses", "RFx p99", "Exchange"], tiles.Rows.Select(r => r[0].Text));
     }
@@ -102,9 +102,9 @@ public class OpsDashboardDataTablesTests
     {
         var tables = Dashboard().ToDataTables();
 
-        Assert.Equal("Synapse - federation — Exchange feed", tables[1].Caption);
+        Assert.Equal("Order service - gateway — Exchange feed", tables[1].Caption);
         // The trend's label IS its value header, so the caption does not say it twice.
-        Assert.Equal("Synapse - federation", tables[2].Caption);
+        Assert.Equal("Order service - gateway", tables[2].Caption);
     }
 
     /// <summary>The trend's x is time, its samples are 30 seconds apart, and the table keeps the seconds; a

@@ -39,13 +39,22 @@ public sealed class DataTransform
     /// On a log or symlog axis <see cref="DataXMin"/> is the SCALED bound — 0 for data that starts at 1, because
     /// the pixel mapping works in log space. Anything that compares the axis range against raw sample values, such
     /// as viewport culling, must use this instead, or it cuts away every point above 10^DataXMax while the axis
-    /// goes on drawing ticks for them. On a linear axis the two are the same number.
+    /// goes on drawing ticks for them. On a linear axis the two are the same number. On a reversed axis (an X limit set
+    /// high to low) it is still the lowest value: the low end of the drawn range's <see cref="Range1D.Interval"/>.
     /// </remarks>
-    internal double UnscaledXMin => _fullXMin;
+    internal double UnscaledXMin => new Range1D(_fullXMin, _fullXMax).Interval.Lo;
 
     /// <summary>The highest X value the axis shows, in the space the DATA lives in.</summary>
     /// <inheritdoc cref="UnscaledXMin"/>
-    internal double UnscaledXMax => _fullXMax;
+    internal double UnscaledXMax => new Range1D(_fullXMin, _fullXMax).Interval.Hi;
+
+    /// <summary>The pixel-space rectangle the data range is mapped onto.</summary>
+    internal Rect PlotBounds => _plotBounds;
+
+    /// <summary>The range the axes show, in data units, in drawn orientation: X from the left edge to the right edge, Y
+    /// from the bottom edge to the top edge. On a log or symlog axis these are the data values at the edges, not their
+    /// scaled bounds (<see cref="DataXMin"/>); a reversed limit stays reversed.</summary>
+    internal DataRange DrawnRange => new(_fullXMin, _fullXMax, _fullYMin, _fullYMax);
 
     /// <summary>Initializes a new linear transform mapping the specified data range onto the given pixel bounds.</summary>
     /// <param name="dataXMin">Minimum X value in data space.</param>
@@ -129,12 +138,21 @@ public sealed class DataTransform
         return new Point(px, py);
     }
 
-    private static double ApplyScale(double v, AxisScale scale, double linthresh) => scale switch
-    {
-        AxisScale.SymLog => SymlogTransform.Forward(v, linthresh),
-        AxisScale.Log    => v > 0 ? Math.Log10(v) : double.NaN,
-        _                => v,
-    };
+    private static double ApplyScale(double v, AxisScale scale, double linthresh) => scale.Forward(v, linthresh);
+
+    /// <summary>The scale of the X axis this transform maps through; <see cref="DataXMin"/>/<see cref="DataXMax"/> are
+    /// in its drawn space.</summary>
+    internal AxisScale XScale => _xAxisScale;
+
+    /// <summary>The scale of the Y axis this transform maps through; <see cref="DataYMin"/>/<see cref="DataYMax"/> are
+    /// in its drawn space.</summary>
+    internal AxisScale YScale => _yAxisScale;
+
+    /// <summary>The symlog linear threshold of the X axis (meaningful when <see cref="XScale"/> is symlog).</summary>
+    internal double XLinThresh => _xLinThresh;
+
+    /// <summary>The symlog linear threshold of the Y axis (meaningful when <see cref="YScale"/> is symlog).</summary>
+    internal double YLinThresh => _yLinThresh;
 
     // -------------------------------------------------------------------------
     // Batch / vectorized transforms (SIMD via VectorMath)
@@ -218,6 +236,9 @@ public sealed class DataTransform
     }
 
     /// <summary>Converts pixel-space coordinates back to data-space coordinates.</summary>
+    /// <remarks>The pixel is interpolated across the drawn range (in the axis' scaled space on a log or symlog axis),
+    /// then the axis scale is inverted (<see cref="AxisScaleExtensions.Inverse"/>), so the result is in data units on
+    /// every scale. The server-interaction script converts the pointer by the same rule.</remarks>
     /// <param name="pixel">The pixel-space point to convert.</param>
     /// <returns>The corresponding data-space point.</returns>
     public Point PixelToData(Point pixel)
@@ -228,6 +249,6 @@ public sealed class DataTransform
         double x = _dataXMin + (pixel.X - _plotBounds.X) / _plotBounds.Width * xRange;
         double y = _dataYMin + (1 - (pixel.Y - _plotBounds.Y) / _plotBounds.Height) * yRange;
 
-        return new Point(x, y);
+        return new Point(_xAxisScale.Inverse(x, _xLinThresh), _yAxisScale.Inverse(y, _yLinThresh));
     }
 }

@@ -19,23 +19,26 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Same Uno line as MatPlotLibNet.Uno. -->
+    <!-- Same Uno line as MatPlotLibNet.Uno (5.x, reason on its references): the head runs the Uno the package was
+         built on. Uno.WinUI.Skia.Wpf 6.6.184, the newest, brings Uno.WinUI 6.x, which fails restore on this
+         net8.0-windows head with NU1202. -->
     <PackageReference Include="Uno.WinUI.Skia.Wpf" Version="5.6.99" />
     <!-- Uno.WinUI's Windows dependency group drags Microsoft.WindowsAppSDK in, and its build assets do two
          things a Skia head cannot have: the 1.4 MrtCore targets inject win10-* RuntimeIdentifiers the SDK
          rejects (NETSDK1083), and the WinUI props set WindowsAppSDKWinUI=true, which switches Uno's targets
          to WinUI mode - no Skia runtime, and WPF's markup compiler gets the Uno XAML. Same recipe as
-         Src/MatPlotLibNet.Uno: reference every sub-package, exclude all of their build assets. -->
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Base" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.DWrite" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="1.8.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+         Src/MatPlotLibNet.Uno: reference every sub-package, exclude all of their build assets. They take the
+         newest line (2.x): with it the head builds without a warning and its window opens. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Base" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.DWrite" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="2.*" ExcludeAssets="build;buildTransitive" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

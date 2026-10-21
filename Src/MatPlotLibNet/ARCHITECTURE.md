@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.18.2)
+# MatPlotLibNet Core -- Architecture (v1.19.0)
 
 ## Package dependency graph
 
@@ -99,6 +99,9 @@ MatPlotLibNet/
                                       AllSeries (primary + secondary-Y + secondary-X in draw order — the one
                                       answer to "what does this subplot show")
     Axis.cs                           label, min/max, scale, ticks
+    AxisColorExtensions.cs            Axis.ApplyAxisColor(color): the one rule that colours an axis — tick marks, tick labels and
+                                      title. The spine belongs to the axes, so each builder verb (SetYAxisColor, SetXAxisColor,
+                                      and the secondary-axis builders') adds only its own spine
     Annotation.cs                     text annotation: Text, X, Y, ArrowTarget, Alignment, Rotation, ArrowStyle, BackgroundColor
     ValueObjects/OpsCondition.cs      what an operations reading is in, on TWO axes that must never be one:
                                         enum OpsSeverity {Normal, Warning, Critical} — the only one that
@@ -148,6 +151,12 @@ MatPlotLibNet/
       IHasAlpha.cs                    interface: double Alpha — polymorphic alpha access (~7 series)
       IHasEdgeColor.cs                interface: Color? EdgeColor — polymorphic edge-color access (~3 series)
       ILabelable.cs                   interface: bool ShowLabels; string? LabelFormat — series with data-point labels
+      IHasLabelPlacement.cs           interface: SeriesLabelPlacement LabelPlacement { get; set; } + internal LinePoints() — the
+                                      series that can show their name at the line end (LineSeries, StreamingLineSeries). The
+                                      series only SAYS where its name goes; the renderer of the axes decides whether it can
+      SeriesLabelPlacement.cs         enum: Legend = 0 (default), LineEnd = 1 — ordinals are contract, members only appended
+      LinePoints.cs                   internal readonly record struct: one consistent snapshot of a line's x and y values, so an
+                                      end label is placed at the end of the line that is drawn
       ChartSeries.cs                  abstract base: implements ISeries + ISeriesSerializable; declares the
                                       virtual ToDataTable() 63 types override — 8 family bases plus 55 leaves (a class cannot
                                       override a default interface member — the base must own the virtual)
@@ -323,7 +332,38 @@ MatPlotLibNet/
     ChartRenderer.cs                  figure-level orchestrator: background, constrained layout, subplot layout, dispatch to AxesRenderer
     AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry)
     CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, series, annotations, signals
-                                        internal helpers (Phase L): RenderGridLines(Orientation,…), RenderAxisTicks(…)+TickDrawContext, DrawBreakSegments(Orientation,BreakStyle,…)
+                                        internal helpers (Phase L): RenderGridLines(Orientation,…), DrawBreakSegments(Orientation,BreakStyle,…)
+    CartesianInsetAxesRenderer.cs     inset axes (Axes.InsetBounds; chosen by the Cartesian factory entry): draws like
+                                        Cartesian but answers DrawsDirectLabels = false — an inset has no right margin, so
+                                        a directly-labelled line keeps its legend entry instead of a label over the parent
+    SeriesSlot.cs                     the series colour owner: SeriesAxisPair (Primary / SecondaryY / SecondaryX), SeriesSlot
+                                        (cycle colour + cycler properties; ColorOf(series) = own colour else slot colour) and
+                                        Axes.SlotIndex / Theme.SeriesSlot. Primary passes, both secondary-axis parts and the
+                                        legend swatch all ask here, so a line and its swatch always wear the same colour
+    SeriesGroupExtensions.cs          the one rule for the group a series is drawn in (IRenderContext.BeginSeriesGroup):
+                                        data-series-index = slot + aria-label when interactive, aria-label otherwise.
+                                        Used by the primary passes and both secondary-axis parts, so the legend toggle,
+                                        the hover highlight and SvgDiffEngine reach a secondary line too
+    AxisTickExtensions.cs             the one tick drawing: IRenderContext.RenderAxisTicks/DrawTickMark + TickDrawContext + TickSide
+                                        (Bottom/Left/Right/Top); honours TickConfig (length, width, colour, direction, label
+                                        size/colour, pad, visibility). Used by the primary axes, their mirrored side and both
+                                        secondary-axis parts
+    AxisScaleExtensions.cs            the one rule that maps a data value into the space an axis is drawn in and back (log10,
+                                        symlog, identity): DataTransform, the range the renderer draws, the server-interaction
+                                        view and a pan all go through it
+    CartesianParts/                   one responsibility per class, walked by CartesianAxesRenderer.Render in a fixed order:
+      CartesianSpansPart.cs             shaded spans behind the series
+      CartesianReferenceLinesPart.cs    full-width reference lines
+      CartesianToolsPart.cs             trendlines, levels, Fibonacci overlays
+      CartesianAnnotationsPart.cs       text, arrows, callouts
+      CartesianSignalsPart.cs           buy/sell markers
+      CartesianSecondaryYAxisPart.cs    the right-hand axis: its series (own group per series via SeriesGroupExtensions), ticks
+                                        (AxisTickExtensions) and title; owns the right edge when drawn
+      CartesianSecondaryXAxisPart.cs    the top axis likewise; MeasureBand is the band the layout reserves for it
+      CartesianDirectLabelsPart.cs      the end labels: placed ONCE per axes (primary and secondary lines together, spread by
+                                        Interval1DExtensions.SpreadApart), drawn by each series pass inside that series' own
+                                        group so hiding or highlighting the series takes its label along. Not a step of the
+                                        sequence: the collaborator both series passes call
     PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting.
                                         Panes / the 9 drawn cube edges / wall grids / tick rows / axis titles all
@@ -365,8 +405,29 @@ MatPlotLibNet/
       DateTimeTickFormatter.cs          FromArray (index-based) + FromEpochMs (Unix ms) factories (new v1.11.1)
 
     Layout/                             margin computation (new v0.8.1)
-      ConstrainedLayoutEngine.cs        Compute(Figure, IRenderContext) → SubPlotSpacing; measures text extents, clamps margins
+      ConstrainedLayoutEngine.cs        Compute(Figure, IRenderContext) → SubPlotSpacing; measures text extents, clamps margins.
+                                        Owns the right and top edge rules for BOTH layout paths (Compute for tight/constrained,
+                                        ReserveEdgeBands for the default path): MeasureRightBand, SecondaryAxisBand, TitleBand
       LayoutMetrics.cs                  internal record: LeftNeeded, BottomNeeded, TopNeeded, RightNeeded (per subplot)
+      EdgeBands.cs                      readonly record struct (Top, Right): what an axes draws past its top / right spine besides
+                                        the title and the end labels (mirrored tick labels, secondary X axis), MEASURED by the
+                                        renderer that draws it (AxesRenderer.MeasureEdgeBands) — the drawer is the measurer
+      RightBand.cs                      readonly record struct (SecondaryAxis, MirroredYTicks, EndLabels): the right edge in drawing
+                                        order; Axis = the wider axis side, Width = axis side + end labels + outer padding.
+                                        The layout reserves Width and CartesianDirectLabelsPart starts its column at Axis
+      DirectLabelMetrics.cs             the owner of what the end labels say, where each line ends (last finite point inside the
+                                        visible X range), their font (the legend's) and the gap; layout reserves with it and the
+                                        drawing draws with it. DirectLabel record struct = one label
+      Interval1D.cs                     readonly record struct (Start, Size): a span on one axis
+      Interval1DExtensions.cs           SpreadApart: order-preserving collision sweep over spans; Sankey node padding and the end
+                                        labels call the same one
+      LegendMeasurer.cs                 the legend box and font, measured from the same LegendEntries list the drawing reads
+
+    LegendRendering/                    the legend
+      LegendEntry.cs                    readonly record struct (Series, OriginalIndex, Label) + Axes.LegendEntries(directLabelsDrawn):
+                                        the ONE enumerator of which series are named in a legend, in which order, under which
+                                        index (the series slot) and with which text. RenderLegend, ComputeLegendBounds (the
+                                        hit-test) and LegendMeasurer all read it, so drawing, click and margin cannot disagree
 
     TextMeasurement/                    text width estimation (new v0.8.1)
       CharacterWidthTable.cs            internal static: per-char width factors for Helvetica/Arial at 1em
@@ -473,8 +534,13 @@ MatPlotLibNet/
                                       selection. Order is the priority; it is written out where they are built.
                                       DataCursorModifier is handed the PanModifier: a press on a span (a timeline
                                       segment) waits for the release, so a click selects and a drag still pans
-    ChartLayout.cs / IChartLayout.cs  the snapshot a modifier measures against: plot rectangles, axis limits,
-                                      HitTestAxes(x, y), PixelToData. Rebuilt after every render
+    ChartLayout.cs / IChartLayout.cs  what a modifier measures against: plot rectangles, HitTestAxes(x, y),
+                                      PixelToData, GetDataRange. Rebuilt after every render. The range and scale
+                                      are the renderer's own: ChartLayout.View asks the axes renderer for the
+                                      transform Render draws with (ComputeViewTransform: autoscale, margins,
+                                      limits, log/symlog), kept until a gesture changes the limits or scales
+    ChartLayoutViewExtensions.cs      ViewOf(layout, axes): that transform for every modifier; a host's own
+                                      IChartLayout is read linearly over the range it states
     NearestPointFinder.cs             which data point is under the cursor, across every visible XY series in
                                       one axes, with the pixel distance it was found at; a StateTimelineSeries
                                       segment is hit by containing the cursor (last drawn wins) and reports its
@@ -727,6 +793,11 @@ ChartHub               routes to SignalR group by chartId
 | Default interface method | IRenderContext.DrawRichText; ISeries.ToDataTable() | a new member reaches every implementor without breaking any of them; the default supplies the fallback answer (plain text; "no tabular form") |
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
+| One enumerator for the legend | `Axes.LegendEntries(directLabelsDrawn)` → `LegendEntry` | the drawing, the click hit-test and the margin reservation read one list, so the number of rows, their order, their index and their text cannot differ between them; "a series is named in the legend" is decided in one place |
+| One owner of a series' colour | `SeriesSlotExtensions` (`Axes.SlotIndex`, `Theme.SeriesSlot`, `SeriesSlot.ColorOf`) | the primary passes, both secondary-axis parts and the legend swatch ask the same owner, so a secondary line and its swatch cannot wear different colours under a cycler theme |
+| Edge bands: the drawer measures | `AxesRenderer.MeasureEdgeBands` → `EdgeBands`; `ConstrainedLayoutEngine.MeasureRightBand` → `RightBand`; `DirectLabelMetrics` | layout and renderer share one rule for what sits past the top and right spine (mirrored ticks, secondary axis, end labels): the renderer that draws a band reports its size, and the layout engine reserves exactly that in both layout paths |
+| One extension opens every series group | `IRenderContext.BeginSeriesGroup` / `BeginSeriesClip` (`SeriesGroupExtensions`) | primary and secondary passes open the group the same way, so the legend toggle, hover highlight and `SvgDiffEngine` find a secondary line exactly as a primary one; the end label is drawn inside that group |
+| Capability + template method | `IHasLabelPlacement` on the series; `AxesRenderer.DrawsDirectLabels` (virtual, false) and `DrawInsideSeriesGroup` (virtual, no-op) overridden by the Cartesian renderer, `DrawsDirectLabels` re-overridden to false by `CartesianInsetAxesRenderer` | the series says where its name goes; the renderer of the axes says whether it can draw it. Only then does the series leave the legend, so polar, 3-D and inset axes keep the legend entry and the name is never lost, with no `is` check on the axes type |
 | Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand, ColorStop, StreamingPoint, MinMaxRange, MatShape, XYCurve, BarRange, GaugeBand, DataPoint, LineSegment, Size, Vec3, CubePlane, CubeFaceSelection, AxisEdge3D | replace anonymous/named tuples in public API for discoverability and structural equality (v1.8.0 completed the sweep — no anonymous tuples remain) |
 | Extension methods on value types | `string.EscapeForXml()`, `double[].Percentile()` / `BisectLeft()` / `BisectRight()`, `Color.Modulate()` / `Shade()`, `RingBuffer<T>.Min()` / `Max()` (INumber-constrained) | replaces `*Helper` static classes with discoverable dot-access APIs (v1.8.0: SvgXmlHelper → SvgXml, MathHelpers → SortedArrayExtensions, LightingHelper → Vec3 + ColorExtensions) |
 

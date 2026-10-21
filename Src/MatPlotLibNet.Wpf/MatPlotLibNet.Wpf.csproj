@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <!-- net8.0-windows (platform version 7.0) cannot consume SkiaSharp.Views.WPF's net8.0-windows10.0.19041
@@ -8,7 +8,7 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.18.2</Version>
+    <Version>1.19.0</Version>
     <PackageId>MatPlotLibNet.Wpf</PackageId>
     <Description>WPF chart control for MatPlotLibNet. Renders charts natively via SkiaSharp with optional pan/zoom/3D rotation interaction.</Description>
     <PackageTags>matplotlib;charting;plotting;charts;visualization;wpf;skiasharp;interactive</PackageTags>
@@ -20,7 +20,10 @@
   <ItemGroup>
     <!-- Pinned: SkiaSharp.Views.WPF 3.119.4+ DROPPED net8.0 (supports net9/net10 only), the same cut the Uno
          view took. 3.119.2 is the last 3.x that ships a net8.0-windows10.0.19041 asset; the floating "3.*"
-         resolved to 3.119.4 and fell back to the net48 build. Revisit when this project moves off net8.0. -->
+         resolved to 3.119.4 and fell back to the net48 build. The 4.x line (4.153.1) has the same gap, and the
+         controls derive from SkiaSharp.Views.WPF's SKElement, so the SkiaSharp major is part of this package's
+         contract (see the reason on the reference in MatPlotLibNet.Skia.csproj). Revisit when this project moves
+         off net8.0. -->
     <PackageReference Include="SkiaSharp.Views.WPF" Version="3.119.2" />
   </ItemGroup>
 

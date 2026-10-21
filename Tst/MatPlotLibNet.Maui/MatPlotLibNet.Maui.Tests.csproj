@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit.v3" Version="3.*" />
-    <PackageReference Include="NSubstitute" Version="5.*" />
+    <PackageReference Include="xunit.v3" Version="4.*" />
+    <PackageReference Include="NSubstitute" Version="6.*" />
     <PackageReference Include="Microsoft.Maui.Graphics" Version="10.0.51" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.51" />
   </ItemGroup>

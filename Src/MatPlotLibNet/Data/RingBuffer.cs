@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Data;
 /// oldest evicted by the act of appending.
 ///
 /// <para><b>Ask a question, do not ask for a copy.</b> <see cref="Aggregate{TState}"/> walks what is held and
-/// folds it, the way Ait.Core answers every one of its own reads — one pass, one consistent state, nothing
+/// folds it — one pass, one consistent state, nothing
 /// materialised. <see cref="ToArray"/> exists for the callers that genuinely need an array (a snapshot DTO, a
 /// renderer's point list) and should not be reached for to answer a question about the window. Measured on a
 /// window of 1024, 20 000 reads: asking cost <b>0,5 MB</b>, copying cost <b>625 MB</b>.</para>

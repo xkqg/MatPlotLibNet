@@ -31,7 +31,7 @@ the figure and redraws itself when data arrives, so the figure stays the same ob
 
 ## Interaction
 
-The chart control supports all 10 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), **legend drag (press-and-hold a legend item to reposition; v1.7.2)**, crosshair, and hover tooltip.
+Set `IsInteractive="True"` and the chart control handles all 15 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), reset (double-click, Home or Escape), data cursor (click on a point to pin it), the trendline, level and Fibonacci drawing tools, removing a selected drawing (Delete), crosshair (passive) and hover tooltip. Pointer positions are converted with the range and scale the chart is drawn with, on log and symlog axes too.
 
 Clicking a data point raises `DataPointClicked` with the point's position in the arrays you plotted; on a
 `StateTimelineSeries` it is the segment's position in the list you passed, and hovering a segment shows the event

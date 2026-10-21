@@ -7,25 +7,25 @@ description: "Style C# charts: 30 built-in themes, fonts, colors, line styles, g
 
 > **Install:** `dotnet add package MatPlotLibNet`
 
-## 26 built-in themes
+## 30 built-in themes
 
-| Light themes | Dark themes | Accessibility |
-|---|---|---|
-| `Theme.Default` | `Theme.Dark` | `Theme.ColorBlindSafe` |
-| `Theme.Seaborn` | `Theme.Cyberpunk` | `Theme.HighContrast` |
-| `Theme.Ggplot` | `Theme.Nord` | |
-| `Theme.FiveThirtyEight` | `Theme.Dracula` | |
-| `Theme.Bmh` | `Theme.Monokai` | |
-| `Theme.Solarize` | `Theme.Catppuccin` | |
-| `Theme.Grayscale` | `Theme.Gruvbox` | |
-| `Theme.Paper` | `Theme.OneDark` | |
-| `Theme.Presentation` | `Theme.Neon` | |
-| `Theme.Poster` | | |
-| `Theme.GitHub` | | |
-| `Theme.Minimal` | | |
-| `Theme.Retro` | | |
-| `Theme.MatplotlibClassic` | | |
-| `Theme.MatplotlibV2` | | |
+| Light themes | Dark themes | Accessibility | Operator (control room) |
+|---|---|---|---|
+| `Theme.Default` | `Theme.Dark` | `Theme.ColorBlindSafe` | `Theme.OpsNight` |
+| `Theme.Seaborn` | `Theme.Cyberpunk` | `Theme.HighContrast` | `Theme.OpsPanel` |
+| `Theme.Ggplot` | `Theme.Nord` | | `Theme.OpsWarm` |
+| `Theme.FiveThirtyEight` | `Theme.Dracula` | | `Theme.OpsContrast` |
+| `Theme.Bmh` | `Theme.Monokai` | | |
+| `Theme.Solarize` | `Theme.Catppuccin` | | |
+| `Theme.Grayscale` | `Theme.Gruvbox` | | |
+| `Theme.Paper` | `Theme.OneDark` | | |
+| `Theme.Presentation` | `Theme.Neon` | | |
+| `Theme.Poster` | | | |
+| `Theme.GitHub` | | | |
+| `Theme.Minimal` | | | |
+| `Theme.Retro` | | | |
+| `Theme.MatplotlibClassic` | | | |
+| `Theme.MatplotlibV2` | | | |
 
 See the [Themes cookbook page](themes.md) for visual examples and custom theme building.
 
@@ -101,7 +101,8 @@ Plt.Create()
 
 ## Scientific paper template
 
-The template applies publication-quality defaults: 150 DPI, hidden top and right spines, and tight layout:
+The template applies publication-quality defaults: hidden top and right spines and tight layout. It also records
+150 DPI with the figure, which no export reads yet; the size of a PNG is the template's `width` and `height` in pixels:
 
 ```csharp
 FigureTemplates.ScientificPaper(

@@ -187,10 +187,10 @@ Plt.Create()
         .Bar(defects, counts, s => { s.Color = Color.FromHex("#4472C4"); s.Label = "Count"; })
         .WithSecondaryYAxis(y2 => y2
             .Plot(barCenters, cumPct, s => { s.Color = Color.FromHex("#8B0000"); s.LineWidth = 2; s.Marker = MarkerStyle.Circle; s.Label = "Cumulative %"; })
-            .SetYLim(0, 100)
+            .SetYLim(0, 105)   // room above 100 %: a set limit clips at the frame
             .SetYLabel("Cumulative %"))
         .SetYLabel("Defect Count")
-        .WithLegend())
+        .WithLegend(LegendPosition.Right))   // the empty space between the short tail bars and the line
     .Save("pareto_chart.svg");
 ```
 
@@ -209,6 +209,7 @@ Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
         .Stem(xIdx, scores, s => { s.StemColor = Color.FromHex("#5B9BD5"); })
         .Scatter(xIdx, scores, s => { s.Color = Color.FromHex("#5B9BD5"); s.MarkerSize = 14; s.Marker = MarkerStyle.Circle; })
+        .SetXLim(-0.5, scores.Length - 0.5)   // half a slot either side keeps the end heads whole
         .SetYLim(0, 110)
         .SetYLabel("Score"))
     .Save("lollipop_chart.svg");

@@ -31,6 +31,19 @@
             status.textContent = new Date().toISOString().slice(11, 19) + '  ' + msg;
         }
 
+        // Mounts a chart's SVG markup in host and runs the scripts inside it. A <script> that arrives through
+        // innerHTML never runs, so each one is replaced by a fresh copy, which the browser runs as it is inserted.
+        // Without this the chart is drawn but its interaction script never wires it, and no gesture reaches the hub.
+        function mplMountSvg(host, svgMarkup) {
+            host.innerHTML = svgMarkup;
+            host.querySelectorAll('script').forEach(function (inert) {
+                const live = document.createElementNS(inert.namespaceURI, 'script');
+                for (const attr of inert.attributes) live.setAttribute(attr.name, attr.value);
+                live.textContent = inert.textContent;
+                inert.parentNode.replaceChild(live, inert);
+            });
+        }
+
         async function main() {
             const connection = new signalR.HubConnectionBuilder()
                 .withUrl('/charts-hub')
@@ -42,8 +55,7 @@
 
             connection.on('UpdateChartSvg', (id, svg) => {
                 if (id !== chartId) return;
-                host.innerHTML = svg;
-                window.__mpl_signalr_connection = connection;  // re-expose after DOM swap
+                mplMountSvg(host, svg);
                 log('received UpdateChartSvg (' + svg.length + ' bytes)');
             });
 
@@ -53,7 +65,7 @@
 
             // Fetch the initial SVG and embed it.
             const resp = await fetch('/api/chart/live.svg');
-            host.innerHTML = await resp.text();
+            mplMountSvg(host, await resp.text());
             log('initial SVG loaded — interact with the chart to round-trip events');
         }
 

@@ -18,13 +18,38 @@ Thank you for your interest in contributing to MatPlotLibNet! This guide covers 
 ## Building
 
 ```bash
-dotnet build
+dotnet build MatPlotLibNet.CI.slnf -c Release
 ```
+
+This is the solution filter CI builds. A bare `dotnet build` in the repository root takes the full
+`MatPlotLibNet.slnx`, which also holds the Maui head and so needs the Maui workload installed. A build ends with
+0 warnings and 0 errors.
 
 ## Running Tests
 
+The suites are xunit v3 programs: `dotnet test` finds nothing to run and still reports success, so run each suite
+with `dotnet run`.
+
 ```bash
-dotnet test
+dotnet run --project Tst/MatPlotLibNet/MatPlotLibNet.Tests.csproj -c Release
+```
+
+Each package has a test project of its own under `Tst/`, run the same way. CI runs the core suite, one suite for
+each of ten other packages (Geo, Skia, Blazor, Avalonia, AspNetCore, Interactive, GraphQL, DataFrame, Mcp, Verso)
+and the Wiki suite below. The Wpf, Uno and Maui suites need Windows or a workload and are outside the CI filter, and
+`Tst/MatPlotLibNet.Fidelity` (a comparison with images drawn by matplotlib) is run by no workflow: build it on its own
+when you change how something is drawn. To run one test class, call the built executable with an xunit filter:
+
+```bash
+Tst/MatPlotLibNet/bin/Release/net10.0/MatPlotLibNet.Tests.exe -filter "/*/*/LegendTests/*"
+```
+
+`Tst/MatPlotLibNet.Wiki` compiles every C# block of the wiki, so it needs the wiki cloned beside this repository.
+From the repository's root:
+
+```bash
+git clone https://github.com/xkqg/MatPlotLibNet.wiki.git ../MatPlotLibNet.wiki
+dotnet run --project Tst/MatPlotLibNet.Wiki/MatPlotLibNet.Wiki.Tests.csproj -c Release
 ```
 
 ## Project Structure
@@ -135,6 +160,9 @@ These rules apply to every non-trivial action:
 - A new cookbook page needs three edits, not one: the page itself, a `href` in `docs/cookbook/toc.yml` and a row
   in `docs/cookbook/index.md`. A page missing from the table of contents is a 404 behind a link the index already
   carries; `ReleaseContractTests` fails on it.
+- The roadmap is one table in two places: the wiki's Roadmap page and `ROADMAP.md`. A change that finishes a row
+  moves it from Later to Done in both copies, and its section on the wiki from what is still to come to what is
+  done; the wiki suite fails when the two tables differ.
 - A number a document states about the library is a claim, and a claim that can be checked gets a test. The
   colormap count is held against the registry in every current-state document; the series and indicator counts
   are held against the assembly. Add the test with the number. The class and test counts are the exception: a

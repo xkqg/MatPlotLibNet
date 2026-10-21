@@ -4,7 +4,8 @@
 # Everything CI judges, before the push instead of after it.
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/prepush.ps1
-#   ... -SkipCoverage      the ten suites + gate take ~10 min; skip only for a docs-only change
+#   ... -SkipCoverage      the eleven measured suites + gate take ~10 min; skip only for a docs-only change
+#                          (the wiki suite and the WPF suite run either way)
 #
 # Why this file exists: the checks were being run one at a time and from memory, so the one that had never
 # been run locally -- the docfx site the Pages workflow builds -- was the one that broke. A list that must be
@@ -73,7 +74,7 @@ Step "Build (projects outside the CI filter)" {
     foreach ($p in $outside) { if (Test-Path $p) { Assert-CleanBuild $p } }
 }
 
-# --- 2. The ten suites and the strict per-class gate ---------------------------------------------------------
+# --- 2. The eleven measured suites and the strict per-class gate ---------------------------------------------
 if (-not $SkipCoverage) {
     Step "Tests + strict coverage gate" {
         $ps = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
@@ -98,6 +99,30 @@ Step "WPF suite (Windows only, runs nowhere else)" {
     if ($LASTEXITCODE -ne 0) { throw "the WPF suite failed" }
     $summary = ($wpf -join "`n")
     if ($summary -notmatch "Failed:\s*0") { throw "no clean summary line from the WPF suite" }
+}
+
+# --- 2c. The wiki, compiled ----------------------------------------------------------------------------------
+# Tst/MatPlotLibNet.Wiki compiles every C# block of the wiki against the packages as built. The coverage runner
+# does not run it (it measures no class), so it runs here even with -SkipCoverage: a wiki edit is a docs-only
+# change too. It reads the wiki beside the repository; CI clones the wiki as PUSHED, so a local edit that is not
+# committed is a verdict on text CI never sees, and a wiki commit not yet pushed must go out before the repository.
+Step "Wiki suite (every C# block of the wiki, compiled)" {
+    $wiki = Join-Path (Split-Path -Parent $repoRoot) "MatPlotLibNet.wiki"
+    if (-not (Test-Path (Join-Path $wiki "Home.md"))) {
+        throw "the wiki is not beside the repository, at $wiki -- clone it from the repository's root: git clone https://github.com/xkqg/MatPlotLibNet.wiki.git ../MatPlotLibNet.wiki"
+    }
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $dirty = @(git -C $wiki status --porcelain)
+        if ($dirty.Count -gt 0) { throw "the wiki has $($dirty.Count) uncommitted change(s); CI compiles the wiki as pushed -- commit them first" }
+        $ahead = @(try { git -C $wiki log --oneline "@{u}..HEAD" 2>$null } catch { })
+        if ($ahead.Count -gt 0) { Write-Host "    the wiki is $($ahead.Count) commit(s) ahead of its remote: push the wiki BEFORE the repository" -ForegroundColor Yellow }
+    }
+    $exe = Get-ChildItem "Tst/MatPlotLibNet.Wiki/bin/$Configuration" -Recurse -Filter "MatPlotLibNet.Wiki.Tests.exe" -ErrorAction SilentlyContinue |
+           Select-Object -First 1
+    if (-not $exe) { throw "the wiki suite was not built; nothing to run" }
+    & $exe.FullName | Tee-Object -Variable wikiRun | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw "the wiki suite failed" }
+    if (($wikiRun -join "`n") -notmatch "Failed:\s*0") { throw "no clean summary line from the wiki suite" }
 }
 
 # --- 3. The samples that RUN, actually run -------------------------------------------------------------------

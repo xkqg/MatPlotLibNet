@@ -246,3 +246,302 @@ public class ConstrainedLayoutEngineCoverageTests
         Assert.True(spacing.MarginLeft >= 30);
     }
 }
+
+/// <summary>The right edge reserves what is drawn there, in this order: the secondary Y axis (its tick labels, then
+/// its title) and after it the end-of-line labels. Before 1.19.0 the engine charged a fixed 45 px plus half the
+/// secondary TITLE width (never its tick labels), took the largest right-hand item instead of stacking them, and cut
+/// the margin at 140 px.
+/// <para>Margins are asserted through the plot-area rectangle and the label width measured by the metrics the renderer
+/// uses; the drawn end label itself is pinned with the label drawing.</para></summary>
+public class ConstrainedLayoutEngineTests
+{
+    private const double FigureWidth = 800;
+    private static readonly double[] X = [0.0, 1.0, 2.0];
+
+    private static IReadOnlyList<Rect> PlotAreas(Figure figure, IRenderContext? ctx = null) =>
+        new ChartRenderer().ComputeLayout(figure, ctx ?? new SvgRenderContext()).PlotAreas;
+
+    private static double RightMargin(Figure figure, IRenderContext? ctx = null)
+    {
+        var area = PlotAreas(figure, ctx)[0];
+        return figure.Width - (area.X + area.Width);
+    }
+
+    private static double LabelWidth(Figure figure, string text, IRenderContext? ctx = null, int axes = 0)
+    {
+        ctx ??= new SvgRenderContext();
+        return ctx.MeasureText(text, new DirectLabelMetrics(figure.SubPlots[axes], figure.Theme, ctx).Font).Width;
+    }
+
+    private static FigureBuilder Tight() => Plt.Create().WithSize(FigureWidth, 400).TightLayout();
+
+    // ── (a) a label wider than the old 140 px cap ────────────────────────────────
+
+    [Fact]
+    public void TightLayout_ALabelWiderThan140Px_LiftsTheRightMarginPastTheCap()
+    {
+        string name = new string('W', 30) + " a very long series name for the end";
+        var figure = Tight().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0], s => s.Label = name).WithDirectLabel())
+            .Build();
+
+        double needed = DirectLabelMetrics.Gap + LabelWidth(figure, name);
+        Assert.True(needed > 140, $"precondition: the label band ({needed:F2}) must exceed the old cap");
+        Assert.True(RightMargin(figure) >= needed,
+            $"MarginRight {RightMargin(figure):F2} < gap + label {needed:F2}: the 140 px cap still cuts measured content");
+    }
+
+    // ── (c) 1x2 grid: the gutter takes the left subplot's label band ─────────────
+
+    private static Figure Grid(bool label, string name) => Tight()
+        .AddSubPlot(1, 2, 1, ax =>
+        {
+            ax.Plot(X, [1.0, 2.0, 3.0], s => s.Label = name);
+            if (label) ax.WithDirectLabel();
+        })
+        .AddSubPlot(1, 2, 2, ax => ax.Plot(X, [1.0, 2.0, 3.0]))
+        .Build();
+
+    private static double Gutter(IReadOnlyList<Rect> a) => a[1].X - (a[0].X + a[0].Width);
+
+    [Fact]
+    public void TightLayout_OneByTwoGrid_TheGutterGrowsByTheLeftSubplotsLabelBand()
+    {
+        var labelled = Grid(true, "Left series");
+        var plain = Grid(false, "Left series");
+
+        // The plain gutter already holds the right subplot's Y tick labels; the label band is stacked on it.
+        double growth = Gutter(PlotAreas(labelled)) - Gutter(PlotAreas(plain));
+        double band = DirectLabelMetrics.Gap + LabelWidth(labelled, "Left series");
+        Assert.True(growth >= band, $"gutter grew {growth:F2} px, the label band needs {band:F2}");
+    }
+
+    [Fact]
+    public void TightLayout_OneByTwoGrid_ALongLabelLiftsTheGutterCap()
+    {
+        string name = new string('W', 25) + " long left name";
+        var labelled = Grid(true, name);
+
+        double band = DirectLabelMetrics.Gap + LabelWidth(labelled, name);
+        Assert.True(band > 150, $"precondition: the label band ({band:F2}) must exceed the 150 px gutter cap");
+        Assert.True(Gutter(PlotAreas(labelled)) >= band,
+            $"gutter {Gutter(PlotAreas(labelled)):F2} < label band {band:F2}");
+    }
+
+    // ── (d) dual axis: the label band comes after the secondary tick labels ──────
+
+    [Fact]
+    public void TightLayout_DualAxis_TheEndLabelFitsPastTheSecondaryTickLabels()
+    {
+        var figure = Tight().AddSubPlot(1, 1, 1, ax => ax
+                .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "Revenue").WithDirectLabel()
+                .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0])))
+            .Build();
+        var ctx = new RecordingRenderContext();
+        new ChartRenderer().Render(figure, ctx);
+
+        var area = PlotAreas(figure, ctx)[0];
+        double plotRight = area.X + area.Width;
+        // Right of the plot: the secondary tick labels, and the end label itself (left out here: it is what must fit).
+        var tickLabels = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!)
+            .Where(a => (double)a.position.X > plotRight && (string)a.text != "Revenue").ToList();
+        Assert.NotEmpty(tickLabels);
+        double labelBand = DirectLabelMetrics.Gap + LabelWidth(figure, "Revenue", ctx);
+        foreach (var a in tickLabels)
+        {
+            double tickRight = (double)a.position.X + ctx.MeasureText((string)a.text, (Font)a.font).Width;
+            Assert.True(tickRight + labelBand <= FigureWidth,
+                $"tick label '{a.text}' ends at {tickRight:F2}; the end label after it needs {labelBand:F2} more of {FigureWidth}");
+        }
+    }
+
+    [Fact]
+    public void TightLayout_DualAxisWithTitle_TheEndLabelFitsPastTheSecondaryTitle()
+    {
+        var figure = Tight().AddSubPlot(1, 1, 1, ax => ax
+                .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "Revenue").WithDirectLabel()
+                .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]).SetYLabel("Margin %")))
+            .Build();
+        var ctx = new RecordingRenderContext();
+        new ChartRenderer().Render(figure, ctx);
+
+        var title = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).Single(a => (string)a.text == "Margin %");
+        double titleHeight = ctx.MeasureText("Margin %", (Font)title.font).Height;
+        double labelBand = DirectLabelMetrics.Gap + LabelWidth(figure, "Revenue", ctx);
+        Assert.True((double)title.position.X + titleHeight + labelBand <= FigureWidth,
+            $"secondary title at {(double)title.position.X:F2} leaves no room for the end label band {labelBand:F2}");
+    }
+
+    // ── (e) user and fractional spacing smaller than the label ───────────────────
+
+    [Fact]
+    public void TightLayout_AUserMarginRightSmallerThanTheLabel_IsWidened()
+    {
+        var figure = Tight().WithSubPlotSpacing(s => s with { MarginRight = 5 })
+            .AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0], s => s.Label = "Revenue").WithDirectLabel())
+            .Build();
+
+        Assert.True(RightMargin(figure) >= DirectLabelMetrics.Gap + LabelWidth(figure, "Revenue"));
+    }
+
+    [Fact]
+    public void ConstrainedLayout_FractionalSpacing_ReservesTheLabelBand()
+    {
+        var figure = Plt.Create().WithSize(FigureWidth, 400)
+            .WithSubPlotSpacing(_ => SubPlotSpacing.FromFractions(0.1, 0.02, 0.1, 0.12) with { ConstrainedLayout = true })
+            .AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0], s => s.Label = "Revenue").WithDirectLabel())
+            .Build();
+
+        Assert.True(RightMargin(figure) >= DirectLabelMetrics.Gap + LabelWidth(figure, "Revenue"));
+    }
+
+    // ── (f) nothing new at the right edge: the engine answers as before ──────────
+
+    [Fact]
+    public void TightLayout_ALineEndFlagOnPolarAxes_ChangesNothing()
+    {
+        static Figure Polar(bool flag) => Plt.Create().TightLayout().AddSubPlot(1, 1, 1, ax => ax
+            .PolarPlot([1.0, 2.0, 3.0], [0.0, 1.0, 2.0])
+            .Plot(X, [1.0, 2.0, 3.0], s =>
+            {
+                s.Label = "flagged";
+                if (flag) s.LabelPlacement = MatPlotLibNet.Models.Series.SeriesLabelPlacement.LineEnd;
+            })).Build();
+        var ctx = new SvgRenderContext();
+
+        Assert.Equal(new ConstrainedLayoutEngine().Compute(Polar(false), ctx),
+                     new ConstrainedLayoutEngine().Compute(Polar(true), ctx));
+    }
+
+    // ── the band itself, arm by arm ──────────────────────────────────────────────
+
+    private static RightBand Band(Action<AxesBuilder> configure, IRenderContext? ctx = null)
+    {
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, configure).Build();
+        return new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], ctx ?? new RecordingRenderContext(), figure.Theme, 0);
+    }
+
+    [Fact]
+    public void RightBand_NothingAtTheRightEdge_IsZero()
+    {
+        var band = Band(ax => ax.Plot(X, [1.0, 2.0, 3.0], s => s.Label = "legend"));
+
+        Assert.Equal(new RightBand(0, 0, 0), band);
+        Assert.Equal(0, band.Width);
+    }
+
+    [Fact]
+    public void RightBand_SecondaryTicks_ChargeMarkPadAndTheWidestLabel()
+    {
+        var ctx = new RecordingRenderContext();
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+            .Plot(X, [1.0, 2.0, 3.0])
+            .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]))).Build();
+        var axes = figure.SubPlots[0];
+
+        var band = new ConstrainedLayoutEngine().MeasureRightBand(axes, ctx, figure.Theme, 0);
+
+        // What the secondary part draws: the labels left-aligned at Length + Pad past the edge.
+        new ChartRenderer().Render(figure, ctx);
+        var drawn = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).Where(a => (string)a.text != "" && (int)a.alignment == (int)TextAlignment.Left).ToList();
+        double widest = drawn.Max(a => ctx.MeasureText((string)a.text, (Font)a.font).Width);
+        var ticks = axes.SecondaryYAxis!.MajorTicks;
+        Assert.Equal(ticks.Length + ticks.Pad + widest, band.SecondaryAxis, 6);
+        Assert.Equal(0, band.EndLabels);
+        Assert.Equal(band.SecondaryAxis + ConstrainedLayoutEngine.PadRight, band.Width, 6);
+    }
+
+    [Fact]
+    public void RightBand_SecondaryTickFormatter_IsWhatIsMeasured()
+    {
+        var ctx = new RecordingRenderContext();
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])
+            .WithSecondaryYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]))).Build();
+        figure.SubPlots[0].SecondaryYAxis!.TickFormatter = new WideFormatter();
+        var wide = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
+
+        var ticks = figure.SubPlots[0].SecondaryYAxis!.MajorTicks;
+        double expected = ticks.Length + ticks.Pad
+            + ctx.MeasureText(WideFormatter.Text, ticks.LabelFont(ThemedFontProvider.TickFont(figure.Theme))).Width;
+        Assert.Equal(expected, wide.SecondaryAxis, 6);
+    }
+
+    private sealed class WideFormatter : MatPlotLibNet.Rendering.TickFormatters.ITickFormatter
+    {
+        internal const string Text = "a formatted tick label";
+        public string Format(double value) => Text;
+    }
+
+    [Fact]
+    public void RightBand_HiddenSecondaryTicks_ChargeNothingWithoutATitle()
+    {
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])
+            .WithSecondaryYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]))).Build();
+        var axis = figure.SubPlots[0].SecondaryYAxis!;
+        axis.MajorTicks = axis.MajorTicks with { Visible = false };
+
+        var band = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], new RecordingRenderContext(), figure.Theme, 0);
+
+        Assert.Equal(0, band.SecondaryAxis);
+    }
+
+    [Fact]
+    public void RightBand_SecondaryTitle_SitsWhereThePartDrawsIt_PlusItsHeight()
+    {
+        var ctx = new RecordingRenderContext();
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])
+            .WithSecondaryYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]).SetYLabel("Margin %"))).Build();
+        var axes = figure.SubPlots[0];
+
+        var band = new ConstrainedLayoutEngine().MeasureRightBand(axes, ctx, figure.Theme, 0);
+
+        new ChartRenderer().Render(figure, ctx);
+        var area = PlotAreas(figure, ctx)[0];
+        var title = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).Single(a => (string)a.text == "Margin %");
+        double centre = (double)title.position.X - (area.X + area.Width);
+        double height = ctx.MeasureText("Margin %", (Font)title.font).Height;
+        Assert.Equal(centre + height, band.SecondaryAxis, 6);
+    }
+
+    [Fact]
+    public void RightBand_HiddenSecondaryTicksWithATitle_KeepTheTitleAtTheFixedOffset()
+    {
+        var ctx = new RecordingRenderContext();
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])
+            .WithSecondaryYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]).SetYLabel("Margin %"))).Build();
+        var axis = figure.SubPlots[0].SecondaryYAxis!;
+        axis.MajorTicks = axis.MajorTicks with { Visible = false };
+        axis.LabelStyle = new TextStyle { Pad = 7 };
+
+        var band = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
+
+        double height = ctx.MeasureText("Margin %", axis.LabelStyle.ApplyTo(ThemedFontProvider.LabelFont(figure.Theme))).Height;
+        Assert.Equal(45 + 7 + height, band.SecondaryAxis, 6);
+    }
+
+    [Fact]
+    public void RightBand_EndLabels_ChargeTheGapAndTheWidestLabel()
+    {
+        var ctx = new RecordingRenderContext();
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+            .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "short").WithDirectLabel()
+            .Plot(X, [2.0, 3.0, 4.0], s => s.Label = "the longest name").WithDirectLabel()).Build();
+        var band = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
+
+        var font = ThemedFontProvider.TickFont(figure.Theme);
+        Assert.Equal(0, band.SecondaryAxis);
+        Assert.Equal(DirectLabelMetrics.Gap + ctx.MeasureText("the longest name", font).Width, band.EndLabels, 6);
+        Assert.Equal(band.EndLabels + ConstrainedLayoutEngine.PadRight, band.Width, 6);
+    }
+
+    [Fact]
+    public void RightBand_StacksTheEndLabelsAfterTheSecondaryAxis()
+    {
+        var ctx = new RecordingRenderContext();
+        var both = Band(ax => ax
+            .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "Revenue").WithDirectLabel()
+            .WithSecondaryYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0])), ctx);
+
+        Assert.True(both.SecondaryAxis > 0 && both.EndLabels > 0);
+        Assert.Equal(both.SecondaryAxis + both.EndLabels + ConstrainedLayoutEngine.PadRight, both.Width, 6);
+    }
+}

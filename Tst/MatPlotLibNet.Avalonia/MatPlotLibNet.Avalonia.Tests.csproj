@@ -9,8 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit.v3" Version="3.*" />
-    <PackageReference Include="NSubstitute" Version="5.*" />
+    <PackageReference Include="xunit.v3" Version="4.*" />
+    <PackageReference Include="NSubstitute" Version="6.*" />
     <PackageReference Include="Avalonia" Version="12.*" />
     <PackageReference Include="Avalonia.Skia" Version="12.*" />
     <PackageReference Include="SkiaSharp" Version="3.*" />

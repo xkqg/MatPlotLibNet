@@ -8,10 +8,22 @@ namespace MatPlotLibNet.Models.Series.Streaming;
 
 /// <summary>A streaming line series that accepts data via <see cref="IStreamingSeries.AppendPoint"/>,
 /// backed by a ring buffer. Visual properties mirror <see cref="LineSeries"/>.</summary>
-public sealed class StreamingLineSeries : StreamingSeries, IHasColor
+public sealed class StreamingLineSeries : StreamingSeries, IHasColor, IHasLabelPlacement
 {
     /// <summary>Line color. When <c>null</c> the theme's prop-cycler assigns one.</summary>
     public Color? Color { get; set; }
+
+    /// <inheritdoc />
+    public SeriesLabelPlacement LabelPlacement { get; set; } = SeriesLabelPlacement.Legend;
+
+    /// <inheritdoc />
+    /// <remarks>One snapshot of the ring buffer: the points the next render draws, never x and y from two
+    /// different moments.</remarks>
+    LinePoints IHasLabelPlacement.LinePoints()
+    {
+        var snapshot = CreateSnapshot();
+        return new(snapshot.XData, snapshot.YData);
+    }
 
     /// <summary>Line dash pattern. Default <see cref="Styling.LineStyle.Solid"/>.</summary>
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;

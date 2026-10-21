@@ -38,7 +38,8 @@ sf.Dispose();
 ## Two units on one live chart (secondary Y-axis)
 
 A live panel usually shows two values that do not share a scale, such as a rate and a volume, or a
-count and a size. Stream one value on each axis and add a legend so that both are named.
+count and a size. Stream one value on each axis and name both: in a legend, as here, or at the end of each line
+(see [Direct labels and axis colours](direct-labels-and-axis-colours.md#a-live-chart)).
 
 ```csharp
 StreamingLineSeries? delivered = null;
@@ -64,9 +65,8 @@ traffic!.AppendPoint(t, kbPerSecond);
 ```
 
 > `SecondaryAxisBuilder.StreamingPlot` returns the series, not the builder. You need that series
-> object to append the live data. Give the right-hand axis room with
-> `WithSubPlotSpacing(sp => sp with { MarginRight
-> = 100 })`. Otherwise its tick labels fall outside the figure and the browser clips them.
+> object to append the live data. The figure makes room on the right for the right-hand axis's tick labels and
+> title by itself, with or without `TightLayout()`.
 
 ## Streaming candlestick with Bollinger Bands
 

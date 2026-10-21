@@ -19,8 +19,11 @@ internal sealed class HexbinSeriesRenderer : SeriesRenderer<HexbinSeries>
     {
         if (series.X.Length == 0) return;
 
-        double xMin = Transform.DataXMin, xMax = Transform.DataXMax;
-        double yMin = Transform.DataYMin, yMax = Transform.DataYMax;
+        // The hex grid covers the interval shown; on a reversed axis the transform draws it the other way round.
+        var xs = new Range1D(Transform.DataXMin, Transform.DataXMax).Interval;
+        var ys = new Range1D(Transform.DataYMin, Transform.DataYMax).Interval;
+        double xMin = xs.Lo, xMax = xs.Hi;
+        double yMin = ys.Lo, yMax = ys.Hi;
 
         var bins = HexGrid.ComputeHexBins(series.X, series.Y, xMin, xMax, yMin, yMax, series.GridSize);
 

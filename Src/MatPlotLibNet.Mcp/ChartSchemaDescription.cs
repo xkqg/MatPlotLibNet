@@ -20,7 +20,8 @@ internal sealed class ChartSchemaDescription
         ["xData"] = "x values; must be the same length as yData",
         ["yData"] = "y values; must be the same length as xData",
         ["color"] = "a CSS4 colour name (\"steelblue\") or #RRGGBB",
-        ["label"] = "the name this series gets in the legend",
+        ["label"] = "the name of this series: a legend entry, unless labelPlacement says lineEnd",
+        ["labelPlacement"] = "Legend (the default) or LineEnd; LineEnd writes the label at the end of a line series, in its colour, instead of in the legend",
     };
 
     private readonly ChartTypeCatalog _catalog;

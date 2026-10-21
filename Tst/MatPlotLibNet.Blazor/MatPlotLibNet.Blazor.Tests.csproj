@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit.v3" Version="3.*" />
+    <PackageReference Include="xunit.v3" Version="4.*" />
     <PackageReference Include="bunit" Version="2.*" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.*" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.*" />

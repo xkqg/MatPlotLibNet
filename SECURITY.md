@@ -4,8 +4,10 @@
 
 | Version | Supported          |
 |---------|--------------------|
-| 0.3.x   | :white_check_mark: |
-| < 0.3   | :x:                |
+| 1.19.x  | :white_check_mark: |
+| < 1.19  | :x:                |
+
+Security fixes land in the newest release.
 
 ## Reporting a Vulnerability
 

@@ -5,7 +5,7 @@ MatPlotLibNet is a charting library for C#, .NET 10 and .NET 8, inspired by
 straight from your server code. It does not need a JavaScript framework, a WebView or a hosted service.
 
 It has a fluent API and it works with dependency injection. It ships with 148 colormaps, 30 themes, 13 map
-projections with embedded Natural Earth data, LaTeX-style MathText, text in any script, O(1) streaming with 53
+projections with embedded Natural Earth data, LaTeX-style MathText, text in any script, O(1) streaming with 58
 technical indicators, a control room (`Plt.OpsDashboard()` — KPI tiles, state timelines, one shared trend window),
 and an MCP server so an AI agent can draw with it. Charts render natively in Blazor, WPF, MAUI, Avalonia, Uno and
 ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for Angular, React and Vue.
@@ -17,6 +17,16 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 [![GitHub stars](https://img.shields.io/github/stars/xkqg/MatPlotLibNet)](https://github.com/xkqg/MatPlotLibNet)
 
 ## Where this is going
+
+**1.19.0** is for charts with more than one line and more than one axis. `WithDirectLabel()` writes a line's name at
+its end, in the line's own colour, instead of in the legend, and `SetYAxisColor` / `SetXAxisColor` colour an axis to
+match its line in one call, on the left, bottom, right and top axis alike. The right-hand and top axes now follow their
+own tick settings, get room of their own in the layout and keep their colours through JSON, and a line on them hides
+when its legend entry is clicked. On a server-interactive chart and in the WPF, Avalonia and Uno controls, hover,
+selection, zoom, pan and the data cursor report the values the reader sees, on log axes too, and an axis limit you
+set, reversed or not, is now exactly the range drawn. Every new call
+is shown in code on the wiki's [examples page](https://github.com/xkqg/MatPlotLibNet/wiki/Examples#1190), and every C#
+example in the wiki now compiles.
 
 **1.18.2** lets a replay application work with a state timeline. Hovering a segment names the event and the
 stretch it covers, clicking it tells your application which segment it was, and a reference line can be moved
@@ -33,24 +43,16 @@ behind it was started once when the figure was built, so asking for a calmer cha
 thirty frames a second. A clustermap now also draws the row and column labels it is given, each beside the row
 or column it names, wherever the clustering puts it.
 
-**1.18** draws charts inside a [Verso](https://www.versonotebooks.com/) notebook. Verso is the open-source
-notebook built to replace Polyglot Notebooks, and `MatPlotLibNet.Verso` is an extension you install from its
-Extensions panel. After that a cell that ends on a figure — or on the builder that makes one, without
-`.Build()` — shows the chart instead of a line of type names. The chart fills the width of the cell, and one
-taller than the cell can show gets a scroll box rather than being squeezed into a size nobody chose. The package
-carries the extension and nothing else on purpose: a notebook loads an extension in its own context, so a second
-copy of the charting library shipped alongside would be a different `Figure` from the one the cell made.
-`MatPlotLibNet.Notebooks` stands still at the version it reached; the runtime under Polyglot Notebooks has ended,
-and notebook work belongs in Verso now.
-
 After that, releases follow what the community needs: bug fixes, documentation, and whatever comes up in real use.
 Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
 [Issue](https://github.com/xkqg/MatPlotLibNet/issues); that is what decides the next release. Every release, with
-its migration notes, is listed in the [CHANGELOG](CHANGELOG.md).
+its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadmap](ROADMAP.md) says what is done,
+what is still to come and what is left out on purpose, with a section for each row on the
+[wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (706 classes, at
-99.6 % line / 97.5 % branch) across 11,757 tests. The test suite verifies rendering against matplotlib
-pixel-fidelity fixtures.
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (729 classes, at
+99.6 % line / 97.9 % branch) across 12,441 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+rendering with reference images drawn by matplotlib; it is not part of the CI run.
 
 ---
 
@@ -62,6 +64,9 @@ pixel-fidelity fixtures.
 - **[Cookbook](https://xkqg.github.io/MatPlotLibNet/cookbook/)** — copy-paste examples with rendered output
 - **[Playground](https://xkqg.github.io/MatPlotLibNet/playground/)** — try charts live in the browser
 - **[API Reference](https://xkqg.github.io/MatPlotLibNet/api/)** — generated from the XML docs
+- **[Roadmap](ROADMAP.md)** — what is done and what is still to come, in the order each row needs the one above it;
+  the [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap) says what each row takes and what is left out
+  on purpose
 - **[Benchmarks](BENCHMARKS.md)** · **[Coverage policy](docs/COVERAGE.md)** · **[CHANGELOG](CHANGELOG.md)**
 
 ---
@@ -80,7 +85,7 @@ pixel-fidelity fixtures.
 | **MatPlotLibNet.Maui** | `dotnet add package MatPlotLibNet.Maui` | Native `MplChartView` via Microsoft.Maui.Graphics |
 | **MatPlotLibNet.Avalonia** | `dotnet add package MatPlotLibNet.Avalonia` | Native `MplChartControl` for Avalonia 12 — Skia backend, optional local interaction |
 | **MatPlotLibNet.Uno** | `dotnet add package MatPlotLibNet.Uno` | Native `MplChartElement` for Uno Platform (WinUI 3 / Android / iOS / macCatalyst) |
-| **MatPlotLibNet.Wpf** | `dotnet add package MatPlotLibNet.Wpf` | Native WPF `MplChartControl` via SkiaSharp — all 9 interaction modifiers — and `MplStreamingChartControl` for live data; your project targets `netX.0-windows10.0.19041.0` |
+| **MatPlotLibNet.Wpf** | `dotnet add package MatPlotLibNet.Wpf` | Native WPF `MplChartControl` via SkiaSharp — all 15 interaction modifiers — and `MplStreamingChartControl` for live data; your project targets `netX.0-windows10.0.19041.0` |
 | **MatPlotLibNet.Geo** | `dotnet add package MatPlotLibNet.Geo` | 13 map projections, GeoJSON parser, Natural Earth 110m data, geographic polygons |
 | **[MatPlotLibNet.Verso](https://www.nuget.org/packages/MatPlotLibNet.Verso)** | Verso → Extensions panel | A chart inside a Verso notebook cell, drawn as SVG ([cookbook](docs/cookbook/verso.md)) |
 | **MatPlotLibNet.Notebooks** | `#r "nuget: MatPlotLibNet.Notebooks"` | Inline SVG in Polyglot / Jupyter notebooks. Microsoft has ended Polyglot Notebooks and .NET Interactive, which this package builds on, so existing notebooks keep working but nothing new is coming — for new work use **MatPlotLibNet.Verso** |
@@ -130,17 +135,17 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **Control room** — `Plt.OpsDashboard()` builds one operator screen: KPI tiles across the top, state timelines under them, a topology panel showing which service calls which (`AddTopology`), and a shared trend panel. All of them use one time window that the caller supplies; the library never reads the wall clock. A tile carries a `Target`, a multi-line `Caption` that wraps, an inline sparkline, and an `OpsCondition` saying what it is in. That condition has two axes on purpose: `OpsSeverity` (normal, warning, critical) is the only one that compares, and `OpsVisibility` (observed, unknown, shelved) says whether the reading can be believed and whether someone silenced it — a silent source is not a degraded one, and a muted alarm is not a solved problem. `OpsCondition.RollUp` reads a set of children the way an operator does: the worst child that can be seen decides the colour, the unseen and the muted are counted. `WithEventMarker` puts a deploy or an incident on every panel that has a clock. `Theme.Alarm` defines the reserved alarm colours, and four operator backgrounds ship with it. `BulletGraphSeries` replaces the radial gauge.
 
-**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp. They need no browser, no WebView and no SignalR. There are 9 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), crosshair (passive), hover tooltip. The controls also have a toolbar state model, view history (back/forward), a data cursor (click-to-pin), tick mirroring, and tight margins. Clicking a data point raises `DataPointClicked` with the point the reader clicked — series, value, pixel position and axes — so an application can open a detail panel or select a row beside the chart. A server-driven chart reports the same click to its `OnDataCursor` handler.
+**Native UI controls** — [`MplChartControl`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Avalonia 12 and [`MplChartElement`](https://github.com/xkqg/MatPlotLibNet/wiki/Interactive-Controls) for Uno Platform render charts natively via SkiaSharp. They need no browser, no WebView and no SignalR. There are 15 interaction modifiers: pan (drag), zoom (scroll), 3D rotation (right-drag), rectangle zoom (Ctrl+drag), brush select (Shift+drag), span select (Alt+drag), legend toggle (click), reset (double-click, Home or Escape), data cursor (click on a point to pin it), the trendline, level and Fibonacci drawing tools, removing a selected drawing (Delete), crosshair (passive) and hover tooltip. The controls also have a toolbar state model, view history (back/forward), tick mirroring, and tight margins. Clicking a data point raises `DataPointClicked` with the point the reader clicked — series, value, pixel position and axes — so an application can open a detail panel or select a row beside the chart. A server-driven chart reports the same click to its `OnDataCursor` handler.
 
 **MathText** — LaTeX-like inline math in any label or title: `$\alpha^{2}$`, `$\frac{a}{b}$`, `$\sqrt{x}$`, `$\hat{x}$`, `$\mathbf{F}$`, `$\mathbb{R}$`. It supports 96 symbol mappings (Greek, math operators, arrows, relations, set/logic, blackboard bold), fractions, square roots, accents, font variants, spacing, and scaling delimiters.
 
 **International text** — labels, titles and legend entries in any script. Arabic and Hebrew work with the bundled font: the Unicode bidi algorithm (UAX #9, all 861,948 conformance cases) finds the reading direction, HarfBuzz shapes each run, and the runs are laid out in visual order. `SkiaFonts.Register(path)` adds a font file for Devanagari, Thai, Chinese and other scripts; the MCP server takes them from `MATPLOTLIBNET_FONTS`. The same shaping pass produces the text measurement, the SVG glyph outlines and the PNG pixels.
 
-**3-D charts** — 12 series types: Surface, Scatter3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). The 3-D support includes a full `Projection3D` pipeline, a `DepthQueue3D` painter's algorithm, shading from `Vec3.FaceNormal` plus the `Color.Shade()`/`Color.Modulate()` extension methods, `Svg3DRotationScript` for client-side rotation with depth re-sorting, camera-derived back faces (`CubeFaceSelection`: the panes, cube edges, wall grids and tick rows follow the camera at any azimuth, both server-side and during a drag), a configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
+**3-D charts** — 12 series types: Surface, Wireframe, Scatter3D, Stem3D, Bar3D, PlanarBar3D, Line3D, Trisurf3D (Delaunay), Contour3D (marching squares), Quiver3D (vector field), Voxels (face-culled cubes), Text3D (annotations). The 3-D support includes a full `Projection3D` pipeline, a `DepthQueue3D` painter's algorithm, shading from `Vec3.FaceNormal` plus the `Color.Shade()`/`Color.Modulate()` extension methods, `Svg3DRotationScript` for client-side rotation with depth re-sorting, camera-derived back faces (`CubeFaceSelection`: the panes, cube edges, wall grids and tick rows follow the camera at any azimuth, both server-side and during a drag), a configurable `Pane3DConfig` (floor/wall colors), and 3D colorbar support.
 
 **Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries` and `StreamingCandlestickSeries` are backed by `RingBuffer<T>` and add points with `AppendPoint(x, y)`. A `RingBuffer<T>` is a fixed-capacity circular sequence of any type (64 M appends/s, and it never allocates on append). `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 11 streaming indicators (SMA, EMA, RSI, Bollinger, MACD, OBV, ATR, Stochastic, WilliamsR, CCI, VWAP) attach automatically to candlestick data. Streaming controls exist for WPF, Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. The library includes an SVG diff engine to save bandwidth, and an Rx `IObservable<T>` adapter.
 
-**Geographic projections** — the `MatPlotLibNet.Geo` package has 5 map projections (PlateCarree, Mercator, Robinson, Orthographic, LambertConformal), a GeoJSON parser, embedded Natural Earth 110m data, and `GeoPolygonSeries` for coastlines, borders and choropleths. A symlog axis scale handles data that spans positive and negative ranges.
+**Geographic projections** — the `MatPlotLibNet.Geo` package has 13 map projections (PlateCarree, Mercator, TransverseMercator, Robinson, Orthographic, LambertConformal, AlbersEqualArea, AzimuthalEquidistant, EqualEarth, Mollweide, Natural Earth, Sinusoidal, Stereographic), a GeoJSON parser, embedded Natural Earth 110m data, and `GeoPolygonSeries` for coastlines, borders and choropleths. A symlog axis scale handles data that spans positive and negative ranges.
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover, the clicked data point). The events form a hierarchy of stacked records, they merge on their own, and the server sends each caller its own hover response.
 

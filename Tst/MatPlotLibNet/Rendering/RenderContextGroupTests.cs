@@ -40,7 +40,7 @@ public class RenderContextGroupTests
     {
         IRenderContext ctx = new NullRenderContext();
 
-        ctx.DrawTextWithLevel("Ait.Cortex", new Point(0, 0), new Font { Size = 12 }, level: 2); // should not throw
+        ctx.DrawTextWithLevel("Svc.Ingest", new Point(0, 0), new Font { Size = 12 }, level: 2); // should not throw
     }
 
     /// <summary>Verifies that SvgRenderContext.BeginGroup emits a g element.</summary>

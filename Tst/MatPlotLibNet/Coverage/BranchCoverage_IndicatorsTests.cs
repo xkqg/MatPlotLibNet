@@ -84,8 +84,8 @@ public class BranchCoverage_IndicatorsTests
         Assert.True(rsi.ProcessedCount >= 15);
     }
 
-    /// <summary>LegendToggleEvent.ApplyTo line 21 — `SeriesIndex &lt; 0 || SeriesIndex &gt;= Count`
-    /// out-of-range arm. Index = 99 on a 1-series figure exercises the early-return.</summary>
+    /// <summary>LegendToggleEvent.ApplyTo — an index past the last slot finds no series. Index = 99 on a
+    /// 1-series figure exercises that arm.</summary>
     [Fact]
     public void LegendToggleEvent_OutOfRangeIndex_NoOp()
     {
@@ -97,7 +97,7 @@ public class BranchCoverage_IndicatorsTests
         Assert.True(fig.SubPlots[0].Series[0].Visible);   // unchanged
     }
 
-    /// <summary>LegendToggleEvent.ApplyTo line 21 — second arm `SeriesIndex &lt; 0`.</summary>
+    /// <summary>LegendToggleEvent.ApplyTo — the `SeriesIndex &lt; 0` arm.</summary>
     [Fact]
     public void LegendToggleEvent_NegativeIndex_NoOp()
     {

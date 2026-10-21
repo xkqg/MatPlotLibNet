@@ -18,6 +18,9 @@ public class Axis
 
     public double? Max { get; set; }
 
+    /// <summary>True when <see cref="Min"/> or <see cref="Max"/> is set: that side is drawn exactly as set.</summary>
+    internal bool HasLimit => Min.HasValue || Max.HasValue;
+
     public AxisScale Scale { get; set; } = AxisScale.Linear;
 
     /// <summary>Linear threshold for <see cref="AxisScale.SymLog"/>. Values within

@@ -44,6 +44,54 @@ public class Range1DTests
         Assert.Equal(9.0, range.Hi);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // WithExplicitLimits — a set side is exact, an unset side keeps the fold
+    // ──────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void WithExplicitLimits_BothSidesSet_NarrowerThanTheFold_AreExact()
+    {
+        var range = new Range1D(1, 3).WithExplicitLimits(new Axis { Min = 1.5, Max = 2.5 });
+        Assert.Equal(new Range1D(1.5, 2.5), range);
+    }
+
+    [Fact]
+    public void WithExplicitLimits_NoSideSet_KeepsTheFold()
+    {
+        Assert.Equal(new Range1D(1, 3), new Range1D(1, 3).WithExplicitLimits(new Axis()));
+    }
+
+    [Fact]
+    public void WithExplicitLimits_OnlyMaxSet_KeepsTheFoldedMin()
+    {
+        Assert.Equal(new Range1D(1, 2), new Range1D(1, 3).WithExplicitLimits(new Axis { Max = 2 }));
+    }
+
+    [Fact]
+    public void WithExplicitLimits_OnlyMinSet_AboveAllTheData_PutsTheMaxOneUnitAbove()
+    {
+        Assert.Equal(new Range1D(5, 6), new Range1D(1, 3).WithExplicitLimits(new Axis { Min = 5 }));
+    }
+
+    [Fact]
+    public void WithExplicitLimits_OnlyMaxSet_BelowAllTheData_PutsTheMinOneUnitBelow()
+    {
+        Assert.Equal(new Range1D(-1, 0), new Range1D(1, 3).WithExplicitLimits(new Axis { Max = 0 }));
+    }
+
+    [Fact]
+    public void WithExplicitLimits_OnlyMaxSet_NoData_PutsTheMinOneUnitBelow()
+    {
+        Assert.Equal(new Range1D(4, 5), Range1D.Empty.WithExplicitLimits(new Axis { Max = 5 }));
+    }
+
+    [Fact]
+    public void WithExplicitLimits_BothSetAndInverted_AreKeptAsSet()
+    {
+        // Both sides are the caller's: nothing to correct.
+        Assert.Equal(new Range1D(9, 1), new Range1D(1, 9).WithExplicitLimits(new Axis { Min = 9, Max = 1 }));
+    }
+
     [Fact]
     public void Merge_ExpandsRunningRange_WhenSeriesPushesBoundsOutward()
     {

@@ -204,6 +204,14 @@ public class ChartLayoutTests
     }
 
     [Fact]
+    public void Create_NullFigureWithALayoutResult_Throws()
+    {
+        var layoutResult = new LayoutResult([new Rect(0, 0, 100, 50)], []);
+        var ex = Assert.Throws<ArgumentNullException>(() => ChartLayout.Create(null!, layoutResult));
+        Assert.Equal("figure", ex.ParamName);
+    }
+
+    [Fact]
     public void Create_NullPlotAreas_Throws()
     {
         var figure = Plt.Create().Build();

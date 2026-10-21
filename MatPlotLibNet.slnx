@@ -31,6 +31,7 @@
     <Project Path="Tst/MatPlotLibNet.GraphQL/MatPlotLibNet.GraphQL.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.DataFrame/MatPlotLibNet.DataFrame.Tests.csproj" />
     <Project Path="Tst/MatPlotLibNet.Mcp/MatPlotLibNet.Mcp.Tests.csproj" />
+    <Project Path="Tst/MatPlotLibNet.Wiki/MatPlotLibNet.Wiki.Tests.csproj" />
   </Folder>
   <Folder Name="/Samples/">
     <Project Path="Samples/MatPlotLibNet.Samples.Console/MatPlotLibNet.Samples.Console.csproj" />

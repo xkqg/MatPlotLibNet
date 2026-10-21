@@ -95,6 +95,35 @@ public class SignalRInteractionTests : IAsyncDisposable
         await registry.UnregisterAsync("pan-1");
     }
 
+    /// <summary>The page's pan payload, as its script writes it: an autoscaled axes has no limits to shift, so the page
+    /// sends the view it moved (<c>inView</c>) with the step, and the hub's deserialiser hands it to
+    /// <see cref="PanEvent.InView"/>, from which the pan pins and moves the range.</summary>
+    [Fact]
+    public async Task OnPan_WithThePagesInView_PansAnAutoscaledAxes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var registry = _host.Services.GetRequiredService<FigureRegistry>();
+        var figure = Plt.Create().Plot([1.0, 2.0, 3.0], [10.0, 40.0, 20.0]).Build();
+        registry.Register("pan-auto", figure);
+
+        var (conn, tcs) = await ConnectAndWatchAsync("pan-auto", ct);
+
+        await conn.InvokeAsync(nameof(ChartHub.OnPan), new
+        {
+            chartId = "pan-auto", axesIndex = 0, dxData = -0.25, dyData = 2.5,
+            inView = new { xMin = 0.9, xMax = 3.1, yMin = 8.5, yMax = 41.5 },
+        }, cancellationToken: ct);
+
+        _ = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        Assert.Equal(0.65, figure.SubPlots[0].XAxis.Min!.Value, 12);
+        Assert.Equal(2.85, figure.SubPlots[0].XAxis.Max!.Value, 12);
+        Assert.Equal(11.0, figure.SubPlots[0].YAxis.Min!.Value, 12);
+        Assert.Equal(44.0, figure.SubPlots[0].YAxis.Max!.Value, 12);
+
+        await conn.DisposeAsync();
+        await registry.UnregisterAsync("pan-auto");
+    }
+
     [Fact]
     public async Task OnReset_RestoresFigureLimits_AndPublishesUpdatedSvg()
     {

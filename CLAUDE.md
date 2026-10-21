@@ -5,9 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All contributor rules — versions, TDD, class design, dead-code deletion, git workflow, CHANGELOG, the
 documentation sweep — live in [**CONTRIBUTING.md**](CONTRIBUTING.md). Read it before any commit. This file
 covers only what that document does not: the commands that actually work, and the shape of the code.
-**Never add a `Co-Authored-By` line** — not to a commit, not to a doc, not to code (CONTRIBUTING.md:121). It overrides any
+**Never add a `Co-Authored-By` line** — not to a commit, not to a doc, not to code (CONTRIBUTING.md:132). It overrides any
 attribution default the tooling suggests.
-CONTRIBUTING.md's "Running Tests" section still says `dotnet test` — that is the dead signal described below.
 Deeper design notes: `Src/MatPlotLibNet/ARCHITECTURE.md` (there is no root-level ARCHITECTURE.md).
 
 ## Commands
@@ -33,14 +32,32 @@ tools/prepush.ps1                        # everything CI judges, incl. the docfx
 **Run coverage through native PowerShell, never `bash tools/coverage/run.sh`** — under Git Bash the
 dotnet-coverage profiler fails to attach ("Profiler was not initialized") and measures nothing.
 
+The `push-gate` agent (`.claude/agents/push-gate.md`) runs `tools/prepush.ps1` and reports ready / not ready; it
+never commits or pushes. CI builds with the `10.0.x` SDK at `dotnet-quality: preview` (`ci.yml`).
+
 ## The two solution views, and why a green build can still be red
 
-- `MatPlotLibNet.slnx` — everything (18 `Src/` folders: 15 packages + 3 npm binding folders; 15 test projects
-  incl. `Fidelity`, `Wpf`, `Uno`, `Maui`, which CI does not run).
-- `MatPlotLibNet.CI.slnf` — a **subset** (22 projects). CI builds this and runs **11** suites. Wpf, Uno and
-  Maui are outside it: they need Windows or a workload.
-- `docs/docfx.json` — loads **15** csproj, including Uno (net8.0) and Wpf (net8.0-windows), which are *not* in
-  the filter. A project that builds in CI can still red the Pages job. `tools/prepush.ps1` runs docfx locally.
+- `MatPlotLibNet.slnx` — the working set: the 15 packages, 15 test projects (incl. `Wpf`, `Uno`, `Maui`, which CI
+  does not run), 7 samples, the benchmarks. It does **not** hold the three npm binding folders in `Src/`, nor
+  `Tst/MatPlotLibNet.Fidelity` — a matplotlib-reference image-diff suite that no solution, workflow or coverage
+  run builds or runs (it builds clean on its own: `dotnet build` on its csproj, 0 warnings).
+- `MatPlotLibNet.CI.slnf` — a **subset** (23 projects: 11 packages, their 11 test projects and the wiki suite). CI
+  builds this and runs **12** suites. Wpf, Uno and Maui are outside it (Windows or a workload), and so is the frozen
+  Notebooks.
+- **The wiki is compiled by a test.** `Tst/MatPlotLibNet.Wiki` compiles every `csharp` block of the wiki against
+  the packages as built (warnings fail it) and holds the shape of the wiki's `Examples.md`. It reads the wiki
+  **beside the repository** — `git clone https://github.com/xkqg/MatPlotLibNet.wiki.git ../MatPlotLibNet.wiki` —
+  and fails with that command when the clone is missing. ci.yml build-and-test clones it first; the coverage job
+  and publish.yml do not run the suite (publish checks out the release tag, and the wiki has no tags). A marker
+  comment on the line above a block steers it: `<!-- example: name -->`, `<!-- continues: name -->`,
+  `<!-- a C# cell of a notebook -->`, `<!-- needs: Wpf -->` (or Uno, Maui); any other comment there is refused.
+- `docs/docfx.json` is the only docfx config Pages and `prepush.ps1` build; the `docfx.json` in the repo root (with
+  the root `articles/`, `api/` and `toc.yml` it points at) is an older config that no workflow, script or contract
+  test reads. The live one loads **14** csproj, including Uno, Wpf and Notebooks, which are *not* in the CI filter
+  (Mcp is built as net10.0, Wpf as net8.0-windows10.0.19041.0, the rest as net8.0). A project that builds in CI can
+  still red the Pages job. `tools/prepush.ps1` runs docfx locally.
+- Pages also publishes `Samples/MatPlotLibNet.Playground` (Blazor WASM), and `Tst/MatPlotLibNet` references it
+  (`MatPlotLibNet.Tests.csproj`), so building the core suite builds the Playground too.
 - The runners are **ubuntu-latest**. A change to a TFM, a csproj property or `docfx.json` has no local verdict:
   read it against the runner's OS instead of pushing a probe.
 
@@ -71,6 +88,16 @@ produces. `MatPlotLibNet.Skia` adds PNG/PDF/GIF and installs a glyph-path provid
 when its assembly loads — which silently changes core's own output from `<text>` to `<path>` outlines. Render
 tests that assert on `>label<` assume the no-Skia default.
 
+**A series lives in more than one file.** The class (`Models/Series/<family>/`) serialises and draws itself —
+`ToSeriesDto()`, `internal static FromSeriesDto(Axes, SeriesDto)`, `Accept(ISeriesVisitor, RenderArea)`; see
+`XY/LineSeries.cs` — but three central places still need a line: a `Visit(X, RenderArea)` overload on
+`ISeriesVisitor` with its drawing in `SvgSeriesRenderer` (the only implementor in `Src/`), a
+`Register("x", X.FromSeriesDto)` in `SeriesRegistry.RegisterDefaults`, and the `Axes` verb that constructs it.
+Adding one turns `SeriesCountContractTests` red on purpose: bump `PublishedSeriesTypes` and the count in every
+document that states it. The tests keep their own lists: add the instance to `AllSeriesTests.AllSeriesInstances`
+(with its overload on the test-side `TestSeriesVisitor`) and the discriminator to the `ChartSerializerRoundTripTests`
+Theory — `docs/COVERAGE.md` § "Cross-cutting Theory pattern": extend those, do not clone a per-type test file.
+
 **Colours and colormaps are three classes, not one.** `Colors` is a 40-name curated palette, `Css4Colors` the
 full 148-name CSS4 table, and the maps live on `ColorMaps` (9 named + `Get(name)`), `DivergingColorMaps`,
 `SequentialColorMaps`, `QualitativeColorMaps`, `CyclicColorMaps`. A reversed map is `new ReversedColorMap(map)`
@@ -87,6 +114,14 @@ the workflows, `docs/docfx.json`, `docs/index.md`, the cookbook pages, the cover
 fails when a hand-kept list drifts — every package must carry the same version, be built and pushed by some
 workflow, be measured by the coverage gate, and be linked from the docs. Adding a package means editing all of
 those lists; the test tells you which one you forgot.
+
+**Tests that fail only on the ubuntu runner.** `ChartServices` holds process-global mutable statics (`Serializer`,
+`Renderer`, `SvgRenderer`, `FontMetrics`, `GlyphPathProvider`) that every render test reads. A test that swaps one
+must join a `*GlobalState` collection (`ChartServicesGlobalStateCollection`, `DisableParallelization = true`), or it
+races the render tests under the runner's slower scheduling and never on a fast Windows box. Fixture data has to be
+platform-deterministic too: no `Math.Sin/Cos/Exp/Log/Pow` in byte-compared goldens (Windows and glibc differ by one
+ulp), no `new Uri("/x")` (Linux accepts it, Windows rejects it), `InvariantCulture` for anything formatted.
+`MPL_REGEN_GOLDEN=1` makes `ChartSerializerGoldenCorpusTests` write its golden files instead of asserting on them.
 
 ## Code graph (roslyn-codelens)
 

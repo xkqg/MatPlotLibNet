@@ -8,9 +8,15 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a line chart series connecting data points with a line.</summary>
-public sealed class LineSeries : XYSeries, IHasColor
+public sealed class LineSeries : XYSeries, IHasColor, IHasLabelPlacement
 {
     public Color? Color { get; set; }
+
+    /// <inheritdoc />
+    public SeriesLabelPlacement LabelPlacement { get; set; } = SeriesLabelPlacement.Legend;
+
+    /// <inheritdoc />
+    LinePoints IHasLabelPlacement.LinePoints() => new(XData, YData);
 
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 

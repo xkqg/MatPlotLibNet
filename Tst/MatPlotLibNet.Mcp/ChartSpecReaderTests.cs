@@ -134,12 +134,39 @@ public class ChartSpecReaderTests
     [InlineData("""{"type":"line","xData":[1,2],"yData":[1,2],"lineStyle":"dotty"}""", "dotty", "Dotted")]
     [InlineData("""{"type":"bar","categories":["a","b"],"values":[1,2],"orientation":"diagonal"}""", "diagonal", "Horizontal")]
     [InlineData("""{"type":"step","xData":[1,2],"yData":[1,2],"stepPosition":"middle"}""", "middle", "Mid")]
+    [InlineData("""{"type":"line","xData":[1,2],"yData":[1,2],"labelPlacement":"end"}""", "end", "LineEnd")]
     public void AMisspelledSeriesEnumValue_IsRefusedWithTheAcceptedValues(string series, string wrong, string accepted)
     {
         var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(series))));
 
         Assert.Contains($"'{wrong}'", refusal.Message);
         Assert.Contains(accepted, refusal.Message);
+    }
+
+    [Fact]
+    public void AMisspelledPlacementOnASecondaryLine_IsRefusedByPath_AndNamesTheField()
+    {
+        const string axesExtras = ""","secondaryYAxis":{},"secondarySeries":[{"type":"line","xData":[1,2],"yData":[1,2],"labelPlacement":"lineEnnd"}]""";
+
+        var refusal = Assert.Throws<ToolRefusalException>(() => Reader.Read(new ChartSpec(Spec(Line, axesExtras: axesExtras))));
+
+        Assert.Contains("'lineEnnd'", refusal.Message);
+        Assert.Contains("subPlots[0].secondarySeries[0].labelPlacement", refusal.Message);
+        Assert.Contains("Legend", refusal.Message);
+    }
+
+    [Theory]
+    [InlineData("lineEnd")]
+    [InlineData("LINEEND")]
+    public void AnAcceptedPlacement_ReachesTheLineOfTheFigure_OnBothAxes(string written)
+    {
+        string axesExtras = $$""","secondaryYAxis":{},"secondarySeries":[{"type":"line","xData":[1,2],"yData":[1,2],"labelPlacement":"{{written}}"}]""";
+        string primary = $$"""{"type":"line","label":"a","xData":[1,2,3],"yData":[2,4,3],"labelPlacement":"{{written}}"}""";
+
+        var axes = Reader.Read(new ChartSpec(Spec(primary, axesExtras: axesExtras))).SubPlots[0];
+
+        Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)axes.Series[0]).LabelPlacement);
+        Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)axes.SecondarySeries[0]).LabelPlacement);
     }
 
     [Theory]

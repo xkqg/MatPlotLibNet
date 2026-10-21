@@ -5,10 +5,12 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.Lighting;
 using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Rendering.TickFormatters;
+using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 
@@ -33,6 +35,12 @@ public abstract class AxesRenderer
     /// reserved for future use by <see cref="RenderAxisLabels"/>.</summary>
     protected double MeasuredXTickMaxHeight { get; set; }
 
+    /// <summary>The band drawn above the top spine below the axes title: the mirrored X tick labels
+    /// (<see cref="AxisTickExtensions.TickLabelBand"/>) or the secondary X axis that owns the edge (its tick labels, then
+    /// its title). Set by subclasses while they draw it; <see cref="RenderTitle"/> raises the title above it. 0 when
+    /// nothing was drawn there.</summary>
+    protected double MeasuredTopTickBand { get; set; }
+
     /// <summary>Per-entry legend item bounds captured during <see cref="RenderLegend"/> or
     /// <see cref="ComputeLegendBounds"/>. Each entry maps a series index to its pixel-space
     /// bounding rectangle. Empty when the legend is hidden or has no labelled entries.</summary>
@@ -54,6 +62,45 @@ public abstract class AxesRenderer
     /// <summary>Renders the complete axes: background, grid, series, decorations, legend, colorbar, title, labels.</summary>
     public abstract void Render();
 
+    /// <summary>Whether this renderer draws a series' name at the end of its line when the series asks for it
+    /// (<see cref="IHasLabelPlacement"/>). Only then does such a series leave the legend; a renderer that draws no
+    /// end labels keeps the legend entry, so the name is never lost. <see langword="false"/> here; the Cartesian
+    /// renderer, which owns the end-label drawing, overrides it.</summary>
+    internal virtual bool DrawsDirectLabels => false;
+
+    /// <summary>What is drawn past the top spine below the title (the mirrored X tick labels or the secondary X axis) and
+    /// past the right spine by the mirrored Y tick labels, measured before anything is drawn, so the layout can reserve
+    /// it. Nothing here: only the Cartesian renderer draws mirrored ticks and a secondary X axis.</summary>
+    /// <returns>The two bands; both 0 here.</returns>
+    internal virtual Layout.EdgeBands MeasureEdgeBands() => default;
+
+    /// <summary>Draws what belongs to the primary series at <paramref name="seriesIndex"/> beyond its own marks, while
+    /// that series' group is still open, so it is shown, hidden and highlighted together with the series. Called by
+    /// every series pass after the series is drawn. Nothing here; the Cartesian renderer draws the series' end label.</summary>
+    /// <param name="seriesIndex">The series' index in <see cref="Models.Axes.Series"/>.</param>
+    internal virtual void DrawInsideSeriesGroup(int seriesIndex) { }
+
+    /// <summary>The transform the primary series were drawn with in the last <see cref="Render"/>: the plot area and the
+    /// range the axes actually show (after autoscale, margins and limits). <see langword="null"/> before a render and
+    /// for axes that draw no Cartesian range (polar, 3-D); the Cartesian renderer sets it.</summary>
+    internal DataTransform? DrawnTransform { get; private protected set; }
+
+    /// <summary>The transform <see cref="Render"/> draws the primary series with for the axes as they are now, computed
+    /// without drawing or measuring anything: the plot area, the range after autoscale, margins and limits, and the
+    /// axes' scales. The interaction layout (<see cref="Interaction.ChartLayout"/>) converts the pointer with it, so a
+    /// control and the picture share one rule. <see langword="null"/> here, for axes that draw no Cartesian range
+    /// (polar, 3-D); the Cartesian renderer overrides it.</summary>
+    internal virtual DataTransform? ComputeViewTransform() => null;
+
+    /// <summary>Writes the axes' view for the server-interaction script, when the figure asked for one
+    /// (<see cref="Models.Axes.ServerViewIndex"/>) and the surface is SVG: the axes' index, its plot area and the range
+    /// it drew (<see cref="SvgRenderContext.WriteAxesView"/>). Called once the axes is drawn.</summary>
+    internal void WriteServerView()
+    {
+        if (Axes.ServerViewIndex is int index && Ctx is SvgRenderContext svg)
+            svg.WriteAxesView(index, PlotArea, DrawnTransform);
+    }
+
     /// <summary>Returns the inner data-plot bounds (after axis-label and tick reservations).
     /// Used by <see cref="ChartRenderer"/> to position inset axes within the data area.
     /// The default implementation returns the full <see cref="PlotArea"/>.</summary>
@@ -66,7 +113,10 @@ public abstract class AxesRenderer
     private static readonly ConcurrentDictionary<CoordinateSystem, Func<Axes, Rect, IRenderContext, Theme, AxesRenderer>>
         RendererFactories = new()
     {
-        [CoordinateSystem.Cartesian] = (a, p, c, t) => new CartesianAxesRenderer(a, p, c, t),
+        // Inset axes draw like any Cartesian axes but have no right margin of their own (CartesianInsetAxesRenderer).
+        [CoordinateSystem.Cartesian] = (a, p, c, t) => a.InsetBounds is null
+            ? new CartesianAxesRenderer(a, p, c, t)
+            : new CartesianInsetAxesRenderer(a, p, c, t),
         [CoordinateSystem.Polar] = (a, p, c, t) => new PolarAxesRenderer(a, p, c, t),
         [CoordinateSystem.ThreeD] = (a, p, c, t) => new ThreeDAxesRenderer(a, p, c, t),
     };
@@ -99,27 +149,25 @@ public abstract class AxesRenderer
     /// <summary>Renders all series on these axes through the visitor pattern.</summary>
     protected void RenderSeries()
     {
-        var svgCtx = Ctx as SvgRenderContext;
-        var interactiveSvgCtx = Axes.EnableInteractiveAttributes ? svgCtx : null;
         // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
         var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
         foreach (var (series, i) in ordered)
         {
             if (!series.Visible) continue;
-            var cycledProps  = Theme.PropCycler?[i];
-            var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
+            var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.Primary, i);
             // Pie: pre-populate per-wedge colors from the cycle when the series has no explicit Colors.
             // Matches matplotlib behaviour where each wedge picks the next colour from the cycle.
             if (series is Models.Series.PieSeries pie && pie.Colors is null)
                 pie.Colors = Enumerable.Range(0, pie.Sizes.Length)
                     .Select(j => Theme.CycleColors[j % Theme.CycleColors.Length])
                     .ToArray();
-            bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
+            bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i);
             var renderer = new SvgSeriesRenderer(
-                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea,
-                theme: Theme);
+                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, slot.CycleColor, Theme, slot.CycledProperties,
+                Axes.EnableTooltips, PlotArea);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
+            DrawInsideSeriesGroup(i);
             if (openedGroup) Ctx.EndGroup();
         }
     }
@@ -131,22 +179,19 @@ public abstract class AxesRenderer
     protected void RenderSeries(Projection3D projection, ILightSource? lightSource = null,
         DepthQueue3D? depthQueue = null)
     {
-        var svgCtx = Ctx as SvgRenderContext;
-        var interactiveSvgCtx = Axes.EnableInteractiveAttributes ? svgCtx : null;
         bool emit3D = Axes.Emit3DVertexData;
         var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
         foreach (var (series, i) in ordered)
         {
             if (!series.Visible) continue;
-            var cycledProps  = Theme.PropCycler?[i];
-            var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
-            bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
+            var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.Primary, i);
+            bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i);
             var renderer = new SvgSeriesRenderer(
-                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, seriesColor, cycledProps,
-                Axes.EnableTooltips, PlotArea, projection, lightSource, emit3D, theme: Theme,
-                depthQueue: depthQueue);
+                new DataTransform(0, 1, 0, 1, PlotArea), Ctx, slot.CycleColor, Theme, slot.CycledProperties,
+                Axes.EnableTooltips, PlotArea, projection, lightSource, emit3D, depthQueue);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
+            DrawInsideSeriesGroup(i);
             if (openedGroup) Ctx.EndGroup();
         }
     }
@@ -184,91 +229,58 @@ public abstract class AxesRenderer
             }
         }
 
-        var svgCtx = Ctx as SvgRenderContext;
-        var interactiveSvgCtx = Axes.EnableInteractiveAttributes ? svgCtx : null;
         // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
         var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
         foreach (var (series, i) in ordered)
         {
             if (!series.Visible) continue;
-            var cycledProps  = Theme.PropCycler?[i];
-            var seriesColor  = cycledProps?.Color ?? Theme.CycleColors[i % Theme.CycleColors.Length];
+            var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.Primary, i);
             // Pie: pre-populate per-wedge colors from the cycle when the series has no explicit Colors.
             if (series is Models.Series.PieSeries pie && pie.Colors is null)
                 pie.Colors = Enumerable.Range(0, pie.Sizes.Length)
                     .Select(j => Theme.CycleColors[j % Theme.CycleColors.Length])
                     .ToArray();
-            bool openedGroup = BeginSeriesGroup(svgCtx, interactiveSvgCtx, series, i);
-            var renderer = new SvgSeriesRenderer(transform, Ctx, seriesColor, cycledProps, Axes.EnableTooltips, PlotArea,
-                theme: Theme);
+            bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i, transform);
+            bool clipped = Ctx.BeginSeriesClip(Axes, PlotArea);
+            var renderer = new SvgSeriesRenderer(transform, Ctx, slot.CycleColor, Theme, slot.CycledProperties,
+                Axes.EnableTooltips, PlotArea);
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
+            if (clipped) Ctx.PopClip();
+            DrawInsideSeriesGroup(i);
             if (openedGroup) Ctx.EndGroup();
         }
-    }
-
-    /// <summary>Opens the appropriate SVG group for a series: interactive group with data attributes, or accessible group with aria-label.</summary>
-    /// <returns><see langword="true"/> if a group was opened and must be closed.</returns>
-    private static bool BeginSeriesGroup(SvgRenderContext? svgCtx, SvgRenderContext? interactiveSvgCtx, ISeries series, int index)
-    {
-        if (interactiveSvgCtx is not null)
-        {
-            interactiveSvgCtx.BeginDataGroup("series", index, series.Label);
-            return true;
-        }
-        if (svgCtx is not null && !string.IsNullOrEmpty(series.Label))
-        {
-            svgCtx.BeginAccessibleGroup("series", series.Label);
-            return true;
-        }
-        return false;
     }
 
     /// <summary>Computes the display label for a legend entry. When <paramref name="legendValues"/>
     /// is <see langword="true"/> and the series is an <see cref="Models.Series.XYSeries"/> with
     /// non-empty Y data, appends " = {lastY:F2}" (InvariantCulture) to the base label.</summary>
-    private static string BuildLegendDisplayLabel(string baseLabel, Models.Series.ISeries series, bool legendValues)
+    internal static string BuildLegendDisplayLabel(string baseLabel, Models.Series.ISeries series, bool legendValues)
     {
         if (!legendValues) return baseLabel;
         if (series is Models.Series.XYSeries xySeries && xySeries.YData.Length > 0)
-        {
-            double last = xySeries.YData[xySeries.YData.Length - 1];
-            return baseLabel + " = " + last.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
-        }
+            return WithLegendValue(baseLabel, xySeries.YData[xySeries.YData.Length - 1]);
         return baseLabel;
     }
 
-    /// <summary>Renders the legend if any series have labels.</summary>
-    /// <summary>Appends one legend entry per LABELLED series in <paramref name="series"/>, indexing the colour
-    /// cycle from <paramref name="cycleOffset"/> so a caller can continue an earlier run's numbering.</summary>
-    private void AddLegendEntries(IReadOnlyList<Models.Series.ISeries> series, int cycleOffset,
-        Legend legend, List<RenderLegendEntry> entries)
-    {
-        for (int i = 0; i < series.Count; i++)
-        {
-            var one = series[i];
-            if (string.IsNullOrEmpty(one.Label)) continue;
-            int cycleIndex = cycleOffset + i;
-            var cycleColor = Theme.PropCycler?[cycleIndex].Color
-                             ?? Theme.CycleColors[cycleIndex % Theme.CycleColors.Length];
-            var seriesColor = one.GetType().GetProperty("Color")?.GetValue(one) as Color?;
-            var displayLabel = BuildLegendDisplayLabel(one.Label, one, legend.LegendValues);
-            entries.Add(new(displayLabel, seriesColor ?? cycleColor, one, cycleIndex));
-        }
-    }
+    /// <summary>The legend-values format: <paramref name="baseLabel"/> followed by " = " and
+    /// <paramref name="value"/> with two decimals in the invariant culture. The legend and the end-of-line labels
+    /// (<see cref="Layout.DirectLabelMetrics"/>) both write the value this way.</summary>
+    internal static string WithLegendValue(string baseLabel, double value) =>
+        baseLabel + " = " + value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
 
+    /// <summary>The swatch colour of a legend entry: the colour the series is drawn in, decided by the same owner the
+    /// series passes use (<see cref="SeriesSlotExtensions"/>). The entry's index is the series' slot.</summary>
+    private Color LegendEntryColor(LegendRendering.LegendEntry entry) =>
+        Theme.SeriesSlot(entry.OriginalIndex).ColorOf(entry.Series);
+
+    /// <summary>Renders the legend if any series have labels.</summary>
     protected void RenderLegend()
     {
         if (!Axes.Legend.Visible) return;
 
         var legend = Axes.Legend;
-        var entries = new List<RenderLegendEntry>();
-        AddLegendEntries(Axes.Series, 0, legend, entries);
-        // The SECONDARY-axis traces belong in the same legend: a dual-axis chart draws two lines, and a legend
-        // that names one of them reads as "the other line has no name". Their cycle index continues where the
-        // primary series stopped — the same offset CartesianSecondaryYAxisPart.Render draws them with, so the
-        // key and the line cannot disagree about a colour.
-        AddLegendEntries(Axes.SecondarySeries, Axes.Series.Count, legend, entries);
+        var entries = Axes.LegendEntries(DrawsDirectLabels);
 
         if (entries.Count == 0) return;
 
@@ -331,11 +343,13 @@ public abstract class AxesRenderer
             // Capture hit-test bounds for this legend entry (swatch + label)
             LegendBounds.Add(new LegendItemBounds(entry.OriginalIndex, new Rect(colX, entryY, layout.ItemWidth(col), layout.LineHeight)));
 
-            svgCtxLegend?.BeginLegendItemGroup(i, entry.Label);
+            // The group carries the SERIES index (data-legend-index maps straight onto data-series-index), never the
+            // entry's position in the legend: an unlabelled series ahead of this one has no entry but still has an index.
+            svgCtxLegend?.BeginLegendItemGroup(entry.OriginalIndex, entry.Label);
 
             // Swatch dispatch: line segment for line-type series, marker for scatter,
             // line+caps for error bar, filled rectangle for patches (bar/hist/area/violin/pie).
-            DrawLegendSwatch(entry.Series, colX, entryY, layout.SwatchWidth, layout.SwatchHeight, entry.Color);
+            DrawLegendSwatch(entry.Series, colX, entryY, layout.SwatchWidth, layout.SwatchHeight, LegendEntryColor(entry));
 
             // Text anchor sits just past the swatch.
             var textPoint = new Point(colX + layout.SwatchWidth + layout.SwatchGap, entryY + layout.SwatchHeight - 1);
@@ -358,14 +372,7 @@ public abstract class AxesRenderer
         if (!Axes.Legend.Visible) return;
 
         var legend = Axes.Legend;
-        var entries = new List<LegendEntryIndex>();
-        for (int i = 0; i < Axes.Series.Count; i++)
-        {
-            var series = Axes.Series[i];
-            if (string.IsNullOrEmpty(series.Label)) continue;
-            var displayLabel = BuildLegendDisplayLabel(series.Label, series, legend.LegendValues);
-            entries.Add(new(displayLabel, i));
-        }
+        var entries = Axes.LegendEntries(DrawsDirectLabels);
 
         if (entries.Count == 0) return;
 
@@ -495,9 +502,10 @@ public abstract class AxesRenderer
         var baseFont = TitleFont();
         var font = Axes.TitleStyle?.ApplyTo(baseFont) ?? baseFont;
 
-        // Horizontal alignment based on TitleLoc; Pad shifts the Y position when set
+        // Horizontal alignment based on TitleLoc; Pad shifts the Y position when set; the title stands above what is
+        // drawn above the top spine (the mirrored X tick labels or the secondary X axis) when there is anything
         double padOffset = Axes.TitleStyle?.Pad ?? 0;
-        double titleY = PlotArea.Y - 8 - padOffset;
+        double titleY = PlotArea.Y - 8 - padOffset - MeasuredTopTickBand;
         double titleX = Axes.TitleLoc switch
         {
             TitleLocation.Left  => PlotArea.X,
@@ -550,14 +558,10 @@ public abstract class AxesRenderer
         {
             var font = Axes.YAxis.LabelStyle?.ApplyTo(baseFont) ?? baseFont;
             double padOffset = Axes.YAxis.LabelStyle?.Pad ?? 0;
-            // Compute y-label x dynamically: tick mark + pad + widest rendered tick label + gap.
-            // Falls back to the legacy fixed 45-px offset when no tick widths were measured
+            // Compute y-label x dynamically: tick mark + pad + widest rendered tick label + gap, the rule the
+            // secondary Y axis shares. Falls back to the fixed 45-px offset when no tick widths were measured
             // (non-Cartesian renderers or empty axes).
-            var yMajor = Axes.YAxis.MajorTicks;
-            double yLabelGap = 12;
-            double dynamicOffset = MeasuredYTickMaxWidth > 0
-                ? yMajor.Length + yMajor.Pad + MeasuredYTickMaxWidth + yLabelGap
-                : 45;
+            double dynamicOffset = Axes.YAxis.MajorTicks.AxisLabelOffset(MeasuredYTickMaxWidth);
             var point = new Point(PlotArea.X - dynamicOffset - padOffset, PlotArea.Y + PlotArea.Height / 2);
             if (MathTextParser.ContainsMath(Axes.YAxis.Label))
                 Ctx.DrawRichText(MathTextParser.Parse(Axes.YAxis.Label), point, font, TextAlignment.Center, 90);
@@ -652,7 +656,7 @@ public abstract class AxesRenderer
     /// <param name="max">The maximum value of the visible data range.</param>
     /// <param name="targetCount">The desired number of tick intervals; the algorithm snaps to a nearby nice number. Defaults to 8 to match matplotlib's <c>MaxNLocator(nbins='auto')</c>.</param>
     protected static double[] ComputeTickValues(double min, double max, int targetCount = 8)
-        => new TickLocators.AutoLocator(targetCount).Locate(min, max);
+        => new TickLocators.AutoLocator(targetCount).LocateInterval(min, max);
 
     /// <summary>Internal wrapper for <see cref="ComputeTickValues(double, double, int)"/> so
     /// <c>CartesianParts</c> extracted classes can reuse the default nice-number algorithm.</summary>
@@ -669,17 +673,12 @@ public abstract class AxesRenderer
     /// <param name="plotPixels">Plot area length in pixels along the tick direction.</param>
     protected static double[] ComputeTickValues(double min, double max, Axis axis, double plotPixels)
     {
-        if (axis.TickLocator is not null) return axis.TickLocator.Locate(min, max);
+        if (axis.TickLocator is not null) return axis.TickLocator.LocateInterval(min, max);
         if (axis.MajorTicks.Spacing.HasValue)
-            return new TickLocators.MultipleLocator(axis.MajorTicks.Spacing.Value).Locate(min, max);
+            return new TickLocators.MultipleLocator(axis.MajorTicks.Spacing.Value).LocateInterval(min, max);
         // Preserve the default 8-tick density for normal-sized plots so existing fidelity
         // tests stay green; only downscale for short rows where labels would otherwise overlap.
         int target = plotPixels >= 240 ? 8 : Math.Clamp((int)Math.Round(plotPixels / 30), 2, 6);
         return ComputeTickValues(min, max, target);
     }
-
-    private readonly record struct RenderLegendEntry(
-        string Label, Color Color, Models.Series.ISeries Series, int OriginalIndex);
-
-    private readonly record struct LegendEntryIndex(string Label, int OriginalIndex);
 }

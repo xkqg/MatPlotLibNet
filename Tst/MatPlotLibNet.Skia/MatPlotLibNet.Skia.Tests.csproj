@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit.v3" Version="3.*" />
+    <PackageReference Include="xunit.v3" Version="4.*" />
     <PackageReference Include="SkiaSharp" Version="3.*" />
     <!-- libSkiaSharp native binary is shipped via per-OS NativeAssets packages, not the
          SkiaSharp metapackage. Without these the test runner crashes with
@@ -30,7 +30,6 @@
     <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.5" />
     <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="8.3.1.5" />
     <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="8.3.1.5" />
-    <PackageReference Include="coverlet.msbuild" Version="6.*" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>

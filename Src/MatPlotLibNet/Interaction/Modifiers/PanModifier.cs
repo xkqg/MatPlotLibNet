@@ -13,10 +13,10 @@ public sealed class PanModifier : IInteractionModifier
 
     private bool   _active;
     private int    _activeAxes;
-    private double _startPixelX;
-    private double _startPixelY;
-    private double _startDataX;
-    private double _startDataY;
+    /// <summary>Where the pointer was when the last pan was sent (or the button went down): the next move pans by the
+    /// distance from here.</summary>
+    private double _lastPixelX;
+    private double _lastPixelY;
 
     /// <summary>Creates a pan modifier for the given chart.</summary>
     public PanModifier(string chartId, IChartLayout layout, Action<FigureInteractionEvent> sink)
@@ -39,15 +39,17 @@ public sealed class PanModifier : IInteractionModifier
         var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, axesIndex);
         if (coords is null) return;
 
-        _active      = true;
-        _activeAxes  = axesIndex;
-        _startPixelX = args.X;
-        _startPixelY = args.Y;
-        _startDataX  = coords.Value.DataX;
-        _startDataY  = coords.Value.DataY;
+        _active     = true;
+        _activeAxes = axesIndex;
+        _lastPixelX = args.X;
+        _lastPixelY = args.Y;
     }
 
     /// <inheritdoc />
+    /// <remarks>The pointer's move on screen becomes a shift of the range in the space each axis is drawn in (data
+    /// units on a linear axis, decades on a log axis), the unit <see cref="PanEvent"/> takes: the point that was under
+    /// the pointer moves with it, on every scale. Each move sends the distance since the last one, so a move that
+    /// arrives before the control has repainted still pans by exactly that move.</remarks>
     public void OnPointerMoved(PointerInputArgs args)
     {
         if (!_active) return;
@@ -55,21 +57,18 @@ public sealed class PanModifier : IInteractionModifier
         var coords = ((ChartLayout)_layout).PixelToData(args.X, args.Y, _activeAxes);
         if (coords is null) return;
 
-        // Delta in data space: how far the cursor moved since press.
-        // We want to drag the data so the original point stays under cursor →
-        // shift axes by minus the delta.
-        double dx = _startDataX - coords.Value.DataX;
-        double dy = _startDataY - coords.Value.DataY;
+        var view = _layout.ViewOf(_activeAxes);
+        var area = _layout.GetPlotArea(_activeAxes);
+        // Drawn units per pixel; negative on a reversed axis, so the shift still follows the pointer.
+        double dx = (_lastPixelX - args.X) / area.Width * (view.DataXMax - view.DataXMin);
+        double dy = (args.Y - _lastPixelY) / area.Height * (view.DataYMax - view.DataYMin);
 
         if (dx == 0 && dy == 0) return;
 
         _sink(new PanEvent(_chartId, _activeAxes, dx, dy) { InView = _layout.GetDataRange(_activeAxes) });
 
-        // Update start so each move emits an incremental delta, not cumulative.
-        _startPixelX = args.X;
-        _startPixelY = args.Y;
-        _startDataX  = coords.Value.DataX + dx;  // re-anchor to new position
-        _startDataY  = coords.Value.DataY + dy;
+        _lastPixelX = args.X;
+        _lastPixelY = args.Y;
     }
 
     /// <inheritdoc />

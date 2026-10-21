@@ -102,7 +102,9 @@ public sealed class FigureBuilder
         }
     }
 
-    /// <summary>Sets the figure DPI (dots per inch).</summary>
+    /// <summary>Records the figure DPI (dots per inch) on <see cref="Figure.Dpi"/>, which is written to the figure JSON.
+    /// No export reads it yet: a PNG is drawn at the figure's <see cref="WithSize"/> in pixels, so a larger PNG takes a
+    /// larger size.</summary>
     public FigureBuilder WithDpi(double dpi) { _dpi = dpi; return this; }
 
     /// <summary>Sets the theme used for styling the figure.</summary>

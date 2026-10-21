@@ -40,14 +40,16 @@ public static class PlaygroundExamples
     /// a line (Phase L.6 of the v1.7.2 plan).</summary>
     public static bool SupportsLineControls(PlaygroundExample example) =>
         example is PlaygroundExample.LineChart or PlaygroundExample.MultiSeries
-            or PlaygroundExample.AxisBreaks or PlaygroundExample.MinorGrid or PlaygroundExample.ThresholdLine;
+            or PlaygroundExample.AxisBreaks or PlaygroundExample.MinorGrid or PlaygroundExample.ThresholdLine
+            or PlaygroundExample.DirectLabels;
 
     /// <summary>True if the example's primary series exposes a <c>MarkerStyle</c> /
     /// <c>MarkerSize</c> — i.e. the playground's Marker / Marker-size controls should be
     /// shown. Scatter (always-on markers) + Line families (optional per-point markers).</summary>
     public static bool SupportsMarkerControls(PlaygroundExample example) =>
         example is PlaygroundExample.LineChart or PlaygroundExample.ScatterPlot or PlaygroundExample.MultiSeries
-            or PlaygroundExample.AxisBreaks or PlaygroundExample.MinorGrid or PlaygroundExample.ThresholdLine;
+            or PlaygroundExample.AxisBreaks or PlaygroundExample.MinorGrid or PlaygroundExample.ThresholdLine
+            or PlaygroundExample.DirectLabels;
 
     /// <summary>True if the example exposes colormap / colorbar controls in the UI.</summary>
     public static bool SupportsColormap(PlaygroundExample example) =>
@@ -90,6 +92,7 @@ public static class PlaygroundExamples
             [PlaygroundExample.MinorGrid]    = BuildMinorGrid,
             [PlaygroundExample.DashboardTiles] = BuildDashboardTiles,
             [PlaygroundExample.ThresholdLine]  = BuildThresholdLine,
+            [PlaygroundExample.DirectLabels]   = BuildDirectLabels,
         };
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -615,6 +618,45 @@ public static class PlaygroundExamples
         return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ThresholdLine, opts));
     }
 
+    /// <summary>v1.19.0 — two lines on two Y axes, each named at the end of its line
+    /// (<c>WithDirectLabel()</c>) and each axis coloured like its line (<c>SetYAxisColor</c>), so the chart
+    /// reads without a legend. Both axes keep a title, so the colour is never the only cue.</summary>
+    private static (Figure, string) BuildDirectLabels(PlaygroundOptions opts)
+    {
+        double[] hours       = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24];
+        double[] temperature = [14.2, 13.5, 13.1, 14.0, 17.5, 21.8, 25.4, 27.1, 26.3, 22.9, 19.0, 16.4, 15.0];
+        double[] humidity    = [88, 90, 91, 89, 78, 64, 52, 46, 49, 60, 72, 81, 85];
+        var warm = Colors.Tab10Orange;
+        var cool = Colors.Tab10Blue;
+
+        void Style(LineSeries s, string label, Color color)
+        {
+            s.Label = label;
+            s.Color = color;
+            s.LineStyle = opts.LineStyle;
+            s.LineWidth = opts.LineWidth;
+            if (opts.Marker != MarkerStyle.None) { s.Marker = opts.Marker; s.MarkerSize = opts.MarkerSize; }
+        }
+
+        var fb = opts.ApplyToFigure(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Plot(hours, temperature, s => Style(s, "Temperature", warm))
+                  .WithDirectLabel()
+                  .SetXLabel("Hour of the day")
+                  .SetYLabel("Temperature (°C)")
+                  .SetYAxisColor(warm)
+                  .WithSecondaryYAxis(right => right
+                      .Plot(hours, humidity, s => Style(s, "Humidity", cool))
+                      .WithDirectLabel()
+                      .SetYLabel("Relative humidity (%)")
+                      .SetYAxisColor(cool));
+                opts.ApplyToAxes(ax);
+            });
+
+        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.DirectLabels, opts));
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Code snippets — kept inline so users see the EXACT call chain to copy
     // ──────────────────────────────────────────────────────────────────────────
@@ -670,6 +712,17 @@ public static class PlaygroundExamples
                 "    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, s => s.Label = \"Load\")\n" +
                 "        .Threshold(70.0, Orientation.Horizontal, ThresholdBreach.Above, color: Colors.Red, label: \"Alarm\")\n" +
                 "        .WithLegendValues())",
+            PlaygroundExample.DirectLabels =>
+                "    .AddSubPlot(1, 1, 1, ax => ax\n" +
+                "        .Plot(hours, temperature, s => { s.Label = \"Temperature\"; s.Color = Colors.Tab10Orange; })\n" +
+                "        .WithDirectLabel()\n" +
+                "        .SetYLabel(\"Temperature (°C)\")\n" +
+                "        .SetYAxisColor(Colors.Tab10Orange)\n" +
+                "        .WithSecondaryYAxis(right => right\n" +
+                "            .Plot(hours, humidity, s => { s.Label = \"Humidity\"; s.Color = Colors.Tab10Blue; })\n" +
+                "            .WithDirectLabel()\n" +
+                "            .SetYLabel(\"Relative humidity (%)\")\n" +
+                "            .SetYAxisColor(Colors.Tab10Blue)))",
             _                              => throw new ArgumentOutOfRangeException(nameof(example), example,
                                                   $"CodeFor: no snippet registered for new enum value {example}; update the switch."),
         };

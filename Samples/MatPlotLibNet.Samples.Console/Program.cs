@@ -1542,10 +1542,12 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
                     s.MarkerSize = 7;
                     s.Label = "Cumulative %";
                 })
-                .SetYLim(0, 100)
+                // 105, not 100: a set limit clips at the frame, and the 100 % point is the one a Pareto chart is read by.
+                .SetYLim(0, 105)
                 .SetYLabel("Cumulative %"))
             .SetYLabel("Defect Count")
-            .WithLegend())
+            // Right of centre is empty: the tail bars are short and the cumulative line runs near the top.
+            .WithLegend(LegendPosition.Right))
         .SaveSvgAndPng(SamplesPath("pareto_chart.svg"));
     Console.WriteLine("Saved pareto_chart");
 }
@@ -1567,6 +1569,8 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
                 s.MarkerSize = 14;
                 s.Marker = MarkerStyle.Circle;
             })
+            // Half a slot of room either side: a set limit clips at the frame, so the first and last heads stay whole.
+            .SetXLim(-0.5, scores.Length - 0.5)
             .SetYLim(0, 110)
             .SetYLabel("Score"))
         .SaveSvgAndPng(SamplesPath("lollipop_chart.svg"));
@@ -2321,4 +2325,51 @@ Console.WriteLine("Saved international.svg and international.png");
         .Transform(new PngTransform())
         .ToFile(SamplesPath("social-card.png"));
     Console.WriteLine("Saved social-card.png");
+}
+
+// --- 45. Direct labels and axis colours — a line named where it ends, an axis in its line's colour ---
+//
+// The two pictures of the cookbook page "Direct labels and axis colours". WithDirectLabel() draws the name of the
+// series added last at the end of its line and takes it out of the legend; SetYAxisColor colours an axis (spine,
+// ticks, tick labels, title) like the line it measures. Both axes keep a title, so the colour is never the only cue.
+{
+    double[] months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    double[] web    = [42, 45, 47, 50, 53, 55, 54, 57, 59, 60, 62, 61];
+    double[] app    = [12, 15, 19, 22, 27, 31, 36, 40, 45, 49, 54, 58];
+    double[] store  = [30, 29, 31, 30, 28, 27, 29, 28, 26, 27, 25, 24];
+
+    Plt.Create()
+        .WithTitle("Visitors per month")
+        .WithSize(800, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot(months, web, s => s.Label = "Web").WithDirectLabel()
+            .Plot(months, app, s => s.Label = "App").WithDirectLabel()
+            .Plot(months, store, s => s.Label = "Store").WithDirectLabel()
+            .SetXLabel("Month")
+            .SetYLabel("Visitors (thousands)"))
+        .SaveSvgAndPng(SamplesPath("direct_labels.svg"));
+    Console.WriteLine("Saved direct_labels.svg");
+
+    double[] hours       = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24];
+    double[] temperature = [14.2, 13.5, 13.1, 14.0, 17.5, 21.8, 25.4, 27.1, 26.3, 22.9, 19.0, 16.4, 15.0];
+    double[] humidity    = [88, 90, 91, 89, 78, 64, 52, 46, 49, 60, 72, 81, 85];
+    var warm = Colors.Tab10Orange;
+    var cool = Colors.Tab10Blue;
+
+    Plt.Create()
+        .WithTitle("Greenhouse, one day")
+        .WithSize(800, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Plot(hours, temperature, s => { s.Label = "Temperature"; s.Color = warm; })
+            .WithDirectLabel()
+            .SetXLabel("Hour of the day")
+            .SetYLabel("Temperature (°C)")
+            .SetYAxisColor(warm)
+            .WithSecondaryYAxis(right => right
+                .Plot(hours, humidity, s => { s.Label = "Humidity"; s.Color = cool; })
+                .WithDirectLabel()
+                .SetYLabel("Relative humidity (%)")
+                .SetYAxisColor(cool)))
+        .SaveSvgAndPng(SamplesPath("direct_labels_dual_axis.svg"));
+    Console.WriteLine("Saved direct_labels_dual_axis.svg");
 }

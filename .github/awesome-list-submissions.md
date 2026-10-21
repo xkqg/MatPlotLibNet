@@ -126,7 +126,7 @@ Where it stands now:
 - **148 colormaps**, SIMD numerics, DataFrame integration with 58 technical indicators, Jupyter notebooks
 - **An MCP server** so an agent can draw one of these charts and then look at it
 
-MIT licensed, .NET 10 and .NET 8, 11,757 tests, and every class has to clear 90 % line and branch coverage.
+MIT licensed, .NET 10 and .NET 8, 12,441 tests, and every class has to clear 90 % line and branch coverage.
 
 - GitHub: https://github.com/xkqg/MatPlotLibNet
 - NuGet: https://www.nuget.org/packages/MatPlotLibNet

@@ -25,8 +25,8 @@ public class TreemapWallTests
     [Fact]
     public void AChildlessRoot_DrawsNoRect()
     {
-        string withChildren = Render(new TreeNode { Label = "Ait", Children = [new() { Label = "a", Value = 1 }] });
-        string empty = Render(new TreeNode { Label = "Ait" });
+        string withChildren = Render(new TreeNode { Label = "Svc", Children = [new() { Label = "a", Value = 1 }] });
+        string empty = Render(new TreeNode { Label = "Svc" });
 
         Assert.Equal(Rects(withChildren) - 2, Rects(empty)); // neither the root frame nor the leaf
         Assert.DoesNotContain("data-treemap-node", empty);
@@ -82,7 +82,7 @@ public class TreemapWallTests
 
     private static TreeNode Twenty() => new()
     {
-        Label = "Ait",
+        Label = "Svc",
         Children = [.. Enumerable.Range(0, 20).Select(i => new TreeNode { Label = $"Ldr#{i:x4} · {100 + i} %", Value = 40 + (i * 13 % 250) })]
     };
 }
