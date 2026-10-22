@@ -24,17 +24,21 @@ internal sealed partial class ChartSpecReader
 {
     private const double DefaultWidth = 800;
     private const double DefaultHeight = 600;
-    private const double DefaultDpi = 96;
+    private const double DefaultDpi = Figure.ReferenceDpi;
 
-    /// <summary>The serializer's own naming and converters, plus the one thing it deliberately lacks: a refusal of
-    /// unmapped members. Its lenience is wire compatibility for its other consumers; here a document is authored by
-    /// hand and an unknown field is a mistake to report.</summary>
-    private static readonly JsonSerializerOptions Strict = new()
+    /// <summary>A copy of the serializer's own read options (naming, converters, the number rule that reads "NaN" as
+    /// the missing value), plus the one thing it deliberately lacks: a refusal of unmapped members. Its lenience is wire
+    /// compatibility for its other consumers; here a document is authored by hand and an unknown field is a mistake to
+    /// report.</summary>
+    private static readonly JsonSerializerOptions Strict = new(ChartSerializer.ReadOptions)
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-        Converters = { new ColorJsonConverter(), new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
+
+    /// <summary>The types whose JSON carries y values alone: a signal is sampled at a rate (<c>signalSampleRate</c>,
+    /// <c>signalXStart</c>), so its x values follow from the rate and the library never writes them. Every other
+    /// x/y type needs both halves of the pair.</summary>
+    private static readonly HashSet<string> DerivesItsXData = new(StringComparer.Ordinal) { "signal" };
 
     private readonly ChartTypeCatalog _catalog;
     private readonly RenderLimits _limits;
@@ -80,33 +84,73 @@ internal sealed partial class ChartSpecReader
         EnsureSize(figure, "width", DefaultWidth, _limits.MaxWidth);
         EnsureSize(figure, "height", DefaultHeight, _limits.MaxHeight);
         EnsureSize(figure, "dpi", DefaultDpi, int.MaxValue);
+        EnsurePictureFits(figure);
         CheckText(figure, "$", "title");
         CheckText(figure, "$", "altText");
         CheckText(figure, "$", "description");
+        CheckText(figure, "$", "chartId");
         NormaliseColours(figure, "$");
+        NormaliseColorBar(figure, "figureColorBar", "$");
+        NormaliseTheme(figure, "$");
         ForEachObject(figure, "subPlots", "$", NormaliseAxes);
+    }
+
+    /// <summary>The figure's theme: the enum values of its font and its grid, and the line styles and markers its cycler
+    /// steps through. Its colours are normalised with every other colour of the document.</summary>
+    private void NormaliseTheme(JsonObject figure, string path)
+    {
+        if (figure["theme"] is not JsonObject theme)
+        {
+            return;
+        }
+
+        string at = $"{path}.theme";
+        NormaliseFields(theme, "defaultFont", at, SpecNodeKind.Font, "weight", "slant");
+        NormaliseFields(theme, "defaultGrid", at, SpecNodeKind.Grid, "lineStyle", "which", "axis");
+        if (theme["propCycler"] is JsonObject cycler)
+        {
+            NormaliseEnum(cycler, SpecNodeKind.PropCycler, "lineStyles", $"{at}.propCycler", seriesType: null);
+            NormaliseEnum(cycler, SpecNodeKind.PropCycler, "markerStyles", $"{at}.propCycler", seriesType: null);
+        }
     }
 
     private void NormaliseAxes(JsonObject axes, string path)
     {
         CheckText(axes, path, "title");
-        foreach (var axisName in new[] { "xAxis", "yAxis", "secondaryYAxis" })
+        foreach (var axisName in new[] { "xAxis", "yAxis", "secondaryYAxis", "secondaryXAxis" })
         {
             if (axes[axisName] is JsonObject axis)
             {
-                CheckText(axis, $"{path}.{axisName}", "label");
-                NormaliseEnum(axis, SpecNodeKind.Axis, "scale", $"{path}.{axisName}", seriesType: null);
+                NormaliseAxis(axis, $"{path}.{axisName}");
             }
         }
 
         NormaliseEnum(axes, SpecNodeKind.Axes, "barMode", path, seriesType: null);
+        NormaliseEnum(axes, SpecNodeKind.Axes, "titleLoc", path, seriesType: null);
+        NormaliseFields(axes, "titleStyle", path, SpecNodeKind.TextStyle, "fontWeight", "fontSlant");
+        NormaliseFields(axes, "legend", path, SpecNodeKind.Legend, "position");
+        NormaliseColorBar(axes, "colorBar", path);
+        NormaliseFields(axes, "grid", path, SpecNodeKind.Grid, "lineStyle", "which", "axis");
+        if (axes["spines"] is JsonObject spines)
+        {
+            foreach (var side in new[] { "top", "bottom", "left", "right" })
+            {
+                NormaliseFields(spines, side, $"{path}.spines", SpecNodeKind.Spine, "lineStyle");
+            }
+        }
+
         ForEachObject(axes, "series", path, NormaliseSeries);
         ForEachObject(axes, "secondarySeries", path, NormaliseSeries);
+        ForEachObject(axes, "xSecondarySeries", path, NormaliseSeries);
         ForEachObject(axes, "annotations", path, (annotation, p) =>
         {
             CheckText(annotation, p, "text");
             NormaliseEnum(annotation, SpecNodeKind.Annotation, "connectionStyle", p, null);
             NormaliseEnum(annotation, SpecNodeKind.Annotation, "boxStyle", p, null);
+            NormaliseEnum(annotation, SpecNodeKind.Annotation, "coordinates", p, null);
+            NormaliseEnum(annotation, SpecNodeKind.Annotation, "alignment", p, null);
+            NormaliseEnum(annotation, SpecNodeKind.Annotation, "arrowStyle", p, null);
+            NormaliseFields(annotation, "font", p, SpecNodeKind.Font, "weight", "slant");
         });
         ForEachObject(axes, "referenceLines", path, (line, p) =>
         {
@@ -134,6 +178,84 @@ internal sealed partial class ChartSpecReader
         foreach (var field in _vocabulary.SeriesFields)
         {
             NormaliseEnum(series, SpecNodeKind.Series, field, path, type);
+        }
+
+        NormaliseKind(series, "normalizer", path, SpecNodeKind.Normalizer);
+        NormaliseColorMap(series, "colorMap", path);
+        NormaliseColorMap(series, "pairGridOffDiagonalColorMapDescription", path);
+    }
+
+    /// <summary>A colour map built in code, described by kind: its kind is checked and moved first as a normaliser's is,
+    /// and so is the kind of the map a reversed map reverses. Its colours are normalised with every other colour of the
+    /// document.</summary>
+    private void NormaliseColorMap(JsonObject parent, string field, string path)
+    {
+        NormaliseKind(parent, field, path, SpecNodeKind.ColorMap);
+        if (parent[field] is JsonObject map)
+        {
+            NormaliseColorMap(map, "map", $"{path}.{field}");
+        }
+    }
+
+    /// <summary>One axis: its label, its scale, its ticks, its label style, and the kinds of its tick locator and formatter.</summary>
+    private void NormaliseAxis(JsonObject axis, string path)
+    {
+        CheckText(axis, path, "label");
+        NormaliseEnum(axis, SpecNodeKind.Axis, "scale", path, seriesType: null);
+        NormaliseFields(axis, "majorTicks", path, SpecNodeKind.Ticks, "direction");
+        NormaliseFields(axis, "minorTicks", path, SpecNodeKind.Ticks, "direction");
+        NormaliseFields(axis, "labelStyle", path, SpecNodeKind.TextStyle, "fontWeight", "fontSlant");
+        NormaliseKind(axis, "tickLocator", path, SpecNodeKind.TickLocator);
+        NormaliseKind(axis, "tickFormatter", path, SpecNodeKind.TickFormatter);
+    }
+
+    private void NormaliseColorBar(JsonObject parent, string field, string path)
+    {
+        NormaliseFields(parent, field, path, SpecNodeKind.ColorBar, "extend", "orientation");
+        if (parent[field] is JsonObject colorBar)
+        {
+            NormaliseColorMap(colorBar, "colorMap", $"{path}.{field}");
+        }
+    }
+
+    /// <summary>The enum-valued <paramref name="fields"/> of the object at <paramref name="field"/>, when there is one.</summary>
+    private void NormaliseFields(JsonObject parent, string field, string path, SpecNodeKind kind, params string[] fields)
+    {
+        if (parent[field] is not JsonObject node)
+        {
+            return;
+        }
+
+        foreach (var name in fields)
+        {
+            NormaliseEnum(node, kind, name, $"{path}.{field}", seriesType: null);
+        }
+    }
+
+    /// <summary>A described value (a tick locator, a tick formatter, a normaliser): its <c>type</c> must name a kind the
+    /// serializer knows, spelt as it reads it, and stand first, since the serializer reads the kind only as the first
+    /// field of the object. A value without a <c>type</c> is refused: the serializer would skip it.</summary>
+    private void NormaliseKind(JsonObject parent, string field, string path, SpecNodeKind kind)
+    {
+        if (parent[field] is not JsonObject node)
+        {
+            return;
+        }
+
+        string where = $"{path}.{field}";
+        var rule = _vocabulary.RuleFor(kind, "type", seriesType: null)!;
+        if (node["type"] is null)
+        {
+            throw new ToolRefusalException($"The {field} at {where} has no 'type'; accepted: {string.Join(", ", rule.Accepted)}.");
+        }
+
+        NormaliseEnum(node, kind, "type", where, seriesType: null);
+        var fields = node.ToList();
+        node.Clear();
+        node["type"] = fields.Single(pair => pair.Key == "type").Value;
+        foreach (var pair in fields.Where(pair => pair.Key != "type"))
+        {
+            node[pair.Key] = pair.Value;
         }
     }
 
@@ -171,6 +293,36 @@ internal sealed partial class ChartSpecReader
         }
     }
 
+    /// <summary>A PNG is drawn with <c>dpi / 96</c> pixels for each unit of the figure, so the canvas ceiling holds for
+    /// the picture the spec draws, not for its width and height alone: a figure inside the ceiling at 96 dpi can leave it
+    /// at 300, and one at 100000 dpi is a bitmap no machine allocates. The picture goes into a context window, so the
+    /// ceiling is the picture's, in pixels.</summary>
+    private void EnsurePictureFits(JsonObject figure)
+    {
+        if (!TryNumber(figure, "width", out double width)
+            || !TryNumber(figure, "height", out double height)
+            || !TryNumber(figure, "dpi", out double dpi))
+        {
+            return;
+        }
+
+        double pixelsAcross = width * dpi / Figure.ReferenceDpi;
+        double pixelsDown = height * dpi / Figure.ReferenceDpi;
+        if (pixelsAcross > _limits.MaxWidth || pixelsDown > _limits.MaxHeight)
+        {
+            throw new ToolRefusalException(
+                $"'dpi' {dpi.ToString(CultureInfo.InvariantCulture)} draws the picture {Math.Ceiling(pixelsAcross).ToString(CultureInfo.InvariantCulture)} by "
+                + $"{Math.Ceiling(pixelsDown).ToString(CultureInfo.InvariantCulture)} pixels (width and height times dpi / {Figure.ReferenceDpi}); "
+                + $"the ceiling is {_limits.MaxWidth} by {_limits.MaxHeight}: the picture goes into a context window. Lower the dpi or the size.");
+        }
+    }
+
+    private static bool TryNumber(JsonObject node, string field, out double value)
+    {
+        value = 0;
+        return node[field] is JsonValue json && json.TryGetValue(out value);
+    }
+
     private void CheckText(JsonObject node, string path, string field)
     {
         if (node[field] is JsonValue value && value.TryGetValue<string>(out var text) && text.Length > _limits.MaxTextLength)
@@ -179,27 +331,48 @@ internal sealed partial class ChartSpecReader
         }
     }
 
+    /// <summary>The enum value at <paramref name="field"/>, or each item of the list of enum values there: checked against
+    /// the field's vocabulary and spelt as the serializer reads it. A field that is not enum-valued, or holds another
+    /// kind of value, is left for the strict pass.</summary>
     private void NormaliseEnum(JsonObject node, SpecNodeKind kind, string field, string path, string? seriesType)
     {
-        if (node[field] is not JsonValue value || !value.TryGetValue<string>(out var written))
-        {
-            return;
-        }
-
         var rule = _vocabulary.RuleFor(kind, field, seriesType);
         if (rule is null)
         {
             return;
         }
 
-        node[field] = rule.Canonical(written)
-            ?? throw new ToolRefusalException($"'{written}' at {path}.{field} is not an accepted value; accepted: {string.Join(", ", rule.Accepted)}.");
+        switch (node[field])
+        {
+            case JsonValue value when value.TryGetValue<string>(out var written):
+                node[field] = CanonicalOrRefuse(rule, written, $"{path}.{field}");
+                break;
+            case JsonArray items:
+                for (int i = 0; i < items.Count; i++)
+                {
+                    if (items[i] is JsonValue item && item.TryGetValue<string>(out var entry))
+                    {
+                        items[i] = CanonicalOrRefuse(rule, entry, $"{path}.{field}[{i}]");
+                    }
+                }
+                break;
+        }
     }
+
+    /// <summary>The spelling <paramref name="rule"/> accepts for <paramref name="written"/>, or the refusal that names
+    /// where it stands and what is accepted there.</summary>
+    private static string CanonicalOrRefuse(SpecVocabulary.Rule rule, string written, string where) =>
+        rule.Canonical(written)
+        ?? throw new ToolRefusalException($"'{written}' at {where} is not an accepted value; accepted: {string.Join(", ", rule.Accepted)}.");
 
     /// <summary>Every colour in the document, wherever it sits: a CSS4 name becomes the hex the serializer reads,
     /// a short hex is expanded, and anything else is refused by path. The serializer's converter accepts six or
     /// eight hex digits only, and <c>"red"</c> would otherwise fail deep inside it without a path.</summary>
-    private static void NormaliseColours(JsonNode? node, string path)
+    /// <param name="node">The node to walk.</param>
+    /// <param name="path">Where <paramref name="node"/> stands.</param>
+    /// <param name="owner">The field <paramref name="node"/> is the value of: every field of a theme's alarm palette is a
+    /// colour.</param>
+    private static void NormaliseColours(JsonNode? node, string path, string? owner = null)
     {
         switch (node)
         {
@@ -208,7 +381,7 @@ internal sealed partial class ChartSpecReader
                 {
                     var child = obj[name];
                     string childPath = $"{path}.{name}";
-                    if (IsColourField(name) && child is JsonValue value && value.TryGetValue<string>(out var written))
+                    if ((IsColourField(name) || owner == "alarm") && child is JsonValue value && value.TryGetValue<string>(out var written))
                     {
                         obj[name] = NormaliseColour(written, childPath);
                     }
@@ -224,7 +397,7 @@ internal sealed partial class ChartSpecReader
                     }
                     else
                     {
-                        NormaliseColours(child, childPath);
+                        NormaliseColours(child, childPath, owner: name);
                     }
                 }
                 break;
@@ -237,9 +410,11 @@ internal sealed partial class ChartSpecReader
         }
     }
 
-    private static bool IsColourField(string name) => name == "color" || name.EndsWith("Color", StringComparison.Ordinal);
+    /// <summary>A field that holds one colour: <c>color</c>, any name ending in <c>Color</c>, and the grounds of a theme.</summary>
+    private static bool IsColourField(string name) =>
+        name is "color" or "background" or "foregroundText" or "axesBackground" || name.EndsWith("Color", StringComparison.Ordinal);
 
-    private static bool IsColourListField(string name) => name is "stateSegmentColors" or "bandColors";
+    private static bool IsColourListField(string name) => name is "stateSegmentColors" or "bandColors" or "colors" or "edgeColors" or "cycleColors";
 
     private static string NormaliseColour(string written, string path)
     {
@@ -369,7 +544,7 @@ internal sealed partial class ChartSpecReader
         // "Array lengths must match. Got 3 and 0." with no field name and no path.
         bool hasX = series.XData is not null;
         bool hasY = series.YData is not null;
-        if (hasX != hasY)
+        if (hasX != hasY && !DerivesItsXData.Contains(series.Type))
         {
             throw new ToolRefusalException($"The series at {path} has '{(hasX ? "xData" : "yData")}' but no '{(hasX ? "yData" : "xData")}'.");
         }

@@ -17,12 +17,15 @@ internal sealed class ResidualSeriesRenderer : SeriesRenderer<ResidualSeries>
     /// <inheritdoc />
     public override void Render(ResidualSeries series)
     {
-        if (series.XData.Length == 0) return;
+        // The fit is made over the pairs that can be drawn: a pair with a missing value (NaN) or an infinity is left out,
+        // and draws no marker (one NaN made every coefficient and every residual NaN).
+        var pairs = series.XData.Data.DrawablePairs(series.YData.Data);
+        if (pairs.X.Length == 0) return;
 
         double[] coeffs;
         try
         {
-            coeffs = LeastSquares.PolyFit(series.XData, series.YData, series.Degree);
+            coeffs = LeastSquares.PolyFit(pairs.X, pairs.Y, series.Degree);
         }
         catch (Exception ex) when (ex is ArgumentException or IndexOutOfRangeException)
         {
@@ -36,15 +39,16 @@ internal sealed class ResidualSeriesRenderer : SeriesRenderer<ResidualSeries>
                 ex));
             return;
         }
-        double[] predicted = LeastSquares.PolyEval(coeffs, series.XData);
-        Vec residuals = series.YData - new Vec(predicted);
+        double[] predicted = LeastSquares.PolyEval(coeffs, pairs.X);
+        Vec residuals = new Vec(pairs.Y) - new Vec(predicted);
 
         var color = ResolveColor(series.Color);
         double r = series.MarkerSize / 2.0;
 
-        for (int i = 0; i < series.XData.Length; i++)
+        for (int i = 0; i < pairs.X.Length; i++)
         {
-            var px = Transform.DataToPixel(series.XData[i], residuals[i]);
+            var px = Transform.DataToPixel(pairs.X[i], residuals[i]);
+            if (!px.IsDrawable()) continue;   // a residual the axis cannot place is skipped, as a marker is
             Ctx.DrawCircle(px, r, new ShapeStyle(color, null, 0));
         }
 

@@ -44,10 +44,11 @@ public abstract class XYZSeries : ChartSeries, I3DPointSeries
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (X.Length == 0) return new(null, null, null, null);
-        return new(
-            X.Min(), X.Max(),
-            Y.Min(), Y.Max(),
-            ZMin: Z.Min(), ZMax: Z.Max());
+        // Over the drawable coordinates only: a missing one (NaN) and an infinity are left out.
+        var x = X.Data.DrawableRange();
+        var y = Y.Data.DrawableRange();
+        var z = Z.Data.DrawableRange();
+        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi, ZMin: z?.Lo, ZMax: z?.Hi);
     }
 
     /// <inheritdoc />

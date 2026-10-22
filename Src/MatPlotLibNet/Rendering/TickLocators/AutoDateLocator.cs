@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Serialization;
+
 namespace MatPlotLibNet.Rendering.TickLocators;
 
 /// <summary>Automatically places date tick marks at calendar-aligned boundaries,
@@ -22,13 +24,16 @@ namespace MatPlotLibNet.Rendering.TickLocators;
 ///   <item><term>else</term><description>Seconds — :00</description></item>
 /// </list>
 /// </remarks>
-public sealed class AutoDateLocator : ITickLocator
+public sealed class AutoDateLocator : ITickLocator, IJsonDescribed<TickLocatorDto>
 {
     private const double OneDayInOA    = 1.0;
     private const double OneHourInOA   = 1.0 / 24;
     private const double OneMinuteInOA = 1.0 / (24 * 60);
 
     public DateInterval ChosenInterval { get; private set; }
+
+    /// <inheritdoc />
+    TickLocatorDto IJsonDescribed<TickLocatorDto>.Describe() => new AutoDateTickLocatorDto();
 
     /// <inheritdoc />
     public double[] Locate(double min, double max)

@@ -11,20 +11,32 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Serialization;
 
 /// <summary>Serializes and deserializes <see cref="Figure"/> instances to and from JSON.</summary>
+/// <remarks>A number JSON cannot hold is written as the string that names it: NaN, the library's missing value, as
+/// <c>"NaN"</c>, and the infinities as <c>"Infinity"</c> and <c>"-Infinity"</c>. Each is read back as that number, so a
+/// figure with a gap in a line or an empty heatmap cell survives the round trip unchanged. A reader outside .NET sees
+/// those three strings where a number would stand.</remarks>
 public sealed class ChartSerializer : IChartSerializer
 {
     private static readonly JsonSerializerOptions IndentedOptions = CreateOptions(true);
     private static readonly JsonSerializerOptions CompactOptions = CreateOptions(false);
+
+    /// <summary>The options this serializer reads a document with. Another reader of the same documents (the MCP spec
+    /// reader) starts from a copy, so the naming, the converters and the number rule are one definition.</summary>
+    internal static JsonSerializerOptions ReadOptions => CompactOptions;
 
     private static JsonSerializerOptions CreateOptions(bool indented) => new()
     {
         WriteIndented = indented,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        // The one place the non-finite numbers are decided (see the class remarks): written as "NaN", "Infinity" or
+        // "-Infinity" and read back as themselves. Without it the writer throws on the first missing value. A finite
+        // number is written exactly as before, so a figure without one keeps its bytes.
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
         Converters =
         {
             new ColorJsonConverter(),
-            // Phase O of v1.7.2 — defensive guard: any enum-typed DTO property added
+            // Defensive guard: any enum-typed DTO property added
             // in the future serialises as a NAME (string), never an integer ordinal.
             // Protects against silent binary-compat breakage when enums reorder across
             // library versions. Existing DTOs already manually string-convert so this
@@ -43,11 +55,16 @@ public sealed class ChartSerializer : IChartSerializer
     /// <inheritdoc />
     public Figure FromJson(string json)
     {
-        var dto = JsonSerializer.Deserialize<FigureDto>(json, CompactOptions)
+        var dto = JsonSerializer.Deserialize<FigureDto>(json, ReadOptions)
             ?? throw new JsonException("Failed to deserialize figure.");
         return DtoToFigure(dto);
     }
 
+    /// <summary>The settings of a new figure: what a figure setting is left out at, and read back as.</summary>
+    private static readonly Figure RestingFigure = new();
+
+    /// <summary>Writes the figure: its own settings (each left out at a new figure's value; the theme left out while it
+    /// is the default theme itself), then its subplots.</summary>
     private static FigureDto FigureToDto(Figure figure) => new()
     {
         Title = figure.Title,
@@ -62,11 +79,30 @@ public sealed class ChartSerializer : IChartSerializer
             Rows = gs.Rows, Cols = gs.Cols,
             HeightRatios = gs.HeightRatios, WidthRatios = gs.WidthRatios
         } : null,
-        SubPlots = AxesToDtos(figure.SubPlots),
-        Enable3DRotation = figure.Enable3DRotation ? true : null
+        SubPlots = AxesToDtos(figure.SubPlots, figure.Theme),
+        Enable3DRotation = figure.Enable3DRotation.OrNullAtRest(RestingFigure.Enable3DRotation),
+        FigureColorBar = ColorBarDto.From(figure.FigureColorBar),
+        Theme = ReferenceEquals(figure.Theme, RestingFigure.Theme) ? null : ThemeDto.From(figure.Theme),
+        Spacing = figure.Spacing == RestingFigure.Spacing ? null : SubPlotSpacingDto.From(figure.Spacing),
+        ChartId = figure.ChartId,
+        ServerInteraction = figure.ServerInteraction.OrNullAtRest(RestingFigure.ServerInteraction),
+        EnableZoomPan = figure.EnableZoomPan.OrNullAtRest(RestingFigure.EnableZoomPan),
+        EnableLegendToggle = figure.EnableLegendToggle.OrNullAtRest(RestingFigure.EnableLegendToggle),
+        EnableRichTooltips = figure.EnableRichTooltips.OrNullAtRest(RestingFigure.EnableRichTooltips),
+        EnableHighlight = figure.EnableHighlight.OrNullAtRest(RestingFigure.EnableHighlight),
+        EnableSelection = figure.EnableSelection.OrNullAtRest(RestingFigure.EnableSelection),
+        EnableDataCursor = figure.EnableDataCursor.OrNullAtRest(RestingFigure.EnableDataCursor),
+        EnableTreemapDrilldown = figure.EnableTreemapDrilldown.OrNullAtRest(RestingFigure.EnableTreemapDrilldown),
+        EnableSankeyHover = figure.EnableSankeyHover.OrNullAtRest(RestingFigure.EnableSankeyHover),
+        InteractionTheme = figure.InteractionTheme == RestingFigure.InteractionTheme ? null : InteractionThemeDto.From(figure.InteractionTheme),
+        ResponsiveSvg = figure.ResponsiveSvg.OrNullAtRest(RestingFigure.ResponsiveSvg),
     };
 
-    private static AxesDto AxesToDto(Axes axes) => new()
+    /// <summary>Writes one axes. <paramref name="theme"/> is the figure's: a grid the axes changed over the theme's grid
+    /// is a change (code the JSON cannot carry), so it is written as the grid it draws under that theme, marked as the
+    /// axes' own (<see cref="AxesDto.GridOverridesTheme"/>) so that a grid switched off stays off under a theme that
+    /// draws one.</summary>
+    private static AxesDto AxesToDto(Axes axes, Theme theme) => new()
     {
         Title = axes.Title,
         Key = axes.Key,
@@ -77,27 +113,19 @@ public sealed class ChartSerializer : IChartSerializer
             RowStart = gp.RowStart, RowEnd = gp.RowEnd,
             ColStart = gp.ColStart, ColEnd = gp.ColEnd
         } : null,
-        Spines = SpinesAreDefault(axes.Spines) ? null : SpinesToDto(axes.Spines),
+        Spines = axes.Spines == new SpinesConfig() ? null : SpinesToDto(axes.Spines),
         XAxis = AxisToDto(axes.XAxis),
         YAxis = AxisToDto(axes.YAxis),
-        Grid = new GridDto { Visible = axes.Grid.Visible },
+        Grid = GridDto.From(axes.GridOverride is null ? axes.Grid : axes.GridUnder(theme)),
+        GridOverridesTheme = axes.GridOverride is null ? null : true,
         BarMode = axes.BarMode == BarMode.Stacked ? "stacked" : null,
         Series = SeriesToDtos(axes.Series),
-        Annotations = axes.Annotations.Count > 0 ? axes.Annotations.Select(a => new AnnotationDto
-        {
-            Text = a.Text, X = a.X, Y = a.Y,
-            ArrowTargetX = a.ArrowTargetX, ArrowTargetY = a.ArrowTargetY,
-            ConnectionStyle = a.ConnectionStyle != Models.ConnectionStyle.Straight ? a.ConnectionStyle.ToString().ToLowerInvariant() : null,
-            ConnectionRad = a.ConnectionRad != 0.3 ? a.ConnectionRad : null,
-            ArrowHeadSize = a.ArrowHeadSize != 8 ? a.ArrowHeadSize : null,
-            BoxStyle = a.BoxStyle != Models.BoxStyle.None ? a.BoxStyle.ToString().ToLowerInvariant() : null,
-            BoxPadding = a.BoxPadding != 4 ? a.BoxPadding : null,
-            BoxCornerRadius = a.BoxCornerRadius != 5 ? a.BoxCornerRadius : null,
-        }).ToList() : null,
+        Annotations = axes.Annotations.Count > 0 ? axes.Annotations.Select(AnnotationToDto).ToList() : null,
         ReferenceLines = axes.ReferenceLines.Count > 0 ? axes.ReferenceLines.Select(r => new ReferenceLineDto
         {
             Value = r.Value, Orientation = r.Orientation.ToString().ToLowerInvariant(),
-            LineStyle = r.LineStyle.ToString().ToLowerInvariant(), LineWidth = r.LineWidth, Label = r.Label
+            LineStyle = r.LineStyle.ToString().ToLowerInvariant(), LineWidth = r.LineWidth, Label = r.Label,
+            Color = r.Color,
         }).ToList() : null,
         SecondaryYAxis = axes.SecondaryYAxis is not null ? AxisToDto(axes.SecondaryYAxis) : null,
         SecondarySeries = axes.SecondarySeries.Count > 0 ? SeriesToDtos(axes.SecondarySeries) : null,
@@ -110,6 +138,8 @@ public sealed class ChartSerializer : IChartSerializer
             LineStyle = s.LineStyle != LineStyle.None ? s.LineStyle.ToString().ToLowerInvariant() : null,
             LineWidth = s.LineWidth != 1.0 ? s.LineWidth : null,
             Label = s.Label,
+            Color = s.Color,
+            EdgeColor = s.EdgeColor,
         }).ToList() : null,
         Trendlines = axes.Trendlines.Count > 0 ? axes.Trendlines.Select(t => new TrendlineDto
         {
@@ -135,7 +165,7 @@ public sealed class ChartSerializer : IChartSerializer
         {
             X = ib.X, Y = ib.Y, Width = ib.Width, Height = ib.Height
         } : null,
-        Insets = axes.Insets.Count > 0 ? AxesToDtos(axes.Insets) : null,
+        Insets = axes.Insets.Count > 0 ? AxesToDtos(axes.Insets, theme) : null,
         Elevation = axes.Elevation != 30 ? axes.Elevation : null,
         Azimuth = axes.Azimuth != -60 ? axes.Azimuth : null,
         CameraDistance = axes.CameraDistance,
@@ -143,17 +173,59 @@ public sealed class ChartSerializer : IChartSerializer
             ? FormattableString.Invariant($"directional:{dl.Dx},{dl.Dy},{dl.Dz},{dl.Ambient},{dl.Diffuse}")
             : null,
         XBreaks = axes.XBreaks.Count > 0 ? axes.XBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null,
-        YBreaks = axes.YBreaks.Count > 0 ? axes.YBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null
+        YBreaks = axes.YBreaks.Count > 0 ? axes.YBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null,
+        TitleStyle = TextStyleDto.From(axes.TitleStyle),
+        TitleLoc = axes.TitleLoc.OrNullAtRest(TitleLocation.Center),
+        Legend = LegendDto.From(axes.Legend),
+        ColorBar = ColorBarDto.From(axes.ColorBar),
     };
+
+    /// <summary>Writes one annotation: what it says and where, and everything it is drawn with. A value at the one a new
+    /// annotation has is left out.</summary>
+    private static AnnotationDto AnnotationToDto(Annotation a)
+    {
+        var rest = new Annotation(a.Text, a.X, a.Y);
+        return new AnnotationDto
+        {
+            Text = a.Text, X = a.X, Y = a.Y,
+            ArrowTargetX = a.ArrowTargetX, ArrowTargetY = a.ArrowTargetY,
+            ConnectionStyle = a.ConnectionStyle != Models.ConnectionStyle.Straight ? a.ConnectionStyle.ToString().ToLowerInvariant() : null,
+            ConnectionRad = a.ConnectionRad != 0.3 ? a.ConnectionRad : null,
+            ArrowHeadSize = a.ArrowHeadSize != 8 ? a.ArrowHeadSize : null,
+            BoxStyle = a.BoxStyle != Models.BoxStyle.None ? a.BoxStyle.ToString().ToLowerInvariant() : null,
+            BoxPadding = a.BoxPadding != 4 ? a.BoxPadding : null,
+            BoxCornerRadius = a.BoxCornerRadius != 5 ? a.BoxCornerRadius : null,
+            Coordinates = a.Coordinates.OrNullAtRest(rest.Coordinates),
+            Font = FontDto.From(a.Font),
+            Color = a.Color,
+            ArrowColor = a.ArrowColor,
+            Alignment = a.Alignment.OrNullAtRest(rest.Alignment),
+            Rotation = a.Rotation.OrNullAtRest(rest.Rotation),
+            ArrowStyle = a.ArrowStyle.OrNullAtRest(rest.ArrowStyle),
+            BackgroundColor = a.BackgroundColor,
+            BoxFaceColor = a.BoxFaceColor,
+            BoxEdgeColor = a.BoxEdgeColor,
+            BoxLineWidth = a.BoxLineWidth.OrNullAtRest(rest.BoxLineWidth),
+        };
+    }
 
     /// <summary>The ONE place a list of axes is written: the figure's subplots and an axes' insets, each through
     /// <see cref="AxesToDto"/>.</summary>
-    private static List<AxesDto> AxesToDtos(IEnumerable<Axes> axes) => axes.Select(AxesToDto).ToList();
+    private static List<AxesDto> AxesToDtos(IEnumerable<Axes> axes, Theme theme) => axes.Select(a => AxesToDto(a, theme)).ToList();
 
     /// <summary>The ONE place a list of series is written: the primary list and both secondary axes, each series through
     /// <see cref="SeriesToDto"/>.</summary>
     private static List<SeriesDto> SeriesToDtos(IEnumerable<ISeries> series) => series.Select(SeriesToDto).ToList();
 
+    /// <summary>The ticks, the minor ticks and the linear threshold of a new axis: the values an axis setting is left out
+    /// at, and read back over.</summary>
+    private static readonly TickConfig RestingMajorTicks = new Axis().MajorTicks;
+    private static readonly TickConfig RestingMinorTicks = new Axis().MinorTicks;
+    private static readonly double RestingSymLogLinThresh = new Axis().SymLogLinThresh;
+
+    /// <summary>Writes one axis. A tick locator or formatter of the library describes itself; one written outside the
+    /// library is left out (see <see cref="Axis.TickLocator"/>). The colours of the major ticks and of the label stay in
+    /// the fields that carried them before the rest of the ticks and the label style reached the JSON.</summary>
     private static AxisDto AxisToDto(Axis axis) => new()
     {
         Label = axis.Label,
@@ -162,20 +234,16 @@ public sealed class ChartSerializer : IChartSerializer
         Scale = axis.Scale.ToString().ToLowerInvariant(),
         TickColor = axis.MajorTicks.Color,
         TickLabelColor = axis.MajorTicks.LabelColor,
-        LabelColor = axis.LabelStyle?.Color
+        LabelColor = axis.LabelStyle?.Color,
+        TickLocator = (axis.TickLocator as IJsonDescribed<TickLocatorDto>)?.Describe(),
+        TickFormatter = (axis.TickFormatter as IJsonDescribed<TickFormatterDto>)?.Describe(),
+        Inverted = axis.Inverted.OrNullAtRest(false),
+        Margin = axis.Margin,
+        SymLogLinThresh = axis.SymLogLinThresh.OrNullAtRest(RestingSymLogLinThresh),
+        MajorTicks = TickConfigDto.From(axis.MajorTicks with { Color = null, LabelColor = null }, RestingMajorTicks),
+        MinorTicks = TickConfigDto.From(axis.MinorTicks, RestingMinorTicks),
+        LabelStyle = TextStyleDto.From(axis.LabelStyle is { } style ? style with { Color = null } : null),
     };
-
-    private static bool SpinesAreDefault(SpinesConfig s) =>
-        SpineIsDefault(s.Top) && SpineIsDefault(s.Bottom) && SpineIsDefault(s.Left) && SpineIsDefault(s.Right);
-
-    /// <summary>A spine is default when every facet the DTO persists equals a new <see cref="SpineConfig"/>; a spine
-    /// that differs in any of them must be written, or the difference is lost on the way through JSON.</summary>
-    private static bool SpineIsDefault(SpineConfig spine)
-    {
-        var d = new SpineConfig();
-        return spine.Visible == d.Visible && spine.Position == d.Position
-            && spine.LineWidth == d.LineWidth && Nullable.Equals(spine.Color, d.Color);
-    }
 
     private static SpinesConfigDto SpinesToDto(SpinesConfig s) => new()
     {
@@ -191,7 +259,8 @@ public sealed class ChartSerializer : IChartSerializer
         Position = s.Position == SpinePosition.Edge ? null : s.Position.ToString().ToLowerInvariant(),
         PositionValue = s.PositionValue,
         LineWidth = s.LineWidth,
-        Color = s.Color
+        Color = s.Color,
+        LineStyle = s.LineStyle.OrNullAtRest(LineStyle.Solid),
     };
 
     private static SpinesConfig DtoToSpines(SpinesConfigDto dto) => new()
@@ -213,29 +282,45 @@ public sealed class ChartSerializer : IChartSerializer
         },
         PositionValue = dto.PositionValue,
         LineWidth = dto.LineWidth,
-        Color = dto.Color
+        Color = dto.Color,
+        LineStyle = dto.LineStyle ?? LineStyle.Solid,
     };
 
-    /// <summary>The ONE place a series' name leaves the model: its label, and where it is shown when that is not the
-    /// legend. Every series list (primary, both secondary axes, insets) is written through here.</summary>
+    /// <summary>The ONE place the fields every series shares leave the model: its label and where it is shown when
+    /// that is not the legend, its place in the drawing order, whether it is shown at all, and how many points an x/y
+    /// series draws at most. Every series list (primary, both secondary axes, insets) is written through here; what a
+    /// series type draws beyond these, its own <c>ToSeriesDto</c> writes.</summary>
     private static SeriesDto SeriesToDto(ISeries series)
     {
         var dto = series.ToSeriesDto();
         dto.Label = series.Label;
         if (series is IHasLabelPlacement { LabelPlacement: not SeriesLabelPlacement.Legend } carrier)
             dto.LabelPlacement = carrier.LabelPlacement.ToString().ToLowerInvariant();
+        dto.ZOrder = series.ZOrder.OrNullAtRest(series is ChartSeries chart ? chart.RestingZOrder : 0);
+        dto.Visible = series.Visible.OrNullAtRest(true);
+        if (series is XYSeries xy)
+            dto.MaxDisplayPoints = xy.MaxDisplayPoints;
         return dto;
     }
 
-    /// <summary>The ONE place a series' name enters the model: the counterpart of <see cref="SeriesToDto"/>, shared by
-    /// the primary list and both secondary axes. A missing or unknown placement leaves the default, the legend.</summary>
-    private static void RestoreLabel(ISeries series, SeriesDto dto)
+    /// <summary>The ONE place the fields every series shares enter the model: the counterpart of
+    /// <see cref="SeriesToDto"/>, shared by the primary list and both secondary axes. A field that is absent, or an
+    /// unknown placement, leaves the value the series was created with.</summary>
+    private static void RestoreSharedFields(ISeries series, SeriesDto dto)
     {
         series.Label = dto.Label;
         if (series is IHasLabelPlacement carrier)
             ApplyEnum<SeriesLabelPlacement>(dto.LabelPlacement, v => carrier.LabelPlacement = v);
+        if (dto.ZOrder is { } zOrder)
+            series.ZOrder = zOrder;
+        if (dto.Visible is { } visible)
+            series.Visible = visible;
+        if (series is XYSeries xy && dto.MaxDisplayPoints is { } maxDisplayPoints)
+            xy.MaxDisplayPoints = maxDisplayPoints;
     }
 
+    /// <summary>Reads the figure back: the counterpart of <see cref="FigureToDto"/>. A setting the JSON leaves out reads
+    /// as a new figure's.</summary>
     private static Figure DtoToFigure(FigureDto dto)
     {
         var figure = new Figure
@@ -245,11 +330,25 @@ public sealed class ChartSerializer : IChartSerializer
             Description = dto.Description,
             Width = dto.Width,
             Height = dto.Height,
-            Dpi = dto.Dpi,
-            BackgroundColor = dto.BackgroundColor
+            Dpi = dto.Dpi ?? RestingFigure.Dpi,
+            BackgroundColor = dto.BackgroundColor,
+            Enable3DRotation = dto.Enable3DRotation ?? RestingFigure.Enable3DRotation,
+            FigureColorBar = dto.FigureColorBar?.ToColorBar(),
+            Theme = dto.Theme?.ToTheme() ?? RestingFigure.Theme,
+            Spacing = dto.Spacing?.ToSpacing() ?? RestingFigure.Spacing,
+            ChartId = dto.ChartId,
+            ServerInteraction = dto.ServerInteraction ?? RestingFigure.ServerInteraction,
+            EnableZoomPan = dto.EnableZoomPan ?? RestingFigure.EnableZoomPan,
+            EnableLegendToggle = dto.EnableLegendToggle ?? RestingFigure.EnableLegendToggle,
+            EnableRichTooltips = dto.EnableRichTooltips ?? RestingFigure.EnableRichTooltips,
+            EnableHighlight = dto.EnableHighlight ?? RestingFigure.EnableHighlight,
+            EnableSelection = dto.EnableSelection ?? RestingFigure.EnableSelection,
+            EnableDataCursor = dto.EnableDataCursor ?? RestingFigure.EnableDataCursor,
+            EnableTreemapDrilldown = dto.EnableTreemapDrilldown ?? RestingFigure.EnableTreemapDrilldown,
+            EnableSankeyHover = dto.EnableSankeyHover ?? RestingFigure.EnableSankeyHover,
+            InteractionTheme = dto.InteractionTheme?.ToInteractionTheme() ?? RestingFigure.InteractionTheme,
+            ResponsiveSvg = dto.ResponsiveSvg ?? RestingFigure.ResponsiveSvg,
         };
-
-        if (dto.Enable3DRotation is true) figure.Enable3DRotation = true;
 
         if (dto.GridSpec is { } gsDto)
             figure.GridSpec = new GridSpec
@@ -270,141 +369,7 @@ public sealed class ChartSerializer : IChartSerializer
             {
                 axes = figure.AddSubPlot();
             }
-            axes.Title = axDto.Title;
-            axes.Key = axDto.Key;
-
-            if (axDto.XAxis is not null) ApplyAxis(axes.XAxis, axDto.XAxis);
-            if (axDto.YAxis is not null) ApplyAxis(axes.YAxis, axDto.YAxis);
-            if (axDto.Grid is not null) axes.Grid = axes.Grid with { Visible = axDto.Grid.Visible };
-            if (axDto.Spines is not null) axes.Spines = DtoToSpines(axDto.Spines);
-            if (axDto.BarMode is "stacked") axes.BarMode = BarMode.Stacked;
-
-            // Camera and lighting
-            if (axDto.Elevation.HasValue) axes.Elevation = axDto.Elevation.Value;
-            if (axDto.Azimuth.HasValue) axes.Azimuth = axDto.Azimuth.Value;
-            if (axDto.CameraDistance.HasValue) axes.CameraDistance = axDto.CameraDistance.Value;
-            if (axDto.LightSourceType is { } lsType && lsType.StartsWith("directional:", StringComparison.Ordinal))
-            {
-                var parts = lsType[12..].Split(',');
-                if (parts.Length >= 5 &&
-                    double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldx) &&
-                    double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldy) &&
-                    double.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldz) &&
-                    double.TryParse(parts[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double amb) &&
-                    double.TryParse(parts[4], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double diff))
-                    axes.LightSource = new Rendering.Lighting.DirectionalLight(ldx, ldy, ldz, amb, diff);
-            }
-
-            foreach (var sDto in axDto.Series ?? [])
-                AddSeriesFromDto(axes, sDto);
-
-            foreach (var aDto in axDto.Annotations ?? [])
-            {
-                var ann = axes.Annotate(aDto.Text ?? "", aDto.X, aDto.Y);
-                ann.ArrowTargetX = aDto.ArrowTargetX;
-                ann.ArrowTargetY = aDto.ArrowTargetY;
-                if (aDto.ConnectionStyle is not null && Enum.TryParse<Models.ConnectionStyle>(aDto.ConnectionStyle, true, out var cs))
-                    ann.ConnectionStyle = cs;
-                if (aDto.ConnectionRad.HasValue) ann.ConnectionRad = aDto.ConnectionRad.Value;
-                if (aDto.ArrowHeadSize.HasValue) ann.ArrowHeadSize = aDto.ArrowHeadSize.Value;
-                if (aDto.BoxStyle is not null && Enum.TryParse<Models.BoxStyle>(aDto.BoxStyle, true, out var bs))
-                    ann.BoxStyle = bs;
-                if (aDto.BoxPadding.HasValue) ann.BoxPadding = aDto.BoxPadding.Value;
-                if (aDto.BoxCornerRadius.HasValue) ann.BoxCornerRadius = aDto.BoxCornerRadius.Value;
-            }
-
-            foreach (var rDto in axDto.ReferenceLines ?? [])
-            {
-                var orient = rDto.Orientation is "vertical" ? Orientation.Vertical : Orientation.Horizontal;
-                var rl = orient == Orientation.Horizontal ? axes.AxHLine(rDto.Value) : axes.AxVLine(rDto.Value);
-                if (rDto.LineStyle is not null && Enum.TryParse<LineStyle>(rDto.LineStyle, true, out var ls))
-                    rl.LineStyle = ls;
-                rl.LineWidth = rDto.LineWidth;
-                rl.Label = rDto.Label;
-            }
-
-            if (axDto.SecondaryYAxis is not null)
-            {
-                axes.TwinX();
-                ApplyAxis(axes.SecondaryYAxis!, axDto.SecondaryYAxis);
-                // Route secondary series through PlotSecondary/ScatterSecondary
-                AddSecondarySeriesFromDtos(axDto.SecondarySeries,
-                    sDto => CreateSecondaryLine(axes, sDto), sDto => CreateSecondaryScatter(axes, sDto));
-            }
-
-            if (axDto.SecondaryXAxis is not null)
-            {
-                axes.TwinY();
-                ApplyAxis(axes.SecondaryXAxis!, axDto.SecondaryXAxis);
-                // Route top-axis series through PlotXSecondary/ScatterXSecondary
-                AddSecondarySeriesFromDtos(axDto.XSecondarySeries,
-                    sDto => CreateXSecondaryLine(axes, sDto), sDto => CreateXSecondaryScatter(axes, sDto));
-            }
-
-            foreach (var sDto in axDto.Spans ?? [])
-            {
-                var orient = sDto.Orientation is "vertical" ? Orientation.Vertical : Orientation.Horizontal;
-                var sp = orient == Orientation.Horizontal ? axes.AxHSpan(sDto.Min, sDto.Max) : axes.AxVSpan(sDto.Min, sDto.Max);
-                sp.Alpha = sDto.Alpha;
-                if (sDto.LineStyle is not null && Enum.TryParse<LineStyle>(sDto.LineStyle, true, out var ls))
-                    sp.LineStyle = ls;
-                if (sDto.LineWidth.HasValue) sp.LineWidth = sDto.LineWidth.Value;
-                sp.Label = sDto.Label;
-            }
-
-            foreach (var tDto in axDto.Trendlines ?? [])
-            {
-                var t = axes.AddTrendline(tDto.X1, tDto.Y1, tDto.X2, tDto.Y2);
-                if (tDto.Color is not null) t.Color = Styling.Color.FromHex(tDto.Color);
-                if (tDto.LineStyle is not null && Enum.TryParse<LineStyle>(tDto.LineStyle, true, out var tls))
-                    t.LineStyle = tls;
-                t.LineWidth = tDto.LineWidth;
-                t.Label = tDto.Label;
-                t.IsExtended = tDto.IsExtended;
-            }
-
-            foreach (var lDto in axDto.HorizontalLevels ?? [])
-            {
-                var l = axes.AddLevel(lDto.Value);
-                if (lDto.Color is not null) l.Color = Styling.Color.FromHex(lDto.Color);
-                if (lDto.LineStyle is not null && Enum.TryParse<LineStyle>(lDto.LineStyle, true, out var lls))
-                    l.LineStyle = lls;
-                l.LineWidth = lDto.LineWidth;
-                l.Label = lDto.Label;
-            }
-
-            foreach (var fDto in axDto.FibonacciRetracements ?? [])
-            {
-                var f = axes.AddFibonacci(fDto.PriceHigh, fDto.PriceLow);
-                if (fDto.Color is not null) f.Color = Styling.Color.FromHex(fDto.Color);
-                f.LineWidth = fDto.LineWidth;
-                f.ShowLabels = fDto.ShowLabels;
-            }
-
-            // Restore insets recursively
-            foreach (var insetDto in axDto.Insets ?? [])
-            {
-                if (insetDto.InsetBounds is not { } ibDto) continue;
-                var inset = axes.AddInset(ibDto.X, ibDto.Y, ibDto.Width, ibDto.Height);
-                inset.Title = insetDto.Title;
-                if (insetDto.XAxis is not null) ApplyAxis(inset.XAxis, insetDto.XAxis);
-                if (insetDto.YAxis is not null) ApplyAxis(inset.YAxis, insetDto.YAxis);
-                if (insetDto.Spines is not null) inset.Spines = DtoToSpines(insetDto.Spines);
-                foreach (var sDto in insetDto.Series ?? [])
-                    AddSeriesFromDto(inset, sDto);
-            }
-
-            // Restore axis breaks
-            foreach (var bDto in axDto.XBreaks ?? [])
-            {
-                var style = bDto.Style is not null && Enum.TryParse<Models.BreakStyle>(bDto.Style, true, out var bs) ? bs : Models.BreakStyle.Zigzag;
-                axes.AddXBreak(bDto.From, bDto.To, style);
-            }
-            foreach (var bDto in axDto.YBreaks ?? [])
-            {
-                var style = bDto.Style is not null && Enum.TryParse<Models.BreakStyle>(bDto.Style, true, out var bs) ? bs : Models.BreakStyle.Zigzag;
-                axes.AddYBreak(bDto.From, bDto.To, style);
-            }
+            RestoreAxes(axes, axDto);
         }
 
         // Resolve sharing references by key
@@ -427,6 +392,170 @@ public sealed class ChartSerializer : IChartSerializer
         return figure;
     }
 
+    /// <summary>The ONE place an axes is read back: a subplot and an inset alike, everything <see cref="AxesToDto"/> wrote
+    /// (its axes, grid, spines, title style, legend, colour bar, series, overlays, secondary axes, insets and breaks).</summary>
+    private static void RestoreAxes(Axes axes, AxesDto axDto)
+    {
+        axes.Title = axDto.Title;
+        axes.Key = axDto.Key;
+        if (axDto.TitleStyle is { } titleStyle) axes.TitleStyle = titleStyle.ToTextStyle();
+        if (axDto.TitleLoc is { } titleLoc) axes.TitleLoc = titleLoc;
+        if (axDto.Legend is { } legend) axes.Legend = legend.ToLegend();
+        if (axDto.ColorBar is { } colorBar) axes.ColorBar = colorBar.ToColorBar();
+
+        if (axDto.XAxis is not null) ApplyAxis(axes.XAxis, axDto.XAxis);
+        if (axDto.YAxis is not null) ApplyAxis(axes.YAxis, axDto.YAxis);
+        if (axDto.Grid is not null) RestoreGrid(axes, axDto.Grid.ToGridStyle(), axDto.GridOverridesTheme is true);
+        if (axDto.Spines is not null) axes.Spines = DtoToSpines(axDto.Spines);
+        if (axDto.BarMode is "stacked") axes.BarMode = BarMode.Stacked;
+
+        // Camera and lighting
+        if (axDto.Elevation.HasValue) axes.Elevation = axDto.Elevation.Value;
+        if (axDto.Azimuth.HasValue) axes.Azimuth = axDto.Azimuth.Value;
+        if (axDto.CameraDistance.HasValue) axes.CameraDistance = axDto.CameraDistance.Value;
+        if (axDto.LightSourceType is { } lsType && lsType.StartsWith("directional:", StringComparison.Ordinal))
+        {
+            var parts = lsType[12..].Split(',');
+            if (parts.Length >= 5 &&
+                double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldx) &&
+                double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldy) &&
+                double.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldz) &&
+                double.TryParse(parts[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double amb) &&
+                double.TryParse(parts[4], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double diff))
+                axes.LightSource = new Rendering.Lighting.DirectionalLight(ldx, ldy, ldz, amb, diff);
+        }
+
+        foreach (var sDto in axDto.Series ?? [])
+            AddSeriesFromDto(axes, sDto);
+
+        foreach (var aDto in axDto.Annotations ?? [])
+        {
+            var ann = axes.Annotate(aDto.Text ?? "", aDto.X, aDto.Y);
+            ann.ArrowTargetX = aDto.ArrowTargetX;
+            ann.ArrowTargetY = aDto.ArrowTargetY;
+            if (aDto.ConnectionStyle is not null && Enum.TryParse<Models.ConnectionStyle>(aDto.ConnectionStyle, true, out var cs))
+                ann.ConnectionStyle = cs;
+            if (aDto.ConnectionRad.HasValue) ann.ConnectionRad = aDto.ConnectionRad.Value;
+            if (aDto.ArrowHeadSize.HasValue) ann.ArrowHeadSize = aDto.ArrowHeadSize.Value;
+            if (aDto.BoxStyle is not null && Enum.TryParse<Models.BoxStyle>(aDto.BoxStyle, true, out var bs))
+                ann.BoxStyle = bs;
+            if (aDto.BoxPadding.HasValue) ann.BoxPadding = aDto.BoxPadding.Value;
+            if (aDto.BoxCornerRadius.HasValue) ann.BoxCornerRadius = aDto.BoxCornerRadius.Value;
+            if (aDto.Coordinates is { } coordinates) ann.Coordinates = coordinates;
+            if (aDto.Font is { } font) ann.Font = font.ToFont();
+            ann.Color = aDto.Color;
+            ann.ArrowColor = aDto.ArrowColor;
+            if (aDto.Alignment is { } alignment) ann.Alignment = alignment;
+            if (aDto.Rotation is { } rotation) ann.Rotation = rotation;
+            if (aDto.ArrowStyle is { } arrowStyle) ann.ArrowStyle = arrowStyle;
+            ann.BackgroundColor = aDto.BackgroundColor;
+            ann.BoxFaceColor = aDto.BoxFaceColor;
+            ann.BoxEdgeColor = aDto.BoxEdgeColor;
+            if (aDto.BoxLineWidth is { } boxLineWidth) ann.BoxLineWidth = boxLineWidth;
+        }
+
+        foreach (var rDto in axDto.ReferenceLines ?? [])
+        {
+            var orient = rDto.Orientation is "vertical" ? Orientation.Vertical : Orientation.Horizontal;
+            var rl = orient == Orientation.Horizontal ? axes.AxHLine(rDto.Value) : axes.AxVLine(rDto.Value);
+            if (rDto.LineStyle is not null && Enum.TryParse<LineStyle>(rDto.LineStyle, true, out var ls))
+                rl.LineStyle = ls;
+            rl.LineWidth = rDto.LineWidth;
+            rl.Label = rDto.Label;
+            rl.Color = rDto.Color;
+        }
+
+        if (axDto.SecondaryYAxis is not null)
+        {
+            axes.TwinX();
+            ApplyAxis(axes.SecondaryYAxis!, axDto.SecondaryYAxis);
+            // Route secondary series through PlotSecondary/ScatterSecondary
+            AddSecondarySeriesFromDtos(axDto.SecondarySeries,
+                sDto => CreateSecondaryLine(axes, sDto), sDto => CreateSecondaryScatter(axes, sDto));
+        }
+
+        if (axDto.SecondaryXAxis is not null)
+        {
+            axes.TwinY();
+            ApplyAxis(axes.SecondaryXAxis!, axDto.SecondaryXAxis);
+            // Route top-axis series through PlotXSecondary/ScatterXSecondary
+            AddSecondarySeriesFromDtos(axDto.XSecondarySeries,
+                sDto => CreateXSecondaryLine(axes, sDto), sDto => CreateXSecondaryScatter(axes, sDto));
+        }
+
+        foreach (var sDto in axDto.Spans ?? [])
+        {
+            var orient = sDto.Orientation is "vertical" ? Orientation.Vertical : Orientation.Horizontal;
+            var sp = orient == Orientation.Horizontal ? axes.AxHSpan(sDto.Min, sDto.Max) : axes.AxVSpan(sDto.Min, sDto.Max);
+            sp.Alpha = sDto.Alpha;
+            if (sDto.LineStyle is not null && Enum.TryParse<LineStyle>(sDto.LineStyle, true, out var ls))
+                sp.LineStyle = ls;
+            if (sDto.LineWidth.HasValue) sp.LineWidth = sDto.LineWidth.Value;
+            sp.Label = sDto.Label;
+            sp.Color = sDto.Color;
+            sp.EdgeColor = sDto.EdgeColor;
+        }
+
+        foreach (var tDto in axDto.Trendlines ?? [])
+        {
+            var t = axes.AddTrendline(tDto.X1, tDto.Y1, tDto.X2, tDto.Y2);
+            if (tDto.Color is not null) t.Color = Styling.Color.FromHex(tDto.Color);
+            if (tDto.LineStyle is not null && Enum.TryParse<LineStyle>(tDto.LineStyle, true, out var tls))
+                t.LineStyle = tls;
+            t.LineWidth = tDto.LineWidth;
+            t.Label = tDto.Label;
+            t.IsExtended = tDto.IsExtended;
+        }
+
+        foreach (var lDto in axDto.HorizontalLevels ?? [])
+        {
+            var l = axes.AddLevel(lDto.Value);
+            if (lDto.Color is not null) l.Color = Styling.Color.FromHex(lDto.Color);
+            if (lDto.LineStyle is not null && Enum.TryParse<LineStyle>(lDto.LineStyle, true, out var lls))
+                l.LineStyle = lls;
+            l.LineWidth = lDto.LineWidth;
+            l.Label = lDto.Label;
+        }
+
+        foreach (var fDto in axDto.FibonacciRetracements ?? [])
+        {
+            var f = axes.AddFibonacci(fDto.PriceHigh, fDto.PriceLow);
+            if (fDto.Color is not null) f.Color = Styling.Color.FromHex(fDto.Color);
+            f.LineWidth = fDto.LineWidth;
+            f.ShowLabels = fDto.ShowLabels;
+        }
+
+        // An inset is an axes: read back through this same method, so it keeps whatever its writer wrote.
+        foreach (var insetDto in axDto.Insets ?? [])
+        {
+            if (insetDto.InsetBounds is not { } ibDto) continue;
+            RestoreAxes(axes.AddInset(ibDto.X, ibDto.Y, ibDto.Width, ibDto.Height), insetDto);
+        }
+
+        // Restore axis breaks
+        foreach (var bDto in axDto.XBreaks ?? [])
+        {
+            var style = bDto.Style is not null && Enum.TryParse<Models.BreakStyle>(bDto.Style, true, out var bs) ? bs : Models.BreakStyle.Zigzag;
+            axes.AddXBreak(bDto.From, bDto.To, style);
+        }
+        foreach (var bDto in axDto.YBreaks ?? [])
+        {
+            var style = bDto.Style is not null && Enum.TryParse<Models.BreakStyle>(bDto.Style, true, out var bs) ? bs : Models.BreakStyle.Zigzag;
+            axes.AddYBreak(bDto.From, bDto.To, style);
+        }
+    }
+
+    /// <summary>Reads an axes' grid back. A grid that overrides the theme's is the grid the axes draws whatever the theme's
+    /// grid is (a switched-off one included), so it comes back as that change; any other grid comes back as it stands,
+    /// and the renderer takes the theme's grid over one that is not switched on (<see cref="Axes.GridUnder"/>).</summary>
+    private static void RestoreGrid(Axes axes, GridStyle grid, bool overridesTheme)
+    {
+        axes.Grid = grid;
+        if (overridesTheme) axes.GridOverride = _ => grid;
+    }
+
+    /// <summary>Reads one axis back: the counterpart of <see cref="AxisToDto"/>. The tick locator is made first, so that a
+    /// formatter that writes what its locator chose is paired with the axis's own locator again.</summary>
     private static void ApplyAxis(Axis axis, AxisDto dto)
     {
         axis.Label = dto.Label;
@@ -434,6 +563,14 @@ public sealed class ChartSerializer : IChartSerializer
         axis.Max = dto.Max;
         if (dto.Scale is not null && Enum.TryParse<AxisScale>(dto.Scale, true, out var scale))
             axis.Scale = scale;
+        if (dto.Inverted is { } inverted) axis.Inverted = inverted;
+        if (dto.Margin is { } margin) axis.Margin = margin;
+        if (dto.SymLogLinThresh is { } linThresh) axis.SymLogLinThresh = linThresh;
+        if (dto.TickLocator is { } locator) axis.TickLocator = locator.Restore();
+        if (dto.TickFormatter is { } formatter) axis.TickFormatter = formatter.Restore(axis.TickLocator);
+        if (dto.MajorTicks is { } majorTicks) axis.MajorTicks = majorTicks.ToTickConfig(RestingMajorTicks);
+        if (dto.MinorTicks is { } minorTicks) axis.MinorTicks = minorTicks.ToTickConfig(RestingMinorTicks);
+        if (dto.LabelStyle is { } labelStyle) axis.LabelStyle = labelStyle.ToTextStyle();
         if (dto.TickColor is { } tickColor) axis.MajorTicks = axis.MajorTicks with { Color = tickColor };
         if (dto.TickLabelColor is { } tickLabelColor) axis.MajorTicks = axis.MajorTicks with { LabelColor = tickLabelColor };
         if (dto.LabelColor is { } labelColor) axis.LabelStyle = (axis.LabelStyle ?? new TextStyle()) with { Color = labelColor };
@@ -452,7 +589,7 @@ public sealed class ChartSerializer : IChartSerializer
                 "scatter" => createScatter(sDto),
                 _ => null
             };
-            if (sec is not null) RestoreLabel(sec, sDto);
+            if (sec is not null) RestoreSharedFields(sec, sDto);
         }
     }
 
@@ -462,7 +599,7 @@ public sealed class ChartSerializer : IChartSerializer
         var series = SeriesRegistry.Create(type, axes, dto);
         if (series is not null)
         {
-            RestoreLabel(series, dto);
+            RestoreSharedFields(series, dto);
         }
         else
         {
@@ -483,7 +620,7 @@ public sealed class ChartSerializer : IChartSerializer
     internal static LineSeries CreateSecondaryLine(Axes axes, SeriesDto dto)
     {
         var s = axes.PlotSecondary(dto.XData ?? [], dto.YData ?? []);
-        ApplyLineProperties(s, dto);
+        s.RestoreFrom(dto);
         return s;
     }
 
@@ -494,7 +631,7 @@ public sealed class ChartSerializer : IChartSerializer
     internal static ScatterSeries CreateSecondaryScatter(Axes axes, SeriesDto dto)
     {
         var s = axes.ScatterSecondary(dto.XData ?? [], dto.YData ?? []);
-        ApplyScatterProperties(s, dto);
+        s.RestoreFrom(dto);
         return s;
     }
 
@@ -505,7 +642,7 @@ public sealed class ChartSerializer : IChartSerializer
     internal static LineSeries CreateXSecondaryLine(Axes axes, SeriesDto dto)
     {
         var s = axes.PlotXSecondary(dto.XData ?? [], dto.YData ?? []);
-        ApplyLineProperties(s, dto);
+        s.RestoreFrom(dto);
         return s;
     }
 
@@ -516,17 +653,8 @@ public sealed class ChartSerializer : IChartSerializer
     internal static ScatterSeries CreateXSecondaryScatter(Axes axes, SeriesDto dto)
     {
         var s = axes.ScatterXSecondary(dto.XData ?? [], dto.YData ?? []);
-        ApplyScatterProperties(s, dto);
+        s.RestoreFrom(dto);
         return s;
-    }
-
-    private static void ApplyScatterProperties(ScatterSeries s, SeriesDto dto)
-    {
-        s.Color = dto.Color;
-        if (dto.MarkerSize.HasValue)
-        {
-            s.MarkerSize = dto.MarkerSize.Value;
-        }
     }
 
     /// <summary>Parses a string to an enum value and applies it via the <paramref name="setter"/> delegate if successful.</summary>
@@ -538,25 +666,6 @@ public sealed class ChartSerializer : IChartSerializer
         if (value is not null && Enum.TryParse<T>(value, true, out var parsed))
         {
             setter(parsed);
-        }
-    }
-
-    /// <summary>Applies the common line series properties (color, width, style) from a DTO to a <see cref="T:MatPlotLibNet.Models.Series.XY.LineSeries"/>.</summary>
-    /// <remarks>Shared between primary and secondary line series deserialization to avoid duplication.</remarks>
-    /// <param name="s">The <see cref="T:MatPlotLibNet.Models.Series.XY.LineSeries"/> to configure.</param>
-    /// <param name="dto">The DTO whose color, line-width, and line-style values are applied.</param>
-    internal static void ApplyLineProperties(LineSeries s, SeriesDto dto)
-    {
-        s.Color = dto.Color;
-        s.LineWidth = dto.LineWidth ?? 1.5;
-        ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
-        if (dto.Smooth == true)
-        {
-            s.Smooth = true;
-        }
-        if (dto.SmoothResolution.HasValue)
-        {
-            s.SmoothResolution = dto.SmoothResolution.Value;
         }
     }
 
@@ -698,11 +807,46 @@ internal sealed record FigureDto
     public string? Description { get; init; }
     public double Width { get; init; }
     public double Height { get; init; }
-    public double Dpi { get; init; }
+    public double? Dpi { get; init; }
     public Color? BackgroundColor { get; init; }
     public GridSpecDto? GridSpec { get; init; }
     public List<AxesDto>? SubPlots { get; init; }
     public bool? Enable3DRotation { get; init; }
+    /// <summary>The colour bar the figure draws beside all its subplots; absent when it has none.</summary>
+    public ColorBarDto? FigureColorBar { get; init; }
+
+    // The figure's own settings. Each is absent at a new figure's value, so a figure that sets none of them writes the
+    // bytes it wrote before they reached the JSON, and a JSON written before then reads back at those values.
+
+    /// <summary>The theme every part of the figure falls back on; absent while it is the default theme (matplotlib-v2).
+    /// Written property by property against the plain default theme (<see cref="ThemeDto"/>).</summary>
+    public ThemeDto? Theme { get; init; }
+    /// <summary>The margins and gaps around and between the subplots; absent for the library's.</summary>
+    public SubPlotSpacingDto? Spacing { get; init; }
+    /// <summary>The chart's identifier for server interaction; absent when it has none.</summary>
+    public string? ChartId { get; init; }
+    /// <summary><see langword="true"/> when the figure's interaction is routed through the server.</summary>
+    public bool? ServerInteraction { get; init; }
+    /// <summary><see langword="true"/> when the SVG embeds zoom and pan.</summary>
+    public bool? EnableZoomPan { get; init; }
+    /// <summary><see langword="true"/> when the SVG embeds the legend toggle.</summary>
+    public bool? EnableLegendToggle { get; init; }
+    /// <summary><see langword="true"/> when the SVG embeds rich tooltips.</summary>
+    public bool? EnableRichTooltips { get; init; }
+    /// <summary><see langword="true"/> when the SVG embeds hover highlight.</summary>
+    public bool? EnableHighlight { get; init; }
+    /// <summary><see langword="true"/> when the SVG embeds rectangle selection.</summary>
+    public bool? EnableSelection { get; init; }
+    /// <summary><see langword="true"/> when a click on a point is reported to the server.</summary>
+    public bool? EnableDataCursor { get; init; }
+    /// <summary><see langword="true"/> when the SVG embeds treemap drilldown.</summary>
+    public bool? EnableTreemapDrilldown { get; init; }
+    /// <summary><see langword="true"/> when the SVG embeds Sankey hover emphasis.</summary>
+    public bool? EnableSankeyHover { get; init; }
+    /// <summary>The tokens the interaction scripts read; absent for the defaults.</summary>
+    public InteractionThemeDto? InteractionTheme { get; init; }
+    /// <summary><see langword="false"/> for an SVG that keeps its pixel size instead of resizing with its container.</summary>
+    public bool? ResponsiveSvg { get; init; }
 }
 
 /// <summary>Data-transfer object for a <see cref="Models.GridSpec"/> layout descriptor.</summary>
@@ -740,6 +884,8 @@ internal sealed record SpineConfigDto
     public double PositionValue { get; init; }
     public double LineWidth { get; init; } = 1.0;
     public Color? Color { get; init; }
+    /// <summary>The spine's line style; absent for solid, and in a JSON written before spines had one.</summary>
+    public LineStyle? LineStyle { get; init; }
 }
 
 /// <summary>JSON-serializable representation of an <see cref="Models.Axes"/> subplot, including series, annotations, and decorations.</summary>
@@ -754,6 +900,10 @@ internal sealed record AxesDto
     public AxisDto? XAxis { get; init; }
     public AxisDto? YAxis { get; init; }
     public GridDto? Grid { get; init; }
+    /// <summary><see langword="true"/> when <see cref="Grid"/> is the axes' own change over the theme's grid: the axes
+    /// draws it whatever the theme's grid is, a grid switched off included. Absent when the axes takes the theme's grid
+    /// (or switched its own on as it stands).</summary>
+    public bool? GridOverridesTheme { get; init; }
     public string? BarMode { get; init; }
     public List<SeriesDto>? Series { get; init; }
     public AxisDto? SecondaryYAxis { get; init; }
@@ -775,6 +925,14 @@ internal sealed record AxesDto
     // v1.1.1 Axis breaks
     public List<AxisBreakDto>? XBreaks { get; init; }
     public List<AxisBreakDto>? YBreaks { get; init; }
+    /// <summary>The style of the axes title; absent when it overrides nothing.</summary>
+    public TextStyleDto? TitleStyle { get; init; }
+    /// <summary>Where the axes title stands; absent for the centre.</summary>
+    public TitleLocation? TitleLoc { get; init; }
+    /// <summary>The legend; absent while it is a new legend's.</summary>
+    public LegendDto? Legend { get; init; }
+    /// <summary>The colour bar; absent when the axes has none.</summary>
+    public ColorBarDto? ColorBar { get; init; }
 }
 
 /// <summary>Data-transfer object for an <see cref="Models.AxisBreak"/>.</summary>
@@ -803,6 +961,28 @@ internal sealed record AnnotationDto
     public string? BoxStyle { get; init; }
     public double? BoxPadding { get; init; }
     public double? BoxCornerRadius { get; init; }
+    /// <summary>The coordinate system X and Y are read in; absent for data coordinates.</summary>
+    public AnnotationCoordinates? Coordinates { get; init; }
+    /// <summary>The font of the text; absent when the text takes the theme's.</summary>
+    public FontDto? Font { get; init; }
+    /// <summary>The colour of the text (and of the arrow, unless it has its own); absent for the theme's text colour.</summary>
+    public Color? Color { get; init; }
+    /// <summary>The colour of the arrow; absent when it takes the text colour.</summary>
+    public Color? ArrowColor { get; init; }
+    /// <summary>How the text stands against its point; absent for left.</summary>
+    public Rendering.TextAlignment? Alignment { get; init; }
+    /// <summary>The text's rotation in degrees; absent for none.</summary>
+    public double? Rotation { get; init; }
+    /// <summary>The arrow's style; absent for the simple arrow.</summary>
+    public ArrowStyle? ArrowStyle { get; init; }
+    /// <summary>The fill behind the text when it has no callout box.</summary>
+    public Color? BackgroundColor { get; init; }
+    /// <summary>The fill of the callout box.</summary>
+    public Color? BoxFaceColor { get; init; }
+    /// <summary>The outline of the callout box.</summary>
+    public Color? BoxEdgeColor { get; init; }
+    /// <summary>The outline width of the callout box; absent for 1.</summary>
+    public double? BoxLineWidth { get; init; }
 }
 
 /// <summary>Data-transfer object for a horizontal or vertical reference line drawn across a subplot.</summary>
@@ -813,6 +993,8 @@ internal sealed record ReferenceLineDto
     public string? LineStyle { get; init; }
     public double LineWidth { get; init; }
     public string? Label { get; init; }
+    /// <summary>The line's colour; absent when it takes the theme's.</summary>
+    public Color? Color { get; init; }
 }
 
 /// <summary>Data-transfer object for a shaded span region (axhspan / axvspan) on a subplot.</summary>
@@ -825,6 +1007,10 @@ internal sealed record SpanRegionDto
     public string? LineStyle { get; init; }
     public double? LineWidth { get; init; }
     public string? Label { get; init; }
+    /// <summary>The fill of the span; absent when it takes the theme's.</summary>
+    public Color? Color { get; init; }
+    /// <summary>The outline of the span; absent when it takes the fill colour.</summary>
+    public Color? EdgeColor { get; init; }
 }
 
 /// <summary>Data-transfer object for a <see cref="Models.Tools.Trendline"/>.</summary>
@@ -874,12 +1060,25 @@ internal sealed record AxisDto
     public Color? TickLabelColor { get; init; }
     /// <summary>Colour of the axis title; absent in a JSON written before axis colours existed.</summary>
     public Color? LabelColor { get; init; }
-}
-
-/// <summary>Data-transfer object for the grid visibility setting on a subplot.</summary>
-internal sealed record GridDto
-{
-    public bool Visible { get; init; }
+    /// <summary>The axis's tick locator when it is one of the library's; absent for the default ticks, and for a locator
+    /// written outside the library (code the JSON cannot carry).</summary>
+    public TickLocatorDto? TickLocator { get; init; }
+    /// <summary>The axis's tick formatter when it is one of the library's; absent for the default labels, and for a
+    /// formatter written outside the library.</summary>
+    public TickFormatterDto? TickFormatter { get; init; }
+    /// <summary><see langword="true"/> for an axis that runs from its maximum to its minimum.</summary>
+    public bool? Inverted { get; init; }
+    /// <summary>The data padding as a fraction of the range; absent when the theme's applies.</summary>
+    public double? Margin { get; init; }
+    /// <summary>The linear threshold of a symmetric-log axis; absent for 1.</summary>
+    public double? SymLogLinThresh { get; init; }
+    /// <summary>The major ticks, where they differ from a new axis's; their colours are <see cref="TickColor"/> and
+    /// <see cref="TickLabelColor"/>.</summary>
+    public TickConfigDto? MajorTicks { get; init; }
+    /// <summary>The minor ticks, where they differ from a new axis's.</summary>
+    public TickConfigDto? MinorTicks { get; init; }
+    /// <summary>The style of the axis title, where it overrides anything; its colour is <see cref="LabelColor"/>.</summary>
+    public TextStyleDto? LabelStyle { get; init; }
 }
 
 /// <summary>Unified flat DTO for all series types. The <see cref="Type"/> discriminator determines which properties are populated.</summary>
@@ -905,6 +1104,8 @@ public sealed record SeriesDto
     public Color? Color { get; init; }
     public string? LineStyle { get; init; }
     public double? LineWidth { get; init; }
+    /// <summary>The size of the markers of a scatter-like series. A quiver key keeps the point size of its label here too,
+    /// which is how every document it has been written in carries it.</summary>
     public double? MarkerSize { get; init; }
     public double? BarWidth { get; init; }
     public string? Orientation { get; init; }
@@ -939,6 +1140,11 @@ public sealed record SeriesDto
     public Color? IncreaseColor { get; init; }
     public Color? DecreaseColor { get; init; }
     public Color? TotalColor { get; init; }
+
+    /// <summary>The steps of a waterfall that are totals, by position from 0: a total bar stands on zero, reaches the
+    /// value it holds and wears the total colour. Absent when no step is a total.</summary>
+    public int[]? TotalIndices { get; init; }
+
     public string[]? Tasks { get; init; }
     public double[]? Starts { get; init; }
     public double[]? Ends { get; init; }
@@ -948,6 +1154,9 @@ public sealed record SeriesDto
     public double? GaugeMax { get; init; }
     public Color? NeedleColor { get; init; }
     public Color? TrackColor { get; init; }
+
+    /// <summary>The name of the series' colour map when it travels by its name: a map the library ships, or a map of your
+    /// own type registered under its name. A map built in code travels in the internal <c>colorMap</c> description instead.</summary>
     public string? ColorMapName { get; init; }
     public double? VMin { get; init; }
     public double? VMax { get; init; }
@@ -1110,6 +1319,257 @@ public sealed record SeriesDto
     public bool?                RrgShowQuadrantGrid  { get; init; }
     public List<double>?        RrgAbsorptionPerBar  { get; init; }
     public List<double>?        RrgEnbPerBar         { get; init; }
+
+    // The drawn properties of the series a composed chart is built from. Each is absent at the value the series is
+    // created with, so a figure that never sets one writes the bytes it wrote before the field existed, and a JSON
+    // from before then reads back at that value. The first three every series shares; the serializer writes them
+    // beside the label, the series' own ToSeriesDto writes the rest.
+
+    /// <summary>The series' place in the drawing order (a higher one is drawn on top). Absent when the series is at the
+    /// order it is created with (0, and -1 for a filled area).</summary>
+    public int? ZOrder { get; set; }
+
+    /// <summary><see langword="false"/> for a hidden series; absent for a visible one.</summary>
+    public bool? Visible { get; set; }
+
+    /// <summary>The most points an x/y series draws before it thins itself out; absent when it draws all of them.</summary>
+    public int? MaxDisplayPoints { get; set; }
+
+    /// <summary>The marker shape of a line, a scatter, a stem, a step or a 3-D scatter series.</summary>
+    public MarkerStyle? Marker { get; init; }
+
+    /// <summary>The fill of a line's markers; absent when they take the line colour.</summary>
+    public Color? MarkerFaceColor { get; init; }
+
+    /// <summary>The outline of a line's markers; absent when they take the line colour.</summary>
+    public Color? MarkerEdgeColor { get; init; }
+
+    /// <summary>The outline width of a line's markers.</summary>
+    public double? MarkerEdgeWidth { get; init; }
+
+    /// <summary>Every how-many-th point of a line carries a marker; absent when every point does.</summary>
+    public int? MarkEvery { get; init; }
+
+    /// <summary>How a line or an area steps between its points: a line's <c>DrawStyle</c>, an area's <c>StepMode</c>.</summary>
+    public DrawStyle? DrawStyle { get; init; }
+
+    /// <summary>The marker colour of a stem's heads.</summary>
+    public Color? MarkerColor { get; init; }
+
+    /// <summary>The colour of a stem's stems.</summary>
+    public Color? StemColor { get; init; }
+
+    /// <summary>The colour of a stem plot's baseline, a 3-D stem plot's included.</summary>
+    public Color? BaselineColor { get; init; }
+
+    /// <summary>The outline colour of a bar, a histogram, an area, a 3-D surface or a 3-D triangle surface, and the border of a table.</summary>
+    public Color? EdgeColor { get; init; }
+
+    /// <summary>The colour of each scatter point, one per point; the same list carries the colour of each slice of a pie or
+    /// a donut, each stage of a funnel, each row of an event plot and each group of a pair grid's hue.</summary>
+    public List<Color>? Colors { get; init; }
+
+    /// <summary>The outline colour of each scatter point, one per point.</summary>
+    public List<Color>? EdgeColors { get; init; }
+
+    /// <summary>The outline width of each scatter point, one per point.</summary>
+    public double[]? LineWidths { get; init; }
+
+    /// <summary>The value of each scatter point that the colour map turns into its colour, one per point.</summary>
+    public double[]? C { get; init; }
+
+    /// <summary>Where each bar starts: the bar is drawn from this value up (or down, for a negative value). Absent
+    /// when every bar starts at zero. A stacked chart works its stacking out when it is drawn and never writes it here.</summary>
+    public double[]? StackBaseline { get; init; }
+
+    /// <summary>The numeric x position of each bar, for bars on a continuous x axis; absent for bars in category slots.</summary>
+    public double[]? XCoordinate { get; init; }
+
+    /// <summary>Whether a bar is centred on its category or starts at its edge.</summary>
+    public BarAlignment? Align { get; init; }
+
+    /// <summary>The width of an error bar's lines, where it differs from the series' line width.</summary>
+    public double? ELineWidth { get; init; }
+
+    /// <summary>The thickness of an error bar's caps.</summary>
+    public double? CapThick { get; init; }
+
+    /// <summary>Every how-many-th point carries an error bar; absent when every point does.</summary>
+    public int? ErrorEvery { get; init; }
+
+    /// <summary>The baseline a stacked area stacks its layers on.</summary>
+    public StackedBaseline? Baseline { get; init; }
+
+    /// <summary>Whether a violin or a box marks the mean.</summary>
+    public bool? ShowMeans { get; init; }
+
+    /// <summary>Whether a violin marks the median.</summary>
+    public bool? ShowMedians { get; init; }
+
+    /// <summary><see langword="false"/> when a violin leaves out its minimum and maximum marks.</summary>
+    public bool? ShowExtrema { get; init; }
+
+    /// <summary><see langword="false"/> when a box leaves out its outlier points.</summary>
+    public bool? ShowOutliers { get; init; }
+
+    /// <summary>The position of each violin or box, one per dataset; absent for the positions 0, 1, 2, ….</summary>
+    public double[]? Positions { get; init; }
+
+    /// <summary>The width of each violin or box.</summary>
+    public double? Widths { get; init; }
+
+    /// <summary>Which side of its position a violin is drawn on.</summary>
+    public ViolinSide? Side { get; init; }
+
+    /// <summary>The colour of a box's median line.</summary>
+    public Color? MedianColor { get; init; }
+
+    /// <summary><see langword="false"/> for a box drawn horizontally.</summary>
+    public bool? Vert { get; init; }
+
+    /// <summary>How far a box's whiskers reach, in interquartile ranges.</summary>
+    public double? Whis { get; init; }
+
+    /// <summary><see langword="false"/> when a density curve is drawn as its line alone, without the area under it;
+    /// absent when the area is filled.</summary>
+    public bool? Fill { get; init; }
+
+    /// <summary>The explicit iso-levels of a filled contour, where it has them instead of the evenly spaced ones
+    /// <see cref="Levels"/> asks for.</summary>
+    public double[]? LevelValues { get; init; }
+
+    /// <summary><see langword="false"/> when a filled contour draws no iso-lines over its fill; absent when it does.</summary>
+    public bool? ShowLines { get; init; }
+
+    /// <summary>The hatch of each band of a filled contour, lowest band first, or of each slice of a pie; absent when none is hatched.</summary>
+    public List<HatchPattern>? Hatches { get; init; }
+
+    /// <summary>The gap between the cells of a treemap, where it differs from the default.</summary>
+    public double? Padding { get; init; }
+
+    /// <summary>What a treemap does with a label wider than its cell; absent when it draws every label whole.</summary>
+    public TreemapLabelFit? LabelFit { get; init; }
+
+    /// <summary>The point size of the headline a treemap leaf shows, where it differs from the default.</summary>
+    public double? HeadlineFontSize { get; init; }
+
+    /// <summary>The narrowest sweep, in degrees, of a sunburst segment that still shows its label.</summary>
+    public double? MinLabelSweepDegrees { get; init; }
+
+    /// <summary>How an image is composited over what is behind it; absent for plain alpha compositing.</summary>
+    public BlendMode? BlendMode { get; init; }
+
+    /// <summary>The outer radius of a polar heatmap, in data units; absent for 1.</summary>
+    public double? RMax { get; init; }
+
+    // The settings of the series that drew more than their JSON said. Each is absent at the value the series is created
+    // with, so a figure that never sets one writes the bytes it wrote before the field existed, and a JSON from before
+    // then reads back at that value. Colours, hatches, alpha, line width and the like reuse the fields above.
+
+    /// <summary><see langword="true"/> for a histogram whose bars add up the counts below them; absent for plain counts.</summary>
+    public bool? Cumulative { get; init; }
+
+    /// <summary><see langword="true"/> for a histogram scaled so that its bars cover an area of 1; absent for counts.</summary>
+    public bool? Density { get; init; }
+
+    /// <summary>How a histogram is drawn: as bars, as an outline or as a filled step; absent for bars.</summary>
+    public HistType? HistType { get; init; }
+
+    /// <summary>The weight of each observation of a histogram, one per value; absent when every observation counts once.</summary>
+    public double[]? Weights { get; init; }
+
+    /// <summary>The width of a histogram bar as a fraction of its bin; absent for the whole bin.</summary>
+    public double? RWidth { get; init; }
+
+    /// <summary>The format of the percentage written on each slice of a pie, such as <c>"%1.1f%%"</c>; absent for none.</summary>
+    public string? AutoPct { get; init; }
+
+    /// <summary><see langword="true"/> for a pie whose slices run counter-clockwise; absent for clockwise.</summary>
+    public bool? CounterClockwise { get; init; }
+
+    /// <summary>How far each slice of a pie is pulled out of the circle, one per slice; absent when none is.</summary>
+    public double[]? Explode { get; init; }
+
+    /// <summary><see langword="true"/> for a pie drawn with a shadow; absent for none.</summary>
+    public bool? Shadow { get; init; }
+
+    /// <summary>The radius of a pie; absent when the plot area decides it.</summary>
+    public double? Radius { get; init; }
+
+    /// <summary>The width of a Sankey diagram's nodes, where it differs from the default.</summary>
+    public double? NodeWidth { get; init; }
+
+    /// <summary>The gap between the nodes of a Sankey diagram, where it differs from the default.</summary>
+    public double? NodePadding { get; init; }
+
+    /// <summary>The opacity of a Sankey diagram's links, where it differs from the default.</summary>
+    public double? LinkAlpha { get; init; }
+
+    /// <summary>How the node columns of a Sankey diagram are aligned; absent for justified.</summary>
+    public SankeyNodeAlignment? NodeAlignment { get; init; }
+
+    /// <summary>How many passes a Sankey diagram makes to untangle its links; absent for the default number.</summary>
+    public int? Iterations { get; init; }
+
+    /// <summary>What colours a Sankey link: its source, its target or a blend of the two; absent for the blend.</summary>
+    public SankeyLinkColorMode? LinkColorMode { get; init; }
+
+    /// <summary>Whether a Sankey diagram runs left to right or top to bottom; absent for left to right.</summary>
+    public SankeyOrientation? SankeyOrientation { get; init; }
+
+    /// <summary><see langword="true"/> for a Sankey diagram that writes its labels inside the nodes; absent for outside.</summary>
+    public bool? InsideLabels { get; init; }
+
+    /// <summary>The size of the arrow heads of a stream plot, where it differs from the default.</summary>
+    public double? ArrowSize { get; init; }
+
+    /// <summary>How closely a stream plot packs its streamlines, where it differs from the default.</summary>
+    public double? StreamDensity { get; init; }
+
+    /// <summary><see langword="false"/> for a residual plot that draws no line at zero; absent when it does.</summary>
+    public bool? ShowZeroLine { get; init; }
+
+    /// <summary>The fill of the header cells of a table; absent for the theme's.</summary>
+    public Color? HeaderColor { get; init; }
+
+    /// <summary>The height of a table row, where it differs from the default.</summary>
+    public double? CellHeight { get; init; }
+
+    /// <summary>The padding inside a table cell, where it differs from the default.</summary>
+    public double? CellPadding { get; init; }
+
+    /// <summary>The point size of the text a table, a tree grid or a line contour's labels write, where it differs from
+    /// the default.</summary>
+    public double? FontSize { get; init; }
+
+    /// <summary>The width of one value column of a tree grid, where it differs from the default.</summary>
+    public double? ColumnWidth { get; init; }
+
+    /// <summary>How far one level of depth indents a row of a tree grid, where it differs from the default.</summary>
+    public double? IndentWidth { get; init; }
+
+    /// <summary>The height of one row of a tree grid, where it differs from the default.</summary>
+    public double? RowHeight { get; init; }
+
+    /// <summary><see langword="true"/> for a line contour that fills the bands between its levels; absent for lines.</summary>
+    public bool? Filled { get; init; }
+
+    /// <summary>The normaliser a series maps its values to colours with, when it is one of the library's;
+    /// absent for the linear mapping and for a normaliser written outside the library. Internal: the wire carries it,
+    /// the public shape of this record does not.</summary>
+    [JsonInclude]
+    internal NormalizerDto? Normalizer { get; init; }
+
+    /// <summary>The series' colour map when it was built in code, described by what it is made of; absent when it
+    /// travels by its name (<see cref="ColorMapName"/>) or cannot be written. Internal: the wire carries it, the public
+    /// shape of this record does not.</summary>
+    [JsonInclude]
+    internal ColorMapDto? ColorMap { get; init; }
+
+    /// <summary>A pair grid's off-diagonal colour map when it was built in code, described by what it is made of; absent
+    /// when it travels by its name (<see cref="PairGridOffDiagonalColorMap"/>). Internal, as <see cref="ColorMap"/>.</summary>
+    [JsonInclude]
+    internal ColorMapDto? PairGridOffDiagonalColorMapDescription { get; init; }
 }
 
 /// <summary>DTO for a single 3D text annotation positioned at (X, Y, Z).</summary>
@@ -1132,8 +1592,10 @@ internal sealed class ColorJsonConverter : JsonConverter<Color>
     }
 
     /// <inheritdoc />
+    /// <remarks>An opaque colour is written <c>#RRGGBB</c>, as it always was; a colour with transparency
+    /// <c>#RRGGBBAA</c>, so its alpha survives the round trip (a translucent bad colour of a colour map, a stop that fades out).</remarks>
     public override void Write(Utf8JsonWriter writer, Color value, JsonSerializerOptions options)
     {
-        writer.WriteStringValue(value.ToHex());
+        writer.WriteStringValue(value.A == byte.MaxValue ? value.ToHex() : $"{value.ToHex()}{value.A:X2}");
     }
 }

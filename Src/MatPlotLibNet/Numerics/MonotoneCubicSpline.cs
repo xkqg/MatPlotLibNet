@@ -20,12 +20,41 @@ internal static class MonotoneCubicSpline
     /// <returns>
     /// An <see cref="XYCurve"/> of interpolated X and Y arrays of length <c>(n−1)×resolution+1</c>.
     /// Returns the input unchanged when <paramref name="x"/> has fewer than 2 elements
-    /// or <paramref name="resolution"/> ≤ 1.
+    /// or <paramref name="resolution"/> ≤ 1. A point that cannot be drawn (NaN, the missing value, or an infinity)
+    /// breaks the curve: each unbroken run is smoothed on its own and the runs are joined by one NaN point, so the line
+    /// still breaks there and no NaN reaches the slopes (a NaN slope spoiled the intervals on both sides of the gap).
     /// </returns>
     internal static XYCurve Interpolate(double[] x, double[] y, int resolution = 10)
     {
         int n = x.Length;
         if (n < 2 || resolution <= 1) return new(x, y);
+
+        var runs = x.DrawableIndexRuns(y).ToList();
+        if (runs.Count == 1 && runs[0].Count == n) return InterpolateRun(x, y, resolution);
+
+        var outX = new List<double>();
+        var outY = new List<double>();
+        foreach (var run in runs)
+        {
+            if (outX.Count > 0)
+            {
+                outX.Add(double.NaN);
+                outY.Add(double.NaN);
+            }
+
+            var part = InterpolateRun(x.Slice(run), y.Slice(run), resolution);
+            outX.AddRange(part.X);
+            outY.AddRange(part.Y);
+        }
+
+        return new([.. outX], [.. outY]);
+    }
+
+    /// <summary>The spline through one run of drawable points.</summary>
+    private static XYCurve InterpolateRun(double[] x, double[] y, int resolution)
+    {
+        int n = x.Length;
+        if (n < 2) return new(x, y);
 
         // Step 1: compute secant slopes
         var d = new double[n - 1];

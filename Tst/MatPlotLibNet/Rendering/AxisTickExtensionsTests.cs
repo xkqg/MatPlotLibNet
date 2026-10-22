@@ -228,6 +228,97 @@ public class AxisTickExtensionsTests
         public string Format(double value) => new('x', (int)value);
     }
 
+    // ── A turned label reaches as far as it is drawn ──────────────────────────
+    // RecordingRenderContext measures a label (characters * 0.6 * size) wide and (size) high, so its descent below the
+    // baseline, the height less the size, is 0: an upright label reaches its height, a turned one the anchor's depth
+    // (the size), the turned width times the sine and the descent times the cosine. Labels "", "x", "xx" (LengthByValue):
+    // the widest is 12 px.
+
+    private const double Widest = 2 * Size * 0.6;
+
+    [Theory]
+    [InlineData(false, TextAlignment.Right, 30.0, Size + Widest * 0.5)]
+    [InlineData(false, TextAlignment.Right, 90.0, Size + Widest)]
+    [InlineData(false, TextAlignment.Center, 90.0, Size + Widest / 2)]
+    [InlineData(false, TextAlignment.Left, -90.0, Size + Widest)]
+    [InlineData(true, TextAlignment.Left, 90.0, Widest)]
+    public void RenderAxisTicks_TurnedLabelOnAHorizontalEdge_ReturnsHowFarTheTurnedLabelReaches(bool top,
+        TextAlignment alignment, double rotation, double expected)
+    {
+        Render(Config, Draw(top ? TickSide.Top : TickSide.Bottom, top ? 0 : 300, formatter: new LengthByValue(),
+            rotation: rotation, alignment: alignment), out var measured);
+
+        Assert.Equal(expected, measured, 9);
+    }
+
+    [Fact]
+    public void RenderAxisTicks_TurnedTopLabel_ReachesItsTurnedWidthAndItsTurnedHeight()
+    {
+        // Anchored at its start and turned 30 degrees, a top label rises by its width times the sine and its height above
+        // the baseline (the size) times the cosine; the band keeps the descent it has always kept below the baseline (0
+        // here).
+        Render(Config, Draw(TickSide.Top, 0, formatter: new LengthByValue(), rotation: 30, alignment: TextAlignment.Left),
+            out var measured);
+
+        Assert.Equal(Widest * 0.5 + Size * Math.Sqrt(3) / 2, measured, 9);
+    }
+
+    /// <summary>The identity the turned extent reduces to: upright, a label on a top or bottom edge reaches exactly its
+    /// height, whatever its width and alignment, so a figure whose labels are not turned is laid out to the bit as before.</summary>
+    [Theory]
+    [InlineData(false, TextAlignment.Center, 12.0, 14.4)]
+    [InlineData(false, TextAlignment.Right, 12.0, 14.4)]
+    [InlineData(true, TextAlignment.Center, 12.0, 14.4)]
+    [InlineData(true, TextAlignment.Left, 9.7, 11.64)]
+    [InlineData(false, TextAlignment.Left, 23.3, 27.96)]
+    public void LabelExtent_Upright_IsExactlyTheLabelHeight(bool top, TextAlignment alignment, double size, double height)
+    {
+        foreach (double width in new[] { 0.0, 7.3, 61.25, 333.3 })
+        {
+            var draw = Draw(top ? TickSide.Top : TickSide.Bottom, 0, alignment: alignment);
+
+            Assert.Equal(height, draw.LabelExtent(new Size(width, height), size));
+        }
+    }
+
+    [Theory]
+    [InlineData(false, 30.0)]
+    [InlineData(true, 90.0)]
+    public void LabelExtent_OnAVerticalEdge_IsTheLabelWidth(bool right, double rotation)
+    {
+        var draw = Draw(right ? TickSide.Right : TickSide.Left, 0, rotation: rotation, alignment: TextAlignment.Right);
+
+        Assert.Equal(42.5, draw.LabelExtent(new Size(42.5, 14.4), 12));
+    }
+
+    [Theory]
+    [InlineData(30.0, 12 + 60 * 0.5 + 2.4 * 0.8660254037844386)]
+    [InlineData(45.0, 12 + (60 + 2.4) * 0.7071067811865476)]
+    [InlineData(90.0, 12 + 60.0)]
+    public void LabelExtent_TurnedBottomLabel_IsTheAnchorDepthTheTurnedWidthAndTheTurnedDescent(double rotation, double expected)
+    {
+        // A 60 px wide label of size 12 measured 14.4 high: the anchor stands 12 below the reach line, the descent is 2.4.
+        var draw = Draw(TickSide.Bottom, 0, rotation: rotation, alignment: TextAlignment.Right);
+
+        Assert.Equal(expected, draw.LabelExtent(new Size(60, 14.4), 12), 9);
+    }
+
+    [Theory]
+    [InlineData(false, 30.0, TextAlignment.Right)]
+    [InlineData(false, 90.0, TextAlignment.Right)]
+    [InlineData(true, 30.0, TextAlignment.Left)]
+    [InlineData(false, 0.0, TextAlignment.Center)]
+    public void MeasureAxisTicks_IsWhatRenderAxisTicksReturns_TurnedOrNot(bool top, double rotation, TextAlignment alignment)
+    {
+        var draw = Draw(top ? TickSide.Top : TickSide.Bottom, 0, formatter: new LengthByValue(), rotation: rotation,
+            alignment: alignment);
+        double measured = new RecordingRenderContext().MeasureAxisTicks([0.0, 1.0, 2.0], Config, draw);
+
+        Render(Config, draw, out var drawn);
+
+        Assert.Equal(drawn, measured);
+    }
+
     // ── The TickConfig rules the primary and secondary axes share ────────────
 
     [Fact]

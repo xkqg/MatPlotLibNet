@@ -7,8 +7,8 @@ using MatPlotLibNet.Serialization;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Horizontal alignment strategy for Sankey node columns.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum SankeyNodeAlignment
 {
     /// <summary>Columns fill the plot width evenly (default, matches D3 <c>sankeyJustify</c>).</summary>
@@ -22,8 +22,8 @@ public enum SankeyNodeAlignment
 }
 
 /// <summary>Colour resolution strategy for Sankey links.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum SankeyLinkColorMode
 {
     /// <summary>Link filled with the source node's colour (classic flat Sankey).</summary>
@@ -35,8 +35,8 @@ public enum SankeyLinkColorMode
 }
 
 /// <summary>Overall orientation of a Sankey diagram.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum SankeyOrientation
 {
     /// <summary>Columns span left-to-right, stems flow horizontally (default).</summary>
@@ -93,14 +93,58 @@ public sealed class SankeySeries : ChartSeries
         new(null, null, null, null);
 
     /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new() { Type = "sankey" };
+    public override SeriesDto ToSeriesDto() => new()
+    {
+        Type = "sankey",
+        NodeWidth = NodeWidth.OrNullAtRest(20.0),
+        NodePadding = NodePadding.OrNullAtRest(10.0),
+        LinkAlpha = LinkAlpha.OrNullAtRest(0.4),
+        NodeAlignment = NodeAlignment.OrNullAtRest(SankeyNodeAlignment.Justify),
+        Iterations = Iterations.OrNullAtRest(6),
+        LinkColorMode = LinkColorMode.OrNullAtRest(SankeyLinkColorMode.Gradient),
+        SankeyOrientation = Orient.OrNullAtRest(Models.Series.SankeyOrientation.Horizontal),
+        InsideLabels = InsideLabels ? true : null,
+    };
 
-    /// <summary>Reconstructs a <see cref="SankeySeries"/> placeholder from its serialization DTO and adds it to the axes.</summary>
+    /// <summary>Reconstructs a <see cref="SankeySeries"/> placeholder from its serialization DTO and adds it to the axes.
+    /// The nodes and links are not written yet (the roadmap row "Every chart type back from JSON"); the settings are.</summary>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static SankeySeries FromSeriesDto(Axes axes, SeriesDto dto)
-        => axes.Sankey([new SankeyNode("A")], []);
+    {
+        var s = axes.Sankey([new SankeyNode("A")], []);
+        if (dto.NodeWidth.HasValue)
+        {
+            s.NodeWidth = dto.NodeWidth.Value;
+        }
+        if (dto.NodePadding.HasValue)
+        {
+            s.NodePadding = dto.NodePadding.Value;
+        }
+        if (dto.LinkAlpha.HasValue)
+        {
+            s.LinkAlpha = dto.LinkAlpha.Value;
+        }
+        if (dto.NodeAlignment.HasValue)
+        {
+            s.NodeAlignment = dto.NodeAlignment.Value;
+        }
+        if (dto.Iterations.HasValue)
+        {
+            s.Iterations = dto.Iterations.Value;
+        }
+        if (dto.LinkColorMode.HasValue)
+        {
+            s.LinkColorMode = dto.LinkColorMode.Value;
+        }
+        if (dto.SankeyOrientation.HasValue)
+        {
+            s.Orient = dto.SankeyOrientation.Value;
+        }
+        s.InsideLabels = dto.InsideLabels ?? false;
+        return s;
+    }
 
 
     /// <inheritdoc />

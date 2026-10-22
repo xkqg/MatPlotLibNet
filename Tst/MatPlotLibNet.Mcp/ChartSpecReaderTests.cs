@@ -108,14 +108,17 @@ public class ChartSpecReaderTests
         Assert.Contains("'line'", refusal.Message);
     }
 
-    [Fact]
-    public void ATypeThatCannotBeBuiltFromJson_IsRefusedWithTheReason()
+    [Theory]
+    [InlineData("sankey")]
+    [InlineData("dendrogram")]
+    public void ATypeThatCannotBeBuiltFromJson_IsRefusedWithTheReason(string type)
     {
         var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec("""{"type":"sankey"}"""))));
+            Reader.Read(new ChartSpec(Spec($$"""{"type":"{{type}}"}"""))));
 
-        Assert.Contains("'sankey'", refusal.Message);
+        Assert.Contains($"'{type}'", refusal.Message);
         Assert.Contains("cannot", refusal.Message);
+        Assert.Contains("placeholder", refusal.Message);
     }
 
     [Theory]
@@ -225,6 +228,31 @@ public class ChartSpecReaderTests
         Assert.Contains("subPlots[0].series[0]", refusal.Message);
     }
 
+    /// <summary>A signal is sampled at a rate, so its x values follow from the rate and its JSON carries the y values
+    /// alone: the library writes exactly this, and the server lists the type. Refusing it for a missing 'xData' would
+    /// turn away the very document <c>ToJson</c> produces.</summary>
+    [Fact]
+    public void ASignalWithYDataAlone_IsRead_ItsXValuesFollowFromTheSampleRate()
+    {
+        var figure = Reader.Read(new ChartSpec(Spec("""{"type":"signal","yData":[1,2,3],"signalSampleRate":10}""")));
+
+        var signal = Assert.IsType<SignalSeries>(figure.SubPlots[0].Series[0]);
+        Assert.Equal(10, signal.SampleRate);
+        Assert.Equal([1.0, 2.0, 3.0], signal.YData);
+    }
+
+    /// <summary>Only a type whose reader derives the other half may leave it out: a line with y values alone is
+    /// still refused, naming the missing 'xData'.</summary>
+    [Fact]
+    public void ALineWithYDataAlone_IsStillRefused_NamingTheMissingField()
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() =>
+            Reader.Read(new ChartSpec(Spec("""{"type":"line","yData":[1,2,3]}"""))));
+
+        Assert.Contains("xData", refusal.Message);
+        Assert.Contains("subPlots[0].series[0]", refusal.Message);
+    }
+
     [Theory]
     [InlineData(""" "width":-10,"height":300 """, "width")]
     [InlineData(""" "width":0,"height":300 """, "width")]
@@ -278,5 +306,29 @@ public class ChartSpecReaderTests
             axesExtras: ""","secondaryYAxis":{},"secondarySeries":[{"type":"line","xData":[1,2],"yData":[5,6]}]""")));
 
         Assert.NotNull(figure.SubPlots[0].SecondaryYAxis);
+    }
+
+    /// <summary>NaN is the library's missing value; a spec states one the way the serializer writes it.</summary>
+    [Fact]
+    public void AMissingValue_WrittenAsTheSerializerWritesIt_IsAccepted_AndStaysMissing()
+    {
+        var figure = Reader.Read(new ChartSpec(Spec("""{"type":"line","xData":[1,2,3],"yData":[2,"NaN",3]}""")));
+
+        var line = Assert.IsType<LineSeries>(Assert.Single(figure.SubPlots[0].Series));
+        Assert.True(double.IsNaN(line.YData[1]));
+    }
+
+    /// <summary>The reader reads with the serializer's own options plus its one refusal: every number the serializer
+    /// writes, an infinity included, is one the reader takes.</summary>
+    [Fact]
+    public void EveryNumberTheSerializerWrites_IsOneTheReaderTakes()
+    {
+        string json = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 1, 2], [double.PositiveInfinity, double.NaN, double.NegativeInfinity])).ToJson();
+
+        var line = (LineSeries)Reader.Read(new ChartSpec(json)).SubPlots[0].Series[0];
+
+        Assert.Equal(double.PositiveInfinity, line.YData[0]);
+        Assert.True(double.IsNaN(line.YData[1]));
+        Assert.Equal(double.NegativeInfinity, line.YData[2]);
     }
 }

@@ -108,7 +108,7 @@ internal sealed class CartesianDirectLabelsPart
             var anchor = transform.DataToPixel(label.EndX, label.EndY);
             // The axis cannot draw this end (a non-positive value on a log axis, a value inside a break): the line has
             // no visible end there, so the label has nowhere to stand.
-            if (!double.IsFinite(anchor.Y)) continue;
+            if (!anchor.Y.IsDrawable()) continue;
             labels.Add(label);
             anchors.Add(anchor);
             labelHeight = Math.Max(labelHeight, metrics.Measure(label.Text).Height);

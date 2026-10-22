@@ -29,6 +29,7 @@ internal sealed class EventplotSeriesRenderer : SeriesRenderer<EventplotSeries>
             {
                 var bottom = Transform.DataToPixel(pos, i - halfLen);
                 var top = Transform.DataToPixel(pos, i + halfLen);
+                if (!bottom.CanDrawLineTo(top)) continue;   // an event that cannot be placed draws no tick
                 Ctx.DrawLine(bottom, top, new StrokeStyle(color, series.LineWidth, Styling.LineStyle.Solid));
             }
         }

@@ -32,7 +32,7 @@ Plt.Create()
 
 ![Math text](../images/math_text.png)
 
-## Fractions, square roots, accents, font variants (v1.3.0)
+## Fractions, square roots, accents, font variants
 
 ```csharp
 Plt.Create()
@@ -54,9 +54,9 @@ Plt.Create()
     .Save("math_text_v130.svg");
 ```
 
-![MathText v1.3.0](../images/math_text_v130.png)
+![Fractions, square roots, accents and font variants](../images/math_text_v130.png)
 
-## Operator limits — integrals, sums, products (v1.7.0)
+## Operator limits — integrals, sums, products
 
 Subscripts and superscripts on large operators render as limits above and below the operator:
 
@@ -84,7 +84,7 @@ Plt.Create()
 | `\lim_{x \to 0}` | lim with subscript below | `$\lim_{n \to \infty} a_n$` |
 | `\max`, `\min` | max/min with subscript | `$\max_{x \in S} f(x)$` |
 
-## Matrices (v1.7.0)
+## Matrices
 
 ```csharp
 Plt.Create()

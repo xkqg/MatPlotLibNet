@@ -29,6 +29,27 @@ public class PolarTransformRendererTests
         Assert.Equal(transform.CenterX + transform.MaxRadius, edge.X, 1e-6);
     }
 
+    /// <summary>rMax is the largest radius that can be placed: a missing or infinite radius is left out (an infinite one
+    /// made rMax infinite and put every finite radius at the centre).</summary>
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void PrepareTransform_RadiiThatCannotBePlaced_AreLeftOutOfRMax(double missing)
+    {
+        var transform = PolarTransformRenderer<PolarLineSeries>.PrepareTransform([1, missing, 5], Bounds);
+
+        Assert.Equal(transform.CenterX + transform.MaxRadius, transform.PolarToPixel(5, 0).X, 1e-6);
+    }
+
+    /// <summary>No radius that can be placed: rMax is 1, as for no radius at all.</summary>
+    [Fact]
+    public void PrepareTransform_NoRadiusThatCanBePlaced_DefaultsRMaxToOne()
+    {
+        var transform = PolarTransformRenderer<PolarLineSeries>.PrepareTransform([double.NaN, double.PositiveInfinity], Bounds);
+
+        Assert.Equal(transform.CenterX + transform.MaxRadius, transform.PolarToPixel(1, 0).X, 1e-6);
+    }
+
     [Fact]
     public void PrepareTransform_EmptyR_DefaultsRMaxToOne()
     {

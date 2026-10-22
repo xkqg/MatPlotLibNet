@@ -46,6 +46,52 @@ public class RectTests
         Assert.Equal(46, r.Height);
     }
 
+    /// <summary>The four orders two opposite corners can be handed in give one rectangle, of positive size.</summary>
+    [Theory]
+    [InlineData(10, 20, 40, 60)]
+    [InlineData(40, 60, 10, 20)]
+    [InlineData(10, 60, 40, 20)]
+    [InlineData(40, 20, 10, 60)]
+    public void FromCorners_AnyTwoOppositeCorners_GiveTheRectangleBetweenThem(double ax, double ay, double bx, double by)
+    {
+        var r = Rect.FromCorners(new Point(ax, ay), new Point(bx, by));
+
+        Assert.Equal(new Rect(10, 20, 30, 40), r);
+    }
+
+    /// <summary>Corners handed over top left first give the very numbers the construction every renderer used gives, to
+    /// the last bit, so an upright axis draws the bytes it drew.</summary>
+    [Theory]
+    [InlineData(0.1, 0.2, 0.30000000000000004, 0.7)]
+    [InlineData(62.000000000000014, 42, 449.99999999999994, 312.00000000000006)]
+    [InlineData(-7.5, -1e-300, 1e300, 0)]
+    public void FromCorners_TopLeftFirst_IsTheUprightConstruction_BitForBit(double ax, double ay, double bx, double by)
+    {
+        var r = Rect.FromCorners(new Point(ax, ay), new Point(bx, by));
+
+        Assert.Equal(new Rect(ax, ay, bx - ax, by - ay), r);
+    }
+
+    /// <summary>Two corners on one line span a rectangle of no width, not of a negative one.</summary>
+    [Fact]
+    public void FromCorners_OnOneVerticalLine_HasNoWidth()
+    {
+        var r = Rect.FromCorners(new Point(5, 30), new Point(5, 10));
+
+        Assert.Equal(new Rect(5, 10, 0, 20), r);
+    }
+
+    /// <summary>A corner the axes could not place (NaN) gives a rectangle that cannot be drawn either.</summary>
+    [Fact]
+    public void FromCorners_ACornerThatIsNotANumber_GivesARectangleThatIsNotFinite()
+    {
+        var r = Rect.FromCorners(new Point(double.NaN, 10), new Point(40, 60));
+
+        Assert.True(double.IsNaN(r.X) && double.IsNaN(r.Width));
+        Assert.Equal(10, r.Y);
+        Assert.Equal(50, r.Height);
+    }
+
     [Fact]
     public void Inflate_NegativeValues_Shrinks()
     {

@@ -13,7 +13,6 @@ namespace MatPlotLibNet.Rendering.CartesianParts;
 /// inlining 23 distinct steps in one method.
 /// </summary>
 /// <remarks>
-/// <b>Phase B.4 of the strict-90 floor plan (2026-04-20).</b>
 /// Each concrete subclass owns ONE responsibility: Annotations, Spans,
 /// ReferenceLines, SecondaryYAxis, SecondaryXAxis, Signals. The orchestrator
 /// keeps the overall sequencing + delegates to the parts.

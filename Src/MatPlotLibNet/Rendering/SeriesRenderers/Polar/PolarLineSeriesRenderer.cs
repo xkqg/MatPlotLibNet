@@ -23,7 +23,7 @@ internal sealed class PolarLineSeriesRenderer : PolarTransformRenderer<PolarLine
         for (int i = 0; i < series.R.Length; i++)
             points.Add(transform.PolarToPixel(series.R[i], series.Theta[i]));
 
-        if (points.Count > 1)
-            Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, series.LineStyle));
+        // Broken at a point that cannot be placed, as a cartesian line is.
+        DrawPolyline(points, Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
     }
 }

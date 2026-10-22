@@ -33,9 +33,12 @@ public sealed class Scatter3DSeries : XYZSeries, IHasColor, IColormappable, INor
         YData = Y,
         ZData = Z,
         Color = Color,
-        ColorMapName = ColorMap?.Name,
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        Marker = MarkerStyle.OrNullAtRest(MarkerStyle.Circle),
         MarkerSize = MarkerSize != 6 ? MarkerSize : null,
-        Label = Label
+        Label = Label,
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="Scatter3DSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -49,10 +52,16 @@ public sealed class Scatter3DSeries : XYZSeries, IHasColor, IColormappable, INor
         {
             s.Color = dto.Color.Value;
         }
+        s.RestoreColorMap(dto);
+        if (dto.Marker.HasValue)
+        {
+            s.MarkerStyle = dto.Marker.Value;
+        }
         if (dto.MarkerSize.HasValue)
         {
             s.MarkerSize = dto.MarkerSize.Value;
         }
+        s.RestoreNormalizer(dto);
         return s;
     }
 

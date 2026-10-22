@@ -18,29 +18,18 @@ internal sealed class WireframeSeriesRenderer : SeriesRenderer<WireframeSeries>
         int rows = series.Z.GetLength(0), cols = series.Z.GetLength(1);
         if (rows < 2 || cols < 2) return;
 
-        var bounds = Area.PlotBounds;
         var color = ResolveColor(series.Color);
 
-        double xMin = series.X.Min(), xMax = series.X.Max();
-        double yMin = series.Y.Min(), yMax = series.Y.Max();
-        double zMin = double.MaxValue, zMax = double.MinValue;
-        for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols; c++)
-            {
-                if (series.Z[r, c] < zMin) zMin = series.Z[r, c];
-                if (series.Z[r, c] > zMax) zMax = series.Z[r, c];
-            }
+        // Fitted to the values that are there: a missing value (NaN) and an infinity are left out.
+        var proj = ProjectionFor(series.X.DrawableRange(), series.Y.DrawableRange(), series.Z.DrawableRange());
 
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
-
-        // Draw grid lines along X direction (constant Y)
+        // Draw grid lines along X direction (constant Y); a line breaks at a vertex that cannot be placed.
         for (int r = 0; r < rows; r++)
         {
             var points = new List<Point>(cols);
             for (int c = 0; c < cols; c++)
                 points.Add(proj.Project(series.X[c], series.Y[r], series.Z[r, c]));
-            Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, LineStyle.Solid));
+            DrawPolyline(points, new StrokeStyle(color, series.LineWidth, LineStyle.Solid));
         }
 
         // Draw grid lines along Y direction (constant X)
@@ -49,7 +38,7 @@ internal sealed class WireframeSeriesRenderer : SeriesRenderer<WireframeSeries>
             var points = new List<Point>(rows);
             for (int r = 0; r < rows; r++)
                 points.Add(proj.Project(series.X[c], series.Y[r], series.Z[r, c]));
-            Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, LineStyle.Solid));
+            DrawPolyline(points, new StrokeStyle(color, series.LineWidth, LineStyle.Solid));
         }
     }
 }

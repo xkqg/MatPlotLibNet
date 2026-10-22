@@ -10,8 +10,6 @@ namespace MatPlotLibNet.Rendering.CartesianParts;
 /// <summary>
 /// Renders the secondary X-axis (twin-Y — top edge of the plot): secondary
 /// X-axis series + top-edge tick marks + optional secondary X-axis label.
-/// Extracted verbatim from <c>CartesianAxesRenderer.Render</c> lines 240-278
-/// (pre-B.8).
 /// </summary>
 /// <remarks>Each series is drawn inside the series group the primary pass opens for a primary one
 /// (<see cref="SeriesGroupExtensions.BeginSeriesGroup"/>, keyed by the series' slot), so the hover highlight and a

@@ -20,14 +20,13 @@ public sealed class PolarAxesRenderer : AxesRenderer
         var axesBg = Theme.AxesBackground;
         Ctx.DrawRectangle(PlotArea, new ShapeStyle(axesBg, null, 0));
 
-        // Determine max R from all polar series
+        // Determine max R from all polar series: the radii that can be placed (a missing or infinite one is left out).
         double rMax = 1;
         foreach (var s in Axes.Series)
         {
-            if (s is IPolarSeries polar && polar.R.Length > 0)
+            if (s is IPolarSeries polar && polar.R.DrawableRange() is { } radii && radii.Hi > rMax)
             {
-                double max = polar.R.Max();
-                if (max > rMax) rMax = max;
+                rMax = radii.Hi;
             }
         }
         rMax *= 1.1; // 10% padding

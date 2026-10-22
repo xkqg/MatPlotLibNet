@@ -37,12 +37,15 @@ public enum PlaygroundExample
     [Description("Axis Breaks")]   AxisBreaks   = 16,
     [Description("Minor Grid")]    MinorGrid    = 17,
 
-    // v1.12.0 — dashboard-oriented examples (StatTile/StateTimeline, Threshold + LegendValues).
+    // Dashboard-oriented examples (StatTile/StateTimeline, Threshold + LegendValues).
     [Description("Dashboard Tiles")] DashboardTiles = 18,
     [Description("Threshold Line")]  ThresholdLine  = 19,
 
-    // v1.19.0 — lines named at their end on a dual axis whose axes wear their line's colour.
+    // Lines named at their end on a dual axis whose axes wear their line's colour.
     [Description("Direct Labels")]   DirectLabels   = 20,
+
+    // A chart drawn by one verb call: bars largest first and their running share on a second axis.
+    [Description("Pareto Chart")]    ParetoChart    = 21,
 }
 
 /// <summary>Display-name helpers for <see cref="PlaygroundExample"/>.</summary>

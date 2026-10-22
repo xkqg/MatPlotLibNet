@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -28,7 +29,7 @@ internal sealed class Histogram2DSeriesRenderer : SeriesRenderer<Histogram2DSeri
         for (int r = 0; r < binsY; r++)
         for (int c = 0; c < binsX; c++)
         {
-            var color = cmap.GetColor(norm.Normalize(counts[r, c], min, max));
+            var color = cmap.ColorOf(counts[r, c], norm, min, max);
             Ctx.DrawRectangle(
                 new Rect(Area.PlotBounds.X + c * cellW, Area.PlotBounds.Y + r * cellH, cellW, cellH),
                 new ShapeStyle(color, null, 0));

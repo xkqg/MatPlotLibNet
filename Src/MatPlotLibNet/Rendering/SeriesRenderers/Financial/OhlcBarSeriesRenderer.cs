@@ -19,11 +19,19 @@ internal sealed class OhlcBarSeriesRenderer : SeriesRenderer<OhlcBarSeries>
         {
             bool isUp = series.Close[i] >= series.Open[i];
             var color = isUp ? series.UpColor : series.DownColor;
-            Ctx.DrawLine(Transform.DataToPixel(i, series.Low[i]), Transform.DataToPixel(i, series.High[i]), new StrokeStyle(color, 1.5, LineStyle.Solid));
+            // The line and the two ticks are marks of their own: a price that cannot be placed skips the one it belongs to.
+            var low = Transform.DataToPixel(i, series.Low[i]);
+            var high = Transform.DataToPixel(i, series.High[i]);
+            if (low.CanDrawLineTo(high))
+                Ctx.DrawLine(low, high, new StrokeStyle(color, 1.5, LineStyle.Solid));
             var openPt = Transform.DataToPixel(i, series.Open[i]);
-            Ctx.DrawLine(new Point(openPt.X - series.TickWidth * 20, openPt.Y), openPt, new StrokeStyle(color, 1.5, LineStyle.Solid));
+            var openTick = new Point(openPt.X - series.TickWidth * 20, openPt.Y);
+            if (openTick.CanDrawLineTo(openPt))
+                Ctx.DrawLine(openTick, openPt, new StrokeStyle(color, 1.5, LineStyle.Solid));
             var closePt = Transform.DataToPixel(i, series.Close[i]);
-            Ctx.DrawLine(closePt, new Point(closePt.X + series.TickWidth * 20, closePt.Y), new StrokeStyle(color, 1.5, LineStyle.Solid));
+            var closeTick = new Point(closePt.X + series.TickWidth * 20, closePt.Y);
+            if (closePt.CanDrawLineTo(closeTick))
+                Ctx.DrawLine(closePt, closeTick, new StrokeStyle(color, 1.5, LineStyle.Solid));
         }
     }
 }

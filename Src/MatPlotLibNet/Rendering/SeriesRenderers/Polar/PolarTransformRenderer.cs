@@ -14,11 +14,8 @@ internal abstract class PolarTransformRenderer<TSeries> : SeriesRenderer<TSeries
     /// <inheritdoc />
     protected PolarTransformRenderer(SeriesRenderContext context) : base(context) { }
 
-    /// <summary>Creates a <see cref="PolarTransform"/> whose rMax equals the maximum of
-    /// <paramref name="r"/>, or 1 when the array is empty.</summary>
-    internal static PolarTransform PrepareTransform(double[] r, Rect bounds)
-    {
-        double rMax = r.Length > 0 ? r.Max() : 1;
-        return new PolarTransform(bounds, rMax);
-    }
+    /// <summary>Creates a <see cref="PolarTransform"/> whose rMax equals the largest radius of
+    /// <paramref name="r"/> that can be placed (a missing or infinite radius is left out), or 1 when there is none.</summary>
+    internal static PolarTransform PrepareTransform(double[] r, Rect bounds) =>
+        new(bounds, r.DrawableRange()?.Hi ?? 1);
 }

@@ -17,16 +17,12 @@ internal sealed class Stem3DSeriesRenderer : SeriesRenderer<Stem3DSeries>
     {
         if (series.X.Length == 0) return;
 
-        var bounds = Area.PlotBounds;
         var color = ResolveColor(series.Color);
 
-        double xMin = series.X.Min(), xMax = series.X.Max();
-        double yMin = series.Y.Min(), yMax = series.Y.Max();
-        double zMin = Math.Min(0, series.Z.Min());
-        double zMax = series.Z.Max();
-
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        // Fitted to the values that are there (a missing value, NaN, and an infinity are left out), from the floor at 0.
+        var z = series.Z.Data.DrawableRange();
+        var proj = ProjectionFor(series.X.Data.DrawableRange(), series.Y.Data.DrawableRange(),
+            z is { } height ? new Range1D(Math.Min(0, height.Lo), height.Hi) : null);
 
         // Project every base (z=0) once — used by the stem lines AND the baseline polyline
         // so we only call Projection3D.Project once per point per layer.
@@ -40,6 +36,9 @@ internal sealed class Stem3DSeriesRenderer : SeriesRenderer<Stem3DSeries>
             basePts[i] = proj.Project(xi, yi, 0);
             var tipPt = proj.Project(xi, yi, zi);
 
+            // A stem with an end that cannot be placed is skipped with its head; its foot stays on the baseline.
+            if (!basePts[i].CanDrawLineTo(tipPt)) continue;
+
             // Draw stem line at matplotlib's default 1.5 px width (rcParams.lines.linewidth)
             // so the blue pixel density matches the reference.
             Ctx.DrawLine(basePts[i], tipPt, new StrokeStyle(color, 2.5, Styling.LineStyle.Solid));
@@ -52,8 +51,8 @@ internal sealed class Stem3DSeriesRenderer : SeriesRenderer<Stem3DSeries>
         // `ax.stem()` StemContainer.baseline Line3D. Drawn AFTER stems so it appears on
         // top of any overlap. Colour defaults to the stem colour; callers can override
         // via Stem3DSeries.BaseLineColor.
+        // The baseline breaks where a foot cannot be placed, as a 2-D line does.
         var baselineColor = series.BaseLineColor ?? color;
-        if (basePts.Length >= 2)
-            Ctx.DrawLines(basePts, new StrokeStyle(baselineColor, 2.5, Styling.LineStyle.Solid));
+        DrawPolyline(basePts, new StrokeStyle(baselineColor, 2.5, Styling.LineStyle.Solid));
     }
 }

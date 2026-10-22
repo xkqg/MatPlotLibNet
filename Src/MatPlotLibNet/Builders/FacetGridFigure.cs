@@ -43,12 +43,10 @@ public sealed class FacetGridFigure : FacetedFigure
     public int MaxCols { get; init; } = 3;
 
     /// <summary>
-    /// Optional hue labels per observation — stored as a forward-compatible hook.
-    /// In v1.0 hue is not forwarded to <c>plotFunc</c> (signature is fixed at two arrays);
-    /// richer overloads are deferred to v1.1.
+    /// Optional hue labels per observation. They are accepted and kept but not used: the
+    /// <c>plotFunc</c> of each panel receives the filtered X and Y arrays only, so assigning
+    /// <see cref="Hue"/> changes no panel.
     /// </summary>
-    /// <remarks>Assigning <see cref="Hue"/> in v1.0 is a no-op for the plot function but silently
-    /// accepted so existing code does not need to be updated when v1.1 hue support ships.</remarks>
     public string[]? Hue { get; init; }
 
     /// <inheritdoc/>

@@ -196,7 +196,7 @@ Plt.Create()
 Console.WriteLine("Saved annotations_enhanced.svg");
 
 // =====================================================================
-// v0.6.0 — SIMD Vectorization + Phase F
+// SIMD vectors, financial templates and technical indicators
 // =====================================================================
 
 // --- 12. Vec — SIMD-accelerated numeric computation ---
@@ -251,7 +251,7 @@ Console.WriteLine("Saved financial_dashboard.svg");
 
 // --- 14. New indicators: WilliamsR, OBV, CCI, ParabolicSAR ---
 Plt.Create()
-    .WithTitle("Phase F Indicators")
+    .WithTitle("Momentum and Volume Indicators")
     .WithSize(1000, 800)
     .WithGridSpec(2, 2)
     .TightLayout()   // required so the vertical gap between rows is measured from the
@@ -278,7 +278,7 @@ Plt.Create()
         ax.Cci(high, low, close, 20);
         ax.WithTitle("CCI(20)");
     })
-    .SaveSvgAndPng(SamplesPath("phase_f_indicators.svg"));
+    .SaveSvgAndPng(SamplesPath("phase_f_indicators.svg"));   // the file keeps its old name: pages link to it
 Console.WriteLine("Saved phase_f_indicators.svg");
 
 // --- 15. Contour with labels ---
@@ -308,7 +308,7 @@ Console.WriteLine("Saved contour_labels.svg");
     double[] ySP = tSP.Select(t => Math.Exp(-0.15 * t) * Math.Cos(2 * t)).ToArray();
     FigureTemplates.ScientificPaper(
         ax => ax
-            .Plot(tSP, ySP, s => { s.Label = "e^{-0.15t} cos(2t)"; s.LineWidth = 1.2; })
+            .Plot(tSP, ySP, s => { s.Label = @"$e^{-0.15t}\cos(2t)$"; s.LineWidth = 1.2; })
             .SetXLabel("t (s)")
             .SetYLabel("Amplitude")
             .WithLegend(LegendPosition.UpperRight),
@@ -320,16 +320,16 @@ Console.WriteLine("Saved contour_labels.svg");
 // --- 17. Sparkline dashboard ---
 FigureTemplates.SparklineDashboard(
     [
-        ("CPU %",    Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 100).ToArray()),
-        ("Memory %", Enumerable.Range(0, 60).Select(_ => 40 + rng.NextDouble() * 30).ToArray()),
-        ("Disk I/O", Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 500).ToArray()),
+        new NamedSample("CPU %",    Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 100).ToArray()),
+        new NamedSample("Memory %", Enumerable.Range(0, 60).Select(_ => 40 + rng.NextDouble() * 30).ToArray()),
+        new NamedSample("Disk I/O", Enumerable.Range(0, 60).Select(_ => rng.NextDouble() * 500).ToArray()),
     ],
     title: "Server Metrics — Last 60s")
     .SaveSvgAndPng(SamplesPath("sparkline_dashboard.svg"));
 Console.WriteLine("Saved sparkline_dashboard.svg");
 
 // =====================================================================
-// v0.8.4 — Stacked base classes (CandleIndicator, OhlcSeries, DatasetSeries, PriceIndicator)
+// Date axes, math text, property cyclers and accessibility
 // =====================================================================
 
 // --- 18. Date axis — 90-day time series with AutoDateLocator ---
@@ -441,7 +441,7 @@ Plt.Create()
 Console.WriteLine("Saved accessibility_highcontrast.svg");
 
 // =====================================================================
-// --- Phase G: True 3-D samples ---
+// --- 3-D samples ---
 // =====================================================================
 
 // 1. Surface plot with perspective camera + directional lighting
@@ -536,13 +536,13 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     // Rows can be added in any order — the 3-D axes renderer runs a single shared
     // back-to-front depth sort across all Bar3D series so insertion order doesn't
     // matter. This is the fix that matplotlib still lacks for repeated ax.bar3d().
-    (double Y, Color Color)[] rows =
+    BarRow[] rows =
     [
-        (0, Colors.Red),
-        (1, Colors.Green),
-        (2, Colors.Blue),
-        (3, Colors.Cyan),
-        (4, Colors.Gold),
+        new(0, Colors.Red),
+        new(1, Colors.Green),
+        new(2, Colors.Blue),
+        new(3, Colors.Cyan),
+        new(4, Colors.Gold),
     ];
 
     var plt = Plt.Create()
@@ -577,13 +577,13 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     var pprng = new Random(7);
     const int PBarsPerRow = 20;
     double[] pxs = Enumerable.Range(0, PBarsPerRow).Select(i => (double)i).ToArray();
-    (double Y, Color PlaneColor)[] prows =
+    BarRow[] prows =
     [
-        (0, Colors.Red),
-        (1, Colors.Green),
-        (2, Colors.Blue),
-        (3, Colors.Cyan),
-        (4, Colors.Gold),
+        new(0, Colors.Red),
+        new(1, Colors.Green),
+        new(2, Colors.Blue),
+        new(3, Colors.Cyan),
+        new(4, Colors.Gold),
     ];
 
     var pplt = Plt.Create()
@@ -621,13 +621,13 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     const int PhBarsPerRow = 20;
     double[] phxs = Enumerable.Range(0, PhBarsPerRow).Select(i => (double)i).ToArray();
     var darkCyan = Color.FromHex("#008B8B");
-    (double Y, Color PlaneColor)[] phrows =
+    BarRow[] phrows =
     [
-        (0, Colors.Red),
-        (1, Colors.Green),
-        (2, Colors.Blue),
-        (3, Colors.Cyan),
-        (4, Colors.Gold),
+        new(0, Colors.Red),
+        new(1, Colors.Green),
+        new(2, Colors.Blue),
+        new(3, Colors.Cyan),
+        new(4, Colors.Gold),
     ];
 
     var phplt = Plt.Create()
@@ -657,7 +657,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 }
 
 // =====================================================================
-// v1.3.0 — 6 new 3-D series + MathText completion
+// Six more 3-D series, and math text
 // =====================================================================
 
 // 22. Line3D — helix polyline
@@ -812,7 +812,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     Console.WriteLine("Saved threed_text3d.svg");
 }
 
-// 28. MathText — v1.3.0 features: fractions, sqrt, accents, font variants
+// 28. MathText — fractions, sqrt, accents, font variants (the file keeps its old name: pages link to it)
 {
     double[] mx = Enumerable.Range(0, 100).Select(i => i * 0.1).ToArray();
     double[] my1 = mx.Select(v => Math.Sin(v) * Math.Exp(-v / 10)).ToArray();
@@ -1414,11 +1414,11 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     double[] yt1 = xt.Select(v => Math.Sin(v)).ToArray();
     double[] yt2 = xt.Select(v => Math.Cos(v)).ToArray();
 
-    var themes = new (string Name, Theme T)[]
+    var themes = new NamedTheme[]
     {
-        ("Default", Theme.Default), ("Dark", Theme.Dark),
-        ("Nord", Theme.Nord), ("Dracula", Theme.Dracula),
-        ("Cyberpunk", Theme.Cyberpunk), ("Monokai", Theme.Monokai),
+        new("Default", Theme.Default), new("Dark", Theme.Dark),
+        new("Nord", Theme.Nord), new("Dracula", Theme.Dracula),
+        new("Cyberpunk", Theme.Cyberpunk), new("Monokai", Theme.Monokai),
     };
 
     const int tileW = 400, tileH = 300;
@@ -1429,7 +1429,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 
     // Per-tile SVG body (raw <svg> markup) — captured for both the composite SVG
     // and decoded back into bitmaps for the composite PNG.
-    var tiles = new (string Name, string Svg, byte[] Png)[themes.Length];
+    var tiles = new RenderedTile[themes.Length];
     for (int i = 0; i < themes.Length; i++)
     {
         var (name, theme) = themes[i];
@@ -1445,7 +1445,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
             })
             .TightLayout();
         var fig = fb.Build();
-        tiles[i] = (name, fig.ToSvg(), fig.ToPng());
+        tiles[i] = new(name, fig.ToSvg(), fig.ToPng());
     }
 
     // Compose SVG: outer <svg> with title band + 6 nested <svg> at grid offsets.
@@ -1520,58 +1520,35 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 }
 
 // --- 23. Cookbook images — pareto chart ---
+// One call: the verb sorts the counts, accumulates the shares to exactly 100 and lines both Y axes up.
 {
     string[] defects = ["Scratches", "Dents", "Cracks", "Stains", "Breaks", "Missing", "Warp"];
-    double[] counts = [142, 98, 67, 45, 31, 18, 9];
-    double total = counts.Sum();
-    double running = 0;
-    double[] cumPct = counts.Select(c => { running += c; return running / total * 100; }).ToArray();
-    double[] barCenters = Enumerable.Range(0, defects.Length).Select(i => i + 0.5).ToArray();
+    double[] counts  = [142, 98, 67, 45, 31, 18, 9];
 
     Plt.Create()
         .WithTitle("Pareto Chart — Defect Analysis")
         .WithSize(900, 500)
         .AddSubPlot(1, 1, 1, ax => ax
-            .Bar(defects, counts, s => { s.Color = Color.FromHex("#4472C4"); s.Label = "Count"; })
-            .WithSecondaryYAxis(y2 => y2
-                .Plot(barCenters, cumPct, s =>
-                {
-                    s.Color = Color.FromHex("#8B0000");
-                    s.LineWidth = 2;
-                    s.Marker = MarkerStyle.Circle;
-                    s.MarkerSize = 7;
-                    s.Label = "Cumulative %";
-                })
-                // 105, not 100: a set limit clips at the frame, and the 100 % point is the one a Pareto chart is read by.
-                .SetYLim(0, 105)
-                .SetYLabel("Cumulative %"))
-            .SetYLabel("Defect Count")
-            // Right of centre is empty: the tail bars are short and the cumulative line runs near the top.
-            .WithLegend(LegendPosition.Right))
+            .Pareto(defects, counts, parts => parts.Bars.Label = "Defect count"))
         .SaveSvgAndPng(SamplesPath("pareto_chart.svg"));
     Console.WriteLine("Saved pareto_chart");
 }
 
 // --- 24. Cookbook images — lollipop chart ---
+// One stem series: each stem stands on its category, ends in its head, and the categories are named on the X axis.
 {
-    // Products at indices 0-5: Alpha, Beta, Gamma, Delta, Epsilon, Zeta
-    double[] scores = [82.5, 67.3, 91.1, 54.8, 76.4, 88.2];
-    double[] xIdx = Enumerable.Range(0, scores.Length).Select(i => (double)i).ToArray();
+    string[] productNames = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"];
+    double[] scores       = [82.5, 67.3, 91.1, 54.8, 76.4, 88.2];
 
     Plt.Create()
         .WithTitle("Lollipop Chart — Product Scores")
         .WithSize(800, 450)
         .AddSubPlot(1, 1, 1, ax => ax
-            .Stem(xIdx, scores, s => { s.StemColor = Color.FromHex("#5B9BD5"); })
-            .Scatter(xIdx, scores, s =>
+            .Lollipop(productNames, scores, s =>
             {
-                s.Color = Color.FromHex("#5B9BD5");
-                s.MarkerSize = 14;
-                s.Marker = MarkerStyle.Circle;
+                s.StemColor = Color.FromHex("#5B9BD5");
+                s.MarkerColor = Color.FromHex("#5B9BD5");
             })
-            // Half a slot of room either side: a set limit clips at the frame, so the first and last heads stay whole.
-            .SetXLim(-0.5, scores.Length - 0.5)
-            .SetYLim(0, 110)
             .SetYLabel("Score"))
         .SaveSvgAndPng(SamplesPath("lollipop_chart.svg"));
     Console.WriteLine("Saved lollipop_chart");
@@ -1593,6 +1570,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
                 s.IncreaseColor = Color.FromHex("#2ECC71");
                 s.DecreaseColor = Color.FromHex("#E74C3C");
                 s.TotalColor = Color.FromHex("#3498DB");
+                s.TotalIndices = [12];   // the last bar is a total: it stands on zero and wears the total colour
                 s.BarWidth = 0.6;
             })
             .SetYLabel("P&L (€k)")
@@ -1602,75 +1580,40 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 }
 
 // --- 26. Cookbook images — ridge plot ---
+// One call: one shared grid and one bandwidth for every ridge, one height scale, the names on the Y axis.
 {
     var rngRidge = new Random(42);
-    double BoxMuller(Random r) { double u1 = 1 - r.NextDouble(), u2 = 1 - r.NextDouble(); return Math.Sqrt(-2 * Math.Log(u1)) * Math.Sin(2 * Math.PI * u2); }
-    double[] xGrid = Enumerable.Range(0, 300).Select(i => i * 0.04 - 3.0).ToArray();
+    // Box-Muller: a normally distributed sample built from two uniform ones.
+    double Gaussian(double mean, double sd) =>
+        mean + sd * Math.Sqrt(-2 * Math.Log(1 - rngRidge.NextDouble())) * Math.Cos(2 * Math.PI * rngRidge.NextDouble());
 
-    double[] GaussKde(double[] data, double bw = 0.5) =>
-        xGrid.Select(xi =>
-            data.Sum(d =>
-            {
-                double z = (xi - d) / bw;
-                return Math.Exp(-0.5 * z * z) / (bw * Math.Sqrt(2 * Math.PI));
-            }) / data.Length
-        ).ToArray();
-
-    string[] groups = ["Group A", "Group B", "Group C", "Group D", "Group E", "Group F"];
+    string[] names = ["Group A", "Group B", "Group C", "Group D", "Group E", "Group F"];
     double[] means = [-1.2, -0.4, 0.2, 0.7, 1.3, 1.9];
-    var palette = new[] { "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#A65628" };
+    NamedSample[] groups = [.. names.Select((name, g) =>
+        new NamedSample(name, [.. Enumerable.Range(0, 200).Select(_ => Gaussian(means[g], 0.6))]))];
 
     Plt.Create()
-        .WithTitle("Ridge Plot — Distribution Comparison")
+        .WithTitle("Ridgeline")
         .WithSize(900, 600)
-        .AddSubPlot(1, 1, 1, ax =>
-        {
-            for (int g = 0; g < groups.Length; g++)
-            {
-                double offset = g * 0.6;
-                double[] data = Enumerable.Range(0, 200)
-                    .Select(_ => means[g] + BoxMuller(rngRidge) * 0.6)
-                    .ToArray();
-                double[] kde = GaussKde(data);
-                double[] kdeShifted = kde.Select(v => v + offset).ToArray();
-                double[] baseline = Enumerable.Repeat(offset, xGrid.Length).ToArray();
-                var col = Color.FromHex(palette[g]);
-                ax.FillBetween(xGrid, kdeShifted, baseline, s =>
-                {
-                    s.Color = col;
-                    s.Alpha = 0.6;
-                    s.Label = groups[g];
-                });
-                ax.Plot(xGrid, kdeShifted, s => { s.Color = col; s.LineWidth = 1.5; });
-            }
-            ax.WithLegend();
-        })
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Ridgeline(groups, configure: ridge => ridge.Alpha = 0.7)
+            .SetXLabel("Value"))
         .SaveSvgAndPng(SamplesPath("ridge_plot.svg"));
     Console.WriteLine("Saved ridge_plot");
 }
 
 // --- 27. Cookbook images — dumbbell chart ---
+// One call: two dots per category, joined from the lower value to the higher one, whichever group is higher.
 {
-    // Indices 0-5: Product A–F
-    double[] before = [62.0, 78.5, 55.0, 83.0, 70.0, 48.0];
-    double[] after  = [74.0, 82.0, 68.0, 79.5, 88.5, 61.0];
-    double[] xIdx   = Enumerable.Range(0, before.Length).Select(i => (double)i).ToArray();
-    double[] zeros    = new double[before.Length];
-    double[] dumbDiff = before.Zip(after, (b, a) => Math.Abs(a - b)).ToArray();
+    string[] productNames = ["Product A", "Product B", "Product C", "Product D", "Product E", "Product F"];
 
     Plt.Create()
         .WithTitle("Dumbbell Chart — Before vs After")
         .WithSize(800, 450)
         .AddSubPlot(1, 1, 1, ax => ax
-            .ErrorBar(xIdx, before, zeros, dumbDiff, s =>
-            {
-                s.Color = Color.FromHex("#AAAAAA");
-                s.LineWidth = 3;
-                s.CapSize = 0;
-            })
-            .Scatter(xIdx, before, s => { s.Color = Color.FromHex("#E74C3C"); s.MarkerSize = 14; s.Marker = MarkerStyle.Circle; s.Label = "Before"; })
-            .Scatter(xIdx, after, s => { s.Color = Color.FromHex("#2ECC71"); s.MarkerSize = 14; s.Marker = MarkerStyle.Circle; s.Label = "After"; })
-            .SetYLim(30, 100)
+            .Dumbbell(productNames,
+                new BarGroup("Before", [62.0, 78.5, 55.0, 83.0, 70.0, 48.0]),
+                new BarGroup("After",  [74.0, 82.0, 68.0, 79.5, 88.5, 61.0]))
             .SetYLabel("Score")
             .WithLegend())
         .SaveSvgAndPng(SamplesPath("dumbbell_chart.svg"));
@@ -1699,93 +1642,74 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 }
 
 // --- 29. Cookbook images — calendar heatmap ---
+// One call: seven weekday rows by one column per week, Monday on top, weekdays and months named.
 {
     var rngCal = new Random(7);
-    var calData = new double[52, 7];
-    for (int w = 0; w < 52; w++)
-        for (int d = 0; d < 7; d++)
-        {
-            double base_ = (d < 5) ? rngCal.NextDouble() * 8 : rngCal.NextDouble() * 2;
-            double trend = w * 0.05;
-            calData[w, d] = Math.Max(0, base_ + trend + rngCal.NextDouble() * 2 - 1);
-        }
+    var first = new DateTime(2025, 1, 1);
+    DateTime[] days = [.. Enumerable.Range(0, 365).Select(d => first.AddDays(d))];
+    double[] commits = [.. days.Select(d =>
+        d.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday ? rngCal.Next(0, 3) : rngCal.Next(0, 12))];
+
+    // White to dark green; a day with no value is grey, so it does not read as a zero.
+    var greens = new LinearColorMap("commits", [Color.FromHex("#FFFFFF"), Color.FromHex("#00441B")])
+    {
+        BadColor = Color.FromHex("#DDDDDD"),
+    };
 
     Plt.Create()
-        .WithTitle("Calendar Heatmap — GitHub-style Contributions")
+        .WithTitle("Calendar Heatmap — Contributions")
         .WithSize(1100, 300)
         .AddSubPlot(1, 1, 1, ax => ax
-            .Heatmap(calData, s =>
-            {
-                s.ColorMap = ColorMaps.Viridis;
-                s.Label = "Commits";
-            })
-            .WithColorBar()
-            .SetXLabel("Week")
-            .SetYLabel("Day"))
+            .CalendarHeatmap(days, commits, configure: s => s.ColorMap = greens))
         .SaveSvgAndPng(SamplesPath("calendar_heatmap.svg"));
     Console.WriteLine("Saved calendar_heatmap");
 }
 
 // --- 30. Cookbook images — wind rose ---
+// A polar bar takes its angle in radians, counter-clockwise from the right (east); a compass bearing counts clockwise
+// from north, so it is turned first. One series: polar bar series do not share one radial scale, so speeds are not
+// stacked or overlaid.
 {
-    double[] directions = [0, 45, 90, 135, 180, 225, 270, 315];
-    double[] freqSlow   = [5.2, 4.1, 6.8, 3.5, 4.9, 7.2, 5.5, 3.8]; // 0–10 knots
-    double[] freqMed    = [3.1, 2.8, 4.2, 2.1, 3.4, 4.8, 3.2, 2.5]; // 10–20 knots
-    double[] freqFast   = [1.2, 0.9, 1.8, 0.7, 1.1, 2.1, 1.4, 0.8]; // 20+ knots
+    double[] bearings  = [0, 45, 90, 135, 180, 225, 270, 315];          // N, NE, E, SE, S, SW, W, NW
+    double[] frequency = [9.5, 7.8, 12.8, 6.3, 9.4, 14.1, 10.1, 7.1];   // % of the hours, all speeds
+    double[] theta = [.. bearings.Select(b => (90 - b) * Math.PI / 180)];
 
     Plt.Create()
-        .WithTitle("Wind Rose")
+        .WithTitle("Wind Rose — share of the hours by direction")
         .WithSize(600, 600)
         .AddSubPlot(1, 1, 1, ax => ax
-            .PolarBar(freqSlow, directions, s => { s.Color = Color.FromHex("#AED6F1"); s.Alpha = 0.85; s.Label = "0–10 kn"; s.BarWidth = 40; })
-            .PolarBar(freqMed, directions, s => { s.Color = Color.FromHex("#2E86C1"); s.Alpha = 0.85; s.Label = "10–20 kn"; s.BarWidth = 40; })
-            .PolarBar(freqFast, directions, s => { s.Color = Color.FromHex("#1A252F"); s.Alpha = 0.85; s.Label = "20+ kn"; s.BarWidth = 40; })
-            .WithLegend())
+            .PolarBar(frequency, theta, s =>
+            {
+                s.Color = Color.FromHex("#2E86C1");
+                s.Alpha = 0.85;
+                s.BarWidth = 0.9 * Math.PI / 4;   // radians: nine tenths of the 45° between two directions
+            }))
         .SaveSvgAndPng(SamplesPath("wind_rose.svg"));
     Console.WriteLine("Saved wind_rose");
 }
 
 // --- 31. Cookbook images — bump / rank chart ---
+// One call: one marked line per brand, rank 1 on top, each name at the end of its line, a tick at every whole rank.
 {
-    var rng3 = new Random(99);
+    var rngBump = new Random(99);
     string[] brands = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
-    int periods = 8;
-    double[] xPeriods = Enumerable.Range(1, periods).Select(i => (double)i).ToArray();
-    var palette2 = new[] { "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00" };
+    double[] periods = [.. Enumerable.Range(1, 8).Select(i => (double)i)];
 
-    // Build rank data: each period has a permutation of 1..5
-    int[][] ranks = Enumerable.Range(0, brands.Length)
-        .Select(_ => new int[periods])
-        .ToArray();
-    for (int p = 0; p < periods; p++)
+    // One rank per period for each brand: each period shuffles the ranks 1 to 5.
+    double[][] ranks = [.. brands.Select(_ => new double[periods.Length])];
+    for (int p = 0; p < periods.Length; p++)
     {
-        int[] perm = Enumerable.Range(1, brands.Length).OrderBy(_ => rng3.Next()).ToArray();
-        for (int b = 0; b < brands.Length; b++)
-            ranks[b][p] = perm[b];
+        int[] order = [.. Enumerable.Range(1, brands.Length).OrderBy(_ => rngBump.Next())];
+        for (int b = 0; b < brands.Length; b++) ranks[b][p] = order[b];
     }
 
     Plt.Create()
         .WithTitle("Bump Chart — Brand Ranking over Time")
         .WithSize(900, 450)
-        .AddSubPlot(1, 1, 1, ax =>
-        {
-            for (int b = 0; b < brands.Length; b++)
-            {
-                double[] y = ranks[b].Select(r => (double)r).ToArray();
-                ax.Plot(xPeriods, y, s =>
-                {
-                    s.Color = Color.FromHex(palette2[b]);
-                    s.LineWidth = 3;
-                    s.Marker = MarkerStyle.Circle;
-                    s.MarkerSize = 10;
-                    s.Label = brands[b];
-                });
-            }
-            ax.SetYLim(brands.Length + 0.5, 0.5);
-            ax.SetYLabel("Rank");
-            ax.SetXLabel("Period");
-            ax.WithLegend();
-        })
+        .AddSubPlot(1, 1, 1, ax => ax
+            .BumpChart(periods, [.. brands.Select((brand, b) => new BarGroup(brand, ranks[b]))])
+            .SetXLabel("Period")
+            .SetYLabel("Rank"))
         .SaveSvgAndPng(SamplesPath("bump_chart.svg"));
     Console.WriteLine("Saved bump_chart");
 }
@@ -1862,12 +1786,12 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 
 // --- 35. Cookbook images — 4-projection comparison ---
 {
-    var projections = new (string Name, IGeoProjection Proj)[]
+    var projections = new NamedProjection[]
     {
-        ("Mercator",    GeoProjection.Mercator),
-        ("Robinson",    GeoProjection.Robinson),
-        ("Mollweide",   GeoProjection.Mollweide),
-        ("Equal Earth", GeoProjection.EqualEarth),
+        new("Mercator",    GeoProjection.Mercator),
+        new("Robinson",    GeoProjection.Robinson),
+        new("Mollweide",   GeoProjection.Mollweide),
+        new("Equal Earth", GeoProjection.EqualEarth),
     };
 
     var fig = Plt.Create()
@@ -1909,9 +1833,9 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     Console.WriteLine("Saved geo_nightside");
 }
 
-// --- 37. Medium cover — v1.10.0 lead-lag network of crypto pairs ---
+// --- 37. Cover picture — lead-lag network of crypto pairs ---
 //
-// Shipped as the v1.10.0 announcement cover image. Renders a NetworkGraphSeries
+// A cover picture (the file keeps its old name: pages link to it). Renders a NetworkGraphSeries
 // where directed edges represent Transfer-Entropy lead-lag scores between major
 // crypto symbols. Force-directed layout with a fixed seed gives a deterministic,
 // visually balanced composition. ColorScalar drives node fill via Plasma, and
@@ -1953,7 +1877,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     };
 
     Plt.Create()
-        .WithTitle("Crypto Lead-Lag Network  ·  Transfer Entropy  ·  MatPlotLibNet v1.10.0")
+        .WithTitle("Crypto Lead-Lag Network  ·  Transfer Entropy  ·  MatPlotLibNet")
         .WithSize(1600, 900)
         .WithTheme(Theme.Seaborn)
         .AddSubPlot(1, 1, 1, ax => ax
@@ -1976,7 +1900,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 }
 
 // =====================================================================
-// v1.11.0 — RelativeRotationSeries (RRG): crypto coin rotation radar
+// RelativeRotationSeries (RRG): crypto coin rotation radar
 // =====================================================================
 
 // --- 38. Relative Rotation Graph — 5 alts vs BTC benchmark ---
@@ -1993,13 +1917,13 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
         btc[i] = Math.Max(1.0, btc[i - 1] * (1.0 + (rrgRng.NextDouble() - 0.48) * 0.06));
 
     // Simulate 5 alt-coin weekly closes — each with distinct drift/volatility
-    (string Symbol, double Drift, double Vol)[] alts =
+    AltCoin[] alts =
     [
-        ("ETH",  0.0050, 0.08),
-        ("BNB",  0.0030, 0.07),
-        ("SOL",  0.0080, 0.10),
-        ("ADA", -0.0010, 0.09),
-        ("XRP",  0.0020, 0.07),
+        new("ETH",  0.0050, 0.08),
+        new("BNB",  0.0030, 0.07),
+        new("SOL",  0.0080, 0.10),
+        new("ADA", -0.0010, 0.09),
+        new("XRP",  0.0020, 0.07),
     ];
 
     double[][] assetCloses = alts.Select(a =>
@@ -2014,7 +1938,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     string[] labels = alts.Select(a => a.Symbol).ToArray();
 
     Plt.Create()
-        .WithTitle("Crypto Coin Rotation Radar  ·  Weekly  ·  MatPlotLibNet v1.11.0")
+        .WithTitle("Crypto Coin Rotation Radar  ·  Weekly  ·  MatPlotLibNet")
         .WithSize(900, 700)
         .AddSubPlot(1, 1, 1, ax => ax
             .SetXLabel("RS-Ratio (momentum strength)")
@@ -2030,15 +1954,16 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 }
 
 // =====================================================================
-// v1.12.0 — Ops dashboard: StatTiles, StateTimeline, Threshold + LegendValues
+// Ops dashboard: StatTiles, StateTimeline, Threshold + LegendValues
 // =====================================================================
 
 // --- 39. Ops dashboard mosaic — KPI tile row + service timeline + thresholded chart ---
 //
-// Demonstrates all four v1.12.0 dashboard conveniences together in one mosaic:
+// Demonstrates all four dashboard conveniences together in one mosaic:
 // a KPI row of StatTileSeries, a StateTimelineSeries showing a day of service
 // health, and a line chart with a breach Threshold(...) + WithLegendValues()
-// so the legend shows the live reading alongside the series name.
+// so the legend shows the live reading alongside the series name. A tile is a number with a label, not a chart,
+// so each tile axes hides its axes (HideAllAxes, the call Plt.OpsDashboard() makes for its own tiles).
 {
     // 24h service-state timeline: mostly Up, one Degraded blip, one short outage.
     var serviceHistory = new StateSegment[]
@@ -2055,16 +1980,19 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
     double[] load  = hours.Select(h => 55 + 15 * Math.Sin(h * 0.4) + (h > 20 ? 20 : 0)).ToArray();
 
     Plt.Create()
-        .WithTitle("Ops Dashboard — v1.12.0")
+        .WithTitle("Ops Dashboard")
         .WithTheme(Theme.Dark)
         .WithSize(1000, 750)
         .WithGridSpec(3, 3, heightRatios: [1.0, 1.0, 1.6])
         .AddSubPlot(GridPosition.Single(0, 0), ax => ax
-            .StatTile(12, t => { t.Label = "Participants"; t.Format = "0"; }))
+            .StatTile(12, t => { t.Label = "Participants"; t.Format = "0"; })
+            .HideAllAxes())
         .AddSubPlot(GridPosition.Single(0, 1), ax => ax
-            .StatTile(1, t => { t.Label = "Alerts"; t.AccentColor = Colors.Red; t.Format = "0"; }))
+            .StatTile(1, t => { t.Label = "Alerts"; t.AccentColor = Colors.Red; t.Format = "0"; })
+            .HideAllAxes())
         .AddSubPlot(GridPosition.Single(0, 2), ax => ax
-            .StatTile(99.4, t => { t.Label = "Uptime %"; t.Format = "0.0"; }))
+            .StatTile(99.4, t => { t.Label = "Uptime %"; t.Format = "0.0"; })
+            .HideAllAxes())
         .AddSubPlot(new GridPosition(1, 2, 0, 3), ax => ax
             .StateTimeline(serviceHistory, s => s.Label = "API service")
             .WithTitle("Service state — last 24h"))
@@ -2082,8 +2010,6 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
         .SaveSvgAndPng(SamplesPath("ops_dashboard_full.svg"));
     Console.WriteLine("Saved ops_dashboard_full.svg");
 }
-
-Console.WriteLine("Done!");
 
 // --- 40. International text: Arabic title, Hebrew legend entry, Latin ticks ---
 // Arabic and Hebrew work with the bundled font: the letters join, the words read right to left, and the Latin
@@ -2373,3 +2299,240 @@ Console.WriteLine("Saved international.svg and international.png");
         .SaveSvgAndPng(SamplesPath("direct_labels_dual_axis.svg"));
     Console.WriteLine("Saved direct_labels_dual_axis.svg");
 }
+
+// =====================================================================
+// Horizontal bars, and the charts drawn by one call (the cookbook pictures of each)
+// =====================================================================
+
+// --- 46. Horizontal bars — values along X, the names on the Y axis, the first category at the bottom ---
+// The products and sales of sample 9.
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Bar(products, sales, s =>
+        {
+            s.Orientation = BarOrientation.Horizontal;
+            s.Color = Colors.Teal;
+        })
+        .WithBarLabels("F0")
+        .SetXMargin(0.1)                                // room past the longest bar for its label
+        .SetXLabel("Revenue ($)"))
+    .SaveSvgAndPng(SamplesPath("horizontal_bars.svg"));
+Console.WriteLine("Saved horizontal_bars.svg");
+
+// --- 47. Grouped horizontal bars — GroupedBar laid down by its one configuration action ---
+{
+    string[] quarters = ["Q1", "Q2", "Q3", "Q4"];
+    BarGroup[] regions =
+    [
+        new("north", [12, 18, 15, 21]),
+        new("south", [ 9, 14, 17, 16]),
+        new("east",  [ 7, 11, 13, 19]),
+    ];
+
+    Plt.Create()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .GroupedBar(quarters, regions, s => s.Orientation = BarOrientation.Horizontal)
+            .WithLegend(LegendPosition.LowerRight))
+        .SaveSvgAndPng(SamplesPath("grouped_horizontal_bars.svg"));
+    Console.WriteLine("Saved grouped_horizontal_bars.svg");
+}
+
+// --- 48. Slope graph — one line per category between two moments, named at both ends ---
+{
+    string[] regions = ["North", "South", "East", "West"];
+
+    Plt.Create()
+        .WithTitle("Sales by region")
+        .WithSize(700, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .SlopeGraph(regions,
+                new BarGroup("2015", [42.0, 55.0, 38.0, 61.0]),
+                new BarGroup("2025", [51.0, 49.0, 44.0, 66.0]))
+            .SetYLabel("Sales"))
+        .SaveSvgAndPng(SamplesPath("slope_graph.svg"));
+    Console.WriteLine("Saved slope_graph.svg");
+}
+
+// --- 49. Dot plot — the categories down the Y axis, sorted by the first group, largest on top ---
+{
+    string[] languages = ["Ruby", "Go", "Rust", "Java", "Python"];
+
+    Plt.Create()
+        .WithTitle("Programming languages")
+        .AddSubPlot(1, 1, 1, ax => ax
+            .DotPlot(languages,
+            [
+                new BarGroup("2015", [31.0, 48.0, 62.0, 55.0, 80.0]),
+                new BarGroup("2025", [35.0, 52.0, 60.0, 58.0, 84.0]),
+            ])
+            .SetXLabel("Share of developers (%)"))
+        .SaveSvgAndPng(SamplesPath("dot_plot.svg"));
+    Console.WriteLine("Saved dot_plot.svg");
+}
+
+// --- 50. Parallel coordinates — one axis per dimension, one line per row, one colour per class ---
+{
+    string[] measures = ["Sepal length", "Sepal width", "Petal length", "Petal width"];
+
+    Plt.Create()
+        .WithTitle("Three species of iris")
+        .WithSize(900, 500)
+        .TightLayout()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .ParallelCoordinates(measures,
+            [
+                new BarGroup("setosa",     [5.1, 3.5, 1.4, 0.2]),
+                new BarGroup("setosa",     [4.9, 3.0, 1.4, 0.2]),
+                new BarGroup("setosa",     [4.7, 3.2, 1.3, 0.2]),
+                new BarGroup("setosa",     [5.0, 3.6, 1.4, 0.2]),
+                new BarGroup("versicolor", [7.0, 3.2, 4.7, 1.4]),
+                new BarGroup("versicolor", [6.4, 3.2, 4.5, 1.5]),
+                new BarGroup("versicolor", [6.9, 3.1, 4.9, 1.5]),
+                new BarGroup("versicolor", [5.5, 2.3, 4.0, 1.3]),
+                new BarGroup("virginica",  [6.3, 3.3, 6.0, 2.5]),
+                new BarGroup("virginica",  [5.8, 2.7, 5.1, 1.9]),
+                new BarGroup("virginica",  [7.1, 3.0, 5.9, 2.1]),
+                new BarGroup("virginica",  [6.5, 3.0, 5.8, 2.2]),
+            ])
+            .WithLegend(LegendPosition.OutsideRight))
+        .SaveSvgAndPng(SamplesPath("parallel_coordinates.svg"));
+    Console.WriteLine("Saved parallel_coordinates.svg");
+}
+
+// --- 51. Marimekko — columns as wide as their share, each divided into its segments' shares ---
+{
+    string[] channels = ["Retail", "Online", "Wholesale"];
+
+    Plt.Create()
+        .WithTitle("Market by channel and brand")
+        .WithSize(800, 500)
+        .TightLayout()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Marimekko(channels,
+            [
+                new BarGroup("Brand A", [30, 15, 5]),
+                new BarGroup("Brand B", [20, 25, 10]),
+                new BarGroup("Brand C", [10, 20, 15]),
+            ])
+            .SetXLabel("Channel (width: its share of the market)")
+            .WithLegend(LegendPosition.OutsideRight))
+        .SaveSvgAndPng(SamplesPath("marimekko.svg"));
+    Console.WriteLine("Saved marimekko.svg");
+}
+
+// --- 52. Q-Q plot — a sample against the normal distribution, with a least-squares reference line ---
+{
+    double[] dailyReturns = [0.8, -1.2, 0.3, 2.1, -0.4, 0.9, -2.6, 0.1, 1.4, -0.7, 0.5, -0.2,
+                             1.1, -0.9, 0.6, -3.4, 0.2, 1.7, -0.5, 0.4];
+
+    Plt.Create()
+        .WithTitle("Daily returns against the normal distribution")
+        .WithSize(700, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .QQPlot(dailyReturns, parts => parts.Points.Alpha = 0.8)
+            .SetYLabel("Daily return (%)"))
+        .SaveSvgAndPng(SamplesPath("qq_plot.svg"));
+    Console.WriteLine("Saved qq_plot.svg");
+}
+
+// --- 53. Kaplan-Meier — the product-limit survival curve of each group ---
+{
+    SurvivalGroup[] arms =
+    [
+        new("Treatment", [6, 7, 10, 15, 19, 25, 32, 34], [true, true, false, true, false, true, false, false]),
+        new("Placebo",   [1, 2, 3, 4, 5, 8, 8, 11],      [true, true, true, false, true, true, true, true]),
+    ];
+
+    Plt.Create()
+        .WithTitle("Time to relapse")
+        .WithSize(800, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .KaplanMeier(arms)
+            .SetXLabel("Weeks"))
+        .SaveSvgAndPng(SamplesPath("kaplan_meier.svg"));
+    Console.WriteLine("Saved kaplan_meier.svg");
+}
+
+// --- 54. Control chart — an individuals chart, its limits estimated, the values beyond them marked ---
+{
+    double[] day  = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+    double[] fill = [50.2, 49.8, 50.1, 50.4, 49.9, 50.0, 54.6, 50.3, 49.7, 50.1, 50.5, 49.6, 50.2, 45.6, 50.0];
+
+    Plt.Create()
+        .WithTitle("Fill weight")
+        .WithSize(800, 450)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .ControlChart(day, fill, configure: parts => parts.Violations.Label = "beyond a limit")
+            .SetXLabel("Day")
+            .SetYLabel("Weight (g)"))
+        .SaveSvgAndPng(SamplesPath("control_chart.svg"));
+    Console.WriteLine("Saved control_chart.svg");
+}
+
+// --- 55. Stream graph — a stacked area floating around the middle, one stream per layer ---
+{
+    double[] year = [2019, 2020, 2021, 2022, 2023];
+
+    Plt.Create()
+        .WithTitle("Listening by genre")
+        .WithSize(800, 450)
+        .TightLayout()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .StreamGraph(year,
+            [
+                new BarGroup("Rock",       [8, 7, 6, 5, 4]),
+                new BarGroup("Pop",        [3, 5, 7, 8, 9]),
+                new BarGroup("Jazz",       [2, 2, 3, 3, 4]),
+                new BarGroup("Electronic", [1, 2, 4, 6, 7]),
+            ])
+            .SetXTickLocator(new MultipleLocator(1))
+            .SetXLabel("Year")
+            .WithLegend(LegendPosition.OutsideRight))
+        .SaveSvgAndPng(SamplesPath("stream_graph.svg"));
+    Console.WriteLine("Saved stream_graph.svg");
+}
+
+// --- 56. Spy plot — a marker on every cell of a matrix that is not zero ---
+{
+    // A banded matrix: the diagonal and the two diagonals beside it, and one dense block.
+    var band = new double[20, 20];
+    for (int r = 0; r < 20; r++)
+    {
+        for (int c = Math.Max(0, r - 1); c <= Math.Min(19, r + 1); c++)
+        {
+            band[r, c] = 1;
+        }
+    }
+    for (int r = 14; r < 18; r++)
+    {
+        for (int c = 2; c < 6; c++)
+        {
+            band[r, c] = -0.5;
+        }
+    }
+
+    Plt.Create()
+        .WithTitle("A tridiagonal matrix with one block")
+        .WithSize(500, 500)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Spy(band, configure: s => s.MarkerSize = 12))
+        .SaveSvgAndPng(SamplesPath("spy_plot.svg"));
+    Console.WriteLine("Saved spy_plot.svg");
+}
+
+Console.WriteLine("Done!");
+
+/// <summary>One row of a 3-D bar sample: the Y plane it stands on and its colour.</summary>
+file readonly record struct BarRow(double Y, Color Color);
+
+/// <summary>A theme of the theme comparison, with the name its tile is titled with.</summary>
+file readonly record struct NamedTheme(string Name, Theme Theme);
+
+/// <summary>One tile of the theme comparison, drawn: its name, its SVG and its PNG.</summary>
+file readonly record struct RenderedTile(string Name, string Svg, byte[] Png);
+
+/// <summary>A map projection of the projection comparison, with the name its panel is titled with.</summary>
+file readonly record struct NamedProjection(string Name, IGeoProjection Projection);
+
+/// <summary>A simulated coin of the rotation sample: its symbol, its weekly drift and its volatility.</summary>
+file readonly record struct AltCoin(string Symbol, double Drift, double Vol);

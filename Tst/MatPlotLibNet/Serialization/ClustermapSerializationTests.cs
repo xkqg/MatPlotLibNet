@@ -100,17 +100,15 @@ public class ClustermapSerializationTests
         Assert.Equal(0.20, s.ColumnDendrogramHeight, precision: 10);
     }
 
-    // ── Normalizer (not serialised — project-wide design choice) ─────────────
+    // ── Normalizer (the library's own normalisers travel by kind, like every INormalizable series') ──
 
     [Fact]
-    public void RoundTrip_Normalizer_IsNullAfterRoundTrip()
+    public void RoundTrip_Normalizer_IsKeptAfterRoundTrip()
     {
-        // Normalizer is intentionally not emitted to the DTO — the same design choice
-        // used by HeatmapSeries and all other INormalizable series in this library.
-        // This test documents the expected behaviour so a future accidental serialisation
-        // attempt is caught immediately.
-        var s = Roundtrip(s => s.Normalizer = MatPlotLibNet.Styling.ColorMaps.LinearNormalizer.Instance);
-        Assert.Null(s.Normalizer);
+        var s = Roundtrip(s => s.Normalizer = new MatPlotLibNet.Styling.ColorMaps.TwoSlopeNormalizer(2.5));
+
+        var twoSlope = Assert.IsType<MatPlotLibNet.Styling.ColorMaps.TwoSlopeNormalizer>(s.Normalizer);
+        Assert.Equal(2.5, twoSlope.Center);
     }
 
     // ── Combined non-defaults ─────────────────────────────────────────────────

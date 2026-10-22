@@ -111,15 +111,44 @@ downsampled path, and a streaming series draws only its viewport. Both tabulate 
 table gives the reader everything the drawing shows, and more.
 
 Each series type defines its own columns. An XY series gives x and y. An OHLC series gives date, open, high,
-low and close. A heatmap gives a long-form table with row, column and value columns; it stays readable at any
-width, where a wide grid does not. A histogram gives its bins. A treemap gives its tree flattened depth-first,
-with the depth kept as a column.
+low and close. A heatmap gives a long-form table with row, column and value columns, a row or column written as
+the name its axis shows there; it stays readable at any width, where a wide grid does not. A histogram gives its
+bins. A treemap gives its tree flattened depth-first, with the depth kept as a column.
 
 **Two of the 83 series types have no tabular form and produce no table:** `QuiverKeySeries` (a reference arrow
 that explains the scale of a vector field; it is an annotation, not a measurement) and `Text3DSeries` (text
 placed at a point in a 3-D scene). They return `null` and are left out. A figure whose series are all of those
 two types returns an empty list from `ToDataTables()`. `ShowDataTable` then renders no disclosure at all rather
 than an empty one, so the reader is never offered a table that turns out to be empty.
+
+### A chart built in one call
+
+`Pareto`, `BumpChart`, `Ridgeline` and the other verbs that build a chart in one call add ordinary series, so the
+table, the legend and the SVG groups hold those series, and nothing more:
+
+- **The table names what the axis names.** A lollipop, a dumbbell, a slope graph, a dot plot and parallel
+  coordinates stand on the centres of the slots their axis names, so each row of their table is keyed by that name,
+  under the axis title, or `category` when the axis has none. A Pareto chart is one table (`category`, `Count`,
+  `Cumulative %`), and a dot plot is one table with a column per group, its categories from the top down. In parallel
+  coordinates the break between two rows of one class is a row with an empty name. The names come from the axis, by
+  the rule the picture writes them with: a line you put on the centres of named bars joins the bars' table, and a
+  line that stands between the names keeps its numbers.
+- **A named part is named everywhere.** The bars and the cumulative line of a Pareto chart are two series groups
+  with "Count" and "Cumulative %" as their `aria-label`, and the two columns of its table; a bump chart is one table
+  with a column per group. The dots of a dumbbell, the lines of a bump chart or a slope graph and the layers of a
+  stream graph are named the same way.
+- **A ridge is named by its group.** A ridgeline is one table with a column per group, named by the group (or by the
+  ridge's own label when you give it one), of the ridge's height above its baseline; the tallest ridge reaches 1. The
+  ridges carry no legend label, so their series groups have no `aria-label`.
+- **A part with no name has none.** A lollipop's stems, a dumbbell's connector and the cells of a calendar heatmap
+  carry no label, so they have no series group of their own and a plain column header.
+- **What the table cannot say.** A calendar heatmap's table names the weekday of each cell (Mon … Sun) and numbers
+  its week column from 0. It holds no dates: the chart is a heatmap of its cells and does not keep them. A Marimekko
+  chart's table keeps the edges of its columns, which give each column's share of the total, and names its segments.
+  It does not name the columns, whose names stand under their centres, where no point of the chart stands.
+
+The tick labels themselves are inside the picture, which a screen reader announces by its alt text. Say what the
+chart is in `WithAltText` and `WithDescription`.
 
 ### A dashboard
 

@@ -15,7 +15,7 @@ internal sealed class CandlestickSeriesRenderer : SeriesRenderer<CandlestickSeri
     /// <inheritdoc />
     public override void Render(CandlestickSeries series)
     {
-        // Each bar i occupies slot [i, i+1]; body centered at i+0.5 with bodyWidth fraction.
+        // Candle i stands in category i's slot (CategorySlot): wick and body on the slot's centre, the body BodyWidth wide.
         double halfW = series.BodyWidth / 2;
         for (int i = 0; i < series.Open.Length; i++)
         {
@@ -23,11 +23,15 @@ internal sealed class CandlestickSeriesRenderer : SeriesRenderer<CandlestickSeri
             var color = isUp ? series.UpColor : series.DownColor;
             double bodyTop = Math.Max(series.Open[i], series.Close[i]);
             double bodyBottom = Math.Min(series.Open[i], series.Close[i]);
-            double center = i + 0.5;
-            Ctx.DrawLine(Transform.DataToPixel(center, series.Low[i]), Transform.DataToPixel(center, series.High[i]), new StrokeStyle(color, 1, LineStyle.Solid));
-            var tl = Transform.DataToPixel(center - halfW, bodyTop);
-            var br = Transform.DataToPixel(center + halfW, bodyBottom);
-            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, color, 1));
+            double center = CategorySlot.Of(i).Centre;
+            // The wick and the body are marks of their own: a price that cannot be placed skips the one it belongs to.
+            var low = Transform.DataToPixel(center, series.Low[i]);
+            var high = Transform.DataToPixel(center, series.High[i]);
+            if (low.CanDrawLineTo(high))
+                Ctx.DrawLine(low, high, new StrokeStyle(color, 1, LineStyle.Solid));
+            var body = Rect.FromCorners(Transform.DataToPixel(center - halfW, bodyTop), Transform.DataToPixel(center + halfW, bodyBottom));
+            if (body.IsDrawable())
+                Ctx.DrawRectangle(body, new ShapeStyle(color, color, 1));
         }
     }
 }

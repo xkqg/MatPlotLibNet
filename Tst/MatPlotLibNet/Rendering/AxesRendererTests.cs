@@ -487,14 +487,6 @@ public class AxesRendererCoverageTests
     }
 
     [Fact]
-    public void Render_WithPieSeriesNoColors_AssignsDefaultColors()
-    {
-        // L113-116 - pie.Colors is null arm
-        var svg = Render(ax => ax.Pie([30.0, 50.0, 20.0]));
-        Assert.Contains("<svg", svg);
-    }
-
-    [Fact]
     public void Render_WithPropCyclerOnTheme_UsesCyclerProperties()
     {
         // L188-189 / L232 - Theme.PropCycler?[i] non-null arm
@@ -803,17 +795,6 @@ public class AxesRendererCoverageTests
         Assert.True(legend >= 0, "the figure has no legend group");
         return System.Text.RegularExpressions.Regex.Matches(svg[legend..], "<line[^>]*? stroke=\"(#[0-9A-F]{6})\"")
             .Select(m => m.Groups[1].Value).ToArray();
-    }
-
-    /// <summary>L113 FALSE arm (series is PieSeries AND pie.Colors is NOT null) →
-    /// skip the auto-fill branch.</summary>
-    [Fact]
-    public void Render_PieSeriesWithExplicitColors_SkipsAutoFill()
-    {
-        var svg = Render(ax => ax.Pie(
-            [30.0, 50.0, 20.0],
-            configure: s => s.Colors = [Colors.Red, Colors.Green, Colors.Blue]));
-        Assert.Contains("<svg", svg);
     }
 
     // ── Wave K.0.3 — RenderLegend entries.Count == 0 arm ─────────────────────

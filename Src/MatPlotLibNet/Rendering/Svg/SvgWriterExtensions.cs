@@ -9,15 +9,12 @@ namespace MatPlotLibNet.Rendering.Svg;
 
 /// <summary>
 /// Extension methods for writing SVG-compatible primitives without introducing a static
-/// "helper class" (per user convention: <c>feedback_no_magic_strings</c> + the
-/// only-permitted-extension-shape rule). Each method is a <c>public static T M(this Type self, ...)</c>
+/// "helper class". Each method is a <c>public static T M(this Type self, ...)</c>
 /// so it reads fluently at the call site and belongs to the type it operates on.
 /// </summary>
 /// <remarks>
-/// Phase F.2 of the strict-90 floor plan (2026-04-20). Extracted from private statics
-/// inside <see cref="SvgRenderContext"/> — <c>F(double)</c>, <c>AppendFillStroke</c>,
-/// <c>AppendDashArray</c>. Byte-equivalent to the old private implementations; verified
-/// by the fidelity suite (146 matplotlib pixel tests) and the SvgRenderContext test suite.
+/// Holds <c>F(double)</c>, <c>AppendFillStroke</c> and <c>AppendDashArray</c>, which
+/// <see cref="SvgRenderContext"/> and the other SVG writers share.
 /// </remarks>
 internal static class SvgWriterExtensions
 {

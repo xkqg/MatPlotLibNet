@@ -5,8 +5,8 @@ namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Bivariate-distribution renderer chosen for the off-diagonal cells of a
 /// <c>PairGridSeries</c>.</summary>
-/// <remarks>Ordinals are explicit and append-only. <see cref="Hexbin"/> activated in v1.10
-/// for high-cardinality EDA where scatter overplotting masks density.</remarks>
+/// <remarks>Ordinals are explicit and append-only. <see cref="Hexbin"/> suits high-cardinality
+/// data, where scatter overplotting masks density.</remarks>
 public enum PairGridOffDiagonalKind
 {
     /// <summary>Render each off-diagonal cell as a scatter of (variable <c>i</c>, variable <c>j</c>).

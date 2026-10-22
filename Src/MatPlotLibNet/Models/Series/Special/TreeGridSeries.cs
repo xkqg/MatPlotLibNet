@@ -67,11 +67,40 @@ public sealed class TreeGridSeries : ChartSeries
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) => new(null, null, null, null);
 
-    /// <summary>The grid does not travel: like the treemap's, its DTO carries the discriminator only, because a
-    /// wall that renders server-side publishes SVG. A caller that needs the rows on the far side sends them.</summary>
-    public override SeriesDto ToSeriesDto() => new() { Type = "treegrid" };
+    /// <summary>The rows do not travel: like the treemap's, they are left out, because a wall that renders server-side
+    /// publishes SVG (the roadmap row "Every chart type back from JSON"). The settings of the grid do.</summary>
+    public override SeriesDto ToSeriesDto() => new()
+    {
+        Type = "treegrid",
+        ColumnHeaders = ColumnHeaders,
+        RowHeight = RowHeight.OrNullAtRest(22.0),
+        IndentWidth = IndentWidth.OrNullAtRest(18.0),
+        ColumnWidth = ColumnWidth.OrNullAtRest(120.0),
+        FontSize = FontSize.OrNullAtRest(12.0),
+    };
 
-    internal static TreeGridSeries FromSeriesDto(Axes axes, SeriesDto dto) => axes.TreeGrid([]);
+    internal static TreeGridSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.TreeGrid([]);
+        s.ColumnHeaders = dto.ColumnHeaders;
+        if (dto.RowHeight.HasValue)
+        {
+            s.RowHeight = dto.RowHeight.Value;
+        }
+        if (dto.IndentWidth.HasValue)
+        {
+            s.IndentWidth = dto.IndentWidth.Value;
+        }
+        if (dto.ColumnWidth.HasValue)
+        {
+            s.ColumnWidth = dto.ColumnWidth.Value;
+        }
+        if (dto.FontSize.HasValue)
+        {
+            s.FontSize = dto.FontSize.Value;
+        }
+        return s;
+    }
 
 
     /// <inheritdoc />

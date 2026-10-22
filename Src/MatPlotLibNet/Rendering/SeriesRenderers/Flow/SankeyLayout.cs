@@ -12,12 +12,10 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers.Flow;
 /// record; it knows nothing about how the layout was computed.
 /// </summary>
 /// <remarks>
-/// Phase B.10 of the strict-90 floor plan (2026-04-20). Resolves the
-/// class-level SRP violation where <c>SankeySeriesRenderer</c> did both
-/// layout computation (BFS column assignment, value aggregation, packing,
-/// iterative relaxation, collision resolution) and rendering (link paths,
-/// node rectangles, labels). Now layout is its own responsibility owned
-/// by <see cref="SankeyLayoutEngine"/>.
+/// Layout computation (BFS column assignment, value aggregation, packing,
+/// iterative relaxation, collision resolution) is owned by
+/// <see cref="SankeyLayoutEngine"/>; <c>SankeySeriesRenderer</c> only draws (link paths,
+/// node rectangles, labels).
 /// </remarks>
 /// <param name="Columns">Per-node column index (0 = source side). -1 means "unreachable".</param>
 /// <param name="MaxCol">Highest column index after alignment. Negative means no layout.</param>

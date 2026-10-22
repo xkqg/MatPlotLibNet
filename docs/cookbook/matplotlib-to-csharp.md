@@ -45,7 +45,8 @@ using MatPlotLibNet;
 using MatPlotLibNet.Styling;
 
 Plt.Create()
-    .WithSize(800, 600)   // the PNG is 800 x 600 pixels: savefig's dpi has no counterpart yet
+    .WithSize(800, 600)   // in pixels at 96 dpi
+    .WithDpi(150)         // the PNG is drawn at 150 dpi: 1250 x 938 pixels, the same layout drawn finer
     .AddSubPlot(1, 1, 1, ax => ax
         .Plot(x, y, s => { s.Color = Colors.SteelBlue; s.LineWidth = 2; s.Label = "Signal"; })
         .SetXLabel("Time (s)")
@@ -63,8 +64,9 @@ Plt.Create()
 | `plt.figure()` | `Plt.Create()` | Starts a figure. `.Build()` hands you the `Figure`; `.Save(…)` finishes it in one go. |
 | `plt.subplots()` | `figure.AddSubPlot(1, 1, 1, ax => …)` | The axes is handed to the lambda instead of returned. |
 | `plt.subplots(2, 3)` | `figure.AddSubPlot(2, 3, index, ax => …)` | Called once per panel; `index` runs 1…6, row by row, as in matplotlib. |
-| `plt.figure(figsize=(8, 6))` | `figure.WithSize(800, 600)` | Pixels, not inches — there is no implicit DPI multiply. |
-| `plt.figure(dpi=150)` | `figure.WithDpi(150)` | Kept with the figure and written to its JSON, but no export reads it yet: a PNG is drawn at the `WithSize` size in pixels. For a larger PNG, give a larger `WithSize`. |
+| `plt.figure(figsize=(8, 6))` | `figure.WithSize(800, 600)` | Pixels at 96 dpi, not inches. |
+| `plt.figure(dpi=150)` | `figure.WithDpi(150)` | A PNG, and each frame of a GIF, is drawn with dpi / 96 pixels per unit: 800 × 600 at 150 dpi is a 1250 × 938 PNG with the same layout, text and line widths. An SVG, a PDF page and JSON have no pixels, so the resolution changes none of them. |
+| `fig.savefig('c.png', dpi=300)` | `figure.Build().Save("c.png", new SaveOptions { Dpi = 300 })` | The resolution for this one save. `SaveOptions` also carries an SVG's indentation and decimals, and a title and author that go into an SVG, a PNG and a PDF. |
 | `fig.suptitle('…')` | `figure.WithTitle("…")` | The figure's own title, above the panels. |
 | `plt.tight_layout()` | `figure.TightLayout()` | |
 | `plt.subplots(constrained_layout=True)` | `figure.ConstrainedLayout()` | |
@@ -100,6 +102,31 @@ Plt.Create()
 | — | `ax.Sankey(nodes, links)` | |
 | `squarify.plot` | `ax.Treemap(root)` | matplotlib has no treemap; this one is built in. |
 | nested `ax.pie` | `ax.Sunburst(root)` | |
+
+## Charts matplotlib draws from a recipe
+
+matplotlib has no single call for these charts: they are several calls and some arithmetic, or another package.
+Here each is one call that adds the series the chart is made of, so it saves, exports and reads back from JSON like
+any other chart. The [bar charts](bar-charts.md), [distribution](distribution.md), [line charts](line-charts.md)
+and [heatmaps](heatmaps.md) pages show each one with its picture.
+
+| matplotlib / Python | MatPlotLibNet | Notes |
+|---|---|---|
+| `ax.spy(matrix)` | `ax.Spy(matrix)` | Square markers on the cells whose magnitude is above a threshold, row 0 on top. |
+| `scipy.stats.probplot(x, plot=ax)` | `ax.QQPlot(sample)` | scipy's plotting positions and least-squares reference line; normal distribution only. |
+| `ax.stackplot(x, ys, baseline='wiggle')` | `ax.StreamGraph(x, layers)` | One area per layer, each named in the legend. |
+| `pandas.plotting.parallel_coordinates(df, 'class')` | `ax.ParallelCoordinates(dimensions, rows)` | Each column scaled to 0..1; rows that share a name are one class. |
+| `lifelines.KaplanMeierFitter().fit(t, e).plot_survival_function()` | `ax.KaplanMeier(groups)` | The product-limit curve only, no band or censor marks. |
+| `joypy.joyplot(df)` | `ax.Ridgeline(groups)` | One shared grid and bandwidth, so the ridges compare. |
+| sorted `ax.bar` plus a `twinx` cumulative line | `ax.Pareto(categories, counts)` | Sorts, accumulates to exactly 100 % and aligns both axes. |
+| `ax.stem` over category positions | `ax.Lollipop(categories, values)` | One stem series: one colour, one legend entry. |
+| `ax.vlines` plus two `ax.scatter` | `ax.Dumbbell(categories, from, to)` | The connector spans the two dots whichever is higher. |
+| one `ax.plot` of two points per category | `ax.SlopeGraph(categories, from, to)` | The names at both ends, no legend. |
+| `ax.scatter` per group over category rows | `ax.DotPlot(categories, groups)` | Sorted by the first group, largest on top. |
+| `ax.plot` per group with the Y axis inverted | `ax.BumpChart(x, ranks)` | Rank 1 on top, the names at the line ends. |
+| `ax.plot` plus `ax.axhline` for the limits | `ax.ControlChart(x, values)` | Limits estimated from the average moving range; values beyond them marked. |
+| `calplot` / `july` | `ax.CalendarHeatmap(dates, values)` | Seven weekday rows by one column per week, months named. |
+| `ax.bar` with widths and bottoms per segment | `ax.Marimekko(columns, segments)` | Column widths and cell heights as shares. |
 
 ## Labels, limits, scales and the frame
 
@@ -208,9 +235,9 @@ Plt.Create()
 
 | matplotlib | MatPlotLibNet | Notes |
 |---|---|---|
-| `plt.subplot(projection='polar')` + `plot` | `ax.PolarPlot(theta, r)` | The polar frame comes with the series. |
-| polar `scatter` | `ax.PolarScatter(theta, r)` | |
-| polar `bar` | `ax.PolarBar(theta, r)` | |
+| `plt.subplot(projection='polar')` + `plot` | `ax.PolarPlot(r, theta)` | The polar frame comes with the series. The radius comes first; the angle is in radians, counter-clockwise from the right, as in matplotlib. |
+| polar `scatter` | `ax.PolarScatter(r, theta)` | |
+| polar `bar` | `ax.PolarBar(r, theta)` | |
 | radar chart, by hand | `ax.Radar(labels, values)` | matplotlib has no radar verb; this one is built in. |
 
 ## Where to go next

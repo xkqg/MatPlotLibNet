@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Indicators;
 
 /// <summary>Specifies which price component to use as input for an indicator.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum PriceSource
 {
     /// <summary>Closing price.</summary>

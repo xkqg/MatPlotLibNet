@@ -94,18 +94,21 @@ public abstract class StreamingSeries : ChartSeries, IStreamingSeries
         // One WALK, one state: the four corners come from the same moment or from none — and a render that
         // asks for the range no longer copies the whole window to find out.
         var box = _points.Aggregate(Box.Empty, static (box, point) => box.Extend(point.X, point.Y));
-        return box.IsEmpty ? new(null, null, null, null) : new(box.XMin, box.XMax, box.YMin, box.YMax);
+        var x = box.X.OrNone();
+        var y = box.Y.OrNone();
+        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi);
     }
 
     /// <summary>The bounding box of what has been walked so far — the accumulator a range is folded into, so
-    /// the four corners are one value and cannot come from four different moments.</summary>
-    internal readonly record struct Box(double XMin, double XMax, double YMin, double YMax, bool IsEmpty)
+    /// the four corners are one value and cannot come from four different moments. Each side takes in only the values
+    /// an axis can place (a missing value, NaN, and an infinity are left out), the rule every series ranges by.</summary>
+    /// <param name="X">The extent folded along the first coordinate; <see cref="Range1D.Empty"/> until a value is taken in.</param>
+    /// <param name="Y">The extent folded along the second coordinate.</param>
+    internal readonly record struct Box(Range1D X, Range1D Y)
     {
-        public static Box Empty { get; } = new(0, 0, 0, 0, true);
+        public static Box Empty { get; } = new(Range1D.Empty, Range1D.Empty);
 
-        public Box Extend(double x, double y) => IsEmpty
-            ? new(x, x, y, y, false)
-            : new(Math.Min(XMin, x), Math.Max(XMax, x), Math.Min(YMin, y), Math.Max(YMax, y), false);
+        public Box Extend(double x, double y) => new(X.Including(x), Y.Including(y));
     }
 
     /// <inheritdoc />

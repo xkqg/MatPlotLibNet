@@ -24,9 +24,9 @@ internal sealed class BrokenBarSeriesRenderer : SeriesRenderer<BrokenBarSeries>
         {
             foreach (var (start, width) in series.Ranges[i])
             {
-                var tl = Transform.DataToPixel(start, i + halfH);
-                var br = Transform.DataToPixel(start + width, i - halfH);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
+                var segment = Rect.FromCorners(Transform.DataToPixel(start, i + halfH), Transform.DataToPixel(start + width, i - halfH));
+                if (!segment.IsDrawable()) continue;   // a segment that cannot be placed is skipped
+                Ctx.DrawRectangle(segment, new ShapeStyle(color, null, 0));
             }
         }
     }

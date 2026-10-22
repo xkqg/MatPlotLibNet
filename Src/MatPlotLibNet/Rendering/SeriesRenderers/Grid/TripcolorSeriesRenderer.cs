@@ -22,8 +22,8 @@ internal sealed class TripcolorSeriesRenderer : SeriesRenderer<TripcolorSeries>
         int[] tris = series.Triangles ?? Delaunay.Triangulate(series.X, series.Y).Triangles;
         if (tris.Length == 0) return;
 
-        double zMin = series.Z.Length > 0 ? series.Z.Min() : 0;
-        double zMax = series.Z.Length > 0 ? series.Z.Max() : 1;
+        // The series' own colour range, the one its colour bar shows.
+        var (zMin, zMax) = series.GetColorBarRange();
         if (zMin == zMax) zMax = zMin + 1;
 
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
@@ -36,7 +36,7 @@ internal sealed class TripcolorSeriesRenderer : SeriesRenderer<TripcolorSeries>
             if (ia >= series.Z.Length || ib >= series.Z.Length || ic >= series.Z.Length) continue;
 
             double meanZ = (series.Z[ia] + series.Z[ib] + series.Z[ic]) / 3.0;
-            var color = cmap.GetColor(norm.Normalize(meanZ, zMin, zMax));
+            var color = cmap.ColorOf(meanZ, norm, zMin, zMax);
 
             var pts = new List<Point>(3)
             {

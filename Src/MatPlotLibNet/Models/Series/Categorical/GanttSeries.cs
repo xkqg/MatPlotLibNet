@@ -28,8 +28,10 @@ public sealed class GanttSeries : ChartSeries, IHasColor
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        double xMin = Math.Min(Starts.Min(), Ends.Min());
-        double xMax = Math.Max(Starts.Max(), Ends.Max());
+        // Over the bars that can be drawn: a bar with an end that is missing (NaN) or infinite is not drawn, so neither
+        // of its ends is part of the extent.
+        var x = Starts.Zip(Ends, (start, end) => new Range1D(start, end)).DrawableRange();
+        double? xMin = x?.Lo, xMax = x?.Hi;
         double yMin = context.YAxisMin ?? -0.5;
         double yMax = context.YAxisMax ?? (Tasks.Length - 0.5);
         return new(xMin, xMax, yMin, yMax,

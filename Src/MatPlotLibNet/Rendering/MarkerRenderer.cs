@@ -6,11 +6,9 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering;
 
 /// <summary>
-/// Single source of truth for drawing marker shapes. Both
-/// <c>LineSeriesRenderer</c> and <c>ScatterSeriesRenderer</c> delegate here
-/// (Phase M.2 of the v1.7.2 plan). Pre-Phase-M, line renderers drew every
-/// marker as a circle and scatter renderers honoured only Square — this
-/// helper implements all 12 non-<see cref="MarkerStyle.None"/> shapes.
+/// Single source of truth for drawing marker shapes. The line, step and scatter
+/// renderers and the legend swatch delegate here, so a marker looks the same in the
+/// plot and in the legend. It implements all 12 non-<see cref="MarkerStyle.None"/> shapes.
 /// <para>Geometry only — no caching, no state. The <c>size</c> argument is the
 /// full bounding-box edge / diameter in pixels; the helper converts to
 /// per-shape radii internally.</para>

@@ -30,11 +30,11 @@ public sealed class ServerInteractionBuilder
     /// <summary>Opt in to <c>LegendToggleEvent</c> round-trips.</summary>
     public ServerInteractionBuilder EnableLegendToggle() { LegendToggle = true; return this; }
 
-    /// <summary>Opt in to <c>BrushSelectEvent</c> round-trips (v1.2.2). Shift+drag in the browser
+    /// <summary>Opt in to <c>BrushSelectEvent</c> round-trips. Shift+drag in the browser
     /// becomes a server-side notification delivered to the chart's brush-select handler.</summary>
     public ServerInteractionBuilder EnableBrushSelect() { BrushSelect = true; return this; }
 
-    /// <summary>Opt in to <c>HoverEvent</c> round-trips (v1.2.2). Cursor movement over the plot
+    /// <summary>Opt in to <c>HoverEvent</c> round-trips. Cursor movement over the plot
     /// becomes a server-side query whose response is delivered as tooltip HTML to the
     /// originating client only.</summary>
     public ServerInteractionBuilder EnableHover() { Hover = true; return this; }
@@ -44,7 +44,7 @@ public sealed class ServerInteractionBuilder
     /// where on the axes they clicked it.</summary>
     public ServerInteractionBuilder EnableDataCursor() { DataCursor = true; return this; }
 
-    /// <summary>Opt in to every event type (v1.2.0 + v1.2.2).</summary>
+    /// <summary>Opt in to every event type.</summary>
     public ServerInteractionBuilder All()
     {
         Zoom = true;

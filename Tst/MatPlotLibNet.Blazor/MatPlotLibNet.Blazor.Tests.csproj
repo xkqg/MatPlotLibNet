@@ -28,4 +28,9 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The composed charts the core suite holds to its promises, drawn here by the components and the hub client. -->
+    <Compile Include="..\MatPlotLibNet\Rendering\ComposedChartShapes.cs" LinkBase="Shared" />
+  </ItemGroup>
+
 </Project>

@@ -62,7 +62,8 @@ public sealed class ChartRenderer : IChartRenderer
     /// is enabled, runs <see cref="ConstrainedLayoutEngine.Compute"/> to auto-size margins from
     /// measured text extents. Otherwise falls back to the theme's default spacing via
     /// <see cref="ResolveSpacing"/>, widened by <see cref="ConstrainedLayoutEngine.ReserveEdgeBands"/> for what is
-    /// drawn past the right and the top spines.
+    /// drawn past the right and the top spines, for the category names past the left spine and for the X tick labels and
+    /// the X axis title below the bottom spine.
     /// </summary>
     /// <remarks>
     /// Pure function — does NOT mutate <paramref name="figure"/>. The returned spacing is used
@@ -77,8 +78,9 @@ public sealed class ChartRenderer : IChartRenderer
         if (figure.Spacing.TightLayout || figure.Spacing.ConstrainedLayout)
             return engine.Compute(figure, measureCtx);
         // The default path measures nothing else, but what is drawn past the right spines (the secondary Y axis, the
-        // mirrored Y tick labels and the end-of-line labels) and past the top spines (the mirrored X tick labels or the
-        // secondary X axis) is reserved by the same rule the engine applies in the branch above.
+        // mirrored Y tick labels and the end-of-line labels), past the top spines (the mirrored X tick labels or the
+        // secondary X axis), the category names past the left spine and the X tick labels and X axis title below the bottom
+        // spine are reserved by the same rule the engine applies in the branch above.
         return engine.ReserveEdgeBands(figure, ResolveSpacing(figure), measureCtx);
     }
 
@@ -146,16 +148,24 @@ public sealed class ChartRenderer : IChartRenderer
     }
 
     /// <summary>Computes subplot layout positions from grid metadata and spacing.</summary>
-    public List<Rect> ComputeSubPlotLayout(Figure figure, double plotAreaTop, SubPlotSpacing? spacing = null)
-    {
-        var sp = spacing ?? ResolveSpacing(figure);
-        if (figure.GridSpec is not null)
-            return ComputeGridSpecLayout(figure, figure.GridSpec, plotAreaTop, sp);
+    public List<Rect> ComputeSubPlotLayout(Figure figure, double plotAreaTop, SubPlotSpacing? spacing = null) =>
+        SubPlotRects(figure, plotAreaTop, spacing ?? ResolveSpacing(figure));
 
-        return ComputeLegacyLayout(figure, plotAreaTop, sp);
-    }
+    /// <summary>The plot area of each axes of <paramref name="figure"/> (in <see cref="Figure.SubPlots"/> order) under
+    /// <paramref name="sp"/>: by its <see cref="GridSpec"/> when it has one, otherwise by the grid its axes name. The one
+    /// rule the drawing and the layout share: the layout settles the horizontal spacing first and measures what each axes
+    /// draws above and below its plot at the width this gives (<see cref="ConstrainedLayoutEngine"/>), since whether the X
+    /// tick labels turn depends on it; the X positions and widths depend on the horizontal spacing only.</summary>
+    /// <param name="figure">The figure being laid out.</param>
+    /// <param name="plotAreaTop">The Y coordinate the first row starts at.</param>
+    /// <param name="sp">The spacing in pixels.</param>
+    /// <returns>One plot area for each axes.</returns>
+    internal static List<Rect> SubPlotRects(Figure figure, double plotAreaTop, SubPlotSpacing sp) =>
+        figure.GridSpec is not null
+            ? ComputeGridSpecLayout(figure, figure.GridSpec, plotAreaTop, sp)
+            : ComputeLegacyLayout(figure, plotAreaTop, sp);
 
-    private List<Rect> ComputeGridSpecLayout(Figure figure, GridSpec gs, double plotAreaTop, SubPlotSpacing sp)
+    private static List<Rect> ComputeGridSpecLayout(Figure figure, GridSpec gs, double plotAreaTop, SubPlotSpacing sp)
     {
         double totalWidth = figure.Width - sp.MarginLeft - sp.MarginRight;
         double totalHeight = figure.Height - plotAreaTop - sp.MarginBottom;
@@ -224,7 +234,7 @@ public sealed class ChartRenderer : IChartRenderer
         return sizes;
     }
 
-    private List<Rect> ComputeLegacyLayout(Figure figure, double plotAreaTop, SubPlotSpacing sp)
+    private static List<Rect> ComputeLegacyLayout(Figure figure, double plotAreaTop, SubPlotSpacing sp)
     {
         double totalWidth = figure.Width - sp.MarginLeft - sp.MarginRight;
         double totalHeight = figure.Height - plotAreaTop - sp.MarginBottom;

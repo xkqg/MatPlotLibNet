@@ -14,9 +14,8 @@ namespace MatPlotLibNet.AspNetCore;
 /// and return — mutation + re-render happens off the hub call stack. No locks, no semaphores,
 /// no shared mutable state exposed to callers.
 ///
-/// v1.2.2 adds the <see cref="Register(string, Figure, Action{ChartSessionOptions})"/> overload
-/// for per-chart notification handlers (brush-select, hover). The parameterless-options
-/// overload stays backward-compatible for v1.2.0 users.</summary>
+/// The <see cref="Register(string, Figure, Action{ChartSessionOptions})"/> overload attaches
+/// per-chart notification handlers (brush-select, hover); the overload without options attaches none.</summary>
 public sealed class FigureRegistry
 {
     private readonly ConcurrentDictionary<string, ChartSession> _sessions = new();
@@ -24,7 +23,7 @@ public sealed class FigureRegistry
     private readonly IChartPublisher _publisher;
     private readonly ICallerPublisher _callerPublisher;
 
-    /// <summary>v1.2.2 primary constructor — used by DI. <see cref="ICallerPublisher"/> is
+    /// <summary>The constructor dependency injection uses. <see cref="ICallerPublisher"/> is
     /// registered alongside <see cref="IChartPublisher"/> by
     /// <c>SignalRExtensions.AddMatPlotLibNetSignalR</c>.</summary>
     public FigureRegistry(IChartPublisher publisher, ICallerPublisher callerPublisher)
@@ -33,7 +32,7 @@ public sealed class FigureRegistry
         _callerPublisher = callerPublisher;
     }
 
-    /// <summary>v1.2.0 compatibility constructor — used when the caller has no need for
+    /// <summary>Constructor for a caller that has no need for
     /// per-caller responses (e.g. unit tests that don't exercise <see cref="Interaction.HoverEvent"/>).
     /// Installs a no-op <see cref="ICallerPublisher"/> that silently drops tooltip sends.</summary>
     public FigureRegistry(IChartPublisher publisher)
@@ -55,7 +54,7 @@ public sealed class FigureRegistry
     public void Register(string chartId, Figure figure) =>
         RegisterCore(chartId, figure, new ChartSessionOptions());
 
-    /// <summary>Registers a figure with per-chart notification handlers (v1.2.2). Use the
+    /// <summary>Registers a figure with per-chart notification handlers. Use the
     /// <paramref name="configure"/> action to attach brush-select and hover callbacks via
     /// <see cref="ChartSessionOptions.OnBrushSelect"/> and <see cref="ChartSessionOptions.OnHover"/>.</summary>
     public void Register(string chartId, Figure figure, Action<ChartSessionOptions> configure)

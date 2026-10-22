@@ -11,12 +11,10 @@ namespace MatPlotLibNet.Rendering.LegendRendering;
 /// fonts, column widths, per-entry X/Y offsets).
 /// </summary>
 /// <remarks>
-/// Phase B.3 of the strict-90 floor plan (2026-04-20). Replaces the ~45 lines
-/// of layout code that was previously duplicated verbatim in
-/// <c>AxesRenderer.RenderLegend</c> (draw-time) and
-/// <c>AxesRenderer.ComputeLegendBounds</c> (hit-test-time). Both call sites
-/// now delegate to <see cref="LegendLayoutCalculator"/> which returns this
-/// record; there is exactly ONE authoritative implementation of the formulas.
+/// Drawing the legend (<c>AxesRenderer.RenderLegend</c>) and hit-testing it
+/// (<c>AxesRenderer.ComputeLegendBounds</c>) both take their geometry from this
+/// record, which <see cref="LegendLayoutCalculator"/> returns; there is exactly ONE
+/// authoritative implementation of the formulas.
 /// </remarks>
 public sealed record LegendLayout(
     Font Font,

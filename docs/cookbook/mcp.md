@@ -41,7 +41,7 @@ separated by `;`. The server registers them when it starts, so a chart can use a
 | `render_chart(spec, format)` | renders the spec and returns a PNG the model can see, with a text summary beside it |
 | `save_chart(spec, path, format, overwrite)` | writes PNG, SVG or PDF to a file and returns the path it wrote |
 | `chart_data_table(spec)` | returns the chart's data twice: markdown tables to read, and the same values as structured content to compute with |
-| `list_chart_types()` | lists the chart types a spec may name |
+| `list_chart_types()` | lists the chart types a spec may name; a chart built in one call (a Pareto, a ridgeline, a calendar heatmap …) is not a type of its own, see [below](#a-chart-built-in-one-call-travels-as-its-parts) |
 | `describe_chart_schema(seriesType)` | describes the fields of a spec, or of one chart type, with a worked example |
 
 SVG and PDF are not returned inline, because a single SVG of a normal chart is tens of thousands of characters of
@@ -96,6 +96,15 @@ string spec = Plt.Create()
 That is the fastest way to learn the format. Build the chart you want with the fluent API, print its JSON, and hand
 that JSON to the model.
 
+### A chart built in one call travels as its parts
+
+`Pareto`, `Ridgeline`, `CalendarHeatmap`, `BumpChart` and the other verbs that build a chart in one call add
+ordinary series (bars, lines, areas, a heatmap, a scatter) with the ticks and limits the chart needs. Their JSON is
+those parts and names no verb: a Pareto chart is a bar series and a line on the right-hand axis, a ridgeline one
+area per ridge with the group names as the Y axis' ticks. The server renders such a document like any other, and a
+spec that names a verb as its `type` (`"type": "pareto"`) is refused like any type the server does not list. To hand
+a model one of these charts, build it in C# and print its JSON, as above.
+
 ## It refuses before it renders
 
 `FromJson` is a round-trip reader for the library's own writer. It drops an unknown series type, skips an unknown
@@ -113,6 +122,10 @@ server validates the document before it renders, and the error message names the
 | `xData` of 3, `yData` of 1 | `The series at $.subPlots[0].series[0] has 3 'xData' values and 1 'yData' values; they must match.` |
 | no `width` | rendered at the library default, 800×600 |
 | `"width": 16000` | `'width' must be between 1 and 4000 … the picture goes into a context window.` |
+| `"dpi": 600` on an 800×600 spec | `'dpi' 600 draws the picture 5000 by 3750 pixels (width and height times dpi / 96); the ceiling is 4000 by 4000 …` |
+
+A spec's `dpi` sizes the PNG it renders, as `WithDpi` does in code: 800×600 at 192 dpi is a 1600×1200 PNG with the
+same layout. SVG and PDF ignore it.
 
 Colour names go through the library's own CSS4 table, and `#f00` is expanded, so a model may write `"red"`,
 `"CornflowerBlue"` or `#6495ED`.
@@ -176,7 +189,7 @@ model's context.
 process, and it installs a glyph-path provider, so text is drawn with the library's own embedded font everywhere.
 The SVG is self-contained and identical to the PNG, but it is not machine-readable as text.
 
-**Seven chart types are not available through the spec.** `sankey`, `sunburst`, `treemap`, `polarbar`,
-`polarline`, `polarscatter` and `treegrid` have a JSON reader that builds a fixed placeholder instead of reading
-the document. The server refuses these types by name, so that it does not draw the placeholder's data in place of
+**Eight chart types are not available through the spec.** `sankey`, `sunburst`, `treemap`, `polarbar`,
+`polarline`, `polarscatter`, `treegrid` and `dendrogram` have a JSON reader that builds a fixed placeholder instead of
+reading the document. The server refuses these types by name, so that it does not draw the placeholder's data in place of
 the data in the spec. `list_chart_types` names them with the reason.

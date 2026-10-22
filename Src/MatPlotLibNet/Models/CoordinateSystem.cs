@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Models;
 
 /// <summary>Specifies the coordinate system used for rendering axes.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum CoordinateSystem
 {
     /// <summary>Standard Cartesian (X, Y) coordinate system.</summary>

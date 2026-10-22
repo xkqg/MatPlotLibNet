@@ -54,6 +54,32 @@ public class HistogramSeriesRendererTests
         Assert.Contains("<polygon", svg);
     }
 
+    /// <summary>A filled step histogram with an edge colour outlines its polygon in that colour at half a pixel, the width
+    /// a bar's edge has.</summary>
+    [Fact]
+    public void Render_StepFilledWithEdgeColor_OutlinesThePolygonAtHalfAPixel()
+    {
+        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5]) { Bins = 4, HistType = HistType.StepFilled, EdgeColor = Colors.Black });
+
+        Assert.Contains("stroke=\"#000000\" stroke-width=\"0.5\"", PolygonTag(svg));
+    }
+
+    /// <summary>Without an edge colour (the default theme sets none) the filled step polygon has no outline at all.</summary>
+    [Fact]
+    public void Render_StepFilledWithoutEdgeColor_HasNoOutline()
+    {
+        var svg = Render(new HistogramSeries([1.0, 2, 3, 4, 5]) { Bins = 4, HistType = HistType.StepFilled });
+
+        Assert.DoesNotContain("stroke=", PolygonTag(svg));
+    }
+
+    private static string PolygonTag(string svg)
+    {
+        int start = svg.IndexOf("<polygon", StringComparison.Ordinal);
+        Assert.True(start >= 0, "the filled step histogram drew no polygon");
+        return svg[start..svg.IndexOf("/>", start, StringComparison.Ordinal)];
+    }
+
     /// <summary>Weights with length matching Data (BuildHeights line 75 true arm).
     /// Each bin accumulates weights instead of raw counts.</summary>
     [Fact]

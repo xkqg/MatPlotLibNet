@@ -40,34 +40,26 @@ public sealed class StackedAreaSeries : ChartSeries, IHasAlpha
         if (X.Length == 0 || YSets.Length == 0)
             return new(0, 1, 0, 1);
 
-        double xMin = X.Min();
-        double xMax = X.Max();
-
-        // Use the baseline strategy to find the true yMin and yMax
+        // Every edge a layer is filled between, its baseline and its top (a layer that falls has its top below its
+        // baseline), over what the Y axis can place: a missing value (NaN) and an infinity are left out, as the renderer
+        // breaks a layer there, and on a log axis, which has no place for zero (the lowest baseline is drawn at the plot's
+        // edge there), the range starts at the lowest edge it can place.
+        var x = X.DrawableRange();
         var baselines = Baseline.ComputeFor(YSets, X.Length);
-
-        double yMin = double.MaxValue;
-        double yMax = double.MinValue;
-
-        for (int layer = 0; layer < YSets.Length; layer++)
-        {
-            for (int i = 0; i < X.Length; i++)
-            {
-                double bot = baselines[layer][i];
-                double top = bot + (i < YSets[layer].Length ? YSets[layer][i] : 0.0);
-                if (bot < yMin) yMin = bot;
-                if (top > yMax) yMax = top;
-            }
-        }
-
-        if (yMin == double.MaxValue) yMin = 0;
-        if (yMax == double.MinValue) yMax = 1;
+        var y = baselines.Concat(LayerTops(baselines)).DrawableRange(context?.YScale ?? AxisScale.Linear);
+        double? yMin = y?.Lo, yMax = y?.Hi;
 
         // Stack baseline (Zero) is a hard floor iff all stacked values are non-negative.
         double? stickyYMin = Baseline == StackedBaseline.Zero && yMin >= 0 ? 0 : null;
-        return new(xMin, xMax, yMin, yMax,
-            StickyXMin: xMin, StickyXMax: xMax, StickyYMin: stickyYMin);
+        return new(x?.Lo, x?.Hi, yMin, yMax,
+            StickyXMin: x?.Lo, StickyXMax: x?.Hi, StickyYMin: stickyYMin);
     }
+
+    /// <summary>The top edge of every layer: its baseline plus its own value, 0 past the end of a layer shorter than
+    /// <see cref="X"/>. The renderer fills each layer between this edge and its baseline, and the range spans it.</summary>
+    /// <param name="baselines">The baseline of every layer, from <see cref="StackedBaselineExtensions.ComputeFor"/>.</param>
+    /// <returns>One array per layer, as long as <see cref="X"/>.</returns>
+    internal double[][] LayerTops(double[][] baselines) => baselines.TopEdgesFor(YSets, X.Length);
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
@@ -76,7 +68,10 @@ public sealed class StackedAreaSeries : ChartSeries, IHasAlpha
         XData = X,
         Datasets = YSets,
         PieLabels = Labels,
-        Alpha = Alpha
+        Alpha = Alpha,
+        Baseline = Baseline.OrNullAtRest(StackedBaseline.Zero),
+        Hatch = Hatch.OrNullAtRest(HatchPattern.None),
+        HatchColor = HatchColor,
     };
 
     /// <summary>Reconstructs a <see cref="StackedAreaSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -91,6 +86,9 @@ public sealed class StackedAreaSeries : ChartSeries, IHasAlpha
         {
             s.Alpha = dto.Alpha.Value;
         }
+        s.Baseline = dto.Baseline ?? StackedBaseline.Zero;
+        s.Hatch = dto.Hatch ?? HatchPattern.None;
+        s.HatchColor = dto.HatchColor;
         return s;
     }
 

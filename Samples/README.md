@@ -4,14 +4,14 @@ Runnable sample projects that demonstrate the MatPlotLibNet charting library. Al
 
 > **Browser interactions are automatic.** Calling `FigureBuilder.WithBrowserInteraction()`
 > (or, in WPF/Avalonia/Uno, ticking the **Interactive** checkbox) enables every interaction
-> the chart needs at once: pan/zoom, **legend toggle + press-and-hold legend drag**
-> (Phase S, v1.7.2), treemap drilldown, sankey hover, 3D rotation, rich tooltips,
+> the chart needs at once: pan/zoom, **legend toggle + press-and-hold legend drag**,
+> treemap drilldown, sankey hover, 3D rotation, rich tooltips,
 > highlight, brush selection. The library detects which scripts each chart needs and
 > emits only those. There is no per-feature toggle for the user to manage.
 
 ## Playground
 
-A Blazor WebAssembly interactive explorer with 21 example charts. You can flip themes, toggle series styling, and copy the generated C# to paste into your own project. It is also hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/).
+A Blazor WebAssembly interactive explorer with 22 example charts, among them a Pareto chart drawn by one call. You can flip themes, toggle series styling, and copy the generated C# to paste into your own project. It is also hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/).
 
 ```
 dotnet run --project MatPlotLibNet.Playground
@@ -21,13 +21,13 @@ Browse to <http://localhost:5000>. The `<base href="/">` setting in `wwwroot/ind
 
 ## Console
 
-A console app that creates every sample image shipped with the wiki and cookbook: 76 SVG/PNG pairs covering every chart family, plus the package icon at the repository root and the documentation site's 1200x630 link preview card. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
+A console app that creates every sample image shipped with the wiki and cookbook: 87 SVG/PNG pairs covering every chart family, the charts drawn by one call (Pareto, lollipop, dumbbell, slope graph, dot plot, parallel coordinates, Marimekko, ridgeline, Q-Q plot, Kaplan-Meier, bump chart, control chart, stream graph, calendar heatmap and spy plot) among them, plus the package icon at the repository root and the documentation site's 1200x630 link preview card. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Console
 ```
 
-Output goes to the `images/` directory at the repository root. Re-run it whenever a rendering change would alter committed sample output. For example, the Phase G.7 fix that cleaned up stacked `data-*` attributes required a full regeneration.
+Output goes to the `images/` directory at the repository root. Re-run it whenever a rendering change would alter committed sample output, and run it twice: two runs write the same bytes, so a file that differs between them is a defect to find, not a new picture. Commit only the files that changed.
 
 ## Blazor
 

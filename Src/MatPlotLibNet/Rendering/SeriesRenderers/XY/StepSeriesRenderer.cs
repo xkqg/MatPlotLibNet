@@ -43,7 +43,20 @@ internal sealed class StepSeriesRenderer : SeriesRenderer<StepSeries>
                 pts.Add(new Point(pxArr[n - 1], pyArr[n - 1]));
                 break;
         }
-        Ctx.DrawLines(pts, new StrokeStyle(color, series.LineWidth, series.LineStyle));
+        DrawPolyline(pts, Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
+
+        // The marker the step names, or its slot's, sits on each data point (not on the corners of the steps). A step has
+        // no marker size of its own: it takes the one a new line holds.
+        if (Slot.LineMarkerOf(series.Marker) is { } marker and not MarkerStyle.None)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                var point = new Point(pxArr[i], pyArr[i]);
+                // A marker at a point the axes cannot place is skipped, as a line's is.
+                if (!point.IsDrawable()) continue;
+                MarkerRenderer.Draw(Ctx, marker, point, LineSeries.RestingMarkerSize, color, null, 0);
+            }
+        }
     }
 
 }

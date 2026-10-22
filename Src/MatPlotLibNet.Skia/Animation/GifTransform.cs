@@ -3,13 +3,17 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Skia;
 using SkiaSharp;
 
 namespace MatPlotLibNet.Transforms.Animation;
 
 /// <summary>Transforms a sequence of <see cref="Figure"/> frames into an animated GIF.</summary>
 /// <remarks>Uses <see cref="GifEncoder"/> for GIF89a encoding and <see cref="ColorQuantizer"/>
-/// for 256-color uniform quantization.</remarks>
+/// for 256-color uniform quantization. Each frame is drawn at the resolution of its own figure
+/// (<see cref="Figure.Dpi"/>), by the same rule as a PNG: <c>dpi / 96</c> pixels for each unit of the figure. The frames
+/// of one animation share a size, so they share a resolution. A GIF is not saved through
+/// <see cref="SaveOptions"/>.</remarks>
 public sealed class GifTransform : IAnimationTransform
 {
     private readonly IChartRenderer _renderer;
@@ -37,15 +41,6 @@ public sealed class GifTransform : IAnimationTransform
         }
     }
 
-    private SKBitmap RenderToBitmap(Figure figure)
-    {
-        int width  = (int)figure.Width;
-        int height = (int)figure.Height;
-        var bitmap = new SKBitmap(width, height);
-        using var canvas = new SKCanvas(bitmap);
-        canvas.Clear(SKColors.White);
-        var ctx = new MatPlotLibNet.Skia.SkiaRenderContext(canvas);
-        _renderer.Render(figure, ctx);
-        return bitmap;
-    }
+    /// <summary>A frame is drawn at the resolution of its own figure, by the same rule as a PNG.</summary>
+    private SKBitmap RenderToBitmap(Figure figure) => _renderer.RenderToBitmap(figure, figure.Dpi);
 }

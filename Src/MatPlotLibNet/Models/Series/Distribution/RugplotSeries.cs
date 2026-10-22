@@ -34,7 +34,9 @@ public sealed class RugplotSeries : ChartSeries, IHasColor, IHasAlpha
         if (Data.Length == 0) return new(0, 1, 0, 1);
         // Rugs are always drawn within [0, Height] on the Y axis — that's the extent a standalone
         // rugplot needs. When overlaid on a KDE/hist the axis scaler will widen from there.
-        return new(Data.Min(), Data.Max(), 0, Math.Max(Height, 1.0));
+        // Over the drawable observations only: a missing one (NaN) and an infinity draw no tick.
+        var x = Data.Data.DrawableRange();
+        return new(x?.Lo, x?.Hi, 0, Math.Max(Height, 1.0));
     }
 
     /// <inheritdoc />

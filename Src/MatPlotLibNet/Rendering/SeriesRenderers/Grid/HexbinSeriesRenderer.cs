@@ -26,6 +26,7 @@ internal sealed class HexbinSeriesRenderer : SeriesRenderer<HexbinSeries>
         double yMin = ys.Lo, yMax = ys.Hi;
 
         var bins = HexGrid.ComputeHexBins(series.X, series.Y, xMin, xMax, yMin, yMax, series.GridSize);
+        if (bins.Count == 0) return;   // no point could be placed
 
         int maxCount = bins.Values.Max();
         int minCount = series.MinCount;
@@ -48,7 +49,7 @@ internal sealed class HexbinSeriesRenderer : SeriesRenderer<HexbinSeries>
             foreach (var v in dataVerts)
                 pixelVerts.Add(Transform.DataToPixel(v.X, v.Y));
 
-            var color = cmap.GetColor(norm.Normalize(count, normMin, normMax));
+            var color = cmap.ColorOf(count, norm, normMin, normMax);
             Ctx.DrawPolygon(pixelVerts, new ShapeStyle(color, null, 0));
         }
     }

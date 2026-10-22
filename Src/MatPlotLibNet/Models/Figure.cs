@@ -20,9 +20,19 @@ public sealed class Figure
 
     public double Height { get; set; } = 600;
 
-    /// <summary>The figure DPI. It is kept with the figure and written to its JSON; no export reads it yet, so a raster
-    /// export is drawn at <see cref="Width"/> by <see cref="Height"/> pixels.</summary>
-    public double Dpi { get; set; } = 96;
+    /// <summary>The resolution at which one unit of <see cref="Width"/> and <see cref="Height"/> is one pixel: the figure is
+    /// laid out in these units, and a raster export draws <c>Dpi / 96</c> pixels for each of them.</summary>
+    internal const int ReferenceDpi = 96;
+
+    /// <summary>The resolution of the figure in dots per inch, 96 unless changed. <see cref="Width"/> and <see cref="Height"/>
+    /// are pixels at 96 dpi, so a raster export (PNG, and the frames of an animated GIF) is drawn with <c>Dpi / 96</c>
+    /// pixels for each of them: a 500 by 350 figure at 192 dpi is a 1000 by 700 picture with the same layout, text and
+    /// line widths, drawn finer. The size of the figure in layout units does not change, so what fits on the page stays
+    /// where it was. The pixel count is rounded to a whole number. An SVG, a PDF page and a JSON document have no pixels,
+    /// so for them the resolution changes nothing; it is written to the JSON so a figure keeps it. A resolution that is
+    /// not a positive, finite number is refused when a raster image is exported. <see cref="SaveOptions.Dpi"/> overrides
+    /// it for one save.</summary>
+    public double Dpi { get; set; } = ReferenceDpi;
 
     public Color? BackgroundColor { get; set; }
 
@@ -81,9 +91,8 @@ public sealed class Figure
     public bool HasInteractivity => EnableLegendToggle || EnableRichTooltips || EnableHighlight || EnableSelection || EnableDataCursor || Enable3DRotation || EnableTreemapDrilldown || EnableSankeyHover || ServerInteraction;
 
     /// <summary>Configurable opacity / transition tokens for the embedded interaction
-    /// scripts. Defaults to <see cref="InteractionTheme.Default"/> (identical to v1.7.1
-    /// hard-coded values). Phase 7 of the v1.7.2 plan exposes these through
-    /// <c>FigureBuilder.WithInteractionTheme</c>.</summary>
+    /// scripts. Defaults to <see cref="InteractionTheme.Default"/> (the values the scripts hard-coded
+    /// before they were configurable). Set it through <c>FigureBuilder.WithInteractionTheme</c>.</summary>
     public InteractionTheme InteractionTheme { get; set; } = InteractionTheme.Default;
 
     /// <summary>When <see langword="true"/> (default) the SVG root element carries an
@@ -92,8 +101,8 @@ public sealed class Figure
     /// pixel <c>width</c> / <c>height</c> attributes stay on the element so
     /// <c>naturalWidth</c> / <c>naturalHeight</c> (needed for client-side PNG export)
     /// remain accurate.
-    /// <para>Set to <see langword="false"/> for byte-identical pre-v1.7.2 SVG output —
-    /// e.g., test fixtures that pixel-diff the SVG string.</para></summary>
+    /// <para>Set to <see langword="false"/> to leave the declaration out, for the same bytes the
+    /// library wrote before it carried one — e.g., test fixtures that pixel-diff the SVG string.</para></summary>
     public bool ResponsiveSvg { get; set; } = true;
 
     /// <summary>Gets the collection of subplot axes contained in this figure.</summary>

@@ -23,11 +23,12 @@ public sealed class EcdfSeries : ChartSeries, IHasColor
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
     /// <summary>Creates a new ECDF series from the given raw data.</summary>
-    /// <param name="data">The raw data values to compute the ECDF from.</param>
+    /// <param name="data">The raw data values to compute the ECDF from. A missing value (NaN) and an infinity are not
+    /// observations: the ECDF is made from the others, so its steps rise by 1/n over the n drawable values.</param>
     public EcdfSeries(double[] data)
     {
         Data = data;
-        SortedX = [.. data.OrderBy(v => v)];
+        SortedX = [.. data.DrawableValues().OrderBy(v => v)];
         int n = SortedX.Length;
         CdfY = new double[n];
         for (int i = 0; i < n; i++)
@@ -35,10 +36,12 @@ public sealed class EcdfSeries : ChartSeries, IHasColor
     }
 
     /// <inheritdoc />
+    /// <remarks>Over the drawable values; with none at all (no data) 0..1, and with data none of which can be drawn no X
+    /// range.</remarks>
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        SortedX.Length > 0
-            ? new(SortedX.Min(), SortedX.Max(), 0, 1)
-            : new(0, 1, 0, 1);
+        SortedX.DrawableRange() is { } x
+            ? new(x.Lo, x.Hi, 0, 1)
+            : Data.Length == 0 ? new(0, 1, 0, 1) : new(null, null, 0, 1);
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

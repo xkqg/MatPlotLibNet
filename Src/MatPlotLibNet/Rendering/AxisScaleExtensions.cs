@@ -20,9 +20,20 @@ internal static class AxisScaleExtensions
     internal static double Forward(this AxisScale scale, double value, double linthresh) => scale switch
     {
         AxisScale.SymLog => SymlogTransform.Forward(value, linthresh),
-        AxisScale.Log    => value > 0 ? Math.Log10(value) : double.NaN,
+        AxisScale.Log    => scale.HasPlaceFor(value) ? Math.Log10(value) : double.NaN,
         _                => value,
     };
+
+    /// <summary>Whether an axis of <paramref name="scale"/> has a place for the finite <paramref name="value"/>: every
+    /// value but 0 and the negative values on a log axis (a symmetric-log axis places them; the Cartesian renderer draws a
+    /// logit and a date axis linearly). The one rule the mapping into the drawn space (<see cref="Forward"/>), the range an
+    /// axis folds (<see cref="MissingValueExtensions.Including"/>) and the clipping of a mark's base
+    /// (<see cref="DataTransform.DataToPixelClippedY"/>) share. A missing value or an infinity has no place on any axis
+    /// (<see cref="MissingValueExtensions.IsDrawable(double)"/>); this says nothing about them.</summary>
+    /// <param name="scale">The axis scale.</param>
+    /// <param name="value">A finite data value.</param>
+    /// <returns><see langword="false"/> for 0 and below on a log axis; <see langword="true"/> otherwise.</returns>
+    internal static bool HasPlaceFor(this AxisScale scale, double value) => scale != AxisScale.Log || value > 0;
 
     /// <summary>Maps <paramref name="value"/> from the space <paramref name="scale"/> draws in back to data units: the
     /// inverse of <see cref="Forward"/>.</summary>

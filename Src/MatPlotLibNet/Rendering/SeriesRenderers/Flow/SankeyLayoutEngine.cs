@@ -12,9 +12,7 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers.Flow;
 /// iterative relaxation to minimise link crossings.
 /// </summary>
 /// <remarks>
-/// Phase B.10 of the strict-90 floor plan (2026-04-20). Extracted from
-/// <see cref="SankeySeriesRenderer"/> which previously owned both layout
-/// and rendering in one class — a SRP violation. Now:
+/// Layout and drawing are separate classes:
 /// <list type="bullet">
 ///   <item><description><see cref="SankeyLayoutEngine"/> = layout (this class)</description></item>
 ///   <item><description><see cref="SankeySeriesRenderer"/> = drawing</description></item>

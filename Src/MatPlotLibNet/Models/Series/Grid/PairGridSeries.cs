@@ -135,12 +135,12 @@ public sealed class PairGridSeries : ChartSeries
     }
 
     /// <inheritdoc />
-    /// <remarks>The hue palette and inter-cell sub-renderer state are not serialised —
-    /// same project-wide convention as <see cref="HeatmapSeries.Normalizer"/> and the
-    /// <see cref="ClustermapSeries"/> trees.</remarks>
+    /// <remarks>The hue palette travels in the colour list every series that colours its parts one by one shares;
+    /// the sub-renderer state is rebuilt on every draw and is not written.</remarks>
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "pairgrid",
+        Colors = HuePalette?.ToList(),
         Variables = ChartSerializer.JaggedTo2DList(Variables),
         PairGridLabels       = Labels,
         PairGridHueGroups    = HueGroups,
@@ -152,13 +152,11 @@ public sealed class PairGridSeries : ChartSeries
         PairGridMarkerSize   = MarkerSize  != 3.0    ? MarkerSize   : null,
         PairGridCellSpacing  = _cellSpacing != 0.02  ? _cellSpacing : null,
         PairGridHexbinGridSize       = HexbinGridSize != 15 ? HexbinGridSize : null,
-        PairGridOffDiagonalColorMap  = OffDiagonalColorMap?.Name,
+        PairGridOffDiagonalColorMap  = OffDiagonalColorMap.NameForJson(),
+        PairGridOffDiagonalColorMapDescription = OffDiagonalColorMap.DescriptionForJson(),
     };
 
     /// <summary>Reconstructs a <see cref="PairGridSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <remarks>The hue palette is not serialised — it is the user's runtime preference,
-    /// not part of the persisted figure shape (same project convention as
-    /// <c>HeatmapSeries.Normalizer</c>).</remarks>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
@@ -212,10 +210,8 @@ public sealed class PairGridSeries : ChartSeries
         {
             s.HexbinGridSize = dto.PairGridHexbinGridSize.Value;
         }
-        if (dto.PairGridOffDiagonalColorMap is not null)
-        {
-            s.OffDiagonalColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.PairGridOffDiagonalColorMap);
-        }
+        s.OffDiagonalColorMap = dto.PairGridOffDiagonalColorMapDescription.ReadColorMap(dto.PairGridOffDiagonalColorMap);
+        s.HuePalette = dto.Colors?.ToArray();
         return s;
     }
 

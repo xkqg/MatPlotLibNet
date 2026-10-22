@@ -8,6 +8,10 @@ using SkiaSharp;
 namespace MatPlotLibNet.Transforms;
 
 /// <summary>Transforms a <see cref="Figure"/> into PDF format using SkiaSharp.</summary>
+/// <remarks>A page is as large as the figure, one point to a unit, and holds vector drawing, so the resolution of a figure
+/// or of <see cref="SaveOptions.Dpi"/> has nothing to size and changes nothing. Handed <see cref="SaveOptions"/>, the
+/// transform reads <see cref="SaveOptions.Title"/> and <see cref="SaveOptions.Author"/> and writes them into the
+/// document information; the settings that belong to an SVG or a PNG are not used.</remarks>
 public sealed class PdfTransform : FigureTransform
 {
     /// <summary>Creates a new PDF transform with the specified chart renderer.</summary>
@@ -17,12 +21,23 @@ public sealed class PdfTransform : FigureTransform
     public PdfTransform() { }
 
     /// <summary>Transforms the figure and writes PDF bytes to the output stream.</summary>
-    public override void Transform(Figure figure, Stream output)
+    public override void Transform(Figure figure, Stream output) => Transform(figure, output, new SaveOptions());
+
+    /// <summary>Transforms the figure and writes PDF bytes to the output stream, with the title and the author of
+    /// <paramref name="options"/> in the document information. Options that carry neither write the same file as
+    /// <see cref="Transform(Figure, Stream)"/>.</summary>
+    public override void Transform(Figure figure, Stream output, SaveOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options);
+
         float width = (float)figure.Width;
         float height = (float)figure.Height;
 
-        using var document = SKDocument.CreatePdf(output);
+        string? title = options.TitleOrNull();
+        string? author = options.AuthorOrNull();
+        using var document = title is null && author is null
+            ? SKDocument.CreatePdf(output)
+            : SKDocument.CreatePdf(output, new SKDocumentPdfMetadata { Title = title, Author = author });
         using var canvas = document.BeginPage(width, height);
 
         var ctx = new MatPlotLibNet.Skia.SkiaRenderContext(canvas);

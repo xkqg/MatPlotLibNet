@@ -311,7 +311,7 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
             new StrokeStyle(color, width, style));
     }
 
-    /// <summary>Phase F.2 of v1.7.2 follow-on — emits <c>data-v3d</c> + <c>data-v3d-edge</c>
+    /// <summary>Emits <c>data-v3d</c> + <c>data-v3d-edge</c>
     /// + <c>data-pad</c> so the JS reproject can preserve the perpendicular pad that
     /// pushes tick labels and axis titles outside the cube silhouette. Without these
     /// extra attrs the JS would set text x/y to the projected tick anchor only, and
@@ -731,25 +731,20 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         double yMin = double.MaxValue, yMax = double.MinValue;
         double zMin = double.MaxValue, zMax = double.MinValue;
 
-        // 1. Raw min/max from series point/grid data.
+        // 1. Raw min/max from grid data, over the drawable values only (a missing value, NaN, and an infinity are left
+        //    out). A grid reports no range of its own, because that range would move the 2-D axes a grid can also be
+        //    placed on; a point series reports its extent itself (step 2), by the same rule, so it is not folded twice.
         foreach (var series in Axes.Series)
         {
             if (series is I3DGridSeries grid)
             {
                 UpdateRange(grid.X, ref xMin, ref xMax);
                 UpdateRange(grid.Y, ref yMin, ref yMax);
-                for (int r = 0; r < grid.Z.GetLength(0); r++)
-                    for (int c = 0; c < grid.Z.GetLength(1); c++)
-                    {
-                        if (grid.Z[r, c] < zMin) zMin = grid.Z[r, c];
-                        if (grid.Z[r, c] > zMax) zMax = grid.Z[r, c];
-                    }
-            }
-            else if (series is I3DPointSeries pts)
-            {
-                UpdateRange(pts.X, ref xMin, ref xMax);
-                UpdateRange(pts.Y, ref yMin, ref yMax);
-                UpdateRange(pts.Z, ref zMin, ref zMax);
+                if (grid.Z.DrawableRange() is { } z)
+                {
+                    if (z.Lo < zMin) zMin = z.Lo;
+                    if (z.Hi > zMax) zMax = z.Hi;
+                }
             }
         }
 

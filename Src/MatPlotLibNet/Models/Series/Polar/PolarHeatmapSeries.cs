@@ -55,7 +55,10 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
         HeatmapData = ChartSerializer.To2DList(Data),
         ThetaBins = ThetaBins,
         RBins = RBins,
-        ColorMapName = ColorMap?.Name
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        RMax = RMax.OrNullAtRest(1.0),
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="PolarHeatmapSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -66,10 +69,12 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
     {
         var s = axes.PolarHeatmap(ChartSerializer.From2DList(dto.HeatmapData),
             dto.ThetaBins ?? 8, dto.RBins ?? 4);
-        if (dto.ColorMapName is not null)
+        s.RestoreColorMap(dto);
+        if (dto.RMax.HasValue)
         {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
+            s.RMax = dto.RMax.Value;
         }
+        s.RestoreNormalizer(dto);
         return s;
     }
 

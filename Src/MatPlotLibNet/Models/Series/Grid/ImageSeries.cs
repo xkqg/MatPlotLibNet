@@ -31,19 +31,13 @@ public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormapp
     public double? VMax { get; set; }
 
     /// <inheritdoc />
+    /// <remarks>Over the drawable values only, the range the renderer colours the pixels over: a missing value (NaN)
+    /// and an infinity are left out.</remarks>
     public MinMaxRange GetColorBarRange()
     {
-        double min = VMin ?? double.MaxValue;
-        double max = VMax ?? double.MinValue;
-        if (!VMin.HasValue || !VMax.HasValue)
-        {
-            for (int r = 0; r < Data.GetLength(0); r++)
-                for (int c = 0; c < Data.GetLength(1); c++)
-                {
-                    if (!VMin.HasValue && Data[r, c] < min) min = Data[r, c];
-                    if (!VMax.HasValue && Data[r, c] > max) max = Data[r, c];
-                }
-        }
+        var drawable = Data.DrawableRange() ?? new Range1D(0, 1);
+        double min = VMin ?? drawable.Lo;
+        double max = VMax ?? drawable.Hi;
         return min < max ? new(min, max) : new(0, 1);
     }
 
@@ -63,10 +57,14 @@ public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormapp
     {
         Type = "image",
         HeatmapData = ChartSerializer.To2DList(Data),
-        ColorMapName = ColorMap?.Name,
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
         VMin = VMin,
         VMax = VMax,
-        Interpolation = Interpolation
+        Interpolation = Interpolation,
+        Alpha = Alpha.OrNullAtRest(1.0),
+        BlendMode = BlendMode.OrNullAtRest(BlendMode.Normal),
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs an <see cref="ImageSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -76,13 +74,19 @@ public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormapp
     internal static ImageSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Image(ChartSerializer.From2DList(dto.HeatmapData));
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
         s.VMin = dto.VMin;
         s.VMax = dto.VMax;
         s.Interpolation = dto.Interpolation;
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        if (dto.BlendMode.HasValue)
+        {
+            s.BlendMode = dto.BlendMode.Value;
+        }
+        s.RestoreNormalizer(dto);
         return s;
     }
 

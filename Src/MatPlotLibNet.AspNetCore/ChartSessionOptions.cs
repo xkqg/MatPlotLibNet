@@ -5,7 +5,7 @@ using MatPlotLibNet.Interaction;
 
 namespace MatPlotLibNet.AspNetCore;
 
-/// <summary>Fluent options bag for per-chart handler registration introduced in v1.2.2.
+/// <summary>Fluent options bag for per-chart handler registration.
 /// Passed to <see cref="FigureRegistry.Register(string, Models.Figure, System.Action{ChartSessionOptions})"/>
 /// to attach callbacks for non-mutating notification events — brush-select (fire-and-forget)
 /// and hover (request-response via caller publisher).</summary>

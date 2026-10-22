@@ -13,8 +13,7 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <list type="bullet">
 /// <item>Diagonal: histogram or KDE (or none) — branched inline (only 2 active kinds).</item>
 /// <item>Off-diagonal: looked up via <see cref="PairGridOffDiagonalPainterRegistry"/>
-/// (rule-of-three triggered when v1.10 added <c>Hexbin</c> alongside <c>Scatter</c>
-/// and <c>None</c>).</item>
+/// (three kinds, <c>Scatter</c>, <c>Hexbin</c> and <c>None</c>, are too many to branch on inline).</item>
 /// </list></summary>
 /// <remarks>The pair-grid intentionally bypasses the parent-axes coordinate
 /// transform — every cell has its own internal data range. Bars and dots are

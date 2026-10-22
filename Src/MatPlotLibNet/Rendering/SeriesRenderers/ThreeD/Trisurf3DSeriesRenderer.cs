@@ -18,17 +18,12 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
     {
         if (series.X.Length < 3) return;
 
-        var bounds = Area.PlotBounds;
         var baseColor = ResolveColor(series.Color);
 
-        double xMin = series.X.Min(), xMax = series.X.Max();
-        double yMin = series.Y.Min(), yMax = series.Y.Max();
-        double zMin = series.Z.Min(), zMax = series.Z.Max();
-        double zRange = zMax - zMin;
-        if (zRange == 0) zRange = 1;
-
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        // The extent and the colours span the values that are there: a missing value (NaN) and an infinity are left out.
+        var z = series.Z.Data.DrawableRange();
+        var proj = ProjectionFor(series.X.Data.DrawableRange(), series.Y.Data.DrawableRange(), z);
+        double zMin = z?.Lo ?? 0, zMax = z?.Hi ?? 1;
 
         var cmap = series.ColorMap;
         var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
@@ -61,7 +56,7 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
         foreach (var tri in triangles)
         {
             var fill = useColorMap
-                ? cmap!.GetColor(normalizer.Normalize(tri.AvgZ, zMin, zMax))
+                ? cmap!.ColorOf(tri.AvgZ, normalizer, zMin, zMax)
                 : baseColor;
 
             Color? stroke = series.ShowWireframe
@@ -95,6 +90,9 @@ internal sealed class Trisurf3DSeriesRenderer : SeriesRenderer<Trisurf3DSeries>
             proj.Project(x1, y1, z1),
             proj.Project(x2, y2, z2),
         };
+
+        // A triangle with a vertex that cannot be placed is skipped, as matplotlib masks it.
+        if (!vertices.IsDrawable()) return;
 
         sink.Add(new(proj.Depth(cx, cy, cz), vertices, avgZ));
     }

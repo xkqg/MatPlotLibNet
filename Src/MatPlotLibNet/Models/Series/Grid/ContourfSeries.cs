@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.Algorithms;
 using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -18,8 +19,18 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
 
     public double[,] ZData { get; }
 
+    /// <summary>How many levels bound the bands when <see cref="LevelValues"/> names none: this many levels, evenly spaced
+    /// from the lowest value of the grid to the highest, make <c>Levels - 1</c> bands. A value below 2 counts as 2.</summary>
     public int Levels { get; set; } = 10;
 
+    /// <summary>The levels that bound the bands, when you want them at values of your own choosing. Left <see langword="null"/>
+    /// or empty, <see cref="Levels"/> decides. Once it holds values, those are the levels and <see cref="Levels"/> is
+    /// ignored: they are taken in ascending order, each once, and a value that is not a number or is infinite is left out.
+    /// Each pair of neighbouring levels bounds one band, and the iso-lines (<see cref="ShowLines"/>) stand on the levels; a
+    /// level outside the range of the grid crosses no cell, so it adds no line. The colours follow the levels too: the colour
+    /// map runs from the first level to the last, and so does the colour bar, whatever range the grid itself spans. The
+    /// lowest band is painted under the whole plot, so a value below the first level is not left empty; it shows that band's
+    /// colour. Fewer than two levels that can be drawn leave no band, and the series draws nothing.</summary>
     public double[]? LevelValues { get; set; }
 
     public double Alpha { get; set; } = 1.0;
@@ -46,8 +57,15 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
     }
 
     /// <inheritdoc />
+    /// <remarks>The values of the grid, or, when <see cref="LevelValues"/> names at least two levels that can be drawn, from
+    /// the first of them to the last: the span the colour map runs over.</remarks>
     public MinMaxRange GetColorBarRange()
     {
+        if (LevelValues.ExplicitLevels() is { Length: >= 2 } named)
+        {
+            return new(named[0], named[^1]);
+        }
+
         double min = double.MaxValue;
         double max = double.MinValue;
         int rows = ZData.GetLength(0);
@@ -67,8 +85,10 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
     {
         if (XData.Length == 0 || YData.Length == 0)
             return new(null, null, null, null);
-        double xMin = XData.Min(), xMax = XData.Max();
-        double yMin = YData.Min(), yMax = YData.Max();
+        // Over the drawable grid coordinates only: a missing one (NaN) and an infinity are left out.
+        var x = XData.DrawableRange();
+        var y = YData.DrawableRange();
+        double? xMin = x?.Lo, xMax = x?.Hi, yMin = y?.Lo, yMax = y?.Hi;
         // Filled contour grids fill their [xMin,xMax] × [yMin,yMax] rectangle — sticky edges
         // on all four sides keep the 5 % margin from pushing whitespace between the fill and
         // the spines, matching ContourSeries.
@@ -82,7 +102,16 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
         Type = "contourf",
         XData = XData,
         YData = YData,
-        HeatmapData = ChartSerializer.To2DList(ZData)
+        HeatmapData = ChartSerializer.To2DList(ZData),
+        Levels = Levels.OrNullAtRest(10),
+        LevelValues = LevelValues,
+        Alpha = Alpha.OrNullAtRest(1.0),
+        ShowLines = ShowLines ? null : false,
+        LineWidth = LineWidth.OrNullAtRest(0.5),
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        Hatches = Hatches is null ? null : [.. Hatches],
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="ContourfSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -90,7 +119,30 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static ContourfSeries FromSeriesDto(Axes axes, SeriesDto dto)
-        => axes.Contourf(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData));
+    {
+        var s = axes.Contourf(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData));
+        if (dto.Levels.HasValue)
+        {
+            s.Levels = dto.Levels.Value;
+        }
+        s.LevelValues = dto.LevelValues;
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        if (dto.ShowLines.HasValue)
+        {
+            s.ShowLines = dto.ShowLines.Value;
+        }
+        if (dto.LineWidth.HasValue)
+        {
+            s.LineWidth = dto.LineWidth.Value;
+        }
+        s.RestoreColorMap(dto);
+        s.Hatches = dto.Hatches?.ToArray();
+        s.RestoreNormalizer(dto);
+        return s;
+    }
 
 
     /// <inheritdoc />

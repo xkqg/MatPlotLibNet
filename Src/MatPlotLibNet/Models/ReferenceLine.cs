@@ -6,8 +6,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models;
 
 /// <summary>Specifies the orientation of a reference line or span region.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum Orientation
 {
     /// <summary>Horizontal (constant Y value).</summary>
@@ -18,8 +18,8 @@ public enum Orientation
 }
 
 /// <summary>Specifies which side of a threshold value constitutes a breach zone.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum ThresholdBreach
 {
     /// <summary>Breach zone is above (or to the right of) the threshold value.</summary>

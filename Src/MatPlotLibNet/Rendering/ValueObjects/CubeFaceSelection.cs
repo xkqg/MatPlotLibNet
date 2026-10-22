@@ -71,10 +71,10 @@ public readonly record struct AxisEdge3D(Vec3 From, Vec3 To);
 /// <remarks>
 /// <para>
 /// Computed by <see cref="Projection3D"/>, which owns both the camera and the data box; read it as
-/// <see cref="Projection3D.Faces"/>. Before v1.14.1 the renderer hard-coded floor <c>z=zMin</c>,
-/// wall <c>x=xMin</c> and wall <c>y=yMax</c>, which is matplotlib's answer only for elevation ≥ 0
-/// with azimuth in [−90°, 0°]; outside that quadrant the shaded pane landed on a face that had
-/// rotated to the FRONT and the Y/Z tick rows landed behind the data (GitHub issue #18).
+/// <see cref="Projection3D.Faces"/>. The back faces are not fixed: floor <c>z=zMin</c>, wall <c>x=xMin</c>
+/// and wall <c>y=yMax</c> are matplotlib's answer only for elevation ≥ 0 with azimuth in [−90°, 0°];
+/// outside that quadrant other faces are at the back, and the shaded pane and the Y/Z tick rows
+/// follow them instead of landing on a face that has rotated to the FRONT.
 /// </para>
 /// <para>
 /// The axis-line rule, verified against matplotlib 3.11.1 over 144 cameras: the X line runs along

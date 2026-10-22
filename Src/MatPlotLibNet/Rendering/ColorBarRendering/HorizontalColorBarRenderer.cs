@@ -12,12 +12,6 @@ namespace MatPlotLibNet.Rendering.ColorBarRendering;
 /// with min on the left, max on the right; tick labels appear underneath; the
 /// optional label appears below the ticks.
 /// </summary>
-/// <remarks>
-/// Pure copy of the horizontal-orientation block from
-/// <c>AxesRenderer.RenderColorBar</c> (lines 592-646 pre-extraction). Identity
-/// of byte-output is pinned by <c>ColorBarRendererBaselineTests</c> + future
-/// <c>ColorBarRendererParallelEquivalenceTests</c>.
-/// </remarks>
 internal sealed class HorizontalColorBarRenderer : ColorBarRenderer
 {
     /// <inheritdoc />

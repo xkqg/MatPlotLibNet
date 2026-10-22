@@ -20,8 +20,10 @@ public sealed class CandlestickSeries : OhlcSeries, ICategoryLabeled
         : base(open, high, low, close) { }
 
     /// <inheritdoc />
+    /// <remarks>From the lowest drawable low to the highest drawable high: a missing price (NaN) and an infinity are left
+    /// out.</remarks>
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(context.XAxisMin ?? 0, context.XAxisMax ?? Open.Length, Low.Min(), High.Max());
+        new(context.XAxisMin ?? 0, context.XAxisMax ?? Open.Length, Low.DrawableRange()?.Lo, High.DrawableRange()?.Hi);
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

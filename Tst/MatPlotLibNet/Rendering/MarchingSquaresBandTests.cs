@@ -109,4 +109,74 @@ public class MarchingSquaresBandTests
         foreach (var band in bands)
             Assert.NotNull(band.Polygons);
     }
+
+    // ---- bands between thresholds that are given -----------------------------------------------------------------------
+
+    /// <summary>The bands lie between the thresholds as given, whatever range the grid spans: the grid runs from -2 to 4,
+    /// the thresholds from 0.5 to 3.</summary>
+    [Fact]
+    public void ExtractBands_WithThresholds_LieBetweenConsecutiveThresholds()
+    {
+        var bands = MarchingSquares.ExtractBands(XGrid, YGrid, ZGrid, [0.5, 1.0, 3.0]);
+
+        Assert.Equal([0.5, 1.0], bands.Select(b => b.LevelLow));
+        Assert.Equal([1.0, 3.0], bands.Select(b => b.LevelHigh));
+    }
+
+    /// <summary>The count of levels is the even spacing over the grid's range, so naming those thresholds draws what the
+    /// count draws.</summary>
+    [Fact]
+    public void ExtractBands_WithThresholds_DrawsTheBandsTheCountDraws_WhenGivenTheEvenSpacing()
+    {
+        var counted = MarchingSquares.ExtractBands(XGrid, YGrid, ZGrid, levels: 5);
+        var given = MarchingSquares.ExtractBands(XGrid, YGrid, ZGrid, ContourLevels.Spanning(-2, 4, 5));
+
+        Assert.Equal(counted.Length, given.Length);
+        for (int b = 0; b < counted.Length; b++)
+        {
+            Assert.Equal(counted[b].LevelLow, given[b].LevelLow);
+            Assert.Equal(counted[b].LevelHigh, given[b].LevelHigh);
+            Assert.Equal(counted[b].Polygons.Select(p => p.ToList()), given[b].Polygons.Select(p => p.ToList()));
+        }
+    }
+
+    [Fact]
+    public void ExtractBands_WithThresholds_ARingOfEachThresholdBoundsItsBands()
+    {
+        // z = x + y: the iso-line of 0.5 and the iso-line of 1.0 are the two lines x + y = 0.5 and x + y = 1.0
+        var bands = MarchingSquares.ExtractBands(XGrid, YGrid, ZGrid, [0.5, 1.0]);
+
+        var band = Assert.Single(bands);
+        Assert.All(band.Polygons.SelectMany(p => p), p => Assert.True(
+            Math.Abs(p.X + p.Y - 0.5) < 1e-4 || Math.Abs(p.X + p.Y - 1.0) < 1e-4, $"({p.X}, {p.Y}) lies on neither iso-line"));
+    }
+
+    [Theory]
+    [InlineData(new double[0])]
+    [InlineData(new[] { 1.0 })]
+    public void ExtractBands_WithFewerThanTwoThresholds_ReturnsEmpty(double[] thresholds) =>
+        Assert.Empty(MarchingSquares.ExtractBands(XGrid, YGrid, ZGrid, thresholds));
+
+    /// <summary>A grid needs two rows and two columns: one short side is enough to leave nothing to fill, for either way of
+    /// naming the levels.</summary>
+    [Fact]
+    public void ExtractBands_ReturnsEmpty_WhenEitherSideOfTheGridHasASingleLine()
+    {
+        double[,] oneRow = { { 0.0, 1.0, 2.0 } };
+        double[,] oneColumn = { { 0.0 }, { 1.0 }, { 2.0 } };
+
+        Assert.Empty(MarchingSquares.ExtractBands([0.0, 1.0, 2.0], [0.0], oneRow, [0.5, 1.5]));
+        Assert.Empty(MarchingSquares.ExtractBands([0.0], [0.0, 1.0, 2.0], oneColumn, [0.5, 1.5]));
+        Assert.Empty(MarchingSquares.ExtractBands([0.0, 1.0, 2.0], [0.0], oneRow, levels: 4));
+        Assert.Empty(MarchingSquares.ExtractBands([0.0], [0.0, 1.0, 2.0], oneColumn, levels: 4));
+    }
+
+    [Fact]
+    public void ExtractBands_WithThresholds_ReturnsEmpty_ForTooSmallAFlatOrAnUndrawableGrid()
+    {
+        double[] x = [0.0, 1.0];
+        Assert.Empty(MarchingSquares.ExtractBands([1.0], [1.0], new double[,] { { 1.0 } }, [0.0, 1.0]));
+        Assert.Empty(MarchingSquares.ExtractBands(x, x, new double[,] { { 5.0, 5.0 }, { 5.0, 5.0 } }, [4.0, 6.0]));
+        Assert.Empty(MarchingSquares.ExtractBands(x, x, new double[,] { { double.NaN, double.NaN }, { double.NaN, double.NaN } }, [0.0, 1.0]));
+    }
 }

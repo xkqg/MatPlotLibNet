@@ -20,14 +20,33 @@ public sealed class PolarBarSeries : PolarSeries, IHasColor, IHasAlpha
     public PolarBarSeries(double[] r, double[] theta) : base(r, theta) { }
 
     /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new() { Type = "polarbar" };
+    public override SeriesDto ToSeriesDto() => new()
+    {
+        Type = "polarbar",
+        Color = Color,
+        Alpha = Alpha.OrNullAtRest(0.8),
+        BarWidth = BarWidth.OrNullAtRest(0.3),
+    };
 
-    /// <summary>Reconstructs a <see cref="PolarBarSeries"/> placeholder from its serialization DTO and adds it to the axes.</summary>
+    /// <summary>Reconstructs a <see cref="PolarBarSeries"/> placeholder from its serialization DTO and adds it to the axes.
+    /// The data is not written yet (the roadmap row "Every chart type back from JSON"); the settings are.</summary>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static PolarBarSeries FromSeriesDto(Axes axes, SeriesDto dto)
-        => axes.PolarBar([1.0], [0.0]);
+    {
+        var s = axes.PolarBar([1.0], [0.0]);
+        s.Color = dto.Color;
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        if (dto.BarWidth.HasValue)
+        {
+            s.BarWidth = dto.BarWidth.Value;
+        }
+        return s;
+    }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

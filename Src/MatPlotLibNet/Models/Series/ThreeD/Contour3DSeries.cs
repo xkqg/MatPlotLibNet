@@ -36,6 +36,8 @@ public sealed class Contour3DSeries : GridSeries3D, IColormappable, IHasColor
         Color = Color,
         Levels = Levels != 10 ? Levels : null,
         LineWidth = LineWidth != 1.0 ? LineWidth : null,
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
         Label = Label
     };
 
@@ -58,10 +60,7 @@ public sealed class Contour3DSeries : GridSeries3D, IColormappable, IHasColor
         {
             s.LineWidth = dto.LineWidth.Value;
         }
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
         return s;
     }
 

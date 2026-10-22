@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Rendering.TickLocators;
 
@@ -10,13 +11,16 @@ namespace MatPlotLibNet.Rendering.TickLocators;
 /// <see cref="AxesRenderer.ComputeTickValues(double, double, int)"/>, making it available as an
 /// <see cref="ITickLocator"/> strategy that can be swapped on any axis.
 /// </summary>
-public sealed class AutoLocator : ITickLocator
+public sealed class AutoLocator : ITickLocator, IJsonDescribed<TickLocatorDto>
 {
     private readonly int _targetCount;
 
     /// <summary>Initialises with the desired number of tick intervals.</summary>
     /// <param name="targetCount">Approximate number of major tick intervals; the algorithm rounds to the nearest nice number. Defaults to 5.</param>
     public AutoLocator(int targetCount = 5) => _targetCount = targetCount;
+
+    /// <inheritdoc />
+    TickLocatorDto IJsonDescribed<TickLocatorDto>.Describe() => new AutoTickLocatorDto(_targetCount);
 
     /// <inheritdoc />
     public double[] Locate(double min, double max)

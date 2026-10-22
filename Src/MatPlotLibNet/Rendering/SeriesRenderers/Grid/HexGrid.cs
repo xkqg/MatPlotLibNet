@@ -33,6 +33,9 @@ internal static class HexGrid
         int n = Math.Min(x.Length, y.Length);
         for (int i = 0; i < n; i++)
         {
+            // A point that cannot be placed is not binned, as matplotlib's hexbin drops it (it was rounded into a bin
+            // at the origin or far off the plot).
+            if (!new Point(x[i], y[i]).IsDrawable()) continue;
             double lx = x[i] - xMin;
             double ly = y[i] - yMin;
 

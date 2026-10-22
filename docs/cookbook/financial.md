@@ -36,7 +36,7 @@ This example plots four indicators: Williams %R, On-Balance Volume, Parabolic SA
 
 ```csharp
 Plt.Create()
-    .WithTitle("Phase F Indicators")
+    .WithTitle("Momentum and Volume Indicators")
     .WithSize(1000, 800)
     .WithGridSpec(2, 2)
     .TightLayout()

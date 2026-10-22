@@ -37,8 +37,12 @@ public sealed class BrokenBarSeries : ChartSeries, IHasColor
     {
         if (Ranges.Length == 0) return new(0, 1, -0.5, 0.5);
         var allRanges = Ranges.SelectMany(r => r).ToArray();
-        double xMin = allRanges.Length > 0 ? allRanges.Min(r => r.Start) : 0;
-        double xMax = allRanges.Length > 0 ? allRanges.Max(r => r.Start + r.Width) : 1;
+        // Over the segments that can be drawn: a segment whose start or width is missing (NaN) or infinite is not drawn,
+        // so neither of its ends counts; rows without any segment keep the 0..1 default.
+        var x = allRanges.Length > 0
+            ? allRanges.Select(r => new Range1D(r.Start, r.Start + r.Width)).DrawableRange()
+            : new Range1D(0, 1);
+        double? xMin = x?.Lo, xMax = x?.Hi;
         double yMin = -0.5, yMax = Ranges.Length - 0.5;
         return new(xMin, xMax, yMin, yMax,
             StickyXMin: xMin, StickyXMax: xMax, StickyYMin: yMin, StickyYMax: yMax);

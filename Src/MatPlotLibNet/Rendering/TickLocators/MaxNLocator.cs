@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Serialization;
+
 namespace MatPlotLibNet.Rendering.TickLocators;
 
 /// <summary>
@@ -8,13 +10,16 @@ namespace MatPlotLibNet.Rendering.TickLocators;
 /// <c>maxN</c> positions. The target count is increased progressively until the output fits
 /// the cap — guaranteeing at most <c>maxN</c> ticks while still choosing aligned values.
 /// </summary>
-public sealed class MaxNLocator : ITickLocator
+public sealed class MaxNLocator : ITickLocator, IJsonDescribed<TickLocatorDto>
 {
     private readonly int _maxN;
 
     /// <summary>Initialises with the maximum number of ticks to return.</summary>
     /// <param name="maxN">The upper bound on the number of tick positions returned by <see cref="Locate"/>.</param>
     public MaxNLocator(int maxN) => _maxN = maxN;
+
+    /// <inheritdoc />
+    TickLocatorDto IJsonDescribed<TickLocatorDto>.Describe() => new MaxNTickLocatorDto(_maxN);
 
     /// <inheritdoc />
     /// <remarks>

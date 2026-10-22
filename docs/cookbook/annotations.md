@@ -105,6 +105,16 @@ Plt.Create()
     .Save("multi_ref.svg");
 ```
 
+A reference line takes part in the automatic range, as matplotlib's `axhline` and `axvline` do: a line beyond the
+data widens the axis to hold it, exactly as a data point at that value would, so the line is always drawn inside
+the plot. The same holds for `AddLevel`, the levels of `AddFibonacci` and the line of `Threshold`. Under a limit you
+set (`SetYLim`, `SetXLim`, a zoom), a line beyond the limit is not drawn, and neither is its label; a line standing
+exactly on a limit is drawn on that edge. A line at a value the axis cannot place (`double.NaN`, an infinity, 0 or
+less on a log axis) is left out.
+
+A shaded span does not widen the range. It is cut at the edge of the plot: an edge beyond what the axis shows runs
+to the plot edge, and a span wholly beyond it draws nothing.
+
 ## Threshold convenience
 
 `Threshold(...)` is a single-call shortcut. It adds a dashed reference line and a
@@ -177,8 +187,11 @@ Plt.Create()
 | `label` | `string?` | `null` | Annotation text placed at the threshold value. `null` adds no annotation. |
 
 The dashed line is a `ReferenceLine` with `LineStyle.Dashed`. You can change it
-afterwards through `axes.ReferenceLines`. The span extends to `double.MaxValue` for
-Above or to `double.MinValue` for Below, so it always reaches the visible plot boundary.
+afterwards through `axes.ReferenceLines`. The zone runs from the line to the edge of the
+plot (`double.MaxValue` for Above, `double.MinValue` for Below), cut where the plot ends.
+The line takes part in the automatic range, so a threshold above everything the chart
+shows is still drawn, with its zone up to the top of the plot. Beyond a limit you set,
+neither the line nor the zone is drawn.
 
 ## Combining annotations with math text
 

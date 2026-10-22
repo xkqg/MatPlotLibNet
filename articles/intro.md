@@ -2,15 +2,11 @@
 
 **matplotlib for .NET.** A .NET 10 / .NET 8 charting library that tracks matplotlib's API shape: 83 series types, 148 colormaps, 30 themes, 13 map projections with embedded Natural Earth data, MathText with operator limits + matrices, parallel SVG rendering, and polymorphic export (SVG / PNG / PDF / GIF). Native UI controls for Blazor / Avalonia / Uno / WPF / MAUI. 15 NuGet packages + 3 npm bindings.
 
-v1.14.0 is the **control-room pack**: `Plt.OpsDashboard()` (fluent KPI-tile + state-timeline +
-trend-panel composition, pinned to a caller-supplied time window), `BulletGraphSeries` (Few's
-measure+target+bands strip replacing radial gauges), `Theme.Alarm`/`AlarmPalette` + four operator
-backgrounds (`OpsNight`/`OpsPanel`/`OpsWarm`/`OpsContrast`), and the full `StatTileSeries` tile
-anatomy (`Target`/`Caption`/`Trend`/`Hatch`). Also fixes `HatchPattern` (shipped for releases but
-never painted by any renderer), a `ThemeBuilder.Build()` that silently discarded 7 of its 15 theme
-properties, and a rolling time axis that re-shuffled its labels every frame.
+Beyond the 83 chart types, 15 chart verbs draw whole charts from your data in one call: a Pareto chart, a ridgeline, a calendar heatmap, a control chart, a Kaplan-Meier curve, a Q-Q plot and nine more. A verb adds no chart type of its own. It is built from series the library already has, so the figure still goes through JSON, the MCP server and every native control as those series.
 
-All 656 classes remain at ≥90/90 line/branch coverage under the strict gate (99.6% line / 97.2% branch; 10,252 tests, 0 failures). See [CHANGELOG](https://github.com/xkqg/MatPlotLibNet/blob/main/CHANGELOG.md) for every release's per-feature details.
+For operations screens, `Plt.OpsDashboard()` composes KPI tiles, state timelines and a trend panel on one time window that you supply.
+
+Every class is held at 90% line and 90% branch coverage by a gate that fails the build otherwise; the latest figures are in [COVERAGE.md](https://github.com/xkqg/MatPlotLibNet/blob/main/docs/COVERAGE.md). See the [CHANGELOG](https://github.com/xkqg/MatPlotLibNet/blob/main/CHANGELOG.md) for every release's per-feature details.
 
 ## Documentation
 
@@ -38,7 +34,7 @@ Full documentation is on the **[GitHub Wiki](https://github.com/xkqg/MatPlotLibN
 
 Runnable sample projects are in the [Samples/](../Samples/) directory:
 
-- **[Playground](../Samples/MatPlotLibNet.Playground/)** — Blazor WASM interactive explorer. Switch between 21 example charts, flip themes, toggle series styling, copy the generated C# — hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/)
+- **[Playground](../Samples/MatPlotLibNet.Playground/)** — Blazor WASM interactive explorer. Switch between 22 example charts, flip themes, toggle series styling, copy the generated C# — hosted live at [xkqg.github.io/MatPlotLibNet/playground](https://xkqg.github.io/MatPlotLibNet/playground/)
 - **[Console](../Samples/MatPlotLibNet.Samples.Console/)** — export charts to SVG, PNG, PDF; subplots; themes; JSON round-trip; generates every image in the wiki / cookbook
 - **[Blazor](../Samples/MatPlotLibNet.Samples.Blazor/)** — static and real-time charts with SignalR
 - **[WPF](../Samples/MatPlotLibNet.Samples.Wpf/)** — native WPF window with `MplChartControl`, 4 chart types + live interactive toggle

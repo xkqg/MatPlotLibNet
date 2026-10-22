@@ -6,14 +6,10 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering;
 
 /// <summary>
-/// Single source of truth for every themed font the render pipeline uses. Before v1.2.1
-/// the library carried duplicate font factories in <see cref="AxesRenderer"/>
-/// (<c>TickFont</c>, <c>LabelFont</c>, <c>TitleFont</c>), in <c>ConstrainedLayoutEngine</c>
-/// (its own <c>TickFont</c> / <c>LabelFont</c> / <c>TitleFont</c> / <c>SupTitleFont</c>),
-/// and in <see cref="ChartRenderer"/> (figure <c>TitleFont</c>). These drifted — the
-/// legend-clipping bug in v1.1.4 was caused by the engine's <c>TickFont</c> formula using
-/// <c>theme.DefaultFont.Size - 2</c> while the renderer's <c>TickFont</c> used
-/// <c>Theme.DefaultFont.Size</c>. Two parallel "formulas for the same role" are exactly
+/// Single source of truth for every themed font the render pipeline uses. The axes renderer,
+/// the layout engine and the figure renderer all need the font of the same role; when each built
+/// its own the formulas drifted, and a legend measured with a tick font two points smaller than
+/// the one it was drawn with was clipped. Two parallel "formulas for the same role" are exactly
 /// the kind of bug this class exists to prevent.
 /// </summary>
 /// <remarks>

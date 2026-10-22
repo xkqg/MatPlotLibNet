@@ -194,8 +194,8 @@ public sealed record LabelPlacement(
     Point? LeaderLineStart);
 
 /// <summary>Relative resistance to displacement during collision resolution.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum LabelPriority
 {
     Low    = 0,

@@ -122,23 +122,31 @@ Plt.Create()
 
 ## Wind rose
 
-Three `PolarBarSeries` represent different wind speed bins; each uses the same 8 compass directions.
+How often the wind blows from each of eight directions, as one bar per direction. A polar bar takes its angle in
+radians, counted counter-clockwise from the right (east), as matplotlib's polar axes do, and the angle labels count
+the same way, so north stands at 90°. A compass bearing counts clockwise from north, so it is turned first:
 
 ```csharp
-double[] directions = [0, 45, 90, 135, 180, 225, 270, 315];
-double[] freqSlow  = [5.2, 4.1, 6.8, 3.5, 4.9, 7.2, 5.5, 3.8]; // 0–10 kn
-double[] freqMed   = [3.1, 2.8, 4.2, 2.1, 3.4, 4.8, 3.2, 2.5]; // 10–20 kn
-double[] freqFast  = [1.2, 0.9, 1.8, 0.7, 1.1, 2.1, 1.4, 0.8]; // 20+ kn
+double[] bearings  = [0, 45, 90, 135, 180, 225, 270, 315];          // N, NE, E, SE, S, SW, W, NW
+double[] frequency = [9.5, 7.8, 12.8, 6.3, 9.4, 14.1, 10.1, 7.1];   // % of the hours, all speeds
+double[] theta = [.. bearings.Select(b => (90 - b) * Math.PI / 180)];
 
 Plt.Create()
-    .WithTitle("Wind Rose")
+    .WithTitle("Wind Rose — share of the hours by direction")
     .WithSize(600, 600)
     .AddSubPlot(1, 1, 1, ax => ax
-        .PolarBar(freqSlow, directions, s => { s.Color = Color.FromHex("#AED6F1"); s.Alpha = 0.85; s.Label = "0–10 kn"; s.BarWidth = 40; })
-        .PolarBar(freqMed,  directions, s => { s.Color = Color.FromHex("#2E86C1"); s.Alpha = 0.85; s.Label = "10–20 kn"; s.BarWidth = 40; })
-        .PolarBar(freqFast, directions, s => { s.Color = Color.FromHex("#1A252F"); s.Alpha = 0.85; s.Label = "20+ kn"; s.BarWidth = 40; })
-        .WithLegend())
+        .PolarBar(frequency, theta, s =>
+        {
+            s.Color = Color.FromHex("#2E86C1");
+            s.Alpha = 0.85;
+            s.BarWidth = 0.9 * Math.PI / 4;   // radians: nine tenths of the 45° between two directions
+        }))
     .Save("wind_rose.svg");
 ```
 
 ![Wind rose](../images/wind_rose.png)
+
+A wind rose often splits each direction by wind speed, the slow winds near the centre and the fast ones stacked
+outside them. That is not drawn yet. A polar bar always starts at the centre, and each polar bar series is scaled to
+its own largest bar, so the bars of two series laid over each other do not share one radial scale and cannot be
+compared. Draw one series per chart until polar bars can be stacked.

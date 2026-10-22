@@ -58,4 +58,13 @@ public class TripcolorSeriesRenderTests
             .ToSvg();
         Assert.Contains("<svg", svg);
     }
+
+    [Fact]
+    public void Tripcolor_WithAnEmptyTriangleList_DrawsNoTriangle()
+    {
+        string svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Tripcolor(X, Y, Z, s => s.Triangles = []))
+            .ToSvg();
+        Assert.DoesNotContain("<polygon", svg);
+    }
 }

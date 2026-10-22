@@ -17,28 +17,20 @@ internal sealed class Text3DSeriesRenderer : SeriesRenderer<Text3DSeries>
     {
         if (series.Annotations.Count == 0) return;
 
-        var bounds = Area.PlotBounds;
         var color = ResolveColor(series.Color);
 
-        double xMin = double.MaxValue, xMax = double.MinValue;
-        double yMin = double.MaxValue, yMax = double.MinValue;
-        double zMin = double.MaxValue, zMax = double.MinValue;
+        // Fitted to the coordinates that can be placed: a missing one (NaN) and an infinity are left out.
+        var proj = ProjectionFor(
+            series.Annotations.Select(a => a.X).ToArray().DrawableRange(),
+            series.Annotations.Select(a => a.Y).ToArray().DrawableRange(),
+            series.Annotations.Select(a => a.Z).ToArray().DrawableRange());
 
-        foreach (var a in series.Annotations)
-        {
-            if (a.X < xMin) xMin = a.X; if (a.X > xMax) xMax = a.X;
-            if (a.Y < yMin) yMin = a.Y; if (a.Y > yMax) yMax = a.Y;
-            if (a.Z < zMin) zMin = a.Z; if (a.Z > zMax) zMax = a.Z;
-        }
-
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
-
-        // Build indexed list for depth sorting
+        // Build indexed list for depth sorting; a label at a point that cannot be placed is skipped.
         var items = new List<DepthText>(series.Annotations.Count);
         foreach (var a in series.Annotations)
         {
             var pt = proj.Project(a.X, a.Y, a.Z);
+            if (!pt.IsDrawable()) continue;
             double depth = proj.Depth(a.X, a.Y, a.Z);
             items.Add(new(depth, pt, a.Text));
         }

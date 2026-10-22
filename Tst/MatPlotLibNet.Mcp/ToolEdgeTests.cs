@@ -9,6 +9,7 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// <summary>The arms that only a wrong or unusual call reaches: a chart that renders nothing, a path the operating
 /// system itself rejects, a chart family whose points are counted differently, an axis that says where it starts.
 /// Each of these is something a model can actually produce, and each one has to come back as a sentence.</summary>
+[Collection("ChartServicesGlobalState")]
 public class ToolEdgeTests : IDisposable
 {
     private readonly DirectoryInfo _output = Directory.CreateTempSubdirectory("mcp-edge-tests");
@@ -31,15 +32,43 @@ public class ToolEdgeTests : IDisposable
     // ---- what the renderer itself can still refuse ------------------------------------------------------------
 
     [Fact]
-    public void AChartWithNothingToPlaceTheAxesBy_IsRefusedDuringRendering()
+    public void AChartTheRendererCannotDraw_IsRefusedDuringRendering()
     {
-        // Empty OHLC arrays are all the same length, so the spec is consistent — and the renderer then asks the
-        // series where it sits, which for a candlestick is Low.Min() over nothing.
+        // The reader pairs xData with yData; a 3-D line's z values are paired with them only when it is drawn, and here
+        // there is one z for three points. Measured over every listed type with each field mutated to an edge value: 24
+        // specs pass the reader and fail while drawing (3-D series short of z values, a 2-D histogram of 0 or -1 bins,
+        // a stream field short of its grid), so this boundary still has inputs to catch.
         var refusal = Assert.Throws<ToolRefusalException>(() => Rendering.Render(
-            new ChartSpec("""{"width":400,"height":300,"subPlots":[{"series":[{"type":"candlestick","open":[],"high":[],"low":[],"close":[]}]}]}"""),
+            new ChartSpec("""{"width":400,"height":300,"subPlots":[{"series":[{"type":"line3d","xData":[1,2,3],"yData":[1,2,3],"zData":[1]}]}]}"""),
             ChartFormat.Png));
 
         Assert.Contains("could not be rendered", refusal.Message);
+    }
+
+    /// <summary>An empty funnel has nothing to draw: it renders an empty plot, as every other type does with no data (it
+    /// used to be refused, because its renderer scaled the stages by Values.Max() over nothing).</summary>
+    [Fact]
+    public void AnEmptyFunnel_RendersAnEmptyPlot()
+    {
+        var result = Rendering.Render(
+            new ChartSpec("""{"width":400,"height":300,"subPlots":[{"series":[{"type":"funnel","pieLabels":[],"values":[]}]}]}"""),
+            ChartFormat.Png);
+
+        Assert.NotEmpty(result.Bytes);
+        Assert.Equal("funnel", Assert.Single(result.Summary.Series).Discriminator);
+    }
+
+    /// <summary>An empty candlestick has nothing to draw and nothing to range over: it renders an empty plot (it used to
+    /// be refused, because its range took Low.Min() over nothing).</summary>
+    [Fact]
+    public void AnEmptyCandlestick_RendersAnEmptyPlot()
+    {
+        var result = Rendering.Render(
+            new ChartSpec("""{"width":400,"height":300,"subPlots":[{"series":[{"type":"candlestick","open":[],"high":[],"low":[],"close":[]}]}]}"""),
+            ChartFormat.Png);
+
+        Assert.NotEmpty(result.Bytes);
+        Assert.Null(Assert.Single(result.Summary.Series).YRange);
     }
 
     [Theory]

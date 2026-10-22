@@ -9,6 +9,7 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// format is resolved once, the transform is chosen explicitly, and the path never gets a second vote. The
 /// library's own <c>Save</c> decides format from the file extension and falls through to SVG for anything it does
 /// not recognise — writing SVG bytes into a file called <c>.jpg</c> and reporting success.</summary>
+[Collection("ChartServicesGlobalState")]
 public class ChartRenderingTests : IDisposable
 {
     private readonly DirectoryInfo _output = Directory.CreateTempSubdirectory("mcp-render-tests");

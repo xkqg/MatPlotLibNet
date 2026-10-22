@@ -2,6 +2,15 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.20.0, one-call charts on a library whose JSON keeps what is drawn):** **810/810 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 810 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.7L / 98.6B**; **19,557 tests, 0 failures** across the 11 measured suites (the wiki suite and the WPF suite run beside the gate and are not
+measured by it). The growth in tests comes from the contracts that now guard the work: a reflected test that every drawn property of every series
+survives JSON, one that every enum field has a vocabulary row, one that every concrete series type is under the contract, round trips of every
+one-call chart through JSON, the MCP reader, the transports and the PNG export. The first strict run reported one class short on branches
+(`HistogramSeriesRenderer`, 97.1 % to 96.4 %), because moving the height rule out of the renderer left one arm of the outline width without a test; a
+test per arm closed it, shown to fail when the arm is flipped.
+
 **Status (v1.19.0, direct labels, axis colours and the interaction layer in data units):** **729/729 classes at ≥90/90**, strict gate **PASSES** with no
 regressions (`PASS: All 729 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.6L / 97.9B**; **12,441 tests, 0 failures** across the 11 measured suites (the wiki suite and the WPF suite run beside the gate and are not
@@ -106,7 +115,7 @@ Exemptions in `tools/coverage/thresholds.json`: 19 → **25 → 27 → 29** (Pha
 
 Industry consensus is "80% is good enough"; we don't accept that. Branch coverage of 80% means 1 in 5 conditional paths is never tested — exactly where silent-failure bugs hide. v1.7.0 shipped four such bugs (geo extensions, broken-axis, symlog, playground grid) under a 3 967-test suite that was 85% line / 68% branch. The threshold lives in [`tools/coverage/thresholds.json`](https://github.com/xkqg/MatPlotLibNet/blob/main/tools/coverage/thresholds.json).
 
-Branch coverage continues to surface real bugs through the uplift wave — two found in the v1.7.2 work by edge-case Theories (`BaselineHelper.ComputeWiggle/ComputeWeightedWiggle` empty-input crash; `SymLogNormalizer.Normalize(NaN)` throws). Both tracked for source patch.
+Branch coverage continues to surface real bugs through the uplift wave — two found in the v1.7.2 work by edge-case Theories. The empty-input crash of the wiggle baselines (`ComputeWiggle` / `ComputeWeightedWiggle`) is fixed: a wiggle baseline of no layers is no baselines. `SymLogNormalizer.Normalize(NaN)` still throws, by contract: a normaliser is never handed a missing value, because a colormap and every renderer leave it out first, and `SymLogNormalizerEdgeCaseTests` says so.
 
 ## Run coverage locally
 
@@ -180,6 +189,9 @@ Per-class baselines protect against subtle quality erosion — e.g., someone del
 | Theory tests | `[Theory] [InlineData]` / `[MemberData]` | Parametrised over input matrices to exercise every branch |
 | Visual regression tests | `Tst/MatPlotLibNet/Rendering/` | Extract SVG geometry, assert points fall in canvas, ticks don't overlap |
 | Numpy/matplotlib parity | `Tst/MatPlotLibNet/.../*EdgeCaseTests.cs` | Math formulas verified against pre-computed numpy/matplotlib values from `TestFixtures/NumpyReference.cs` |
+| Drawn-property contracts | `Tst/MatPlotLibNet/Serialization/` (`SeriesDrawnPropertiesRoundTripTests`, `AxesDrawnPropertiesRoundTripTests`), linked into `Tst/MatPlotLibNet.Mcp/` | Every settable property of every series type and every part of an axes, found by reflection, comes back from a JSON round trip with the value it was given; a property added without its DTO field turns a Theory red and names itself |
+| Composed charts | `Tst/MatPlotLibNet/Rendering/` (`ComposedChartShapes`, `ComposedChartRoundTripTests`), linked into `Tst/MatPlotLibNet.Mcp/` | Every chart verb's figure is written as JSON, read back to the same picture, wears one colour for each drawn unit and lists the legend entries it should, and a missing value is never written into the picture; each verb's SVG equals the SVG of the public calls it replaces |
+| Document claims | `Tst/MatPlotLibNet/Packaging/` (`ReleaseContractTests`, `VerbPlacementContractTests`), `Tst/MatPlotLibNet.Geo/` | The numbers and lists the documents state (the colormap count, the version a document names, the verbs and where they live, the map projections) are held against the assembly and the project files |
 | Fidelity tests | `Tst/MatPlotLibNet.Fidelity/` | Render PNG, compare to matplotlib reference via `PerceptualDiff` (RMS / SSIM / ΔE). Run by hand: no workflow builds or runs this project |
 | Performance benchmarks | `Tst/MatPlotLibNet/Benchmarks/` | Throughput numbers (not gated, informational) |
 
@@ -189,7 +201,7 @@ Every new test file must include test methods named for these cases (where appli
 
 - `*_EmptyInput_*` — zero-length array
 - `*_SinglePoint_*` — one element
-- `*_NaN_*` — NaN values propagate correctly
+- `*_NaN_*` — NaN is the missing value: left out of a range and a fit, a gap in a line, and never written into the picture as a coordinate (the JSON carries it as the string "NaN")
 - `*_Infinity_*` — ±∞ doesn't overflow
 - `*_BoundaryValue_*` — values at threshold boundaries (e.g., `x == linthresh` for symlog)
 - `*_VeryLarge_*` — 100K+ elements (SIMD batch path)
@@ -207,7 +219,7 @@ Use these instead of inlining your own — keeps "what's an edge case" consisten
 
 ## Cross-cutting Theory pattern (DRY)
 
-For families of types that share a contract, **extend the central Theory** instead of cloning per-type tests. The canonical example is [`Tst/MatPlotLibNet/Models/Series/AllSeriesTests.cs`](https://github.com/xkqg/MatPlotLibNet/blob/main/Tst/MatPlotLibNet/Models/Series/AllSeriesTests.cs), which exercises **every** `ISeries` (currently 75+ types in `AllSeriesInstances`) against the same 9 invariants:
+For families of types that share a contract, **extend the central Theory** instead of cloning per-type tests. The canonical example is [`Tst/MatPlotLibNet/Models/Series/AllSeriesTests.cs`](https://github.com/xkqg/MatPlotLibNet/blob/main/Tst/MatPlotLibNet/Models/Series/AllSeriesTests.cs), which exercises **every** `ISeries` (all 83 types in `AllSeriesInstances`; `TheAllSeriesList_HoldsEveryConcreteSeriesTypeTheLibraryShips` fails when a type is missing from the list) against the same invariants:
 
 - `Label` defaults to `null`, can be set/read
 - `Visible` defaults to `true`, can be set to `false`
@@ -221,7 +233,8 @@ For families of types that share a contract, **extend the central Theory** inste
 - `XYSeries.XData/YData` are stored unchanged (XYSeries-filtered)
 - `ToSeriesDto()` round-trips with non-empty `Type` string
 - `ComputeDataRange(...)` produces finite numbers for non-empty data
+- Rendering to SVG neither crashes nor writes a coordinate that is not finite
 
-Adding a new series type requires **one line** in `AllSeriesInstances` plus the corresponding `Visit` overload in `TestSeriesVisitor.cs` — and that single addition runs ~12 conformance tests. The renderer-side equivalent is [`Tst/MatPlotLibNet/Rendering/SeriesRenderers/AllRenderersDirectInvocationTests.cs`](https://github.com/xkqg/MatPlotLibNet/blob/main/Tst/MatPlotLibNet/Rendering/SeriesRenderers/AllRenderersDirectInvocationTests.cs) — direct-invocation Theory over every `SeriesRenderer<T>` to cover renderer code paths that the visitor dispatch hides from the static call graph.
+Adding a new series type requires **one line** in `AllSeriesInstances` plus the corresponding `Visit` overload in `TestSeriesVisitor.cs` — and that single addition runs the conformance tests above. The type also joins `DrawnSeriesFixtures.DrawnTypes` (or is named in `NotUnderContract` with a reason), which holds each of its settable properties to the JSON round trip; the discriminator joins the `ChartSerializerRoundTripTests` Theory; and `SeriesCountContractTests` stays red until its published count and every document that states the count are bumped. A chart verb adds no series type, so it adds none of these: it adds one shape to `ComposedChartShapes`, which `ComposedChartRoundTripTests` runs through the promises for a composed chart. The renderer-side equivalent is [`Tst/MatPlotLibNet/Rendering/SeriesRenderers/AllRenderersDirectInvocationTests.cs`](https://github.com/xkqg/MatPlotLibNet/blob/main/Tst/MatPlotLibNet/Rendering/SeriesRenderers/AllRenderersDirectInvocationTests.cs) — direct-invocation Theory over every `SeriesRenderer<T>` to cover renderer code paths that the visitor dispatch hides from the static call graph.
 
 Phase-9 dedup (v1.7.2) removed 78 per-series `[Fact]` duplicates of these Theory tests across 55 files — net delta 5 569 → 5 468 tests, zero coverage regression.

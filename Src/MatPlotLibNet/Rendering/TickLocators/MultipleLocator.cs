@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Serialization;
+
 namespace MatPlotLibNet.Rendering.TickLocators;
 
 /// <summary>
@@ -8,7 +10,7 @@ namespace MatPlotLibNet.Rendering.TickLocators;
 /// optionally shifted by an <c>offset</c>: ticks are at <c>offset + n * baseValue</c>.
 /// Equivalent to matplotlib's <c>MultipleLocator</c>.
 /// </summary>
-public sealed class MultipleLocator : ITickLocator
+public sealed class MultipleLocator : ITickLocator, IJsonDescribed<TickLocatorDto>
 {
     private readonly double _base;
     private readonly double _offset;
@@ -17,6 +19,9 @@ public sealed class MultipleLocator : ITickLocator
     /// <param name="baseValue">The interval between consecutive ticks.</param>
     /// <param name="offset">Shift applied to all tick positions (default 0). Use 0.5 to center ticks inside bar slots.</param>
     public MultipleLocator(double baseValue, double offset = 0) { _base = baseValue; _offset = offset; }
+
+    /// <inheritdoc />
+    TickLocatorDto IJsonDescribed<TickLocatorDto>.Describe() => new MultipleTickLocatorDto(_base, _offset);
 
     /// <inheritdoc />
     public double[] Locate(double min, double max)

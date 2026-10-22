@@ -17,14 +17,20 @@ public sealed class ScatterSeries : XYSeries, IColormappable, INormalizable, IHa
 
     public Color? Color { get; set; }
 
-    public MarkerStyle Marker { get; set; } = MarkerStyle.Circle;
+    public MarkerStyle Marker { get; set; } = RestingMarker;
 
     /// <inheritdoc />
     MarkerStyle IHasMarkerStyle.MarkerStyle { get => Marker; set => Marker = value; }
 
     public double MarkerSize { get; set; } = 36;
 
-    public double Alpha { get; set; } = 1.0;
+    /// <summary>Opacity of the markers' fill, 0 (invisible) to 1 (opaque, the default). It replaces the alpha of the colours,
+    /// as matplotlib's <c>alpha</c> does, except for a fully transparent colour (a colour map's bad colour), which stays
+    /// transparent. An edge keeps the colour it was given.</summary>
+    public double Alpha { get; set; } = RestingAlpha;
+
+    private const MarkerStyle RestingMarker = MarkerStyle.Circle;
+    private const double RestingAlpha = 1.0;
 
     public IColorMap? ColorMap { get; set; }
 
@@ -51,7 +57,19 @@ public sealed class ScatterSeries : XYSeries, IColormappable, INormalizable, IHa
     {
         Type = "scatter",
         XData = XData, YData = YData, Color = Color,
-        MarkerSize = MarkerSize
+        MarkerSize = MarkerSize,
+        Marker = Marker.OrNullAtRest(RestingMarker),
+        Alpha = Alpha.OrNullAtRest(RestingAlpha),
+        Sizes = Sizes,
+        Colors = Colors is null ? null : [.. Colors],
+        EdgeColors = EdgeColors is null ? null : [.. EdgeColors],
+        LineWidths = LineWidths,
+        C = C,
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        VMin = VMin,
+        VMax = VMax,
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="ScatterSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -61,12 +79,29 @@ public sealed class ScatterSeries : XYSeries, IColormappable, INormalizable, IHa
     internal static ScatterSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Scatter(dto.XData ?? [], dto.YData ?? []);
-        s.Color = dto.Color;
-        if (dto.MarkerSize.HasValue)
-        {
-            s.MarkerSize = dto.MarkerSize.Value;
-        }
+        s.RestoreFrom(dto);
         return s;
+    }
+
+    /// <summary>Takes every drawn property <see cref="ToSeriesDto"/> writes back from <paramref name="dto"/>; an absent
+    /// one leaves the value the scatter was created with. The one reader of a scatter's fields, whichever axis the
+    /// scatter is on.</summary>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    internal void RestoreFrom(SeriesDto dto)
+    {
+        Color = dto.Color;
+        MarkerSize = dto.MarkerSize ?? MarkerSize;
+        Marker = dto.Marker ?? RestingMarker;
+        Alpha = dto.Alpha ?? RestingAlpha;
+        Sizes = dto.Sizes;
+        Colors = dto.Colors?.ToArray();
+        EdgeColors = dto.EdgeColors?.ToArray();
+        LineWidths = dto.LineWidths;
+        C = dto.C;
+        this.RestoreColorMap(dto);
+        VMin = dto.VMin;
+        VMax = dto.VMax;
+        this.RestoreNormalizer(dto);
     }
 
     /// <inheritdoc />

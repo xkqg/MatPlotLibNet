@@ -144,6 +144,19 @@ public sealed class SvgTransform : FigureTransform, ISvgRenderer
         output.Write(bytes, 0, bytes.Length);
     }
 
+    /// <summary>Writes the figure as an SVG document, applying the settings of <paramref name="options"/> an SVG can
+    /// use: <see cref="SaveOptions.PrettifySvg"/>, <see cref="SaveOptions.SvgDecimalPrecision"/>,
+    /// <see cref="SaveOptions.Title"/> and <see cref="SaveOptions.Author"/>. An SVG has no pixels, so
+    /// <see cref="SaveOptions.Dpi"/> changes nothing. Options that ask for none of the four write the same document
+    /// as <see cref="Transform(Figure, Stream)"/>.</summary>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="SaveOptions.SvgDecimalPrecision"/> is outside 0 to 15.</exception>
+    public override void Transform(Figure figure, Stream output, SaveOptions options)
+    {
+        var svg = Render(figure).WithSaveOptions(options);
+        var bytes = Encoding.UTF8.GetBytes(svg);
+        output.Write(bytes, 0, bytes.Length);
+    }
+
     private static bool HasHyperlink(Figure figure)
     {
         foreach (var axes in figure.SubPlots)

@@ -8,9 +8,13 @@ description: "Build a control-room dashboard in C#: KPI tiles, state timelines a
 > **Install:** `dotnet add package MatPlotLibNet`
 
 Single-panel KPI tiles and horizontal state timelines for operational dashboards,
-fleet status views, and monitoring UIs. Both series types are chartless: they carry
-no axes, just a formatted value or a coloured timeline. Compose them with mosaic or
-subplot layouts.
+fleet status views, and monitoring UIs. A tile draws a formatted value and a timeline
+a row of coloured segments along a time axis. Compose them with mosaic or subplot
+layouts.
+
+A tile is a number, not a chart, but the axes it stands on still draw their frame and
+ticks (0 to 1) unless told otherwise. Call `HideAllAxes()` on a tile's axes, as the
+samples below do; `Plt.OpsDashboard()` does the same for its tiles.
 
 ## Stat tile — single KPI number
 
@@ -20,7 +24,9 @@ beneath it. The tile fills whatever plot region it occupies; use one subplot per
 ```csharp
 // "12 participants" tile — plain integer, no accent color
 Plt.Create()
-    .StatTile(12, t => t.Label = "Participants")
+    .AddSubPlot(1, 1, 1, ax => ax
+        .StatTile(12, t => t.Label = "Participants")
+        .HideAllAxes())
     .Save("tile_participants.svg");
 ```
 
@@ -32,12 +38,14 @@ warning or brand colour:
 // Alert count in red when non-zero
 int alertCount = 3;
 Plt.Create()
-    .StatTile(alertCount, t =>
-    {
-        t.Label       = "Alerts";
-        t.AccentColor = alertCount > 0 ? Colors.Red : null;
-        t.Format      = "0";   // integer, no decimals
-    })
+    .AddSubPlot(1, 1, 1, ax => ax
+        .StatTile(alertCount, t =>
+        {
+            t.Label       = "Alerts";
+            t.AccentColor = alertCount > 0 ? Colors.Red : null;
+            t.Format      = "0";   // integer, no decimals
+        })
+        .HideAllAxes())
     .Save("tile_alerts.svg");
 ```
 
@@ -48,17 +56,17 @@ pattern string becomes a panel:
 
 ```csharp
 Plt.Mosaic("ABC\nDEF")
-    .Panel("A", ax => ax.StatTile(12,       t => { t.Label = "Participants"; t.Format = "0"; }))
-    .Panel("B", ax => ax.StatTile(0,        t => { t.Label = "Alerts";       t.Format = "0"; }))
-    .Panel("C", ax => ax.StatTile(99.4,     t => { t.Label = "Uptime %";     t.Format = "0.0"; }))
-    .Panel("D", ax => ax.StatTile(1_042,    t => { t.Label = "Messages/s";   t.Format = "0"; }))
-    .Panel("E", ax => ax.StatTile(3.7,      t => { t.Label = "Latency ms";   t.Format = "0.0"; }))
+    .Panel("A", ax => ax.StatTile(12,       t => { t.Label = "Participants"; t.Format = "0"; }).HideAllAxes())
+    .Panel("B", ax => ax.StatTile(0,        t => { t.Label = "Alerts";       t.Format = "0"; }).HideAllAxes())
+    .Panel("C", ax => ax.StatTile(99.4,     t => { t.Label = "Uptime %";     t.Format = "0.0"; }).HideAllAxes())
+    .Panel("D", ax => ax.StatTile(1_042,    t => { t.Label = "Messages/s";   t.Format = "0"; }).HideAllAxes())
+    .Panel("E", ax => ax.StatTile(3.7,      t => { t.Label = "Latency ms";   t.Format = "0.0"; }).HideAllAxes())
     .Panel("F", ax => ax.StatTile(2,        t =>
     {
         t.Label       = "Errors";
         t.AccentColor = Colors.Red;
         t.Format      = "0";
-    }))
+    }).HideAllAxes())
     .Configure(fig => fig
         .WithTitle("Fleet Overview")
         .WithTheme(Theme.Dark)
@@ -85,7 +93,8 @@ Plt.Create()
         {
             t.Label  = "Last value";
             t.Format = "0.0";
-        }))
+        })
+        .HideAllAxes())
     .TightLayout()
     .Save("chart_with_tile.svg");
 ```
@@ -206,6 +215,8 @@ void OnPlaybackTick(double seconds)
     playhead!.Value = seconds;
     chartControl.InvalidateVisual();
 }
+
+video.PositionChanged += OnPlaybackTick;   // your player's position, in seconds
 ```
 
 A segment is hit by containing the cursor, edges included; where segments overlap, the one drawn last answers.
@@ -230,8 +241,8 @@ Plt.Mosaic("AAB\nAAC")
     .Panel("A", ax => ax
         .StateTimeline(alarmHistory)
         .WithTitle("Alarm history (minutes)"))
-    .Panel("B", ax => ax.StatTile(2, t => { t.Label = "Alerts today"; t.AccentColor = Colors.Red; t.Format = "0"; }))
-    .Panel("C", ax => ax.StatTile(99.3, t => { t.Label = "Uptime %"; t.Format = "0.0"; }))
+    .Panel("B", ax => ax.StatTile(2, t => { t.Label = "Alerts today"; t.AccentColor = Colors.Red; t.Format = "0"; }).HideAllAxes())
+    .Panel("C", ax => ax.StatTile(99.3, t => { t.Label = "Uptime %"; t.Format = "0.0"; }).HideAllAxes())
     .Configure(fig => fig
         .WithTheme(Theme.Dark)
         .WithSize(900, 400)
@@ -241,7 +252,7 @@ Plt.Mosaic("AAB\nAAC")
 
 ## Full ops dashboard — tiles + timeline + thresholded chart
 
-This mosaic combines all four v1.12.0 dashboard conveniences: a KPI tile row
+This figure combines all four dashboard conveniences: a KPI tile row
 (`StatTileSeries`), a `StateTimelineSeries` for service health, and a line chart that
 uses the `Threshold(...)` convenience. `Threshold(...)` draws a dashed reference line
 and shades the breach, and `WithLegendValues()` makes the legend show the live reading:
@@ -265,11 +276,14 @@ Plt.Create()
     .WithSize(1000, 750)
     .WithGridSpec(3, 3, heightRatios: [1.0, 1.0, 1.6])
     .AddSubPlot(GridPosition.Single(0, 0), ax => ax
-        .StatTile(12, t => { t.Label = "Participants"; t.Format = "0"; }))
+        .StatTile(12, t => { t.Label = "Participants"; t.Format = "0"; })
+        .HideAllAxes())
     .AddSubPlot(GridPosition.Single(0, 1), ax => ax
-        .StatTile(1, t => { t.Label = "Alerts"; t.AccentColor = Colors.Red; t.Format = "0"; }))
+        .StatTile(1, t => { t.Label = "Alerts"; t.AccentColor = Colors.Red; t.Format = "0"; })
+        .HideAllAxes())
     .AddSubPlot(GridPosition.Single(0, 2), ax => ax
-        .StatTile(99.4, t => { t.Label = "Uptime %"; t.Format = "0.0"; }))
+        .StatTile(99.4, t => { t.Label = "Uptime %"; t.Format = "0.0"; })
+        .HideAllAxes())
     .AddSubPlot(new GridPosition(1, 2, 0, 3), ax => ax
         .StateTimeline(serviceHistory, s => s.Label = "API service")
         .WithTitle("Service state — last 24h"))
@@ -488,9 +502,10 @@ Plt.OpsDashboard()
 
 Three things make it a panel an operator can live with:
 
-- **Fix the seed.** A force-directed layout is deterministic only when it is given a seed and an iteration
-  count. Without them the map rearranges itself on every refresh, and an operator who has learned where
-  `payments` sits has to find it again every time.
+- **Choose the seed.** A force-directed layout starts from positions drawn with a seed (`LayoutSeed`, 0 unless
+  you set it) and runs a fixed number of iterations, so the same services and calls draw the same map on every
+  refresh, run after run. Another seed gives another arrangement of the same graph: try a few, keep the one
+  that reads best, and an operator who has learned where `payments` sits finds it there every time.
 - **The coordinates are hidden for you.** The numbers on the axes of a topology mean nothing, so the panel
   draws no ticks, no grid and no spines. That is `AddTopology`'s doing, not yours.
 - **Colour only the sick node.** `ColorScalar` runs through the theme's alarm ramp, so a healthy fleet is a

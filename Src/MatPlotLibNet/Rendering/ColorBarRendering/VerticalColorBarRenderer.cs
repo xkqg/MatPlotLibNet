@@ -12,13 +12,6 @@ namespace MatPlotLibNet.Rendering.ColorBarRendering;
 /// top-to-bottom with max on top, min on bottom; tick labels appear to the
 /// right; the optional label appears further right (rotated 90°).
 /// </summary>
-/// <remarks>
-/// Pure copy of the vertical-orientation block from
-/// <c>AxesRenderer.RenderColorBar</c> (lines 647-709 pre-extraction). Identity
-/// of byte-output is pinned by <c>ColorBarRendererBaselineTests</c> + the
-/// existing AxesRendererCoverageTests suite; the flip-over (B.1.e) verifies
-/// no behavioral change via full test + fidelity run.
-/// </remarks>
 internal sealed class VerticalColorBarRenderer : ColorBarRenderer
 {
     /// <inheritdoc />

@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -33,12 +34,10 @@ internal sealed class SpectrogramSeriesRenderer : SeriesRenderer<SpectrogramSeri
         for (int b = 0; b < nBins; b++)
         for (int f = 0; f < nFrames; f++)
         {
-            var color = cmap.GetColor(norm.Normalize(stft.Magnitudes[b, f], min, max));
+            var color = cmap.ColorOf(stft.Magnitudes[b, f], norm, min, max);
             double t0 = f * dt, t1 = t0 + dt;
             double freq0 = b * df, freq1 = freq0 + df;
-            var tl = Transform.DataToPixel(t0, freq1);
-            var br = Transform.DataToPixel(t1, freq0);
-            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
+            Ctx.DrawRectangle(Rect.FromCorners(Transform.DataToPixel(t0, freq1), Transform.DataToPixel(t1, freq0)), new ShapeStyle(color, null, 0));
         }
     }
 }

@@ -72,7 +72,7 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
         {
             var n = positioned[i];
             double radius = n.SizeScalar * series.NodeRadiusScale;
-            var fill = cmap.GetColor(Math.Clamp(n.ColorScalar, 0.0, 1.0));
+            var fill = cmap.ColorOf(n.ColorScalar, NoNormNormalizer.Instance, 0, 1);
             Ctx.DrawCircle(pixelPositions[i], radius, new ShapeStyle(fill, Colors.Black, 0.5));
 
             if (series.ShowNodeLabels)

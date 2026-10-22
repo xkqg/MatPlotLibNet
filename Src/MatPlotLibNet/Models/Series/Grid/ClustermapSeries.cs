@@ -82,24 +82,25 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
     }
 
     /// <inheritdoc />
-    /// <remarks>Trees (<see cref="RowTree"/>, <see cref="ColumnTree"/>) and <see cref="Normalizer"/>
-    /// are not emitted to the DTO — the same intentional design choice used by all other
-    /// <see cref="INormalizable"/> series in this library. After a round-trip the trees are
-    /// rebuilt as placeholders by <see cref="MatPlotLibNet.Serialization.SeriesRegistry"/> and
-    /// the normalizer is reset to <see langword="null"/>.</remarks>
+    /// <remarks>Trees (<see cref="RowTree"/>, <see cref="ColumnTree"/>) are not emitted to the DTO.
+    /// After a round-trip they are absent, so the rows and columns are drawn in their input order. The
+    /// <see cref="Normalizer"/> is written by kind when it is one of the library's, as for every
+    /// <see cref="INormalizable"/> series.</remarks>
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "clustermap",
         HeatmapData = ChartSerializer.To2DList(Data),
-        ColorMapName = ColorMap?.Name,
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
         ShowLabels = ShowLabels ? true : null,  // null encodes the default (false); round-trip is lossless
         LabelFormat = LabelFormat,
         RowDendrogramWidth = _rowDendrogramWidth != 0.15 ? _rowDendrogramWidth : null,
         ColumnDendrogramHeight = _columnDendrogramHeight != 0.15 ? _columnDendrogramHeight : null,
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="ClustermapSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <remarks>Trees and the normalizer are not serialised — they are rebuilt as placeholders on restore.</remarks>
+    /// <remarks>Trees are not serialised — they are absent after a restore.</remarks>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
@@ -107,10 +108,7 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
     {
         var data = ChartSerializer.From2DList(dto.HeatmapData);
         var s = axes.Clustermap(data.GetLength(0) > 0 ? data : new double[1, 1]);
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
         if (dto.ShowLabels.HasValue)
         {
             s.ShowLabels = dto.ShowLabels.Value;
@@ -127,6 +125,7 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
         {
             s.ColumnDendrogramHeight = dto.ColumnDendrogramHeight.Value;
         }
+        s.RestoreNormalizer(dto);
         return s;
     }
 

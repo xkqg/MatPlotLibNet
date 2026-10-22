@@ -11,10 +11,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Nodes-and-edges-in-2D series. Used for correlation networks (Pearson edge
 /// weights), lead-lag flow (TransferEntropy directed edges), Louvain community
 /// visualisation (node colour = community ID), and minimum spanning trees. Layout is
-/// pluggable via <see cref="GraphLayout"/>; PR 1 of v1.10 ships
-/// <see cref="GraphLayout.Manual"/>, <see cref="GraphLayout.Circular"/>, and
-/// <see cref="GraphLayout.Hierarchical"/>; <see cref="GraphLayout.ForceDirected"/>
-/// is reserved for PR 2.</summary>
+/// pluggable via <see cref="GraphLayout"/>: <see cref="GraphLayout.Manual"/> keeps the
+/// coordinates of the nodes, and <see cref="GraphLayout.Circular"/>,
+/// <see cref="GraphLayout.Hierarchical"/> and <see cref="GraphLayout.ForceDirected"/> place them.</summary>
 /// <remarks>The model carries node + edge data and presentation knobs; layout
 /// computation lives in <c>NetworkGraphLayouts</c> and rendering in
 /// <c>NetworkGraphSeriesRenderer</c>. <see cref="ColorMap"/> maps each node's
@@ -31,8 +30,8 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
     public IReadOnlyList<GraphEdge> Edges { get; }
 
     /// <summary>Layout algorithm. Default <see cref="GraphLayout.Circular"/> — sensible
-    /// auto-placement that ignores edges. PR 2 may switch the default to
-    /// <see cref="GraphLayout.ForceDirected"/> once that layout is active.</summary>
+    /// auto-placement that ignores edges. <see cref="GraphLayout.ForceDirected"/> places connected
+    /// nodes closer together.</summary>
     public GraphLayout Layout { get; set; } = GraphLayout.Circular;
 
     /// <inheritdoc cref="IColormappable.ColorMap"/>
@@ -111,14 +110,15 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
     }
 
     /// <inheritdoc />
-    /// <remarks>Default-suppression mirrors other series in the v1.10 pack — only
+    /// <remarks>Default-suppression mirrors the other series — only
     /// non-default values are emitted to keep persisted JSON tight.</remarks>
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "networkgraph",
         GraphNodes = ChartSerializer.ToGraphNodeDtos(Nodes),
         GraphEdges = ChartSerializer.ToGraphEdgeDtos(Edges),
-        ColorMapName = ColorMap?.Name,
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
         NetworkGraphLayout             = Layout != GraphLayout.Circular ? Layout.ToString() : null,
         NetworkGraphShowNodeLabels     = !ShowNodeLabels ? false : null,
         NetworkGraphShowEdgeWeights    = ShowEdgeWeights ? true  : null,
@@ -138,10 +138,7 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
         var nodes = ChartSerializer.FromGraphNodeDtos(dto.GraphNodes);
         var edges = ChartSerializer.FromGraphEdgeDtos(dto.GraphEdges);
         var s = axes.NetworkGraph(nodes, edges);
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
         if (dto.NetworkGraphLayout is not null
             && Enum.TryParse<Models.Series.GraphLayout>(dto.NetworkGraphLayout, true, out var lay))
         {

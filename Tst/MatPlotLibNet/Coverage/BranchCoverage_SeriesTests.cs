@@ -838,22 +838,20 @@ public class BranchCoverage_SeriesTests
         Assert.Equal(0, range.YMax);
     }
 
-    /// <summary>StackedAreaSeries.ComputeDataRange L64 — `if (yMax == double.MinValue) yMax = 1;`
-    /// TRUE arm. A single Zero-baseline layer's `bot` is always the constant 0 (see
-    /// <c>StackedBaselineExtensions.ComputeZero</c>), so `yMin` always updates away from its
-    /// <see cref="double.MaxValue"/> sentinel on the very first point — L63's true arm is
-    /// consequently unreachable given the X.Length/YSets.Length guard above it and is not
-    /// chased here. `top`, however, is `bot + y`, so an all-NaN layer keeps every
-    /// `top &gt; yMax` comparison false (NaN comparisons are always false) and `yMax` never
-    /// leaves its <see cref="double.MinValue"/> sentinel, hitting this arm.</summary>
+    /// <summary>StackedAreaSeries.ComputeDataRange — a layer with no drawable value has no top to reach: the range takes
+    /// the drawable layer edges only, so an all-NaN layer adds no top of its own (it used to report the sentinel 1, a top
+    /// nothing was drawn at). A single Zero-baseline layer's `bot` is the constant 0 (see
+    /// <c>StackedBaselineExtensions.ComputeZero</c>), the one edge left, so the range is 0 to 0, as matplotlib's data
+    /// limits keep the finite baseline of a fill whose top is missing.</summary>
     [Fact]
-    public void StackedAreaSeries_AllNaNLayer_YMaxStaysAtDefault()
+    public void StackedAreaSeries_AllNaNLayer_ContributesNoTopOfItsOwn()
     {
         var s = new StackedAreaSeries(
             x: [1.0, 2.0],
             ySets: [[double.NaN, double.NaN]]);
         var dr = s.ComputeDataRange(new TestCtx());
-        Assert.Equal(1, dr.YMax);
+        Assert.Equal(0, dr.YMax);
+        Assert.Equal(0, dr.YMin);
     }
 
     private sealed class TestCtx : IAxesContext

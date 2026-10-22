@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Styling;
 
 /// <summary>Specifies the orientation of a color bar.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum ColorBarOrientation
 {
     /// <summary>The color bar is drawn vertically alongside the plot area (default).</summary>

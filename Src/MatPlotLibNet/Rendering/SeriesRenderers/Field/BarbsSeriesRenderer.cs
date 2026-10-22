@@ -31,6 +31,8 @@ internal sealed class BarbsSeriesRenderer : SeriesRenderer<BarbsSeries>
 
             var origin = Transform.DataToPixel(series.X[i], series.Y[i]);
             var tip = new Point(origin.X + dx * staffLen, origin.Y - dy * staffLen);
+            // A barb at a position or in a direction that cannot be placed is skipped with its flags and barbs.
+            if (!origin.CanDrawLineTo(tip)) continue;
 
             // Draw staff
             Ctx.DrawLine(origin, tip, new StrokeStyle(color, 1.5, Styling.LineStyle.Solid));

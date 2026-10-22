@@ -77,9 +77,8 @@
     // and which have children (non-leaves — clicking these toggles their children).
     // Also build parentOf[id] so applyVisibility can walk ancestors transitively —
     // collapsing an interior node must hide its ENTIRE subtree, not just its direct
-    // children (Phase W follow-up, 2026-04-19 — exposed by the Playwright T4 repro:
-    // clicking root collapsed depth-1 but depth-2+ stayed visible because their own
-    // parent's expanded flag was still true).
+    // children (clicking root would otherwise collapse depth-1 while depth-2+ stayed
+    // visible, because their own parent's expanded flag is still true).
     var hasChildren = {};
     var parentOf = {};
     all.forEach(function(el) {
@@ -91,16 +90,13 @@
         if (parentOf[id] === undefined) parentOf[id] = p;
     });
 
-    // Expansion state keyed by node id. Phase W follow-up (2026-04-19, "steady
-    // pictures"): start with EVERY parent expanded so the initial interactive
-    // render is pixel-identical to the static SVG ("user sees all" in both
-    // modes — z-order means deeper labels paint over shallower ones, so the
-    // visible label in any region is always the deepest one). Click then
+    // Expansion state keyed by node id. Start with EVERY parent expanded so the
+    // initial interactive render is pixel-identical to the static SVG ("user sees
+    // all" in both modes — z-order means deeper labels paint over shallower ones, so
+    // the visible label in any region is always the deepest one). Click then
     // becomes opt-in collapse: the user hides a subtree to focus, rather than
     // having to expand to discover content. No visual jump on first paint;
-    // movement only when the user explicitly clicks. Regressions:
-    //   TreemapDrilldownTests.RootRect_IsVisible_OnInitialState
-    //   TreemapDrilldownTests.InitialState_AllParentsExpanded
+    // movement only when the user explicitly clicks.
     var expanded = { '': true };
     all.forEach(function(el) {
         var id = el.getAttribute('data-treemap-node');
@@ -111,8 +107,8 @@
     // is in expanded[]. Walking ancestors makes hide transitive: collapsing root
     // hides depth-1, depth-2 and depth-3 in one shot. Cost: O(depth) per element
     // per applyVisibility(); trivial for any real treemap (depth typically < 10).
-    // Pre-fix the script only checked the immediate parent, leaving depth-2+
-    // visible after collapsing a depth-1 ancestor (Playwright T4 regression).
+    // Checking only the immediate parent would leave depth-2+ visible after
+    // collapsing a depth-1 ancestor.
     function isAncestryOpen(id) {
         var p = parentOf[id];
         while (p !== undefined && p !== '') {
@@ -130,8 +126,8 @@
     applyVisibility();
 
     // Style: parents (nodes that have children) get a pointer cursor on BOTH the
-    // rect AND the label text — pre-fix only the rect did, so the cursor reverted
-    // to default the moment the user moved over the parent's label, making the
+    // rect AND the label text — on the rect alone the cursor would revert to
+    // default the moment the user moved over the parent's label, making the
     // tile look unclickable mid-hover. Leaves get the default cursor either way.
     all.forEach(function(el) {
         var id = el.getAttribute('data-treemap-node');
@@ -150,8 +146,6 @@
     // with no button held) would latch pointerMoved=true on the very first
     // mouse motion across the chart, then the click handler's
     // `if (pointerMoved) return;` would suppress every subsequent click.
-    // Regression test: TreemapDrilldownTests.HoverWithoutButtonDown_DoesNotPoisonClickHandler
-    // (bug shipped in v1.7.2 / Phase P, surfaced 2026-04-19).
     var pointerDownX = 0, pointerDownY = 0, pointerMoved = false, isPointerDown = false;
     svg.addEventListener('pointerdown', function(e) {
         pointerDownX = e.clientX; pointerDownY = e.clientY;
@@ -165,9 +159,8 @@
     svg.addEventListener('pointerup', function(e) { isPointerDown = false; }, true);
     svg.addEventListener('pointercancel', function(e) { isPointerDown = false; }, true);
 
-    // Walk-up-from-target — avoids depending on Element.closest() or
-    // document.elementFromPoint(), which the Jint test harness doesn't stub.
-    // Works identically in the browser (standard parentNode traversal).
+    // Walk-up-from-target — needs only standard parentNode traversal, so it does
+    // not depend on Element.closest() being available in the embedding environment.
     function findTreemapNode(el) {
         while (el) {
             if (el.getAttribute && el.getAttribute('data-treemap-node')) return el;
@@ -183,8 +176,6 @@
     //      when no setPointerCapture is in flight, or when capture is on a child).
     //   2. Fallback: hit-test (clientX, clientY) via document.elementFromPoint —
     //      recovers the real rect when capture redirected the target to <svg>.
-    // Regression tests: TreemapDrilldownTests.HoverWithoutButtonDown_…
-    //                  TreemapDrilldownTests.Click_RedirectedToSvgRoot_FallsBackTo_…
     svg.addEventListener('click', function(e) {
         if (pointerMoved) return;
         var target = findTreemapNode(e.target);

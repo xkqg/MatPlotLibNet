@@ -19,6 +19,12 @@ internal sealed class BubbleSeriesRenderer : SeriesRenderer<BubbleSeries>
         var fill = ApplyAlpha(color, series.Alpha);
         var pts = Transform.TransformBatch(series.XData, series.YData);
         for (int i = 0; i < pts.Length; i++)
-            Ctx.DrawCircle(pts[i], Math.Sqrt(series.Sizes[i]) / 2, new ShapeStyle(fill, color, 1));
+        {
+            // A bubble at a point the axes cannot place, or whose size is no area (missing, infinite, negative), is not
+            // drawn: the scatter's rule (matplotlib masks x, y and s together).
+            double radius = Math.Sqrt(series.Sizes[i]) / 2;
+            if (!pts[i].IsDrawable() || !radius.IsDrawable()) continue;
+            Ctx.DrawCircle(pts[i], radius, new ShapeStyle(fill, color, 1));
+        }
     }
 }

@@ -8,7 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a count plot series that draws a bar chart from the frequency of raw categorical values.</summary>
-public sealed class CountSeries : ChartSeries, ICategoryLabeled, IHasColor
+public sealed class CountSeries : ChartSeries, ICategoryLabeled, IHasColor, IHasBarOrientation
 {
     public string[] Values { get; }
 
@@ -33,12 +33,20 @@ public sealed class CountSeries : ChartSeries, ICategoryLabeled, IHasColor
         => Values.GroupBy(v => v).ToDictionary(g => g.Key, g => g.Count());
 
     /// <inheritdoc />
+    /// <remarks>Measured as upright bars measure it and put on the axes the <see cref="Orientation"/> stands the bars on
+    /// (<see cref="BarOrientationExtensions.OnAxes"/>): a count plot that lies down ranges its categories along Y and its
+    /// counts along X.</remarks>
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (Values.Length == 0) return new(0, 1, 0, 1);
-        int maxCount = Values.GroupBy(v => v).Max(g => g.Count());
-        int catCount = Values.Distinct().Count();
-        return new(-0.5, catCount - 0.5, 0, maxCount, StickyXMin: -0.5, StickyXMax: catCount - 0.5);
+        double[] counts = [.. Values.GroupBy(v => v).Select(g => (double)g.Count())];
+        // The counts the bars reach and the zero they stand on, over what the value axis can place: on a log axis, which
+        // has no place for zero, from the lowest count. Every category holds at least one value, so the counts have a range.
+        var scale = Orientation.ValueScale(context);
+        var y = counts.DrawableRange(scale)!.Value.Including(0, scale);
+        // The slots of the categories, sticky at both ends: the bars stand centred in them (CategorySlot).
+        double first = CategorySlot.Of(0).Left, last = CategorySlot.Of(counts.Length - 1).Right;
+        return new DataRangeContribution(first, last, y.Lo, y.Hi, StickyXMin: first, StickyXMax: last).OnAxes(Orientation);
     }
 
     /// <inheritdoc />

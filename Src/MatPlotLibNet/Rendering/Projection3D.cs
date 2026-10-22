@@ -54,7 +54,8 @@ public sealed class Projection3D
     /// <summary>Camera distance for perspective projection. Null = orthographic. Clamped to minimum 2.0.</summary>
     public double? Distance => _distance;
 
-    /// <summary>The data box this projection maps — the same <c>(xMin…zMax)</c> the constructor received.</summary>
+    /// <summary>The data box this projection maps — the <c>(xMin…zMax)</c> the constructor received, with an axis of no
+    /// width widened by half a unit on each side.</summary>
     public Box3D DataBox { get; }
 
     /// <summary>
@@ -74,10 +75,21 @@ public sealed class Projection3D
     /// <param name="zMin">Minimum Z data value.</param>
     /// <param name="zMax">Maximum Z data value.</param>
     /// <param name="distance">Camera distance (persp focal length). Null = orthographic with dist=10.</param>
+    /// <remarks>An axis whose range has no width (one point, a constant column) places its values in the middle of the
+    /// box: the range is widened by half a unit on each side, the rule every 2-D axis follows
+    /// (<see cref="Range1D.Normalized"/>), and <see cref="DataBox"/> holds the widened range. Fitting the box to eight
+    /// corners that coincide would divide by zero.</remarks>
     public Projection3D(double elevation, double azimuth, Rect plotBounds,
         double xMin, double xMax, double yMin, double yMax, double zMin, double zMax,
         double? distance = null)
     {
+        var xRange = new Range1D(xMin, xMax).Normalized();
+        var yRange = new Range1D(yMin, yMax).Normalized();
+        var zRange = new Range1D(zMin, zMax).Normalized();
+        xMin = xRange.Lo; xMax = xRange.Hi;
+        yMin = yRange.Lo; yMax = yRange.Hi;
+        zMin = zRange.Lo; zMax = zRange.Hi;
+
         Elevation = elevation;
         Azimuth = azimuth;
         _plotBounds = plotBounds;

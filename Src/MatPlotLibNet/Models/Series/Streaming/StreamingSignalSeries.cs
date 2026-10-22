@@ -125,14 +125,9 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
             return new(null, null, null, null);
         }
 
-        double yMin = samples[0].Y, yMax = samples[0].Y;
-        for (int i = 1; i < samples.Length; i++)
-        {
-            yMin = Math.Min(yMin, samples[i].Y);
-            yMax = Math.Max(yMax, samples[i].Y);
-        }
-
-        return new(XOf(samples[0].Ordinal), XOf(samples[^1].Ordinal), yMin, yMax);
+        // Over the drawable samples only: a missing sample (NaN) and an infinity are left out.
+        var y = samples.Aggregate(Range1D.Empty, static (range, sample) => range.Including(sample.Y)).OrNone();
+        return new(XOf(samples[0].Ordinal), XOf(samples[^1].Ordinal), y?.Lo, y?.Hi);
     }
 
     /// <inheritdoc />

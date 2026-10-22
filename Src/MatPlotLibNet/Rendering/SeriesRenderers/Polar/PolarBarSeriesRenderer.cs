@@ -18,7 +18,7 @@ internal sealed class PolarBarSeriesRenderer : SeriesRenderer<PolarBarSeries>
         var baseColor = ResolveColor(series.Color);
         var fillColor = ApplyAlpha(baseColor, series.Alpha);
         var bounds = Area.PlotBounds;
-        double rMax = series.R.Length > 0 ? series.R.Max() * 1.1 : 1;
+        double rMax = series.R.DrawableRange() is { } radii ? radii.Hi * 1.1 : 1;
         var transform = new PolarTransform(bounds, rMax);
 
         double halfWidth = series.BarWidth / 2;
@@ -46,6 +46,8 @@ internal sealed class PolarBarSeriesRenderer : SeriesRenderer<PolarBarSeries>
                 pts.Add(transform.PolarToPixel(0, a));
             }
 
+            // A bar at a radius or an angle that cannot be placed is skipped whole, as a cartesian bar is.
+            if (!pts.IsDrawable()) continue;
             Ctx.DrawPolygon(pts, new ShapeStyle(fillColor, baseColor, 0.5));
         }
     }

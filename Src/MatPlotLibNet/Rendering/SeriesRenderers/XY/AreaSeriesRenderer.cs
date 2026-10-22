@@ -23,8 +23,29 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
         int n = data.X.Length;
         if (n == 0) return;
 
+        // A gap splits the area, as matplotlib's fill_between masks an invalid point: each unbroken run is filled and
+        // outlined on its own. The top is data, so a top the axes cannot place (a missing value, NaN, an infinity, 0 or
+        // below on a log axis) is a gap, as it is in a line. The lower edge is what the area stands on: a missing one is a
+        // gap too, but one the axis cannot place (0 on a log axis) is clipped to the edge where the axis begins, as
+        // matplotlib clips it. Without a gap the one run is the whole area, drawn from the very arrays given. A lower
+        // edge of another length than the data does not pair with it point by point and is handed on whole, as before.
+        double[]? bottom = series.YData2;
+        double[]? pairedBottom = bottom is { } b && b.Length == n ? b : null;
+        double[] px = Transform.TransformX(data.X);
+        double[] py = Transform.TransformY(data.Y);
+        double[]? pyBottom = pairedBottom is null ? null : Transform.TransformYClipped(pairedBottom);
+        foreach (var run in px.DrawableIndexRuns(py, pyBottom))
+        {
+            RenderRun(series, data.X.Slice(run), data.Y.Slice(run), pairedBottom?.Slice(run) ?? bottom, fillColor, color);
+        }
+    }
+
+    /// <summary>Renders one unbroken run of the area: its fill down to <paramref name="bottom"/> (or the zero baseline)
+    /// and its top edge.</summary>
+    private void RenderRun(AreaSeries series, double[] x, double[] y, double[]? bottom, Color fillColor, Color color)
+    {
         // Apply step interpolation to the top edge if requested
-        var top = DrawStyleInterpolation.Apply(data.X, data.Y, series.StepMode);
+        var top = DrawStyleInterpolation.Apply(x, y, series.StepMode);
 
         // Apply monotone-cubic smoothing to the top edge if requested
         if (series.Smooth && top.X.Length >= 3)
@@ -36,7 +57,7 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
         // When a Where predicate is set, split into contiguous runs of included points
         if (series.Where is not null)
         {
-            RenderWithWhere(series, top, fillColor, color);
+            RenderWithWhere(series, top, bottom, fillColor, color);
             return;
         }
 
@@ -46,28 +67,20 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
         var polygon = new List<Point>(topPts.Length * 2);
         polygon.AddRange(topPts);
 
-        if (series.YData2 is not null)
-        {
-            var bot = DrawStyleInterpolation.Apply(data.X, series.YData2, series.StepMode);
-            var botPxX = Transform.TransformX(bot.X);
-            var botPxY = Transform.TransformY(bot.Y);
-            for (int i = bot.X.Length - 1; i >= 0; i--) polygon.Add(new Point(botPxX[i], botPxY[i]));
-        }
-        else
-        {
-            double pyZero = Transform.TransformY([0.0])[0];
-            for (int i = pxX.Length - 1; i >= 0; i--) polygon.Add(new Point(pxX[i], pyZero));
-        }
+        AddLowerEdge(polygon, series, x, bottom, pxX);
 
         Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0) { Hatch = series.Hatch, HatchColor = series.HatchColor });
 
-        // Draw boundary with EdgeColor override if set
-        var edgeColor = series.EdgeColor ?? color;
-        Ctx.DrawLines(new List<Point>(topPts), new StrokeStyle(edgeColor, series.LineWidth, series.LineStyle));
+        DrawPolyline(topPts, Outline(series, color));
     }
 
+    /// <summary>The stroke of the area's top edge: the <see cref="AreaSeries.EdgeColor"/> when set, otherwise the area's
+    /// colour; the dash pattern and width the series names, otherwise its slot's.</summary>
+    private StrokeStyle Outline(AreaSeries series, Color color) =>
+        Slot.StrokeOf(series.EdgeColor ?? color, series.LineWidth, series.LineStyle);
+
     /// <summary>Renders the area with a Where predicate, splitting into contiguous fill segments.</summary>
-    private void RenderWithWhere(AreaSeries series, XYData top, Color fillColor, Color color)
+    private void RenderWithWhere(AreaSeries series, XYData top, double[]? bottom, Color fillColor, Color color)
     {
         var where = series.Where!;
         int len = top.X.Length;
@@ -88,19 +101,18 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
             }
             else if (!included && runStart >= 0)
             {
-                RenderSegment(series, top, runStart, i - 1, fillColor, color);
+                RenderSegment(series, top, runStart, i - 1, bottom, fillColor);
                 runStart = -1;
             }
         }
 
-        // Always draw the full top-edge line (unmasked) so the boundary is continuous
+        // Always draw the full top-edge line (unmasked by the predicate) so the boundary is continuous
         var allTopPts = Transform.TransformBatch(top.X, top.Y);
-        var edgeColor = series.EdgeColor ?? color;
-        Ctx.DrawLines(new List<Point>(allTopPts), new StrokeStyle(edgeColor, series.LineWidth, series.LineStyle));
+        DrawPolyline(allTopPts, Outline(series, color));
     }
 
     /// <summary>Renders a single contiguous fill segment from index <paramref name="start"/> to <paramref name="end"/> (inclusive).</summary>
-    private void RenderSegment(AreaSeries series, XYData top, int start, int end, Color fillColor, Color color)
+    private void RenderSegment(AreaSeries series, XYData top, int start, int end, double[]? bottom, Color fillColor)
     {
         int count = end - start + 1;
         var segX = top.X[start..(end + 1)];
@@ -111,22 +123,29 @@ internal sealed class AreaSeriesRenderer : SeriesRenderer<AreaSeries>
         var polygon = new List<Point>(count * 2);
         polygon.AddRange(topPts);
 
-        if (series.YData2 is not null)
-        {
-            // Use corresponding segment of YData2 (may need resampling if step-interpolated)
-            var segY2 = series.YData2.Length > end ? series.YData2[start..(end + 1)] : series.YData2;
-            var bot = DrawStyleInterpolation.Apply(segX, segY2, series.StepMode);
-            var botPxX = Transform.TransformX(bot.X);
-            var botPxY = Transform.TransformY(bot.Y);
-            for (int i = bot.X.Length - 1; i >= 0; i--) polygon.Add(new Point(botPxX[i], botPxY[i]));
-        }
-        else
-        {
-            double pyZero = Transform.TransformY([0.0])[0];
-            for (int i = pxX.Length - 1; i >= 0; i--) polygon.Add(new Point(pxX[i], pyZero));
-        }
+        // Use corresponding segment of the lower edge (may need resampling if step-interpolated)
+        AddLowerEdge(polygon, series, segX, bottom is not null && bottom.Length > end ? bottom[start..(end + 1)] : bottom, pxX);
 
         Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0) { Hatch = series.Hatch, HatchColor = series.HatchColor });
     }
 
+    /// <summary>Closes <paramref name="polygon"/> along the lower edge the area stands on, right to left:
+    /// <paramref name="bottom"/> (stepped as the top is), or the zero baseline under the top's own pixel X
+    /// (<paramref name="topPxX"/>) when there is none. A lower edge the axis cannot place is clipped to the edge where the
+    /// axis begins (<see cref="DataTransform.TransformYClipped"/>).</summary>
+    private void AddLowerEdge(List<Point> polygon, AreaSeries series, double[] x, double[]? bottom, double[] topPxX)
+    {
+        if (bottom is not null)
+        {
+            var bot = DrawStyleInterpolation.Apply(x, bottom, series.StepMode);
+            var botPxX = Transform.TransformX(bot.X);
+            var botPxY = Transform.TransformYClipped(bot.Y);
+            for (int i = bot.X.Length - 1; i >= 0; i--) polygon.Add(new Point(botPxX[i], botPxY[i]));
+        }
+        else
+        {
+            double pyZero = Transform.TransformYClipped([0.0])[0];
+            for (int i = topPxX.Length - 1; i >= 0; i--) polygon.Add(new Point(topPxX[i], pyZero));
+        }
+    }
 }

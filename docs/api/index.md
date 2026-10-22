@@ -11,26 +11,27 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | `Plt` | Static entry point — `Plt.Create()` starts the fluent builder |
 | `FigureBuilder` | Top-level builder: title, theme, size, subplots, export |
 | `AxesBuilder` | Per-subplot builder: series, labels, legends, ticks, camera |
+| `CategoricalAxesExtensions`, `DistributionAxesExtensions`, `XYAxesExtensions`, `GridAxesExtensions` | 15 chart verbs on `AxesBuilder` that draw a whole chart from your data in one call, such as `Pareto`, `Ridgeline`, `CalendarHeatmap`, `KaplanMeier` and `BumpChart`. Each is built from series the library already has, so it adds no series type and goes through JSON as those series |
 | `Figure` | Immutable chart model — the output of `.Build()` |
 | `ChartSeries` | Abstract base for all 83 series types |
 | `ChartDataTable` | The figure's data as a table — `figure.ToDataTables()`, then `ToHtml()` / `ToMarkdown()` / `ToCsv()` |
 | `ChartDataColumn` | One column: its header, its `DataColumnKind` (Number/Date/Text) and the `DataAxis` its values are positions on |
 | `Theme` | Theme presets and custom theme builder |
-| `ColorMaps` | 104 colormap presets |
+| `ColorMaps` | Nine named colormaps, and `Get(name)` for any of the 148 colormaps registered by name |
 
 ## Package namespaces
 
 | Namespace | Package | Notes |
 |---|---|---|
-| `MatPlotLibNet` | Core | `Plt`, `FigureBuilder`, `AxesBuilder`, all 83 series types |
+| `MatPlotLibNet` | Core | `Plt`, `FigureBuilder`, `AxesBuilder`, all 83 series types, the 15 chart verbs and the types they take (`BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`) |
 | `MatPlotLibNet.Models` | Core | Chart model types (`Figure`, `Axes`, etc.) |
 | `MatPlotLibNet.Rendering` | Core | SVG render pipeline |
 | `MatPlotLibNet.Styling` | Core | Themes, colors, colormaps |
 | `MatPlotLibNet.Numerics` | Core | `Vec`, `Mat`, SIMD math |
 | `MatPlotLibNet.Interaction` | Core | Managed interaction modifiers + events |
 | `MatPlotLibNet.Animation` | Core | `IAnimation<TState>`, `AnimationController` |
-| `MatPlotLibNet.Skia` | `MatPlotLibNet.Skia` | PNG/PDF/JPEG export via SkiaSharp |
-| `MatPlotLibNet.Geo` | `MatPlotLibNet.Geo` | 11 geographic projections + GeoJSON loaders |
+| `MatPlotLibNet.Skia` | `MatPlotLibNet.Skia` | PNG, PDF and GIF export via SkiaSharp |
+| `MatPlotLibNet.Geo` | `MatPlotLibNet.Geo` | 13 map projections + GeoJSON loaders |
 | `MatPlotLibNet.DataFrame` | `MatPlotLibNet.DataFrame` | `Microsoft.Data.Analysis` extensions |
 | `MatPlotLibNet.AspNetCore` | `MatPlotLibNet.AspNetCore` | SignalR hub + REST endpoints |
 | `MatPlotLibNet.Interactive` | `MatPlotLibNet.Interactive` | Embedded Kestrel server + `Show()` extension |

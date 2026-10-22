@@ -48,12 +48,17 @@ internal sealed class CartesianToolsPart : CartesianAxesPart
                 p2 = Transform.DataToPixel(t.X2, t.Y2);
             }
 
-            Ctx.DrawLine(p1, p2, new StrokeStyle(color, t.LineWidth, t.LineStyle));
+            // A trendline with an end the axes cannot place is skipped with its label. A trendline takes no part in the
+            // range the axes draw, so it is cut to the plot area, as matplotlib clips a line to the axes: one wholly outside
+            // draws nothing, and its label stands at the end that is drawn.
+            if (!p1.CanDrawLineTo(p2)) continue;
+            if (new LineSegment(p1, p2).ClippedTo(PlotArea) is not { } drawn) continue;
+            Ctx.DrawLine(drawn.From, drawn.To, new StrokeStyle(color, t.LineWidth, t.LineStyle));
 
             if (t.Label is not null)
             {
                 var font = labelFont with { Color = color };
-                Ctx.DrawText(t.Label, p2, font, TextAlignment.Left);
+                Ctx.DrawText(t.Label, drawn.To, font, TextAlignment.Left);
             }
         }
     }
@@ -65,14 +70,15 @@ internal sealed class CartesianToolsPart : CartesianAxesPart
         {
             var color = l.Color ?? Colors.Gray;
             var pt = Transform.DataToPixel(0, l.Value);
-            var p1 = new Point(PlotArea.X, pt.Y);
-            var p2 = new Point(PlotArea.X + PlotArea.Width, pt.Y);
-            Ctx.DrawLine(p1, p2, new StrokeStyle(color, l.LineWidth, l.LineStyle));
+            // A level the Y axis cannot place is skipped with its label; only its height decides, it spans the plot. The
+            // automatic range holds every level; one beyond a limit the caller set lies outside the plot and is not drawn.
+            if (!pt.Y.IsDrawable() || PlotArea.HorizontalAcross(pt.Y) is not { } across) continue;
+            Ctx.DrawLine(across.From, across.To, new StrokeStyle(color, l.LineWidth, l.LineStyle));
 
             if (l.Label is not null)
             {
                 var font = labelFont with { Color = color };
-                Ctx.DrawText(l.Label, new Point(p2.X, pt.Y - 2), font, TextAlignment.Right);
+                Ctx.DrawText(l.Label, new Point(across.To.X, pt.Y - 2), font, TextAlignment.Right);
             }
         }
     }
@@ -86,15 +92,16 @@ internal sealed class CartesianToolsPart : CartesianAxesPart
             foreach (var level in fib.Levels)
             {
                 var pt = Transform.DataToPixel(0, level.Price);
-                var p1 = new Point(PlotArea.X, pt.Y);
-                var p2 = new Point(PlotArea.X + PlotArea.Width, pt.Y);
-                Ctx.DrawLine(p1, p2, new StrokeStyle(color, fib.LineWidth, LineStyle.Dashed));
+                // A retracement level at a price the Y axis cannot place is skipped with its label, and so is one beyond a
+                // limit the caller set, which lies outside the plot (the automatic range holds every level).
+                if (!pt.Y.IsDrawable() || PlotArea.HorizontalAcross(pt.Y) is not { } across) continue;
+                Ctx.DrawLine(across.From, across.To, new StrokeStyle(color, fib.LineWidth, LineStyle.Dashed));
 
                 if (fib.ShowLabels)
                 {
                     string pct = $"{level.Ratio * 100:0.#}%  {level.Price:0.##}";
                     var font = labelFont with { Color = color };
-                    Ctx.DrawText(pct, new Point(p2.X - 2, pt.Y - 2), font, TextAlignment.Right);
+                    Ctx.DrawText(pct, new Point(across.To.X - 2, pt.Y - 2), font, TextAlignment.Right);
                 }
             }
         }

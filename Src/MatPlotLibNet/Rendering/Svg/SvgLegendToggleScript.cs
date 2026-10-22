@@ -12,7 +12,7 @@ internal static class SvgLegendToggleScript
         <script type="text/ecmascript"><![CDATA[
         (function() {
             'use strict';
-            // Per-chart isolation (Phase 2): find THIS script's owning <svg> via
+            // Per-chart isolation: find THIS script's owning <svg> via
             // document.currentScript.parentNode so multi-chart pages don't cross-talk.
             // Fallback to document.querySelector('svg') only for inline-runner environments
             // where currentScript is unavailable (e.g. some test hosts).
@@ -37,14 +37,13 @@ internal static class SvgLegendToggleScript
                     item.setAttribute('aria-pressed', hidden ? 'false' : 'true');
                 }
 
-                // Phase S — toggle fires ONLY on a real click (full press-and-release without
-                // drag). Pre-fix the script also fired toggle on pointerdown which (a) hid the
-                // series the instant the user pressed (single-series charts visibly emptied —
-                // user-reported "plot disappears" bug, 2026-04-19) and (b) made drag-to-reposition
-                // mechanically impossible because the data vanished before drag could engage. The
-                // companion SvgLegendDragScript suppresses the synthetic click that follows a
-                // real drag via capture-phase stopPropagation, so toggle-on-click coexists cleanly
-                // with drag.
+                // Toggle fires ONLY on a real click (full press-and-release without drag). Firing
+                // on pointerdown would (a) hide the series the instant the user pressed (a
+                // single-series chart would visibly empty) and (b) make drag-to-reposition
+                // mechanically impossible because the data would vanish before the drag could
+                // engage. The companion legend-drag script suppresses the synthetic click that
+                // follows a real drag via capture-phase stopPropagation, so toggle-on-click
+                // coexists cleanly with drag.
                 item.addEventListener('click', function() { toggle(); });
                 item.addEventListener('keydown', function(e) {
                     if (e.key === 'Enter' || e.key === ' ') { toggle(); e.preventDefault(); }

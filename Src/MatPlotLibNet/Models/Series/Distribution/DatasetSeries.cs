@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
+
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Abstract base for series that operate on multiple datasets (one per category).
@@ -38,8 +40,8 @@ public abstract class DatasetSeries : ChartSeries
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (Datasets.Length == 0) return new(0, 1, 0, 1);
-        double yMin = Datasets.SelectMany(d => d).DefaultIfEmpty(0).Min();
-        double yMax = Datasets.SelectMany(d => d).DefaultIfEmpty(1).Max();
-        return new(-0.5, Datasets.Length - 0.5, yMin, yMax);
+        // Over the drawable samples only (a missing sample is NaN); 0..1 when there is none, as for no sample at all.
+        var y = Datasets.DrawableRange() ?? new Range1D(0, 1);
+        return new(-0.5, Datasets.Length - 0.5, y.Lo, y.Hi);
     }
 }

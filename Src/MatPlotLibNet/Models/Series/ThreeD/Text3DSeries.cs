@@ -33,21 +33,11 @@ public sealed class Text3DSeries : ChartSeries, IHasColor
     {
         if (Annotations.Count == 0) return new(null, null, null, null);
 
-        double xMin = double.MaxValue, xMax = double.MinValue;
-        double yMin = double.MaxValue, yMax = double.MinValue;
-        double zMin = double.MaxValue, zMax = double.MinValue;
-
-        foreach (var a in Annotations)
-        {
-            if (a.X < xMin) xMin = a.X;
-            if (a.X > xMax) xMax = a.X;
-            if (a.Y < yMin) yMin = a.Y;
-            if (a.Y > yMax) yMax = a.Y;
-            if (a.Z < zMin) zMin = a.Z;
-            if (a.Z > zMax) zMax = a.Z;
-        }
-
-        return new(xMin, xMax, yMin, yMax, ZMin: zMin, ZMax: zMax);
+        // Over the drawable coordinates only: a missing one (NaN) and an infinity are left out.
+        var x = Annotations.Select(a => a.X).ToArray().DrawableRange();
+        var y = Annotations.Select(a => a.Y).ToArray().DrawableRange();
+        var z = Annotations.Select(a => a.Z).ToArray().DrawableRange();
+        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi, ZMin: z?.Lo, ZMax: z?.Hi);
     }
 
     /// <inheritdoc />

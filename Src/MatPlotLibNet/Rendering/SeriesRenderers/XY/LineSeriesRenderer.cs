@@ -29,9 +29,9 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
             (drawX, drawY) = MonotoneCubicSpline.Interpolate(drawX, drawY, series.SmoothResolution);
 
         Point[] points = Transform.TransformBatch(drawX, drawY);
-        Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, series.LineStyle));
+        DrawPolyline(points, Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
 
-        if (series.Marker is not null && series.Marker != MarkerStyle.None)
+        if (Slot.LineMarkerOf(series.Marker) is { } marker and not MarkerStyle.None)
         {
             var markerFill = series.MarkerFaceColor ?? color;
             var markerStroke = series.MarkerEdgeColor;
@@ -45,7 +45,9 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
             for (int i = 0; i < markerPoints.Length; i++)
             {
                 if (series.MarkEvery is not null && i % series.MarkEvery.Value != 0) continue;
-                MarkerRenderer.Draw(Ctx, series.Marker ?? MarkerStyle.Circle,
+                // A marker at a point the axes cannot place is skipped, as matplotlib masks it.
+                if (!markerPoints[i].IsDrawable()) continue;
+                MarkerRenderer.Draw(Ctx, marker,
                     markerPoints[i], series.MarkerSize, markerFill, markerStroke, markerStrokeWidth);
             }
         }

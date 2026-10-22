@@ -14,6 +14,9 @@ public sealed class PieSeries : ChartSeries
 
     public string[]? Labels { get; set; }
 
+    /// <summary>The colour of each wedge, by position; <see langword="null"/> (the default) names none. A wedge past the
+    /// end of the array, or every wedge when it is <see langword="null"/>, wears what the figure's theme hands out at the
+    /// wedge's own position, as a donut's and a funnel's do. Drawing never writes into this property: it holds what was set.</summary>
     public Color[]? Colors { get; set; }
 
     public double StartAngle { get; set; } = 90;
@@ -45,7 +48,15 @@ public sealed class PieSeries : ChartSeries
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "pie",
-        Sizes = Sizes, PieLabels = Labels
+        Sizes = Sizes, PieLabels = Labels,
+        Colors = Colors?.ToList(),
+        StartAngle = StartAngle.OrNullAtRest(90.0),
+        CounterClockwise = CounterClockwise ? true : null,
+        Explode = Explode,
+        AutoPct = AutoPct,
+        Shadow = Shadow ? true : null,
+        Radius = Radius,
+        Hatches = Hatches?.ToList(),
     };
 
     /// <summary>Reconstructs a <see cref="PieSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -53,7 +64,21 @@ public sealed class PieSeries : ChartSeries
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static PieSeries FromSeriesDto(Axes axes, SeriesDto dto)
-        => axes.Pie(dto.Sizes ?? [], dto.PieLabels);
+    {
+        var s = axes.Pie(dto.Sizes ?? [], dto.PieLabels);
+        s.Colors = dto.Colors?.ToArray();
+        if (dto.StartAngle.HasValue)
+        {
+            s.StartAngle = dto.StartAngle.Value;
+        }
+        s.CounterClockwise = dto.CounterClockwise ?? false;
+        s.Explode = dto.Explode;
+        s.AutoPct = dto.AutoPct;
+        s.Shadow = dto.Shadow ?? false;
+        s.Radius = dto.Radius;
+        s.Hatches = dto.Hatches?.ToArray();
+        return s;
+    }
 
 
     /// <inheritdoc />

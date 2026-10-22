@@ -37,15 +37,18 @@ public sealed class ResidualSeries : ChartSeries, IHasColor
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (XData.Length == 0) return new(0, 1, -1, 1);
+        // The fit is made over the pairs that can be drawn: a pair with a missing value (NaN) or an infinity is left out.
+        var pairs = XData.Data.DrawablePairs(YData.Data);
+        if (pairs.X.DrawableRange() is not { } x) return new(null, null, null, null);
         try
         {
-            double[] coeffs = LeastSquares.PolyFit(XData, YData, Degree);
-            double[] predicted = LeastSquares.PolyEval(coeffs, XData);
-            Vec residuals = YData - new Vec(predicted);
+            double[] coeffs = LeastSquares.PolyFit(pairs.X, pairs.Y, Degree);
+            double[] predicted = LeastSquares.PolyEval(coeffs, pairs.X);
+            Vec residuals = new Vec(pairs.Y) - new Vec(predicted);
             double rMin = residuals.Min();
             double rMax = residuals.Max();
             double padding = Math.Max(Math.Abs(rMax - rMin) * 0.1, 0.1);
-            return new(XData.Min(), XData.Max(), rMin - padding, rMax + padding);
+            return new(x.Lo, x.Hi, rMin - padding, rMax + padding);
         }
         catch (Exception ex) when (ex is ArgumentException or IndexOutOfRangeException)
         {
@@ -69,7 +72,8 @@ public sealed class ResidualSeries : ChartSeries, IHasColor
         YData = YData,
         Degree = Degree,
         MarkerSize = MarkerSize,
-        Color = Color
+        Color = Color,
+        ShowZeroLine = ShowZeroLine ? null : false,
     };
 
     /// <summary>Reconstructs a <see cref="ResidualSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -91,6 +95,7 @@ public sealed class ResidualSeries : ChartSeries, IHasColor
         {
             s.Color = dto.Color.Value;
         }
+        s.ShowZeroLine = dto.ShowZeroLine ?? true;
         return s;
     }
 

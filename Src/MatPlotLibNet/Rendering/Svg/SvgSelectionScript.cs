@@ -16,11 +16,11 @@ internal static class SvgSelectionScript
     internal static string GetScript() => """
         <script type="text/ecmascript"><![CDATA[
         (function() {
-            // Per-chart isolation (Phase 2): self-locate via document.currentScript.
+            // Per-chart isolation: self-locate via document.currentScript.
             var svg = (document.currentScript && document.currentScript.parentNode) || document.querySelector('svg');
             if (!svg || svg.tagName !== 'svg') return;
             var rect = null, startPt = null;
-            // Phase 4 — Pointer Events for touch + pen + mouse. setPointerCapture binds
+            // Pointer Events for touch + pen + mouse. setPointerCapture binds
             // the pointer to the SVG so dragging out of the chart still releases cleanly.
             function startSelection(e) {
                 if (!e.shiftKey) return;

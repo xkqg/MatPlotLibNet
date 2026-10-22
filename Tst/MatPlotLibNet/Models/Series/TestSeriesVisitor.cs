@@ -104,4 +104,8 @@ internal sealed class TestSeriesVisitor : ISeriesVisitor
 
     // ── v1.14 bullet graph ──
     public void Visit(BulletGraphSeries series, RenderArea area) => LastVisited = nameof(BulletGraphSeries);
+
+    // ── the last two series types that were outside the all-series list ──
+    public void Visit(TreeGridSeries series, RenderArea area) => LastVisited = nameof(TreeGridSeries);
+    public void Visit(RelativeRotationSeries series, RenderArea area) => LastVisited = nameof(RelativeRotationSeries);
 }

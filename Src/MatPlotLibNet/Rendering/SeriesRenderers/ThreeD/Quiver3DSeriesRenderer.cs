@@ -17,31 +17,12 @@ internal sealed class Quiver3DSeriesRenderer : SeriesRenderer<Quiver3DSeries>
     {
         if (series.X.Length == 0) return;
 
-        var bounds = Area.PlotBounds;
         var color = ResolveColor(series.Color);
         double len = series.ArrowLength;
 
-        // Compute data extents including arrow tips
-        double xMin = double.MaxValue, xMax = double.MinValue;
-        double yMin = double.MaxValue, yMax = double.MinValue;
-        double zMin = double.MaxValue, zMax = double.MinValue;
-
-        for (int i = 0; i < series.X.Length; i++)
-        {
-            double x0 = series.X[i], x1 = x0 + series.U[i] * len;
-            double y0 = series.Y[i], y1 = y0 + series.V[i] * len;
-            double z0 = series.Z[i], z1 = z0 + series.W[i] * len;
-
-            xMin = Math.Min(xMin, Math.Min(x0, x1));
-            xMax = Math.Max(xMax, Math.Max(x0, x1));
-            yMin = Math.Min(yMin, Math.Min(y0, y1));
-            yMax = Math.Max(yMax, Math.Max(y0, y1));
-            zMin = Math.Min(zMin, Math.Min(z0, z1));
-            zMax = Math.Max(zMax, Math.Max(z0, z1));
-        }
-
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        // Fitted to the arrows that can be drawn, tips included: the extent the series itself reports.
+        var extent = series.DrawableExtent();
+        var proj = ProjectionFor(extent?.X, extent?.Y, extent?.Z);
 
         // Build arrows with depth for sorting
         var arrows = new List<Arrow>(series.X.Length);
@@ -54,6 +35,8 @@ internal sealed class Quiver3DSeriesRenderer : SeriesRenderer<Quiver3DSeries>
 
             var basePt = proj.Project(bx, by, bz);
             var tipPt = proj.Project(tx, ty, tz);
+            // An arrow with an end that cannot be placed is skipped, head and all.
+            if (!basePt.CanDrawLineTo(tipPt)) continue;
             double depth = proj.Depth(bx, by, bz);
 
             arrows.Add(new(depth, basePt, tipPt));

@@ -20,16 +20,11 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
     {
         if (series.X.Length == 0) return;
 
-        var bounds = Area.PlotBounds;
         var baseColor = ResolveColor(series.Color);
 
-        double xMin = series.X.Min(), xMax = series.X.Max();
-        double yMin = series.Y.Min(), yMax = series.Y.Max();
-        double zMin = 0;
-        double zMax = series.Z.Max();
-
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        // Fitted to the values that are there (a missing value, NaN, and an infinity are left out), from the floor at 0.
+        var proj = ProjectionFor(series.X.Data.DrawableRange(), series.Y.Data.DrawableRange(),
+            new Range1D(0, series.Z.Data.DrawableRange()?.Hi ?? 1));
         double hw = series.BarWidth / 2.0;
 
         // matplotlib draws 3-D bar edges in solid black so prism geometry pops against the
@@ -81,18 +76,23 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
             double x0 = cx, x1 = cx + series.BarWidth;
             double y0 = cy, y1 = cy + series.BarWidth;
 
-            AddFace(faces, proj, topColor,
+            var prism = new List<DepthFace>(6);
+            AddFace(prism, proj, topColor,
                 new(x0, y0, h), new(x1, y0, h), new(x1, y1, h), new(x0, y1, h));
-            AddFace(faces, proj, bottomColor,
+            AddFace(prism, proj, bottomColor,
                 new(x0, y0, 0d), new(x0, y1, 0d), new(x1, y1, 0d), new(x1, y0, 0d));
-            AddFace(faces, proj, frontColor,
+            AddFace(prism, proj, frontColor,
                 new(x0, y0, 0d), new(x1, y0, 0d), new(x1, y0, h), new(x0, y0, h));
-            AddFace(faces, proj, backColor,
+            AddFace(prism, proj, backColor,
                 new(x1, y1, 0d), new(x0, y1, 0d), new(x0, y1, h), new(x1, y1, h));
-            AddFace(faces, proj, leftColor,
+            AddFace(prism, proj, leftColor,
                 new(x0, y1, 0d), new(x0, y0, 0d), new(x0, y0, h), new(x0, y1, h));
-            AddFace(faces, proj, rightColor,
+            AddFace(prism, proj, rightColor,
                 new(x1, y0, 0d), new(x1, y1, 0d), new(x1, y1, h), new(x1, y0, h));
+
+            // A bar is one mark: one with a corner that cannot be placed is skipped whole, every face with it.
+            if (prism.TrueForAll(face => face.Vertices.IsDrawable()))
+                faces.AddRange(prism);
         }
 
         // If a shared cross-series depth queue is available on the context, push each

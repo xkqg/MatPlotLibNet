@@ -7,14 +7,13 @@ namespace MatPlotLibNet.Rendering.LegendRendering;
 
 /// <summary>
 /// Abstract base for legend-positioning strategies. Each concrete subtype encodes
-/// the box-placement formula for one <see cref="LegendPosition"/> value, replacing
-/// the 14-arm switch that previously appeared TWICE in <see cref="AxesRenderer"/>
-/// (once in <c>RenderLegend</c>, once in <c>ComputeLegendBounds</c> — a DRY violation).
+/// the box-placement formula for one <see cref="LegendPosition"/> value, so
+/// <see cref="AxesRenderer"/> carries no switch over the positions.
 /// </summary>
 /// <remarks>
-/// Phase B.2 of the strict-90 floor plan (2026-04-20). Strategy pattern via subclass
-/// polymorphism; the factory <see cref="LegendPositionStrategyFactory"/> does the
-/// single static dispatch from enum to instance.
+/// Strategy pattern via subclass polymorphism; the factory
+/// <see cref="LegendPositionStrategyFactory"/> does the single static dispatch from enum
+/// to instance.
 /// </remarks>
 public abstract record LegendPositionStrategy
 {

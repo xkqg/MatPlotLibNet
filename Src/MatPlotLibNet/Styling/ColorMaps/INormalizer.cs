@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Serialization;
+
 namespace MatPlotLibNet.Styling.ColorMaps;
 
 /// <summary>Maps a raw data value to a normalized [0, 1] range for colormap lookup.</summary>
@@ -11,8 +13,11 @@ public interface INormalizer
 }
 
 /// <summary>Linear normalization: <c>(value - min) / (max - min)</c>, clamped to [0, 1].</summary>
-public sealed class LinearNormalizer : INormalizer
+public sealed class LinearNormalizer : INormalizer, IJsonDescribed<NormalizerDto>
 {
+    /// <inheritdoc />
+    NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new LinearNormalizerDto();
+
     public static LinearNormalizer Instance { get; } = new();
 
     /// <inheritdoc />
@@ -25,8 +30,11 @@ public sealed class LinearNormalizer : INormalizer
 }
 
 /// <summary>Logarithmic normalization that compresses high values: <c>log(1 + value - min) / log(1 + max - min)</c>.</summary>
-public sealed class LogNormalizer : INormalizer
+public sealed class LogNormalizer : INormalizer, IJsonDescribed<NormalizerDto>
 {
+    /// <inheritdoc />
+    NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new LogNormalizerDto();
+
     /// <inheritdoc />
     public double Normalize(double value, double min, double max)
     {
@@ -39,8 +47,11 @@ public sealed class LogNormalizer : INormalizer
 
 /// <summary>Two-slope normalization with a center point that maps to 0.5. Useful for diverging data
 /// where values above and below center should use different halves of a diverging colormap.</summary>
-public sealed class TwoSlopeNormalizer : INormalizer
+public sealed class TwoSlopeNormalizer : INormalizer, IJsonDescribed<NormalizerDto>
 {
+    /// <inheritdoc />
+    NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new TwoSlopeNormalizerDto(Center);
+
     public double Center { get; }
 
     /// <summary>Creates a two-slope normalizer with the specified center value.</summary>
@@ -65,8 +76,11 @@ public sealed class TwoSlopeNormalizer : INormalizer
 
 /// <summary>Discrete boundary normalization that maps values to bins defined by boundary values.
 /// Values between consecutive boundaries map to the same normalized value.</summary>
-public sealed class BoundaryNormalizer : INormalizer
+public sealed class BoundaryNormalizer : INormalizer, IJsonDescribed<NormalizerDto>
 {
+    /// <inheritdoc />
+    NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new BoundaryNormalizerDto(_boundaries);
+
     private readonly double[] _boundaries;
 
     /// <summary>Creates a boundary normalizer with the specified boundary values (must be sorted ascending).</summary>
@@ -90,8 +104,11 @@ public sealed class BoundaryNormalizer : INormalizer
 
 /// <summary>Symmetric logarithmic normalization. Linear within ±<see cref="Linthresh"/>,
 /// log-compressed beyond. Useful for data that spans positive and negative values including zero.</summary>
-public sealed class SymLogNormalizer : INormalizer
+public sealed class SymLogNormalizer : INormalizer, IJsonDescribed<NormalizerDto>
 {
+    /// <inheritdoc />
+    NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new SymLogNormalizerDto(Linthresh, Base, LinScale);
+
     public double Linthresh { get; }
 
     public double Base { get; }
@@ -124,8 +141,11 @@ public sealed class SymLogNormalizer : INormalizer
 
 /// <summary>Power-law normalization: <c>((value − min) / (max − min))^gamma</c>.
 /// gamma &lt; 1 expands low values; gamma &gt; 1 compresses them.</summary>
-public sealed class PowerNormNormalizer : INormalizer
+public sealed class PowerNormNormalizer : INormalizer, IJsonDescribed<NormalizerDto>
 {
+    /// <inheritdoc />
+    NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new PowerNormalizerDto(Gamma);
+
     public double Gamma { get; }
 
     /// <summary>Creates a power-norm normalizer with the specified gamma.</summary>
@@ -143,8 +163,11 @@ public sealed class PowerNormNormalizer : INormalizer
 /// <summary>Centered normalization that maps a chosen <see cref="Vcenter"/> to 0.5.
 /// Independently scales the lower and upper halves. Optionally constrains a symmetric
 /// half-range around the center.</summary>
-public sealed class CenteredNormNormalizer : INormalizer
+public sealed class CenteredNormNormalizer : INormalizer, IJsonDescribed<NormalizerDto>
 {
+    /// <inheritdoc />
+    NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new CenteredNormalizerDto(Vcenter, Halfrange);
+
     public double Vcenter { get; }
 
     public double? Halfrange { get; }
@@ -174,8 +197,11 @@ public sealed class CenteredNormNormalizer : INormalizer
 
 /// <summary>No-op normalization: the value is passed through as-is, clamped to [0, 1].
 /// Use when the data is already in the normalized range.</summary>
-public sealed class NoNormNormalizer : INormalizer
+public sealed class NoNormNormalizer : INormalizer, IJsonDescribed<NormalizerDto>
 {
+    /// <inheritdoc />
+    NormalizerDto IJsonDescribed<NormalizerDto>.Describe() => new NoNormNormalizerDto();
+
     public static NoNormNormalizer Instance { get; } = new();
 
     /// <inheritdoc />

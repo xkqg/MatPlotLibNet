@@ -5,7 +5,8 @@ using MatPlotLibNet.Models.Series;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
-/// <summary>Verifies <see cref="ContourSeries"/> and <see cref="ContourfSeries"/> explicit level-value support.</summary>
+/// <summary>Verifies <see cref="ContourSeries"/> and <see cref="ContourfSeries"/> explicit level-value property defaults; that the levels
+/// are the ones drawn is held by <c>ContourExplicitLevelRenderTests</c>.</summary>
 public class ContourLevelTests
 {
     private static double[,] Grid2x2 => new double[2, 2];
@@ -30,18 +31,6 @@ public class ContourLevelTests
         Assert.Equal(0.5, s.LevelValues[1]);
     }
 
-    [Fact]
-    public void ContourSeries_LevelValues_OverridesLevelsCount()
-    {
-        // When LevelValues is set the explicit array takes precedence over Levels count
-        var s = new ContourSeries(X2, Y2, Grid2x2)
-        {
-            Levels = 20,
-            LevelValues = [0.1, 0.5, 0.9]
-        };
-        Assert.Equal(3, s.LevelValues!.Length);
-    }
-
     // ── ContourfSeries ────────────────────────────��───────────────────────────
 
     [Fact]
@@ -57,16 +46,5 @@ public class ContourLevelTests
         var s = new ContourfSeries(X2, Y2, Grid2x2) { LevelValues = [0.0, 0.25, 0.75, 1.0] };
         Assert.NotNull(s.LevelValues);
         Assert.Equal(4, s.LevelValues.Length);
-    }
-
-    [Fact]
-    public void ContourfSeries_LevelValues_OverridesLevelsCount()
-    {
-        var s = new ContourfSeries(X2, Y2, Grid2x2)
-        {
-            Levels = 15,
-            LevelValues = [0.1, 0.9]
-        };
-        Assert.Equal(2, s.LevelValues!.Length);
     }
 }

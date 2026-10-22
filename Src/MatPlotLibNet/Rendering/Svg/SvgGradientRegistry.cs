@@ -14,12 +14,10 @@ namespace MatPlotLibNet.Rendering.Svg;
 /// real state (the id counter + the shared output buffer).
 /// </summary>
 /// <remarks>
-/// <para>Phase F.2.d of the strict-90 floor plan (2026-04-20). Byte-equivalent to the
-/// private <c>DefineLinearGradient</c> + <c>AppendGradientStop</c> + <c>_gradientId</c>
-/// that previously lived inside <see cref="SvgRenderContext"/>. The registry writes
-/// directly to the context's <see cref="StringBuilder"/> so output ordering is preserved
-/// exactly (matters for the matplotlib fidelity suite, which compares rendered pixels
-/// but is sensitive to defs placement for browsers that process them lazily).</para>
+/// <para>The registry writes directly to the context's <see cref="StringBuilder"/> so the
+/// output ordering is fixed: a gradient's defs stand where the context writes them (matters for
+/// the matplotlib fidelity suite, which compares rendered pixels but is sensitive to defs
+/// placement for browsers that process them lazily).</para>
 /// </remarks>
 internal sealed class SvgGradientRegistry
 {

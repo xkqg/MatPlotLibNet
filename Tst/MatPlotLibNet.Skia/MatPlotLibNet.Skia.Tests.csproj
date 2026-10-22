@@ -41,6 +41,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The composed charts the core suite holds to its promises, exported here with a missing value in their data. -->
+    <Compile Include="..\MatPlotLibNet\Rendering\ComposedChartShapes.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- A font the bundled set does not carry (Noto Sans Hebrew, SIL Open Font License, see Fonts\OFL-NotoSansHebrew.txt):
          the fixture for registering a font FILE, whose family must not collide with DejaVu Sans. -->
     <Content Include="Fonts\*.ttf" CopyToOutputDirectory="PreserveNewest" />

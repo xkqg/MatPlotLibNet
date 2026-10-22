@@ -42,26 +42,77 @@ public sealed class HistogramSeries : ChartSeries, IHasColor, IHasAlpha, IHasEdg
     }
 
     /// <inheritdoc />
+    /// <remarks>Along Y the heights the bars are drawn at (<see cref="Heights"/>: counts, weighted, as a density, or
+    /// cumulative) and the zero they stand on, over the values the Y axis can place: on a log axis, which has no place for
+    /// zero, from the lowest bin.</remarks>
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        double yMin = 0, yMax = 0;
-        if (Data.Length > 0)
-        {
-            var bins = ComputeBins();
-            if (bins.Counts.Length > 0)
-                yMax = bins.Counts.Max();
-        }
-        double xMin = Data.Length > 0 ? Data.Min() : 0;
-        double xMax = Data.Length > 0 ? Data.Max() : 1;
-        return new(xMin, xMax, yMin, yMax,
+        var scale = context.YScale;
+        var reached = Data.Length > 0 ? Heights(ComputeBins()).DrawableRange(scale) : null;
+        var y = (reached ?? Range1D.Empty).Including(0, scale).OrNone();
+        // Over the drawable observations, the ones the bins count: a missing one (NaN) and an infinity are left out.
+        var x = Data.Length > 0 ? Data.DrawableRange() : new Range1D(0, 1);
+        double? xMin = x?.Lo, xMax = x?.Hi;
+        return new(xMin, xMax, y?.Lo, y?.Hi,
             StickyXMin: xMin, StickyXMax: xMax, StickyYMin: 0);
+    }
+
+    /// <summary>The height each bin's bar is drawn at: its count, or the sum of its observations' <see cref="Weights"/>
+    /// when there is one weight per observation; divided by the area of all bars when <see cref="Density"/> is set; summed
+    /// from the first bin on when <see cref="Cumulative"/> is set. The renderer draws these and the range takes them in.</summary>
+    /// <param name="bins">The bins, from <see cref="ComputeBins"/>.</param>
+    /// <returns>One height per bin.</returns>
+    internal double[] Heights(HistogramBins bins)
+    {
+        int n = bins.Counts.Length;
+        var heights = new double[n];
+
+        if (Weights is not null && Weights.Length == Data.Length)
+        {
+            // Weighted binning: accumulate weights per bin.
+            for (int j = 0; j < Data.Length; j++)
+            {
+                int idx = Math.Min((int)((Data[j] - bins.Min) / bins.BinWidth), n - 1);
+                heights[idx] += Weights[j];
+            }
+        }
+        else
+        {
+            for (int i = 0; i < n; i++)
+                heights[i] = bins.Counts[i];
+        }
+
+        if (Density)
+        {
+            double total = heights.Sum() * bins.BinWidth;
+            if (total > 0)
+                for (int i = 0; i < n; i++)
+                    heights[i] /= total;
+        }
+
+        if (Cumulative)
+        {
+            for (int i = 1; i < n; i++)
+                heights[i] += heights[i - 1];
+        }
+
+        return heights;
     }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "histogram",
-        Data = Data, Bins = Bins, Color = Color
+        Data = Data, Bins = Bins, Color = Color,
+        EdgeColor = EdgeColor,
+        Alpha = Alpha.OrNullAtRest(1.0),
+        Density = Density ? true : null,
+        Cumulative = Cumulative ? true : null,
+        HistType = HistType.OrNullAtRest(HistType.Bar),
+        Weights = Weights,
+        RWidth = RWidth.OrNullAtRest(1.0),
+        Hatch = Hatch.OrNullAtRest(HatchPattern.None),
+        HatchColor = HatchColor,
     };
 
     /// <summary>Reconstructs a <see cref="HistogramSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -72,6 +123,27 @@ public sealed class HistogramSeries : ChartSeries, IHasColor, IHasAlpha, IHasEdg
     {
         var s = axes.Hist(dto.Data ?? [], dto.Bins ?? 10);
         s.Color = dto.Color;
+        s.EdgeColor = dto.EdgeColor;
+        if (dto.Alpha.HasValue)
+        {
+            s.Alpha = dto.Alpha.Value;
+        }
+        s.Density = dto.Density ?? false;
+        s.Cumulative = dto.Cumulative ?? false;
+        if (dto.HistType.HasValue)
+        {
+            s.HistType = dto.HistType.Value;
+        }
+        s.Weights = dto.Weights;
+        if (dto.RWidth.HasValue)
+        {
+            s.RWidth = dto.RWidth.Value;
+        }
+        if (dto.Hatch.HasValue)
+        {
+            s.Hatch = dto.Hatch.Value;
+        }
+        s.HatchColor = dto.HatchColor;
         return s;
     }
 

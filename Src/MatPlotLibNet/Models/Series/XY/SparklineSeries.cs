@@ -21,8 +21,12 @@ public sealed class SparklineSeries : ChartSeries, IHasColor
     public SparklineSeries(double[] values) => Values = values;
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(0, Values.Length - 1, Values.Min(), Values.Max());
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        // Over the drawable values only: a missing value (NaN) and an infinity are left out.
+        var y = Values.DrawableRange();
+        return new(0, Values.Length - 1, y?.Lo, y?.Hi);
+    }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()

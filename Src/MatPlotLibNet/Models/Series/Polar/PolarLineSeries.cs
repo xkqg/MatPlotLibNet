@@ -20,14 +20,30 @@ public sealed class PolarLineSeries : PolarSeries, IHasColor
     public PolarLineSeries(double[] r, double[] theta) : base(r, theta) { }
 
     /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new() { Type = "polarline" };
+    public override SeriesDto ToSeriesDto() => new()
+    {
+        Type = "polarline",
+        Color = Color,
+        LineStyle = LineStyle == LineStyle.Solid ? null : LineStyle.ToString().ToLowerInvariant(),
+        LineWidth = LineWidth.OrNullAtRest(1.5),
+    };
 
-    /// <summary>Reconstructs a <see cref="PolarLineSeries"/> placeholder from its serialization DTO and adds it to the axes.</summary>
+    /// <summary>Reconstructs a <see cref="PolarLineSeries"/> placeholder from its serialization DTO and adds it to the axes.
+    /// The data is not written yet (the roadmap row "Every chart type back from JSON"); the settings are.</summary>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static PolarLineSeries FromSeriesDto(Axes axes, SeriesDto dto)
-        => axes.PolarPlot([1.0], [0.0]);
+    {
+        var s = axes.PolarPlot([1.0], [0.0]);
+        s.Color = dto.Color;
+        ChartSerializer.ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
+        if (dto.LineWidth.HasValue)
+        {
+            s.LineWidth = dto.LineWidth.Value;
+        }
+        return s;
+    }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

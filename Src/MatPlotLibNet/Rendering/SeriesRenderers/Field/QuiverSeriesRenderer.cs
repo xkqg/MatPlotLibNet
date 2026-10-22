@@ -20,6 +20,7 @@ internal sealed class QuiverSeriesRenderer : SeriesRenderer<QuiverSeries>
         {
             var start = Transform.DataToPixel(series.XData[i], series.YData[i]);
             var end = Transform.DataToPixel(series.XData[i] + series.UData[i] * series.Scale, series.YData[i] + series.VData[i] * series.Scale);
+            if (!start.CanDrawLineTo(end)) continue;   // an arrow with an end that cannot be placed is skipped, head and all
             Ctx.DrawLine(start, end, new StrokeStyle(color, 1.5, LineStyle.Solid));
             double dx = end.X - start.X, dy = end.Y - start.Y, len = Math.Sqrt(dx * dx + dy * dy);
             if (len < 1e-6) continue;

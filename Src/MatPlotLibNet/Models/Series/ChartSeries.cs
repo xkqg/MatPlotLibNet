@@ -19,6 +19,10 @@ public abstract class ChartSeries : ISeries, IHasDataRange, ISeriesSerializable
     /// <inheritdoc />
     public int ZOrder { get; set; }
 
+    /// <summary>The z-order a series of this type is created with: 0, unless the type is drawn behind the others by
+    /// default. The JSON leaves a z-order at this value out.</summary>
+    internal virtual int RestingZOrder => 0;
+
     /// <inheritdoc />
     public abstract void Accept(ISeriesVisitor visitor, RenderArea area);
 
@@ -33,6 +37,13 @@ public abstract class ChartSeries : ISeries, IHasDataRange, ISeriesSerializable
     /// the ones that DO override this one method. (The interface carries the same default for a series outside
     /// this hierarchy; a class cannot override a default interface member, so the base declares it too.)</remarks>
     public virtual ChartDataTable? ToDataTable() => null;
+
+    /// <summary>Whether this series draws its own <see cref="Label"/> as part of what it draws, so the legend does not
+    /// list it: a legend entry would be a second copy of the name, in a swatch colour the series is not drawn in. A stat
+    /// tile is the case: its label stands under the headline number. The legend's one entry list asks this of every
+    /// series (<c>AxesLegendEntryExtensions.LegendEntries</c>), so the drawing, the hit-test and the margin reservation
+    /// agree.</summary>
+    internal virtual bool DrawsOwnLabel => false;
 
     /// <summary>Whether this series owns the vertical range of its axes outright, so that range carries no data a
     /// reader could pan or zoom to. A state timeline is the case: its segments fill the bar from edge to edge.

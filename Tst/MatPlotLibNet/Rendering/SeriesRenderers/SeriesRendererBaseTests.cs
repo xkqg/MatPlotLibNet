@@ -22,7 +22,7 @@ public class SeriesRendererBaseTests
 {
     private static readonly Rect Bounds = new(80, 60, 640, 480);
 
-    private static SeriesRenderContext NewContext(IRenderContext? ctx = null, bool tooltips = false, CycledProperties? cycled = null)
+    private static SeriesRenderContext NewContext(IRenderContext? ctx = null, bool tooltips = false)
     {
         ctx ??= new SvgRenderContext();
         var area = new RenderArea(Bounds, ctx);
@@ -30,11 +30,10 @@ public class SeriesRendererBaseTests
         return new SeriesRenderContext(transform, ctx, Colors.Tab10Blue, area)
         {
             TooltipsEnabled = tooltips,
-            CycledProps = cycled,
         };
     }
 
-    // ── Resolve* — `?? cycled ?? default` arms ──────────────────────────────
+    // ── ResolveColor — `?? theme cycle colour` arm (dash, marker and width: SeriesSlotTests) ──
 
     [Fact]
     public void ResolveColor_ReturnsSeriesColor_WhenSet()
@@ -48,59 +47,6 @@ public class SeriesRendererBaseTests
     {
         var r = new TestRenderer(NewContext());
         Assert.Equal(Colors.Tab10Blue, r.CallResolveColor(null));
-    }
-
-    [Fact]
-    public void ResolveLineStyle_ReturnsCycled_WhenSeriesNullAndCyclerPresent()
-    {
-        var cycled = new CycledProperties(Colors.Red, LineStyle.Dashed, MarkerStyle.None, 2.0);
-        var r = new TestRenderer(NewContext(cycled: cycled));
-        Assert.Equal(LineStyle.Dashed, r.CallResolveLineStyle(null));
-    }
-
-    [Fact]
-    public void ResolveLineStyle_FallsBackToSolid_WhenCyclerAbsent()
-    {
-        var r = new TestRenderer(NewContext(cycled: null));
-        Assert.Equal(LineStyle.Solid, r.CallResolveLineStyle(null));
-    }
-
-    [Fact]
-    public void ResolveLineStyle_PrefersSeriesValue_WhenSet()
-    {
-        var cycled = new CycledProperties(Colors.Red, LineStyle.Dashed, MarkerStyle.None, 2.0);
-        var r = new TestRenderer(NewContext(cycled: cycled));
-        Assert.Equal(LineStyle.Dotted, r.CallResolveLineStyle(LineStyle.Dotted));
-    }
-
-    [Fact]
-    public void ResolveMarkerStyle_FallsBackToNone_WhenAllNull()
-    {
-        var r = new TestRenderer(NewContext(cycled: null));
-        Assert.Equal(MarkerStyle.None, r.CallResolveMarkerStyle(null));
-    }
-
-    [Fact]
-    public void ResolveMarkerStyle_ReturnsCycled_WhenCyclerPresent()
-    {
-        var cycled = new CycledProperties(Colors.Red, LineStyle.Solid, MarkerStyle.Square, 1.0);
-        var r = new TestRenderer(NewContext(cycled: cycled));
-        Assert.Equal(MarkerStyle.Square, r.CallResolveMarkerStyle(null));
-    }
-
-    [Fact]
-    public void ResolveLineWidth_FallsBackTo15_WhenAllNull()
-    {
-        var r = new TestRenderer(NewContext(cycled: null));
-        Assert.Equal(1.5, r.CallResolveLineWidth(null));
-    }
-
-    [Fact]
-    public void ResolveLineWidth_ReturnsCycled_WhenCyclerPresent()
-    {
-        var cycled = new CycledProperties(Colors.Red, LineStyle.Solid, MarkerStyle.None, 3.5);
-        var r = new TestRenderer(NewContext(cycled: cycled));
-        Assert.Equal(3.5, r.CallResolveLineWidth(null));
     }
 
     // ── BeginTooltip / EndTooltip — `TooltipsEnabled && Ctx is SvgRenderContext` ────
@@ -190,9 +136,6 @@ public class SeriesRendererBaseTests
         public TestRenderer(SeriesRenderContext context) : base(context) { }
         public override void Render(LineSeries series) { }
         public Color CallResolveColor(Color? c) => ResolveColor(c);
-        public LineStyle CallResolveLineStyle(LineStyle? s) => ResolveLineStyle(s);
-        public MarkerStyle CallResolveMarkerStyle(MarkerStyle? s) => ResolveMarkerStyle(s);
-        public double CallResolveLineWidth(double? w) => ResolveLineWidth(w);
         public void CallBeginTooltip(string text) => BeginTooltip(text);
         public void CallEndTooltip() => EndTooltip();
         public XYData CallApplyDownsampling(double[] x, double[] y, int? maxPoints) => ApplyDownsampling(x, y, maxPoints);

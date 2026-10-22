@@ -8,17 +8,14 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Rendering.ColorBarRendering;
 
 /// <summary>
-/// Abstract base for orientation-specific colorbar rendering. Replaces the
-/// 150-line god-method <c>AxesRenderer.RenderColorBar</c> (which had 5 nested
-/// switches mixing Horizontal/Vertical with Extend modes, edges, and label
-/// positioning).
+/// Abstract base for orientation-specific colorbar rendering: each subclass owns the layout
+/// of its orientation (the Extend modes, the edges and where the labels go).
 /// </summary>
 /// <remarks>
-/// <b>Phase B.1 of the strict-90 floor plan (2026-04-20).</b>
 /// Two concrete subclasses — <see cref="HorizontalColorBarRenderer"/> and
 /// <see cref="VerticalColorBarRenderer"/> — own the orientation-specific
-/// layout logic via polymorphism, eliminating the inline switch in the
-/// AxesRenderer.RenderColorBar god-method.
+/// layout logic via polymorphism, so <c>AxesRenderer.RenderColorBar</c> carries no
+/// switch on the orientation.
 /// </remarks>
 public abstract class ColorBarRenderer
 {

@@ -22,7 +22,7 @@ internal sealed class RadarSeriesRenderer : SeriesRenderer<RadarSeries>
         var bounds = Area.PlotBounds;
         double cx = bounds.X + bounds.Width / 2, cy = bounds.Y + bounds.Height / 2;
         double radius = Math.Min(bounds.Width, bounds.Height) / 2 * 0.75;
-        double maxVal = series.MaxValue ?? series.Values.Max();
+        double maxVal = series.MaxValue ?? series.Values.DrawableRange()?.Hi ?? 1;
         if (maxVal <= 0) maxVal = 1;
         var webColor = Colors.GridGray;
 
@@ -40,8 +40,14 @@ internal sealed class RadarSeriesRenderer : SeriesRenderer<RadarSeries>
             Ctx.DrawLine(new Point(cx, cy), new Point(cx + radius * Math.Cos(a), cy + radius * Math.Sin(a)), new StrokeStyle(webColor, 0.5, LineStyle.Solid));
             Ctx.DrawText(series.Categories[i], new Point(cx + (radius + 15) * Math.Cos(a), cy + (radius + 15) * Math.Sin(a)), labelFont, TextAlignment.Center);
         }
+        // A value that cannot be drawn (missing, or infinite: no ring holds it) is a skipped vertex, and the polygon closes
+        // through the spokes on either side of it; with no value that can be drawn there is no polygon.
         var dataPts = new List<Point>(n);
-        for (int i = 0; i < n; i++) { double norm = Math.Min(series.Values[i] / maxVal, 1.0); double a = 2 * Math.PI * i / n - Math.PI / 2; dataPts.Add(new Point(cx + radius * norm * Math.Cos(a), cy + radius * norm * Math.Sin(a))); }
-        Ctx.DrawPolygon(dataPts, new ShapeStyle(fillColor, color, series.LineWidth));
+        for (int i = 0; i < n; i++)
+        {
+            if (!series.Values[i].IsDrawable()) continue;
+            double norm = Math.Min(series.Values[i] / maxVal, 1.0); double a = 2 * Math.PI * i / n - Math.PI / 2; dataPts.Add(new Point(cx + radius * norm * Math.Cos(a), cy + radius * norm * Math.Sin(a)));
+        }
+        if (dataPts.Count > 0) Ctx.DrawPolygon(dataPts, new ShapeStyle(fillColor, color, series.LineWidth));
     }
 }

@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Styling;
 
 /// <summary>Specifies which side of the violin to draw.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum ViolinSide
 {
     /// <summary>Draw both sides (full violin).</summary>

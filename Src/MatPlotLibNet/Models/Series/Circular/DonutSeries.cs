@@ -31,7 +31,8 @@ public sealed class DonutSeries : ChartSeries
         Type = "donut",
         Sizes = Sizes, PieLabels = Labels,
         InnerRadius = InnerRadius, CenterText = CenterText,
-        StartAngle = StartAngle
+        StartAngle = StartAngle,
+        Colors = Colors?.ToList(),
     };
 
     /// <summary>Reconstructs a <see cref="DonutSeries"/> from its serialization DTO, including inner radius and center text, and adds it to the axes.</summary>
@@ -50,6 +51,7 @@ public sealed class DonutSeries : ChartSeries
         {
             s.StartAngle = dto.StartAngle.Value;
         }
+        s.Colors = dto.Colors?.ToArray();
         return s;
     }
 

@@ -50,12 +50,20 @@ public class ChartTypeCatalogTests
     [InlineData("polarline")]
     [InlineData("polarscatter")]
     [InlineData("treegrid")]
+    [InlineData("dendrogram")]
     public void ATypeWhoseReaderIgnoresTheDocument_IsExcludedWithAReason(string type)
     {
         Assert.False(_catalog.IsListed(type));
         Assert.Contains(type, _catalog.Excluded.Keys);
         Assert.NotEmpty(_catalog.Excluded[type]);
     }
+
+    /// <summary>The dendrogram's JSON reader builds a tree of one node labelled "Root" instead of the tree in the
+    /// document, so a spec that names it would be drawn as a single label with a success flag. Its sibling
+    /// hierarchies (the treemap and the sunburst) were already refused for the same reason.</summary>
+    [Fact]
+    public void TheDendrogram_IsRefusedForTheReasonItsHierarchicalSiblingsAre() =>
+        Assert.Contains("tree", _catalog.Excluded["dendrogram"]);
 
     [Theory]
     [InlineData("line", true)]

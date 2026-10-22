@@ -22,14 +22,36 @@ public sealed class TreemapSeries : HierarchicalSeries
     public TreemapSeries(TreeNode root) : base(root) { }
 
     /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new() { Type = "treemap" };
+    public override SeriesDto ToSeriesDto() => this.DescribeSharedSettings(new()
+    {
+        Type = "treemap",
+        Padding = Padding.OrNullAtRest(2.0),
+        LabelFit = LabelFit.OrNullAtRest(TreemapLabelFit.Always),
+        HeadlineFontSize = HeadlineFontSize.OrNullAtRest(20.0),
+    });
 
     /// <summary>Reconstructs a <see cref="TreemapSeries"/> from its serialization DTO and adds it to the axes.</summary>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static TreemapSeries FromSeriesDto(Axes axes, SeriesDto dto)
-        => axes.Treemap(new TreeNode { Label = "Root" });
+    {
+        var s = axes.Treemap(new TreeNode { Label = "Root" });
+        if (dto.Padding.HasValue)
+        {
+            s.Padding = dto.Padding.Value;
+        }
+        if (dto.LabelFit.HasValue)
+        {
+            s.LabelFit = dto.LabelFit.Value;
+        }
+        if (dto.HeadlineFontSize.HasValue)
+        {
+            s.HeadlineFontSize = dto.HeadlineFontSize.Value;
+        }
+        s.RestoreSharedSettings(dto);
+        return s;
+    }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

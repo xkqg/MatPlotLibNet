@@ -62,7 +62,7 @@ Plt.Create()
 Any azimuth works, including the ones that swing the cube past the matplotlib default view. Each
 render picks the shaded panes, the drawn cube edges, the wall grids and the X/Y/Z tick rows from
 the camera. The pane always sits on the face pointing *away* from you, and a tick row never ends up
-behind the data (v1.14.1, [#18](https://github.com/xkqg/MatPlotLibNet/issues/18)). Dragging an
+behind the data ([#18](https://github.com/xkqg/MatPlotLibNet/issues/18)). Dragging an
 interactive chart past ±90° re-runs the same selection in the browser, so the frame jumps to the
 other side exactly as matplotlib's does.
 
@@ -70,7 +70,7 @@ A `Pane3DConfig` colour names the axis whose wall it paints, not a fixed side of
 `LeftWallColor` is the X-axis wall, `RightWallColor` is the Y-axis wall, and `FloorColor` is the Z
 floor.
 
-Axis titles keep clear of their own tick labels (v1.14.2). The gap is measured from the labels the
+Axis titles keep clear of their own tick labels. The gap is measured from the labels the
 axis actually draws, so a larger tick font or a custom `TickFormatter` pushes the title further
 out. There is no pad to tune.
 
@@ -95,7 +95,7 @@ Planar 3D bars are flat translucent rectangles on discrete Y planes:
 
 ![Planar 3D bars](../images/threed_planar_bars.png)
 
-## Line3D — helix polyline (v1.3.0)
+## Line3D — helix polyline
 
 ```csharp
 double[] t = Enumerable.Range(0, 200).Select(i => i * 0.1).ToArray();
@@ -114,7 +114,7 @@ Plt.Create()
 
 ![Line3D helix](../images/threed_line3d_helix.png)
 
-## Trisurf3D — Delaunay triangulated surface (v1.3.0)
+## Trisurf3D — Delaunay triangulated surface
 
 ```csharp
 Plt.Create()
@@ -133,7 +133,7 @@ Plt.Create()
 
 ![Trisurf3D](../images/threed_trisurf.png)
 
-## Contour3D — contour lines in 3D (v1.3.0)
+## Contour3D — contour lines in 3D
 
 ```csharp
 Plt.Create()
@@ -152,7 +152,7 @@ Plt.Create()
 
 ![Contour3D](../images/threed_contour3d.png)
 
-## Quiver3D — 3D vector field (v1.3.0)
+## Quiver3D — 3D vector field
 
 ```csharp
 Plt.Create()
@@ -167,7 +167,7 @@ Plt.Create()
 
 ![Quiver3D](../images/threed_quiver3d.png)
 
-## Voxels — volumetric cubes (v1.3.0)
+## Voxels — volumetric cubes
 
 ```csharp
 var filled = new bool[6, 6, 6];
@@ -185,7 +185,7 @@ Plt.Create()
 
 ![Voxels](../images/threed_voxels.png)
 
-## Text3D — 3D annotations (v1.3.0)
+## Text3D — 3D annotations
 
 ```csharp
 Plt.Create()

@@ -45,7 +45,13 @@ public sealed class TableSeries : ChartSeries
         Type = "table",
         TableCellData = CellData,
         ColumnHeaders = ColumnHeaders,
-        RowHeaders = RowHeaders
+        RowHeaders = RowHeaders,
+        CellHeight = CellHeight.OrNullAtRest(25.0),
+        CellPadding = CellPadding.OrNullAtRest(4.0),
+        HeaderColor = HeaderColor,
+        FillColor = CellColor,
+        EdgeColor = BorderColor,
+        FontSize = FontSize.OrNullAtRest(11.0),
     };
 
     /// <summary>Reconstructs a <see cref="TableSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -62,6 +68,21 @@ public sealed class TableSeries : ChartSeries
         if (dto.RowHeaders is not null)
         {
             s.RowHeaders = dto.RowHeaders;
+        }
+        if (dto.CellHeight.HasValue)
+        {
+            s.CellHeight = dto.CellHeight.Value;
+        }
+        if (dto.CellPadding.HasValue)
+        {
+            s.CellPadding = dto.CellPadding.Value;
+        }
+        s.HeaderColor = dto.HeaderColor;
+        s.CellColor = dto.FillColor;
+        s.BorderColor = dto.EdgeColor;
+        if (dto.FontSize.HasValue)
+        {
+            s.FontSize = dto.FontSize.Value;
         }
         return s;
     }

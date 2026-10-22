@@ -209,7 +209,7 @@ public static class LeastSquares
     private static double StudentTQuantile(double p, int dof)
     {
         // p is the one-sided probability (e.g., 0.975 for 95% CI, 0.995 for 99% CI)
-        if (dof >= 120) return NormalQuantile(p);
+        if (dof >= 120) return StandardNormal.Quantile(p);
 
         // Lookup for p ≈ 0.995  (99% two-sided CI)
         if (p >= 0.99)
@@ -241,17 +241,5 @@ public static class LeastSquares
         if (dof >= 3)  return 3.182;
         if (dof >= 2)  return 4.303;
         return 12.706; // dof == 1
-    }
-
-    /// <summary>Rational approximation of the standard normal quantile (Abramowitz and Stegun 26.2.17).</summary>
-    private static double NormalQuantile(double p)
-    {
-        if (p <= 0) return double.NegativeInfinity;
-        if (p >= 1) return double.PositiveInfinity;
-        if (p < 0.5) return -NormalQuantile(1 - p);
-        double t = Math.Sqrt(-2.0 * Math.Log(1 - p));
-        const double c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
-        const double d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
-        return t - (c0 + c1 * t + c2 * t * t) / (1 + d1 * t + d2 * t * t + d3 * t * t * t);
     }
 }

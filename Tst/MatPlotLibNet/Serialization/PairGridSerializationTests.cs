@@ -8,8 +8,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Tests.Serialization;
 
 /// <summary>v1.10 Phase 4 — verifies JSON round-trip for <see cref="PairGridSeries"/>.
-/// <see cref="PairGridSeries.HuePalette"/> is intentionally not serialised; same project
-/// convention as <c>HeatmapSeries.Normalizer</c> and <c>ClustermapSeries.RowTree</c>.</summary>
+/// <see cref="PairGridSeries.HuePalette"/> is serialised like every other setting a series draws.</summary>
 public class PairGridSerializationTests
 {
     private static double[][] SampleVars => new[]
@@ -164,12 +163,20 @@ public class PairGridSerializationTests
         Assert.Equal(["Setosa", "Versicolor"], s.HueLabels);
     }
 
-    // ── HuePalette intentionally NOT serialised ───────────────────────────────
+    // ── HuePalette ────────────────────────────────────────────────────────────
 
     [Fact]
-    public void RoundTrip_HuePaletteIsNullAfterRoundTrip()
+    public void RoundTrip_PreservesHuePalette()
     {
         var s = Roundtrip(s => s.HuePalette = [new Color(255, 0, 0), new Color(0, 255, 0)]);
+        Assert.NotNull(s.HuePalette);
+        Assert.Equal([new Color(255, 0, 0), new Color(0, 255, 0)], s.HuePalette);
+    }
+
+    [Fact]
+    public void RoundTrip_WithoutAHuePalette_LeavesItUnset()
+    {
+        var s = Roundtrip();
         Assert.Null(s.HuePalette);
     }
 

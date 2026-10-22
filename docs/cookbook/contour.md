@@ -32,7 +32,7 @@ Plt.Create()
 
 ![Contour with labels](../images/contour_labels.png)
 
-> **v1.7.2 Phase L.9 — strict colormap lookup.** `AxesBuilder.WithColorMap(string)` throws `ArgumentException` when the name is unknown, for example the typo `"virdis"`. The exception lists the registered names. Before this fix the call did nothing and the renderer fell back to Viridis, which hid the bug. If you want a lookup that does not throw, fetch the instance yourself with `ColorMapRegistry.Get(name)` and call the `WithColorMap(IColorMap)` overload only when the result is not null.
+> **A colour map name is checked.** `AxesBuilder.WithColorMap(string)` throws `ArgumentException` when the name is unknown, for example the typo `"virdis"`, and the exception lists the registered names, so a typo never falls back to a default map in silence. If you want a lookup that does not throw, fetch the instance yourself with `ColorMapRegistry.Get(name)` and call the `WithColorMap(IColorMap)` overload only when the result is not null.
 
 ## Filled contour (contourf)
 
@@ -64,6 +64,13 @@ Plt.Create()
         .WithColorMap("RdBu"))
     .Save("contour_custom_levels.svg");
 ```
+
+The levels you name are the levels drawn, ascending and each once; `Levels` is ignored while `LevelValues` holds a
+value. A level outside the range of the grid crosses no cell, so it draws no line, and a level that is not a number
+is left out. A filled contour (`Contourf`) takes `LevelValues` too: it fills one band between each pair of
+neighbouring levels and runs its colour map and colour bar from the first level to the last, whatever range the
+grid spans. Its lowest band is painted under the whole plot, so where the grid lies below the first level you name,
+the plot shows that band's colour; matplotlib leaves that area empty unless asked to extend the colours.
 
 ## Contour with level count
 
@@ -115,9 +122,9 @@ Plt.Create()
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `Levels` | `int` | `10` | Number of contour levels |
-| `LevelValues` | `double[]` | auto | Explicit contour level values |
+| `LevelValues` | `double[]` | none | The levels to draw, ascending, each once; `Levels` is ignored when set |
 | `Filled` | `bool` | `false` | Filled areas (contourf) instead of lines only |
 | `ShowLabels` | `bool` | `false` | Show level values on contour lines |
-| `LabelFormat` | `string` | `"G"` | .NET format string for labels |
-| `LabelFontSize` | `double` | `8` | Label font size |
+| `LabelFormat` | `string` | `"G4"` | .NET format string for labels |
+| `LabelFontSize` | `double` | `10` | Label font size |
 | `ColorMap` | `IColorMap` | auto | Colormap for level colors |

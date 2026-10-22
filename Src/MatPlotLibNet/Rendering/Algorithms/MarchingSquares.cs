@@ -40,6 +40,8 @@ internal static class MarchingSquares
             {
                 for (int col = 0; col < cols - 1; col++)
                 {
+                    if (!zGrid.IsDrawableCell(xGrid, yGrid, row, col)) continue; // masked, as matplotlib masks it
+
                     double v00 = zGrid[row, col];         // bottom-left
                     double v10 = zGrid[row, col + 1];     // bottom-right
                     double v01 = zGrid[row + 1, col];     // top-left
@@ -106,30 +108,50 @@ internal static class MarchingSquares
     /// <returns>Bands in ascending level order, each with closed polygon outlines.</returns>
     internal static ContourBand[] ExtractBands(double[] xGrid, double[] yGrid, double[,] zGrid, int levels)
     {
+        if (levels < 2 || !HasVariation(xGrid, yGrid, zGrid, out var z)) return [];
+
+        // The levels span the values that are there: a missing value (NaN) and an infinity are left out.
+        return BandsBetween(xGrid, yGrid, zGrid, ContourLevels.Spanning(z.Lo, z.Hi, levels));
+    }
+
+    /// <summary>
+    /// Extracts filled contour bands between iso-levels that are given. Each band is the region between two consecutive
+    /// <paramref name="thresholds"/>, whatever range the grid spans: a threshold the grid never reaches bounds a band that
+    /// draws nothing.
+    /// </summary>
+    /// <param name="xGrid">X coordinates (length = columns of <paramref name="zGrid"/>).</param>
+    /// <param name="yGrid">Y coordinates (length = rows of <paramref name="zGrid"/>).</param>
+    /// <param name="zGrid">Z values indexed as [row, col].</param>
+    /// <param name="thresholds">The iso-levels, ascending and each once (see <see cref="ContourLevels.ExplicitLevels"/>);
+    /// <c>thresholds.Length - 1</c> bands.</param>
+    /// <returns>Bands in ascending level order, each with closed polygon outlines; none when fewer than two thresholds are
+    /// given or the grid has no variation to fill.</returns>
+    internal static ContourBand[] ExtractBands(double[] xGrid, double[] yGrid, double[,] zGrid, double[] thresholds) =>
+        thresholds.Length < 2 || !HasVariation(xGrid, yGrid, zGrid, out _) ? [] : BandsBetween(xGrid, yGrid, zGrid, thresholds);
+
+    /// <summary>Whether the grid can be filled at all: it has two rows and two columns, a value that can be drawn, and not
+    /// every such value the same.</summary>
+    private static bool HasVariation(double[] xGrid, double[] yGrid, double[,] zGrid, out Range1D range)
+    {
+        range = default;
+        if (yGrid.Length < 2 || xGrid.Length < 2 || zGrid.DrawableRange() is not { } z)
+        {
+            return false;
+        }
+
+        range = z;
+        // Flat grid — no variation to fill
+        return z.Hi - z.Lo >= 1e-12;
+    }
+
+    /// <summary>The band between each pair of consecutive thresholds.</summary>
+    private static ContourBand[] BandsBetween(double[] xGrid, double[] yGrid, double[,] zGrid, double[] thresholds)
+    {
         int rows = yGrid.Length;
         int cols = xGrid.Length;
-        if (rows < 2 || cols < 2 || levels < 2) return [];
 
-        double zMin = double.MaxValue;
-        double zMax = double.MinValue;
-        for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols; c++)
-            {
-                double v = zGrid[r, c];
-                if (v < zMin) zMin = v;
-                if (v > zMax) zMax = v;
-            }
-
-        // Flat grid — no variation to fill
-        if (zMax - zMin < 1e-12) return [];
-
-        // Build evenly-spaced level thresholds
-        double[] thresholds = new double[levels];
-        for (int i = 0; i < levels; i++)
-            thresholds[i] = zMin + i * (zMax - zMin) / (levels - 1);
-
-        var bands = new ContourBand[levels - 1];
-        for (int b = 0; b < levels - 1; b++)
+        var bands = new ContourBand[thresholds.Length - 1];
+        for (int b = 0; b < bands.Length; b++)
         {
             double lo = thresholds[b];
             double hi = thresholds[b + 1];
@@ -178,6 +200,8 @@ internal static class MarchingSquares
         {
             for (int col = 0; col < cols - 1; col++)
             {
+                if (!zGrid.IsDrawableCell(xGrid, yGrid, row, col)) continue; // masked, as matplotlib masks it
+
                 double v00 = zGrid[row,     col];
                 double v10 = zGrid[row,     col + 1];
                 double v01 = zGrid[row + 1, col];

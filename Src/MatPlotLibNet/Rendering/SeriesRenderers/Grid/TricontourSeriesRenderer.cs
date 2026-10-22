@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.Algorithms;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Styling;
 
@@ -22,23 +23,24 @@ internal sealed class TricontourSeriesRenderer : SeriesRenderer<TricontourSeries
         var mesh = Delaunay.Triangulate(series.X, series.Y);
         if (mesh.Triangles.Length == 0) return;
 
-        double zMin = series.Z.Min(), zMax = series.Z.Max();
-        if (zMin == zMax) return;
+        // The levels span the values that are there: a missing value (NaN) and an infinity are left out, and a triangle
+        // with such a vertex is masked when the lines are traced. A point that cannot be placed is no vertex at all.
+        if (series.Z.Data.DrawableRange() is not { } z || z.Lo == z.Hi) return;
+        double zMin = z.Lo, zMax = z.Hi;
 
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var norm = series.Normalizer ?? LinearNormalizer.Instance;
 
-        int levels = Math.Max(2, series.Levels);
-        for (int l = 0; l < levels; l++)
+        foreach (double levelValue in ContourLevels.Spanning(zMin, zMax, Math.Max(2, series.Levels)))
         {
-            double levelValue = zMin + (zMax - zMin) * l / (levels - 1);
-            var color = cmap.GetColor(norm.Normalize(levelValue, zMin, zMax));
+            var color = cmap.ColorOf(levelValue, norm, zMin, zMax);
 
             // March through triangles finding crossing segments at this level
             int nTriangles = mesh.Triangles.Length / 3;
             for (int t = 0; t < nTriangles; t++)
             {
                 int ia = mesh.Triangles[t * 3], ib = mesh.Triangles[t * 3 + 1], ic = mesh.Triangles[t * 3 + 2];
+                if (!(series.Z[ia].IsDrawable() && series.Z[ib].IsDrawable() && series.Z[ic].IsDrawable())) continue;
                 var segments = ContourSegments(
                     mesh.X[ia], mesh.Y[ia], series.Z[ia],
                     mesh.X[ib], mesh.Y[ib], series.Z[ib],

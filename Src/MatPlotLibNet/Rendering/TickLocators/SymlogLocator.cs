@@ -1,18 +1,23 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Serialization;
+
 namespace MatPlotLibNet.Rendering.TickLocators;
 
 /// <summary>Generates tick positions for a symmetric logarithmic scale.
 /// Places ticks at powers of 10 outside the linear threshold, and at regular intervals
 /// within the linear region. Symmetric around zero.</summary>
-public sealed class SymlogLocator : ITickLocator
+public sealed class SymlogLocator : ITickLocator, IJsonDescribed<TickLocatorDto>
 {
     private readonly double _linthresh;
 
     /// <summary>Creates a symlog tick locator.</summary>
     /// <param name="linthresh">Linear threshold — ticks within this range are evenly spaced.</param>
     public SymlogLocator(double linthresh = 1.0) => _linthresh = linthresh;
+
+    /// <inheritdoc />
+    TickLocatorDto IJsonDescribed<TickLocatorDto>.Describe() => new SymlogTickLocatorDto(_linthresh);
 
     /// <inheritdoc />
     public double[] Locate(double min, double max)
@@ -40,6 +45,10 @@ public sealed class SymlogLocator : ITickLocator
         // Filter to range and sort
         ticks.RemoveAll(t => t < min - (max - min) * 0.01 || t > max + (max - min) * 0.01);
         ticks.Sort();
+
+        // A range between two decades of the threshold holds no candidate at all.
+        if (ticks.Count == 0)
+            return [];
 
         // Deduplicate
         var result = new List<double> { ticks[0] };

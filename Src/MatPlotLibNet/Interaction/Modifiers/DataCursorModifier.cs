@@ -6,16 +6,12 @@ using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Interaction;
 
-/// <summary>Phase H.4 of the v1.7.2 follow-on plan — click-to-pin data cursor.
+/// <summary>Click-to-pin data cursor, the handler of the toolbar's
+/// <c>ToolbarButton("cursor", "Data Cursor (click)")</c>.
 /// On a plain left-click near a data point (within <see cref="HitRadiusPx"/>),
 /// emits a <see cref="DataCursorEvent"/> carrying a <see cref="PinnedAnnotation"/>.
 /// When the click doesn't hit any point, defers to the next modifier
-/// (typically pan) — so normal drag-pan gestures still work.
-///
-/// <para>Pre-H.4 the <c>ToolbarButton("cursor", "Data Cursor (click)")</c>
-/// button existed, <see cref="DataCursorEvent"/> + <see cref="PinnedAnnotation"/>
-/// records existed, but <b>no modifier implemented the click handler</b> — the
-/// toolbar button was orphaned. H.4 wires it up.</para></summary>
+/// (typically pan) — so normal drag-pan gestures still work.</summary>
 public sealed class DataCursorModifier : IInteractionModifier
 {
     /// <summary>Pixel radius within which a click "hits" a data point. Matches the

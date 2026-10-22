@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Identifies which mouse/pointer button is involved in an event.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum PointerButton
 {
     /// <summary>No button — e.g. pure hover/move.</summary>

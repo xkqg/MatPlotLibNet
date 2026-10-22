@@ -2,6 +2,10 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.SeriesRenderers;
+using MatPlotLibNet.Styling;
+using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Models.Series;
 
@@ -39,6 +43,28 @@ public class Contour3DSeriesTests
     {
         var series = new Contour3DSeries(SingleX, SingleY, SingleZ);
         Assert.Equal(1.0, series.LineWidth);
+    }
+
+    public static TheoryData<int> MarchingSquaresCases { get; } = new(Enumerable.Range(1, 14));
+
+    /// <summary>Every marching-squares case of one cell draws its crossing: one segment per level, two for the saddles
+    /// (5 and 10). The cell's corners are 0 or 1, one bit per corner (bottom-left 1, bottom-right 2, top-right 4,
+    /// top-left 8), so both levels (0.25 and 0.75) cross the same edges.</summary>
+    [Theory]
+    [MemberData(nameof(MarchingSquaresCases))]
+    public void EveryMarchingSquaresCase_DrawsItsCrossing(int code)
+    {
+        double[,] z = { { code & 1, (code >> 1) & 1 }, { (code >> 3) & 1, (code >> 2) & 1 } };
+        var bounds = new Rect(0, 0, 400, 300);
+        var ctx = new RecordingRenderContext();
+        var context = new SeriesRenderContext(new DataTransform(0, 1, 0, 1, bounds), ctx, Colors.Tab10Blue, new RenderArea(bounds, ctx))
+        {
+            Projection3D = new Projection3D(30, -60, bounds, 0, 1, 0, 1, 0, 1),
+        };
+
+        new Contour3DSeriesRenderer(context).Render(new Contour3DSeries([0, 1], [0, 1], z) { Levels = 2 });
+
+        Assert.Equal(code is 5 or 10 ? 4 : 2, ctx.CountOf("DrawLine"));
     }
 
     /// <summary>Verifies that ToSeriesDto sets type to "contour3d".</summary>

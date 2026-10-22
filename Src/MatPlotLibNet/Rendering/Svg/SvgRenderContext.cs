@@ -65,7 +65,7 @@ public sealed class SvgRenderContext : IRenderContext
         _pendingData.Clear();
     }
 
-    /// <summary>Phase F of v1.7.2 follow-on plan — applies a <c>class</c> attribute
+    /// <summary>Applies a <c>class</c> attribute
     /// to the next drawn element. Used by <c>ThreeDAxesRenderer.Render3DPanes</c> to
     /// tag panes with <c>class="mpl-pane"</c> so the JS depth-sort skips them and the
     /// behavioural test can assert DOM order.</summary>
@@ -546,7 +546,7 @@ public sealed class SvgRenderContext : IRenderContext
 
     /// <summary>Opens an SVG group for a 3D scene with camera parameters as data attributes for JS rotation.
     /// Optional <paramref name="light"/> emits data-light-dir/ambient/diffuse so the JS can recompute
-    /// face shading under rotation (Phase 6 of the v1.7.2 interaction-hardening plan).</summary>
+    /// face shading under rotation.</summary>
     internal void Begin3DSceneGroup(double elevation, double azimuth, double? distance, Rect plotBounds,
         CubeFaceSelection faces, Lighting.DirectionalLight? light = null)
     {
@@ -582,7 +582,7 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.AppendLine(">");
     }
 
-    /// <summary>Phase F of v1.7.2 follow-on plan — subgroup wrapper inside the 3D scene
+    /// <summary>Subgroup wrapper inside the 3D scene
     /// group. Three tiers mirror matplotlib's draw order (axes3d.py:458-470):
     /// <c>mpl-3d-back</c> (panes, edges, grid, axis labels), <c>mpl-3d-data</c> (series
     /// quads; depth-sorted by JS in place), <c>mpl-3d-front</c> (tick marks + labels).

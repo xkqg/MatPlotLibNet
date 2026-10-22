@@ -41,8 +41,7 @@ internal sealed class PolarHeatmapSeriesRenderer : SeriesRenderer<PolarHeatmapSe
 
                 double innerR = rIdx * rStep;
                 double outerR = innerR + rStep;
-                double normalized = norm.Normalize(val, min, max);
-                var fillColor = cmap.GetColor(normalized);
+                var fillColor = cmap.ColorOf(val, norm, min, max);
 
                 var pts = BuildWedge(transform, startAngle, endAngle, innerR, outerR);
                 Ctx.DrawPolygon(pts, new ShapeStyle(fillColor, fillColor, 0));

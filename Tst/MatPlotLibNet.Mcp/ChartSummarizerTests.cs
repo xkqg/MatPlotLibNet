@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Builders;
 
 namespace MatPlotLibNet.Mcp.Tests;
@@ -88,13 +89,27 @@ public class ChartSummarizerTests
     [Fact]
     public void ASeriesWhoseRangeCannotBeComputed_LosesItsRange_NotTheWholeCall()
     {
-        // Candlestick asks Low.Min() and throws on an empty array: one series must not take the summary with it.
+        // An error bar added past the verb's length check has fewer errors than points, so its range indexes past the
+        // end and throws: one series must not take the summary with it.
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.AddSeries(new ErrorBarSeries([1.0, 2], [1.0, 2], [0.1], [0.1]))).Build();
+
+        var series = Summarizer.Describe(figure).Series[0];
+
+        Assert.Equal("errorbar", series.Discriminator);
+        Assert.Null(series.XRange);
+    }
+
+    /// <summary>An empty candlestick has no prices to range over: it reports its slots and no price range (it used to
+    /// throw on Low.Min() over nothing).</summary>
+    [Fact]
+    public void AnEmptyCandlestick_SummarisesWithNoPriceRange()
+    {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Candlestick([], [], [], [])).Build();
 
         var series = Summarizer.Describe(figure).Series[0];
 
         Assert.Equal("candlestick", series.Discriminator);
-        Assert.Null(series.XRange);
+        Assert.Null(series.YRange);
     }
 
     [Fact]

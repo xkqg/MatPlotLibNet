@@ -8,8 +8,7 @@ namespace MatPlotLibNet.Rendering.CartesianParts;
 
 /// <summary>
 /// Renders buy/sell signal markers as triangles on a Cartesian axes.
-/// Extracted verbatim from <c>CartesianAxesRenderer.Render</c> lines 342-352
-/// (pre-B.9). Responsibility: draw each SignalMarker's triangle (pointing up
+/// Draws each SignalMarker's triangle (pointing up
 /// for Buy, down for Sell) in the signal's color.
 /// </summary>
 internal sealed class CartesianSignalsPart : CartesianAxesPart
@@ -24,6 +23,8 @@ internal sealed class CartesianSignalsPart : CartesianAxesPart
         foreach (var signal in Axes.Signals)
         {
             var pt = Transform.DataToPixel(signal.X, signal.Y);
+            // A signal at a point the axes cannot place is skipped.
+            if (!pt.IsDrawable()) continue;
             double s = signal.Size;
             var signalColor = signal.Color ?? (signal.Direction == SignalDirection.Buy ? Colors.Green : Colors.Red);
 

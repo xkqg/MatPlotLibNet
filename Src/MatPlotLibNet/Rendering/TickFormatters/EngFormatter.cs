@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Rendering.TickFormatters;
 
@@ -11,7 +12,7 @@ namespace MatPlotLibNet.Rendering.TickFormatters;
 /// the default single-space separator between the number and the unit prefix
 /// (e.g. <c>"30 k"</c>, matching <c>matplotlib.ticker.EngFormatter().format_eng</c>).
 /// </summary>
-public sealed class EngFormatter : ITickFormatter
+public sealed class EngFormatter : ITickFormatter, IJsonDescribed<TickFormatterDto>
 {
     private readonly record struct SiPrefix(double Factor, string Prefix);
 
@@ -31,6 +32,9 @@ public sealed class EngFormatter : ITickFormatter
     /// to match matplotlib's <c>EngFormatter(sep=" ")</c>. Set to <see cref="string.Empty"/> for
     /// the compact form (e.g. <c>"30k"</c>).</summary>
     public string Sep { get; set; } = " ";
+
+    /// <inheritdoc />
+    TickFormatterDto IJsonDescribed<TickFormatterDto>.Describe() => new EngTickFormatterDto(Sep);
 
     /// <inheritdoc />
     public string Format(double value)

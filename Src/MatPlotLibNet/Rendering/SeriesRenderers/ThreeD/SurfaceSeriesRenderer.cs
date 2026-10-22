@@ -20,24 +20,11 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
         int rows = series.Z.GetLength(0), cols = series.Z.GetLength(1);
         if (rows < 2 || cols < 2) return;
 
-        var bounds = Area.PlotBounds;
-
-        // Compute Z range for color mapping
-        double zMin = double.MaxValue, zMax = double.MinValue;
-        for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols; c++)
-            {
-                if (series.Z[r, c] < zMin) zMin = series.Z[r, c];
-                if (series.Z[r, c] > zMax) zMax = series.Z[r, c];
-            }
-        double zRange = zMax - zMin;
-        if (zRange == 0) zRange = 1;
-
-        double xMin = series.X.Min(), xMax = series.X.Max();
-        double yMin = series.Y.Min(), yMax = series.Y.Max();
-
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        // The Z range for colour mapping and the extent span the values that are there: a missing value (NaN) and an
+        // infinity are left out.
+        var z = series.Z.DrawableRange();
+        double zMin = z?.Lo ?? 0, zMax = z?.Hi ?? 1;
+        var proj = ProjectionFor(series.X.DrawableRange(), series.Y.DrawableRange(), z);
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
 
@@ -57,10 +44,6 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
                 double z00 = series.Z[r, c], z10 = series.Z[r + 1, c];
                 double z01 = series.Z[r, c + 1], z11 = series.Z[r + 1, c + 1];
 
-                double avgZ = (z00 + z10 + z01 + z11) / 4.0;
-                double avgDepth = (proj.Depth(x0, y0, z00) + proj.Depth(x1, y0, z01)
-                    + proj.Depth(x0, y1, z10) + proj.Depth(x1, y1, z11)) / 4.0;
-
                 var vertices = new[]
                 {
                     proj.Project(x0, y0, z00),
@@ -68,6 +51,13 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
                     proj.Project(x1, y1, z11),
                     proj.Project(x0, y1, z10)
                 };
+
+                // A quad with a vertex that cannot be placed is skipped, as matplotlib masks it.
+                if (!vertices.IsDrawable()) continue;
+
+                double avgZ = (z00 + z10 + z01 + z11) / 4.0;
+                double avgDepth = (proj.Depth(x0, y0, z00) + proj.Depth(x1, y0, z01)
+                    + proj.Depth(x0, y1, z10) + proj.Depth(x1, y1, z11)) / 4.0;
 
                 double nx = 0, ny = 0, nz = 0;
                 if (useLighting)
@@ -95,7 +85,7 @@ internal sealed class SurfaceSeriesRenderer : SeriesRenderer<SurfaceSeries>
 
         foreach (var q in quads)
         {
-            var baseColor = cmap.GetColor(normalizer.Normalize(q.AvgZ, zMin, zMax));
+            var baseColor = cmap.ColorOf(q.AvgZ, normalizer, zMin, zMax);
             var color = baseColor;
             if (Context.LightSource is { } light)
             {

@@ -18,7 +18,7 @@ public static class PlaygroundController
     /// corresponding <see cref="Theme"/>.  Returns <c>null</c> when <paramref name="rawValue"/>
     /// is not a valid integer or the index is out of range.
     /// </summary>
-    public static Theme? SelectThemeByIndex(string? rawValue, (Theme Theme, string Label)[] choices)
+    public static Theme? SelectThemeByIndex(string? rawValue, ThemeChoice[] choices)
     {
         if (!int.TryParse(rawValue, out int idx)) return null;
         if (idx < 0 || idx >= choices.Length) return null;

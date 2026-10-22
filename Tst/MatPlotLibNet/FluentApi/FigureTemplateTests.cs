@@ -1,4 +1,4 @@
-// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
@@ -133,6 +133,93 @@ public class FigureTemplateTests
         };
         var figure = FigureTemplates.SparklineDashboard(series).Build();
         Assert.Equal(3, figure.SubPlots.Count);
+    }
+
+    private static readonly NamedSample[] Metrics =
+    [
+        new("Revenue", [10, 20, 30]),
+        new("Costs",   [8, 15, 25]),
+        new("Profit",  [2, 5, 5]),
+    ];
+
+    // The same three rows as the named samples, written the way the array of tuples has always been written.
+    private static (string Label, double[] Values)[] MetricsAsTuples() =>
+        [.. Metrics.Select(sample => (sample.Label, sample.Values))];
+
+    /// <summary>A dashboard of named samples has one row for each sample, named by its label, in the order given, and the
+    /// figure is 120 pixels tall for each row.</summary>
+    [Fact]
+    public void SparklineDashboard_NamedSamples_HaveOneRowEachNamedByItsLabel()
+    {
+        var figure = FigureTemplates.SparklineDashboard(Metrics).Build();
+
+        Assert.Equal(["Revenue", "Costs", "Profit"], figure.SubPlots.Select(row => row.YAxis.Label));
+        Assert.All(figure.SubPlots, row => Assert.Single(row.Series.OfType<SparklineSeries>()));
+        Assert.Equal(360, figure.Height);
+    }
+
+    /// <summary>The named samples and the array of tuples are two ways to hand over the same rows: the picture is the same
+    /// bytes, with a title and without one.</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("Server Metrics")]
+    public void SparklineDashboard_NamedSamplesAndTuples_DrawTheSameSvg(string? title)
+    {
+        string named = FigureTemplates.SparklineDashboard(Metrics, title).ToSvg();
+        string tuples = FigureTemplates.SparklineDashboard(MetricsAsTuples(), title).ToSvg();
+
+        Assert.Equal(tuples, named);
+    }
+
+    /// <summary>The rows may come from any ordered list, not only an array.</summary>
+    [Fact]
+    public void SparklineDashboard_NamedSamples_MayBeAnyReadOnlyList()
+    {
+        List<NamedSample> list = [.. Metrics];
+
+        Assert.Equal(
+            FigureTemplates.SparklineDashboard(Metrics).ToSvg(),
+            FigureTemplates.SparklineDashboard(list).ToSvg());
+    }
+
+    /// <summary>No rows at all is refused by name in both ways of handing them over, and with the same words.</summary>
+    [Fact]
+    public void SparklineDashboard_NoRowsAtAll_IsRefusedByNameInBothOverloads()
+    {
+        var named = Assert.Throws<ArgumentNullException>(() => FigureTemplates.SparklineDashboard((IReadOnlyList<NamedSample>)null!));
+        var tuples = Assert.Throws<ArgumentNullException>(() => FigureTemplates.SparklineDashboard(((string, double[])[])null!));
+
+        Assert.Equal("series", named.ParamName);
+        Assert.Equal(named.ParamName, tuples.ParamName);
+        Assert.Equal(named.Message, tuples.Message);
+    }
+
+    /// <summary>A dashboard of no rows is a picture 0 pixels tall: it is refused by name, in both ways of handing the rows
+    /// over and in the same words, before a figure is made.</summary>
+    [Fact]
+    public void SparklineDashboard_AnEmptyList_IsRefusedByNameInBothOverloads()
+    {
+        var named = Assert.Throws<ArgumentException>(() => FigureTemplates.SparklineDashboard(Array.Empty<NamedSample>()));
+        var tuples = Assert.Throws<ArgumentException>(() => FigureTemplates.SparklineDashboard(Array.Empty<(string Label, double[] Values)>()));
+
+        Assert.Equal("series", named.ParamName);
+        Assert.Equal(named.ParamName, tuples.ParamName);
+        Assert.Equal(named.Message, tuples.Message);
+        Assert.Contains("No rows", named.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>A row that carries no values (the default of a named sample has none) is refused by the name of the row, in both
+    /// ways of handing the rows over and in the same words, instead of failing deep in the sparkline.</summary>
+    [Fact]
+    public void SparklineDashboard_ARowWithoutValues_IsRefusedByItsNameInBothOverloads()
+    {
+        var named = Assert.Throws<ArgumentException>(() => FigureTemplates.SparklineDashboard([Metrics[0], new NamedSample("Latency", null!)]));
+        var tuples = Assert.Throws<ArgumentException>(() => FigureTemplates.SparklineDashboard([("Revenue", Metrics[0].Values), ("Latency", (double[])null!)]));
+
+        Assert.Equal("series", named.ParamName);
+        Assert.Equal(named.ParamName, tuples.ParamName);
+        Assert.Equal(named.Message, tuples.Message);
+        Assert.Contains("'Latency'", named.Message, StringComparison.Ordinal);
     }
 
     // --- JointPlot ---

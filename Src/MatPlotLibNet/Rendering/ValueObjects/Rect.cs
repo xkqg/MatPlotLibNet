@@ -19,6 +19,19 @@ public readonly record struct Rect(double X, double Y, double Width, double Heig
     /// <summary>Centre point of the rectangle.</summary>
     public Point Center => new(X + Width / 2.0, Y + Height / 2.0);
 
+    /// <summary>The rectangle between two opposite corners, in either order: its left and top edges are the smaller
+    /// coordinates, its width and height the distances between them, never negative. A mark placed by its data corners
+    /// (a bar from its foot to its value, a box from one quartile to the other, a cell between its edges) is built here,
+    /// so it covers the same area on an axis that runs backwards (limits set high to low, an inverted axis), where the
+    /// corner that is the top left on an upright axis is the bottom right. Corners handed over top left first give the
+    /// very numbers <c>new Rect(a.X, a.Y, b.X - a.X, b.Y - a.Y)</c> gives. A corner that is not finite (a value the axes
+    /// cannot place) gives a rectangle that is not finite either.</summary>
+    /// <param name="a">One corner, in pixels.</param>
+    /// <param name="b">The opposite corner, in pixels.</param>
+    /// <returns>The rectangle the two corners span.</returns>
+    internal static Rect FromCorners(Point a, Point b) =>
+        new(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Abs(b.X - a.X), Math.Abs(b.Y - a.Y));
+
     /// <summary>
     /// Returns <see langword="true"/> when this rectangle overlaps <paramref name="other"/>
     /// (standard AABB test — touching edges count as non-overlapping).

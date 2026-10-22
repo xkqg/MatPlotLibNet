@@ -29,7 +29,7 @@ public sealed class WikiExampleTests
 
     /// <summary>How many blocks the wiki compiles at least: a wiki read from the wrong place, or read by a scanner that
     /// swallows blocks, holds far fewer.</summary>
-    private const int FewestPrograms = 195;
+    private const int FewestPrograms = 219;
 
     [Fact]
     public void EveryCSharpBlockOfTheWiki_CompilesAgainstThePackagesAsBuilt_WithoutAWarning()

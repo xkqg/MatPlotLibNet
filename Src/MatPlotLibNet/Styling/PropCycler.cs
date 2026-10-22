@@ -51,6 +51,19 @@ public sealed class PropCycler
     /// <summary>Gets the full cycle length (LCM of all property array lengths).</summary>
     public int Length => Lcm(Lcm(_colors.Length, _lineStyles.Length), Lcm(_markerStyles.Length, _lineWidths.Length));
 
+    /// <summary>The colours the cycler steps through, as it was built with them (the figure JSON writes these, not the
+    /// whole cycle, which can be as long as the product of the four lengths).</summary>
+    internal IReadOnlyList<Color> ColorCycle => _colors;
+
+    /// <summary>The line styles the cycler steps through.</summary>
+    internal IReadOnlyList<LineStyle> LineStyleCycle => _lineStyles;
+
+    /// <summary>The marker styles the cycler steps through.</summary>
+    internal IReadOnlyList<MarkerStyle> MarkerStyleCycle => _markerStyles;
+
+    /// <summary>The line widths the cycler steps through.</summary>
+    internal IReadOnlyList<double> LineWidthCycle => _lineWidths;
+
     private static int Lcm(int a, int b) => a / Gcd(a, b) * b;
     private static int Gcd(int a, int b) => b == 0 ? a : Gcd(b, a % b);
 }

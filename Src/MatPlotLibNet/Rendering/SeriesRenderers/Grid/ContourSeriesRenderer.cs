@@ -23,17 +23,16 @@ internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
 
         // Filled contour: delegate to heatmap for the background fill
         if (series.Filled)
-            new HeatmapSeriesRenderer(Context).Render(new HeatmapSeries(series.ZData) { ColorMap = series.ColorMap });
+            new HeatmapSeriesRenderer(Context).RenderInArea(new HeatmapSeries(series.ZData) { ColorMap = series.ColorMap });
 
-        // Compute Z range and build evenly spaced levels
-        double zMin = double.MaxValue, zMax = double.MinValue;
-        foreach (double v in series.ZData) { zMin = Math.Min(zMin, v); zMax = Math.Max(zMax, v); }
-        if (zMin >= zMax) return;
+        // Compute the Z range, over the values that are there: a missing value (NaN) and an infinity are left out, and
+        // the cells they are a corner of are masked when the lines are traced.
+        if (series.ZData.DrawableRange() is not { } z || z.Lo >= z.Hi) return;
+        double zMin = z.Lo, zMax = z.Hi;
 
-        int nLevels = Math.Max(2, series.Levels);
-        var levels = new double[nLevels];
-        for (int i = 0; i < nLevels; i++)
-            levels[i] = zMin + (zMax - zMin) * (i + 1) / (nLevels + 1);
+        // The levels the user named, or else evenly spaced ones; a named level outside the range crosses no cell.
+        double[] levels = series.LevelValues.ExplicitLevels()
+            ?? ContourLevels.Interior(zMin, zMax, Math.Max(2, series.Levels));
 
         // Extract iso-lines via MarchingSquares
         var contours = MarchingSquares.Extract(series.XData, series.YData, series.ZData, levels);
@@ -47,8 +46,7 @@ internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
             if (contour.Points.Length < 2) continue;
 
             // Map level to color
-            double t = (contour.Level - zMin) / (zMax - zMin);
-            var color = series.ColorMap is not null ? cmap.GetColor(t) : Colors.Gray;
+            var color = series.ColorMap is not null ? cmap.ColorOf(contour.Level, LinearNormalizer.Instance, zMin, zMax) : Colors.Gray;
 
             // Convert data points to pixel points
             var pixelPoints = new List<Point>(contour.Points.Length);

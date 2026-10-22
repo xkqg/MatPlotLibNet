@@ -126,15 +126,15 @@ public class WaterfallSeriesTests
         Assert.Equal(0.0, range.YMax);
     }
 
-    /// <summary>X range derives from the category count — context overrides take precedence
-    /// when set so user-supplied limits still win.</summary>
+    /// <summary>X range derives from the category count — the slots of the steps, 0 to the number of steps; context
+    /// overrides take precedence when set so user-supplied limits still win.</summary>
     [Fact]
     public void ComputeDataRange_XSpansCategoryCount()
     {
         var series = new WaterfallSeries(["A", "B", "C", "D"], [10.0, 10.0, 10.0, 10.0]);
         var range = series.ComputeDataRange(new NullCtx());
-        Assert.Equal(-0.5, range.XMin);
-        Assert.Equal(3.5, range.XMax);   // 4 categories - 0.5
+        Assert.Equal(0.0, range.XMin);
+        Assert.Equal(4.0, range.XMax);   // 4 category slots
     }
 
     /// <summary>DTO type stamp must be "waterfall" so the renderer registry resolves it.</summary>

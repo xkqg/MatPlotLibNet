@@ -11,7 +11,10 @@ namespace MatPlotLibNet;
 /// information the picture carries, which alt text alone cannot (WCAG 1.1.1, and 1.3.1 for the header cells).
 /// <para>Each series says its own data (<see cref="ISeries.ToDataTable"/>); this is the composition: series that
 /// share an x become columns of ONE table, series that do not get a table each, and the AXES names the first
-/// column, because a series only knows it is "x" and the axes knows it is "Quarter".</para></summary>
+/// column, because a series only knows it is "x" and the axes knows it is "Quarter". The axes also names the
+/// positions it shows names at: a mark on the centre of a named slot reads as that name (<see cref="KeyedByName"/>),
+/// by the rule the picture writes the names with, so a chart built in one call tables its categories, not the
+/// positions of their slots.</para></summary>
 public static class FigureDataTableExtensions
 {
     /// <summary>The tables that say what <paramref name="figure"/> shows, one group of x-sharing series at a
@@ -91,7 +94,7 @@ public static class FigureDataTableExtensions
         var fragments = new List<SeriesFragment>();
         foreach (var series in axes.AllSeries)
         {
-            if (series.Visible && series.ToDataTable() is { } table)
+            if (series.Visible && axes.TableOf(series) is { } table)
             {
                 fragments.Add(new SeriesFragment(series, table));
             }
@@ -121,6 +124,78 @@ public static class FigureDataTableExtensions
 
     /// <summary>A fragment: the series and the table it gave.</summary>
     private readonly record struct SeriesFragment(ISeries Series, ChartDataTable Table);
+
+    /// <summary>The table of one series as a reader reads it: the series says its own data, placed as it stands on the
+    /// axes (<see cref="ITableNamedByAxes"/>, for a series whose columns cannot say that as positions), and the column of
+    /// positions the axes names is its key, read as those names (<see cref="KeyedByName"/>).</summary>
+    /// <param name="axes">The axes the series is drawn on: the owner of the names along its axes.</param>
+    /// <param name="series">The series.</param>
+    /// <returns>The table, or <see langword="null"/> for a series with no tabular form.</returns>
+    private static ChartDataTable? TableOf(this Axes axes, ISeries series)
+    {
+        var names = AxisNames.Of(axes, series);
+        var table = series is ITableNamedByAxes placed ? placed.ToDataTable(names) : series.ToDataTable();
+        return table?.KeyedByName(axes, names, series.Label);
+    }
+
+    /// <summary>The table keyed by the names its positions stand on. A mark on the centre of a named slot (a lollipop's
+    /// stem, a slope graph's end, a Pareto chart's point on its bar) has no position a reader needs beside its name: the
+    /// position IS the name, so its column reads as the names and becomes the table's key, under the axis' title, or
+    /// "category", the word a bar chart's table uses. The x column is the key when the X axis names it; otherwise a y
+    /// column the Y axis names becomes the key and moves in front (the dots of a dot plot, whose categories run down the
+    /// Y axis), and the x values it leaves take the series' label, which names the series' values whichever axis they run
+    /// along. A column the axis does not name in full keeps its numbers, and so does every other column.</summary>
+    /// <param name="table">The series' table.</param>
+    /// <param name="axes">The axes whose axis titles head a column of names.</param>
+    /// <param name="names">The names along the axes the series stands on.</param>
+    /// <param name="label">The series' label.</param>
+    /// <returns>The table keyed by names, or <paramref name="table"/> when no position of its key stands on a name.</returns>
+    private static ChartDataTable KeyedByName(this ChartDataTable table, Axes axes, AxisNames names, string? label)
+    {
+        var columns = table.Columns;
+        if (NamesIn(table, 0, names) is { } alongFirst)
+        {
+            return Keyed(table, 0, alongFirst, NamedHeader(axes, columns[0].Axis), columns[0].Header);
+        }
+
+        if (columns.Count > 1 && columns[0].Axis == DataAxis.X && columns[1].Axis == DataAxis.Y
+            && NamesIn(table, 1, names) is { } across)
+        {
+            return Keyed(table, 1, across, NamedHeader(axes, DataAxis.Y), label is { Length: > 0 } ? label : columns[0].Header);
+        }
+
+        return table;
+    }
+
+    /// <summary>The names the axis of column <paramref name="column"/> shows at its positions, or <see langword="null"/>
+    /// when the column is no position or its axis does not name every position of it that can be placed.</summary>
+    private static string?[]? NamesIn(ChartDataTable table, int column, AxisNames names) =>
+        names.Along(table.Columns[column].Axis, [.. table.Rows.Select(row => row[column].Number)]);
+
+    /// <summary>A column of names takes the title of the axis it runs along, or "category" when that axis has none.</summary>
+    private static string NamedHeader(Axes axes, DataAxis axis) =>
+        (axis == DataAxis.X ? axes.XAxis : axes.YAxis).Label is { Length: > 0 } title ? title : "category";
+
+    /// <summary>The table with column <paramref name="key"/> read as <paramref name="names"/> under
+    /// <paramref name="header"/> and moved in front, the other columns after it in their order; the first column, when it
+    /// is not the key, under <paramref name="firstHeader"/>. A position with no name (the gap between two runs of a line)
+    /// is an empty cell.</summary>
+    private static ChartDataTable Keyed(ChartDataTable table, int key, string?[] names, string header, string firstHeader)
+    {
+        int[] order = [key, .. Enumerable.Range(0, table.Columns.Count).Where(c => c != key)];
+        var columns = order.Select(c =>
+            c == key ? new ChartDataColumn(header, DataColumnKind.Text, table.Columns[c].Axis)
+            : c == 0 ? new ChartDataColumn(firstHeader, table.Columns[0].Kind, table.Columns[0].Axis)
+            : table.Columns[c]).ToList();
+        var rows = new IReadOnlyList<DataCell>[table.RowCount];
+        for (int r = 0; r < rows.Length; r++)
+        {
+            var row = table.Rows[r];
+            rows[r] = [.. order.Select(c => c != key ? row[c] : names[r] is { } name ? DataCell.FromText(name) : DataCell.Empty)];
+        }
+
+        return new ChartDataTable(table.Caption, columns, rows);
+    }
 
     /// <summary>Runs of fragments whose first columns hold the same cells — those become columns of one table.
     /// The grouping is a RUN, not a bucket: it keeps draw order, which is the order a legend reads in.</summary>

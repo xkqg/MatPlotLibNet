@@ -117,6 +117,8 @@ public class AllSeriesTests
         { new StatTileSeries(42), nameof(StatTileSeries) },
         { new StateTimelineSeries([new StateSegment(0, 1, "Up", Colors.Tab10Green)]), nameof(StateTimelineSeries) },
         { new BulletGraphSeries(50), nameof(BulletGraphSeries) },
+        { new TreeGridSeries([new TreeGridRow("Root", ["1", "2"])]), nameof(TreeGridSeries) },
+        { new RelativeRotationSeries([[1.0, 2.0, 3.0]], [1.0, 1.0, 1.0], ["A"]), nameof(RelativeRotationSeries) },
         { new TreemapSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(TreemapSeries) },
         { new SunburstSeries(new TreeNode { Label = "Root", Children = [new TreeNode { Label = "A", Value = 10 }] }), nameof(SunburstSeries) },
         { new DendrogramSeries(new TreeNode { Label = "Root", Value = 1.0, Children = [new TreeNode { Label = "A" }, new TreeNode { Label = "B" }] }), nameof(DendrogramSeries) },
@@ -166,11 +168,33 @@ public class AllSeriesTests
         { MakeStreamingCandlestick(), nameof(StreamingCandlestickSeries) },
     };
 
+    /// <summary>The list above holds one instance of every concrete series type the library ships. Two types were once
+    /// missing from it, and every cross-cutting check below skipped them without a word: a series that is not in the
+    /// list is not checked for its label, its visibility, its drawing order or the visitor method it dispatches to.</summary>
+    [Fact]
+    public void TheAllSeriesList_HoldsEveryConcreteSeriesTypeTheLibraryShips()
+    {
+        var shipped = typeof(ISeries).Assembly.GetExportedTypes()
+            .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(ISeries).IsAssignableFrom(t));
+        var listed = AllSeriesInstances.Select(row => ((ITheoryDataRow)row).GetData()[0]!.GetType()).ToHashSet();
+
+        var missing = shipped.Where(t => !listed.Contains(t)).Select(t => t.Name).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(missing.Count == 0, $"{missing.Count} shipped series type(s) are missing from AllSeriesInstances: {string.Join(", ", missing)}.");
+    }
+
     /// <summary>Verifies that Label defaults to null for every series type.</summary>
     [Theory]
     [MemberData(nameof(AllSeriesInstances))]
     public void Label_DefaultsToNull(ISeries series, string _)
         => Assert.Null(series.Label);
+
+    /// <summary>Verifies that exactly one series kind draws its own label (and so is never a legend entry): the stat
+    /// tile. Every other kind lists its label in the legend, so none of them may answer true.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void DrawsOwnLabel_IsTrueForTheStatTileOnly(ISeries series, string _)
+        => Assert.Equal(series is StatTileSeries, series is ChartSeries { DrawsOwnLabel: true });
 
     /// <summary>Verifies that Visible defaults to true for every series type.</summary>
     [Theory]
@@ -363,6 +387,23 @@ public class AllSeriesTests
         Assert.NotNull(svg);
         Assert.StartsWith("<svg", svg);
         Assert.EndsWith("</svg>", svg.TrimEnd());      // trailing whitespace OK
+    }
+
+    /// <summary>Every series alone, with finite data, writes no NaN or Infinity into its SVG (the scripts, which test
+    /// <c>isNaN</c>, left out). A one-point 3-D scatter on 2-D axes wrote <c>cx="NaN" cy="NaN"</c>: its projection fitted
+    /// a box of no width.</summary>
+    [Theory]
+    [MemberData(nameof(AllSeriesInstances))]
+    public void RendersToSvg_WithoutANonFiniteCoordinate(ISeries series, string _)
+    {
+        var svg = Plt.Create()
+            .WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries((ChartSeries)series).WithTooltips())
+            .Build()
+            .ToSvg();
+
+        string body = System.Text.RegularExpressions.Regex.Replace(svg, "<script[\\s\\S]*?</script>", "");
+        Assert.DoesNotMatch("NaN|Infinity", body);
     }
 
     /// <summary>Phase X.2.a (v1.7.2, 2026-04-19) — exercises every IHasColor renderer's

@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Styling;
 
 /// <summary>Specifies the fill hatch pattern drawn inside a filled region.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum HatchPattern
 {
     /// <summary>No hatch — solid fill only.</summary>

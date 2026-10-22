@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Rendering.TickLocators;
 
 /// <summary>Granularity level chosen by <see cref="AutoDateLocator"/> based on the visible date range.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum DateInterval
 {
     /// <summary>Tick at the start of each year (January 1st).</summary>

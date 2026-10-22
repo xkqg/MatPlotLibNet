@@ -68,6 +68,48 @@ public class Projection3DTests
         Assert.Equal(-30, proj.Azimuth);
     }
 
+    /// <summary>An axis whose range has no width (one point, a constant column) places its values in the middle of the
+    /// box, the rule every 2-D axis follows (a flat range is widened by half a unit each side). Before, the box was fitted
+    /// to its eight corners, which a one-point range collapsed onto one point: the fit divided by zero and a one-point
+    /// 3-D scatter on 2-D axes was written as <c>cx="NaN" cy="NaN"</c>.</summary>
+    [Fact]
+    public void AnAxisWithNoWidth_PlacesItsValuesInTheMiddleOfTheBox()
+    {
+        var flatX = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 2, 2, 0, 10, 0, 10);
+        var wideX = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 0, 10, 0, 10, 0, 10);
+
+        Assert.Equal(0, flatX.Normalize(2, 5, 5).Nx);
+        Assert.Equal(wideX.Project(5, 5, 5).X, flatX.Project(2, 5, 5).X, 9);
+        Assert.Equal(wideX.Project(5, 5, 5).Y, flatX.Project(2, 5, 5).Y, 9);
+        Assert.Equal(new Box3D(1.5, 2.5, 0, 10, 0, 10), flatX.DataBox);
+    }
+
+    /// <summary>A reversed range (a 3-D axis limit set high to low reaches the projection as it is) is not flat: it is
+    /// not widened, and every point still projects to a finite pixel.</summary>
+    [Fact]
+    public void AReversedRange_IsNotWidened_AndProjectsFinitePoints()
+    {
+        var reversed = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 10, 0, 10, 0, 10, 0);
+
+        var pt = reversed.Project(5, 5, 5);
+        var n = reversed.Normalize(5, 5, 5);
+
+        Assert.Equal(new Box3D(10, 0, 10, 0, 10, 0), reversed.DataBox);
+        Assert.True(double.IsFinite(pt.X) && double.IsFinite(pt.Y));
+        Assert.True(double.IsFinite(n.Nx) && double.IsFinite(n.Ny) && double.IsFinite(n.Nz));
+    }
+
+    [Fact]
+    public void AOnePointBox_ProjectsItsPointInsideThePlot()
+    {
+        var onePoint = new Projection3D(30, -60, new Rect(0, 0, 400, 400), 1, 1, 2, 2, 3, 3);
+
+        var pt = onePoint.Project(1, 2, 3);
+
+        Assert.InRange(pt.X, 0, 400);
+        Assert.InRange(pt.Y, 0, 400);
+    }
+
     /// <summary>Verifies that a center point projects near the center of the plot bounds.</summary>
     [Fact]
     public void Project_CenterPoint_NearCenter()

@@ -10,8 +10,6 @@ namespace MatPlotLibNet.Rendering.CartesianParts;
 /// <summary>
 /// Renders the secondary Y-axis (twin-X — right side of the plot): secondary
 /// series + right-edge tick marks + optional secondary Y-axis label.
-/// Extracted verbatim from <c>CartesianAxesRenderer.Render</c> lines 201-238
-/// (pre-B.7).
 /// </summary>
 /// <remarks>Each series is drawn inside the series group the primary pass opens for a primary one
 /// (<see cref="SeriesGroupExtensions.BeginSeriesGroup"/>, keyed by the series' slot, the index its legend entry carries),

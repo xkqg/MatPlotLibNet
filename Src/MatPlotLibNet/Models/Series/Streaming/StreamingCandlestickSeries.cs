@@ -94,10 +94,12 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     {
         // The lowest low and the highest high of ONE state, found by walking: read separately they can come
         // from either side of an append, and a candle chart would be scaled to a range no bar ever occupied.
-        var extent = _bars.Aggregate(StreamingSeries.Box.Empty, static (box, bar) => box.Extend(bar.Low, bar.High));
-        return extent.IsEmpty
+        // A missing price (NaN) and an infinity are left out of the extent.
+        int count = 0;
+        var extent = _bars.Aggregate(StreamingSeries.Box.Empty, (box, bar) => { count++; return box.Extend(bar.Low, bar.High); });
+        return count == 0
             ? new(null, null, null, null)
-            : new(0, Count - 1, extent.XMin, extent.YMax);
+            : new(0, count - 1, extent.X.OrNone()?.Lo, extent.Y.OrNone()?.Hi);
     }
 
     /// <inheritdoc />

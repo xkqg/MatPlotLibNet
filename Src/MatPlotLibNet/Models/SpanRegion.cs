@@ -6,10 +6,17 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models;
 
 /// <summary>Represents a shaded rectangular region spanning the full width or height of the axes.</summary>
+/// <remarks>A span is clipped to the plot area, as matplotlib's <c>axhspan</c> is: an edge beyond the range the axis
+/// draws (any number outside it, an infinity, <see cref="double.MaxValue"/>) runs to the plot edge, and a span wholly beyond
+/// the range draws nothing. A span with a border has no border line along an edge that was cut. A span with an edge that is
+/// not a number (NaN) is not drawn.</remarks>
 public sealed class SpanRegion
 {
+    /// <summary>One edge of the span in data units, as it was given; the renderer takes the two edges in either
+    /// order.</summary>
     public double Min { get; }
 
+    /// <summary>The other edge of the span in data units, as it was given.</summary>
     public double Max { get; }
 
     public Orientation Orientation { get; }

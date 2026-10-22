@@ -58,41 +58,33 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
         }
     }
 
+    /// <summary>Draws the four quadrant fills around the centrepoint (100, 100) and the crosshair through it. A quadrant is
+    /// the part of the plot on its side of the centre: the rectangle between the centre, held inside the plot, and the
+    /// corner of the plot where RS-Ratio and RS-Momentum run high or low, which is the upper right for the leading
+    /// quadrant on upright axes and moves with an axis that runs backwards. A centre beyond an edge leaves the quadrants
+    /// on that side with no area, and a crosshair is drawn only where the plot shows 100.</summary>
     private void DrawQuadrantGrid()
     {
-        // Convert the centrepoint (100, 100) to pixel space.
-        var center = Transform.DataToPixel(100.0, 100.0);
-
-        // Draw four faint quadrant fills.
         var b = Area.PlotBounds;
+        var center = Transform.DataToPixel(100.0, 100.0);
+        var inside = new Point(Math.Max(b.X, Math.Min(center.X, b.Right)), Math.Max(b.Y, Math.Min(center.Y, b.Bottom)));
 
-        // Leading: top-right (+/+)
-        Ctx.DrawRectangle(
-            new Rect(center.X, b.Y, b.Right - center.X, center.Y - b.Y),
-            new ShapeStyle(LeadingColor, null, 0));
+        // The edges where each axis shows its higher values: right and top, unless the axis runs backwards.
+        var drawn = Transform.DrawnRange;
+        bool xRunsRight = drawn.XMax >= drawn.XMin, yRunsUp = drawn.YMax >= drawn.YMin;
+        double highX = xRunsRight ? b.Right : b.X, lowX = xRunsRight ? b.X : b.Right;
+        double highY = yRunsUp ? b.Y : b.Bottom, lowY = yRunsUp ? b.Bottom : b.Y;
 
-        // Weakening: bottom-right (+/-)
-        Ctx.DrawRectangle(
-            new Rect(center.X, center.Y, b.Right - center.X, b.Bottom - center.Y),
-            new ShapeStyle(WeakeningColor, null, 0));
+        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(highX, highY)), new ShapeStyle(LeadingColor, null, 0));   // +/+
+        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(highX, lowY)), new ShapeStyle(WeakeningColor, null, 0));  // +/-
+        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(lowX, lowY)), new ShapeStyle(LaggingColor, null, 0));     // -/-
+        Ctx.DrawRectangle(Rect.FromCorners(inside, new Point(lowX, highY)), new ShapeStyle(ImprovingColor, null, 0));  // -/+
 
-        // Lagging: bottom-left (-/-)
-        Ctx.DrawRectangle(
-            new Rect(b.X, center.Y, center.X - b.X, b.Bottom - center.Y),
-            new ShapeStyle(LaggingColor, null, 0));
-
-        // Improving: top-left (-/+)
-        Ctx.DrawRectangle(
-            new Rect(b.X, b.Y, center.X - b.X, center.Y - b.Y),
-            new ShapeStyle(ImprovingColor, null, 0));
-
-        // Crosshair lines.
-        Ctx.DrawLine(
-            new Point(b.X, center.Y), new Point(b.Right, center.Y),
-            new StrokeStyle(CrosshairColor, CrosshairThickness, LineStyle.Dashed));
-        Ctx.DrawLine(
-            new Point(center.X, b.Y), new Point(center.X, b.Bottom),
-            new StrokeStyle(CrosshairColor, CrosshairThickness, LineStyle.Dashed));
+        var crosshair = new StrokeStyle(CrosshairColor, CrosshairThickness, LineStyle.Dashed);
+        if (center.Y >= b.Y && center.Y <= b.Bottom)
+            Ctx.DrawLine(new Point(b.X, center.Y), new Point(b.Right, center.Y), crosshair);
+        if (center.X >= b.X && center.X <= b.Right)
+            Ctx.DrawLine(new Point(center.X, b.Y), new Point(center.X, b.Bottom), crosshair);
     }
 
     private void DrawAsset(
@@ -139,8 +131,7 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
                 Color fill = color;
                 if (hasAbsorption)
                 {
-                    double ratio = Math.Clamp(series.AbsorptionRatioPerBar![t], 0.0, 1.0);
-                    fill = AbsorptionCmap.GetColor(ratio);
+                    fill = AbsorptionCmap.ColorOf(series.AbsorptionRatioPerBar![t], NoNormNormalizer.Instance, 0, 1);
                 }
 
                 double radius = hasEnb

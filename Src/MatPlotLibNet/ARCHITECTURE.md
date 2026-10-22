@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.19.0)
+# MatPlotLibNet Core -- Architecture (v1.20.0)
 
 ## Package dependency graph
 
@@ -63,6 +63,10 @@ MatPlotLibNet/
   ChartServices.cs                    static DI defaults (IChartSerializer, IChartRenderer, ISvgRenderer)
   DisplayMode.cs                      enum: Inline, Expandable, Popup
   IChartSubscriptionClient.cs         shared SignalR client contract
+  SaveOptions.cs                      sealed record: Dpi, PrettifySvg, SvgDecimalPrecision, Title, Author — Figure.Save(path, options); each
+                                      property says which format reads it, and a format that cannot use one leaves it alone
+  SaveOptionsExtensions.cs            internal: the rules that read SaveOptions in one place (DpiFor: the options' resolution unless it is
+                                      the default, else the figure's own; TitleOrNull, AuthorOrNull), so every export asks the same question
 
   FigureTemplates.cs                  pre-built layouts: FinancialDashboard(), ScientificPaper(), SparklineDashboard(), JointPlot(), PairPlot(), FacetGrid(), Clustermap()
 
@@ -71,6 +75,26 @@ MatPlotLibNet/
   Builders/
     FigureBuilder.cs                  fluent API: Plt.Create().WithTitle().Plot().Build() (build only)
     AxesBuilder.cs                    subplot config: WithTitle(), SetXLabel(), Plot(), Scatter(), Threshold() (ref-line+breach-span+label), WithLegendValues() (last-Y in legend), etc.
+    CategoryTickExtensions.cs         internal: SetXCategoryTicks(names) / SetYCategoryTicks(names, topDown) — categories written as
+                                      an axis's ticks: a FixedLocator on each slot centre (CategorySlot) and the CategoryFormatter
+                                      that reads the name there, made as one pair (names.AsCategoryTicks() → CategoryTicks) so
+                                      positions and names cannot disagree; both built-ins, so the ticks survive JSON. Read by
+                                      Clustermap, the composed verbs, and CartesianAxesRenderer, which names the categories its
+                                      series stand on with the same pair, through that axis' tick path (upright bars, a count
+                                      plot and a candlestick's dates along X; bars that lie down along Y). Also names only
+                                      some slots (the months over a calendar's week columns) and names at positions of their
+                                      own (the centres of a Marimekko chart's columns)
+    CategoricalAxesExtensions.cs      the 15 chart verbs, four static classes in namespace MatPlotLibNet (see "Where a verb
+    DistributionAxesExtensions.cs     lives"): extension methods on AxesBuilder that compose a chart from series that already
+    XYAxesExtensions.cs               exist. Categorical: Lollipop, Dumbbell, Pareto, SlopeGraph, DotPlot, ParallelCoordinates,
+    GridAxesExtensions.cs             Marimekko. Distribution: Ridgeline, QQPlot, KaplanMeier. XY: BumpChart, ControlChart,
+                                      StreamGraph. Grid: CalendarHeatmap, Spy
+    DumbbellParts.cs                  what a verb's callback receives when it draws several series types: a readonly record
+    ParetoParts.cs                    struct with an internal constructor and get-only properties holding the very series on
+    QQPlotParts.cs                    the axes. Dumbbell (Connector, From, To), Pareto (Bars, Cumulative), QQPlot (Points,
+    ControlChartParts.cs              Reference), ControlChart (Values, Violations, Center, Lower, Upper)
+    ControlLimits.cs                  readonly record struct (Center, Lower, Upper): the limits ControlChart draws as given
+                                      instead of estimating them
     SecondaryAxisBuilder.cs           secondary Y-axis: SetYLabel(), Plot(), Scatter()
     ThemeBuilder.cs                   custom themes: Theme.CreateFrom().WithFont().WithName().WithAlarmPalette().Build()
                                       (v1.14: Build() CLONES the base theme — it used to rebuild from 8 of 15
@@ -91,14 +115,29 @@ MatPlotLibNet/
                                       reader who cannot see the picture. Series sharing an x VALUE merge into
                                       one table; the rest each get their own; neighbouring subplots that are the
                                       same single row (a KPI tile row) merge into one table with a row each;
-                                      every positional column is resolved against the axis it is a position on
+                                      every positional column is resolved against the axis it is a position on.
+                                      KeyedByName: a column of positions the axis names (a named tick on every
+                                      one, AxesTickSourceExtensions.NamesAt) is read as those names and is the
+                                      table's key, under the axis title or "category": the x column, or a y
+                                      column the Y axis names, moved in front (a dot plot). A series whose rows
+                                      its columns cannot place (ITableNamedByAxes) tables itself with AxisNames
+    MissingValueExtensions.cs         internal: NaN is the one missing value, and only a finite value can be drawn. IsDrawable,
+                                      DrawableRange (a series' data range, over what can be placed on its axis), DrawableRuns
+                                      and DrawableIndexRuns (a line breaks at every point that cannot be drawn),
+                                      DrawableValues (the observations a box, a violin, a density or a fit is made from),
+                                      IsDrawableCell (a contour masks a cell with a missing corner). A colormap, a renderer and
+                                      a data range ask here and none tests double.IsNaN on its own, so no render context is
+                                      handed a coordinate it cannot draw. A base the scale cannot place (0 on a log axis) is
+                                      drawn at the edge where the axis begins (DataTransform.DataToPixelClippedY), and a span
+                                      is cut at the plot edge
 
   Models/
-    Figure.cs                         top-level container (Title, Width, Height, Theme, EnableZoomPan, EnableLegendToggle, EnableRichTooltips, EnableHighlight, EnableSelection, HasInteractivity)
+    Figure.cs                         top-level container (Title, Width, Height, Dpi — sizes a PNG or a GIF frame: a unit of the layout is dpi / 96 pixels, Theme, EnableZoomPan, EnableLegendToggle, EnableRichTooltips, EnableHighlight, EnableSelection, HasInteractivity)
     Axes.cs                           subplot: series, annotations, ref lines, spans, secondary axis, insets, ShareX/ShareY, EnableInteractiveAttributes,
                                       AllSeries (primary + secondary-Y + secondary-X in draw order — the one
                                       answer to "what does this subplot show")
-    Axis.cs                           label, min/max, scale, ticks
+    Axis.cs                           label, min/max, scale, ticks, Inverted (drawn high to low: Range1D.OrientedBy, the rule a
+                                      limit set high to low follows; a state like matplotlib's set_inverted, never a second turn)
     AxisColorExtensions.cs            Axis.ApplyAxisColor(color): the one rule that colours an axis — tick marks, tick labels and
                                       title. The spine belongs to the axes, so each builder verb (SetYAxisColor, SetXAxisColor,
                                       and the secondary-axis builders') adds only its own spine
@@ -125,6 +164,9 @@ MatPlotLibNet/
     ChartDataTable.cs                 the accessible alternative to the picture: Caption, Columns, Rows, and
                                       ToHtml() / ToMarkdown() / ToCsv() (HTML and markdown cap at
                                       DefaultMaxRows = 1000 with a "... N more rows" trailer; CSV never caps)
+    AxisNames.cs                      internal readonly record struct (Axes, OnPrimaryX, OnPrimaryY): the names an
+                                      axes shows along the axes ONE series stands on (Along(axis, positions));
+                                      a series on a secondary axis is named along neither
     ChartDataColumn.cs                readonly record struct (Header, DataColumnKind, DataAxis) — the kind
                                       decides how a cell PRINTS; the axis says WHOSE coordinate it is, so the
                                       composition can turn a position on a date axis into a date
@@ -144,9 +186,16 @@ MatPlotLibNet/
       IPriceSeries.cs                 interface: financial OHLC series (Candlestick, OhlcBar)
       IColormappable.cs               interface: ColorMap { get; set; } — polymorphic colormap assignment
       INormalizable.cs                interface: Normalizer { get; set; } — polymorphic normalizer assignment
-      ICategoryLabeled.cs             interface: CategoryLabels for polymorphic tick-label rendering
+      ICategoryLabeled.cs             interface: CategoryLabels for polymorphic tick-label rendering, on the axis that carries the
+                                      categories (X, or Y for bars that lie down). Bars, a count plot, a candlestick and a
+                                      waterfall implement it, and name their categories on the slot centres (CategorySlot)
+      ITableNamedByAxes.cs            internal interface: ToDataTable(AxisNames) — a series whose rows stand on the axes in a way its
+                                      columns cannot say as positions tables itself with the names the axes shows there
+                                      (HeatmapSeries: its rows and columns; AreaSeries: a fill down to a named level, a ridge)
+      IHasBarOrientation.cs           internal interface: BarOrientation Orientation (BarSeries, CountSeries) — which axis their
+                                      categories stand along (BarOrientationExtensions)
       IColorBarDataProvider.cs        interface: GetColorBarRange() + ColorMap for colorbar auto-detection
-      IStackable.cs                   interface: StackBaseline for bar stacking offset computation
+      IStackable.cs                   interface: Values a stacked render sums + StackBaseline, the foot a user sets (a stacked render keeps its own stacking as render state, never in this field)
       IHasColor.cs                    interface: Color? Color — polymorphic color access (~20 series)
       IHasAlpha.cs                    interface: double Alpha — polymorphic alpha access (~7 series)
       IHasEdgeColor.cs                interface: Color? EdgeColor — polymorphic edge-color access (~3 series)
@@ -162,25 +211,82 @@ MatPlotLibNet/
                                       override a default interface member — the base must own the virtual)
       XYSeries.cs                     generic base: XData, YData, MaxDisplayPoints (Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Stem, Ecdf)
       OhlcSeries.cs                   financial base: Open, High, Low, Close, DateLabels, UpColor, DownColor, PriceData (Candlestick, OhlcBar)
-      DatasetSeries.cs                distribution base: Datasets[][], default ComputeDataRange (Stripplot, Swarmplot, Pointplot, Box, Violin)
+      DatasetSeries.cs                distribution base: Datasets[][], default ComputeDataRange (Stripplot, Swarmplot, Pointplot, Box, Violin;
+                                      Box and Violin override it to range over where they are drawn, see DatasetPositionExtensions)
       PolarSeries.cs                  generic base: RData, ThetaData (PolarLine, PolarScatter, PolarBar)
       GridSeries3D.cs                 generic base: XData, YData, ZData[,] (Surface, Wireframe)
       HierarchicalSeries.cs           abstract base: Root, ColorMap, ShowLabels, IColormappable (Treemap, Sunburst, Dendrogram)
       LineSeries.cs                   XYSeries: Color, LineStyle, LineWidth, Marker
-      ScatterSeries.cs                XYSeries: Color, MarkerSize, Sizes[], Colors[], IColormappable
-      BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth, StackBaseline, ShowLabels, LabelFormat, ICategoryLabeled, IStackable
-      HistogramSeries.cs              Data, Bins, Color, Alpha, ComputeBins()
-      PieSeries.cs                    Sizes, Labels, Colors[], StartAngle
-      HeatmapSeries.cs                Data[,], ColorMap, Normalizer, ShowLabels, LabelFormat, MaskMode, CellValueColor, IColormappable, INormalizable, ILabelable, IColorBarDataProvider
+      ScatterSeries.cs                XYSeries: Color, MarkerSize, Sizes[], Colors[], Alpha (the opacity of the marker fill), IColormappable
+      BarSeries.cs                    Categories, Values, Color, Orientation, BarWidth, StackBaseline, ShowLabels, LabelFormat, ICategoryLabeled, IStackable;
+                                      internal SlotOf(i): where bar i stands in the current render (renderer and data range read it)
+      CategorySlot.cs                 internal readonly record struct (Left, Centre, Right): the one rule for where a category sits —
+                                      category k owns [k, k + 1], centred CentreOffset (0.5) past k; Bar(width, offset, align) is the
+                                      bar standing in it, Around(x, width) a bar on a numeric axis. Read by the bar and count
+                                      renderers and data ranges, the category labels, the candlestick body, the indicator
+                                      shortcuts and the category ticks (Categorical/)
+      BarOrientationExtensions.cs     internal: the one rule for which axis bars stand their categories along — CategoriesAlongY()
+                                      (Horizontal lies down), OnAxes(range, orientation) puts a range measured upright (categories
+                                      as X, values as Y) on the axes (X and Y swapped, sticky edges with them, for bars that lie
+                                      down), NamesCategoriesAlongY(series), Transposed — a range with X and Y swapped, sticky
+                                      edges with them — and ValueScale(context), the scale of the axis the values run along, which
+                                      the bar and count ranges fold through. Read by BarSeries, CountSeries and (a box that lies
+                                      down) BoxSeries ranges and by CartesianAxesRenderer (which axis names the categories) (Categorical/)
+      StackableExtensions.cs          internal: StackedFeet(layers) / StackedEnds(layers) — the one rule for stacking bars: in each
+                                      column a layer stands on the sum of the layers before it; the columns are the first layer's.
+                                      CartesianAxesRenderer stands each layer on its feet (StackedBottoms) and the stacked bar range
+                                      takes in every foot and end, a falling layer's too (Categorical/)
+      BarGroup.cs                     public readonly record struct (Label, Values): a name and one value per place — the named-values
+                                      type of GroupedBar and of seven verbs (Dumbbell, SlopeGraph, DotPlot, ParallelCoordinates,
+                                      Marimekko, BumpChart, StreamGraph); its summary names them and a test keeps that list equal
+                                      to the public API (Categorical/)
+      BarGroupExtensions.cs           internal: ThrowIfMisaligned(count, paramName, places) — the one check every verb that takes a
+                                      BarGroup makes: one value per place (category, dimension, column or x position), refused in
+                                      the same words everywhere, and a group without values refused by name (Categorical/)
+      CategoryValuesExtensions.cs     internal: the same check for a plain double[] (Lollipop, Pareto, ControlChart, CalendarGrid) (Categorical/)
+      HistogramSeries.cs              Data, Bins, Color, Alpha, Density, Cumulative, Weights, ComputeBins(); internal Heights(bins), the
+                                      heights the bars are drawn at, read by the renderer and by the data range
+      PieSeries.cs                    Sizes, Labels, Colors[] (only what the user names; a wedge without one wears the theme's colour at
+                                      its position, a missing slice counts as 0 in the total), StartAngle
+      HeatmapSeries.cs                Data[,], ColorMap, Normalizer, ShowLabels, LabelFormat, MaskMode, CellValueColor, IColormappable, INormalizable, ILabelable, IColorBarDataProvider,
+                                      ITableNamedByAxes; RowSlot/ColumnSlot: the one owner of where a cell stands (row 0 on top), read by
+                                      its renderer and by its table, which writes a row or column the axis names as that name
       HeatmapMaskMode.cs              enum: None, UpperTriangle, LowerTriangle, UpperTriangleStrict, LowerTriangleStrict + HeatmapMaskModeExtensions.Hides(row,col)
       ImageSeries.cs                  Data[,], ColorMap, Normalizer, VMin, VMax, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       Histogram2DSeries.cs            X[], Y[], BinsX, BinsY, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
-      BoxSeries.cs                    DatasetSeries: Color, MedianColor, ShowOutliers (overrides ComputeDataRange)
-      ViolinSeries.cs                 DatasetSeries: Color, Alpha (overrides ComputeDataRange)
-      ContourSeries.cs                XData, YData, ZData[,], Levels, Filled, ShowLabels, LabelFormat, LabelFontSize, ColorMap, IColormappable, IHasDataRange
-      ContourfSeries.cs               XData, YData, ZData[,], Levels, Alpha, ShowLines, LineWidth, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
+      BoxSeries.cs                    DatasetSeries: Color, MedianColor, ShowOutliers, ShowMeans, Whis, Positions, Widths, Vert; overrides
+                                      ComputeDataRange to cover each box at its position plus and minus half its width, turned onto
+                                      the axes when the box lies down; internal HalfWidth
+      ViolinSeries.cs                 DatasetSeries: Color, Alpha, ShowMeans, ShowMedians, ShowExtrema, Positions, Widths, Side;
+                                      overrides ComputeDataRange to cover what is drawn on each side of a position (a half violin
+                                      makes no room on the side it does not draw); internal ExtremaHalfWidth, StatsHalfWidth,
+                                      BodyLeft, BodyRight, ReachAround
+      DatasetPositionExtensions.cs    internal: PositionOf(index) — where a dataset stands (its Positions entry, otherwise its
+                                      index) — and CoverAlongPositions — the range that follows, so the picture and the axes cannot
+                                      disagree about where a box or a violin is; a series that sets no Positions keeps its usual
+                                      room around 0 to n-1 (Distribution/)
+      ViolinBodyExtensions.cs         internal: Outline(sorted, widths) → ViolinSlice(Y, HalfWidth)[] — the one place the width of a
+                                      violin's body at each height is decided, read by the renderer and by the range (Distribution/)
+      NamedSample.cs                  public readonly record struct (Label, Values): a sample of any length with a name, the group
+                                      type of Ridgeline (Distribution/)
+      NamedSampleExtensions.cs        internal: Observations / SortedObservations — the observations of a sample that can be drawn
+                                      (NaN and infinities left out) and one wording for refusing a sample with too few (Distribution/)
+      SurvivalGroup.cs                public readonly record struct (Label, Durations, Observed): one group of survival data, the
+                                      group type of KaplanMeier (Distribution/)
+      SurvivalGroupExtensions.cs      internal: ProductLimit() — the product-limit estimate of a group, and the check its data is
+                                      held to (a missing, negative or infinite duration is refused); returns SurvivalCurve (Times,
+                                      Survival) (Distribution/)
+      ContourSeries.cs                XData, YData, ZData[,], Levels, LevelValues, Filled, ShowLabels, LabelFormat, LabelFontSize, ColorMap, IColormappable, IHasDataRange
+      ContourfSeries.cs               XData, YData, ZData[,], Levels, LevelValues, Alpha, ShowLines, LineWidth, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
+                                      LevelValues are the levels drawn when named (ascending, each once); Levels is the count otherwise
+                                      (Rendering/Algorithms/ContourLevels.cs is the one place that says which)
+      CalendarGrid.cs                 internal: a span of days laid out as a calendar and the one owner of where a day stands — 7 rows by
+                                      one column per week, the week start the caller's (never the culture's), a day's cell the sum of its
+                                      values, a day without a value NaN (blank); RowOf, ColumnOf, WeekdayNames, MonthColumns. A year is
+                                      53 columns wide, 54 when it has 366 days and starts on the last day of a week (Grid/)
       StemSeries.cs                   XYSeries: MarkerColor, StemColor, BaselineColor
-      AreaSeries.cs                   XYSeries: YData2 (fill between), Alpha, FillColor
+      AreaSeries.cs                   XYSeries: YData2 (fill between), Alpha, FillColor; ITableNamedByAxes: a fill down to one level
+                                      the Y axis names (a ridge) tables x and its height above that level under its label or the name
       StepSeries.cs                   XYSeries: StepPosition (Pre/Mid/Post)
       ErrorBarSeries.cs               XYSeries: YErrorLow/High, XErrorLow/High, CapSize
       CandlestickSeries.cs            OhlcSeries: BodyWidth, ICategoryLabeled
@@ -189,7 +295,10 @@ MatPlotLibNet/
       DonutSeries.cs                  Sizes, InnerRadius, CenterText (Circular/)
       BubbleSeries.cs                 XYSeries: Sizes, Alpha (XY/)
       OhlcBarSeries.cs                OhlcSeries: TickWidth (Financial/)
-      WaterfallSeries.cs              Categories, Values, IncreaseColor, DecreaseColor (Categorical/)
+      WaterfallSeries.cs              Categories, Values, IncreaseColor, DecreaseColor, TotalColor, TotalIndices, BarWidth, ICategoryLabeled;
+                                      internal Bars() → WaterfallBar(Foot, Top, IsTotal, Rises)[]: where each bar stands and ends, the
+                                      one place the data range and the renderer both read (a total bar stands on zero in TotalColor,
+                                      and the steps after it start from its level); internal SlotOf(i) (Categorical/)
       FunnelSeries.cs                 Labels, Values, Colors (Categorical/)
       GanttSeries.cs                  Tasks, Starts, Ends, BarHeight (Categorical/)
       GaugeSeries.cs                  Value, Min, Max, Ranges (GaugeBand[]?), NeedleColor (Circular/)
@@ -202,7 +311,8 @@ MatPlotLibNet/
       StateTimelineSeries.cs          IReadOnlyList&lt;StateSegment&gt; Segments — single-row discrete-state timeline along X (Categorical/)
       SparklineSeries.cs              XYSeries: Values, LineWidth (XY/)
       EcdfSeries.cs                   XYSeries: sorted empirical CDF (XY/)
-      StackedAreaSeries.cs            X[], YSets[][], StackLabels, FillColors, IStackable (XY/)
+      StackedAreaSeries.cs            X[], YSets[][], StackLabels, FillColors, Baseline, IStackable; LayerTops delegates to
+                                      StackedBaselineExtensions.TopEdgesFor, so the series and StreamGraph read the stack by one rule (XY/)
       StreamplotSeries.cs             XData[], YData[], UData[,], VData[,], Density, ArrowSize (Field/)
       PolarLineSeries.cs              PolarSeries: Color, LineStyle (Polar/)
       PolarScatterSeries.cs           PolarSeries: Color, MarkerSize (Polar/)
@@ -249,7 +359,7 @@ MatPlotLibNet/
       Bar3DSeries.cs                  Vec X, Y, Z (heights), BarWidth, Color, I3DPointSeries — 3D bar prisms (ThreeD/)
 
   Rendering/
-    Lighting/                         per-face 3D lighting model (Phase G, v0.9.0)
+    Lighting/                         per-face 3D lighting model
       ILightSource.cs                 interface: ComputeIntensity(nx, ny, nz) → [0,1]
       DirectionalLight.cs             sealed record: Dx/Dy/Dz direction + Ambient/Diffuse (Lambertian)
       Vec3.cs                         readonly record struct Vec3(X, Y, Z) + static FaceNormal(v0, v1, v2) cross-product face normal
@@ -316,9 +426,12 @@ MatPlotLibNet/
     Wavelet/                                               internal DSP helpers (v1.8.0): HaarDwt + DwtResult
 
   Transforms/                         polymorphic export: IFigureTransform -> FigureTransform -> concrete
-    IFigureTransform.cs               interface: Transform(Figure, Stream)
-    FigureTransform.cs                abstract base: holds ChartRenderer, shared by all transforms
-    SvgTransform.cs                   FigureTransform + ISvgRenderer: parallel SVG rendering
+    IFigureTransform.cs               interface: Transform(Figure, Stream) and Transform(Figure, Stream, SaveOptions); the second is a
+                                      default interface method that reads no option and calls the first, so a transform written before
+                                      the save settings existed keeps working and writes the same file
+    FigureTransform.cs                abstract base: holds ChartRenderer, shared by all transforms; the options overload is virtual
+    SvgTransform.cs                   FigureTransform + ISvgRenderer: parallel SVG rendering; applies the SVG settings of SaveOptions
+                                      (SvgDocumentExtensions)
     TransformResult.cs                fluent record: ToStream(), ToFile(), ToBytes()
 
   Animation/
@@ -329,17 +442,30 @@ MatPlotLibNet/
 
   Rendering/
     IChartRenderer.cs                 interface: Render(Figure, IRenderContext)
-    ChartRenderer.cs                  figure-level orchestrator: background, constrained layout, subplot layout, dispatch to AxesRenderer
-    AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry)
+    ChartRenderer.cs                  figure-level orchestrator: background, constrained layout, subplot layout, dispatch to AxesRenderer.
+                                        SubPlotRects is the one rule for the plot areas; the drawing and the layout both ask it
+    AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry). The legend
+                                        swatch of a line, a step or a scatter draws its marker through MarkerRenderer, the one owner of
+                                        marker shapes, so a swatch shows the marker its series has
     CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, series, annotations, signals
-                                        internal helpers (Phase L): RenderGridLines(Orientation,…), DrawBreakSegments(Orientation,BreakStyle,…)
+                                        internal helpers: RenderGridLines(Orientation,…), DrawBreakSegments(Orientation,BreakStyle,…)
+                                        Its ticks come from AxesTickSourceExtensions.PrimaryTickSource, the rule the data table shares.
+                                        PrimaryXDraw / XLabelRotation: the one decision whether the X labels turn, taken at the width the
+                                        plot is drawn at; the layout asks the same code through MeasureEdgeBands
     CartesianInsetAxesRenderer.cs     inset axes (Axes.InsetBounds; chosen by the Cartesian factory entry): draws like
                                         Cartesian but answers DrawsDirectLabels = false — an inset has no right margin, so
                                         a directly-labelled line keeps its legend entry instead of a label over the parent
-    SeriesSlot.cs                     the series colour owner: SeriesAxisPair (Primary / SecondaryY / SecondaryX), SeriesSlot
-                                        (cycle colour + cycler properties; ColorOf(series) = own colour else slot colour) and
-                                        Axes.SlotIndex / Theme.SeriesSlot. Primary passes, both secondary-axis parts and the
-                                        legend swatch all ask here, so a line and its swatch always wear the same colour
+    SeriesSlot.cs                     the owner of a series' colour AND its stroke: SeriesAxisPair (Primary / SecondaryY / SecondaryX),
+                                        SeriesSlot (the cycle colour, the theme's cycler entry for the slot and the colours the theme
+                                        gives a violin; ColorOf(series) = own colour, else the theme's violin colour for a violin, else
+                                        the slot colour; StatsColorOf for the lines over a violin; LineStyleOf, LineWidthOf,
+                                        LineMarkerOf and ScatterMarkerOf = the series' own value when it names one, else the cycler's;
+                                        StrokeOf builds the whole stroke in one call) and Axes.SlotIndex / Theme.SeriesSlot /
+                                        Theme.ThemedSlot. A value counts as named when it differs from what a new series holds
+                                        (RestingLineStyle, RestingLineWidth, RestingScatterMarker), the rule the JSON uses for a
+                                        value at rest, so a figure draws the same picture before and after a round trip. Primary
+                                        passes, both secondary-axis parts, the line renderers and the legend swatch all ask here, so
+                                        a line and its swatch always wear the same colour, dash, width and marker
     SeriesGroupExtensions.cs          the one rule for the group a series is drawn in (IRenderContext.BeginSeriesGroup):
                                         data-series-index = slot + aria-label when interactive, aria-label otherwise.
                                         Used by the primary passes and both secondary-axis parts, so the legend toggle,
@@ -347,14 +473,37 @@ MatPlotLibNet/
     AxisTickExtensions.cs             the one tick drawing: IRenderContext.RenderAxisTicks/DrawTickMark + TickDrawContext + TickSide
                                         (Bottom/Left/Right/Top); honours TickConfig (length, width, colour, direction, label
                                         size/colour, pad, visibility). Used by the primary axes, their mirrored side and both
-                                        secondary-axis parts
+                                        secondary-axis parts, for numbers and category names alike; TickLabelBand, AxisLabelOffset
+                                        and Top/BottomAxisLabelOffset place an axis title past the tick labels it measured, and
+                                        BottomAxisTitleExtent is the room the X title takes below them (the layout reserves it).
+                                        LabelExtent is how far a label reaches past the mark and its pad, turned or upright, so a
+                                        label turned by a set rotation or by the 30 degrees of crowded labels is measured turned
     AxisScaleExtensions.cs            the one rule that maps a data value into the space an axis is drawn in and back (log10,
                                         symlog, identity): DataTransform, the range the renderer draws, the server-interaction
                                         view and a pan all go through it
+    AxesTickSourceExtensions.cs       TickSource (Locator, Formatter, NamesCategories) + PrimaryTickSource: the one rule for X and Y
+                                        that decides where an axis' ticks stand and whether they label numbers or names (the series
+                                        stand categories along it, or its formatter is a CategoryFormatter, whoever set it); ScaleLocator,
+                                        ScaleFormatter, CategoryNames. NamesAt: the names the axis shows at given positions, all of them
+                                        on named ticks or none. The axes renderer draws and measures by it, the data table reads a
+                                        position by it, so the table and the picture cannot name one place differently
+    AxesRangeExtensions.cs            the automatic range of an axes: SnapshotContributions evaluates every series' ComputeDataRange
+                                        once, then adds one contribution for each line drawn across the plot at a data value
+                                        (LineContributions: a reference line, a level, a Fibonacci level), as matplotlib's axhline
+                                        and axvline update the data limits, so a line beyond the data is drawn inside the plot
+    Algorithms/ContourLevels.cs       which levels a contour draws: the ones the user names (ascending, each once, only those that
+                                        can be drawn), else the count spread evenly (Interior for lines, Spanning for bands); read by
+                                        the line, filled and triangle contours
+    ValueObjects/LineSegmentExtensions.cs  the one place a straight line is cut to the area it is drawn in (ClippedTo, the
+                                        Liang-Barsky cut; HorizontalAcross / VerticalAcross for a line across the plot); an end inside
+                                        the area comes back bit for bit
     CartesianParts/                   one responsibility per class, walked by CartesianAxesRenderer.Render in a fixed order:
-      CartesianSpansPart.cs             shaded spans behind the series
-      CartesianReferenceLinesPart.cs    full-width reference lines
-      CartesianToolsPart.cs             trendlines, levels, Fibonacci overlays
+      CartesianSpansPart.cs             shaded spans behind the series, cut at the plot edge (an edge beyond the range runs to the
+                                        plot edge, a span wholly beyond it draws nothing, a threshold's zone with it)
+      CartesianReferenceLinesPart.cs    full-width reference lines; a line beyond a limit the caller set is not drawn
+                                        (LineSegmentExtensions.HorizontalAcross / VerticalAcross)
+      CartesianToolsPart.cs             trendlines, levels, Fibonacci overlays; a trendline is cut to the plot area
+                                        (LineSegmentExtensions.ClippedTo)
       CartesianAnnotationsPart.cs       text, arrows, callouts
       CartesianSignalsPart.cs           buy/sell markers
       CartesianSecondaryYAxisPart.cs    the right-hand axis: its series (own group per series via SeriesGroupExtensions), ticks
@@ -381,7 +530,9 @@ MatPlotLibNet/
     ISeriesVisitor.cs                 visitor pattern: Visit() for each of the 83 series types
     DataTransform.cs                  data space <-> pixel space; TransformBatch uses AVX SIMD interleave (zero intermediate alloc)
     RenderArea.cs                     plot bounds + context container
-    Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment
+    Primitives.cs                     record structs: Point, Size, Rect, DataRange, PathSegment; internal Rect.FromCorners(a, b) is the
+                                      one way a mark placed by two data corners becomes a rectangle (smaller coordinates, absolute
+                                      distances), so it keeps a positive size on an axis that runs backwards
 
     TickLocators/                       ITickLocator strategy for axis tick placement
       ITickLocator.cs                   interface: double[] Locate(double min, double max)
@@ -401,17 +552,31 @@ MatPlotLibNet/
       LogTickFormatter.cs               powers of 10
       EngFormatter.cs                   SI prefix engineering notation (k, M, G, m, µ, n)
       PercentFormatter.cs               value/max*100 + "%" suffix
-      CategoryFormatter.cs              index → label string; reversed flag for heatmap Y-axis (new v1.11.1)
+      CategoryFormatter.cs              a tick from k to just below k + 1 → label k; reversed: index 0 reads the last label, for
+                                        categories drawn from the top down (a heatmap draws its row 0 at the TOP) (new v1.11.1).
+                                        Made with positions of its own, a tick at positions[k] reads labels[k] and a tick anywhere
+                                        else reads nothing: names under columns of different widths (a Marimekko chart)
       DateTimeTickFormatter.cs          FromArray (index-based) + FromEpochMs (Unix ms) factories (new v1.11.1)
 
     Layout/                             margin computation (new v0.8.1)
       ConstrainedLayoutEngine.cs        Compute(Figure, IRenderContext) → SubPlotSpacing; measures text extents, clamps margins.
-                                        Owns the right and top edge rules for BOTH layout paths (Compute for tight/constrained,
-                                        ReserveEdgeBands for the default path): MeasureRightBand, SecondaryAxisBand, TitleBand
-      LayoutMetrics.cs                  internal record: LeftNeeded, BottomNeeded, TopNeeded, RightNeeded (per subplot)
-      EdgeBands.cs                      readonly record struct (Top, Right): what an axes draws past its top / right spine besides
-                                        the title and the end labels (mirrored tick labels, secondary X axis), MEASURED by the
-                                        renderer that draws it (AxesRenderer.MeasureEdgeBands) — the drawer is the measurer
+                                        Owns the right, top, measured-left and measured-bottom edge rules for BOTH layout paths
+                                        (Compute for tight/constrained, ReserveEdgeBands for the default path): MeasureRightBand,
+                                        SecondaryAxisBand, TitleBand, LeftNeed (Y tick band + Y title + pad), BottomNeed (the
+                                        measured X tick band and X title + pad; the default path widens the theme's margin to it,
+                                        the tight path never goes below its old floor); measured bands lift the margin, gutter
+                                        and row-gap caps. Two passes in both paths: the sides first (ComputeSides in Compute,
+                                        ReserveSideBands in ReserveEdgeBands), since what an axes draws past its left and right spines
+                                        does not depend on its plot's width, then the top and bottom, measured at the width each plot
+                                        is drawn at (ChartRenderer.SubPlotRects), because crowded X labels turn at that width
+      LayoutMetrics.cs                  internal record: LeftNeeded, BottomNeeded, TopNeeded, RightNeeded, RightBand, TopBand,
+                                        LeftBand, BottomBand (per subplot)
+      EdgeBands.cs                      readonly record struct (Top, Right, Left, Bottom, BottomTitle): what an axes draws past
+                                        its four spines besides the title and the end labels (mirrored tick labels, secondary X
+                                        axis, the category names on the Y axis, every X axis' tick labels and the X title below
+                                        them), MEASURED by the renderer that draws it (AxesRenderer.MeasureEdgeBands) — the drawer
+                                        is the measurer; a numeric Y axis leaves Left at 0 and the layout estimates its labels; a
+                                        polar or 3-D axes measures nothing below (it draws its X title elsewhere)
       RightBand.cs                      readonly record struct (SecondaryAxis, MirroredYTicks, EndLabels): the right edge in drawing
                                         order; Axis = the wider axis side, Width = axis side + end labels + outer padding.
                                         The layout reserves Width and CartesianDirectLabelsPart starts its column at Axis
@@ -427,7 +592,8 @@ MatPlotLibNet/
       LegendEntry.cs                    readonly record struct (Series, OriginalIndex, Label) + Axes.LegendEntries(directLabelsDrawn):
                                         the ONE enumerator of which series are named in a legend, in which order, under which
                                         index (the series slot) and with which text. RenderLegend, ComputeLegendBounds (the
-                                        hit-test) and LegendMeasurer all read it, so drawing, click and margin cannot disagree
+                                        hit-test) and LegendMeasurer all read it, so drawing, click and margin cannot disagree.
+                                        A series that draws its own label (ChartSeries.DrawsOwnLabel: the stat tile) never has an entry
 
     TextMeasurement/                    text width estimation (new v0.8.1)
       CharacterWidthTable.cs            internal static: per-char width factors for Helvetica/Arial at 1em
@@ -468,9 +634,14 @@ MatPlotLibNet/
       SeriesRenderer.cs                 abstract base: ResolveColor(), ApplyAlpha(), ApplyDownsampling(), ApplyMonotonicDownsampling(), ResolveColormapping() + ColormapContext record struct + generic SeriesRenderer<T>
       DrawStyleInterpolation.cs         internal static: Apply(x, y, style) — shared step-mode interpolation; eliminates duplication between LineSeriesRenderer and AreaSeriesRenderer
       XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band), Residual (LeastSquares residuals + optional zero line)
+                                        A line, a step, an area (its outline too) and a stacked area break at every point that cannot be
+                                        drawn (MissingValueExtensions.DrawableRuns), in the renderer, so PNG, PDF and the native controls draw
+                                        the same gap as the SVG
       Categorical/                      Bar (ShowLabels), Histogram, Waterfall, Funnel, Gantt, ProgressBar, StatTile (single-value KPI, full tile anatomy since v1.14.0), BulletGraph (Few's measure+target+bands strip, v1.14.0), Eventplot, BrokenBar, Count (group-count), Pointplot (mean + CI)
       Circular/                         CircularRenderer<TSeries> (abstract base: BuildWedgePath, PlaceOuterLabels); Pie, Radar, Donut, Gauge
-      Grid/                             Heatmap, Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill), Clustermap (composite: heatmap + row/column dendrograms with sub-pixel-suppressed margin panels), PairGrid (composite: N×N matrix of histograms/KDE on diagonal + scatters/hexbin off-diagonal, optional hue grouping)
+      Grid/                             Heatmap (its cells stand at their data coordinates, so a limit or a zoom moves them with the axes;
+                                        RenderInArea fills the plot rectangle for a heatmap that is a panel of a larger chart: the clustermap's
+                                        matrix, a filled contour's backdrop), Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill), Clustermap (composite: heatmap + row/column dendrograms with sub-pixel-suppressed margin panels), PairGrid (composite: N×N matrix of histograms/KDE on diagonal + scatters/hexbin off-diagonal, optional hue grouping)
                                         PairGridLayout.cs — pure geometry: ComputeCellRects(plotBounds, n, cellSpacing) → Rect[n,n]; MinPanelPx sub-pixel gate
                                         PairGridOffDiagonalPainters.cs — IPairGridOffDiagonalPainter strategy + ScatterOffDiagonalPainter / HexbinOffDiagonalPainter / Registry; PairGridGeometry (MapPoint, ComputeAxisSpan); PairGridHue (IsValid, BuildCache, GetColor)
       Graph/                            NetworkGraph (composite: nodes + edges in 2D, directed-edge arrowheads, optional weight labels; layout delegated to Numerics/NetworkGraphLayouts.cs)
@@ -488,10 +659,14 @@ MatPlotLibNet/
       ISvgRenderer.cs                 interface: Render(Figure) -> string (backward compat)
       SvgRenderContext.cs             IRenderContext impl: StringBuilder-based SVG emission; BeginDataGroup(cssClass, idx, ariaLabel?), BeginLegendItemGroup(idx, ariaLabel?), BeginAccessibleGroup(cssClass, ariaLabel); uses string.EscapeForXml() extension
       SvgXml.cs                       internal static: EscapeForXml(this string) — DRY XML escaping extension used by SvgRenderContext and SvgTransform (v1.8.0: renamed from SvgXmlHelper)
+      SvgDocumentExtensions.cs        internal: WithSaveOptions(svg, options) — the settings of SaveOptions an SVG can use, applied to the
+                                      finished document text so they hold for whichever ISvgRenderer wrote it: PrettifySvg indents one
+                                      element to a line, SvgDecimalPrecision rounds positions and sizes (never stroke widths, opacities or
+                                      font sizes), Title and Author become Dublin Core metadata. Options that ask for none return the very string
       SvgSeriesRenderer.cs            thin visitor dispatcher to SeriesRenderer<T> instances
       SvgInteractivityScript.cs       embedded JS: zoom/pan via viewBox; tabindex + aria-roledescription; keyboard +/-/arrows/Home (new v0.8.8)
-      SvgLegendToggleScript.cs        embedded JS: click/Enter/Space on data-legend-index; role=button, aria-pressed, tabindex (new v0.8.8; v1.7.2 Phase S — toggle on click only, never pointerdown)
-      SvgLegendDragScript.cs          embedded JS: press-and-hold legend item to translate <g class="legend"> via transform; capture-phase stopPropagation coordinates with pan/zoom + toggle; viewBox clamp; client-only translation (new v1.7.2 Phase S)
+      SvgLegendToggleScript.cs        embedded JS: click/Enter/Space on data-legend-index; role=button, aria-pressed, tabindex (new v0.8.8; toggle on click only, never pointerdown)
+      SvgLegendDragScript.cs          embedded JS: press-and-hold legend item to translate <g class="legend"> via transform; capture-phase stopPropagation coordinates with pan/zoom + toggle; viewBox clamp; client-only translation
       SvgCustomTooltipScript.cs       embedded JS: styled floating div tooltip; role=tooltip, aria-live=polite, focus/blur listeners (new v0.8.8)
       SvgHighlightScript.cs           embedded JS: mouseenter/focus dims siblings; tabindex, blur restores (new v0.8.8)
       SvgSelectionScript.cs           embedded JS: Shift+drag selection rect; Escape cancels; aria-label on rect (new v0.8.8)
@@ -577,7 +752,13 @@ MatPlotLibNet/
                                       estimated with a kernel: a 2-D kernel estimate walks every other point
                                       for every point, and this chart is only worth drawing where that cost is
                                       unpayable. Read by AxesBuilder.DensityScatter
-    LeastSquares.cs                   public static: PolyFit (normal equations), PolyEval (Horner), ConfidenceBand (t-distribution leverage)
+    LeastSquares.cs                   public static: PolyFit (normal equations), PolyEval (Horner), ConfidenceBand (t-distribution leverage; z for 120+ degrees of freedom from StandardNormal)
+    StandardNormal.cs                 internal static: Quantile(p) — the one inverse of the normal CDF (Wichura AS 241, ~1e-16); saturates to ±∞ outside (0, 1), NaN → NaN
+    SortOrderExtensions.cs            internal: DescendingOrder() — the permutation from the largest value to the smallest, stable (ties keep
+                                      the order given), NaN last; a verb reorders its parallel arrays by it (Pareto, DotPlot)
+    StackedBaselineExtensions.cs      internal: ComputeFor(baseline, ySets, n) — the first line of a stack under Zero, Symmetric, Wiggle or
+                                      WeightedWiggle (the last two are matplotlib's stackplot baselines of those names, checked against
+                                      its source) — and TopEdgesFor — each layer's top edge; read by the stacked-area series and StreamGraph
     ConfidenceBand.cs                 sealed record(Upper[], Lower[]) — returned by LeastSquares.ConfidenceBand()
     Vec.cs                            readonly record struct: Data[], Length, Min/Max/Mean/Std/Sum/Percentile(p)/Quantile(q), element-wise ops, implicit double[] conversions
     Fft.cs                            public static: Forward (Cooley-Tukey radix-2, Hann window, zero-pad to power-of-2), Stft (sliding window FFT → StftResult)
@@ -593,7 +774,10 @@ MatPlotLibNet/
     MinMaxRange.cs                    public readonly record struct MinMaxRange(Min, Max) + MinMaxRangeExtensions.ScanColorBarRange(this double[,]) — inclusive numeric interval
     MatShape.cs                       public readonly record struct MatShape(Rows, Cols) — 2-D dimensions
     XYCurve.cs                        public readonly record struct XYCurve(X, Y) — paired sample arrays (spline / KDE results)
-    GaussianKde.cs                    internal static: SilvermanBandwidth(sorted), Evaluate(sorted, bandwidth, numPoints) → XYCurve (moved from Rendering/SeriesRenderers/Distribution/ — K3 namespace-cycle kill)
+    GaussianKde.cs                    internal static: SilvermanBandwidth(sorted) (a sample without spread takes the size of its value as the
+                                      spread, as R's bw.nrd0 does), JointBandwidth(groups) (the mean of the groups' own bandwidths, ggridges'
+                                      rule), Evaluate(sorted, bandwidth, numPoints) → XYCurve, and its two halves Grid and DensityAt, so several
+                                      groups can be estimated on one shared grid (moved from Rendering/SeriesRenderers/Distribution/ — K3 namespace-cycle kill)
     NetworkGraphLayouts.cs            internal static: pure-function layouts ApplyManual/ApplyCircular/ApplyHierarchical/ApplyForceDirected + Apply(kind, seed, iterations, threshold) dispatch (moved from Rendering/SeriesRenderers/Graph/ — K3 namespace-cycle kill)
 
     SeriesRenderers/Distribution/
@@ -604,9 +788,75 @@ MatPlotLibNet/
     IChartSerializer.cs               interface: ToJson(Figure), FromJson(string)
     ChartSerializer.cs                System.Text.Json round-trip — ToSeriesDto() serializes; per-series static
                                       FromSeriesDto(Axes, SeriesDto) factory deserializes (Information Expert;
-                                      v1.13.0: no central switch on either side; 1454 -> 888 lines)
+                                      v1.13.0: no central switch on either side; 1454 -> 888 lines). The fields
+                                      every series shares (label, placement, z-order, visibility, point budget)
+                                      have ONE writer and ONE reader here; a line's and a scatter's own fields
+                                      have one reader each (RestoreFrom), whichever axis the series sits on. A
+                                      setting at its default is left out (RestingValueExtensions.OrNullAtRest),
+                                      so old JSON reads at the defaults and an untouched figure writes the same
+                                      bytes. SeriesDrawnPropertiesRoundTripTests reflects every settable property
+                                      of the composed series types and turns red on the one a JSON drops; a
+                                      Theory over the composed chart shapes turns red on a shape built from a
+                                      series or overlay type that neither reflected contract covers.
+                                      What an axes draws besides its series (each axis with its ticks, locator,
+                                      formatter and label style; title style; legend; colour bar, the figure's
+                                      too; grid; spines; every overlay) is written by AxesToDto and read back by
+                                      ONE RestoreAxes, for a subplot and an inset alike. A grid changed over the
+                                      theme's grid is written as the grid it draws under the figure's theme
+                                      (Axes.GridUnder, the rule the renderer draws by), marked gridOverridesTheme so
+                                      a grid switched off stays off under a theme that draws one.
+                                      The figure's own settings (theme, spacing, interaction flags and tokens,
+                                      responsive SVG, chart id) are written by FigureToDto and read back by
+                                      DtoToFigure, each left out at a new figure's value; the theme is left out
+                                      while it is the default instance. AxesDrawnPropertiesRoundTripTests reflects
+                                      those parts the same way (parts "Figure" and "Theme", with an exemption list
+                                      that gives a reason per entry). A number that is not finite is written as the
+                                      string "NaN", "Infinity" or "-Infinity" and read back as itself (one number rule
+                                      for the writer and the MCP reader, ChartSerializer.ReadOptions); a colour with
+                                      transparency is written #RRGGBBAA and an opaque one #RRGGBB as always
+                                      (ColorJsonConverter). ComposedChartRoundTripTests holds every composed chart to a
+                                      write, a read back that draws the same picture, and a missing value that is never
+                                      written into the picture.
+    ThemeDto.cs                       a theme as data: every property written where it differs from the plain
+                                      Theme.Default and read back over it, so a ThemeBuilder theme survives too
+                                      (PropCyclerDto: the cycler's four lists as built; AlarmPaletteDto). The name
+                                      is a label, never a preset lookup.
+    SubPlotSpacingDto.cs,             the figure's spacing (and a theme's default spacing) and the interaction
+    InteractionThemeDto.cs              tokens: each field left out at a new value's
+    IJsonDescribed.cs                 internal interface IJsonDescribed<TDescription>: Describe(). The built-in tick
+                                      locators, tick formatters and normalisers, and the colour maps built in code,
+                                      implement it explicitly; a type written outside the library does not, and the JSON
+                                      leaves it out. Describe may return null (the reverse of a map that cannot be described).
+    TickLocatorDto.cs                 the described families: one base record per family, closed by
+    TickFormatterDto.cs                 [JsonPolymorphic] + [JsonDerivedType] ("type" is the discriminator);
+    NormalizerDto.cs                    each derived record restores its value (virtual Restore). An unknown kind
+                                        reads as the base record, which restores nothing and emits a
+                                        ChartDiagnostic. No registry, no switch: a new built-in adds its record,
+                                        one attribute line and its Describe.
+    NormalizableExtensions.cs         the one rule by which a series that maps values onto a colour map (every
+                                      INormalizable: 18 types) writes its normaliser (DescribeNormalizer: a built-in
+                                      describes itself, anything else is left out) and takes it back
+                                      (RestoreNormalizer); a series' ToSeriesDto/FromSeriesDto call it, none holds
+                                      its own copy of the cast.
+    ColorMapDto.cs                    a colour map as data, closed like the tick locators: linear (colours, their positions,
+                                      under / over / bad colours), listed, reversed (holds the map it reverses) and named (a map
+                                      the library ships, by its registered name)
+    ColorMapDescriptionExtensions.cs  the one rule by which every series drawn through a colour map, the colour bars and a pair
+                                      grid's off-diagonal map write their map (Describe: a shipped map by its name, as it always
+                                      went; a map built in code as what it is made of; a map of the user's own type by a registered
+                                      name only) and take it back (RestoreColorMap; a description wins over a name beside it).
+                                      ColorMapRegistry.IsShipped says which maps every reader knows by name
+    RestingValueExtensions.cs         OrNullAtRest(resting): a value is written only while it differs from what a new object holds,
+                                      so old JSON reads at the defaults and an untouched figure writes the bytes it always wrote
+    HierarchicalSeriesExtensions.cs   the one rule by which treemap, sunburst and dendrogram write the settings they
+                                      share (colour map, its limits, the normaliser, whether nodes are labelled:
+                                      DescribeSharedSettings) and take them back (RestoreSharedSettings); each
+                                      series adds only the settings of its own type.
+    LegendDto.cs, ColorBarDto.cs,     the record parts of an axes: each owns its From(model) (null at rest) and its
+    GridDto.cs, TickConfigDto.cs,       To...() back; a field at its resting value is left out
+    TextStyleDto.cs
     SeriesRegistry.cs                 ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>> mapping each
-                                      discriminator to the series' own FromSeriesDto factory; thin 76-line table
+                                      discriminator to the series' own FromSeriesDto factory; a table
                                       only, no series-specific logic (v1.13.0: cyclomatic complexity 173 -> 1).
                                       ResetForTests is an [Obsolete] public shim; real reset is internal
                                       ResetForTestsInternal (InternalsVisibleTo)
@@ -636,7 +886,8 @@ MatPlotLibNet/
     LineStyle.cs                      enum: Solid, Dashed, Dotted, DashDot, None
     MarkerStyle.cs                    enum: None, Circle, Square, Triangle, Diamond, etc.
     DashPatterns.cs                   canonical dash ratios shared by SVG + MAUI + Skia renderers
-    PropCycler.cs                     LCM-based multi-property cycler; CycledProperties record struct (new v0.8.1)
+    PropCycler.cs                     LCM-based multi-property cycler; CycledProperties record struct (new v0.8.1). Its colours, line
+                                      styles, markers and line widths are all drawn: SeriesSlot hands the entry for a series' slot out
     PropCyclerBuilder.cs              fluent builder: WithColors(), WithLineStyles(), WithMarkerStyles(), WithLineWidths() (new v0.8.1)
 
     ColorMaps/
@@ -644,8 +895,10 @@ MatPlotLibNet/
       LerpColorMap.cs                 internal sealed: linear interpolation between Color[] hex stops
       ReversedColorMap.cs             public decorator: inverts normalized input, appends _r suffix
       ColorMapRegistry.cs             thread-safe ConcurrentDictionary, case-insensitive, auto-registers _r variants
-      INormalizer.cs                  interface + 4 implementations: LinearNormalizer (singleton),
-                                        LogNormalizer, TwoSlopeNormalizer(center), BoundaryNormalizer(double[])
+      INormalizer.cs                  interface + 8 implementations: LinearNormalizer (singleton), LogNormalizer,
+                                        TwoSlopeNormalizer(center), BoundaryNormalizer(double[]), SymLogNormalizer,
+                                        PowerNormNormalizer, CenteredNormNormalizer, NoNormNormalizer; each writes itself to JSON
+                                        (IJsonDescribed<NormalizerDto>), and a missing value never reaches one
       ColorMaps.cs                    9 perceptually-uniform + rainbow: Viridis, Plasma, Inferno, Magma,
                                         Coolwarm, Blues, Reds, Turbo (prefer over Jet), Jet (legacy)
       SequentialColorMaps.cs          21 sequential: Cividis, Greens, Oranges, Purples, Greys, YlOrBr,
@@ -664,6 +917,72 @@ MatPlotLibNet/
       ColormapExtensions.cs           IColormappable.GetColorMapOrDefault(fallback) + int.ColormapFraction(count, singletonT)
                                         — replaces 17 inline `?? Viridis|Tab10` sites and 3 `index/(count-1)` sites
 ```
+
+## Where a verb lives
+
+A method of `AxesBuilder` itself adds one series or sets one property of the axes. A verb that composes a chart from
+series that already exist (it adds no series type, no `SeriesRegistry` key and no serializer path, so the chart travels
+through JSON as its parts) is an extension method on `AxesBuilder`. 15 verbs live there today, and each one:
+
+- sits in namespace `MatPlotLibNet`, so it needs no `using` beyond the one the builder already takes;
+- sits in folder `Builders/`, in one static class per family, the family decided by the shape of the data the caller holds:
+  - `CategoricalAxesExtensions`: data keyed by names (categories, a `BarGroup` per group). Verbs: `Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`.
+  - `DistributionAxesExtensions`: a chart estimated from a sample (a `NamedSample` per group, a `SurvivalGroup` per group of survival data). Verbs: `Ridgeline`, `QQPlot`, `KaplanMeier`.
+  - `XYAxesExtensions`: x and y arrays, values over x positions. Verbs: `BumpChart`, `ControlChart`, `StreamGraph`.
+  - `GridAxesExtensions`: cells of a grid. Verbs: `CalendarHeatmap`, `Spy`.
+- takes at most 4 parameters besides `this`, the optional inputs of its computation (a bandwidth, a week start, a
+  threshold) before `configure`, which comes last and may be left out. A verb that draws one series type takes
+  `Action<TSeries>` and runs it once for each series it draws; one that draws several types takes `Action<XxxParts>` and
+  runs it once;
+- returns the builder, so verbs chain with every other call.
+
+The types the verbs introduce:
+
+- Parts: `DumbbellParts`, `ParetoParts`, `QQPlotParts`, `ControlChartParts`. Each is a non-positional readonly record struct with an internal constructor and get-only properties, so only the library makes one, and each property is the very series (or overlay) on the axes, so a change made through it is the chart's.
+- Named data: `BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`. Each is a public readonly record struct: a name and its values, or the limits of a chart.
+- A BarGroup (a name and one value per place) is the named-values type of eight verbs: GroupedBar, Dumbbell, SlopeGraph, DotPlot, ParallelCoordinates, Marimekko, BumpChart and StreamGraph. What the name stands for is each verb's to say: a legend entry, the class of a row, a segment of a column.
+
+What holds for every verb:
+
+- One drawn unit is one series. A series takes a colour slot, a legend entry, a JSON entry and a click target of its own,
+  so a lollipop is one stem series, a ridge is one area series, a class of parallel-coordinates rows is one line series, and
+  no verb needs a grouping carrier. A chart whose unit is several series in one colour is not a verb; it waits for series
+  that share one colour (a roadmap row).
+- A verb sets no axis limit unless the chart cannot be read without it: `Pareto` puts its two Y axes on one scale,
+  `BumpChart` puts rank 1 on top, `Spy` leaves half a cell past the grid. A limit the caller sets afterwards wins.
+- A missing value (NaN) is left out of a sample or left as a gap in a line, and never drawn as a zero or bridged; the one
+  value a verb refuses when it is missing is a survival duration, because a subject without a time cannot be counted at
+  risk. A verb refuses what it cannot draw with an
+  `ArgumentException` that names the parameter (an `ArgumentNullException` for an argument that is missing), before the
+  first series is added, so a refused call leaves the axes as it was.
+- A composed chart is its parts in JSON. Read back (`FromJson`, the MCP server, the transports) it draws the same picture
+  and is not computed again: a reloaded Pareto chart does not sort or accumulate. None of the verbs is a chart type of the
+  MCP server; a spec names the parts.
+- The verb draws exactly what the same chain of public calls draws: the tests compare the SVG of each verb with the SVG
+  of that chain (`ComposedChartShapes` keeps most of the chains).
+
+A family's class is added together with its first verb. `GroupedBar`, `DensityScatter` and `Threshold` stay instance
+methods of `AxesBuilder`, as they shipped: they predate the rule, and moving a shipped method into an extension class
+keeps the source compiling but breaks every caller compiled against the old method, a binary break that package
+validation rejects. CONTRIBUTING.md says how a new verb is added and tested.
+
+The verbs share internal owners instead of each holding a copy of a rule:
+
+| Rule | Owner | Read by |
+|---|---|---|
+| where a category and a bar on it sit | `CategorySlot` | the bar and count renderers, the category ticks, every verb that puts a mark on a category |
+| categories written as an axis's ticks, on slot centres, on some slots, or at positions of their own | `CategoryTickExtensions` | every verb that names categories, the clustermap, the axes renderer |
+| one value per category, in one wording | `BarGroupExtensions`, `CategoryValuesExtensions` (`ThrowIfMisaligned`) | the verbs that take a group or an array |
+| the stable largest-first order | `SortOrderExtensions.DescendingOrder` | `Pareto`, `DotPlot` |
+| which observations of a sample can be drawn, and how a refusal is worded | `NamedSampleExtensions` | `Ridgeline`, `QQPlot`, `ControlChart` |
+| the product-limit estimate of survival data | `SurvivalGroupExtensions.ProductLimit` | `KaplanMeier` |
+| where a day stands in a calendar | `CalendarGrid` | `CalendarHeatmap` |
+| the name an axis shows at a position | `AxesTickSourceExtensions` (`PrimaryTickSource`, `NamesAt`) | the axes renderer, the data table, which keys a verb's table by its categories |
+| the top edge of each stacked layer | `StackedBaselineExtensions.TopEdgesFor` | the stacked-area series and `StreamGraph` |
+| one bandwidth for several groups, a shared grid, a density at given points | `GaussianKde` | `Ridgeline`, the density curve |
+| the inverse of the normal CDF | `StandardNormal.Quantile` | `QQPlot`, the regression band |
+| what NaN and infinity mean to a chart | `MissingValueExtensions` | every renderer and every data range |
+| the rectangle between two data corners | `Rect.FromCorners` | every renderer that draws a bar, box, cell or segment from two corners |
 
 ## Data flow
 
@@ -700,7 +1019,7 @@ string                 complete <svg>...</svg> document
                        optional scripts appended at end of body:
                          SvgInteractivityScript  (EnableZoomPan)
                          SvgLegendToggleScript   (EnableLegendToggle)
-                         SvgLegendDragScript     (EnableLegendToggle — co-emitted; Phase S)
+                         SvgLegendDragScript     (EnableLegendToggle — co-emitted)
                          SvgCustomTooltipScript  (EnableRichTooltips)
                          SvgHighlightScript      (EnableHighlight)
                          SvgSelectionScript      (EnableSelection)
@@ -711,13 +1030,13 @@ string                 complete <svg>...</svg> document
 ### Polymorphic figure transforms
 
 ```
-IFigureTransform           common interface: Transform(Figure, Stream)
-    |
+IFigureTransform           common interface: Transform(Figure, Stream), and Transform(Figure, Stream, SaveOptions)
+    |                      for the transforms that read a save setting
 FigureTransform            abstract base: holds ChartRenderer
     |
-    +-- SvgTransform       writes UTF-8 SVG text (also implements ISvgRenderer)
-    +-- PngTransform       writes PNG bytes via SkiaSharp (MatPlotLibNet.Skia)
-    +-- PdfTransform       writes PDF bytes via SkiaSharp (MatPlotLibNet.Skia)
+    +-- SvgTransform       writes UTF-8 SVG text (also implements ISvgRenderer); indentation, decimals, title, author
+    +-- PngTransform       writes PNG bytes via SkiaSharp (MatPlotLibNet.Skia) at the dpi of the options or the figure; title, author
+    +-- PdfTransform       writes PDF bytes via SkiaSharp (MatPlotLibNet.Skia); title, author
 ```
 
 All transforms share the same flow:
@@ -742,7 +1061,8 @@ figure.ToJson()        calls ChartServices.Serializer.ToJson(figure)
     |
 ChartSerializer        Figure -> each series via ISeriesSerializable -> JsonSerializer.Serialize()
     |
-string                 JSON with camelCase, null-ignoring, Color as hex
+string                 JSON with camelCase, null-ignoring, Color as hex, a number that is not finite as the string "NaN",
+                       "Infinity" or "-Infinity"; a value at its default is left out
 
 ChartServices.Serializer.FromJson(json)
     |
@@ -776,12 +1096,12 @@ ChartHub               routes to SignalR group by chartId
 | Fluent result | TransformResult record | polymorphic ToStream/ToFile/ToBytes from any transform |
 | Self-serialization | ISeriesSerializable.ToSeriesDto() + per-series static FromSeriesDto(Axes, SeriesDto) on all 83 series | each series knows how to both serialize and deserialize itself (v1.13.0: no central switch on either side) |
 | One value, not N fields | StreamingSeries → RingBuffer&lt;StreamingPoint&gt;; StreamingCandlestickSeries → RingBuffer&lt;OhlcBar&gt;; StreamingSignalSeries → RingBuffer&lt;SignalSample&gt; (the sample carries its own ordinal) | a value that must stay consistent is stored as one object, so a reader running beside the writer never sees fields from different samples. Locking a separate buffer per field keeps each buffer safe, but not the invariant across the buffers. A measured run showed that invariant failing |
-| Self-tabulation | ISeries.ToDataTable() overridden per series; FigureDataTableExtensions only groups the tables and writes their captions | this follows the same principle as self-serialization: the type that owns the data also owns its column names, so a new series type needs no change in any central file |
+| Self-tabulation | ISeries.ToDataTable() overridden per series; FigureDataTableExtensions groups the tables, writes their captions and reads a position the axes names as that name (the axes owns the names, through the rule its ticks are drawn by) | this follows the same principle as self-serialization: the type that owns the data also owns its column names, so a new series type needs no change in any central file |
 | One shaped text, three readers | Skia: TextShaper → ShapedText, read by SkiaFontMetrics (width), SkiaGlyphPathProvider (SVG outlines) and SkiaRenderContext (pixels) | the renderer draws text at the same width the layout measured for it; bidi levels come from Core's BidiAlgorithm and scripts from HarfBuzz, so Arabic letters join and Hebrew runs reverse the same way in every output |
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
 | Registry | SeriesRegistry (ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>>) | thread-safe lookup from a discriminator to the series' own FromSeriesDto factory; thin table only |
-| Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries; CircularRenderer<T>, PolarTransformRenderer<T>, OhlcStreamingIndicatorTests<T> (Phase L) | DRY shared properties and behaviour across series and renderer families |
-| Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable, IHasColor, IHasAlpha, IHasEdgeColor, ILabelable | narrow contracts for cross-cutting concerns |
+| Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries; CircularRenderer<T>, PolarTransformRenderer<T>, OhlcStreamingIndicatorTests<T> | DRY shared properties and behaviour across series and renderer families |
+| Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable, IHasColor, IHasAlpha, IHasEdgeColor, ILabelable, IHasBarOrientation (internal) | narrow contracts for cross-cutting concerns |
 | DI interfaces | IFigureTransform, IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |
 | SRP extension methods | FigureExtensions (Save, Transform, ToSvg, RegisterTransform) | FigureExtensions holds the output methods, so FigureBuilder only builds the figure |
 | Static defaults | ChartServices | non-DI usage for console apps |
@@ -794,11 +1114,19 @@ ChartHub               routes to SignalR group by chartId
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
 | One enumerator for the legend | `Axes.LegendEntries(directLabelsDrawn)` → `LegendEntry` | the drawing, the click hit-test and the margin reservation read one list, so the number of rows, their order, their index and their text cannot differ between them; "a series is named in the legend" is decided in one place |
-| One owner of a series' colour | `SeriesSlotExtensions` (`Axes.SlotIndex`, `Theme.SeriesSlot`, `SeriesSlot.ColorOf`) | the primary passes, both secondary-axis parts and the legend swatch ask the same owner, so a secondary line and its swatch cannot wear different colours under a cycler theme |
-| Edge bands: the drawer measures | `AxesRenderer.MeasureEdgeBands` → `EdgeBands`; `ConstrainedLayoutEngine.MeasureRightBand` → `RightBand`; `DirectLabelMetrics` | layout and renderer share one rule for what sits past the top and right spine (mirrored ticks, secondary axis, end labels): the renderer that draws a band reports its size, and the layout engine reserves exactly that in both layout paths |
+| One rule for where a category sits | `CategorySlot` (`Of`, `Bar`, `Around`), `BarSeries.SlotOf`, `CategoryTickExtensions` | the bar and count renderers, their data ranges, the category labels, a candlestick body, the indicator shortcuts and the category ticks read one rule, so a label, a mark and the bar it belongs to cannot drift apart: an edge-aligned bar chart's range and a count plot's labels had drifted from their bars before they shared it |
+| One owner of a series' colour and stroke | `SeriesSlotExtensions` (`Axes.SlotIndex`, `Theme.SeriesSlot`), `SeriesSlot` (`ColorOf`, `LineStyleOf`, `LineWidthOf`, `LineMarkerOf`, `ScatterMarkerOf`, `StrokeOf`) | the primary passes, both secondary-axis parts, the line renderers and the legend swatch ask the same owner, so a secondary line and its swatch cannot wear different colours, dashes, widths or markers under a cycler theme; a pie, a donut, a funnel and a stacked area take their colours from the theme through it too |
+| Compose existing series | `CategoricalAxesExtensions`, `DistributionAxesExtensions`, `XYAxesExtensions`, `GridAxesExtensions`, the `XxxParts` record structs | a chart that is a drawing of several series adds no series type, no registry key and no serializer path: one drawn unit is one series (a colour slot, a legend entry, a JSON entry), the chart travels as its parts, and the verb draws what the same chain of public calls draws |
+| One missing value | `MissingValueExtensions` | a colormap, a renderer and a data range ask one class what NaN and infinity mean: a line breaks at the gap, a mark that cannot be placed is skipped before any render context sees it, and the automatic range leaves it out. When each layer tested `double.IsNaN` for itself, charts wrote NaN into the SVG |
+| A reflected contract | `SeriesDrawnPropertiesRoundTripTests` over `DrawnSeriesFixtures`, `AxesDrawnPropertiesRoundTripTests` over `DrawnAxesFixtures` | every settable property of every series type and every part of an axes is found by reflection, set to a value that is not its default, and compared after a JSON round trip, so a property added without its DTO field turns a Theory red and names itself; a property no JSON can carry is named in a list with the reason, and a series type that is neither under the contract nor named fails a test |
+| Closed polymorphic DTO family | `TickLocatorDto`, `TickFormatterDto`, `NormalizerDto`, `ColorMapDto` with `IJsonDescribed<T>` | a built-in describes itself and a derived record restores it through a virtual, so JSON carries the kind and what it was made with; an unknown kind reads as the base record and emits a diagnostic; no registry and no switch |
+| A value at rest is not written | `RestingValueExtensions.OrNullAtRest` | JSON from an earlier release reads at the defaults and a figure that never touches a setting writes the bytes it always wrote |
+| Edge bands: the drawer measures | `AxesRenderer.MeasureEdgeBands` → `EdgeBands`; `ConstrainedLayoutEngine.MeasureRightBand` → `RightBand`; `ConstrainedLayoutEngine.LeftNeed` / `BottomNeed`; `DirectLabelMetrics` | layout and renderer share one rule for what sits past the four spines (mirrored ticks, secondary axis, end labels, the category names on the Y axis, the X tick labels and X title below the plot): the renderer that draws a band reports its size, and the layout engine reserves exactly that in both layout paths |
+| One rule for which axis carries the categories | `BarOrientationExtensions` (`CategoriesAlongY`, `OnAxes`, `NamesCategoriesAlongY`), `IHasBarOrientation` | a horizontal bar chart is an upright one with its axes swapped: the bar and count ranges are measured upright and put on the axes by one transposition, and the axes renderer names the categories on the axis that carries them through that axis' tick path (`AxesTickSourceExtensions.PrimaryTickSource`, one rule for X and Y, which the data table reads too), so hidden ticks, label size, colour, rotation, mirroring and the grid reach the names as they reach numbers |
+| A reversed axis | `Range1D.Interval` / `OrientedLike` / `OrientedBy`, `TickLocatorExtensions.LocateInterval` | a limit set high to low and `Axis.Inverted` draw an axis reversed by one rule: the range runs high to low, the ticks are the ticks of its interval, each drawn where its value is; `Inverted` is a state (matplotlib's `set_inverted(True)`), so the two together reverse the axis once, and a zoom that writes the limits as drawn keeps it reversed |
 | One extension opens every series group | `IRenderContext.BeginSeriesGroup` / `BeginSeriesClip` (`SeriesGroupExtensions`) | primary and secondary passes open the group the same way, so the legend toggle, hover highlight and `SvgDiffEngine` find a secondary line exactly as a primary one; the end label is drawn inside that group |
 | Capability + template method | `IHasLabelPlacement` on the series; `AxesRenderer.DrawsDirectLabels` (virtual, false) and `DrawInsideSeriesGroup` (virtual, no-op) overridden by the Cartesian renderer, `DrawsDirectLabels` re-overridden to false by `CartesianInsetAxesRenderer` | the series says where its name goes; the renderer of the axes says whether it can draw it. Only then does the series leave the legend, so polar, 3-D and inset axes keep the legend entry and the name is never lost, with no `is` check on the axes type |
-| Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand, ColorStop, StreamingPoint, MinMaxRange, MatShape, XYCurve, BarRange, GaugeBand, DataPoint, LineSegment, Size, Vec3, CubePlane, CubeFaceSelection, AxisEdge3D | replace anonymous/named tuples in public API for discoverability and structural equality (v1.8.0 completed the sweep — no anonymous tuples remain) |
+| Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand, ColorStop, StreamingPoint, MinMaxRange, MatShape, XYCurve, BarRange, GaugeBand, DataPoint, LineSegment, Size, Vec3, CubePlane, CubeFaceSelection, AxisEdge3D, BarGroup, NamedSample, SurvivalGroup, ControlLimits, CategorySlot, WaterfallBar, SurvivalCurve, ViolinSlice, RasterSize | replace anonymous/named tuples in public API for discoverability and structural equality (v1.8.0 completed the sweep — no anonymous tuples remain) |
 | Extension methods on value types | `string.EscapeForXml()`, `double[].Percentile()` / `BisectLeft()` / `BisectRight()`, `Color.Modulate()` / `Shade()`, `RingBuffer<T>.Min()` / `Max()` (INumber-constrained) | replaces `*Helper` static classes with discoverable dot-access APIs (v1.8.0: SvgXmlHelper → SvgXml, MathHelpers → SortedArrayExtensions, LightingHelper → Vec3 + ColorExtensions) |
 
 ---
@@ -813,6 +1141,13 @@ the package is loaded: the module initializer installs `SkiaFontMetrics` and `Sk
 MatPlotLibNet.Skia/
   FigureSkiaExtensions.cs        [ModuleInitializer] Initialize(): registers .png/.pdf, loads the bundled fonts,
                                  installs the metrics + glyph provider; ToPng(), ToPdf()
+  RasterSize.cs                  internal readonly record struct (Width, Height, ScaleX, ScaleY): the size in pixels a figure is drawn at
+                                 for a dpi (a unit of the layout is dpi / 96 pixels, the count rounded to a whole number) and the scale
+                                 that makes the drawing meet all four edges of the bitmap
+  RasterRenderingExtensions.cs   internal: the figure drawn onto a bitmap at a dpi — the one place a raster export (a PNG, a frame of a
+                                 GIF) decides how big the bitmap is and how the figure is scaled onto it
+  PngTextChunkExtensions.cs      internal: adds the Title and Author of SaveOptions to a finished PNG as iTXt chunks straight after
+                                 its header, with the CRC-32 the PNG standard puts after each chunk
   SkiaFonts.cs                   the font door. Register(path | Stream) → RegisteredFont(Family, Weight, Slant);
                                  internal Resolve(Font | family, weight, slant) → ResolvedTypeface (typeface +
                                  one shared SKShaper), memoised; the registry and the cache are replaced WHOLE on a
@@ -861,7 +1196,8 @@ MatPlotLibNet.Mcp/
                                    numbers, dates written out in full, and texts. The tool returns it as
                                    structured content BESIDE the markdown, never instead of it
   RenderLimits.cs                  the canvas, text and table-row ceilings (the canvas ceiling IS the token
-                                   ceiling; so is the row ceiling)
+                                   ceiling; so is the row ceiling). The canvas is the picture the spec draws, so a
+                                   spec's dpi counts: width and height times dpi / 96 stay inside the ceiling
   FontDirectory.cs                 the server's font door: Expand(MATPLOTLIBNET_FONTS) → files to register +
                                    problems to log; a host starts this process, so a font file arrives by variable
   ToolRefusalException.cs          a refusal the boundary turns into an McpException the model can act on
@@ -877,6 +1213,11 @@ ignored by `Enum.TryParse`, and an absent `width` overwrites the figure default 
 compatibility for the library's own clients. When a model writes the document, each of those cases turns a typo into a
 blank picture and reports it as a success. So the package validates the document first, against the same DTO records
 the serializer reads, and refuses it with the field name and the JSON path.
+
+A chart the library composes from several series travels as those series: none of the 15 chart verbs is a chart type of
+this server, in its catalog, its served list or its vocabulary, and a spec that asks for one is refused like any unknown
+type (ComposedVerbVocabularyTests holds that). A document the library writes for a composed chart is accepted whole, a
+missing value as the string "NaN" (ComposedChartSpecTests runs every composed shape through the reader).
 
 ### Two process-wide behaviours this package has to handle
 

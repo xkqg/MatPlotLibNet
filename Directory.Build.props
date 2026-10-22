@@ -14,6 +14,12 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
+    <!-- One language version for every project, both TFMs — set here so no csproj repeats or drifts from it
+         (same one-place pattern as SourceLinkVersion below). A per-project override used to pin core to 12
+         specifically so a C#13/14-only feature could never compile on the net10.0 leg and then fail on net8.0;
+         that pin is gone now that every project is explicitly on 14 instead of each TFM's own implicit default. -->
+    <LangVersion>14</LangVersion>
+
     <!-- Repo-wide, non-Windows only: docfx passes the WPF block's TargetFramework as a GLOBAL property, and a
          global property spills onto that project's references. On the Linux Pages runner MatPlotLibNet and
          MatPlotLibNet.Skia then read as Windows-targeting and refuse with "To build a project targeting Windows
@@ -48,7 +54,7 @@
        project's own `IsPackable` is not yet known in this file. -->
   <PropertyGroup Condition="$(MSBuildProjectDirectory.StartsWith($([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', 'Src'))))">
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>1.18.2</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>1.19.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>

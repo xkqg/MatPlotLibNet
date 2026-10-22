@@ -27,9 +27,10 @@ internal readonly record struct DirectLabel(ISeries Series, SeriesAxisPair Pair,
 /// <remarks>A label replaces the series' legend entry, so it wears the legend's font (with
 /// <see cref="Legend.FontSize"/> applied) and writes a value the way the legend does
 /// (<see cref="AxesRenderer.WithLegendValue"/>). Which point is the end of a line is ONE rule, used for the label's
-/// position and for the value it shows: the last point, in data order, whose x and y are finite numbers and whose x lies
-/// in the visible X range. A line without such a point has no label. So a trailing NaN or a point cut off by the X
-/// limits never puts "NaN" in the text, and the text names the value the label stands next to.</remarks>
+/// position, for the value it shows and for the legend's value (<see cref="MissingValueExtensions.LastDrawableIndex"/>):
+/// the last point, in data order, whose x and y can be drawn and, here, whose x lies in the visible X range. A line
+/// without such a point has no label. So a trailing NaN or a point cut off by the X limits never puts "NaN" in the text,
+/// and the text names the value the label stands next to.</remarks>
 internal sealed class DirectLabelMetrics
 {
     /// <summary>The gap, in pixels, between what the label follows and the label's first glyph.</summary>
@@ -105,24 +106,11 @@ internal sealed class DirectLabelMetrics
             var one = series[i];
             if (!one.Visible || string.IsNullOrEmpty(one.Label)) continue;
             var points = placed.LinePoints();
-            int end = LastVisibleFinitePoint(points, visibleX);
+            int end = points.XData.LastDrawableIndex(points.YData, visibleX.Min, visibleX.Max);
             if (end < 0) continue;
             double x = points.XData[end], y = points.YData[end];
             labels.Add(new DirectLabel(one, pair, i, legendValues ? AxesRenderer.WithLegendValue(one.Label, y) : one.Label,
                                        x, y));
         }
-    }
-
-    /// <summary>The index of the end of the line: the last point whose x and y are finite and whose x lies in
-    /// <paramref name="visibleX"/> (ordered); -1 when there is none.</summary>
-    private static int LastVisibleFinitePoint(LinePoints points, MinMaxRange visibleX)
-    {
-        for (int i = Math.Min(points.XData.Length, points.YData.Length) - 1; i >= 0; i--)
-        {
-            double x = points.XData[i];
-            if (double.IsFinite(x) && double.IsFinite(points.YData[i]) && x >= visibleX.Min && x <= visibleX.Max)
-                return i;
-        }
-        return -1;
     }
 }

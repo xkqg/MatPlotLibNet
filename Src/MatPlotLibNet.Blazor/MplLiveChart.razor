@@ -17,8 +17,7 @@
     [Parameter] public Figure? InitialFigure { get; set; }
     /// <summary>Optional subscription client — exposed so tests can inject a mock
     /// and so host apps can share one connection across components. When null
-    /// (default), the component creates its own <see cref="ChartSubscriptionClient"/>.
-    /// Phase J.1 of v1.7.2 follow-on plan.</summary>
+    /// (default), the component creates its own <see cref="ChartSubscriptionClient"/>.</summary>
     [Parameter] public IChartSubscriptionClient? Client { get; set; }
 
     private IChartSubscriptionClient _client = default!;

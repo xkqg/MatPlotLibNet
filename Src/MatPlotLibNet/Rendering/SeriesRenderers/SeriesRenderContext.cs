@@ -23,6 +23,11 @@ public record SeriesRenderContext(
 
     public CycledProperties? CycledProps { get; init; }
 
+    /// <summary>What the theme hands out at this series' slot: its colour and the cycler's set. A renderer asks it how
+    /// its series is stroked (<see cref="SeriesSlot.LineStyleOf"/>, <see cref="SeriesSlot.LineWidthOf"/>,
+    /// <see cref="SeriesSlot.LineMarkerOf"/>, <see cref="SeriesSlot.ScatterMarkerOf"/>), the same owner the legend asks.</summary>
+    internal SeriesSlot Slot => Theme.ThemedSlot(SeriesColor, CycledProps);
+
     public Projection3D? Projection3D { get; init; }
 
     public ILightSource? LightSource { get; init; }

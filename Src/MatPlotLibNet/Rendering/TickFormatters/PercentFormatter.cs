@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Rendering.TickFormatters;
 
@@ -10,13 +11,16 @@ namespace MatPlotLibNet.Rendering.TickFormatters;
 /// <c>value / max * 100</c> is displayed with a "%" suffix.
 /// Equivalent to matplotlib's <c>PercentFormatter</c>.
 /// </summary>
-public sealed class PercentFormatter : ITickFormatter
+public sealed class PercentFormatter : ITickFormatter, IJsonDescribed<TickFormatterDto>
 {
     private readonly double _max;
 
     /// <summary>Initialises with the value that represents 100%.</summary>
     /// <param name="max">The data value that corresponds to 100%. For a 0–1 scale use 1.0; for a 0–100 scale use 100.0.</param>
     public PercentFormatter(double max) => _max = max;
+
+    /// <inheritdoc />
+    TickFormatterDto IJsonDescribed<TickFormatterDto>.Describe() => new PercentTickFormatterDto(_max);
 
     /// <inheritdoc />
     public string Format(double value)

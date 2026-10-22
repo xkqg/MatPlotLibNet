@@ -10,7 +10,8 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Represents a heatmap series that renders a 2D data matrix as colored cells.</summary>
-public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable, ILabelable
+public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable, ILabelable,
+    ITableNamedByAxes
 {
     public double[,] Data { get; }
 
@@ -61,11 +62,13 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
     {
         Type = "heatmap",
         HeatmapData = ChartSerializer.To2DList(Data),
-        ColorMapName = ColorMap?.Name,
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
         ShowLabels = ShowLabels ? true : null,
         LabelFormat = LabelFormat,
         MaskMode = MaskMode != HeatmapMaskMode.None ? MaskMode.ToString() : null,
         CellValueColor = CellValueColor,
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="HeatmapSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -75,10 +78,7 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
     internal static HeatmapSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var hs = axes.Heatmap(ChartSerializer.From2DList(dto.HeatmapData));
-        if (dto.ColorMapName is not null)
-        {
-            hs.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        hs.RestoreColorMap(dto);
         if (dto.ShowLabels.HasValue)
         {
             hs.ShowLabels = dto.ShowLabels.Value;
@@ -95,14 +95,40 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
         {
             hs.CellValueColor = dto.CellValueColor.Value;
         }
+        hs.RestoreNormalizer(dto);
         return hs;
     }
 
 
+    /// <summary>The stretch of the Y axis row <paramref name="row"/> covers: row 0 at the top of an axis that counts upward,
+    /// so row <c>r</c> of <c>n</c> runs from <c>n - r - 1</c> to <c>n - r</c>. The renderer draws the row there and the
+    /// data table reads the name the Y axis shows at its centre.</summary>
+    /// <param name="row">The row, from 0 (the top).</param>
+    /// <returns>The row's slot along the Y axis.</returns>
+    internal CategorySlot RowSlot(int row) => CategorySlot.Of(Data.GetLength(0) - 1 - row);
+
+    /// <summary>The stretch of the X axis column <paramref name="column"/> covers: from <c>column</c> to
+    /// <c>column + 1</c>, the first column at the left.</summary>
+    /// <param name="column">The column, from 0.</param>
+    /// <returns>The column's slot along the X axis.</returns>
+    internal static CategorySlot ColumnSlot(int column) => CategorySlot.Of(column);
+
     /// <inheritdoc />
     /// <remarks>Long form: one row per cell. A wide grid would make the column headers indices, which say
     /// nothing a reader can use; row and column as numbers are readable at any size.</remarks>
-    public override ChartDataTable? ToDataTable()
+    public override ChartDataTable? ToDataTable() => Table(null, null);
+
+    /// <inheritdoc />
+    /// <remarks>A row or column the axis names at its centre (a calendar's weekdays, the names of a correlation matrix)
+    /// is written as that name; one the axis does not name in full (a calendar's weeks, of which only the columns that
+    /// hold a month's 1st are named) keeps its number.</remarks>
+    ChartDataTable? ITableNamedByAxes.ToDataTable(AxisNames names) => Table(
+        names.Along(DataAxis.Y, [.. Enumerable.Range(0, Data.GetLength(0)).Select(r => RowSlot(r).Centre)]),
+        names.Along(DataAxis.X, [.. Enumerable.Range(0, Data.GetLength(1)).Select(c => ColumnSlot(c).Centre)]));
+
+    /// <summary>The long-form table, with each row and column written as its name when <paramref name="rowNames"/> or
+    /// <paramref name="columnNames"/> gives the names, as its number otherwise.</summary>
+    private ChartDataTable Table(string?[]? rowNames, string?[]? columnNames)
     {
         int rows = Data.GetLength(0), cols = Data.GetLength(1);
         var out_ = new List<IReadOnlyList<DataCell>>(rows * cols);
@@ -110,12 +136,21 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
         {
             for (int c = 0; c < cols; c++)
             {
-                out_.Add([DataCell.FromNumber(r), DataCell.FromNumber(c), DataCell.FromNumber(Data[r, c])]);
+                out_.Add([Place(r, rowNames), Place(c, columnNames), DataCell.FromNumber(Data[r, c])]);
             }
         }
 
-        return new ChartDataTable(null, [new("row"), new("column"), new(Label ?? "value")], out_);
+        return new ChartDataTable(null,
+            [new("row", rowNames is null ? DataColumnKind.Number : DataColumnKind.Text),
+             new("column", columnNames is null ? DataColumnKind.Number : DataColumnKind.Text),
+             new(Label ?? "value")],
+            out_);
     }
+
+    /// <summary>A row or column: its name when the axis names it (a slot centre always can be placed, so a name is
+    /// there), its number otherwise.</summary>
+    private static DataCell Place(int index, string?[]? names) =>
+        names is null ? DataCell.FromNumber(index) : DataCell.FromText(names[index]!);
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

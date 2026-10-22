@@ -36,6 +36,7 @@ internal sealed class EcdfSeriesRenderer : SeriesRenderer<EcdfSeries>
             pts.Add(new Point(pxArr[i], pyArr[i]));
         }
 
-        Ctx.DrawLines(pts, new StrokeStyle(color, series.LineWidth, series.LineStyle));
+        // A line: a point the axes cannot place (its start at 0 on a log axis) is masked and breaks it, as a line does.
+        DrawPolyline(pts, Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
     }
 }

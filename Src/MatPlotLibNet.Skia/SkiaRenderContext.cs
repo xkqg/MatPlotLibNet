@@ -274,17 +274,28 @@ public sealed class SkiaRenderContext : IRenderContext
         }
     }
 
-    /// <summary>Tile size in pixels — the same 6 units the SVG hatch registry uses, so the two backends
+    /// <summary>Tile size in layout units — the same 6 the SVG hatch registry uses, so the two backends
     /// produce the same hatch density at the same scale.</summary>
     private const float HatchTile = 6f;
 
+    /// <summary>The most a hatch tile is enlarged for a canvas that is scaled up (a PNG at a high resolution): beyond
+    /// this the tile is stretched, since a tile is built for every hatched shape drawn.</summary>
+    private const float MostHatchTileScale = 16f;
+
     /// <summary>Builds a paint whose shader tiles the hatch geometry, so any shape the caller draws with it
-    /// is covered by the pattern. The base fill is already on the canvas; this paints only the strokes.</summary>
+    /// is covered by the pattern. The base fill is already on the canvas; this paints only the strokes.
+    /// <para>The tile is drawn with the pixels the canvas has: on a canvas scaled up for a higher resolution it is a
+    /// bigger bitmap with the same 6 units of geometry, and the shader scales it back to 6 units, which the canvas
+    /// scales up to the device again. Drawn small and stretched instead, a stroke of one unit would be two doubled
+    /// half-tone pixels rather than two solid ones.</para></summary>
     private SKPaint CreateHatchPaint(ShapeStyle shape)
     {
         Color strokes = shape.HatchColor ?? shape.Fill!.Value.ContrastingTextColor();
 
-        using var tile = new SKBitmap((int)HatchTile, (int)HatchTile);
+        int tilePixels = (int)MathF.Round(HatchTile * DeviceScale());
+        float pixelsPerUnit = tilePixels / HatchTile;
+
+        using var tile = new SKBitmap(tilePixels, tilePixels);
         using (var canvas = new SKCanvas(tile))
         using (var paint = new SKPaint
                {
@@ -295,14 +306,27 @@ public sealed class SkiaRenderContext : IRenderContext
                })
         {
             canvas.Clear(SKColors.Transparent);
+            canvas.Scale(pixelsPerUnit);
             DrawHatchTile(canvas, shape.Hatch, paint, ToSkColor(strokes));
         }
 
         return new SKPaint
         {
-            Shader = SKShader.CreateBitmap(tile.Copy(), SKShaderTileMode.Repeat, SKShaderTileMode.Repeat),
+            Shader = SKShader.CreateBitmap(
+                tile.Copy(), SKShaderTileMode.Repeat, SKShaderTileMode.Repeat,
+                SKMatrix.CreateScale(1f / pixelsPerUnit, 1f / pixelsPerUnit)),
             IsAntialias = true
         };
+    }
+
+    /// <summary>How many device pixels a layout unit is on the canvas being drawn on: 1 for a canvas at its natural
+    /// scale (and for one scaled down), more for a raster export at a higher resolution.</summary>
+    private float DeviceScale()
+    {
+        SKMatrix m = _canvas.TotalMatrix;
+        float across = MathF.Sqrt(m.ScaleX * m.ScaleX + m.SkewY * m.SkewY);
+        float down = MathF.Sqrt(m.SkewX * m.SkewX + m.ScaleY * m.ScaleY);
+        return Math.Clamp(MathF.Max(across, down), 1f, MostHatchTileScale);
     }
 
     /// <summary>Draws one tile of the hatch. Mirrors <c>SvgHatchRegistry.AppendStrokes</c> geometry so the SVG

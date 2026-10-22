@@ -5,6 +5,7 @@ namespace MatPlotLibNet.Mcp.Tests;
 
 /// <summary>The schema a model reads has to be the schema the reader enforces, or the server documents one thing
 /// and accepts another. Both come off the same DTO records, and the example is run through the real renderer.</summary>
+[Collection("ChartServicesGlobalState")]
 public class ChartSchemaDescriptionTests
 {
     private static readonly ChartTypeCatalog Catalog = new();
@@ -41,9 +42,11 @@ public class ChartSchemaDescriptionTests
         Assert.Contains("'candlestick'", refusal.Message);
     }
 
-    [Fact]
-    public void AChartTypeThisServerDoesNotList_IsRefusedToo() =>
-        Assert.Throws<ToolRefusalException>(() => Description.Describe("sankey"));
+    [Theory]
+    [InlineData("sankey")]
+    [InlineData("dendrogram")]
+    public void AChartTypeThisServerDoesNotList_IsRefusedToo(string type) =>
+        Assert.Throws<ToolRefusalException>(() => Description.Describe(type));
 
     [Fact]
     public void TheExampleInTheSchema_IsItselfARenderableSpec()
@@ -79,6 +82,35 @@ public class ChartSchemaDescriptionTests
         Assert.Contains("line", placement, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>A field whose wire name says little is explained where it is listed: <c>c</c> is matplotlib's name for
+    /// the values a colour map colours, an area's step mode travels in <c>drawStyle</c>, and <c>fill</c> is a switch,
+    /// not a colour.</summary>
+    [Theory]
+    [InlineData("scatter", "c:", "colour map")]
+    [InlineData("area", "drawStyle:", "area")]
+    [InlineData("bar", "stackBaseline:", "starts")]
+    [InlineData("kde", "fill:", "area under")]
+    [InlineData("contourf", "hatches:", "band")]
+    [InlineData("polarheatmap", "rMax:", "radius")]
+    [InlineData("waterfall", "totalIndices:", "zero")]
+    [InlineData("histogram", "density:", "area")]
+    [InlineData("streamplot", "streamDensity:", "streamlines")]
+    [InlineData("histogram", "rWidth:", "bin")]
+    [InlineData("pie", "autoPct:", "percentage")]
+    [InlineData("pie", "explode:", "slice")]
+    [InlineData("pie", "colors:", "slice")]
+    [InlineData("table", "fontSize:", "contour")]
+    [InlineData("heatmap", "colorMap:", "built in code")]
+    [InlineData("heatmap", "colorMapName:", "ships")]
+    [InlineData("pairgrid", "pairGridOffDiagonalColorMapDescription:", "built in code")]
+    public void AFieldWhoseNameSaysLittle_IsExplainedWhereItIsListed(string type, string field, string explanation)
+    {
+        string schema = Description.Describe(type);
+
+        var line = schema.Split(Environment.NewLine).Single(l => l.TrimStart().StartsWith(field, StringComparison.Ordinal));
+        Assert.Contains(explanation, line, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void TheFieldNames_AreTheWireNames_NotTheClrNames()
     {
@@ -86,5 +118,62 @@ public class ChartSchemaDescriptionTests
 
         Assert.Contains("altText", schema);
         Assert.DoesNotContain("AltText", schema);
+    }
+
+    /// <summary>A tick locator, a tick formatter and a normaliser are written by kind: the schema names every kind the
+    /// reader accepts, with the fields that kind takes, read off the same records the serializer reads.</summary>
+    [Theory]
+    [InlineData("multiple: base: number, offset: number")]
+    [InlineData("fixed: positions: number[]")]
+    [InlineData("log")]
+    [InlineData("category: labels: string[], reversed: boolean, positions: number[]")]
+    [InlineData("autoDate")]
+    [InlineData("twoSlope: center: number")]
+    [InlineData("centered: vcenter: number, halfrange: number")]
+    [InlineData("linear: name: string, colors: string (colour)[], positions: number[], underColor: string (colour), overColor: string (colour), badColor: string (colour)")]
+    [InlineData("listed: name: string, colors: string (colour)[], underColor: string (colour), overColor: string (colour), badColor: string (colour)")]
+    [InlineData("reversed: map: object")]
+    [InlineData("named: name: string")]
+    public void TheSchema_NamesEveryKindOfLocatorFormatterAndNormaliser_WithItsFields(string kind)
+    {
+        string schema = Description.Describe(null);
+
+        Assert.Contains(schema.Split(Environment.NewLine), line => line.Trim() == kind);
+    }
+
+    /// <summary>The parts an axes draws besides its series are listed with their fields, wire names and all.</summary>
+    [Theory]
+    [InlineData("Legend fields", "position: string (enum)")]
+    [InlineData("Colour bar fields", "orientation: string (enum)")]
+    [InlineData("Grid fields", "axis: string (enum)")]
+    [InlineData("Tick fields", "direction: string (enum)")]
+    public void TheSchema_ListsThePartsAnAxesDraws(string section, string field)
+    {
+        string schema = Description.Describe(null);
+
+        int at = schema.IndexOf(section, StringComparison.Ordinal);
+        Assert.True(at >= 0, $"'{section}' is not in the schema.");
+        Assert.Contains(field, schema[at..]);
+    }
+
+    [Theory]
+    [InlineData("tickLocator:", "type")]
+    [InlineData("tickFormatter:", "type")]
+    public void ADescribedAxisField_SaysItIsWrittenByKind(string field, string explanation)
+    {
+        string schema = Description.Describe(null);
+
+        var line = schema.Split(Environment.NewLine).First(l => l.TrimStart().StartsWith(field, StringComparison.Ordinal));
+        Assert.Contains(explanation, line);
+    }
+
+    /// <summary>The normaliser is not a public member of the series record, so its line is written by hand: one chart
+    /// type's description still names it.</summary>
+    [Fact]
+    public void AHeatmapsDescription_NamesItsNormaliser()
+    {
+        string schema = Description.Describe("heatmap");
+
+        Assert.Contains(schema.Split(Environment.NewLine), line => line.TrimStart().StartsWith("normalizer:", StringComparison.Ordinal));
     }
 }

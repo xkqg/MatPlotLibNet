@@ -4,8 +4,7 @@
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>RS-Ratio / RS-Momentum calculation model for <see cref="RelativeRotationSeries"/>.</summary>
-/// <remarks>Ordinals are explicit and append-only — never reorder or remove values.
-/// See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks>Ordinals are explicit and append-only — never reorder or remove values.</remarks>
 public enum RrgFormula
 {
     /// <summary>Canonical JdK dual-EMA reconstruction (default).

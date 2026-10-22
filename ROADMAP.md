@@ -34,10 +34,67 @@ that needs a row is what moves it up.
 | **Done** | Charts in Verso | `MatPlotLibNet.Verso`: a Verso notebook cell that ends on a figure shows the chart. See [Verso](https://github.com/xkqg/MatPlotLibNet/wiki/Verso). |
 | **Done** | Examples that compile | The wiki's C# examples compiled against the packages on every CI run, and a page of each release's calls. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
 | **Done** | Direct labels and axis colours | A line's name at its end instead of in the legend, and an axis in its line's colour, on all four axes. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
-| **Later** | Save settings that reach the file | `WithDpi` and `SaveOptions` are accepted and kept, and no export reads them yet. |
-| **Later** | Every chart type back from JSON | Seven chart types come back from JSON as a placeholder, and two are written and never read back. |
+| **Done** | A figure that reads back from JSON whole | Every setting a figure draws, its theme, colour maps, tick locators and legend among them, comes back from JSON, the MCP server and every transport. See [MCP Server](https://github.com/xkqg/MatPlotLibNet/wiki/MCP-Server). |
+| **Done** | A spine's line style kept in JSON | A spine's line style travels with its colour and width; a spine written without one reads back solid. See [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling). |
+| **Done** | Missing values | NaN is the one missing value: a line breaks at a gap, nothing is drawn at NaN, and ranges, colour maps and JSON leave it out or carry it. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Done** | Save settings that reach the file | `WithDpi` and `SaveOptions` reach the file: a PNG is drawn at the figure's dpi, and a title and an author go into the SVG, the PDF and the PNG. See [Styling](https://github.com/xkqg/MatPlotLibNet/wiki/Styling). |
+| **Done** | Charts in one call | Fifteen verbs, from `Pareto` and `Ridgeline` to `CalendarHeatmap` and `Spy`, draw a chart from the data as you hold it. See [Examples](https://github.com/xkqg/MatPlotLibNet/wiki/Examples). |
+| **Later** | A legend placed where it covers the least data | `LegendPosition.Best` is the upper right corner; it does not look at the data, as matplotlib's `loc='best'` does. |
+| **Later** | Annotations in the theme's text size | An annotation is drawn at size 10 whatever the theme, and cannot be moved by a number of pixels from its point. |
+| **Later** | Colour bar ticks at round numbers | A colour bar puts its ticks at fifths of its range, so a range of 0 to 11 reads 0.0, 2.2, 4.4, 6.6, 8.8 and 11.0 where matplotlib's locator gives 0, 2, 4, 6, 8 and 10. |
+| **Later** | Turned tick labels given room sideways | A turned tick label gets room below the axis but not beside it, and a Y tick label is measured upright. |
+| **Later** | A neutral colour the theme owns | Reference lines, levels, trendlines and the connectors of the composed charts share one fixed grey, below 3 : 1 on five themes. |
+| **Later** | A grid changed with WithGrid that follows the theme after JSON | A changed grid is written as it draws under the theme of that moment, so a theme set later does not restyle it. |
+| **Later** | A filled line contour that follows the axes' range | The colour backdrop of a line contour drawn with `Filled` covers the whole plot while its lines follow a limit or a zoom. |
+| **Later** | A bar's value label stands beyond the bar's end on an axis that runs backwards | A bar's value label is put 4 px above its end, or 4 px right of it on a horizontal bar, as the screen draws it; on an axis that runs backwards that is inside the bar, where matplotlib's `bar_label` puts it beyond the end. |
+| **Later** | A density curve inside its own range | A `Kde` curve is drawn on a wider grid than the range its axes are given: for the sample 1 to 6 and 30 in a 500 × 350 figure it runs 82.66 px beyond the plot on each side. |
+| **Later** | A relative rotation graph that always shows its centre | The plot ranges over the tail points only, so with data away from 100 it shows one quadrant and no crosshair. |
+| **Later** | An inset built with the builder that keeps its axes settings | `AddInset` copies the series, title, labels, limits, spines and grid; the legend, tick locators, scales, overlays and colour bar stay behind. |
+| **Later** | A PNG saved without the Skia package | Without `MatPlotLibNet.Skia`, `Save("chart.png")` writes SVG text into the file. |
+| **Later** | Every chart type back from JSON | Eight chart types come back from JSON as a placeholder, and two are written and never read back. |
+| **Later** | The 3-D, polar and interaction settings of an axes kept in JSON | An axes' Z axis, its 3-D panes, a light that is not directional and its tooltip switch are not written to JSON. |
 | **Later** | Live series back from JSON | A streaming series is written to JSON and dropped when the JSON is read. |
-| **Later** | A spine's line style kept in JSON | A spine's colour and width are written to JSON; its line style is not, so it is lost in a round trip. |
+| **Later** | Series that refuse input that does not fit when they are built | Some series take data they cannot draw and throw only when the figure is drawn. |
+| **Later** | Series that draw without the axes around them | A KPI tile in a mosaic built by hand draws ticks and a frame; only `Plt.OpsDashboard()` hides them. |
+| **Later** | A legend entry that fits a state timeline | A state timeline's legend swatch wears one colour, which none of its segments wears. |
+| **Later** | A Marimekko chart's table that names its columns | The table keeps each column's edges and names its segments; the column names stand under the centres of the columns, where no point of the chart stands, so no row is named by them. |
+| **Later** | A calendar heatmap's table that gives each day's date | The table names each cell's weekday and numbers its week column; the chart travels as a heatmap of its cells, which does not keep the dates it was laid out from. |
+| **Later** | Series that share one colour | A fan chart's bands, a survival curve's confidence band and censor marks, and a horizon chart's folds are several series in one colour; today each series takes the next colour. |
+| **Later** | Violin density from a kernel estimate | A violin's outline counts the observations in a window around each of 21 heights; it is not a density estimate. |
+| **Later** | Raincloud | A half violin, a box and the raw points for each group, all in the group's colour. |
+| **Later** | Horizon chart | A series folded into bands of one hue; it needs series that share one colour. |
+| **Later** | A survival chart's risk table and log-rank test | `KaplanMeier` draws the curves; the number at risk under the plot and a test between the groups are not drawn. |
+| **Later** | More control charts | The run rules beyond the first, the moving-range chart, and charts of subgroups (X-bar and R, p, c). |
+| **Later** | A Q-Q plot against other distributions | `QQPlot` compares a sample with the normal distribution only. |
+| **Later** | Parallel coordinates in each axis's own units | Each column is scaled to 0..1; an axis per column with its own ticks needs a scale per column. |
+| **Later** | Stacked-area layers in the legend and through MCP | A `StackPlot` layer's name does not reach the legend, and the MCP server refuses a stacked-area spec. |
+| **Later** | One radial scale for polar charts | The rings of a polar grid and each polar series are scaled by different rules, so the ring labels do not read the data's radii; the rings stand at fifths of 1.1 times the largest radius, and their labels are printed at three decimals on the 0° spoke, where matplotlib's are round numbers at 22.5°. |
+| **Later** | Stacked polar bars | Wind-rose bins stacked outward from the centre; polar bars overlay, each series on its own radial scale. |
+| **Later** | Bars stacked on both sides of zero | Positive layers grow up from zero and negative layers down; a stacked bar adds every layer to one running sum. |
+| **Later** | A waterfall's target | A budget marker beside each step; totals are marked with `TotalIndices`. |
+| **Later** | Two plots matplotlib has | `fill_betweenx`, and `matshow`, whose square cells need an aspect setting. |
+| **Later** | Gradient fills | An area or a bar that fades from one colour to another or to clear; only Sankey links draw a gradient. |
+| **Later** | Range frames | An axis line that spans only the data's range; a spine always runs the full length of the plot. |
+| **Later** | Annotations that move out of the way | Text notes placed so they do not cover each other, the data or the legend; an annotation is drawn where it is anchored. |
+| **Later** | Arrows along a connected scatter | An arrow head on each segment to show direction; no series draws arrow heads along a line. |
+| **Later** | A waffle chart | Equal squares coloured by share, or an icon repeated once per unit; markers are sized in points, so they do not tile. |
+| **Later** | Stem-and-leaf plot | The digits of a sample laid out in rows by their leading digits; no series draws aligned columns of text. |
+| **Later** | Calendar of events | Marks inside a day's cell need sizes in cell units, which markers lack. |
+| **Later** | Word cloud | Words sized by weight and packed without overlap need a text-packing layout. |
+| **Later** | Chord diagram | Ribbons between arcs around a circle need a series of their own. |
+| **Later** | Arc diagram | Nodes on a line joined by arcs above it need a series of their own. |
+| **Later** | Icicle chart | A hierarchy in rows by depth; a layout beside the treemap and sunburst. |
+| **Later** | Ternary plot | Three parts that sum to one, on triangular axes. |
+| **Later** | Piper diagram | Two ternary triangles and a diamond; it needs ternary axes first. |
+| **Later** | Anchored VWAP | The volume-weighted price counted from a bar you pick; `Vwap` and its streaming form start at the first bar. |
+| **Later** | Volume profile | Volume per price as bars beside the price; a bar on a second axis is not kept. |
+| **Later** | Renko | Bricks of a fixed price step, in columns that rise and fall. |
+| **Later** | Kagi | One line that thickens and thins at each reversal; a line has one width. |
+| **Later** | Point and Figure | Columns of X and O boxes; markers are sized in points, so boxes do not tile. |
+| **Later** | Map regions coloured by value | A polygon layer with a colour per region and a colour bar; the map layer paints every region in one colour. |
+| **Later** | Bubble, flow and cartogram maps | Points, bubbles, hexagon bins, flow lines and resized regions on a projection; the map layer draws polygons. |
+| **Later** | Linked selection | Choose points in one chart and see the same rows lit in the others. |
+| **Later** | Step-through SVG | One SVG file with a slider or a play button that steps through frames without a server. |
 | **Later** | A live chart that sends its own gestures | `MplLiveChart` shows the server's redraws; the page still has to hand its script a SignalR connection. |
 | **Later** | Light with a strength of its own | The ambient and diffuse arguments of `WithLighting` change nothing in the picture yet. |
 | **Later** | More kinds of series on a second axis | The right-hand and top axes carry lines and points; a bar or an area there is not kept. |
@@ -46,11 +103,10 @@ that needs a row is what moves it up.
 | **Later** | The MAUI view on a par with the others | It draws and streams a chart, and does not pan, zoom or select, nor draw a hatch. |
 | **Later** | Streaming forms of more indicators | 11 of the 58 indicators have a streaming form that follows each new bar. |
 | **Later** | Transfer entropy over time | A rolling window, a continuous estimator and a conditional form beside the scalar that ships. |
-| **Later** | Three plots matplotlib has | `fill_betweenx`, `matshow` and `spy`. |
 | **Later** | A handler of your own for a chart's gestures | One interface a chart's events go to, beyond the callbacks a chart session takes today. |
 | **Later** | Several viewers as a designed feature | Viewers of one chart that see each other's gestures by design, not as a side effect where the last one wins. |
 | **Later** | The Windows heads tested by CI | The WPF, Uno and MAUI suites run on Windows by hand or before a push, never on the CI runners. |
-| **Later** | The matplotlib comparison run by CI | The suite that compares the output with images matplotlib drew is run by hand. |
+| **Later** | The matplotlib comparison run by CI | The suite that compares the output with images matplotlib drew is run by hand. Its waterfall test draws other values than its reference script and passes only on a wide tolerance. |
 
 Every row has a section of its own on the [roadmap in the wiki](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap): what
 it is, why it stands where it does, what a row still to come waits for, and what is left out on purpose. This table is

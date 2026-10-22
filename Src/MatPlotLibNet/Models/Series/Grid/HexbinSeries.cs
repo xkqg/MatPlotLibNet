@@ -34,9 +34,10 @@ public sealed class HexbinSeries : ChartSeries, IColormappable, INormalizable, I
     /// <inheritdoc />
     public MinMaxRange GetColorBarRange()
     {
-        if (X.Length == 0) return new(0, 1);
-        double xMin = X.Min(), xMax = X.Max();
-        double yMin = Y.Min(), yMax = Y.Max();
+        // The bins span the points that can be placed: a missing coordinate (NaN) and an infinity are not binned.
+        if (X.DrawableRange() is not { } xs || Y.DrawableRange() is not { } ys) return new(0, 1);
+        double xMin = xs.Lo, xMax = xs.Hi;
+        double yMin = ys.Lo, yMax = ys.Hi;
         if (xMin == xMax) xMax = xMin + 1;
         if (yMin == yMax) yMax = yMin + 1;
         var bins = HexbinSeries.ComputeBins(X, Y, xMin, xMax, yMin, yMax, GridSize);
@@ -49,7 +50,10 @@ public sealed class HexbinSeries : ChartSeries, IColormappable, INormalizable, I
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (X.Length == 0) return new(null, null, null, null);
-        return new(X.Min(), X.Max(), Y.Min(), Y.Max());
+        // Over the drawable points only: a missing coordinate (NaN) and an infinity are left out.
+        var x = X.DrawableRange();
+        var y = Y.DrawableRange();
+        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi);
     }
 
     /// <inheritdoc />
@@ -60,7 +64,9 @@ public sealed class HexbinSeries : ChartSeries, IColormappable, INormalizable, I
         YData = Y,
         GridSize = GridSize == 20 ? null : GridSize,
         MinCount = MinCount == 1 ? null : MinCount,
-        ColorMapName = ColorMap?.Name
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="HexbinSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -78,10 +84,8 @@ public sealed class HexbinSeries : ChartSeries, IColormappable, INormalizable, I
         {
             s.MinCount = dto.MinCount.Value;
         }
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
+        s.RestoreNormalizer(dto);
         return s;
     }
 

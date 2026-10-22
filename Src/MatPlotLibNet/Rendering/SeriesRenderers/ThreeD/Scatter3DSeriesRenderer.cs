@@ -18,24 +18,26 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
     {
         if (series.X.Length == 0) return;
 
-        var bounds = Area.PlotBounds;
         var fallbackColor = ResolveColor(series.Color);
 
-        double xMin = series.X.Min(), xMax = series.X.Max();
-        double yMin = series.Y.Min(), yMax = series.Y.Max();
-        double zMin = series.Z.Min(), zMax = series.Z.Max();
-
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        // The extent and the colours span the values that are there: a missing value (NaN) and an infinity are left out.
+        var z = series.Z.Data.DrawableRange();
+        var proj = ProjectionFor(series.X.Data.DrawableRange(), series.Y.Data.DrawableRange(), z);
+        double zMin = z?.Lo ?? 0, zMax = z?.Hi ?? 1;
 
         // Colormap support: when a colormap is set, map each Z value to a color
         var cmap = series.ColorMap;
         var normalizer = series.Normalizer ?? LinearNormalizer.Instance;
 
-        // Build indexed depth list for sorting
+        // Build indexed depth list for sorting; a point that cannot be placed is skipped, as matplotlib masks it.
         var indexed = new List<IndexedDepth>(series.X.Length);
         for (int i = 0; i < series.X.Length; i++)
-            indexed.Add(new(i, proj.Depth(series.X[i], series.Y[i], series.Z[i])));
+        {
+            var pt = proj.Project(series.X[i], series.Y[i], series.Z[i]);
+            if (!pt.IsDrawable()) continue;
+            indexed.Add(new(i, proj.Depth(series.X[i], series.Y[i], series.Z[i]), pt));
+        }
+        if (indexed.Count == 0) return;
 
         // Sort back-to-front (painter's algorithm)
         indexed.Sort((a, b) => a.Depth.CompareTo(b.Depth));
@@ -50,7 +52,7 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
         {
             int idx = entry.Index;
             double xi = series.X[idx], yi = series.Y[idx], zi = series.Z[idx];
-            var pt = proj.Project(xi, yi, zi);
+            var pt = entry.Pixel;
 
             // Vary size by depth for perspective effect: closer points are larger
             double depthFrac = depthRange > 0 ? (entry.Depth - indexed[0].Depth) / depthRange : 0.5;
@@ -58,7 +60,7 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
 
             // Resolve color: colormap Z-mapping takes priority over flat color
             var color = cmap is not null
-                ? cmap.GetColor(normalizer.Normalize(zi, zMin, zMax))
+                ? cmap.ColorOf(zi, normalizer, zMin, zMax)
                 : fallbackColor;
 
             if (emitV3d)
@@ -70,5 +72,5 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
         }
     }
 
-    private readonly record struct IndexedDepth(int Index, double Depth);
+    private readonly record struct IndexedDepth(int Index, double Depth, Point Pixel);
 }

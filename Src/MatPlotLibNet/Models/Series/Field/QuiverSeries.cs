@@ -36,18 +36,19 @@ public sealed class QuiverSeries : ChartSeries, IHasColor
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        double xMin = double.MaxValue, xMax = double.MinValue;
-        double yMin = double.MaxValue, yMax = double.MinValue;
+        // Over the arrows that can be drawn, tail and head: an arrow with a coordinate that is missing (NaN) or infinite
+        // is not drawn, so it is left out of the extent on both axes.
+        var x = Range1D.Empty;
+        var y = Range1D.Empty;
         for (int i = 0; i < XData.Length; i++)
         {
-            double x0 = XData[i], x1 = x0 + UData[i] * Scale;
-            double y0 = YData[i], y1 = y0 + VData[i] * Scale;
-            if (Math.Min(x0, x1) < xMin) xMin = Math.Min(x0, x1);
-            if (Math.Max(x0, x1) > xMax) xMax = Math.Max(x0, x1);
-            if (Math.Min(y0, y1) < yMin) yMin = Math.Min(y0, y1);
-            if (Math.Max(y0, y1) > yMax) yMax = Math.Max(y0, y1);
+            var tail = new Point(XData[i], YData[i]);
+            var head = new Point(tail.X + UData[i] * Scale, tail.Y + VData[i] * Scale);
+            if (!tail.CanDrawLineTo(head)) continue;
+            x = x.Including(tail.X).Including(head.X);
+            y = y.Including(tail.Y).Including(head.Y);
         }
-        return new(xMin, xMax, yMin, yMax);
+        return new(x.OrNone()?.Lo, x.OrNone()?.Hi, y.OrNone()?.Lo, y.OrNone()?.Hi);
     }
 
     /// <inheritdoc />

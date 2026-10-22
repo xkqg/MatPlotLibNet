@@ -30,7 +30,8 @@ public sealed class FunnelSeries : ChartSeries
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "funnel",
-        PieLabels = Labels, Values = Values
+        PieLabels = Labels, Values = Values,
+        Colors = Colors?.ToList(),
     };
 
     /// <summary>Reconstructs a <see cref="FunnelSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -40,6 +41,7 @@ public sealed class FunnelSeries : ChartSeries
     internal static FunnelSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Funnel(dto.PieLabels ?? [], dto.Values ?? []);
+        s.Colors = dto.Colors?.ToArray();
         return s;
     }
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
@@ -45,7 +46,7 @@ public static class FigureTemplates
         // Tick labels centered inside each bar slot: ticks at k*step+0.5, formatted as integer bar index.
         // Step is chosen to yield ~10 visible ticks regardless of n.
         double tickStep = Math.Max(1, Math.Round((double)n / 10));
-        var barLocator  = new MultipleLocator(tickStep, 0.5);
+        var barLocator  = new MultipleLocator(tickStep, Models.Series.CategorySlot.CentreOffset);
         var barFormatter = new BarCenterFormatter();
 
         builder.AddSubPlot(new GridPosition(0, 1, 0, 1), ax =>
@@ -85,8 +86,9 @@ public static class FigureTemplates
     }
 
     /// <summary>Creates a clean single-panel scientific-paper figure:
-    /// tight layout, hidden top/right spines, caller-supplied data via <paramref name="configure"/>. It records 150 DPI
-    /// with the figure, which no export reads yet.</summary>
+    /// tight layout, hidden top/right spines, caller-supplied data via <paramref name="configure"/>. It sets the figure
+    /// to 150 dpi, so a PNG of it is drawn with 150/96 of the pixels of <paramref name="width"/> by
+    /// <paramref name="height"/> (1250 by 938 for the default size); an SVG and a PDF are the size given.</summary>
     /// <param name="configure">Callback that receives the subplot's <see cref="AxesBuilder"/> for plotting data, setting labels, etc.</param>
     /// <param name="title">Optional figure title.</param>
     /// <param name="width">Figure width in pixels (default 800).</param>
@@ -113,7 +115,9 @@ public static class FigureTemplates
         return builder;
     }
 
-    /// <summary>Creates a multi-panel scientific-paper figure: one configure callback per subplot (row-major).</summary>
+    /// <summary>Creates a multi-panel scientific-paper figure: one configure callback per subplot (row-major). Like the
+    /// single-panel figure it sets 150 dpi, so a PNG of it has 150/96 of the pixels of <paramref name="width"/> by
+    /// <paramref name="height"/>.</summary>
     /// <param name="rows">Number of subplot rows.</param>
     /// <param name="cols">Number of subplot columns.</param>
     /// <param name="configures">One callback per subplot, in row-major order (length must equal <c>rows*cols</c>).</param>
@@ -163,14 +167,40 @@ public static class FigureTemplates
     public static FigureBuilder JointPlot(double[] x, double[] y, string? title = null, int bins = 30) =>
         new JointPlotFigure(x, y) { Title = title, Bins = bins }.Build();
 
-    /// <summary>Creates a vertically stacked sparkline dashboard with one row per series.</summary>
-    /// <param name="series">Array of (label, values) tuples. Each tuple becomes one subplot row.</param>
+    /// <summary>Creates a vertically stacked sparkline dashboard with one row per named sample: the sample's values drawn
+    /// as a sparkline, its label on the row's Y axis, the rows in the order given from top to bottom. The figure is 600
+    /// pixels wide and 120 pixels tall for each row.</summary>
+    /// <example>
+    /// <code>
+    /// NamedSample[] metrics =
+    /// [
+    ///     new("CPU %",    [12, 35, 28, 61, 44]),
+    ///     new("Memory %", [48, 49, 52, 51, 55]),
+    /// ];
+    /// string svg = FigureTemplates.SparklineDashboard(metrics, title: "Server Metrics").ToSvg();
+    /// </code>
+    /// </example>
+    /// <param name="series">One <see cref="NamedSample"/> per row. Each becomes one subplot row.</param>
     /// <param name="title">Optional figure title.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="series"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="series"/> holds no row, or a row carries no values (its array is
+    /// <see langword="null"/>, as in <c>default(NamedSample)</c>); the message names the row.</exception>
     public static FigureBuilder SparklineDashboard(
-        (string Label, double[] Values)[] series,
+        IReadOnlyList<NamedSample> series,
         string? title = null)
     {
-        int n = series.Length;
+        ArgumentNullException.ThrowIfNull(series);
+
+        int n = series.Count;
+        if (n == 0)
+            throw new ArgumentException("No rows were given; a sparkline dashboard draws one row per series.", nameof(series));
+
+        for (int i = 0; i < n; i++)
+        {
+            if (series[i].Values is null)
+                throw new ArgumentException($"Series '{series[i].Label}' carries no values.", nameof(series));
+        }
+
         var builder = Plt.Create()
             .WithSize(600, 120 * n);
 
@@ -190,6 +220,29 @@ public static class FigureTemplates
         }
 
         return builder;
+    }
+
+    /// <summary>Creates a vertically stacked sparkline dashboard with one row per series.</summary>
+    /// <remarks>Prefer <see cref="SparklineDashboard(IReadOnlyList{NamedSample}, string)"/>, which takes the same rows as
+    /// <see cref="NamedSample"/> values: a name in IntelliSense and in a stack trace where a tuple has only its position.
+    /// This overload stays so that code written against it keeps compiling and linking; it hands its rows to that one and
+    /// draws exactly what it draws.</remarks>
+    /// <param name="series">Array of (label, values) tuples. Each tuple becomes one subplot row.</param>
+    /// <param name="title">Optional figure title.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="series"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="series"/> holds no row, or a row carries no values; the message
+    /// names the row.</exception>
+    public static FigureBuilder SparklineDashboard(
+        (string Label, double[] Values)[] series,
+        string? title = null)
+    {
+        ArgumentNullException.ThrowIfNull(series);
+
+        var rows = new NamedSample[series.Length];
+        for (int i = 0; i < rows.Length; i++)
+            rows[i] = new NamedSample(series[i].Label, series[i].Values);
+
+        return SparklineDashboard(rows, title);
     }
 
     /// <summary>Creates an N×N pair plot: diagonal panels show histograms, off-diagonal panels show scatter plots.</summary>
@@ -270,13 +323,13 @@ public static class FigureTemplates
 
             if (colsAsDrawn is not null)
             {
-                ax.SetXTickLocator(new FixedLocator(CellCentres(cols))).SetXTickFormatter(new CategoryFormatter(colsAsDrawn));
+                ax.SetXCategoryTicks(colsAsDrawn);
             }
 
             if (rowsAsDrawn is not null)
             {
-                // Row 0 is drawn at the top and the axis counts up from the bottom, which is what a reversed formatter is for.
-                ax.SetYTickLocator(new FixedLocator(CellCentres(rows))).SetYTickFormatter(new CategoryFormatter(rowsAsDrawn, reversed: true));
+                // Row 0 is drawn at the top and the axis counts up from the bottom: the rows are named from the top down.
+                ax.SetYCategoryTicks(rowsAsDrawn, topDown: true);
             }
         });
 
@@ -290,9 +343,6 @@ public static class FigureTemplates
             throw new ArgumentException($"'{name}' needs one label for each of the {count} it labels, and {labels.Length} were given.", name);
         }
     }
-
-    // The middle of each cell along an axis that counts the cells from nought: a cell is as wide as the axis counts one.
-    private static double[] CellCentres(int count) => [.. Enumerable.Range(0, count).Select(at => at + 0.5)];
 
     // Computes pairwise Euclidean distance matrix for rows or columns.
     private static double[,] ComputeDistanceMatrix(double[,] data, bool byRow)

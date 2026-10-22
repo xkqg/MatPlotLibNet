@@ -33,7 +33,10 @@ public sealed class BarbsSeries : ChartSeries, IHasColor
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (X.Length == 0) return new(0, 1, 0, 1);
-        return new(X.Min(), X.Max(), Y.Min(), Y.Max());
+        // Over the drawable positions only: a missing one (NaN) and an infinity are left out.
+        var x = X.Data.DrawableRange();
+        var y = Y.Data.DrawableRange();
+        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi);
     }
 
     /// <inheritdoc />

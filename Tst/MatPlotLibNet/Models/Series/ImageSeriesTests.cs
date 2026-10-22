@@ -68,6 +68,11 @@ public class ImageSeriesTests
         Assert.Equal(6.0, partialMax);
     }
 
+    /// <summary>An image of one value has no range to show; its colour bar keeps 0..1.</summary>
+    [Fact]
+    public void GetColorBarRange_OfAConstantImage_IsZeroToOne() =>
+        Assert.Equal(new(0, 1), new ImageSeries(new double[,] { { 5, 5 } }).GetColorBarRange());
+
     /// <summary>Verifies that JSON round-trip preserves the data, VMin, and VMax.</summary>
     [Fact]
     public void RoundTrip_PreservesData()

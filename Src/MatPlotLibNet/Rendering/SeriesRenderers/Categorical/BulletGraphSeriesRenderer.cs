@@ -56,7 +56,9 @@ internal sealed class BulletGraphSeriesRenderer : SeriesRenderer<BulletGraphSeri
         {
             double x0 = bounds.X + Fraction(prev, upper) * bounds.Width;
             double x1 = bounds.X + Fraction(band.Threshold, upper) * bounds.Width;
-            Ctx.DrawRectangle(new Rect(x0, bounds.Y, Math.Max(0, x1 - x0), bounds.Height),
+            // The band runs between the two thresholds, by the rule the upright strip follows: a band out of order covers
+            // the stretch between them there too, where it was drawn with no width.
+            Ctx.DrawRectangle(new Rect(Math.Min(x0, x1), bounds.Y, Math.Abs(x1 - x0), bounds.Height),
                 new ShapeStyle(band.Color, null, 0));
             prev = band.Threshold;
         }

@@ -20,8 +20,9 @@ public sealed class StemSeries : ChartSeries
 
     public Color? BaselineColor { get; set; }
 
-    public MarkerStyle Marker { get; set; } = MarkerStyle.Circle;
+    public MarkerStyle Marker { get; set; } = RestingMarker;
 
+    private const MarkerStyle RestingMarker = MarkerStyle.Circle;
 
     /// <summary>Initializes a new instance of <see cref="StemSeries"/> with the specified data.</summary>
     /// <param name="xData">The X-axis data values.</param>
@@ -35,28 +36,46 @@ public sealed class StemSeries : ChartSeries
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        double rawMin = YData.Min(), rawMax = YData.Max();
-        double yMin = rawMin, yMax = rawMax;
-        if (0 < yMin) yMin = 0;
-        if (0 > yMax) yMax = 0;
-        // Stems anchor to the y=0 baseline. Matches matplotlib's StemContainer sticky edge.
-        double? stickyYMin = rawMin >= 0 ? 0 : null;
-        double? stickyYMax = rawMax <= 0 ? 0 : null;
-        double xMin = XData.Min(), xMax = XData.Max();
-        return new(xMin, xMax, yMin, yMax,
-            StickyXMin: xMin, StickyXMax: xMax,
+        // Over the drawable values only: a missing stem (NaN) and an infinity are not part of the extent.
+        var x = XData.DrawableRange();
+        double? xMin = x?.Lo, xMax = x?.Hi;
+        if (YData.DrawableRange() is not { } raw)
+        {
+            return new(xMin, xMax, null, null);
+        }
+
+        // Stems stand on the y=0 baseline, so the baseline is a sticky edge of Y. Along X nothing is sticky: the first
+        // and last stem are marks like any other and keep the axis margin, so their heads stay whole. (They used to be
+        // sticky at both ends of the data, which put the end heads on the plot's frame, half of each outside it.)
+        double? stickyYMin = raw.Lo >= 0 ? 0 : null;
+        double? stickyYMax = raw.Hi <= 0 ? 0 : null;
+        return new(xMin, xMax, Math.Min(raw.Lo, 0), Math.Max(raw.Hi, 0),
             StickyYMin: stickyYMin, StickyYMax: stickyYMax);
     }
 
     /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new() { Type = "stem", XData = XData, YData = YData };
+    public override SeriesDto ToSeriesDto() => new()
+    {
+        Type = "stem", XData = XData, YData = YData,
+        MarkerColor = MarkerColor,
+        StemColor = StemColor,
+        BaselineColor = BaselineColor,
+        Marker = Marker.OrNullAtRest(RestingMarker),
+    };
 
     /// <summary>Reconstructs a <see cref="StemSeries"/> from its serialization DTO and adds it to the axes.</summary>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static StemSeries FromSeriesDto(Axes axes, SeriesDto dto)
-        => axes.Stem(dto.XData ?? [], dto.YData ?? []);
+    {
+        var s = axes.Stem(dto.XData ?? [], dto.YData ?? []);
+        s.MarkerColor = dto.MarkerColor;
+        s.StemColor = dto.StemColor;
+        s.BaselineColor = dto.BaselineColor;
+        s.Marker = dto.Marker ?? RestingMarker;
+        return s;
+    }
 
 
     /// <inheritdoc />

@@ -39,7 +39,11 @@ public sealed class SurfaceSeries : GridSeries3D, IColormappable, INormalizable,
         RowStride = RowStride != 1 ? RowStride : null,
         ColStride = ColStride != 1 ? ColStride : null,
         Alpha = Alpha != 0.8 ? Alpha : null,
-        Label = Label
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        EdgeColor = EdgeColor,
+        Label = Label,
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="SurfaceSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -67,6 +71,9 @@ public sealed class SurfaceSeries : GridSeries3D, IColormappable, INormalizable,
         {
             s.Alpha = dto.Alpha.Value;
         }
+        s.RestoreColorMap(dto);
+        s.EdgeColor = dto.EdgeColor;
+        s.RestoreNormalizer(dto);
         return s;
     }
 

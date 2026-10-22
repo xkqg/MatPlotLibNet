@@ -33,6 +33,13 @@ public sealed class Axes
     /// is built. An axes that asked nothing takes the theme's grid whole.</summary>
     internal Func<GridStyle, GridStyle>? GridOverride { get; set; }
 
+    /// <summary>The grid this axes draws under <paramref name="theme"/>: the theme's grid with the axes' change when it
+    /// asked for one (<see cref="GridOverride"/>), its own <see cref="Grid"/> when that is switched on, and the theme's
+    /// grid otherwise. The one rule the renderer draws by and the JSON writer resolves a change with.</summary>
+    /// <param name="theme">The theme the axes is drawn in.</param>
+    internal GridStyle GridUnder(Theme theme) =>
+        GridOverride is { } change ? change(theme.DefaultGrid) : Grid.Visible ? Grid : theme.DefaultGrid;
+
     public SpinesConfig Spines { get; set; } = new();
 
     public int GridRows { get; internal set; }
@@ -1088,7 +1095,10 @@ public sealed class Axes
         return annotation;
     }
 
-    /// <summary>Adds a horizontal reference line at the specified Y value.</summary>
+    /// <summary>Adds a horizontal reference line at the specified Y value.
+    /// <para>The automatic range of the Y axis holds the line, as matplotlib's <c>axhline</c> updates the data limits,
+    /// so a line beyond the data is drawn inside the plot; a line beyond a limit you set is not drawn, nor its
+    /// label.</para></summary>
     public ReferenceLine AxHLine(double y)
     {
         var line = new ReferenceLine(y, Orientation.Horizontal);
@@ -1096,7 +1106,10 @@ public sealed class Axes
         return line;
     }
 
-    /// <summary>Adds a vertical reference line at the specified X value.</summary>
+    /// <summary>Adds a vertical reference line at the specified X value.
+    /// <para>The automatic range of the X axis holds the line, as matplotlib's <c>axvline</c> updates the data limits,
+    /// so a line beyond the data is drawn inside the plot; a line beyond a limit you set is not drawn, nor its
+    /// label.</para></summary>
     public ReferenceLine AxVLine(double x)
     {
         var line = new ReferenceLine(x, Orientation.Vertical);
@@ -1116,7 +1129,9 @@ public sealed class Axes
 
     internal void RemoveTrendline(Trendline line) => _trendlines.Remove(line);
 
-    /// <summary>Adds a horizontal price level (support/resistance) at the given value.</summary>
+    /// <summary>Adds a horizontal price level (support/resistance) at the given value.
+    /// <para>The automatic range of the Y axis holds the level, so a level beyond the data is drawn inside the plot; a
+    /// level beyond a limit you set is not drawn, nor its label.</para></summary>
     public HorizontalLevel AddLevel(double value)
     {
         var level = new HorizontalLevel(value);
@@ -1128,7 +1143,9 @@ public sealed class Axes
 
     internal void RemoveLevel(HorizontalLevel level) => _horizontalLevels.Remove(level);
 
-    /// <summary>Adds a Fibonacci retracement overlay between a price high and a price low.</summary>
+    /// <summary>Adds a Fibonacci retracement overlay between a price high and a price low.
+    /// <para>The automatic range of the Y axis holds every level, from the high to the low; a level beyond a limit you
+    /// set is not drawn, nor its label.</para></summary>
     public FibonacciRetracement AddFibonacci(double priceHigh, double priceLow)
     {
         var fib = new FibonacciRetracement(priceHigh, priceLow);
@@ -1159,7 +1176,11 @@ public sealed class Axes
     /// <summary>Adds a threshold marker composed of a dashed <see cref="ReferenceLine"/> at
     /// <paramref name="value"/> and a shaded <see cref="SpanRegion"/> covering the breach zone
     /// on the <paramref name="breach"/> side. An optional text <paramref name="label"/> is
-    /// added as an <see cref="Annotation"/> anchored at the threshold value.</summary>
+    /// added as an <see cref="Annotation"/> anchored at the threshold value.
+    /// <para>The span runs from the threshold to ±<see cref="double.MaxValue"/>; the renderer clips a span to the plot area,
+    /// so the zone fills the plot from the threshold line to the plot edge on the breach side. The automatic range
+    /// holds the threshold's line; a threshold beyond a limit set on the axis draws neither its line nor its
+    /// zone.</para></summary>
     /// <param name="value">The threshold value in data coordinates.</param>
     /// <param name="orientation">Horizontal (constant Y) or Vertical (constant X).</param>
     /// <param name="breach">Which side of the threshold is the breach zone.</param>
@@ -1262,8 +1283,8 @@ public sealed record Legend
 }
 
 /// <summary>Specifies the position of a legend within the axes.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum LegendPosition
 {
     /// <summary>Automatically choose the best position to minimize overlap.</summary>
@@ -1319,8 +1340,8 @@ public enum LegendPosition
 }
 
 /// <summary>Specifies how multiple bar series on the same axes are displayed.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum BarMode
 {
     /// <summary>Bars are placed side by side.</summary>

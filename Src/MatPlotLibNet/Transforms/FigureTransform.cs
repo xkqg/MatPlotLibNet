@@ -22,4 +22,9 @@ public abstract class FigureTransform : IFigureTransform
 
     /// <inheritdoc />
     public abstract void Transform(Figure figure, Stream output);
+
+    /// <summary>Writes the figure using the settings of <paramref name="options"/> the format can use. This base
+    /// implementation reads none of them and calls <see cref="Transform(Figure, Stream)"/>; a transform that can use
+    /// some overrides it and documents which.</summary>
+    public virtual void Transform(Figure figure, Stream output, SaveOptions options) => Transform(figure, output);
 }

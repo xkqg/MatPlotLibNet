@@ -55,13 +55,15 @@ internal static class AxesLegendEntryExtensions
     }
 
     /// <summary>The one rule for "this series is named in the legend": it carries a label, and its name is not drawn
-    /// at the end of its line instead. A series that asked for an end label keeps its entry on axes whose renderer
-    /// draws no such labels (polar, 3D), so its name is never lost. Hands back the label so a caller never has to
-    /// re-check it for null.</summary>
+    /// somewhere else instead. Two kinds draw it elsewhere: a series that draws its own label as part of itself (a
+    /// stat tile, <see cref="ChartSeries.DrawsOwnLabel"/>) never has an entry, and a series that asked for an end label
+    /// leaves the legend only where the renderer draws that label, so on axes whose renderer draws none (polar, 3D)
+    /// its name is never lost. Hands back the label so a caller never has to re-check it for null.</summary>
     private static bool HasLegendEntry(ISeries series, bool directLabelsDrawn, [NotNullWhen(true)] out string? label)
     {
         label = series.Label;
         if (string.IsNullOrEmpty(label)) return false;
+        if (series is ChartSeries { DrawsOwnLabel: true }) return false;
         return !(directLabelsDrawn && series is IHasLabelPlacement { LabelPlacement: SeriesLabelPlacement.LineEnd });
     }
 }

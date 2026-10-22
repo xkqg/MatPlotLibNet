@@ -21,10 +21,18 @@ public static class Delaunay
     /// <summary>Computes the Delaunay triangulation of a 2D point set.</summary>
     /// <param name="x">X coordinates of the points.</param>
     /// <param name="y">Y coordinates of the points. Must be the same length as <paramref name="x"/>.</param>
-    /// <returns>A <see cref="TriMesh"/> with the triangulation result.</returns>
+    /// <returns>A <see cref="TriMesh"/> with the triangulation result. A point with a coordinate that is missing (NaN)
+    /// or infinite cannot be placed, so it is no vertex: the other points are triangulated as without it, and the
+    /// triangles index the given arrays.</returns>
     public static TriMesh Triangulate(double[] x, double[] y)
     {
         int n = x.Length;
+        if (n == y.Length)
+        {
+            int[] placed = [.. Enumerable.Range(0, n).Where(i => x[i].IsDrawable() && y[i].IsDrawable())];
+            if (placed.Length < n) return TriangulatePlaced(x, y, placed);
+        }
+
         if (n < 3) return new TriMesh([], x, y);
 
         // Jitter near-duplicate or collinear points to prevent degenerate triangulations
@@ -88,6 +96,20 @@ public static class Delaunay
         }
 
         return new TriMesh(flat, x, y);
+    }
+
+    /// <summary>Triangulates only the points at <paramref name="placed"/> and maps the triangles back onto the indices of
+    /// <paramref name="x"/> and <paramref name="y"/>; a point left out keeps its coordinates and is in no triangle.</summary>
+    private static TriMesh TriangulatePlaced(double[] x, double[] y, int[] placed)
+    {
+        var mesh = Triangulate(Array.ConvertAll(placed, i => x[i]), Array.ConvertAll(placed, i => y[i]));
+        double[] meshX = (double[])x.Clone();
+        for (int k = 0; k < placed.Length; k++)
+        {
+            meshX[placed[k]] = mesh.X[k];
+        }
+
+        return new TriMesh(Array.ConvertAll(mesh.Triangles, k => placed[k]), meshX, y);
     }
 
     private static bool InCircumcircle(double px, double py,

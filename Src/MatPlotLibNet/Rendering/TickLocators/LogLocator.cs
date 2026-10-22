@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Serialization;
+
 namespace MatPlotLibNet.Rendering.TickLocators;
 
 /// <summary>
@@ -13,8 +15,11 @@ namespace MatPlotLibNet.Rendering.TickLocators;
 /// fall within [min, max]. In that case the lower decade boundary (10^⌊log10(min)⌋) is returned
 /// if it lies within the range; otherwise <c>min</c> itself is used as a fallback tick.
 /// </remarks>
-public sealed class LogLocator : ITickLocator
+public sealed class LogLocator : ITickLocator, IJsonDescribed<TickLocatorDto>
 {
+    /// <inheritdoc />
+    TickLocatorDto IJsonDescribed<TickLocatorDto>.Describe() => new LogTickLocatorDto();
+
     /// <inheritdoc />
     public double[] Locate(double min, double max)
     {

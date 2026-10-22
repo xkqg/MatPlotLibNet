@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Interactive</PackageId>
-    <Version>1.19.0</Version>
+    <Version>1.20.0</Version>
     <Description>Interactive display for MatPlotLibNet. Show charts in a browser popup with live SignalR updates.</Description>
     <PackageTags>matplotlib;charting;plotting;visualization;interactive;browser;signalr;kestrel</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

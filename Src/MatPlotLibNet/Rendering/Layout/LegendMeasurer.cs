@@ -20,12 +20,9 @@ namespace MatPlotLibNet.Rendering.Layout;
 /// or leave a gap (layout over-reserved). The measurement formulas here MUST stay in sync
 /// with <see cref="AxesRenderer.RenderLegend"/>'s own layout math.
 ///
-/// Historical bug: v1.1.4 introduced this class but the layout engine passed it a tick
-/// font built with <c>Size = theme.DefaultFont.Size - 2</c> while
-/// <see cref="AxesRenderer.RenderLegend"/> was drawing at <c>Size = theme.DefaultFont.Size</c>.
-/// The measurer underreported by ~20 px on a 4-entry legend — enough to clip the box on
-/// the <c>legend_outside</c> sample. v1.2.0 fixes this by making the measurer build the
-/// font internally from the theme so callers cannot pass the wrong size.
+/// The measurer builds the legend font itself from the theme, so a caller cannot pass a size other
+/// than the one the legend is drawn at: measuring with a font two points smaller than the drawn
+/// one under-reports a 4-entry legend by about 20 px, enough to clip an outside legend.
 /// </remarks>
 internal static class LegendMeasurer
 {

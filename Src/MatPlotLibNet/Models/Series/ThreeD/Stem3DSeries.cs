@@ -34,7 +34,8 @@ public sealed class Stem3DSeries : XYZSeries, IHasColor
         YData = Y,
         ZData = Z,
         MarkerSize = MarkerSize,
-        Color = Color
+        Color = Color,
+        BaselineColor = BaseLineColor,
     };
 
     /// <summary>Reconstructs a <see cref="Stem3DSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -52,6 +53,7 @@ public sealed class Stem3DSeries : XYZSeries, IHasColor
         {
             s.Color = dto.Color.Value;
         }
+        s.BaseLineColor = dto.BaselineColor;
         return s;
     }
 

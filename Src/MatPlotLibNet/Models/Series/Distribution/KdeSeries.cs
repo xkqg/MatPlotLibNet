@@ -36,19 +36,26 @@ public sealed class KdeSeries : ChartSeries, IHasColor, IHasAlpha
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (Data.Length == 0) return new(0, 1, 0, 1);
-        double min = Data.Min(), max = Data.Max();
+        var sorted = SortedSample();
+        if (sorted.Length == 0) return new(null, null, null, null);
+        double min = sorted[0], max = sorted[^1];
         double range = max - min;
         if (range == 0) range = 1.0;
         double padding = range * 0.3;
         // Evaluate the actual KDE to find the density peak so the Y axis covers the full curve.
         // Without this, reporting yMax=null leaves the aggregator's yMax at double.MinValue and
         // the 5 % margin pass produces axis labels around ±1e307.
-        var sorted = Data.OrderBy(v => v).ToArray();
         double bw = Bandwidth ?? GaussianKde.SilvermanBandwidth(sorted);
         var (_, density) = GaussianKde.Evaluate(sorted, bw);
         double yMax = density.Length > 0 ? density.Max() * 1.05 : 1.0;
         return new(min - padding, max + padding, 0, yMax);
     }
+
+    /// <summary>The observations the density is estimated from, in ascending order: a missing value (NaN) and an infinity
+    /// are not observations, so the curve is estimated from the others, as a box or a violin is drawn from them. The
+    /// range and the renderer both estimate from this one sample.</summary>
+    /// <returns>The drawable observations, sorted.</returns>
+    internal double[] SortedSample() => [.. Data.DrawableValues().OrderBy(v => v)];
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
@@ -59,7 +66,8 @@ public sealed class KdeSeries : ChartSeries, IHasColor, IHasAlpha
         Alpha = Alpha,
         LineWidth = LineWidth,
         Color = Color,
-        LineStyle = LineStyle == LineStyle.Solid ? null : LineStyle.ToString().ToLowerInvariant()
+        LineStyle = LineStyle == LineStyle.Solid ? null : LineStyle.ToString().ToLowerInvariant(),
+        Fill = Fill.OrNullAtRest(true),
     };
 
     /// <summary>Reconstructs a <see cref="KdeSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -89,6 +97,7 @@ public sealed class KdeSeries : ChartSeries, IHasColor, IHasAlpha
         {
             s.LineStyle = ls;
         }
+        s.Fill = dto.Fill != false;
         return s;
     }
 

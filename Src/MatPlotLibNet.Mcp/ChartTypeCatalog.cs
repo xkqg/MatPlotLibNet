@@ -12,7 +12,8 @@ namespace MatPlotLibNet.Mcp;
 internal sealed class ChartTypeCatalog
 {
     /// <summary>Registered types whose <c>FromSeriesDto</c> returns a literal instead of reading the document
-    /// (measured: <c>axes.Sankey([new SankeyNode("A")], [])</c> and its six siblings). The round-trip theory over
+    /// (measured: <c>axes.Sankey([new SankeyNode("A")], [])</c> and its seven siblings, the dendrogram's
+    /// <c>axes.Dendrogram(new TreeNode { Label = "Root" })</c> among them). The round-trip theory over
     /// every listed type is the alarm that re-opens this set the day Core fixes one of them.</summary>
     private static readonly IReadOnlyDictionary<string, string> NotBuildableFromJson = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -23,6 +24,7 @@ internal sealed class ChartTypeCatalog
         ["polarline"] = "its JSON reader builds a fixed placeholder line instead of the data in the document",
         ["polarscatter"] = "its JSON reader builds a fixed placeholder point instead of the data in the document",
         ["treegrid"] = "its JSON reader builds an empty grid instead of the rows in the document",
+        ["dendrogram"] = "its JSON reader builds a fixed placeholder tree of one node instead of the tree in the document",
     };
 
     /// <summary>A misspelling this many edits away from a listed type is offered as the type that was meant.</summary>

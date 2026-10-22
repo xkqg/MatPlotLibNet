@@ -75,7 +75,7 @@
             <div class="hint">
                 <strong>2D charts:</strong> scroll to zoom, drag to pan, double-click or <kbd>Home</kbd> to reset. Hold <kbd>x</kbd> / <kbd>y</kbd> while dragging to lock the pan axis.<br/>
                 <strong>3D charts:</strong> drag to rotate (full-axes drag = 180°, matplotlib parity), scroll to zoom camera distance, arrow keys for ±5° rotation, <kbd>+</kbd>/<kbd>-</kbd> for distance, <kbd>Home</kbd> to reset.<br/>
-                <strong>Treemap:</strong> every depth (incl. iPhone / Galaxy / Pixel under Phones) is visible on first paint — z-order means the deepest label wins in any region. Click a parent tile to <em>collapse</em> its subtree (focus); click again to restore. Multiple subtrees can be collapsed independently (v1.7.2 Phase W).<br/>
+                <strong>Treemap:</strong> every depth (incl. iPhone / Galaxy / Pixel under Phones) is visible on first paint — z-order means the deepest label wins in any region. Click a parent tile to <em>collapse</em> its subtree (focus); click again to restore. Multiple subtrees can be collapsed independently.<br/>
                 <strong>Legend:</strong> click an item to toggle the series, press-and-hold an item to drag the legend to a new spot.<br/>
                 <strong>Sankey:</strong> hover a node to emphasise its upstream + downstream flow (<kbd>Tab</kbd> for keyboard focus).<br/>
                 <strong>Touch:</strong> pinch-to-zoom on 2D, drag to rotate on 3D.<br/>
@@ -263,45 +263,45 @@
     // dropdown label therefore produced 12 duplicate "custom-default" entries
     // (light) and 8 "custom-dark" entries (dark). The label must be sourced
     // independently — same pattern as PlaygroundExample's [Description] attribute.
-    private static readonly (Theme Theme, string Label)[] LightThemeChoices =
+    private static readonly ThemeChoice[]LightThemeChoices =
     {
-        (Theme.Default,          "Default"),
-        (Theme.Seaborn,           "Seaborn"),
-        (Theme.Ggplot,            "Ggplot"),
-        (Theme.FiveThirtyEight,   "FiveThirtyEight"),
-        (Theme.Bmh,               "Bmh"),
-        (Theme.Solarize,          "Solarize"),
-        (Theme.Grayscale,         "Grayscale"),
-        (Theme.Paper,             "Paper"),
-        (Theme.Presentation,      "Presentation"),
-        (Theme.Poster,            "Poster"),
-        (Theme.GitHub,            "GitHub"),
-        (Theme.Minimal,           "Minimal"),
-        (Theme.Retro,             "Retro"),
-        (Theme.MatplotlibClassic, "MatplotlibClassic"),
-        (Theme.MatplotlibV2,      "MatplotlibV2"),
+        new(Theme.Default,          "Default"),
+        new(Theme.Seaborn,           "Seaborn"),
+        new(Theme.Ggplot,            "Ggplot"),
+        new(Theme.FiveThirtyEight,   "FiveThirtyEight"),
+        new(Theme.Bmh,               "Bmh"),
+        new(Theme.Solarize,          "Solarize"),
+        new(Theme.Grayscale,         "Grayscale"),
+        new(Theme.Paper,             "Paper"),
+        new(Theme.Presentation,      "Presentation"),
+        new(Theme.Poster,            "Poster"),
+        new(Theme.GitHub,            "GitHub"),
+        new(Theme.Minimal,           "Minimal"),
+        new(Theme.Retro,             "Retro"),
+        new(Theme.MatplotlibClassic, "MatplotlibClassic"),
+        new(Theme.MatplotlibV2,      "MatplotlibV2"),
     };
 
-    private static readonly (Theme Theme, string Label)[] DarkThemeChoices =
+    private static readonly ThemeChoice[]DarkThemeChoices =
     {
-        (Theme.Dark,       "Dark"),
-        (Theme.Cyberpunk,  "Cyberpunk"),
-        (Theme.Nord,       "Nord"),
-        (Theme.Dracula,    "Dracula"),
-        (Theme.Monokai,    "Monokai"),
-        (Theme.Catppuccin, "Catppuccin"),
-        (Theme.Gruvbox,    "Gruvbox"),
-        (Theme.OneDark,    "OneDark"),
-        (Theme.Neon,       "Neon"),
+        new(Theme.Dark,       "Dark"),
+        new(Theme.Cyberpunk,  "Cyberpunk"),
+        new(Theme.Nord,       "Nord"),
+        new(Theme.Dracula,    "Dracula"),
+        new(Theme.Monokai,    "Monokai"),
+        new(Theme.Catppuccin, "Catppuccin"),
+        new(Theme.Gruvbox,    "Gruvbox"),
+        new(Theme.OneDark,    "OneDark"),
+        new(Theme.Neon,       "Neon"),
     };
 
-    private static readonly (Theme Theme, string Label)[] AccessibilityThemeChoices =
+    private static readonly ThemeChoice[]AccessibilityThemeChoices =
     {
-        (Theme.ColorBlindSafe, "ColorBlindSafe"),
-        (Theme.HighContrast,   "HighContrast"),
+        new(Theme.ColorBlindSafe, "ColorBlindSafe"),
+        new(Theme.HighContrast,   "HighContrast"),
     };
 
-    private (Theme Theme, string Label)[] AllThemeChoices =>
+    private ThemeChoice[] AllThemeChoices =>
         LightThemeChoices.Concat(DarkThemeChoices).Concat(AccessibilityThemeChoices).ToArray();
 
     private static readonly IColorMap[] ColorMapChoices =

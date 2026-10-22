@@ -4,7 +4,7 @@
 namespace MatPlotLibNet.Data;
 
 /// <summary>Fixed-capacity circular buffer for <see cref="double"/> values — <see cref="RingBuffer{T}"/> of
-/// double, under the name it has carried since v1.7.
+/// double, under its own name.
 ///
 /// <para>The index arithmetic is not written twice: this forwards to a <see cref="RingBuffer{T}"/>, so a wrap
 /// is handled in one place. New code can say <c>RingBuffer&lt;double&gt;</c> directly and reach the same

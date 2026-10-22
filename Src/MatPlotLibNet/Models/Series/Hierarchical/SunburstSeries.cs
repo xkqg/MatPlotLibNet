@@ -29,14 +29,31 @@ public sealed class SunburstSeries : HierarchicalSeries
     public SunburstSeries(TreeNode root) : base(root) { }
 
     /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new() { Type = "sunburst" };
+    public override SeriesDto ToSeriesDto() => this.DescribeSharedSettings(new()
+    {
+        Type = "sunburst",
+        InnerRadius = InnerRadius.OrNullAtRest(0.0),
+        MinLabelSweepDegrees = MinLabelSweepDegrees.OrNullAtRest(8.0),
+    });
 
     /// <summary>Reconstructs a <see cref="SunburstSeries"/> from its serialization DTO and adds it to the axes.</summary>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static SunburstSeries FromSeriesDto(Axes axes, SeriesDto dto)
-        => axes.Sunburst(new TreeNode { Label = "Root" });
+    {
+        var s = axes.Sunburst(new TreeNode { Label = "Root" });
+        if (dto.InnerRadius.HasValue)
+        {
+            s.InnerRadius = dto.InnerRadius.Value;
+        }
+        if (dto.MinLabelSweepDegrees.HasValue)
+        {
+            s.MinLabelSweepDegrees = dto.MinLabelSweepDegrees.Value;
+        }
+        s.RestoreSharedSettings(dto);
+        return s;
+    }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);

@@ -11,11 +11,10 @@ namespace MatPlotLibNet.Numerics;
 /// array with positioned <see cref="GraphNode.X"/> and <see cref="GraphNode.Y"/>
 /// coordinates. All other node properties (Id, Label, ColorScalar, SizeScalar) are
 /// preserved verbatim.</summary>
-/// <remarks>v1.10 PR 1 ships the three deterministic layouts (<see cref="ApplyManual"/>,
-/// <see cref="ApplyCircular"/>, <see cref="ApplyHierarchical"/>). The fourth —
-/// <see cref="ApplyForceDirected"/> — lands in PR 2; until then it falls back to
-/// <see cref="ApplyManual"/> so any DTO with <see cref="GraphLayout.ForceDirected"/>
-/// already round-trips through serialisation without breaking.</remarks>
+/// <remarks>Four layouts: <see cref="ApplyManual"/>, <see cref="ApplyCircular"/> and
+/// <see cref="ApplyHierarchical"/> are deterministic arithmetic on the nodes; <see cref="ApplyForceDirected"/>
+/// runs a spring embedder from seeded random positions, so it is deterministic too for a given seed.
+/// <see cref="Apply"/> dispatches on <see cref="GraphLayout"/>.</remarks>
 internal static class NetworkGraphLayouts
 {
     /// <summary>Pass-through: each node's <see cref="GraphNode.X"/> / <see cref="GraphNode.Y"/>
@@ -127,10 +126,10 @@ internal static class NetworkGraphLayouts
     /// force <c>d²/k</c> on each edge; <c>k = √(area/N)</c> = optimal node distance
     /// in the [-1, 1]² canvas. Step size is capped by a temperature schedule that
     /// cools linearly from <c>t₀ = 0.1</c> to 0 over <paramref name="iterations"/>.
-    /// Final positions are normalised to fit [-1, 1] in both axes.</summary>
-    /// <remarks>O(N² + E) per iteration. The algorithm is non-deterministic without
-    /// a seed (initial positions are random); pass <paramref name="seed"/> for
-    /// reproducible output. Convergence-mode early-stop is available via
+    /// Positions are kept inside [-1, 1] in both axes: a step that would leave the canvas stops at its edge.</summary>
+    /// <remarks>O(N² + E) per iteration. The initial positions are random but come from a
+    /// generator seeded with <paramref name="seed"/> (0 unless given), so the same input and
+    /// seed give the same layout; pass another seed for another start. Convergence-mode early-stop is available via
     /// <paramref name="convergenceThreshold"/> — when total displacement-energy
     /// across one iteration drops below the threshold, the loop exits early.
     /// Self-loops and disconnected components are tolerated.</remarks>

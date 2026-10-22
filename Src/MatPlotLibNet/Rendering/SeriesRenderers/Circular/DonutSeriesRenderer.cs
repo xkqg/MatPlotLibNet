@@ -19,13 +19,15 @@ internal sealed class DonutSeriesRenderer : CircularRenderer<DonutSeries>
         double cx = bounds.X + bounds.Width / 2, cy = bounds.Y + bounds.Height / 2;
         double outerR = Math.Min(bounds.Width, bounds.Height) / 2 * 0.8;
         double innerR = outerR * series.InnerRadius;
-        double total = series.Sizes.Sum();
+        // A pie's rule: a slice that cannot be drawn (missing, or infinite) counts as 0 in the total and draws no wedge.
+        double total = series.Sizes.DrawableValues().Sum();
         if (total <= 0) return;
         double angle = series.StartAngle * Math.PI / 180;
         for (int i = 0; i < series.Sizes.Length; i++)
         {
+            if (!series.Sizes[i].IsDrawable()) continue;
             double sweep = series.Sizes[i] / total * 2 * Math.PI;
-            var color = series.Colors is not null && i < series.Colors.Length ? series.Colors[i] : Theme.Default.CycleColors[i % Theme.Default.CycleColors.Length];
+            var color = PartColor(series.Colors, i);
             // Donut uses screen-Y convention (0° = right, positive sweeps clockwise on screen).
             // BuildWedgePath uses math-Y (cy + r·sin), so negate angles to preserve visual output.
             double startDeg = -angle * 180 / Math.PI;

@@ -26,12 +26,14 @@ public sealed class PolarTransform
     /// <summary>Gets the maximum pixel radius.</summary>
     public double MaxRadius => _maxRadius;
 
-    /// <summary>Converts polar coordinates to pixel coordinates.</summary>
+    /// <summary>Converts polar coordinates to pixel coordinates. A finite radius beyond rMax is clamped to the edge; a
+    /// radius or an angle that cannot be placed (missing, or infinite) maps to a non-finite pixel, which no renderer
+    /// draws, as a cartesian coordinate that cannot be placed does.</summary>
     /// <param name="r">Radial distance (data units).</param>
     /// <param name="theta">Angle in radians (0 = right, counter-clockwise).</param>
     public Point PolarToPixel(double r, double theta)
     {
-        double norm = Math.Min(r / _rMax, 1.0);
+        double norm = r.IsDrawable() ? Math.Min(r / _rMax, 1.0) : double.NaN;
         double px = _cx + _maxRadius * norm * Math.Cos(theta);
         double py = _cy - _maxRadius * norm * Math.Sin(theta);
         return new Point(px, py);

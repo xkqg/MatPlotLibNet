@@ -14,13 +14,13 @@ This cookbook contains code examples with their rendered output. Every example u
 | Category | Examples |
 |---|---|
 | [From matplotlib to C#](matplotlib-to-csharp.md) | The pyplot call you already know and the line that draws the same chart here — figures, plots, labels, colour, statistics, images, 3D and polar |
-| [Line Charts](line-charts.md) | Line styles, markers, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, secondary Y-axis, outside legend, legend value display |
+| [Line Charts](line-charts.md) | Line styles, markers, gaps at missing values, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, secondary Y-axis, outside legend, legend value display; in one call each: bump chart, control chart, stream graph; connected scatter |
 | [Direct labels & axis colours](direct-labels-and-axis-colours.md) | A line's name at the end of the line instead of in the legend, each Y axis coloured like its line, a dual-axis chart that needs no legend, what is kept in JSON |
-| [Bar Charts](bar-charts.md) | Vertical/horizontal bars, stacked, grouped, bar labels, hatching, width/alpha control |
+| [Bar Charts](bar-charts.md) | Vertical/horizontal bars, bars below zero, bars on a log scale, stacked, grouped, bar labels, hatching, width/alpha control; in one call each: Pareto, lollipop, dumbbell, slope graph, dot plot, parallel coordinates, Marimekko; waterfall with totals |
 | [Pie & Donut](pie-donut.md) | Pie, donut, nested pie (sunburst), explode, shadow, percentage labels, custom colors, hatches |
-| [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, KDE, rug plot |
-| [Polar Charts](polar.md) | Polar line, multi-series, radar, polar bar, polar scatter, polar heatmap |
-| [Heatmaps & Colormaps](heatmaps.md) | Heatmap, colorbar customization, 148 colormaps, color normalization, 2D histogram, pcolormesh |
+| [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, placing them, KDE, rug plot, density scatter; in one call each: ridgeline, Q-Q plot, Kaplan-Meier curve |
+| [Polar Charts](polar.md) | Polar line, multi-series, radar, polar bar, polar scatter, polar heatmap, wind rose |
+| [Heatmaps & Colormaps](heatmaps.md) | Heatmap, colorbar customization, 148 colormaps, color normalization, 2D histogram, pcolormesh; in one call each: calendar heatmap from dates, spy plot of a matrix |
 | [Latency Heatmaps](latency-heatmap.md) | A histogram over time: a real clock across, log-scaled latency bucket edges up the side, counts in the cells, with a percentile line on top |
 | [Contour Plots](contour.md) | Contour lines with labels, filled contour, custom levels, contour overlay, triangulated contour |
 | [Subplots & GridSpec](subplots.md) | Grid subplots, GridSpec ratios, mosaic layout, spanning subplots, insets, shared axes, spacing |
@@ -33,7 +33,7 @@ This cookbook contains code examples with their rendered output. Every example u
 | [Network Graph](network-graph.md) | Nodes + edges in 2D, three deterministic layouts (Manual/Circular/Hierarchical), directed-edge arrowheads, per-node colour and size scalars, DataFrame edge-list ingestion |
 | [3D Charts](threed.md) | Surface, scatter, bar, Line3D, Trisurf, Contour3D, Quiver3D, Voxels, Text3D, camera, lighting, pane styling |
 | [Math Text](mathtext.md) | Greek letters, fractions, square roots, accents, font variants, operator limits (∫ Σ Π), matrices |
-| [Error Bars](error-bars.md) | Symmetric, asymmetric, cap size, combined scatter+error, confidence bands |
+| [Error Bars](error-bars.md) | Symmetric, asymmetric, cap size, combined scatter+error, confidence bands, A/B test |
 | [Broken Axes](broken-axes.md) | X/Y breaks, zigzag/diagonal/none styles, combined breaks, outlier handling |
 | [Symlog Axis](symlog.md) | Symmetric log Y/X, financial P&L, scale comparison (linear vs log vs symlog) |
 | [Geographic Maps](geographic.md) | 13 projections, globe view, coastlines, borders, land/ocean fill, custom GeoJSON, edge handling |

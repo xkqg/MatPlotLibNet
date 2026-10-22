@@ -18,6 +18,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The composed-chart fixtures are public-API only; the core suite and this one read the same shapes. -->
+    <Compile Include="..\MatPlotLibNet\Rendering\ComposedChartShapes.cs" LinkBase="Shared" />
+    <!-- The drawn-property contract: every property a composed series draws must pass this reader too. -->
+    <Compile Include="..\MatPlotLibNet\Serialization\DrawnSeriesFixtures.cs" LinkBase="Shared" />
+    <!-- The same contract for what an axes draws besides its series: axes, legend, colour bar, grid, overlays. -->
+    <Compile Include="..\MatPlotLibNet\Serialization\DrawnAxesFixtures.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 

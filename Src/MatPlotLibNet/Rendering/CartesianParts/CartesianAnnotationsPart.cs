@@ -8,8 +8,7 @@ namespace MatPlotLibNet.Rendering.CartesianParts;
 
 /// <summary>
 /// Renders user annotations (text boxes, arrows, callouts) on a Cartesian axes.
-/// Extracted verbatim from <c>CartesianAxesRenderer.Render</c> lines 281-339
-/// (pre-B.4). Responsibility: draw each Annotation's text + optional
+/// Draws each Annotation's text + optional
 /// background box + optional connection path + arrowhead.
 /// </summary>
 internal sealed class CartesianAnnotationsPart : CartesianAxesPart
@@ -41,6 +40,10 @@ internal sealed class CartesianAnnotationsPart : CartesianAxesPart
                 ? new Point(PlotArea.X + annotation.X * PlotArea.Width, PlotArea.Y + (1 - annotation.Y) * PlotArea.Height)
                 : Transform.DataToPixel(annotation.X, annotation.Y);
 
+            // An annotation stands at its text: where that cannot be placed it is skipped whole, its box and its arrow
+            // (which starts at the text) with it.
+            if (!textPos.IsDrawable()) continue;
+
             // Background box or legacy background fill behind text
             var textSize = Ctx.MeasureText(annotation.Text, annotFont);
             var textBounds = new Rect(textPos.X - 2, textPos.Y - textSize.Height, textSize.Width + 4, textSize.Height + 2);
@@ -64,6 +67,8 @@ internal sealed class CartesianAnnotationsPart : CartesianAxesPart
                 && annotation.ArrowStyle != ArrowStyle.None)
             {
                 var arrowTarget = Transform.DataToPixel(annotation.ArrowTargetX.Value, annotation.ArrowTargetY.Value);
+                // An arrow to a point the axes cannot place is skipped; the text stays.
+                if (!arrowTarget.IsDrawable()) continue;
                 var arrowColor = annotation.ArrowColor ?? annotation.Color ?? Theme.ForegroundText;
 
                 // Connection path

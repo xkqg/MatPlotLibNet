@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All contributor rules — versions, TDD, class design, dead-code deletion, git workflow, CHANGELOG, the
 documentation sweep — live in [**CONTRIBUTING.md**](CONTRIBUTING.md). Read it before any commit. This file
 covers only what that document does not: the commands that actually work, and the shape of the code.
-**Never add a `Co-Authored-By` line** — not to a commit, not to a doc, not to code (CONTRIBUTING.md:132). It overrides any
+**Never add a `Co-Authored-By` line** — not to a commit, not to a doc, not to code (CONTRIBUTING.md:154). It overrides any
 attribution default the tooling suggests.
 Deeper design notes: `Src/MatPlotLibNet/ARCHITECTURE.md` (there is no root-level ARCHITECTURE.md).
 
@@ -32,6 +32,10 @@ tools/prepush.ps1                        # everything CI judges, incl. the docfx
 **Run coverage through native PowerShell, never `bash tools/coverage/run.sh`** — under Git Bash the
 dotnet-coverage profiler fails to attach ("Profiler was not initialized") and measures nothing.
 
+`tools/coverage/thresholds.json` carries no exemptions by policy (`90/90`, `exemptions: {}`); a class that is
+legitimately untestable gets `[ExcludeFromCodeCoverage]` at the source instead, so it drops out of the cobertura
+report rather than being floor-exempted in config.
+
 The `push-gate` agent (`.claude/agents/push-gate.md`) runs `tools/prepush.ps1` and reports ready / not ready; it
 never commits or pushes. CI builds with the `10.0.x` SDK at `dotnet-quality: preview` (`ci.yml`).
 
@@ -40,7 +44,10 @@ never commits or pushes. CI builds with the `10.0.x` SDK at `dotnet-quality: pre
 - `MatPlotLibNet.slnx` — the working set: the 15 packages, 15 test projects (incl. `Wpf`, `Uno`, `Maui`, which CI
   does not run), 7 samples, the benchmarks. It does **not** hold the three npm binding folders in `Src/`, nor
   `Tst/MatPlotLibNet.Fidelity` — a matplotlib-reference image-diff suite that no solution, workflow or coverage
-  run builds or runs (it builds clean on its own: `dotnet build` on its csproj, 0 warnings).
+  run builds or runs (it builds clean on its own: `dotnet build` on its csproj, 0 warnings). Nor does it hold
+  `Samples/MatPlotLibNet.Playground`, `.Samples.AspNetCore` or `.Samples.Wpf` — three more csproj with no build
+  verdict from slnx or CI.slnf; Playground still gets one, because `MatPlotLibNet.Tests.csproj` references it and
+  Pages publishes it.
 - `MatPlotLibNet.CI.slnf` — a **subset** (23 projects: 11 packages, their 11 test projects and the wiki suite). CI
   builds this and runs **12** suites. Wpf, Uno and Maui are outside it (Windows or a workload), and so is the frozen
   Notebooks.
@@ -52,12 +59,17 @@ never commits or pushes. CI builds with the `10.0.x` SDK at `dotnet-quality: pre
   comment on the line above a block steers it: `<!-- example: name -->`, `<!-- continues: name -->`,
   `<!-- a C# cell of a notebook -->`, `<!-- needs: Wpf -->` (or Uno, Maui); any other comment there is refused.
 - `docs/docfx.json` is the only docfx config Pages and `prepush.ps1` build; the `docfx.json` in the repo root (with
-  the root `articles/`, `api/` and `toc.yml` it points at) is an older config that no workflow, script or contract
-  test reads. The live one loads **14** csproj, including Uno, Wpf and Notebooks, which are *not* in the CI filter
-  (Mcp is built as net10.0, Wpf as net8.0-windows10.0.19041.0, the rest as net8.0). A project that builds in CI can
-  still red the Pages job. `tools/prepush.ps1` runs docfx locally.
+  the root `articles/`, `api/` and `toc.yml` it points at, plus the root `coverlet.runsettings` — no collector reads
+  it, the coverage collector is `dotnet-coverage` and a contract test refuses any coverlet package) is older config
+  that nothing reads. The live docfx loads **14** csproj, including Uno, Wpf and Notebooks, which are *not* in the
+  CI filter (Mcp is built as net10.0, Wpf as net8.0-windows10.0.19041.0, the rest as net8.0). A project that builds
+  in CI can still red the Pages job. `tools/prepush.ps1` runs docfx locally.
 - Pages also publishes `Samples/MatPlotLibNet.Playground` (Blazor WASM), and `Tst/MatPlotLibNet` references it
   (`MatPlotLibNet.Tests.csproj`), so building the core suite builds the Playground too.
+- `Directory.Build.props` sets `EnableWindowsTargeting=true` repo-wide on non-Windows: docfx passes the Wpf
+  project's TargetFramework as a *global* MSBuild property, which spills onto every other project's reference
+  resolution on the Linux Pages runner, so core and Skia would otherwise refuse with "set EnableWindowsTargeting"
+  mid-build. One root cause, one root-level fix — never a per-project workaround.
 - The runners are **ubuntu-latest**. A change to a TFM, a csproj property or `docfx.json` has no local verdict:
   read it against the runner's OS instead of pushing a probe.
 
@@ -109,11 +121,20 @@ Interactive (browser popup), GraphQL, Avalonia/Uno/Wpf/Maui (native controls), D
 formatter). **`MatPlotLibNet.Notebooks` is frozen** at the version it reached and is deliberately out of
 `CI.slnf` and both workflows; `ReleaseContractTests.Frozen` holds that with its reason.
 
-**The release contract is executable.** `Tst/MatPlotLibNet/Packaging/ReleaseContractTests.cs` reads the csprojs,
-the workflows, `docs/docfx.json`, `docs/index.md`, the cookbook pages, the coverage runsettings and `run.sh`, and
-fails when a hand-kept list drifts — every package must carry the same version, be built and pushed by some
-workflow, be measured by the coverage gate, and be linked from the docs. Adding a package means editing all of
-those lists; the test tells you which one you forgot.
+**The release contract is executable.** `Tst/MatPlotLibNet/Packaging/ReleaseContractTests.cs` (1200+ lines, 40+
+tests) reads the csprojs, the workflows, `docs/docfx.json`, `docs/index.md`, the cookbook pages, the coverage
+runsettings and `run.sh`, and fails when a hand-kept list drifts — every package must carry the same version, be
+built and pushed by some workflow, be measured by the coverage gate, and be linked from the docs. It reaches past
+packaging into SEO/accessibility (search-engine description, analytics tag, IndexNow key, social-card size, the
+accessibility page naming every series with no tabular form), the MCP manifest's own version, the icon surviving
+`.gitignore`, and the version named on ARCHITECTURE.md's/README's/SECURITY.md's first line. Adding a package or a
+series means editing every list it checks; the test tells you which one you forgot.
+
+Every `Src/` package packs on build (`GeneratePackageOnBuild`) and is checked for API breaks against
+`PackageValidationBaselineVersion` in `Directory.Build.props` (currently 1.19.0, the release just before this one
+— `ThePackBaseline_IsTheReleaseJustBeforeThisOne` fails if it is not moved with the version). Notebooks (frozen)
+and the Mcp .NET-tool package opt out; nothing else does. The SourceLink version is pinned once, in the same file
+(`$(SourceLinkVersion)`), to dodge a CVE band in `Microsoft.Build.Tasks.Git` — never restate it per project.
 
 **Tests that fail only on the ubuntu runner.** `ChartServices` holds process-global mutable statics (`Serializer`,
 `Renderer`, `SvgRenderer`, `FontMetrics`, `GlyphPathProvider`) that every render test reads. A test that swaps one

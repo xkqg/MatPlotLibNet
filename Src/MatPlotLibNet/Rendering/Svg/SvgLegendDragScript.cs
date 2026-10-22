@@ -8,31 +8,28 @@ namespace MatPlotLibNet.Rendering.Svg;
 /// applied client-side as a <c>transform="translate(dx,dy)"</c> attribute on the parent
 /// <c>&lt;g class="legend"&gt;</c>; it is NOT persisted across server-side re-renders.</summary>
 /// <remarks>
-/// <para>Phase S (2026-04-19). Coexists with <see cref="SvgLegendToggleScript"/> via DOM-level
+/// <para>Coexists with <see cref="SvgLegendToggleScript"/> via DOM-level
 /// coordination, not shared state:</para>
 /// <list type="bullet">
-///   <item><description><b>Toggle vs drag</b>: pointerdown does NOT toggle (Phase S fix in toggle
-///     script). Drag tracks pointer movement; once it crosses the 5-px² threshold, the synthetic
+///   <item><description><b>Toggle vs drag</b>: pointerdown does NOT toggle (the toggle script acts
+///     on click only). Drag tracks pointer movement; once it crosses the 5-px² threshold, the synthetic
 ///     click that follows pointerup gets suppressed via a one-shot capture-phase
 ///     <c>stopPropagation</c> listener. Click without drag falls through to toggle.</description></item>
 ///   <item><description><b>Pan/zoom vs drag</b>: drag listeners run in capture phase on the legend
 ///     items themselves; once a drag is engaged we <c>stopPropagation</c> on each pointermove so
 ///     the SVG-root pan handler cannot also pan the chart while the user is repositioning the
 ///     legend.</description></item>
-///   <item><description><b>Hover vs drag</b> (Phase R lesson): the pointermove handler bails when
+///   <item><description><b>Hover vs drag</b>: the pointermove handler bails when
 ///     <c>isDown</c> is false, so hovering a legend item does not latch any state.</description></item>
 ///   <item><description><b>Pointer capture</b>: <c>setPointerCapture</c> is wrapped in try/catch
 ///     and called on the item that received pointerdown — keeps subsequent pointermove/pointerup
 ///     events targeted at that item even if the cursor leaves the legend's bbox during the
 ///     drag.</description></item>
 /// </list>
-/// <para><b>Harness gap</b>: the test harness (<c>InteractionScriptHarness</c> in
-/// <c>MatPlotLibNet.Tests.Rendering.Svg.Interaction</c>) does not honour capture-phase
-/// ordering, so the drag-suppresses-click behaviour cannot be pinned in xUnit; that
-/// contract is verified end-to-end by the Phase S Playwright harness
-/// (<c>c:/tmp/legend_repro.py</c>). The xUnit-pinnable behaviours — translate-on-drag,
-/// threshold, hover-no-poison, accumulate-across-drops — are covered by
-/// <c>LegendDragTests</c>.</para>
+/// <para><b>Harness gap</b>: the script test harness does not honour capture-phase
+/// ordering, so the drag-suppresses-click behaviour cannot be pinned in a unit test; it
+/// needs a real browser to check. The unit-testable behaviours — translate-on-drag,
+/// threshold, hover-no-poison, accumulate-across-drops — are covered by unit tests.</para>
 /// </remarks>
 internal static class SvgLegendDragScript
 {
@@ -48,9 +45,9 @@ internal static class SvgLegendDragScript
             // Shared drag state across all legend-item listeners — only one finger drags at a time.
             var dx = 0, dy = 0;                        // current accumulated translate
 
-            // Phase S2 (2026-08-22): the drop must SURVIVE a server re-render. A live chart replaces its
-            // whole SVG on every push, so the transform this script set lived exactly until the next frame
-            // and the legend snapped back under the reader's hand. The offset is therefore parked on the
+            // The drop must SURVIVE a server re-render. A live chart replaces its whole SVG on every
+            // push, so a transform set only on this SVG would live exactly until the next frame and the
+            // legend would snap back under the reader's hand. The offset is therefore parked on the
             // HOST element — the container the SVG is swapped inside, which outlives the swap — and read
             // back the moment a new SVG's script runs. Per-chart by construction: each live chart has its
             // own host, so two charts on one page cannot inherit each other's position.
@@ -76,17 +73,17 @@ internal static class SvgLegendDragScript
             var startX = 0, startY = 0;                // pointer at mousedown
             var startDx = 0, startDy = 0;              // translate at mousedown
             var isDown = false, dragged = false;
-            var THRESH2 = 25;                          // 5-px² (Phase R parity)
+            var THRESH2 = 25;                          // 5-px²
 
             function setTransform() {
                 legend.setAttribute('transform', 'translate(' + dx + ',' + dy + ')');
             }
 
-            // Phase T (2026-04-19): clamp dx/dy so a runaway drag can't park the legend
+            // Clamp dx/dy so a runaway drag can't park the legend
             // off-canvas where the user can't get it back. Uses the legend's resting bbox
             // (real browser via getBBox) to keep at least 20% of the legend inside the
             // viewBox; falls back to a coarse |dx|<=vbWidth, |dy|<=vbHeight cap when
-            // getBBox is unavailable (Jint test harness has no layout engine).
+            // getBBox is unavailable (an environment without a layout engine).
             function clampDelta(nx, ny) {
                 var vbAttr = svg.getAttribute('viewBox') || '';
                 var vb = vbAttr.split(' ').map(Number);
@@ -103,7 +100,7 @@ internal static class SvgLegendDragScript
                     if (nx < minDx) nx = minDx; else if (nx > maxDx) nx = maxDx;
                     if (ny < minDy) ny = minDy; else if (ny > maxDy) ny = maxDy;
                 } else {
-                    // Coarse cap (harness fallback): can't translate more than one
+                    // Coarse cap (no getBBox): can't translate more than one
                     // viewBox-dimension in either direction.
                     if (nx > vbW) nx = vbW; else if (nx < -vbW) nx = -vbW;
                     if (ny > vbH) ny = vbH; else if (ny < -vbH) ny = -vbH;
@@ -111,8 +108,8 @@ internal static class SvgLegendDragScript
                 return [nx, ny];
             }
 
-            // Per-item closures (Jint test harness doesn't bind `this` to the element on
-            // listener invocation, so we capture `item` from the forEach closure instead).
+            // Per-item closures (some embedding environments don't bind `this` to the element
+            // on listener invocation, so we capture `item` from the forEach closure instead).
             var items = svg.querySelectorAll('[data-legend-index]');
             items.forEach(function(item) {
                 item.style.cursor = 'grab';

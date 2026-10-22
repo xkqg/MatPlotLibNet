@@ -10,15 +10,12 @@ namespace MatPlotLibNet.Rendering.LegendRendering;
 /// <summary>
 /// Computes the pixel geometry of a legend (fonts, column widths, box
 /// dimensions, position) from a <see cref="Legend"/> config + label list +
-/// plot area. Encapsulates the formulas that were previously duplicated
-/// verbatim in <c>AxesRenderer.RenderLegend</c> and
-/// <c>AxesRenderer.ComputeLegendBounds</c>.
+/// plot area. Encapsulates the formulas that drawing (<c>AxesRenderer.RenderLegend</c>)
+/// and hit-testing (<c>AxesRenderer.ComputeLegendBounds</c>) share.
 /// </summary>
 /// <remarks>
-/// Phase B.3 of the strict-90 floor plan (2026-04-20). Fixes the DRY
-/// violation that had two copies of the same layout math — one for drawing,
-/// one for hit-testing. Any future matplotlib-parity tweak now lives in
-/// exactly one place.
+/// Drawing and hit-testing read one copy of the layout math, so a change to the
+/// legend's geometry is made in exactly one place.
 /// </remarks>
 public sealed class LegendLayoutCalculator
 {

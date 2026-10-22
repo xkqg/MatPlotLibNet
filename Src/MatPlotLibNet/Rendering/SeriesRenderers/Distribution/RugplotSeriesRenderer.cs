@@ -29,6 +29,7 @@ internal sealed class RugplotSeriesRenderer : SeriesRenderer<RugplotSeries>
         {
             var bottom = Transform.DataToPixel(value, yDataMin);
             var top = Transform.DataToPixel(value, yDataMin + tickHeightData);
+            if (!bottom.CanDrawLineTo(top)) continue;   // an observation that cannot be placed draws no tick
             Ctx.DrawLine(bottom, top, new StrokeStyle(tickColor, series.LineWidth, Styling.LineStyle.Solid));
         }
     }

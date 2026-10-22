@@ -8,8 +8,7 @@ namespace MatPlotLibNet.Rendering.CartesianParts;
 
 /// <summary>
 /// Renders horizontal/vertical reference lines (full-width markers).
-/// Extracted verbatim from <c>CartesianAxesRenderer.Render</c> lines 139-174
-/// (pre-B.6). Responsibility: draw each ReferenceLine's full-axis line +
+/// Draws each ReferenceLine's full-axis line +
 /// optional right/left-anchored label.
 /// </summary>
 internal sealed class CartesianReferenceLinesPart : CartesianAxesPart
@@ -31,13 +30,14 @@ internal sealed class CartesianReferenceLinesPart : CartesianAxesPart
         foreach (var refLine in Axes.ReferenceLines)
         {
             var lineColor = refLine.Color ?? Colors.Gray;
+            // A line at a value its axis cannot place is skipped with its label. It spans the plot area, so only the
+            // one coordinate it is placed at decides. The automatic range holds every line; a line beyond a limit the
+            // caller set lies outside the plot and is not drawn either, nor its label.
             if (refLine.Orientation == Orientation.Horizontal)
             {
                 var pt = Transform.DataToPixel(_range.XMin, refLine.Value);
-                Ctx.DrawLine(
-                    new Point(PlotArea.X, pt.Y),
-                    new Point(PlotArea.X + PlotArea.Width, pt.Y),
-                    new StrokeStyle(lineColor, refLine.LineWidth, refLine.LineStyle));
+                if (!pt.Y.IsDrawable() || PlotArea.HorizontalAcross(pt.Y) is not { } across) continue;
+                Ctx.DrawLine(across.From, across.To, new StrokeStyle(lineColor, refLine.LineWidth, refLine.LineStyle));
                 if (refLine.Label is not null)
                 {
                     var labelFont = refLabelFont with { Color = lineColor };
@@ -49,10 +49,8 @@ internal sealed class CartesianReferenceLinesPart : CartesianAxesPart
             else
             {
                 var pt = Transform.DataToPixel(refLine.Value, _range.YMin);
-                Ctx.DrawLine(
-                    new Point(pt.X, PlotArea.Y),
-                    new Point(pt.X, PlotArea.Y + PlotArea.Height),
-                    new StrokeStyle(lineColor, refLine.LineWidth, refLine.LineStyle));
+                if (!pt.X.IsDrawable() || PlotArea.VerticalAcross(pt.X) is not { } across) continue;
+                Ctx.DrawLine(across.From, across.To, new StrokeStyle(lineColor, refLine.LineWidth, refLine.LineStyle));
                 if (refLine.Label is not null)
                 {
                     var labelFont = refLabelFont with { Color = lineColor };

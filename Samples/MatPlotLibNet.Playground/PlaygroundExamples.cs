@@ -9,7 +9,7 @@ using MatPlotLibNet.Styling.ColorMaps;
 namespace MatPlotLibNet.Playground;
 
 /// <summary>Centralised registry + builder for every Playground example. Each example takes
-/// a <see cref="PlaygroundOptions"/> and returns a (Figure, code-snippet) pair.
+/// a <see cref="PlaygroundOptions"/> and returns a <see cref="PlaygroundBuild"/>: the figure and its code snippet.
 ///
 /// <para>Why a single static registry instead of one class per example?</para>
 /// 1. The Razor component just queries <see cref="Examples"/> for the dropdown and calls
@@ -26,7 +26,12 @@ public static class PlaygroundExamples
     public static IReadOnlyList<PlaygroundExample> Examples =>
         Enum.GetValues<PlaygroundExample>();
 
-    public static (Figure Figure, string Code) Build(PlaygroundExample example, PlaygroundOptions opts)
+    /// <summary>Builds <paramref name="example"/> under <paramref name="opts"/>.</summary>
+    /// <param name="example">The example to build.</param>
+    /// <param name="opts">The Playground's current options.</param>
+    /// <returns>The figure and the code snippet that draws it.</returns>
+    /// <exception cref="ArgumentException">No builder is registered for <paramref name="example"/>.</exception>
+    public static PlaygroundBuild Build(PlaygroundExample example, PlaygroundOptions opts)
     {
         if (!_builders.TryGetValue(example, out var builder))
             throw new ArgumentException(
@@ -69,7 +74,7 @@ public static class PlaygroundExamples
             or PlaygroundExample.Treemap
             or PlaygroundExample.DashboardTiles);
 
-    private static readonly Dictionary<PlaygroundExample, Func<PlaygroundOptions, (Figure, string)>> _builders =
+    private static readonly Dictionary<PlaygroundExample, Func<PlaygroundOptions, PlaygroundBuild>> _builders =
         new()
         {
             [PlaygroundExample.LineChart]    = BuildLine,
@@ -93,13 +98,14 @@ public static class PlaygroundExamples
             [PlaygroundExample.DashboardTiles] = BuildDashboardTiles,
             [PlaygroundExample.ThresholdLine]  = BuildThresholdLine,
             [PlaygroundExample.DirectLabels]   = BuildDirectLabels,
+            [PlaygroundExample.ParetoChart]    = BuildPareto,
         };
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Example builders — each returns (Figure, code snippet for the user to copy)
+    // Example builders — each returns the figure and the code snippet for the user to copy
     // ──────────────────────────────────────────────────────────────────────────
 
-    private static (Figure, string) BuildLine(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildLine(PlaygroundOptions opts)
     {
         double[] x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         double[] y = [2.1, 4.5, 3.2, 6.8, 5.1, 7.3, 6.5, 8.9, 7.2, 9.4];
@@ -117,10 +123,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.LineChart, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.LineChart, opts));
     }
 
-    private static (Figure, string) BuildBar(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildBar(PlaygroundOptions opts)
     {
         string[] cats = ["Q1", "Q2", "Q3", "Q4"];
         double[] vals = [23, 45, 12, 67];
@@ -133,10 +139,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.BarChart, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.BarChart, opts));
     }
 
-    private static (Figure, string) BuildScatter(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildScatter(PlaygroundOptions opts)
     {
         var rng = new Random(42);
         double[] x = Enumerable.Range(0, 50).Select(_ => rng.NextDouble() * 10).ToArray();
@@ -154,10 +160,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ScatterPlot, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ScatterPlot, opts));
     }
 
-    private static (Figure, string) BuildMultiSeries(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildMultiSeries(PlaygroundOptions opts)
     {
         double[] x = Enumerable.Range(0, 50).Select(i => i * 0.2).ToArray();
         bool hasMarker = opts.Marker != MarkerStyle.None;
@@ -183,10 +189,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MultiSeries, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MultiSeries, opts));
     }
 
-    private static (Figure, string) BuildHeatmap(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildHeatmap(PlaygroundOptions opts)
     {
         var matrix = new double[10, 10];
         for (int r = 0; r < 10; r++)
@@ -201,10 +207,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Heatmap, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Heatmap, opts));
     }
 
-    private static (Figure, string) BuildPie(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildPie(PlaygroundOptions opts)
     {
         string[] labels = ["Python", "C#", "Java", "Go", "Rust"];
         double[] sizes = [35, 25, 20, 12, 8];
@@ -216,10 +222,10 @@ public static class PlaygroundExamples
                 s.Shadow = true;
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.PieChart, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.PieChart, opts));
     }
 
-    private static (Figure, string) BuildHist(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildHist(PlaygroundOptions opts)
     {
         var rng = new Random(42);
         double[] data = Enumerable.Range(0, 500).Select(_ => rng.NextDouble() * 6 + rng.NextDouble() * 6).ToArray();
@@ -231,10 +237,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Histogram, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Histogram, opts));
     }
 
-    private static (Figure, string) BuildContour(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildContour(PlaygroundOptions opts)
     {
         int n = 20;
         double[] cx = Enumerable.Range(0, n).Select(i => i * 0.5 - 5.0).ToArray();
@@ -262,10 +268,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ContourPlot, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ContourPlot, opts));
     }
 
-    private static (Figure, string) BuildSurface(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildSurface(PlaygroundOptions opts)
     {
         int n = 20;
         double[] sx = Enumerable.Range(0, n).Select(i => -3.0 + 6.0 * i / (n - 1)).ToArray();
@@ -291,10 +297,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Surface3D, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Surface3D, opts));
     }
 
-    private static (Figure, string) BuildRadar(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildRadar(PlaygroundOptions opts)
     {
         string[] categories = ["Speed", "Power", "Defense", "Range", "Accuracy"];
         double[] v1 = [85, 70, 90, 60, 95];
@@ -308,10 +314,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.RadarChart, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.RadarChart, opts));
     }
 
-    private static (Figure, string) BuildViolin(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildViolin(PlaygroundOptions opts)
     {
         var rng = new Random(42);
         double[][] groups = [
@@ -327,10 +333,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ViolinPlot, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ViolinPlot, opts));
     }
 
-    private static (Figure, string) BuildCandlestick(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildCandlestick(PlaygroundOptions opts)
     {
         var rng = new Random(42);
         double price = 100;
@@ -359,14 +365,14 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Candlestick, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Candlestick, opts));
     }
 
     /// <summary>Phase G.7 of v1.7.2 follow-on — Sankey flow example with browser-side
     /// hover emphasis. Hovering a node dims every link not reachable upstream or
     /// downstream from that node (ECharts focus:adjacency parity). Keyboard users
     /// get the same behaviour via Tab+focus.</summary>
-    private static (Figure, string) BuildSankey(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildSankey(PlaygroundOptions opts)
     {
         var nodes = new[]
         {
@@ -387,10 +393,10 @@ public static class PlaygroundExamples
         };
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax => ax.Sankey(nodes, links).HideAllAxes());
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.SankeyFlow, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.SankeyFlow, opts));
     }
 
-    private static (Figure, string) BuildTreemap(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildTreemap(PlaygroundOptions opts)
     {
         // Phase W (v1.7.2, 2026-04-19) — actual depth-3 tree under Electronics → Phones
         // (iPhone / Galaxy / Pixel). Other parents stay depth-2 so the playground
@@ -462,10 +468,10 @@ public static class PlaygroundExamples
         var fb = opts.ApplyToFigure(Plt.Create())
             .AddSubPlot(1, 1, 1, ax => ax.Treemap(root, s => s.ShowLabels = true).HideAllAxes());
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Treemap, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.Treemap, opts));
     }
 
-    private static (Figure, string) BuildPolar(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildPolar(PlaygroundOptions opts)
     {
         double[] theta = Enumerable.Range(0, 100).Select(i => i * 2 * Math.PI / 100).ToArray();
         double[] r = theta.Select(t => 1 + Math.Cos(3 * t)).ToArray();
@@ -477,10 +483,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.PolarLine, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.PolarLine, opts));
     }
 
-    private static (Figure, string) BuildMulti(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildMulti(PlaygroundOptions opts)
     {
         double[] x = [1, 2, 3, 4, 5, 6, 7, 8];
         double[] y1 = [2, 4, 3, 5, 4, 6, 5, 7];
@@ -501,10 +507,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MultiSubplot, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MultiSubplot, opts));
     }
 
-    private static (Figure, string) BuildAxisBreaks(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildAxisBreaks(PlaygroundOptions opts)
     {
         // Two data clusters separated by a large gap — break hides the empty [20, 80] region.
         double[] x = Enumerable.Range(0, 16).Select(i => (double)i).ToArray();
@@ -529,10 +535,10 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.AxisBreaks, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.AxisBreaks, opts));
     }
 
-    private static (Figure, string) BuildMinorGrid(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildMinorGrid(PlaygroundOptions opts)
     {
         double[] x = Enumerable.Range(0, 50).Select(i => i * 0.2).ToArray();
         double[] y = x.Select(v => Math.Sin(v) + 0.3 * Math.Sin(3 * v)).ToArray();
@@ -553,13 +559,14 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MinorGrid, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.MinorGrid, opts));
     }
 
-    /// <summary>v1.12.0 — a KPI tile row (<see cref="StatTileSeries"/>) above a single-row
-    /// <see cref="StateTimelineSeries"/>, composed via <c>WithGridSpec</c>. Both series types
-    /// are chartless (no axes/data), so <see cref="HasCartesianSpines"/> excludes this example.</summary>
-    private static (Figure, string) BuildDashboardTiles(PlaygroundOptions opts)
+    /// <summary>A KPI tile row (<see cref="StatTileSeries"/>) above a single-row
+    /// <see cref="StateTimelineSeries"/>, composed via <c>WithGridSpec</c>. A tile is a number with a label, not
+    /// a chart, so its axes are hidden (<c>HideAllAxes()</c>, as <c>Plt.OpsDashboard()</c> does for its tiles), and
+    /// <see cref="HasCartesianSpines"/> excludes this example.</summary>
+    private static PlaygroundBuild BuildDashboardTiles(PlaygroundOptions opts)
     {
         var serviceHistory = new StateSegment[]
         {
@@ -574,11 +581,13 @@ public static class PlaygroundExamples
             {
                 ax.StatTile(12, t => { t.Label = "Participants"; t.Format = "0"; });
                 opts.ApplyToAxes(ax);
+                ax.HideAllAxes();
             })
             .AddSubPlot(GridPosition.Single(0, 1), ax =>
             {
                 ax.StatTile(1, t => { t.Label = "Alerts"; t.AccentColor = Colors.Red; t.Format = "0"; });
                 opts.ApplyToAxes(ax);
+                ax.HideAllAxes();
             })
             .AddSubPlot(new GridPosition(1, 2, 0, 2), ax =>
             {
@@ -586,13 +595,13 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.DashboardTiles, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.DashboardTiles, opts));
     }
 
-    /// <summary>v1.12.0 — the <c>Threshold(...)</c> convenience: a dashed reference line +
+    /// <summary>The <c>Threshold(...)</c> convenience: a dashed reference line +
     /// shaded breach span in one call, plus <c>WithLegendValues()</c> so the legend shows
     /// the series' current reading (e.g. "Load = 87.42").</summary>
-    private static (Figure, string) BuildThresholdLine(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildThresholdLine(PlaygroundOptions opts)
     {
         double[] x = Enumerable.Range(0, 60).Select(i => (double)i).ToArray();
         double[] y = x.Select(v => 50 + 20 * Math.Sin(v * 0.15)).ToArray();
@@ -615,13 +624,13 @@ public static class PlaygroundExamples
                 ax.WithLegendValues();
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ThresholdLine, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ThresholdLine, opts));
     }
 
-    /// <summary>v1.19.0 — two lines on two Y axes, each named at the end of its line
+    /// <summary>Two lines on two Y axes, each named at the end of its line
     /// (<c>WithDirectLabel()</c>) and each axis coloured like its line (<c>SetYAxisColor</c>), so the chart
     /// reads without a legend. Both axes keep a title, so the colour is never the only cue.</summary>
-    private static (Figure, string) BuildDirectLabels(PlaygroundOptions opts)
+    private static PlaygroundBuild BuildDirectLabels(PlaygroundOptions opts)
     {
         double[] hours       = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24];
         double[] temperature = [14.2, 13.5, 13.1, 14.0, 17.5, 21.8, 25.4, 27.1, 26.3, 22.9, 19.0, 16.4, 15.0];
@@ -654,7 +663,28 @@ public static class PlaygroundExamples
                 opts.ApplyToAxes(ax);
             });
 
-        return (opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.DirectLabels, opts));
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.DirectLabels, opts));
+    }
+
+    /// <summary>A Pareto chart in one verb call (<c>Pareto</c>): the counts as bars, largest first, and their running
+    /// share of the total as a line on a second axis that ends at exactly 100 %. The counts are given in no order;
+    /// the verb sorts them, accumulates them and lines both Y axes up itself.</summary>
+    private static PlaygroundBuild BuildPareto(PlaygroundOptions opts)
+    {
+        string[] defects = ["Dents", "Scratches", "Stains", "Cracks", "Warp", "Breaks", "Missing"];
+        double[] counts  = [98, 142, 45, 67, 9, 31, 18];
+
+        var fb = opts.ApplyToFigure(Plt.Create())
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Pareto(defects, counts, parts => parts.Bars.Label = "Defect count");
+                opts.ApplyToAxes(ax);
+                // The options set the legend record anew, in the default corner over the line's last points; keep
+                // the place the verb chose and only take the on/off switch from the options.
+                ax.WithLegend(legend => legend with { Position = LegendPosition.Right });
+            });
+
+        return new(opts.ApplyTightLayout(fb).Build(), CodeFor(PlaygroundExample.ParetoChart, opts));
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -705,8 +735,8 @@ public static class PlaygroundExamples
             PlaygroundExample.MinorGrid    => "    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y).WithMinorTicks().WithGrid(g => g with { Which = GridWhich.Both }))",
             PlaygroundExample.DashboardTiles =>
                 "    .WithGridSpec(2, 2)\n" +
-                "    .AddSubPlot(GridPosition.Single(0, 0), ax => ax.StatTile(12, t => t.Label = \"Participants\"))\n" +
-                "    .AddSubPlot(GridPosition.Single(0, 1), ax => ax.StatTile(1, t => { t.Label = \"Alerts\"; t.AccentColor = Colors.Red; }))\n" +
+                "    .AddSubPlot(GridPosition.Single(0, 0), ax => ax.StatTile(12, t => t.Label = \"Participants\").HideAllAxes())\n" +
+                "    .AddSubPlot(GridPosition.Single(0, 1), ax => ax.StatTile(1, t => { t.Label = \"Alerts\"; t.AccentColor = Colors.Red; }).HideAllAxes())\n" +
                 "    .AddSubPlot(new GridPosition(1, 2, 0, 2), ax => ax.StateTimeline(segments, s => s.Label = \"Service\"))",
             PlaygroundExample.ThresholdLine =>
                 "    .AddSubPlot(1, 1, 1, ax => ax.Plot(x, y, s => s.Label = \"Load\")\n" +
@@ -723,7 +753,9 @@ public static class PlaygroundExamples
                 "            .WithDirectLabel()\n" +
                 "            .SetYLabel(\"Relative humidity (%)\")\n" +
                 "            .SetYAxisColor(Colors.Tab10Blue)))",
-            _                              => throw new ArgumentOutOfRangeException(nameof(example), example,
+            PlaygroundExample.ParetoChart =>
+                "    .AddSubPlot(1, 1, 1, ax => ax.Pareto(defects, counts, parts => parts.Bars.Label = \"Defect count\"))",
+            _                             => throw new ArgumentOutOfRangeException(nameof(example), example,
                                                   $"CodeFor: no snippet registered for new enum value {example}; update the switch."),
         };
         lines.Add(body);

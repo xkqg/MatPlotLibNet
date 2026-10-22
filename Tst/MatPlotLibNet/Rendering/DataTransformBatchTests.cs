@@ -68,6 +68,50 @@ public class DataTransformBatchTests
             Assert.Equal(expected, py, 1e-10);
     }
 
+    /// <summary>An axis whose range has no width puts every value it can place on its centre, but a value it cannot
+    /// place (NaN, an infinity, a non-positive value on a log axis) still comes out NaN: the pixel is what a renderer
+    /// asks whether a coordinate can be drawn, so a missing value must never land on the centre.</summary>
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void DataToPixel_ZeroDataRange_LeavesAValueItCannotPlaceUnplaced(double value)
+    {
+        var flatX = new DataTransform(5, 5, 0, 100, new Rect(10, 20, 400, 300));
+        var flatY = new DataTransform(0, 100, 3, 3, new Rect(10, 20, 400, 300));
+
+        Assert.True(double.IsNaN(flatX.DataToPixel(value, 50).X));
+        Assert.True(double.IsNaN(flatY.DataToPixel(50, value).Y));
+        Assert.Equal(210, flatX.DataToPixel(5, 50).X, 1e-10);
+        Assert.Equal(170, flatY.DataToPixel(50, 3).Y, 1e-10);
+    }
+
+    [Fact]
+    public void TransformXAndY_ZeroDataRange_LeaveAValueTheyCannotPlaceUnplaced()
+    {
+        var flat = new DataTransform(5, 5, 3, 3, new Rect(10, 20, 400, 300));
+
+        double[] px = flat.TransformX([5.0, double.NaN, double.PositiveInfinity]);
+        double[] py = flat.TransformY([3.0, double.NaN, double.NegativeInfinity]);
+
+        Assert.Equal(210, px[0], 1e-10);
+        Assert.True(double.IsNaN(px[1]) && double.IsNaN(px[2]));
+        Assert.Equal(170, py[0], 1e-10);
+        Assert.True(double.IsNaN(py[1]) && double.IsNaN(py[2]));
+    }
+
+    [Fact]
+    public void TransformBatch_ZeroDataRangeOnALogAxis_LeavesAValueItCannotPlaceUnplaced()
+    {
+        var flatLog = new DataTransform(0, 10, 1, 1, new Rect(10, 20, 400, 300), null, null, 0, 10, 10, 10,
+            MatPlotLibNet.Models.AxisScale.Linear, MatPlotLibNet.Models.AxisScale.Log, 1, 1);
+
+        var points = flatLog.TransformBatch([1.0, 2], [10, 0]);
+
+        Assert.Equal(170, points[0].Y, 1e-10);
+        Assert.True(double.IsNaN(points[1].Y));
+    }
+
     [Fact]
     public void TransformBatch_LargeDataset_MatchesPerPoint()
     {

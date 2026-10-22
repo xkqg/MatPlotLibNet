@@ -54,11 +54,12 @@ public sealed class PlanarBar3DSeries : XYZSeries, IHasColor, IHasAlpha, IHasEdg
         if (X.Length == 0) return new(null, null, null, null);
         // Planar bars: X spans [X[i], X[i]+BarWidth]; Y is a POINT (no width, the bar
         // is flat in that dimension); Z spans [0, Z[i]] with sticky-zero baseline.
-        return new Box3D(
-            X: new(X.Min(), X.Max() + BarWidth),
-            Y: new(Y.Min(), Y.Max()),
-            Z: new(Math.Min(0, Z.Min()), Math.Max(0, Z.Max()))
-        ).ToContribution(stickyZMin: 0);
+        // Over the drawable coordinates only: a missing one (NaN) and an infinity are left out.
+        var x = X.Data.DrawableRange();
+        var y = Y.Data.DrawableRange();
+        var z = Z.Data.DrawableRange();
+        return new(x?.Lo, x?.Hi + BarWidth, y?.Lo, y?.Hi, StickyZMin: 0,
+            ZMin: z is { } zFloor ? Math.Min(0, zFloor.Lo) : null, ZMax: z is { } zTop ? Math.Max(0, zTop.Hi) : null);
     }
 
     /// <inheritdoc />
@@ -70,8 +71,8 @@ public sealed class PlanarBar3DSeries : XYZSeries, IHasColor, IHasAlpha, IHasEdg
         ZData = Z,
         BarWidth = BarWidth,
         Color = Color,
-        // Alpha, EdgeColor, Colors[] omitted — matches the ScatterSeries/PieSeries
-        // convention of keeping per-element arrays and cosmetic overrides client-side.
+        // Alpha, EdgeColor and Colors are not written yet: this type has no way back from JSON (the roadmap row
+        // "Live series back from JSON"), and they join the day it gets one.
     };
 
 

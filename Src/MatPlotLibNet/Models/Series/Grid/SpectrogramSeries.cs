@@ -50,7 +50,9 @@ public sealed class SpectrogramSeries : ChartSeries, IColorBarDataProvider, ICol
         SampleRate = SampleRate,
         WindowSize = WindowSize,
         Overlap = Overlap,
-        ColorMapName = ColorMap?.Name
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="SpectrogramSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -68,10 +70,8 @@ public sealed class SpectrogramSeries : ChartSeries, IColorBarDataProvider, ICol
         {
             s.Overlap = dto.Overlap.Value;
         }
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
+        s.RestoreNormalizer(dto);
         return s;
     }
 

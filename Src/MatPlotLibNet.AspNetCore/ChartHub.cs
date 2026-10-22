@@ -55,22 +55,22 @@ public sealed class ChartHub : Hub<IChartHubClient>
     /// flag from a legend entry click.</summary>
     public void OnLegendToggle(LegendToggleEvent evt) => _registry.Publish(evt.ChartId, evt);
 
-    /// <summary>Client-to-server (v1.2.2): observer event from a Shift+drag rubber-band
+    /// <summary>Client-to-server: observer event from a Shift+drag rubber-band
     /// selection. Routes to the registered brush-select handler on the session, if any.
     /// Non-mutating — the figure is never re-rendered from a brush-select.</summary>
     public void OnBrushSelect(BrushSelectEvent evt) => _registry.Publish(evt.ChartId, evt);
 
-    /// <summary>Client-to-server (v1.2.2): hover event. The client supplies the data-space
-    /// point via <see cref="HoverEventPayload"/>; the hub stamps
-    /// <see cref="HoverEvent.CallerConnectionId"/> from <see cref="Microsoft.AspNetCore.SignalR.HubCallerContext.ConnectionId"/>
-    /// server-side so a client cannot spoof another user's connection. The session's hover
-    /// handler computes tooltip HTML which is delivered to the originating caller only via
-    /// <see cref="IChartHubClient.ReceiveTooltipContent"/>.</summary>
     /// <summary>Client-to-server: the reader clicked a data point. Routes to the session's data-cursor
     /// handler, if any. Non-mutating, like a brush-select: a click asks about the data, it does not change it,
     /// so the figure is never re-rendered from one.</summary>
     public void OnDataCursor(DataCursorEvent evt) => _registry.Publish(evt.ChartId, evt);
 
+    /// <summary>Client-to-server: hover event. The client supplies the data-space
+    /// point via <see cref="HoverEventPayload"/>; the hub stamps
+    /// <see cref="HoverEvent.CallerConnectionId"/> from <see cref="Microsoft.AspNetCore.SignalR.HubCallerContext.ConnectionId"/>
+    /// server-side so a client cannot spoof another user's connection. The session's hover
+    /// handler computes tooltip HTML which is delivered to the originating caller only via
+    /// <see cref="IChartHubClient.ReceiveTooltipContent"/>.</summary>
     public void OnHover(HoverEventPayload payload)
     {
         var evt = new HoverEvent(

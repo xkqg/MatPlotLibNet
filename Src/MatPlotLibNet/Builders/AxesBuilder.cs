@@ -304,7 +304,9 @@ public sealed class AxesBuilder
         return this;
     }
 
-    /// <summary>Adds a horizontal price level (support/resistance) at the given value.</summary>
+    /// <summary>Adds a horizontal price level (support/resistance) at the given value.
+    /// <para>The automatic range of the Y axis holds the level, so a level beyond the data is drawn inside the plot; a
+    /// level beyond a limit you set is not drawn, nor its label.</para></summary>
     public AxesBuilder AddLevel(double value, Action<HorizontalLevel>? configure = null)
     {
         var level = _axes.AddLevel(value);
@@ -312,7 +314,9 @@ public sealed class AxesBuilder
         return this;
     }
 
-    /// <summary>Adds a Fibonacci retracement overlay between a price high and a price low.</summary>
+    /// <summary>Adds a Fibonacci retracement overlay between a price high and a price low.
+    /// <para>The automatic range of the Y axis holds every level, from the high to the low; a level beyond a limit you
+    /// set is not drawn, nor its label.</para></summary>
     public AxesBuilder AddFibonacci(double priceHigh, double priceLow,
         Action<FibonacciRetracementTool>? configure = null)
     {
@@ -321,7 +325,10 @@ public sealed class AxesBuilder
         return this;
     }
 
-    /// <summary>Adds a horizontal reference line at the specified Y value.</summary>
+    /// <summary>Adds a horizontal reference line at the specified Y value.
+    /// <para>The automatic range of the Y axis holds the line, as matplotlib's <c>axhline</c> updates the data limits,
+    /// so a line beyond the data is drawn inside the plot; a line beyond a limit you set is not drawn, nor its
+    /// label.</para></summary>
     public AxesBuilder AxHLine(double y, Action<ReferenceLine>? configure = null)
     {
         var line = _axes.AxHLine(y);
@@ -329,7 +336,10 @@ public sealed class AxesBuilder
         return this;
     }
 
-    /// <summary>Adds a vertical reference line at the specified X value.</summary>
+    /// <summary>Adds a vertical reference line at the specified X value.
+    /// <para>The automatic range of the X axis holds the line, as matplotlib's <c>axvline</c> updates the data limits,
+    /// so a line beyond the data is drawn inside the plot; a line beyond a limit you set is not drawn, nor its
+    /// label.</para></summary>
     public AxesBuilder AxVLine(double x, Action<ReferenceLine>? configure = null)
     {
         var line = _axes.AxVLine(x);
@@ -457,7 +467,9 @@ public sealed class AxesBuilder
     /// <summary>
     /// Enables bar value labels on the last <see cref="BarSeries"/> added to this axes.
     /// </summary>
-    /// <param name="format">Optional .NET format string (e.g. "F1"). When null, uses "G4".</param>
+    /// <param name="format">Optional .NET format string (e.g. "F1"). When null, a value is written with up to six
+    /// significant digits and no trailing zeros, as matplotlib's <c>bar_label</c> writes it by default (<c>'%g'</c>):
+    /// 12500 reads <c>12500</c>, 0.5 reads <c>0.5</c>, and only a value below 1e-4 or from 1e6 takes an exponent.</param>
     /// <remarks>Only the last <see cref="BarSeries"/> in the series list is affected. Call this method once per <see cref="BarSeries"/> immediately after adding it.</remarks>
     public AxesBuilder WithBarLabels(string? format = null)
     {
@@ -491,7 +503,7 @@ public sealed class AxesBuilder
     /// from <see cref="Styling.ColorMaps.ColorMapRegistry"/>).
     /// <para>Throws <see cref="ArgumentException"/> if <paramref name="name"/> is not a
     /// registered colormap name — surfacing typos or renamed colormaps instead of silently
-    /// falling back to the renderer default (Phase L.9 of the v1.7.2 plan). If you want a
+    /// falling back to the renderer default. If you want a
     /// defensive lookup that returns the builder unchanged on unknown names, call
     /// <see cref="Styling.ColorMaps.ColorMapRegistry.Get"/> yourself and invoke the
     /// <see cref="WithColorMap(Styling.ColorMaps.IColorMap)"/> overload conditionally.</para></summary>
@@ -675,12 +687,7 @@ public sealed class AxesBuilder
 
         foreach (var group in groups)
         {
-            if (group.Values.Length != categories.Length)
-            {
-                throw new ArgumentException(
-                    $"Group '{group.Label}' carries {group.Values.Length} values; there are {categories.Length} categories.",
-                    nameof(groups));
-            }
+            group.ThrowIfMisaligned(categories.Length, nameof(groups));
         }
 
         foreach (var group in groups)
@@ -798,7 +805,9 @@ public sealed class AxesBuilder
     public AxesBuilder OhlcBar(double[] open, double[] high, double[] low, double[] close, string[]? dateLabels = null, Action<OhlcBarSeries>? configure = null)
         => AddSeries(ax => ax.OhlcBar(open, high, low, close, dateLabels), configure);
 
-    /// <summary>Adds a waterfall chart series to the axes.</summary>
+    /// <summary>Adds a waterfall chart series to the axes: each value is a change on the running total, and a step marked
+    /// in <see cref="WaterfallSeries.TotalIndices"/> (set in <paramref name="configure"/>) is a total, a level that stands
+    /// on zero in <see cref="WaterfallSeries.TotalColor"/>.</summary>
     public AxesBuilder Waterfall(string[] categories, double[] values, Action<WaterfallSeries>? configure = null)
         => AddSeries(ax => ax.Waterfall(categories, values), configure);
 
@@ -1151,7 +1160,7 @@ public sealed class AxesBuilder
     public AxesBuilder Sma(int period, Action<Indicators.Sma>? configure = null)
     {
         var indicator = new Indicators.Sma(GetPriceData(), period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1161,7 +1170,7 @@ public sealed class AxesBuilder
     public AxesBuilder Ema(int period, Action<Indicators.Ema>? configure = null)
     {
         var indicator = new Indicators.Ema(GetPriceData(), period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1171,7 +1180,7 @@ public sealed class AxesBuilder
     public AxesBuilder BollingerBands(int period = 20, double stdDev = 2.0, Action<Indicators.BollingerBands>? configure = null)
     {
         var indicator = new Indicators.BollingerBands(GetPriceData(), period, stdDev);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1181,7 +1190,7 @@ public sealed class AxesBuilder
     public AxesBuilder Rsi(double[] prices, int period = 14, Action<Indicators.Rsi>? configure = null)
     {
         var indicator = new Indicators.Rsi(prices, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1191,7 +1200,7 @@ public sealed class AxesBuilder
     public AxesBuilder WilliamsR(double[] high, double[] low, double[] close, int period = 14, Action<Indicators.WilliamsR>? configure = null)
     {
         var indicator = new Indicators.WilliamsR(high, low, close, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1201,7 +1210,7 @@ public sealed class AxesBuilder
     public AxesBuilder Obv(double[] close, double[] volume, Action<Indicators.Obv>? configure = null)
     {
         var indicator = new Indicators.Obv(close, volume);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1211,7 +1220,7 @@ public sealed class AxesBuilder
     public AxesBuilder Cci(double[] high, double[] low, double[] close, int period = 20, Action<Indicators.Cci>? configure = null)
     {
         var indicator = new Indicators.Cci(high, low, close, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1221,7 +1230,7 @@ public sealed class AxesBuilder
     public AxesBuilder ParabolicSar(double[] high, double[] low, double step = 0.02, double max = 0.2, Action<Indicators.ParabolicSar>? configure = null)
     {
         var indicator = new Indicators.ParabolicSar(high, low, step, max);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1232,7 +1241,7 @@ public sealed class AxesBuilder
                                    int period = 20, Action<Indicators.GarmanKlass>? configure = null)
     {
         var indicator = new Indicators.GarmanKlass(open, high, low, close, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1243,7 +1252,7 @@ public sealed class AxesBuilder
                                  int period = 20, Action<Indicators.YangZhang>? configure = null)
     {
         var indicator = new Indicators.YangZhang(open, high, low, close, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1254,7 +1263,7 @@ public sealed class AxesBuilder
         Action<Indicators.KaufmanEfficiencyRatio>? configure = null)
     {
         var indicator = new Indicators.KaufmanEfficiencyRatio(prices, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1265,7 +1274,7 @@ public sealed class AxesBuilder
         Action<Indicators.Cusum>? configure = null)
     {
         var indicator = new Indicators.Cusum(prices, threshold, drift);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1276,7 +1285,7 @@ public sealed class AxesBuilder
         Action<Indicators.FractionalDifferentiation>? configure = null)
     {
         var indicator = new Indicators.FractionalDifferentiation(prices, d, tolerance);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1287,7 +1296,7 @@ public sealed class AxesBuilder
         Action<Indicators.AmihudIlliquidity>? configure = null)
     {
         var indicator = new Indicators.AmihudIlliquidity(close, volume, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1298,7 +1307,7 @@ public sealed class AxesBuilder
         Action<Indicators.CorwinSchultz>? configure = null)
     {
         var indicator = new Indicators.CorwinSchultz(high, low, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1310,7 +1319,7 @@ public sealed class AxesBuilder
         Action<Indicators.Vpin>? configure = null)
     {
         var indicator = new Indicators.Vpin(close, volume, bucketPeriod, sigmaPeriod);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1321,7 +1330,7 @@ public sealed class AxesBuilder
         Action<Indicators.RollSpread>? configure = null)
     {
         var indicator = new Indicators.RollSpread(prices, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1332,7 +1341,7 @@ public sealed class AxesBuilder
         Action<Indicators.LaguerreRsi>? configure = null)
     {
         var indicator = new Indicators.LaguerreRsi(prices, alpha);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1343,7 +1352,7 @@ public sealed class AxesBuilder
         Action<Indicators.MamaFama>? configure = null)
     {
         var indicator = new Indicators.MamaFama(prices, fastLimit, slowLimit);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1355,7 +1364,7 @@ public sealed class AxesBuilder
         Action<Indicators.SqueezeMomentum>? configure = null)
     {
         var indicator = new Indicators.SqueezeMomentum(high, low, close, period, bbMult, kcMult);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1368,7 +1377,7 @@ public sealed class AxesBuilder
         Action<Indicators.Bocpd>? configure = null)
     {
         var indicator = new Indicators.Bocpd(prices, hazard, priorVariance, maxRunLength);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1381,7 +1390,7 @@ public sealed class AxesBuilder
         Action<Indicators.TurbulenceIndex>? configure = null)
     {
         var indicator = new Indicators.TurbulenceIndex(features, window, regularization);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1392,7 +1401,7 @@ public sealed class AxesBuilder
         Action<Indicators.DispersionIndex>? configure = null)
     {
         var indicator = new Indicators.DispersionIndex(signals);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1403,7 +1412,7 @@ public sealed class AxesBuilder
         Action<Indicators.PermutationEntropy>? configure = null)
     {
         var indicator = new Indicators.PermutationEntropy(prices, order, window);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1415,7 +1424,7 @@ public sealed class AxesBuilder
         Action<Indicators.WaveletEnergyRatio>? configure = null)
     {
         var indicator = new Indicators.WaveletEnergyRatio(prices, window, level);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1427,7 +1436,7 @@ public sealed class AxesBuilder
         Action<Indicators.WaveletEntropy>? configure = null)
     {
         var indicator = new Indicators.WaveletEntropy(prices, window);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1438,7 +1447,7 @@ public sealed class AxesBuilder
         Action<Indicators.CyberCycle>? configure = null)
     {
         var indicator = new Indicators.CyberCycle(prices, alpha);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1449,7 +1458,7 @@ public sealed class AxesBuilder
         Action<Indicators.RoofingFilter>? configure = null)
     {
         var indicator = new Indicators.RoofingFilter(prices, hpPeriod, lpPeriod);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1460,7 +1469,7 @@ public sealed class AxesBuilder
         Action<Indicators.EhlersSineWave>? configure = null)
     {
         var indicator = new Indicators.EhlersSineWave(prices);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1472,7 +1481,7 @@ public sealed class AxesBuilder
         Action<Indicators.AdaptiveStochastic>? configure = null)
     {
         var indicator = new Indicators.AdaptiveStochastic(high, low, close, smoothingPeriod);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1483,7 +1492,7 @@ public sealed class AxesBuilder
         Action<Indicators.AroonOscillator>? configure = null)
     {
         var indicator = new Indicators.AroonOscillator(high, low, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1494,7 +1503,7 @@ public sealed class AxesBuilder
         Action<Indicators.ForceIndex>? configure = null)
     {
         var indicator = new Indicators.ForceIndex(close, volume, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1506,7 +1515,7 @@ public sealed class AxesBuilder
         Action<Indicators.RelativeVigorIndex>? configure = null)
     {
         var indicator = new Indicators.RelativeVigorIndex(open, high, low, close, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1521,7 +1530,7 @@ public sealed class AxesBuilder
         Action<Indicators.EaseOfMovement>? configure = null)
     {
         var indicator = new Indicators.EaseOfMovement(high, low, volume, period, scale);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1536,7 +1545,7 @@ public sealed class AxesBuilder
     {
         var indicator = new Indicators.KlingerVolumeOscillator(high, low, close, volume,
             fastPeriod, slowPeriod, signalPeriod);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1549,7 +1558,7 @@ public sealed class AxesBuilder
         Action<Indicators.TwiggsMoneyFlow>? configure = null)
     {
         var indicator = new Indicators.TwiggsMoneyFlow(high, low, close, volume, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1562,7 +1571,7 @@ public sealed class AxesBuilder
         Action<Indicators.VwapZScore>? configure = null)
     {
         var indicator = new Indicators.VwapZScore(close, volume, window);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1576,7 +1585,7 @@ public sealed class AxesBuilder
         Action<Indicators.CgOscillator>? configure = null)
     {
         var indicator = new Indicators.CgOscillator(prices, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1589,7 +1598,7 @@ public sealed class AxesBuilder
         Action<Indicators.InverseFisherTransform>? configure = null)
     {
         var indicator = new Indicators.InverseFisherTransform(input, scale);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1602,7 +1611,7 @@ public sealed class AxesBuilder
         Action<Indicators.Supertrend>? configure = null)
     {
         var indicator = new Indicators.Supertrend(high, low, close, period, multiplier);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1616,7 +1625,7 @@ public sealed class AxesBuilder
         Action<Indicators.YangZhangVolRatio>? configure = null)
     {
         var indicator = new Indicators.YangZhangVolRatio(open, high, low, close, shortWindow, longWindow);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1630,7 +1639,7 @@ public sealed class AxesBuilder
         Action<Indicators.Decycler>? configure = null)
     {
         var indicator = new Indicators.Decycler(prices, hpPeriod);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1642,7 +1651,7 @@ public sealed class AxesBuilder
         Action<Indicators.EhlersITrend>? configure = null)
     {
         var indicator = new Indicators.EhlersITrend(prices);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1654,7 +1663,7 @@ public sealed class AxesBuilder
         Action<Indicators.EhlersSuperSmoother>? configure = null)
     {
         var indicator = new Indicators.EhlersSuperSmoother(input, period);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;
@@ -1669,7 +1678,7 @@ public sealed class AxesBuilder
         Action<Indicators.TransferEntropy>? configure = null)
     {
         var indicator = new Indicators.TransferEntropy(source, target, bins, lag);
-        if (IsBarSlotContext()) indicator.Offset = 0.5;
+        if (IsBarSlotContext()) indicator.Offset = CategorySlot.CentreOffset;
         configure?.Invoke(indicator);
         indicator.Apply(_axes);
         return this;

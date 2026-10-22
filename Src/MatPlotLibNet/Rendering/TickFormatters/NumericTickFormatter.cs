@@ -2,12 +2,16 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Rendering.TickFormatters;
 
 /// <summary>Formats tick values as plain numbers, matching the default ChartRenderer behavior.</summary>
-public sealed class NumericTickFormatter : ITickFormatter
+public sealed class NumericTickFormatter : ITickFormatter, IJsonDescribed<TickFormatterDto>
 {
+    /// <inheritdoc />
+    TickFormatterDto IJsonDescribed<TickFormatterDto>.Describe() => new NumericTickFormatterDto();
+
     /// <inheritdoc />
     public string Format(double value)
     {

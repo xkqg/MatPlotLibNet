@@ -49,29 +49,33 @@ public sealed class Quiver3DSeries : ChartSeries, I3DPointSeries, IHasColor
     }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context)
+    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
+        DrawableExtent() is { } box
+            ? new(box.X.Lo, box.X.Hi, box.Y.Lo, box.Y.Hi, ZMin: box.Z.Lo, ZMax: box.Z.Hi)
+            : new(null, null, null, null);
+
+    /// <summary>The extent of the arrows that can be drawn, tail and head: an arrow with a coordinate that is missing
+    /// (NaN) or infinite is not drawn, so it is left out on every axis. The range of the series and the projection its
+    /// renderer fits on 2-D axes both come from here.</summary>
+    /// <returns>The extent, or <see langword="null"/> when no arrow can be drawn.</returns>
+    internal Box3D? DrawableExtent()
     {
-        if (X.Length == 0) return new(null, null, null, null);
-
-        double xMin = double.MaxValue, xMax = double.MinValue;
-        double yMin = double.MaxValue, yMax = double.MinValue;
-        double zMin = double.MaxValue, zMax = double.MinValue;
-
+        var x = Range1D.Empty;
+        var y = Range1D.Empty;
+        var z = Range1D.Empty;
         for (int i = 0; i < X.Length; i++)
         {
             double x0 = X[i], x1 = x0 + U[i] * ArrowLength;
             double y0 = Y[i], y1 = y0 + V[i] * ArrowLength;
             double z0 = Z[i], z1 = z0 + W[i] * ArrowLength;
+            if (!(new Point(x0, y0).CanDrawLineTo(new Point(x1, y1)) && z0.IsDrawable() && z1.IsDrawable())) continue;
 
-            xMin = Math.Min(xMin, Math.Min(x0, x1));
-            xMax = Math.Max(xMax, Math.Max(x0, x1));
-            yMin = Math.Min(yMin, Math.Min(y0, y1));
-            yMax = Math.Max(yMax, Math.Max(y0, y1));
-            zMin = Math.Min(zMin, Math.Min(z0, z1));
-            zMax = Math.Max(zMax, Math.Max(z0, z1));
+            x = x.Including(x0).Including(x1);
+            y = y.Including(y0).Including(y1);
+            z = z.Including(z0).Including(z1);
         }
 
-        return new(xMin, xMax, yMin, yMax, ZMin: zMin, ZMax: zMax);
+        return x.IsEmpty ? null : new Box3D(x, y, z);
     }
 
     /// <inheritdoc />

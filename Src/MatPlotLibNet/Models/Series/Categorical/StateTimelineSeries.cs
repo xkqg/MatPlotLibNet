@@ -55,9 +55,10 @@ public sealed class StateTimelineSeries : ChartSeries
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (Segments.Count == 0) return new(null, null, null, null);
-        double xMin = Segments.Min(s => s.Start);
-        double xMax = Segments.Max(s => s.End);
-        return new(xMin, xMax, 0.0, 1.0);
+        // Over the segments that can be drawn: a segment with an end that is missing (NaN) or infinite is not drawn, so
+        // neither of its ends counts.
+        var x = Segments.Select(s => new Range1D(s.Start, s.End)).DrawableRange();
+        return new(x?.Lo, x?.Hi, 0.0, 1.0);
     }
 
     /// <inheritdoc />

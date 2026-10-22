@@ -16,15 +16,15 @@ internal static class SvgInteractivityScript
     internal static string GetZoomPanScript() => """
         <script type="text/ecmascript"><![CDATA[
         (function() {
-            // Per-chart isolation (Phase 2): self-locate via document.currentScript so
+            // Per-chart isolation: self-locate via document.currentScript so
             // multi-chart pages don't cross-talk.
             var svg = (document.currentScript && document.currentScript.parentNode) || document.querySelector('svg');
             if (!svg || svg.tagName !== 'svg') return;
-            // Phase A.2 of v1.7.2 follow-on plan — when the SVG hosts a 3D scene, the 2D
-            // pan/zoom handler must NOT install. Pre-fix it stole pointer/wheel events from
-            // Svg3DRotationScript (last-call-wins on setPointerCapture; bubble order on
-            // wheel). matplotlib's NavigationToolbar2 disables Pan/Zoom on 3D axes for the
-            // same reason — viewBox-pan-on-rotating-cube is double-translation noise.
+            // When the SVG hosts a 3D scene, the 2D pan/zoom handler must NOT install: it
+            // would steal pointer/wheel events from the 3D rotation script (last call wins on
+            // setPointerCapture; bubble order on wheel). matplotlib's NavigationToolbar2
+            // disables Pan/Zoom on 3D axes for the same reason — viewBox-pan-on-rotating-cube
+            // is double-translation noise.
             if (svg.querySelector('.mpl-3d-scene')) return;
             svg.setAttribute('tabindex', '0');
             svg.setAttribute('aria-roledescription', 'interactive chart');
@@ -33,7 +33,7 @@ internal static class SvgInteractivityScript
             var isPanning = false, startX = 0, startY = 0;
             var panStep = 20;
 
-            // Phase 9 of v1.7.2 plan — URL-hash state persistence (opt-in).
+            // URL-hash state persistence (opt-in).
             // Set data-mpl-persist="true" on the SVG to enable. Each chart's id seeds the
             // hash key (mpl-{id}=zoom:cx,cy,w,h); multi-chart pages use | separators.
             var persistKey = svg.getAttribute('id') ? 'mpl-' + svg.getAttribute('id') : null;
@@ -66,7 +66,7 @@ internal static class SvgInteractivityScript
             }
             restoreVB();
 
-            // Phase 5 of v1.7.2 plan — clamps prevent runaway zoom (cumulative wheel deltas
+            // Clamps prevent runaway zoom (cumulative wheel deltas
             // can otherwise reduce viewBox to near-zero, blanking the chart) and pan
             // (drag enough and chart slides off-screen with no way back). MIN_ZOOM keeps
             // the viewBox at >=10% of original (10x in); MAX_ZOOM at <=10x original (0.1x out).
@@ -100,11 +100,11 @@ internal static class SvgInteractivityScript
 
             // {passive:false} required: modern browsers default wheel listeners to passive,
             // which silently no-ops e.preventDefault() and lets the page scroll instead of zooming.
-            // Phase C.1 of v1.7.2 follow-on plan — matplotlib parity:
+            // matplotlib parity:
             //   step = e.deltaY < 0 ? 1 : -1   (wheel up → +1 = zoom in)
             //   scale = 0.85 ^ step            (matplotlib NavigationToolbar2.scroll_handler L2635)
-            // Pre-fix used 1.10/0.90 (~10% per notch); matplotlib's 0.85 (~15%) feels snappier
-            // and matches user muscle memory across tools.
+            // matplotlib's 0.85 (~15% per notch) feels snappier than 1.10/0.90 (~10%) and
+            // matches user muscle memory across tools.
             svg.addEventListener('wheel', function(e) {
                 e.preventDefault();
                 var step = e.deltaY < 0 ? 1 : -1;
@@ -119,7 +119,7 @@ internal static class SvgInteractivityScript
                 svg.setAttribute('viewBox', vb.join(' '));
             }, { passive: false });
 
-            // Phase C.2 of v1.7.2 follow-on — axis-lock modifier keys (mirrors matplotlib's
+            // Axis-lock modifier keys (mirrors matplotlib's
             // _base.py:format_deltas convention, axes3d.py L4492). Holding 'x' locks pan to
             // the X axis; 'y' locks to Y. Modifier is sticky between keydown/keyup so the
             // user can press-hold-drag (chord-style) without timing pressure.
@@ -131,7 +131,7 @@ internal static class SvgInteractivityScript
                 if (e.key === lockedAxis) lockedAxis = null;
             });
 
-            // Phase 4 of v1.7.2 plan — Pointer Events API for touch + pen + mouse parity.
+            // Pointer Events API for touch + pen + mouse parity.
             // setPointerCapture binds the pointer to the SVG so mouse-up after dragging out of
             // the chart still releases cleanly. Two simultaneous pointers → pinch zoom (the
             // ratio of inter-pointer distances drives the viewBox scale).
@@ -182,7 +182,7 @@ internal static class SvgInteractivityScript
                 if (!isPanning) return;
                 var dx = (e.clientX - startX) * (vb[2] / svg.clientWidth);
                 var dy = (e.clientY - startY) * (vb[3] / svg.clientHeight);
-                // Phase C.2 — axis lock (matplotlib parity). x-modifier zeroes dy; y zeroes dx.
+                // Axis lock (matplotlib parity). x-modifier zeroes dy; y zeroes dx.
                 if (lockedAxis === 'x') dy = 0;
                 else if (lockedAxis === 'y') dx = 0;
                 vb[0] -= dx; vb[1] -= dy;

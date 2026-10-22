@@ -17,15 +17,10 @@ internal sealed class Line3DSeriesRenderer : SeriesRenderer<Line3DSeries>
     {
         if (series.X.Length < 2) return;
 
-        var bounds = Area.PlotBounds;
         var color = ResolveColor(series.Color);
 
-        double xMin = series.X.Min(), xMax = series.X.Max();
-        double yMin = series.Y.Min(), yMax = series.Y.Max();
-        double zMin = series.Z.Min(), zMax = series.Z.Max();
-
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        // Fitted to the values that are there: a missing value (NaN) and an infinity are left out.
+        var proj = ProjectionFor(series.X.Data.DrawableRange(), series.Y.Data.DrawableRange(), series.Z.Data.DrawableRange());
 
         // Build segments with average depth for painter's algorithm sorting
         int segCount = series.X.Length - 1;
@@ -36,15 +31,21 @@ internal sealed class Line3DSeriesRenderer : SeriesRenderer<Line3DSeries>
             double x0 = series.X.Data[i], y0 = series.Y.Data[i], z0 = series.Z.Data[i];
             double x1 = series.X.Data[i + 1], y1 = series.Y.Data[i + 1], z1 = series.Z.Data[i + 1];
 
+            // A segment with an end that cannot be placed is skipped: the line breaks there, as a 2-D line does.
+            var p0 = proj.Project(x0, y0, z0);
+            var p1 = proj.Project(x1, y1, z1);
+            if (!p0.CanDrawLineTo(p1)) continue;
+
             double avgDepth = (proj.Depth(x0, y0, z0) + proj.Depth(x1, y1, z1)) / 2.0;
-            segments.Add(new(avgDepth, proj.Project(x0, y0, z0), proj.Project(x1, y1, z1)));
+            segments.Add(new(avgDepth, p0, p1));
         }
 
         // Sort back-to-front (painter's algorithm)
         segments.Sort((a, b) => a.Depth.CompareTo(b.Depth));
 
+        var stroke = Slot.StrokeOf(color, series.LineWidth, series.LineStyle);
         foreach (var seg in segments)
-            Ctx.DrawLine(seg.P1, seg.P2, new StrokeStyle(color, series.LineWidth, series.LineStyle));
+            Ctx.DrawLine(seg.P1, seg.P2, stroke);
     }
 
     private readonly record struct DepthSegment(double Depth, Point P1, Point P2);

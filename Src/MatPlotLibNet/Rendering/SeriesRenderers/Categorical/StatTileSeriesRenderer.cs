@@ -80,7 +80,7 @@ internal sealed class StatTileSeriesRenderer : SeriesRenderer<StatTileSeries>
 
     /// <summary>The card's own hit area: a rectangle over the tile's bounds that paints NOTHING and takes every
     /// pointer event. An anchor wrapped around text and a sparkline is only hittable where ink actually lands, so
-    /// without this a reader has to aim at a glyph (reported from an ops wall, 2026-09-02). Fill-opacity 0 rather
+    /// without this a reader has to aim at a glyph. Fill-opacity 0 rather
     /// than <c>fill="none"</c>: a transparent fill is still PAINTED as far as hit-testing is concerned, an absent
     /// one is not.</summary>
     private void RenderHitArea(Rect bounds)

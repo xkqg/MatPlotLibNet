@@ -24,8 +24,10 @@ public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColor
     public INormalizer? Normalizer { get; set; }
 
     /// <inheritdoc />
+    /// <remarks>Over the drawable Z values only, so a missing value (NaN) does not turn the whole range into NaN; the
+    /// renderer colours the triangles over this same range.</remarks>
     public MinMaxRange GetColorBarRange() =>
-        Z.Length > 0 ? new(Z.Min(), Z.Max()) : new(0, 1);
+        Z.Data.DrawableRange() is { } z ? new(z.Lo, z.Hi) : new(0, 1);
 
     /// <summary>Initializes a new instance of <see cref="TripcolorSeries"/>.</summary>
     public TripcolorSeries(Vec x, Vec y, Vec z)
@@ -37,7 +39,10 @@ public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColor
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (X.Length == 0) return new(0, 1, 0, 1);
-        return new(X.Min(), X.Max(), Y.Min(), Y.Max());
+        // Over the drawable points only: a missing coordinate (NaN) and an infinity are left out.
+        var x = X.Data.DrawableRange();
+        var y = Y.Data.DrawableRange();
+        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi);
     }
 
     /// <inheritdoc />
@@ -48,7 +53,9 @@ public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColor
         YData = Y,
         ZData = Z,
         Triangles = Triangles,
-        ColorMapName = ColorMap?.Name
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="TripcolorSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -62,10 +69,8 @@ public sealed class TripcolorSeries : ChartSeries, IColorBarDataProvider, IColor
         {
             s.Triangles = dto.Triangles;
         }
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
+        s.RestoreNormalizer(dto);
         return s;
     }
 

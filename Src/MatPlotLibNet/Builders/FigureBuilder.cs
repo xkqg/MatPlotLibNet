@@ -45,7 +45,7 @@ public sealed class FigureBuilder
     private string? _description;
     private double _width = 800;
     private double _height = 600;
-    private double _dpi = 96;
+    private double _dpi = Figure.ReferenceDpi;
     private Color? _background;
     private Theme _theme = Theme.MatplotlibV2;
     private Axes? _defaultAxes;
@@ -64,7 +64,7 @@ public sealed class FigureBuilder
     /// <summary>Sets the figure dimensions in pixels.</summary>
     public FigureBuilder WithSize(double width, double height) { _width = width; _height = height; return this; }
 
-    /// <summary>Phase W (v1.7.2, 2026-04-19) — sizes the figure canvas to fit a treemap of
+    /// <summary>Sizes the figure canvas to fit a treemap of
     /// <paramref name="root"/>'s leaves at the default 12 pt label font without overflow.
     /// Most useful for static SVG output where the user can't pan/zoom — the canvas grows
     /// with leaf count and average label length so labels fit cleanly. With
@@ -102,9 +102,11 @@ public sealed class FigureBuilder
         }
     }
 
-    /// <summary>Records the figure DPI (dots per inch) on <see cref="Figure.Dpi"/>, which is written to the figure JSON.
-    /// No export reads it yet: a PNG is drawn at the figure's <see cref="WithSize"/> in pixels, so a larger PNG takes a
-    /// larger size.</summary>
+    /// <summary>Sets the resolution of the figure in dots per inch (<see cref="Figure.Dpi"/>, 96 by default). A raster
+    /// export, a PNG or the frames of an animated GIF, is drawn with <c>dpi / 96</c> pixels for each unit of
+    /// <see cref="WithSize"/>: <c>WithSize(500, 350).WithDpi(192)</c> saves as a 1000 by 700 PNG with the same layout.
+    /// An SVG, a PDF page and the JSON have no pixels, so for them it changes nothing; the JSON keeps it with the
+    /// figure. It is refused when a PNG is exported if it is not a positive, finite number.</summary>
     public FigureBuilder WithDpi(double dpi) { _dpi = dpi; return this; }
 
     /// <summary>Sets the theme used for styling the figure.</summary>
@@ -216,8 +218,8 @@ public sealed class FigureBuilder
     /// <summary>Controls whether the emitted SVG's root element carries an inline
     /// <c>style="max-width:100%;height:auto"</c> declaration so the chart resizes
     /// fluidly with its container. Default is <see langword="true"/>; set to
-    /// <see langword="false"/> for byte-identical pre-v1.7.2 output (e.g. pixel-diff
-    /// fixtures that pin the SVG string).</summary>
+    /// <see langword="false"/> to leave the declaration out, for the same bytes the library wrote
+    /// before it carried one (e.g. pixel-diff fixtures that pin the SVG string).</summary>
     public FigureBuilder WithResponsiveSvg(bool enabled = true) { _responsiveSvg = enabled; return this; }
     private bool _responsiveSvg = true;
 
@@ -225,7 +227,7 @@ public sealed class FigureBuilder
     /// <see cref="WithZoomPan"/>, <see cref="WithRichTooltips"/>, <see cref="WithLegendToggle"/>,
     /// <see cref="WithHighlight"/>, <see cref="WithSelection"/>, plus the chart-type-specific
     /// <see cref="With3DRotation"/> (drag to rotate 3D scenes), <see cref="WithTreemapDrilldown"/>
-    /// (click a parent tile to expand/collapse its children — Phase P rewrite), and
+    /// (click a parent tile to expand/collapse its children), and
     /// <see cref="WithSankeyHover"/> (highlight upstream/downstream flows). Each chart-type-specific
     /// script is inert when its element is absent, so a 2D line chart with this convenience pays
     /// no runtime cost for the 3D / treemap / sankey scripts. The resulting SVG works standalone
@@ -414,16 +416,14 @@ public sealed class FigureBuilder
     }
 
     /// <summary>Enables expand/collapse interaction on treemap rectangles in the SVG output.
-    /// <para>Phase W follow-up (v1.7.2, 2026-04-19, "steady pictures"): the initial interactive
-    /// view is pixel-identical to the static SVG — every node at every depth is visible on
-    /// first paint (z-order paints children over parents, so the deepest visible label wins
-    /// in any overlapping region). Clicking a parent rect now <em>collapses</em> its entire
-    /// subtree (transitively — descendants' own expansion state is preserved); clicking
-    /// again restores. Multiple subtrees can be collapsed independently. Leaves are not
-    /// toggleable. Requires a <c>TreemapSeries</c> on the figure.</para>
-    /// <para>Method name stayed <c>WithTreemapDrilldown</c> for binary compatibility through
-    /// Phase P (drill-zoom → expand/collapse) and Phase W (default-collapsed → default-expanded
-    /// + transitive hide).</para></summary>
+    /// <para>The initial interactive view is pixel-identical to the static SVG — every node at
+    /// every depth is visible on first paint (z-order paints children over parents, so the
+    /// deepest visible label wins in any overlapping region). Clicking a parent rect
+    /// <em>collapses</em> its entire subtree (transitively — descendants' own expansion state is
+    /// preserved); clicking again restores. Multiple subtrees can be collapsed independently.
+    /// Leaves are not toggleable. Requires a <c>TreemapSeries</c> on the figure.</para>
+    /// <para>The method is named <c>WithTreemapDrilldown</c> from the time a click zoomed into a
+    /// node instead of collapsing it; the name was kept so existing callers still compile.</para></summary>
     public FigureBuilder WithTreemapDrilldown(bool enabled = true)
     {
         _enableTreemapDrilldown = enabled;
@@ -442,9 +442,9 @@ public sealed class FigureBuilder
     private bool _enableSankeyHover;
 
     /// <summary>Configures opacity / transition tokens for the embedded browser-side
-    /// interaction scripts. Defaults match v1.7.1 hard-coded values, so calling this is
-    /// only necessary if you want different fade opacities, transition durations, or
-    /// tooltip offsets. Phase 7 of the v1.7.2 plan.</summary>
+    /// interaction scripts. Defaults match the values the scripts hard-coded before they were
+    /// configurable, so calling this is only necessary if you want different fade opacities,
+    /// transition durations, or tooltip offsets.</summary>
     public FigureBuilder WithInteractionTheme(Models.InteractionTheme theme)
     {
         _interactionTheme = theme;
@@ -696,7 +696,10 @@ public sealed class FigureBuilder
         return this;
     }
 
-    /// <summary>Adds a horizontal reference line at the specified Y value on the default axes.</summary>
+    /// <summary>Adds a horizontal reference line at the specified Y value on the default axes.
+    /// <para>The automatic range of the Y axis holds the line, as matplotlib's <c>axhline</c> updates the data limits,
+    /// so a line beyond the data is drawn inside the plot; a line beyond a limit you set is not drawn, nor its
+    /// label.</para></summary>
     public FigureBuilder AxHLine(double y, Action<ReferenceLine>? configure = null)
     {
         var line = EnsureDefaultAxes().AxHLine(y);
@@ -704,7 +707,10 @@ public sealed class FigureBuilder
         return this;
     }
 
-    /// <summary>Adds a vertical reference line at the specified X value on the default axes.</summary>
+    /// <summary>Adds a vertical reference line at the specified X value on the default axes.
+    /// <para>The automatic range of the X axis holds the line, as matplotlib's <c>axvline</c> updates the data limits,
+    /// so a line beyond the data is drawn inside the plot; a line beyond a limit you set is not drawn, nor its
+    /// label.</para></summary>
     public FigureBuilder AxVLine(double x, Action<ReferenceLine>? configure = null)
     {
         var line = EnsureDefaultAxes().AxVLine(x);

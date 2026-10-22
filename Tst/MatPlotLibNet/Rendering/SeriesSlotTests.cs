@@ -74,6 +74,280 @@ public class SeriesSlotTests
         Assert.Equal(Colors.Green, CyclerTheme.SeriesSlot(1).ColorOf(heatmap));
     }
 
+    // ── A violin: the colour it names, else its theme's violin colour, else the slot ──
+
+    private static readonly Color ThemeViolinBody = Color.FromHex("#112233");
+
+    private static readonly Theme ViolinTheme = new("violin colours", Theme.Default) { ViolinBodyColor = ThemeViolinBody };
+
+    [Fact]
+    public void AViolin_TakesTheThemesViolinColour_OverTheSlot()
+    {
+        var violin = new ViolinSeries([[1.0, 2, 3]]);
+
+        Assert.Equal(ThemeViolinBody, ViolinTheme.SeriesSlot(2).ColorOf(violin));
+    }
+
+    [Fact]
+    public void AViolinsExplicitColour_BeatsTheThemesViolinColour()
+    {
+        var violin = new ViolinSeries([[1.0, 2, 3]]) { Color = Colors.Blue };
+
+        Assert.Equal(Colors.Blue, ViolinTheme.SeriesSlot(2).ColorOf(violin));
+    }
+
+    [Fact]
+    public void AViolin_OfAThemeWithoutViolinColours_TakesTheSlot()
+    {
+        var violin = new ViolinSeries([[1.0, 2, 3]]);
+
+        Assert.Equal(Theme.Default.CycleColors[2], Theme.Default.SeriesSlot(2).ColorOf(violin));
+    }
+
+    [Fact]
+    public void TheThemesViolinColour_IsForViolinsOnly()
+    {
+        var line = new LineSeries([0.0, 1], [0.0, 1]);
+
+        Assert.Equal(ViolinTheme.CycleColors[2], ViolinTheme.SeriesSlot(2).ColorOf(line));
+    }
+
+    private static readonly Color ThemeViolinStats = Color.FromHex("#445566");
+
+    private static readonly Theme ViolinLinesTheme =
+        new("violin lines", Theme.Default) { ViolinBodyColor = ThemeViolinBody, ViolinStatsColor = ThemeViolinStats };
+
+    [Fact]
+    public void TheLinesOverAViolin_TakeTheThemesLineColour_OverTheSlot() =>
+        Assert.Equal(ThemeViolinStats, ViolinLinesTheme.SeriesSlot(2).StatsColorOf(new ViolinSeries([[1.0, 2, 3]])));
+
+    [Fact]
+    public void TheLinesOverAViolin_TakeTheColourTheViolinNames_OverTheThemes() =>
+        Assert.Equal(Colors.Blue, ViolinLinesTheme.SeriesSlot(2).StatsColorOf(new ViolinSeries([[1.0, 2, 3]]) { Color = Colors.Blue }));
+
+    [Fact]
+    public void TheLinesOverAViolin_OfAThemeWithoutLineColours_TakeTheSlot() =>
+        Assert.Equal(Theme.Default.CycleColors[2], Theme.Default.SeriesSlot(2).StatsColorOf(new ViolinSeries([[1.0, 2, 3]])));
+
+    /// <summary>The classic style gives every violin a yellow body and red lines, whatever its slot.</summary>
+    [Fact]
+    public void AClassicSlot_CarriesTheThemesViolinColours()
+    {
+        var slot = Theme.MatplotlibClassic.SeriesSlot(3);
+
+        Assert.Equal(Color.FromHex("#BFBF00"), slot.ViolinBody);
+        Assert.Equal(Color.FromHex("#FF0000"), slot.ViolinStats);
+    }
+
+    /// <summary>A slot built from a cycle colour already chosen (a renderer is handed its slot in parts) carries the same
+    /// theme colours as one the theme hands out, so the renderer and the legend cannot read different slots.</summary>
+    [Fact]
+    public void ASlotMadeFromChosenParts_CarriesTheThemesViolinColours_LikeTheSlotTheThemeHandsOut()
+    {
+        var handedOut = ViolinLinesTheme.SeriesSlot(2);
+
+        Assert.Equal(handedOut, ViolinLinesTheme.ThemedSlot(handedOut.CycleColor, handedOut.CycledProperties));
+        Assert.Equal(ThemeViolinBody, ViolinLinesTheme.ThemedSlot(Colors.Red, null).ViolinBody);
+        Assert.Equal(Colors.Red, ViolinLinesTheme.ThemedSlot(Colors.Red, null).CycleColor);
+    }
+
+    // ── How a series is stroked: the cycler's dash, width and marker ───────────
+
+    private static readonly PropCycler Styled = new PropCyclerBuilder()
+        .WithColors(Colors.Red, Colors.Green)
+        .WithLineStyles(LineStyle.Solid, LineStyle.Dashed)
+        .WithMarkerStyles(MarkerStyle.None, MarkerStyle.Square)
+        .WithLineWidths(1.5, 3.0)
+        .Build();
+
+    private static readonly Theme StyledTheme = Theme.CreateFrom(Theme.Default).WithPropCycler(Styled).Build();
+
+    [Fact]
+    public void ALineStyleAtRest_TakesTheSlotsDashPattern()
+    {
+        Assert.Equal(LineStyle.Dashed, StyledTheme.SeriesSlot(1).LineStyleOf(LineStyle.Solid));
+        Assert.Equal(LineStyle.Solid, StyledTheme.SeriesSlot(0).LineStyleOf(LineStyle.Solid));
+    }
+
+    [Fact]
+    public void ALineStyleTheSeriesNames_Wins()
+    {
+        Assert.Equal(LineStyle.Dotted, StyledTheme.SeriesSlot(1).LineStyleOf(LineStyle.Dotted));
+        Assert.Equal(LineStyle.Dashed, StyledTheme.SeriesSlot(0).LineStyleOf(LineStyle.Dashed));
+    }
+
+    [Fact]
+    public void WithoutACycler_TheLineStyleStaysWhatTheSeriesHolds()
+    {
+        Assert.Equal(LineStyle.Solid, Theme.Default.SeriesSlot(1).LineStyleOf(LineStyle.Solid));
+        Assert.Equal(LineStyle.DashDot, Theme.Default.SeriesSlot(1).LineStyleOf(LineStyle.DashDot));
+    }
+
+    [Fact]
+    public void ALineWidthAtRest_TakesTheSlotsWidth_AndOneTheSeriesNamesWins()
+    {
+        Assert.Equal(3.0, StyledTheme.SeriesSlot(1).LineWidthOf(1.5));
+        Assert.Equal(1.5, StyledTheme.SeriesSlot(0).LineWidthOf(1.5));
+        Assert.Equal(0.5, StyledTheme.SeriesSlot(1).LineWidthOf(0.5));
+    }
+
+    [Fact]
+    public void WithoutACycler_TheLineWidthStaysWhatTheSeriesHolds()
+    {
+        Assert.Equal(1.5, Theme.Default.SeriesSlot(1).LineWidthOf(1.5));
+        Assert.Equal(2.0, Theme.Default.SeriesSlot(1).LineWidthOf(2.0));
+    }
+
+    /// <summary>A regression line is 2 wide of its own, not 1.5: "at rest" is the series' own number, and a cycler that
+    /// lists no width (it hands out 1.5) names nothing to a series whose own is another.</summary>
+    [Fact]
+    public void ALineWidthWithItsOwnRest_TakesTheSlotsWidth_OnlyWhenTheCyclerNamesOne()
+    {
+        Assert.Equal(3.0, StyledTheme.SeriesSlot(1).LineWidthOf(2.0, 2.0));
+        Assert.Equal(2.0, StyledTheme.SeriesSlot(0).LineWidthOf(2.0, 2.0));
+        Assert.Equal(0.5, StyledTheme.SeriesSlot(1).LineWidthOf(0.5, 2.0));
+        Assert.Equal(2.0, Theme.Default.SeriesSlot(1).LineWidthOf(2.0, 2.0));
+        // a series whose rest is the common 1.5 is decided as before
+        Assert.Equal(1.5, StyledTheme.SeriesSlot(0).LineWidthOf(1.5, 1.5));
+        Assert.Equal(3.0, StyledTheme.SeriesSlot(1).LineWidthOf(1.5, 1.5));
+    }
+
+    [Fact]
+    public void AStroke_TakesTheSlotsDashPatternAndWidth_InTheSeriesColour()
+    {
+        var stroke = StyledTheme.SeriesSlot(1).StrokeOf(Colors.Blue, 1.5, LineStyle.Solid);
+
+        Assert.Equal(new StrokeStyle(Colors.Blue, 3.0, LineStyle.Dashed), stroke);
+    }
+
+    [Fact]
+    public void AStrokeTheSeriesNames_IsKept()
+    {
+        var stroke = StyledTheme.SeriesSlot(1).StrokeOf(Colors.Blue, 0.5, LineStyle.Dotted);
+
+        Assert.Equal(new StrokeStyle(Colors.Blue, 0.5, LineStyle.Dotted), stroke);
+    }
+
+    [Fact]
+    public void AStrokeOfASeriesWithItsOwnRest_UsesThatRestForTheWidth()
+    {
+        var stroke = StyledTheme.SeriesSlot(0).StrokeOf(Colors.Blue, 2.0, LineStyle.Solid, restingLineWidth: 2.0);
+
+        Assert.Equal(new StrokeStyle(Colors.Blue, 2.0, LineStyle.Solid), stroke);
+    }
+
+    [Fact]
+    public void WithoutACycler_AStrokeIsExactlyWhatTheSeriesHolds()
+    {
+        Assert.Equal(new StrokeStyle(Colors.Blue, 2.0, LineStyle.DashDot),
+            Theme.Default.SeriesSlot(1).StrokeOf(Colors.Blue, 2.0, LineStyle.DashDot));
+    }
+
+    [Fact]
+    public void ALineThatNamesNoMarker_TakesTheSlotsMarker()
+    {
+        Assert.Equal(MarkerStyle.Square, StyledTheme.SeriesSlot(1).LineMarkerOf(null));
+    }
+
+    [Fact]
+    public void ACyclerMarkerOfNone_NamesNoMarker()
+    {
+        Assert.Null(StyledTheme.SeriesSlot(0).LineMarkerOf(null));
+    }
+
+    [Fact]
+    public void AMarkerTheSeriesNames_Wins_NoneIncluded()
+    {
+        Assert.Equal(MarkerStyle.Circle, StyledTheme.SeriesSlot(1).LineMarkerOf(MarkerStyle.Circle));
+        Assert.Equal(MarkerStyle.None, StyledTheme.SeriesSlot(1).LineMarkerOf(MarkerStyle.None));
+    }
+
+    [Fact]
+    public void WithoutACycler_ALineNamesItsOwnMarkerOrNone()
+    {
+        Assert.Null(Theme.Default.SeriesSlot(1).LineMarkerOf(null));
+        Assert.Equal(MarkerStyle.Triangle, Theme.Default.SeriesSlot(1).LineMarkerOf(MarkerStyle.Triangle));
+    }
+
+    [Fact]
+    public void AScatterAtRest_TakesTheSlotsMarker_ButNeverNone()
+    {
+        Assert.Equal(MarkerStyle.Square, StyledTheme.SeriesSlot(1).ScatterMarkerOf(MarkerStyle.Circle));
+        Assert.Equal(MarkerStyle.Circle, StyledTheme.SeriesSlot(0).ScatterMarkerOf(MarkerStyle.Circle));
+    }
+
+    [Fact]
+    public void AScatterMarkerTheSeriesNames_Wins()
+    {
+        Assert.Equal(MarkerStyle.Triangle, StyledTheme.SeriesSlot(1).ScatterMarkerOf(MarkerStyle.Triangle));
+        Assert.Equal(MarkerStyle.Circle, Theme.Default.SeriesSlot(1).ScatterMarkerOf(MarkerStyle.Circle));
+    }
+
+    // The slot reads "at rest" as the value a new series holds, so the two must be one number.
+
+    [Fact]
+    public void TheRestingStroke_IsWhatANewLineStepAreaAndErrorBarHold()
+    {
+        double[] x = [0.0, 1], y = [0.0, 1];
+
+        Assert.Equal(SeriesSlot.RestingLineStyle, new LineSeries(x, y).LineStyle);
+        Assert.Equal(SeriesSlot.RestingLineStyle, new StepSeries(x, y).LineStyle);
+        Assert.Equal(SeriesSlot.RestingLineStyle, new AreaSeries(x, y).LineStyle);
+        Assert.Equal(SeriesSlot.RestingLineWidth, new LineSeries(x, y).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineWidth, new StepSeries(x, y).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineWidth, new AreaSeries(x, y).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineWidth, new ErrorBarSeries(x, y, x, x).LineWidth);
+    }
+
+    [Fact]
+    public void TheRestingWidthOfARegressionLine_IsWhatANewRegressionHolds()
+    {
+        double[] x = [0.0, 1], y = [0.0, 1];
+
+        Assert.Equal(RegressionSeries.RestingLineWidth, new RegressionSeries(x, y).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineStyle, new RegressionSeries(x, y).LineStyle);
+    }
+
+    [Fact]
+    public void TheRestingStroke_IsWhatANewDensityEcdfSignalSparklinePolarAnd3dLineHold()
+    {
+        double[] x = [0.0, 1], y = [0.0, 1];
+
+        Assert.Equal(SeriesSlot.RestingLineWidth, new KdeSeries(x).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineWidth, new EcdfSeries(x).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineWidth, new SignalSeries(y).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineWidth, new SignalXYSeries(x, y).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineWidth, new SparklineSeries(y).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineWidth, new PolarLineSeries(x, y).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineWidth, new Line3DSeries(x, y, y).LineWidth);
+        Assert.Equal(SeriesSlot.RestingLineStyle, new KdeSeries(x).LineStyle);
+        Assert.Equal(SeriesSlot.RestingLineStyle, new EcdfSeries(x).LineStyle);
+        Assert.Equal(SeriesSlot.RestingLineStyle, new SignalSeries(y).LineStyle);
+        Assert.Equal(SeriesSlot.RestingLineStyle, new SignalXYSeries(x, y).LineStyle);
+        Assert.Equal(SeriesSlot.RestingLineStyle, new PolarLineSeries(x, y).LineStyle);
+        Assert.Equal(SeriesSlot.RestingLineStyle, new Line3DSeries(x, y, y).LineStyle);
+    }
+
+    [Fact]
+    public void TheRestingMarker_IsWhatANewScatterHolds_AndANewLineOrStepHoldsNone()
+    {
+        double[] x = [0.0, 1], y = [0.0, 1];
+
+        Assert.Equal(SeriesSlot.RestingScatterMarker, new ScatterSeries(x, y).Marker);
+        Assert.Null(new LineSeries(x, y).Marker);
+        Assert.Null(new StepSeries(x, y).Marker);
+    }
+
+    [Fact]
+    public void TheSlotsStrokeIsTheSameWhicheverAxisPairTheSeriesSitsIn()
+    {
+        var axes = OneTwoThree();
+
+        Assert.Equal(StyledTheme.SeriesSlot(3).LineStyleOf(LineStyle.Solid),
+            axes.SeriesSlot(StyledTheme, SeriesAxisPair.SecondaryX, 0).LineStyleOf(LineStyle.Solid));
+        Assert.Equal(LineStyle.Dashed, axes.SeriesSlot(StyledTheme, SeriesAxisPair.SecondaryY, 0).LineStyleOf(LineStyle.Solid));
+    }
+
     // ── Axes: which slot a series holds ────────────────────────────────────────
 
     private static Axes OneTwoThree()

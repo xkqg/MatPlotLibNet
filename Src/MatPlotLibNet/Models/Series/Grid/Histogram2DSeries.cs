@@ -56,7 +56,10 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (X.Length == 0 || Y.Length == 0) return new(null, null, null, null);
-        return new(X.Min(), X.Max(), Y.Min(), Y.Max());
+        // Over the drawable points only: a missing coordinate (NaN) and an infinity are left out.
+        var x = X.DrawableRange();
+        var y = Y.DrawableRange();
+        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi);
     }
 
     /// <inheritdoc />
@@ -67,7 +70,9 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
         YData = Y,
         Bins = BinsX,
         BinsY = BinsY,
-        ColorMapName = ColorMap?.Name
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="Histogram2DSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -81,10 +86,8 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
         {
             s.BinsY = dto.BinsY.Value;
         }
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
+        s.RestoreNormalizer(dto);
         return s;
     }
 
@@ -103,18 +106,23 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
         var counts = new int[BinsY, BinsX];
         if (X.Length == 0) return counts;
 
-        double xMin = X.Min(), xMax = X.Max();
-        double yMin = Y.Min(), yMax = Y.Max();
+        // A point that cannot be placed (a missing coordinate, NaN, or an infinity) is not counted, and the bins span
+        // the points that are counted: matplotlib's hist2d drops it as numpy does a value outside every bin.
+        var pairs = X.DrawablePairs(Y);
+        if (pairs.X.DrawableRange() is not { } xs || pairs.Y.DrawableRange() is not { } ys) return counts;
+        double xMin = xs.Lo, xMax = xs.Hi;
+        double yMin = ys.Lo, yMax = ys.Hi;
 
         // Handle degenerate case where all values are the same
         if (xMax == xMin) xMax = xMin + 1;
         if (yMax == yMin) yMax = yMin + 1;
 
-        int n = Math.Min(X.Length, Y.Length);
+        int n = Math.Min(pairs.X.Length, pairs.Y.Length);
         for (int i = 0; i < n; i++)
         {
-            int bx = (int)((X[i] - xMin) / (xMax - xMin) * BinsX);
-            int by = (int)((Y[i] - yMin) / (yMax - yMin) * BinsY);
+            if (!pairs.X[i].IsDrawable() || !pairs.Y[i].IsDrawable()) continue;
+            int bx = (int)((pairs.X[i] - xMin) / (xMax - xMin) * BinsX);
+            int by = (int)((pairs.Y[i] - yMin) / (yMax - yMin) * BinsY);
             // Clamp to valid range (values exactly at max map to BinsX/BinsY)
             if (bx >= BinsX) bx = BinsX - 1;
             if (by >= BinsY) by = BinsY - 1;

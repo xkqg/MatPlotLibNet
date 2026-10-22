@@ -24,12 +24,13 @@ public sealed class Bar3DSeries : XYZSeries, IHasColor
         if (X.Length == 0) return new(null, null, null, null);
         // matplotlib bar3d convention: X[i] / Y[i] are the LEFT-FRONT corner of the bar,
         // not the centre. Bar spans [X, X+BarWidth] × [Y, Y+BarWidth] × [0, Z]. This aligns
-        // X/Y tick labels with bar edges instead of centres.
-        return new Box3D(
-            X: new(X.Min(), X.Max() + BarWidth),
-            Y: new(Y.Min(), Y.Max() + BarWidth),
-            Z: new(Math.Min(0, Z.Min()), Math.Max(0, Z.Max()))
-        ).ToContribution(stickyZMin: 0);
+        // X/Y tick labels with bar edges instead of centres. Over the drawable coordinates only: a missing one (NaN) and
+        // an infinity are left out.
+        var x = X.Data.DrawableRange();
+        var y = Y.Data.DrawableRange();
+        var z = Z.Data.DrawableRange();
+        return new(x?.Lo, x?.Hi + BarWidth, y?.Lo, y?.Hi + BarWidth, StickyZMin: 0,
+            ZMin: z is { } zFloor ? Math.Min(0, zFloor.Lo) : null, ZMax: z is { } zTop ? Math.Max(0, zTop.Hi) : null);
     }
 
     /// <inheritdoc />

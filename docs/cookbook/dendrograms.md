@@ -81,8 +81,8 @@ exactly counts as *above* the cut, so it keeps the default series colour.
 ## Orientations
 
 `DendrogramOrientation` has four values: `Top` (default), `Bottom`, `Left`, `Right`.
-`Left`/`Right` are essential for the row dendrogram in a forthcoming `ClustermapSeries`
-(Phase 3 of the v1.10 Pair-Selection Visualisation Pack).
+`Left` and `Right` draw the tree sideways, the way a [clustermap](clustermap.md) draws its row dendrogram
+beside the heatmap.
 
 ```csharp
 foreach (var orient in new[]

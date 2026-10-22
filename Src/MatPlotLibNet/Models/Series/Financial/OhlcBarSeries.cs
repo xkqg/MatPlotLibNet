@@ -25,7 +25,8 @@ public sealed class OhlcBarSeries : OhlcSeries
     {
         double ohlcXMin = context.XAxisMin ?? -0.5;
         double ohlcXMax = context.XAxisMax ?? (Open.Length - 0.5);
-        return new(ohlcXMin, ohlcXMax, Low.Min(), High.Max(), StickyXMin: ohlcXMin, StickyXMax: ohlcXMax);
+        // From the lowest drawable low to the highest drawable high: a missing price (NaN) and an infinity are left out.
+        return new(ohlcXMin, ohlcXMax, Low.DrawableRange()?.Lo, High.DrawableRange()?.Hi, StickyXMin: ohlcXMin, StickyXMax: ohlcXMax);
     }
 
     /// <inheritdoc />

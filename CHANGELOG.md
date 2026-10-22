@@ -4,6 +4,617 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.20.0]
+
+This release turns charts that took a page of hand-written code into one call each, and makes the library under
+those calls keep its word. Fifteen verbs on the axes builder draw a lollipop, a dumbbell, a Pareto chart, a ridgeline,
+a bump chart, a calendar heatmap, a slope graph, a dot plot, a Q-Q plot, a control chart, a Kaplan-Meier curve,
+parallel coordinates, a stream graph, a Marimekko chart and a spy plot from the data as you hold it (names, groups,
+samples, dates, a matrix), built from series the library already has. Building them meant fixing what they stand on.
+A figure written to JSON now reads back as the picture it was, with every setting it draws. NaN is the one missing
+value, so a line breaks at a gap and nothing is drawn at NaN. Bars on a log axis reach the bottom edge, lines and
+heatmaps respect the axis limits, category names are tick labels with room in the layout, horizontal bars work, and
+a PNG is drawn at the figure's dpi.
+
+### Added
+
+- **Fifteen charts, one call each.** They are extension methods on `AxesBuilder` in the namespace `MatPlotLibNet`,
+  in four classes named for the data they take: `CategoricalAxesExtensions` (values keyed by names),
+  `DistributionAxesExtensions` (estimated from a sample), `XYAxesExtensions` (values over x positions) and
+  `GridAxesExtensions` (the cells of a grid). Each one is built from series the library already ships, so the count
+  of series types stays at 83, and each drawn unit is one series: one colour, at most one legend entry, hidden by one
+  click. Written to JSON a composed chart is its parts. Read back through `FromJson`, the MCP server or a transport, it
+  draws the same picture and is not sorted, estimated or laid out again: change the data and call the verb again.
+  The last argument, `configure`, runs once after the verb has styled its series, so what it sets wins. A refused
+  call throws before it adds anything and leaves the axes as they were. Every verb's documentation carries an example
+  that compiles. The MCP server lists none of them as a chart type; a spec carries the parts.
+
+- **`Lollipop(categories, values, configure)`**: one stem for each category, on the centre of the category's slot,
+  with the categories named on the X axis. It is one stem series (a stem draws its own head). The cookbook recipe it
+  replaces drew a stem series and a scatter series, two heads on every point. A missing value draws no stem. No axis
+  limits are set.
+
+- **`Dumbbell(categories, from, to, configure)`**: two dots for each category, one for each `BarGroup`, named in the
+  legend by the groups, joined by a connector. The connector runs from the lower of the two values to the higher,
+  whichever group is higher. The cookbook recipe always ran it upward from the first group, so a value that fell from
+  83.0 to 79.5 got a connector from 83.0 to 86.5. The connector is drawn behind the dots in the library's neutral grey
+  (`#808080`, at least 3 : 1 against the plot of 25 of the 30 shipped themes) and has no legend entry. A legend click
+  hides one group's dots and leaves the connector. `configure` receives `DumbbellParts` (`Connector`, `From`, `To`).
+
+- **`Pareto(categories, counts, configure)`**: the counts as bars, largest first, and the running share of the total
+  as a marked line on a right-hand axis, one point on the centre of each bar. The sort is stable, so ties keep their
+  order. The last point is exactly 100; the cookbook recipe ended a hair off 100 in 7,036 of 20,000 random draws. Both
+  Y axes are one scale (0 to 1.05 times the total, 0 to 105 %), so the top of the first bar is the first point of the
+  line. On the cookbook's data, with the recipe's automatic left axis, they stood 239.7 px apart. Each Y axis wears its
+  series' colour and name, and the legend stands right of centre, between the short bars of the tail and the line. A
+  missing count goes last with no bar and no point. A negative or infinite count, or a total of 0, is refused.
+  `configure` receives `ParetoParts` (`Bars`, `Cumulative`), and the axes follow the colours and names it leaves.
+
+- **`Ridgeline(groups, bandwidth, configure)`**: the density of each group as a filled ridge on a baseline of its own,
+  the first group on top, the group names on the Y axis, the lower ridges drawn in front. A group is a `NamedSample`:
+  a name and a sample of any length. Every ridge is estimated on one grid of 200 points with one bandwidth: the one you
+  give, otherwise ggridges' joint bandwidth, the mean of the groups' own Silverman bandwidths. On three months of daily
+  highs that is 1.04; Silverman over the pooled data gives 5.13, which drew January (observations from 0.9 to 3.4)
+  from -10 to 15. The tallest ridge reaches the next baseline, and every other ridge keeps its height relative to it.
+  The estimate costs groups × 200 × observations: 1.0 ms for six groups of 200 observations, 171 ms for six of
+  20,000.
+
+- **`BumpChart(x, ranks, configure)`**: one marked line for each group (a `BarGroup` with one rank per x position),
+  rank 1 on top. Each group is named at the end of its line in the line's colour, so the chart needs no legend. The
+  verb sets the Y limits, with half a rank of room at each end so a marker at rank 1 is drawn whole, and ticks the
+  whole ranks. A missing rank leaves a gap. Fractional ranks and ties are drawn as given; a rank below 1 is refused.
+
+- **`CalendarHeatmap(dates, values, firstDayOfWeek, configure)`**: one cell for each day, in seven weekday rows by one
+  column per week, the weekdays named on the Y axis, each month under the column that holds its 1st, and a colour bar.
+  The week starts on the day the call names (Monday by default), never on the culture's, so the picture is the same
+  on every machine. A year is 53 week columns, or 54 when a leap year starts on the last day of a week. The values of
+  one day are summed. A day without a value is blank; a zero is coloured. The cookbook recipe it replaces drew 52 rows
+  of weeks by 7 columns of days and named both axes with numbers.
+
+- **`SlopeGraph(categories, from, to, configure)`**: a line for each category between two moments, the moments named
+  on the X axis by the labels of the two groups. Each category is named at both ends, at its end point in the line's
+  colour and at its start in the theme's text colour, so there is no legend. A missing value drops that end and its
+  name. The X margin is a quarter of the distance between the columns, so the start names stand inside the plot; with
+  the usual 5 % the name "Central" started 26.8 to 31.2 px outside it.
+
+- **`DotPlot(categories, groups, configure)`**: a Cleveland dot plot. The categories run down the Y axis in the order
+  of the first group, largest on top (a stable order; a missing first value goes last), with one series of circles for
+  each group. The guide lines are the theme's grid. The legend stands in the lower right corner, because the upper
+  right covered the largest dots.
+
+- **`QQPlot(sample, configure)`**: a normal probability plot by scipy's conventions (`scipy.stats.probplot`): the
+  sorted sample against the normal quantiles of Filliben's plotting positions, with the least-squares line drawn in
+  red as the reference. Checked against scipy 1.18.1 on samples of 2, 5 and 12 observations, the quantiles and both
+  ends of the line agree to 1e-9. NaN and the infinities are left out; fewer than two observations are refused.
+  `configure` receives `QQPlotParts` (`Points`, `Reference`).
+
+- **`ControlChart(x, values, limits, configure)`**: an individuals chart. The values are a marked line, the centre
+  line (CL) and the two control limits (LCL, UCL) run across the plot, and every value strictly beyond a limit is
+  marked in the next colour. Without `limits`, the centre is the mean and sigma is the average moving range over
+  1.128, so the values 10, 12, 11, 15 and 13 give a centre of 12.2 and limits of 6.216 and 18.184. With
+  `new ControlLimits(center, lower, upper)` the limits are drawn as given. Only the first Western Electric rule is
+  checked. A missing value breaks the line, and the moving range spans it. `configure` receives `ControlChartParts`
+  (`Values`, `Violations`, `Center`, `Lower`, `Upper`).
+
+- **`KaplanMeier(groups, configure)`**: a survival curve for each group, from a `SurvivalGroup` (a name, each
+  subject's follow-up time and whether its event was seen). It is the product-limit estimate: it starts at (0, 1),
+  drops at every event and is held to the last follow-up. Events are counted before censorings at the same time, as
+  R's survival package and lifelines count them. The arithmetic is exact (no logarithms), so the curve is the same on
+  every platform. The verb draws the curve only: no confidence band, censor marks, risk table or log-rank test. A
+  missing, negative or infinite duration is refused.
+
+- **`ParallelCoordinates(dimensions, rows, configure)`**: one vertical axis for each dimension and one line for each
+  row. Rows that share a name are one class, drawn as one series in one colour with one legend entry, with a missing
+  point between two rows. Each column is scaled to 0..1 by its own smallest and largest value over all rows (a
+  constant column stands at 0.5), so the Y axis carries no ticks. A missing value breaks only its own row.
+
+- **`StreamGraph(x, layers, baseline, configure)`**: a stacked area that floats around the middle of the plot. Each
+  layer is one opaque area with its own legend entry, on matplotlib's `wiggle` baseline by default; `WeightedWiggle`,
+  `Symmetric` and `Zero` are the other choices. The edges come from the code `StackPlot` stacks with. The Y axis shows
+  thickness, so it has no ticks. A negative value is refused; a missing value leaves a gap.
+
+- **`Marimekko(columns, segments, configure)`**: columns as wide as their share of the grand total, divided into
+  cells as tall as each segment's share of its column, so the area of a cell is its share of the whole. The X axis
+  runs from 0 to 100 % with each column named under its centre, and the Y axis reads percent of the column. Each
+  segment is one opaque area with one colour and one legend entry. A missing size is an empty cell that adds nothing
+  to its column.
+
+- **`Spy(matrix, threshold, configure)`**: a square marker on every cell of a matrix whose magnitude is above the
+  threshold (0 unless given), with row 0 at the top. The axes run half a cell past the matrix and are ticked in whole
+  cells, at most nine intervals across. A marker is a size in points (9.40 px at the default), so a large matrix needs
+  a smaller `MarkerSize`.
+
+- **Names under ticks at positions of their own.** `new CategoryFormatter(labels, positions)` writes `labels[k]` under
+  a tick at `positions[k]` and leaves every other tick blank: names under columns of different widths. Pair it with a
+  `FixedLocator` on the same positions. It travels through JSON as `"positions"`, and names and positions that do not
+  pair up are refused in code, in JSON and by the MCP server.
+
+- **Save settings reach the file.** `WithDpi` and `SaveOptions` were accepted and read by no export. A figure is laid
+  out in pixels at 96 dpi, and a PNG is now drawn with dpi / 96 pixels for each of them: 500 × 350 at 192 dpi is a
+  1000 × 700 PNG with the same layout, drawn finer. Each frame of a GIF, and each PNG `FuncAnimation.SaveFrames`
+  writes, follows its figure's dpi. `SaveOptions.Dpi` overrides the figure's for one save. `PrettifySvg` indents the
+  SVG. `SvgDecimalPrecision` rounds positions and sizes to the number of decimals you give (0 to 15), half away from
+  zero, and leaves stroke widths, opacities and text alone. `Title` and `Author` go into the SVG's metadata, the PDF's document information
+  and the PNG's text chunks. An SVG, a PDF page and JSON have no pixels, so the resolution changes nothing there. A
+  transform of your own receives the options through the new overload
+  `IFigureTransform.Transform(Figure, Stream, SaveOptions)`, whose default calls the two-argument one. The MCP server keeps the PNG of a spec inside its 4,000 × 4,000 pixel
+  ceiling at the spec's dpi (960 dpi on a figure 400 wide is accepted, 961 is refused). The READMEs of
+  `MatPlotLibNet.Skia` and `MatPlotLibNet.Mcp` say what the dpi, the title and the author do for a PNG and a PDF.
+
+- **The contour levels you name are drawn.** `LevelValues` on a contour and a filled contour was carried in JSON and
+  read by no renderer. The levels you name are now the levels drawn: ascending, each once, finite only. A filled
+  contour colours its bands and its colour bar from the first level to the last. A contour that names no level draws
+  the bytes it drew (5,880 figures compared).
+
+- **A waterfall marks its totals.** `WaterfallSeries.TotalIndices` names the steps that are totals. A total stands on
+  zero, reaches the level it holds and wears `TotalColor`, and the steps after it start from that level: a total is
+  stated, never summed. Several totals are allowed, and a position that names no step is refused. On the cookbook's
+  monthly P&L the Total bar now runs from 0 to 560; it floated from 560 to 1,120 and doubled the height of the chart.
+  The automatic range follows the levels the bars reach, and a waterfall that marks no total draws what it drew.
+
+- **A sparkline dashboard takes named samples.** `FigureTemplates.SparklineDashboard(series, title)` now accepts an
+  `IReadOnlyList<NamedSample>`: one row for each sample, the sample's name on the row's Y axis, the values drawn as a
+  sparkline, the figure 120 pixels tall for each row. Until now the rows had to be handed over as an array of
+  `(string Label, double[] Values)` tuples, so a caller could not write the call without tuples. That overload stays
+  and hands its rows to the new one: the two draw the same SVG for the same rows, with a title and without. The console
+  sample and the cookbook page use the named samples.
+
+### Changed
+
+- **A NaN breaks a line, as in matplotlib.** Before, the line was drawn straight across the gap, through a value that
+  was never measured. A step line, a filled area (its outline included, stepped, smoothed or with a `Where`
+  condition), a stacked area (the layer with the gap and every layer stacked on it), a polar line, a 3-D line and a
+  wireframe break the same way, and a point alone between two gaps draws no line. An infinity and a value a log axis
+  cannot place (0 or below) also break the line; before, they were skipped and bridged. The renderer makes the gap, so
+  PNG, PDF and the native controls draw the same picture as the SVG.
+
+- **A log axis under bars starts a margin below the shortest one, as in matplotlib.** Its automatic floor was three
+  decades under the highest bar; it is now the lowest value the marks reach, padded in log space, matplotlib's floor
+  (its smallest positive value). This holds for bars, histograms, count plots, waterfalls and filled and stacked areas.
+  A chart whose bars span fewer than three decades starts closer under its shortest bar: bars of 15 to 9,800 now start
+  at 10.8 where they started at 6.9.
+
+- **A mark that cannot be placed is left out, never drawn at NaN.** This covers markers, stems, bars with their
+  labels, waterfall steps, reference lines, spans, trendlines, levels, signals and annotations. An annotation whose
+  target cannot be placed keeps its text and loses only its arrow. It also covers candles, event and rug ticks, task
+  bars, arrows, grid cells, pie and donut slices, funnel stages, radar vertices, polar points, and every 3-D face,
+  segment and marker. An error bar's bar and its two caps are marks of their own, as in matplotlib. Before, the SVG
+  carried `cy="NaN"`, `height="NaN"`, `points="…,NaN"` and the text "NaN". A figure without a missing value draws the
+  same bytes.
+
+- **Estimates and fits use the values that are there.** A density curve, an ECDF, a histogram, a box and a violin are
+  drawn from the observations present, and a regression line, its band and a residual plot are fitted over the pairs
+  present, as seaborn drops them. Before, one NaN made a density curve, a regression line or a whisker NaN, and an
+  ECDF counted NaN and the infinities as observations, so its steps did not reach 1.
+
+- **A missing slice is not part of a pie.** A NaN or infinite slice of a pie or donut counts as 0 in the total and
+  draws nothing. The other slices are the slices of the same pie without it (30 and 70 read 30.0% and 70.0%); before,
+  the total was NaN and every wedge was drawn at NaN.
+
+- **A colour map draws a missing value in its bad colour.** `BadColor` on `LinearColorMap` and `ListedColorMap` was
+  never used. It is now the colour of a missing value, transparent when unset, as in matplotlib. The qualitative maps
+  (tab10, Set1, Paired and the other listed maps) drew a missing value in their first colour.
+
+- **The legend value of a line that ends on a gap** is the last value that can be drawn, the one its end-of-line label
+  shows. It read "= NaN".
+
+- **JSON keeps what a figure draws.** `ToJson` and `FromJson`, the MCP server and every transport now carry:
+  - every setting each of the 83 series types draws. A test sets every settable property of 78 of them and reads it
+    back; the four live series and the planar 3-D bar are named with their reason. Before, 82 of the 131 settings of
+    the eleven most used series types were lost: a line's markers and step style, a scatter's marker, sizes and
+    colour map, a bar's edges, alignment and value labels, every violin and box setting, and each series' drawing
+    order and visibility. Another 31 settings were lost on nine colour-mapped types and 62 on eighteen more types
+    (histogram 9, pie 8, Sankey 8, line contour 7, table 6). A density curve drawn as a line alone came back filled.
+  - every setting of the axes, legend, colour bar, grid, spines and overlays, where 253 of 322 were lost. That
+    includes each axis' tick locator and formatter: a bump chart's whole ranks came back in halves, and a calendar's
+    weekday and month names as numbers. It also includes the whole legend and colour bar, a spine's line style, a
+    reference line's colour and an annotation's style. The library's 7 tick locators, 9 tick formatters and 8
+    normalisers are written by kind, and so is the normaliser of every series drawn through a colour map. An inset
+    reads back everything its JSON holds.
+  - the figure's theme, written as data so that a theme made with `ThemeBuilder` comes back too; every figure used to
+    come back on the default theme. The figure's spacing and its interaction settings travel as well; 30 of the 42
+    figure settings were lost. A grid switched off over a theme that draws one stays off.
+  - a colour map built in code, as its colours, positions and under, over and bad colours. A shipped map still goes by
+    its name, so its JSON is unchanged. A map made with `LinearColorMap.FromList` was written by a name that only the
+    process that made it knew.
+  - transparency: a colour with alpha is written `#RRGGBBAA`. A translucent colour came back opaque, and
+    `Colors.Transparent` came back black.
+  - NaN and the infinities, as the strings `"NaN"`, `"Infinity"` and `"-Infinity"`. `ToJson` threw on them, so a
+    calendar with blank days or a line with a gap could not be saved at all.
+
+  A setting at its default is not written, so a figure that sets none of them writes the bytes it wrote before (77
+  golden files compared byte for byte), and JSON from an earlier release reads back at the defaults. A tick locator,
+  formatter, normaliser or colour map type you write yourself is code: it is left out (a registered colour map travels
+  by its name) and the part reads back on its default. A kind the reader does not know, from a later release, is
+  skipped and reported through `ChartDiagnostics`. The MCP server accepts every new field, refuses a misspelt value
+  with the accepted ones, and lists the new fields in `describe_chart_schema`.
+
+- **Category names on the X axis are tick labels.** The names under bars, a count plot, a candlestick and a waterfall
+  now follow the X axis' tick settings. Hidden ticks hide them; `HideAllAxes` used to leave Q1, Q2 and Q3 under a
+  hidden axis. Label size, colour and rotation apply, mirrored ticks repeat them above the plot, and a tick formatter
+  names them. A theme's grid draws one line through each category; ggplot drew 11 lines 37.5 px apart for three
+  categories 150 px apart. Names that would collide turn 30 degrees instead of printing over each other. They stand
+  where every X tick label stands, 23.6 px below the axis on the default theme (15 px before), and the X axis title
+  stands clear of them, 43.5 px down (35 px before). Every chart that names categories along X moves by these few
+  pixels.
+
+- **Horizontal bars name their categories on the Y axis**, each level with its bar and the first at the bottom, as
+  matplotlib's `barh` draws them; `SetYLim(n, 0)` puts the first category on top. The names follow the Y axis' tick
+  settings, and the left margin holds the longest name.
+
+- **The X axis title has room.** The default layout's bottom margin did not grow with the tick labels and the title:
+  a 500 × 350 line chart with `SetXLabel` drew the title's baseline at y = 355.5, outside the figure. Over 6,600 test
+  figures (30 themes, 200 to 700 px high, both layouts) the title was cut in 1,451 and is now cut in none. A title in
+  a style of its own, or larger tick labels, were cut under `TightLayout` as well (all 330 tight figures with a 24 px
+  title). Both layouts now reserve what the renderer draws. Under the 25 themes with a fixed 50 px margin and a base
+  font above 12.2 px, a figure with an X title gains 2 to 4 px of bottom margin. In a figure of several rows, the gap
+  between rows now holds the upper tick labels and the lower title.
+
+- **A bar's value label shows up to six significant digits**, as matplotlib's `bar_label` (`%g`) does. 12500 reads
+  `12500` where it read `1.25E+04`, and 123456 reads `123456`. Only a value below 0.0001 or from 1,000,000 takes an
+  exponent, written as Python writes it (`1e-05`, `1.23457e+06`). A format you name is used as given.
+
+- **`Axis.Inverted` draws the axis reversed.** It was written to JSON and read by nothing. It now reverses the axis by
+  the rule a limit set high to low follows. It is a state, matplotlib's `set_inverted(True)`, not a second turn: an
+  axis with limits set high to low that is also inverted is reversed once, and a scroll zoom keeps it reversed.
+  Primary, secondary and inset axes read it; polar and 3-D axes do not.
+
+- **A line across the plot widens the automatic range**, as matplotlib's `axhline` does. A reference line, a level, a
+  Fibonacci retracement or a threshold beyond the data was drawn off the plot: `AxHLine(20)` over data from 2 to 8 was
+  drawn at y = -498, above the figure. It now pulls the range to it, exactly as a data value there would, so a
+  threshold above everything the chart shows now shows its line and its zone.
+
+- **A heatmap follows the axes' range.** Its cells were laid out over the whole plot whatever range the axes showed,
+  while its tick labels, grid and names followed `SetXLim`, `SetYLim` and a zoom. A calendar limited to columns 10
+  to 20 kept all 53 columns in place under moved month names. The cells now stand at their data coordinates, so a
+  limit, a reversed limit or a zoom moves them. A heatmap whose axes show exactly its grid draws as before, to 1e-6
+  px. The clustermap's matrix and the backdrop of a filled line contour still fill their panel.
+
+- **A theme's property cycler draws its line styles, markers and widths**, not only its colours. A series that leaves
+  its dash, width or marker at what a new series holds takes the cycler's entry for its slot, and a series that sets
+  another value keeps its own. So under a cycler of dashes a series cannot be forced back to solid by setting solid.
+  The entries reach lines, steps, scatters, area outlines, error-bar widths, density curves, ECDFs, regression,
+  signal, polar and 3-D lines, sparkline widths, both secondary axes and every legend swatch. No shipped theme has a
+  cycler, so no built-in theme draws differently.
+
+- **The wiggle baselines are matplotlib's.** `StackedBaseline.Wiggle` drew the symmetric baseline, the same SVG bytes
+  as `Symmetric` on every data set, and `WeightedWiggle` had no slope term. Both now follow matplotlib's `stackplot`.
+  On layers of 1 2 2 1, 1 3 2 2 and 4 5 8 7, the lowest layer starts at -2, -4, -4, -3 on the wiggle and at -3, -4.55,
+  -6.3, -5.6 on the weighted wiggle (the symmetric baseline: -3, -5, -6, -5). A missing value leaves a gap at its own
+  point only; matplotlib's weighted wiggle blanks every later point. `Zero` and `Symmetric` are unchanged.
+
+- **The regression band of a large sample is exact.** With 120 or more degrees of freedom the band took its z value
+  from an approximation off by up to 4.4e-4: the 95 % z was 1.96039 for 1.95996, a band 0.022 % too wide. It now uses
+  an exact quantile (Wichura's AS 241). Smaller fits read their t value from the same table as before.
+
+- **A density curve of a sample without spread follows its units.** One observation, or observations all of one
+  value, got a bandwidth of 1 whatever their size. They now get R's `bw.nrd0` rule, 1.06 × |value| × n^-0.2. Three
+  observations of 0.1 were taken to have a spread and drew a needle about 3e16 high; equal values now have no spread.
+  A sample with a spread draws as before. This reaches `Kde` and the pair grid's diagonal.
+
+- **A stem plot's end heads keep the axis margin.** Both ends of a stem series' X data were sticky edges, so the
+  first and last head stood on the frame, half outside the plot (in 800 × 450: at x = 100 and 720 on a plot from 100
+  to 720; now 128.2 and 691.8). matplotlib's stem sets no sticky edge along X. A stem plot with explicit limits is
+  unchanged.
+
+- **Step i of a waterfall stands at x = i + 0.5**, the centre of its slot, as a bar does; it stood at i. The automatic
+  X range runs from 0 to the number of steps. The picture is the same, but a limit, reference line or annotation
+  placed by step number now takes the half.
+
+- **A PNG's size is rounded, not cut.** A figure 499.6 wide was a PNG 499 wide and is now 500, drawn to fill it.
+  `FigureTemplates.ScientificPaper` has always set 150 dpi, so its PNG is now 1250 × 938 (800 × 600 before).
+
+- **A sparkline dashboard with no row, or a row without values, is refused by name.** In both overloads. A list with
+  no row used to draw a figure 0 pixels tall, and a row whose values were `null` (the default of a `NamedSample` has
+  none) failed with a `NullReferenceException` when the figure was drawn. Both now throw an `ArgumentException` that
+  names the argument, and for the second the row (`Series 'Latency' carries no values.`); a `null` list throws an
+  `ArgumentNullException` where it threw a `NullReferenceException`.
+
+### Fixed
+
+- **Horizontal bars are drawn along the right axes.** A horizontal bar chart (`Barh`, `Orientation = Horizontal`, a
+  horizontal `GroupedBar` or `Countplot`) put its categories along X and its values along Y. In a 400 × 300 figure,
+  bars of 10, 20 and 30 were 1,107, 2,214 and 3,321 px long and 5.87 px thick, with the names under the X axis. The
+  values now run along X and each bar is 0.8 of its category's slot thick. A 168 px name stood in a 60 to 86 px left
+  margin and ran off the figure; the margin now holds it in both layouts.
+
+- **An edge-aligned bar chart is no longer cut.** Its range assumed centred bars, so in a 400 px figure of three bars
+  the first bar started 11 px left of the plot edge and 11 px stood empty after the last.
+
+- **A count plot names each category under its bar.** The names stood half a slot to the right, the last one on the
+  right spine.
+
+- **A waterfall names its steps.** The axis counted 0, 2, 4 ... 12 under the 13 bars of the cookbook's monthly P&L;
+  it now reads Jan ... Dec, Total, one name per bar, and the names follow the X tick settings.
+
+- **The data table of a chart built in one call names its rows.** A lollipop, a dumbbell, a slope graph and parallel
+  coordinates tabled the positions of their slots (0.5, 1.5, 2.5 ...) where the axis shows the names; they now table
+  the names, under the axis title or "category". A Pareto chart is one table (category, Count, Cumulative %) where it
+  was two, and a dot plot one table with a column per group, keyed by the categories down its Y axis, where it was a
+  table of positions per group. A ridgeline tabled each ridge as unnamed `y` and `y2` columns in axis units
+  (1.504 over a baseline of 1.5); it is one table with a column per group, named by the group, of each ridge's height
+  above its baseline (the tallest reaches 1). A calendar heatmap names each cell's weekday (Mon ... Sun) where it gave
+  a row number. The names come from the axis, by the rule its tick labels are drawn with, so a line or scatter on the
+  centres of named bars joins the bars' table, and a heatmap whose axes name its rows and columns tables those names.
+
+- **`WaterfallSeries.TotalColor` is used.** It was a public property nothing read; it now colours the totals that
+  `TotalIndices` marks.
+
+- **A threshold's zone is drawn, and a span stays inside the plot.** The zone of `Threshold(...)` runs to the end of
+  the number range. Its rectangle came out at infinity (`y="-Infinity" height="Infinity"`), which no browser draws,
+  and PNG and PDF drew nothing, so the red zone of the ops dashboard sample was missing. A span is now clipped to the
+  plot area, as matplotlib's `axhspan` is. A span wider than the range used to be drawn over the margins, title and
+  labels; 24 of 241 test figures had a rectangle outside the figure, and none has now. A span on a reversed axis had a
+  negative height and was not drawn. A border is not drawn along an edge that was cut.
+
+- **A line beyond a limit you set is not drawn over the margins.** A reference line, level or Fibonacci line beyond
+  a set limit (or a zoom) was drawn over the tick labels and the title, or off the figure. It is now not drawn, nor is
+  its label; a line exactly on a limit is drawn on that edge.
+
+- **A trendline is cut to the plot area.** It was drawn between its two points with no clip, over the tick labels and
+  the title and past the figure edge. The reference line of a Q-Q plot of the squares 0 to 1,521 ran down to -467
+  against an axis bottom of -76. A trendline wholly outside the plot draws nothing, and one inside draws the bytes it
+  drew.
+
+- **A missing value no longer crashes a heatmap on .NET 8.** A heatmap, and every chart coloured through a colour map,
+  threw `IndexOutOfRangeException` on a NaN. A missing value never reaches a normaliser now: a heatmap with a
+  symmetric-log normaliser threw on a missing cell, and with a boundary normaliser it took the last band's colour. A
+  heatmap with cell labels no longer prints "NaN" in a missing cell.
+
+- **One missing value no longer blanks a whole picture.** An image, a triangle colouring and a scatter coloured by
+  value took their colour range over the NaN, so every value came out missing. One infinite cell made every other cell
+  of a heatmap, pcolormesh, spectrogram, 2-D histogram, clustermap or polar heatmap take the lowest colour. The colour
+  ranges and colour bars now span the values that can be drawn.
+
+- **A missing value no longer collapses the axis range.** A line, scatter, area, stem, box, violin or strip plot with
+  one NaN showed its axis as 0 to 1, with the data off the plot. 33 more series types took their range over a NaN or
+  an infinity, among them event plots, Gantt and candlestick charts, contours, hexbins, histograms, density curves,
+  3-D points, bars and arrows, and the live series. One infinity in a stacked area drew every layer as one flat line,
+  and an infinite error bar or bar value stretched the axis to infinity.
+
+- **Contours, triangle meshes and bins with a missing value draw.** A contour with one missing corner drew no line at
+  all; a 4 × 5 grid that draws 22 drew 0 and now draws 24, masking the cells around the gap as matplotlib does. A
+  filled contour wrote 104 NaN coordinates into its bands. One missing coordinate emptied a triangle contour or a
+  triangle colouring. A hexbin put a point it could not place into a bin at the origin (on .NET 8, far off the plot).
+  A sparkline with a gap drew nothing. A smoothed line with a gap spoiled two intervals on either side of it.
+
+- **3-D charts skip a vertex they cannot place.** One NaN wrote 184 NaN coordinates over 11 series types on 3-D axes
+  and 336 on 2-D axes. A colour-mapped 3-D scatter or surface turned every point transparent, and one infinity made
+  every vertex NaN. A one-point 3-D scatter on 2-D axes was drawn at NaN; a 3-D axis without width now centres its
+  values, as a 2-D axis does.
+
+- **Polar charts, radars and bubbles skip what they cannot place.** One infinite radius made every ring label "∞" and
+  every radial line NaN; the rings now span the radii that can be drawn. A radar skips a missing vertex and closes
+  its polygon through the spokes on either side. A bubble of negative size wrote `r="NaN"`.
+
+- **An empty funnel draws an empty plot.** It threw "Sequence contains no elements", and the MCP server refused it.
+
+- **Bars and areas on a log axis reach the bottom edge.** A log axis has no place for 0, so every mark standing on 0
+  lost its foot even when all the data was positive. Bar charts, horizontal bars, the lowest stacked bars and a
+  waterfall's first step vanished, and a histogram, count plot, filled area, stacked area, density fill, box and
+  violin wrote NaN. Each now runs from the edge where the axis begins, as matplotlib's log scale clips them
+  (`nonpositive='clip'`). A mark whose own value cannot be placed is still left out.
+
+- **A bar shorter than a thousandth of the tallest is drawn on a log axis.** It lay below the automatic floor and hung
+  under the plot with a negative height, which a browser does not draw (PNG drew it over the tick labels): the 42 of
+  the cookbook's `[42, 1_800, 23_000, 410_000]` was -117.5 px high, and in `Bar(["1 KB", "1 MB", "1 GB"], [0.4, 35,
+  41000])` the 0.4 was -152.2 px with the axis starting at 29. That axis now starts at 0.22, and the bar stands inside
+  the plot. A box whose sample holds a value at or below 0 hung below the plot the same way (307.1 px in a 500 × 350
+  figure); a box and a violin now range over the values the axis can place. A bar below a lower limit you set lies
+  beyond the lower edge, inside the plot's clip, where none of it shows.
+
+- **The range of bars, histograms and areas holds what they draw.** Bars that all fall hung from a zero above the plot,
+  355.9 px past its top edge in a 500 × 350 figure; they now reach up to zero and stop there, as matplotlib's do. A
+  stack with a falling layer reached 128.6 px below the plot. A histogram ranged over its bin counts whatever it drew,
+  so the cookbook's histogram with a density curve used 0.2 % of the plot's height and its cumulative histogram ran
+  about 8,600 px above the figure; both now fill 95.2 %, with `Density`, `Cumulative` and `Weights`. An area filled
+  down to zero from below it, and a stacked area with a falling layer, stay inside the plot too.
+
+- **A pie takes the figure's colours.** Its wedge colours were picked from the theme's colour list and written into
+  the series on the first render. So a pie ignored a property cycler that the donut beside it followed, a figure
+  drawn on ggplot and then on seaborn kept ggplot's wedges, and the JSON of a pie that named no colour carried the
+  colours it had been drawn with. `PieSeries.Colors` now holds only what you set. A wedge past a short `Colors` array
+  takes the theme's colour at its own position, where every one of them took the series' one colour.
+
+- **Stacked areas, donuts and funnels take the figure's theme.** They drew the default theme's colours under every
+  theme; the colour-blind-safe theme drew exactly the default theme's bytes. The part at position i now wears the
+  theme's colour at slot i, a property cycler included. A colour the series names itself still wins.
+
+- **A legend swatch draws the series' own marker.** A triangle, diamond, pentagon, hexagon, star, cross or plus showed
+  a circle, and a line with `Marker = MarkerStyle.None` still showed one. A step series draws the marker it holds
+  (`StepSeries.Marker` was never drawn), and its swatch shows its own dash and width.
+
+- **A scatter draws its `Alpha`.** `ScatterSeries.Alpha` was kept in JSON and never drawn: a half-transparent scatter
+  drew opaque markers. The fill of every filled marker now carries it, for one colour, per-point colours and points
+  coloured through a colour map. A cross and a plus are strokes, which take no opacity.
+
+- **A stat tile has no legend entry.** A labelled tile was listed in its axes' legend, so the ops dashboard sample drew
+  a swatch and the tile's name over "12", "1" and "99.4", and an outside legend reserved a 78.5 px margin for it.
+
+- **A violin or box placed with `Positions` stays inside the plot.** Their automatic range ignored `Positions` and
+  `Widths`. In a 700 × 450 figure, violins at 10, 20 and 30 ended 847.9 to 3,311.5 px past the right edge, and boxes of
+  width 0.08 at 0, 1 and 2 ended up to 650.4 px past it. The range now covers what is drawn: the body, on one side
+  only for a half violin, and its marks. A box lying down (`Vert = false`) reported the upright range and was written
+  with a negative height; it is now inside the plot. A series that sets no `Positions` and keeps the default widths
+  draws as before.
+
+- **A rectangle keeps a positive size on an axis that runs backwards.** Bars, boxes, histogram bins, count plots,
+  waterfall steps, candle bodies, Gantt and broken bars, state segments and pcolormesh and spectrogram cells were built
+  from the corner that is the top left on an upright axis. With limits set high to low, or an inverted axis, they were
+  written with a negative width or height, which a browser does not draw: 12 of the 83 series types did so with both
+  axes inverted. The cookbook's horizontal bars read top down with `SetYLim(products.Length, 0)` were four bars
+  -92.4 px high, and two boxes under `SetYLim(15, 0)` in a 500 × 300 figure -46.2 px. Each is now the rectangle
+  between its two corners; upright figures draw the same bytes (all 177 sample outputs). A bullet graph band that comes
+  after a higher one now covers the stretch between the two lying down, as it did upright, where it had no width.
+
+- **The quadrants of a relative rotation graph stay in the plot.** When the data did not reach (100, 100), the four
+  fills were written tens of thousands of pixels wide, three with a negative size, and a crosshair ran far outside the
+  plot. A quadrant is now the part of the plot on its side of the centre, a crosshair is drawn only where the plot
+  shows 100, and on an axis that runs backwards the leading quadrant follows the higher values.
+
+- **A violin wears the colour it names.** Under a theme with violin colours of its own (matplotlib's classic style), a
+  violin's body ignored its `Color` and its legend swatch showed a colour the body did not wear (body `#BFBF00`,
+  swatch `#4C78A8`). The colour the series names now wins, then the theme's violin colour, then its slot, for the
+  body, its lines and the swatch alike.
+
+- **A name set as a Y tick is no longer cut by the figure edge.** Names a verb writes on the Y axis (a dot plot's
+  countries, a ridgeline's groups) were not measured by the layout: on a dot plot in 700 × 450, "United Kingdom"
+  started 25.6 px left of the figure. The left margin now holds the longest name and the Y title past it. A ridgeline
+  with a Y title, and a calendar under `TightLayout`, move a few pixels.
+
+- **Turned X tick labels are measured turned.** Labels turned by a set rotation, or by the 30 degrees crowded labels
+  turn, were laid out as if upright. On 6,600 test figures, the X title crossed them in 1,980 and long labels ran past
+  the bottom edge in 1,312; neither happens now. A 500 × 350 figure of 40 dates turned 30 degrees, with an X title,
+  now has a bottom margin of 87.7 px (51.9 before). Mirrored turned labels get room above the plot too.
+
+- **Drawing stacked bars no longer rewrites them.** A stacked render wrote its stacking into each bar's
+  `StackBaseline`, so switching the same figure back to grouped drew it stacked, and the JSON carried the render's
+  arithmetic. Bars lifted onto a `StackBaseline` you set are now inside the automatic Y range; they were cut off at the
+  top.
+
+- **A MACD histogram comes back from JSON on its x positions**, not in category slots. JSON whose bar positions do not
+  pair up with the values is refused.
+
+- **A symmetric-log axis over a narrow range draws.** Data from 45,000 to 45,400 with a threshold of 2 threw while
+  drawing.
+
+- **The MCP server reads the JSON the library writes.** A `"signal"` series was refused with "has 'yData' but no
+  'xData'", although that is the document `ToJson` writes for it. A misspelt value on a series of the top axis is now
+  refused like any other.
+
+- **The MCP server refuses a dendrogram spec, as it does the other charts it cannot read.** The server listed
+  `dendrogram` as a chart type, but the library's JSON reader builds a tree of one node, labelled "Root", and ignores
+  the tree in the document, so a spec was drawn as that one label with no sign that the data was dropped. The reader
+  now refuses it by name with the reason, like the seven others (`sankey`, `sunburst`, `treemap`, `polarbar`,
+  `polarline`, `polarscatter`, `treegrid`), and `list_chart_types` names it under the types that are not available.
+
+- **A save that fails keeps the old file.** `Figure.Save` wrote straight into the file, so a failed export left an
+  empty or truncated one; it now writes the file only when the export has succeeded. JSON with no `dpi` was read as a
+  figure of 0 dpi and now reads as 96.
+
+- **A hatch at a higher resolution is drawn with the device's pixels**, not drawn small and stretched into half-tones.
+  At 96 dpi the hatch is unchanged.
+
+- **A wiggle baseline of no layers is empty.** Asking for one threw an index error.
+
+- **A `BarGroup` without values is refused by name** with an `ArgumentException` naming the group, where `GroupedBar`
+  threw a `NullReferenceException`.
+
+- **Sample pictures carry no release number in their title**, which went stale with every release.
+
+- **Interactive SVGs no longer carry the project's own notes.** The scripts the library writes into an interactive
+  SVG (3-D rotation, zoom and pan, legend toggle and drag, tooltips, highlight, selection, treemap drill-down and
+  Sankey hover) held comments that named a phase of a plan, a release, a calendar date, "pre-fix" history and the test
+  or tool that found a bug. A 3-D chart with every browser interaction switched on carried 60 such lines; each 3-D
+  sample picture carried 20, the treemap drill-down picture 11 and the Sankey picture 1. Every comment now says what
+  the code does, and the scripts behave as before. The nine sample SVGs that embed a script were redrawn (two runs of
+  the generator are byte-identical; no other picture changed), and the same kind of note is gone from the
+  Playground page's script, from the treemap note the page shows (it ended in a release number and a phase label)
+  and from the documentation of `MplLiveChart.Client`. A test reads every embedded script,
+  another reads the sample pictures, and both fail on a phase label, a version number, a date or a test name.
+
+- **The documentation IntelliSense shows says what the code does.** `GraphLayout.ForceDirected`,
+  `NetworkGraphSeries` and the layout code called the force-directed layout reserved for a later release and said it
+  fell back to `Manual`, although it has been drawn for several releases (a graph of 5 nodes and 6 edges lays out
+  the same picture on every run, with or without a seed: identical SVG in two separate processes). The documentation
+  of the 46 enums that carried a phase label in their remarks, and of 34 other members that named a phase of a plan,
+  a date, a pull request or a test harness (`FigureBuilder.WithBrowserInteraction` and `WithTreemapDrilldown`,
+  `AxesBuilder.WithColorMap(string)`, the interaction theme, `FacetGridFigure.Hue`, among them), now says what the
+  member does; `FacetGridFigure.Hue` says it is kept and not used instead of promising a later release. The
+  cookbook's dashboard page no longer says a force-directed layout without a seed rearranges itself on every
+  refresh. A test reads the library's generated documentation and fails on a phase label, a date, a plan reference or
+  a "reserved until activated" claim.
+
+### Public API
+
+Everything below is new; nothing was removed or changed, which the pack checks against 1.19.0. Measured on the
+built assemblies against the 1.19.0 packages: 11 new public types, 80 members added to types the core package already
+had (74 of them properties of `SeriesDto`), and 2 in the Skia package.
+
+- `CategoricalAxesExtensions`: `Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`,
+  `Marimekko`.
+- `DistributionAxesExtensions`: `Ridgeline`, `QQPlot`, `KaplanMeier`.
+- `XYAxesExtensions`: `BumpChart`, `ControlChart`, `StreamGraph`.
+- `GridAxesExtensions`: `CalendarHeatmap`, `Spy`.
+- `NamedSample(Label, Values)` and `SurvivalGroup(Label, Durations, Observed)` in `MatPlotLibNet.Models.Series`, and
+  `ControlLimits(Center, Lower, Upper)`: the data the verbs take, beside `BarGroup`, whose documentation now names the
+  eight verbs that take it.
+- `DumbbellParts`, `ParetoParts`, `QQPlotParts` and `ControlChartParts`: what a verb's callback receives, the series
+  and lines on the axes themselves, with get-only properties and no public constructor.
+- `CategoryFormatter(string[] labels, double[] positions)`.
+- `FigureTemplates.SparklineDashboard(IReadOnlyList<NamedSample> series, string? title)`, beside the overload that takes
+  an array of tuples, which stays.
+- `WaterfallSeries.TotalIndices`; `WaterfallSeries` implements `ICategoryLabeled`.
+- `IFigureTransform.Transform(Figure, Stream, SaveOptions)`, with a default implementation that calls the
+  two-argument one; the virtual `FigureTransform.Transform(Figure, Stream, SaveOptions)` and its overrides on
+  `SvgTransform`, `PngTransform` and `PdfTransform`.
+- `SeriesDto`: 74 properties for the settings the series now write (one field can serve several series types):
+  `Align`, `ArrowSize`, `AutoPct`, `Baseline`, `BaselineColor`, `BlendMode`, `C`, `CapThick`, `CellHeight`,
+  `CellPadding`, `Colors`, `ColumnWidth`, `CounterClockwise`, `Cumulative`, `Density`, `DrawStyle`, `ELineWidth`,
+  `EdgeColor`, `EdgeColors`, `ErrorEvery`, `Explode`, `Fill`, `Filled`, `FontSize`, `Hatches`, `HeaderColor`,
+  `HeadlineFontSize`, `HistType`, `IndentWidth`, `InsideLabels`, `Iterations`, `LabelFit`, `LevelValues`,
+  `LineWidths`, `LinkAlpha`, `LinkColorMode`, `MarkEvery`, `Marker`, `MarkerColor`, `MarkerEdgeColor`,
+  `MarkerEdgeWidth`, `MarkerFaceColor`, `MaxDisplayPoints`, `MedianColor`, `MinLabelSweepDegrees`, `NodeAlignment`,
+  `NodePadding`, `NodeWidth`, `Padding`, `Positions`, `RMax`, `RWidth`, `Radius`, `RowHeight`, `SankeyOrientation`,
+  `Shadow`, `ShowExtrema`, `ShowLines`, `ShowMeans`, `ShowMedians`, `ShowOutliers`, `ShowZeroLine`, `Side`,
+  `StackBaseline`, `StemColor`, `StreamDensity`, `TotalIndices`, `Vert`, `Visible`, `Weights`, `Whis`, `Widths`,
+  `XCoordinate`, `ZOrder`.
+
+### Known limitations
+
+Several series cannot yet share one colour that follows the theme. So there is no raincloud verb (a half violin, a
+box and the points of a group would be three series in three colours). The Kaplan-Meier curve has no confidence band
+or censor marks. The Pareto chart's blue and orange are set on its two series, so they stay under any theme. A
+violin's outline counts the observations in a window around each of 21 heights; it is not a density estimate (on 12
+observations it shows 3 to 6 bumps where a kernel estimate draws one).
+
+The Q-Q plot compares a sample with the normal distribution only, and the control chart is the individuals chart
+with the first rule only. Parallel coordinates scale every column to 0..1 and draw no axis in each column's own units.
+There is no `matshow`: a heatmap's cells fill the plot, so they are square only on a figure with the matrix'
+proportions (a 10 × 10 matrix's cells are 0.696 as tall as wide on 500 × 350, 0.994 on 600 × 600). The same holds for
+a calendar's cells (2.05 times as tall as wide at 1100 × 300) and a spy plot's markers. Square cells need an aspect
+setting, one scale for both axes.
+
+Reference lines, levels, trendlines, Fibonacci lines, the dumbbell connector and the parallel-coordinates axis lines
+share one fixed grey, `#808080`. It stands at 3 : 1 or more against the plot of 25 of the 30 shipped themes, and below
+that on Nord (2.55), Dracula (2.32), Monokai (2.77), Gruvbox (2.94) and OpsPanel (2.70).
+
+A grid changed with `WithGrid` is written to JSON as it draws under the theme of that moment, so a theme set on the
+figure read back does not restyle it: a dot plot's guide lines differ on 20 of the 30 shipped themes that way. The
+colour backdrop of a line contour drawn with `Filled` does not follow the axes' range: under `SetXLim(1, 3)` the
+backdrop of a 5 × 4 grid still spans the plot while its lines move. `Contourf` is not affected.
+
+A turned tick label is not given room sideways: on 913 test figures the first label of a crowded axis passed the left
+edge in 13 (by up to 3.2 px) and a mirrored one passed the right edge in 5 (by up to 13.9 px). Y tick labels are
+measured upright. An annotation is drawn at font size 10 whatever the theme and cannot be offset in
+pixels, so a slope graph's start names are smaller than its end names and stand about 3 px above their markers.
+`LegendPosition.Best` is the upper right corner and does not look at the data.
+
+The tree of a treemap, sunburst or dendrogram, a Sankey diagram's nodes and links, the data of the polar series and a
+tree grid's rows come back from JSON as a placeholder, although their settings travel; the MCP server refuses each of
+those eight chart types by name. Live series and the planar 3-D bar do not come back as their own type, and an area's
+`Where` condition is code and is not written. A `StackPlot` layer's name does not reach the legend, and the MCP server
+refuses a stacked-area spec; `StreamGraph` gives every layer an entry.
+
+A calendar heatmap's data table gives each day's weekday and week column, not its date: the chart is a heatmap of its
+cells, and a heatmap does not keep the dates it was laid out from. A Marimekko chart's table keeps the edges of its
+columns (their widths are its data) and names its segments, not its columns, whose names stand under their centres,
+where no point of the chart stands.
+
+On a log axis, a stem or an error bar that ends at 0 or below is left out, where matplotlib clips it. The rings of a
+polar grid are scaled to 1.1 times the largest radius of all polar series, while a polar
+line or scatter scales to its own, so the ring labels do not read the data's radii. The five rings stand at fifths of
+that scale and their labels are printed at three decimals, all on the 0° spoke, so on a wind rose whose largest bar is
+14.1 they read 3.102, 6.204, 9.306, 12.408 and 15.510 side by side, as one string over the east bar; matplotlib's rings
+are round numbers and its labels stand at 22.5°. Without the Skia package, `Save("chart.png")` writes SVG text into the
+file, because an extension no format claims is written as an SVG.
+
+A colour bar puts its six ticks at equal steps of its range, so the bar of a calendar heatmap over values from 0 to 11
+reads 0.0, 2.2, 4.4, 6.6, 8.8 and 11.0, where matplotlib's locator gives 0, 2, 4, 6, 8 and 10. The bar has no tick
+setting of its own and does not use the tick locators an axis takes.
+
+The limitations listed under 1.19.0 still hold, except the last: `WithDpi` and `SaveOptions` now reach the file.
+
 ## [1.19.0]
 
 This release is for charts with more than one line and more than one axis. A line can carry its name at its end

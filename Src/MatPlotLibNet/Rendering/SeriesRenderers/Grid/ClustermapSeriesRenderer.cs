@@ -58,7 +58,7 @@ internal sealed class ClustermapSeriesRenderer : SeriesRenderer<ClustermapSeries
         // each call supplies a different RenderArea (sub-panel bounds derived from series ratios),
         // so the context changes on every Render() invocation.
         var heatCtx = Context with { Area = new RenderArea(panels.Heatmap, Context.Ctx) };
-        new HeatmapSeriesRenderer(heatCtx).Render(heatSeries);
+        new HeatmapSeriesRenderer(heatCtx).RenderInArea(heatSeries);
 
         // Render row dendrogram (left panel, root left → leaves right adjacent to heatmap)
         if (panels.RowDendrogram is Rect rdRect && series.RowTree is not null)

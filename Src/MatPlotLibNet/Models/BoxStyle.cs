@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Models;
 
 /// <summary>Specifies the visual style of the background box drawn around an annotation's text.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum BoxStyle
 {
     /// <summary>No background box is drawn. The annotation text is rendered without a surrounding box.</summary>

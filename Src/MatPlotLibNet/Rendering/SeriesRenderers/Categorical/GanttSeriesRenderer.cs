@@ -19,9 +19,9 @@ internal sealed class GanttSeriesRenderer : SeriesRenderer<GanttSeries>
         double halfH = series.BarHeight / 2;
         for (int i = 0; i < series.Tasks.Length; i++)
         {
-            var tl = Transform.DataToPixel(series.Starts[i], i + halfH);
-            var br = Transform.DataToPixel(series.Ends[i], i - halfH);
-            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
+            var bar = Rect.FromCorners(Transform.DataToPixel(series.Starts[i], i + halfH), Transform.DataToPixel(series.Ends[i], i - halfH));
+            if (!bar.IsDrawable()) continue;   // a task with an end that cannot be placed draws no bar
+            Ctx.DrawRectangle(bar, new ShapeStyle(color, null, 0));
         }
     }
 }

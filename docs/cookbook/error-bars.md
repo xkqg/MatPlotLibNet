@@ -50,12 +50,11 @@ Plt.Create()
 ```csharp
 Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
-        .ErrorBar(x, y, yerr, s =>
+        .ErrorBar(x, y, yerr, yerr, s =>
         {
             s.Color = Colors.Navy;
             s.CapSize = 8;
             s.LineWidth = 2.0;
-            s.Alpha = 0.8;
             s.Label = "Experiment A";
         })
         .WithLegend())
@@ -108,35 +107,19 @@ Plt.Create()
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `Color` | `Color` | auto | Line and cap color |
-| `CapSize` | `double` | `3` | Width of error bar caps in pixels |
-| `LineWidth` | `double` | `1.0` | Error bar line width |
-| `Alpha` | `double` | `1.0` | Transparency (0–1) |
+| `CapSize` | `double` | `5` | Width of error bar caps in pixels |
+| `LineWidth` | `double` | `1.5` | Line width of the bars and the caps |
+| `ELineWidth` | `double?` | none | Width of the error bars alone (none: `LineWidth`) |
+| `CapThick` | `double?` | none | Thickness of the caps alone (none: `LineWidth`) |
+| `ErrorEvery` | `int` | `1` | Draw the error bars of every Nth point only |
+| `XErrorLow`, `XErrorHigh` | `double[]` | none | Horizontal errors to the left and right |
 | `Label` | `string` | none | Legend label |
 
 ## Dumbbell chart (before vs after)
 
-```csharp
-// Indices 0–5: Product A–F
-double[] before = [62.0, 78.5, 55.0, 83.0, 70.0, 48.0];
-double[] after  = [74.0, 82.0, 68.0, 79.5, 88.5, 61.0];
-double[] xIdx   = Enumerable.Range(0, before.Length).Select(i => (double)i).ToArray();
-double[] zeros  = new double[before.Length];
-double[] dumbDiff = before.Zip(after, (b, a) => Math.Abs(a - b)).ToArray();
-
-Plt.Create()
-    .WithTitle("Dumbbell Chart — Before vs After")
-    .WithSize(800, 450)
-    .AddSubPlot(1, 1, 1, ax => ax
-        .ErrorBar(xIdx, before, zeros, dumbDiff, s => { s.Color = Color.FromHex("#AAAAAA"); s.LineWidth = 3; s.CapSize = 0; })
-        .Scatter(xIdx, before, s => { s.Color = Color.FromHex("#E74C3C"); s.MarkerSize = 14; s.Marker = MarkerStyle.Circle; s.Label = "Before"; })
-        .Scatter(xIdx, after, s => { s.Color = Color.FromHex("#2ECC71"); s.MarkerSize = 14; s.Marker = MarkerStyle.Circle; s.Label = "After"; })
-        .SetYLim(30, 100)
-        .SetYLabel("Score")
-        .WithLegend())
-    .Save("dumbbell_chart.svg");
-```
-
-![Dumbbell chart](../images/dumbbell_chart.png)
+A dumbbell chart, two dots per category joined by a connector, is one call: `ax.Dumbbell(categories, before,
+after)`. Its connector is an error bar with no error, spanning the two dots whichever is higher. See
+[Dumbbell chart](bar-charts.md#dumbbell-chart) on the bar charts page.
 
 ## A/B test with confidence intervals
 

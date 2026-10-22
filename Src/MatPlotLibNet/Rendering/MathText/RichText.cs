@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Rendering.MathText;
 
 /// <summary>Classifies a text span for rendering purposes.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum TextSpanKind
 {
     /// <summary>Normal inline text.</summary>
@@ -56,8 +56,8 @@ public enum TextSpanKind
 }
 
 /// <summary>Font variant for mixed-font math mode (<c>\mathrm</c>, <c>\mathbf</c>, etc.).</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum FontVariant
 {
     /// <summary>Default math italic.</summary>

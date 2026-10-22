@@ -41,7 +41,7 @@ public sealed class DendrogramSeries : HierarchicalSeries
     public DendrogramSeries(TreeNode root) : base(root) { }
 
     /// <inheritdoc />
-    public override SeriesDto ToSeriesDto() => new()
+    public override SeriesDto ToSeriesDto() => this.DescribeSharedSettings(new()
     {
         Type = "dendrogram",
         DendrogramOrientation = Orientation != Models.Series.DendrogramOrientation.Top
@@ -49,9 +49,7 @@ public sealed class DendrogramSeries : HierarchicalSeries
         CutHeight = CutHeight,
         CutLineColor = CutLineColor,
         ColorByCluster = ColorByCluster ? null : false,
-        ColorMapName = ColorMap?.Name,
-        ShowLabels = ShowLabels ? null : false,
-    };
+    });
 
     /// <summary>Reconstructs a <see cref="DendrogramSeries"/> from its serialization DTO and adds it to the axes.</summary>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
@@ -76,14 +74,7 @@ public sealed class DendrogramSeries : HierarchicalSeries
         {
             s.ColorByCluster = dto.ColorByCluster.Value;
         }
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
-        if (dto.ShowLabels.HasValue)
-        {
-            s.ShowLabels = dto.ShowLabels.Value;
-        }
+        s.RestoreSharedSettings(dto);
         return s;
     }
 

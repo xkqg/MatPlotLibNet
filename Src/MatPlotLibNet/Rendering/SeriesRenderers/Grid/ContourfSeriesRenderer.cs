@@ -26,8 +26,12 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
         int cols = series.ZData.GetLength(1);
         if (rows < 2 || cols < 2) return;
 
+        // The levels the user named bound the bands, or else the count's evenly spaced levels over the grid's range.
         int nLevels = Math.Max(2, series.Levels);
-        var bands = MarchingSquares.ExtractBands(series.XData, series.YData, series.ZData, nLevels);
+        double[]? named = series.LevelValues.ExplicitLevels();
+        var bands = named is null
+            ? MarchingSquares.ExtractBands(series.XData, series.YData, series.ZData, nLevels)
+            : MarchingSquares.ExtractBands(series.XData, series.YData, series.ZData, named);
         if (bands.Length == 0) return;
 
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
@@ -43,16 +47,14 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
             Ctx.SetOpacity(series.Alpha);
 
         // Painter's algorithm: bottom band fills the entire plot area
-        double t0 = norm.Normalize(bands[0].LevelLow + (bands[0].LevelHigh - bands[0].LevelLow) * 0.5, zMin, zMax);
-        var bottomColor = cmap.GetColor(t0);
-        Ctx.DrawRectangle(Area.PlotBounds, new ShapeStyle(bottomColor, null, 0));
+        var bottomColor = cmap.ColorOf(bands[0].LevelLow + (bands[0].LevelHigh - bands[0].LevelLow) * 0.5, norm, zMin, zMax);
+        FillBottomBand(series, new ShapeStyle(bottomColor, null, 0));
 
         // Paint each band's polygons ascending
         for (int b = 0; b < bands.Length; b++)
         {
             double bandMid = bands[b].LevelLow + (bands[b].LevelHigh - bands[b].LevelLow) * 0.5;
-            double t = norm.Normalize(bandMid, zMin, zMax);
-            var color = cmap.GetColor(t);
+            var color = cmap.ColorOf(bandMid, norm, zMin, zMax);
 
             foreach (var polygon in bands[b].Polygons)
             {
@@ -76,9 +78,8 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
         // Overlay iso-lines if requested
         if (!series.ShowLines) return;
 
-        double[] levels = new double[nLevels];
-        for (int i = 0; i < nLevels; i++)
-            levels[i] = zMin + i * zRange / (nLevels - 1);
+        // The lines stand on the bands' edges: the levels named, or the count's levels over the span the bands cover.
+        double[] levels = named ?? ContourLevels.Spanning(zMin, zMax, nLevels);
 
         var contours = MarchingSquares.Extract(series.XData, series.YData, series.ZData, levels);
         foreach (var contour in contours)
@@ -88,9 +89,39 @@ internal sealed class ContourfSeriesRenderer : SeriesRenderer<ContourfSeries>
             foreach (var pt in contour.Points)
                 pixels.Add(Transform.DataToPixel(pt.X, pt.Y));
 
-            double tLine = norm.Normalize(contour.Level, zMin, zMax);
-            var lineColor = cmap.GetColor(tLine);
+            var lineColor = cmap.ColorOf(contour.Level, norm, zMin, zMax);
             Ctx.DrawLines(pixels, new StrokeStyle(lineColor, series.LineWidth, LineStyle.Solid));
+        }
+    }
+
+    /// <summary>Paints the lowest band under the others: over the whole plot area, or, when the grid has a cell with a
+    /// missing corner, over each drawable cell, so a masked cell stays empty as matplotlib leaves it (painting it would
+    /// show the lowest band where nothing was measured).</summary>
+    private void FillBottomBand(ContourfSeries series, ShapeStyle style)
+    {
+        double[] x = series.XData, y = series.YData;
+        double[,] z = series.ZData;
+        int rows = Math.Min(z.GetLength(0), y.Length), cols = Math.Min(z.GetLength(1), x.Length);
+        bool IsDrawable(int r, int c) => z.IsDrawableCell(x, y, r, c);
+
+        bool masked = false;
+        for (int r = 0; r < rows - 1 && !masked; r++)
+            for (int c = 0; c < cols - 1 && !masked; c++)
+                masked = !IsDrawable(r, c);
+
+        if (!masked)
+        {
+            Ctx.DrawRectangle(Area.PlotBounds, style);
+            return;
+        }
+
+        for (int r = 0; r < rows - 1; r++)
+        {
+            for (int c = 0; c < cols - 1; c++)
+            {
+                if (!IsDrawable(r, c)) continue;
+                Ctx.DrawRectangle(Rect.FromCorners(Transform.DataToPixel(x[c], y[r]), Transform.DataToPixel(x[c + 1], y[r + 1])), style);
+            }
         }
     }
 }

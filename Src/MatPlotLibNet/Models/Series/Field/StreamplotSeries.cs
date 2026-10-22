@@ -40,8 +40,13 @@ public sealed class StreamplotSeries : ChartSeries, IHasColor
     }
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        new(X.Min(), X.Max(), Y.Min(), Y.Max());
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        // Over the drawable grid coordinates only: a missing one (NaN) and an infinity are left out.
+        var x = X.DrawableRange();
+        var y = Y.DrawableRange();
+        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi);
+    }
 
     /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
@@ -52,7 +57,9 @@ public sealed class StreamplotSeries : ChartSeries, IHasColor
         HeatmapData = ChartSerializer.To2DList(U),
         VFieldData = ChartSerializer.To2DList(V),
         LineWidth = LineWidth,
-        Color = Color
+        Color = Color,
+        ArrowSize = ArrowSize.OrNullAtRest(1.0),
+        StreamDensity = Density.OrNullAtRest(1.0),
     };
 
     /// <summary>Reconstructs a <see cref="StreamplotSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -69,6 +76,14 @@ public sealed class StreamplotSeries : ChartSeries, IHasColor
         if (dto.LineWidth.HasValue)
         {
             s.LineWidth = dto.LineWidth.Value;
+        }
+        if (dto.ArrowSize.HasValue)
+        {
+            s.ArrowSize = dto.ArrowSize.Value;
+        }
+        if (dto.StreamDensity.HasValue)
+        {
+            s.Density = dto.StreamDensity.Value;
         }
         return s;
     }

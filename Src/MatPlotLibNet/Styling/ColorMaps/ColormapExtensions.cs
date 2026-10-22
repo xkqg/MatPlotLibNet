@@ -34,4 +34,25 @@ public static class ColormapExtensions
     /// <paramref name="singletonT"/> when <paramref name="count"/> ≤ 1.</returns>
     public static double ColormapFraction(this int index, int count, double singletonT = 0.5)
         => count <= 1 ? singletonT : index / (double)(count - 1);
+
+    /// <summary>The colour <paramref name="map"/> draws a missing value (NaN) in: its bad colour
+    /// (<see cref="IColorMap.GetBadColor"/>), transparent when it names none, which is matplotlib's default bad colour.
+    /// The one rule a map's own lookup and every renderer share.</summary>
+    /// <param name="map">The colormap whose bad colour is asked.</param>
+    /// <returns>The bad colour, or <see cref="Colors.Transparent"/>.</returns>
+    internal static Color MissingValueColor(this IColorMap map) => map.GetBadColor() ?? Colors.Transparent;
+
+    /// <summary>The colour a data value is drawn in: the one place a renderer colours a value through a colormap.
+    /// A missing value (NaN) is <see cref="MissingValueColor"/> and reaches neither the normalizer nor the lookup:
+    /// <see cref="BoundaryNormalizer"/> would put it in its last bin and <see cref="SymLogNormalizer"/> would throw on it.
+    /// Every other value, infinity included, is normalised over [<paramref name="min"/>, <paramref name="max"/>] and
+    /// looked up, so an infinite value takes the end colour the normalizer clamps it to.</summary>
+    /// <param name="map">The colormap to look the value up in.</param>
+    /// <param name="value">The data value, not yet normalised.</param>
+    /// <param name="normalizer">Maps the value into [0, 1].</param>
+    /// <param name="min">The low end of the value range.</param>
+    /// <param name="max">The high end of the value range.</param>
+    /// <returns>The colour to draw the value in.</returns>
+    internal static Color ColorOf(this IColorMap map, double value, INormalizer normalizer, double min, double max)
+        => value.IsMissing() ? map.MissingValueColor() : map.GetColor(normalizer.Normalize(value, min, max));
 }

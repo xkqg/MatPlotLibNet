@@ -1,6 +1,6 @@
 ---
 title: "Histograms, box plots and violin plots in C#"
-description: "Draw distributions in C#: histograms, box plots, violin plots, KDE curves, ECDF and strip plots over your data."
+description: "Draw distributions in C#: histograms, box plots, violin plots, KDE curves and density scatters, and in one call each a ridgeline, a Q-Q plot and a Kaplan-Meier survival curve."
 ---
 
 # Distribution Charts
@@ -132,6 +132,33 @@ Plt.Create()
 
 ![Violin plot](../images/violin.png)
 
+### Placing violins and boxes
+
+`Positions` puts each violin or box at an x of your choice, and the X axis follows them: its automatic range covers
+what is drawn around each position. `Widths` sets how wide they are, and a half violin (`Side =
+ViolinSide.High` or `Low`) makes no room on the side it does not draw:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Violin(groups, s =>
+        {
+            s.Positions = [10, 20, 30];
+            s.Widths = 6;
+            s.Side = ViolinSide.High;
+        })
+        .BoxPlot(groups, s =>
+        {
+            s.Positions = [10, 20, 30];
+            s.Widths = 1.5;
+        }))
+    .Save("violin_positions.svg");
+```
+
+Under a theme that gives violins colours of their own (`Theme.MatplotlibClassic`: a yellow body and red lines), a
+violin that names a `Color` wears that colour, body and lines alike, and its legend entry shows the colour the body
+wears.
+
 ## KDE (Kernel Density Estimation)
 
 ```csharp
@@ -205,41 +232,117 @@ ax.DensityScatter(x, y, s => { s.C = error; s.ColorMap = DivergingColorMaps.RdBu
 | `Hatch` | `HatchPattern` | `None` | Texture pattern |
 | `HatchColor` | `Color` | auto | Hatch pattern color |
 
-## Ridge plot
+## Ridgeline (joyplot)
 
-A ridge plot shows the distribution of several groups, each offset vertically. This example computes the KDE by hand and draws each ridge with `FillBetween`.
+A ridgeline shows the distribution of several groups as ridges, one above the other, so many distributions compare
+at a glance. Each group is a `NamedSample`: a name and its observations, of any length.
 
 ```csharp
 var rng = new Random(42);
-double BM(Random r) { double u1 = 1 - r.NextDouble(), u2 = 1 - r.NextDouble(); return Math.Sqrt(-2 * Math.Log(u1)) * Math.Sin(2 * Math.PI * u2); }
-double[] xGrid = Enumerable.Range(0, 300).Select(i => i * 0.04 - 3.0).ToArray();
+// Box-Muller: a normally distributed sample built from two uniform ones.
+double Gaussian(double mean, double sd) =>
+    mean + sd * Math.Sqrt(-2 * Math.Log(1 - rng.NextDouble())) * Math.Cos(2 * Math.PI * rng.NextDouble());
 
-double[] GaussKde(double[] data, double bw = 0.5) =>
-    xGrid.Select(xi => data.Sum(d => { double z = (xi - d) / bw; return Math.Exp(-0.5 * z * z) / (bw * Math.Sqrt(2 * Math.PI)); }) / data.Length).ToArray();
-
-string[] groups = ["Group A", "Group B", "Group C", "Group D", "Group E", "Group F"];
+string[] names = ["Group A", "Group B", "Group C", "Group D", "Group E", "Group F"];
 double[] means = [-1.2, -0.4, 0.2, 0.7, 1.3, 1.9];
-var palette = new[] { "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#A65628" };
+NamedSample[] groups = [.. names.Select((name, g) =>
+    new NamedSample(name, [.. Enumerable.Range(0, 200).Select(_ => Gaussian(means[g], 0.6))]))];
 
 Plt.Create()
-    .WithTitle("Ridge Plot")
+    .WithTitle("Ridgeline")
     .WithSize(900, 600)
-    .AddSubPlot(1, 1, 1, ax =>
-    {
-        for (int g = 0; g < groups.Length; g++)
-        {
-            double offset = g * 0.6;
-            double[] data = Enumerable.Range(0, 200).Select(_ => means[g] + BM(rng) * 0.6).ToArray();
-            double[] kde = GaussKde(data);
-            double[] kdeShifted = kde.Select(v => v + offset).ToArray();
-            double[] baseline = Enumerable.Repeat(offset, xGrid.Length).ToArray();
-            var col = Color.FromHex(palette[g]);
-            ax.FillBetween(xGrid, kdeShifted, baseline, s => { s.Color = col; s.Alpha = 0.6; s.Label = groups[g]; });
-            ax.Plot(xGrid, kdeShifted, s => { s.Color = col; s.LineWidth = 1.5; });
-        }
-        ax.WithLegend();
-    })
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Ridgeline(groups, configure: ridge => ridge.Alpha = 0.7)
+        .SetXLabel("Value"))
     .Save("ridge_plot.svg");
 ```
 
-![Ridge plot](../images/ridge_plot.png)
+![Ridgeline](../images/ridge_plot.png)
+
+`Ridgeline` estimates the density of every group and lays the ridges out; what used to take a hand-written kernel
+estimate, offsets and a baseline per ridge is one call:
+
+- **One way of estimating, so the ridges compare.** Every ridge stands on one shared grid of 200 points and is
+  estimated with one bandwidth: the `bandwidth` you pass, or else the mean of the groups' own Silverman bandwidths
+  (the rule ggridges uses). The distance between the groups is not counted as spread, so groups far apart are not
+  smoothed into each other. The price: a group narrower than the others is drawn as wide as the shared bandwidth.
+  Pass `bandwidth` to choose the smoothing yourself.
+- **One height scale.** The tallest ridge reaches exactly the next baseline and every other ridge keeps its height
+  relative to it, so no ridge runs into the one above, whatever the units of the data.
+- **Names on the axis.** The first group is at the top, and the group names are the Y axis' tick labels, one on each
+  baseline. The lower ridges are drawn in front.
+
+Each ridge is one area series in one colour of the theme's cycle; the last argument runs once per ridge, top
+first. A ridge has no legend entry, since its name is on the axis. A missing observation (`double.NaN`) is left out
+of the estimate; a group with fewer than two observations is refused. The estimate costs groups × 200 × observations
+evaluations: six groups of 1,000 observations take about 6 ms, six of 20,000 about 170 ms.
+
+## Q-Q plot
+
+A Q-Q plot (a normal probability plot) shows how a sample differs from a normal one: the sorted sample up the Y
+axis against the normal quantiles at the same ranks along the X axis, with a reference line.
+
+```csharp
+double[] returns = [0.8, -1.2, 0.3, 2.1, -0.4, 0.9, -2.6, 0.1, 1.4, -0.7, 0.5, -0.2,
+                    1.1, -0.9, 0.6, -3.4, 0.2, 1.7, -0.5, 0.4];
+
+Plt.Create()
+    .WithTitle("Daily returns against the normal distribution")
+    .WithSize(700, 500)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .QQPlot(returns, parts => parts.Points.Alpha = 0.8)
+        .SetYLabel("Daily return (%)"))
+    .Save("qq_plot.svg");
+```
+
+![Q-Q plot](../images/qq_plot.png)
+
+Points on the line mean a normal sample; an S shape means tails lighter or heavier than normal; a bow means the
+sample is skewed. The conventions are scipy's `probplot`: Filliben's plotting positions, and a least-squares line
+through the points, whose slope estimates the standard deviation and whose height at 0 the mean. R's `qqnorm`
+and `qqline` use other plotting positions and a line through the quartiles, so their picture differs slightly.
+
+The points are one scatter series in the theme's first colour; the reference line is solid red, as `probplot` draws
+it, takes no colour from the theme's cycle and has no legend entry. The line is cut at the edge of the plot: for a
+skewed sample it runs out through the frame, where scipy widens the axes to hold all of it. `QQPlotParts` hands
+you both: `parts.Reference.IsExtended = true` draws the line across the whole plot, as R does. The verb titles
+the axes "Theoretical quantiles" and "Sample quantiles"; a title you set after the call replaces it. A missing
+observation is left out; fewer than two observations are refused. Only the normal distribution is compared.
+
+## Kaplan-Meier curve
+
+A survival curve: for each group the estimated probability of not yet having had the event, stepping down at every
+event. Each group is a `SurvivalGroup`: its name, how long each subject was followed, and whether the event was
+seen then (`true`) or the subject was censored then (`false`: lost to follow-up, or still without the event when
+the study ended).
+
+```csharp
+SurvivalGroup[] arms =
+[
+    new("Treatment", [6, 7, 10, 15, 19, 25, 32, 34], [true, true, false, true, false, true, false, false]),
+    new("Placebo",   [1, 2, 3, 4, 5, 8, 8, 11],      [true, true, true, false, true, true, true, true]),
+];
+
+Plt.Create()
+    .WithTitle("Time to relapse")
+    .WithSize(800, 450)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .KaplanMeier(arms)
+        .SetXLabel("Weeks"))
+    .Save("kaplan_meier.svg");
+```
+
+![Kaplan-Meier curve](../images/kaplan_meier.png)
+
+The estimate is the product-limit estimator. At a time when d events happen among n subjects still at risk, the
+curve drops to its level times (1 − d/n). All events at one time are one step, and a subject censored at an event
+time still counts as at risk then (events before censorings, as R's survival package and lifelines count them). A
+censored subject causes no step. The curve starts at 1 at time 0, and when the last follow-up is a censoring after
+the last event it runs on at its last level to that time. The arithmetic is counts and products only, so the curve
+is the same on every platform.
+
+Each group is one line series drawn in steps, named in the legend after its group. The Y axis is titled "Survival
+probability"; the X axis is yours to title, since the unit is your durations'. This is the curve only: no
+number-at-risk table, no log-rank test, no confidence band and no censor marks. A duration that is missing,
+negative or infinite is refused, because a subject without a time cannot be counted at risk; leave that subject
+out of the arrays if that is what you mean.

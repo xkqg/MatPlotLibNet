@@ -11,7 +11,8 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>A single-value "stat tile": a big formatted headline number with the series
 /// <see cref="ChartSeries.Label"/> beneath it, filling its plot area. Built for compact dashboard KPIs
 /// ("12 participants", "0 alerts"). It carries no axes/data, so <see cref="ComputeDataRange"/> contributes
-/// nothing — the tile occupies the whole region it is placed in (use a mosaic / sub-plot per tile).</summary>
+/// nothing — the tile occupies the whole region it is placed in (use a mosaic / sub-plot per tile). The tile draws
+/// its label itself, so it never appears as a legend entry.</summary>
 public sealed class StatTileSeries : ChartSeries
 {
     /// <summary>The value displayed as the tile's headline number.</summary>
@@ -86,6 +87,10 @@ public sealed class StatTileSeries : ChartSeries
 
     /// <summary>The headline value rendered with <see cref="Format"/> under the invariant culture.</summary>
     internal string FormattedValue => Value.ToString(Format, CultureInfo.InvariantCulture);
+
+    /// <summary>A tile draws its <see cref="ChartSeries.Label"/> itself, beneath the headline number, so it is never
+    /// a legend entry: the entry would repeat the name in a swatch that covers the number.</summary>
+    internal override bool DrawsOwnLabel => true;
 
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) => new(null, null, null, null);

@@ -162,7 +162,7 @@ public class LeastSquaresTests
         Assert.Single(upper);
     }
 
-    /// <summary>StudentTQuantile L212 TRUE — dof ≥ 120 → NormalQuantile path.
+    /// <summary>StudentTQuantile L212 TRUE — dof ≥ 120 → the normal quantile (<see cref="StandardNormal.Quantile"/>).
     /// n=122, degree=0 → m=1, dof=max(122−1,1)=121.</summary>
     [Fact]
     public void ConfidenceBand_Dof121_UsesNormalQuantile_ProducesFiniteBand()
@@ -174,10 +174,30 @@ public class LeastSquaresTests
         Assert.True(double.IsFinite(upper[0]) && upper[0] > lower[0]);
     }
 
-    /// <summary>NormalQuantile L251 TRUE — p &lt; 0.5 → recursive call with (1−p).
-    /// level=−0.2 → p=(1+(−0.2))/2=0.4 &lt; 0.5; dof=121 routes to NormalQuantile.</summary>
+    /// <summary>With 121 degrees of freedom the band is z · s · √h wide on each side, with z the exact standard normal quantile
+    /// (<see cref="StandardNormal.Quantile"/>), not an approximation that is off by up to 4.4e-4: a mean fit (degree 0) of
+    /// 122 values of ±0.3 has leverage h = 1/122 and s² = Σr² / 121 with Σr² = 122 · 0.09. Before the exact quantile, the
+    /// 95 % band was 4.3e-4 · s · √h too wide (z = 1.96039 for 1.95996).</summary>
+    [Theory]
+    [InlineData(0.5, 0.6744897501960817)]
+    [InlineData(0.9, 1.6448536269514722)]
+    [InlineData(0.95, 1.959963984540054)]
+    [InlineData(0.99, 2.5758293035489004)]
+    public void ConfidenceBand_Dof121_HalfWidthIsTheExactNormalQuantileTimesTheStandardError(double level, double z)
+    {
+        double[] x = Enumerable.Range(0, 122).Select(i => (double)i).ToArray();
+        double[] y = x.Select((_, i) => i % 2 == 0 ? 0.3 : -0.3).ToArray();
+        double[] coeff = LeastSquares.PolyFit(x, y, 0);
+        var (upper, lower) = LeastSquares.ConfidenceBand(x, y, coeff, [61.0], level);
+        double s = Math.Sqrt(122 * 0.09 / 121.0);
+        double expected = z * s * Math.Sqrt(1.0 / 122.0);
+        Assert.Equal(expected, (upper[0] - lower[0]) / 2.0, 1e-12);
+    }
+
+    /// <summary>A level below zero puts the probability below the median: level=−0.2 → p=(1+(−0.2))/2=0.4, the lower half of
+    /// the quantile function; dof=121 routes to the normal quantile. The band stays finite.</summary>
     [Fact]
-    public void ConfidenceBand_NegativeLevel_NormalQuantileRecurses_DoesNotThrow()
+    public void ConfidenceBand_NegativeLevel_DoesNotThrow()
     {
         double[] x = Enumerable.Range(0, 122).Select(i => (double)i).ToArray();
         double[] y = x.Select((xi, i) => 2.0 * xi + 1.0 + (i % 2 == 0 ? 0.3 : -0.3)).ToArray();
@@ -186,7 +206,7 @@ public class LeastSquaresTests
         Assert.True(double.IsFinite(upper[0]) && double.IsFinite(lower[0]));
     }
 
-    /// <summary>NormalQuantile L250 TRUE — p ≥ 1 → +Infinity.
+    /// <summary>A probability of one or more has the quantile +Infinity.
     /// level=1.1 → p=1.05 ≥ 1; margin=+∞ → upper is +∞.</summary>
     [Fact]
     public void ConfidenceBand_LevelAbove1_NormalQuantileReturnsPositiveInfinity()
@@ -198,7 +218,7 @@ public class LeastSquaresTests
         Assert.True(double.IsPositiveInfinity(upper[0]));
     }
 
-    /// <summary>NormalQuantile L249 TRUE — p ≤ 0 → −Infinity.
+    /// <summary>A probability of zero or less has the quantile −Infinity.
     /// level=−1.2 → p=−0.1 ≤ 0; margin=−∞ → upper is −∞.</summary>
     [Fact]
     public void ConfidenceBand_LevelBelow_Minus1_NormalQuantileReturnsNegativeInfinity()

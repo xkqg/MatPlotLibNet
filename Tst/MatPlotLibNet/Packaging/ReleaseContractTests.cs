@@ -1149,6 +1149,19 @@ public class ReleaseContractTests
                  $"the translation table writes \"{receiver}.\", which is neither a known receiver nor a public type"),
     };
 
+    /// <summary>Whether the library declares a public extension method named <paramref name="member"/> on
+    /// <paramref name="receiver"/>. A verb such as <c>ax.Pareto</c> is called on the axes like any member of
+    /// <see cref="AxesBuilder"/>, though it lives in a family class of its own (<c>CategoricalAxesExtensions</c>),
+    /// so the table may name it as a reader writes it.</summary>
+    private static bool IsExtensionOf(Type receiver, string member) =>
+        typeof(Plt).Assembly.GetExportedTypes()
+            .Where(t => t.IsAbstract && t.IsSealed)
+            .SelectMany(t => t.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+            .Any(m => m.Name == member
+                      && m.IsDefined(typeof(System.Runtime.CompilerServices.ExtensionAttribute), inherit: false)
+                      && m.GetParameters() is [var first, ..]
+                      && first.ParameterType == receiver);
+
     [Fact]
     public void TheMatplotlibTranslationPage_NamesOnlyCallsThisLibraryHas()
     {
@@ -1175,7 +1188,7 @@ public class ReleaseContractTests
             var type = ReceiverType(call.Groups["receiver"].Value);
             string member = call.Groups["member"].Value;
 
-            Assert.True(type.GetMember(member).Length > 0,
+            Assert.True(type.GetMember(member).Length > 0 || IsExtensionOf(type, member),
                 $"the table says {call.Groups["receiver"].Value}.{member}, and {type.Name} has no such member");
             checkedCalls++;
         }
@@ -1217,6 +1230,31 @@ public class ReleaseContractTests
         Assert.NotEqual(string.Empty, platformVersion);
         Assert.Contains(platformVersion, readme, StringComparison.Ordinal);
         Assert.Contains("SkiaSharp.Views.WPF", readme, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Dpi")]
+    [InlineData("Title")]
+    [InlineData("Author")]
+    public void TheSkiaReadme_NamesEachSaveSettingThePngAndPdfExportsRead(string setting)
+    {
+        // PngTransform reads Dpi, Title and Author of the SaveOptions it is handed, PdfTransform reads Title and Author.
+        // The README ships inside the package, and it is where a consumer of the PNG and PDF export looks for what a
+        // save can set; a setting the export reads and the README does not name is one nobody finds.
+        Assert.NotNull(typeof(SaveOptions).GetProperty(setting));
+        Assert.Contains($"{setting} = ", Read("Src", "MatPlotLibNet.Skia", "README.md"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheMcpReadme_SaysASpecsDpiSizesThePngInsideTheCanvasCeiling()
+    {
+        // The spec's dpi sizes the PNG, so the 4,000 by 4,000 pixel ceiling holds for the picture it draws. The README
+        // ships inside the package; the tool descriptions say it to a model, this says it to the person who installs it.
+        string readme = Read("Src", "MatPlotLibNet.Mcp", "README.md");
+
+        Assert.Contains("`dpi`", readme, StringComparison.Ordinal);
+        Assert.Contains("ceiling", readme, StringComparison.Ordinal);
+        Assert.Contains("PNG", readme[readme.IndexOf("`dpi`", StringComparison.Ordinal)..], StringComparison.Ordinal);
     }
 }
 

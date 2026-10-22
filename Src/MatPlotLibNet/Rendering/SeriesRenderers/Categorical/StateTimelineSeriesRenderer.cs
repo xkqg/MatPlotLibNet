@@ -25,13 +25,14 @@ internal sealed class StateTimelineSeriesRenderer : SeriesRenderer<StateTimeline
 
         foreach (var seg in series.Segments)
         {
-            var left  = Transform.DataToPixel(seg.Start, 1.0);
-            var right = Transform.DataToPixel(seg.End,   0.0);
+            // From the start to the end across the full height: the rectangle between those corners, of positive width
+            // on an X axis that runs backwards too.
+            var segment = Rect.FromCorners(
+                new Point(Transform.DataToPixel(seg.Start, 1.0).X, yTop),
+                new Point(Transform.DataToPixel(seg.End, 0.0).X, yBottom));
 
-            double x = left.X;
-            double w = right.X - left.X;
-            double y = yTop;
-            double h = yBottom - yTop;
+            // A segment with an end that cannot be placed is skipped with its label.
+            if (!segment.IsDrawable()) continue;
 
             // Draw the filled rectangle spanning the full plot height. A hatched segment reads as "no
             // information" rather than as a state — see StateSegment.Hatch. When the caller stated a
@@ -40,13 +41,13 @@ internal sealed class StateTimelineSeriesRenderer : SeriesRenderer<StateTimeline
                 ? seg.Hatch
                 : seg.Condition.Resolve(Context.Theme.Alarm).Hatch;
 
-            Ctx.DrawRectangle(new Rect(x, y, w, h), new ShapeStyle(seg.Color, null, 0) { Hatch = hatch });
+            Ctx.DrawRectangle(segment, new ShapeStyle(seg.Color, null, 0) { Hatch = hatch });
 
             // Centre the label text inside the rectangle
             if (!string.IsNullOrEmpty(seg.Label))
             {
-                double textX = x + w / 2.0;
-                double textY = y + h / 2.0;
+                double textX = segment.X + segment.Width / 2.0;
+                double textY = segment.Y + segment.Height / 2.0;
                 Ctx.DrawText(seg.Label, new Point(textX, textY),
                     new Font { Size = 11 }, TextAlignment.Center);
             }

@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Models;
 
 /// <summary>Configurable opacity / transition tokens used by the embedded browser-side
-/// interaction scripts. Defaults match the v1.7.1 hard-coded values, so callers who don't
-/// opt in see no behaviour change. Set via <see cref="MatPlotLibNet.FigureBuilder.WithInteractionTheme"/>;
+/// interaction scripts. Defaults match the values the scripts hard-coded before they were
+/// configurable, so callers who don't opt in see no behaviour change. Set via <see cref="MatPlotLibNet.FigureBuilder.WithInteractionTheme"/>;
 /// the values are emitted as <c>data-mpl-*</c> attributes on each owning SVG and the
 /// scripts read them at runtime.</summary>
 /// <param name="HighlightOpacity">Opacity applied to non-hovered series during highlight (default 0.3).</param>

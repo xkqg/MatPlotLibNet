@@ -77,15 +77,17 @@ public class LogAxisRangeTests
     }
 
     /// <summary>A window that priced 0 µs is a point the axis cannot place; it is MASKED — dropped from the
-    /// range and from the line — never allowed to blank the panel.</summary>
+    /// range and from the line — never allowed to blank the panel. A masked point breaks the line there, as in
+    /// matplotlib: the 2 before it has no neighbour left to join, so the one line drawn is 20, 80, 250.</summary>
     [Fact]
-    public void AZeroValue_IsMasked_NotFatal()
+    public void AZeroValue_IsMasked_AndBreaksTheLine()
     {
         string svg = Render([2, 0, 20, 80, 250]);
 
-        string points = Points(svg);
+        var lines = Polyline.Matches(svg).Select(m => m.Groups[1].Value).ToList();
+        string points = Assert.Single(lines);
         Assert.DoesNotContain("NaN", points);
-        Assert.Equal(4, points.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
+        Assert.Equal(3, points.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
     }
 
     [Fact]

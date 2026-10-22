@@ -48,10 +48,13 @@ public sealed class SignalSeries : XYSeries, XY.IMonotonicXY, IHasColor
         _materializedX ??= Enumerable.Range(0, YData.Length).Select(XAt).ToArray();
 
     /// <inheritdoc />
-    public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
-        YData.Length == 0
-            ? new(0, 0, 0, 0)
-            : new(XStart, XAt(YData.Length - 1), YData.Min(), YData.Max());
+    public override DataRangeContribution ComputeDataRange(IAxesContext context)
+    {
+        if (YData.Length == 0) return new(0, 0, 0, 0);
+        // Over the drawable samples only: a missing sample (NaN) and an infinity are left out.
+        var y = YData.DrawableRange();
+        return new(XStart, XAt(YData.Length - 1), y?.Lo, y?.Hi);
+    }
 
     // ── IMonotonicXY ─────────────────────────────────────────────────────────
 

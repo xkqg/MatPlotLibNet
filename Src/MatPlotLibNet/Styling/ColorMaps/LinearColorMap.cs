@@ -1,11 +1,19 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Serialization;
+
 namespace MatPlotLibNet.Styling.ColorMaps;
 
 /// <summary>Colormap that linearly interpolates between evenly-spaced (or explicitly positioned) color stops.</summary>
-public sealed class LinearColorMap : IColorMap
+/// <remarks>A map built in code travels through the figure JSON as what it is made of (its colours, their positions and
+/// its under, over and bad colours), so it comes back from <c>FromJson</c>, the MCP server and the transports as itself;
+/// a map the library ships travels by its name.</remarks>
+public sealed class LinearColorMap : IColorMap, IJsonDescribed<ColorMapDto>
 {
+    /// <inheritdoc />
+    ColorMapDto IJsonDescribed<ColorMapDto>.Describe() => new LinearColorMapDto(Name, _stops, _positions, UnderColor, OverColor, BadColor);
+
     public string Name { get; }
 
     private readonly Color[] _stops;
@@ -24,11 +32,26 @@ public sealed class LinearColorMap : IColorMap
         _stops = stops;
     }
 
-    private LinearColorMap(string name, Color[] stops, double[] positions)
+    /// <summary>Creates a colormap from its stops, at <paramref name="positions"/> or evenly spaced when that is
+    /// <see langword="null"/>. The callers have checked the stops (<see cref="ThrowIfNotStops"/>).</summary>
+    internal LinearColorMap(string name, Color[] stops, double[]? positions)
     {
         Name = name;
         _stops = stops;
         _positions = positions;
+    }
+
+    /// <summary>The rule positioned stops keep: at least two, strictly increasing.</summary>
+    /// <param name="positions">The stops' positions.</param>
+    /// <param name="paramName">The parameter the exception names.</param>
+    /// <exception cref="ArgumentException">Fewer than 2 positions, or positions that do not strictly increase.</exception>
+    internal static void ThrowIfNotStops(IReadOnlyList<double> positions, string paramName)
+    {
+        if (positions.Count < 2)
+            throw new ArgumentException("At least 2 stops required.", paramName);
+        for (int i = 1; i < positions.Count; i++)
+            if (positions[i] <= positions[i - 1])
+                throw new ArgumentException("Positions must be strictly increasing.", paramName);
     }
 
     /// <summary>Creates a colormap from a list of <see cref="ColorStop"/> stops and auto-registers it
@@ -63,7 +86,7 @@ public sealed class LinearColorMap : IColorMap
 
         Color[] stops = colors.Select(c => c.Color).ToArray();
         var map = new LinearColorMap(name, stops, positions);
-        ColorMapRegistry.RegisterBuiltIn(map);
+        ColorMapRegistry.RegisterWithItsReverse(map);
         return map;
     }
 
@@ -76,11 +99,7 @@ public sealed class LinearColorMap : IColorMap
     /// <exception cref="ArgumentException">Fewer than 2 stops or non-increasing positions.</exception>
     public static LinearColorMap FromPositions(string name, ColorStop[] stops)
     {
-        if (stops.Length < 2)
-            throw new ArgumentException("At least 2 stops required.", nameof(stops));
-        for (int i = 1; i < stops.Length; i++)
-            if (stops[i].Position <= stops[i - 1].Position)
-                throw new ArgumentException("Positions must be strictly increasing.", nameof(stops));
+        ThrowIfNotStops([.. stops.Select(s => s.Position)], nameof(stops));
         return new(name,
             stops.Select(s => s.Color).ToArray(),
             stops.Select(s => s.Position).ToArray());
@@ -89,6 +108,8 @@ public sealed class LinearColorMap : IColorMap
     /// <inheritdoc />
     public Color GetColor(double value)
     {
+        // A stop index is never computed from NaN: on net8.0 the cast gives int.MinValue and the lookup threw.
+        if (value.IsMissing()) return this.MissingValueColor();
         value = Math.Clamp(value, 0, 1);
 
         if (_positions is null)

@@ -11,7 +11,7 @@ namespace MatPlotLibNet.Rendering.SeriesRenderers;
 /// <summary>Strategy interface for off-diagonal cell painting in
 /// <see cref="PairGridSeriesRenderer"/>. Each implementation handles a single
 /// <see cref="PairGridOffDiagonalKind"/> value, isolating the rendering logic per
-/// kind and keeping the v1.10 addition of <c>Hexbin</c> additive — adding a future
+/// kind, so a kind such as <c>Hexbin</c> is added without touching the others — adding a
 /// kind requires a new <see cref="IPairGridOffDiagonalPainter"/> implementation
 /// plus one entry in <see cref="PairGridOffDiagonalPainterRegistry"/>, with no
 /// modifications to the renderer's dispatch loop.</summary>
@@ -104,7 +104,7 @@ internal sealed class HexbinOffDiagonalPainter : IPairGridOffDiagonalPainter
         bool hueActive,
         Dictionary<int, Color>? hueCache)
     {
-        // Filter non-finite samples (HexGrid does not).
+        // The first n samples that can be placed (HexGrid also leaves out a point that cannot be placed).
         var xFiltered = new List<double>(n);
         var yFiltered = new List<double>(n);
         for (int k = 0; k < n; k++)
@@ -140,8 +140,7 @@ internal sealed class HexbinOffDiagonalPainter : IPairGridOffDiagonalPainter
             for (int v = 0; v < 6; v++)
                 pixelVerts[v] = PairGridGeometry.MapPoint(dataVerts[v].X, dataVerts[v].Y, xMin, xSpan, yMin, ySpan, cell);
 
-            double normalized = (count - normMin) / (normMax - normMin);
-            var fill = cmap.GetColor(Math.Clamp(normalized, 0.0, 1.0));
+            var fill = cmap.ColorOf(count, LinearNormalizer.Instance, normMin, normMax);
             ctx.DrawPolygon(pixelVerts, new ShapeStyle(fill, null, 0));
         }
     }

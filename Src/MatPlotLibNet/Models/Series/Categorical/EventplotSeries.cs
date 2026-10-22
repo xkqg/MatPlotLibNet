@@ -29,9 +29,10 @@ public sealed class EventplotSeries : ChartSeries
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (Positions.Length == 0) return new(0, 1, 0, 1);
-        var allPos = Positions.SelectMany(p => p).ToArray();
-        double xMin = allPos.Length > 0 ? allPos.Min() : 0;
-        double xMax = allPos.Length > 0 ? allPos.Max() : 1;
+        // Over the drawable events only: a missing event (NaN) and an infinity are not drawn, so they are not part of
+        // the extent; rows without any event at all keep the 0..1 default.
+        var x = Positions.Any(p => p.Length > 0) ? Positions.DrawableRange() : new Range1D(0, 1);
+        double? xMin = x?.Lo, xMax = x?.Hi;
         // Each row i draws tick lines from y = i - LineLength/2 to y = i + LineLength/2.
         // Report the enlarged Y-bbox to the auto-limiter so it rounds out to nice tick
         // boundaries (e.g. [-0.5, 3.5] rounds to [-1, 4] for 4 rows at linelength=1).
@@ -51,7 +52,8 @@ public sealed class EventplotSeries : ChartSeries
         Type = "eventplot",
         EventPositions = Positions,
         LineWidth = LineWidth,
-        LineLength = LineLength
+        LineLength = LineLength,
+        Colors = Colors?.ToList(),
     };
 
     /// <summary>Reconstructs an <see cref="EventplotSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -69,6 +71,7 @@ public sealed class EventplotSeries : ChartSeries
         {
             s.LineLength = dto.LineLength.Value;
         }
+        s.Colors = dto.Colors?.ToArray();
         return s;
     }
 

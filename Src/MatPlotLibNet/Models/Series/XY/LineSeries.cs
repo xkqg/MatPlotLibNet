@@ -24,13 +24,17 @@ public sealed class LineSeries : XYSeries, IHasColor, IHasLabelPlacement
 
     public MarkerStyle? Marker { get; set; }
 
-    public double MarkerSize { get; set; } = 6;
+    public double MarkerSize { get; set; } = RestingMarkerSize;
 
     public Color? MarkerFaceColor { get; set; }
 
     public Color? MarkerEdgeColor { get; set; }
 
-    public double MarkerEdgeWidth { get; set; } = 1.0;
+    public double MarkerEdgeWidth { get; set; } = RestingMarkerEdgeWidth;
+
+    /// <summary>The marker size a new line holds; a step, which has no marker size, draws its markers at this one.</summary>
+    internal const double RestingMarkerSize = 6;
+    private const double RestingMarkerEdgeWidth = 1.0;
 
     public DrawStyle? DrawStyle { get; set; }
 
@@ -57,7 +61,14 @@ public sealed class LineSeries : XYSeries, IHasColor, IHasLabelPlacement
         LineStyle = LineStyle.ToString().ToLowerInvariant(),
         LineWidth = LineWidth,
         Smooth = Smooth ? true : null,
-        SmoothResolution = Smooth && SmoothResolution != 10 ? SmoothResolution : null
+        SmoothResolution = Smooth && SmoothResolution != 10 ? SmoothResolution : null,
+        Marker = Marker,
+        MarkerSize = MarkerSize.OrNullAtRest(RestingMarkerSize),
+        MarkerFaceColor = MarkerFaceColor,
+        MarkerEdgeColor = MarkerEdgeColor,
+        MarkerEdgeWidth = MarkerEdgeWidth.OrNullAtRest(RestingMarkerEdgeWidth),
+        MarkEvery = MarkEvery,
+        DrawStyle = DrawStyle,
     };
 
     /// <summary>Reconstructs a <see cref="LineSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -67,8 +78,27 @@ public sealed class LineSeries : XYSeries, IHasColor, IHasLabelPlacement
     internal static LineSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Plot(dto.XData ?? [], dto.YData ?? []);
-        ChartSerializer.ApplyLineProperties(s, dto);
+        s.RestoreFrom(dto);
         return s;
+    }
+
+    /// <summary>Takes every drawn property <see cref="ToSeriesDto"/> writes back from <paramref name="dto"/>; an absent
+    /// one leaves the value the line was created with. The one reader of a line's fields, whichever axis the line is on.</summary>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    internal void RestoreFrom(SeriesDto dto)
+    {
+        Color = dto.Color;
+        LineWidth = dto.LineWidth ?? 1.5;
+        ChartSerializer.ApplyEnum<LineStyle>(dto.LineStyle, v => LineStyle = v);
+        Smooth = dto.Smooth == true;
+        SmoothResolution = dto.SmoothResolution ?? SmoothResolution;
+        Marker = dto.Marker;
+        MarkerSize = dto.MarkerSize ?? RestingMarkerSize;
+        MarkerFaceColor = dto.MarkerFaceColor;
+        MarkerEdgeColor = dto.MarkerEdgeColor;
+        MarkerEdgeWidth = dto.MarkerEdgeWidth ?? RestingMarkerEdgeWidth;
+        MarkEvery = dto.MarkEvery;
+        DrawStyle = dto.DrawStyle;
     }
 
     /// <inheritdoc />

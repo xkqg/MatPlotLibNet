@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Playground;
 using MatPlotLibNet.Styling;
@@ -220,15 +221,13 @@ public class PlaygroundExampleTests
     // ── Registry sanity ──────────────────────────────────────────────────────
 
     [Fact]
-    public void Examples_Contains_TwentyOneMembers()
+    public void Examples_Contains_TwentyTwoMembers()
     {
-        // Phase L (v1.7.2, 2026-04-21) — AxisBreaks + MinorGrid added (17th and 18th examples)
-        // to showcase the refactored DrawBreakSegments + RenderGridLines helpers.
-        // v1.12.0 — DashboardTiles + ThresholdLine added (19th and 20th examples) to showcase
-        // StatTileSeries/StateTimelineSeries and the Threshold + LegendValues conveniences.
-        // v1.19.0 — DirectLabels added (21st): end labels on a dual axis whose axes wear their line's colour.
-        // Samples/README.md and articles/intro.md print this number.
-        Assert.Equal(21, PlaygroundExamples.Examples.Count);
+        // AxisBreaks + MinorGrid are the 17th and 18th examples, DashboardTiles + ThresholdLine the 19th and 20th,
+        // DirectLabels the 21st (end labels on a dual axis whose axes wear their line's colour), and ParetoChart the
+        // 22nd (a chart drawn by one verb call). Samples/README.md and articles/intro.md print this number;
+        // SampleDocumentContractTests holds them to it.
+        Assert.Equal(22, PlaygroundExamples.Examples.Count);
     }
 
     [Fact]
@@ -329,6 +328,28 @@ public class PlaygroundExampleTests
         Assert.Contains(figure.SubPlots, sp => sp.Series.Any(s => s is StateTimelineSeries));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DashboardTiles_ATileDrawsNoAxes_AsTheOpsDashboardsTilesDoNot(bool hideSpineToggles)
+    {
+        // A tile is a number with a label, not a chart: Plt.OpsDashboard() hides the axes of its tile axes, and a
+        // mosaic built by hand has to do the same, or every tile carries a frame and ticks from 0.0 to 1.0.
+        var opts = Defaults() with { HideTopSpine = hideSpineToggles, HideRightSpine = hideSpineToggles };
+        var (figure, code) = PlaygroundExamples.Build(PlaygroundExample.DashboardTiles, opts);
+
+        var tiles = figure.SubPlots.Where(sp => sp.Series.Any(s => s is StatTileSeries)).ToArray();
+        Assert.Equal(2, tiles.Length);
+        foreach (var tile in tiles)
+        {
+            Assert.False(tile.Spines.Top.Visible || tile.Spines.Bottom.Visible || tile.Spines.Left.Visible || tile.Spines.Right.Visible,
+                "a tile draws a frame");
+            Assert.False(tile.XAxis.MajorTicks.Visible || tile.YAxis.MajorTicks.Visible, "a tile draws ticks");
+        }
+
+        Assert.Contains("HideAllAxes()", code);
+    }
+
     [Fact]
     public void ThresholdLine_AddsReferenceLineAndSpan_WithLegendValuesEnabled()
     {
@@ -389,6 +410,50 @@ public class PlaygroundExampleTests
             Assert.Equal(MarkerStyle.Square, line.Marker);
             Assert.Equal(9, line.MarkerSize);
         }
+    }
+
+    // ── a chart drawn by one verb call ───────────────────────────────────────
+
+    [Fact]
+    public void ParetoChart_IsThePareto_Verb_BarsLargestFirst_AndTheRunningShareEndingAt100()
+    {
+        var (figure, code) = PlaygroundExamples.Build(PlaygroundExample.ParetoChart, Defaults());
+        var axes = figure.SubPlots[0];
+        var bars = Assert.IsType<BarSeries>(Assert.Single(axes.Series));
+        var share = Assert.IsType<LineSeries>(Assert.Single(axes.SecondarySeries));
+
+        Assert.Equal(bars.Values.OrderByDescending(v => v), bars.Values);
+        Assert.Equal(100, share.YData[^1]);
+        Assert.Equal(LegendPosition.Right, axes.Legend.Position);
+        Assert.True(axes.Legend.Visible);
+
+        // The snippet a user copies is the one call, not a recipe.
+        Assert.Contains(".Pareto(", code);
+        Assert.DoesNotContain("WithSecondaryYAxis", code);
+    }
+
+    [Fact]
+    public void ParetoChart_LegendToggle_HidesTheLegend_AndLeavesItRightOfCentre()
+    {
+        // The playground's options replace the legend record when they are applied; the example has to keep the
+        // place the verb chose, so the toggle switches the legend off and on and never moves it to a corner.
+        var off = PlaygroundExamples.Build(PlaygroundExample.ParetoChart, Defaults() with { ShowLegend = false }).Figure.SubPlots[0];
+        var on = PlaygroundExamples.Build(PlaygroundExample.ParetoChart, Defaults() with { ShowLegend = true }).Figure.SubPlots[0];
+
+        Assert.False(off.Legend.Visible);
+        Assert.True(on.Legend.Visible);
+        Assert.Equal(LegendPosition.Right, on.Legend.Position);
+    }
+
+    [Fact]
+    public void ParetoChart_IsACartesianChart_WithNoLineMarkerOrColourMapControls()
+    {
+        // The verb styles its bars and its line itself; the playground's line and marker controls style a demo
+        // line, and there is no colour map to pick.
+        Assert.True(PlaygroundExamples.HasCartesianSpines(PlaygroundExample.ParetoChart));
+        Assert.False(PlaygroundExamples.SupportsLineControls(PlaygroundExample.ParetoChart));
+        Assert.False(PlaygroundExamples.SupportsMarkerControls(PlaygroundExample.ParetoChart));
+        Assert.False(PlaygroundExamples.SupportsColormap(PlaygroundExample.ParetoChart));
     }
 
     [Fact]

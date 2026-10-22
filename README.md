@@ -18,6 +18,15 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.20.0** turns charts that took a page of code into one call. Fifteen verbs on the axes builder, among them
+`Pareto`, `Ridgeline`, `CalendarHeatmap`, `QQPlot`, `ControlChart`, `KaplanMeier`, `StreamGraph` and `Marimekko`, take
+the data as you hold it (names, groups, samples, dates) and build the chart from the series the library already has.
+Underneath them, a figure written to JSON now reads back as the picture it was, with every setting it draws, so the
+MCP server and every transport carry it whole. NaN is the one missing value: a line breaks at a gap, as in
+matplotlib, and nothing is drawn at NaN. Bars on a log axis reach the bottom edge, horizontal bars work, category
+names are tick labels with room for the axis title, and `WithDpi` and `SaveOptions` now reach the file. Every new call
+is shown in code on the wiki's [examples page](https://github.com/xkqg/MatPlotLibNet/wiki/Examples#1200).
+
 **1.19.0** is for charts with more than one line and more than one axis. `WithDirectLabel()` writes a line's name at
 its end, in the line's own colour, instead of in the legend, and `SetYAxisColor` / `SetXAxisColor` colour an axis to
 match its line in one call, on the left, bottom, right and top axis alike. The right-hand and top axes now follow their
@@ -36,13 +45,6 @@ together. The WPF chart control also keeps panning and zooming the figure it was
 acting on the first one, and the package now says which Windows version a project has to target to use it. There is a
 [complete WPF example](https://xkqg.github.io/MatPlotLibNet/cookbook/wpf-timeline.html) of a replay timeline.
 
-**1.18.1** gives WPF a streaming chart. `MplStreamingChartControl` joins the three its siblings already had:
-bind a `StreamingFigure` to it once and the chart follows the data, where the ordinary control needed a new
-figure for every frame. The same release makes `StreamingFigure.MinRenderInterval` mean what it says — the clock
-behind it was started once when the figure was built, so asking for a calmer chart quietly kept giving you
-thirty frames a second. A clustermap now also draws the row and column labels it is given, each beside the row
-or column it names, wherever the clustering puts it.
-
 After that, releases follow what the community needs: bug fixes, documentation, and whatever comes up in real use.
 Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
 [Issue](https://github.com/xkqg/MatPlotLibNet/issues); that is what decides the next release. Every release, with
@@ -50,8 +52,8 @@ its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadma
 what is still to come and what is left out on purpose, with a section for each row on the
 [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (729 classes, at
-99.6 % line / 97.9 % branch) across 12,441 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (810 classes, at
+99.7 % line / 98.6 % branch) across 19,557 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
 rendering with reference images drawn by matplotlib; it is not part of the CI run.
 
 ---
@@ -118,7 +120,7 @@ Plt.Create()
 
 ## Features
 
-**83 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more.
+**83 series types** — line, scatter (plain or coloured by point density), bar (plain, stacked, or several groups per category in one call), histogram, pie, box, violin, heatmap, contour, candlestick, OHLC, treemap, sunburst, Sankey, polar, polar heatmap, 3D surface, Bar3D, PlanarBar3D, Line3D, Trisurf3D, Contour3D, Quiver3D, Voxels, Text3D, radar, waterfall, funnel, gauge, stat tile (single-value KPI), state timeline (discrete state segments over time), pair grid, relative rotation graph, streaming line/scatter/signal/candlestick, and more. On top of them, fifteen one-call charts (`Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`, `Ridgeline`, `QQPlot`, `KaplanMeier`, `BumpChart`, `ControlChart`, `StreamGraph`, `CalendarHeatmap`, `Spy`) are built from those series, so they add none to the count and travel through JSON as their parts.
 
 **MCP server — charts for an AI agent** — `MatPlotLibNet.Mcp` is a
 [Model Context Protocol](https://modelcontextprotocol.io) server. It ships as a .NET tool that a host starts over

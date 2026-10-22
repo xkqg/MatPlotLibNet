@@ -20,7 +20,11 @@ public sealed class RegressionSeries : ChartSeries, IHasColor
 
     public double ConfidenceLevel { get; set; } = 0.95;
 
-    public double LineWidth { get; set; } = 2.0;
+    /// <summary>The line width a new regression line holds, which is not the 1.5 of the other lines; a theme's cycler
+    /// names a width for the line only when it holds this one and the cycler names one other than 1.5.</summary>
+    internal const double RestingLineWidth = 2.0;
+
+    public double LineWidth { get; set; } = RestingLineWidth;
 
     public Color? Color { get; set; }
 
@@ -41,7 +45,11 @@ public sealed class RegressionSeries : ChartSeries, IHasColor
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (XData.Length == 0) return new(0, 1, 0, 1);
-        return new(XData.Min(), XData.Max(), YData.Min(), YData.Max());
+        // Over the pairs the line is fitted to: a pair with a missing value (NaN) or an infinity is left out.
+        var pairs = XData.DrawablePairs(YData);
+        var x = pairs.X.DrawableRange();
+        var y = pairs.Y.DrawableRange();
+        return new(x?.Lo, x?.Hi, y?.Lo, y?.Hi);
     }
 
     /// <inheritdoc />

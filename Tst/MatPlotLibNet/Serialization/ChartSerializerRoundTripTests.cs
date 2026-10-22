@@ -788,6 +788,26 @@ public class ChartSerializerRoundTripTests
         Assert.Equal(BarOrientation.Horizontal, bs.Orientation);
     }
 
+    /// <summary>A horizontal bar chart read back from JSON draws the picture it was written from: its values along X, its
+    /// categories named on the Y axis.</summary>
+    [Fact]
+    public void RoundTrip_AHorizontalBarChart_DrawsItsValuesAlongX_AndItsNamesOnY()
+    {
+        var fig = Plt.Create().WithSize(400, 300)
+            .AddSubPlot(1, 1, 1, ax => ax.Bar(["A", "B"], [10.0, 20.0], s => s.Orientation = BarOrientation.Horizontal))
+            .Build();
+
+        string original = fig.ToSvg();
+        string readBack = RoundTrip(fig).ToSvg();
+
+        Assert.Equal(original, readBack);
+        var bars = Rendering.SeriesRenderers.BarSeriesRendererTests.Bars(readBack);
+        var plot = Rendering.SeriesRenderers.BarSeriesRendererTests.PlotArea(readBack);
+        Assert.Equal(2 * bars[0].W, bars[1].W, 6);
+        Assert.Equal(bars[0].H, bars[1].H, 6);
+        Assert.True(Assert.Single(Rendering.SeriesRenderers.BarSeriesRendererTests.Texts(readBack, "A")).X < plot.X);
+    }
+
     [Fact]
     public void RoundTrip_RadarFullyPopulated_FlipsAllOptionalArms()
     {

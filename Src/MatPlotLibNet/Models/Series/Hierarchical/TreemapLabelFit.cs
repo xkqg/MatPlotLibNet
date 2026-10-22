@@ -12,7 +12,7 @@ public enum TreemapLabelFit
 
     /// <summary>Draw a label only when it fits its rect; the rect still carries it in <c>data-treemap-label</c>.
     /// A wall at a fixed size with many small rects: nine of twenty-one labels overflowed at twenty
-    /// processes (measured 2026-08-30), painted across their neighbours.</summary>
+    /// processes, painted across their neighbours.</summary>
     Fit = 1,
 
     /// <summary>Shorten a label to its rect with an ellipsis.</summary>

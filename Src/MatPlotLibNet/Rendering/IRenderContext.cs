@@ -9,8 +9,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering;
 
 /// <summary>Specifies the horizontal alignment of rendered text.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum TextAlignment { Left = 0, Center = 1, Right = 2 }
 
 /// <summary>Defines the rendering surface abstraction for drawing chart primitives.</summary>

@@ -9,10 +9,10 @@ namespace MatPlotLibNet.Interaction;
 /// it — brush-select, hover, and future notification-only events. Sibling tier to
 /// <see cref="AxisRangeEvent"/>, which covers mutation events for axis limits.</summary>
 /// <remarks>
-/// <para>v1.2.0 assumed every <see cref="FigureInteractionEvent"/> mutates the figure:
+/// <para>Most <see cref="FigureInteractionEvent"/>s mutate the figure:
 /// <c>ZoomEvent</c>, <c>PanEvent</c>, <c>ResetEvent</c>, <c>LegendToggleEvent</c> all rewrite
-/// axis limits or series visibility and trigger a re-render + publish. v1.2.2 introduces the
-/// first non-mutating category: the server observes the event, routes it to a user-registered
+/// axis limits or series visibility and trigger a re-render + publish. A notification event is the
+/// non-mutating category: the server observes the event, routes it to a user-registered
 /// handler, and either fires a callback (<see cref="BrushSelectEvent"/>) or returns a
 /// caller-only response (<see cref="HoverEvent"/>). The figure is never re-rendered.</para>
 ///

@@ -6,8 +6,7 @@ namespace MatPlotLibNet.Interaction;
 /// <summary>A client-initiated hover — the user's cursor is at data-space <c>(X, Y)</c>.
 /// Non-mutating: the server routes the event to a user-registered handler that computes a
 /// tooltip HTML fragment and returns it to the <em>originating</em> client only (not
-/// broadcast to the SignalR group). This is the first per-caller response pattern in the
-/// library — v1.2.0 only had group broadcast.</summary>
+/// broadcast to the SignalR group, as the results of the other events are).</summary>
 /// <param name="ChartId">Chart identifier — matches the figure's registry key.</param>
 /// <param name="AxesIndex">Index of the target subplot within the figure.</param>
 /// <param name="X">Hover point X in data space.</param>

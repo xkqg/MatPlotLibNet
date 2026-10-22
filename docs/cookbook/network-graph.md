@@ -8,10 +8,10 @@ description: "Draw network graphs in C#: nodes and edges with deterministic layo
 > **Install:** `dotnet add package MatPlotLibNet`
 
 NetworkGraph draws nodes and edges in 2D. Use it for correlation networks, lead-lag
-flows, Louvain community visualisation, and minimum spanning trees. Three deterministic
-layouts ship in v1.10 PR 1: `Manual` (uses the coordinates you pass), `Circular` (unit
-circle) and `Hierarchical` (BFS top-down). `ForceDirected` (Fruchterman–Reingold) is
-reserved at enum ordinal `1` and lands in PR 2.
+flows, Louvain community visualisation, and minimum spanning trees. Four layouts place
+the nodes: `Manual` (uses the coordinates you pass), `Circular` (unit circle),
+`Hierarchical` (BFS top-down) and `ForceDirected` (Fruchterman–Reingold, seeded, so the
+same seed gives the same picture).
 
 ## Basic graph
 

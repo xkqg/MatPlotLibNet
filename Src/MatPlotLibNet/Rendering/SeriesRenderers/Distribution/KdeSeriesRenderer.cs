@@ -16,9 +16,9 @@ internal sealed class KdeSeriesRenderer : SeriesRenderer<KdeSeries>
     /// <inheritdoc />
     public override void Render(KdeSeries series)
     {
-        if (series.Data.Length == 0) return;
+        var sorted = series.SortedSample();
+        if (sorted.Length == 0) return;
 
-        var sorted = series.Data.OrderBy(v => v).ToArray();
         double bw = series.Bandwidth ?? GaussianKde.SilvermanBandwidth(sorted);
         var (xs, density) = GaussianKde.Evaluate(sorted, bw);
 
@@ -32,11 +32,12 @@ internal sealed class KdeSeriesRenderer : SeriesRenderer<KdeSeries>
         {
             var polygon = new List<Point>(points.Count + 2);
             polygon.AddRange(points);
-            polygon.Add(Transform.DataToPixel(xs[^1], 0));
-            polygon.Add(Transform.DataToPixel(xs[0], 0));
+            // The fill stands on 0, which a log axis clips to the edge where it begins, as matplotlib clips it.
+            polygon.Add(Transform.DataToPixelClippedY(xs[^1], 0));
+            polygon.Add(Transform.DataToPixelClippedY(xs[0], 0));
             Ctx.DrawPolygon(polygon, new ShapeStyle(ApplyAlpha(color, series.Alpha), null, 0));
         }
 
-        Ctx.DrawLines(points, new StrokeStyle(color, series.LineWidth, series.LineStyle));
+        Ctx.DrawLines(points, Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
     }
 }

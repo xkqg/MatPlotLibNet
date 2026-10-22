@@ -50,4 +50,35 @@ public class ChartSerializerUnknownDiscriminatorDiagnosticsTests
             ChartDiagnostics.Emitted -= Handler;
         }
     }
+
+    /// <summary>A tick locator, tick formatter, normaliser or colour map of a kind this build does not know (JSON from a
+    /// later release, or a typo) is skipped the same way: the figure loads, the axis or series keeps its own default, and
+    /// the skip is reported. A reversed map of an unknown map is no map either.</summary>
+    [Theory]
+    [InlineData("""{"xAxis":{"tickLocator":{"type":"__spiral__","base":2}},"series":[{"type":"line","xData":[1,2],"yData":[1,2]}]}""", "tick locator")]
+    [InlineData("""{"xAxis":{"tickFormatter":{"type":"__roman__"}},"series":[{"type":"line","xData":[1,2],"yData":[1,2]}]}""", "tick formatter")]
+    [InlineData("""{"series":[{"type":"heatmap","heatmapData":[[1,2],[3,4]],"normalizer":{"type":"__cubic__"}}]}""", "normaliser")]
+    [InlineData("""{"series":[{"type":"heatmap","heatmapData":[[1,2],[3,4]],"colorMap":{"type":"__swirl__"}}]}""", "colour map")]
+    [InlineData("""{"series":[{"type":"heatmap","heatmapData":[[1,2],[3,4]],"colorMap":{"type":"reversed","map":{"type":"__swirl__"}}}]}""", "colour map")]
+    public void FromJson_AnUnknownLocatorFormatterOrNormaliserKind_IsSkippedWithADiagnostic(string subPlot, string what)
+    {
+        string json = $$"""{"width":400,"height":300,"subPlots":[{{subPlot}}]}""";
+        var received = new List<ChartDiagnostic>();
+        void Handler(ChartDiagnostic d) => received.Add(d);
+        ChartDiagnostics.Emitted += Handler;
+        try
+        {
+            var axes = S.FromJson(json).SubPlots[0];
+
+            Assert.Null(axes.XAxis.TickLocator);
+            Assert.Null(axes.XAxis.TickFormatter);
+            Assert.Null((axes.Series[0] as MatPlotLibNet.Models.Series.HeatmapSeries)?.Normalizer);
+            Assert.Null((axes.Series[0] as MatPlotLibNet.Models.Series.HeatmapSeries)?.ColorMap);
+            Assert.Contains(received, d => d.Source == "ChartSerializer" && d.Message.Contains(what, StringComparison.Ordinal));
+        }
+        finally
+        {
+            ChartDiagnostics.Emitted -= Handler;
+        }
+    }
 }

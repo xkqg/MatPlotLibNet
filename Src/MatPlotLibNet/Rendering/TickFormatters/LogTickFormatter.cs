@@ -2,13 +2,17 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Rendering.TickFormatters;
 
 /// <summary>Formats tick values for logarithmic axes, showing powers of ten as superscript notation.</summary>
-public sealed class LogTickFormatter : ITickFormatter
+public sealed class LogTickFormatter : ITickFormatter, IJsonDescribed<TickFormatterDto>
 {
     private static readonly string[] Superscripts = ["\u2070", "\u00B9", "\u00B2", "\u00B3", "\u2074", "\u2075", "\u2076", "\u2077", "\u2078", "\u2079"];
+
+    /// <inheritdoc />
+    TickFormatterDto IJsonDescribed<TickFormatterDto>.Describe() => new LogTickFormatterDto();
 
     /// <inheritdoc />
     public string Format(double value)

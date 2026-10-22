@@ -7,6 +7,7 @@ using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Tests.Rendering.SeriesRenderers;
 
@@ -73,13 +74,35 @@ public class RendererBranchEdgeCaseTests
         Assert.Contains("<rect", svg.GetOutput());
     }
 
+    /// <summary>Set limits are the colour range: 1 of 0..5 is a fifth of the way up viridis, not its low end.</summary>
     [Fact]
-    public void Image_VMinAndVMaxBothSet_SkipsAutoRangeLoop()
+    public void Image_VMinAndVMaxBothSet_AreTheColourRange()
     {
         var context = NewContext(out var svg);
         var series = new ImageSeries(new double[,] { { 1, 2 }, { 3, 4 } }) { VMin = 0, VMax = 5 };
         new ImageSeriesRenderer(context).Render(series);
-        Assert.Contains("<rect", svg.GetOutput());
+        string output = svg.GetOutput();
+        Assert.Contains("<rect", output);
+        Assert.DoesNotContain($"fill=\"{ColorMaps.Viridis.GetColor(0).ToHex()}\"", output);
+    }
+
+    [Theory]
+    [InlineData(0, 2)]
+    [InlineData(2, 0)]
+    public void Image_WithNoRowsOrNoColumns_DrawsNothing(int rows, int columns)
+    {
+        var context = NewContext(out var svg);
+        new ImageSeriesRenderer(context).Render(new ImageSeries(new double[rows, columns]));
+        Assert.DoesNotContain("<rect", svg.GetOutput());
+    }
+
+    /// <summary>An interpolation the registry does not know is drawn as nearest: one cell per value.</summary>
+    [Fact]
+    public void Image_UnknownInterpolation_FallsBackToNearest()
+    {
+        var context = NewContext(out var svg);
+        new ImageSeriesRenderer(context).Render(new ImageSeries(new double[,] { { 1, 2 }, { 3, 4 } }) { Interpolation = "no-such-interpolation" });
+        Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(svg.GetOutput(), "<rect").Count);
     }
 
     // ── BarbsSeriesRenderer: zero-magnitude + flag pennant arms ─────────────

@@ -38,6 +38,16 @@ public class Axis
         Width   = 0.6 * 100.0 / 72.0,   // 0.6 pt → ~0.83 px at 100 DPI
     };
 
+    /// <summary>Draws the axis the other way round: an X axis from right to left, a Y axis from top to bottom
+    /// (matplotlib's <c>Axis.set_inverted(True)</c>, the state <c>invert_xaxis</c> and <c>invert_yaxis</c> switch). The
+    /// ticks are those of the same range, each drawn where its value is, by the rule a limit set high to low follows
+    /// (<c>SetYLim(5.5, 0.5)</c>).</summary>
+    /// <remarks>Inverted and limits set high to low ask for the same thing and are one state, not two turns: an axis whose
+    /// limits are already set high to low is drawn reversed once when it is also inverted, not turned back to forward, as
+    /// matplotlib's <c>set_inverted(True)</c> leaves an inverted axis inverted. Switching it on and off again returns the
+    /// axis to the way its limits draw it (matplotlib's <c>invert_yaxis</c> called twice). A zoom or a pan writes the
+    /// limits the way the axis is drawn, so an inverted axis stays reversed through them. Read by Cartesian axes, their
+    /// secondary axes and insets; polar and 3-D axes do not read it.</remarks>
     public bool Inverted { get; set; }
 
     /// <summary>
@@ -48,8 +58,16 @@ public class Axis
     /// </summary>
     public double? Margin { get; set; }
 
+    /// <summary>Writes the tick labels; <see langword="null"/> for the plain numeric labels.</summary>
+    /// <remarks>A figure's JSON (<c>ToJson</c>, the MCP server, the transports) carries the formatters the library
+    /// ships, with what they were made with. A formatter written outside the library is code, which a JSON document
+    /// cannot carry: it is left out, and the axis reads back with the plain labels.</remarks>
     public ITickFormatter? TickFormatter { get; set; }
 
+    /// <summary>Places the ticks; <see langword="null"/> for the default nice-number ticks.</summary>
+    /// <remarks>A figure's JSON carries the locators the library ships, with what they were made with. A locator
+    /// written outside the library is code, which a JSON document cannot carry: it is left out, and the axis reads
+    /// back with the default ticks.</remarks>
     public ITickLocator? TickLocator { get; set; }
 
     /// <summary>Shorthand for <see cref="TickConfig.LabelRotation"/> on <see cref="MajorTicks"/>.
@@ -68,8 +86,8 @@ public class Axis
 public sealed class Axis3D : Axis { }
 
 /// <summary>Specifies the scale type used for an axis.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum AxisScale
 {
     /// <summary>Linear scale.</summary>

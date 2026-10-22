@@ -19,13 +19,16 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
     /// <inheritdoc />
     public override void Render(RegressionSeries series)
     {
-        if (series.XData.Length < 2) return;
+        // The fit is made over the pairs that can be drawn: a pair with a missing value (NaN) or an infinity is left out,
+        // as seaborn drops it (one NaN made every coefficient NaN and the line was not drawn at all).
+        var pairs = series.XData.DrawablePairs(series.YData);
+        if (pairs.X.Length < 2) return;
 
         int degree = Math.Clamp(series.Degree, 0, 10);
         double[] coeff;
         try
         {
-            coeff = LeastSquares.PolyFit(series.XData, series.YData, degree);
+            coeff = LeastSquares.PolyFit(pairs.X, pairs.Y, degree);
         }
         catch (Exception ex) when (ex is ArgumentException or IndexOutOfRangeException)
         {
@@ -41,7 +44,7 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
             return;
         }
 
-        double xMin = series.XData.Min(), xMax = series.XData.Max();
+        double xMin = pairs.X.Min(), xMax = pairs.X.Max();
         double step = (xMax - xMin) / (NumEvalPoints - 1);
         double[] evalX = Enumerable.Range(0, NumEvalPoints).Select(i => xMin + step * i).ToArray();
         double[] evalY = LeastSquares.PolyEval(coeff, evalX);
@@ -50,7 +53,7 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
 
         if (series.ShowConfidence)
         {
-            var band = LeastSquares.ConfidenceBand(series.XData, series.YData, coeff, evalX, series.ConfidenceLevel);
+            var band = LeastSquares.ConfidenceBand(pairs.X, pairs.Y, coeff, evalX, series.ConfidenceLevel);
             var bandColor = series.BandColor ?? color;
 
             var polygon = new List<Point>(NumEvalPoints * 2);
@@ -64,6 +67,6 @@ internal sealed class RegressionSeriesRenderer : SeriesRenderer<RegressionSeries
         var linePoints = new List<Point>(NumEvalPoints);
         for (int i = 0; i < NumEvalPoints; i++)
             linePoints.Add(Transform.DataToPixel(evalX[i], evalY[i]));
-        Ctx.DrawLines(linePoints, new StrokeStyle(color, series.LineWidth, series.LineStyle));
+        Ctx.DrawLines(linePoints, Slot.StrokeOf(color, series.LineWidth, series.LineStyle, RegressionSeries.RestingLineWidth));
     }
 }

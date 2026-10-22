@@ -31,8 +31,10 @@ public abstract class AxesRenderer
     /// consumed by <see cref="RenderAxisLabels"/> to place the Y-axis label clear of the widest tick label.</summary>
     protected double MeasuredYTickMaxWidth { get; set; }
 
-    /// <summary>Maximum rendered height of X-axis tick labels. Set by subclasses during tick rendering;
-    /// reserved for future use by <see cref="RenderAxisLabels"/>.</summary>
+    /// <summary>How far the X-axis tick labels, numbers or category names, reach below the mark and the pad as they are
+    /// drawn: the tallest label upright, the farthest-reaching one turned (<see cref="AxisTickExtensions.LabelExtent"/>).
+    /// Set by subclasses during tick rendering; consumed by <see cref="RenderAxisLabels"/> to place the X-axis title clear
+    /// of the tick labels (<see cref="AxisTickExtensions.BottomAxisLabelOffset"/>).</summary>
     protected double MeasuredXTickMaxHeight { get; set; }
 
     /// <summary>The band drawn above the top spine below the axes title: the mirrored X tick labels
@@ -155,12 +157,6 @@ public abstract class AxesRenderer
         {
             if (!series.Visible) continue;
             var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.Primary, i);
-            // Pie: pre-populate per-wedge colors from the cycle when the series has no explicit Colors.
-            // Matches matplotlib behaviour where each wedge picks the next colour from the cycle.
-            if (series is Models.Series.PieSeries pie && pie.Colors is null)
-                pie.Colors = Enumerable.Range(0, pie.Sizes.Length)
-                    .Select(j => Theme.CycleColors[j % Theme.CycleColors.Length])
-                    .ToArray();
             bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i);
             var renderer = new SvgSeriesRenderer(
                 new DataTransform(0, 1, 0, 1, PlotArea), Ctx, slot.CycleColor, Theme, slot.CycledProperties,
@@ -204,12 +200,20 @@ public abstract class AxesRenderer
         // each other so the bars sit side by side, the way matplotlib's grouped bars do. Each ORIENTATION is
         // grouped among its own — a vertical bar offset against a horizontal one compares nothing — and until
         // 1.17.1 the horizontal ones were skipped altogether, so two of them were drawn exactly on top of each
-        // other with the last one painted over the rest.
+        // other with the last one painted over the rest. A bar with a foot of its own (stacked, or lifted onto a
+        // StackBaseline) is not grouped. The offsets are render state: every bar starts from none on every render,
+        // so a bar that left a group (a stacked render after a grouped one) does not keep the place it had in it.
+        foreach (var bar in Axes.Series.OfType<Models.Series.BarSeries>())
+        {
+            bar.BarGroupOffset = 0;
+            bar.BarGroupWidth = null; // use series.BarWidth
+        }
+
         foreach (var orientation in new[] { Models.Series.BarOrientation.Vertical, Models.Series.BarOrientation.Horizontal })
         {
             var barGroups = Axes.Series
                 .OfType<Models.Series.BarSeries>()
-                .Where(b => b.Orientation == orientation && b.StackBaseline is null)
+                .Where(b => b.Orientation == orientation && b.Bottoms is null)
                 .ToList();
             if (barGroups.Count > 1)
             {
@@ -222,11 +226,6 @@ public abstract class AxesRenderer
                     barGroups[bi].BarGroupWidth  = barW;
                 }
             }
-            else if (barGroups.Count == 1)
-            {
-                barGroups[0].BarGroupOffset = 0;
-                barGroups[0].BarGroupWidth  = null; // use series.BarWidth
-            }
         }
 
         // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
@@ -235,11 +234,6 @@ public abstract class AxesRenderer
         {
             if (!series.Visible) continue;
             var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.Primary, i);
-            // Pie: pre-populate per-wedge colors from the cycle when the series has no explicit Colors.
-            if (series is Models.Series.PieSeries pie && pie.Colors is null)
-                pie.Colors = Enumerable.Range(0, pie.Sizes.Length)
-                    .Select(j => Theme.CycleColors[j % Theme.CycleColors.Length])
-                    .ToArray();
             bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i, transform);
             bool clipped = Ctx.BeginSeriesClip(Axes, PlotArea);
             var renderer = new SvgSeriesRenderer(transform, Ctx, slot.CycleColor, Theme, slot.CycledProperties,
@@ -253,13 +247,15 @@ public abstract class AxesRenderer
     }
 
     /// <summary>Computes the display label for a legend entry. When <paramref name="legendValues"/>
-    /// is <see langword="true"/> and the series is an <see cref="Models.Series.XYSeries"/> with
-    /// non-empty Y data, appends " = {lastY:F2}" (InvariantCulture) to the base label.</summary>
+    /// is <see langword="true"/> and the series is an <see cref="Models.Series.XYSeries"/> with a point that can be
+    /// drawn, appends " = {y:F2}" (InvariantCulture) of the end of its line: the last such point
+    /// (<see cref="MissingValueExtensions.LastDrawableIndex"/>, the rule the end-of-line label stands by), so a trailing
+    /// gap never writes NaN.</summary>
     internal static string BuildLegendDisplayLabel(string baseLabel, Models.Series.ISeries series, bool legendValues)
     {
         if (!legendValues) return baseLabel;
-        if (series is Models.Series.XYSeries xySeries && xySeries.YData.Length > 0)
-            return WithLegendValue(baseLabel, xySeries.YData[xySeries.YData.Length - 1]);
+        if (series is Models.Series.XYSeries xySeries && xySeries.XData.LastDrawableIndex(xySeries.YData) is var end and >= 0)
+            return WithLegendValue(baseLabel, xySeries.YData[end]);
         return baseLabel;
     }
 
@@ -269,10 +265,10 @@ public abstract class AxesRenderer
     internal static string WithLegendValue(string baseLabel, double value) =>
         baseLabel + " = " + value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
 
-    /// <summary>The swatch colour of a legend entry: the colour the series is drawn in, decided by the same owner the
-    /// series passes use (<see cref="SeriesSlotExtensions"/>). The entry's index is the series' slot.</summary>
-    private Color LegendEntryColor(LegendRendering.LegendEntry entry) =>
-        Theme.SeriesSlot(entry.OriginalIndex).ColorOf(entry.Series);
+    /// <summary>The slot a legend entry's series holds, decided by the same owner the series passes use
+    /// (<see cref="SeriesSlotExtensions"/>): the swatch wears the colour, dash pattern, marker and width the series is
+    /// drawn with. The entry's index is the series' slot.</summary>
+    private SeriesSlot LegendEntrySlot(LegendRendering.LegendEntry entry) => Theme.SeriesSlot(entry.OriginalIndex);
 
     /// <summary>Renders the legend if any series have labels.</summary>
     protected void RenderLegend()
@@ -349,7 +345,7 @@ public abstract class AxesRenderer
 
             // Swatch dispatch: line segment for line-type series, marker for scatter,
             // line+caps for error bar, filled rectangle for patches (bar/hist/area/violin/pie).
-            DrawLegendSwatch(entry.Series, colX, entryY, layout.SwatchWidth, layout.SwatchHeight, LegendEntryColor(entry));
+            DrawLegendSwatch(entry.Series, colX, entryY, layout.SwatchWidth, layout.SwatchHeight, LegendEntrySlot(entry));
 
             // Text anchor sits just past the swatch.
             var textPoint = new Point(colX + layout.SwatchWidth + layout.SwatchGap, entryY + layout.SwatchHeight - 1);
@@ -393,49 +389,57 @@ public abstract class AxesRenderer
 
     /// <summary>Draws a type-appropriate legend handle at (x, y): line segment for line series,
     /// single centred marker for scatter, line+caps for error bar, filled rectangle for patches.</summary>
-    private void DrawLegendSwatch(Models.Series.ISeries series, double x, double y, double wMax, double h, Color color)
+    private void DrawLegendSwatch(Models.Series.ISeries series, double x, double y, double wMax, double h, SeriesSlot slot)
     {
         double midY = y + h / 2;
+        var color = slot.ColorOf(series);
 
         switch (series)
         {
             case Models.Series.LineSeries ls:
             {
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, ls.LineWidth, ls.LineStyle));
-                if (ls.Marker.HasValue)
-                    DrawLegendMarker(x + wMax / 2, midY, ls.Marker.Value, ls.MarkerSize, color);
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), slot.StrokeOf(color, ls.LineWidth, ls.LineStyle));
+                if (slot.LineMarkerOf(ls.Marker) is { } marker and not MarkerStyle.None)
+                    DrawLegendMarker(x + wMax / 2, midY, marker, ls.MarkerSize, color);
                 break;
             }
             case Models.Series.SignalSeries ss:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, ss.LineWidth, ss.LineStyle));
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), slot.StrokeOf(color, ss.LineWidth, ss.LineStyle));
                 break;
             case Models.Series.SignalXYSeries sxy:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, sxy.LineWidth, sxy.LineStyle));
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), slot.StrokeOf(color, sxy.LineWidth, sxy.LineStyle));
                 break;
             case Models.Series.SparklineSeries sp:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, sp.LineWidth, LineStyle.Solid));
+                // solid, as the sparkline itself: the slot decides only the width
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, slot.LineWidthOf(sp.LineWidth), LineStyle.Solid));
                 break;
             case Models.Series.EcdfSeries ec:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, ec.LineWidth, ec.LineStyle));
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), slot.StrokeOf(color, ec.LineWidth, ec.LineStyle));
                 break;
             case Models.Series.RegressionSeries rs:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, rs.LineWidth, rs.LineStyle));
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY),
+                    slot.StrokeOf(color, rs.LineWidth, rs.LineStyle, Models.Series.RegressionSeries.RestingLineWidth));
                 break;
             case Models.Series.StepSeries stp:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, 1.5, LineStyle.Solid));
+            {
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), slot.StrokeOf(color, stp.LineWidth, stp.LineStyle));
+                if (slot.LineMarkerOf(stp.Marker) is { } marker and not MarkerStyle.None)
+                    DrawLegendMarker(x + wMax / 2, midY, marker, Models.Series.LineSeries.RestingMarkerSize, color);
                 break;
+            }
             case Models.Series.ScatterSeries sc:
             {
                 // matplotlib legend marker size ≈ series point size, scaled down slightly.
                 double radius = Math.Min(h / 2 - 1, Math.Sqrt(sc.MarkerSize / Math.PI) * (100.0 / 72.0));
-                DrawLegendMarker(x + h / 2, midY, sc.Marker, radius * radius * Math.PI, color);
+                DrawLegendMarker(x + h / 2, midY, slot.ScatterMarkerOf(sc.Marker), radius * radius * Math.PI, color);
                 break;
             }
             case Models.Series.ErrorBarSeries eb:
             {
-                Ctx.DrawLine(new Point(x + 2, midY), new Point(x + wMax - 2, midY), new StrokeStyle(color, eb.LineWidth, LineStyle.Solid));
-                Ctx.DrawLine(new Point(x + 2, midY - 3), new Point(x + 2, midY + 3), new StrokeStyle(color, eb.LineWidth, LineStyle.Solid));
-                Ctx.DrawLine(new Point(x + wMax - 2, midY - 3), new Point(x + wMax - 2, midY + 3), new StrokeStyle(color, eb.LineWidth, LineStyle.Solid));
+                double width = slot.LineWidthOf(eb.LineWidth);
+                Ctx.DrawLine(new Point(x + 2, midY), new Point(x + wMax - 2, midY), new StrokeStyle(color, width, LineStyle.Solid));
+                Ctx.DrawLine(new Point(x + 2, midY - 3), new Point(x + 2, midY + 3), new StrokeStyle(color, width, LineStyle.Solid));
+                Ctx.DrawLine(new Point(x + wMax - 2, midY - 3), new Point(x + wMax - 2, midY + 3), new StrokeStyle(color, width, LineStyle.Solid));
                 break;
             }
             default:
@@ -449,23 +453,19 @@ public abstract class AxesRenderer
         }
     }
 
-    /// <summary>Draws a single legend marker at (cx, cy). Mirrors the subset of markers that
-    /// <c>ScatterSeriesRenderer</c> actually renders (circle + square).</summary>
+    /// <summary>Draws a single legend marker at (cx, cy) in the shape the plot draws it in: the one owner of marker
+    /// shapes (<see cref="MarkerRenderer"/>) draws it, so a triangle, a star or a cross in the plot is the same in the
+    /// legend, and <see cref="MarkerStyle.None"/> draws nothing.</summary>
     private void DrawLegendMarker(double cx, double cy, MarkerStyle marker, double size_pt2, Color color)
     {
         double radius = Math.Sqrt(Math.Max(size_pt2, 1) / Math.PI) * (100.0 / 72.0);
-        if (marker == MarkerStyle.Square)
-            Ctx.DrawRectangle(new Rect(cx - radius, cy - radius, 2 * radius, 2 * radius), new ShapeStyle(color, null, 0));
-        else
-            Ctx.DrawCircle(new Point(cx, cy), radius, new ShapeStyle(color, null, 0));
+        MarkerRenderer.Draw(Ctx, marker, new Point(cx, cy), 2 * radius, color, null, 0);
     }
 
     /// <summary>Renders a color bar gradient alongside the plot area if configured.
     /// Delegates to <see cref="ColorBarRendering.ColorBarRendererFactory"/> which selects
     /// <see cref="ColorBarRendering.HorizontalColorBarRenderer"/> or
-    /// <see cref="ColorBarRendering.VerticalColorBarRenderer"/> by orientation
-    /// (Phase B.1.e of the strict-90 floor plan, 2026-04-20 — replaced the inline
-    /// 150-line god-method with proper polymorphic dispatch).</summary>
+    /// <see cref="ColorBarRendering.VerticalColorBarRenderer"/> by orientation.</summary>
     protected void RenderColorBar()
     {
         if (Axes.ColorBar is not { Visible: true } cb) return;
@@ -535,18 +535,11 @@ public abstract class AxesRenderer
         {
             var font = Axes.XAxis.LabelStyle?.ApplyTo(baseFont) ?? baseFont;
             double padOffset = Axes.XAxis.LabelStyle?.Pad ?? 0;
-            // Dynamic offset: the x-label baseline sits a clear gap below the tick-label cell.
-            //   dynamicOffset = tickLength + tickPad + tickLabelCellHeight + gap + labelAscent
-            // where labelAscent ≈ 0.8 × label.Size. Previously hardcoded to 35 px, which
-            // placed the baseline ~11 px ABOVE the tick-label bottom under the v2 theme
-            // (tick cell ≈ 26 px), causing date labels like "Feb 10" to collide with the
-            // x-axis label.
-            var xMajor = Axes.XAxis.MajorTicks;
-            const double xLabelGap = 6;
-            double labelAscent = font.Size * 0.8;
-            double dynamicOffset = MeasuredXTickMaxHeight > 0
-                ? xMajor.Length + xMajor.Pad + MeasuredXTickMaxHeight + xLabelGap + labelAscent
-                : 35;
+            // The x-label baseline sits a clear gap below the tick labels drawn, numbers or category names alike: the mark,
+            // the pad, the tallest label measured while drawing them, the gap and the title's ascent
+            // (TickConfig.BottomAxisLabelOffset, the mirror of the secondary X title's rule); the fixed 35 px when no tick
+            // label was drawn (hidden ticks, axis-less series).
+            double dynamicOffset = Axes.XAxis.MajorTicks.BottomAxisLabelOffset(MeasuredXTickMaxHeight, font.Size);
             var point = new Point(PlotArea.X + PlotArea.Width / 2,
                 PlotArea.Y + PlotArea.Height + dynamicOffset + padOffset);
             if (MathTextParser.ContainsMath(Axes.XAxis.Label))
@@ -638,17 +631,16 @@ public abstract class AxesRenderer
         return 0;
     }
 
-    /// <summary>Expands min/max to include all values in the data array.</summary>
+    /// <summary>Expands min/max to include every value in the data array an axis can place: a missing value (NaN) and an
+    /// infinity are left out, the rule every series ranges by.</summary>
     /// <param name="data">The data values to scan.</param>
-    /// <param name="min">The current minimum; updated if any value is smaller.</param>
-    /// <param name="max">The current maximum; updated if any value is larger.</param>
+    /// <param name="min">The current minimum; updated if any drawable value is smaller.</param>
+    /// <param name="max">The current maximum; updated if any drawable value is larger.</param>
     protected static void UpdateRange(double[] data, ref double min, ref double max)
     {
-        foreach (var v in data)
-        {
-            if (v < min) min = v;
-            if (v > max) max = v;
-        }
+        if (data.DrawableRange() is not { } range) return;
+        if (range.Lo < min) min = range.Lo;
+        if (range.Hi > max) max = range.Hi;
     }
 
     /// <summary>Computes aesthetically-spaced tick values using the default nice-number algorithm.</summary>

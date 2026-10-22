@@ -20,22 +20,9 @@ internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeri
         int layers = series.YSets.Length;
         if (n == 0 || layers == 0) return;
 
-        var cycleColors = Theme.Default.CycleColors;
-
-        // Compute per-layer baselines using the chosen strategy
+        // Compute per-layer baselines using the chosen strategy, and each layer's top edge on its baseline
         var baselines = series.Baseline.ComputeFor(series.YSets, n);
-
-        // Compute top edge (baseline + layer value) for each layer
-        var tops = new double[layers][];
-        for (int layer = 0; layer < layers; layer++)
-        {
-            tops[layer] = new double[n];
-            for (int i = 0; i < n; i++)
-            {
-                double val = i < series.YSets[layer].Length ? series.YSets[layer][i] : 0;
-                tops[layer][i] = baselines[layer][i] + val;
-            }
-        }
+        var tops = series.LayerTops(baselines);
 
         // Precompute pixel X coordinates once for all layers (SIMD batch)
         var pxArr = Transform.TransformX(series.X);
@@ -43,22 +30,30 @@ internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeri
         // Draw each layer as a filled polygon between baseline and top edge
         for (int layer = 0; layer < layers; layer++)
         {
-            var color = cycleColors[layer % cycleColors.Length];
-            var fillColor = ApplyAlpha(color, series.Alpha);
+            var fillColor = ApplyAlpha(PartColor(layer), series.Alpha);
 
+            // A layer stands on the one below it, the first on its baseline (0 for a plain stack): a floor the axis cannot
+            // place (0 on a log axis) is clipped to the edge where the axis begins, as matplotlib clips it.
             var pyTop = Transform.TransformY(tops[layer]);
-            var pyBot = Transform.TransformY(baselines[layer]);
-            var polygon = new List<Point>(n * 2);
+            var pyBot = Transform.TransformYClipped(baselines[layer]);
 
-            // Top edge: left to right
-            for (int i = 0; i < n; i++)
-                polygon.Add(new Point(pxArr[i], pyTop[i]));
+            // A gap breaks the layer, as matplotlib's fill_between breaks at a masked point: a missing value or an
+            // infinity in x, in this layer or in one stacked under it, or a top the axes cannot place. Each unbroken run
+            // is filled on its own; without a gap the one run is the whole layer.
+            foreach (var run in pxArr.DrawableIndexRuns(pyTop, pyBot))
+            {
+                var polygon = new List<Point>(run.Count * 2);
 
-            // Bottom edge: right to left
-            for (int i = n - 1; i >= 0; i--)
-                polygon.Add(new Point(pxArr[i], pyBot[i]));
+                // Top edge: left to right
+                for (int i = run.StartInclusive; i < run.EndExclusive; i++)
+                    polygon.Add(new Point(pxArr[i], pyTop[i]));
 
-            Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0) { Hatch = series.Hatch, HatchColor = series.HatchColor });
+                // Bottom edge: right to left
+                for (int i = run.EndExclusive - 1; i >= run.StartInclusive; i--)
+                    polygon.Add(new Point(pxArr[i], pyBot[i]));
+
+                Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0) { Hatch = series.Hatch, HatchColor = series.HatchColor });
+            }
         }
     }
 }

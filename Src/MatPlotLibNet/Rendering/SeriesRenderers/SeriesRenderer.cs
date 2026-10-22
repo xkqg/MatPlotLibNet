@@ -38,17 +38,28 @@ internal abstract class SeriesRenderer
     /// <summary>Returns the series-specific color if set, otherwise the theme cycle color. Override to change fallback logic.</summary>
     protected virtual Color ResolveColor(Color? seriesColor) => seriesColor ?? SeriesColor;
 
-    /// <summary>Returns the series-specific line style if set; falls back to the cycled style, then <see cref="LineStyle.Solid"/>.</summary>
-    protected virtual LineStyle ResolveLineStyle(LineStyle? seriesLineStyle) =>
-        seriesLineStyle ?? Context.CycledProps?.LineStyle ?? LineStyle.Solid;
+    /// <summary>The colour of the part at <paramref name="index"/> of a series that colours its own parts (a layer of a
+    /// stacked area, a wedge of a donut, a stage of a funnel) when it names no colour for it: what the figure's theme
+    /// hands out at that slot, asked from the one owner of series colours
+    /// (<see cref="SeriesSlotExtensions.SeriesSlot(Theme, int)"/>), so a part wears the theme's palette (and its cycler,
+    /// when it has one) exactly as a series does. The slot is the part's own position, so the first part always wears the
+    /// theme's first colour.</summary>
+    /// <param name="index">The position of the part within its series.</param>
+    /// <returns>The theme's colour at that slot.</returns>
+    protected Color PartColor(int index) => Context.Theme.SeriesSlot(index).CycleColor;
 
-    /// <summary>Returns the series-specific marker style if set; falls back to the cycled style, then <see cref="MarkerStyle.None"/>.</summary>
-    protected virtual MarkerStyle ResolveMarkerStyle(MarkerStyle? seriesMarkerStyle) =>
-        seriesMarkerStyle ?? Context.CycledProps?.MarkerStyle ?? MarkerStyle.None;
+    /// <summary>The colour of the part at <paramref name="index"/>: the one the series names for it in
+    /// <paramref name="explicitColors"/> when that array reaches it, otherwise the theme's (<see cref="PartColor(int)"/>).</summary>
+    /// <param name="explicitColors">The colours the series names, one per part; <see langword="null"/> or shorter than the
+    /// series when it names none or only the first few.</param>
+    /// <param name="index">The position of the part within its series.</param>
+    /// <returns>The series' own colour for the part, else the theme's.</returns>
+    protected Color PartColor(Color[]? explicitColors, int index) =>
+        explicitColors is not null && index < explicitColors.Length ? explicitColors[index] : PartColor(index);
 
-    /// <summary>Returns the series-specific line width if set; falls back to the cycled width, then 1.5.</summary>
-    protected virtual double ResolveLineWidth(double? seriesLineWidth) =>
-        seriesLineWidth ?? Context.CycledProps?.LineWidth ?? 1.5;
+    /// <summary>The slot of this series: its colour and the cycler's dash, marker and width. The one owner of how a series
+    /// is stroked, which the legend swatch asks as well, so a renderer does not decide a style of its own.</summary>
+    protected SeriesSlot Slot => Context.Slot;
 
     /// <summary>Opens a tooltip wrapper around subsequent drawing calls. Override to customize tooltip format.</summary>
     protected virtual void BeginTooltip(string text)
@@ -63,6 +74,48 @@ internal abstract class SeriesRenderer
         if (TooltipsEnabled && Ctx is SvgRenderContext svgCtx)
             svgCtx.EndTooltipGroup();
     }
+
+    /// <summary>Draws a line through <paramref name="points"/>, broken at every point that cannot be drawn: a missing
+    /// value (NaN), an infinity, or a value the transform could not place (a non-positive value on a log axis, a value
+    /// inside an axis break). Each unbroken run of two or more points is one polyline; a point alone between two gaps
+    /// joins nothing and draws no line, as in matplotlib. The one place a line breaks, so every render context receives
+    /// only points it can draw.</summary>
+    /// <param name="points">The points of the line, in drawing order.</param>
+    /// <param name="stroke">The stroke every run is drawn with.</param>
+    protected void DrawPolyline(IReadOnlyList<Point> points, StrokeStyle stroke)
+    {
+        foreach (var run in points.DrawableRuns())
+        {
+            if (run.Count >= 2)
+            {
+                Ctx.DrawLines(run, stroke);
+            }
+        }
+    }
+
+    /// <summary>Draws the straight line from <paramref name="from"/> to <paramref name="to"/> when both its ends can be
+    /// drawn, and nothing otherwise: a segment with an end the axes cannot place is masked, as a line is.</summary>
+    /// <param name="from">One end, in pixels.</param>
+    /// <param name="to">The other end, in pixels.</param>
+    /// <param name="stroke">The stroke to draw it with.</param>
+    protected void DrawSegment(Point from, Point to, StrokeStyle stroke)
+    {
+        if (from.CanDrawLineTo(to))
+        {
+            Ctx.DrawLine(from, to, stroke);
+        }
+    }
+
+    /// <summary>The projection a 3-D series is drawn through: the 3-D axes' own; for a 3-D series placed on 2-D axes, one
+    /// fitted to the extent of its drawable data, which the caller ranges through the missing-value owner. An axis with
+    /// nothing drawable spans 0..1; one of no width is centred by <see cref="Projection3D"/> itself.</summary>
+    /// <param name="x">The drawable x extent, or <see langword="null"/>.</param>
+    /// <param name="y">The drawable y extent, or <see langword="null"/>.</param>
+    /// <param name="z">The drawable z extent, or <see langword="null"/>.</param>
+    /// <returns>The projection to draw through.</returns>
+    protected Projection3D ProjectionFor(Range1D? x, Range1D? y, Range1D? z) =>
+        Context.Projection3D ?? new Projection3D(30, -60, Area.PlotBounds,
+            x?.Lo ?? 0, x?.Hi ?? 1, y?.Lo ?? 0, y?.Hi ?? 1, z?.Lo ?? 0, z?.Hi ?? 1);
 
     /// <summary>Converts a normalized alpha (0.0–1.0) to a byte and applies it to the color.</summary>
     protected Color ApplyAlpha(Color color, double alpha) =>
@@ -85,17 +138,14 @@ internal abstract class SeriesRenderer
         where T : IMonotonicXY =>
         MonotonicViewportSlicer.Slice(src, Transform.UnscaledXMin, Transform.UnscaledXMax, maxPoints);
 
-    /// <summary>Scans <paramref name="data"/> for its value range, then resolves the colour map and
-    /// normalizer from the series. The <c>min == max</c> edge case is guarded with <c>max = min + 1</c>
-    /// so downstream normalizers never divide by zero.</summary>
+    /// <summary>Scans <paramref name="data"/> for its value range over the values a colour scale can place (a missing
+    /// value, NaN, and an infinity are left out, as for an image or a scatter's colours), then resolves the colour map
+    /// and normalizer from the series. With no such value the range is 0..1. The <c>min == max</c> edge case is guarded
+    /// with <c>max = min + 1</c> so downstream normalizers never divide by zero.</summary>
     protected static ColormapContext ResolveColormapping(double[,] data, IColormappable cm, INormalizable norm)
     {
-        double min = double.MaxValue, max = double.MinValue;
-        foreach (double v in data)
-        {
-            if (v < min) min = v;
-            if (v > max) max = v;
-        }
+        var range = data.DrawableRange() ?? new Range1D(0, 1);
+        double min = range.Lo, max = range.Hi;
         if (min == max) max = min + 1;
         return new(cm.GetColorMapOrDefault(ColorMaps.Viridis), norm.Normalizer ?? LinearNormalizer.Instance, min, max);
     }

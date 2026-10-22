@@ -3,7 +3,8 @@
 
 namespace MatPlotLibNet.Models.Series;
 
-/// <summary>Series that provides category labels for the X axis.</summary>
+/// <summary>Series that names its categories on the axis that carries them: the X axis, or the Y axis for bars that lie
+/// down (<see cref="BarOrientation.Horizontal"/>).</summary>
 public interface ICategoryLabeled
 {
     string[]? CategoryLabels { get; }

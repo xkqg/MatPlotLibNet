@@ -15,10 +15,10 @@ internal static class SvgHighlightScript
     internal static string GetScript() => """
         <script type="text/ecmascript"><![CDATA[
         (function() {
-            // Per-chart isolation (Phase 2): scope query to THIS script's owning <svg>.
+            // Per-chart isolation: scope query to THIS script's owning <svg>.
             var svg = (document.currentScript && document.currentScript.parentNode) || document;
-            // Phase 7 of v1.7.2 plan — read themable opacity from data-mpl-highlight-opacity
-            // (set by FigureBuilder.WithInteractionTheme). Default 0.3 preserves v1.7.1 behaviour.
+            // Read the themable opacity from data-mpl-highlight-opacity
+            // (set by FigureBuilder.WithInteractionTheme). The default is 0.3.
             var dimOpacity = parseFloat(svg.getAttribute && svg.getAttribute('data-mpl-highlight-opacity')) || 0.3;
             var groups = svg.querySelectorAll('[data-series-index]');
             groups.forEach(function(g) {
@@ -30,9 +30,9 @@ internal static class SvgHighlightScript
                     });
                 }
                 function restore() {
-                    // Phase 8 of v1.7.2 plan — restore each element to its data-mpl-opacity-base
-                    // (captured below on first dim) instead of forcing 1.0. Preserves explicit
-                    // opacity that callers set via series.Alpha or CSS overrides.
+                    // Restore each element to its data-mpl-opacity-base (captured below on
+                    // first dim) instead of forcing 1.0. Preserves explicit opacity that
+                    // callers set via series.Alpha or CSS overrides.
                     groups.forEach(function(s) {
                         var base = s.getAttribute('data-mpl-opacity-base');
                         s.style.opacity = base !== null ? base : '1';

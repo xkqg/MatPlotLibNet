@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.TickLocators;
 using MatPlotLibNet.Styling;
@@ -25,15 +26,26 @@ public class ThreeDAxesRendererCoverageTests
         return fig.ToSvg();
     }
 
-    // ── Compute3DDataRanges L672 `else if (series is I3DPointSeries pts)` — Quiver3DSeries
-    // implements I3DPointSeries directly (rather than via the XYZSeries base every other 3D
-    // point series shares), and its explicit dispatch properties (X/Y/Z) were only ever
-    // exercised through unit tests that construct/dispose a Quiver3DSeries directly — never
-    // through a real 3D-axes render pass, leaving them at 0 line hits. Rendering a scene
-    // that contains one exercises the `pts.X`/`pts.Y`/`pts.Z` dispatch calls.
+    // ── A 3-D point series hands its coordinates out through I3DPointSeries: Quiver3DSeries directly, every other one
+    // through the XYZSeries base. The 3-D axes range each point series from its own extent (one rule, through the
+    // missing-value owner), so a render no longer reads the interface; its public contract is pinned here.
 
     [Fact]
-    public void Render3D_WithQuiver3DSeries_HitsI3DPointSeriesDispatch()
+    public void A3DPointSeries_HandsOutItsCoordinatesThroughTheInterface()
+    {
+        double[] x = [0, 1], y = [2, 3], z = [4, 5];
+        I3DPointSeries[] series = [new Quiver3DSeries(x, y, z, x, y, z), new Scatter3DSeries(x, y, z)];
+
+        foreach (var s in series)
+        {
+            Assert.Equal(x, s.X);
+            Assert.Equal(y, s.Y);
+            Assert.Equal(z, s.Z);
+        }
+    }
+
+    [Fact]
+    public void Render3D_WithQuiver3DSeries_RangesOverItsArrows()
     {
         var svg = Render3D(ax => ax.Quiver3D(
             [0.0, 1.0], [0.0, 1.0], [0.0, 1.0],

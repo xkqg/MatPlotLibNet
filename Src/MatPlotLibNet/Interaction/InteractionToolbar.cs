@@ -11,8 +11,8 @@ namespace MatPlotLibNet.Interaction;
 public sealed class InteractionToolbar
 {
     /// <summary>Active tool modes.</summary>
-    /// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-    /// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+    /// <remarks><b>Append-only ordinal contract:</b> never reorder,
+    /// remove, or renumber.</remarks>
     public enum ToolMode
     {
         /// <summary>Default: left-drag pans, scroll zooms.</summary>

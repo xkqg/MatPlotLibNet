@@ -3,9 +3,9 @@
 
 namespace MatPlotLibNet.AspNetCore;
 
-/// <summary>Abstraction over SignalR's per-connection send pattern. v1.2.0 introduced group
-/// broadcast via <see cref="IChartPublisher"/>; v1.2.2 introduces the first per-caller
-/// response mechanism for hover tooltip content. Extracted as an interface so
+/// <summary>Abstraction over SignalR's per-connection send pattern: where <see cref="IChartPublisher"/>
+/// broadcasts to a group, this answers a single caller, which is how the content of a hover tooltip is
+/// delivered. Extracted as an interface so
 /// <c>ChartSession</c> can depend on the narrow pattern rather than <c>IHubContext</c>
 /// directly, which keeps tests mockable without spinning up a SignalR test server.</summary>
 public interface ICallerPublisher

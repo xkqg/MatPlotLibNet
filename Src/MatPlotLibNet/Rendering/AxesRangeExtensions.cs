@@ -15,20 +15,59 @@ namespace MatPlotLibNet.Rendering;
 internal static class AxesRangeExtensions
 {
     /// <summary>
-    /// Snapshots every series' <see cref="DataRangeContribution"/> into an array, evaluating
-    /// <c>ComputeDataRange</c> exactly once per series. Critical for performance: histogram
-    /// and KDE series rebuild bins on every call, and the legacy code in
+    /// Snapshots what takes part in the automatic range of the axes into an array: every series'
+    /// <see cref="DataRangeContribution"/>, evaluating <c>ComputeDataRange</c> exactly once per series, then one
+    /// contribution for each line drawn across the plot at a data value (<see cref="LineContributions"/>). Critical for
+    /// performance: histogram and KDE series rebuild bins on every call, and the legacy code in
     /// <see cref="CartesianAxesRenderer.ComputeDataRanges"/> called them three times per render
     /// (once for aggregation, once for sticky clamp, once for sticky-flag collection).
     /// </summary>
     public static DataRangeContribution[] SnapshotContributions(this Axes axes)
     {
         var context = new AxesContextAdapter(axes);
-        var result = new DataRangeContribution[axes.Series.Count];
+        var result = new List<DataRangeContribution>(axes.Series.Count + axes.ReferenceLines.Count);
         for (int i = 0; i < axes.Series.Count; i++)
-            result[i] = axes.Series[i].ComputeDataRange(context);
-        return result;
+            result.Add(axes.Series[i].ComputeDataRange(context));
+        result.AddRange(axes.LineContributions());
+        return [.. result];
     }
+
+    /// <summary>The lines drawn across the plot at a data value, each as a data value there on its own axis: a reference
+    /// line (<see cref="Axes.AxHLine"/> on the Y axis, <see cref="Axes.AxVLine"/> on the X axis), a horizontal level and the
+    /// levels of a Fibonacci retracement. matplotlib's <c>axhline</c> and <c>axvline</c> update the data limits along their
+    /// own axis, so the automatic range shows a line beyond the data instead of drawing it off the plot. A value the axis
+    /// cannot place (a missing value, an infinity, 0 or less on a log axis) adds nothing, the rule a series' values follow.
+    /// A line carries no sticky edge.</summary>
+    /// <param name="axes">The axes whose lines are taken in.</param>
+    /// <returns>One contribution per line; an empty one for a line at a value its axis cannot place.</returns>
+    private static IEnumerable<DataRangeContribution> LineContributions(this Axes axes)
+    {
+        foreach (var line in axes.ReferenceLines)
+        {
+            yield return line.Orientation == Orientation.Horizontal ? axes.AtHeight(line.Value) : axes.AtPlace(line.Value);
+        }
+
+        foreach (var level in axes.HorizontalLevels)
+        {
+            yield return axes.AtHeight(level.Value);
+        }
+
+        foreach (var retracement in axes.FibonacciRetracements)
+        {
+            foreach (var level in retracement.Levels)
+            {
+                yield return axes.AtHeight(level.Price);
+            }
+        }
+    }
+
+    /// <summary>A data value <paramref name="y"/> on the Y axis, when the Y axis can place it.</summary>
+    private static DataRangeContribution AtHeight(this Axes axes, double y) =>
+        Range1D.Empty.Including(y, axes.YAxis.Scale).OrNone() is { } r ? new(null, null, r.Lo, r.Hi) : default;
+
+    /// <summary>A data value <paramref name="x"/> on the X axis, when the X axis can place it.</summary>
+    private static DataRangeContribution AtPlace(this Axes axes, double x) =>
+        Range1D.Empty.Including(x, axes.XAxis.Scale).OrNone() is { } r ? new(r.Lo, r.Hi, null, null) : default;
 
     /// <summary>Folds every contribution's X range into <paramref name="seed"/>.</summary>
     public static Range1D FoldXRange(this IReadOnlyList<DataRangeContribution> contribs, Range1D seed)

@@ -54,7 +54,10 @@ public sealed class PcolormeshSeries : ChartSeries, IColorBarDataProvider, IColo
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (X.Length == 0 || Y.Length == 0) return new(0, 1, 0, 1);
-        double xMin = X.Min(), xMax = X.Max(), yMin = Y.Min(), yMax = Y.Max();
+        // Over the drawable cell edges only: a missing one (NaN) and an infinity are left out.
+        var x = X.Data.DrawableRange();
+        var y = Y.Data.DrawableRange();
+        double? xMin = x?.Lo, xMax = x?.Hi, yMin = y?.Lo, yMax = y?.Hi;
         return new(xMin, xMax, yMin, yMax,
             StickyXMin: xMin, StickyXMax: xMax, StickyYMin: yMin, StickyYMax: yMax);
     }
@@ -66,7 +69,9 @@ public sealed class PcolormeshSeries : ChartSeries, IColorBarDataProvider, IColo
         XData = X,
         YData = Y,
         HeatmapData = ChartSerializer.To2DList(C),
-        ColorMapName = ColorMap?.Name
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="PcolormeshSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -76,10 +81,8 @@ public sealed class PcolormeshSeries : ChartSeries, IColorBarDataProvider, IColo
     internal static PcolormeshSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
         var s = axes.Pcolormesh(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData));
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
+        s.RestoreNormalizer(dto);
         return s;
     }
 

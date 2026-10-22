@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Xml.Linq;
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
 
@@ -83,7 +85,7 @@ public class PieSeriesRendererTests
         Assert.True(shadow.Split("<path").Length > basic.Split("<path").Length);
     }
 
-    /// <summary>Colors per-slice (line 65 ternary's true arm). Custom palette.</summary>
+    /// <summary>Colors per-slice: each wedge wears the colour named at its position.</summary>
     [Fact]
     public void Render_Colors_PerSlice_UsesCustomPalette()
     {
@@ -91,7 +93,7 @@ public class PieSeriesRendererTests
         {
             Colors = new[] { Colors.Red, Colors.Green, Colors.Blue },
         });
-        Assert.Contains("<path", svg);
+        Assert.Equal([Colors.Red.ToHex(), Colors.Green.ToHex(), Colors.Blue.ToHex()], WedgeFills(svg));
     }
 
     /// <summary>AutoPct (line 73 true arm) — emits percentage text inside each slice.</summary>
@@ -104,16 +106,68 @@ public class PieSeriesRendererTests
         Assert.Contains(">50.0%<", svg);     // 30/(60) = 50%
     }
 
-    /// <summary>Colors[] shorter than Sizes[] (line 65 ternary's `i &lt; Colors.Length`
-    /// false arm). Per-slice color array runs out before all slices are drawn.</summary>
+    private static Figure ThemedFigure(Theme theme, PieSeries pie) =>
+        Plt.Create().WithTheme(theme).WithSize(400, 400)
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(pie).HideAllAxes()).Build();
+
+    /// <summary>The fill of each wedge, in the order the wedges are drawn.</summary>
+    private static string[] WedgeFills(string svg) =>
+        XDocument.Parse(svg).Descendants().Where(e => e.Name.LocalName == "path" && e.Attribute("fill") is not null)
+            .Select(e => (string)e.Attribute("fill")!).ToArray();
+
+    /// <summary>A pinned semantic changed on purpose: Colors[] shorter than Sizes[] used to give every wedge past the array
+    /// the series' own slot colour (the same colour for all of them). Now a wedge past the array takes what the figure's
+    /// theme hands out at its own position, as a donut and a funnel do (<c>ThemedPartColourTests</c>).</summary>
     [Fact]
-    public void Render_ColorsShorterThanSizes_FallsBackToSeriesColor()
+    public void Render_ColorsShorterThanSizes_WedgesBeyondItTakeTheThemeColourAtTheirOwnPosition()
     {
-        var svg = Render(new PieSeries([1.0, 2.0, 3.0])
-        {
-            Colors = new[] { Colors.Red },     // only 1 color, 3 slices
-        });
-        Assert.Contains("<path", svg);
+        var fills = WedgeFills(ThemedFigure(Theme.Ggplot, new PieSeries([1.0, 2.0, 3.0]) { Colors = [Colors.Red] }).ToSvg());
+
+        Assert.Equal([Colors.Red.ToHex(), Theme.Ggplot.CycleColors[1].ToHex(), Theme.Ggplot.CycleColors[2].ToHex()], fills);
+    }
+
+    /// <summary>Drawing a pie writes nothing into it: <c>Colors</c> is what the user set, so a pie that named none still
+    /// names none (and writes none to JSON) after a render.</summary>
+    [Fact]
+    public void Render_LeavesColorsNull_WhenTheUserSetNone()
+    {
+        var pie = new PieSeries([1.0, 2.0, 3.0]);
+        var figure = ThemedFigure(Theme.Ggplot, pie);
+
+        figure.ToSvg();
+
+        Assert.Null(pie.Colors);
+        Assert.DoesNotContain("\"colors\"", figure.ToJson());
+    }
+
+    [Fact]
+    public void Render_LeavesAPartialColorsArrayAsTheUserSetIt()
+    {
+        var named = new[] { Colors.Red };
+        var pie = new PieSeries([1.0, 2.0, 3.0]) { Colors = named };
+        var figure = ThemedFigure(Theme.Ggplot, pie);
+
+        figure.ToSvg();
+
+        Assert.Same(named, pie.Colors);
+        Assert.Equal([Colors.Red], pie.Colors);
+        // the key the null case asserts away is the one a pie that names colours writes
+        Assert.Contains("\"colors\"", figure.ToJson());
+    }
+
+    /// <summary>The same figure drawn on one theme and then on another wears each theme's colours: the first render pinned
+    /// nothing into the series (it kept the first theme's wedge colours before).</summary>
+    [Fact]
+    public void ARenderUnderOneTheme_DoesNotPinTheWedgeColoursOfTheNextTheme()
+    {
+        var figure = ThemedFigure(Theme.Ggplot, new PieSeries([1.0, 2.0, 3.0]));
+
+        var first = WedgeFills(figure.ToSvg());
+        figure.Theme = Theme.Seaborn;
+        var second = WedgeFills(figure.ToSvg());
+
+        Assert.Equal(Theme.Ggplot.CycleColors.Take(3).Select(c => c.ToHex()), first);
+        Assert.Equal(Theme.Seaborn.CycleColors.Take(3).Select(c => c.ToHex()), second);
     }
 
     /// <summary>Theme with DefaultFont set (line 38 `is { } f` true arm). MatplotlibClassic

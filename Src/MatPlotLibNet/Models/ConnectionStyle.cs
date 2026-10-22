@@ -4,8 +4,8 @@
 namespace MatPlotLibNet.Models;
 
 /// <summary>Specifies the path style used to connect an annotation text to its arrow target.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum ConnectionStyle
 {
     /// <summary>A straight line directly from the annotation text position to the target point.</summary>

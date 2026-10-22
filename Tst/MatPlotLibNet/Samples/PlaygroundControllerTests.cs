@@ -13,11 +13,11 @@ namespace MatPlotLibNet.Tests.Samples;
 /// </summary>
 public class PlaygroundControllerTests
 {
-    private static readonly (Theme Theme, string Label)[] _themeChoices =
+    private static readonly ThemeChoice[] _themeChoices =
     [
-        (Theme.Default, "Default"),
-        (Theme.Dark,    "Dark"),
-        (Theme.Seaborn, "Seaborn"),
+        new(Theme.Default, "Default"),
+        new(Theme.Dark,    "Dark"),
+        new(Theme.Seaborn, "Seaborn"),
     ];
 
     private static readonly IColorMap[] _colorMapChoices =

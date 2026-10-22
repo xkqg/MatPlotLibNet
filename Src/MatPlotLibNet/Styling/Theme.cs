@@ -6,6 +6,9 @@ namespace MatPlotLibNet.Styling;
 /// <summary>
 /// Defines the visual appearance of a plot, including colors, font, and grid settings.
 /// </summary>
+/// <remarks>A theme is data: the figure JSON writes it property by property (its name included), so a figure drawn
+/// under a built-in theme or under one made with <see cref="ThemeBuilder"/> reads back from JSON drawing the same
+/// picture. A figure on the default theme (<see cref="MatplotlibV2"/>) writes no theme at all.</remarks>
 public sealed class Theme
 {
     public string Name { get; }
@@ -300,7 +303,7 @@ public sealed class Theme
     public static Theme MatplotlibClassic { get; } = Themes.MatplotlibThemeFactory.CreateClassic();
 
     /// <summary>
-    /// Matplotlib v2.0+ default look (since 2017) — white background, soft-black <c>#262626</c>
+    /// The look matplotlib has had by default since version 2.0 (2017) — white background, soft-black <c>#262626</c>
     /// text, the modern <c>tab10</c> 10-color cycle, and grid hidden by default. The look every
     /// Jupyter notebook ships with today.
     /// </summary>

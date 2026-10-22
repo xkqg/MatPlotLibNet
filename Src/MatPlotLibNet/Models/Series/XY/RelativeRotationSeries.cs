@@ -290,7 +290,8 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         RrgAssetCloses       = AssetCloses.Select(a => a.ToList()).ToList(),
         RrgBenchmarkCloses   = BenchmarkCloses.ToList(),
         RrgAssetLabels       = AssetLabels.ToArray(),
-        ColorMapName         = ColorMap?.Name,
+        ColorMapName         = ColorMap.NameForJson(),
+        ColorMap             = ColorMap.DescriptionForJson(),
         RrgFormula            = Formula != RrgFormula.DualEma   ? Formula.ToString() : null,
         RrgShortPeriod        = ShortPeriod != 10               ? ShortPeriod        : null,
         RrgLongPeriod         = LongPeriod  != 26               ? LongPeriod         : null,
@@ -311,10 +312,7 @@ public sealed class RelativeRotationSeries : ChartSeries, IColormappable
         var benchmarkCloses = (dto.RrgBenchmarkCloses ?? []).ToArray();
         var labels         = dto.RrgAssetLabels ?? [];
         var s = axes.RelativeRotation(assetCloses, benchmarkCloses, labels);
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
         if (dto.RrgFormula is not null)
         {
             s.Formula = Enum.Parse<Models.Series.RrgFormula>(dto.RrgFormula, ignoreCase: true);

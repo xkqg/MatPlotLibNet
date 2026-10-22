@@ -28,7 +28,9 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
 
     public double? CapThick { get; set; }
 
-    public int ErrorEvery { get; set; } = 1;
+    public int ErrorEvery { get; set; } = RestingErrorEvery;
+
+    private const int RestingErrorEvery = 1;
 
     /// <summary>Creates a new error bar series from the given data and error magnitudes.</summary>
     public ErrorBarSeries(double[] xData, double[] yData, double[] yErrorLow, double[] yErrorHigh)
@@ -41,26 +43,32 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
-        double xMin = XData.Min(), xMax = XData.Max();
-        double yMin = double.MaxValue, yMax = double.MinValue;
+        // Over what can be drawn: a missing value (NaN) and an infinity are left out, as the renderer leaves out the
+        // point or the bar. The range runs from the lowest bar end to the highest; along X from the lowest point or
+        // left end to the highest point or right end.
+        var low = new double[YData.Length];
+        var high = new double[YData.Length];
         for (int i = 0; i < YData.Length; i++)
         {
-            double lo = YData[i] - YErrorLow[i];
-            double hi = YData[i] + YErrorHigh[i];
-            if (lo < yMin) yMin = lo;
-            if (hi > yMax) yMax = hi;
+            low[i] = YData[i] - YErrorLow[i];
+            high[i] = YData[i] + YErrorHigh[i];
         }
+
+        double[][] xLows = [XData], xHighs = [XData];
         if (XErrorLow is not null && XErrorHigh is not null)
         {
+            var left = new double[XData.Length];
+            var right = new double[XData.Length];
             for (int i = 0; i < XData.Length; i++)
             {
-                double lo = XData[i] - XErrorLow[i];
-                double hi = XData[i] + XErrorHigh[i];
-                if (lo < xMin) xMin = lo;
-                if (hi > xMax) xMax = hi;
+                left[i] = XData[i] - XErrorLow[i];
+                right[i] = XData[i] + XErrorHigh[i];
             }
+            xLows = [XData, left];
+            xHighs = [XData, right];
         }
-        return new(xMin, xMax, yMin, yMax);
+
+        return new(xLows.DrawableRange()?.Lo, xHighs.DrawableRange()?.Hi, low.DrawableRange()?.Lo, high.DrawableRange()?.Hi);
     }
 
     /// <inheritdoc />
@@ -70,7 +78,10 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
         XData = XData, YData = YData,
         YErrorLow = YErrorLow, YErrorHigh = YErrorHigh,
         XErrorLow = XErrorLow, XErrorHigh = XErrorHigh,
-        Color = Color, LineWidth = LineWidth, CapSize = CapSize
+        Color = Color, LineWidth = LineWidth, CapSize = CapSize,
+        ELineWidth = ELineWidth,
+        CapThick = CapThick,
+        ErrorEvery = ErrorEvery.OrNullAtRest(RestingErrorEvery),
     };
 
     /// <summary>Reconstructs an <see cref="ErrorBarSeries"/> from its serialization DTO, including optional X error bars, and adds it to the axes.</summary>
@@ -88,6 +99,9 @@ public sealed class ErrorBarSeries : XYSeries, IHasColor
         }
         s.XErrorLow = dto.XErrorLow;
         s.XErrorHigh = dto.XErrorHigh;
+        s.ELineWidth = dto.ELineWidth;
+        s.CapThick = dto.CapThick;
+        s.ErrorEvery = dto.ErrorEvery ?? RestingErrorEvery;
         return s;
     }
 

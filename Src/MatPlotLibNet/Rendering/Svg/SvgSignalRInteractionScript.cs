@@ -6,8 +6,8 @@ using System.Text;
 namespace MatPlotLibNet.Rendering.Svg;
 
 /// <summary>Provides the embedded JavaScript IIFE that forwards browser interaction events
-/// (wheel, drag, Home key, legend click, and — since v1.2.2 — Shift+drag brush-select and
-/// hover) to a bidirectional SignalR <c>ChartHub</c>. Emitted by
+/// (wheel, drag, Home key, legend click and, when enabled, Shift+drag brush-select, hover and
+/// a click on a marker) to a bidirectional SignalR <c>ChartHub</c>. Emitted by
 /// <see cref="Transforms.SvgTransform"/> when <c>Figure.ServerInteraction == true</c>,
 /// replacing the local client-side <c>SvgInteractivityScript</c> + <c>SvgLegendToggleScript</c>.
 /// The script assumes a <c>@microsoft/signalr</c> <c>HubConnection</c> has been exposed to the
@@ -17,11 +17,12 @@ namespace MatPlotLibNet.Rendering.Svg;
 /// browser console.</summary>
 internal static class SvgSignalRInteractionScript
 {
-    /// <summary>Returns the complete <c>&lt;script&gt;</c> block. The v1.2.0 handlers
-    /// (OnZoom/OnPan/OnReset/OnLegendToggle) are always included; v1.2.2 brush-select and
-    /// hover branches are conditionally appended when the caller sets the respective flags
+    /// <summary>Returns the complete <c>&lt;script&gt;</c> block. The zoom, pan, reset and legend-toggle
+    /// handlers (OnZoom/OnPan/OnReset/OnLegendToggle) are always included; the brush-select, hover and
+    /// data-cursor branches are appended when the caller sets the respective flags
     /// via <see cref="Builders.ServerInteractionBuilder.EnableBrushSelect"/> /
-    /// <see cref="Builders.ServerInteractionBuilder.EnableHover"/>.</summary>
+    /// <see cref="Builders.ServerInteractionBuilder.EnableHover"/> /
+    /// <see cref="Builders.ServerInteractionBuilder.EnableDataCursor"/>.</summary>
     internal static string GetScript(bool enableBrushSelect = false, bool enableHover = false,
         bool enableDataCursor = false)
     {

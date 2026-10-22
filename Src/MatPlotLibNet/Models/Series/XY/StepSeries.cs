@@ -8,8 +8,8 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models.Series;
 
 /// <summary>Specifies where the step transition occurs relative to adjacent data points.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum StepPosition
 {
     /// <summary>Step occurs before the data point (step at the beginning of the interval).</summary>
@@ -45,7 +45,8 @@ public sealed class StepSeries : XYSeries, IHasColor
         XData = XData, YData = YData, Color = Color,
         LineStyle = LineStyle.ToString().ToLowerInvariant(),
         LineWidth = LineWidth,
-        StepPosition = StepPosition.ToString().ToLowerInvariant()
+        StepPosition = StepPosition.ToString().ToLowerInvariant(),
+        Marker = Marker,
     };
 
     /// <summary>Reconstructs a <see cref="StepSeries"/> from its serialization DTO, including step position, and adds it to the axes.</summary>
@@ -59,6 +60,7 @@ public sealed class StepSeries : XYSeries, IHasColor
         s.LineWidth = dto.LineWidth ?? 1.5;
         ChartSerializer.ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
         ChartSerializer.ApplyEnum<StepPosition>(dto.StepPosition, v => s.StepPosition = v);
+        s.Marker = dto.Marker;
         return s;
     }
 

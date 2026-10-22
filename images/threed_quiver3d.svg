@@ -218,16 +218,15 @@
 <script type="text/ecmascript"><![CDATA[
 (function() {
     'use strict';
-    // Per-chart isolation (Phase 2): scope to THIS script's owning <svg>.
+    // Per-chart isolation: scope to THIS script's owning <svg>.
     var svg = (document.currentScript && document.currentScript.parentNode) || document;
     var scenes = svg.querySelectorAll('.mpl-3d-scene');
     scenes.forEach(function(scene) {
         var elevation = parseFloat(scene.getAttribute('data-elevation') || '30');
         var azimuth   = parseFloat(scene.getAttribute('data-azimuth')   || '-60');
-        // Phase F.3 of v1.7.2 follow-on — default to 10 (matches server's
-        // Projection3D.DefaultDist) when the attribute is missing, so wheel
-        // zoom works on every 3D chart, not just the ones where the caller
-        // explicitly set WithCamera(..., distance: N).
+        // Default to 10 (matches the server's Projection3D.DefaultDist) when the
+        // attribute is missing, so wheel zoom works on every 3D chart, not just
+        // the ones where the caller explicitly set WithCamera(..., distance: N).
         var distance  = scene.hasAttribute('data-distance') ? parseFloat(scene.getAttribute('data-distance')) : 10;
         var plotX     = parseFloat(scene.getAttribute('data-plot-x') || '0');
         var plotY     = parseFloat(scene.getAttribute('data-plot-y') || '0');
@@ -237,7 +236,7 @@
         var initEl = elevation, initAz = azimuth, initDistance = distance;
         var dragging = false, lastX = 0, lastY = 0;
 
-        // Phase B.4 of v1.7.2 follow-on plan — full matplotlib projection port.
+        // Full matplotlib projection port.
         // Mirrors Src/MatPlotLibNet/Rendering/Projection3D.cs so first-drag reprojection
         // matches the server-rendered initial view exactly (no visual jump).
         //
@@ -284,20 +283,17 @@
                 if (n[1] > maxY) maxY = n[1];
             }
             var rangeX = maxX - minX, rangeY = maxY - minY;
-            // Phase P fix (2026-04-18) — fit-to-plot was cancelling wheel-zoom.
-            // Pre-fix scale was always Math.min(plotW/rangeX, plotH/rangeY), so
-            // changing data-distance only perturbed perspective (subtle) but
-            // kept the box the same apparent size — user reported "it moves a
-            // little" instead of visible zoom. Multiply by (initDistance/distance)
-            // so closer distance = larger scale = bigger chart on screen, matching
-            // the user intuition "zoom is that I can look closer".
-            // BOX_FILL (1.25) tightens the default margin around the 3D cube —
-            // user explicitly approved "aggressive fill even if labels clip;
-            // the user can zoom out if needed" (2026-04-18). Must stay in lockstep
-            // with Projection3D.Project's 1.25 factor so the initial static render
-            // matches the client-side reproject size byte-for-byte.
+            // The fit-to-plot scale Math.min(plotW/rangeX, plotH/rangeY) alone would keep the
+            // box the same apparent size whatever data-distance says: a closer camera would
+            // only change the perspective, and the wheel would seem to do almost nothing.
+            // Multiplying by (initDistance/distance) makes a closer distance a larger scale,
+            // a bigger chart on screen: zoom is "I can look closer".
+            // BOX_FILL tightens the margin around the 3D cube. Labels may clip at the default
+            // fill; zooming out gives them room. It must stay in lockstep with
+            // Projection3D.Project's factor so the initial static render matches the
+            // client-side reproject size byte-for-byte.
             var zoom = initDistance / distance;
-            var BOX_FILL = 1.15;   // Phase P — 1.25 overlapped the axes title; 1.15 keeps the title row clear. Must match Projection3D.Project.
+            var BOX_FILL = 1.15;   // keeps the axes title row clear of the cube. Must match Projection3D.Project.
             return {
                 cxFit: (minX + maxX) / 2,
                 cyFit: (minY + maxY) / 2,
@@ -411,12 +407,12 @@
             return sum / pts.length;
         }
 
-        // Phase F of v1.7.2 follow-on — depth-resort is scoped to the data tier
-        // only. Axis infrastructure (panes, edges, grid, labels, ticks) lives in
-        // separate mpl-3d-back / mpl-3d-front subgroups and stays in fixed DOM
-        // order — matches matplotlib's draw hierarchy (axes3d.py:458-470). Pre-F
-        // the resort mixed panes with series, and back-corner surface quads would
-        // get painted BEFORE the panes then covered by them on rotation.
+        // Depth-resort is scoped to the data tier only. Axis infrastructure (panes,
+        // edges, grid, labels, ticks) lives in separate mpl-3d-back / mpl-3d-front
+        // subgroups and stays in fixed DOM order — matches matplotlib's draw hierarchy
+        // (axes3d.py:458-470). Sorting the panes together with the series would paint
+        // back-corner surface quads before the panes and let the panes cover them on
+        // rotation.
         function resortDepth(b) {
             var dataGroup = scene.querySelector('.mpl-3d-data');
             if (!dataGroup) return;  // Backward-compat: figures without subgroups skip resort.
@@ -462,8 +458,8 @@
                     el.setAttribute('x2', points[1][0].toFixed(2));
                     el.setAttribute('y2', points[1][1].toFixed(2));
                 } else if (el.tagName === 'text' && points.length > 0) {
-                    // Phase F.2 of v1.7.2 follow-on — preserve perpendicular pad
-                    // that pushes tick-labels + axis-titles outside the cube.
+                    // Preserve the perpendicular pad that pushes tick-labels +
+                    // axis-titles outside the cube.
                     // Mirrors server PerpAwayFromCentroid: build 2D perpendicular
                     // from the projected axis edge (data-v3d-edge), flip it away
                     // from the plot centre, apply pad magnitude.
@@ -498,23 +494,22 @@
             scene.setAttribute('data-faces', SERVER_FACES);
         }
 
-        // Phase 4 — Pointer Events. setPointerCapture binds the pointer to the
+        // Pointer Events. setPointerCapture binds the pointer to the
         // scene so dragging out of the scene still releases cleanly. Mouse fallback
         // kept for pre-pointer-events runtimes.
-        // Phase A.1 of v1.7.2 follow-on plan — stopPropagation prevents the event
-        // bubbling to the SVG root and triggering the 2D pan handler (defence in
-        // depth — Phase A.2 also bails the 2D handler at init for 3D charts).
+        // stopPropagation prevents the event bubbling to the SVG root and
+        // triggering the 2D pan handler (defence in depth — the 2D handler also
+        // bails at init for 3D charts).
         function startDrag(e) {
             dragging = true; lastX = e.clientX; lastY = e.clientY;
             e.preventDefault(); e.stopPropagation();
             if (scene.setPointerCapture && e.pointerId !== undefined)
                 try { scene.setPointerCapture(e.pointerId); } catch (_) {}
         }
-        // Phase B.2 of v1.7.2 follow-on plan — matplotlib parity
+        // matplotlib parity
         // (mpl_toolkits/mplot3d/axes3d.py:_on_move, roll = 0):
         //   dazim = -(dx / w) * 180   ;   delev = -(dy / h) * 180
-        // i.e. a full-axes drag = 180° rotation. Pre-fix used a fixed
-        // 0.5°/pixel + inverted azimuth sign + clamped elev to ±90°.
+        // i.e. a full-axes drag = 180° rotation.
         function moveDrag(e) {
             if (!dragging) return;
             var dx = e.clientX - lastX, dy = e.clientY - lastY;
@@ -543,13 +538,11 @@
         // i.e. orthographic projection — wheel doesn't promote to perspective silently).
         // {passive:false} required so preventDefault overrides browser/iframe scroll.
         scene.addEventListener('wheel', function(e) {
-            // Phase F.3 of v1.7.2 follow-on — no more bail on missing distance;
-            // the init above defaults to 10 so this handler always does work.
-            // Phase P fix (2026-04-18): was additive ±0.5 per notch = ~5% at
-            // default distance=10 (user reported "see a little movement").
-            // Matplotlib's axes3d._scroll_zoom uses MULTIPLICATIVE 1.1× per step;
+            // The init above defaults the distance to 10, so this handler always
+            // does work.
+            // Matplotlib's axes3d._scroll_zoom uses a MULTIPLICATIVE 1.1× per step;
             // matching that makes zoom feel responsive and scales correctly at
-            // any distance (additive was only responsive near the MIN clamp).
+            // any distance (an additive step is only responsive near the MIN clamp).
             e.preventDefault(); e.stopPropagation();
             var scale = e.deltaY > 0 ? 1.1 : 1 / 1.1;
             distance = Math.max(2, Math.min(100, distance * scale));

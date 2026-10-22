@@ -48,6 +48,16 @@ public readonly record struct Range1D(double Lo, double Hi)
     /// <returns>This range in the orientation of <paramref name="drawn"/>.</returns>
     internal Range1D OrientedLike(Range1D drawn) => drawn.Lo > drawn.Hi ? new(Hi, Lo) : this;
 
+    /// <summary>This range the way <paramref name="axis"/> is drawn: high to low when the axis is
+    /// <see cref="Axis.Inverted"/>, otherwise as it is. A range that already runs high to low (limits set high to low) is
+    /// left as it is: inverted is a state of the axis, as matplotlib's <c>set_inverted(True)</c> is, never a second turn, so
+    /// the two ways of asking for a reversed axis draw it reversed once. From here on a reversed axis is drawn by the rule
+    /// a reversed limit has always followed: its ticks are the ticks of its <see cref="Interval"/>, each drawn where its
+    /// value is.</summary>
+    /// <param name="axis">The axis the range is drawn on.</param>
+    /// <returns>The range in the orientation it is drawn in.</returns>
+    internal Range1D OrientedBy(Axis axis) => axis.Inverted && Lo < Hi ? new(Hi, Lo) : this;
+
     /// <summary>Seeds a running range from an <see cref="Axis"/>: a side the user has set
     /// (<see cref="Axis.Min"/> / <see cref="Axis.Max"/>) starts the accumulator, an unset side starts empty. The
     /// series fold (<see cref="Merge"/>) can widen the seed; the renderer then puts every set side back with

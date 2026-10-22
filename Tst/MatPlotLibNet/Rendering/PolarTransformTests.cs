@@ -61,6 +61,22 @@ public class PolarTransformTests
         Assert.Equal(atMax.X, beyond.X, 1);
     }
 
+    /// <summary>A radius or an angle that cannot be placed maps to a pixel no renderer draws, as a cartesian coordinate
+    /// that cannot be placed does: a finite radius beyond rMax is clamped to the edge, an infinite one is not a radius
+    /// (it was drawn on the edge as if it were rMax).</summary>
+    [Theory]
+    [InlineData(double.NaN, 0)]
+    [InlineData(double.PositiveInfinity, 0)]
+    [InlineData(double.NegativeInfinity, 0)]
+    [InlineData(5, double.NaN)]
+    [InlineData(5, double.PositiveInfinity)]
+    public void PolarToPixel_ACoordinateThatCannotBePlaced_IsNotADrawablePixel(double r, double theta)
+    {
+        var pt = CreateTransform().PolarToPixel(r, theta);
+
+        Assert.False(double.IsFinite(pt.X) && double.IsFinite(pt.Y));
+    }
+
     /// <summary>Verifies that CenterX and CenterY are at the midpoint.</summary>
     [Fact]
     public void Center_IsAtMidpoint()

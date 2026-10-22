@@ -102,7 +102,7 @@ Plt.Create()
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `Labels` | `string[]` | none | Slice labels |
-| `Colors` | `Color[]` | auto | Per-slice colors |
+| `Colors` | `Color[]` | none | Per-slice colors; a wedge you do not name (no array, or one shorter than the slices) wears the theme's colour at its position, as a donut's and a funnel's do |
 | `Explode` | `double[]` | none | Per-slice offset from center (0–1) |
 | `StartAngle` | `double` | `90` | Rotation in degrees |
 | `CounterClockwise` | `bool` | `false` | Reverse slice order |

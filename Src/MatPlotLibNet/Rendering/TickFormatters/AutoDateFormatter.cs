@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Serialization;
 
 namespace MatPlotLibNet.Rendering.TickFormatters;
 
@@ -21,13 +22,16 @@ namespace MatPlotLibNet.Rendering.TickFormatters;
 /// Must be used with the same <see cref="AutoDateLocator"/> instance that produces the tick positions,
 /// so that <see cref="AutoDateLocator.ChosenInterval"/> is already set when <see cref="Format"/> is called.
 /// </remarks>
-public sealed class AutoDateFormatter : ITickFormatter
+public sealed class AutoDateFormatter : ITickFormatter, IJsonDescribed<TickFormatterDto>
 {
     private readonly AutoDateLocator _locator;
 
     /// <summary>Creates an <see cref="AutoDateFormatter"/> that reads the interval from <paramref name="locator"/>.</summary>
     /// <param name="locator">The <see cref="AutoDateLocator"/> paired with this formatter.</param>
     public AutoDateFormatter(AutoDateLocator locator) => _locator = locator;
+
+    /// <inheritdoc />
+    TickFormatterDto IJsonDescribed<TickFormatterDto>.Describe() => new AutoDateTickFormatterDto();
 
     /// <inheritdoc />
     public string Format(double value)

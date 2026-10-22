@@ -49,6 +49,12 @@ The server validates the spec before it renders. It rejects an unknown field, an
 enum value, a colour the library does not know, or a missing size. The error message names the field that is
 wrong, so the model can correct the spec instead of receiving a blank picture.
 
+A spec's `dpi` sizes the PNG it renders, as `WithDpi` does in code: an 800 by 600 spec at 192 dpi is a 1600 by 1200
+pixel picture with the same layout, drawn finer. SVG and PDF ignore it. The canvas ceiling (4,000 by 4,000 pixels)
+holds for the picture the spec draws, so its width and height times `dpi / 96` must stay inside it: 400 wide at 960 dpi
+is exactly 4,000 pixels. A spec over the ceiling is refused with a message that names `dpi`, the size it would draw and
+the ceiling.
+
 ## What comes back
 
 `render_chart` returns the PNG as an image block. Beside it, it returns a short text summary (chart types, series,

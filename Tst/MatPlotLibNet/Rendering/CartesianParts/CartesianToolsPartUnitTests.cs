@@ -160,6 +160,81 @@ public class CartesianToolsPartUnitTests
         Assert.Equal(1, ctx.CountOf("DrawLine"));
     }
 
+    // ── Trendline: kept inside the plot area ─────────────────────────────────────
+
+    /// <summary>The line the context was asked to draw.</summary>
+    private static LineSegment LineOf(RecordingRenderContext ctx)
+    {
+        var args = (dynamic)ctx.OfKind("DrawLine")[0].Args!;
+        return new LineSegment((Point)args.p1, (Point)args.p2);
+    }
+
+    /// <summary>A trendline inside the plot area is drawn between its two points, exactly: no end is recomputed.</summary>
+    [Fact]
+    public void Render_TrendlineInside_IsDrawnBetweenItsOwnPoints()
+    {
+        var ax = new Axes();
+        ax.AddTrendline(2, 3, 8, 7);
+        var ctx = new RecordingRenderContext();
+        Build(ax, ctx).Render();
+
+        var (p1, p2) = LineOf(ctx);
+        Assert.Equal(Transform().DataToPixel(2, 3), p1);
+        Assert.Equal(Transform().DataToPixel(8, 7), p2);
+    }
+
+    /// <summary>A trendline that runs out of the range the axes draw is cut at the plot edge, as matplotlib clips a line to
+    /// the axes: before, it was drawn on over the margin, the tick labels and the title. Its label stands at the end that is
+    /// drawn.</summary>
+    [Fact]
+    public void Render_TrendlinePastTheTop_IsCutAtThePlotEdge_ItsLabelAtTheDrawnEnd()
+    {
+        var ax = new Axes();
+        var t = ax.AddTrendline(0, 0, 10, 20);   // y = 2x: it leaves the top (y = 10) at x = 5
+        t.Label = "Trend";
+        var ctx = new RecordingRenderContext();
+        Build(ax, ctx).Render();
+
+        var (p1, p2) = LineOf(ctx);
+        Assert.Equal(new Point(0, 300), p1);
+        Assert.Equal(200, p2.X, 9);
+        Assert.Equal(0, p2.Y, 9);
+        var text = (dynamic)ctx.OfKind("DrawText")[0].Args!;
+        Assert.Equal(p2, (Point)text.position);
+    }
+
+    /// <summary>A trendline wholly outside the plot area draws nothing, its label included.</summary>
+    [Fact]
+    public void Render_TrendlineOutsideThePlot_DrawsNothing()
+    {
+        var ax = new Axes();
+        var t = ax.AddTrendline(0, 12, 10, 15);
+        t.Label = "Above";
+        var ctx = new RecordingRenderContext();
+        Build(ax, ctx).Render();
+
+        Assert.Equal(0, ctx.CountOf("DrawLine"));
+        Assert.Equal(0, ctx.CountOf("DrawText"));
+    }
+
+    /// <summary>An extended trendline steeper than the range runs across the plot from the bottom edge to the top edge, not
+    /// from the left edge to the right edge far above and below the plot.</summary>
+    [Fact]
+    public void Render_ExtendedTrendline_SteeperThanTheRange_RunsFromTheBottomEdgeToTheTopEdge()
+    {
+        var ax = new Axes();
+        var t = ax.AddTrendline(2, 2, 3, 4);     // y = 2x - 2: y = 0 at x = 1, y = 10 at x = 6
+        t.IsExtended = true;
+        var ctx = new RecordingRenderContext();
+        Build(ax, ctx).Render();
+
+        var (p1, p2) = LineOf(ctx);
+        Assert.Equal(40, p1.X, 9);
+        Assert.Equal(300, p1.Y, 9);
+        Assert.Equal(240, p2.X, 9);
+        Assert.Equal(0, p2.Y, 9);
+    }
+
     [Fact]
     public void Render_MixedTools_AllRendered()
     {

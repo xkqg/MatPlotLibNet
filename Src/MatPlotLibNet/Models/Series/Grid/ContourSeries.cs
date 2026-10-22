@@ -16,8 +16,16 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
 
     public double[,] ZData { get; }
 
+    /// <summary>How many iso-lines are drawn when <see cref="LevelValues"/> names none: this many levels, evenly spaced
+    /// strictly between the lowest value of the grid and the highest. A value below 2 counts as 2.</summary>
     public int Levels { get; set; } = 10;
 
+    /// <summary>The levels of the iso-lines, when you want them at values of your own choosing. Left <see langword="null"/>
+    /// or empty, <see cref="Levels"/> decides. Once it holds values, those are the levels drawn, one line each, and
+    /// <see cref="Levels"/> is ignored: they are taken in ascending order, each once, and a value that is not a number or is
+    /// infinite is left out. A level outside the range of the grid crosses no cell, so it draws no line. When none of the
+    /// values can be drawn, nothing is drawn. The colour of a line and the label of a line (<see cref="ShowLabels"/>) follow
+    /// its level. The heatmap under a filled contour (<see cref="Filled"/>) does not follow the levels.</summary>
     public double[]? LevelValues { get; set; }
 
     public bool Filled { get; set; }
@@ -47,8 +55,10 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
     {
         if (XData.Length == 0 || YData.Length == 0)
             return new(null, null, null, null);
-        double xMin = XData.Min(), xMax = XData.Max();
-        double yMin = YData.Min(), yMax = YData.Max();
+        // Over the drawable grid coordinates only: a missing one (NaN) and an infinity are left out.
+        var x = XData.DrawableRange();
+        var y = YData.DrawableRange();
+        double? xMin = x?.Lo, xMax = x?.Hi, yMin = y?.Lo, yMax = y?.Hi;
         // Contour grids occupy the full [xMin,xMax] × [yMin,yMax] rectangle — margin
         // expansion would push whitespace between the grid edge and the spines.
         return new(xMin, xMax, yMin, yMax,
@@ -59,7 +69,15 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "contour",
-        XData = XData, YData = YData, HeatmapData = ChartSerializer.To2DList(ZData)
+        XData = XData, YData = YData, HeatmapData = ChartSerializer.To2DList(ZData),
+        Levels = Levels.OrNullAtRest(10),
+        LevelValues = LevelValues,
+        Filled = Filled ? true : null,
+        ShowLabels = ShowLabels ? true : null,
+        LabelFormat = LabelFormat,
+        FontSize = LabelFontSize.OrNullAtRest(10.0),
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
     };
 
     /// <summary>Reconstructs a <see cref="ContourSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -67,7 +85,23 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static ContourSeries FromSeriesDto(Axes axes, SeriesDto dto)
-        => axes.Contour(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData));
+    {
+        var s = axes.Contour(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData));
+        if (dto.Levels.HasValue)
+        {
+            s.Levels = dto.Levels.Value;
+        }
+        s.LevelValues = dto.LevelValues;
+        s.Filled = dto.Filled ?? false;
+        s.ShowLabels = dto.ShowLabels ?? false;
+        s.LabelFormat = dto.LabelFormat;
+        if (dto.FontSize.HasValue)
+        {
+            s.LabelFontSize = dto.FontSize.Value;
+        }
+        s.RestoreColorMap(dto);
+        return s;
+    }
 
 
     /// <inheritdoc />

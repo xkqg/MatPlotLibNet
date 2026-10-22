@@ -20,8 +20,8 @@ public sealed record Font
 }
 
 /// <summary>Specifies the weight (boldness) of a font.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum FontWeight
 {
     /// <summary>A light font weight.</summary>
@@ -35,8 +35,8 @@ public enum FontWeight
 }
 
 /// <summary>Specifies the slant style of a font.</summary>
-/// <remarks><b>Append-only ordinal contract (Phase O of v1.7.2):</b> never reorder,
-/// remove, or renumber. See <c>EnumOrdinalContractTests</c>.</remarks>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder,
+/// remove, or renumber.</remarks>
 public enum FontSlant
 {
     /// <summary>Upright text with no slant.</summary>

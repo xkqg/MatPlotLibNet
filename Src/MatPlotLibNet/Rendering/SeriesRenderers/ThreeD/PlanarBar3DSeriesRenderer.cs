@@ -26,15 +26,10 @@ internal sealed class PlanarBar3DSeriesRenderer : SeriesRenderer<PlanarBar3DSeri
     {
         if (series.X.Length == 0) return;
 
-        var bounds = Area.PlotBounds;
-
-        double xMin = series.X.Min(), xMax = series.X.Max() + series.BarWidth;
-        double yMin = series.Y.Min(), yMax = series.Y.Max();
-        double zMin = 0;
-        double zMax = series.Z.Max();
-
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        // Fitted to the values that are there (a missing value, NaN, and an infinity are left out), from the floor at 0.
+        var x = series.X.Data.DrawableRange();
+        var proj = ProjectionFor(x is { } bars ? new Range1D(bars.Lo, bars.Hi + series.BarWidth) : null,
+            series.Y.Data.DrawableRange(), new Range1D(0, series.Z.Data.DrawableRange()?.Hi ?? 1));
 
         var baseColor = ResolveColor(series.Color);
         var edgeColor = series.EdgeColor ?? Colors.Black;
@@ -60,6 +55,9 @@ internal sealed class PlanarBar3DSeriesRenderer : SeriesRenderer<PlanarBar3DSeri
                 proj.Project(x1, y, h),
                 proj.Project(x0, y, h),
             };
+
+            // A bar with a corner that cannot be placed is skipped.
+            if (!pts.IsDrawable()) continue;
 
             // Depth key: centroid of the rectangle.
             double depth = proj.Depth((x0 + x1) / 2, y, h / 2);

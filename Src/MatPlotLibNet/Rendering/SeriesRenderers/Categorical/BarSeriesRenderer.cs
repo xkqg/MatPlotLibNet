@@ -29,39 +29,29 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
         // neighbouring bars (dense category axes, narrow bars, long labels).
         var labelCandidates = series.ShowLabels ? new List<LabelCandidate>() : null;
 
-        bool useNumericX = series.XCoordinate is { Length: > 0 };
         for (int i = 0; i < series.Categories.Length; i++)
         {
-            // Default (categorical): bar i occupies slot [i, i+1]. Centered body at i+0.5.
-            // Numeric X (XCoordinate set): bar center placed at XCoordinate[i], regardless of slot.
-            double slotStart = useNumericX ? series.XCoordinate![i] - 0.5 : i;
-            double effectiveBarWidth = series.BarGroupWidth ?? series.BarWidth;
-            double halfW = effectiveBarWidth / 2;
-            double barLeft, barRight;
-            if (useNumericX)
-            {
-                double center = series.XCoordinate![i] + series.BarGroupOffset;
-                barLeft = center - halfW;
-                barRight = center + halfW;
-            }
-            else if (series.Align == BarAlignment.Edge)
-            {
-                barLeft = slotStart + series.BarGroupOffset;
-                barRight = slotStart + series.BarGroupOffset + effectiveBarWidth;
-            }
-            else
-            {
-                double center = slotStart + 0.5 + series.BarGroupOffset;
-                barLeft = center - halfW;
-                barRight = center + halfW;
-            }
+            // Where the bar stands along its category axis: in its category's slot, or around its numeric x
+            // (CategorySlot, the one rule the data range and the category labels read too).
+            var slot = series.SlotOf(i);
+            double barLeft = slot.Left, barRight = slot.Right;
 
-            double baseline = series.StackBaseline is not null ? series.StackBaseline[i] : 0;
+            double baseline = series.Bottoms is { } bottoms ? bottoms[i] : 0;
+            double value = series.Values[i];
+            double end = baseline + value;
+            // The bar stands on its foot and reaches its end. A foot the axis cannot place (0 on a log axis) is clipped to
+            // the edge where the axis begins, as matplotlib clips it; a bar whose end, position or missing foot the axes
+            // cannot place is skipped with its label. A rising bar's end is its top, a falling bar's its bottom. The bar is
+            // the rectangle between the two corners (Rect.FromCorners), so it keeps a positive size on an axis that runs
+            // backwards.
+            bool rising = value >= 0;
             if (series.Orientation == BarOrientation.Vertical)
             {
-                var tl = Transform.DataToPixel(barLeft, baseline + Math.Max(series.Values[i], 0));
-                var br = Transform.DataToPixel(barRight, baseline + Math.Min(series.Values[i], 0));
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
+                var tl = rising ? Transform.DataToPixel(barLeft, end) : Transform.DataToPixelClippedY(barLeft, baseline);
+                var br = rising ? Transform.DataToPixelClippedY(barRight, baseline) : Transform.DataToPixel(barRight, end);
+                var bar = Rect.FromCorners(tl, br);
+                if (!bar.IsDrawable()) continue;
+                Ctx.DrawRectangle(bar, new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
 
                 if (labelCandidates is not null)
                 {
@@ -73,9 +63,11 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
             }
             else
             {
-                var tl = Transform.DataToPixel(baseline + Math.Min(series.Values[i], 0), barRight);
-                var br = Transform.DataToPixel(baseline + Math.Max(series.Values[i], 0), barLeft);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
+                var tl = rising ? Transform.DataToPixelClippedX(baseline, barRight) : Transform.DataToPixel(end, barRight);
+                var br = rising ? Transform.DataToPixel(end, barLeft) : Transform.DataToPixelClippedX(baseline, barLeft);
+                var bar = Rect.FromCorners(tl, br);
+                if (!bar.IsDrawable()) continue;
+                Ctx.DrawRectangle(bar, new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
 
                 if (labelCandidates is not null)
                 {
@@ -103,8 +95,14 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
         }
     }
 
+    /// <summary>The label of a bar that names no format: up to six significant digits, trailing zeros dropped, an
+    /// exponent only below 1e-4 or from 1e6 — matplotlib's <c>bar_label</c> default, <c>'%g'</c>. .NET's <c>G6</c> picks
+    /// the same digits and switches to an exponent at the same place; it writes the exponent as <c>E+06</c> where
+    /// <c>'%g'</c> writes <c>e+06</c>, so the marker is lowered.</summary>
+    private const string DefaultLabelFormat = "G6";
+
     private static string FormatValue(double value, string? format) =>
         format is not null
             ? value.ToString(format, CultureInfo.InvariantCulture)
-            : value.ToString("G4", CultureInfo.InvariantCulture);
+            : value.ToString(DefaultLabelFormat, CultureInfo.InvariantCulture).Replace('E', 'e');
 }

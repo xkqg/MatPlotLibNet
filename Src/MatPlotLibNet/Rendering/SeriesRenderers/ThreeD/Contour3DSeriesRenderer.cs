@@ -22,24 +22,14 @@ internal sealed class Contour3DSeriesRenderer : SeriesRenderer<Contour3DSeries>
         int rows = series.Z.GetLength(0), cols = series.Z.GetLength(1);
         if (rows < 2 || cols < 2) return;
 
-        var bounds = Area.PlotBounds;
-
-        // Compute Z range for contour levels and color mapping
-        double zMin = double.MaxValue, zMax = double.MinValue;
-        for (int r = 0; r < rows; r++)
-            for (int c = 0; c < cols; c++)
-            {
-                if (series.Z[r, c] < zMin) zMin = series.Z[r, c];
-                if (series.Z[r, c] > zMax) zMax = series.Z[r, c];
-            }
+        // Compute Z range for contour levels and color mapping, over the values that are there: a missing value (NaN) and
+        // an infinity are left out, and a cell with such a corner is masked below.
+        if (series.Z.DrawableRange() is not { } z) return;
+        double zMin = z.Lo, zMax = z.Hi;
         double zRange = zMax - zMin;
         if (zRange == 0) zRange = 1;
 
-        double xMin = series.X.Min(), xMax = series.X.Max();
-        double yMin = series.Y.Min(), yMax = series.Y.Max();
-
-        var proj = Context.Projection3D
-            ?? new Projection3D(30, -60, bounds, xMin, xMax, yMin, yMax, zMin, zMax);
+        var proj = ProjectionFor(series.X.DrawableRange(), series.Y.DrawableRange(), z);
 
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
         var normalizer = LinearNormalizer.Instance;
@@ -51,12 +41,14 @@ internal sealed class Contour3DSeriesRenderer : SeriesRenderer<Contour3DSeries>
             double t = (lev + 0.5) / levels;
             double zLevel = zMin + t * zRange;
 
-            var levelColor = series.Color ?? cmap.GetColor(normalizer.Normalize(zLevel, zMin, zMax));
+            var levelColor = series.Color ?? cmap.ColorOf(zLevel, normalizer, zMin, zMax);
 
             // Marching squares: for each grid cell, find segments where the contour crosses edges
             for (int r = 0; r < rows - 1; r++)
                 for (int c = 0; c < cols - 1; c++)
                 {
+                    if (!series.Z.IsDrawableCell(series.X, series.Y, r, c)) continue; // masked, as matplotlib masks it
+
                     double z00 = series.Z[r, c];
                     double z10 = series.Z[r + 1, c];
                     double z01 = series.Z[r, c + 1];

@@ -43,7 +43,11 @@ public sealed class Trisurf3DSeries : XYZSeries, IColormappable, INormalizable, 
         Color = Color,
         ShowWireframe = ShowWireframe ? null : (bool?)false,
         Alpha = Alpha != 0.8 ? Alpha : null,
-        Label = Label
+        ColorMapName = ColorMap.NameForJson(),
+        ColorMap = ColorMap.DescriptionForJson(),
+        EdgeColor = EdgeColor,
+        Label = Label,
+        Normalizer = this.DescribeNormalizer(),
     };
 
     /// <summary>Reconstructs a <see cref="Trisurf3DSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -65,10 +69,9 @@ public sealed class Trisurf3DSeries : XYZSeries, IColormappable, INormalizable, 
         {
             s.Alpha = dto.Alpha.Value;
         }
-        if (dto.ColorMapName is not null)
-        {
-            s.ColorMap = Styling.ColorMaps.ColorMapRegistry.Get(dto.ColorMapName);
-        }
+        s.RestoreColorMap(dto);
+        s.EdgeColor = dto.EdgeColor;
+        s.RestoreNormalizer(dto);
         return s;
     }
 

@@ -46,6 +46,27 @@ public class LightingIntegrationTests
         Assert.Contains("<polygon", svg);
     }
 
+    /// <summary>A light source of the caller's own (ILightSource is public) modulates each face by the intensity it
+    /// reports; only a <see cref="DirectionalLight"/> gets matplotlib's shading.</summary>
+    [Fact]
+    public void Surface_WithACustomLightSource_IsModulatedByItsIntensity()
+    {
+        var axes = new Axes { LightSource = new HalfLight() };
+        axes.Surface([0, 5, 10], [0, 5, 10], new double[,] { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8 } });
+        var unlit = new Axes();
+        unlit.Surface([0, 5, 10], [0, 5, 10], new double[,] { { 0, 1, 2 }, { 3, 4, 5 }, { 6, 7, 8 } });
+
+        string lit = RenderAxes(axes);
+
+        Assert.Contains("<polygon", lit);
+        Assert.NotEqual(RenderAxes(unlit), lit);
+    }
+
+    private sealed class HalfLight : ILightSource
+    {
+        public double ComputeIntensity(double nx, double ny, double nz) => 0.5;
+    }
+
     [Fact]
     public void Surface_WithLighting_FaceColorsVary()
     {

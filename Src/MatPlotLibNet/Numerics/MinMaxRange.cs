@@ -15,16 +15,10 @@ public readonly record struct MinMaxRange(double Min, double Max);
 public static class MinMaxRangeExtensions
 {
     /// <summary>Scans every element of <paramref name="data"/> and returns the inclusive
-    /// <c>[min, max]</c> range. Falls back to <c>[0, 1]</c> when all values are equal so
-    /// downstream normalizers never divide by zero.</summary>
-    public static MinMaxRange ScanColorBarRange(this double[,] data)
-    {
-        double min = double.MaxValue, max = double.MinValue;
-        foreach (double v in data)
-        {
-            if (v < min) min = v;
-            if (v > max) max = v;
-        }
-        return min < max ? new(min, max) : new(0, 1);
-    }
+    /// <c>[min, max]</c> range of the values a colour scale can place: a missing value (NaN) and an
+    /// infinity are left out, the range the renderer colours the cells over. Falls back to
+    /// <c>[0, 1]</c> when all such values are equal, or there is none, so downstream normalizers
+    /// never divide by zero.</summary>
+    public static MinMaxRange ScanColorBarRange(this double[,] data) =>
+        data.DrawableRange() is { } range && range.Lo < range.Hi ? new(range.Lo, range.Hi) : new(0, 1);
 }

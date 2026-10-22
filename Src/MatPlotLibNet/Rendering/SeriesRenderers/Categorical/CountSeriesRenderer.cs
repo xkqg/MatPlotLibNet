@@ -20,23 +20,20 @@ internal sealed class CountSeriesRenderer : SeriesRenderer<CountSeries>
         var color = ResolveColor(series.Color);
         var counts = series.ComputeCounts();
         var categories = counts.Keys.ToArray();
-        double halfW = series.BarWidth / 2.0;
 
+        // A count's bar stands on 0, which a log axis clips to the edge where it begins, as matplotlib clips it; a bar the
+        // axes cannot place is skipped. Along the category axis it stands centred in its category's slot (CategorySlot),
+        // where the axis writes the category's name.
         for (int i = 0; i < categories.Length; i++)
         {
             double count = counts[categories[i]];
-            if (series.Orientation == BarOrientation.Vertical)
-            {
-                var tl = Transform.DataToPixel(i - halfW, count);
-                var br = Transform.DataToPixel(i + halfW, 0);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
-            }
-            else
-            {
-                var tl = Transform.DataToPixel(0, i + halfW);
-                var br = Transform.DataToPixel(count, i - halfW);
-                Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
-            }
+            var slot = CategorySlot.Of(i).Bar(series.BarWidth, 0, BarAlignment.Center);
+            bool vertical = series.Orientation == BarOrientation.Vertical;
+            var tl = vertical ? Transform.DataToPixel(slot.Left, count) : Transform.DataToPixelClippedX(0, slot.Right);
+            var br = vertical ? Transform.DataToPixelClippedY(slot.Right, 0) : Transform.DataToPixel(count, slot.Left);
+            var bar = Rect.FromCorners(tl, br);
+            if (bar.IsDrawable())
+                Ctx.DrawRectangle(bar, new ShapeStyle(color, null, 0));
         }
     }
 }

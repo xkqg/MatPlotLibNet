@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Styling;
+using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
@@ -24,10 +25,10 @@ internal sealed class PcolormeshSeriesRenderer : SeriesRenderer<PcolormeshSeries
         for (int r = 0; r < rows; r++)
         for (int c = 0; c < cols; c++)
         {
-            var color = cmap.GetColor(norm.Normalize(series.C[r, c], min, max));
-            var tl = Transform.DataToPixel(series.X[c], series.Y[r + 1]);
-            var br = Transform.DataToPixel(series.X[c + 1], series.Y[r]);
-            Ctx.DrawRectangle(new Rect(tl.X, tl.Y, br.X - tl.X, br.Y - tl.Y), new ShapeStyle(color, null, 0));
+            var cell = Rect.FromCorners(Transform.DataToPixel(series.X[c], series.Y[r + 1]), Transform.DataToPixel(series.X[c + 1], series.Y[r]));
+            if (!cell.IsDrawable()) continue;   // a cell with an edge that cannot be placed is skipped
+            var color = cmap.ColorOf(series.C[r, c], norm, min, max);
+            Ctx.DrawRectangle(cell, new ShapeStyle(color, null, 0));
         }
     }
 }

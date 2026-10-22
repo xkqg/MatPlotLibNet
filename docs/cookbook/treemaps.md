@@ -25,7 +25,7 @@ Plt.Create()
 
 Each interior node renders as a coloured rectangle with a label header along the top. The children are squarified into the reduced bounds below that header, so the parent colour frames its descendants. This matches the d3 `flare.json` nested-treemap style. **The initial interactive view is identical to the static SVG — every node at every depth is visible on first paint**. This is called "steady pictures": the picture does not jump when you enter interactive mode. Click a parent rect to *collapse* its descendants and focus on the surrounding context; click it again to expand them. You can collapse several parents independently. Leaves are not clickable, so the cursor stays the default one when you hover over them.
 
-Labels render at a single readable 12 pt size at every depth (v1.7.2 Phase W). Children paint over parents (Shneiderman z-order), so where rectangles overlap you read the deepest visible label, which is the most specific one, and nothing has to move to show it. For static SVG output with deep trees, call `.WithAutoSize(root)` on the `FigureBuilder`; it picks a canvas big enough to fit every label cleanly without overflow. In interactive output, the reader pans and zooms to read labels that overflow.
+Labels render at a single readable 12 pt size at every depth. Children paint over parents (Shneiderman z-order), so where rectangles overlap you read the deepest visible label, which is the most specific one, and nothing has to move to show it. For static SVG output with deep trees, call `.WithAutoSize(root)` on the `FigureBuilder`; it picks a canvas big enough to fit every label cleanly without overflow. In interactive output, the reader pans and zooms to read labels that overflow.
 
 ```csharp
 var catalogue = new TreeNode
@@ -71,7 +71,7 @@ var catalogue = new TreeNode
 
 Plt.Create()
     .WithTitle("Treemap — every depth visible; click a parent to collapse its subtree, click again to restore")
-    .WithAutoSize(catalogue)              // v1.7.2 Phase W — sizes the canvas to fit every label
+    .WithAutoSize(catalogue)              // sizes the canvas to fit every label
     .WithTreemapDrilldown()
     .AddSubPlot(1, 1, 1, ax => ax.Treemap(catalogue, s => s.ShowLabels = true))
     .Save("treemap_drilldown.svg");
@@ -79,12 +79,10 @@ Plt.Create()
 
 `WithBrowserInteraction()` also enables the same expand/collapse behaviour if you prefer the general-purpose fluent method.
 
-> **v1.7.2 Phase R fixed click delivery in real browsers.** The expand/collapse model
-> itself (Phase P) is unchanged. Two bugs in the click handler compounded each other, and
-> both are fixed. First, hover latched the drag-suppression flag, so any cursor motion
-> suppressed the next click. Second, the pan/zoom script's `setPointerCapture` redirected
-> the synthetic click target to the SVG root, so the walk-up from the rect returned null.
-> The move-threshold is now gated on an `isPointerDown` flag, and the click handler falls
-> back to `document.elementFromPoint` when the walk-up misses.
+> **A click is told apart from a drag.** Hovering never suppresses the next click: only a
+> pointer that moves while it is pressed starts a pan. And when the pan and zoom script has
+> captured the pointer, the click handler finds the rectangle under the cursor with
+> `document.elementFromPoint`, so expanding and collapsing works in real browsers with
+> pan and zoom switched on.
 
 ![Treemap drilldown](../images/treemap_drilldown.png)

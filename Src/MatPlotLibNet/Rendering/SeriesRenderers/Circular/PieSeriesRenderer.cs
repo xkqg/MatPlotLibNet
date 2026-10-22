@@ -19,7 +19,9 @@ internal sealed class PieSeriesRenderer : CircularRenderer<PieSeries>
     /// <inheritdoc />
     public override void Render(PieSeries series)
     {
-        double total = series.Sizes.Sum();
+        // The total of the slices that are there: a slice that cannot be drawn (missing, or infinite) counts as 0 and
+        // draws nothing of its own below.
+        double total = series.Sizes.DrawableValues().Sum();
         if (total == 0) return;
         double cx = Area.PlotBounds.X + Area.PlotBounds.Width / 2;
         double cy = Area.PlotBounds.Y + Area.PlotBounds.Height / 2;
@@ -43,6 +45,7 @@ internal sealed class PieSeriesRenderer : CircularRenderer<PieSeries>
 
         for (int i = 0; i < series.Sizes.Length; i++)
         {
+            if (!series.Sizes[i].IsDrawable()) continue;
             double sweep = direction * series.Sizes[i] / total * 2 * Math.PI;
             double midAngle = startAngle + sweep / 2;
             double explode = series.Explode is not null && i < series.Explode.Length ? series.Explode[i] : 0.0;
@@ -61,7 +64,7 @@ internal sealed class PieSeriesRenderer : CircularRenderer<PieSeries>
                     new ShapeStyle(new Color(0, 0, 0, 80), null, 0));
             }
 
-            var sliceColor = series.Colors is not null && i < series.Colors.Length ? series.Colors[i] : SeriesColor;
+            var sliceColor = PartColor(series.Colors, i);
             var sliceHatch = series.Hatches is not null && i < series.Hatches.Length
                 ? series.Hatches[i]
                 : HatchPattern.None;

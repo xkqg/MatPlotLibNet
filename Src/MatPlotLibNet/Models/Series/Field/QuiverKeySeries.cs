@@ -40,7 +40,10 @@ public sealed class QuiverKeySeries : ChartSeries, IHasColor
         QuiverKeyY = Y,
         QuiverKeyU = U,
         QuiverKeyLabel = Label,
-        MarkerSize = FontSize
+        // The label's point size has always travelled in the marker size field: every document written so far carries it
+        // there, and the golden corpus pins the bytes.
+        MarkerSize = FontSize,
+        Color = Color,
     };
 
     /// <summary>Reconstructs a <see cref="QuiverKeySeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -48,7 +51,15 @@ public sealed class QuiverKeySeries : ChartSeries, IHasColor
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static QuiverKeySeries FromSeriesDto(Axes axes, SeriesDto dto)
-        => axes.QuiverKey(dto.QuiverKeyX ?? 0.5, dto.QuiverKeyY ?? 0.9, dto.QuiverKeyU ?? 1.0, dto.QuiverKeyLabel ?? "");
+    {
+        var s = axes.QuiverKey(dto.QuiverKeyX ?? 0.5, dto.QuiverKeyY ?? 0.9, dto.QuiverKeyU ?? 1.0, dto.QuiverKeyLabel ?? "");
+        if (dto.MarkerSize.HasValue)
+        {
+            s.FontSize = dto.MarkerSize.Value;
+        }
+        s.Color = dto.Color;
+        return s;
+    }
 
     /// <inheritdoc />
     public override void Accept(ISeriesVisitor visitor, RenderArea area) => visitor.Visit(this, area);
