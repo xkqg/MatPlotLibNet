@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Data;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series.Streaming;
@@ -131,11 +132,39 @@ public sealed class StreamingSignalSeries : ChartSeries, IHasColor
     }
 
     /// <inheritdoc />
-    public override Serialization.SeriesDto ToSeriesDto() => new()
+    /// <remarks>Carries the ring buffer's current snapshot, its sample rate and its X start — the same fields
+    /// <see cref="SignalSeries"/> already carries — so a restored stream starts from the picture it was, not
+    /// empty (the roadmap row "Live series back from JSON"). The restored stream's own ordinal counter starts
+    /// fresh at the snapshot's first sample; only the X-axis mapping (rate, start) and the Y values travel.</remarks>
+    public override SeriesDto ToSeriesDto()
     {
-        Type = "streaming_signal",
-        Label = Label
-    };
+        var snapshot = CreateSnapshot();
+        return new()
+        {
+            Type = "streaming_signal",
+            YData = snapshot.YData,
+            Capacity = Capacity,
+            SignalSampleRate = SampleRate,
+            SignalXStart = XStart,
+            Color = Color,
+            LineWidth = LineWidth,
+        };
+    }
+
+    /// <summary>Reconstructs a <see cref="StreamingSignalSeries"/> at the capacity, sample rate and X start it was
+    /// written with, appends the snapshot's samples, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static StreamingSignalSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.AddSeries(new StreamingSignalSeries(
+            dto.Capacity ?? 100_000, dto.SignalSampleRate ?? 1.0, dto.SignalXStart ?? 0.0));
+        s.AppendSamples(dto.YData ?? []);
+        if (dto.Color.HasValue) s.Color = dto.Color.Value;
+        if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
+        return s;
+    }
 
 
     /// <inheritdoc />

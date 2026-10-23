@@ -164,13 +164,37 @@ public class ChartToolsTests : IDisposable
     }
 
     [Fact]
-    public void ListChartTypes_NamesTheTypesAndWhatIsUnavailable()
+    public void ListChartTypes_NamesTheListedTypes_AndNoneAreUnavailableToday()
     {
         string listed = _tools.ListChartTypes();
 
         Assert.Contains("line", listed);
-        Assert.Contains("sankey", listed);   // named under "not available", with its reason
+        Assert.Contains("sankey", listed);   // JSON-roundtrip plan: listed now, not excluded
+        Assert.DoesNotContain("Not available", listed);
+    }
+
+    /// <summary>The "Not available" section itself, independent of which real type is excluded on any given
+    /// day — exercised through an injected catalog, the same pattern <see cref="ChartTypeCatalogTests"/> and
+    /// <c>ChartSpecReaderTests</c> use.</summary>
+    [Fact]
+    public void ListChartTypes_WithAnExcludedType_NamesItUnderNotAvailable()
+    {
+        var catalog = new ChartTypeCatalog(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["line"] = "a fake reason for this test only",
+        });
+        var reader = new ChartSpecReader(catalog, RenderLimits.Default);
+        var tools = new ChartTools(
+            new ChartRendering(reader, new ChartSummarizer()),
+            new ChartTabulation(reader, RenderLimits.Default),
+            catalog,
+            new ChartSchemaDescription(catalog),
+            new OutputPathResolver(_output.FullName));
+
+        string listed = tools.ListChartTypes();
+
         Assert.Contains("Not available", listed);
+        Assert.Contains("line — a fake reason for this test only", listed);
     }
 
     [Fact]

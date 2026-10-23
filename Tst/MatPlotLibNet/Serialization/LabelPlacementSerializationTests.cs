@@ -171,12 +171,12 @@ public class LabelPlacementSerializationTests
     }
 
     [Fact]
-    public void AStreamingLine_WritesItsPlacement_ButTheStreamingSeriesItselfDoesNotSurviveFromJsonToday()
+    public void AStreamingLine_WritesItsPlacement_AndNowSurvivesFromJson()
     {
-        // Pins the pre-existing fact the placement inherits: a streaming series serialises as Type "streaming" (its
-        // ring buffer and capacity are not part of the wire format, and the same discriminator covers four classes),
-        // no factory is registered for it, and FromJson drops it. The placement is written beside the label so a
-        // consumer that registers a "streaming" factory has it; restoring the series is a wire-format decision of its own.
+        // Was: a streaming series serialised as Type "streaming" (its ring buffer and capacity were not part of
+        // the wire format, and the same discriminator covered four classes), no factory was registered for it,
+        // and FromJson dropped it. Fixed (JSON-roundtrip plan, cluster B): each streaming kind now writes and
+        // reads its own discriminator, carrying its current snapshot.
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax =>
         {
             ax.Plot(X, Y, s => s.Label = "history");
@@ -186,15 +186,21 @@ public class LabelPlacementSerializationTests
         string json = S.ToJson(figure);
         var restored = S.FromJson(json).SubPlots[0];
 
-        Assert.Contains("\"type\":\"streaming\"", json);
+        Assert.Contains("\"type\":\"streaming_line\"", json);
         Assert.Contains("\"labelPlacement\":\"lineend\"", json);
-        var survivor = Assert.Single(restored.Series);
-        Assert.Equal("history", survivor.Label);
+        Assert.Equal(2, restored.Series.Count);
+        Assert.Equal("history", restored.Series[0].Label);
+        var live = Assert.IsType<StreamingLineSeries>(restored.Series[1]);
+        Assert.Equal("live", live.Label);
+        Assert.Equal(SeriesLabelPlacement.LineEnd, live.LabelPlacement);
     }
 
     [Fact]
-    public void ASecondaryStreamingLine_WritesItsPlacement_ButIsDroppedByFromJsonToday()
+    public void ASecondaryStreamingLine_WritesItsPlacement_ButIsStillDroppedByFromJson()
     {
+        // The streaming series itself now round-trips (see the Fact above); a secondary-axis series restore
+        // still only knows "line"/"scatter" (ChartSerializer.AddSecondarySeriesFromDtos) — a different, narrower
+        // gap than the one this cluster fixed (roadmap: "More kinds of series on a second axis"), unchanged here.
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y)
             .WithSecondaryYAxis(y2 =>
@@ -206,7 +212,7 @@ public class LabelPlacementSerializationTests
         string json = S.ToJson(figure);
         var restored = S.FromJson(json).SubPlots[0];
 
-        Assert.Contains("\"type\":\"streaming\"", json);
+        Assert.Contains("\"type\":\"streaming_line\"", json);
         Assert.Contains("\"labelPlacement\":\"lineend\"", json);
         Assert.NotNull(restored.SecondaryYAxis);
         Assert.Empty(restored.SecondarySeries);

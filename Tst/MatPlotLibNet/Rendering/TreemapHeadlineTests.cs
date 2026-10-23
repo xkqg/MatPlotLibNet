@@ -135,8 +135,12 @@ public class TreemapHeadlineTests
 
         var back = serializer.FromJson(serializer.ToJson(figure));
 
-        // The treemap's DTO carries no tree at all (by design — the wall publishes SVG), so this pins the ONE
-        // thing a caller could otherwise believe: the round-trip is lossy, and it says so.
-        Assert.Empty(back.SubPlots[0].Series.OfType<TreemapSeries>().Single().Root.Children);
+        // The tree itself round-trips now (JSON-roundtrip plan, cluster A), headline included — the root's own
+        // and each leaf's.
+        var root = back.SubPlots[0].Series.OfType<TreemapSeries>().Single().Root;
+        Assert.Equal("24 %", root.Headline);
+        Assert.Equal(2, root.Children.Count);
+        Assert.Equal("13 %", root.Children[0].Headline);
+        Assert.Equal("11 %", root.Children[1].Headline);
     }
 }

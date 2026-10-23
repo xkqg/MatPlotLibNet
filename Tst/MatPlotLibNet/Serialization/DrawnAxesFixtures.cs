@@ -50,6 +50,30 @@ public static class DrawnAxesFixtures
             .Select(p => p.Name)
             .Where(name => !FigureExemptions.ContainsKey(name))];
 
+    /// <summary>The settable properties of <see cref="Axes"/> that the "AxesSettings" part does not hold, each with the
+    /// reason. Every other settable property of an axes joins the contract on its own — the same mechanism that holds
+    /// <see cref="FigureExemptions"/>/<see cref="FigureSettings"/>, so a scalar axes property added tomorrow is caught
+    /// without a new line here.</summary>
+    public static IReadOnlyDictionary<string, string> AxesExemptions { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        [nameof(Axes.TitleStyle)] = "held by the \"Title\" part",
+        [nameof(Axes.TitleLoc)] = "held by the \"Title\" part",
+        [nameof(Axes.Legend)] = "a part of its own (Legend), held property by property",
+        [nameof(Axes.Grid)] = "a part of its own (Grid), held property by property",
+        [nameof(Axes.Spines)] = "a part of its own (Spine), held property by property",
+        [nameof(Axes.Pane3D)] = "a part of its own (Pane3D), held property by property",
+        [nameof(Axes.ColorBar)] = "a part of its own (ColorBar), held property by property",
+        [nameof(Axes.LightSource)] = "only DirectionalLight is written today (roadmap: a light that is not directional); ILightSource has one implementation, so there is nothing else to reflect yet",
+        [nameof(Axes.Projection)] = "a render-time cache rebuilt from Elevation/Azimuth/CameraDistance (Rotate3DEvent.cs nulls it to force a rebuild), not authored state",
+    };
+
+    /// <summary>The axes' settable properties the "AxesSettings" part holds: all of them, less <see cref="AxesExemptions"/>.</summary>
+    private static IReadOnlyList<string> AxesSettings { get; } =
+        [.. typeof(Axes).GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.SetMethod is { IsPublic: true } && p.GetIndexParameters().Length == 0)
+            .Select(p => p.Name)
+            .Where(name => !AxesExemptions.ContainsKey(name))];
+
     private static Axes TheAxes(Figure figure) => figure.SubPlots[0];
 
     private static Axes TheInset(Figure figure) => figure.SubPlots[0].Insets[0];
@@ -63,6 +87,9 @@ public static class DrawnAxesFixtures
         new("Theme", figure => figure, nameof(Figure.Theme), typeof(Theme)),
         new("XAxis", TheAxes, nameof(Axes.XAxis), typeof(Axis)),
         new("YAxis", TheAxes, nameof(Axes.YAxis), typeof(Axis)),
+        new("ZAxis", TheAxes, nameof(Axes.ZAxis), typeof(Axis)),
+        new("Pane3D", TheAxes, nameof(Axes.Pane3D), typeof(Pane3DConfig)),
+        new("AxesSettings", TheAxes, "", typeof(Axes), AxesSettings),
         new("SecondaryYAxis", TheAxes, nameof(Axes.SecondaryYAxis), typeof(Axis)),
         new("SecondaryXAxis", TheAxes, nameof(Axes.SecondaryXAxis), typeof(Axis)),
         new("InsetXAxis", TheInset, nameof(Axes.XAxis), typeof(Axis)),

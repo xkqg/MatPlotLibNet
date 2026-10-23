@@ -2,9 +2,9 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
-**Status (v1.20.0, one-call charts on a library whose JSON keeps what is drawn):** **810/810 classes at ≥90/90**, strict gate **PASSES** with no
-regressions (`PASS: All 810 classes meet 90/90 threshold + no regressions`). Total project coverage:
-**99.7L / 98.6B**; **19,557 tests, 0 failures** across the 11 measured suites (the wiki suite and the WPF suite run beside the gate and are not
+**Status (v1.21.0, every chart type and axes setting whole through JSON):** **815/815 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 815 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.7L / 98.6B**; **19,810 tests, 0 failures** across the 11 measured suites (the wiki suite and the WPF suite run beside the gate and are not
 measured by it). The growth in tests comes from the contracts that now guard the work: a reflected test that every drawn property of every series
 survives JSON, one that every enum field has a vocabulary row, one that every concrete series type is under the contract, round trips of every
 one-call chart through JSON, the MCP reader, the transports and the PNG export. The first strict run reported one class short on branches

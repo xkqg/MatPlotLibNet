@@ -4,6 +4,74 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.21.0]
+
+This release finishes what 1.20.0 left as a known limitation: every chart type and every axes setting now comes
+back from JSON as itself. A Sankey diagram's nodes and links, a treemap's, sunburst's and dendrogram's trees, a
+clustermap's row and column trees, a tree grid's rows, a polar chart's data, a streaming chart's current points
+and a planar 3-D bar's data all used to come back from JSON as a placeholder or a plain series with none of their
+own behaviour; they rebuild whole now, and the [MCP server](https://github.com/xkqg/MatPlotLibNet/wiki/MCP-Server)
+lists and accepts all eight chart types it had refused by name, where refusing them had been the 1.20.0 fix for
+drawing them wrong. An axes' Z axis, its 3-D pane colours, its tooltip and interactive-attribute switches, its
+vertex-data switch and its coordinate system now travel through JSON too; they were drawn from but never written.
+The one series this release does not reach is `MatPlotLibNet.Geo`'s `GeoPolygonSeries`, named on the
+[roadmap](ROADMAP.md): its projection carries construction parameters of its own that need a shape in the wire
+format before it can round-trip.
+
+### Fixed
+
+- **A treemap, sunburst or dendrogram reads back its own tree.** Every node's label, value, colour and children,
+  at every depth, now travel through JSON as a nested node. The reader used to ignore the document's tree
+  entirely and build one node labelled "Root", which is exactly what the MCP server refused by name in 1.20.0
+  rather than draw.
+
+- **A Sankey diagram reads back its own nodes and links.** Each node's label, colour, sub-label and column, and
+  each link's source, target and value, now travel through JSON; a Sankey used to come back with none of its
+  flows.
+
+- **A clustermap reads back the trees its dendrograms are drawn from.** The row and column trees that order and
+  group its cells now travel through JSON alongside its matrix and colour map; they used to come back absent,
+  with the matrix redrawn unclustered.
+
+- **A tree grid reads back its own rows.** Each row's label, depth, value and whether it starts expanded now
+  travel through JSON; the reader used to build the grid with no rows at all.
+
+- **A polar bar, polar line and polar scatter read back their own data.** Their `r` and `theta` values now travel
+  through JSON; the reader used to build the series with no data to draw.
+
+- **The MCP server lists and accepts all eight chart types again.** `sankey`, `sunburst`, `treemap`, `dendrogram`,
+  `polarbar`, `polarline`, `polarscatter` and `treegrid` were refused by name since 1.20.0, because their JSON
+  readers built a placeholder instead of the chart. Now that the readers build the chart itself, the catalog's own
+  exclusion list is empty and `list_chart_types` names none of them as unavailable.
+
+- **A streaming chart reads back its own points, as its own type.** A `StreamingLineSeries`,
+  `StreamingScatterSeries`, `StreamingCandlestickSeries` or `StreamingSignalSeries` used to come back from JSON as
+  a plain series with no streaming behaviour at all. Each now writes a snapshot of its current points under its
+  own discriminator and rebuilds at its original capacity.
+
+- **A planar 3-D bar reads back as a planar 3-D bar.** Its data, alpha, edge colour and per-bar colours now
+  travel through JSON; the reader used to drop the series.
+
+- **An axes' Z axis, 3-D pane colours and interaction switches travel through JSON.** `ZAxis`, `Pane3D`,
+  `EnableTooltips`, `EnableInteractiveAttributes`, `Emit3DVertexData` and `CoordinateSystem` were drawn from but
+  never written: a 3-D figure read back from JSON had a default Z axis and the library's default pane colours
+  regardless of what was set, and a figure saved with tooltips or interactive attributes switched off came back
+  with them switched on.
+
+### Known limitations
+
+The limitations listed under 1.20.0 still hold, except: the tree of a treemap, sunburst or dendrogram, a Sankey
+diagram's nodes and links, a clustermap's row and column trees, the data of the polar series and a tree grid's
+rows now come back from JSON as themselves, the MCP server lists all eight again, and a streaming series and the
+planar 3-D bar now come back as their own type too. An area's `Where` condition is still code and is not written,
+a `StackPlot` layer's name still does not reach the legend, the MCP server still refuses a stacked-area spec, and
+`StreamGraph` still gives every layer an entry.
+
+`MatPlotLibNet.Geo`'s `GeoPolygonSeries` writes its own discriminator to JSON, but nothing is registered to answer
+it, so a map's polygons are dropped whole on the way back. Its projection carries construction parameters of its
+own — a Lambert's two standard parallels, an orthographic's centre point — that need a shape in the wire format
+before it can round-trip.
+
 ## [1.20.0]
 
 This release turns charts that took a page of hand-written code into one call each, and makes the library under

@@ -23,6 +23,9 @@ internal static class HierarchicalSeriesExtensions
         VMax = series.VMax,
         ShowLabels = series.ShowLabels ? null : false,
         Normalizer = series.DescribeNormalizer(),
+        // The tree itself (JSON-roundtrip plan, cluster A) — one line here carries it for every hierarchical
+        // series at once, the same economy this extension already gives the settings above.
+        TreeRoot = ChartSerializer.TreeNodeToDto(series.Root),
     };
 
     /// <summary>Gives <paramref name="series"/> the settings <paramref name="dto"/> carries; one the DTO does not carry

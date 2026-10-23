@@ -18,6 +18,14 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.21.0** makes every chart type and every axes setting round-trip through JSON whole. A Sankey's nodes and
+links, a treemap's, sunburst's, dendrogram's and clustermap's trees, a tree grid's rows, a polar chart's data, a
+streaming chart's current points and a planar 3-D bar's data all come back from JSON as themselves now, not a
+placeholder — the [MCP server](https://github.com/xkqg/MatPlotLibNet/wiki/MCP-Server) lists and accepts all eight
+again, where it used to refuse them by name. An axes' Z axis, its 3-D pane colours and its tooltip switch come back
+too. The one series this release did not reach is `MatPlotLibNet.Geo`'s `GeoPolygonSeries`, named on the
+[roadmap](ROADMAP.md).
+
 **1.20.0** turns charts that took a page of code into one call. Fifteen verbs on the axes builder, among them
 `Pareto`, `Ridgeline`, `CalendarHeatmap`, `QQPlot`, `ControlChart`, `KaplanMeier`, `StreamGraph` and `Marimekko`, take
 the data as you hold it (names, groups, samples, dates) and build the chart from the series the library already has.
@@ -37,14 +45,6 @@ set, reversed or not, is now exactly the range drawn. Every new call
 is shown in code on the wiki's [examples page](https://github.com/xkqg/MatPlotLibNet/wiki/Examples#1190), and every C#
 example in the wiki now compiles.
 
-**1.18.2** lets a replay application work with a state timeline. Hovering a segment names the event and the
-stretch it covers, clicking it tells your application which segment it was, and a reference line can be moved
-after it is drawn, which is what a playback marker needs. Dragging now pans a chart that scales itself, which did
-nothing until the first zoom; a timeline pans and zooms along time only; and stacked charts that share an X axis move
-together. The WPF chart control also keeps panning and zooming the figure it was last handed, where before it went on
-acting on the first one, and the package now says which Windows version a project has to target to use it. There is a
-[complete WPF example](https://xkqg.github.io/MatPlotLibNet/cookbook/wpf-timeline.html) of a replay timeline.
-
 After that, releases follow what the community needs: bug fixes, documentation, and whatever comes up in real use.
 Open a [Discussion](https://github.com/xkqg/MatPlotLibNet/discussions) or an
 [Issue](https://github.com/xkqg/MatPlotLibNet/issues); that is what decides the next release. Every release, with
@@ -52,8 +52,8 @@ its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadma
 what is still to come and what is left out on purpose, with a section for each row on the
 [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (810 classes, at
-99.7 % line / 98.6 % branch) across 19,557 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (815 classes, at
+99.7 % line / 98.6 % branch) across 19,810 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
 rendering with reference images drawn by matplotlib; it is not part of the CI run.
 
 ---

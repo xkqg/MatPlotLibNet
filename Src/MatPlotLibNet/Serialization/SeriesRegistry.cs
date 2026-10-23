@@ -111,6 +111,15 @@ public static class SeriesRegistry
         Register("surface", SurfaceSeries.FromSeriesDto);
         Register("wireframe", WireframeSeries.FromSeriesDto);
         Register("scatter3d", Scatter3DSeries.FromSeriesDto);
+        Register("planarbar3d", PlanarBar3DSeries.FromSeriesDto);
+
+        // Streaming series (JSON round-trip): each kind writes and reads its own discriminator now — the shared
+        // base class' "streaming" (StreamingSeries.ToSeriesDto) is no longer written by any concrete series, so
+        // nothing registers it.
+        Register("streaming_line", Models.Series.Streaming.StreamingLineSeries.FromSeriesDto);
+        Register("streaming_scatter", Models.Series.Streaming.StreamingScatterSeries.FromSeriesDto);
+        Register("streaming_candlestick", Models.Series.Streaming.StreamingCandlestickSeries.FromSeriesDto);
+        Register("streaming_signal", Models.Series.Streaming.StreamingSignalSeries.FromSeriesDto);
 
         // v0.8.0
         Register("rugplot", RugplotSeries.FromSeriesDto);

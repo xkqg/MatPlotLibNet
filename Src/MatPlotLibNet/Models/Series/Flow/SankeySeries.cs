@@ -104,16 +104,23 @@ public sealed class SankeySeries : ChartSeries
         LinkColorMode = LinkColorMode.OrNullAtRest(SankeyLinkColorMode.Gradient),
         SankeyOrientation = Orient.OrNullAtRest(Models.Series.SankeyOrientation.Horizontal),
         InsideLabels = InsideLabels ? true : null,
+        SankeyNodes = [.. Nodes.Select(n => new SankeyNodeDto(n.Label, n.Color, n.SubLabel, n.SubLabelColor, n.Column))],
+        SankeyLinks = [.. Links.Select(l => new SankeyLinkDto(l.SourceIndex, l.TargetIndex, l.Value))],
     };
 
-    /// <summary>Reconstructs a <see cref="SankeySeries"/> placeholder from its serialization DTO and adds it to the axes.
-    /// The nodes and links are not written yet (the roadmap row "Every chart type back from JSON"); the settings are.</summary>
+    /// <summary>Reconstructs a <see cref="SankeySeries"/> from its serialization DTO and adds it to the axes.</summary>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static SankeySeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Sankey([new SankeyNode("A")], []);
+        var nodes = (dto.SankeyNodes ?? [])
+            .Select(n => new SankeyNode(n.Label, n.Color, n.SubLabel, n.SubLabelColor, n.Column))
+            .ToArray();
+        var links = (dto.SankeyLinks ?? [])
+            .Select(l => new SankeyLink(l.SourceIndex, l.TargetIndex, l.Value))
+            .ToArray();
+        var s = axes.Sankey(nodes.Length > 0 ? nodes : [new SankeyNode("A")], links);
         if (dto.NodeWidth.HasValue)
         {
             s.NodeWidth = dto.NodeWidth.Value;

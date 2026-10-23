@@ -42,7 +42,8 @@ public sealed class SunburstSeries : HierarchicalSeries
     /// <returns>The reconstructed series instance.</returns>
     internal static SunburstSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Sunburst(new TreeNode { Label = "Root" });
+        var root = dto.TreeRoot is { } treeRoot ? ChartSerializer.DtoToTreeNode(treeRoot) : new TreeNode { Label = "Root" };
+        var s = axes.Sunburst(root);
         if (dto.InnerRadius.HasValue)
         {
             s.InnerRadius = dto.InnerRadius.Value;

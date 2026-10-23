@@ -1,1 +1,1 @@
-{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"sankey"}]}]}
+{"width":800,"height":600,"dpi":96,"subPlots":[{"xAxis":{"scale":"linear"},"yAxis":{"scale":"linear"},"zAxis":{"scale":"linear"},"grid":{"visible":false},"series":[{"type":"sankey","sankeyNodes":[{"label":"A"},{"label":"B"}],"sankeyLinks":[{"sourceIndex":0,"targetIndex":1,"value":10}]}]}]}

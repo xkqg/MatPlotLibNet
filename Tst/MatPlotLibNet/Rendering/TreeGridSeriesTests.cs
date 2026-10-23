@@ -199,16 +199,27 @@ public class TreeGridSeriesTests
         Assert.Contains(">Traffic<", svg);
     }
 
-    /// <summary>The grid does not travel — the wall publishes SVG — and the DTO says so rather than pretending.</summary>
+    /// <summary>The grid's rows round-trip through JSON (JSON-roundtrip plan, cluster A) — they used to be left
+    /// out, same gap as the treemap/sunburst placeholders, because the wall that renders server-side publishes
+    /// SVG and nobody had named this one among them.</summary>
     [Fact]
-    public void TheDto_CarriesTheDiscriminatorOnly()
+    public void TheDto_CarriesTheRowsAndTheirDepthUrlAndExpandedState()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.TreeGrid(Fleet)).Build();
         var serializer = new MatPlotLibNet.Serialization.ChartSerializer();
 
         var back = serializer.FromJson(serializer.ToJson(figure));
 
-        Assert.Empty(back.SubPlots[0].Series.OfType<TreeGridSeries>().Single().Rows);
+        var rows = back.SubPlots[0].Series.OfType<TreeGridSeries>().Single().Rows;
+        Assert.Equal(Fleet.Length, rows.Count);
+        for (int i = 0; i < Fleet.Length; i++)
+        {
+            Assert.Equal(Fleet[i].Label, rows[i].Label);
+            Assert.Equal(Fleet[i].Cells, rows[i].Cells);
+            Assert.Equal(Fleet[i].Depth, rows[i].Depth);
+            Assert.Equal(Fleet[i].Url, rows[i].Url);
+            Assert.Equal(Fleet[i].Expanded, rows[i].Expanded);
+        }
     }
 
     [Fact]

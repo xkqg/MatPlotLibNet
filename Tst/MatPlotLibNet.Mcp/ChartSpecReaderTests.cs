@@ -108,15 +108,21 @@ public class ChartSpecReaderTests
         Assert.Contains("'line'", refusal.Message);
     }
 
-    [Theory]
-    [InlineData("sankey")]
-    [InlineData("dendrogram")]
-    public void ATypeThatCannotBeBuiltFromJson_IsRefusedWithTheReason(string type)
+    [Fact]
+    public void ATypeThatCannotBeBuiltFromJson_IsRefusedWithTheReason()
     {
-        var refusal = Assert.Throws<ToolRefusalException>(() =>
-            Reader.Read(new ChartSpec(Spec($$"""{"type":"{{type}}"}"""))));
+        // No registered type is excluded-with-reason today (JSON-roundtrip plan emptied the set) — a fake one
+        // tests the refusal plumbing itself, independent of which real type is excluded on any given day.
+        var catalog = new ChartTypeCatalog(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["line"] = "its JSON reader builds a placeholder instead of the data in the document, and cannot yet",
+        });
+        var reader = new ChartSpecReader(catalog, RenderLimits.Default);
 
-        Assert.Contains($"'{type}'", refusal.Message);
+        var refusal = Assert.Throws<ToolRefusalException>(() =>
+            reader.Read(new ChartSpec(Spec("""{"type":"line"}"""))));
+
+        Assert.Contains("'line'", refusal.Message);
         Assert.Contains("cannot", refusal.Message);
         Assert.Contains("placeholder", refusal.Message);
     }

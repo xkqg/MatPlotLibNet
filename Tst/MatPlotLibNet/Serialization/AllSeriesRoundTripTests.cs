@@ -56,11 +56,6 @@ public class AllSeriesRoundTripTests
     [MemberData(nameof(AllSeriesTests.AllSeriesInstances), MemberType = typeof(AllSeriesTests))]
     public void EverySeries_RoundTrips_ProducesNonEmptyFigureWithSameSubPlotCount(ISeries series, string label)
     {
-        // Streaming series intentionally don't round-trip through JSON (they're
-        // lifecycle-attached to a real-time data feed, not a static chart) — skip.
-        if (series is StreamingLineSeries or StreamingScatterSeries
-                   or StreamingSignalSeries or StreamingCandlestickSeries) return;
-
         Figure restored;
         try { restored = RoundTrip(series); }
         catch (Exception ex) when (ex is NotSupportedException || ex is InvalidOperationException)
@@ -211,5 +206,273 @@ public class AllSeriesRoundTripTests
         string json = ChartServices.Serializer.ToJson(original);
         var restored = ChartServices.Serializer.FromJson(json);
         Assert.Single(restored.SubPlots[0].Series);
+    }
+
+    /// <summary>A streaming line series round-trips at the capacity it was written with, carrying the ring
+    /// buffer's current points as the restored stream's starting data (roadmap: "Live series back from JSON").</summary>
+    [Fact]
+    public void StreamingLineSeries_RoundTrips_CapacityAndCurrentSnapshot()
+    {
+        var original = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StreamingPlot(capacity: 50, s =>
+            {
+                s.AppendPoint(1, 2);
+                s.AppendPoint(2, 4);
+                s.Color = Colors.Red;
+                s.LineWidth = 3.0;
+            }))
+            .Build();
+
+        string json = ChartServices.Serializer.ToJson(original);
+        var restored = ChartServices.Serializer.FromJson(json);
+        var line = Assert.IsType<StreamingLineSeries>(Assert.Single(restored.SubPlots[0].Series));
+        Assert.Equal(50, line.Capacity);
+        var snapshot = line.CreateSnapshot();
+        Assert.Equal([1.0, 2.0], snapshot.XData);
+        Assert.Equal([2.0, 4.0], snapshot.YData);
+        Assert.Equal(Colors.Red, line.Color);
+        Assert.Equal(3.0, line.LineWidth);
+    }
+
+    /// <summary>A streaming scatter series round-trips at the capacity, points and marker settings it was
+    /// written with.</summary>
+    [Fact]
+    public void StreamingScatterSeries_RoundTrips_CapacityAndCurrentSnapshot()
+    {
+        var original = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StreamingScatter(capacity: 30, s =>
+            {
+                s.AppendPoint(5, 6);
+                s.Color = Colors.Red;
+                s.Alpha = 0.5;
+                s.MarkerSize = 12;
+            }))
+            .Build();
+
+        string json = ChartServices.Serializer.ToJson(original);
+        var restored = ChartServices.Serializer.FromJson(json);
+        var scatter = Assert.IsType<StreamingScatterSeries>(Assert.Single(restored.SubPlots[0].Series));
+        Assert.Equal(30, scatter.Capacity);
+        var snapshot = scatter.CreateSnapshot();
+        Assert.Equal([5.0], snapshot.XData);
+        Assert.Equal([6.0], snapshot.YData);
+        Assert.Equal(Colors.Red, scatter.Color);
+        Assert.Equal(0.5, scatter.Alpha);
+        Assert.Equal(12, scatter.MarkerSize);
+    }
+
+    /// <summary>A streaming candlestick series round-trips at the capacity and OHLC bars it was written with.</summary>
+    [Fact]
+    public void StreamingCandlestickSeries_RoundTrips_CapacityAndCurrentSnapshot()
+    {
+        var original = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StreamingCandlestick(capacity: 20, s =>
+            {
+                s.AppendBar(10, 15, 8, 13);
+                s.AppendBar(13, 18, 11, 16);
+                s.Color = Colors.Blue;
+                s.DownColor = Colors.Orange;
+            }))
+            .Build();
+
+        string json = ChartServices.Serializer.ToJson(original);
+        var restored = ChartServices.Serializer.FromJson(json);
+        var candles = Assert.IsType<StreamingCandlestickSeries>(Assert.Single(restored.SubPlots[0].Series));
+        Assert.Equal(20, candles.Capacity);
+        var snapshot = candles.CreateOhlcSnapshot();
+        Assert.Equal([10.0, 13.0], snapshot.Open);
+        Assert.Equal([15.0, 18.0], snapshot.High);
+        Assert.Equal([8.0, 11.0], snapshot.Low);
+        Assert.Equal([13.0, 16.0], snapshot.Close);
+        Assert.Equal(Colors.Blue, candles.Color);
+        Assert.Equal(Colors.Orange, candles.DownColor);
+    }
+
+    /// <summary>A streaming signal series round-trips at the capacity, sample rate and Y samples it was written
+    /// with; its X mapping (rate, start) travels even though the internal ordinal counter restarts.</summary>
+    [Fact]
+    public void StreamingSignalSeries_RoundTrips_CapacitySampleRateAndCurrentSnapshot()
+    {
+        var original = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.StreamingSignal(capacity: 40, sampleRate: 2.0, s =>
+            {
+                s.AppendSample(7);
+                s.AppendSample(9);
+                s.Color = Colors.Green;
+                s.LineWidth = 2.5;
+            }))
+            .Build();
+
+        string json = ChartServices.Serializer.ToJson(original);
+        var restored = ChartServices.Serializer.FromJson(json);
+        var signal = Assert.IsType<StreamingSignalSeries>(Assert.Single(restored.SubPlots[0].Series));
+        Assert.Equal(40, signal.Capacity);
+        Assert.Equal(2.0, signal.SampleRate);
+        var snapshot = signal.CreateSnapshot();
+        Assert.Equal([7.0, 9.0], snapshot.YData);
+        Assert.Equal(Colors.Green, signal.Color);
+        Assert.Equal(2.5, signal.LineWidth);
+    }
+
+    /// <summary>A planar-bar-3D series round-trips its data, width, alpha, edge colour and per-bar colours —
+    /// it had no way back from JSON at all before (roadmap: "Live series back from JSON").</summary>
+    [Fact]
+    public void PlanarBar3DSeries_RoundTrips_AllProperties()
+    {
+        var original = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.PlanarBar3D([1.0, 2.0], [0.0, 0.0], [5.0, 7.0]))
+            .Build();
+        var bars = Assert.IsType<PlanarBar3DSeries>(original.SubPlots[0].Series[0]);
+        bars.BarWidth = 0.5;
+        bars.Alpha = 0.4;
+        bars.Color = Colors.Indigo;
+        bars.EdgeColor = Colors.Black;
+        bars.Colors = [Colors.Red, Colors.Blue];
+
+        string json = ChartServices.Serializer.ToJson(original);
+        var restored = ChartServices.Serializer.FromJson(json);
+        var restoredBars = Assert.IsType<PlanarBar3DSeries>(Assert.Single(restored.SubPlots[0].Series));
+        Assert.Equal([1.0, 2.0], restoredBars.X.Data);
+        Assert.Equal([0.0, 0.0], restoredBars.Y.Data);
+        Assert.Equal([5.0, 7.0], restoredBars.Z.Data);
+        Assert.Equal(0.5, restoredBars.BarWidth);
+        Assert.Equal(0.4, restoredBars.Alpha);
+        Assert.Equal(Colors.Indigo, restoredBars.Color);
+        Assert.Equal(Colors.Black, restoredBars.EdgeColor);
+        Assert.Equal([Colors.Red, Colors.Blue], restoredBars.Colors ?? []);
+    }
+
+    /// <summary>A polar line's R/Theta data round-trips — it came back from JSON with settings only before
+    /// (roadmap: "Every chart type back from JSON").</summary>
+    [Fact]
+    public void PolarLineSeries_RoundTrips_DataAndSettings()
+    {
+        var original = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.PolarPlot([1.0, 2.0, 3.0], [0.0, 1.5, 3.0], s =>
+            {
+                s.Color = Colors.Teal;
+                s.LineWidth = 2.0;
+            }))
+            .Build();
+
+        string json = ChartServices.Serializer.ToJson(original);
+        var restored = ChartServices.Serializer.FromJson(json);
+        var line = Assert.IsType<PolarLineSeries>(Assert.Single(restored.SubPlots[0].Series));
+        Assert.Equal([1.0, 2.0, 3.0], line.R);
+        Assert.Equal([0.0, 1.5, 3.0], line.Theta);
+        Assert.Equal(Colors.Teal, line.Color);
+        Assert.Equal(2.0, line.LineWidth);
+    }
+
+    /// <summary>A polar scatter's R/Theta data round-trips.</summary>
+    [Fact]
+    public void PolarScatterSeries_RoundTrips_DataAndSettings()
+    {
+        var original = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.PolarScatter([4.0, 5.0], [0.5, 1.0], s =>
+            {
+                s.Color = Colors.Crimson;
+                s.MarkerSize = 10;
+            }))
+            .Build();
+
+        string json = ChartServices.Serializer.ToJson(original);
+        var restored = ChartServices.Serializer.FromJson(json);
+        var scatter = Assert.IsType<PolarScatterSeries>(Assert.Single(restored.SubPlots[0].Series));
+        Assert.Equal([4.0, 5.0], scatter.R);
+        Assert.Equal([0.5, 1.0], scatter.Theta);
+        Assert.Equal(Colors.Crimson, scatter.Color);
+        Assert.Equal(10, scatter.MarkerSize);
+    }
+
+    /// <summary>A polar bar's R/Theta data round-trips.</summary>
+    [Fact]
+    public void PolarBarSeries_RoundTrips_DataAndSettings()
+    {
+        var original = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.PolarBar([6.0, 7.0], [0.2, 0.9], s =>
+            {
+                s.Color = Colors.Navy;
+                s.Alpha = 0.6;
+                s.BarWidth = 0.5;
+            }))
+            .Build();
+
+        string json = ChartServices.Serializer.ToJson(original);
+        var restored = ChartServices.Serializer.FromJson(json);
+        var bar = Assert.IsType<PolarBarSeries>(Assert.Single(restored.SubPlots[0].Series));
+        Assert.Equal([6.0, 7.0], bar.R);
+        Assert.Equal([0.2, 0.9], bar.Theta);
+        Assert.Equal(Colors.Navy, bar.Color);
+        Assert.Equal(0.6, bar.Alpha);
+        Assert.Equal(0.5, bar.BarWidth);
+    }
+
+    /// <summary>A tree grid's rows round-trip — they did not before (the same "Every chart type back from JSON"
+    /// gap as the treemap/sunburst/dendrogram/clustermap placeholders, just never counted among them since no
+    /// comment named it).</summary>
+    [Fact]
+    public void TreeGridSeries_RoundTrips_RowsAndSettings()
+    {
+        var rows = new List<TreeGridRow>
+        {
+            new("root", ["1", "2"]) { Depth = 0, Expanded = true },
+            new("child", ["3", "4"]) { Depth = 1, Url = "https://example.test/child", Accent = Colors.Red },
+        };
+        var original = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.TreeGrid(rows, s =>
+            {
+                s.ColumnHeaders = ["A", "B"];
+                s.RowHeight = 30;
+            }))
+            .Build();
+
+        string json = ChartServices.Serializer.ToJson(original);
+        var restored = ChartServices.Serializer.FromJson(json);
+        var grid = Assert.IsType<TreeGridSeries>(Assert.Single(restored.SubPlots[0].Series));
+        Assert.Equal(2, grid.Rows.Count);
+        Assert.Equal("root", grid.Rows[0].Label);
+        Assert.Equal(["1", "2"], grid.Rows[0].Cells);
+        Assert.Equal(0, grid.Rows[0].Depth);
+        Assert.True(grid.Rows[0].Expanded);
+        Assert.Equal("child", grid.Rows[1].Label);
+        Assert.Equal(1, grid.Rows[1].Depth);
+        Assert.Equal("https://example.test/child", grid.Rows[1].Url);
+        Assert.Equal(Colors.Red, grid.Rows[1].Accent);
+        Assert.Equal(["A", "B"], grid.ColumnHeaders ?? []);
+        Assert.Equal(30, grid.RowHeight);
+    }
+
+    /// <summary>A Sankey's nodes and links round-trip — the ninth and last of the roadmap's "Eight chart types
+    /// come back from JSON as a placeholder" (the eighth, by the tracing that found a ninth: TreeGridSeries,
+    /// tested above).</summary>
+    [Fact]
+    public void SankeySeries_RoundTrips_NodesAndLinks()
+    {
+        SankeyNode[] nodes =
+        [
+            new("Source", Colors.Blue),
+            new("Mid", SubLabel: "50 %"),
+            new("Sink", Column: 2),
+        ];
+        SankeyLink[] links = [new(0, 1, 10.0), new(1, 2, 7.5)];
+        var original = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Sankey(nodes, links, s => s.NodeWidth = 30))
+            .Build();
+
+        string json = ChartServices.Serializer.ToJson(original);
+        var restored = ChartServices.Serializer.FromJson(json);
+        var sankey = Assert.IsType<SankeySeries>(Assert.Single(restored.SubPlots[0].Series));
+        Assert.Equal(3, sankey.Nodes.Count);
+        Assert.Equal("Source", sankey.Nodes[0].Label);
+        Assert.Equal(Colors.Blue, sankey.Nodes[0].Color);
+        Assert.Equal("50 %", sankey.Nodes[1].SubLabel);
+        Assert.Equal(2, sankey.Nodes[2].Column);
+        Assert.Equal(2, sankey.Links.Count);
+        Assert.Equal(0, sankey.Links[0].SourceIndex);
+        Assert.Equal(1, sankey.Links[0].TargetIndex);
+        Assert.Equal(10.0, sankey.Links[0].Value);
+        Assert.Equal(7.5, sankey.Links[1].Value);
+        Assert.Equal(30, sankey.NodeWidth);
     }
 }

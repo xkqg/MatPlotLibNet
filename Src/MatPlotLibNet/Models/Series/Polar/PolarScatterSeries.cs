@@ -21,18 +21,19 @@ public sealed class PolarScatterSeries : PolarSeries, IHasColor
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "polarscatter",
+        RData = R,
+        ThetaData = Theta,
         Color = Color,
         MarkerSize = MarkerSize.OrNullAtRest(6.0),
     };
 
-    /// <summary>Reconstructs a <see cref="PolarScatterSeries"/> placeholder from its serialization DTO and adds it to the axes.
-    /// The data is not written yet (the roadmap row "Every chart type back from JSON"); the settings are.</summary>
+    /// <summary>Reconstructs a <see cref="PolarScatterSeries"/> from its serialization DTO and adds it to the axes.</summary>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static PolarScatterSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.PolarScatter([1.0], [0.0]);
+        var s = axes.PolarScatter(dto.RData ?? [], dto.ThetaData ?? []);
         s.Color = dto.Color;
         if (dto.MarkerSize.HasValue)
         {

@@ -71,10 +71,25 @@ public sealed class PlanarBar3DSeries : XYZSeries, IHasColor, IHasAlpha, IHasEdg
         ZData = Z,
         BarWidth = BarWidth,
         Color = Color,
-        // Alpha, EdgeColor and Colors are not written yet: this type has no way back from JSON (the roadmap row
-        // "Live series back from JSON"), and they join the day it gets one.
+        Alpha = Alpha.OrNullAtRest(0.8),
+        EdgeColor = EdgeColor,
+        Colors = Colors is null ? null : [.. Colors],
     };
 
+    /// <summary>Reconstructs a <see cref="PlanarBar3DSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static PlanarBar3DSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.PlanarBar3D(dto.XData ?? [], dto.YData ?? [], dto.ZData ?? []);
+        if (dto.BarWidth.HasValue) s.BarWidth = dto.BarWidth.Value;
+        if (dto.Alpha.HasValue) s.Alpha = dto.Alpha.Value;
+        if (dto.Color.HasValue) s.Color = dto.Color.Value;
+        if (dto.EdgeColor.HasValue) s.EdgeColor = dto.EdgeColor.Value;
+        if (dto.Colors is { } colors) s.Colors = [.. colors];
+        return s;
+    }
 
     /// <inheritdoc />
     /// <remarks>Where each plate sits and how tall it is.</remarks>

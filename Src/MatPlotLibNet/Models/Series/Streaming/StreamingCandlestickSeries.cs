@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Data;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series.Streaming;
@@ -103,11 +104,46 @@ public sealed class StreamingCandlestickSeries : ChartSeries, IStreamingOhlcSeri
     }
 
     /// <inheritdoc />
-    public override Serialization.SeriesDto ToSeriesDto() => new()
+    /// <remarks>Carries the ring buffer's current OHLC snapshot, one read of one buffer (<see cref="CreateOhlcSnapshot"/>),
+    /// so a restored stream starts from the bars it was written with, not empty — it had no way back at all before
+    /// (the roadmap row "Live series back from JSON").</remarks>
+    public override SeriesDto ToSeriesDto()
     {
-        Type = "streaming_candlestick",
-        Label = Label
-    };
+        var snapshot = CreateOhlcSnapshot();
+        return new()
+        {
+            Type = "streaming_candlestick",
+            Open = snapshot.Open,
+            High = snapshot.High,
+            Low = snapshot.Low,
+            Close = snapshot.Close,
+            Capacity = Capacity,
+            Color = Color,
+            DownColor = DownColor,
+        };
+    }
+
+    /// <summary>Reconstructs a <see cref="StreamingCandlestickSeries"/> at the capacity and the snapshot it was
+    /// written with, and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
+    internal static StreamingCandlestickSeries FromSeriesDto(Axes axes, SeriesDto dto)
+    {
+        var s = axes.AddSeries(new StreamingCandlestickSeries(dto.Capacity ?? 5_000));
+        var open = dto.Open ?? [];
+        var high = dto.High ?? [];
+        var low = dto.Low ?? [];
+        var close = dto.Close ?? [];
+        for (int i = 0; i < open.Length; i++)
+        {
+            s.AppendBar(open[i], high[i], low[i], close[i]);
+        }
+
+        if (dto.Color.HasValue) s.Color = dto.Color.Value;
+        if (dto.DownColor.HasValue) s.DownColor = dto.DownColor.Value;
+        return s;
+    }
 
 
     /// <inheritdoc />

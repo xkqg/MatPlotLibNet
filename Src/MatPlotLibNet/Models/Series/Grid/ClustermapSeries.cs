@@ -82,9 +82,7 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
     }
 
     /// <inheritdoc />
-    /// <remarks>Trees (<see cref="RowTree"/>, <see cref="ColumnTree"/>) are not emitted to the DTO.
-    /// After a round-trip they are absent, so the rows and columns are drawn in their input order. The
-    /// <see cref="Normalizer"/> is written by kind when it is one of the library's, as for every
+    /// <remarks>The <see cref="Normalizer"/> is written by kind when it is one of the library's, as for every
     /// <see cref="INormalizable"/> series.</remarks>
     public override SeriesDto ToSeriesDto() => new()
     {
@@ -97,10 +95,11 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
         RowDendrogramWidth = _rowDendrogramWidth != 0.15 ? _rowDendrogramWidth : null,
         ColumnDendrogramHeight = _columnDendrogramHeight != 0.15 ? _columnDendrogramHeight : null,
         Normalizer = this.DescribeNormalizer(),
+        RowTree = RowTree is { } rowTree ? ChartSerializer.TreeNodeToDto(rowTree) : null,
+        ColumnTree = ColumnTree is { } columnTree ? ChartSerializer.TreeNodeToDto(columnTree) : null,
     };
 
     /// <summary>Reconstructs a <see cref="ClustermapSeries"/> from its serialization DTO and adds it to the axes.</summary>
-    /// <remarks>Trees are not serialised — they are absent after a restore.</remarks>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
@@ -108,6 +107,8 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
     {
         var data = ChartSerializer.From2DList(dto.HeatmapData);
         var s = axes.Clustermap(data.GetLength(0) > 0 ? data : new double[1, 1]);
+        if (dto.RowTree is { } rowTree) s.RowTree = ChartSerializer.DtoToTreeNode(rowTree);
+        if (dto.ColumnTree is { } columnTree) s.ColumnTree = ChartSerializer.DtoToTreeNode(columnTree);
         s.RestoreColorMap(dto);
         if (dto.ShowLabels.HasValue)
         {

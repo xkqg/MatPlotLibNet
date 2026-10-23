@@ -36,7 +36,8 @@ public sealed class TreemapSeries : HierarchicalSeries
     /// <returns>The reconstructed series instance.</returns>
     internal static TreemapSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Treemap(new TreeNode { Label = "Root" });
+        var root = dto.TreeRoot is { } treeRoot ? ChartSerializer.DtoToTreeNode(treeRoot) : new TreeNode { Label = "Root" };
+        var s = axes.Treemap(root);
         if (dto.Padding.HasValue)
         {
             s.Padding = dto.Padding.Value;

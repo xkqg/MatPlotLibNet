@@ -42,6 +42,9 @@ public class ChartTypeCatalogTests
         Assert.DoesNotContain("geo_polygon", _catalog.Excluded.Keys);
     }
 
+    /// <summary>Each of these used to build a fixed placeholder instead of reading its document and was excluded
+    /// with a reason; each now has a real <c>FromSeriesDto</c> (JSON-roundtrip plan) and is listed like any other
+    /// registered type.</summary>
     [Theory]
     [InlineData("sankey")]
     [InlineData("sunburst")]
@@ -51,19 +54,28 @@ public class ChartTypeCatalogTests
     [InlineData("polarscatter")]
     [InlineData("treegrid")]
     [InlineData("dendrogram")]
-    public void ATypeWhoseReaderIgnoresTheDocument_IsExcludedWithAReason(string type)
+    public void AFormerlyPlaceholderType_IsListedNow_NotExcluded(string type)
     {
-        Assert.False(_catalog.IsListed(type));
-        Assert.Contains(type, _catalog.Excluded.Keys);
-        Assert.NotEmpty(_catalog.Excluded[type]);
+        Assert.True(_catalog.IsListed(type));
+        Assert.DoesNotContain(type, _catalog.Excluded.Keys);
     }
 
-    /// <summary>The dendrogram's JSON reader builds a tree of one node labelled "Root" instead of the tree in the
-    /// document, so a spec that names it would be drawn as a single label with a success flag. Its sibling
-    /// hierarchies (the treemap and the sunburst) were already refused for the same reason.</summary>
     [Fact]
-    public void TheDendrogram_IsRefusedForTheReasonItsHierarchicalSiblingsAre() =>
-        Assert.Contains("tree", _catalog.Excluded["dendrogram"]);
+    public void NoTypeIsExcludedToday() => Assert.Empty(_catalog.Excluded);
+
+    /// <summary>The exclusion mechanism itself, independent of which real type happens to be excluded on any
+    /// given day — exercised through the constructor <see cref="ChartTypeCatalog"/> keeps for this purpose.</summary>
+    [Fact]
+    public void AnInjectedExclusion_IsExcludedWithItsReason_AndNotListed()
+    {
+        var catalog = new ChartTypeCatalog(new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["line"] = "a fake reason for this test only",
+        });
+
+        Assert.False(catalog.IsListed("line"));
+        Assert.Equal("a fake reason for this test only", catalog.Excluded["line"]);
+    }
 
     [Theory]
     [InlineData("line", true)]

@@ -43,8 +43,8 @@ public class ChartSchemaDescriptionTests
     }
 
     [Theory]
-    [InlineData("sankey")]
-    [InlineData("dendrogram")]
+    [InlineData("geo_polygon")] // MatPlotLibNet.Geo's own discriminator, but nothing registers a factory for it
+    [InlineData("nope")]
     public void AChartTypeThisServerDoesNotList_IsRefusedToo(string type) =>
         Assert.Throws<ToolRefusalException>(() => Description.Describe(type));
 

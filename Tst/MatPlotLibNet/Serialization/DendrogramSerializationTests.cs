@@ -10,10 +10,10 @@ using MatPlotLibNet.Tests.Models.Series;
 
 namespace MatPlotLibNet.Tests.Serialization;
 
-/// <summary>v1.10 — verifies JSON round-trip for the new <see cref="DendrogramSeries"/>
-/// properties (<c>Orientation</c>, <c>CutHeight</c>, <c>CutLineColor</c>, <c>ColorByCluster</c>).
-/// The tree itself is not serialised in this phase — the registry rebuilds the series with
-/// a placeholder root, mirroring the <c>treemap</c> / <c>sunburst</c> registry entries.</summary>
+/// <summary>v1.10 — verifies JSON round-trip for <see cref="DendrogramSeries"/>'s own properties
+/// (<c>Orientation</c>, <c>CutHeight</c>, <c>CutLineColor</c>, <c>ColorByCluster</c>) and, since the
+/// JSON-roundtrip plan (cluster A), the tree itself — through the same <c>TreeNodeDto</c> the
+/// treemap/sunburst/clustermap share (<c>HierarchicalSeriesExtensions.DescribeSharedSettings</c>).</summary>
 public class DendrogramSerializationTests
 {
     private static TreeNode SampleTree => DendrogramTreeFixtures.TwoLeaf();
@@ -102,5 +102,17 @@ public class DendrogramSerializationTests
         Assert.False(s.ColorByCluster);
         Assert.Equal("set1", s.ColorMap!.Name);
         Assert.False(s.ShowLabels);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesTheTree()
+    {
+        var s = Roundtrip(_ => { });
+
+        Assert.Equal("root", s.Root.Label);
+        Assert.Equal(2.0, s.Root.Value);
+        Assert.Equal(2, s.Root.Children.Count);
+        Assert.Equal("A", s.Root.Children[0].Label);
+        Assert.Equal("B", s.Root.Children[1].Label);
     }
 }

@@ -111,12 +111,11 @@ public abstract class StreamingSeries : ChartSeries, IStreamingSeries
         public Box Extend(double x, double y) => new(X.Including(x), Y.Including(y));
     }
 
-    /// <inheritdoc />
-    public override Serialization.SeriesDto ToSeriesDto() => new()
-    {
-        Type = "streaming",
-        Label = Label
-    };
+    // ToSeriesDto is left ABSTRACT here on purpose (inherited from ChartSeries, not overridden): a single shared
+    // implementation once wrote "streaming" for both StreamingLineSeries and StreamingScatterSeries, which
+    // collided on read — the registry could restore only one of the two (JSON round-trip). Each concrete
+    // subclass now writes its own discriminator; leaving this abstract makes the compiler refuse a future
+    // subclass that forgets to.
 
     /// <inheritdoc />
     /// <remarks>The ring buffer's current snapshot — what the series holds at the moment it is asked, which is

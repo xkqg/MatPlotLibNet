@@ -54,7 +54,7 @@
        project's own `IsPackable` is not yet known in this file. -->
   <PropertyGroup Condition="$(MSBuildProjectDirectory.StartsWith($([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', 'Src'))))">
     <EnablePackageValidation>true</EnablePackageValidation>
-    <PackageValidationBaselineVersion>1.19.0</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>1.20.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup>

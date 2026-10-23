@@ -23,19 +23,20 @@ public sealed class PolarLineSeries : PolarSeries, IHasColor
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "polarline",
+        RData = R,
+        ThetaData = Theta,
         Color = Color,
         LineStyle = LineStyle == LineStyle.Solid ? null : LineStyle.ToString().ToLowerInvariant(),
         LineWidth = LineWidth.OrNullAtRest(1.5),
     };
 
-    /// <summary>Reconstructs a <see cref="PolarLineSeries"/> placeholder from its serialization DTO and adds it to the axes.
-    /// The data is not written yet (the roadmap row "Every chart type back from JSON"); the settings are.</summary>
+    /// <summary>Reconstructs a <see cref="PolarLineSeries"/> from its serialization DTO and adds it to the axes.</summary>
     /// <param name="axes">The target axes the reconstructed series is added to.</param>
     /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
     /// <returns>The reconstructed series instance.</returns>
     internal static PolarLineSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.PolarPlot([1.0], [0.0]);
+        var s = axes.PolarPlot(dto.RData ?? [], dto.ThetaData ?? []);
         s.Color = dto.Color;
         ChartSerializer.ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
         if (dto.LineWidth.HasValue)

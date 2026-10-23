@@ -134,11 +134,18 @@ public sealed class StreamingLineSeriesTests
     }
 
     [Fact]
-    public void ToSeriesDto_TypeIsStreaming()
+    public void ToSeriesDto_CarriesItsOwnDiscriminatorCapacityAndSnapshot()
     {
-        var s = new StreamingLineSeries { Label = "L1" };
+        // Its own discriminator, not the base class' shared "streaming" (JSON-roundtrip plan, cluster B): that
+        // name once covered both this and StreamingScatterSeries and collided on read. Label is never set here —
+        // same as every other series' ToSeriesDto — ChartSerializer.SeriesToDto injects it centrally.
+        var s = new StreamingLineSeries(capacity: 25);
+        s.AppendPoint(1, 2);
         var dto = s.ToSeriesDto();
-        Assert.Equal("streaming", dto.Type);
-        Assert.Equal("L1", dto.Label);
+        Assert.Equal("streaming_line", dto.Type);
+        Assert.Null(dto.Label);
+        Assert.Equal(25, dto.Capacity);
+        Assert.Equal([1.0], dto.XData ?? []);
+        Assert.Equal([2.0], dto.YData ?? []);
     }
 }

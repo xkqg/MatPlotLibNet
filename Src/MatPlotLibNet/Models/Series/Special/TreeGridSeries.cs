@@ -67,8 +67,7 @@ public sealed class TreeGridSeries : ChartSeries
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) => new(null, null, null, null);
 
-    /// <summary>The rows do not travel: like the treemap's, they are left out, because a wall that renders server-side
-    /// publishes SVG (the roadmap row "Every chart type back from JSON"). The settings of the grid do.</summary>
+    /// <inheritdoc />
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "treegrid",
@@ -77,11 +76,31 @@ public sealed class TreeGridSeries : ChartSeries
         IndentWidth = IndentWidth.OrNullAtRest(18.0),
         ColumnWidth = ColumnWidth.OrNullAtRest(120.0),
         FontSize = FontSize.OrNullAtRest(12.0),
+        TreeGridRows = [.. Rows.Select(r => new TreeGridRowDto
+        {
+            Label = r.Label,
+            Cells = [.. r.Cells],
+            Depth = r.Depth,
+            Url = r.Url,
+            Expanded = r.Expanded,
+            Accent = r.Accent,
+        })],
     };
 
+    /// <summary>Reconstructs a <see cref="TreeGridSeries"/> from its serialization DTO and adds it to the axes.</summary>
+    /// <param name="axes">The target axes the reconstructed series is added to.</param>
+    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+    /// <returns>The reconstructed series instance.</returns>
     internal static TreeGridSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.TreeGrid([]);
+        var rows = (dto.TreeGridRows ?? []).Select(r => new TreeGridRow(r.Label, r.Cells ?? [])
+        {
+            Depth = r.Depth,
+            Url = r.Url,
+            Expanded = r.Expanded,
+            Accent = r.Accent,
+        }).ToList();
+        var s = axes.TreeGrid(rows);
         s.ColumnHeaders = dto.ColumnHeaders;
         if (dto.RowHeight.HasValue)
         {

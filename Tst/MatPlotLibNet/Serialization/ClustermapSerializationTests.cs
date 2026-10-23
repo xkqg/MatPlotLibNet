@@ -7,9 +7,9 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Tests.Serialization;
 
-/// <summary>v1.10 — verifies JSON round-trip for <see cref="ClustermapSeries"/>.
-/// The trees are not serialised; the registry rebuilds the series with a placeholder
-/// <c>new double[1,1]</c> data matrix, mirroring the treemap / sunburst pattern.</summary>
+/// <summary>v1.10 — verifies JSON round-trip for <see cref="ClustermapSeries"/>. <see cref="ClustermapSeries.RowTree"/>
+/// and <see cref="ClustermapSeries.ColumnTree"/> now round-trip too (JSON-roundtrip plan, cluster A), through the same
+/// <c>TreeNodeDto</c> the treemap/sunburst/dendrogram share.</summary>
 public class ClustermapSerializationTests
 {
     private static double[,] SampleData => new double[,]
@@ -129,5 +129,38 @@ public class ClustermapSerializationTests
         Assert.Equal("F1", s.LabelFormat);
         Assert.Equal(0.30, s.RowDendrogramWidth, precision: 10);
         Assert.Equal(0.25, s.ColumnDendrogramHeight, precision: 10);
+    }
+
+    // ── Trees round-trip (JSON-roundtrip plan, cluster A) ──────────────────────
+
+    [Fact]
+    public void RoundTrip_PreservesRowAndColumnTrees()
+    {
+        var rowTree = new MatPlotLibNet.Models.TreeNode
+        {
+            Label = "root",
+            Children =
+            [
+                new MatPlotLibNet.Models.TreeNode { Label = "r0", Value = 0 },
+                new MatPlotLibNet.Models.TreeNode { Label = "r1", Value = 1 },
+            ],
+        };
+        var columnTree = new MatPlotLibNet.Models.TreeNode
+        {
+            Label = "root",
+            Children =
+            [
+                new MatPlotLibNet.Models.TreeNode { Label = "c0", Value = 0 },
+                new MatPlotLibNet.Models.TreeNode { Label = "c1", Value = 1 },
+            ],
+        };
+
+        var s = Roundtrip(s => { s.RowTree = rowTree; s.ColumnTree = columnTree; });
+
+        Assert.NotNull(s.RowTree);
+        Assert.Equal(2, s.RowTree!.Children.Count);
+        Assert.Equal("r0", s.RowTree.Children[0].Label);
+        Assert.NotNull(s.ColumnTree);
+        Assert.Equal("c1", s.ColumnTree!.Children[1].Label);
     }
 }

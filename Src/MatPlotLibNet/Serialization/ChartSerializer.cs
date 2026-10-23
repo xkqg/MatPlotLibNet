@@ -116,6 +116,7 @@ public sealed class ChartSerializer : IChartSerializer
         Spines = axes.Spines == new SpinesConfig() ? null : SpinesToDto(axes.Spines),
         XAxis = AxisToDto(axes.XAxis),
         YAxis = AxisToDto(axes.YAxis),
+        ZAxis = AxisToDto(axes.ZAxis),
         Grid = GridDto.From(axes.GridOverride is null ? axes.Grid : axes.GridUnder(theme)),
         GridOverridesTheme = axes.GridOverride is null ? null : true,
         BarMode = axes.BarMode == BarMode.Stacked ? "stacked" : null,
@@ -178,6 +179,18 @@ public sealed class ChartSerializer : IChartSerializer
         TitleLoc = axes.TitleLoc.OrNullAtRest(TitleLocation.Center),
         Legend = LegendDto.From(axes.Legend),
         ColorBar = ColorBarDto.From(axes.ColorBar),
+        Pane3D = axes.Pane3D == new Pane3DConfig() ? null : new Pane3DConfigDto
+        {
+            FloorColor = axes.Pane3D.FloorColor,
+            LeftWallColor = axes.Pane3D.LeftWallColor,
+            RightWallColor = axes.Pane3D.RightWallColor,
+            Alpha = axes.Pane3D.Alpha,
+            Visible = axes.Pane3D.Visible,
+        },
+        EnableTooltips = axes.EnableTooltips.OrNullAtRest(false),
+        EnableInteractiveAttributes = axes.EnableInteractiveAttributes.OrNullAtRest(false),
+        Emit3DVertexData = axes.Emit3DVertexData.OrNullAtRest(false),
+        CoordinateSystem = axes.CoordinateSystem == Models.CoordinateSystem.Cartesian ? null : axes.CoordinateSystem.ToString().ToLowerInvariant(),
     };
 
     /// <summary>Writes one annotation: what it says and where, and everything it is drawn with. A value at the one a new
@@ -405,6 +418,23 @@ public sealed class ChartSerializer : IChartSerializer
 
         if (axDto.XAxis is not null) ApplyAxis(axes.XAxis, axDto.XAxis);
         if (axDto.YAxis is not null) ApplyAxis(axes.YAxis, axDto.YAxis);
+        if (axDto.ZAxis is not null) ApplyAxis(axes.ZAxis, axDto.ZAxis);
+        if (axDto.Pane3D is { } pane3D)
+        {
+            axes.Pane3D = new Pane3DConfig
+            {
+                FloorColor = pane3D.FloorColor,
+                LeftWallColor = pane3D.LeftWallColor,
+                RightWallColor = pane3D.RightWallColor,
+                Alpha = pane3D.Alpha,
+                Visible = pane3D.Visible,
+            };
+        }
+        if (axDto.EnableTooltips is { } enableTooltips) axes.EnableTooltips = enableTooltips;
+        if (axDto.EnableInteractiveAttributes is { } enableInteractiveAttributes) axes.EnableInteractiveAttributes = enableInteractiveAttributes;
+        if (axDto.Emit3DVertexData is { } emit3DVertexData) axes.Emit3DVertexData = emit3DVertexData;
+        if (axDto.CoordinateSystem is { } coordinateSystem && Enum.TryParse<Models.CoordinateSystem>(coordinateSystem, true, out var coordSys))
+            axes.CoordinateSystem = coordSys;
         if (axDto.Grid is not null) RestoreGrid(axes, axDto.Grid.ToGridStyle(), axDto.GridOverridesTheme is true);
         if (axDto.Spines is not null) axes.Spines = DtoToSpines(axDto.Spines);
         if (axDto.BarMode is "stacked") axes.BarMode = BarMode.Stacked;
@@ -735,6 +765,39 @@ public sealed class ChartSerializer : IChartSerializer
         return result;
     }
 
+    /// <summary>Converts a <see cref="Models.TreeNode"/> to its DTO, recursively — the one place a tree becomes
+    /// wire data, shared by every <see cref="Models.Series.HierarchicalSeries"/> (Treemap, Sunburst, Dendrogram)
+    /// and <see cref="Models.Series.ClustermapSeries"/>'s RowTree/ColumnTree.</summary>
+    internal static TreeNodeDto TreeNodeToDto(Models.TreeNode node) => new()
+    {
+        Label = node.Label,
+        Value = node.Value,
+        Color = node.Color,
+        ColorValue = node.ColorValue,
+        Headline = node.Headline,
+        Url = node.Url,
+        Expanded = node.Expanded,
+        Hatch = node.Hatch,
+        HatchColor = node.HatchColor,
+        Children = node.Children.Count > 0 ? [.. node.Children.Select(TreeNodeToDto)] : null,
+    };
+
+    /// <summary>Converts a <see cref="TreeNodeDto"/> back to a <see cref="Models.TreeNode"/>, recursively — the
+    /// counterpart of <see cref="TreeNodeToDto"/>.</summary>
+    internal static Models.TreeNode DtoToTreeNode(TreeNodeDto dto) => new()
+    {
+        Label = dto.Label,
+        Value = dto.Value,
+        Color = dto.Color,
+        ColorValue = dto.ColorValue,
+        Headline = dto.Headline,
+        Url = dto.Url,
+        Expanded = dto.Expanded,
+        Hatch = dto.Hatch,
+        HatchColor = dto.HatchColor,
+        Children = dto.Children is { } children ? [.. children.Select(DtoToTreeNode)] : [],
+    };
+
     /// <summary>Converts an <see cref="IReadOnlyList{T}"/> of <see cref="Models.Series.GraphNode"/>
     /// to its DTO form for JSON serialisation.</summary>
     internal static List<GraphNodeDto> ToGraphNodeDtos(IReadOnlyList<Models.Series.GraphNode> nodes)
@@ -899,6 +962,9 @@ internal sealed record AxesDto
     public SpinesConfigDto? Spines { get; init; }
     public AxisDto? XAxis { get; init; }
     public AxisDto? YAxis { get; init; }
+    /// <summary>The Z axis of a 3-D axes; written for every axes the way <see cref="XAxis"/> and <see cref="YAxis"/>
+    /// are, since <see cref="Models.Axes.ZAxis"/> always exists even on a 2-D axes that never reads it.</summary>
+    public AxisDto? ZAxis { get; init; }
     public GridDto? Grid { get; init; }
     /// <summary><see langword="true"/> when <see cref="Grid"/> is the axes' own change over the theme's grid: the axes
     /// draws it whatever the theme's grid is, a grid switched off included. Absent when the axes takes the theme's grid
@@ -933,6 +999,29 @@ internal sealed record AxesDto
     public LegendDto? Legend { get; init; }
     /// <summary>The colour bar; absent when the axes has none.</summary>
     public ColorBarDto? ColorBar { get; init; }
+    /// <summary>The 3-D axes' pane colours and visibility; written only when it differs from the record's own
+    /// defaults, the way every other at-rest part is left out.</summary>
+    public Pane3DConfigDto? Pane3D { get; init; }
+    /// <summary>Whether this axes shows tooltips on hover; absent for the default <see langword="false"/>.</summary>
+    public bool? EnableTooltips { get; init; }
+    /// <summary>Whether this axes emits the interactive attributes the client-side script reads; absent for the
+    /// default <see langword="false"/>.</summary>
+    public bool? EnableInteractiveAttributes { get; init; }
+    /// <summary>Whether this axes emits per-vertex 3-D data for client-side reprojection; absent for the default
+    /// <see langword="false"/>.</summary>
+    public bool? Emit3DVertexData { get; init; }
+    /// <summary>Cartesian, polar or three-D; absent for the default <c>Cartesian</c>.</summary>
+    public string? CoordinateSystem { get; init; }
+}
+
+/// <summary>Data-transfer object for <see cref="Models.Pane3DConfig"/>.</summary>
+internal sealed record Pane3DConfigDto
+{
+    public Color? FloorColor { get; init; }
+    public Color? LeftWallColor { get; init; }
+    public Color? RightWallColor { get; init; }
+    public double Alpha { get; init; } = 1.0;
+    public bool Visible { get; init; } = true;
 }
 
 /// <summary>Data-transfer object for an <see cref="Models.AxisBreak"/>.</summary>
@@ -1570,6 +1659,60 @@ public sealed record SeriesDto
     /// when it travels by its name (<see cref="PairGridOffDiagonalColorMap"/>). Internal, as <see cref="ColorMap"/>.</summary>
     [JsonInclude]
     internal ColorMapDto? PairGridOffDiagonalColorMapDescription { get; init; }
+
+    // Streaming series (JSON round-trip): the ring buffer's capacity and its current snapshot. The snapshot reuses
+    // XData/YData/Open/High/Low/Close/YData+SignalSampleRate+SignalXStart — the same fields the non-streaming
+    // Line/Candlestick/Signal series already carry — so a restored stream starts from the picture it was, not empty.
+    public int? Capacity { get; init; }
+
+    // Polar series data (JSON round-trip): R and Theta are their own fields, not XData/YData, since a polar
+    // series' two coordinates are a radius and an angle, not a rectangular X and Y.
+    public double[]? RData { get; init; }
+    public double[]? ThetaData { get; init; }
+
+    // TreeGridSeries data (JSON round-trip): the rows themselves — the caller's own flattening of whatever
+    // hierarchy it drew, kept as a flat list the same way the series already holds it.
+    public List<TreeGridRowDto>? TreeGridRows { get; init; }
+
+    // Hierarchical tree data (JSON round-trip): TreemapSeries, SunburstSeries and DendrogramSeries each hold one
+    // TreeNode root (HierarchicalSeries.Root); ClustermapSeries holds two (RowTree, ColumnTree) alongside its
+    // already-carried matrix. One recursive TreeNodeDto (ChartSerializer.TreeNodeToDto/DtoToTreeNode) serves all
+    // four — the node shape does not change with how many of them a series holds.
+    public TreeNodeDto? TreeRoot { get; init; }
+    public TreeNodeDto? RowTree { get; init; }
+    public TreeNodeDto? ColumnTree { get; init; }
+
+    // SankeySeries data (JSON round-trip): the nodes and the links between them, by index — the same shape
+    // SankeyNode/SankeyLink already hold.
+    public List<SankeyNodeDto>? SankeyNodes { get; init; }
+    public List<SankeyLinkDto>? SankeyLinks { get; init; }
+}
+
+/// <summary>DTO for one <see cref="Models.TreeNode"/>, recursively — see <see cref="ChartSerializer.TreeNodeToDto"/>
+/// and <see cref="ChartSerializer.DtoToTreeNode"/>.</summary>
+public sealed record TreeNodeDto
+{
+    public string Label { get; init; } = "";
+    public double Value { get; init; }
+    public Color? Color { get; init; }
+    public double? ColorValue { get; init; }
+    public string? Headline { get; init; }
+    public string? Url { get; init; }
+    public bool? Expanded { get; init; }
+    public HatchPattern Hatch { get; init; } = HatchPattern.None;
+    public Color? HatchColor { get; init; }
+    public List<TreeNodeDto>? Children { get; init; }
+}
+
+/// <summary>DTO for one <see cref="Models.Series.TreeGridRow"/>.</summary>
+public sealed record TreeGridRowDto
+{
+    public string Label { get; init; } = "";
+    public List<string>? Cells { get; init; }
+    public int Depth { get; init; }
+    public string? Url { get; init; }
+    public bool? Expanded { get; init; }
+    public Color? Accent { get; init; }
 }
 
 /// <summary>DTO for a single 3D text annotation positioned at (X, Y, Z).</summary>
@@ -1580,6 +1723,12 @@ public sealed record GraphNodeDto(string Id, double X, double Y, double ColorSca
 
 /// <summary>DTO for one <see cref="MatPlotLibNet.Models.Series.GraphEdge"/>.</summary>
 public sealed record GraphEdgeDto(string From, string To, double Weight, bool IsDirected);
+
+/// <summary>DTO for one <see cref="Models.SankeyNode"/>.</summary>
+public sealed record SankeyNodeDto(string Label, Color? Color = null, string? SubLabel = null, Color? SubLabelColor = null, int? Column = null);
+
+/// <summary>DTO for one <see cref="Models.SankeyLink"/>.</summary>
+public sealed record SankeyLinkDto(int SourceIndex, int TargetIndex, double Value);
 
 /// <summary>Converts <see cref="Color"/> values to and from hex strings (e.g., "#FF0000") during JSON serialization.</summary>
 internal sealed class ColorJsonConverter : JsonConverter<Color>

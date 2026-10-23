@@ -11,21 +11,12 @@ namespace MatPlotLibNet.Mcp;
 /// someone else's numbers with a success flag.</summary>
 internal sealed class ChartTypeCatalog
 {
-    /// <summary>Registered types whose <c>FromSeriesDto</c> returns a literal instead of reading the document
-    /// (measured: <c>axes.Sankey([new SankeyNode("A")], [])</c> and its seven siblings, the dendrogram's
-    /// <c>axes.Dendrogram(new TreeNode { Label = "Root" })</c> among them). The round-trip theory over
-    /// every listed type is the alarm that re-opens this set the day Core fixes one of them.</summary>
-    private static readonly IReadOnlyDictionary<string, string> NotBuildableFromJson = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["sankey"] = "its JSON reader builds a fixed placeholder diagram instead of the nodes and links in the document",
-        ["sunburst"] = "its JSON reader builds a fixed placeholder tree instead of the hierarchy in the document",
-        ["treemap"] = "its JSON reader builds a fixed placeholder tree instead of the hierarchy in the document",
-        ["polarbar"] = "its JSON reader builds a fixed placeholder bar instead of the data in the document",
-        ["polarline"] = "its JSON reader builds a fixed placeholder line instead of the data in the document",
-        ["polarscatter"] = "its JSON reader builds a fixed placeholder point instead of the data in the document",
-        ["treegrid"] = "its JSON reader builds an empty grid instead of the rows in the document",
-        ["dendrogram"] = "its JSON reader builds a fixed placeholder tree of one node instead of the tree in the document",
-    };
+    /// <summary>Registered types whose <c>FromSeriesDto</c> returns a literal instead of reading the document.
+    /// Empty today (JSON-roundtrip plan): <c>sankey</c>, <c>sunburst</c>, <c>treemap</c>, <c>polarbar</c>,
+    /// <c>polarline</c>, <c>polarscatter</c>, <c>treegrid</c> and <c>dendrogram</c> all read their documents now
+    /// — this is the day this set re-opened, exactly as the round-trip theory over every listed type was built to
+    /// catch. A type lands back in here the day a FUTURE round-trip gap is found for it, with the measured reason.</summary>
+    private static readonly IReadOnlyDictionary<string, string> NotBuildableFromJson = new Dictionary<string, string>(StringComparer.Ordinal);
 
     /// <summary>A misspelling this many edits away from a listed type is offered as the type that was meant.</summary>
     private const int MaxSuggestionDistance = 2;

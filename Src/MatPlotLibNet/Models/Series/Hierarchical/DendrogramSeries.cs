@@ -57,7 +57,8 @@ public sealed class DendrogramSeries : HierarchicalSeries
     /// <returns>The reconstructed series instance.</returns>
     internal static DendrogramSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Dendrogram(new TreeNode { Label = "Root" });
+        var root = dto.TreeRoot is { } treeRoot ? ChartSerializer.DtoToTreeNode(treeRoot) : new TreeNode { Label = "Root" };
+        var s = axes.Dendrogram(root);
         if (dto.DendrogramOrientation.HasValue)
         {
             s.Orientation = dto.DendrogramOrientation.Value;

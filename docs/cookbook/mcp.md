@@ -183,13 +183,14 @@ as text. A chart with more rows than the server's row ceiling is refused. The re
 ceiling and the way around it: call `save_chart`, then read the file. A table is text, and text takes up the
 model's context.
 
-## Two things worth knowing
+## One thing worth knowing
 
 **The SVG this server writes carries glyph outlines, not `<text>`.** The PNG backend is loaded in the same
 process, and it installs a glyph-path provider, so text is drawn with the library's own embedded font everywhere.
 The SVG is self-contained and identical to the PNG, but it is not machine-readable as text.
 
-**Eight chart types are not available through the spec.** `sankey`, `sunburst`, `treemap`, `polarbar`,
-`polarline`, `polarscatter`, `treegrid` and `dendrogram` have a JSON reader that builds a fixed placeholder instead of
-reading the document. The server refuses these types by name, so that it does not draw the placeholder's data in place of
-the data in the spec. `list_chart_types` names them with the reason.
+No chart types are not available through the spec.
+
+`list_chart_types` lists every registered type. A type lands in a second, "not available" section again only on the
+day its JSON reader builds a placeholder instead of reading the document — the way several used to, until the
+library's JSON round-trip work gave each of them a real reader.
