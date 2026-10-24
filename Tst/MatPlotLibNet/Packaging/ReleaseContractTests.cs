@@ -911,7 +911,6 @@ public class ReleaseContractTests
     private static readonly IReadOnlyDictionary<string, string> NotOnTheApiSite = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj"] = "needs the MAUI workload, which the Pages runner has not got",
-        ["Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj"] = "was never published at 1.21.0 on nuget.org, so the package-validation baseline restore 404s for any build of it",
     };
 
     [Fact]

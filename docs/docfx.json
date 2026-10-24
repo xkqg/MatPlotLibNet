@@ -1,7 +1,6 @@
 ﻿{
   "metadata": [
     {
-      "_comment": "MatPlotLibNet.Uno is not in this list: it was never published at 1.21.0 on nuget.org, so the package-validation baseline restore (PackageValidationBaselineVersion, a PackageDownload item MSBuild adds at restore time, ahead of any build property a tool can override after the fact) fails NU1102 for any build of it, docfx's metadata extraction included -- FatalError, the whole site. Pinned in ReleaseContractTests.NotOnTheApiSite; drop it from there and add it back here once the package exists at every version the baseline has carried.",
       "src": [
         {
           "files": [
@@ -15,7 +14,8 @@
             "Src/MatPlotLibNet.Avalonia/MatPlotLibNet.Avalonia.csproj",
             "Src/MatPlotLibNet.Geo/MatPlotLibNet.Geo.csproj",
             "Src/MatPlotLibNet.Notebooks/MatPlotLibNet.Notebooks.csproj",
-            "Src/MatPlotLibNet.Verso/MatPlotLibNet.Verso.csproj"
+            "Src/MatPlotLibNet.Verso/MatPlotLibNet.Verso.csproj",
+            "Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj"
           ],
           "src": ".."
         }
