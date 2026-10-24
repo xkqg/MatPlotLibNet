@@ -14,11 +14,11 @@ This cookbook contains code examples with their rendered output. Every example u
 | Category | Examples |
 |---|---|
 | [From matplotlib to C#](matplotlib-to-csharp.md) | The pyplot call you already know and the line that draws the same chart here — figures, plots, labels, colour, statistics, images, 3D and polar |
-| [Line Charts](line-charts.md) | Line styles, markers, gaps at missing values, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, secondary Y-axis, outside legend, legend value display; in one call each: bump chart, control chart, stream graph; connected scatter |
+| [Line Charts](line-charts.md) | Line styles, markers, gaps at missing values, smooth interpolation, step functions, PropCycler, LTTB downsampling, grid/spine control, secondary Y-axis, outside legend, legend value display; in one call each: bump chart, control chart, stream graph, horizon chart; connected scatter |
 | [Direct labels & axis colours](direct-labels-and-axis-colours.md) | A line's name at the end of the line instead of in the legend, each Y axis coloured like its line, a dual-axis chart that needs no legend, what is kept in JSON |
 | [Bar Charts](bar-charts.md) | Vertical/horizontal bars, bars below zero, bars on a log scale, stacked, grouped, bar labels, hatching, width/alpha control; in one call each: Pareto, lollipop, dumbbell, slope graph, dot plot, parallel coordinates, Marimekko; waterfall with totals |
 | [Pie & Donut](pie-donut.md) | Pie, donut, nested pie (sunburst), explode, shadow, percentage labels, custom colors, hatches |
-| [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, placing them, KDE, rug plot, density scatter; in one call each: ridgeline, Q-Q plot, Kaplan-Meier curve |
+| [Distribution](distribution.md) | Histogram (density, cumulative, step, hatched, overlapping), box plot, violin, placing them, KDE, rug plot, density scatter; in one call each: ridgeline, Q-Q plot, Kaplan-Meier curve, raincloud |
 | [Polar Charts](polar.md) | Polar line, multi-series, radar, polar bar, polar scatter, polar heatmap, wind rose |
 | [Heatmaps & Colormaps](heatmaps.md) | Heatmap, colorbar customization, 148 colormaps, color normalization, 2D histogram, pcolormesh; in one call each: calendar heatmap from dates, spy plot of a matrix |
 | [Latency Heatmaps](latency-heatmap.md) | A histogram over time: a real clock across, log-scaled latency bucket edges up the side, counts in the cells, with a percentile line on top |

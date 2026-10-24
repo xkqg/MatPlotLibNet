@@ -404,4 +404,99 @@ public static class XYAxesExtensions
     /// under a line and not a stacked stream; the outline an area strokes along its top covers the seam between two
     /// layers.)</summary>
     private const double StreamAlpha = 1;
+
+    /// <summary>Draws a horizon chart: one series folded into <paramref name="bands"/> bands of the same hue and
+    /// increasing depth, so a tall value reads as a short, deeply-coloured band instead of a line that runs off the
+    /// top of a short plot — a way to show a series with a wide range of values in a strip a few dozen pixels tall.
+    /// <para>The fold height h is the largest absolute value <paramref name="y"/> reaches, divided by
+    /// <paramref name="bands"/>. Band k (0 first, the lightest) is clamp(y - k x h, 0, h): 0 below the band, h above
+    /// it, the value itself between — NOT y mod h, which would fold a value sitting exactly on a band edge to 0 in
+    /// every band above it. Every band is an <see cref="AreaSeries"/> filled from 0, with
+    /// <see cref="AreaSeries.Alpha"/> (k + 1) / <paramref name="bands"/>, so the last band is fully opaque and the
+    /// first the faintest — stacked on top of each other (not beside), the overlap is what reads as depth.</para>
+    /// <para>When <paramref name="y"/> never goes negative, that is the whole chart: <paramref name="bands"/> bands, one
+    /// colour group, one hue. When it does, the negative part folds the SAME way below zero (clamp(-y - k x h, 0, h),
+    /// negated) into its OWN <paramref name="bands"/> bands and its OWN colour group, a second hue — a positive and a
+    /// negative value never share a band, because a tall peak and a deep trough are different things worth telling
+    /// apart in a strip too short to show either as a line.</para>
+    /// <para>No band carries a label: a fold is a view of one series, not a unit of its own to name in a legend. A
+    /// missing value (NaN) leaves a gap in every band at that point, never a zero. The verb sets no axis limits.</para></summary>
+    /// <param name="axes">The axes the chart is added to.</param>
+    /// <param name="x">The x position of each value.</param>
+    /// <param name="y">The value at each x position; at least one must be finite, to measure the fold height from.</param>
+    /// <param name="bands">How many bands fold each side of zero into, at least 1. Default 3.</param>
+    /// <param name="configure">Optional styling of every band together, run once after the verb has built them, so what
+    /// it sets wins.</param>
+    /// <returns>The same builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="axes"/>, <paramref name="x"/> or <paramref name="y"/> is
+    /// <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="x"/> and <paramref name="y"/> differ in length;
+    /// <paramref name="y"/> has no finite value; or <paramref name="bands"/> is below 1.</exception>
+    /// <example>
+    /// <code>
+    /// double[] day = [.. Enumerable.Range(0, 60).Select(i => (double)i)];
+    /// double[] value = [.. day.Select(d => 40 * Math.Sin(d / 5.0))];
+    ///
+    /// string svg = Plt.Create()
+    ///     .WithSize(700, 120)
+    ///     .AddSubPlot(1, 1, 1, ax => ax.Horizon(day, value, bands: 4))
+    ///     .ToSvg();
+    /// </code>
+    /// </example>
+    public static AxesBuilder Horizon(this AxesBuilder axes, double[] x, double[] y, int bands = 3, Action<HorizonParts>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(axes);
+        ArgumentNullException.ThrowIfNull(x);
+        ArgumentNullException.ThrowIfNull(y);
+        if (x.Length != y.Length)
+        {
+            throw new ArgumentException($"x has {x.Length} values and y has {y.Length}; there must be one y per x.", nameof(y));
+        }
+
+        if (bands < 1)
+        {
+            throw new ArgumentException($"{bands} bands were asked for; a horizon chart needs at least 1.", nameof(bands));
+        }
+
+        double maxAbs = 0;
+        bool anyFinite = false, anyNegative = false;
+        foreach (double v in y)
+        {
+            if (!double.IsFinite(v)) continue;
+            anyFinite = true;
+            if (v < 0) anyNegative = true;
+            maxAbs = Math.Max(maxAbs, Math.Abs(v));
+        }
+
+        if (!anyFinite)
+        {
+            throw new ArgumentException("y has no finite value; a horizon chart measures its fold height from the largest one.", nameof(y));
+        }
+
+        double bandHeight = maxAbs == 0 ? 1 : maxAbs / bands;
+
+        List<AreaSeries> Fold(bool negative)
+        {
+            int colorGroup = axes.NextColorGroup();
+            var folds = new List<AreaSeries>(bands);
+            for (int k = 0; k < bands; k++)
+            {
+                double offset = k * bandHeight;
+                double[] folded = [.. y.Select(v => !double.IsFinite(v) ? double.NaN
+                    : negative ? -Math.Clamp(-v - offset, 0, bandHeight)
+                    : Math.Clamp(v - offset, 0, bandHeight))];
+                var band = new AreaSeries(x, folded) { Alpha = (k + 1.0) / bands };
+                band.ColorGroup = colorGroup;
+                axes.AddSeries(band);
+                folds.Add(band);
+            }
+
+            return folds;
+        }
+
+        var positive = Fold(negative: false);
+        var negativeFolds = anyNegative ? Fold(negative: true) : [];
+        configure?.Invoke(new HorizonParts(positive, negativeFolds));
+        return axes;
+    }
 }

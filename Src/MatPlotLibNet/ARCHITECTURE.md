@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.21.0)
+# MatPlotLibNet Core -- Architecture (v1.22.0)
 
 ## Package dependency graph
 
@@ -84,7 +84,7 @@ MatPlotLibNet/
                                       plot and a candlestick's dates along X; bars that lie down along Y). Also names only
                                       some slots (the months over a calendar's week columns) and names at positions of their
                                       own (the centres of a Marimekko chart's columns)
-    CategoricalAxesExtensions.cs      the 15 chart verbs, four static classes in namespace MatPlotLibNet (see "Where a verb
+    CategoricalAxesExtensions.cs      the 17 chart verbs, four static classes in namespace MatPlotLibNet (see "Where a verb
     DistributionAxesExtensions.cs     lives"): extension methods on AxesBuilder that compose a chart from series that already
     XYAxesExtensions.cs               exist. Categorical: Lollipop, Dumbbell, Pareto, SlopeGraph, DotPlot, ParallelCoordinates,
     GridAxesExtensions.cs             Marimekko. Distribution: Ridgeline, QQPlot, KaplanMeier. XY: BumpChart, ControlChart,
@@ -922,13 +922,13 @@ MatPlotLibNet/
 
 A method of `AxesBuilder` itself adds one series or sets one property of the axes. A verb that composes a chart from
 series that already exist (it adds no series type, no `SeriesRegistry` key and no serializer path, so the chart travels
-through JSON as its parts) is an extension method on `AxesBuilder`. 15 verbs live there today, and each one:
+through JSON as its parts) is an extension method on `AxesBuilder`. 17 verbs live there today, and each one:
 
 - sits in namespace `MatPlotLibNet`, so it needs no `using` beyond the one the builder already takes;
 - sits in folder `Builders/`, in one static class per family, the family decided by the shape of the data the caller holds:
   - `CategoricalAxesExtensions`: data keyed by names (categories, a `BarGroup` per group). Verbs: `Lollipop`, `Dumbbell`, `Pareto`, `SlopeGraph`, `DotPlot`, `ParallelCoordinates`, `Marimekko`.
-  - `DistributionAxesExtensions`: a chart estimated from a sample (a `NamedSample` per group, a `SurvivalGroup` per group of survival data). Verbs: `Ridgeline`, `QQPlot`, `KaplanMeier`.
-  - `XYAxesExtensions`: x and y arrays, values over x positions. Verbs: `BumpChart`, `ControlChart`, `StreamGraph`.
+  - `DistributionAxesExtensions`: a chart estimated from a sample (a `NamedSample` per group, a `SurvivalGroup` per group of survival data). Verbs: `Ridgeline`, `QQPlot`, `KaplanMeier`, `Raincloud`.
+  - `XYAxesExtensions`: x and y arrays, values over x positions. Verbs: `BumpChart`, `ControlChart`, `StreamGraph`, `Horizon`.
   - `GridAxesExtensions`: cells of a grid. Verbs: `CalendarHeatmap`, `Spy`.
 - takes at most 4 parameters besides `this`, the optional inputs of its computation (a bandwidth, a week start, a
   threshold) before `configure`, which comes last and may be left out. A verb that draws one series type takes
@@ -938,16 +938,24 @@ through JSON as its parts) is an extension method on `AxesBuilder`. 15 verbs liv
 
 The types the verbs introduce:
 
-- Parts: `DumbbellParts`, `ParetoParts`, `QQPlotParts`, `ControlChartParts`. Each is a non-positional readonly record struct with an internal constructor and get-only properties, so only the library makes one, and each property is the very series (or overlay) on the axes, so a change made through it is the chart's.
+- Parts: `DumbbellParts`, `ParetoParts`, `QQPlotParts`, `ControlChartParts`, `RaincloudParts`, `HorizonParts`. Each is a non-positional readonly record struct with an internal constructor and get-only properties, so only the library makes one, and each property is the very series (or overlay) on the axes, so a change made through it is the chart's.
 - Named data: `BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`. Each is a public readonly record struct: a name and its values, or the limits of a chart.
 - A BarGroup (a name and one value per place) is the named-values type of eight verbs: GroupedBar, Dumbbell, SlopeGraph, DotPlot, ParallelCoordinates, Marimekko, BumpChart and StreamGraph. What the name stands for is each verb's to say: a legend entry, the class of a row, a segment of a column.
 
 What holds for every verb:
 
-- One drawn unit is one series. A series takes a colour slot, a legend entry, a JSON entry and a click target of its own,
-  so a lollipop is one stem series, a ridge is one area series, a class of parallel-coordinates rows is one line series, and
-  no verb needs a grouping carrier. A chart whose unit is several series in one colour is not a verb; it waits for series
-  that share one colour (a roadmap row).
+- One drawn unit is one series, OR several series sharing one colour group. A series takes its own JSON entry and its own
+  click target always (`SlotIndex`, positional, read by the legend's hit-test and the SVG's `data-series-index`, never
+  affected by colour grouping, so a click on one member of a group never crosses to another); it takes its own colour
+  slot and, when it carries a label, its own legend entry UNLESS it shares an internal `ChartSeries.ColorGroup` value
+  with the series next to it in `Axes.AllSeries` — a verb that draws a curve alongside a band and censor marks that must
+  read as the curve's own (`KaplanMeier`), or a violin, a box and raw points that must read as one group's three views of
+  itself (`Raincloud`), asks the axes for a fresh group (`AxesBuilder.NextColorGroup()`, derived from the highest group
+  already held, never stored) and sets it on each member it adds back to back. `SeriesSlotExtensions.ColorSlots` folds a
+  contiguous run of one group into ONE rendered colour slot; a group that is not contiguous is not supported — every verb
+  that groups series adds them one after another, and nothing in the library splits a group apart afterward. The
+  decoration members of a group carry no label of their own, so only the series the group is named for gets a legend
+  entry (`AxesLegendEntryExtensions.HasLegendEntry` already decides that from the label alone, unchanged).
 - A verb sets no axis limit unless the chart cannot be read without it: `Pareto` puts its two Y axes on one scale,
   `BumpChart` puts rank 1 on top, `Spy` leaves half a cell past the grid. A limit the caller sets afterwards wins.
 - A missing value (NaN) is left out of a sample or left as a gap in a line, and never drawn as a zero or bridged; the one
@@ -1214,7 +1222,7 @@ compatibility for the library's own clients. When a model writes the document, e
 blank picture and reports it as a success. So the package validates the document first, against the same DTO records
 the serializer reads, and refuses it with the field name and the JSON path.
 
-A chart the library composes from several series travels as those series: none of the 15 chart verbs is a chart type of
+A chart the library composes from several series travels as those series: none of the 17 chart verbs is a chart type of
 this server, in its catalog, its served list or its vocabulary, and a spec that asks for one is refused like any unknown
 type (ComposedVerbVocabularyTests holds that). A document the library writes for a composed chart is accepted whole, a
 missing value as the string "NaN" (ComposedChartSpecTests runs every composed shape through the reader).

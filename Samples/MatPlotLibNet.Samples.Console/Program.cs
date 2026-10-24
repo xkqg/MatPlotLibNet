@@ -2520,6 +2520,39 @@ Console.WriteLine("Saved horizontal_bars.svg");
     Console.WriteLine("Saved spy_plot.svg");
 }
 
+// --- 57. Raincloud — a half violin, a box and a group's raw points, all in one colour ---
+{
+    NamedSample[] routes =
+    [
+        new("Highway", [22, 24, 23, 26, 25, 28, 24, 23, 27, 25, 30, 26]),
+        new("Backroads", [18, 29, 15, 35, 20, 32, 17, 24, 21, 30, 16, 27]),
+    ];
+
+    Plt.Create()
+        .WithTitle("Commute time by route")
+        .WithSize(600, 400)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Raincloud(routes)
+            .SetYLabel("Minutes"))
+        .SaveSvgAndPng(SamplesPath("raincloud.svg"));
+    Console.WriteLine("Saved raincloud.svg");
+}
+
+// --- 58. Horizon chart — a signed series folded into bands of two hues ---
+{
+    double[] day = [.. Enumerable.Range(0, 60).Select(i => (double)i)];
+    double[] anomaly = [.. day.Select(d => 40 * Math.Sin(d / 5.0))];
+
+    Plt.Create()
+        .WithTitle("Temperature anomaly")
+        .WithSize(900, 180)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Horizon(day, anomaly, bands: 4)
+            .SetXLabel("Day"))
+        .SaveSvgAndPng(SamplesPath("horizon_chart.svg"));
+    Console.WriteLine("Saved horizon_chart.svg");
+}
+
 Console.WriteLine("Done!");
 
 /// <summary>One row of a 3-D bar sample: the Y plane it stands on and its colour.</summary>

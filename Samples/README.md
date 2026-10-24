@@ -21,7 +21,7 @@ Browse to <http://localhost:5000>. The `<base href="/">` setting in `wwwroot/ind
 
 ## Console
 
-A console app that creates every sample image shipped with the wiki and cookbook: 87 SVG/PNG pairs covering every chart family, the charts drawn by one call (Pareto, lollipop, dumbbell, slope graph, dot plot, parallel coordinates, Marimekko, ridgeline, Q-Q plot, Kaplan-Meier, bump chart, control chart, stream graph, calendar heatmap and spy plot) among them, plus the package icon at the repository root and the documentation site's 1200x630 link preview card. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
+A console app that creates every sample image shipped with the wiki and cookbook: 89 SVG/PNG pairs covering every chart family, the charts drawn by one call (Pareto, lollipop, dumbbell, slope graph, dot plot, parallel coordinates, Marimekko, ridgeline, Q-Q plot, Kaplan-Meier, bump chart, control chart, stream graph, calendar heatmap and spy plot) among them, plus the package icon at the repository root and the documentation site's 1200x630 link preview card. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Console

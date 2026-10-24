@@ -34,8 +34,11 @@ internal static class SurvivalGroupExtensions
         int[] order = [.. Enumerable.Range(0, durations.Length).OrderBy(i => durations[i])];
         var times = new List<double> { 0 };
         var survival = new List<double> { 1 };
+        var atRiskPoints = new List<int> { durations.Length };
+        var eventsPoints = new List<int> { 0 };
         double level = 1;
         int atRisk = durations.Length;
+        int atRiskAtLastTime = atRisk;
         for (int k = 0; k < order.Length;)
         {
             double time = durations[order[k]];
@@ -46,25 +49,32 @@ internal static class SurvivalGroupExtensions
             }
 
             // Every subject leaving at this time, censored or not, is at risk at it: the events are counted first.
+            atRiskAtLastTime = atRisk;
             if (events > 0)
             {
                 level *= (double)(atRisk - events) / atRisk;
                 times.Add(time);
                 survival.Add(level);
+                atRiskPoints.Add(atRisk);
+                eventsPoints.Add(events);
             }
 
             atRisk -= leaving;
         }
 
-        // A censoring after the last event: the curve runs on at its last level to the end of the follow-up.
+        // A censoring after the last event: the curve runs on at its last level to the end of the follow-up. At risk
+        // here is the count GOING INTO that time (before the subjects there leave), the same number an event would
+        // have used had there been one, not what is left afterward (0, if everyone still standing leaves together).
         double lastFollowUp = durations[order[^1]];
         if (lastFollowUp > times[^1])
         {
             times.Add(lastFollowUp);
             survival.Add(level);
+            atRiskPoints.Add(atRiskAtLastTime);
+            eventsPoints.Add(0);
         }
 
-        return new SurvivalCurve([.. times], [.. survival]);
+        return new SurvivalCurve([.. times], [.. survival], [.. atRiskPoints], [.. eventsPoints]);
     }
 
     /// <summary>Refuses a group that is not survival data: no durations or no flags, the two not paired one to one, no

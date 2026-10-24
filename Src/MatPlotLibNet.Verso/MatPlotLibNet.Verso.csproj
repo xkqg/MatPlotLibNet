@@ -10,7 +10,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>MatPlotLibNet.Verso</PackageId>
-    <Version>1.21.0</Version>
+    <Version>1.22.0</Version>
     <Description>Charts in Verso notebooks. Return a figure — or the builder that makes one — from a C# cell and it draws inline as SVG, with no import and nothing to call. Install it from Verso's own Extensions panel; Verso is the open-source notebook that replaces Polyglot Notebooks. The chart is drawn by matplotlib for .NET: 83 chart types, 148 colormaps.</Description>
     <PackageTags>matplotlib;verso;notebook;charting;plotting;visualization;svg;dotnet</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

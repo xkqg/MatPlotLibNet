@@ -10,13 +10,18 @@ namespace MatPlotLibNet.Rendering.LegendRendering;
 /// <summary>One row of an axes' legend: the series it names, the index that series has in the whole legend list,
 /// and the text the legend prints for it.</summary>
 /// <param name="Series">The series the entry stands for.</param>
-/// <param name="OriginalIndex">The series' slot (<see cref="SeriesSlotExtensions.SlotIndex"/>): its index across
-/// <see cref="Axes.Series"/> followed by <see cref="Axes.SecondarySeries"/>. It is the one number the drawn group
-/// (<c>data-legend-index</c>), the hit-test bounds and the colour cycle all use, so a primary series keeps its own
-/// index and a secondary one continues where the primary series stopped.</param>
+/// <param name="OriginalIndex">The series' IDENTITY slot (<see cref="SeriesSlotExtensions.SlotIndex"/>): its index
+/// across <see cref="Axes.Series"/> followed by <see cref="Axes.SecondarySeries"/>. It is the one number the drawn
+/// group (<c>data-legend-index</c>) and the hit-test bounds use, so a primary series keeps its own index and a
+/// secondary one continues where the primary series stopped — unaffected by
+/// <see cref="Models.Series.ChartSeries.ColorGroup"/>, so a click never crosses from one member of a group to
+/// another.</param>
+/// <param name="ColorSlotIndex">The series' COLOUR slot (<see cref="SeriesSlotExtensions.ColorSlotIndex"/>): the
+/// swatch reads this, not <paramref name="OriginalIndex"/>, so a grouped series' swatch wears the colour its group
+/// is actually drawn in.</param>
 /// <param name="Label">The display label: the series label plus the legend-values suffix when
 /// <see cref="Legend.LegendValues"/> is on.</param>
-internal readonly record struct LegendEntry(ISeries Series, int OriginalIndex, string Label);
+internal readonly record struct LegendEntry(ISeries Series, int OriginalIndex, int ColorSlotIndex, string Label);
 
 /// <summary>The single place that decides which series of an axes appear in its legend.</summary>
 /// <remarks>The drawing (<c>AxesRenderer.RenderLegend</c>), the hit-test (<c>AxesRenderer.ComputeLegendBounds</c>)
@@ -49,7 +54,7 @@ internal static class AxesLegendEntryExtensions
         {
             var one = series[i];
             if (!HasLegendEntry(one, directLabelsDrawn, out var label)) continue;
-            entries.Add(new LegendEntry(one, axes.SlotIndex(pair, i),
+            entries.Add(new LegendEntry(one, axes.SlotIndex(pair, i), axes.ColorSlotIndex(pair, i),
                 AxesRenderer.BuildLegendDisplayLabel(label, one, legendValues)));
         }
     }

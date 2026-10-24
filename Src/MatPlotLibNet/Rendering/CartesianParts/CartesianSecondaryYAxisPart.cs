@@ -50,13 +50,14 @@ internal sealed class CartesianSecondaryYAxisPart : CartesianAxesPart
         var secTransform = _secTransform;
         var secYTicks = AxesRenderer.ComputeTickValuesInternal(_secRange.YMin, _secRange.YMax);
 
+        var colorSlots = Axes.ColorSlots();
         for (int i = 0; i < Axes.SecondarySeries.Count; i++)
         {
             var series = Axes.SecondarySeries[i];
             if (!series.Visible) continue;
             // The same slot, cycled properties, tooltip switch and theme the primary series pass hands over, so a
             // secondary line wears the colour its legend swatch shows.
-            var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.SecondaryY, i);
+            var slot = Theme.SeriesSlot(colorSlots[Axes.SlotIndex(SeriesAxisPair.SecondaryY, i)]);
             bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, Axes.SlotIndex(SeriesAxisPair.SecondaryY, i), secTransform);
             bool clipped = Ctx.BeginSeriesClip(Axes, PlotArea);
             var renderer = new SvgSeriesRenderer(secTransform, Ctx, slot.CycleColor, Theme, slot.CycledProperties,

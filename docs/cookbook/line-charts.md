@@ -1,6 +1,6 @@
 ---
 title: "Line charts in C# and .NET"
-description: "Draw line charts in C# and .NET: multiple series, markers, dashed lines, gaps, legends and themes, and in one call each a bump chart, a control chart and a stream graph."
+description: "Draw line charts in C# and .NET: multiple series, markers, dashed lines, gaps, legends and themes, and in one call each a bump chart, a control chart, a stream graph and a horizon chart."
 ---
 
 # Line Charts
@@ -489,6 +489,34 @@ Each layer is one opaque area series, named in the legend, so a click on its ent
 its own. A value is 0 or more; a negative one is refused. A missing value (`double.NaN`) is a gap: on the floating
 baselines in every layer at that x, on `Zero` in that layer and the ones above it. The stream fills the plot, so the
 legend goes beside it, as above.
+
+## Horizon chart
+
+A signed series folded into a stack of bands so a long series fits a short strip: each band is a slice of the
+series' own peak, in a deeper shade of its band's colour.
+
+```csharp
+double[] day = [.. Enumerable.Range(0, 60).Select(i => (double)i)];
+double[] anomaly = [.. day.Select(d => 40 * Math.Sin(d / 5.0))];
+
+Plt.Create()
+    .WithTitle("Temperature anomaly")
+    .WithSize(900, 180)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Horizon(day, anomaly, bands: 4)
+        .SetXLabel("Day"))
+    .Save("horizon_chart.svg");
+```
+
+![Horizon chart](../images/horizon_chart.png)
+
+A band's height is the largest finite `|y|` divided by `bands`; band *k* folds the part of the series between
+`k × height` and `(k + 1) × height` down onto one strip, so a series many times taller than the plot still fits
+it. The non-negative part of the series folds into one colour group and the negative part into another, so a
+signed series reads as two hues instead of one unreadable one; a series with no negative value draws only the
+first. Each band is one area series, drawn lowest first so a higher band's colour sits on top where bands overlap;
+none of them carries a label, since the bands' own stacking is the reading. `HorizonParts` hands you `Positive` and
+`Negative`, each the bands of its side, lowest first. At least one `y` must be finite; `bands` must be at least 1.
 
 ## Connected scatter
 

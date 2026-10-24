@@ -195,20 +195,34 @@ public static class DistributionAxesExtensions
     /// last level to that time. The arithmetic is fractions of whole numbers, with no logarithm or exponential, so the levels
     /// are the same on every platform.</para>
     /// <para>Each curve is ONE <see cref="LineSeries"/> drawn in steps after its points (<see cref="DrawStyle.StepsPost"/>),
-    /// with no markers, wearing one colour of the theme's cycle, the group's name as its legend label. The Y axis is titled
-    /// "Survival probability"; a title of your own set after the call replaces it, and the X axis, whose unit is the
-    /// durations', is left to you. The verb sets no axis limits.</para>
-    /// <para>This is the curve only: no risk table, no log-rank test, no confidence band and no censor marks. A band and
-    /// censor marks wear the colour of their curve, and the library cannot yet give several series one colour; a risk table
-    /// is a table of counts laid out under the plot, and a log-rank test is a statistic to compute, not a mark to
-    /// draw.</para>
-    /// <para>The chart is its parts: written to JSON it is one line series per group, and read back it draws the same
-    /// picture. It is not estimated again; change the groups and call the verb again.</para></summary>
+    /// with no markers, wearing one colour of the theme's cycle, the group's name as its legend label. Around it stands a
+    /// Greenwood confidence band (an <see cref="AreaSeries"/>) and, at every time a subject left without an event, a censor
+    /// mark (a <see cref="ScatterSeries"/>, <see cref="MarkerStyle.Plus"/>, at the curve's level there) — a group with no
+    /// censored subject has no marks series. The curve, its band and its marks share one colour group: all three wear the
+    /// curve's colour, and only the curve carries a legend entry. The Y axis is titled "Survival probability"; a title of
+    /// your own set after the call replaces it, and the X axis, whose unit is the durations', is left to you. The verb sets
+    /// no axis limits.</para>
+    /// <para>The band is S(t) ± 1.96 standard errors, Greenwood's: SE(t)² = S(t)² x the running sum, over every event time
+    /// at or before t, of d_i / (n_i x (n_i - d_i)), clamped to [0, 1]. This is the PLAIN form, not R's default log or
+    /// log-log transform: those read better near 0 and 1 but need a logarithm and an exponential, and <see cref="Math.Log(double)"/>
+    /// and <see cref="Math.Exp"/> are the one platform-dependent bit the rest of this estimator has none of (R's survival
+    /// package documents all three forms; <c>conf.type = "plain"</c> is this one). The only transcendental this band costs is
+    /// <see cref="Math.Sqrt"/>, which every conformant platform rounds to the same bit (IEEE 754), so the band is the same
+    /// on every platform too.</para>
+    /// <para>No risk table and no log-rank test: a risk table is a table of counts laid out under the plot, and a log-rank
+    /// test is a statistic to compute, neither a mark to draw.</para>
+    /// <para>The chart is its parts: written to JSON it is the curve, band and marks of each group, and read back it draws
+    /// the same picture. It is not estimated again; change the groups and call the verb again.</para></summary>
     /// <param name="axes">The axes the chart is added to.</param>
     /// <param name="groups">The groups, in the order they take colours; each with at least one subject, a finite duration
     /// at or above 0 and a flag for every subject.</param>
-    /// <param name="configure">Optional styling, run once for each curve, in the order of the groups, after the verb has
-    /// built it, so what it sets wins: its colour, width, style or legend label.</param>
+    /// <param name="configure">Optional styling of the CURVE only, run once for each one, in the order of the groups, after
+    /// the verb has built it, so what it sets wins: its colour, width, style or legend label. The band and the censor
+    /// marks always wear the curve's own colour and are not separately stylable in this release: every chart verb this
+    /// library ships takes exactly one <c>configure</c> callback, so reaching the band and the marks too would need
+    /// either a breaking change here (replacing <see cref="LineSeries"/> with a parts type every existing caller would
+    /// have to rewrite for) or a second overload of the same name, which the verb-shape rule refuses as well (one verb,
+    /// one shape).</param>
     /// <returns>The same builder, for chaining.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="axes"/> or <paramref name="groups"/> is
     /// <see langword="null"/>.</exception>
@@ -246,11 +260,157 @@ public static class DistributionAxesExtensions
         SurvivalCurve[] curves = [.. groups.Select(g => g.ProductLimit(nameof(groups)))];
         for (int g = 0; g < curves.Length; g++)
         {
+            int colorGroup = axes.NextColorGroup();
+
             var curve = new LineSeries(curves[g].Times, curves[g].Survival) { DrawStyle = DrawStyle.StepsPost, Label = groups[g].Label };
+            curve.ColorGroup = colorGroup;
             axes.AddSeries(curve, configure);
+
+            var (lower, upper) = GreenwoodBand(curves[g]);
+            var band = new AreaSeries(curves[g].Times, upper) { YData2 = lower, Alpha = 0.2 };
+            band.ColorGroup = colorGroup;
+            axes.AddSeries(band);
+
+            double[] censoringTimes = CensoringTimesOf(groups[g]);
+            if (censoringTimes.Length > 0)
+            {
+                double[] marksY = [.. censoringTimes.Select(t => LevelAt(curves[g], t))];
+                var marks = new ScatterSeries(censoringTimes, marksY) { Marker = MarkerStyle.Plus };
+                marks.ColorGroup = colorGroup;
+                axes.AddSeries(marks);
+            }
         }
 
         return axes.SetYLabel(SurvivalProbabilityTitle);
+    }
+
+    /// <summary>The standard normal distribution's 97.5th percentile: a two-sided 95 % confidence band is the estimate
+    /// plus and minus this many standard errors.</summary>
+    private const double Z95 = 1.959963984540054;
+
+    /// <summary>Greenwood's confidence band around <paramref name="curve"/>, PLAIN form (<see cref="KaplanMeier(AxesBuilder, IReadOnlyList{SurvivalGroup}, Action{LineSeries})"/>'s
+    /// own doc explains why not the log or log-log transform): the variance accumulates only at a point with an event
+    /// (<see cref="SurvivalCurve.Events"/> above 0) and only while every subject at risk there did not all have the event
+    /// (dividing by n_i - d_i = 0 is undefined; a level of exactly 0 already has a band of [0, 0], so nothing is lost by
+    /// stopping the sum there).</summary>
+    /// <param name="curve">The curve the band surrounds.</param>
+    /// <returns>The lower and the upper bound, one pair per point of <paramref name="curve"/>, each clamped to [0, 1].</returns>
+    private static (double[] Lower, double[] Upper) GreenwoodBand(SurvivalCurve curve)
+    {
+        int n = curve.Times.Length;
+        var lower = new double[n];
+        var upper = new double[n];
+        double cumulative = 0;
+        for (int i = 0; i < n; i++)
+        {
+            if (curve.Events[i] > 0 && curve.AtRisk[i] > curve.Events[i])
+            {
+                cumulative += (double)curve.Events[i] / (curve.AtRisk[i] * (curve.AtRisk[i] - curve.Events[i]));
+            }
+
+            double s = curve.Survival[i];
+            double se = Math.Sqrt(s * s * cumulative);
+            lower[i] = Math.Clamp(s - Z95 * se, 0, 1);
+            upper[i] = Math.Clamp(s + Z95 * se, 0, 1);
+        }
+
+        return (lower, upper);
+    }
+
+    /// <summary>The times <paramref name="group"/>'s subjects left without an event (<see cref="SurvivalGroup.Observed"/> is
+    /// <see langword="false"/>), ascending.</summary>
+    private static double[] CensoringTimesOf(SurvivalGroup group) =>
+        [.. group.Durations.Where((_, i) => !group.Observed[i]).Order()];
+
+    /// <summary>The level <paramref name="curve"/> is drawn at AT <paramref name="time"/>: the survival of the last point
+    /// at or before it, read "steps-post" exactly as the curve itself is drawn (a level holds from its point to the
+    /// next).</summary>
+    private static double LevelAt(SurvivalCurve curve, double time)
+    {
+        double level = curve.Survival[0];
+        for (int i = 0; i < curve.Times.Length && curve.Times[i] <= time; i++)
+        {
+            level = curve.Survival[i];
+        }
+
+        return level;
+    }
+
+    /// <summary>Draws a raincloud chart: a half violin, a narrow box and the raw observations of each group, side by
+    /// side at the group's own index, all three in one colour from the theme's cycle, so the three read as one group's
+    /// three views of its own distribution.
+    /// <para>A multi-dataset <see cref="ViolinSeries"/> and <see cref="BoxSeries"/> already draw one shape per group on
+    /// their own (one position per dataset, left at the dataset's own index), so this is ONE violin and ONE box for the
+    /// whole chart, not one pair per group — and ONE <see cref="ScatterSeries"/> carries every group's raw points
+    /// together, jittered a FIXED, deterministic amount so two runs draw the same figure: a point at index i of its
+    /// group, standing at the group's own index g, is drawn at x = g + 0.35 + (i mod 4) x 0.03, a four-step cycle that
+    /// spreads the points clear of the violin's own half-width (0.3) and its whisker caps, so neither hides a point
+    /// nor a point a probe of them.</para>
+    /// <para>Only the violin carries a label ("Samples"): the violin, box and points together stand for one group of
+    /// three views sharing one colour per group, so one legend entry names the group as a whole rather than one
+    /// swatch per group's many series. The groups themselves are named along the X axis, which every reader already
+    /// reads positionally. The verb sets no axis limits.</para>
+    /// <para>The chart is its parts: written to JSON it is the violin, the box and the points, and read back it draws
+    /// the same picture. It is not estimated again; change the groups and call the verb again.</para></summary>
+    /// <param name="axes">The axes the chart is added to.</param>
+    /// <param name="groups">The groups, in the order they stand along the X axis and take their colour; each with one
+    /// or more observations.</param>
+    /// <param name="configure">Optional styling of all three parts together, run once after the verb has built them, so
+    /// what it sets wins.</param>
+    /// <returns>The same builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="axes"/> or <paramref name="groups"/> is
+    /// <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException">No groups are given.</exception>
+    /// <example>
+    /// <code>
+    /// using MatPlotLibNet.Models.Series;
+    ///
+    /// NamedSample[] groups =
+    /// [
+    ///     new("Control", [4.1, 4.8, 5.0, 5.3, 5.5, 5.9, 6.2, 6.4, 6.8, 7.1, 7.7, 8.4]),
+    ///     new("Treated", [5.6, 6.1, 6.5, 6.9, 7.2, 7.4, 7.9, 8.3, 8.8, 9.1, 9.6, 10.2]),
+    /// ];
+    ///
+    /// string svg = Plt.Create()
+    ///     .AddSubPlot(1, 1, 1, ax => ax.Raincloud(groups))
+    ///     .ToSvg();
+    /// </code>
+    /// </example>
+    public static AxesBuilder Raincloud(this AxesBuilder axes, IReadOnlyList<NamedSample> groups, Action<RaincloudParts>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(axes);
+        ArgumentNullException.ThrowIfNull(groups);
+        if (groups.Count == 0)
+        {
+            throw new ArgumentException("No groups were given; a raincloud chart draws one violin, one box and one scatter per set of groups.", nameof(groups));
+        }
+
+        double[][] samples = [.. groups.Select(g => g.Values)];
+        double[] pointX = [.. samples.SelectMany((s, g) => s.Select((_, i) => g + 0.35 + (i % 4) * 0.03))];
+        double[] pointY = [.. samples.SelectMany(s => s)];
+
+        int colorGroup = axes.NextColorGroup();
+        var violin = new ViolinSeries(samples) { Side = ViolinSide.High, Alpha = 0.5, Label = "Samples" };
+        violin.ColorGroup = colorGroup;
+        axes.AddSeries(violin);
+
+        var box = new BoxSeries(samples) { Widths = 0.1, ShowOutliers = false };
+        box.ColorGroup = colorGroup;
+        axes.AddSeries(box);
+
+        var points = new ScatterSeries(pointX, pointY) { MarkerSize = 6, Alpha = 1 };
+        points.ColorGroup = colorGroup;
+        axes.AddSeries(points);
+
+        configure?.Invoke(new RaincloudParts(violin, box, points));
+
+        // One tick per group AT ITS DATASET INDEX, not the bar-style half-slot SetXCategoryTicks places a name at:
+        // the violin and the box already stand at their dataset's own index (the default a multi-dataset series takes
+        // when it is given no Positions), so the name belongs on that same number, not half a slot further on.
+        double[] positions = [.. Enumerable.Range(0, groups.Count).Select(k => (double)k)];
+        return axes
+            .SetXTickLocator(new Rendering.TickLocators.FixedLocator(positions))
+            .SetXTickFormatter(new Rendering.TickFormatters.CategoryFormatter([.. groups.Select(g => g.Label)], positions));
     }
 
     /// <summary>The title of a Kaplan-Meier chart's Y axis.</summary>

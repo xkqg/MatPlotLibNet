@@ -82,6 +82,31 @@ public class SurvivalGroupExtensionsTests
         AssertLevels([1, 4.0 / 5, 1.0 / 5, 1.0 / 5], curve.Survival);
     }
 
+    // ---- at risk and events, kept for Greenwood's variance ---------------------------------------------------------
+
+    /// <summary>The at-risk count and the event count at each point of the worked example — the same numbers the
+    /// curve's own level is computed from, kept now instead of discarded after the loop.</summary>
+    [Fact]
+    public void TheWorkedExample_KeepsAtRiskAndEventsAtEachPoint()
+    {
+        var curve = Curve([3, 1, 3, 6, 3, 5], [false, true, true, false, true, true]);
+
+        Assert.Equal([6, 6, 5, 2, 1], curve.AtRisk);
+        Assert.Equal([0, 1, 2, 1, 0], curve.Events);
+    }
+
+    /// <summary>A group with no event has no mid-loop point, only the seed at 0 and the extension at the last
+    /// follow-up: at risk there is the count going INTO that time (the last subject still stood at risk a moment
+    /// before it left), not what remains once everyone still standing has left together.</summary>
+    [Fact]
+    public void AllCensored_HasNoEvents_AndAtRiskAtTheExtensionIsWhatWentIntoIt()
+    {
+        var curve = Curve([2, 7, 4], [false, false, false]);
+
+        Assert.Equal([3, 1], curve.AtRisk);
+        Assert.Equal([0, 0], curve.Events);
+    }
+
     // ---- the ends of the curve ------------------------------------------------------------------------------------
 
     /// <summary>A group whose every subject is censored has no event: the curve is flat at 1, from 0 to the last

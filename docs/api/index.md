@@ -11,7 +11,7 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 | `Plt` | Static entry point — `Plt.Create()` starts the fluent builder |
 | `FigureBuilder` | Top-level builder: title, theme, size, subplots, export |
 | `AxesBuilder` | Per-subplot builder: series, labels, legends, ticks, camera |
-| `CategoricalAxesExtensions`, `DistributionAxesExtensions`, `XYAxesExtensions`, `GridAxesExtensions` | 15 chart verbs on `AxesBuilder` that draw a whole chart from your data in one call, such as `Pareto`, `Ridgeline`, `CalendarHeatmap`, `KaplanMeier` and `BumpChart`. Each is built from series the library already has, so it adds no series type and goes through JSON as those series |
+| `CategoricalAxesExtensions`, `DistributionAxesExtensions`, `XYAxesExtensions`, `GridAxesExtensions` | 17 chart verbs on `AxesBuilder` that draw a whole chart from your data in one call, such as `Pareto`, `Ridgeline`, `CalendarHeatmap`, `KaplanMeier` and `BumpChart`. Each is built from series the library already has, so it adds no series type and goes through JSON as those series |
 | `Figure` | Immutable chart model — the output of `.Build()` |
 | `ChartSeries` | Abstract base for all 83 series types |
 | `ChartDataTable` | The figure's data as a table — `figure.ToDataTables()`, then `ToHtml()` / `ToMarkdown()` / `ToCsv()` |
@@ -23,7 +23,7 @@ Browse namespaces in the sidebar, or use the search bar to find specific types, 
 
 | Namespace | Package | Notes |
 |---|---|---|
-| `MatPlotLibNet` | Core | `Plt`, `FigureBuilder`, `AxesBuilder`, all 83 series types, the 15 chart verbs and the types they take (`BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`) |
+| `MatPlotLibNet` | Core | `Plt`, `FigureBuilder`, `AxesBuilder`, all 83 series types, the 17 chart verbs and the types they take (`BarGroup`, `NamedSample`, `SurvivalGroup`, `ControlLimits`) |
 | `MatPlotLibNet.Models` | Core | Chart model types (`Figure`, `Axes`, etc.) |
 | `MatPlotLibNet.Rendering` | Core | SVG render pipeline |
 | `MatPlotLibNet.Styling` | Core | Themes, colors, colormaps |

@@ -152,11 +152,12 @@ public abstract class AxesRenderer
     protected void RenderSeries()
     {
         // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
+        var colorSlots = Axes.ColorSlots();
         var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
         foreach (var (series, i) in ordered)
         {
             if (!series.Visible) continue;
-            var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.Primary, i);
+            var slot = Theme.SeriesSlot(colorSlots[Axes.SlotIndex(SeriesAxisPair.Primary, i)]);
             bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i);
             var renderer = new SvgSeriesRenderer(
                 new DataTransform(0, 1, 0, 1, PlotArea), Ctx, slot.CycleColor, Theme, slot.CycledProperties,
@@ -176,11 +177,12 @@ public abstract class AxesRenderer
         DepthQueue3D? depthQueue = null)
     {
         bool emit3D = Axes.Emit3DVertexData;
+        var colorSlots = Axes.ColorSlots();
         var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
         foreach (var (series, i) in ordered)
         {
             if (!series.Visible) continue;
-            var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.Primary, i);
+            var slot = Theme.SeriesSlot(colorSlots[Axes.SlotIndex(SeriesAxisPair.Primary, i)]);
             bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i);
             var renderer = new SvgSeriesRenderer(
                 new DataTransform(0, 1, 0, 1, PlotArea), Ctx, slot.CycleColor, Theme, slot.CycledProperties,
@@ -229,11 +231,12 @@ public abstract class AxesRenderer
         }
 
         // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
+        var colorSlots = Axes.ColorSlots();
         var ordered = Axes.Series.Select((s, i) => (s, i)).OrderBy(t => t.s.ZOrder);
         foreach (var (series, i) in ordered)
         {
             if (!series.Visible) continue;
-            var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.Primary, i);
+            var slot = Theme.SeriesSlot(colorSlots[Axes.SlotIndex(SeriesAxisPair.Primary, i)]);
             bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i, transform);
             bool clipped = Ctx.BeginSeriesClip(Axes, PlotArea);
             var renderer = new SvgSeriesRenderer(transform, Ctx, slot.CycleColor, Theme, slot.CycledProperties,
@@ -267,8 +270,9 @@ public abstract class AxesRenderer
 
     /// <summary>The slot a legend entry's series holds, decided by the same owner the series passes use
     /// (<see cref="SeriesSlotExtensions"/>): the swatch wears the colour, dash pattern, marker and width the series is
-    /// drawn with. The entry's index is the series' slot.</summary>
-    private SeriesSlot LegendEntrySlot(LegendRendering.LegendEntry entry) => Theme.SeriesSlot(entry.OriginalIndex);
+    /// drawn with. Reads the entry's COLOUR slot, not its identity one, so a series sharing a
+    /// <see cref="Models.Series.ChartSeries.ColorGroup"/> shows the swatch its group is actually drawn in.</summary>
+    private SeriesSlot LegendEntrySlot(LegendRendering.LegendEntry entry) => Theme.SeriesSlot(entry.ColorSlotIndex);
 
     /// <summary>Renders the legend if any series have labels.</summary>
     protected void RenderLegend()

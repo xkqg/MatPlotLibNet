@@ -1,6 +1,6 @@
 ---
 title: "Histograms, box plots and violin plots in C#"
-description: "Draw distributions in C#: histograms, box plots, violin plots, KDE curves and density scatters, and in one call each a ridgeline, a Q-Q plot and a Kaplan-Meier survival curve."
+description: "Draw distributions in C#: histograms, box plots, violin plots, KDE curves and density scatters, and in one call each a ridgeline, a Q-Q plot, a Kaplan-Meier survival curve and a raincloud plot."
 ---
 
 # Distribution Charts
@@ -341,8 +341,42 @@ censored subject causes no step. The curve starts at 1 at time 0, and when the l
 the last event it runs on at its last level to that time. The arithmetic is counts and products only, so the curve
 is the same on every platform.
 
-Each group is one line series drawn in steps, named in the legend after its group. The Y axis is titled "Survival
-probability"; the X axis is yours to title, since the unit is your durations'. This is the curve only: no
-number-at-risk table, no log-rank test, no confidence band and no censor marks. A duration that is missing,
-negative or infinite is refused, because a subject without a time cannot be counted at risk; leave that subject
-out of the arrays if that is what you mean.
+Each group is one line series drawn in steps, named in the legend after its group, with a Greenwood confidence band
+around the curve and a mark at every time a subject left without an event, both sharing the curve's own colour
+group. The Y axis is titled "Survival probability"; the X axis is yours to title, since the unit is your
+durations'. This is the curve, its band and its marks: no number-at-risk table and no log-rank test. A duration
+that is missing, negative or infinite is refused, because a subject without a time cannot be counted at risk; leave
+that subject out of the arrays if that is what you mean.
+
+## Raincloud
+
+A half violin, a narrow box and a group's raw, jittered points side by side at the group's own index, all three
+sharing one colour so the three read as one group's three views of its own distribution. Several groups stand
+side by side, each at its own index, but still in the one colour: that colour names the trio, not the group, so
+groups compare on position, not on hue.
+
+```csharp
+NamedSample[] routes =
+[
+    new("Highway", [22, 24, 23, 26, 25, 28, 24, 23, 27, 25, 30, 26]),
+    new("Backroads", [18, 29, 15, 35, 20, 32, 17, 24, 21, 30, 16, 27]),
+];
+
+Plt.Create()
+    .WithTitle("Commute time by route")
+    .WithSize(600, 400)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Raincloud(routes)
+        .SetYLabel("Minutes"))
+    .Save("raincloud.svg");
+```
+
+![Raincloud](../images/raincloud.png)
+
+A multi-dataset `ViolinSeries` and `BoxSeries` already draw one shape per group on their own, so the verb adds one
+violin and one box for the whole chart, not one pair per group, plus one scatter of every group's points together.
+A point at index *i* of its group, standing at the group's own index *g*, is jittered to *x = g + 0.35 + (i mod 4)
+× 0.03*, a fixed four-step cycle clear of the violin's half-width and the box's whisker caps — no randomness, so
+the figure is the same on every run. Only the violin carries a label ("Samples"), so one legend swatch names the
+trio rather than standing, falsely, for several differently coloured groups; the groups themselves are named along
+the X axis. `RaincloudParts` hands you `Violin`, `Box` and `Points`. A group of no observations is refused.

@@ -124,12 +124,13 @@ internal sealed class CartesianDirectLabelsPart
         double axisSide = new RightBand(ConstrainedLayoutEngine.SecondaryAxisBand(_axes, _ctx, _theme), _mirroredYTicks, 0).Axis;
         double x = _plotArea.X + _plotArea.Width + axisSide + DirectLabelMetrics.Gap;
         var placed = new List<PlacedDirectLabel>(labels.Count);
+        var colorSlots = _axes.ColorSlots();
         for (int k = 0; k < labels.Count; k++)
         {
             var label = labels[k];
             var font = metrics.Font with
             {
-                Color = _axes.SeriesSlot(_theme, label.Pair, label.IndexInPair).ColorOf(label.Series),
+                Color = _theme.SeriesSlot(colorSlots[_axes.SlotIndex(label.Pair, label.IndexInPair)]).ColorOf(label.Series),
             };
             placed.Add(new PlacedDirectLabel(label, anchors[k],
                 new Point(x, centres[k].Start + font.Size * BaselineDrop), font));

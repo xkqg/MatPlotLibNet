@@ -2,6 +2,15 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.22.0, series that share one colour):** **817/817 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 817 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.7L / 98.6B**; **19,890 tests, 0 failures** across the 11 measured suites (the wiki suite and the WPF suite run beside the gate and are not
+measured by it). The two new classes are `RaincloudParts` and `HorizonParts`, the non-positional record structs the
+`Raincloud` and `Horizon` verbs hand their callback. The growth in tests covers the new `ColorGroup`/`ColorSlots`
+mechanism (mutation-proof: the old ungrouped colour and the new shared one are proven to diverge once a group is
+set), the Kaplan-Meier curve's Greenwood band and censor marks, and both new verbs' own suites plus their
+byHand/byVerb and pixel-comparison proofs.
+
 **Status (v1.21.0, every chart type and axes setting whole through JSON):** **815/815 classes at ≥90/90**, strict gate **PASSES** with no
 regressions (`PASS: All 815 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.7L / 98.6B**; **19,810 tests, 0 failures** across the 11 measured suites (the wiki suite and the WPF suite run beside the gate and are not

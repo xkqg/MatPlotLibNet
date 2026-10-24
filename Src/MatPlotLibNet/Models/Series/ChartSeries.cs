@@ -49,4 +49,13 @@ public abstract class ChartSeries : ISeries, IHasDataRange, ISeriesSerializable
     /// reader could pan or zoom to. A state timeline is the case: its segments fill the bar from edge to edge.
     /// Pan and zoom leave the Y range of an axes alone when every series on it says so.</summary>
     internal virtual bool FixesYRange => false;
+
+    /// <summary>The group this series shares its colour with, or <see langword="null"/> for a series that holds its
+    /// own slot, as every series has until a verb sets this. Series that carry the SAME value here, standing next to
+    /// each other in <see cref="Axes.AllSeries"/>, are drawn in one cycled colour and consume one colour slot between
+    /// them — <see cref="Rendering.SeriesSlotExtensions.ColorSlotIndex"/> reads it; <see cref="Axes.NextColorGroup"/>
+    /// hands out a fresh value. It never changes a series' own identity: <see cref="Rendering.SeriesSlotExtensions.SlotIndex"/>,
+    /// the legend's hit-test index and the SVG's <c>data-series-index</c> stay positional, unaffected by this field, so a
+    /// legend click or a diff never crosses from one member of a group to another.</summary>
+    internal int? ColorGroup { get; set; }
 }

@@ -14,12 +14,14 @@ using MatPlotLibNet.Tests.Rendering;
 
 namespace MatPlotLibNet.Tests.Builders;
 
-/// <summary>The Kaplan-Meier chart in one call, the curve only: one step line per group, the product-limit estimate of the
-/// group's survival (worked out in <see cref="MatPlotLibNet.Tests.Models.Series.SurvivalGroupExtensionsTests"/>), drawn
-/// "steps-post" from (0, 1), each group in a colour of its own and named in the legend, the Y axis titled "Survival
-/// probability". No risk table, no log-rank test, no confidence band and no censor marks: a band and censor marks are
-/// several series in one colour, which the library has no way to draw yet. The arithmetic is fractions of whole numbers, so
-/// the levels are asserted to 1e-15.</summary>
+/// <summary>The Kaplan-Meier chart in one call: one step line per group, the product-limit estimate of the group's survival
+/// (worked out in <see cref="MatPlotLibNet.Tests.Models.Series.SurvivalGroupExtensionsTests"/>), drawn "steps-post" from
+/// (0, 1); a Greenwood confidence band around it; and a censor mark at every time a subject left without an event. The
+/// curve, its band and its marks share one colour group, so all three wear the same colour and only the curve has a legend
+/// entry — the Y axis titled "Survival probability". No risk table and no log-rank test: a risk table is a table of counts,
+/// and a log-rank test a statistic to compute, neither a mark to draw. The arithmetic is fractions of whole numbers except
+/// the band's standard error (one <see cref="Math.Sqrt"/>, which every platform computes to the same bit), so the levels
+/// are asserted to 1e-15 and the band to 1e-12.</summary>
 public class KaplanMeierTests
 {
     /// <summary>The worked example: levels 1, 5/6, 1/2, 1/4 at 0, 1, 3, 5, extended to 6.</summary>
@@ -38,7 +40,7 @@ public class KaplanMeierTests
     private static Axes Chart(IReadOnlyList<SurvivalGroup> groups, Action<LineSeries>? configure = null) =>
         AxesOf(ax => ax.KaplanMeier(groups, configure));
 
-    private static LineSeries Curve(Axes axes, int group) => Assert.IsType<LineSeries>(axes.Series[group]);
+    private static LineSeries Curve(Axes axes, int group) => axes.Series.OfType<LineSeries>().ElementAt(group);
 
     private static void AssertLevels(double[] expected, double[] actual)
     {
@@ -51,21 +53,94 @@ public class KaplanMeierTests
 
     // ---- what the verb adds ---------------------------------------------------------------------------------------
 
-    /// <summary>The chart is one line series per group, in the order of the groups, and nothing else: no band (a fill), no
-    /// censor marks (a scatter, or markers on the line), no reference line, annotation or second axis.</summary>
+    /// <summary>The chart is, for each group in order: its curve (a line), its band (a fill) and its censor marks (a
+    /// scatter) — both groups of <see cref="Both"/> have at least one censored subject, so neither skips its marks.
+    /// No reference line, annotation or second axis; only the curve carries a label, so the band and marks never add a
+    /// legend entry of their own.</summary>
     [Fact]
-    public void TheChart_IsOneLineSeriesPerGroup_AndNothingElse()
+    public void TheChart_IsTheCurveItsBandAndItsCensorMarks_PerGroup()
     {
         var axes = Chart(Both);
 
-        Assert.Equal(2, axes.Series.Count);
-        Assert.All(axes.Series, s => Assert.IsType<LineSeries>(s));
-        Assert.Equal(["Worked", "Second"], axes.Series.Select(s => s.Label));
-        Assert.All(axes.Series, s => Assert.Null(((LineSeries)s).Marker));
+        Assert.Equal(6, axes.Series.Count);
+        Type[] expectedTypes = [typeof(LineSeries), typeof(AreaSeries), typeof(ScatterSeries),
+            typeof(LineSeries), typeof(AreaSeries), typeof(ScatterSeries)];
+        Assert.Equal(expectedTypes, axes.Series.Select(s => s.GetType()));
+        Assert.Equal(["Worked", null, null, "Second", null, null], axes.Series.Select(s => s.Label));
+        Assert.All(axes.Series.OfType<LineSeries>(), s => Assert.Null(s.Marker));
+        Assert.All(axes.Series.OfType<ScatterSeries>(), s => Assert.Equal(MarkerStyle.Plus, s.Marker));
         Assert.Empty(axes.SecondarySeries);
         Assert.Empty(axes.ReferenceLines);
         Assert.Empty(axes.Annotations);
         Assert.Empty(axes.Trendlines);
+    }
+
+    /// <summary>A group with no censored subject has a curve and a band, but no (empty) marks series.</summary>
+    [Fact]
+    public void AGroupWithNoCensoring_HasNoMarksSeries()
+    {
+        var allEvents = new SurvivalGroup("AllEvents", [2, 4, 4, 7], [true, true, true, true]);
+
+        var axes = Chart([allEvents]);
+
+        Assert.Equal(2, axes.Series.Count);
+        Assert.IsType<LineSeries>(axes.Series[0]);
+        Assert.IsType<AreaSeries>(axes.Series[1]);
+    }
+
+    /// <summary>The curve, its band and its marks are one colour group: they wear the same colour and the group after
+    /// them takes the next colour, not the fourth.</summary>
+    [Fact]
+    public void TheCurveItsBandAndItsMarks_ShareOneColourGroup()
+    {
+        var axes = Chart(Both);
+        var worked = axes.Series.Take(3).ToList();
+        var second = axes.Series.Skip(3).Take(3).ToList();
+
+        Assert.All(worked, s => Assert.Equal(0, ((ChartSeries)s).ColorGroup));
+        Assert.All(second, s => Assert.Equal(1, ((ChartSeries)s).ColorGroup));
+    }
+
+    /// <summary>Each band is a fill between Greenwood's lower and upper bound around its curve, over the same times:
+    /// S(t) ± 1.959963984540054 x sqrt(S(t)^2 x sum(d_i / (n_i(n_i - d_i)))), clamped to [0, 1] — plain Greenwood, no
+    /// log or log-log transform, so it costs one <see cref="Math.Sqrt"/> and stays bit-exact across platforms.</summary>
+    [Fact]
+    public void TheBand_IsGreenwoodsConfidenceInterval_AroundTheCurve()
+    {
+        var axes = Chart([Worked]);
+        var band = Assert.IsType<AreaSeries>(axes.Series[1]);
+        var curve = Curve(axes, 0);
+
+        // worked example: at risk [6,6,5,2,1], events [0,1,2,1,0], survival [1, 5/6, 1/2, 1/4, 1/4].
+        double[] cumulative = [0, 1.0 / (6 * 5), 1.0 / (6 * 5) + 2.0 / (5 * 3), 1.0 / (6 * 5) + 2.0 / (5 * 3) + 1.0 / (2 * 1), 1.0 / (6 * 5) + 2.0 / (5 * 3) + 1.0 / (2 * 1)];
+        double[] expectedUpper = new double[5];
+        double[] expectedLower = new double[5];
+        for (int i = 0; i < 5; i++)
+        {
+            double se = Math.Sqrt(curve.YData[i] * curve.YData[i] * cumulative[i]);
+            expectedUpper[i] = Math.Clamp(curve.YData[i] + 1.959963984540054 * se, 0, 1);
+            expectedLower[i] = Math.Clamp(curve.YData[i] - 1.959963984540054 * se, 0, 1);
+        }
+
+        Assert.Equal(curve.XData, band.XData);
+        for (int i = 0; i < 5; i++)
+        {
+            Assert.True(Math.Abs(expectedUpper[i] - band.YData[i]) <= 1e-12, $"upper[{i}]");
+            Assert.True(Math.Abs(expectedLower[i] - band.YData2![i]) <= 1e-12, $"lower[{i}]");
+        }
+    }
+
+    /// <summary>A censor mark stands at the curve's level at that moment, at every time a subject left without an
+    /// event: the worked example censors at 3 (events are counted first, so the level there is already the one the
+    /// two events at 3 dropped it to: 1/2) and at 6 (the held extension, 1/4).</summary>
+    [Fact]
+    public void ACensorMark_StandsAtTheCurvesLevel_AtTheTimeItLeft()
+    {
+        var axes = Chart([Worked]);
+        var marks = Assert.IsType<ScatterSeries>(axes.Series[2]);
+
+        Assert.Equal([3.0, 6], marks.XData);
+        AssertLevels([1.0 / 2, 1.0 / 4], marks.YData);
     }
 
     /// <summary>Each line is its group's product-limit estimate: from (0, 1), a point at every event time at the level the
@@ -85,7 +160,7 @@ public class KaplanMeierTests
     [Fact]
     public void EachLine_StepsAfterItsPoints()
     {
-        Assert.All(Chart(Both).Series, s => Assert.Equal(DrawStyle.StepsPost, ((LineSeries)s).DrawStyle));
+        Assert.All(Chart(Both).Series.OfType<LineSeries>(), s => Assert.Equal(DrawStyle.StepsPost, s.DrawStyle));
     }
 
     /// <summary>In the picture every stretch of a curve is level or a drop straight down: no stretch slopes, and the curve
@@ -119,9 +194,9 @@ public class KaplanMeierTests
         figure.EnableLegendToggle = true;
         string svg = figure.ToSvg();
 
-        Assert.All(figure.SubPlots[0].Series, s => Assert.Null(((LineSeries)s).Color));
-        Assert.Equal(figure.Theme.CycleColors[0].ToHex(), FirstColour(Group(svg, 0)));
-        Assert.Equal(figure.Theme.CycleColors[1].ToHex(), FirstColour(Group(svg, 1)));
+        Assert.All(figure.SubPlots[0].Series.OfType<LineSeries>(), s => Assert.Null(s.Color));
+        Assert.Equal(figure.Theme.CycleColors[0].ToHex(), FirstColour(Group(svg, 0)));    // Worked's curve
+        Assert.Equal(figure.Theme.CycleColors[1].ToHex(), FirstColour(Group(svg, 3)));    // Second's curve
     }
 
     /// <summary>The groups are named in the legend, one entry each, with no call beyond the verb.</summary>
@@ -197,11 +272,11 @@ public class KaplanMeierTests
         });
 
         Assert.Equal(2, seen.Count);
-        Assert.Same(axes.Series[0], seen[0]);
-        Assert.Same(axes.Series[1], seen[1]);
+        Assert.Same(Curve(axes, 0), seen[0]);
+        Assert.Same(Curve(axes, 1), seen[1]);
         Assert.Equal([DrawStyle.StepsPost, DrawStyle.StepsPost], stylesWhenCalled);
         Assert.Equal(["Worked", "Second"], labelsWhenCalled);
-        Assert.All(axes.Series, s => Assert.Equal(2.5, ((LineSeries)s).LineWidth));
+        Assert.All(axes.Series.OfType<LineSeries>(), s => Assert.Equal(2.5, s.LineWidth));
     }
 
     // ---- refusals -------------------------------------------------------------------------------------------------

@@ -42,6 +42,36 @@ public class ChartSerializerTests
         Assert.Equal(768, doc.RootElement.GetProperty("height").GetDouble());
     }
 
+    /// <summary>A series' <see cref="ChartSeries.ColorGroup"/> travels through JSON: two series written with the
+    /// same group read back sharing it, and a figure in which nothing is grouped writes exactly what it wrote
+    /// before the field existed (absent, never <c>0</c>).</summary>
+    [Fact]
+    public void ColorGroup_SurvivesJson()
+    {
+        var curve = new LineSeries([0.0, 1], [0.0, 1]);
+        var band = new LineSeries([0.0, 1], [0.0, 1]);
+        curve.ColorGroup = band.ColorGroup = 3;
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => { ax.AddSeries(curve); ax.AddSeries(band); }).Build();
+
+        var readBack = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure));
+
+        var series = readBack.SubPlots[0].Series;
+        Assert.Equal(3, ((ChartSeries)series[0]).ColorGroup);
+        Assert.Equal(3, ((ChartSeries)series[1]).ColorGroup);
+    }
+
+    /// <summary>A series with no <see cref="ChartSeries.ColorGroup"/> writes no field for it at all — the golden-corpus
+    /// guarantee: a figure built before this field existed writes the same bytes after.</summary>
+    [Fact]
+    public void AnUngroupedSeries_WritesNoColorGroupField()
+    {
+        var figure = Plt.Create().Plot([0.0, 1], [0.0, 1]).Build();
+
+        string json = ChartServices.Serializer.ToJson(figure);
+
+        Assert.DoesNotContain("colorGroup", json, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Verifies that ToJson includes a type discriminator for series.</summary>
     [Fact]
     public void ToJson_IncludesSeriesTypeDiscriminator()

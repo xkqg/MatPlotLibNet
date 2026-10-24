@@ -108,6 +108,15 @@ public sealed class Axes
     /// stacked bar sums over); the two differ on purpose, and each is documented against the other.</summary>
     public IEnumerable<ISeries> AllSeries => _series.Concat(_secondarySeries).Concat(_xSecondarySeries);
 
+    /// <summary>A fresh <see cref="Series.ChartSeries.ColorGroup"/> value: one more than the highest already held by
+    /// a series of these axes, or 0 when none holds one. Derived fresh every call, never stored — a counter field
+    /// would keep counting past a series removed or an axes read back from JSON, handing out a group number nothing
+    /// uses while a lower one sits free. A verb calls this once per group it builds, then sets the same value on
+    /// every member of that group.</summary>
+    internal int NextColorGroup() =>
+        AllSeries.OfType<Models.Series.ChartSeries>().Select(s => s.ColorGroup).Where(g => g.HasValue).Select(g => g!.Value)
+            .DefaultIfEmpty(-1).Max() + 1;
+
     /// <summary>Adds a pre-constructed series to the axes.</summary>
     public T AddSeries<T>(T series) where T : ISeries
     {

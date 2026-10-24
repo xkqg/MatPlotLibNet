@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.22.0]
+
+This release lets several series share one colour from the theme's cycle instead of each taking the next one, and
+spends that on three things that needed it: a Kaplan-Meier curve now draws its Greenwood confidence band and its
+censor marks in the curve's own colour, a `Raincloud` verb draws a half violin, a narrow box and a group's raw
+points together in one colour, and a `Horizon` verb folds a signed series into bands of two hues (one for its
+non-negative part, one for its negative part) instead of one line per band. `AxesBuilder.NextColorGroup()` hands
+out a fresh group, derived fresh each time from the highest group already held; `SeriesSlotExtensions.ColorSlots`
+collapses a contiguous run of series sharing one group into the one rendered colour the legend and every renderer
+read, while each series keeps its own position in the legend's hit-test order. Seventeen verbs now live on the
+axes builder, two more than 1.20.0 shipped.
+
+### Added
+
+- **`Raincloud`.** One call draws a half violin, a narrow box and every group's raw, jittered points side by side
+  at the group's own index, all three sharing one colour group; only the violin carries a legend entry, so one
+  swatch names the trio rather than falsely standing for several differently coloured groups.
+
+- **`Horizon`.** One call folds a signed series into a stack of bands, each at a fraction of the series' own peak
+  and a deeper shade of its band's colour group; the non-negative and the negative parts of the series fold into
+  two separate colour groups, so a signed series reads as two hues instead of one.
+
+- **A survival curve's confidence band and censor marks.** `KaplanMeier` now draws a Greenwood confidence band
+  around its curve and a mark at every time a subject left without an event, both in the curve's own colour.
+
+### Changed
+
+- **Series can share one colour.** A series' `ColorGroup` (set by a verb, never by a caller) puts it in the same
+  rendered colour slot as every other series holding the same group, as long as the run is contiguous; a series
+  with no group still takes the theme's next colour exactly as before.
+
 ## [1.21.0]
 
 This release finishes what 1.20.0 left as a known limitation: every chart type and every axes setting now comes

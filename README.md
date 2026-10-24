@@ -18,6 +18,11 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.22.0** lets several series share one colour instead of each taking the next one from the theme's cycle, and
+spends it on three things: a Kaplan-Meier curve now draws its confidence band and its censor marks in the curve's
+own colour, and two new verbs, `Raincloud` (a half violin, a narrow box and a group's raw points in one colour) and
+`Horizon` (a signed series folded into bands of two hues), bring the axes builder to seventeen verbs.
+
 **1.21.0** makes every chart type and every axes setting round-trip through JSON whole. A Sankey's nodes and
 links, a treemap's, sunburst's, dendrogram's and clustermap's trees, a tree grid's rows, a polar chart's data, a
 streaming chart's current points and a planar 3-D bar's data all come back from JSON as themselves now, not a
@@ -52,8 +57,8 @@ its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadma
 what is still to come and what is left out on purpose, with a section for each row on the
 [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (815 classes, at
-99.7 % line / 98.6 % branch) across 19,810 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (817 classes, at
+99.7 % line / 98.6 % branch) across 19,890 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
 rendering with reference images drawn by matplotlib; it is not part of the CI run.
 
 ---

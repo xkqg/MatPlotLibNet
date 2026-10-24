@@ -52,6 +52,7 @@ public static class ComposedChartShapes
         new("marimekko", Marimekko, 3, 3),
         new("raincloud", Raincloud, 1, 1),
         new("waterfall-total", WaterfallTotal, null, 0),
+        new("horizon", Horizon, 2, 0),
     ];
 
     /// <summary>The names of <see cref="All"/>, as a Theory carries them.</summary>
@@ -627,8 +628,12 @@ public static class ComposedChartShapes
 
     /// <summary>The call chain the <c>KaplanMeier</c> verb replaces, written by hand with the public building blocks: the
     /// risk sets worked out by hand from the sorted subjects (E an event, C a censoring), each level the one before times
-    /// (at risk - events) / at risk, one line per arm stepping after its points, the arm's name as its label, and the Y axis
-    /// titled. The verb must draw exactly this picture.
+    /// (at risk - events) / at risk, one line per arm stepping after its points, the arm's name as its label, a Greenwood
+    /// band (plain form, <see cref="Math.Sqrt"/> only) around each curve, a censor mark at each C above, and the Y axis
+    /// titled. Band and marks take the curve's own colour explicitly (<see cref="Theme.Default"/>'s cycle, read by the same
+    /// index the curve itself takes — no two series here share a <c>ColorGroup</c>, because the test side has no access to
+    /// that internal field; setting the same literal colour on each is the public-API equivalent). The verb must draw
+    /// exactly this picture.
     /// <code>
     ///   Treatment: 3E 5C 6E 6E 9C 11E 14E 14C 18E 22C 25E 30C
     ///     t        3   6   11  14  18  25   (30: held)
@@ -648,15 +653,68 @@ public static class ComposedChartShapes
             return [1, .. atRisk.Select((n, i) => level *= (double)(n - events[i]) / n)];
         }
 
+        // Plain Greenwood: the running sum of d_i / (n_i (n_i - d_i)) over event points only, S(t)^2 times that under one
+        // square root, +/- 1.959963984540054 standard errors, clamped to [0, 1]. survivalWithSeed holds S(0)=1 first.
+        static (double[] Lower, double[] Upper) Greenwood(double[] survivalWithSeed, int[] atRisk, int[] events)
+        {
+            const double z = 1.959963984540054;
+            var lower = new double[survivalWithSeed.Length];
+            var upper = new double[survivalWithSeed.Length];
+            lower[0] = upper[0] = survivalWithSeed[0];
+            double cumulative = 0;
+            for (int i = 0; i < atRisk.Length; i++)
+            {
+                if (atRisk[i] > events[i]) cumulative += (double)events[i] / (atRisk[i] * (atRisk[i] - events[i]));
+                double s = survivalWithSeed[i + 1];
+                double se = Math.Sqrt(s * s * cumulative);
+                lower[i + 1] = Math.Clamp(s - z * se, 0, 1);
+                upper[i + 1] = Math.Clamp(s + z * se, 0, 1);
+            }
+
+            return (lower, upper);
+        }
+
+        // The level the step curve (times, survival) holds AT a given time: the last point at or before it.
+        static double LevelAt(double[] times, double[] survival, double time)
+        {
+            double level = survival[0];
+            for (int i = 0; i < times.Length && times[i] <= time; i++) level = survival[i];
+            return level;
+        }
+
         double[] treatmentTimes = [0, 3, 6, 11, 14, 18, 25];
-        double[] treatment = Levels([12, 10, 7, 6, 4, 2], [1, 2, 1, 1, 1, 1]);
+        int[] treatmentAtRisk = [12, 10, 7, 6, 4, 2];
+        int[] treatmentEvents = [1, 2, 1, 1, 1, 1];
+        double[] treatment = Levels(treatmentAtRisk, treatmentEvents);
+        double[] treatmentCensored = [5, 9, 14, 22, 30];
+
         double[] controlTimes = missing ? [0, 2, 3, 4, 6, 7, 12, 15, 20] : [0, 2, 3, 4, 6, 7, 9, 12, 15, 20];
-        double[] control = missing
-            ? Levels([12, 11, 10, 8, 7, 4, 3, 1], [1, 1, 1, 1, 1, 1, 1, 1])
-            : Levels([12, 11, 10, 8, 7, 6, 4, 3, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        int[] controlAtRisk = missing ? [12, 11, 10, 8, 7, 4, 3, 1] : [12, 11, 10, 8, 7, 6, 4, 3, 1];
+        int[] controlEvents = missing ? [1, 1, 1, 1, 1, 1, 1, 1] : [1, 1, 1, 1, 1, 1, 1, 1, 1];
+        double[] control = Levels(controlAtRisk, controlEvents);
+        double[] controlCensored = missing ? [4, 9, 10, 16] : [4, 10, 16];
+
+        // The extension to the last follow-up: only the treatment arm is censored after its last event (30 > 25); both
+        // control arms end ON an event (20), so neither extends.
+        double[] treatmentTimesHeld = [.. treatmentTimes, 30];
+        double[] treatmentHeld = [.. treatment, treatment[^1]];
+        var (treatmentLower, treatmentUpper) = Greenwood(treatment, treatmentAtRisk, treatmentEvents);
+        double[] treatmentLowerHeld = [.. treatmentLower, treatmentLower[^1]];
+        double[] treatmentUpperHeld = [.. treatmentUpper, treatmentUpper[^1]];
+        var (controlLower, controlUpper) = Greenwood(control, controlAtRisk, controlEvents);
+
+        Color treatmentColour = Theme.Default.CycleColors[0];
+        Color controlColour = Theme.Default.CycleColors[1];
+
         return Plt.Create().WithSize(800, 450).AddSubPlot(1, 1, 1, ax => ax
-            .Plot([.. treatmentTimes, 30], [.. treatment, treatment[^1]], s => { s.DrawStyle = DrawStyle.StepsPost; s.Label = "Treatment"; })
-            .Plot(controlTimes, control, s => { s.DrawStyle = DrawStyle.StepsPost; s.Label = "Control"; })
+            .Plot(treatmentTimesHeld, treatmentHeld, s => { s.DrawStyle = DrawStyle.StepsPost; s.Label = "Treatment"; s.Color = treatmentColour; })
+            .FillBetween(treatmentTimesHeld, treatmentUpperHeld, treatmentLowerHeld, s => { s.Color = treatmentColour; s.Alpha = 0.2; })
+            .Scatter(treatmentCensored, [.. treatmentCensored.Select(t => LevelAt(treatmentTimesHeld, treatmentHeld, t))],
+                s => { s.Marker = MarkerStyle.Plus; s.Color = treatmentColour; })
+            .Plot(controlTimes, control, s => { s.DrawStyle = DrawStyle.StepsPost; s.Label = "Control"; s.Color = controlColour; })
+            .FillBetween(controlTimes, controlUpper, controlLower, s => { s.Color = controlColour; s.Alpha = 0.2; })
+            .Scatter(controlCensored, [.. controlCensored.Select(t => LevelAt(controlTimes, control, t))],
+                s => { s.Marker = MarkerStyle.Plus; s.Color = controlColour; })
             .SetYLabel("Survival probability")
             .WithLegend());
     }
@@ -842,25 +900,44 @@ public static class ComposedChartShapes
         });
     }
 
-    /// <summary>The half violin, the narrow box and the raw points of two samples, all three in the one colour a group
-    /// is meant to wear.</summary>
-    private static FigureBuilder Raincloud(bool missing)
+    /// <summary>Two samples, built by <c>Raincloud</c>: a half violin and a narrow box, one dataset each per sample, and
+    /// one scatter of every sample's raw points, jittered a fixed amount — all three in the one colour the verb's
+    /// colour group gives them.</summary>
+    private static NamedSample[] RaincloudGroups(bool missing)
     {
-        double[][] samples =
-        [
-            [4.1, 4.8, 5.0, 5.3, 5.5, 5.9, 6.2, 6.4, 6.8, 7.1, 7.7, 8.4],
-            [5.6, 6.1, 6.5, 6.9, 7.2, 7.4, 7.9, 8.3, 8.8, 9.1, 9.6, 10.2],
-        ];
-        if (missing) samples[0][3] = double.NaN;
-        var colour = Color.FromHex("#4C78A8");
-        double[] positions = [0, 1];
-        double[] pointX = samples.SelectMany((s, g) => s.Select((_, i) => g + 0.12 + (i % 4) * 0.03)).ToArray();
+        double[] a = [4.1, 4.8, 5.0, 5.3, 5.5, 5.9, 6.2, 6.4, 6.8, 7.1, 7.7, 8.4];
+        if (missing) a[3] = double.NaN;
+        return [new("A", a), new("B", [5.6, 6.1, 6.5, 6.9, 7.2, 7.4, 7.9, 8.3, 8.8, 9.1, 9.6, 10.2])];
+    }
+
+    private static FigureBuilder Raincloud(bool missing) =>
+        Plt.Create().WithSize(700, 500).AddSubPlot(1, 1, 1, ax => ax.Raincloud(RaincloudGroups(missing)));
+
+    /// <summary>The call chain the <c>Raincloud</c> verb replaces, written by hand with the public building blocks: one
+    /// violin and one box carrying both samples as two datasets each (a dataset left without a position stands at its
+    /// own index, so neither sets one), one scatter of both samples' points jittered the same fixed amount the verb
+    /// uses, all three in one explicit colour (the test side has no access to the internal colour group, so the same
+    /// literal colour on each is the public-API equivalent). Only the violin carries a label, so it alone stands for
+    /// the group of three in the legend; the samples are also named along the X axis. The verb must draw exactly this
+    /// picture.</summary>
+    /// <param name="missing">Whether sample A's fourth observation is missing (NaN).</param>
+    public static FigureBuilder RaincloudByHand(bool missing)
+    {
+        var groups = RaincloudGroups(missing);
+        double[][] samples = [.. groups.Select(g => g.Values)];
+        double[] pointX = samples.SelectMany((s, g) => s.Select((_, i) => g + 0.35 + (i % 4) * 0.03)).ToArray();
         double[] pointY = samples.SelectMany(s => s).ToArray();
+        var colour = Theme.Default.CycleColors[0];
+        // One tick per group at its dataset index (0, 1, ...), not the bar-style half-slot a category-name helper
+        // would place it at: the violin and the box already stand at that same index, left without a Positions of
+        // their own.
+        double[] positions = [.. Enumerable.Range(0, groups.Length).Select(k => (double)k)];
         return Plt.Create().WithSize(700, 500).AddSubPlot(1, 1, 1, ax => ax
-            .Violin(samples, s => { s.Side = ViolinSide.High; s.Positions = positions; s.Widths = 0.6; s.Color = colour; s.Alpha = 0.5; s.Label = "Samples"; })
-            .BoxPlot(samples, s => { s.Positions = positions; s.Widths = 0.1; s.Color = colour; s.ShowOutliers = false; })
-            .Scatter(pointX, pointY, s => { s.Color = colour; s.MarkerSize = 3; s.Alpha = 0.6; })
-            .WithLegend());
+            .Violin(samples, s => { s.Side = ViolinSide.High; s.Color = colour; s.Alpha = 0.5; s.Label = "Samples"; })
+            .BoxPlot(samples, s => { s.Widths = 0.1; s.Color = colour; s.ShowOutliers = false; })
+            .Scatter(pointX, pointY, s => { s.Color = colour; s.MarkerSize = 6; s.Alpha = 1; })
+            .SetXTickLocator(new FixedLocator(positions))
+            .SetXTickFormatter(new CategoryFormatter([.. groups.Select(g => g.Label)], positions)));
     }
 
     /// <summary>Steps up and down between an opening and a closing total, every colour set: the first and the last bar are
@@ -878,5 +955,43 @@ public static class ComposedChartShapes
                 s.TotalColor = Color.FromHex("#1F77B4"); s.BarWidth = 0.5;
                 s.TotalIndices = [0, 4];
             }));
+    }
+
+    /// <summary>Five integer values, signed, built by <c>Horizon</c>: 2 bands fold the non-negative part in one colour
+    /// and 2 more fold the negative part in a second, h = 8 / 2 = 4.</summary>
+    private static double[] HorizonValues(bool missing)
+    {
+        double[] values = [5, -3, 8, -1, 0];
+        if (missing) values[2] = double.NaN;
+        return values;
+    }
+
+    private static FigureBuilder Horizon(bool missing) =>
+        Plt.Create().WithSize(700, 160).AddSubPlot(1, 1, 1, ax => ax.Horizon([0, 1, 2, 3, 4], HorizonValues(missing), bands: 2));
+
+    /// <summary>The call chain the <c>Horizon</c> verb replaces, written by hand with the public building blocks: h = the
+    /// largest absolute FINITE value over the band count (8 / 2 = 4 without the missing value, 5 / 2 = 2.5 with it, since
+    /// the missing one was the largest), band k of the non-negative part is clamp(y - k x h, 0, h) in the first cycle
+    /// colour, band k of the negative part is -clamp(-y - k x h, 0, h) in the second, each band's Alpha (k + 1) / 2, none
+    /// of them labelled. The verb must draw exactly this picture.</summary>
+    /// <param name="missing">Whether the third value (8, the largest) is missing (NaN).</param>
+    public static FigureBuilder HorizonByHand(bool missing)
+    {
+        double[] x = [0, 1, 2, 3, 4];
+        double[] y = HorizonValues(missing);
+        double h = y.Where(double.IsFinite).Select(Math.Abs).Max() / 2;
+        Color positiveColour = Theme.Default.CycleColors[0];
+        Color negativeColour = Theme.Default.CycleColors[1];
+
+        double[] Fold(int k, bool negative) =>
+            [.. y.Select(v => !double.IsFinite(v) ? double.NaN
+                : negative ? -Math.Clamp(-v - k * h, 0, h)
+                : Math.Clamp(v - k * h, 0, h))];
+
+        return Plt.Create().WithSize(700, 160).AddSubPlot(1, 1, 1, ax => ax
+            .FillBetween(x, Fold(0, negative: false), null, s => { s.Color = positiveColour; s.Alpha = 0.5; })
+            .FillBetween(x, Fold(1, negative: false), null, s => { s.Color = positiveColour; s.Alpha = 1.0; })
+            .FillBetween(x, Fold(0, negative: true), null, s => { s.Color = negativeColour; s.Alpha = 0.5; })
+            .FillBetween(x, Fold(1, negative: true), null, s => { s.Color = negativeColour; s.Alpha = 1.0; }));
     }
 }

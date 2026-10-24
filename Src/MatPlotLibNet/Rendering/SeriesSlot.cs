@@ -149,7 +149,12 @@ internal static class SeriesSlotExtensions
         new(cycleColor, cycled, theme.ViolinBodyColor, theme.ViolinStatsColor);
 
     /// <summary>The slot a series holds: its position in <see cref="Axes.AllSeries"/>. Primary series hold their own
-    /// index, secondary-Y series continue after the primary ones, secondary-X series after both.</summary>
+    /// index, secondary-Y series continue after the primary ones, secondary-X series after both.
+    /// <para>This is IDENTITY, not colour: the legend's hit-test index, the SVG's <c>data-series-index</c> and
+    /// <c>data-legend-index</c>, and every diff that keys on either, all read this number, unaffected by
+    /// <see cref="Models.Series.ChartSeries.ColorGroup"/> — two series sharing a colour group still hold two
+    /// different slots here, so a click on one never crosses to the other. A series' drawn COLOUR reads
+    /// <see cref="ColorSlotIndex"/> instead.</para></summary>
     /// <param name="axes">The axes that owns the series.</param>
     /// <param name="pair">The list the series sits in.</param>
     /// <param name="indexInPair">The series' index within that list.</param>
@@ -163,13 +168,58 @@ internal static class SeriesSlotExtensions
         _ => throw new ArgumentOutOfRangeException(nameof(pair), pair, "Not a series list of an axes."),
     };
 
+    /// <summary>The colour slots of every series in <see cref="Axes.AllSeries"/>, in order: one table, built once.
+    /// A series with no <see cref="Models.Series.ChartSeries.ColorGroup"/> holds a slot of its own, exactly where
+    /// <see cref="SlotIndex"/> would put it; a run of series that share the SAME group value, standing next to each
+    /// other, holds ONE slot between them — the slot does not advance again until the group changes. A group that is
+    /// not contiguous (its members do not stand next to each other) is not collapsed: each run gets its own slot, by
+    /// design — every verb that builds a group adds its members back to back, and nothing in the library splits them
+    /// apart afterward.</summary>
+    /// <param name="axes">The axes whose series are measured.</param>
+    /// <returns>One colour-slot number per series of <see cref="Axes.AllSeries"/>, in that order.</returns>
+    internal static int[] ColorSlots(this Axes axes)
+    {
+        var all = axes.AllSeries.ToList();
+        var slots = new int[all.Count];
+        int slot = -1;
+        int? previousGroup = null;
+        bool previousGrouped = false;
+        for (int i = 0; i < all.Count; i++)
+        {
+            int? group = (all[i] as Models.Series.ChartSeries)?.ColorGroup;
+            bool sameGroupAsBefore = group.HasValue && previousGrouped && group == previousGroup;
+            if (!sameGroupAsBefore) slot++;
+            slots[i] = slot;
+            previousGroup = group;
+            previousGrouped = group.HasValue;
+        }
+
+        return slots;
+    }
+
+    /// <summary>The colour slot of the series at <paramref name="indexInPair"/> in <paramref name="pair"/>: the
+    /// same as <see cref="SlotIndex"/> for a series with no <see cref="Models.Series.ChartSeries.ColorGroup"/>, and
+    /// shared with the rest of its group otherwise. Builds the whole table (<see cref="ColorSlots"/>) on every call;
+    /// a render loop that calls this once per series should call <see cref="ColorSlots"/> once instead and index
+    /// into it, which every production render site does.</summary>
+    /// <param name="axes">The axes that owns the series.</param>
+    /// <param name="pair">The list the series sits in.</param>
+    /// <param name="indexInPair">The series' index within that list.</param>
+    /// <returns>The colour-slot index.</returns>
+    internal static int ColorSlotIndex(this Axes axes, SeriesAxisPair pair, int indexInPair) =>
+        axes.ColorSlots()[axes.SlotIndex(pair, indexInPair)];
+
     /// <summary>The slot of the series at <paramref name="indexInPair"/> in <paramref name="pair"/>, valued by
-    /// <paramref name="theme"/>.</summary>
+    /// <paramref name="theme"/> — the COLOUR slot (<see cref="ColorSlotIndex"/>), not the identity one
+    /// (<see cref="SlotIndex"/>): a series sharing a <see cref="Models.Series.ChartSeries.ColorGroup"/> with its
+    /// neighbour is drawn in the same colour here, although each still answers to its own <see cref="SlotIndex"/>
+    /// everywhere identity is asked for. Builds a fresh colour-slot table per call; a loop over many series should
+    /// call <see cref="ColorSlots"/> once and read the table directly instead of calling this per series.</summary>
     /// <param name="axes">The axes that owns the series.</param>
     /// <param name="theme">The active theme.</param>
     /// <param name="pair">The list the series sits in.</param>
     /// <param name="indexInPair">The series' index within that list.</param>
     /// <returns>The slot's colour and cycled properties.</returns>
     internal static SeriesSlot SeriesSlot(this Axes axes, Theme theme, SeriesAxisPair pair, int indexInPair) =>
-        theme.SeriesSlot(axes.SlotIndex(pair, indexInPair));
+        theme.SeriesSlot(axes.ColorSlotIndex(pair, indexInPair));
 }

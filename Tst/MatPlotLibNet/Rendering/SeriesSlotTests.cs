@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -403,5 +404,117 @@ public class SeriesSlotTests
         var axes = OneTwoThree();
 
         Assert.Equal(CyclerTheme.SeriesSlot(4), axes.SeriesSlot(CyclerTheme, SeriesAxisPair.SecondaryX, 1));
+    }
+
+    // ── ColorGroup: several series share one colour slot, without sharing identity ─────────────
+
+    [Fact]
+    public void TheColorSlotMatchesThePositionalSlot_WhileNothingIsGrouped_AndDivergesOnceSomethingIs()
+    {
+        var axes = new Axes();
+        var a = axes.Plot([0.0, 1], [0.0, 1]);
+        var b = axes.Plot([0.0, 1], [0.0, 1]);
+        var c = axes.Plot([0.0, 1], [0.0, 1]);
+
+        Assert.Equal(0, axes.ColorSlotIndex(SeriesAxisPair.Primary, 0));
+        Assert.Equal(1, axes.ColorSlotIndex(SeriesAxisPair.Primary, 1));
+        Assert.Equal(2, axes.ColorSlotIndex(SeriesAxisPair.Primary, 2));
+
+        a.ColorGroup = 0;
+        b.ColorGroup = 0;
+
+        Assert.Equal(0, axes.ColorSlotIndex(SeriesAxisPair.Primary, 0));
+        Assert.Equal(0, axes.ColorSlotIndex(SeriesAxisPair.Primary, 1));
+        Assert.Equal(1, axes.ColorSlotIndex(SeriesAxisPair.Primary, 2));
+    }
+
+    [Fact]
+    public void TheSeriesAfterAGroup_ContinuesAtTheNextColorSlot_NotAfterEveryMember()
+    {
+        var axes = new Axes();
+        axes.Plot([0.0, 1], [0.0, 1]);                 // slot 0, ungrouped
+        var curve = axes.Plot([0.0, 1], [0.0, 1]);     // group 7
+        var band = axes.Plot([0.0, 1], [0.0, 1]);      // group 7
+        var marks = axes.Plot([0.0, 1], [0.0, 1]);     // group 7
+        curve.ColorGroup = band.ColorGroup = marks.ColorGroup = 7;
+        axes.Plot([0.0, 1], [0.0, 1]);                 // ungrouped again
+
+        Assert.Equal(0, axes.ColorSlotIndex(SeriesAxisPair.Primary, 0));
+        Assert.Equal(1, axes.ColorSlotIndex(SeriesAxisPair.Primary, 1));
+        Assert.Equal(1, axes.ColorSlotIndex(SeriesAxisPair.Primary, 2));
+        Assert.Equal(1, axes.ColorSlotIndex(SeriesAxisPair.Primary, 3));
+        Assert.Equal(2, axes.ColorSlotIndex(SeriesAxisPair.Primary, 4));
+    }
+
+    [Fact]
+    public void TwoDistinctGroups_EachTakeTheirOwnColorSlot_NotMergedWithEachOther()
+    {
+        var axes = new Axes();
+        var a1 = axes.Plot([0.0, 1], [0.0, 1]);
+        var a2 = axes.Plot([0.0, 1], [0.0, 1]);
+        var b1 = axes.Plot([0.0, 1], [0.0, 1]);
+        var b2 = axes.Plot([0.0, 1], [0.0, 1]);
+        a1.ColorGroup = a2.ColorGroup = 0;
+        b1.ColorGroup = b2.ColorGroup = 1;
+
+        Assert.Equal(0, axes.ColorSlotIndex(SeriesAxisPair.Primary, 1));
+        Assert.Equal(1, axes.ColorSlotIndex(SeriesAxisPair.Primary, 2));
+        Assert.Equal(1, axes.ColorSlotIndex(SeriesAxisPair.Primary, 3));
+    }
+
+    [Fact]
+    public void SlotIndex_StaysPositional_EvenWhenSeriesAreGrouped()
+    {
+        var axes = new Axes();
+        var curve = axes.Plot([0.0, 1], [0.0, 1]);
+        var band = axes.Plot([0.0, 1], [0.0, 1]);
+        curve.ColorGroup = band.ColorGroup = 0;
+
+        Assert.Equal(0, axes.SlotIndex(SeriesAxisPair.Primary, 0));
+        Assert.Equal(1, axes.SlotIndex(SeriesAxisPair.Primary, 1));
+    }
+
+    [Fact]
+    public void TheLegendSwatch_WearsTheGroupsColorSlot_WhileTheLegendIndexStaysPositional()
+    {
+        var axes = new Axes();
+        var curve = axes.Plot([0.0, 1], [0.0, 1]);
+        curve.Label = "Treatment";
+        var band = axes.Plot([0.0, 1], [0.0, 1]);
+        curve.ColorGroup = band.ColorGroup = 0;
+
+        var entry = Assert.Single(axes.LegendEntries(directLabelsDrawn: false));
+
+        Assert.Equal(0, entry.OriginalIndex);
+        Assert.Equal(0, entry.ColorSlotIndex);
+    }
+
+    [Fact]
+    public void NextColorGroup_IsZero_WhenNoSeriesIsGroupedYet()
+    {
+        Assert.Equal(0, new Axes().NextColorGroup());
+    }
+
+    [Fact]
+    public void NextColorGroup_IsOneMoreThanTheHighestGroupAlreadyUsed()
+    {
+        var axes = new Axes();
+        var a = axes.Plot([0.0, 1], [0.0, 1]);
+        axes.Plot([0.0, 1], [0.0, 1]);
+        a.ColorGroup = 4;
+
+        Assert.Equal(5, axes.NextColorGroup());
+    }
+
+    [Fact]
+    public void TheGroupsRenderedColor_IsTheSlotsColor_SharedByEveryMember()
+    {
+        var axes = new Axes();
+        var curve = axes.Plot([0.0, 1], [0.0, 1]);
+        var band = axes.Plot([0.0, 1], [0.0, 1]);
+        curve.ColorGroup = band.ColorGroup = 0;
+
+        Assert.Equal(axes.SeriesSlot(CyclerTheme, SeriesAxisPair.Primary, 0).CycleColor,
+            axes.SeriesSlot(CyclerTheme, SeriesAxisPair.Primary, 1).CycleColor);
     }
 }

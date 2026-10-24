@@ -1154,6 +1154,11 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>A fresh <see cref="Models.Series.ChartSeries.ColorGroup"/> value for a verb that draws several
+    /// series as one visually grouped unit (<see cref="Axes.NextColorGroup"/>).</summary>
+    /// <returns>One more than the highest group already held by a series of this axes, or 0 when none holds one.</returns>
+    internal int NextColorGroup() => _axes.NextColorGroup();
+
     // --- Intuitive indicator shortcuts (auto-resolve price data from axes) ---
 
     /// <summary>Adds a Simple Moving Average overlay. Auto-extracts price data from the last series on the axes.</summary>

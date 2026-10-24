@@ -10,4 +10,9 @@ namespace MatPlotLibNet.Models.Series;
 /// when it is later than the last event.</param>
 /// <param name="Survival">The estimate at each of <paramref name="Times"/>: 1 at 0, then the level the curve drops to at each
 /// event time, then that last level again at the last follow-up.</param>
-internal readonly record struct SurvivalCurve(double[] Times, double[] Survival);
+/// <param name="AtRisk">The number at risk at each of <paramref name="Times"/> (n_i): the subjects whose duration is that
+/// time or later, counted just before that time's events. Greenwood's variance is computed from this and
+/// <paramref name="Events"/>, not re-derived.</param>
+/// <param name="Events">The number of events at each of <paramref name="Times"/> (d_i): 0 at the seed point and at an
+/// extension to the last follow-up, which hold no event of their own.</param>
+internal readonly record struct SurvivalCurve(double[] Times, double[] Survival, int[] AtRisk, int[] Events);

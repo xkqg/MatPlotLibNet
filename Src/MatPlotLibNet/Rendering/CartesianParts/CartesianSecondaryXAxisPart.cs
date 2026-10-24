@@ -100,12 +100,13 @@ internal sealed class CartesianSecondaryXAxisPart : CartesianAxesPart
         var secXTransform = new DataTransform(_secRange.XMin, _secRange.XMax, _secRange.YMin, _secRange.YMax, PlotArea);
         var secXTicks = AxesRenderer.ComputeTickValuesInternal(_secRange.XMin, _secRange.XMax);
 
+        var colorSlots = Axes.ColorSlots();
         for (int i = 0; i < Axes.XSecondarySeries.Count; i++)
         {
             var series = Axes.XSecondarySeries[i];
             if (!series.Visible) continue;
             // The slot after the primary and the secondary-Y series, handed over the way the primary pass does.
-            var slot = Axes.SeriesSlot(Theme, SeriesAxisPair.SecondaryX, i);
+            var slot = Theme.SeriesSlot(colorSlots[Axes.SlotIndex(SeriesAxisPair.SecondaryX, i)]);
             bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, Axes.SlotIndex(SeriesAxisPair.SecondaryX, i), secXTransform);
             bool clipped = Ctx.BeginSeriesClip(Axes, PlotArea);
             var renderer = new SvgSeriesRenderer(secXTransform, Ctx, slot.CycleColor, Theme, slot.CycledProperties,

@@ -313,6 +313,8 @@ public sealed class ChartSerializer : IChartSerializer
         dto.Visible = series.Visible.OrNullAtRest(true);
         if (series is XYSeries xy)
             dto.MaxDisplayPoints = xy.MaxDisplayPoints;
+        if (series is ChartSeries { ColorGroup: { } colorGroup })
+            dto.ColorGroup = colorGroup;
         return dto;
     }
 
@@ -330,6 +332,8 @@ public sealed class ChartSerializer : IChartSerializer
             series.Visible = visible;
         if (series is XYSeries xy && dto.MaxDisplayPoints is { } maxDisplayPoints)
             xy.MaxDisplayPoints = maxDisplayPoints;
+        if (series is ChartSeries chartSeries && dto.ColorGroup is { } colorGroup)
+            chartSeries.ColorGroup = colorGroup;
     }
 
     /// <summary>Reads the figure back: the counterpart of <see cref="FigureToDto"/>. A setting the JSON leaves out reads
@@ -1423,6 +1427,11 @@ public sealed record SeriesDto
 
     /// <summary>The most points an x/y series draws before it thins itself out; absent when it draws all of them.</summary>
     public int? MaxDisplayPoints { get; set; }
+
+    /// <summary>The group this series shares its colour with (<see cref="Models.Series.ChartSeries.ColorGroup"/>);
+    /// absent for a series that holds its own slot, as every series does until a verb groups it. Read back, two
+    /// series written with the same value here are drawn in one cycled colour again, as they were.</summary>
+    public int? ColorGroup { get; set; }
 
     /// <summary>The marker shape of a line, a scatter, a stem, a step or a 3-D scatter series.</summary>
     public MarkerStyle? Marker { get; init; }
