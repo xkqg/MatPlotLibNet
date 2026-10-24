@@ -1,6 +1,7 @@
 ﻿{
   "metadata": [
     {
+      "_comment": "EnablePackageValidation: false — metadata extraction only compiles each csproj, it never packs or publishes, so the package-validation baseline-diff (which restores PackageValidationBaselineVersion as a NuGet dependency to compare against) has nothing to check here and only adds a restore MSBuild cannot satisfy for a package not published at every version the baseline has carried (MatPlotLibNet.Uno has no 1.21.0 on nuget.org). The real pack/validate step for every package still runs, unaffected, in ci.yml and publish.yml.",
       "src": [
         {
           "files": [
@@ -23,7 +24,8 @@
       "dest": "api",
       "includePrivateMembers": false,
       "properties": {
-        "TargetFramework": "net8.0"
+        "TargetFramework": "net8.0",
+        "EnablePackageValidation": "false"
       }
     },
     {
