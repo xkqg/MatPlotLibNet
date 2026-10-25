@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Text.Json;
@@ -325,7 +325,7 @@ public sealed class ChartSerializer : IChartSerializer
     {
         series.Label = dto.Label;
         if (series is IHasLabelPlacement carrier)
-            ApplyEnum<SeriesLabelPlacement>(dto.LabelPlacement, v => carrier.LabelPlacement = v);
+            dto.LabelPlacement.ApplyEnum<SeriesLabelPlacement>(v => carrier.LabelPlacement = v);
         if (dto.ZOrder is { } zOrder)
             series.ZOrder = zOrder;
         if (dto.Visible is { } visible)
@@ -427,7 +427,7 @@ public sealed class ChartSerializer : IChartSerializer
         if (axDto.EnableTooltips is { } enableTooltips) axes.EnableTooltips = enableTooltips;
         if (axDto.EnableInteractiveAttributes is { } enableInteractiveAttributes) axes.EnableInteractiveAttributes = enableInteractiveAttributes;
         if (axDto.Emit3DVertexData is { } emit3DVertexData) axes.Emit3DVertexData = emit3DVertexData;
-        ApplyEnum<Models.CoordinateSystem>(axDto.CoordinateSystem, v => axes.CoordinateSystem = v);
+        axDto.CoordinateSystem.ApplyEnum<Models.CoordinateSystem>(v => axes.CoordinateSystem = v);
         if (axDto.Grid is not null) RestoreGrid(axes, axDto.Grid.ToGridStyle(), axDto.GridOverridesTheme is true);
         if (axDto.Spines is not null) axes.Spines = DtoToSpines(axDto.Spines);
         if (axDto.BarMode is "stacked") axes.BarMode = BarMode.Stacked;
@@ -487,10 +487,10 @@ public sealed class ChartSerializer : IChartSerializer
             var ann = axes.Annotate(aDto.Text ?? "", aDto.X, aDto.Y);
             ann.ArrowTargetX = aDto.ArrowTargetX;
             ann.ArrowTargetY = aDto.ArrowTargetY;
-            ApplyEnum<Models.ConnectionStyle>(aDto.ConnectionStyle, v => ann.ConnectionStyle = v);
+            aDto.ConnectionStyle.ApplyEnum<Models.ConnectionStyle>(v => ann.ConnectionStyle = v);
             if (aDto.ConnectionRad.HasValue) ann.ConnectionRad = aDto.ConnectionRad.Value;
             if (aDto.ArrowHeadSize.HasValue) ann.ArrowHeadSize = aDto.ArrowHeadSize.Value;
-            ApplyEnum<Models.BoxStyle>(aDto.BoxStyle, v => ann.BoxStyle = v);
+            aDto.BoxStyle.ApplyEnum<Models.BoxStyle>(v => ann.BoxStyle = v);
             if (aDto.BoxPadding.HasValue) ann.BoxPadding = aDto.BoxPadding.Value;
             if (aDto.BoxCornerRadius.HasValue) ann.BoxCornerRadius = aDto.BoxCornerRadius.Value;
             if (aDto.Coordinates is { } coordinates) ann.Coordinates = coordinates;
@@ -513,7 +513,7 @@ public sealed class ChartSerializer : IChartSerializer
         {
             var orient = rDto.Orientation is "vertical" ? Orientation.Vertical : Orientation.Horizontal;
             var rl = orient == Orientation.Horizontal ? axes.AxHLine(rDto.Value) : axes.AxVLine(rDto.Value);
-            ApplyEnum<LineStyle>(rDto.LineStyle, v => rl.LineStyle = v);
+            rDto.LineStyle.ApplyEnum<LineStyle>(v => rl.LineStyle = v);
             rl.LineWidth = rDto.LineWidth;
             rl.Label = rDto.Label;
             rl.Color = rDto.Color;
@@ -548,7 +548,7 @@ public sealed class ChartSerializer : IChartSerializer
             var orient = sDto.Orientation is "vertical" ? Orientation.Vertical : Orientation.Horizontal;
             var sp = orient == Orientation.Horizontal ? axes.AxHSpan(sDto.Min, sDto.Max) : axes.AxVSpan(sDto.Min, sDto.Max);
             sp.Alpha = sDto.Alpha;
-            ApplyEnum<LineStyle>(sDto.LineStyle, v => sp.LineStyle = v);
+            sDto.LineStyle.ApplyEnum<LineStyle>(v => sp.LineStyle = v);
             if (sDto.LineWidth.HasValue) sp.LineWidth = sDto.LineWidth.Value;
             sp.Label = sDto.Label;
             sp.Color = sDto.Color;
@@ -562,7 +562,7 @@ public sealed class ChartSerializer : IChartSerializer
         {
             var t = axes.AddTrendline(tDto.X1, tDto.Y1, tDto.X2, tDto.Y2);
             if (tDto.Color is not null) t.Color = Styling.Color.FromHex(tDto.Color);
-            ApplyEnum<LineStyle>(tDto.LineStyle, v => t.LineStyle = v);
+            tDto.LineStyle.ApplyEnum<LineStyle>(v => t.LineStyle = v);
             t.LineWidth = tDto.LineWidth;
             t.Label = tDto.Label;
             t.IsExtended = tDto.IsExtended;
@@ -575,7 +575,7 @@ public sealed class ChartSerializer : IChartSerializer
         {
             var l = axes.AddLevel(lDto.Value);
             if (lDto.Color is not null) l.Color = Styling.Color.FromHex(lDto.Color);
-            ApplyEnum<LineStyle>(lDto.LineStyle, v => l.LineStyle = v);
+            lDto.LineStyle.ApplyEnum<LineStyle>(v => l.LineStyle = v);
             l.LineWidth = lDto.LineWidth;
             l.Label = lDto.Label;
         }
@@ -685,18 +685,24 @@ public sealed class ChartSerializer : IChartSerializer
         }
     }
 
-    /// <summary>Parses a string to an enum value and applies it via the <paramref name="setter"/> delegate if successful.</summary>
-    /// <remarks>Uses case-insensitive parsing. No-ops when <paramref name="value"/> is null or not a valid enum member.</remarks>
-    /// <param name="value">The string to parse; ignored when <see langword="null"/> or unrecognised.</param>
-    /// <param name="setter">The action invoked with the parsed enum value on success.</param>
-    internal static void ApplyEnum<T>(string? value, Action<T> setter) where T : struct, Enum
+}
+
+/// <summary>A wire-format enum string, applied to whatever setter wants it.</summary>
+internal static class EnumParsingExtensions
+{
+    extension(string? value)
     {
-        if (value is not null && Enum.TryParse<T>(value, true, out var parsed))
+        /// <summary>Parses this string to an enum value and applies it via <paramref name="setter"/> on success.
+        /// Case-insensitive; no-ops when this string is <see langword="null"/> or not a valid member of
+        /// <typeparamref name="T"/>.</summary>
+        internal void ApplyEnum<T>(Action<T> setter) where T : struct, Enum
         {
-            setter(parsed);
+            if (value is not null && Enum.TryParse<T>(value, true, out var parsed))
+            {
+                setter(parsed);
+            }
         }
     }
-
 }
 
 /// <summary>Reconstructs an axes, or a secondary-axis series, from its DTO — every entry point past

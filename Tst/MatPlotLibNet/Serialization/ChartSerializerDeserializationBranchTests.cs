@@ -26,7 +26,7 @@ public class ChartSerializerDeserializationBranchTests
     public void ApplyEnum_NullValue_NoOp()
     {
         bool called = false;
-        ChartSerializer.ApplyEnum<LineStyle>(null, _ => called = true);
+        ((string?)null).ApplyEnum<LineStyle>(_ => called = true);
         Assert.False(called);
     }
 
@@ -35,7 +35,7 @@ public class ChartSerializerDeserializationBranchTests
     public void ApplyEnum_InvalidString_NoOp()
     {
         bool called = false;
-        ChartSerializer.ApplyEnum<LineStyle>("notALineStyle", _ => called = true);
+        "notALineStyle".ApplyEnum<LineStyle>(_ => called = true);
         Assert.False(called);
     }
 

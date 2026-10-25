@@ -89,7 +89,7 @@ public sealed class LineSeries : XYSeries, IHasColor, IHasLabelPlacement
     {
         Color = dto.Color;
         LineWidth = dto.LineWidth ?? 1.5;
-        ChartSerializer.ApplyEnum<LineStyle>(dto.LineStyle, v => LineStyle = v);
+        dto.LineStyle.ApplyEnum<LineStyle>(v => LineStyle = v);
         Smooth = dto.Smooth == true;
         SmoothResolution = dto.SmoothResolution ?? SmoothResolution;
         Marker = dto.Marker;

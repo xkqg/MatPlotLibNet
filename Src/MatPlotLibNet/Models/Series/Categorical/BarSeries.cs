@@ -115,7 +115,7 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         Values = values;
     }
 
-    /// <summary>Initializes a bar series with numeric X positions — bars render on a continuous
+    /// <summary>Initializes a bar series with numeric X positions â€” bars render on a continuous
     /// X axis instead of categorical slot indices. Categories are auto-generated as numeric
     /// strings so <see cref="ICategoryLabeled"/> still works for mixed usage.</summary>
     public BarSeries(double[] x, double[] values)
@@ -257,7 +257,7 @@ public sealed class BarSeries : ChartSeries, ICategoryLabeled, IStackable, IHasC
         }
 
         s.HatchColor = dto.HatchColor;
-        ChartSerializer.ApplyEnum<BarOrientation>(dto.Orientation, v => s.Orientation = v);
+        dto.Orientation.ApplyEnum<BarOrientation>(v => s.Orientation = v);
         return s;
     }
 

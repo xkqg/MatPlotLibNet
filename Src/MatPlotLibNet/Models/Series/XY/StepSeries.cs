@@ -58,8 +58,8 @@ public sealed class StepSeries : XYSeries, IHasColor
         var s = axes.Step(dto.XData ?? [], dto.YData ?? []);
         s.Color = dto.Color;
         s.LineWidth = dto.LineWidth ?? 1.5;
-        ChartSerializer.ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
-        ChartSerializer.ApplyEnum<StepPosition>(dto.StepPosition, v => s.StepPosition = v);
+        dto.LineStyle.ApplyEnum<LineStyle>(v => s.LineStyle = v);
+        dto.StepPosition.ApplyEnum<StepPosition>(v => s.StepPosition = v);
         s.Marker = dto.Marker;
         return s;
     }

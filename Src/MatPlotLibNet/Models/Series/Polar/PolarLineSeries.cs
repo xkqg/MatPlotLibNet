@@ -38,7 +38,7 @@ public sealed class PolarLineSeries : PolarSeries, IHasColor
     {
         var s = axes.PolarPlot(dto.RData ?? [], dto.ThetaData ?? []);
         s.Color = dto.Color;
-        ChartSerializer.ApplyEnum<LineStyle>(dto.LineStyle, v => s.LineStyle = v);
+        dto.LineStyle.ApplyEnum<LineStyle>(v => s.LineStyle = v);
         if (dto.LineWidth.HasValue)
         {
             s.LineWidth = dto.LineWidth.Value;

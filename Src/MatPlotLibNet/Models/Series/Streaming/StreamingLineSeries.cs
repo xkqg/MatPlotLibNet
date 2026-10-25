@@ -68,7 +68,7 @@ public sealed class StreamingLineSeries : StreamingSeries, IHasColor, IHasLabelP
         var s = axes.AddSeries(new StreamingLineSeries(dto.Capacity ?? 10_000));
         s.AppendPoints(dto.XData ?? [], dto.YData ?? []);
         if (dto.Color.HasValue) s.Color = dto.Color.Value;
-        ChartSerializer.ApplyEnum<Styling.LineStyle>(dto.LineStyle, v => s.LineStyle = v);
+        dto.LineStyle.ApplyEnum<Styling.LineStyle>(v => s.LineStyle = v);
         if (dto.LineWidth.HasValue) s.LineWidth = dto.LineWidth.Value;
         return s;
     }
