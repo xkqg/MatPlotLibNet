@@ -89,7 +89,7 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
         var x = XData.DrawableRange();
         var y = YData.DrawableRange();
         double? xMin = x?.Lo, xMax = x?.Hi, yMin = y?.Lo, yMax = y?.Hi;
-        // Filled contour grids fill their [xMin,xMax] × [yMin,yMax] rectangle — sticky edges
+        // Filled contour grids fill their [xMin,xMax] Ã— [yMin,yMax] rectangle â€” sticky edges
         // on all four sides keep the 5 % margin from pushing whitespace between the fill and
         // the spines, matching ContourSeries.
         return new(xMin, xMax, yMin, yMax,
@@ -102,7 +102,7 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
         Type = "contourf",
         XData = XData,
         YData = YData,
-        HeatmapData = ChartSerializer.To2DList(ZData),
+        HeatmapData = ZData.To2DList(),
         Levels = Levels.OrNullAtRest(10),
         LevelValues = LevelValues,
         Alpha = Alpha.OrNullAtRest(1.0),
@@ -120,7 +120,7 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
     /// <returns>The reconstructed series instance.</returns>
     internal static ContourfSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Contourf(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData));
+        var s = axes.Contourf(dto.XData ?? [], dto.YData ?? [], dto.HeatmapData.From2DList());
         if (dto.Levels.HasValue)
         {
             s.Levels = dto.Levels.Value;

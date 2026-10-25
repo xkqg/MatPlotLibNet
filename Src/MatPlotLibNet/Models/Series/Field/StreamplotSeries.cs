@@ -54,8 +54,8 @@ public sealed class StreamplotSeries : ChartSeries, IHasColor
         Type = "streamplot",
         XData = X,
         YData = Y,
-        HeatmapData = ChartSerializer.To2DList(U),
-        VFieldData = ChartSerializer.To2DList(V),
+        HeatmapData = U.To2DList(),
+        VFieldData = V.To2DList(),
         LineWidth = LineWidth,
         Color = Color,
         ArrowSize = ArrowSize.OrNullAtRest(1.0),
@@ -68,7 +68,7 @@ public sealed class StreamplotSeries : ChartSeries, IHasColor
     /// <returns>The reconstructed series instance.</returns>
     internal static StreamplotSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Streamplot(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData), ChartSerializer.From2DList(dto.VFieldData));
+        var s = axes.Streamplot(dto.XData ?? [], dto.YData ?? [], dto.HeatmapData.From2DList(), dto.VFieldData.From2DList());
         if (dto.Color.HasValue)
         {
             s.Color = dto.Color.Value;
@@ -91,7 +91,7 @@ public sealed class StreamplotSeries : ChartSeries, IHasColor
 
     /// <inheritdoc />
     /// <remarks>Long form over the vector grid: the point, and the vector at it. The streamlines are integrated
-    /// from this field by the renderer — the field is the data.</remarks>
+    /// from this field by the renderer â€” the field is the data.</remarks>
     public override ChartDataTable? ToDataTable()
     {
         int rows = U.GetLength(0), cols = U.GetLength(1);

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Numerics;
@@ -68,7 +68,7 @@ public sealed class PcolormeshSeries : ChartSeries, IColorBarDataProvider, IColo
         Type = "pcolormesh",
         XData = X,
         YData = Y,
-        HeatmapData = ChartSerializer.To2DList(C),
+        HeatmapData = C.To2DList(),
         ColorMapName = ColorMap.NameForJson(),
         ColorMap = ColorMap.DescriptionForJson(),
         Normalizer = this.DescribeNormalizer(),
@@ -80,7 +80,7 @@ public sealed class PcolormeshSeries : ChartSeries, IColorBarDataProvider, IColo
     /// <returns>The reconstructed series instance.</returns>
     internal static PcolormeshSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Pcolormesh(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData));
+        var s = axes.Pcolormesh(dto.XData ?? [], dto.YData ?? [], dto.HeatmapData.From2DList());
         s.RestoreColorMap(dto);
         s.RestoreNormalizer(dto);
         return s;

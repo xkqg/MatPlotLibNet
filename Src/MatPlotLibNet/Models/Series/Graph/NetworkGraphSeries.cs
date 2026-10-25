@@ -29,7 +29,7 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
     /// <summary>The graph's edges. Read-only after construction.</summary>
     public IReadOnlyList<GraphEdge> Edges { get; }
 
-    /// <summary>Layout algorithm. Default <see cref="GraphLayout.Circular"/> — sensible
+    /// <summary>Layout algorithm. Default <see cref="GraphLayout.Circular"/> â€” sensible
     /// auto-placement that ignores edges. <see cref="GraphLayout.ForceDirected"/> places connected
     /// nodes closer together.</summary>
     public GraphLayout Layout { get; set; } = GraphLayout.Circular;
@@ -64,7 +64,7 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
 
     /// <summary>Maximum iteration count for the <see cref="GraphLayout.ForceDirected"/>
     /// spring-embedder. Default <c>50</c>. Higher = better visual quality at quadratic
-    /// cost (each iteration is <c>O(N² + E)</c>). Ignored by the deterministic layouts.</summary>
+    /// cost (each iteration is <c>O(NÂ² + E)</c>). Ignored by the deterministic layouts.</summary>
     public int LayoutIterations { get; set; } = NetworkGraphLayouts.DefaultForceDirectedIterations;
 
     /// <summary>Optional energy threshold for <see cref="GraphLayout.ForceDirected"/>
@@ -110,13 +110,13 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
     }
 
     /// <inheritdoc />
-    /// <remarks>Default-suppression mirrors the other series — only
+    /// <remarks>Default-suppression mirrors the other series â€” only
     /// non-default values are emitted to keep persisted JSON tight.</remarks>
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "networkgraph",
-        GraphNodes = ChartSerializer.ToGraphNodeDtos(Nodes),
-        GraphEdges = ChartSerializer.ToGraphEdgeDtos(Edges),
+        GraphNodes = Nodes.ToGraphNodeDtos(),
+        GraphEdges = Edges.ToGraphEdgeDtos(),
         ColorMapName = ColorMap.NameForJson(),
         ColorMap = ColorMap.DescriptionForJson(),
         NetworkGraphLayout             = Layout != GraphLayout.Circular ? Layout.ToString() : null,
@@ -135,8 +135,8 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
     /// <returns>The reconstructed series instance.</returns>
     internal static NetworkGraphSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var nodes = ChartSerializer.FromGraphNodeDtos(dto.GraphNodes);
-        var edges = ChartSerializer.FromGraphEdgeDtos(dto.GraphEdges);
+        var nodes = dto.GraphNodes.FromGraphNodeDtos();
+        var edges = dto.GraphEdges.FromGraphEdgeDtos();
         var s = axes.NetworkGraph(nodes, edges);
         s.RestoreColorMap(dto);
         if (dto.NetworkGraphLayout is not null
@@ -177,7 +177,7 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
 
 
     /// <inheritdoc />
-    /// <remarks>The edges, by node id and weight — the topology, which is what the layout draws a picture of.</remarks>
+    /// <remarks>The edges, by node id and weight â€” the topology, which is what the layout draws a picture of.</remarks>
     public override ChartDataTable? ToDataTable()
     {
         var rows = new List<IReadOnlyList<DataCell>>(Edges.Count);

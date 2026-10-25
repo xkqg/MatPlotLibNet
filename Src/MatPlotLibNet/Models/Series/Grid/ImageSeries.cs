@@ -56,7 +56,7 @@ public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormapp
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "image",
-        HeatmapData = ChartSerializer.To2DList(Data),
+        HeatmapData = Data.To2DList(),
         ColorMapName = ColorMap.NameForJson(),
         ColorMap = ColorMap.DescriptionForJson(),
         VMin = VMin,
@@ -73,7 +73,7 @@ public sealed class ImageSeries : ChartSeries, IColorBarDataProvider, IColormapp
     /// <returns>The reconstructed series instance.</returns>
     internal static ImageSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Image(ChartSerializer.From2DList(dto.HeatmapData));
+        var s = axes.Image(dto.HeatmapData.From2DList());
         s.RestoreColorMap(dto);
         s.VMin = dto.VMin;
         s.VMax = dto.VMax;

@@ -59,7 +59,7 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
         var x = XData.DrawableRange();
         var y = YData.DrawableRange();
         double? xMin = x?.Lo, xMax = x?.Hi, yMin = y?.Lo, yMax = y?.Hi;
-        // Contour grids occupy the full [xMin,xMax] × [yMin,yMax] rectangle — margin
+        // Contour grids occupy the full [xMin,xMax] Ã— [yMin,yMax] rectangle â€” margin
         // expansion would push whitespace between the grid edge and the spines.
         return new(xMin, xMax, yMin, yMax,
             StickyXMin: xMin, StickyXMax: xMax, StickyYMin: yMin, StickyYMax: yMax);
@@ -69,7 +69,7 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "contour",
-        XData = XData, YData = YData, HeatmapData = ChartSerializer.To2DList(ZData),
+        XData = XData, YData = YData, HeatmapData = ZData.To2DList(),
         Levels = Levels.OrNullAtRest(10),
         LevelValues = LevelValues,
         Filled = Filled ? true : null,
@@ -86,7 +86,7 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
     /// <returns>The reconstructed series instance.</returns>
     internal static ContourSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Contour(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.HeatmapData));
+        var s = axes.Contour(dto.XData ?? [], dto.YData ?? [], dto.HeatmapData.From2DList());
         if (dto.Levels.HasValue)
         {
             s.Levels = dto.Levels.Value;

@@ -35,7 +35,7 @@ public sealed class WireframeSeries : GridSeries3D, IHasColor
     /// <returns>The reconstructed series instance.</returns>
     internal static WireframeSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var z = ChartSerializer.From2DList(dto.ZGridData);
+        var z = dto.ZGridData.From2DList();
         var s = axes.Wireframe(dto.XData ?? [0.0, 1.0], dto.YData ?? [0.0, 1.0],
             z.GetLength(0) > 0 ? z : new double[,] { { 0, 0 }, { 0, 0 } });
         if (dto.Color.HasValue)

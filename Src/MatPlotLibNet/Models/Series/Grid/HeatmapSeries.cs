@@ -44,7 +44,7 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
     }
 
     /// <inheritdoc />
-    /// <remarks>Heatmaps fill their plot rectangle exactly (cells of <c>cols × rows</c>).
+    /// <remarks>Heatmaps fill their plot rectangle exactly (cells of <c>cols Ã— rows</c>).
     /// Report the grid extent with sticky edges on all four sides so the axes show
     /// meaningful row/column indices instead of the default <c>[0, 1]</c> fallback, and
     /// so the 5 % axis margin never introduces whitespace between the cells and the spines.</remarks>
@@ -61,7 +61,7 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "heatmap",
-        HeatmapData = ChartSerializer.To2DList(Data),
+        HeatmapData = Data.To2DList(),
         ColorMapName = ColorMap.NameForJson(),
         ColorMap = ColorMap.DescriptionForJson(),
         ShowLabels = ShowLabels ? true : null,
@@ -77,7 +77,7 @@ public sealed class HeatmapSeries : ChartSeries, IColorBarDataProvider, IColorma
     /// <returns>The reconstructed series instance.</returns>
     internal static HeatmapSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var hs = axes.Heatmap(ChartSerializer.From2DList(dto.HeatmapData));
+        var hs = axes.Heatmap(dto.HeatmapData.From2DList());
         hs.RestoreColorMap(dto);
         if (dto.ShowLabels.HasValue)
         {

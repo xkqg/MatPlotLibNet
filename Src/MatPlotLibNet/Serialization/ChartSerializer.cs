@@ -98,19 +98,11 @@ public sealed class ChartSerializer : IChartSerializer
         ResponsiveSvg = figure.ResponsiveSvg.OrNullAtRest(RestingFigure.ResponsiveSvg),
     };
 
-    /// <summary>Copies everything an axes draws from <paramref name="source"/> onto <paramref name="target"/> —
-    /// series, title, both axes, grid, spines, legend, and every overlay (annotations, reference lines, spans,
-    /// trendlines, levels, Fibonacci retracements, secondary axes). The same write/read pair the JSON round-trip
-    /// uses, so a property this contract carries for a figure is carried here too, with nothing to hand-copy a
-    /// second time: <see cref="AxesBuilder.AddInset(InsetBounds, Action{AxesBuilder})"/> composes an inset's real
-    /// axes from the configured builder's this way, instead of naming one property at a time.</summary>
-    internal static void CopyAxesState(Axes source, Axes target, Theme theme) => RestoreAxes(target, AxesToDto(source, theme));
-
     /// <summary>Writes one axes. <paramref name="theme"/> is the figure's: a grid the axes changed over the theme's grid
     /// is a change (code the JSON cannot carry), so it is written as the grid it draws under that theme, marked as the
     /// axes' own (<see cref="AxesDto.GridOverridesTheme"/>) so that a grid switched off stays off under a theme that
     /// draws one.</summary>
-    private static AxesDto AxesToDto(Axes axes, Theme theme) => new()
+    internal static AxesDto AxesToDto(Axes axes, Theme theme) => new()
     {
         Title = axes.Title,
         Key = axes.Key,
@@ -419,7 +411,7 @@ public sealed class ChartSerializer : IChartSerializer
 
     /// <summary>The ONE place an axes is read back: a subplot and an inset alike, everything <see cref="AxesToDto"/> wrote
     /// (its axes, grid, spines, title style, legend, colour bar, series, overlays, secondary axes, insets and breaks).</summary>
-    private static void RestoreAxes(Axes axes, AxesDto axDto)
+    internal static void RestoreAxes(Axes axes, AxesDto axDto)
     {
         axes.Title = axDto.Title;
         axes.Key = axDto.Key;
@@ -536,7 +528,7 @@ public sealed class ChartSerializer : IChartSerializer
             ApplyAxis(axes.SecondaryYAxis!, axDto.SecondaryYAxis);
             // Route secondary series through PlotSecondary/ScatterSecondary
             AddSecondarySeriesFromDtos(axDto.SecondarySeries,
-                sDto => CreateSecondaryLine(axes, sDto), sDto => CreateSecondaryScatter(axes, sDto));
+                sDto => axes.CreateSecondaryLine(sDto), sDto => axes.CreateSecondaryScatter(sDto));
         }
 
         if (axDto.SecondaryXAxis is not null)
@@ -545,7 +537,7 @@ public sealed class ChartSerializer : IChartSerializer
             ApplyAxis(axes.SecondaryXAxis!, axDto.SecondaryXAxis);
             // Route top-axis series through PlotXSecondary/ScatterXSecondary
             AddSecondarySeriesFromDtos(axDto.XSecondarySeries,
-                sDto => CreateXSecondaryLine(axes, sDto), sDto => CreateXSecondaryScatter(axes, sDto));
+                sDto => axes.CreateXSecondaryLine(sDto), sDto => axes.CreateXSecondaryScatter(sDto));
         }
     }
 
@@ -693,50 +685,6 @@ public sealed class ChartSerializer : IChartSerializer
         }
     }
 
-    /// <summary>Reconstructs a <see cref="LineSeries"/> on the secondary Y-axis from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static LineSeries CreateSecondaryLine(Axes axes, SeriesDto dto)
-    {
-        var s = axes.PlotSecondary(dto.XData ?? [], dto.YData ?? []);
-        s.RestoreFrom(dto);
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="ScatterSeries"/> on the secondary Y-axis from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static ScatterSeries CreateSecondaryScatter(Axes axes, SeriesDto dto)
-    {
-        var s = axes.ScatterSecondary(dto.XData ?? [], dto.YData ?? []);
-        s.RestoreFrom(dto);
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="LineSeries"/> on the secondary X-axis (top edge) from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static LineSeries CreateXSecondaryLine(Axes axes, SeriesDto dto)
-    {
-        var s = axes.PlotXSecondary(dto.XData ?? [], dto.YData ?? []);
-        s.RestoreFrom(dto);
-        return s;
-    }
-
-    /// <summary>Reconstructs a <see cref="ScatterSeries"/> on the secondary X-axis (top edge) from the DTO.</summary>
-    /// <param name="axes">The target <see cref="Models.Axes"/> to which the reconstructed series is added.</param>
-    /// <param name="dto">The serialization DTO containing the series properties to restore.</param>
-    /// <returns>The reconstructed series instance.</returns>
-    internal static ScatterSeries CreateXSecondaryScatter(Axes axes, SeriesDto dto)
-    {
-        var s = axes.ScatterXSecondary(dto.XData ?? [], dto.YData ?? []);
-        s.RestoreFrom(dto);
-        return s;
-    }
-
     /// <summary>Parses a string to an enum value and applies it via the <paramref name="setter"/> delegate if successful.</summary>
     /// <remarks>Uses case-insensitive parsing. No-ops when <paramref name="value"/> is null or not a valid enum member.</remarks>
     /// <param name="value">The string to parse; ignored when <see langword="null"/> or unrecognised.</param>
@@ -749,163 +697,248 @@ public sealed class ChartSerializer : IChartSerializer
         }
     }
 
-    /// <summary>Converts a rectangular 2D array to a jagged list-of-lists for JSON serialization.</summary>
-    /// <param name="data">The source rectangular 2D array.</param>
-    /// <returns>A jagged list representation suitable for JSON serialization.</returns>
-    internal static List<List<double>>? To2DList(double[,] data)
-    {
-        int rows = data.GetLength(0), cols = data.GetLength(1);
-        var result = new List<List<double>>(rows);
-        for (int r = 0; r < rows; r++)
-        {
-            var row = new List<double>(cols);
-            for (int c = 0; c < cols; c++) row.Add(data[r, c]);
-            result.Add(row);
-        }
-        return result;
-    }
+}
 
-    /// <summary>Converts a JSON jagged list-of-lists back to a rectangular 2D array.</summary>
-    /// <param name="data">The jagged list from JSON; returns an empty array when <see langword="null"/> or empty.</param>
-    /// <returns>A rectangular <c>double[rows, cols]</c> array.</returns>
-    internal static double[,] From2DList(List<List<double>>? data)
+/// <summary>Reconstructs an axes, or a secondary-axis series, from its DTO — every entry point past
+/// <see cref="ChartSerializer.RestoreAxes"/> itself that needs the <see cref="Axes"/> it is restoring onto.</summary>
+internal static class AxesSerializationExtensions
+{
+    extension(Axes target)
     {
-        if (data is null || data.Count == 0)
+        /// <summary>Copies everything an axes draws from <paramref name="source"/> onto this axes — series,
+        /// title, both axes, grid, spines, legend, and every overlay (annotations, reference lines, spans,
+        /// trendlines, levels, Fibonacci retracements, secondary axes). The same write/read pair the JSON
+        /// round-trip uses, so a property this contract carries for a figure is carried here too, with nothing
+        /// to hand-copy a second time: <see cref="AxesBuilder.AddInset(InsetBounds, Action{AxesBuilder})"/>
+        /// composes an inset's real axes from the configured builder's this way, instead of naming one property
+        /// at a time.</summary>
+        internal void CopyAxesState(Axes source, Theme theme) => ChartSerializer.RestoreAxes(target, ChartSerializer.AxesToDto(source, theme));
+
+        /// <summary>Reconstructs a <see cref="LineSeries"/> on the secondary Y-axis from the DTO.</summary>
+        internal LineSeries CreateSecondaryLine(SeriesDto dto)
         {
-            return new double[0, 0];
+            var s = target.PlotSecondary(dto.XData ?? [], dto.YData ?? []);
+            s.RestoreFrom(dto);
+            return s;
         }
-        int rows = data.Count, cols = data[0].Count;
-        var result = new double[rows, cols];
-        for (int r = 0; r < rows; r++)
+
+        /// <summary>Reconstructs a <see cref="ScatterSeries"/> on the secondary Y-axis from the DTO.</summary>
+        internal ScatterSeries CreateSecondaryScatter(SeriesDto dto)
         {
-            for (int c = 0; c < cols; c++)
+            var s = target.ScatterSecondary(dto.XData ?? [], dto.YData ?? []);
+            s.RestoreFrom(dto);
+            return s;
+        }
+
+        /// <summary>Reconstructs a <see cref="LineSeries"/> on the secondary X-axis (top edge) from the DTO.</summary>
+        internal LineSeries CreateXSecondaryLine(SeriesDto dto)
+        {
+            var s = target.PlotXSecondary(dto.XData ?? [], dto.YData ?? []);
+            s.RestoreFrom(dto);
+            return s;
+        }
+
+        /// <summary>Reconstructs a <see cref="ScatterSeries"/> on the secondary X-axis (top edge) from the DTO.</summary>
+        internal ScatterSeries CreateXSecondaryScatter(SeriesDto dto)
+        {
+            var s = target.ScatterXSecondary(dto.XData ?? [], dto.YData ?? []);
+            s.RestoreFrom(dto);
+            return s;
+        }
+    }
+}
+
+/// <summary>Rectangular/jagged 2D array to and from a JSON list-of-lists, both directions. A <c>double[,]</c> or
+/// <c>double[][]</c> (<see cref="Models.Series.PairGridSeries"/>'s per-variable samples) is not itself
+/// JSON-serializable; every grid-shaped series (Heatmap, Contour(f), Image, Pcolormesh, Clustermap, Streamplot,
+/// 3-D surface/wireframe, PairGrid) converts through here on the way in and out.</summary>
+internal static class Grid2DSerializationExtensions
+{
+    extension(double[,] data)
+    {
+        /// <summary>Converts this rectangular 2D array to a jagged list-of-lists for JSON serialization.</summary>
+        internal List<List<double>>? To2DList()
+        {
+            int rows = data.GetLength(0), cols = data.GetLength(1);
+            var result = new List<List<double>>(rows);
+            for (int r = 0; r < rows; r++)
             {
-                result[r, c] = data[r][c];
+                var row = new List<double>(cols);
+                for (int c = 0; c < cols; c++) row.Add(data[r, c]);
+                result.Add(row);
             }
+            return result;
         }
-        return result;
     }
 
-    /// <summary>Converts a jagged <c>double[][]</c> (variable-major) to a list-of-lists for JSON
-    /// serialization. Used by <c>PairGridSeries</c> where each sub-array is one variable's samples.</summary>
-    /// <param name="data">The source jagged array.</param>
-    /// <returns>A list-of-lists representation suitable for JSON serialization. Returns
-    /// an empty list for empty input — never <see langword="null"/>.</returns>
-    internal static List<List<double>> JaggedTo2DList(double[][] data)
+    extension(List<List<double>>? data)
     {
-        var result = new List<List<double>>(data.Length);
-        for (int i = 0; i < data.Length; i++) result.Add([.. data[i]]);
-        return result;
+        /// <summary>Converts this JSON jagged list-of-lists back to a rectangular 2D array; an empty array when
+        /// <see langword="null"/> or empty.</summary>
+        internal double[,] From2DList()
+        {
+            if (data is null || data.Count == 0)
+            {
+                return new double[0, 0];
+            }
+            int rows = data.Count, cols = data[0].Count;
+            var result = new double[rows, cols];
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < cols; c++)
+                {
+                    result[r, c] = data[r][c];
+                }
+            }
+            return result;
+        }
+
+        /// <summary>Converts this JSON list-of-lists back to a jagged <c>double[][]</c>; an empty array when
+        /// <see langword="null"/> or empty.</summary>
+        internal double[][] FromJaggedList()
+        {
+            if (data is null || data.Count == 0)
+            {
+                return [];
+            }
+            var result = new double[data.Count][];
+            for (int i = 0; i < data.Count; i++)
+            {
+                result[i] = [.. data[i]];
+            }
+            return result;
+        }
     }
 
-    /// <summary>Converts a JSON list-of-lists back to a jagged <c>double[][]</c>.</summary>
-    /// <param name="data">The list-of-lists from JSON; returns an empty array when <see langword="null"/> or empty.</param>
-    /// <returns>A jagged <c>double[][]</c>.</returns>
-    internal static double[][] FromJaggedList(List<List<double>>? data)
+    extension(double[][] data)
     {
-        if (data is null || data.Count == 0)
+        /// <summary>Converts this jagged <c>double[][]</c> (variable-major) to a list-of-lists for JSON
+        /// serialization. Used by <see cref="Models.Series.PairGridSeries"/> where each sub-array is one
+        /// variable's samples. Returns an empty list for empty input — never <see langword="null"/>.</summary>
+        internal List<List<double>> JaggedTo2DList()
         {
-            return [];
+            var result = new List<List<double>>(data.Length);
+            for (int i = 0; i < data.Length; i++) result.Add([.. data[i]]);
+            return result;
         }
-        var result = new double[data.Count][];
-        for (int i = 0; i < data.Count; i++)
+    }
+}
+
+/// <summary>A tree becomes wire data and back here, recursively — the one place shared by every
+/// <see cref="Models.Series.HierarchicalSeries"/> (Treemap, Sunburst, Dendrogram) and
+/// <see cref="Models.Series.ClustermapSeries"/>'s RowTree/ColumnTree.</summary>
+internal static class TreeNodeSerializationExtensions
+{
+    extension(Models.TreeNode node)
+    {
+        /// <summary>Converts this tree, recursively, to its DTO.</summary>
+        internal TreeNodeDto TreeNodeToDto() => new()
         {
-            result[i] = [.. data[i]];
-        }
-        return result;
+            Label = node.Label,
+            Value = node.Value,
+            Color = node.Color,
+            ColorValue = node.ColorValue,
+            Headline = node.Headline,
+            Url = node.Url,
+            Expanded = node.Expanded,
+            Hatch = node.Hatch,
+            HatchColor = node.HatchColor,
+            Children = node.Children.Count > 0 ? [.. node.Children.Select(child => child.TreeNodeToDto())] : null,
+        };
     }
 
-    /// <summary>Converts a <see cref="Models.TreeNode"/> to its DTO, recursively — the one place a tree becomes
-    /// wire data, shared by every <see cref="Models.Series.HierarchicalSeries"/> (Treemap, Sunburst, Dendrogram)
-    /// and <see cref="Models.Series.ClustermapSeries"/>'s RowTree/ColumnTree.</summary>
-    internal static TreeNodeDto TreeNodeToDto(Models.TreeNode node) => new()
+    extension(TreeNodeDto dto)
     {
-        Label = node.Label,
-        Value = node.Value,
-        Color = node.Color,
-        ColorValue = node.ColorValue,
-        Headline = node.Headline,
-        Url = node.Url,
-        Expanded = node.Expanded,
-        Hatch = node.Hatch,
-        HatchColor = node.HatchColor,
-        Children = node.Children.Count > 0 ? [.. node.Children.Select(TreeNodeToDto)] : null,
-    };
-
-    /// <summary>Converts a <see cref="TreeNodeDto"/> back to a <see cref="Models.TreeNode"/>, recursively — the
-    /// counterpart of <see cref="TreeNodeToDto"/>.</summary>
-    internal static Models.TreeNode DtoToTreeNode(TreeNodeDto dto) => new()
-    {
-        Label = dto.Label,
-        Value = dto.Value,
-        Color = dto.Color,
-        ColorValue = dto.ColorValue,
-        Headline = dto.Headline,
-        Url = dto.Url,
-        Expanded = dto.Expanded,
-        Hatch = dto.Hatch,
-        HatchColor = dto.HatchColor,
-        Children = dto.Children is { } children ? [.. children.Select(DtoToTreeNode)] : [],
-    };
-
-    /// <summary>Converts an <see cref="IReadOnlyList{T}"/> of <see cref="Models.Series.GraphNode"/>
-    /// to its DTO form for JSON serialisation.</summary>
-    internal static List<GraphNodeDto> ToGraphNodeDtos(IReadOnlyList<Models.Series.GraphNode> nodes)
-    {
-        var result = new List<GraphNodeDto>(nodes.Count);
-        for (int i = 0; i < nodes.Count; i++)
+        /// <summary>Converts this DTO, recursively, back to a <see cref="Models.TreeNode"/> — the counterpart of
+        /// <see cref="TreeNodeToDto"/>.</summary>
+        internal Models.TreeNode DtoToTreeNode() => new()
         {
-            var n = nodes[i];
-            result.Add(new GraphNodeDto(n.Id, n.X, n.Y, n.ColorScalar, n.SizeScalar, n.Label));
+            Label = dto.Label,
+            Value = dto.Value,
+            Color = dto.Color,
+            ColorValue = dto.ColorValue,
+            Headline = dto.Headline,
+            Url = dto.Url,
+            Expanded = dto.Expanded,
+            Hatch = dto.Hatch,
+            HatchColor = dto.HatchColor,
+            Children = dto.Children is { } children ? [.. children.Select(c => c.DtoToTreeNode())] : [],
+        };
+    }
+}
+
+/// <summary>A node/edge list becomes its DTO form and back here — the one place shared by every
+/// <see cref="Models.Series.NetworkGraphSeries"/> JSON round trip.</summary>
+internal static class GraphSerializationExtensions
+{
+    extension(IReadOnlyList<Models.Series.GraphNode> nodes)
+    {
+        /// <summary>Converts this list of nodes to its DTO form for JSON serialisation.</summary>
+        internal List<GraphNodeDto> ToGraphNodeDtos()
+        {
+            var result = new List<GraphNodeDto>(nodes.Count);
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                var n = nodes[i];
+                result.Add(new GraphNodeDto(n.Id, n.X, n.Y, n.ColorScalar, n.SizeScalar, n.Label));
+            }
+            return result;
         }
-        return result;
     }
 
-    /// <summary>Converts an <see cref="IReadOnlyList{T}"/> of <see cref="Models.Series.GraphEdge"/>
-    /// to its DTO form for JSON serialisation.</summary>
-    internal static List<GraphEdgeDto> ToGraphEdgeDtos(IReadOnlyList<Models.Series.GraphEdge> edges)
+    extension(IReadOnlyList<Models.Series.GraphEdge> edges)
     {
-        var result = new List<GraphEdgeDto>(edges.Count);
-        for (int i = 0; i < edges.Count; i++)
+        /// <summary>Converts this list of edges to its DTO form for JSON serialisation.</summary>
+        internal List<GraphEdgeDto> ToGraphEdgeDtos()
         {
-            var e = edges[i];
-            result.Add(new GraphEdgeDto(e.From, e.To, e.Weight, e.IsDirected));
+            var result = new List<GraphEdgeDto>(edges.Count);
+            for (int i = 0; i < edges.Count; i++)
+            {
+                var e = edges[i];
+                result.Add(new GraphEdgeDto(e.From, e.To, e.Weight, e.IsDirected));
+            }
+            return result;
         }
-        return result;
     }
 
-    /// <summary>Converts a list of <see cref="GraphNodeDto"/> back to model
-    /// <see cref="Models.Series.GraphNode"/> records.</summary>
-    internal static Models.Series.GraphNode[] FromGraphNodeDtos(List<GraphNodeDto>? dtos)
+    extension(List<GraphNodeDto>? dtos)
     {
-        if (dtos is null || dtos.Count == 0)
+        /// <summary>Converts this list of DTOs back to model <see cref="Models.Series.GraphNode"/> records; an
+        /// empty array when <see langword="null"/> or empty.</summary>
+        internal Models.Series.GraphNode[] FromGraphNodeDtos()
         {
-            return [];
+            if (dtos is null || dtos.Count == 0)
+            {
+                return [];
+            }
+            var result = new Models.Series.GraphNode[dtos.Count];
+            for (int i = 0; i < dtos.Count; i++)
+            {
+                var d = dtos[i];
+                result[i] = new Models.Series.GraphNode(d.Id, d.X, d.Y, d.ColorScalar, d.SizeScalar, d.Label);
+            }
+            return result;
         }
-        var result = new Models.Series.GraphNode[dtos.Count];
-        for (int i = 0; i < dtos.Count; i++)
-        {
-            var d = dtos[i];
-            result[i] = new Models.Series.GraphNode(d.Id, d.X, d.Y, d.ColorScalar, d.SizeScalar, d.Label);
-        }
-        return result;
     }
 
-    /// <summary>Converts a list of <see cref="GraphEdgeDto"/> back to model
-    /// <see cref="Models.Series.GraphEdge"/> records.</summary>
-    internal static Models.Series.GraphEdge[] FromGraphEdgeDtos(List<GraphEdgeDto>? dtos)
+    extension(List<GraphEdgeDto>? dtos)
     {
-        if (dtos is null || dtos.Count == 0)
+        /// <summary>Converts this list of DTOs back to model <see cref="Models.Series.GraphEdge"/> records; an
+        /// empty array when <see langword="null"/> or empty.</summary>
+        internal Models.Series.GraphEdge[] FromGraphEdgeDtos()
         {
-            return [];
+            if (dtos is null || dtos.Count == 0)
+            {
+                return [];
+            }
+            var result = new Models.Series.GraphEdge[dtos.Count];
+            for (int i = 0; i < dtos.Count; i++)
+            {
+                var d = dtos[i];
+                result[i] = new Models.Series.GraphEdge(d.From, d.To, d.Weight, d.IsDirected);
+            }
+            return result;
         }
-        var result = new Models.Series.GraphEdge[dtos.Count];
-        for (int i = 0; i < dtos.Count; i++)
-        {
-            var d = dtos[i];
-            result[i] = new Models.Series.GraphEdge(d.From, d.To, d.Weight, d.IsDirected);
-        }
-        return result;
     }
 }
 
@@ -1743,8 +1776,8 @@ public sealed record SeriesDto
     public List<SankeyLinkDto>? SankeyLinks { get; init; }
 }
 
-/// <summary>DTO for one <see cref="Models.TreeNode"/>, recursively — see <see cref="ChartSerializer.TreeNodeToDto"/>
-/// and <see cref="ChartSerializer.DtoToTreeNode"/>.</summary>
+/// <summary>DTO for one <see cref="Models.TreeNode"/>, recursively — see
+/// <see cref="TreeNodeSerializationExtensions"/>.</summary>
 public sealed record TreeNodeDto
 {
     public string Label { get; init; } = "";

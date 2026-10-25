@@ -6,6 +6,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.Streaming;
 using MatPlotLibNet.Models.Tools;
+using MatPlotLibNet.Serialization;
 using MatPlotLibNet.Styling;
 using FibonacciRetracementTool = MatPlotLibNet.Models.Tools.FibonacciRetracement;
 
@@ -1641,7 +1642,7 @@ public sealed class AxesBuilder
         var insetBuilder = new AxesBuilder();
         configure(insetBuilder);
         var inset = _axes.AddInset(bounds);
-        Serialization.ChartSerializer.CopyAxesState(insetBuilder._axes, inset, Theme.Default);
+        inset.CopyAxesState(insetBuilder._axes, Theme.Default);
         return this;
     }
 

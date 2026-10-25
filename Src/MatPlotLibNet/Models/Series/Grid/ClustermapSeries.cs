@@ -87,7 +87,7 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "clustermap",
-        HeatmapData = ChartSerializer.To2DList(Data),
+        HeatmapData = Data.To2DList(),
         ColorMapName = ColorMap.NameForJson(),
         ColorMap = ColorMap.DescriptionForJson(),
         ShowLabels = ShowLabels ? true : null,  // null encodes the default (false); round-trip is lossless
@@ -95,8 +95,8 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
         RowDendrogramWidth = _rowDendrogramWidth != 0.15 ? _rowDendrogramWidth : null,
         ColumnDendrogramHeight = _columnDendrogramHeight != 0.15 ? _columnDendrogramHeight : null,
         Normalizer = this.DescribeNormalizer(),
-        RowTree = RowTree is { } rowTree ? ChartSerializer.TreeNodeToDto(rowTree) : null,
-        ColumnTree = ColumnTree is { } columnTree ? ChartSerializer.TreeNodeToDto(columnTree) : null,
+        RowTree = RowTree is { } rowTree ? rowTree.TreeNodeToDto() : null,
+        ColumnTree = ColumnTree is { } columnTree ? columnTree.TreeNodeToDto() : null,
     };
 
     /// <summary>Reconstructs a <see cref="ClustermapSeries"/> from its serialization DTO and adds it to the axes.</summary>
@@ -105,10 +105,10 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
     /// <returns>The reconstructed series instance.</returns>
     internal static ClustermapSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var data = ChartSerializer.From2DList(dto.HeatmapData);
+        var data = dto.HeatmapData.From2DList();
         var s = axes.Clustermap(data.GetLength(0) > 0 ? data : new double[1, 1]);
-        if (dto.RowTree is { } rowTree) s.RowTree = ChartSerializer.DtoToTreeNode(rowTree);
-        if (dto.ColumnTree is { } columnTree) s.ColumnTree = ChartSerializer.DtoToTreeNode(columnTree);
+        if (dto.RowTree is { } rowTree) s.RowTree = rowTree.DtoToTreeNode();
+        if (dto.ColumnTree is { } columnTree) s.ColumnTree = columnTree.DtoToTreeNode();
         s.RestoreColorMap(dto);
         if (dto.ShowLabels.HasValue)
         {
@@ -132,7 +132,7 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
 
 
     /// <inheritdoc />
-    /// <remarks>Long form over the matrix, in the ORDER THE MAP DRAWS — the clustering reorders rows and
+    /// <remarks>Long form over the matrix, in the ORDER THE MAP DRAWS â€” the clustering reorders rows and
     /// columns, and a table in input order would name different cells than the picture does.</remarks>
     public override ChartDataTable? ToDataTable()
     {
@@ -161,7 +161,7 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
     /// <param name="tree">The root node of the dendrogram tree, or <see langword="null"/>.</param>
     /// <param name="count">The number of rows or columns in the data matrix.</param>
     /// <returns>An <see cref="int"/> array of length <paramref name="count"/> giving the DFS leaf
-    /// traversal order, or the identity permutation <c>[0, 1, …, count-1]</c> on any
+    /// traversal order, or the identity permutation <c>[0, 1, â€¦, count-1]</c> on any
     /// malformed-input fallback.</returns>
     internal static int[] ResolveLeafOrder(TreeNode? tree, int count)
     {

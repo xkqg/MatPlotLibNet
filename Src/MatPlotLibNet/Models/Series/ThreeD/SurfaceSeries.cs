@@ -52,7 +52,7 @@ public sealed class SurfaceSeries : GridSeries3D, IColormappable, INormalizable,
     /// <returns>The reconstructed series instance.</returns>
     internal static SurfaceSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var z = ChartSerializer.From2DList(dto.ZGridData);
+        var z = dto.ZGridData.From2DList();
         var s = axes.Surface(dto.XData ?? [0.0, 1.0], dto.YData ?? [0.0, 1.0],
             z.GetLength(0) > 0 ? z : new double[,] { { 0, 0 }, { 0, 0 } });
         if (dto.ShowWireframe.HasValue)

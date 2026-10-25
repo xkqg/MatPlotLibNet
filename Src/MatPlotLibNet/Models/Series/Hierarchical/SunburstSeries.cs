@@ -21,8 +21,8 @@ public sealed class SunburstSeries : HierarchicalSeries
     public double InnerRadius { get; set; }
 
     /// <summary>Optional minimum sweep angle in degrees below which a node's label is
-    /// suppressed entirely. A 1° wedge is too narrow to ever fit a useful label, so we
-    /// drop it rather than ask the collision engine to find space. Default: 8°.</summary>
+    /// suppressed entirely. A 1Â° wedge is too narrow to ever fit a useful label, so we
+    /// drop it rather than ask the collision engine to find space. Default: 8Â°.</summary>
     public double MinLabelSweepDegrees { get; set; } = 8.0;
 
     /// <summary>Initializes a new instance of <see cref="SunburstSeries"/> with the specified root node.</summary>
@@ -42,7 +42,7 @@ public sealed class SunburstSeries : HierarchicalSeries
     /// <returns>The reconstructed series instance.</returns>
     internal static SunburstSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var root = dto.TreeRoot is { } treeRoot ? ChartSerializer.DtoToTreeNode(treeRoot) : new TreeNode { Label = "Root" };
+        var root = dto.TreeRoot is { } treeRoot ? treeRoot.DtoToTreeNode() : new TreeNode { Label = "Root" };
         var s = axes.Sunburst(root);
         if (dto.InnerRadius.HasValue)
         {

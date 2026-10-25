@@ -47,7 +47,7 @@ public sealed class Contour3DSeries : GridSeries3D, IColormappable, IHasColor
     /// <returns>The reconstructed series instance.</returns>
     internal static Contour3DSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.Contour3D(dto.XData ?? [], dto.YData ?? [], ChartSerializer.From2DList(dto.ZGridData));
+        var s = axes.Contour3D(dto.XData ?? [], dto.YData ?? [], dto.ZGridData.From2DList());
         if (dto.Color.HasValue)
         {
             s.Color = dto.Color.Value;

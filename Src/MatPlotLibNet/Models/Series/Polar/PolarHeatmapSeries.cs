@@ -52,7 +52,7 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
     public override SeriesDto ToSeriesDto() => new()
     {
         Type = "polarheatmap",
-        HeatmapData = ChartSerializer.To2DList(Data),
+        HeatmapData = Data.To2DList(),
         ThetaBins = ThetaBins,
         RBins = RBins,
         ColorMapName = ColorMap.NameForJson(),
@@ -67,7 +67,7 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
     /// <returns>The reconstructed series instance.</returns>
     internal static PolarHeatmapSeries FromSeriesDto(Axes axes, SeriesDto dto)
     {
-        var s = axes.PolarHeatmap(ChartSerializer.From2DList(dto.HeatmapData),
+        var s = axes.PolarHeatmap(dto.HeatmapData.From2DList(),
             dto.ThetaBins ?? 8, dto.RBins ?? 4);
         s.RestoreColorMap(dto);
         if (dto.RMax.HasValue)
