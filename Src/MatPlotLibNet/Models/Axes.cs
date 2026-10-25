@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models.Series;
@@ -61,13 +61,13 @@ public sealed class Axes
     public bool EnableInteractiveAttributes { get; set; }
 
     /// <summary>When true (set by the SVG transform for a figure with the server data cursor), every interactive series
-    /// group also carries the mapping its series was drawn with — the plot area and the data range of the series' own
-    /// axes — so a click converts to the units of the axis the clicked line belongs to.</summary>
+    /// group also carries the mapping its series was drawn with â€” the plot area and the data range of the series' own
+    /// axes â€” so a click converts to the units of the axis the clicked line belongs to.</summary>
     internal bool EmitDataCursorMapping { get; set; }
 
     /// <summary>This axes' index in <see cref="Figure.SubPlots"/> while the figure is rendered with server interaction
-    /// (set by the SVG transform), otherwise <see langword="null"/>. With an index the renderer writes the axes' view —
-    /// its plot area and the range it actually drew — so the page converts hover, brush select, zoom and pan with the
+    /// (set by the SVG transform), otherwise <see langword="null"/>. With an index the renderer writes the axes' view â€”
+    /// its plot area and the range it actually drew â€” so the page converts hover, brush select, zoom and pan with the
     /// axes under the pointer and names that axes in what it sends.</summary>
     internal int? ServerViewIndex { get; set; }
 
@@ -103,13 +103,13 @@ public sealed class Axes
 
     /// <summary>Every series drawn on this subplot, in draw order: <see cref="Series"/>, then
     /// <see cref="SecondarySeries"/>, then <see cref="XSecondarySeries"/>. This is the answer to "what does the
-    /// picture show" — the data table reads it, and so does anything that describes the subplot. It is NOT
+    /// picture show" â€” the data table reads it, and so does anything that describes the subplot. It is NOT
     /// <see cref="Series.IAxesContext.AllSeries"/>, which names only the series that share ONE axis pair (the set a
     /// stacked bar sums over); the two differ on purpose, and each is documented against the other.</summary>
     public IEnumerable<ISeries> AllSeries => _series.Concat(_secondarySeries).Concat(_xSecondarySeries);
 
     /// <summary>A fresh <see cref="Series.ChartSeries.ColorGroup"/> value: one more than the highest already held by
-    /// a series of these axes, or 0 when none holds one. Derived fresh every call, never stored — a counter field
+    /// a series of these axes, or 0 when none holds one. Derived fresh every call, never stored â€” a counter field
     /// would keep counting past a series removed or an axes read back from JSON, handing out a group number nothing
     /// uses while a lower one sits free. A verb calls this once per group it builds, then sets the same value on
     /// every member of that group.</summary>
@@ -248,8 +248,7 @@ public sealed class Axes
         ValidateMatchingLengths(x.Length, y.Length);
         TwinX();
         var series = new LineSeries(x, y);
-        _secondarySeries.Add(series);
-        return series;
+        return AddSecondarySeries(series);
     }
 
     /// <summary>Adds an already-constructed series to the secondary Y-axis.</summary>
@@ -274,11 +273,10 @@ public sealed class Axes
         ValidateMatchingLengths(x.Length, y.Length);
         TwinX();
         var series = new ScatterSeries(x, y);
-        _secondarySeries.Add(series);
-        return series;
+        return AddSecondarySeries(series);
     }
 
-    // ── TwinY — secondary X-axis (top edge) ─────────────────────────────────
+    // â”€â”€ TwinY â€” secondary X-axis (top edge) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public Axis? SecondaryXAxis { get; private set; }
 
@@ -301,6 +299,19 @@ public sealed class Axes
         ValidateMatchingLengths(x.Length, y.Length);
         TwinY();
         var series = new LineSeries(x, y);
+        return AddXSecondarySeries(series);
+    }
+
+    /// <summary>Adds an already-constructed series to the secondary X-axis.</summary>
+    /// <remarks>Implicitly calls <see cref="TwinY"/> to ensure the secondary axis exists. The
+    /// <see cref="_xSecondarySeries"/> counterpart of <see cref="AddSecondarySeries{TSeries}"/>.</remarks>
+    /// <param name="series">The series to plot against the top axis.</param>
+    /// <returns>The same series, so the caller can keep appending to it.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="series"/> is null.</exception>
+    public TSeries AddXSecondarySeries<TSeries>(TSeries series) where TSeries : ISeries
+    {
+        ArgumentNullException.ThrowIfNull(series);
+        TwinY();
         _xSecondarySeries.Add(series);
         return series;
     }
@@ -312,8 +323,7 @@ public sealed class Axes
         ValidateMatchingLengths(x.Length, y.Length);
         TwinY();
         var series = new ScatterSeries(x, y);
-        _xSecondarySeries.Add(series);
-        return series;
+        return AddXSecondarySeries(series);
     }
 
     /// <summary>Adds a line series from the given X and Y data arrays.</summary>
@@ -324,8 +334,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(x.Length, y.Length);
         var series = new LineSeries(x, y);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a scatter series from the given X and Y data arrays.</summary>
@@ -336,8 +345,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(x.Length, y.Length);
         var series = new ScatterSeries(x, y);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a vertical bar series from the given categories and values.</summary>
@@ -348,8 +356,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(categories.Length, values.Length);
         var series = new BarSeries(categories, values);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a horizontal bar series from the given categories and values.</summary>
@@ -360,8 +367,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(categories.Length, values.Length);
         var series = new BarSeries(categories, values) { Orientation = BarOrientation.Horizontal };
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a histogram series from the given data array.</summary>
@@ -371,16 +377,14 @@ public sealed class Axes
     public HistogramSeries Hist(double[] data, int bins = 10)
     {
         var series = new HistogramSeries(data) { Bins = bins };
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds an ECDF (empirical cumulative distribution function) series from the given data.</summary>
     public EcdfSeries Ecdf(double[] data)
     {
         var series = new EcdfSeries(data);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a stacked area (stackplot) series from the given shared X values and multiple Y datasets.</summary>
@@ -390,8 +394,7 @@ public sealed class Axes
     public StackedAreaSeries StackPlot(double[] x, double[][] ySets)
     {
         var series = new StackedAreaSeries(x, ySets);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a pie chart series from the given slice sizes.</summary>
@@ -401,8 +404,7 @@ public sealed class Axes
     public PieSeries Pie(double[] sizes, string[]? labels = null)
     {
         var series = new PieSeries(sizes) { Labels = labels };
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a heatmap series from the given two-dimensional data array.</summary>
@@ -411,8 +413,7 @@ public sealed class Axes
     public HeatmapSeries Heatmap(double[,] data)
     {
         var series = new HeatmapSeries(data);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds an image series from the given two-dimensional data array (imshow).</summary>
@@ -421,8 +422,7 @@ public sealed class Axes
     public ImageSeries Image(double[,] data)
     {
         var series = new ImageSeries(data);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a 2D histogram (density) series from X,Y scatter data.</summary>
@@ -434,8 +434,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(x.Length, y.Length);
         var series = new Histogram2DSeries(x, y, bins, bins);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a box plot series from the given array of datasets.</summary>
@@ -444,8 +443,7 @@ public sealed class Axes
     public BoxSeries BoxPlot(double[][] datasets)
     {
         var series = new BoxSeries(datasets);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a violin plot series from the given array of datasets.</summary>
@@ -454,8 +452,7 @@ public sealed class Axes
     public ViolinSeries Violin(double[][] datasets)
     {
         var series = new ViolinSeries(datasets);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a hexagonal binning series from the given X and Y scatter data.</summary>
@@ -465,8 +462,7 @@ public sealed class Axes
     public HexbinSeries Hexbin(double[] x, double[] y)
     {
         var series = new HexbinSeries(x, y);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a polynomial regression series fitted to the given X and Y data.</summary>
@@ -476,8 +472,7 @@ public sealed class Axes
     public RegressionSeries Regression(double[] x, double[] y)
     {
         var series = new RegressionSeries(x, y);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a kernel density estimation (KDE) series for the given data sample.</summary>
@@ -486,8 +481,7 @@ public sealed class Axes
     public KdeSeries Kde(double[] data)
     {
         var series = new KdeSeries(data);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a contour series from the given X, Y, and Z data.</summary>
@@ -498,8 +492,7 @@ public sealed class Axes
     public ContourSeries Contour(double[] x, double[] y, double[,] z)
     {
         var series = new ContourSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a filled contour series from the given X, Y, and Z data.</summary>
@@ -510,8 +503,7 @@ public sealed class Axes
     public ContourfSeries Contourf(double[] x, double[] y, double[,] z)
     {
         var series = new ContourfSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a stem plot series from the given X and Y data arrays.</summary>
@@ -522,8 +514,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(x.Length, y.Length);
         var series = new StemSeries(x, y);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a radar (spider) chart series from the given categories and values.</summary>
@@ -531,8 +522,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(categories.Length, values.Length);
         var series = new RadarSeries(categories, values);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a quiver (vector field) series from the given position and vector data.</summary>
@@ -542,16 +532,14 @@ public sealed class Axes
         ValidateMatchingLengths(x.Length, u.Length);
         ValidateMatchingLengths(x.Length, v.Length);
         var series = new QuiverSeries(x, y, u, v);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a streamplot (vector field streamlines) series from the given grid and velocity data.</summary>
     public StreamplotSeries Streamplot(double[] x, double[] y, double[,] u, double[,] v)
     {
         var series = new StreamplotSeries(x, y, u, v);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a candlestick (OHLC) series from the given price data.</summary>
@@ -561,8 +549,7 @@ public sealed class Axes
         ValidateMatchingLengths(open.Length, low.Length);
         ValidateMatchingLengths(open.Length, close.Length);
         var series = new CandlestickSeries(open, high, low, close) { DateLabels = dateLabels };
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds an error bar series from the given X, Y data and error magnitudes.</summary>
@@ -572,8 +559,7 @@ public sealed class Axes
         ValidateMatchingLengths(x.Length, yErrorLow.Length);
         ValidateMatchingLengths(x.Length, yErrorHigh.Length);
         var series = new ErrorBarSeries(x, y, yErrorLow, yErrorHigh);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a step-function series from the given X and Y data arrays.</summary>
@@ -584,8 +570,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(x.Length, y.Length);
         var series = new StepSeries(x, y);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a filled area series from the given X and Y data arrays.</summary>
@@ -598,16 +583,14 @@ public sealed class Axes
         ValidateMatchingLengths(x.Length, y.Length);
         if (y2 is not null) ValidateMatchingLengths(x.Length, y2.Length);
         var series = new AreaSeries(x, y) { YData2 = y2 };
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a donut chart series.</summary>
     public DonutSeries Donut(double[] sizes, string[]? labels = null)
     {
         var series = new DonutSeries(sizes) { Labels = labels };
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a bubble chart series from X, Y, and size arrays.</summary>
@@ -616,8 +599,7 @@ public sealed class Axes
         ValidateMatchingLengths(x.Length, y.Length);
         ValidateMatchingLengths(x.Length, sizes.Length);
         var series = new BubbleSeries(x, y, sizes);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a traditional OHLC bar chart series from price data.</summary>
@@ -627,8 +609,7 @@ public sealed class Axes
         ValidateMatchingLengths(open.Length, low.Length);
         ValidateMatchingLengths(open.Length, close.Length);
         var series = new OhlcBarSeries(open, high, low, close) { DateLabels = dateLabels };
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a waterfall chart showing cumulative positive and negative changes.</summary>
@@ -636,8 +617,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(categories.Length, values.Length);
         var series = new WaterfallSeries(categories, values);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a funnel chart showing progressive reduction through stages.</summary>
@@ -645,8 +625,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(labels.Length, values.Length);
         var series = new FunnelSeries(labels, values);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a gauge (speedometer) chart displaying a single value within a range.</summary>
@@ -658,7 +637,7 @@ public sealed class Axes
     /// <summary>Adds a single-value stat tile (a big headline number + label) filling the plot area.</summary>
     public StatTileSeries StatTile(double value) { var s = new StatTileSeries(value); _series.Add(s); return s; }
 
-    /// <summary>Adds a bullet graph — a measure, an optional target tick, and optional qualitative bands.</summary>
+    /// <summary>Adds a bullet graph â€” a measure, an optional target tick, and optional qualitative bands.</summary>
     /// <param name="value">The measure.</param>
     /// <returns>The created series.</returns>
     public BulletGraphSeries Bullet(double value) { var s = new BulletGraphSeries(value); _series.Add(s); return s; }
@@ -673,7 +652,7 @@ public sealed class Axes
         return s;
     }
 
-    /// <summary>Adds a sparkline — a tiny inline line chart with no axes or labels.</summary>
+    /// <summary>Adds a sparkline â€” a tiny inline line chart with no axes or labels.</summary>
     public SparklineSeries Sparkline(double[] values) { var s = new SparklineSeries(values); _series.Add(s); return s; }
 
     /// <summary>Adds a Gantt chart showing task durations on a timeline.</summary>
@@ -682,24 +661,21 @@ public sealed class Axes
         ValidateMatchingLengths(tasks.Length, starts.Length);
         ValidateMatchingLengths(tasks.Length, ends.Length);
         var series = new GanttSeries(tasks, starts, ends);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a treemap series to the axes.</summary>
     public TreemapSeries Treemap(TreeNode root)
     {
         var series = new TreemapSeries(root);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a sunburst series to the axes.</summary>
     public SunburstSeries Sunburst(TreeNode root)
     {
         var series = new SunburstSeries(root);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a dendrogram series to the axes.</summary>
@@ -709,8 +685,7 @@ public sealed class Axes
     public DendrogramSeries Dendrogram(TreeNode root)
     {
         var series = new DendrogramSeries(root);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a clustermap series to the axes (heatmap with optional row/column dendrograms).</summary>
@@ -721,11 +696,10 @@ public sealed class Axes
     {
         var series = new ClustermapSeries(data);
         configure?.Invoke(series);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
-    /// <summary>Adds a pair-grid series to the axes (N×N matrix of histograms + scatters).</summary>
+    /// <summary>Adds a pair-grid series to the axes (NÃ—N matrix of histograms + scatters).</summary>
     /// <param name="variables">The N input variables (one <c>double[]</c> per variable, all equal length).</param>
     /// <param name="configure">Optional configuration callback for the series.</param>
     /// <returns>The newly added <see cref="PairGridSeries"/> for further property configuration.</returns>
@@ -733,8 +707,7 @@ public sealed class Axes
     {
         var series = new PairGridSeries(variables);
         configure?.Invoke(series);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a network-graph series to the axes (nodes + edges in 2D).</summary>
@@ -749,14 +722,13 @@ public sealed class Axes
     {
         var series = new NetworkGraphSeries(nodes, edges);
         configure?.Invoke(series);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a Relative Rotation Graph series to the axes.</summary>
     /// <param name="assetCloses">Per-asset close price series (jagged; each element must equal <paramref name="benchmarkCloses"/> length).</param>
     /// <param name="benchmarkCloses">Benchmark close price series (e.g. BTC).</param>
-    /// <param name="assetLabels">Display labels — one per asset (e.g. "ETH", "SOL").</param>
+    /// <param name="assetLabels">Display labels â€” one per asset (e.g. "ETH", "SOL").</param>
     /// <param name="configure">Optional configuration callback.</param>
     /// <returns>The newly added <see cref="RelativeRotationSeries"/> for further property configuration.</returns>
     public RelativeRotationSeries RelativeRotation(
@@ -767,16 +739,14 @@ public sealed class Axes
     {
         var series = new RelativeRotationSeries(assetCloses, benchmarkCloses, assetLabels);
         configure?.Invoke(series);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a Sankey diagram series to the axes.</summary>
     public SankeySeries Sankey(SankeyNode[] nodes, SankeyLink[] links)
     {
         var series = new SankeySeries(nodes, links);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a polar line series and sets coordinate system to Polar.</summary>
@@ -784,8 +754,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.Polar;
         var series = new PolarLineSeries(r, theta);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a polar scatter series and sets coordinate system to Polar.</summary>
@@ -793,8 +762,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.Polar;
         var series = new PolarScatterSeries(r, theta);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a polar bar series and sets coordinate system to Polar.</summary>
@@ -802,8 +770,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.Polar;
         var series = new PolarBarSeries(r, theta);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a polar heatmap series and sets coordinate system to Polar.
@@ -815,8 +782,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.Polar;
         var series = new PolarHeatmapSeries(data, thetaBins, rBins);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a 3D surface series and sets coordinate system to ThreeD.</summary>
@@ -824,8 +790,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new SurfaceSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a 3D wireframe series and sets coordinate system to ThreeD.</summary>
@@ -833,8 +798,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new WireframeSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a 3D scatter series and sets coordinate system to ThreeD.</summary>
@@ -842,8 +806,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new Scatter3DSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a 3D stem series and sets coordinate system to ThreeD.</summary>
@@ -851,8 +814,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new Stem3DSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a 3D bar series and sets coordinate system to ThreeD.</summary>
@@ -860,18 +822,16 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new Bar3DSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
-    /// <summary>Adds a planar 3D bar series (flat translucent rectangles in Y-planes —
+    /// <summary>Adds a planar 3D bar series (flat translucent rectangles in Y-planes â€”
     /// matplotlib's "2D bars in different planes" pattern) and sets coordinate system to ThreeD.</summary>
     public PlanarBar3DSeries PlanarBar3D(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new PlanarBar3DSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a 3D line (polyline) series and sets coordinate system to ThreeD.</summary>
@@ -879,8 +839,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new Line3DSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a triangulated surface series and sets coordinate system to ThreeD.</summary>
@@ -888,8 +847,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new Trisurf3DSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a 3D contour series and sets coordinate system to ThreeD.</summary>
@@ -897,8 +855,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new Contour3DSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a 3D quiver (vector field) series and sets coordinate system to ThreeD.</summary>
@@ -906,8 +863,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new Quiver3DSeries(x, y, z, u, v, w);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a voxel series and sets coordinate system to ThreeD.</summary>
@@ -915,8 +871,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new VoxelSeries(filled);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a single 3D text annotation and sets coordinate system to ThreeD.</summary>
@@ -924,8 +879,7 @@ public sealed class Axes
     {
         CoordinateSystem = CoordinateSystem.ThreeD;
         var series = new Text3DSeries([new Text3DAnnotation(x, y, z, text)]);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     // -------------------------------------------------------------------------
@@ -938,8 +892,7 @@ public sealed class Axes
     public RugplotSeries Rugplot(Numerics.Vec data)
     {
         var series = new RugplotSeries(data);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a strip plot series showing individual data points per category with random jitter.</summary>
@@ -948,8 +901,7 @@ public sealed class Axes
     public StripplotSeries Stripplot(double[][] datasets)
     {
         var series = new StripplotSeries(datasets);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds an event plot series showing event positions as vertical tick lines per row.</summary>
@@ -958,8 +910,7 @@ public sealed class Axes
     public EventplotSeries Eventplot(double[][] positions)
     {
         var series = new EventplotSeries(positions);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a broken bar series showing horizontal bars with gaps per row.</summary>
@@ -968,8 +919,7 @@ public sealed class Axes
     public BrokenBarSeries BrokenBarH(BarRange[][] ranges)
     {
         var series = new BrokenBarSeries(ranges);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a count plot series showing the frequency of raw categorical values as bars.</summary>
@@ -978,20 +928,18 @@ public sealed class Axes
     public CountSeries Countplot(string[] values)
     {
         var series = new CountSeries(values);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a pseudocolor mesh series on a non-uniform rectangular grid.</summary>
     /// <param name="x">The M+1 X-axis edge coordinates.</param>
     /// <param name="y">The N+1 Y-axis edge coordinates.</param>
-    /// <param name="c">The N×M data matrix.</param>
+    /// <param name="c">The NÃ—M data matrix.</param>
     /// <returns>The newly created <see cref="PcolormeshSeries"/> for further configuration.</returns>
     public PcolormeshSeries Pcolormesh(Numerics.Vec x, Numerics.Vec y, double[,] c)
     {
         var series = new PcolormeshSeries(x, y, c);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a residual plot series showing regression residuals as a scatter plot.</summary>
@@ -1001,18 +949,16 @@ public sealed class Axes
     public ResidualSeries Residplot(Numerics.Vec x, Numerics.Vec y)
     {
         var series = new ResidualSeries(x, y);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
-    /// <summary>Adds a point plot series showing mean ± confidence interval per category.</summary>
+    /// <summary>Adds a point plot series showing mean Â± confidence interval per category.</summary>
     /// <param name="datasets">An array of datasets, one per category.</param>
     /// <returns>The newly created <see cref="PointplotSeries"/> for further configuration.</returns>
     public PointplotSeries Pointplot(double[][] datasets)
     {
         var series = new PointplotSeries(datasets);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a swarm plot series showing non-overlapping dots per category.</summary>
@@ -1021,8 +967,7 @@ public sealed class Axes
     public SwarmplotSeries Swarmplot(double[][] datasets)
     {
         var series = new SwarmplotSeries(datasets);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a spectrogram series displaying the time-frequency content of a signal.</summary>
@@ -1032,60 +977,53 @@ public sealed class Axes
     public SpectrogramSeries Spectrogram(Numerics.Vec signal, int sampleRate = 1)
     {
         var series = new SpectrogramSeries(signal) { SampleRate = sampleRate };
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a table series rendered inside the plot area.</summary>
-    /// <param name="cellData">2D array of cell text values (rows × columns).</param>
+    /// <param name="cellData">2D array of cell text values (rows Ã— columns).</param>
     /// <returns>The newly created <see cref="TableSeries"/> for further configuration.</returns>
     public TableSeries Table(string[][] cellData)
     {
         var series = new TableSeries(cellData);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
-    /// <summary>Adds a tree-grid series — indented rows with right-aligned value columns.</summary>
+    /// <summary>Adds a tree-grid series â€” indented rows with right-aligned value columns.</summary>
     /// <param name="rows">The rows, already flattened in the order they are drawn.</param>
     /// <returns>The newly created <see cref="TreeGridSeries"/> for further configuration.</returns>
     public TreeGridSeries TreeGrid(IReadOnlyList<TreeGridRow> rows)
     {
         var series = new TreeGridSeries(rows);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a contour series on an unstructured triangular mesh.</summary>
     public TricontourSeries Tricontour(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
     {
         var series = new TricontourSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a pseudocolor series on a triangular mesh.</summary>
     public TripcolorSeries Tripcolor(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
     {
         var series = new TripcolorSeries(x, y, z);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a quiver key (reference arrow) series.</summary>
     public QuiverKeySeries QuiverKey(double x, double y, double u, string label)
     {
         var series = new QuiverKeySeries(x, y, u, label);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a wind barb series.</summary>
     public BarbsSeries Barbs(Numerics.Vec x, Numerics.Vec y, Numerics.Vec speed, Numerics.Vec direction)
     {
         var series = new BarbsSeries(x, y, speed, direction);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a buy or sell signal marker at the specified data coordinates.</summary>
@@ -1186,7 +1124,7 @@ public sealed class Axes
     /// <paramref name="value"/> and a shaded <see cref="SpanRegion"/> covering the breach zone
     /// on the <paramref name="breach"/> side. An optional text <paramref name="label"/> is
     /// added as an <see cref="Annotation"/> anchored at the threshold value.
-    /// <para>The span runs from the threshold to ±<see cref="double.MaxValue"/>; the renderer clips a span to the plot area,
+    /// <para>The span runs from the threshold to Â±<see cref="double.MaxValue"/>; the renderer clips a span to the plot area,
     /// so the zone fills the plot from the threshold line to the plot edge on the breach side. The automatic range
     /// holds the threshold's line; a threshold beyond a limit set on the axis draws neither its line nor its
     /// zone.</para></summary>
@@ -1229,8 +1167,7 @@ public sealed class Axes
     {
         ValidateMatchingLengths(x.Length, y.Length);
         var series = new SignalXYSeries(x, y);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     /// <summary>Adds a <see cref="SignalSeries"/> with uniform sample rate.</summary>
@@ -1240,8 +1177,7 @@ public sealed class Axes
     public SignalSeries Signal(double[] y, double sampleRate = 1.0, double xStart = 0.0)
     {
         var series = new SignalSeries(y, sampleRate, xStart);
-        _series.Add(series);
-        return series;
+        return AddSeries(series);
     }
 
     private static void ValidateMatchingLengths(int a, int b)
