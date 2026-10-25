@@ -23,20 +23,15 @@ public abstract class CandleIndicator<TResult> : Indicator<TResult>
 
     protected int BarCount { get; }
 
-    /// <summary>Creates a new candle indicator from HLC data.</summary>
-    protected CandleIndicator(double[] high, double[] low, double[] close)
-        : this([], high, low, close, []) { }
-
-    /// <summary>Creates a new candle indicator from full OHLCV data.</summary>
-    protected CandleIndicator(double[] open, double[] high, double[] low,
-                              double[] close, double[] volume)
+    /// <summary>Creates a new candle indicator from the given bars.</summary>
+    protected CandleIndicator(OhlcvBars bars)
     {
-        Open = open;
-        High = high;
-        Low = low;
-        Close = close;
-        Volume = volume;
-        BarCount = Math.Min(Math.Min(high.Length, low.Length), close.Length);
+        Open = bars.Open;
+        High = bars.High;
+        Low = bars.Low;
+        Close = bars.Close;
+        Volume = bars.Volume;
+        BarCount = Math.Min(Math.Min(High.Length, Low.Length), Close.Length);
     }
 
     // ── Derived computations ──

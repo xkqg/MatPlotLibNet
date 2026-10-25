@@ -20,10 +20,8 @@ public sealed class RelativeVigorIndex : CandleIndicator<RviResult>
     /// <param name="period">Rolling SMA period on the weighted-smoothed value/range.
     /// Default 10. Must be ≥ 2.</param>
     public RelativeVigorIndex(double[] open, double[] high, double[] low, double[] close, int period = 10)
-        : base(open, high, low, close, [])
+        : base(OhlcvBars.Ohlc(open, high, low, close))
     {
-        if (open.Length != high.Length || high.Length != low.Length || low.Length != close.Length)
-            throw new ArgumentException("OHLC arrays must have equal length.");
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         _period = period;

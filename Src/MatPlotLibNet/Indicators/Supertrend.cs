@@ -24,7 +24,7 @@ public sealed class Supertrend : CandleIndicator<SupertrendResult>
     /// <param name="multiplier">ATR band multiplier. Default 3.0. Must be &gt; 0.</param>
     public Supertrend(double[] high, double[] low, double[] close,
         int period = 10, double multiplier = 3.0)
-        : base(high, low, close)
+        : base(OhlcvBars.Hlc(high, low, close))
     {
         if (high.Length != low.Length || high.Length != close.Length)
             throw new ArgumentException(

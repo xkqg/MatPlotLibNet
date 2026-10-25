@@ -17,11 +17,8 @@ public sealed class ForceIndex : CandleIndicator<SignalResult>
     /// <param name="volume">Volume per bar (same length as <paramref name="close"/>).</param>
     /// <param name="period">EMA smoothing period (default 13). Must be ≥ 1. Period 1 = no smoothing.</param>
     public ForceIndex(double[] close, double[] volume, int period = 13)
-        : base([], close, close, close, volume)
+        : base(OhlcvBars.Cv(close, volume))
     {
-        if (close.Length != volume.Length)
-            throw new ArgumentException(
-                $"close ({close.Length}) and volume ({volume.Length}) must have equal length.", nameof(volume));
         if (period < 1)
             throw new ArgumentException($"period must be >= 1 (got {period}).", nameof(period));
         _period = period;

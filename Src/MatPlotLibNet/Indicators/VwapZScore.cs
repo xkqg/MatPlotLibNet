@@ -18,11 +18,8 @@ public sealed class VwapZScore : CandleIndicator<SignalResult>
     /// <param name="volume">Volume per bar. Must match <paramref name="close"/> length.</param>
     /// <param name="window">Rolling window length. Default 20. Must be ≥ 2.</param>
     public VwapZScore(double[] close, double[] volume, int window = 20)
-        : base([], close, close, close, volume) // H=L=close placeholder; Compute() uses only Close + Volume
+        : base(OhlcvBars.Cv(close, volume))
     {
-        if (close.Length != volume.Length)
-            throw new ArgumentException(
-                $"close ({close.Length}) and volume ({volume.Length}) must have equal length.");
         if (window < 2)
             throw new ArgumentException($"window must be >= 2 (got {window}).", nameof(window));
         _window = window;

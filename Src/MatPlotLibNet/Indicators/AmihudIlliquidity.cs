@@ -23,11 +23,8 @@ public sealed class AmihudIlliquidity : CandleIndicator<SignalResult>
     /// <exception cref="ArgumentException">Thrown on length mismatch, non-positive period,
     /// or non-positive close.</exception>
     public AmihudIlliquidity(double[] close, double[] volume, int period = 20)
-        : base([], close, close, close, volume)
+        : base(OhlcvBars.Cv(close, volume))
     {
-        if (close.Length != volume.Length)
-            throw new ArgumentException(
-                $"close ({close.Length}) and volume ({volume.Length}) must have equal length.", nameof(volume));
         if (period <= 0)
             throw new ArgumentException($"period must be > 0 (got {period}).", nameof(period));
         for (int i = 0; i < close.Length; i++)

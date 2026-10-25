@@ -14,7 +14,7 @@ public sealed class Atr : CandleIndicator<SignalResult>
 
     /// <summary>Creates a new ATR indicator.</summary>
     public Atr(double[] high, double[] low, double[] close, int period = 14)
-        : base(high, low, close)
+        : base(OhlcvBars.Hlc(high, low, close))
     {
         _period = period;
         Label = $"ATR({period})";

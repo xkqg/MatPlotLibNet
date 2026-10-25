@@ -24,7 +24,7 @@ public sealed class YangZhang : CandleIndicator<SignalResult>
     /// <param name="period">Rolling window length. Must be ≥ 2 (k formula has (N−1) in denominator).</param>
     /// <exception cref="ArgumentException">Thrown when period &lt; 2 or any input bar has a non-positive price.</exception>
     public YangZhang(double[] open, double[] high, double[] low, double[] close, int period = 20)
-        : base(open, high, low, close, [])
+        : base(OhlcvBars.Ohlc(open, high, low, close))
     {
         if (period < 2)
             throw new ArgumentException($"YangZhang period must be >= 2 (got {period}); k formula has (N-1) in denominator.", nameof(period));

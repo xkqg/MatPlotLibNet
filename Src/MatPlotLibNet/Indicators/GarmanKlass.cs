@@ -24,7 +24,7 @@ public sealed class GarmanKlass : CandleIndicator<SignalResult>
     /// <param name="period">Rolling window length in bars (default 20).</param>
     /// <exception cref="ArgumentException">Thrown when any input bar has a non-positive price.</exception>
     public GarmanKlass(double[] open, double[] high, double[] low, double[] close, int period = 20)
-        : base(open, high, low, close, [])
+        : base(OhlcvBars.Ohlc(open, high, low, close))
     {
         GuardPositive(open, high, low, close);
         _period = period;

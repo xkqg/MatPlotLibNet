@@ -19,7 +19,7 @@ public sealed class Cci : CandleIndicator<SignalResult>
     /// <param name="close">Close prices.</param>
     /// <param name="period">Lookback period (default 20).</param>
     public Cci(double[] high, double[] low, double[] close, int period = 20)
-        : base(high, low, close)
+        : base(OhlcvBars.Hlc(high, low, close))
     {
         _period = period;
         Label = $"CCI({period})";

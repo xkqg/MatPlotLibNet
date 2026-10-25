@@ -24,11 +24,8 @@ public sealed class YangZhangVolRatio : CandleIndicator<SignalResult>
     /// <param name="longWindow">Long YZ window. Default 60. Must be &gt; <paramref name="shortWindow"/>.</param>
     public YangZhangVolRatio(double[] open, double[] high, double[] low, double[] close,
         int shortWindow = 20, int longWindow = 60)
-        : base(open, high, low, close, [])
+        : base(OhlcvBars.Ohlc(open, high, low, close))
     {
-        if (open.Length != high.Length || open.Length != low.Length || open.Length != close.Length)
-            throw new ArgumentException(
-                $"open ({open.Length}), high ({high.Length}), low ({low.Length}), and close ({close.Length}) must have equal length.");
         if (shortWindow < 2)
             throw new ArgumentException($"shortWindow must be >= 2 (got {shortWindow}).", nameof(shortWindow));
         if (longWindow <= shortWindow)

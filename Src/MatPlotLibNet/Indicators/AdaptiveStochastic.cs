@@ -22,10 +22,8 @@ public sealed class AdaptiveStochastic : CandleIndicator<SignalResult>
     /// <param name="smoothingPeriod">SuperSmoother period applied to raw %K. Default 3.
     /// Must be ≥ 1 (use 1 to skip smoothing).</param>
     public AdaptiveStochastic(double[] high, double[] low, double[] close, int smoothingPeriod = 3)
-        : base([], high, low, close, [])
+        : base(OhlcvBars.Hlc(high, low, close))
     {
-        if (high.Length != low.Length || low.Length != close.Length)
-            throw new ArgumentException("HLC arrays must have equal length.");
         if (smoothingPeriod < 1)
             throw new ArgumentException(
                 $"smoothingPeriod must be >= 1 (got {smoothingPeriod}).", nameof(smoothingPeriod));

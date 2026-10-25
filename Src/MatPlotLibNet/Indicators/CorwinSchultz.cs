@@ -20,11 +20,8 @@ public sealed class CorwinSchultz : CandleIndicator<SignalResult>
     /// <exception cref="ArgumentException">Thrown on length mismatch, period &lt; 2,
     /// non-positive H or L, or H &lt; L on any bar.</exception>
     public CorwinSchultz(double[] high, double[] low, int period = 20)
-        : base([], high, low, high, [])
+        : base(OhlcvBars.Hl(high, low))
     {
-        if (high.Length != low.Length)
-            throw new ArgumentException(
-                $"high ({high.Length}) and low ({low.Length}) must have equal length.", nameof(low));
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         for (int i = 0; i < high.Length; i++)

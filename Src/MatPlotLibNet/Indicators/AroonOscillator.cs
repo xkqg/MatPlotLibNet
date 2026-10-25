@@ -17,11 +17,8 @@ public sealed class AroonOscillator : CandleIndicator<SignalResult>
     /// <param name="low">Low prices (must satisfy <c>L ≤ H</c>).</param>
     /// <param name="period">Lookback window. Default 25. Must be ≥ 2.</param>
     public AroonOscillator(double[] high, double[] low, int period = 25)
-        : base([], high, low, high, [])
+        : base(OhlcvBars.Hl(high, low))
     {
-        if (high.Length != low.Length)
-            throw new ArgumentException(
-                $"high ({high.Length}) and low ({low.Length}) must have equal length.", nameof(low));
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         for (int i = 0; i < high.Length; i++)

@@ -17,7 +17,7 @@ public sealed class Ichimoku : CandleIndicator<IchimokuResult>
     /// <summary>Creates a new Ichimoku Cloud indicator with standard parameters.</summary>
     public Ichimoku(double[] high, double[] low, double[] close,
         int tenkanPeriod = 9, int kijunPeriod = 26, int senkouBPeriod = 52, int displacement = 26)
-        : base(high, low, close)
+        : base(OhlcvBars.Hlc(high, low, close))
     {
         _tenkanPeriod = tenkanPeriod; _kijunPeriod = kijunPeriod;
         _senkouBPeriod = senkouBPeriod; _displacement = displacement;

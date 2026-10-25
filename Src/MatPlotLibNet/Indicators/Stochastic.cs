@@ -24,7 +24,7 @@ public sealed class Stochastic : CandleIndicator<StochasticResult>
     /// <param name="kPeriod">The %K lookback period (default 14).</param>
     /// <param name="dPeriod">The %D smoothing period (default 3).</param>
     public Stochastic(double[] high, double[] low, double[] close, int kPeriod = 14, int dPeriod = 3)
-        : base(high, low, close)
+        : base(OhlcvBars.Hlc(high, low, close))
     {
         _kPeriod = kPeriod;
         _dPeriod = dPeriod;

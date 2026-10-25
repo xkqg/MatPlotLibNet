@@ -27,11 +27,8 @@ public sealed class KlingerVolumeOscillator : CandleIndicator<KlingerResult>
     /// <param name="signalPeriod">EMA span for the signal line. Default 13. Must be ≥ 1.</param>
     public KlingerVolumeOscillator(double[] high, double[] low, double[] close, double[] volume,
         int fastPeriod = 34, int slowPeriod = 55, int signalPeriod = 13)
-        : base([], high, low, close, volume)
+        : base(OhlcvBars.Hlcv(high, low, close, volume))
     {
-        if (high.Length != low.Length || high.Length != close.Length || high.Length != volume.Length)
-            throw new ArgumentException(
-                $"high ({high.Length}), low ({low.Length}), close ({close.Length}), and volume ({volume.Length}) must have equal length.");
         if (fastPeriod < 2)
             throw new ArgumentException($"fastPeriod must be >= 2 (got {fastPeriod}).", nameof(fastPeriod));
         if (slowPeriod <= fastPeriod)

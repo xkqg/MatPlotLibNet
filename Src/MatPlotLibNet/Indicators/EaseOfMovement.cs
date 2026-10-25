@@ -23,11 +23,8 @@ public sealed class EaseOfMovement : CandleIndicator<SignalResult>
     /// Default 10^6 (suits crypto / intraday). Must be &gt; 0.</param>
     public EaseOfMovement(double[] high, double[] low, double[] volume,
         int period = 14, double scale = 1_000_000)
-        : base([], high, low, high, volume) // close=high placeholder; Compute() uses only H, L, V
+        : base(OhlcvBars.Hlv(high, low, volume))
     {
-        if (high.Length != low.Length || high.Length != volume.Length)
-            throw new ArgumentException(
-                $"high ({high.Length}), low ({low.Length}), and volume ({volume.Length}) must have equal length.");
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         if (scale <= 0)

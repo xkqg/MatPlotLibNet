@@ -21,11 +21,8 @@ public sealed class TwiggsMoneyFlow : CandleIndicator<SignalResult>
     /// <param name="volume">Volume per bar.</param>
     /// <param name="period">Wilder smoothing period. Default 21. Must be ≥ 2.</param>
     public TwiggsMoneyFlow(double[] high, double[] low, double[] close, double[] volume, int period = 21)
-        : base([], high, low, close, volume)
+        : base(OhlcvBars.Hlcv(high, low, close, volume))
     {
-        if (high.Length != low.Length || high.Length != close.Length || high.Length != volume.Length)
-            throw new ArgumentException(
-                $"high ({high.Length}), low ({low.Length}), close ({close.Length}), and volume ({volume.Length}) must have equal length.");
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         _period = period;

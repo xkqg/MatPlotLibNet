@@ -18,7 +18,7 @@ public sealed class KeltnerChannels : CandleIndicator<BandsResult>
 
     /// <summary>Creates a new Keltner Channels indicator.</summary>
     public KeltnerChannels(double[] high, double[] low, double[] close, int period = 20, double atrMultiplier = 1.5)
-        : base(high, low, close)
+        : base(OhlcvBars.Hlc(high, low, close))
     {
         _period = period; _atrMultiplier = atrMultiplier;
         Label = $"KC({period},{atrMultiplier})";

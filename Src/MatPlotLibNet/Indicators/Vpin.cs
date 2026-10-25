@@ -22,11 +22,8 @@ public sealed class Vpin : CandleIndicator<SignalResult>
     /// <param name="bucketPeriod">Rolling VPIN bucket length (default 50).</param>
     /// <param name="sigmaPeriod">Rolling return-std normalization window (default 50).</param>
     public Vpin(double[] close, double[] volume, int bucketPeriod = 50, int sigmaPeriod = 50)
-        : base([], close, close, close, volume)
+        : base(OhlcvBars.Cv(close, volume))
     {
-        if (close.Length != volume.Length)
-            throw new ArgumentException(
-                $"close ({close.Length}) and volume ({volume.Length}) must have equal length.", nameof(volume));
         if (bucketPeriod <= 0)
             throw new ArgumentException($"bucketPeriod must be > 0 (got {bucketPeriod}).", nameof(bucketPeriod));
         if (sigmaPeriod <= 0)

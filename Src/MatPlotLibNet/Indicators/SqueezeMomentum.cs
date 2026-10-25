@@ -23,10 +23,8 @@ public sealed class SqueezeMomentum : CandleIndicator<SqueezeResult>
     /// <param name="kcMult">Keltner Channel ATR multiplier (default 1.5). Must be &gt; 0.</param>
     public SqueezeMomentum(double[] high, double[] low, double[] close,
                            int period = 20, double bbMult = 2.0, double kcMult = 1.5)
-        : base([], high, low, close, [])
+        : base(OhlcvBars.Hlc(high, low, close))
     {
-        if (high.Length != low.Length || low.Length != close.Length)
-            throw new ArgumentException("HLC arrays must have equal length.");
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
         if (bbMult <= 0)
