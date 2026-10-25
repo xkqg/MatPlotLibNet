@@ -426,6 +426,42 @@ public class AxesBuilderTests
         Assert.Equal(0.35, inset.InsetBounds.Value.Width);
     }
 
+    /// <summary>AddInset hand-copies a subset of the configured builder's state onto the real inset Axes
+    /// (series, title, axis labels/min/max, spines, grid) — everything else configured on the inset builder
+    /// is silently lost. Measured: an axis scale and a reference line configured inside the callback never
+    /// reach the inset that is actually drawn.</summary>
+    [Fact]
+    public void AddInset_Fluent_CopiesAxisScale()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AddInset(0.6, 0.1, 0.35, 0.35, inset => inset
+                    .Plot([1.5, 2.0], [3.5, 4.0])
+                    .SetYScale(AxisScale.Log)))
+            .Build();
+
+        var inset = figure.SubPlots[0].Insets[0];
+        Assert.Equal(AxisScale.Log, inset.YAxis.Scale);
+    }
+
+    /// <summary>See <see cref="AddInset_Fluent_CopiesAxisScale"/>.</summary>
+    [Fact]
+    public void AddInset_Fluent_CopiesReferenceLines()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .AddInset(0.6, 0.1, 0.35, 0.35, inset => inset
+                    .Plot([1.5, 2.0], [3.5, 4.0])
+                    .AxHLine(2.5)))
+            .Build();
+
+        var inset = figure.SubPlots[0].Insets[0];
+        Assert.Single(inset.ReferenceLines);
+        Assert.Equal(2.5, inset.ReferenceLines[0].Value);
+    }
+
     /// <summary>Verifies the canonical InsetBounds overload creates and configures the inset.</summary>
     [Fact]
     public void AddInset_InsetBounds_Fluent_ConfiguresInset()

@@ -98,6 +98,14 @@ public sealed class ChartSerializer : IChartSerializer
         ResponsiveSvg = figure.ResponsiveSvg.OrNullAtRest(RestingFigure.ResponsiveSvg),
     };
 
+    /// <summary>Copies everything an axes draws from <paramref name="source"/> onto <paramref name="target"/> —
+    /// series, title, both axes, grid, spines, legend, and every overlay (annotations, reference lines, spans,
+    /// trendlines, levels, Fibonacci retracements, secondary axes). The same write/read pair the JSON round-trip
+    /// uses, so a property this contract carries for a figure is carried here too, with nothing to hand-copy a
+    /// second time: <see cref="AxesBuilder.AddInset(InsetBounds, Action{AxesBuilder})"/> composes an inset's real
+    /// axes from the configured builder's this way, instead of naming one property at a time.</summary>
+    internal static void CopyAxesState(Axes source, Axes target, Theme theme) => RestoreAxes(target, AxesToDto(source, theme));
+
     /// <summary>Writes one axes. <paramref name="theme"/> is the figure's: a grid the axes changed over the theme's grid
     /// is a change (code the JSON cannot carry), so it is written as the grid it draws under that theme, marked as the
     /// axes' own (<see cref="AxesDto.GridOverridesTheme"/>) so that a grid switched off stays off under a theme that

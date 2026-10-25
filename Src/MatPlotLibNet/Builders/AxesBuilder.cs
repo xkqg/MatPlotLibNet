@@ -1762,18 +1762,7 @@ public sealed class AxesBuilder
         var insetBuilder = new AxesBuilder();
         configure(insetBuilder);
         var inset = _axes.AddInset(bounds);
-        // Copy series and configuration from the builder's axes to the inset
-        foreach (var series in insetBuilder._axes.Series)
-            inset.AddSeries(series);
-        inset.Title = insetBuilder._axes.Title;
-        inset.XAxis.Label = insetBuilder._axes.XAxis.Label;
-        inset.YAxis.Label = insetBuilder._axes.YAxis.Label;
-        inset.XAxis.Min = insetBuilder._axes.XAxis.Min;
-        inset.XAxis.Max = insetBuilder._axes.XAxis.Max;
-        inset.YAxis.Min = insetBuilder._axes.YAxis.Min;
-        inset.YAxis.Max = insetBuilder._axes.YAxis.Max;
-        inset.Spines = insetBuilder._axes.Spines;
-        inset.Grid = insetBuilder._axes.Grid;
+        Serialization.ChartSerializer.CopyAxesState(insetBuilder._axes, inset, Theme.Default);
         return this;
     }
 
