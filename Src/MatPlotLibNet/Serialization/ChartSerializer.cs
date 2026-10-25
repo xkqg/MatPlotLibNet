@@ -210,12 +210,12 @@ public sealed class ChartSerializer : IChartSerializer
         {
             Text = a.Text, X = a.X, Y = a.Y,
             ArrowTargetX = a.ArrowTargetX, ArrowTargetY = a.ArrowTargetY,
-            ConnectionStyle = a.ConnectionStyle != Models.ConnectionStyle.Straight ? a.ConnectionStyle.ToString().ToLowerInvariant() : null,
-            ConnectionRad = a.ConnectionRad != 0.3 ? a.ConnectionRad : null,
-            ArrowHeadSize = a.ArrowHeadSize != 8 ? a.ArrowHeadSize : null,
-            BoxStyle = a.BoxStyle != Models.BoxStyle.None ? a.BoxStyle.ToString().ToLowerInvariant() : null,
-            BoxPadding = a.BoxPadding != 4 ? a.BoxPadding : null,
-            BoxCornerRadius = a.BoxCornerRadius != 5 ? a.BoxCornerRadius : null,
+            ConnectionStyle = a.ConnectionStyle != rest.ConnectionStyle ? a.ConnectionStyle.ToString().ToLowerInvariant() : null,
+            ConnectionRad = a.ConnectionRad.OrNullAtRest(rest.ConnectionRad),
+            ArrowHeadSize = a.ArrowHeadSize.OrNullAtRest(rest.ArrowHeadSize),
+            BoxStyle = a.BoxStyle != rest.BoxStyle ? a.BoxStyle.ToString().ToLowerInvariant() : null,
+            BoxPadding = a.BoxPadding.OrNullAtRest(rest.BoxPadding),
+            BoxCornerRadius = a.BoxCornerRadius.OrNullAtRest(rest.BoxCornerRadius),
             Coordinates = a.Coordinates.OrNullAtRest(rest.Coordinates),
             Font = FontDto.From(a.Font),
             Color = a.Color,
@@ -431,56 +431,74 @@ public sealed class ChartSerializer : IChartSerializer
         if (axDto.XAxis is not null) ApplyAxis(axes.XAxis, axDto.XAxis);
         if (axDto.YAxis is not null) ApplyAxis(axes.YAxis, axDto.YAxis);
         if (axDto.ZAxis is not null) ApplyAxis(axes.ZAxis, axDto.ZAxis);
-        if (axDto.Pane3D is { } pane3D)
-        {
-            axes.Pane3D = new Pane3DConfig
-            {
-                FloorColor = pane3D.FloorColor,
-                LeftWallColor = pane3D.LeftWallColor,
-                RightWallColor = pane3D.RightWallColor,
-                Alpha = pane3D.Alpha,
-                Visible = pane3D.Visible,
-            };
-        }
+        RestorePane3D(axes, axDto.Pane3D);
         if (axDto.EnableTooltips is { } enableTooltips) axes.EnableTooltips = enableTooltips;
         if (axDto.EnableInteractiveAttributes is { } enableInteractiveAttributes) axes.EnableInteractiveAttributes = enableInteractiveAttributes;
         if (axDto.Emit3DVertexData is { } emit3DVertexData) axes.Emit3DVertexData = emit3DVertexData;
-        if (axDto.CoordinateSystem is { } coordinateSystem && Enum.TryParse<Models.CoordinateSystem>(coordinateSystem, true, out var coordSys))
-            axes.CoordinateSystem = coordSys;
+        ApplyEnum<Models.CoordinateSystem>(axDto.CoordinateSystem, v => axes.CoordinateSystem = v);
         if (axDto.Grid is not null) RestoreGrid(axes, axDto.Grid.ToGridStyle(), axDto.GridOverridesTheme is true);
         if (axDto.Spines is not null) axes.Spines = DtoToSpines(axDto.Spines);
         if (axDto.BarMode is "stacked") axes.BarMode = BarMode.Stacked;
-
-        // Camera and lighting
-        if (axDto.Elevation.HasValue) axes.Elevation = axDto.Elevation.Value;
-        if (axDto.Azimuth.HasValue) axes.Azimuth = axDto.Azimuth.Value;
-        if (axDto.CameraDistance.HasValue) axes.CameraDistance = axDto.CameraDistance.Value;
-        if (axDto.LightSourceType is { } lsType && lsType.StartsWith("directional:", StringComparison.Ordinal))
-        {
-            var parts = lsType[12..].Split(',');
-            if (parts.Length >= 5 &&
-                double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldx) &&
-                double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldy) &&
-                double.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldz) &&
-                double.TryParse(parts[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double amb) &&
-                double.TryParse(parts[4], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double diff))
-                axes.LightSource = new Rendering.Lighting.DirectionalLight(ldx, ldy, ldz, amb, diff);
-        }
+        RestoreCameraAndLighting(axes, axDto);
 
         foreach (var sDto in axDto.Series ?? [])
             AddSeriesFromDto(axes, sDto);
 
-        foreach (var aDto in axDto.Annotations ?? [])
+        RestoreAnnotations(axes, axDto.Annotations);
+        RestoreReferenceLines(axes, axDto.ReferenceLines);
+        RestoreSecondaryAxes(axes, axDto);
+        RestoreSpans(axes, axDto.Spans);
+        RestoreTrendlines(axes, axDto.Trendlines);
+        RestoreHorizontalLevels(axes, axDto.HorizontalLevels);
+        RestoreFibonacciRetracements(axes, axDto.FibonacciRetracements);
+        RestoreInsets(axes, axDto.Insets);
+        RestoreAxisBreaks(axes, axDto);
+    }
+
+    /// <summary>The 3-D axes' pane colours and visibility; absent when the axes never changed them.</summary>
+    private static void RestorePane3D(Axes axes, Pane3DConfigDto? dto)
+    {
+        if (dto is null) return;
+        axes.Pane3D = new Pane3DConfig
+        {
+            FloorColor = dto.FloorColor,
+            LeftWallColor = dto.LeftWallColor,
+            RightWallColor = dto.RightWallColor,
+            Alpha = dto.Alpha,
+            Visible = dto.Visible,
+        };
+    }
+
+    /// <summary>The 3-D camera (elevation/azimuth/distance) and its light source. Only the <c>"directional:"</c>
+    /// wire format is read back; a light source written any other way is left at the axes' own default.</summary>
+    private static void RestoreCameraAndLighting(Axes axes, AxesDto axDto)
+    {
+        if (axDto.Elevation.HasValue) axes.Elevation = axDto.Elevation.Value;
+        if (axDto.Azimuth.HasValue) axes.Azimuth = axDto.Azimuth.Value;
+        if (axDto.CameraDistance.HasValue) axes.CameraDistance = axDto.CameraDistance.Value;
+        if (axDto.LightSourceType is not { } lsType || !lsType.StartsWith("directional:", StringComparison.Ordinal)) return;
+
+        var parts = lsType[12..].Split(',');
+        if (parts.Length >= 5 &&
+            double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldx) &&
+            double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldy) &&
+            double.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double ldz) &&
+            double.TryParse(parts[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double amb) &&
+            double.TryParse(parts[4], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double diff))
+            axes.LightSource = new Rendering.Lighting.DirectionalLight(ldx, ldy, ldz, amb, diff);
+    }
+
+    private static void RestoreAnnotations(Axes axes, List<AnnotationDto>? dtos)
+    {
+        foreach (var aDto in dtos ?? [])
         {
             var ann = axes.Annotate(aDto.Text ?? "", aDto.X, aDto.Y);
             ann.ArrowTargetX = aDto.ArrowTargetX;
             ann.ArrowTargetY = aDto.ArrowTargetY;
-            if (aDto.ConnectionStyle is not null && Enum.TryParse<Models.ConnectionStyle>(aDto.ConnectionStyle, true, out var cs))
-                ann.ConnectionStyle = cs;
+            ApplyEnum<Models.ConnectionStyle>(aDto.ConnectionStyle, v => ann.ConnectionStyle = v);
             if (aDto.ConnectionRad.HasValue) ann.ConnectionRad = aDto.ConnectionRad.Value;
             if (aDto.ArrowHeadSize.HasValue) ann.ArrowHeadSize = aDto.ArrowHeadSize.Value;
-            if (aDto.BoxStyle is not null && Enum.TryParse<Models.BoxStyle>(aDto.BoxStyle, true, out var bs))
-                ann.BoxStyle = bs;
+            ApplyEnum<Models.BoxStyle>(aDto.BoxStyle, v => ann.BoxStyle = v);
             if (aDto.BoxPadding.HasValue) ann.BoxPadding = aDto.BoxPadding.Value;
             if (aDto.BoxCornerRadius.HasValue) ann.BoxCornerRadius = aDto.BoxCornerRadius.Value;
             if (aDto.Coordinates is { } coordinates) ann.Coordinates = coordinates;
@@ -495,18 +513,23 @@ public sealed class ChartSerializer : IChartSerializer
             ann.BoxEdgeColor = aDto.BoxEdgeColor;
             if (aDto.BoxLineWidth is { } boxLineWidth) ann.BoxLineWidth = boxLineWidth;
         }
+    }
 
-        foreach (var rDto in axDto.ReferenceLines ?? [])
+    private static void RestoreReferenceLines(Axes axes, List<ReferenceLineDto>? dtos)
+    {
+        foreach (var rDto in dtos ?? [])
         {
             var orient = rDto.Orientation is "vertical" ? Orientation.Vertical : Orientation.Horizontal;
             var rl = orient == Orientation.Horizontal ? axes.AxHLine(rDto.Value) : axes.AxVLine(rDto.Value);
-            if (rDto.LineStyle is not null && Enum.TryParse<LineStyle>(rDto.LineStyle, true, out var ls))
-                rl.LineStyle = ls;
+            ApplyEnum<LineStyle>(rDto.LineStyle, v => rl.LineStyle = v);
             rl.LineWidth = rDto.LineWidth;
             rl.Label = rDto.Label;
             rl.Color = rDto.Color;
         }
+    }
 
+    private static void RestoreSecondaryAxes(Axes axes, AxesDto axDto)
+    {
         if (axDto.SecondaryYAxis is not null)
         {
             axes.TwinX();
@@ -524,57 +547,72 @@ public sealed class ChartSerializer : IChartSerializer
             AddSecondarySeriesFromDtos(axDto.XSecondarySeries,
                 sDto => CreateXSecondaryLine(axes, sDto), sDto => CreateXSecondaryScatter(axes, sDto));
         }
+    }
 
-        foreach (var sDto in axDto.Spans ?? [])
+    private static void RestoreSpans(Axes axes, List<SpanRegionDto>? dtos)
+    {
+        foreach (var sDto in dtos ?? [])
         {
             var orient = sDto.Orientation is "vertical" ? Orientation.Vertical : Orientation.Horizontal;
             var sp = orient == Orientation.Horizontal ? axes.AxHSpan(sDto.Min, sDto.Max) : axes.AxVSpan(sDto.Min, sDto.Max);
             sp.Alpha = sDto.Alpha;
-            if (sDto.LineStyle is not null && Enum.TryParse<LineStyle>(sDto.LineStyle, true, out var ls))
-                sp.LineStyle = ls;
+            ApplyEnum<LineStyle>(sDto.LineStyle, v => sp.LineStyle = v);
             if (sDto.LineWidth.HasValue) sp.LineWidth = sDto.LineWidth.Value;
             sp.Label = sDto.Label;
             sp.Color = sDto.Color;
             sp.EdgeColor = sDto.EdgeColor;
         }
+    }
 
-        foreach (var tDto in axDto.Trendlines ?? [])
+    private static void RestoreTrendlines(Axes axes, List<TrendlineDto>? dtos)
+    {
+        foreach (var tDto in dtos ?? [])
         {
             var t = axes.AddTrendline(tDto.X1, tDto.Y1, tDto.X2, tDto.Y2);
             if (tDto.Color is not null) t.Color = Styling.Color.FromHex(tDto.Color);
-            if (tDto.LineStyle is not null && Enum.TryParse<LineStyle>(tDto.LineStyle, true, out var tls))
-                t.LineStyle = tls;
+            ApplyEnum<LineStyle>(tDto.LineStyle, v => t.LineStyle = v);
             t.LineWidth = tDto.LineWidth;
             t.Label = tDto.Label;
             t.IsExtended = tDto.IsExtended;
         }
+    }
 
-        foreach (var lDto in axDto.HorizontalLevels ?? [])
+    private static void RestoreHorizontalLevels(Axes axes, List<HorizontalLevelDto>? dtos)
+    {
+        foreach (var lDto in dtos ?? [])
         {
             var l = axes.AddLevel(lDto.Value);
             if (lDto.Color is not null) l.Color = Styling.Color.FromHex(lDto.Color);
-            if (lDto.LineStyle is not null && Enum.TryParse<LineStyle>(lDto.LineStyle, true, out var lls))
-                l.LineStyle = lls;
+            ApplyEnum<LineStyle>(lDto.LineStyle, v => l.LineStyle = v);
             l.LineWidth = lDto.LineWidth;
             l.Label = lDto.Label;
         }
+    }
 
-        foreach (var fDto in axDto.FibonacciRetracements ?? [])
+    private static void RestoreFibonacciRetracements(Axes axes, List<FibonacciRetracementDto>? dtos)
+    {
+        foreach (var fDto in dtos ?? [])
         {
             var f = axes.AddFibonacci(fDto.PriceHigh, fDto.PriceLow);
             if (fDto.Color is not null) f.Color = Styling.Color.FromHex(fDto.Color);
             f.LineWidth = fDto.LineWidth;
             f.ShowLabels = fDto.ShowLabels;
         }
+    }
 
-        // An inset is an axes: read back through this same method, so it keeps whatever its writer wrote.
-        foreach (var insetDto in axDto.Insets ?? [])
+    /// <summary>An inset is an axes: read back through <see cref="RestoreAxes"/> itself, so it keeps whatever its
+    /// writer wrote.</summary>
+    private static void RestoreInsets(Axes axes, List<AxesDto>? dtos)
+    {
+        foreach (var insetDto in dtos ?? [])
         {
             if (insetDto.InsetBounds is not { } ibDto) continue;
             RestoreAxes(axes.AddInset(ibDto.X, ibDto.Y, ibDto.Width, ibDto.Height), insetDto);
         }
+    }
 
-        // Restore axis breaks
+    private static void RestoreAxisBreaks(Axes axes, AxesDto axDto)
+    {
         foreach (var bDto in axDto.XBreaks ?? [])
         {
             var style = bDto.Style is not null && Enum.TryParse<Models.BreakStyle>(bDto.Style, true, out var bs) ? bs : Models.BreakStyle.Zigzag;

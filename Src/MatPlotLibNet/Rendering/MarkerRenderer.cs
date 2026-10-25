@@ -13,7 +13,7 @@ namespace MatPlotLibNet.Rendering;
 /// full bounding-box edge / diameter in pixels; the helper converts to
 /// per-shape radii internally.</para>
 /// <para><b>Cross / Plus</b> are outline-only markers (matches matplotlib's
-/// <c>markers.py</c>). They have no fill; <paramref name="shape"/>'s <c>Fill</c>
+/// <c>markers.py</c>). They have no fill; the <c>shape</c> argument's <c>Fill</c>
 /// is used as the stroke colour instead (those shapes have no fill), with
 /// <c>StrokeThickness</c> falling back to <c>size / 8</c> when zero so the
 /// marker remains visible at small sizes.</para>
