@@ -27,6 +27,7 @@ public sealed class HexbinSeries : ChartSeries, IColormappable, INormalizable, I
     /// <summary>Initializes a new instance of <see cref="HexbinSeries"/> with the specified scatter data.</summary>
     public HexbinSeries(double[] x, double[] y)
     {
+        x.ThrowIfMisaligned(y);
         X = x;
         Y = y;
     }

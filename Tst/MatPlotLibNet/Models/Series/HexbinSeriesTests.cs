@@ -20,6 +20,15 @@ public class HexbinSeriesTests
         Assert.Equal(y, series.Y);
     }
 
+    /// <summary>Unlike XYSeries-derived series (validated by the verb that constructs them), HexbinSeries has no
+    /// constructing verb check -- the constructor validates itself, so a caller who constructs it directly is
+    /// held to the same invariant.</summary>
+    [Fact]
+    public void Constructor_MismatchedLengths_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => new HexbinSeries([1.0, 2.0, 3.0], [1.0, 2.0]));
+    }
+
     /// <summary>GridSize defaults to 20.</summary>
     [Fact]
     public void GridSize_DefaultsTo20()

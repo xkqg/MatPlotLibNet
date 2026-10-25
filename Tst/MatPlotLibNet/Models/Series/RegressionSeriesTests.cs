@@ -19,6 +19,18 @@ public class RegressionSeriesTests
         Assert.Equal(y, series.YData);
     }
 
+    /// <summary>Deliberately does NOT throw -- see <see cref="RegressionSeries"/>'s constructor doc comment.
+    /// <c>RegressionSeriesRendererDiagnosticsTests.RegressionSeriesRenderer_SingularFit_EmitsDiagnostic</c> is the
+    /// test that exercises what a mismatch actually does (reaches the renderer, which reports a diagnostic and
+    /// degrades gracefully).</summary>
+    [Fact]
+    public void Constructor_MismatchedLengths_DoesNotThrow()
+    {
+        var series = new RegressionSeries([1.0, 2.0, 3.0], [1.0, 2.0]);
+        Assert.Equal(3, series.XData.Length);
+        Assert.Equal(2, series.YData.Length);
+    }
+
     /// <summary>Degree defaults to 1 (linear).</summary>
     [Fact]
     public void Degree_DefaultsTo1()

@@ -35,6 +35,11 @@ public sealed class RegressionSeries : ChartSeries, IHasColor
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;
 
     /// <summary>Initializes a new instance of <see cref="RegressionSeries"/> with the specified X and Y data.</summary>
+    /// <remarks>Deliberately does NOT validate matching lengths at construction (unlike
+    /// <see cref="HexbinSeries"/>'s constructor): a length mismatch is the reachable way a least-squares fit fails,
+    /// and the renderer catches that failure and reports it as a diagnostic instead of crashing, so the figure
+    /// still renders with this one series missing its line. Throwing here instead would turn that graceful
+    /// degradation into a hard construction-time crash.</remarks>
     public RegressionSeries(double[] xData, double[] yData)
     {
         XData = xData;
