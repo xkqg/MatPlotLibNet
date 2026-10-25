@@ -20,4 +20,16 @@ internal static class ArrayLengthExtensions
                 throw new ArgumentException($"Array lengths must match. Got {x.Length} and {y.Length}.");
         }
     }
+
+    extension(int length)
+    {
+        /// <summary>Throws when <paramref name="other"/> differs from this length. The same check, worded
+        /// identically, for the verbs whose two inputs are not both <c>double[]</c> (e.g. <c>string[]</c>
+        /// categories against a <c>double[]</c> of values).</summary>
+        internal void ThrowIfMisaligned(int other)
+        {
+            if (length != other)
+                throw new ArgumentException($"Array lengths must match. Got {length} and {other}.");
+        }
+    }
 }
