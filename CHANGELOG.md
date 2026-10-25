@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.23.0]
+
+The technical indicators that read a candle's open, high, low, close and volume used to take those as separate
+arrays, one parameter each; a chart with several indicators repeated the same five names over and over, and an
+indicator that only needed two of them still forced the others into its constructor as empty placeholders. They
+now take one `OhlcvBars` value instead, built with the factory that names the columns the indicator actually
+uses — `OhlcvBars.Hlc(high, low, close)`, `OhlcvBars.Cv(close, volume)`, and so on for every shape an indicator
+needs. Internally, every chart verb the fluent API builds from (close to a hundred of them) now lives in its own
+file as a set of extension members on `Axes`, instead of all sharing one class; nothing a caller writes changes
+because of this, it is the file layout underneath the same calls.
+
+### Changed
+
+- **Indicator verbs take one `OhlcvBars` value, not several arrays.** `ax.WilliamsR(high, low, close)` is now
+  `ax.WilliamsR(OhlcvBars.Hlc(high, low, close))`; every indicator that reads candle data follows the same
+  pattern, picking the factory method that names the columns it needs (`Hlc`, `Hl`, `Hlv`, `Cv`, `Ohlc`, `Hlcv`).
+  Each factory checks that the arrays it is given are the same length, so a mismatched array is caught at the
+  call that builds the value instead of silently truncating inside the indicator. The `MatPlotLibNet.DataFrame`
+  package's column-name verbs (`df.WilliamsR("high", "low", "close")`) are unaffected — they already took names,
+  not arrays.
+
 ## [1.22.0]
 
 This release lets several series share one colour from the theme's cycle instead of each taking the next one, and

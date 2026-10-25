@@ -18,6 +18,11 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.23.0** moves the technical indicators that read a candle's open, high, low, close and volume from separate
+array parameters to one `OhlcvBars` value, built with the factory that names the columns the indicator actually
+uses (`OhlcvBars.Hlc(high, low, close)`, `OhlcvBars.Cv(close, volume)`, and so on) instead of repeating the same
+arrays across every indicator on a chart.
+
 **1.22.0** lets several series share one colour instead of each taking the next one from the theme's cycle, and
 spends it on three things: a Kaplan-Meier curve now draws its confidence band and its censor marks in the curve's
 own colour, and two new verbs, `Raincloud` (a half violin, a narrow box and a group's raw points in one colour) and
