@@ -34,7 +34,7 @@ public class DirectLabelMarginTests
     /// <summary>The width of <paramref name="text"/> in the font the end label is drawn in, measured by the metrics
     /// every SVG render uses.</summary>
     private static double LabelWidth(Figure figure, string text, int axes = 0) =>
-        ChartServices.FontMetrics.Measure(text,
+        FontMetricsDefault.Current.Measure(text,
             new DirectLabelMetrics(figure.SubPlots[axes], figure.Theme, new SvgRenderContext()).Font).Width;
 
     private static FigureBuilder Labelled(string label, Func<FigureBuilder, FigureBuilder>? figure = null)
@@ -153,7 +153,7 @@ public class DirectLabelMarginTests
         }
     }
 
-    // ── (f) nothing at the right edge: the default path keeps the spacing exactly as given ──
+    // â”€â”€ (f) nothing at the right edge: the default path keeps the spacing exactly as given â”€â”€
 
     public static TheoryData<string> PlainFigures => ["plain", "legend label", "grid", "fractional", "polar line end", "no label", "hidden"];
 

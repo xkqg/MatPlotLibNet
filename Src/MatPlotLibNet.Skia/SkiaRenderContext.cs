@@ -236,7 +236,7 @@ public sealed class SkiaRenderContext : IRenderContext
     public void PopClip() => _canvas.Restore();
 
     /// <inheritdoc />
-    public Size MeasureText(string text, Font font) => ChartServices.FontMetrics.Measure(text, font);
+    public Size MeasureText(string text, Font font) => FontMetricsDefault.Current.Measure(text, font);
 
     /// <inheritdoc />
     public void SetOpacity(double opacity) => _opacity = Math.Clamp(opacity, 0.0, 1.0);

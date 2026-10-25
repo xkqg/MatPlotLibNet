@@ -130,7 +130,7 @@ public class MeasurerRendererDriftTests
 
         // What the renderer would actually measure
         var tickFont = RendererTickFont(figure.Theme);
-        double maxTickLabelWidth = ChartServices.FontMetrics.Measure("-9999", tickFont).Width;
+        double maxTickLabelWidth = FontMetricsDefault.Current.Measure("-9999", tickFont).Width;
 
         // Renderer draws the Y-tick label right-aligned at x = PlotArea.X - tickLength - tickPad.
         // For the label's LEFT edge to be ≥ 0 (fit in figure), we need:
@@ -169,7 +169,7 @@ public class MeasurerRendererDriftTests
         //   marginBottom >= tickLength + tickPad + labelHeight
         var major = figure.SubPlots[0].XAxis.MajorTicks;
         var tickFont = RendererTickFont(figure.Theme);
-        double labelHeight = ChartServices.FontMetrics.Measure("0", tickFont).Height;
+        double labelHeight = FontMetricsDefault.Current.Measure("0", tickFont).Height;
         double minRequired = major.Length + major.Pad + labelHeight;
 
         Assert.True(marginBottom >= minRequired,
@@ -205,7 +205,7 @@ public class MeasurerRendererDriftTests
         // We can't easily parse the colorbar position out of the SVG but the invariant is:
         //   marginRight must fit barWidth + tick-label-width at the renderer's actual font size.
         var tickFont = RendererTickFont(figure.Theme);
-        double tickLabelW = ChartServices.FontMetrics.Measure("0.0000", tickFont).Width;
+        double tickLabelW = FontMetricsDefault.Current.Measure("0.0000", tickFont).Width;
         // Conservative lower bound: 20 (bar) + 4 + tickLabelW
         double minRequired = 20 + 4 + tickLabelW;
 
@@ -239,7 +239,7 @@ public class MeasurerRendererDriftTests
             Size   = figure.Theme.DefaultFont.Size + 2,
             Weight = FontWeight.Bold,
         };
-        double titleHeight = ChartServices.FontMetrics.Measure("A Title", titleFont).Height;
+        double titleHeight = FontMetricsDefault.Current.Measure("A Title", titleFont).Height;
         double minRequired = titleHeight + 8;
 
         Assert.True(plotY >= minRequired,
@@ -267,7 +267,7 @@ public class MeasurerRendererDriftTests
             Size   = figure.Theme.DefaultFont.Size + 4,
             Weight = FontWeight.Bold,
         };
-        double supH = ChartServices.FontMetrics.Measure("Figure Suptitle", supTitleFont).Height;
+        double supH = FontMetricsDefault.Current.Measure("Figure Suptitle", supTitleFont).Height;
         double minRequired = supH + 8;
 
         Assert.True(plotY >= minRequired,
@@ -292,7 +292,7 @@ public class MeasurerRendererDriftTests
 
         string svg = new Transforms.SvgTransform().Render(figure);
         var label = Texts(svg).Single(t => t.Text == "Secondary X");
-        double labelTop = label.Y - ChartServices.FontMetrics.Measure("Secondary X", new Font { Size = label.FontSize }).Height;
+        double labelTop = label.Y - FontMetricsDefault.Current.Measure("Secondary X", new Font { Size = label.FontSize }).Height;
 
         Assert.True(labelTop >= 0, $"Secondary X-axis label clip: its top is at {labelTop:F2} < 0");
     }
@@ -313,7 +313,7 @@ public class MeasurerRendererDriftTests
         var (plotX, plotY, plotW, plotH) = ParsePlotAreaRect(svg);
 
         var font = RendererTickFont(figure.Theme);
-        double labelWidth = ChartServices.FontMetrics.Measure("Revenue", font).Width;
+        double labelWidth = FontMetricsDefault.Current.Measure("Revenue", font).Width;
         double minRequired = DirectLabelMetrics.Gap + labelWidth;
         double marginRight = 600 - (plotX + plotW);
 
@@ -348,7 +348,7 @@ public class MeasurerRendererDriftTests
         Assert.NotEmpty(labels);
         foreach (var (x, text) in labels)
         {
-            double right = x + ChartServices.FontMetrics.Measure(text, font).Width;
+            double right = x + FontMetricsDefault.Current.Measure(text, font).Width;
             Assert.True(right <= 600, $"Secondary Y tick label '{text}' clip: ends at {right:F2} > 600");
         }
     }
@@ -395,7 +395,7 @@ public class MeasurerRendererDriftTests
 
         string svg = new Transforms.SvgTransform().Render(figure);
         var title = Texts(svg).Single(t => t.Text == Title);
-        double height = ChartServices.FontMetrics.Measure(Title, new Font { Size = title.FontSize }).Height;
+        double height = FontMetricsDefault.Current.Measure(Title, new Font { Size = title.FontSize }).Height;
 
         Assert.True(title.X + height <= 600,
             $"Secondary Y title clip: its far edge is at {title.X + height:F2} > 600 (tight={tight}, scale={scale}, length={length}, pad={pad})");
@@ -422,9 +422,9 @@ public class MeasurerRendererDriftTests
         var topLabels = texts.Where(t => t.Text != Title && t.Y < plotY).ToList();
         Assert.NotEmpty(topLabels);
 
-        double labelTop = topLabels.Min(t => t.Y - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Height);
+        double labelTop = topLabels.Min(t => t.Y - FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Height);
         double titleBottom = title.Y + 0.2 * title.FontSize;
-        double titleTop = title.Y - ChartServices.FontMetrics.Measure(Title, new Font { Size = title.FontSize }).Height;
+        double titleTop = title.Y - FontMetricsDefault.Current.Measure(Title, new Font { Size = title.FontSize }).Height;
         Assert.True(titleBottom <= labelTop,
             $"Axes title overlaps the mirrored X tick labels: title bottom {titleBottom:F2} > tick label top {labelTop:F2} (tight={tight})");
         Assert.True(titleTop >= 0, $"Axes title clip: its top is at {titleTop:F2} < 0 (tight={tight})");
@@ -450,7 +450,7 @@ public class MeasurerRendererDriftTests
         Assert.NotEmpty(labels);
 
         var major = figure.SubPlots[0].YAxis.MajorTicks;
-        double widest = labels.Max(t => ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width);
+        double widest = labels.Max(t => FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Width);
         double required = major.Length + major.Pad + widest;
         double marginRight = 600 - plotRight;
         Assert.True(marginRight >= required,
@@ -493,7 +493,7 @@ public class MeasurerRendererDriftTests
         string svg = new Transforms.SvgTransform().Render(figure);
         var (_, plotY, _, _) = ParsePlotAreaRect(svg);
         var texts = Texts(svg);
-        static double Top(DrawnText t) => t.Y - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Height;
+        static double Top(DrawnText t) => t.Y - FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Height;
         static double Bottom(DrawnText t) => t.Y + 0.2 * t.FontSize;
         var title = texts.Single(t => t.Text == Title);
         var tickLabels = texts.Where(t => t.Text != Title && t.Text != AxisTitle && t.Y < plotY).ToList();
@@ -546,17 +546,17 @@ public class MeasurerRendererDriftTests
         var drawn = texts.Where(t => names.Contains(t.Text)).ToList();
 
         Assert.Equal(names.Length, drawn.Count);
-        double longest = drawn.Max(t => ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width);
+        double longest = drawn.Max(t => FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Width);
         var major = figure.SubPlots[0].YAxis.MajorTicks;
         Assert.True(plotX >= major.Length + major.Pad + longest,
             $"Category name clip: MarginLeft={plotX:F2} < mark + pad + longest name {major.Length + major.Pad + longest:F2} ({context})");
-        Assert.All(drawn, t => Assert.True(t.X - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width >= 0,
+        Assert.All(drawn, t => Assert.True(t.X - FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Width >= 0,
             $"'{t.Text}' starts left of the figure ({context})"));
         if (!withAxisTitle) return;
         var title = texts.Single(t => t.Text == AxisTitle);
-        double half = ChartServices.FontMetrics.Measure(AxisTitle, new Font { Size = title.FontSize }).Height / 2;
+        double half = FontMetricsDefault.Current.Measure(AxisTitle, new Font { Size = title.FontSize }).Height / 2;
         Assert.True(title.X - half >= 0, $"Y axis title clip: its left edge is at {title.X - half:F2} < 0 ({context})");
-        double nameLeft = drawn.Min(t => t.X - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width);
+        double nameLeft = drawn.Min(t => t.X - FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Width);
         Assert.True(title.X + half <= nameLeft, $"Y axis title overlaps the names: {title.X + half:F2} > {nameLeft:F2} ({context})");
     }
 
@@ -592,17 +592,17 @@ public class MeasurerRendererDriftTests
         var drawn = texts.Where(t => Countries.Contains(t.Text)).ToList();
 
         Assert.Equal(Countries.Length, drawn.Count);
-        double longest = drawn.Max(t => ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width);
+        double longest = drawn.Max(t => FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Width);
         var major = figure.SubPlots[0].YAxis.MajorTicks;
         Assert.True(plotX >= major.Length + major.Pad + longest,
             $"Name clip: MarginLeft={plotX:F2} < mark + pad + longest name {major.Length + major.Pad + longest:F2} ({context})");
-        Assert.All(drawn, t => Assert.True(t.X - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width >= 0,
+        Assert.All(drawn, t => Assert.True(t.X - FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Width >= 0,
             $"'{t.Text}' starts left of the figure ({context})"));
         if (!withAxisTitle) return;
         var title = texts.Single(t => t.Text == AxisTitle);
-        double half = ChartServices.FontMetrics.Measure(AxisTitle, new Font { Size = title.FontSize }).Height / 2;
+        double half = FontMetricsDefault.Current.Measure(AxisTitle, new Font { Size = title.FontSize }).Height / 2;
         Assert.True(title.X - half >= 0, $"Y axis title clip: its left edge is at {title.X - half:F2} < 0 ({context})");
-        double nameLeft = drawn.Min(t => t.X - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width);
+        double nameLeft = drawn.Min(t => t.X - FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Width);
         Assert.True(title.X + half <= nameLeft, $"Y axis title overlaps the names: {title.X + half:F2} > {nameLeft:F2} ({context})");
     }
 
@@ -630,7 +630,7 @@ public class MeasurerRendererDriftTests
         double leftPlotRight = areas[0].X + areas[0].Width;
         Assert.All(drawn, t =>
         {
-            double left = t.X - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width;
+            double left = t.X - FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Width;
             Assert.True(left >= leftPlotRight, $"'{t.Text}' starts at {left:F2}, inside the left plot (ends {leftPlotRight:F2}; tight={tight})");
             Assert.True(t.X <= areas[1].X, $"'{t.Text}' ends past its own spine (tight={tight})");
         });
@@ -669,7 +669,7 @@ public class MeasurerRendererDriftTests
         var texts = Texts(svg);
         var drawn = texts.Where(t => names.Contains(t.Text)).ToList();
         static double Bottom(DrawnText t) => t.Y + 0.2 * t.FontSize;
-        static double Top(DrawnText t) => t.Y - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Height;
+        static double Top(DrawnText t) => t.Y - FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Height;
 
         Assert.Equal(names.Length, drawn.Count);
         Assert.All(drawn, t => Assert.True(Top(t) >= plotY + plotH, $"'{t.Text}' reaches above the bottom spine ({context})"));
@@ -697,7 +697,7 @@ public class MeasurerRendererDriftTests
         var texts = Texts(svg);
         var title = texts.Single(t => t.Text == AxisTitle);
         double nameBottom = texts.Where(t => names.Contains(t.Text)).Max(t => t.Y + 0.2 * t.FontSize);
-        double titleTop = title.Y - ChartServices.FontMetrics.Measure(AxisTitle, new Font { Size = title.FontSize }).Height;
+        double titleTop = title.Y - FontMetricsDefault.Current.Measure(AxisTitle, new Font { Size = title.FontSize }).Height;
 
         Assert.Equal(30, title.FontSize);
         Assert.True(titleTop >= nameBottom, $"the title (top {titleTop:F2}) overlaps the names (bottom {nameBottom:F2}; tight={tight})");
@@ -754,7 +754,7 @@ public class MeasurerRendererDriftTests
         var texts = Texts(svg);
         var title = texts.Single(t => t.Text == XTitle);
         double titleBottom = title.Y + 0.2 * title.FontSize;
-        double titleTop = title.Y - ChartServices.FontMetrics.Measure(XTitle, new Font { Size = title.FontSize }).Height;
+        double titleTop = title.Y - FontMetricsDefault.Current.Measure(XTitle, new Font { Size = title.FontSize }).Height;
         var tickLabels = texts.Where(t => t.Text != XTitle && t.Y > plotY + plotH && t.Y < title.Y).ToList();
 
         Assert.True(titleBottom <= height, $"X axis title clip: its bottom is at {titleBottom:F2} > {height} ({context})");
@@ -790,7 +790,7 @@ public class MeasurerRendererDriftTests
         var texts = Texts(svg);
         double upperBottom = areas[0].Y + areas[0].Height;
         var lowerTitle = texts.Single(t => t.Text == Lower);
-        double lowerTitleTop = lowerTitle.Y - ChartServices.FontMetrics.Measure(Lower, new Font { Size = lowerTitle.FontSize }).Height;
+        double lowerTitleTop = lowerTitle.Y - FontMetricsDefault.Current.Measure(Lower, new Font { Size = lowerTitle.FontSize }).Height;
         var upperBelow = texts.Where(t => t.Y > upperBottom && t.Y < areas[1].Y).Where(t => t.Text != Lower).ToList();
 
         Assert.NotEmpty(upperBelow);
@@ -829,8 +829,8 @@ public class MeasurerRendererDriftTests
     /// about the anchor by its rotation.</summary>
     private static double Extreme(TurnedText t, bool lowest)
     {
-        double width = ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width;
-        double height = ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Height;
+        double width = FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Width;
+        double height = FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Height;
         double start = t.Anchor switch { "end" => -width, "middle" => -width / 2, _ => 0 };
         double radians = t.Rotation * Math.PI / 180, sin = Math.Sin(radians), cos = Math.Cos(radians);
         var downs = from x in new[] { start, start + width }
@@ -1005,7 +1005,7 @@ public class MeasurerRendererDriftTests
         double leftPlotRight = areas[0].X + areas[0].Width;
         Assert.All(drawn, t =>
         {
-            double left = t.X - ChartServices.FontMetrics.Measure(t.Text, new Font { Size = t.FontSize }).Width;
+            double left = t.X - FontMetricsDefault.Current.Measure(t.Text, new Font { Size = t.FontSize }).Width;
             Assert.True(left >= leftPlotRight, $"'{t.Text}' starts at {left:F2}, inside the left plot (ends {leftPlotRight:F2}; tight={tight})");
             Assert.True(t.X <= areas[1].X, $"'{t.Text}' ends past its own spine (tight={tight})");
         });

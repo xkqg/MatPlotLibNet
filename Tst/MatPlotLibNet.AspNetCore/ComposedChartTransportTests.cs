@@ -112,7 +112,7 @@ public class ComposedChartTransportTests : IClassFixture<ComposedChartHostFixtur
 
         string json = await _fixture.JsonReceivedAsync($"json-{name}-{missing}", figure, TestContext.Current.CancellationToken);
 
-        Assert.Equal(figure.ToSvg(), ChartServices.Serializer.FromJson(json).ToSvg());
+        Assert.Equal(figure.ToSvg(), ChartSerializerDefault.Current.FromJson(json).ToSvg());
     }
 
     [Theory]
@@ -142,7 +142,7 @@ public class ComposedChartTransportTests : IClassFixture<ComposedChartHostFixtur
         string json = await _fixture.JsonReceivedAsync("big-json", figure, ct);
         string svg = await _fixture.SvgReceivedAsync("big-svg", figure, ct);
 
-        Assert.Equal(figure.ToSvg(), ChartServices.Serializer.FromJson(json).ToSvg());
+        Assert.Equal(figure.ToSvg(), ChartSerializerDefault.Current.FromJson(json).ToSvg());
         Assert.Equal(figure.ToSvg(), svg);
     }
 
@@ -157,7 +157,7 @@ public class ComposedChartTransportTests : IClassFixture<ComposedChartHostFixtur
         string json = await client.GetStringAsync($"/api/composed/json?name={name}&missing={missing}", ct);
         string svg = await client.GetStringAsync($"/api/composed/svg?name={name}&missing={missing}", ct);
 
-        Assert.Equal(figure.ToSvg(), ChartServices.Serializer.FromJson(json).ToSvg());
+        Assert.Equal(figure.ToSvg(), ChartSerializerDefault.Current.FromJson(json).ToSvg());
         Assert.Equal(figure.ToSvg(), svg);
     }
 }

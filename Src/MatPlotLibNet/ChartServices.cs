@@ -9,59 +9,82 @@ using MatPlotLibNet.Transforms;
 
 namespace MatPlotLibNet;
 
-/// <summary>Provides default service instances for non-DI scenarios (console apps, scripts).</summary>
-public static class ChartServices
+/// <summary>The default <see cref="IChartSerializer"/> for non-DI scenarios (console apps, scripts). One
+/// replaceable slot, separated from every other default — the condition a process-global static is held to:
+/// it holds the ONE thing it exists to provide, and nothing else is hung off it.</summary>
+public static class ChartSerializerDefault
 {
-    private static volatile IChartSerializer _serializer = new ChartSerializer();
-    private static volatile IChartRenderer _renderer = new ChartRenderer();
-    private static volatile ISvgRenderer _svgRenderer = new SvgTransform(new ChartRenderer());
-    private static volatile IFontMetrics _fontMetrics = new DefaultFontMetrics();
-    private static volatile IGlyphPathProvider? _glyphPathProvider;
+    private static volatile IChartSerializer _current = new ChartSerializer();
 
     /// <summary>Gets or sets the default chart serializer.</summary>
-    public static IChartSerializer Serializer
+    public static IChartSerializer Current
     {
-        get => _serializer;
-        set => _serializer = value ?? throw new ArgumentNullException(nameof(value));
+        get => _current;
+        set => _current = value ?? throw new ArgumentNullException(nameof(value));
     }
+}
+
+/// <summary>The default <see cref="IChartRenderer"/> for non-DI scenarios (console apps, scripts, and every
+/// native UI control -- Avalonia/Maui/Uno/Wpf -- that has no DI container reachable from its own render
+/// callback). One replaceable slot, separated from every other default.</summary>
+public static class ChartRendererDefault
+{
+    private static volatile IChartRenderer _current = new ChartRenderer();
 
     /// <summary>Gets or sets the default chart renderer.</summary>
-    public static IChartRenderer Renderer
+    public static IChartRenderer Current
     {
-        get => _renderer;
-        set => _renderer = value ?? throw new ArgumentNullException(nameof(value));
+        get => _current;
+        set => _current = value ?? throw new ArgumentNullException(nameof(value));
     }
+}
+
+/// <summary>The default <see cref="ISvgRenderer"/> for non-DI scenarios. One replaceable slot, separated from
+/// every other default.</summary>
+public static class SvgRendererDefault
+{
+    private static volatile ISvgRenderer _current = new SvgTransform(new ChartRenderer());
 
     /// <summary>Gets or sets the default SVG renderer.</summary>
-    public static ISvgRenderer SvgRenderer
+    public static ISvgRenderer Current
     {
-        get => _svgRenderer;
-        set => _svgRenderer = value ?? throw new ArgumentNullException(nameof(value));
+        get => _current;
+        set => _current = value ?? throw new ArgumentNullException(nameof(value));
     }
+}
 
-    /// <summary>
-    /// Gets or sets the text measurement strategy used by every <see cref="IRenderContext"/>.
-    /// Defaults to <see cref="DefaultFontMetrics"/> (per-character width table, pure managed).
-    /// <c>MatPlotLibNet.Skia</c>'s module initializer replaces this with a Skia-backed
-    /// implementation so SVG and PNG output share the same layout metrics.
-    /// </summary>
-    public static IFontMetrics FontMetrics
+/// <summary>The text measurement strategy used by every <see cref="IRenderContext"/>. One replaceable slot,
+/// separated from every other default.</summary>
+/// <remarks>Defaults to <see cref="DefaultFontMetrics"/> (per-character width table, pure
+/// managed). <c>MatPlotLibNet.Skia</c>'s module initializer replaces this with a Skia-backed implementation so
+/// SVG and PNG output share the same layout metrics.</remarks>
+public static class FontMetricsDefault
+{
+    private static volatile IFontMetrics _current = new DefaultFontMetrics();
+
+    /// <summary>Gets or sets the default text measurement strategy.</summary>
+    public static IFontMetrics Current
     {
-        get => _fontMetrics;
-        set => _fontMetrics = value ?? throw new ArgumentNullException(nameof(value));
+        get => _current;
+        set => _current = value ?? throw new ArgumentNullException(nameof(value));
     }
+}
 
-    /// <summary>
-    /// Optional glyph-to-path converter used by <see cref="Rendering.Svg.SvgRenderContext"/>
-    /// to emit text as <c>&lt;path&gt;</c> elements instead of <c>&lt;text&gt;</c>. When
-    /// <see langword="null"/>, SVG falls back to <c>&lt;text&gt;</c> with a font-family stack.
-    /// <c>MatPlotLibNet.Skia</c>'s module initializer installs a Skia-backed implementation
-    /// so SVG output becomes self-contained (no browser-font dependency) and SVG/PNG produce
-    /// byte-identical layout.
-    /// </summary>
-    public static IGlyphPathProvider? GlyphPathProvider
+/// <summary>The optional glyph-to-path converter used by <see cref="Rendering.Svg.SvgRenderContext"/> to emit
+/// text as <c>&lt;path&gt;</c> elements instead of <c>&lt;text&gt;</c>. One replaceable slot, separated from
+/// every other default.</summary>
+/// <remarks>When <see langword="null"/>, SVG falls back to <c>&lt;text&gt;</c> with a font-family stack.
+/// <c>MatPlotLibNet.Skia</c>'s module initializer installs a Skia-backed implementation so SVG output becomes
+/// self-contained (no browser-font dependency) and SVG/PNG produce byte-identical layout.</remarks>
+public static class GlyphPathProviderDefault
+{
+    private static volatile IGlyphPathProvider? _current;
+
+    /// <summary>Gets or sets the default glyph-path provider; <see langword="null"/> falls back to
+    /// <c>&lt;text&gt;</c> elements.</summary>
+    public static IGlyphPathProvider? Current
     {
-        get => _glyphPathProvider;
-        set => _glyphPathProvider = value;
+        get => _current;
+        set => _current = value;
     }
 }

@@ -13,7 +13,7 @@ namespace MatPlotLibNet.Rendering.TextMeasurement;
 /// <remarks>
 /// The core assembly ships a pure-managed default <see cref="DefaultFontMetrics"/> that
 /// uses a per-character width table. When <c>MatPlotLibNet.Skia</c> is loaded its module
-/// initializer replaces <see cref="ChartServices.FontMetrics"/> with a Skia-backed
+/// initializer replaces <see cref="FontMetricsDefault.Current"/> with a Skia-backed
 /// implementation that uses the bundled DejaVu Sans TTFs via <c>SKFont.MeasureText</c>.
 /// That makes SVG and PNG output byte-identical in layout because both
 /// <see cref="Svg.SvgRenderContext"/> and <c>SkiaRenderContext</c> delegate to the same

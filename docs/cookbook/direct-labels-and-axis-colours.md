@@ -169,7 +169,7 @@ traffic!.AppendPoint(1, 96);
 
 ## Saving to JSON
 
-Both settings survive `ToJson()` and `ChartServices.Serializer.FromJson()`. The placement is written beside the
+Both settings survive `ToJson()` and `ChartSerializerDefault.Current.FromJson()`. The placement is written beside the
 label, and only when it is not the default:
 
 ```json

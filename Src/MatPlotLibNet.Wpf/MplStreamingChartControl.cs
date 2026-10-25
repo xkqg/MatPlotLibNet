@@ -63,7 +63,7 @@ public sealed class MplStreamingChartControl : SKElement
         sf.ApplyAxisScaling();
 
         var ctx = new SkiaRenderContext(e.Surface.Canvas);
-        ChartServices.Renderer.Render(sf.Figure, ctx);
+        ChartRendererDefault.Current.Render(sf.Figure, ctx);
     }
 
     private void OnStreamingFigureChanged(StreamingFigure? newValue)

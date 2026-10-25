@@ -67,8 +67,8 @@ public class AccessibilityBuilderTests
             .Plot([1.0, 2.0], [3.0, 4.0])
             .Build();
 
-        var json = ChartServices.Serializer.ToJson(figure);
-        var restored = ChartServices.Serializer.FromJson(json);
+        var json = ChartSerializerDefault.Current.ToJson(figure);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
 
         Assert.Equal("Preserved alt text", restored.AltText);
     }
@@ -81,8 +81,8 @@ public class AccessibilityBuilderTests
             .Plot([1.0, 2.0], [3.0, 4.0])
             .Build();
 
-        var json = ChartServices.Serializer.ToJson(figure);
-        var restored = ChartServices.Serializer.FromJson(json);
+        var json = ChartSerializerDefault.Current.ToJson(figure);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
 
         Assert.Equal("Preserved description", restored.Description);
     }
@@ -91,7 +91,7 @@ public class AccessibilityBuilderTests
     public void ToJson_IncludesAltText()
     {
         var figure = Plt.Create().WithAltText("chart alt").Build();
-        var json = ChartServices.Serializer.ToJson(figure);
+        var json = ChartSerializerDefault.Current.ToJson(figure);
         var doc = JsonDocument.Parse(json);
         Assert.Equal("chart alt", doc.RootElement.GetProperty("altText").GetString());
     }
@@ -100,7 +100,7 @@ public class AccessibilityBuilderTests
     public void ToJson_IncludesDescription()
     {
         var figure = Plt.Create().WithDescription("chart desc").Build();
-        var json = ChartServices.Serializer.ToJson(figure);
+        var json = ChartSerializerDefault.Current.ToJson(figure);
         var doc = JsonDocument.Parse(json);
         Assert.Equal("chart desc", doc.RootElement.GetProperty("description").GetString());
     }
@@ -109,7 +109,7 @@ public class AccessibilityBuilderTests
     public void NullAltText_OmittedFromJson()
     {
         var figure = Plt.Create().Build();
-        var json = ChartServices.Serializer.ToJson(figure);
+        var json = ChartSerializerDefault.Current.ToJson(figure);
         var doc = JsonDocument.Parse(json);
         Assert.False(doc.RootElement.TryGetProperty("altText", out _));
     }
@@ -118,7 +118,7 @@ public class AccessibilityBuilderTests
     public void NullDescription_OmittedFromJson()
     {
         var figure = Plt.Create().Build();
-        var json = ChartServices.Serializer.ToJson(figure);
+        var json = ChartSerializerDefault.Current.ToJson(figure);
         var doc = JsonDocument.Parse(json);
         Assert.False(doc.RootElement.TryGetProperty("description", out _));
     }

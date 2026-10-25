@@ -52,11 +52,11 @@ internal sealed class MplChartDrawOperation : ICustomDrawOperation
         if (lease is null) return;
 
         var skiaCtx = new SkiaRenderContext(lease.SkCanvas);
-        MatPlotLibNet.ChartServices.Renderer.Render(_figure, skiaCtx);
+        MatPlotLibNet.ChartRendererDefault.Current.Render(_figure, skiaCtx);
 
         if (_owner is { IsInteractive: true })
         {
-            var layoutResult = MatPlotLibNet.ChartServices.Renderer.ComputeLayout(_figure, skiaCtx);
+            var layoutResult = MatPlotLibNet.ChartRendererDefault.Current.ComputeLayout(_figure, skiaCtx);
             _owner.OnRenderCompleted(_figure, layoutResult);
         }
 

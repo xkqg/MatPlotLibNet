@@ -22,8 +22,8 @@ public class MplChartControlPointerUnitsTests
     {
         using var surface = SKSurface.Create(new SKImageInfo((int)figure.Width, (int)figure.Height));
         var ctx = new SkiaRenderContext(surface.Canvas);
-        ChartServices.Renderer.Render(figure, ctx);
-        return ChartLayout.Create(figure, ChartServices.Renderer.ComputeLayout(figure, ctx));
+        ChartRendererDefault.Current.Render(figure, ctx);
+        return ChartLayout.Create(figure, ChartRendererDefault.Current.ComputeLayout(figure, ctx));
     }
 
     private static InteractionController Attached(Figure figure, out Rect area)

@@ -178,7 +178,7 @@ public class WaterfallStepNamesTests
     {
         var figure = Monthly();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(Steps, LabelsUnderThePlot(readBack));
         Assert.Equal(figure.ToSvg(), readBack);

@@ -80,7 +80,7 @@ public class ComposedChartRoundTripTests
         string drawn = figure.ToSvg();
 
         string json = WriteJson(figure, name);
-        string readBack = ChartServices.Serializer.FromJson(json).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(json).ToSvg();
 
         Assert.True(drawn == readBack, $"{name}: the picture changed in the round trip ({drawn.Length} B drawn, {readBack.Length} B read back, first difference at char {FirstDifference(drawn, readBack)}).");
     }

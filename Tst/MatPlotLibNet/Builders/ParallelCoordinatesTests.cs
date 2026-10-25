@@ -520,7 +520,7 @@ public class ParallelCoordinatesTests
         var figure = builder.AddSubPlot(1, 1, 1, ax => ax.ParallelCoordinates(FourDimensions, rows)).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(drawn, readBack);
         Assert.Equal(FourDimensions, FigureTexts(readBack).Where(t => t.Anchor == "middle").Select(t => t.Text));

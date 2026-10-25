@@ -80,7 +80,7 @@ public class ChartRenderingTests : IDisposable
 
     [Fact]
     public void TheGlyphProvider_IsInstalledBeforeTheFirstRender() =>
-        Assert.NotNull(ChartServices.GlyphPathProvider);
+        Assert.NotNull(GlyphPathProviderDefault.Current);
 
     [Fact]
     public void SavingAChart_WritesTheFileAndReturnsThePathItWrote()

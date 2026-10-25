@@ -507,7 +507,7 @@ public class StreamGraphTests
         var figure = ComposedChartShapes.StreamGraphWith(baseline, missing).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(drawn, readBack);
         Assert.DoesNotContain(FigureTexts(readBack), t => t.Anchor == "end");
@@ -521,7 +521,7 @@ public class StreamGraphTests
             .AddSubPlot(1, 1, 1, ax => ax.StreamGraph(LongX, LongLayers)).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(drawn, readBack);
     }

@@ -58,7 +58,7 @@
     {
         if (StreamingFigure is null) { _svgContent = string.Empty; return; }
         StreamingFigure.ApplyAxisScaling();
-        _svgContent = ChartServices.SvgRenderer.Render(StreamingFigure.Figure);
+        _svgContent = SvgRendererDefault.Current.Render(StreamingFigure.Figure);
     }
 
     public void Dispose()

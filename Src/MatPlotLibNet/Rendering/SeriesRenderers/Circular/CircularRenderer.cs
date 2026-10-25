@@ -19,7 +19,7 @@ internal abstract class CircularRenderer<TSeries> : SeriesRenderer<TSeries>
     /// <summary>Builds a ring-wedge or solid-slice path using ArcSegment commands.
     /// When <paramref name="innerR"/> is 0 the result is a solid slice (first segment moves to
     /// the centre); when positive the result is a ring wedge (first segment moves to the inner
-    /// arc start).  Angles follow the standard math convention: Y = cy + r·sin(angle).</summary>
+    /// arc start).  Angles follow the standard math convention: Y = cy + rÂ·sin(angle).</summary>
     /// <param name="cx">Circle centre X.</param>
     /// <param name="cy">Circle centre Y.</param>
     /// <param name="innerR">Inner radius (0 for a solid slice).</param>
@@ -61,7 +61,7 @@ internal abstract class CircularRenderer<TSeries> : SeriesRenderer<TSeries>
     internal void PlaceOuterLabels(IReadOnlyList<LabelCandidate> candidates, Rect bounds)
     {
         if (candidates.Count == 0) return;
-        var placements = LabelLayoutEngine.Place(candidates, bounds, ChartServices.FontMetrics);
+        var placements = LabelLayoutEngine.Place(candidates, bounds, FontMetricsDefault.Current);
         var leaderColor = Context.Theme.ForegroundText;
         foreach (var p in placements)
         {

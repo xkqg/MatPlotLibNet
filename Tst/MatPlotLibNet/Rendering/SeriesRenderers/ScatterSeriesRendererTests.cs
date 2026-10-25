@@ -296,7 +296,7 @@ public class ScatterSeriesRendererTests
             .AddSubPlot(1, 1, 1, ax => ax.Scatter(Xs, Ys, s => { s.Color = Colors.Red; s.Alpha = 0.5; }))
             .Build();
 
-        string back = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string back = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(figure.ToSvg(), back);
         Assert.All(Markers(back, fillHex: Colors.Red.ToHex()), marker => AssertOpacity(0.5, marker.Opacity));

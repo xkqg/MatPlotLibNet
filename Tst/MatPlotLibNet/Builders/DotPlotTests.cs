@@ -324,7 +324,7 @@ public class DotPlotTests
         Assert.All(names, e =>
         {
             double size = Num((string)e.Attribute("font-size")!);
-            double start = Num((string)e.Attribute("x")!) - ChartServices.FontMetrics.Measure(e.Value, new Font { Size = size }).Width;
+            double start = Num((string)e.Attribute("x")!) - FontMetricsDefault.Current.Measure(e.Value, new Font { Size = size }).Width;
             Assert.True(start >= 0, $"'{e.Value}' starts at {start}, left of the figure");
             Assert.True(start < plot.X);
         });
@@ -491,7 +491,7 @@ public class DotPlotTests
         var figure = builder.AddSubPlot(1, 1, 1, ax => ax.DotPlot(Languages, [first, second])).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(drawn, readBack);
         Assert.Equal("C#", YTickLabels(readBack)[^1].Text);

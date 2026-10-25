@@ -21,7 +21,7 @@ namespace MatPlotLibNet.Rendering.Layout;
 /// dense pies and Sankeys; falls through on the 20th iteration with whatever positions
 /// have been reached.</para>
 ///
-/// <para>Uses <see cref="ChartServices.FontMetrics"/> for text measurement so SVG and PNG
+/// <para>Uses <see cref="FontMetricsDefault.Current"/> for text measurement so SVG and PNG
 /// output agree on label extents. The measurement source is the same Skia-backed
 /// <c>DejaVu Sans</c> glyph metrics that the renderer uses, so there's no drift between
 /// what the engine measures and what the renderer draws.</para>
@@ -37,7 +37,7 @@ public static class LabelLayoutEngine
     /// </summary>
     /// <param name="candidates">Input labels with their desired anchor points.</param>
     /// <param name="plotBounds">Outer bounds labels must stay inside.</param>
-    /// <param name="metrics">Text measurement source (typically <see cref="ChartServices.FontMetrics"/>).</param>
+    /// <param name="metrics">Text measurement source (typically <see cref="FontMetricsDefault.Current"/>).</param>
     /// <param name="leaderThreshold">When a label's final position is more than this many pixels
     /// from its anchor, the returned placement will include a <see cref="LabelPlacement.LeaderLineStart"/>
     /// for the caller to draw a connector. Default 6 px.</param>

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet;
@@ -80,7 +80,7 @@ Console.WriteLine("Saved dashboard.svg");
 var json = figure.ToJson(indented: true);
 Console.WriteLine($"JSON length: {json.Length} chars");
 
-var deserialized = ChartServices.Serializer.FromJson(json);
+var deserialized = ChartSerializerDefault.Current.FromJson(json);
 Console.WriteLine($"Deserialized figure: {deserialized.Title}");
 
 // --- 5. Heatmap with colormap + colorbar ---

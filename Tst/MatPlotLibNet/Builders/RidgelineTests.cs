@@ -228,7 +228,7 @@ public class RidgelineTests
         {
             double size = double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
             double start = double.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture)
-                - ChartServices.FontMetrics.Measure(m.Groups[3].Value, new MatPlotLibNet.Styling.Font { Size = size }).Width;
+                - FontMetricsDefault.Current.Measure(m.Groups[3].Value, new MatPlotLibNet.Styling.Font { Size = size }).Width;
             Assert.True(start >= 0, $"'{m.Groups[3].Value}' starts at {start}, left of the figure");
         });
     }
@@ -335,10 +335,10 @@ public class RidgelineTests
         Assert.DoesNotContain("NaN", Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Ridgeline(gappy)).ToSvg());
     }
 
-    /// <summary>Data without a spread (every observation of every group the same value) has no σ; the size of the value
+    /// <summary>Data without a spread (every observation of every group the same value) has no Ïƒ; the size of the value
     /// stands in for it (R's <c>bw.nrd0</c> rule, <see cref="GaussianKde.SilvermanBandwidth"/>), so the ridges are a bump of
     /// that width around the value, and the same data in other units draws the same ridges on the same grid in those units.
-    /// A fixed width would draw 5 as 5 ± 3 and 500 as 500 ± 3.</summary>
+    /// A fixed width would draw 5 as 5 Â± 3 and 500 as 500 Â± 3.</summary>
     [Fact]
     public void DataWithoutSpread_IsDrawnAtTheScaleOfItsValue()
     {
@@ -529,7 +529,7 @@ public class RidgelineTests
         var figure = ComposedChartShapes.Named("ridgeline").Build(missing).Build();
 
         string drawn = figure.ToSvg();
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(drawn, readBack);
     }

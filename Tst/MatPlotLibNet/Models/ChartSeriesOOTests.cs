@@ -81,7 +81,7 @@ public class ChartSeriesOOTests
         ax.Scatter([1.0], [2.0]);
         ax.Bar(["A"], [1.0]);
 
-        string json = ChartServices.Serializer.ToJson(fig);
+        string json = ChartSerializerDefault.Current.ToJson(fig);
         Assert.DoesNotContain("unknown", json);
     }
 

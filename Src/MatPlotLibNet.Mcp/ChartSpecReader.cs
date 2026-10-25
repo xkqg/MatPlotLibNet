@@ -562,7 +562,7 @@ internal sealed partial class ChartSpecReader
     {
         try
         {
-            return ChartServices.Serializer.FromJson(json);
+            return ChartSerializerDefault.Current.FromJson(json);
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException or JsonException)
         {

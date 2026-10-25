@@ -33,7 +33,7 @@ public sealed class AxisTitleClearanceTests
         /// half a width either side and from the ascent above the baseline to the descent below.</summary>
         internal (double L, double R, double T, double B) Box()
         {
-            var size = ChartServices.FontMetrics.Measure(Text,
+            var size = FontMetricsDefault.Current.Measure(Text,
                 new Font { Family = "DejaVu Sans, sans-serif", Size = FontSize });
             return (X - size.Width / 2, X + size.Width / 2, Y - size.Height * 0.8, Y + size.Height * 0.2);
         }

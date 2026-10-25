@@ -501,7 +501,7 @@ public class SlopeGraphTests
         var figure = builder.AddSubPlot(1, 1, 1, ax => ax.SlopeGraph(Regions, gappy, open)).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(drawn, readBack);
         Assert.Equal(4, StartNames(readBack).Length);

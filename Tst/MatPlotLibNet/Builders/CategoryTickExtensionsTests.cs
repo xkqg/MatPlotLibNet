@@ -62,7 +62,7 @@ public class CategoryTickExtensionsTests
             .AddSubPlot(1, 1, 1, ax => ax.SetXCategoryTicks(Names).SetYCategoryTicks(Names, topDown: true))
             .Build();
 
-        var back = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure)).SubPlots[0];
+        var back = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure)).SubPlots[0];
 
         Assert.Equal(Names, TicksAsRead(back.XAxis));
         Assert.Equal(["third", "second", "first"], TicksAsRead(back.YAxis));
@@ -118,7 +118,7 @@ public class CategoryTickExtensionsTests
         var bySlot = new Dictionary<int, string> { [0] = "Jan", [4] = "Feb" };
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.SetXCategoryTicks(bySlot)).Build();
 
-        var back = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure)).SubPlots[0].XAxis;
+        var back = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure)).SubPlots[0].XAxis;
 
         var positions = back.TickLocator!.Locate(0, 10);
         Assert.Equal([0.5, 4.5], positions);
@@ -170,7 +170,7 @@ public class CategoryTickExtensionsTests
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.SetXCategoryTicks(Names, Centres)).Build();
 
-        var back = ChartServices.Serializer.FromJson(ChartServices.Serializer.ToJson(figure)).SubPlots[0].XAxis;
+        var back = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure)).SubPlots[0].XAxis;
 
         var positions = back.TickLocator!.Locate(0, 100);
         Assert.Equal(Centres, positions);

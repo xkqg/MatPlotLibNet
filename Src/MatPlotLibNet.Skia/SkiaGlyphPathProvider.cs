@@ -15,7 +15,7 @@ namespace MatPlotLibNet.Skia;
 /// no browser-font dependency and no metric divergence.
 /// </summary>
 /// <remarks>
-/// Registered on <see cref="global::MatPlotLibNet.ChartServices.GlyphPathProvider"/> by
+/// Registered on <see cref="global::MatPlotLibNet.GlyphPathProviderDefault.Current"/> by
 /// <see cref="FigureSkiaExtensions.Initialize"/> at module load. Uses the same typeface resolution
 /// (<see cref="SkiaFonts.Resolve(Font)"/>) as <see cref="SkiaRenderContext"/>, so measurements and outlines come
 /// from the identical font.

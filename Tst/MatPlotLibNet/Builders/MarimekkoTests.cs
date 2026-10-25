@@ -529,7 +529,7 @@ public class MarimekkoTests
         var figure = builder.AddSubPlot(1, 1, 1, ax => ax.Marimekko(Columns, missing ? WithAMissingSize : Segments)).Build();
         string drawn = figure.ToSvg();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(drawn, readBack);
         Assert.All(Columns, name => Assert.Contains(name, FigureTexts(readBack)));

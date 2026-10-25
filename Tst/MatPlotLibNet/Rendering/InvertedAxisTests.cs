@@ -160,7 +160,7 @@ public class InvertedAxisTests
     {
         var figure = Build(a => { a.YAxis.Inverted = true; a.XAxis.Inverted = true; });
 
-        var back = ChartServices.Serializer.FromJson(figure.ToJson());
+        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
 
         Assert.Equal(figure.ToSvg(), back.ToSvg());
     }

@@ -351,7 +351,7 @@ public class SpyTests
         if (!empty) matrix[2, 3] = double.NaN;
         var figure = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax.Spy(matrix)).Build();
 
-        var back = ChartServices.Serializer.FromJson(figure.ToJson());
+        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
 
         Assert.Equal(figure.ToSvg(), back.ToSvg());
     }

@@ -51,7 +51,7 @@ public sealed class MplStreamingChartElement : SKCanvasElement
         if (sf is null) return;
         sf.ApplyAxisScaling();
         var ctx = new SkiaRenderContext(canvas);
-        ChartServices.Renderer.Render(sf.Figure, ctx);
+        ChartRendererDefault.Current.Render(sf.Figure, ctx);
     }
 
     private void OnStreamingFigureChanged(StreamingFigure? oldValue, StreamingFigure? newValue)

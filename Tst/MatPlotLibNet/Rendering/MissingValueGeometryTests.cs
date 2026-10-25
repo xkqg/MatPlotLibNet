@@ -1010,7 +1010,7 @@ public class MissingValueGeometryTests
     [MemberData(nameof(EveryTypeButThePairGrid))]
     public void ASeriesWithNoData_RendersAnEmptyPlot(string type)
     {
-        var figure = ChartServices.Serializer.FromJson($$"""{"width":300,"height":200,"subPlots":[{"series":[{"type":"{{type}}"}]}]}""");
+        var figure = ChartSerializerDefault.Current.FromJson($$"""{"width":300,"height":200,"subPlots":[{"series":[{"type":"{{type}}"}]}]}""");
 
         Assert.Empty(NonFiniteTokens(figure.ToSvg()));
     }

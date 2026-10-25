@@ -191,7 +191,7 @@ public sealed class SvgRenderContext : IRenderContext
         // it renders identically in any viewer regardless of installed fonts, and the
         // layout matches the PNG pipeline byte-for-byte because both backends use the
         // same DejaVu Sans glyph metrics.
-        var provider = ChartServices.GlyphPathProvider;
+        var provider = GlyphPathProviderDefault.Current;
         if (provider is not null)
         {
             string? d = provider.GetPathData(text, font);
@@ -250,9 +250,9 @@ public sealed class SvgRenderContext : IRenderContext
     private void EmitGlyphPath(string d, string textForMeasure, Point position, Font font, TextAlignment alignment, double rotation)
     {
         // Compute the horizontal offset needed to realise the requested alignment.
-        // We measure width via ChartServices.FontMetrics — same source Skia used when
+        // We measure width via FontMetricsDefault.Current — same source Skia used when
         // it generated the glyph path, so the alignment math matches the glyph layout.
-        double width = ChartServices.FontMetrics.Measure(textForMeasure, font).Width;
+        double width = FontMetricsDefault.Current.Measure(textForMeasure, font).Width;
         double alignOffset = alignment switch
         {
             TextAlignment.Center => -width / 2.0,
@@ -310,7 +310,7 @@ public sealed class SvgRenderContext : IRenderContext
     }
 
     /// <inheritdoc />
-    public Size MeasureText(string text, Font font) => ChartServices.FontMetrics.Measure(text, font);
+    public Size MeasureText(string text, Font font) => FontMetricsDefault.Current.Measure(text, font);
 
     /// <inheritdoc />
     public void DrawRichText(RichText richText, Point position, Font font, TextAlignment alignment)

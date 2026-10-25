@@ -5,7 +5,7 @@ using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
-/// <summary>Verifies legend rendering behavior in <see cref="ChartServices"/>.</summary>
+/// <summary>Verifies legend rendering behavior.</summary>
 public class LegendRenderingTests
 {
     /// <summary>Verifies that labeled series produce a legend box in SVG output.</summary>

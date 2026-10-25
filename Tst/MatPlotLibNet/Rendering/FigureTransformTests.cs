@@ -76,12 +76,12 @@ public class FigureTransformTests
         }
     }
 
-    /// <summary>Verifies that the legacy ChartServices.SvgRenderer path still produces valid SVG.</summary>
+    /// <summary>Verifies that the legacy SvgRendererDefault.Current path still produces valid SVG.</summary>
     [Fact]
     public void ChartServices_SvgRenderer_StillWorks()
     {
         var figure = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-        string svg = ChartServices.SvgRenderer.Render(figure);
+        string svg = SvgRendererDefault.Current.Render(figure);
         Assert.Contains("<svg", svg);
     }
 

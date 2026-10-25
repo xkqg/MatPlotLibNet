@@ -131,14 +131,15 @@ accessibility page naming every series with no tabular form), the MCP manifest's
 series means editing every list it checks; the test tells you which one you forgot.
 
 Every `Src/` package packs on build (`GeneratePackageOnBuild`) and is checked for API breaks against
-`PackageValidationBaselineVersion` in `Directory.Build.props` (currently 1.19.0, the release just before this one
-— `ThePackBaseline_IsTheReleaseJustBeforeThisOne` fails if it is not moved with the version). Notebooks (frozen)
+`PackageValidationBaselineVersion` in `Directory.Build.props` (always the release just before the current one —
+`ThePackBaseline_IsTheReleaseJustBeforeThisOne` fails if it is not moved with the version). Notebooks (frozen)
 and the Mcp .NET-tool package opt out; nothing else does. The SourceLink version is pinned once, in the same file
 (`$(SourceLinkVersion)`), to dodge a CVE band in `Microsoft.Build.Tasks.Git` — never restate it per project.
 
-**Tests that fail only on the ubuntu runner.** `ChartServices` holds process-global mutable statics (`Serializer`,
-`Renderer`, `SvgRenderer`, `FontMetrics`, `GlyphPathProvider`) that every render test reads. A test that swaps one
-must join a `*GlobalState` collection (`ChartServicesGlobalStateCollection`, `DisableParallelization = true`), or it
+**Tests that fail only on the ubuntu runner.** Five separated process-global statics — `ChartSerializerDefault`,
+`ChartRendererDefault`, `SvgRendererDefault`, `FontMetricsDefault`, `GlyphPathProviderDefault`, each a single
+replaceable `Current` slot — are read by every render test. A test that swaps one must join a `*GlobalState`
+collection (`ChartServicesGlobalStateCollection`, `DisableParallelization = true`), or it
 races the render tests under the runner's slower scheduling and never on a fast Windows box. Fixture data has to be
 platform-deterministic too: no `Math.Sin/Cos/Exp/Log/Pow` in byte-compared goldens (Windows and glibc differ by one
 ulp), no `new Uri("/x")` (Linux accepts it, Windows rejects it), `InvariantCulture` for anything formatted.

@@ -188,7 +188,7 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
             string? label = series.Nodes[i].Label;
             if (string.IsNullOrEmpty(label)) continue;
 
-            var measured = ChartServices.FontMetrics.Measure(label, labelFont);
+            var measured = FontMetricsDefault.Current.Measure(label, labelFont);
 
             // Inside-labels: draw centred inside the rect if requested AND the rect is wide
             // enough (horizontal) / tall enough (vertical) to host the text.
@@ -217,7 +217,7 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
             var placements = LabelLayoutEngine.Place(
                 outerCandidates,
                 Context!.Area.PlotBounds,
-                ChartServices.FontMetrics);
+                FontMetricsDefault.Current);
             var leaderColor = Context.Theme.ForegroundText;
             for (int k = 0; k < placements.Count; k++)
             {
@@ -228,7 +228,7 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
 
                 // Draw the sub-label one line below the primary label's final position.
                 int nodeIdx = outerNodeIndex[k];
-                var subLabelSize = ChartServices.FontMetrics.Measure(p.Text, p.Font);
+                var subLabelSize = FontMetricsDefault.Current.Measure(p.Text, p.Font);
                 DrawSubLabelIfAny(series.Nodes[nodeIdx],
                     new Point(p.FinalPoint.X, p.FinalPoint.Y + subLabelSize.Height * 0.9),
                     subLabelFontBase, p.Alignment);

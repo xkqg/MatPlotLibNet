@@ -18,7 +18,8 @@ public static class FigureSkiaExtensions
     /// global `FigureExtensions.TransformRegistry` so that <c>figure.Save("chart.png")</c>
     /// routes through the Skia backend automatically when this assembly is referenced.
     /// Also loads the bundled DejaVu Sans faces into <see cref="SkiaFonts"/> and installs the Skia-backed
-    /// text measurement and glyph outlines on <see cref="ChartServices"/>.
+    /// text measurement and glyph outlines on <see cref="MatPlotLibNet.FontMetricsDefault"/> and
+    /// <see cref="MatPlotLibNet.GlyphPathProviderDefault"/>.
     /// This is the advertised entry point for the library package — CA2255 (the intended
     /// use of <c>ModuleInitializer</c> is app code only) is suppressed deliberately.
     /// </summary>
@@ -32,13 +33,13 @@ public static class FigureSkiaExtensions
 
         // Install Skia-backed font metrics — the same shaped glyph advances as the PNG pipeline, so layout
         // (margins, tick positions, legend sizing) is identical across SVG and PNG outputs.
-        global::MatPlotLibNet.ChartServices.FontMetrics = new SkiaFontMetrics();
+        global::MatPlotLibNet.FontMetricsDefault.Current = new SkiaFontMetrics();
 
         // Install Skia-backed glyph path provider — when the SVG backend writes text, it emits a <path> element
         // with vector glyph outlines generated from the SAME font Skia uses for PNG rendering. The SVG becomes
         // self-contained: it renders identically regardless of whether the viewer has DejaVu Sans installed.
         // Matches matplotlib's default svg.fonttype='path' behaviour.
-        global::MatPlotLibNet.ChartServices.GlyphPathProvider = new SkiaGlyphPathProvider();
+        global::MatPlotLibNet.GlyphPathProviderDefault.Current = new SkiaGlyphPathProvider();
     }
 #pragma warning restore CA2255
 

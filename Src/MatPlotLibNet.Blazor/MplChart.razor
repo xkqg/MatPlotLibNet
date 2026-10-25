@@ -70,13 +70,13 @@ else
                 _subscribedSource.FrameReady += OnAnimationFrameReady;
         }
 
-        _svgContent = Figure is not null ? ChartServices.SvgRenderer.Render(Figure) : string.Empty;
+        _svgContent = Figure is not null ? SvgRendererDefault.Current.Render(Figure) : string.Empty;
     }
 
     private void OnAnimationFrameReady(object? sender, Figure fig)
     {
         Figure = fig;
-        _svgContent = ChartServices.SvgRenderer.Render(fig);
+        _svgContent = SvgRendererDefault.Current.Render(fig);
         InvokeAsync(StateHasChanged);
     }
 

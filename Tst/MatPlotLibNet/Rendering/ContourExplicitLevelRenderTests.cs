@@ -264,7 +264,7 @@ public class ContourExplicitLevelRenderTests
 
         string drawn = figure.ToSvg();
 
-        Assert.Equal(drawn, ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg());
+        Assert.Equal(drawn, ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg());
     }
 
     [Fact]

@@ -24,7 +24,7 @@ namespace MatPlotLibNet.Tests.Serialization;
 /// MemberData source — DRY per the Phase Q plan. For each ISeries, the test:
 /// <list type="number">
 ///   <item>builds a figure containing that series via <c>AddSeries</c>,</item>
-///   <item>round-trips through <c>ChartServices.Serializer.ToJson</c> →
+///   <item>round-trips through <c>ChartSerializerDefault.Current.ToJson</c> →
 ///         <c>FromJson</c>,</item>
 ///   <item>asserts the restored figure preserves at least the series TYPE and the
 ///         basic non-empty data range (when applicable).</item>
@@ -45,8 +45,8 @@ public class AllSeriesRoundTripTests
             .WithSize(400, 300)
             .AddSubPlot(1, 1, 1, ax => ax.AddSeries(series))
             .Build();
-        string json = ChartServices.Serializer.ToJson(original);
-        return ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        return ChartSerializerDefault.Current.FromJson(json);
     }
 
     /// <summary>For every series, verify the JSON round-trip produces a non-empty
@@ -94,8 +94,8 @@ public class AllSeriesRoundTripTests
             })
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var line = Assert.IsType<LineSeries>(restored.SubPlots[0].Series[0]);
         Assert.Equal(Colors.Red, line.Color);
         Assert.Equal(2.5, line.LineWidth);
@@ -117,8 +117,8 @@ public class AllSeriesRoundTripTests
             })
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var bar = Assert.IsType<BarSeries>(restored.SubPlots[0].Series[0]);
         Assert.Equal(Colors.Green, bar.Color);
         Assert.Equal(0.7, bar.BarWidth);
@@ -138,8 +138,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var c = Assert.IsType<CandlestickSeries>(restored.SubPlots[0].Series[0]);
         Assert.Equal(Colors.Blue, c.UpColor);
         Assert.Equal(Colors.Orange, c.DownColor);
@@ -161,8 +161,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var r = Assert.IsType<RadarSeries>(restored.SubPlots[0].Series[0]);
         Assert.Equal(Colors.Red, r.Color);
         Assert.Equal(0.4, r.Alpha);
@@ -182,8 +182,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         // Quiver may or may not preserve all properties depending on registry — assert it round-trips at least.
         Assert.Single(restored.SubPlots[0].Series);
     }
@@ -203,8 +203,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         Assert.Single(restored.SubPlots[0].Series);
     }
 
@@ -223,8 +223,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var line = Assert.IsType<StreamingLineSeries>(Assert.Single(restored.SubPlots[0].Series));
         Assert.Equal(50, line.Capacity);
         var snapshot = line.CreateSnapshot();
@@ -249,8 +249,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var scatter = Assert.IsType<StreamingScatterSeries>(Assert.Single(restored.SubPlots[0].Series));
         Assert.Equal(30, scatter.Capacity);
         var snapshot = scatter.CreateSnapshot();
@@ -275,8 +275,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var candles = Assert.IsType<StreamingCandlestickSeries>(Assert.Single(restored.SubPlots[0].Series));
         Assert.Equal(20, candles.Capacity);
         var snapshot = candles.CreateOhlcSnapshot();
@@ -303,8 +303,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var signal = Assert.IsType<StreamingSignalSeries>(Assert.Single(restored.SubPlots[0].Series));
         Assert.Equal(40, signal.Capacity);
         Assert.Equal(2.0, signal.SampleRate);
@@ -329,8 +329,8 @@ public class AllSeriesRoundTripTests
         bars.EdgeColor = Colors.Black;
         bars.Colors = [Colors.Red, Colors.Blue];
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var restoredBars = Assert.IsType<PlanarBar3DSeries>(Assert.Single(restored.SubPlots[0].Series));
         Assert.Equal([1.0, 2.0], restoredBars.X.Data);
         Assert.Equal([0.0, 0.0], restoredBars.Y.Data);
@@ -355,8 +355,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var line = Assert.IsType<PolarLineSeries>(Assert.Single(restored.SubPlots[0].Series));
         Assert.Equal([1.0, 2.0, 3.0], line.R);
         Assert.Equal([0.0, 1.5, 3.0], line.Theta);
@@ -376,8 +376,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var scatter = Assert.IsType<PolarScatterSeries>(Assert.Single(restored.SubPlots[0].Series));
         Assert.Equal([4.0, 5.0], scatter.R);
         Assert.Equal([0.5, 1.0], scatter.Theta);
@@ -398,8 +398,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var bar = Assert.IsType<PolarBarSeries>(Assert.Single(restored.SubPlots[0].Series));
         Assert.Equal([6.0, 7.0], bar.R);
         Assert.Equal([0.2, 0.9], bar.Theta);
@@ -427,8 +427,8 @@ public class AllSeriesRoundTripTests
             }))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var grid = Assert.IsType<TreeGridSeries>(Assert.Single(restored.SubPlots[0].Series));
         Assert.Equal(2, grid.Rows.Count);
         Assert.Equal("root", grid.Rows[0].Label);
@@ -460,8 +460,8 @@ public class AllSeriesRoundTripTests
             .AddSubPlot(1, 1, 1, ax => ax.Sankey(nodes, links, s => s.NodeWidth = 30))
             .Build();
 
-        string json = ChartServices.Serializer.ToJson(original);
-        var restored = ChartServices.Serializer.FromJson(json);
+        string json = ChartSerializerDefault.Current.ToJson(original);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         var sankey = Assert.IsType<SankeySeries>(Assert.Single(restored.SubPlots[0].Series));
         Assert.Equal(3, sankey.Nodes.Count);
         Assert.Equal("Source", sankey.Nodes[0].Label);

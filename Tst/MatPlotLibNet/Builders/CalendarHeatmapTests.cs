@@ -286,7 +286,7 @@ public class CalendarHeatmapTests
         values[40] = double.NaN;
         var figure = Plt.Create().WithSize(1100, 300).AddSubPlot(1, 1, 1, ax => ax.CalendarHeatmap(Year2025, values)).Build();
 
-        var back = ChartServices.Serializer.FromJson(figure.ToJson());
+        var back = ChartSerializerDefault.Current.FromJson(figure.ToJson());
 
         Assert.Equal(figure.ToSvg(), back.ToSvg());
         Assert.Equal(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], YNamesFromTheTop(back.SubPlots[0].YAxis));

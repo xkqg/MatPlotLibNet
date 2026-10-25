@@ -60,7 +60,7 @@ public class CycledStrokeTests
         return Dash(Assert.Single(Named(doc, "polyline"), p => (string?)p.Attribute("stroke") == Theme.Default.CycleColors[0].ToHex()))!;
     }
 
-    // ── a line ───────────────────────────────────────────────────────────────────────────────────────────────────
+    // â”€â”€ a line â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void ALine_TakesTheDashPatternOfItsSlot()
@@ -115,7 +115,7 @@ public class CycledStrokeTests
         Assert.Empty(Fills(doc, "rect", Colors.Green));
     }
 
-    // ── a scatter ────────────────────────────────────────────────────────────────────────────────────────────────
+    // â”€â”€ a scatter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void AScatter_TakesTheMarkerOfItsSlot_AndAnUnaskedSlotLeavesItsCircles()
@@ -136,7 +136,7 @@ public class CycledStrokeTests
         Assert.Empty(Fills(doc, "rect", Colors.Green));
     }
 
-    // ── a step ───────────────────────────────────────────────────────────────────────────────────────────────────
+    // â”€â”€ a step â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void AStep_TakesTheDashPatternWidthAndMarkerOfItsSlot()
@@ -191,7 +191,7 @@ public class CycledStrokeTests
         Assert.Empty(Fills(doc, "rect", Colors.Green));
     }
 
-    // ── an area's outline ────────────────────────────────────────────────────────────────────────────────────────
+    // â”€â”€ an area's outline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void AnAreasOutline_TakesTheDashPatternAndWidthOfItsSlot()
@@ -218,7 +218,7 @@ public class CycledStrokeTests
         Assert.Equal("2.5", Width(outline));
     }
 
-    // ── an error bar ─────────────────────────────────────────────────────────────────────────────────────────────
+    // â”€â”€ an error bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void AnErrorBar_TakesTheWidthOfItsSlot_ForItsBarsAndCaps()
@@ -244,7 +244,7 @@ public class CycledStrokeTests
         Assert.Equal(["0.5", "2.5"], widths);
     }
 
-    // ── the rest of the line family: density curve, ECDF, regression, signals, sparkline, polar and 3-D lines ────
+    // â”€â”€ the rest of the line family: density curve, ECDF, regression, signals, sparkline, polar and 3-D lines â”€â”€â”€â”€
 
     private static readonly double[] Sample1 = [1.0, 2, 2, 3, 3, 3, 4, 4, 5, 7];
     private static readonly double[] Sample2 = [2.0, 3, 3, 4, 4, 4, 5, 5, 6, 8];
@@ -360,7 +360,7 @@ public class CycledStrokeTests
         Assert.Equal("2.5", Width(Polyline(doc, Colors.Green)));
     }
 
-    // ── the other axis pairs follow the same slots ───────────────────────────────────────────────────────────────
+    // â”€â”€ the other axis pairs follow the same slots â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void ALineOnTheRightHandAxis_FollowsTheSlotRuleAfterThePrimarySeries()
@@ -374,7 +374,7 @@ public class CycledStrokeTests
         Assert.Equal(X.Length, Fills(doc, "rect", Colors.Green).Count());
     }
 
-    // ── the legend swatch shows what the series draws ────────────────────────────────────────────────────────────
+    // â”€â”€ the legend swatch shows what the series draws â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void ALegendSwatch_ShowsTheDashPatternWidthAndMarkerOfItsLine()
@@ -450,7 +450,7 @@ public class CycledStrokeTests
         Assert.Null(Dash(Assert.Single(Strokes(legend, "line", Colors.Red))));
     }
 
-    // ── what must not move ───────────────────────────────────────────────────────────────────────────────────────
+    // â”€â”€ what must not move â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private static string EveryFamily(Theme theme) => Plt.Create().WithTheme(theme).WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
         .Plot(X, Y1, s => s.Label = "line").Scatter(X, Y2, s => s.Label = "scatter").Step(X, Y1, s => s.Label = "step")
@@ -510,7 +510,7 @@ public class CycledStrokeTests
             .Plot(X, Y1, s => s.Label = "line").Plot(X, Y2, s => s.Label = "dashed").Scatter(X, Y1).Step(X, Y2)
             .FillBetween(X, Y1).ErrorBar(X, Y2, Low, Low).WithLegend()).Build();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(figure.ToSvg(), readBack);
     }
@@ -530,7 +530,7 @@ public class CycledStrokeTests
         Action<AxesBuilder> build = family == "sparkline" ? ax => ax.Sparkline(Y1).Sparkline(Y2).Sparkline(Y1) : Two(family);
         var figure = Plt.Create().WithTheme(ThemeWith(Styled)).WithSize(500, 400).AddSubPlot(1, 1, 1, build).Build();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(figure.ToSvg(), readBack);
     }

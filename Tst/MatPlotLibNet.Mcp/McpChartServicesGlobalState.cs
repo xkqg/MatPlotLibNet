@@ -11,7 +11,7 @@ namespace MatPlotLibNet.Mcp.Tests;
 /// effect here. <see cref="MatPlotLibNet.Mcp.ChartRendering"/> is the PNG backend every tool call goes through, and
 /// loading it (any <c>Render</c>/<c>Save</c> call with <c>ChartFormat.Png</c> or <c>.Pdf</c>) runs
 /// <c>MatPlotLibNet.Skia</c>'s <c>[ModuleInitializer]</c>, which installs a glyph-path
-/// <c>ChartServices.GlyphPathProvider</c> process-wide and for good: there is no corresponding uninstall. A test
+/// <c>GlyphPathProviderDefault.Current</c> process-wide and for good: there is no corresponding uninstall. A test
 /// that reads SVG shaped by the no-Skia default (a literal <c>&lt;text&gt;</c>, or a round-trip equality between
 /// two <c>ToSvg()</c> calls) must never run concurrently with one that triggers the load, or the two calls can
 /// straddle the moment it installs — one render sees <c>&lt;text&gt;</c>, the next sees <c>&lt;path&gt;</c> glyph

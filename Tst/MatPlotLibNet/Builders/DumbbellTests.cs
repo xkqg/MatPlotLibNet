@@ -327,7 +327,7 @@ public class DumbbellTests
             .AddSubPlot(1, 1, 1, ax => ax.Dumbbell(Products, Before, After).WithLegend()).Build();
 
         string drawn = figure.ToSvg();
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(drawn, readBack);
     }

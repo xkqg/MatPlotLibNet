@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
+// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using Microsoft.UI.Dispatching;
@@ -91,11 +91,11 @@ public sealed class MplChartElement : SKCanvasElement
         if (figure is null) return;
 
         var ctx = new SkiaRenderContext(canvas);
-        ChartServices.Renderer.Render(figure, ctx);
+        ChartRendererDefault.Current.Render(figure, ctx);
 
         if (IsInteractive)
         {
-            var layoutResult = ChartServices.Renderer.ComputeLayout(figure, ctx);
+            var layoutResult = ChartRendererDefault.Current.ComputeLayout(figure, ctx);
             PostLayoutUpdate(figure, layoutResult);
         }
 

@@ -92,6 +92,6 @@ public class ComposedChartQueryTests : IClassFixture<ComposedChartGraphQLFixture
 
         string json = await QueryAsync("chartJson", $"{name}:{missing}");
 
-        Assert.Equal(figure.ToSvg(), ChartServices.Serializer.FromJson(json).ToSvg());
+        Assert.Equal(figure.ToSvg(), ChartSerializerDefault.Current.FromJson(json).ToSvg());
     }
 }

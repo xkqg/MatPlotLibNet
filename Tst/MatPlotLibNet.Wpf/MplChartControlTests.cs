@@ -98,7 +98,7 @@ public class MplChartControlTests
     {
         using var surface = SKSurface.Create(new SKImageInfo(800, 600));
         var ctx = new SkiaRenderContext(surface.Canvas);
-        var layout = ChartLayout.Create(figure, ChartServices.Renderer.ComputeLayout(figure, ctx));
+        var layout = ChartLayout.Create(figure, ChartRendererDefault.Current.ComputeLayout(figure, ctx));
         var area = layout.GetPlotArea(lane);
         var range = layout.GetDataRange(lane);
         return new Point(area.X + (dataX - range.XMin) / (range.XMax - range.XMin) * area.Width, area.Y + area.Height / 2);

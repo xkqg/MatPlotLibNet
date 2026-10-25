@@ -403,7 +403,7 @@ public class QQPlotTests
         var figure = ComposedChartShapes.Named("qq").Build(missing).Build();
 
         string drawn = figure.ToSvg();
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(drawn, readBack);
     }
@@ -419,7 +419,7 @@ public class QQPlotTests
             parts.Reference.IsExtended = true;
         })).Build();
 
-        var line = Assert.Single(ChartServices.Serializer.FromJson(figure.ToJson()).SubPlots[0].Trendlines);
+        var line = Assert.Single(ChartSerializerDefault.Current.FromJson(figure.ToJson()).SubPlots[0].Trendlines);
 
         Assert.Equal(teal, line.Color);
         Assert.True(line.IsExtended);

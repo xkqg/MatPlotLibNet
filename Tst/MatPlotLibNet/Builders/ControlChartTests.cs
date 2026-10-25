@@ -448,7 +448,7 @@ public class ControlChartTests
         var figure = ComposedChartShapes.Named("control-chart").Build(missing).Build();
 
         string drawn = figure.ToSvg();
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(drawn, readBack);
     }

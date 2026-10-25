@@ -6,9 +6,9 @@ using Xunit;
 namespace MatPlotLibNet.Tests;
 
 /// <summary>
-/// Serializes every test that MUTATES a process-global <c>ChartServices</c> static (<c>GlyphPathProvider</c>,
-/// <c>FontMetrics</c>, <c>Renderer</c>, <c>SvgRenderer</c>, <c>Serializer</c>). Those statics are read by every
-/// render test, so a writer running CONCURRENTLY with a render test makes the render briefly observe the swapped
+/// Serializes every test that MUTATES one of the process-global default-provider statics (<see cref="MatPlotLibNet.GlyphPathProviderDefault"/>,
+/// <see cref="MatPlotLibNet.FontMetricsDefault"/>, <see cref="MatPlotLibNet.ChartRendererDefault"/>, <see cref="MatPlotLibNet.SvgRendererDefault"/>,
+/// <see cref="MatPlotLibNet.ChartSerializerDefault"/>). Those statics are read by every render test, so a writer running CONCURRENTLY with a render test makes the render briefly observe the swapped
 /// value — e.g. a path-returning <c>GlyphPathProvider</c> makes <c>SvgRenderContext.DrawText</c> emit text as
 /// <c>&lt;path&gt;</c> glyph outlines instead of <c>&lt;text&gt;</c> elements, so a label-substring assertion
 /// (<c>"&gt;X axis&lt;"</c>) fails. That cross-thread race is non-deterministic: it never hit on Windows but

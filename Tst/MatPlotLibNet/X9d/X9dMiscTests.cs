@@ -12,81 +12,81 @@ namespace MatPlotLibNet.Tests.X9d;
 /// <summary>Phase X.9.d (v1.7.2, 2026-04-19) — quick lifts for the small B2 misc
 /// classes that have property-access or simple branch coverage gaps that haven't
 /// been exercised anywhere else:
-///   - <see cref="ChartServices"/> 57%L / 0%B — every Get/Set property arm
+///   - <c>ChartServices</c> 57%L / 0%B — every Get/Set property arm
 ///   - <see cref="FigureExtensions"/> 77%L / 50%B — Save() format-detection branches</summary>
 [Xunit.Collection("ChartServicesGlobalState")] // mutates ChartServices statics — must not run concurrently with render tests
 public class X9dMiscCoverageTests
 {
     // ── ChartServices: cover every property getter/setter + null-arg arm ──────
 
-    /// <summary>ChartServices.Serializer get/set + null-arg validation. Each property
+    /// <summary>ChartSerializerDefault.Current get/set + null-arg validation. Each property
     /// has 2 arms (set with non-null, set with null → throws); 0%B was the gap.</summary>
     [Fact]
     public void ChartServices_Serializer_GetSet_AndNullThrows()
     {
-        var original = ChartServices.Serializer;
+        var original = ChartSerializerDefault.Current;
         try
         {
             var custom = new ChartSerializer();
-            ChartServices.Serializer = custom;
-            Assert.Same(custom, ChartServices.Serializer);
-            Assert.Throws<ArgumentNullException>(() => ChartServices.Serializer = null!);
+            ChartSerializerDefault.Current = custom;
+            Assert.Same(custom, ChartSerializerDefault.Current);
+            Assert.Throws<ArgumentNullException>(() => ChartSerializerDefault.Current = null!);
         }
-        finally { ChartServices.Serializer = original; }
+        finally { ChartSerializerDefault.Current = original; }
     }
 
     [Fact]
     public void ChartServices_Renderer_GetSet_AndNullThrows()
     {
-        var original = ChartServices.Renderer;
+        var original = ChartRendererDefault.Current;
         try
         {
             var custom = new ChartRenderer();
-            ChartServices.Renderer = custom;
-            Assert.Same(custom, ChartServices.Renderer);
-            Assert.Throws<ArgumentNullException>(() => ChartServices.Renderer = null!);
+            ChartRendererDefault.Current = custom;
+            Assert.Same(custom, ChartRendererDefault.Current);
+            Assert.Throws<ArgumentNullException>(() => ChartRendererDefault.Current = null!);
         }
-        finally { ChartServices.Renderer = original; }
+        finally { ChartRendererDefault.Current = original; }
     }
 
     [Fact]
     public void ChartServices_SvgRenderer_GetSet_AndNullThrows()
     {
-        var original = ChartServices.SvgRenderer;
+        var original = SvgRendererDefault.Current;
         try
         {
             var custom = new MatPlotLibNet.Transforms.SvgTransform(new ChartRenderer());
-            ChartServices.SvgRenderer = custom;
-            Assert.Same(custom, ChartServices.SvgRenderer);
-            Assert.Throws<ArgumentNullException>(() => ChartServices.SvgRenderer = null!);
+            SvgRendererDefault.Current = custom;
+            Assert.Same(custom, SvgRendererDefault.Current);
+            Assert.Throws<ArgumentNullException>(() => SvgRendererDefault.Current = null!);
         }
-        finally { ChartServices.SvgRenderer = original; }
+        finally { SvgRendererDefault.Current = original; }
     }
 
     [Fact]
     public void ChartServices_FontMetrics_GetSet_AndNullThrows()
     {
-        var original = ChartServices.FontMetrics;
+        var original = FontMetricsDefault.Current;
         try
         {
             var custom = new DefaultFontMetrics();
-            ChartServices.FontMetrics = custom;
-            Assert.Same(custom, ChartServices.FontMetrics);
-            Assert.Throws<ArgumentNullException>(() => ChartServices.FontMetrics = null!);
+            FontMetricsDefault.Current = custom;
+            Assert.Same(custom, FontMetricsDefault.Current);
+            Assert.Throws<ArgumentNullException>(() => FontMetricsDefault.Current = null!);
         }
-        finally { ChartServices.FontMetrics = original; }
+        finally { FontMetricsDefault.Current = original; }
     }
 
     [Fact]
     public void ChartServices_GlyphPathProvider_AcceptsNullAndNonNull()
     {
-        var original = ChartServices.GlyphPathProvider;
+        var original = GlyphPathProviderDefault.Current;
         try
         {
-            ChartServices.GlyphPathProvider = null;
-            Assert.Null(ChartServices.GlyphPathProvider);
+            GlyphPathProviderDefault.Current = null;
+            Assert.Null(GlyphPathProviderDefault.Current);
         }
-        finally { ChartServices.GlyphPathProvider = original; }
+        finally { GlyphPathProviderDefault.Current = original; }
     }
 
     // ── FigureExtensions.Save(): every format-detection arm ───────────────────

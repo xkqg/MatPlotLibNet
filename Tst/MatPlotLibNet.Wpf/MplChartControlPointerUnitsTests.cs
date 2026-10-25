@@ -39,7 +39,7 @@ public class MplChartControlPointerUnitsTests
         using var surface = SKSurface.Create(new SKImageInfo((int)figure.Width, (int)figure.Height));
         var paint = typeof(MplChartControl).GetMethod("OnPaintSurface", BindingFlags.NonPublic | BindingFlags.Instance)!;
         paint.Invoke(control, [new SKPaintSurfaceEventArgs(surface, new SKImageInfo((int)figure.Width, (int)figure.Height))]);
-        area = ChartLayout.Create(figure, ChartServices.Renderer.ComputeLayout(figure, new SkiaRenderContext(surface.Canvas)))
+        area = ChartLayout.Create(figure, ChartRendererDefault.Current.ComputeLayout(figure, new SkiaRenderContext(surface.Canvas)))
             .GetPlotArea(0);
         return (InteractionController)typeof(MplChartControl)
             .GetField("_controller", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(control)!;

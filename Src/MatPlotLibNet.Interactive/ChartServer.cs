@@ -113,7 +113,7 @@ public sealed class ChartServer : IAsyncDisposable
             if (!figures.TryGetValue(chartId, out var figure))
                 return Results.NotFound();
 
-            var svg = ChartServices.SvgRenderer.Render(figure);
+            var svg = SvgRendererDefault.Current.Render(figure);
             var html = ChartPage.Generate(chartId, svg, portProvider());
             return Results.Content(html, "text/html");
         });

@@ -18,7 +18,7 @@ namespace MatPlotLibNet.Rendering.TextMeasurement;
 /// deterministic rendering — the right trade-off for publication-quality charts where
 /// pixel-perfect layout matters more than copy/paste support.</para>
 ///
-/// <para>Registered via <see cref="ChartServices.GlyphPathProvider"/>. When
+/// <para>Registered via <see cref="GlyphPathProviderDefault.Current"/>. When
 /// <c>MatPlotLibNet.Skia</c> is loaded its module initializer installs
 /// <c>SkiaGlyphPathProvider</c> which uses <c>SKFont.GetGlyphPath</c> and
 /// <c>SKPath.ToSvgPathData</c>. Pure-managed consumers (no Skia) leave the provider

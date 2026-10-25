@@ -60,7 +60,9 @@ Directory.Build.targets           imported AFTER every project, so the version i
 ```
 MatPlotLibNet/
   Plt.cs                              entry point: Plt.Create() / Plt.Figure()
-  ChartServices.cs                    static DI defaults (IChartSerializer, IChartRenderer, ISvgRenderer)
+  ChartServices.cs                    five separated static DI defaults (ChartSerializerDefault, ChartRendererDefault,
+                                      SvgRendererDefault, FontMetricsDefault, GlyphPathProviderDefault), each a single
+                                      replaceable Current slot
   DisplayMode.cs                      enum: Inline, Expandable, Popup
   IChartSubscriptionClient.cs         shared SignalR client contract
   SaveOptions.cs                      sealed record: Dpi, PrettifySvg, SvgDecimalPrecision, Title, Author — Figure.Save(path, options); each
@@ -1001,7 +1003,7 @@ Plt.Create()           user builds figure via fluent API
     |
 FigureBuilder.Build()  produces Figure model
     |
-figure.ToSvg()         calls ChartServices.SvgRenderer.Render(figure)
+figure.ToSvg()         calls SvgRendererDefault.Current.Render(figure)
     |
 SvgTransform           renders background sequentially
     |                  computes subplot layout
@@ -1065,14 +1067,14 @@ figure.Transform(new SvgTransform()).ToStream(stream);
 ### JSON round-trip
 
 ```
-figure.ToJson()        calls ChartServices.Serializer.ToJson(figure)
+figure.ToJson()        calls ChartSerializerDefault.Current.ToJson(figure)
     |
 ChartSerializer        Figure -> each series via ISeriesSerializable -> JsonSerializer.Serialize()
     |
 string                 JSON with camelCase, null-ignoring, Color as hex, a number that is not finite as the string "NaN",
                        "Infinity" or "-Infinity"; a value at its default is left out
 
-ChartServices.Serializer.FromJson(json)
+ChartSerializerDefault.Current.FromJson(json)
     |
 ChartSerializer        JsonSerializer.Deserialize() -> SeriesRegistry resolves type -> Figure
     |
@@ -1112,7 +1114,7 @@ ChartHub               routes to SignalR group by chartId
 | Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable, IHasColor, IHasAlpha, IHasEdgeColor, ILabelable, IHasBarOrientation (internal) | narrow contracts for cross-cutting concerns |
 | DI interfaces | IFigureTransform, IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |
 | SRP extension methods | FigureExtensions (Save, Transform, ToSvg, RegisterTransform) | FigureExtensions holds the output methods, so FigureBuilder only builds the figure |
-| Static defaults | ChartServices | non-DI usage for console apps |
+| Static defaults | ChartSerializerDefault, ChartRendererDefault, SvgRendererDefault, FontMetricsDefault, GlyphPathProviderDefault | non-DI usage for console apps, each a single separated slot |
 | Record types | Font, GridStyle, Legend, TickConfig, Color, Point, Rect, TransformResult | immutable value objects |
 | Parallel rendering | SvgTransform + per-subplot SvgRenderContext | multi-core subplot rendering |
 | Thread safety | volatile fields, ConcurrentDictionary for GlobalTransforms, AxesRenderer registry, SeriesRegistry | safe concurrent access |
@@ -1142,8 +1144,9 @@ ChartHub               routes to SignalR group by chartId
 ## MatPlotLibNet.Skia package
 
 This package renders PNG and PDF through SkiaSharp. It also provides the text pipeline that every backend shares once
-the package is loaded: the module initializer installs `SkiaFontMetrics` and `SkiaGlyphPathProvider` on
-`ChartServices`, so an SVG rendered in the same process carries the same glyph outlines that the PNG paints.
+the package is loaded: the module initializer installs `SkiaFontMetrics` on `FontMetricsDefault` and
+`SkiaGlyphPathProvider` on `GlyphPathProviderDefault`, so an SVG rendered in the same process carries the same
+glyph outlines that the PNG paints.
 
 ```
 MatPlotLibNet.Skia/
@@ -1230,8 +1233,8 @@ missing value as the string "NaN" (ComposedChartSpecTests runs every composed sh
 ### Two process-wide behaviours this package has to handle
 
 The package references `MatPlotLibNet.Skia` for PNG and PDF. That package's `[ModuleInitializer]` installs
-`ChartServices.GlyphPathProvider` and `FontMetrics` the first time the runtime prepares a method that names a Skia
-type. The constructor of `ChartRendering` forces that module constructor to run, so the first chart a process renders
+`GlyphPathProviderDefault.Current` and `FontMetricsDefault.Current` the first time the runtime prepares a method that
+names a Skia type. The constructor of `ChartRendering` forces that module constructor to run, so the first chart a process renders
 is drawn the same way as every later one. The SDK forwards only `McpException.Message` to the model and replaces any
 other exception with a generic line, so every refusal leaves the server through that one type.
 

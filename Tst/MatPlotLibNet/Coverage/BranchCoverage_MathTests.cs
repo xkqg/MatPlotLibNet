@@ -614,9 +614,9 @@ public class BranchCoverage_MathTests
     {
         // Build a series with Color = null then round-trip — exercises the null write branch.
         var fig = Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build();
-        var json = ChartServices.Serializer.ToJson(fig);
+        var json = ChartSerializerDefault.Current.ToJson(fig);
         Assert.Contains("\"line\"", json);
-        var restored = ChartServices.Serializer.FromJson(json);
+        var restored = ChartSerializerDefault.Current.FromJson(json);
         Assert.NotNull(restored);
     }
 

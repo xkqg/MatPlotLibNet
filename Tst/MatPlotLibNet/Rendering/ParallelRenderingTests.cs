@@ -3,7 +3,7 @@
 
 namespace MatPlotLibNet.Tests.Rendering;
 
-/// <summary>Verifies <see cref="ChartServices"/> parallel rendering behavior.</summary>
+/// <summary>Verifies multi-subplot rendering behavior.</summary>
 public class ParallelRenderingTests
 {
     /// <summary>Verifies that parallel rendering of a 2x2 grid with mixed series types includes all subplot titles.</summary>

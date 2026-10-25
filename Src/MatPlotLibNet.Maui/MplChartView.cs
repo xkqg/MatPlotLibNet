@@ -78,6 +78,6 @@ internal sealed class MplChartDrawable : IDrawable
         if (_view.Figure is null) return;
 
         var context = new MauiGraphicsRenderContext(canvas);
-        ChartServices.Renderer.Render(_view.Figure, context);
+        ChartRendererDefault.Current.Render(_view.Figure, context);
     }
 }

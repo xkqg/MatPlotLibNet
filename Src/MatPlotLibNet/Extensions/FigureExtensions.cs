@@ -28,7 +28,7 @@ public static class FigureExtensions
         new(figure, transform);
 
     /// <summary>Renders the figure as a standalone SVG string.</summary>
-    public static string ToSvg(this Figure figure) => ChartServices.SvgRenderer.Render(figure);
+    public static string ToSvg(this Figure figure) => SvgRendererDefault.Current.Render(figure);
 
     /// <summary>The figure's accessible name — what the SVG <c>&lt;title&gt;</c> says and what the data table's
     /// caption says, from one rule: the <see cref="Figure.AltText"/> an author wrote, else the
@@ -48,7 +48,7 @@ public static class FigureExtensions
 
     /// <summary>Serializes the figure to JSON.</summary>
     public static string ToJson(this Figure figure, bool indented = false) =>
-        ChartServices.Serializer.ToJson(figure, indented);
+        ChartSerializerDefault.Current.ToJson(figure, indented);
 
     /// <summary>Saves the figure as an SVG file.</summary>
     public static void SaveSvg(this Figure figure, string path) =>

@@ -15,7 +15,7 @@ namespace MatPlotLibNet.Skia;
 /// PNG outputs, kerning and joined forms included.
 /// </summary>
 /// <remarks>
-/// Registered on <see cref="ChartServices.FontMetrics"/> by <see cref="FigureSkiaExtensions.Initialize"/> at module
+/// Registered on <see cref="FontMetricsDefault.Current"/> by <see cref="FigureSkiaExtensions.Initialize"/> at module
 /// load. Once active, both <see cref="Rendering.Svg.SvgRenderContext"/> and <see cref="SkiaRenderContext"/> delegate
 /// to this class, guaranteeing byte-identical layout between the two render backends.
 /// </remarks>

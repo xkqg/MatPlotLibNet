@@ -47,7 +47,7 @@ public class DirectLabelRenderingTests
     private static Theme CyclerTheme() => Theme.CreateFrom(Theme.Default)
         .WithPropCycler(new PropCyclerBuilder().WithColors(Colors.Red, Colors.Green, Colors.Blue).Build()).Build();
 
-    // ── colour: the label wears the stroke of its line ──
+    // â”€â”€ colour: the label wears the stroke of its line â”€â”€
 
     [Fact]
     public void APrimaryLabel_IsFilledWithItsLinesStroke()
@@ -94,7 +94,7 @@ public class DirectLabelRenderingTests
         Assert.Equal((string)polylines[1].Attribute("stroke")!, (string)Label(doc, "secondary").Attribute("fill")!);
     }
 
-    // ── the label is inside the figure, in both layout paths ──
+    // â”€â”€ the label is inside the figure, in both layout paths â”€â”€
 
     public static TheoryData<bool> LayoutPaths => [false, true];
 
@@ -115,7 +115,7 @@ public class DirectLabelRenderingTests
         foreach (var text in new[] { name, "secondary" })
         {
             var label = Label(doc, text);
-            double right = Num(label, "x") + ChartServices.FontMetrics.Measure(text, font).Width;
+            double right = Num(label, "x") + FontMetricsDefault.Current.Measure(text, font).Width;
             Assert.True(right <= FigureWidth, $"'{text}' ends at {right:F2} > {FigureWidth}");
         }
     }
@@ -143,7 +143,7 @@ public class DirectLabelRenderingTests
         }
     }
 
-    // ── the label lives inside its series' group ──
+    // â”€â”€ the label lives inside its series' group â”€â”€
 
     [Fact]
     public void WithInteractiveAttributes_TheLabel_IsInsideTheGroupCarryingItsSeriesIndex()
@@ -183,7 +183,7 @@ public class DirectLabelRenderingTests
         Assert.NotNull(LabelOrNull(doc, "kept"));
     }
 
-    // ── an inset has no right margin of its own: its flagged line keeps the legend entry ──
+    // â”€â”€ an inset has no right margin of its own: its flagged line keeps the legend entry â”€â”€
 
     /// <summary>Inset axes sit inside the parent's plot area, so right of an inset is the PARENT's data, and no margin
     /// is reserved for a label column there. An inset therefore draws no end labels; its flagged line keeps its legend
@@ -219,7 +219,7 @@ public class DirectLabelRenderingTests
         Assert.True(AxesRenderer.Create(figure.SubPlots[0], default, new MatPlotLibNet.Rendering.Svg.SvgRenderContext(), figure.Theme).DrawsDirectLabels);
     }
 
-    // ── the hollow-property theory: the setting reaches the output on every carrier, and nowhere else ──
+    // â”€â”€ the hollow-property theory: the setting reaches the output on every carrier, and nowhere else â”€â”€
 
     public static TheoryData<string> Carriers => [nameof(LineSeries), nameof(StreamingLineSeries)];
 

@@ -52,7 +52,7 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
 
         // Reuse the cached label font so every ring uses the same metrics, and so the
         // text-size measurement inside the LabelLayoutEngine matches what the renderer
-        // will eventually draw (both go through ChartServices.FontMetrics).
+        // will eventually draw (both go through FontMetricsDefault.Current).
         Font? labelFont = null;
         if (labelCandidates is not null)
         {

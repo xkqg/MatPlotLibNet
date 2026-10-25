@@ -22,8 +22,8 @@ public class MplChartElementPointerUnitsTests
     {
         using var surface = SKSurface.Create(new SKImageInfo((int)figure.Width, (int)figure.Height));
         var ctx = new SkiaRenderContext(surface.Canvas);
-        ChartServices.Renderer.Render(figure, ctx);
-        var layoutResult = ChartServices.Renderer.ComputeLayout(figure, ctx);
+        ChartRendererDefault.Current.Render(figure, ctx);
+        var layoutResult = ChartRendererDefault.Current.ComputeLayout(figure, ctx);
         var layout = ChartLayout.Create(figure, layoutResult);
         area = layout.GetPlotArea(0);
         return InteractionController.CreateLocal(figure, layout);

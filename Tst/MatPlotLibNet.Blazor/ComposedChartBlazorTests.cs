@@ -111,7 +111,7 @@ public class ComposedChartClientTests : IClassFixture<ComposedChartClientFixture
 
         string json = await _fixture.JsonReceivedAsync($"json-{name}-{missing}", figure, Xunit.TestContext.Current.CancellationToken);
 
-        Assert.Equal(figure.ToSvg(), ChartServices.Serializer.FromJson(json).ToSvg());
+        Assert.Equal(figure.ToSvg(), ChartSerializerDefault.Current.FromJson(json).ToSvg());
     }
 
     [Theory]

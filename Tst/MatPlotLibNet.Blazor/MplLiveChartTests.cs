@@ -128,7 +128,7 @@ public class MplLiveChartCoverageTests : BunitContext
             p.Add(x => x.Client, client);
         });
 
-        var json = ChartServices.Serializer.ToJson(
+        var json = ChartSerializerDefault.Current.ToJson(
             Plt.Create().Plot([1.0, 2.0], [3.0, 4.0]).Build());
         client.FireChartUpdated("c1", json);
         cut.Render();

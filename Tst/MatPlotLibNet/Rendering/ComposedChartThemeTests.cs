@@ -51,12 +51,12 @@ public class ComposedChartThemeTests
                 onTheFigure.Theme = named.Theme;
                 if (onTheFigure.ToSvg() != inTheBuilder) differences.Add($"{where}: set on the built figure");
 
-                string writtenUnderIt = ChartServices.Serializer.FromJson(shape.Build(missing).WithTheme(named.Theme).Build().ToJson()).ToSvg();
+                string writtenUnderIt = ChartSerializerDefault.Current.FromJson(shape.Build(missing).WithTheme(named.Theme).Build().ToJson()).ToSvg();
                 if (writtenUnderIt != inTheBuilder) differences.Add($"{where}: written to JSON under it and read back");
 
                 if (!ShapesWithAFrozenGrid.Contains(name))
                 {
-                    var afterTheRead = ChartServices.Serializer.FromJson(shape.Build(missing).Build().ToJson());
+                    var afterTheRead = ChartSerializerDefault.Current.FromJson(shape.Build(missing).Build().ToJson());
                     afterTheRead.Theme = named.Theme;
                     if (afterTheRead.ToSvg() != inTheBuilder) differences.Add($"{where}: set on a figure read back from JSON");
                 }

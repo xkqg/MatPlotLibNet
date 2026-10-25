@@ -29,7 +29,7 @@ public class ChartLayoutDrawnViewTests
     /// <summary>The layout a native control builds after it paints: the renderer's layout pass, then
     /// <see cref="ChartLayout.Create(Figure, LayoutResult)"/>.</summary>
     private static ChartLayout LayoutOf(Figure figure) =>
-        ChartLayout.Create(figure, ChartServices.Renderer.ComputeLayout(figure, new SvgRenderContext()));
+        ChartLayout.Create(figure, ChartRendererDefault.Current.ComputeLayout(figure, new SvgRenderContext()));
 
     /// <summary>The transform the renderer draws axes <paramref name="index"/> with, in the plot area the layout holds.</summary>
     private static DataTransform Drawn(Figure figure, int index)
@@ -55,7 +55,7 @@ public class ChartLayoutDrawnViewTests
         AssertClose(y, read.Value.DataY, "y");
     }
 
-    // ── pixel -> data ────────────────────────────────────────────────────────────
+    // â”€â”€ pixel -> data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void AutoscaledAxes_ThePixelOfADrawnPoint_ReadsThatPoint()
@@ -152,7 +152,7 @@ public class ChartLayoutDrawnViewTests
         AssertReads(layout, 0, new Point(300, 200), (xMin + xMax) / 2, (yMin + yMax) / 2);
     }
 
-    // ── what the modifiers do with it ────────────────────────────────────────────
+    // â”€â”€ what the modifiers do with it â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void LogAxis_HoverOnADrawnPoint_FindsThatPoint()
@@ -214,7 +214,7 @@ public class ChartLayoutDrawnViewTests
         AssertClose(first.YMax, back.YMax, "yMax");
     }
 
-    // ── round trips: apply what the controller emits, lay out again ─────────────
+    // â”€â”€ round trips: apply what the controller emits, lay out again â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [Fact]
     public void AutoscaledAxes_AWheelZoom_KeepsThePointUnderThePointer_AndNarrowsTheView()

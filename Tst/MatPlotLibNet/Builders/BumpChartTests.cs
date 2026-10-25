@@ -306,7 +306,7 @@ public class BumpChartTests
         var figure = Plt.Create().WithSize(900, 450).AddSubPlot(1, 1, 1, ax => ax.BumpChart(Seasons, fractional)).Build();
         string svg = figure.ToSvg();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(["1", "2", "3"], YTickLabels(svg));
         Assert.Equal(["1", "2", "3"], YTickLabels(readBack));
@@ -470,7 +470,7 @@ public class BumpChartTests
         var figure = Plt.Create().WithSize(900, 450).AddSubPlot(1, 1, 1, ax => ax.BumpChart(Seasons, mixed)).Build();
         string svg = figure.ToSvg();
 
-        string readBack = ChartServices.Serializer.FromJson(figure.ToJson()).ToSvg();
+        string readBack = ChartSerializerDefault.Current.FromJson(figure.ToJson()).ToSvg();
 
         Assert.Equal(svg, readBack);
         Assert.Equal(["1", "2", "3", "4", "5", "6", "7"], YTickLabels(readBack));

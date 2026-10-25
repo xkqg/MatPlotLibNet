@@ -9,7 +9,7 @@ namespace MatPlotLibNet.Tests.Serialization;
 /// a raster export draws at the resolution, so a figure read from sparse JSON must not arrive with none.</summary>
 public class FigureDpiSerializationTests
 {
-    private static readonly IChartSerializer Serializer = ChartServices.Serializer;
+    private static readonly IChartSerializer Serializer = ChartSerializerDefault.Current;
 
     [Fact]
     public void JsonWithoutADpi_ReadsAsTheDefaultResolution()

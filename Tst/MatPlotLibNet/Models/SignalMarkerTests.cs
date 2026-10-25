@@ -76,7 +76,7 @@ public class SignalMarkerTests
         axes.Plot([1.0, 2.0, 3.0], [10, 20, 15]);
         axes.AddSignal(1.0, 10.0, SignalDirection.Buy);
 
-        string svg = ChartServices.SvgRenderer.Render(figure);
+        string svg = SvgRendererDefault.Current.Render(figure);
         Assert.Contains("<polygon", svg);
     }
 }

@@ -12,7 +12,7 @@ namespace MatPlotLibNet.Tests.Rendering;
 
 /// <summary>A shaded span (<c>AxHSpan</c>, <c>AxVSpan</c>, and the zone of a <c>Threshold</c>) is clipped to the plot
 /// area, as matplotlib's <c>axhspan</c> is: an edge beyond the drawn range runs to the plot edge, and a span wholly beyond
-/// it draws nothing. Before, a threshold's zone (a span to ±<see cref="double.MaxValue"/>) put <c>y="-Infinity"
+/// it draws nothing. Before, a threshold's zone (a span to Â±<see cref="double.MaxValue"/>) put <c>y="-Infinity"
 /// height="Infinity"</c> into the SVG, which a browser does not draw, and a finite span wider than the range was drawn
 /// over the margins and the title. These tests read the geometry out of the SVG, not pixels.</summary>
 public class SpanClippingTests
@@ -217,7 +217,7 @@ public class SpanClippingTests
             .Build();
         var ctx = new RecordingRenderContext();
 
-        ChartServices.Renderer.Render(figure, ctx);
+        ChartRendererDefault.Current.Render(figure, ctx);
 
         var zone = (Rect)((dynamic)Assert.Single(ctx.OfKind("DrawRectangle"),
             c => Equals((Color?)((dynamic)c.Args!).fill, Colors.Red.WithAlpha(51))).Args!).rect;
