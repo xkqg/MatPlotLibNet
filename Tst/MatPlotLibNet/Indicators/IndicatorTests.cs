@@ -233,6 +233,27 @@ public class AddIndicatorBuilderTests
 
         Assert.Equal(2, figure.SubPlots[0].Series.Count); // original + SMA
     }
+
+    /// <summary>AddIndicator is the generic entry point for indicators with no dedicated shortcut verb (Macd,
+    /// Stochastic, Atr, Ichimoku, ...). In a bar-slot context (a panel with a categorical series: Bar,
+    /// Candlestick, ...), every DEDICATED indicator verb (Sma, Rsi, ...) nudges its indicator's X positions onto
+    /// the category slot's centre (<c>CategorySlot.CentreOffset</c> = 0.5, via
+    /// <c>AxesBuilder.ApplyIndicator&lt;T&gt;</c>) -- but AddIndicator called <c>indicator.Apply(_axes)</c>
+    /// directly and skipped that nudge, so the SAME Sma misaligned by half a category slot depending on which
+    /// entry point added it.</summary>
+    [Fact]
+    public void AddIndicator_InBarSlotContext_NudgesOffsetOntoTheCategorySlotCentre()
+    {
+        var sma = new Sma([10, 20, 30, 40, 50], 3);
+
+        Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Bar(["a", "b", "c", "d", "e"], [10, 20, 30, 40, 50]) // categorical series -> bar-slot context
+                .AddIndicator(sma))
+            .Build();
+
+        Assert.Equal(0.5, sma.Offset); // CategorySlot.CentreOffset -- the same nudge every dedicated verb applies
+    }
 }
 
 /// <summary>Verifies that chaining BB then SMA on the same candlestick panel uses the original price data.</summary>

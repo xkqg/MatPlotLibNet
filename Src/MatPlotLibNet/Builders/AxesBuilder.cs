@@ -202,9 +202,15 @@ public sealed class AxesBuilder
 
     /// <summary>Applies a technical indicator to this axes, adding computed series or decorations.</summary>
     /// <remarks>Overlay indicators (SMA, EMA, Bollinger Bands) add series to the same axes.
-    /// Panel indicators (RSI, MACD) should be placed in a separate subplot by the caller.</remarks>
+    /// Panel indicators (RSI, MACD) should be placed in a separate subplot by the caller. In a bar-slot context
+    /// (a categorical series already on the axes), nudges the indicator's X positions onto the category slot's
+    /// centre -- the same nudge every dedicated indicator verb (Sma, Rsi, ...) applies via
+    /// <see cref="ApplyIndicator{T}"/>, so the same indicator lands in the same place through either entry
+    /// point.</remarks>
     public AxesBuilder AddIndicator(IIndicator indicator)
     {
+        if (indicator is Indicators.Indicator concrete && IsBarSlotContext())
+            concrete.Offset = CategorySlot.CentreOffset;
         indicator.Apply(_axes);
         return this;
     }
@@ -1557,12 +1563,9 @@ public sealed class AxesBuilder
     /// <summary>Applies any <see cref="Indicators.IIndicator"/> to the current axes.</summary>
     /// <remarks>Generic entry point for indicators that don't have a dedicated shortcut
     /// (e.g. <c>Macd</c>, <c>Stochastic</c>, <c>Atr</c>, <c>Ichimoku</c>). The indicator instance
-    /// is constructed by the caller and this method simply invokes its <see cref="Indicators.IIndicator.Apply"/>.</remarks>
-    public AxesBuilder Indicator(Indicators.IIndicator indicator)
-    {
-        indicator.Apply(_axes);
-        return this;
-    }
+    /// is constructed by the caller. Same method as <see cref="AddIndicator"/>, under the name this overload
+    /// shipped with first; kept so neither call site breaks.</remarks>
+    public AxesBuilder Indicator(Indicators.IIndicator indicator) => AddIndicator(indicator);
 
     /// <summary>Adds a buy signal marker at the given position.</summary>
     public AxesBuilder BuyAt(double x, double y, Action<SignalMarker>? configure = null)
