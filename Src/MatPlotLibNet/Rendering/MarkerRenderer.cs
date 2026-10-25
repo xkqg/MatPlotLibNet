@@ -13,113 +13,80 @@ namespace MatPlotLibNet.Rendering;
 /// full bounding-box edge / diameter in pixels; the helper converts to
 /// per-shape radii internally.</para>
 /// <para><b>Cross / Plus</b> are outline-only markers (matches matplotlib's
-/// <c>markers.py</c>). They have no fill; the caller's <c>fill</c>
-/// argument is used as the stroke colour and <c>strokeWidth</c>
-/// as the line thickness (falling back to <c>size / 8</c> when zero so the
-/// marker remains visible at small sizes).</para>
+/// <c>markers.py</c>). They have no fill; <paramref name="shape"/>'s <c>Fill</c>
+/// is used as the stroke colour instead (those shapes have no fill), with
+/// <c>StrokeThickness</c> falling back to <c>size / 8</c> when zero so the
+/// marker remains visible at small sizes.</para>
 /// </summary>
 internal static class MarkerRenderer
 {
-    /// <summary>Draws a single marker at <paramref name="center"/>.</summary>
-    /// <param name="ctx">Target render context.</param>
-    /// <param name="style">Shape to draw.</param>
-    /// <param name="center">Centre of the marker in pixel space.</param>
-    /// <param name="size">Full bounding-box edge / diameter in pixels.</param>
-    /// <param name="fill">Fill colour. For Cross / Plus this is used as the
-    /// stroke colour instead (those shapes have no fill).</param>
-    /// <param name="stroke">Edge colour for filled shapes. Ignored for
-    /// Cross / Plus.</param>
-    /// <param name="strokeWidth">Edge thickness for filled shapes; line
-    /// thickness for Cross / Plus.</param>
-    public static void Draw(
-        IRenderContext ctx,
-        MarkerStyle style,
-        Point center,
-        double size,
-        Color? fill,
-        Color? stroke,
-        double strokeWidth)
+    extension(IRenderContext ctx)
     {
-        if (style == MarkerStyle.None || size <= 0) return;
-
-        double r = size / 2.0;
-        switch (style)
+        /// <summary>Draws a single marker at <paramref name="center"/>.</summary>
+        /// <param name="style">Shape to draw.</param>
+        /// <param name="center">Centre of the marker in pixel space.</param>
+        /// <param name="size">Full bounding-box edge / diameter in pixels.</param>
+        /// <param name="shape">Fill/stroke/stroke-width. For Cross / Plus, <c>Fill</c> is used as the stroke
+        /// colour (those shapes have no fill) and a zero <c>StrokeThickness</c> falls back to <c>size / 8</c>.</param>
+        public void DrawMarker(MarkerStyle style, Point center, double size, ShapeStyle shape)
         {
-            case MarkerStyle.Circle:
-                ctx.DrawCircle(center, r, new ShapeStyle(fill, stroke, strokeWidth));
-                return;
+            if (style == MarkerStyle.None || size <= 0) return;
 
-            case MarkerStyle.Square:
-                ctx.DrawRectangle(
-                    new Rect(center.X - r, center.Y - r, size, size),
-                    new ShapeStyle(fill, stroke, strokeWidth));
-                return;
+            double r = size / 2.0;
+            switch (style)
+            {
+                case MarkerStyle.Circle:
+                    ctx.DrawCircle(center, r, shape);
+                    return;
 
-            case MarkerStyle.Triangle:
-                ctx.DrawPolygon(EquilateralTriangle(center, r, rotationDeg: 0),
-                    new ShapeStyle(fill, stroke, strokeWidth));
-                return;
+                case MarkerStyle.Square:
+                    ctx.DrawRectangle(new Rect(center.X - r, center.Y - r, size, size), shape);
+                    return;
 
-            case MarkerStyle.TriangleDown:
-                ctx.DrawPolygon(EquilateralTriangle(center, r, rotationDeg: 180),
-                    new ShapeStyle(fill, stroke, strokeWidth));
-                return;
+                case MarkerStyle.Cross:
+                case MarkerStyle.Plus:
+                    DrawCrossOrPlus(ctx, style, center, r, size, shape);
+                    return;
+            }
 
-            case MarkerStyle.TriangleLeft:
-                ctx.DrawPolygon(EquilateralTriangle(center, r, rotationDeg: -90),
-                    new ShapeStyle(fill, stroke, strokeWidth));
-                return;
-
-            case MarkerStyle.TriangleRight:
-                ctx.DrawPolygon(EquilateralTriangle(center, r, rotationDeg: 90),
-                    new ShapeStyle(fill, stroke, strokeWidth));
-                return;
-
-            case MarkerStyle.Diamond:
-                ctx.DrawPolygon(RegularPolygon(center, r, sides: 4, rotationDeg: 0),
-                    new ShapeStyle(fill, stroke, strokeWidth));
-                return;
-
-            case MarkerStyle.Pentagon:
-                ctx.DrawPolygon(RegularPolygon(center, r, sides: 5, rotationDeg: 0),
-                    new ShapeStyle(fill, stroke, strokeWidth));
-                return;
-
-            case MarkerStyle.Hexagon:
-                ctx.DrawPolygon(RegularPolygon(center, r, sides: 6, rotationDeg: 0),
-                    new ShapeStyle(fill, stroke, strokeWidth));
-                return;
-
-            case MarkerStyle.Star:
+            // Every remaining shape is a polygon — one switch expression decides its points, one shared
+            // DrawPolygon call draws them. A MarkerStyle value reaching the default arm is a shape this
+            // method was never extended for; DrawMarker_HandlesEveryDeclaredMarkerStyle (MarkerRendererTests)
+            // fails loudly on it, rather than the shape silently drawing nothing.
+            Point[] polygon = style switch
+            {
+                MarkerStyle.Triangle => EquilateralTriangle(center, r, rotationDeg: 0),
+                MarkerStyle.TriangleDown => EquilateralTriangle(center, r, rotationDeg: 180),
+                MarkerStyle.TriangleLeft => EquilateralTriangle(center, r, rotationDeg: -90),
+                MarkerStyle.TriangleRight => EquilateralTriangle(center, r, rotationDeg: 90),
+                MarkerStyle.Diamond => RegularPolygon(center, r, sides: 4, rotationDeg: 0),
+                MarkerStyle.Pentagon => RegularPolygon(center, r, sides: 5, rotationDeg: 0),
+                MarkerStyle.Hexagon => RegularPolygon(center, r, sides: 6, rotationDeg: 0),
                 // 5-point star: 10 vertices alternating outer (r) and inner radius.
                 // Ratio 0.38 ≈ matplotlib's `mpl.markers.py` star shape.
-                ctx.DrawPolygon(StarPolygon(center, r, points: 5, innerRatio: 0.38),
-                    new ShapeStyle(fill, stroke, strokeWidth));
-                return;
+                MarkerStyle.Star => StarPolygon(center, r, points: 5, innerRatio: 0.38),
+                _ => throw new ArgumentOutOfRangeException(nameof(style), style, $"MarkerRenderer has no shape for {style}"),
+            };
+            ctx.DrawPolygon(polygon, shape);
+        }
+    }
 
-            case MarkerStyle.Cross:
-            {
-                // Diagonal "X" — two crossing lines from corner to corner.
-                var color = fill ?? stroke ?? new Color(0, 0, 0);
-                double thickness = strokeWidth > 0 ? strokeWidth : Math.Max(1.0, size / 8.0);
-                ctx.DrawLine(new Point(center.X - r, center.Y - r),
-                    new Point(center.X + r, center.Y + r), new StrokeStyle(color, thickness, LineStyle.Solid));
-                ctx.DrawLine(new Point(center.X - r, center.Y + r),
-                    new Point(center.X + r, center.Y - r), new StrokeStyle(color, thickness, LineStyle.Solid));
-                return;
-            }
-
-            case MarkerStyle.Plus:
-            {
-                // Horizontal + vertical line through centre.
-                var color = fill ?? stroke ?? new Color(0, 0, 0);
-                double thickness = strokeWidth > 0 ? strokeWidth : Math.Max(1.0, size / 8.0);
-                ctx.DrawLine(new Point(center.X - r, center.Y),
-                    new Point(center.X + r, center.Y), new StrokeStyle(color, thickness, LineStyle.Solid));
-                ctx.DrawLine(new Point(center.X, center.Y - r),
-                    new Point(center.X, center.Y + r), new StrokeStyle(color, thickness, LineStyle.Solid));
-                return;
-            }
+    private static void DrawCrossOrPlus(IRenderContext ctx, MarkerStyle style, Point center, double r, double size, ShapeStyle shape)
+    {
+        var color = shape.Fill ?? shape.Stroke ?? new Color(0, 0, 0);
+        double thickness = shape.StrokeThickness > 0 ? shape.StrokeThickness : Math.Max(1.0, size / 8.0);
+        var stroke = new StrokeStyle(color, thickness, LineStyle.Solid);
+        if (style == MarkerStyle.Cross)
+        {
+            // Diagonal "X" — two crossing lines from corner to corner.
+            ctx.DrawLine(new Point(center.X - r, center.Y - r), new Point(center.X + r, center.Y + r), stroke);
+            ctx.DrawLine(new Point(center.X - r, center.Y + r), new Point(center.X + r, center.Y - r), stroke);
+        }
+        else
+        {
+            // Horizontal + vertical line through centre.
+            ctx.DrawLine(new Point(center.X - r, center.Y), new Point(center.X + r, center.Y), stroke);
+            ctx.DrawLine(new Point(center.X, center.Y - r), new Point(center.X, center.Y + r), stroke);
         }
     }
 

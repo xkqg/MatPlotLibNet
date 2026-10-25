@@ -47,8 +47,7 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
                 if (series.MarkEvery is not null && i % series.MarkEvery.Value != 0) continue;
                 // A marker at a point the axes cannot place is skipped, as matplotlib masks it.
                 if (!markerPoints[i].IsDrawable()) continue;
-                MarkerRenderer.Draw(Ctx, marker,
-                    markerPoints[i], series.MarkerSize, markerFill, markerStroke, markerStrokeWidth);
+                Ctx.DrawMarker(marker, markerPoints[i], series.MarkerSize, new ShapeStyle(markerFill, markerStroke, markerStrokeWidth));
             }
         }
     }

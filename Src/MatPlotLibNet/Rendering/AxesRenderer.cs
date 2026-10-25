@@ -463,7 +463,7 @@ public abstract class AxesRenderer
     private void DrawLegendMarker(double cx, double cy, MarkerStyle marker, double size_pt2, Color color)
     {
         double radius = Math.Sqrt(Math.Max(size_pt2, 1) / Math.PI) * (100.0 / 72.0);
-        MarkerRenderer.Draw(Ctx, marker, new Point(cx, cy), 2 * radius, color, null, 0);
+        Ctx.DrawMarker(marker, new Point(cx, cy), 2 * radius, new ShapeStyle(color, null, 0));
     }
 
     /// <summary>Renders a color bar gradient alongside the plot area if configured.

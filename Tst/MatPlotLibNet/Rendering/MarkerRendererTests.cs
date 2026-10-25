@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Rendering;
@@ -116,5 +118,23 @@ public class MarkerRendererTests
             .ToSvg();
         // Line itself renders as <polyline>; no <circle> / <rect> / <polygon> for markers.
         Assert.Contains("<polyline", svg);
+    }
+
+    /// <summary>Exhaustiveness guard: every <see cref="MarkerStyle"/> value the enum currently declares must
+    /// draw without throwing. <c>DrawMarker</c>'s polygon switch ends in a default arm that throws for an
+    /// unhandled style, on purpose — a future shape added to the enum and forgotten here fails THIS test
+    /// (loudly, at the call site) instead of silently drawing nothing. <see cref="MarkerStyle.None"/> is
+    /// itself a no-op by design (size/visibility gate), so it is covered too, trivially.</summary>
+    [Fact]
+    public void DrawMarker_HandlesEveryDeclaredMarkerStyle()
+    {
+        var ctx = new SvgRenderContext();
+        var shape = new ShapeStyle(Colors.Blue, Colors.Black, 1);
+
+        foreach (MarkerStyle style in Enum.GetValues<MarkerStyle>())
+        {
+            var ex = Record.Exception(() => ctx.DrawMarker(style, new Point(10, 10), 8, shape));
+            Assert.True(ex is null, $"MarkerStyle.{style} threw: {ex}");
+        }
     }
 }

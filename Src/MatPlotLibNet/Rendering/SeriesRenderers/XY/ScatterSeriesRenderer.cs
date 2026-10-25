@@ -55,7 +55,7 @@ internal sealed class ScatterSeriesRenderer : SeriesRenderer<ScatterSeries>
             var c = ResolvePointColor(series, i, defaultColor, normalizer, cMin, cMax);
             var edgeColor = series.EdgeColors is not null && i < series.EdgeColors.Length ? series.EdgeColors[i] : (Color?)null;
             var edgeWidth = series.LineWidths is not null && i < series.LineWidths.Length ? series.LineWidths[i] : 0.0;
-            MarkerRenderer.Draw(Ctx, marker, pts[i], 2 * radius, FillOf(c, series.Alpha), edgeColor, edgeWidth);
+            Ctx.DrawMarker(marker, pts[i], 2 * radius, new ShapeStyle(FillOf(c, series.Alpha), edgeColor, edgeWidth));
             EndTooltip();
         }
     }

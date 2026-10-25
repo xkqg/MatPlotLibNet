@@ -54,7 +54,7 @@ internal sealed class StepSeriesRenderer : SeriesRenderer<StepSeries>
                 var point = new Point(pxArr[i], pyArr[i]);
                 // A marker at a point the axes cannot place is skipped, as a line's is.
                 if (!point.IsDrawable()) continue;
-                MarkerRenderer.Draw(Ctx, marker, point, LineSeries.RestingMarkerSize, color, null, 0);
+                Ctx.DrawMarker(marker, point, LineSeries.RestingMarkerSize, new ShapeStyle(color, null, 0));
             }
         }
     }
