@@ -61,13 +61,13 @@ public sealed class Axes
     public bool EnableInteractiveAttributes { get; set; }
 
     /// <summary>When true (set by the SVG transform for a figure with the server data cursor), every interactive series
-    /// group also carries the mapping its series was drawn with â€” the plot area and the data range of the series' own
-    /// axes â€” so a click converts to the units of the axis the clicked line belongs to.</summary>
+    /// group also carries the mapping its series was drawn with — the plot area and the data range of the series' own
+    /// axes — so a click converts to the units of the axis the clicked line belongs to.</summary>
     internal bool EmitDataCursorMapping { get; set; }
 
     /// <summary>This axes' index in <see cref="Figure.SubPlots"/> while the figure is rendered with server interaction
-    /// (set by the SVG transform), otherwise <see langword="null"/>. With an index the renderer writes the axes' view â€”
-    /// its plot area and the range it actually drew â€” so the page converts hover, brush select, zoom and pan with the
+    /// (set by the SVG transform), otherwise <see langword="null"/>. With an index the renderer writes the axes' view —
+    /// its plot area and the range it actually drew — so the page converts hover, brush select, zoom and pan with the
     /// axes under the pointer and names that axes in what it sends.</summary>
     internal int? ServerViewIndex { get; set; }
 
@@ -103,13 +103,13 @@ public sealed class Axes
 
     /// <summary>Every series drawn on this subplot, in draw order: <see cref="Series"/>, then
     /// <see cref="SecondarySeries"/>, then <see cref="XSecondarySeries"/>. This is the answer to "what does the
-    /// picture show" â€” the data table reads it, and so does anything that describes the subplot. It is NOT
+    /// picture show" — the data table reads it, and so does anything that describes the subplot. It is NOT
     /// <see cref="Series.IAxesContext.AllSeries"/>, which names only the series that share ONE axis pair (the set a
     /// stacked bar sums over); the two differ on purpose, and each is documented against the other.</summary>
     public IEnumerable<ISeries> AllSeries => _series.Concat(_secondarySeries).Concat(_xSecondarySeries);
 
     /// <summary>A fresh <see cref="Series.ChartSeries.ColorGroup"/> value: one more than the highest already held by
-    /// a series of these axes, or 0 when none holds one. Derived fresh every call, never stored â€” a counter field
+    /// a series of these axes, or 0 when none holds one. Derived fresh every call, never stored — a counter field
     /// would keep counting past a series removed or an axes read back from JSON, handing out a group number nothing
     /// uses while a lower one sits free. A verb calls this once per group it builds, then sets the same value on
     /// every member of that group.</summary>
@@ -276,7 +276,7 @@ public sealed class Axes
         return AddSecondarySeries(series);
     }
 
-    // â”€â”€ TwinY â€” secondary X-axis (top edge) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── TwinY — secondary X-axis (top edge) ─────────────────────────────────
 
     public Axis? SecondaryXAxis { get; private set; }
 
@@ -637,7 +637,7 @@ public sealed class Axes
     /// <summary>Adds a single-value stat tile (a big headline number + label) filling the plot area.</summary>
     public StatTileSeries StatTile(double value) { var s = new StatTileSeries(value); _series.Add(s); return s; }
 
-    /// <summary>Adds a bullet graph â€” a measure, an optional target tick, and optional qualitative bands.</summary>
+    /// <summary>Adds a bullet graph — a measure, an optional target tick, and optional qualitative bands.</summary>
     /// <param name="value">The measure.</param>
     /// <returns>The created series.</returns>
     public BulletGraphSeries Bullet(double value) { var s = new BulletGraphSeries(value); _series.Add(s); return s; }
@@ -652,7 +652,7 @@ public sealed class Axes
         return s;
     }
 
-    /// <summary>Adds a sparkline â€” a tiny inline line chart with no axes or labels.</summary>
+    /// <summary>Adds a sparkline — a tiny inline line chart with no axes or labels.</summary>
     public SparklineSeries Sparkline(double[] values) { var s = new SparklineSeries(values); _series.Add(s); return s; }
 
     /// <summary>Adds a Gantt chart showing task durations on a timeline.</summary>
@@ -699,7 +699,7 @@ public sealed class Axes
         return AddSeries(series);
     }
 
-    /// <summary>Adds a pair-grid series to the axes (NÃ—N matrix of histograms + scatters).</summary>
+    /// <summary>Adds a pair-grid series to the axes (N×N matrix of histograms + scatters).</summary>
     /// <param name="variables">The N input variables (one <c>double[]</c> per variable, all equal length).</param>
     /// <param name="configure">Optional configuration callback for the series.</param>
     /// <returns>The newly added <see cref="PairGridSeries"/> for further property configuration.</returns>
@@ -728,7 +728,7 @@ public sealed class Axes
     /// <summary>Adds a Relative Rotation Graph series to the axes.</summary>
     /// <param name="assetCloses">Per-asset close price series (jagged; each element must equal <paramref name="benchmarkCloses"/> length).</param>
     /// <param name="benchmarkCloses">Benchmark close price series (e.g. BTC).</param>
-    /// <param name="assetLabels">Display labels â€” one per asset (e.g. "ETH", "SOL").</param>
+    /// <param name="assetLabels">Display labels — one per asset (e.g. "ETH", "SOL").</param>
     /// <param name="configure">Optional configuration callback.</param>
     /// <returns>The newly added <see cref="RelativeRotationSeries"/> for further property configuration.</returns>
     public RelativeRotationSeries RelativeRotation(
@@ -825,7 +825,7 @@ public sealed class Axes
         return AddSeries(series);
     }
 
-    /// <summary>Adds a planar 3D bar series (flat translucent rectangles in Y-planes â€”
+    /// <summary>Adds a planar 3D bar series (flat translucent rectangles in Y-planes —
     /// matplotlib's "2D bars in different planes" pattern) and sets coordinate system to ThreeD.</summary>
     public PlanarBar3DSeries PlanarBar3D(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
     {
@@ -934,7 +934,7 @@ public sealed class Axes
     /// <summary>Adds a pseudocolor mesh series on a non-uniform rectangular grid.</summary>
     /// <param name="x">The M+1 X-axis edge coordinates.</param>
     /// <param name="y">The N+1 Y-axis edge coordinates.</param>
-    /// <param name="c">The NÃ—M data matrix.</param>
+    /// <param name="c">The N×M data matrix.</param>
     /// <returns>The newly created <see cref="PcolormeshSeries"/> for further configuration.</returns>
     public PcolormeshSeries Pcolormesh(Numerics.Vec x, Numerics.Vec y, double[,] c)
     {
@@ -952,7 +952,7 @@ public sealed class Axes
         return AddSeries(series);
     }
 
-    /// <summary>Adds a point plot series showing mean Â± confidence interval per category.</summary>
+    /// <summary>Adds a point plot series showing mean ± confidence interval per category.</summary>
     /// <param name="datasets">An array of datasets, one per category.</param>
     /// <returns>The newly created <see cref="PointplotSeries"/> for further configuration.</returns>
     public PointplotSeries Pointplot(double[][] datasets)
@@ -981,7 +981,7 @@ public sealed class Axes
     }
 
     /// <summary>Adds a table series rendered inside the plot area.</summary>
-    /// <param name="cellData">2D array of cell text values (rows Ã— columns).</param>
+    /// <param name="cellData">2D array of cell text values (rows × columns).</param>
     /// <returns>The newly created <see cref="TableSeries"/> for further configuration.</returns>
     public TableSeries Table(string[][] cellData)
     {
@@ -989,7 +989,7 @@ public sealed class Axes
         return AddSeries(series);
     }
 
-    /// <summary>Adds a tree-grid series â€” indented rows with right-aligned value columns.</summary>
+    /// <summary>Adds a tree-grid series — indented rows with right-aligned value columns.</summary>
     /// <param name="rows">The rows, already flattened in the order they are drawn.</param>
     /// <returns>The newly created <see cref="TreeGridSeries"/> for further configuration.</returns>
     public TreeGridSeries TreeGrid(IReadOnlyList<TreeGridRow> rows)
@@ -1124,7 +1124,7 @@ public sealed class Axes
     /// <paramref name="value"/> and a shaded <see cref="SpanRegion"/> covering the breach zone
     /// on the <paramref name="breach"/> side. An optional text <paramref name="label"/> is
     /// added as an <see cref="Annotation"/> anchored at the threshold value.
-    /// <para>The span runs from the threshold to Â±<see cref="double.MaxValue"/>; the renderer clips a span to the plot area,
+    /// <para>The span runs from the threshold to ±<see cref="double.MaxValue"/>; the renderer clips a span to the plot area,
     /// so the zone fills the plot from the threshold line to the plot edge on the breach side. The automatic range
     /// holds the threshold's line; a threshold beyond a limit set on the axis draws neither its line nor its
     /// zone.</para></summary>

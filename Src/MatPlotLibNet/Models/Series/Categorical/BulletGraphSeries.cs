@@ -7,7 +7,7 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Models.Series;
 
-/// <summary>Stephen Few's bullet graph: a measure, a target, and the qualitative ranges they sit in â€” three
+/// <summary>Stephen Few's bullet graph: a measure, a target, and the qualitative ranges they sit in — three
 /// layered parts in one thin strip.
 ///
 /// <para><b>Why this and not a dial.</b> A radial gauge spends a quarter of a panel to communicate what a bar
@@ -16,17 +16,17 @@ namespace MatPlotLibNet.Models.Series;
 /// numbers must be legible at a glance, screen area is the scarce resource.</para>
 ///
 /// <para><b>The three parts.</b> The <see cref="Value"/> is the feature bar. The optional <see cref="Target"/>
-/// is a perpendicular tick â€” the comparative, which is what turns a number into a judgement ("2412" says
+/// is a perpendicular tick — the comparative, which is what turns a number into a judgement ("2412" says
 /// nothing; "2412 against a target of 2500" says everything). The optional <see cref="Bands"/> are the
 /// qualitative ranges behind it: poor, satisfactory, good.</para>
 ///
 /// <para><b>The bands are one hue at varying intensity, not red/amber/green.</b> Two reasons, and both matter.
 /// Roughly eight percent of men cannot separate red from green, and a background that encodes meaning in those
-/// two hues excludes them. And on an operations display colour is a scarce alarm signal â€” spending red on a
+/// two hues excludes them. And on an operations display colour is a scarce alarm signal — spending red on a
 /// permanent backdrop leaves nothing for the thing that is actually wrong.</para></summary>
 public sealed class BulletGraphSeries : ChartSeries
 {
-    /// <summary>The measure â€” the bar itself.</summary>
+    /// <summary>The measure — the bar itself.</summary>
     public double Value { get; }
 
     /// <summary>The comparative, drawn as a perpendicular tick across the bar, or <see langword="null"/> for
@@ -42,7 +42,7 @@ public sealed class BulletGraphSeries : ChartSeries
     public IReadOnlyList<GaugeBand>? Bands { get; set; }
 
     /// <summary>The bar's colour, or <see langword="null"/> for the theme's foreground. The bar is the
-    /// measure, not an alarm â€” colouring it by default would spend a signal that has nowhere else to come from.</summary>
+    /// measure, not an alarm — colouring it by default would spend a signal that has nowhere else to come from.</summary>
     public Color? BarColor { get; set; }
 
     /// <summary>The colour of the target tick, or <see langword="null"/> for the theme's foreground.</summary>
@@ -50,7 +50,7 @@ public sealed class BulletGraphSeries : ChartSeries
 
     /// <summary>Horizontal (default) draws the strip left-to-right; vertical draws it bottom-up.</summary>
     /// <remarks>Reuses the library's shared <see cref="Models.Orientation"/> (Horizontal = 0), not
-    /// <see cref="BarOrientation"/> â€” whose ordinals are the other way round, so reusing it would silently flip
+    /// <see cref="BarOrientation"/> — whose ordinals are the other way round, so reusing it would silently flip
     /// this default.</remarks>
     public Orientation Orientation { get; set; } = Orientation.Horizontal;
 

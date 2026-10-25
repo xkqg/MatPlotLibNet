@@ -59,7 +59,7 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
         var x = XData.DrawableRange();
         var y = YData.DrawableRange();
         double? xMin = x?.Lo, xMax = x?.Hi, yMin = y?.Lo, yMax = y?.Hi;
-        // Contour grids occupy the full [xMin,xMax] Ã— [yMin,yMax] rectangle â€” margin
+        // Contour grids occupy the full [xMin,xMax] × [yMin,yMax] rectangle — margin
         // expansion would push whitespace between the grid edge and the spines.
         return new(xMin, xMax, yMin, yMax,
             StickyXMin: xMin, StickyXMax: xMax, StickyYMin: yMin, StickyYMax: yMax);

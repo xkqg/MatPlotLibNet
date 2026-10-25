@@ -91,7 +91,7 @@ public sealed class StreamplotSeries : ChartSeries, IHasColor
 
     /// <inheritdoc />
     /// <remarks>Long form over the vector grid: the point, and the vector at it. The streamlines are integrated
-    /// from this field by the renderer â€” the field is the data.</remarks>
+    /// from this field by the renderer — the field is the data.</remarks>
     public override ChartDataTable? ToDataTable()
     {
         int rows = U.GetLength(0), cols = U.GetLength(1);

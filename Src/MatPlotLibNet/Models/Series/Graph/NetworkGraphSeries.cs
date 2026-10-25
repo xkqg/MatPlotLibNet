@@ -29,7 +29,7 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
     /// <summary>The graph's edges. Read-only after construction.</summary>
     public IReadOnlyList<GraphEdge> Edges { get; }
 
-    /// <summary>Layout algorithm. Default <see cref="GraphLayout.Circular"/> â€” sensible
+    /// <summary>Layout algorithm. Default <see cref="GraphLayout.Circular"/> — sensible
     /// auto-placement that ignores edges. <see cref="GraphLayout.ForceDirected"/> places connected
     /// nodes closer together.</summary>
     public GraphLayout Layout { get; set; } = GraphLayout.Circular;
@@ -64,7 +64,7 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
 
     /// <summary>Maximum iteration count for the <see cref="GraphLayout.ForceDirected"/>
     /// spring-embedder. Default <c>50</c>. Higher = better visual quality at quadratic
-    /// cost (each iteration is <c>O(NÂ² + E)</c>). Ignored by the deterministic layouts.</summary>
+    /// cost (each iteration is <c>O(N² + E)</c>). Ignored by the deterministic layouts.</summary>
     public int LayoutIterations { get; set; } = NetworkGraphLayouts.DefaultForceDirectedIterations;
 
     /// <summary>Optional energy threshold for <see cref="GraphLayout.ForceDirected"/>
@@ -110,7 +110,7 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
     }
 
     /// <inheritdoc />
-    /// <remarks>Default-suppression mirrors the other series â€” only
+    /// <remarks>Default-suppression mirrors the other series — only
     /// non-default values are emitted to keep persisted JSON tight.</remarks>
     public override SeriesDto ToSeriesDto() => new()
     {
@@ -177,7 +177,7 @@ public sealed class NetworkGraphSeries : ChartSeries, IColormappable
 
 
     /// <inheritdoc />
-    /// <remarks>The edges, by node id and weight â€” the topology, which is what the layout draws a picture of.</remarks>
+    /// <remarks>The edges, by node id and weight — the topology, which is what the layout draws a picture of.</remarks>
     public override ChartDataTable? ToDataTable()
     {
         var rows = new List<IReadOnlyList<DataCell>>(Edges.Count);

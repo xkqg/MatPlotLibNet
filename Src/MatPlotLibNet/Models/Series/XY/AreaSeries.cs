@@ -54,7 +54,7 @@ public sealed class AreaSeries : XYSeries, IHasColor, IHasAlpha, IHasEdgeColor, 
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         // Empty data: no contribution to axis range. Without this guard, .Min()/.Max()
-        // throw "Sequence contains no elements" â€” caught by RendererEdgeCaseTests.
+        // throw "Sequence contains no elements" — caught by RendererEdgeCaseTests.
         if (YData.Length == 0) return new DataRangeContribution(null, null, null, null);
 
         // Both edges of the area: its top and its bottom, the second curve or the zero it is filled down to. Over what the Y

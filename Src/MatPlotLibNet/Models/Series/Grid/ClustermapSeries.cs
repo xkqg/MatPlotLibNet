@@ -132,7 +132,7 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
 
 
     /// <inheritdoc />
-    /// <remarks>Long form over the matrix, in the ORDER THE MAP DRAWS â€” the clustering reorders rows and
+    /// <remarks>Long form over the matrix, in the ORDER THE MAP DRAWS — the clustering reorders rows and
     /// columns, and a table in input order would name different cells than the picture does.</remarks>
     public override ChartDataTable? ToDataTable()
     {
@@ -161,7 +161,7 @@ public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColo
     /// <param name="tree">The root node of the dendrogram tree, or <see langword="null"/>.</param>
     /// <param name="count">The number of rows or columns in the data matrix.</param>
     /// <returns>An <see cref="int"/> array of length <paramref name="count"/> giving the DFS leaf
-    /// traversal order, or the identity permutation <c>[0, 1, â€¦, count-1]</c> on any
+    /// traversal order, or the identity permutation <c>[0, 1, …, count-1]</c> on any
     /// malformed-input fallback.</returns>
     internal static int[] ResolveLeafOrder(TreeNode? tree, int count)
     {

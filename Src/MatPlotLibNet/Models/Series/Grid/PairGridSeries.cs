@@ -8,8 +8,8 @@ using MatPlotLibNet.Styling.ColorMaps;
 
 namespace MatPlotLibNet.Models.Series;
 
-/// <summary>Multi-panel scatter matrix â€” the seaborn <c>pairplot</c> idiom. Given
-/// <c>N</c> variables, the renderer paints an <c>NÃ—N</c> grid where the diagonal
+/// <summary>Multi-panel scatter matrix — the seaborn <c>pairplot</c> idiom. Given
+/// <c>N</c> variables, the renderer paints an <c>N×N</c> grid where the diagonal
 /// shows a univariate distribution of variable <c>i</c> and each off-diagonal cell
 /// shows a bivariate scatter of <c>(i, j)</c>. Optional hue groups colour the
 /// off-diagonal scatters by category.</summary>
@@ -25,12 +25,12 @@ public sealed class PairGridSeries : ChartSeries
     /// All sub-arrays must have equal length; constructor throws otherwise.</summary>
     /// <remarks>The outer array is get-only; the inner per-variable <c>double[]</c> arrays
     /// are exposed by reference for zero-copy rendering. Callers must treat each inner
-    /// array as immutable after constructor return â€” the renderer reads them on every
+    /// array as immutable after constructor return — the renderer reads them on every
     /// frame without defensive copies.</remarks>
     public double[][] Variables { get; }
 
     /// <summary>Optional axis labels, one per variable (length = <c>Variables.Length</c>).
-    /// Defaults to <c>"v0", "v1", â€¦</c> at render time when null or short.</summary>
+    /// Defaults to <c>"v0", "v1", …</c> at render time when null or short.</summary>
     public string[]? Labels { get; set; }
 
     /// <summary>Optional grouping vector parallel to each variable's samples
@@ -61,19 +61,19 @@ public sealed class PairGridSeries : ChartSeries
     /// <see cref="PairGridOffDiagonalKind.Scatter"/>.</summary>
     public PairGridOffDiagonalKind OffDiagonalKind { get; set; } = PairGridOffDiagonalKind.Scatter;
 
-    /// <summary>Which triangle of the NÃ—N grid to render. <see cref="PairGridTriangle.Both"/> = full grid (default).</summary>
+    /// <summary>Which triangle of the N×N grid to render. <see cref="PairGridTriangle.Both"/> = full grid (default).</summary>
     public PairGridTriangle Triangular { get; set; } = PairGridTriangle.Both;
 
     /// <summary>Bin count for diagonal histograms. Default <c>20</c>.</summary>
     public int DiagonalBins { get; set; } = 20;
 
     /// <summary>Marker radius in pixels for off-diagonal scatter dots. Default <c>3.0</c>.</summary>
-    /// <remarks>This is the dot's pixel <em>radius</em>, not matplotlib's ptÂ² area
-    /// convention used by <c>ScatterSeries.MarkerSize</c> (which converts ptÂ² â†’
-    /// radius via <c>âˆš(s_ptÂ² / Ï€) Ã— DPI/72</c>). PairGrid renders cells in their own
+    /// <remarks>This is the dot's pixel <em>radius</em>, not matplotlib's pt² area
+    /// convention used by <c>ScatterSeries.MarkerSize</c> (which converts pt² →
+    /// radius via <c>√(s_pt² / π) × DPI/72</c>). PairGrid renders cells in their own
     /// pixel-space sub-panels with no parent-axis coordinate transform, so a px
-    /// radius is the directly meaningful unit. To get a 5 ptÂ² Scatter equivalent,
-    /// pass <c>MarkerSize = âˆš(5/Ï€) â‰ˆ 1.26</c>.</remarks>
+    /// radius is the directly meaningful unit. To get a 5 pt² Scatter equivalent,
+    /// pass <c>MarkerSize = √(5/π) ≈ 1.26</c>.</remarks>
     public double MarkerSize { get; set; } = 3.0;
 
     /// <summary>Fraction of plot bounds reserved as gutter between cells. Clamped on assignment to <c>[0.0, 0.2]</c>.</summary>
@@ -101,7 +101,7 @@ public sealed class PairGridSeries : ChartSeries
 
     /// <summary>Initializes a new instance of <see cref="PairGridSeries"/>.</summary>
     /// <param name="variables">The N input variables (each <c>double[]</c> = one variable's samples).
-    /// Must contain â‰¥ 1 variable, and all sub-arrays must have equal length.</param>
+    /// Must contain ≥ 1 variable, and all sub-arrays must have equal length.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="variables"/> is empty or
     /// contains sub-arrays of unequal length.</exception>
     public PairGridSeries(double[][] variables)
@@ -124,7 +124,7 @@ public sealed class PairGridSeries : ChartSeries
     /// systems; the outer axes only need a placeholder range <c>[0, n]</c> so spine
     /// rendering and any consumer that reads the parent data range stays sane. The
     /// outer ticks are not aligned with cell centres (cell <c>i</c> spans
-    /// <c>[i, i+1]</c>, centre at <c>i + 0.5</c>) â€” the renderer paints its own
+    /// <c>[i, i+1]</c>, centre at <c>i + 0.5</c>) — the renderer paints its own
     /// per-cell labels via the diagonal histograms / scatter cells, so outer-axis
     /// tick labels are typically suppressed at the figure level.</remarks>
     public override DataRangeContribution ComputeDataRange(IAxesContext context)

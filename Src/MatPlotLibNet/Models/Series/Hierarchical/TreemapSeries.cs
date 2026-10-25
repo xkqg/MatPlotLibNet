@@ -11,10 +11,10 @@ public sealed class TreemapSeries : HierarchicalSeries
 {
     public double Padding { get; set; } = 2.0;
 
-    /// <summary>What to do with a label wider than its rect â€” see <see cref="TreemapLabelFit"/>.</summary>
+    /// <summary>What to do with a label wider than its rect — see <see cref="TreemapLabelFit"/>.</summary>
     public TreemapLabelFit LabelFit { get; set; } = TreemapLabelFit.Always;
 
-    /// <summary>The point size of a leaf's <see cref="TreeNode.Headline"/> â€” the cell's big number. An interior
+    /// <summary>The point size of a leaf's <see cref="TreeNode.Headline"/> — the cell's big number. An interior
     /// node's headline rides its header strip at the label's own size; a strip has no room to shout.</summary>
     public double HeadlineFontSize { get; set; } = 20;
 

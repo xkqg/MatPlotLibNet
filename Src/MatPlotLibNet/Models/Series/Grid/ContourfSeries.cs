@@ -89,7 +89,7 @@ public sealed class ContourfSeries : ChartSeries, IColormappable, INormalizable,
         var x = XData.DrawableRange();
         var y = YData.DrawableRange();
         double? xMin = x?.Lo, xMax = x?.Hi, yMin = y?.Lo, yMax = y?.Hi;
-        // Filled contour grids fill their [xMin,xMax] Ã— [yMin,yMax] rectangle â€” sticky edges
+        // Filled contour grids fill their [xMin,xMax] × [yMin,yMax] rectangle — sticky edges
         // on all four sides keep the 5 % margin from pushing whitespace between the fill and
         // the spines, matching ContourSeries.
         return new(xMin, xMax, yMin, yMax,

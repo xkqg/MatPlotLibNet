@@ -22,7 +22,7 @@ namespace MatPlotLibNet.Tests.Coverage;
 /// ChartRenderer/theme, SecondaryAxisBuilder, QuiverKeySeries rendering, and ParabolicSar.</summary>
 public class BranchCoverage_RenderingTests
 {
-    // PolarTransform.cs L17: `rMax > 0 ? rMax : 1` â€” non-positive rMax fallback.
+    // PolarTransform.cs L17: `rMax > 0 ? rMax : 1` — non-positive rMax fallback.
     [Fact] public void PolarTransform_ZeroRMax_FallsBackToOne()
     {
         var t = new PolarTransform(new Rect(0, 0, 100, 100), rMax: 0);
@@ -41,7 +41,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    /// <summary>CountSeriesRenderer line 27 â€” `series.Orientation == Vertical` false arm
+    /// <summary>CountSeriesRenderer line 27 — `series.Orientation == Vertical` false arm
     /// (Horizontal). Default Vertical was the only path previously tested.</summary>
     [Fact]
     public void CountSeries_Horizontal_RendersWithoutCrash()
@@ -54,8 +54,8 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    /// <summary>SunburstSeriesRenderer.RenderRing line 64 â€” `if (total &lt;= 0) return;`
-    /// true arm. A tree node with all-zero children sums to zero â†’ renderer skips.</summary>
+    /// <summary>SunburstSeriesRenderer.RenderRing line 64 — `if (total &lt;= 0) return;`
+    /// true arm. A tree node with all-zero children sums to zero → renderer skips.</summary>
     [Fact]
     public void SunburstSeries_AllZeroChildValues_RendersWithoutCrash()
     {
@@ -70,7 +70,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    /// <summary>ThreeDAxesRenderer line 409 â€” `if (range &lt;= 0) return [lo];` degenerate
+    /// <summary>ThreeDAxesRenderer line 409 — `if (range &lt;= 0) return [lo];` degenerate
     /// tick range. Triggered when 3D axis has zero span.</summary>
     [Fact]
     public void ThreeDAxes_ZeroRangeAxis_ReturnsSingleTick()
@@ -86,7 +86,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    /// <summary>DataTransform.TransformX line 138 â€” `_xScale == 0` degenerate-X-axis arm.
+    /// <summary>DataTransform.TransformX line 138 — `_xScale == 0` degenerate-X-axis arm.
     /// Forces axis range to zero span so the centre-fill fallback fires.</summary>
     [Fact]
     public void DataTransform_DegenerateXAxis_FillsCenterPixel()
@@ -101,7 +101,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    /// <summary>DataTransform.TransformY line 161 â€” `_yScale == 0` Y mirror of above.</summary>
+    /// <summary>DataTransform.TransformY line 161 — `_yScale == 0` Y mirror of above.</summary>
     [Fact]
     public void DataTransform_DegenerateYAxis_FillsCenterPixel()
     {
@@ -115,9 +115,9 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    /// <summary>SankeySeriesRenderer line 86 â€” `vert = Orient == Vertical` true arm.
+    /// <summary>SankeySeriesRenderer line 86 — `vert = Orient == Vertical` true arm.
     /// Default is Horizontal; Vertical orientation exercises the rotated layout
-    /// pipeline. Lifts class from 91/82.5 â†’ ~91/85+.</summary>
+    /// pipeline. Lifts class from 91/82.5 → ~91/85+.</summary>
     [Fact]
     public void SankeySeries_VerticalOrientation_RendersWithoutCrash()
     {
@@ -130,9 +130,9 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // â”€â”€ LogLocator (73.3L / 56.2B â†’ â‰¥ 90/â‰¥ 90) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── LogLocator (73.3L / 56.2B → ≥ 90/≥ 90) ──────────────────────────────────
 
-    /// <summary>min â‰¤ 0 coercion arm (line 21).</summary>
+    /// <summary>min ≤ 0 coercion arm (line 21).</summary>
     [Fact]
     public void LogLocator_MinLessThanZero_CoercesToTinyPositive()
     {
@@ -142,7 +142,7 @@ public class BranchCoverage_RenderingTests
         Assert.All(ticks, t => Assert.True(t > 0));
     }
 
-    /// <summary>max â‰¤ min returns [min] short-circuit (line 22).</summary>
+    /// <summary>max ≤ min returns [min] short-circuit (line 22).</summary>
     [Fact]
     public void LogLocator_MaxLessThanMin_ReturnsSingleMin()
     {
@@ -152,7 +152,7 @@ public class BranchCoverage_RenderingTests
         Assert.Equal(10, ticks[0]);
     }
 
-    /// <summary>Multi-decade range â€” main loop hits both bounds inclusive (line 31).</summary>
+    /// <summary>Multi-decade range — main loop hits both bounds inclusive (line 31).</summary>
     [Fact]
     public void LogLocator_MultiDecade_ProducesPowerOfTenTicks()
     {
@@ -164,7 +164,7 @@ public class BranchCoverage_RenderingTests
         Assert.Contains(1000.0, ticks);
     }
 
-    /// <summary>Sub-decade range where lower-decade boundary IS in [min, max] â€” fallback arm 1
+    /// <summary>Sub-decade range where lower-decade boundary IS in [min, max] — fallback arm 1
     /// (line 40 true).</summary>
     [Fact]
     public void LogLocator_SubDecadeWithLowerInRange_ReturnsLowerDecade()
@@ -175,8 +175,8 @@ public class BranchCoverage_RenderingTests
         Assert.Equal(1.0, ticks[0]);
     }
 
-    /// <summary>Sub-decade range where lower-decade boundary IS NOT in [min, max] â€”
-    /// fallback arm 2 (line 40 false â†’ line 43).</summary>
+    /// <summary>Sub-decade range where lower-decade boundary IS NOT in [min, max] —
+    /// fallback arm 2 (line 40 false → line 43).</summary>
     [Fact]
     public void LogLocator_SubDecadeNoLowerInRange_FallsBackToMin()
     {
@@ -190,7 +190,7 @@ public class BranchCoverage_RenderingTests
     public void LogLocator_SubDecadeMinAboveOne_FallsBackToMin()
     {
         // L37-43: ticks.Count == 0 path. lower = 10^floor(log10(min)) = 10^0 = 1.
-        // For min=2, lower=1 < min=2 â†’ else arm fires â†’ ticks=[2]
+        // For min=2, lower=1 < min=2 → else arm fires → ticks=[2]
         var loc = new global::MatPlotLibNet.Rendering.TickLocators.LogLocator();
         var ticks = loc.Locate(2.0, 5.0);
         Assert.Single(ticks);
@@ -200,14 +200,14 @@ public class BranchCoverage_RenderingTests
     [Fact]
     public void LogLocator_SubDecadeWithLowerInRange_UsesLowerDecade()
     {
-        // For min=1.0, max=5.0 â†’ lower=10^0=1. lower>=min && lower<=max â†’ ticks=[1].
+        // For min=1.0, max=5.0 → lower=10^0=1. lower>=min && lower<=max → ticks=[1].
         var loc = new global::MatPlotLibNet.Rendering.TickLocators.LogLocator();
         var ticks = loc.Locate(1.0, 5.0);
         Assert.Single(ticks);
         Assert.Equal(1.0, ticks[0]);
     }
 
-    // â”€â”€ ConstrainedLayoutEngine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── ConstrainedLayoutEngine ──────────────────────────────────────────────────
 
     [Fact]
     public void ConstrainedLayoutEngine_EmptyFigure_NoOp()
@@ -229,7 +229,7 @@ public class BranchCoverage_RenderingTests
         Assert.Contains("<svg", svg);
     }
 
-    // â”€â”€ MarchingSquares saddle-cell + all-equal grid arms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── MarchingSquares saddle-cell + all-equal grid arms ────────────────────────
 
     [Fact]
     public void MarchingSquares_Extract_AllSameValues_HandlesUniformGrid()
@@ -260,7 +260,7 @@ public class BranchCoverage_RenderingTests
     [Fact]
     public void MarchingSquares_Extract_ConcentricRings_ProducesMultipleContours()
     {
-        // Create a concentric-rings z field â€” each isoLevel produces multiple contours
+        // Create a concentric-rings z field — each isoLevel produces multiple contours
         int n = 11;
         var grid = new double[n, n];
         for (int r = 0; r < n; r++)
@@ -297,7 +297,7 @@ public class BranchCoverage_RenderingTests
     [Fact]
     public void MarchingSquares_Extract_SaddleCellAlternating_ProducesContours()
     {
-        // Alternating high-low pattern â€” every 2x2 cell is a saddle
+        // Alternating high-low pattern — every 2x2 cell is a saddle
         var grid = new double[,] {
             { 0, 1, 0, 1 },
             { 1, 0, 1, 0 },
@@ -310,7 +310,7 @@ public class BranchCoverage_RenderingTests
         Assert.NotNull(contours);
     }
 
-    // â”€â”€ TripcolorSeriesRenderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── TripcolorSeriesRenderer ──────────────────────────────────────────────────
 
     [Fact]
     public void TripcolorRenderer_EmptyZ_UsesZeroOneRange()
@@ -334,7 +334,7 @@ public class BranchCoverage_RenderingTests
         Assert.Contains("<svg", svg);
     }
 
-    // â”€â”€ HexbinSeriesRenderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── HexbinSeriesRenderer ─────────────────────────────────────────────────────
 
     [Fact]
     public void HexbinRenderer_EmptyData_EarlyReturn()
@@ -372,7 +372,7 @@ public class BranchCoverage_RenderingTests
     [Fact]
     public void HexbinRenderer_BinsBelowMinCount_AllSkipped()
     {
-        // L41: if (count < minCount) continue; â€” set MinCount > maxCount so all bins skip
+        // L41: if (count < minCount) continue; — set MinCount > maxCount so all bins skip
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Hexbin([1.0, 2, 3, 4], [1.0, 2, 3, 4],
                 s => { s.MinCount = 100; }))  // way above any actual bin count
@@ -381,7 +381,7 @@ public class BranchCoverage_RenderingTests
         Assert.Contains("<svg", svg);
     }
 
-    // HexbinSeriesRenderer L23: `if (xMin >= xMax) { xMax = xMin + 1; }` â€” degenerate range.
+    // HexbinSeriesRenderer L23: `if (xMin >= xMax) { xMax = xMin + 1; }` — degenerate range.
     [Fact] public void HexbinRenderer_AllSamePoint_HitsDegenerateRangeBranch()
     {
         var fig = Plt.Create()
@@ -391,12 +391,12 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // â”€â”€ Trisurf3DSeriesRenderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Trisurf3DSeriesRenderer ──────────────────────────────────────────────────
 
     [Fact]
     public void Trisurf3DRenderer_FourPoints_UsesFanTriangulation()
     {
-        // n=4, 4%3 != 0 â†’ else arm (fan from point 0): triangles (0,1,2), (0,2,3)
+        // n=4, 4%3 != 0 → else arm (fan from point 0): triangles (0,1,2), (0,2,3)
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Trisurf(
                 [0.0, 1, 0.5, 0.3],
@@ -423,7 +423,7 @@ public class BranchCoverage_RenderingTests
     [Fact]
     public void Trisurf3DRenderer_SixPoints_UsesSequentialTriangulation()
     {
-        // n=6, 6%3 == 0 â†’ if arm (sequential triplets): (0,1,2), (3,4,5)
+        // n=6, 6%3 == 0 → if arm (sequential triplets): (0,1,2), (3,4,5)
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Trisurf(
                 [0.0, 1, 0.5, 0.3, 0.8, 0.6],
@@ -434,7 +434,7 @@ public class BranchCoverage_RenderingTests
         Assert.Contains("<svg", svg);
     }
 
-    // Trisurf3DSeriesRenderer L45: `if (n % 3 == 0)` â€” triangle-count branch.
+    // Trisurf3DSeriesRenderer L45: `if (n % 3 == 0)` — triangle-count branch.
     // 3 points triangulate to 1 triangle (n=3, n % 3 == 0 path).
     [Fact] public void Trisurf3DRenderer_TriangleCountModulo3_HitsBranch()
     {
@@ -445,9 +445,9 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // â”€â”€ MarkerRenderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── MarkerRenderer ────────────────────────────────────────────────────────────
 
-    /// <summary>MarkerRenderer line 106 â€” `strokeWidth &gt; 0 ? strokeWidth : Math.Max(...)`
+    /// <summary>MarkerRenderer line 106 — `strokeWidth &gt; 0 ? strokeWidth : Math.Max(...)`
     /// for MarkerStyle.Cross. Tests the explicit-strokeWidth (true) arm.</summary>
     [Fact]
     public void MarkerRenderer_Cross_ExplicitStrokeWidth_UsesIt()
@@ -465,7 +465,7 @@ public class BranchCoverage_RenderingTests
         Assert.Contains("<line", svg);
     }
 
-    /// <summary>MarkerRenderer line 118 â€” same ternary for MarkerStyle.Plus.</summary>
+    /// <summary>MarkerRenderer line 118 — same ternary for MarkerStyle.Plus.</summary>
     [Fact]
     public void MarkerRenderer_Plus_DefaultStrokeWidth_FallsBackToSizeOver8()
     {
@@ -564,7 +564,7 @@ public class BranchCoverage_RenderingTests
     [Fact]
     public void MarkerRenderer_Cross_FillNullStrokeNonNull_UsesStrokeColor()
     {
-        // L105 ?? chain: fill=null, stroke=non-null â†’ color = stroke
+        // L105 ?? chain: fill=null, stroke=non-null → color = stroke
         var svg = new SvgRenderContext();
         svg.DrawMarker(MarkerStyle.Cross, new Point(50, 50), 12, new ShapeStyle(null, Colors.Red, 1.5));
         Assert.Contains("<line", svg.GetOutput());
@@ -605,7 +605,7 @@ public class BranchCoverage_RenderingTests
         Assert.DoesNotContain("<circle", svg.GetOutput());
     }
 
-    // MarkerRenderer L47/L105 â€” exercises remaining marker shape branches via every MarkerStyle.
+    // MarkerRenderer L47/L105 — exercises remaining marker shape branches via every MarkerStyle.
     [Theory]
     [InlineData(MarkerStyle.Triangle)]
     [InlineData(MarkerStyle.TriangleDown)]
@@ -626,7 +626,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // Plus a stroke-only marker variant (fill = null) â€” exercised by clearing the
+    // Plus a stroke-only marker variant (fill = null) — exercised by clearing the
     // Scatter color so the renderer falls into the no-fill branch.
     [Fact] public void MarkerRenderer_NoFillColor_HitsNullFillBranch()
     {
@@ -637,7 +637,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // â”€â”€ SankeyRenderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── SankeyRenderer ───────────────────────────────────────────────────────────
 
     [Fact]
     public void SankeyRenderer_SingleNode_RendersWithoutError()
@@ -663,9 +663,9 @@ public class BranchCoverage_RenderingTests
         Assert.Contains("<svg", svg);
     }
 
-    // â”€â”€ FacetedFigure / JointPlotFigure / PairPlotFigure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── FacetedFigure / JointPlotFigure / PairPlotFigure ─────────────────────────
 
-    /// <summary>Build with no Title and no explicit size â€” both null arms in Build().</summary>
+    /// <summary>Build with no Title and no explicit size — both null arms in Build().</summary>
     [Fact]
     public void FacetedFigure_BuildWithoutTitleOrSize_StillProducesFigure()
     {
@@ -677,7 +677,7 @@ public class BranchCoverage_RenderingTests
         Assert.NotNull(fig);
     }
 
-    /// <summary>Build with Title + explicit size â€” both true arms (BuildCore may
+    /// <summary>Build with Title + explicit size — both true arms (BuildCore may
     /// resize, but the title is preserved).</summary>
     [Fact]
     public void FacetedFigure_BuildWithTitleAndSize_AppliesBoth()
@@ -696,7 +696,7 @@ public class BranchCoverage_RenderingTests
         Assert.Equal("facets", fig.Title);
     }
 
-    /// <summary>JointPlot with hue labels â€” exercises HueGrouper-driven branches.</summary>
+    /// <summary>JointPlot with hue labels — exercises HueGrouper-driven branches.</summary>
     [Fact]
     public void JointPlotFigure_WithHueLabels_BuildsWithoutError()
     {
@@ -707,7 +707,7 @@ public class BranchCoverage_RenderingTests
         Assert.NotEmpty(fb.Build().SubPlots);
     }
 
-    /// <summary>PairPlot smoke â€” exercises PairPlotFigure.BuildCore.</summary>
+    /// <summary>PairPlot smoke — exercises PairPlotFigure.BuildCore.</summary>
     [Fact]
     public void PairPlotFigure_TwoColumns_BuildsGrid()
     {
@@ -746,7 +746,7 @@ public class BranchCoverage_RenderingTests
         Assert.NotEmpty(fig.SubPlots);
     }
 
-    // â”€â”€ ChartRenderer theme dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── ChartRenderer theme dispatch ─────────────────────────────────────────────
 
     [Fact]
     public void ChartRenderer_RenderWithDarkTheme_AppliesTheme()
@@ -792,7 +792,7 @@ public class BranchCoverage_RenderingTests
         Assert.Contains("<svg", svg);
     }
 
-    // â”€â”€ SecondaryAxisBuilder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── SecondaryAxisBuilder ──────────────────────────────────────────────────────
 
     [Fact]
     public void SecondaryAxisBuilder_Scatter_NullConfigure_NoOp()
@@ -816,9 +816,9 @@ public class BranchCoverage_RenderingTests
         Assert.NotEmpty(fig.SubPlots[0].SecondarySeries);
     }
 
-    // â”€â”€ QuiverKeySeries rendering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── QuiverKeySeries rendering ─────────────────────────────────────────────────
 
-    /// <summary>QuiverKeySeriesRenderer line 27 â€” `dataRange &gt; 0 ? width/dataRange : 50`
+    /// <summary>QuiverKeySeriesRenderer line 27 — `dataRange &gt; 0 ? width/dataRange : 50`
     /// false arm. Render a QuiverKey series in an axes whose range collapsed to zero.</summary>
     [Fact]
     public void QuiverKeySeriesRenderer_ZeroDataRange_FallsBackTo50PixelsPerUnit()
@@ -841,7 +841,7 @@ public class BranchCoverage_RenderingTests
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax =>
             {
-                ax.Plot([1.0], [1.0]);  // single-point series â†’ degenerate range
+                ax.Plot([1.0], [1.0]);  // single-point series → degenerate range
                 ax.QuiverKey(0.5, 0.5, 1.0, "k");
             })
             .Build();
@@ -849,7 +849,7 @@ public class BranchCoverage_RenderingTests
         Assert.Contains("<svg", svg);
     }
 
-    // QuiverKeySeriesRenderer.cs L27: `dataRange > 0 ? bounds.Width / dataRange : 50` â€”
+    // QuiverKeySeriesRenderer.cs L27: `dataRange > 0 ? bounds.Width / dataRange : 50` —
     // zero-range fallback fires when XAxis.Min == XAxis.Max.
     [Fact] public void QuiverKey_ZeroDataRange_FallsBackTo50pxPerUnit()
     {
@@ -857,13 +857,13 @@ public class BranchCoverage_RenderingTests
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.AddSeries(new QuiverKeySeries(0.5, 0.9, 1.0, "1 m/s"));
-                ax.SetXLim(5, 5); // zero range â†’ fallback branch
+                ax.SetXLim(5, 5); // zero range → fallback branch
             })
             .Build();
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // QuiverKeySeriesRenderer L27 â€” already covered by the `SetXLim(5,5)` test in pinpoint3,
+    // QuiverKeySeriesRenderer L27 — already covered by the `SetXLim(5,5)` test in pinpoint3,
     // but coverage didn't lift. Try with explicit data range computation.
     [Fact] public void QuiverKeyRenderer_DegenerateDataRange_HitsFallback()
     {
@@ -877,7 +877,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // â”€â”€ DataTransform log-scale + axis-breaks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── DataTransform log-scale + axis-breaks ─────────────────────────────────────
 
     [Fact]
     public void DataTransform_TransformX_LogScale_UsesScaleArm()
@@ -977,21 +977,21 @@ public class BranchCoverage_RenderingTests
         Assert.Contains("<svg", svg);
     }
 
-    // â”€â”€ Misc renderer tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Misc renderer tests ──────────────────────────────────────────────────────
 
-    // PointplotSeriesRenderer.cs L58 â€” typically a min/max equality fallback or empty group.
+    // PointplotSeriesRenderer.cs L58 — typically a min/max equality fallback or empty group.
     [Fact] public void PointplotSeriesRenderer_SingleValueGroup_HitsZeroSpreadBranch()
     {
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new PointplotSeries([
-                new[] { 5.0 },                         // single value â†’ zero spread
+                new[] { 5.0 },                         // single value → zero spread
                 new[] { 1.0, 2.0 }                     // normal group
             ])))
             .Build();
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // PolarLineSeriesRenderer.cs L20 â€” typically `if (xData.Length == 0) return;` early-out.
+    // PolarLineSeriesRenderer.cs L20 — typically `if (xData.Length == 0) return;` early-out.
     [Fact] public void PolarLineSeriesRenderer_EmptyData_EarlyReturns()
     {
         var fig = Plt.Create()
@@ -1000,7 +1000,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // QuiverKeySeriesRenderer.cs L27 â€” likely `if (key.Reference is null)` or similar.
+    // QuiverKeySeriesRenderer.cs L27 — likely `if (key.Reference is null)` or similar.
     [Fact] public void QuiverKeySeriesRenderer_DefaultLabel_RendersWithoutCrash()
     {
         var fig = Plt.Create()
@@ -1009,7 +1009,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // ResidualSeriesRenderer.cs L18 â€” empty data early-out (matches the model-class branch).
+    // ResidualSeriesRenderer.cs L18 — empty data early-out (matches the model-class branch).
     [Fact] public void ResidualSeriesRenderer_EmptyData_EarlyReturns()
     {
         var fig = Plt.Create()
@@ -1019,7 +1019,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // AutoDateFormatter.cs L36 â€” likely a span-threshold branch.
+    // AutoDateFormatter.cs L36 — likely a span-threshold branch.
     [Fact] public void AutoDateFormatter_SubSecondSpan_FormatsWithMs()
     {
         // Sub-second range exercises the < 1s formatting branch which the
@@ -1032,7 +1032,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // AutoDateFormatter.cs L36 â€” switch over ChosenInterval, hit a less-common arm.
+    // AutoDateFormatter.cs L36 — switch over ChosenInterval, hit a less-common arm.
     [Fact] public void AutoDateFormatter_HourlyInterval_FormatsCorrectly()
     {
         var fig = Plt.Create()
@@ -1043,7 +1043,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // SunburstSeriesRenderer.cs L44: `Context?.Theme?.ForegroundText ?? Colors.Black` â€”
+    // SunburstSeriesRenderer.cs L44: `Context?.Theme?.ForegroundText ?? Colors.Black` —
     // the null-coalesce branch fires when Theme is null. Drive via a sunburst with deeper
     // tree structure that creates leader-line placements.
     [Fact] public void Sunburst_DeepTreeWithLeaderLines_HitsLeaderColorBranch()
@@ -1070,7 +1070,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // PointplotSeriesRenderer.cs L58: `if (v.Length < 2) return 0;` â€” single-value group.
+    // PointplotSeriesRenderer.cs L58: `if (v.Length < 2) return 0;` — single-value group.
     [Fact] public void Pointplot_SingleValueGroup_HitsCIWidthShortCircuit()
     {
         var fig = Plt.Create()
@@ -1082,7 +1082,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // BarbsSeriesRenderer.cs L24: `i < series.Speed.Length ? series.Speed[i] : 0` â€”
+    // BarbsSeriesRenderer.cs L24: `i < series.Speed.Length ? series.Speed[i] : 0` —
     // length-mismatch fallback (Speed shorter than X).
     [Fact] public void Barbs_LengthMismatch_HitsSpeedFallbackBranch()
     {
@@ -1095,7 +1095,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // PolarHeatmapSeriesRenderer.cs L37: bounds-checked data access â€” out-of-range fallback.
+    // PolarHeatmapSeriesRenderer.cs L37: bounds-checked data access — out-of-range fallback.
     [Fact] public void PolarHeatmap_DataMismatch_HitsBoundsCheckBranch()
     {
         // Mismatch between configured bins and Data dimensions exercises the
@@ -1107,7 +1107,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // HeatmapSeriesRenderer.cs L19: `if (rows == 0 || cols == 0) return;` â€” empty grid.
+    // HeatmapSeriesRenderer.cs L19: `if (rows == 0 || cols == 0) return;` — empty grid.
     [Fact] public void Heatmap_EmptyData_HitsEarlyReturn()
     {
         var fig = Plt.Create()
@@ -1116,10 +1116,10 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // TripcolorSeriesRenderer.cs L22: `if (tris.Length == 0) return;` â€” degenerate triangulation.
+    // TripcolorSeriesRenderer.cs L22: `if (tris.Length == 0) return;` — degenerate triangulation.
     [Fact] public void Tripcolor_TooFewPoints_HitsEmptyTrianglesBranch()
     {
-        // 2 points â†’ no triangles possible.
+        // 2 points → no triangles possible.
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new TripcolorSeries(
                 new double[] { 0.0, 1.0 }, new double[] { 0.0, 1.0 }, new double[] { 1.0, 2.0 })))
@@ -1127,12 +1127,12 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // ContourfSeriesRenderer.cs L27: `if (rows < 2 || cols < 2) return;` â€” undersized grid.
+    // ContourfSeriesRenderer.cs L27: `if (rows < 2 || cols < 2) return;` — undersized grid.
     [Fact] public void Contourf_TooSmallGrid_HitsEarlyReturn()
     {
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new ContourfSeries(
-                new double[] { 1.0 }, new double[] { 1.0 }, new double[,] { { 5 } })))  // 1Ã—1
+                new double[] { 1.0 }, new double[] { 1.0 }, new double[,] { { 5 } })))  // 1×1
             .Build();
         Assert.StartsWith("<svg", fig.ToSvg());
     }
@@ -1161,7 +1161,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // StackedAreaSeriesRenderer L21: `if (n == 0 || layers == 0) return;` â€” empty data.
+    // StackedAreaSeriesRenderer L21: `if (n == 0 || layers == 0) return;` — empty data.
     [Fact] public void StackedAreaRenderer_EmptyX_HitsEarlyReturn()
     {
         var s = new StackedAreaSeries(Array.Empty<double>(),
@@ -1172,7 +1172,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // StemSeriesRenderer L18: `series.StemColor ?? SeriesColor` â€” explicit StemColor.
+    // StemSeriesRenderer L18: `series.StemColor ?? SeriesColor` — explicit StemColor.
     [Fact] public void StemRenderer_ExplicitStemColor_UsesIt()
     {
         var s = new StemSeries(new double[] { 1, 2, 3 }, new double[] { 1, 2, 3 })
@@ -1183,7 +1183,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // LineSeriesRenderer L28: `if (series.Smooth && drawX.Length >= 3)` â€” Smooth=true.
+    // LineSeriesRenderer L28: `if (series.Smooth && drawX.Length >= 3)` — Smooth=true.
     [Fact] public void LineRenderer_SmoothTrue_HitsSmoothBranch()
     {
         var fig = Plt.Create()
@@ -1193,7 +1193,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // LineSeriesRenderer L41: `series.DrawStyle is not null and not DrawStyle.Default` â€” non-default DrawStyle.
+    // LineSeriesRenderer L41: `series.DrawStyle is not null and not DrawStyle.Default` — non-default DrawStyle.
     [Fact] public void LineRenderer_StepsDrawStyle_HitsStepBranch()
     {
         var fig = Plt.Create()
@@ -1203,7 +1203,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // LineSeriesRenderer L47: `if (series.MarkEvery is not null && i % series.MarkEvery.Value != 0)` â€” MarkEvery set.
+    // LineSeriesRenderer L47: `if (series.MarkEvery is not null && i % series.MarkEvery.Value != 0)` — MarkEvery set.
     [Fact] public void LineRenderer_MarkEveryTwo_HitsMarkEveryBranch()
     {
         var fig = Plt.Create()
@@ -1213,7 +1213,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // LineSeriesRenderer L38: `series.MarkerEdgeColor is not null ? : 0` â€” explicit MarkerEdgeColor.
+    // LineSeriesRenderer L38: `series.MarkerEdgeColor is not null ? : 0` — explicit MarkerEdgeColor.
     [Fact] public void LineRenderer_ExplicitMarkerEdgeColor_HitsBranch()
     {
         var fig = Plt.Create()
@@ -1234,7 +1234,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // RadarSeriesRenderer L19: `series.FillColor ?? ApplyAlpha(color, series.Alpha)` â€” explicit FillColor.
+    // RadarSeriesRenderer L19: `series.FillColor ?? ApplyAlpha(color, series.Alpha)` — explicit FillColor.
     [Fact] public void RadarRenderer_ExplicitFillColor_UsesIt()
     {
         var fig = Plt.Create()
@@ -1244,7 +1244,7 @@ public class BranchCoverage_RenderingTests
         Assert.StartsWith("<svg", fig.ToSvg());
     }
 
-    // RadarSeriesRenderer L25: `series.MaxValue ?? series.Values.Max()` â€” explicit MaxValue.
+    // RadarSeriesRenderer L25: `series.MaxValue ?? series.Values.Max()` — explicit MaxValue.
     [Fact] public void RadarRenderer_ExplicitMaxValue_UsesIt()
     {
         var fig = Plt.Create()
