@@ -433,4 +433,21 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
             LineWidth = s.LineWidth,
         }, a);
     }
+
+    /// <inheritdoc />
+    public void Visit(StreamingCandlestickSeries s, RenderArea a)
+    {
+        var snapshot = s.CreateOhlcSnapshot();
+        if (snapshot.Open.Length == 0)
+        {
+            return;
+        }
+        Visit(new CandlestickSeries(snapshot.Open, snapshot.High, snapshot.Low, snapshot.Close)
+        {
+            Label = s.Label,
+            Visible = s.Visible,
+            UpColor = s.Color ?? Colors.Green,
+            DownColor = s.DownColor ?? Colors.Red,
+        }, a);
+    }
 }

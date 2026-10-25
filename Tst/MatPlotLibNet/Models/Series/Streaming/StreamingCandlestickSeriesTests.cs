@@ -1,13 +1,47 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet;
 using MatPlotLibNet.Data;
 using MatPlotLibNet.Models.Series.Streaming;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.SeriesRenderers;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Tests.Models.Series.Streaming;
 
 public sealed class StreamingCandlestickSeriesTests
 {
+    /// <summary>End-to-end on the real surface: a reader never calls the visitor directly, they call
+    /// <c>ToSvg()</c>. <see cref="ISeriesVisitor.Visit(StreamingCandlestickSeries, RenderArea)"/> had no
+    /// override in <c>SvgSeriesRenderer</c> (the ONLY production implementor), so the series' data range
+    /// still scaled the axes but nothing drew — the same silent gap <c>StreamingLineSeries</c>/
+    /// <c>StreamingScatterSeries</c>/<c>StreamingSignalSeries</c> had before 2026-08-22.
+    /// <para>Asserts on a deliberately unusual up-colour (<c>#123456</c>) rather than a bare SVG element
+    /// name — the plot background, grid lines and axis spines already emit <c>&lt;rect&gt;</c>/<c>&lt;line&gt;</c>
+    /// regardless of whether the series itself drew anything, so a bare "any primitive exists" assertion
+    /// passes even on the unfixed code (confirmed: it did, before this version was written). Only the
+    /// candle body/wick (<see cref="CandlestickSeriesRenderer"/>, which <c>Visit</c> must delegate to) ever
+    /// writes this exact colour.</para></summary>
+    [Fact]
+    public void ToSvg_DrawsTheAppendedBars()
+    {
+        var distinctiveUpColor = new Color(0x12, 0x34, 0x56);
+
+        var svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                var s = ax.StreamingCandlestick();
+                s.Color = distinctiveUpColor; // both bars below close above open -> "up"
+                s.AppendBar(100, 110, 95, 105);
+                s.AppendBar(105, 118, 100, 112);
+            })
+            .ToSvg();
+
+        Assert.Contains("123456", svg, StringComparison.OrdinalIgnoreCase);
+    }
+
+
     [Fact]
     public void Construction_DefaultCapacity_Is5000()
     {
