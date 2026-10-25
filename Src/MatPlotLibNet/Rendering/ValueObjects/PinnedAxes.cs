@@ -28,22 +28,28 @@ internal enum PinnedAxes
 /// <summary>Wire-format helpers for <see cref="PinnedAxes"/> and <see cref="CubeAxis"/>.</summary>
 internal static class PinnedAxesExtensions
 {
-    /// <summary>The compact <c>data-v3d-pinned</c> attribute value: the axis letters, in x-y-z order.</summary>
-    internal static string ToWire(this PinnedAxes axes)
+    extension(PinnedAxes axes)
     {
-        Span<char> buffer = stackalloc char[3];
-        int length = 0;
-        if (axes.HasFlag(PinnedAxes.X)) buffer[length++] = 'x';
-        if (axes.HasFlag(PinnedAxes.Y)) buffer[length++] = 'y';
-        if (axes.HasFlag(PinnedAxes.Z)) buffer[length++] = 'z';
-        return new string(buffer[..length]);
+        /// <summary>The compact <c>data-v3d-pinned</c> attribute value: the axis letters, in x-y-z order.</summary>
+        internal string ToWire()
+        {
+            Span<char> buffer = stackalloc char[3];
+            int length = 0;
+            if (axes.HasFlag(PinnedAxes.X)) buffer[length++] = 'x';
+            if (axes.HasFlag(PinnedAxes.Y)) buffer[length++] = 'y';
+            if (axes.HasFlag(PinnedAxes.Z)) buffer[length++] = 'z';
+            return new string(buffer[..length]);
+        }
     }
 
-    /// <summary>The two axes other than this one — the components a tick row along it is pinned to.</summary>
-    internal static PinnedAxes OtherAxes(this CubeAxis axis) => axis switch
+    extension(CubeAxis axis)
     {
-        CubeAxis.X => PinnedAxes.Y | PinnedAxes.Z,
-        CubeAxis.Y => PinnedAxes.X | PinnedAxes.Z,
-        _ => PinnedAxes.X | PinnedAxes.Y,
-    };
+        /// <summary>The two axes other than this one — the components a tick row along it is pinned to.</summary>
+        internal PinnedAxes OtherAxes() => axis switch
+        {
+            CubeAxis.X => PinnedAxes.Y | PinnedAxes.Z,
+            CubeAxis.Y => PinnedAxes.X | PinnedAxes.Z,
+            _ => PinnedAxes.X | PinnedAxes.Y,
+        };
+    }
 }

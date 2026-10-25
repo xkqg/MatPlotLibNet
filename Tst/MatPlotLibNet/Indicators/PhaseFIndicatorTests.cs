@@ -21,7 +21,7 @@ public class WilliamsRTests
     [Fact]
     public void Compute_ReturnsCorrectLength()
     {
-        double[] result = new WilliamsR(High, Low, Close, 14).Compute();
+        double[] result = new WilliamsR(OhlcvBars.Hlc(High, Low, Close), 14).Compute();
         Assert.Equal(High.Length - 14 + 1, result.Length);
     }
 
@@ -29,7 +29,7 @@ public class WilliamsRTests
     [Fact]
     public void Compute_ValuesInRange()
     {
-        double[] result = new WilliamsR(High, Low, Close, 14).Compute();
+        double[] result = new WilliamsR(OhlcvBars.Hlc(High, Low, Close), 14).Compute();
         foreach (var v in result)
             Assert.InRange(v, -100.0, 0.0);
     }
@@ -39,7 +39,7 @@ public class WilliamsRTests
     public void Apply_AddsLineSeriesAndSetsYAxis()
     {
         var axes = new Axes();
-        new WilliamsR(High, Low, Close, 14).Apply(axes);
+        new WilliamsR(OhlcvBars.Hlc(High, Low, Close), 14).Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
         Assert.Equal(-100, axes.YAxis.Min);
@@ -112,7 +112,7 @@ public class CciTests
     [Fact]
     public void Compute_ReturnsCorrectLength()
     {
-        double[] result = new Cci(High, Low, Close, 14).Compute();
+        double[] result = new Cci(OhlcvBars.Hlc(High, Low, Close), 14).Compute();
         Assert.Equal(High.Length - 14 + 1, result.Length);
     }
 
@@ -121,7 +121,7 @@ public class CciTests
     public void Apply_AddsLineSeries()
     {
         var axes = new Axes();
-        new Cci(High, Low, Close, 14).Apply(axes);
+        new Cci(OhlcvBars.Hlc(High, Low, Close), 14).Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
@@ -133,7 +133,7 @@ public class CciTests
         double[] h = [10, 11, 12];
         double[] l = [8, 9, 10];
         double[] c = [9, 10, 11];
-        Assert.Empty(new Cci(h, l, c, 14).Compute().Values);
+        Assert.Empty(new Cci(OhlcvBars.Hlc(h, l, c), 14).Compute().Values);
     }
 
     /// <summary>Covers the meanDev == 0 ternary branch — when the typical price is constant
@@ -145,7 +145,7 @@ public class CciTests
         double[] h = [10, 10, 10, 10, 10];
         double[] l = [10, 10, 10, 10, 10];
         double[] c = [10, 10, 10, 10, 10];
-        var result = new Cci(h, l, c, 3).Compute();
+        var result = new Cci(OhlcvBars.Hlc(h, l, c), 3).Compute();
         Assert.All(result.Values, v => Assert.Equal(0, v));
     }
 
@@ -158,7 +158,7 @@ public class CciTests
         double[] h = [10, 11];
         double[] l = [8, 9];
         double[] c = [9, 10];
-        new Cci(h, l, c, 14).Apply(axes);
+        new Cci(OhlcvBars.Hlc(h, l, c), 14).Apply(axes);
         Assert.Empty(axes.Series);
     }
 }

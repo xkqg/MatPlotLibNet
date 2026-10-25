@@ -89,5 +89,5 @@ public class VectorMathBenchmarks
     public BandsResult RollingStdDev_via_BollingerBands() => new BollingerBands(_close, 20).Compute();
 
     [Benchmark]
-    public StochasticResult RollingMinMax_via_Stochastic() => new Stochastic(_high, _low, _close, 14).Compute();
+    public StochasticResult RollingMinMax_via_Stochastic() => new Stochastic(OhlcvBars.Hlc(_high, _low, _close), 14).Compute();
 }

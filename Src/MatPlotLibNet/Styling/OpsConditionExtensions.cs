@@ -20,30 +20,36 @@ public static class OpsConditionExtensions
     /// different facts, and an operator must be able to tell at a glance which one is on the wall.</summary>
     public const HatchPattern ShelvedHatch = HatchPattern.BackDiagonal;
 
-    /// <summary>Which of two severities stands. Worse wins — the rule a roll-up needs and the rule two
-    /// windows of one signal need, where a fast window catches the acute failure and a slow one the
-    /// smoulder.</summary>
-    public static OpsSeverity Worst(this OpsSeverity severity, OpsSeverity other) =>
-        other > severity ? other : severity;
+    extension(OpsSeverity severity)
+    {
+        /// <summary>Which of two severities stands. Worse wins — the rule a roll-up needs and the rule two
+        /// windows of one signal need, where a fast window catches the acute failure and a slow one the
+        /// smoulder.</summary>
+        public OpsSeverity Worst(OpsSeverity other) =>
+            other > severity ? other : severity;
+    }
 
-    /// <summary>The form this condition takes against a palette: the colour its severity earned, and the
-    /// pattern its visibility demands.</summary>
-    public static OpsMark Resolve(this OpsCondition condition, AlarmPalette palette) =>
-        new(
-            condition.Severity switch
-            {
-                OpsSeverity.Critical => palette.Critical,
-                OpsSeverity.Warning => palette.Warning,
+    extension(OpsCondition condition)
+    {
+        /// <summary>The form this condition takes against a palette: the colour its severity earned, and the
+        /// pattern its visibility demands.</summary>
+        public OpsMark Resolve(AlarmPalette palette) =>
+            new(
+                condition.Severity switch
+                {
+                    OpsSeverity.Critical => palette.Critical,
+                    OpsSeverity.Warning => palette.Warning,
 
-                // Rest carries no colour. Returning the palette's resting shade here would make every quiet
-                // tile an explicit accent, and a caller could no longer tell "judged and fine" from "not
-                // judged at all".
-                _ => null,
-            },
-            condition.Visibility switch
-            {
-                OpsVisibility.Unknown => UnknownHatch,
-                OpsVisibility.Shelved => ShelvedHatch,
-                _ => HatchPattern.None,
-            });
+                    // Rest carries no colour. Returning the palette's resting shade here would make every quiet
+                    // tile an explicit accent, and a caller could no longer tell "judged and fine" from "not
+                    // judged at all".
+                    _ => null,
+                },
+                condition.Visibility switch
+                {
+                    OpsVisibility.Unknown => UnknownHatch,
+                    OpsVisibility.Shelved => ShelvedHatch,
+                    _ => HatchPattern.None,
+                });
+    }
 }

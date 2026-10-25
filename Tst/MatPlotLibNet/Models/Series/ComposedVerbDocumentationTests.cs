@@ -32,6 +32,27 @@ public class ComposedVerbDocumentationTests
             .Where(method => method.IsDefined(typeof(ExtensionAttribute), inherit: false))
             .OrderBy(method => method.Name, StringComparer.Ordinal)];
 
+    /// <summary>A C# 14 <c>extension(T){ }</c> member's reflected <see cref="MethodInfo.DeclaringType"/> is a
+    /// compiler-synthesized nested skeleton type (named <c>&lt;G&gt;$&lt;hash&gt;</c>), not the class the block is
+    /// written in — <c>XYAxesExtensions.BumpChart</c> reflects as declared on
+    /// <c>XYAxesExtensions+&lt;G&gt;$70B89E00D34DD57ECEA311265D89A0A1</c>. The outer, user-written type is one
+    /// <see cref="Type.DeclaringType"/> up.</summary>
+    private static Type UserWrittenDeclaringType(MethodInfo method) =>
+        method.DeclaringType!.IsNested ? method.DeclaringType.DeclaringType! : method.DeclaringType;
+
+    /// <summary>The generated XML documentation mirrors the same split: the member under the user-written type's
+    /// name is a shim carrying only <c>&lt;inheritdoc cref="..."/&gt;</c> to the skeleton-type member that holds the
+    /// real summary/param/returns/exception/example content. Follows that redirect when present.</summary>
+    private static XElement ResolveInheritedContent(XElement member)
+    {
+        var redirect = member.Elements().SingleOrDefault() is { Name.LocalName: "inheritdoc" } only
+            ? (string?)only.Attribute("cref")
+            : null;
+        if (redirect is null) return member;
+
+        return Documentation.Descendants("member").Single(candidate => (string?)candidate.Attribute("name") == redirect);
+    }
+
     /// <summary>The verb names as a Theory carries them.</summary>
     public static TheoryData<string> VerbNames { get; } = new(Verbs.Select(verb => verb.Name));
 
@@ -57,11 +78,14 @@ public class ComposedVerbDocumentationTests
     public void EveryVerb_IsDocumentedWithSummaryParamsReturnsExceptionAndAnExample(string name)
     {
         var verb = Verbs.Single(candidate => candidate.Name == name);
-        var member = Assert.Single(MembersStartingWith($"M:{verb.DeclaringType!.FullName}.{name}("));
+        var shim = Assert.Single(MembersStartingWith($"M:{UserWrittenDeclaringType(verb).FullName}.{name}("));
+        var member = ResolveInheritedContent(shim);
 
         var missing = new List<string>();
         if (TextOf(member.Element("summary")).Length == 0) missing.Add("summary");
-        foreach (var parameter in verb.GetParameters())
+        // GetParameters()[0] is the extension receiver (true for both old this-T and new extension(T) syntax);
+        // it is documented once on the containing family's class summary, not restated on every member.
+        foreach (var parameter in verb.GetParameters().Skip(1))
         {
             var documented = member.Elements("param").FirstOrDefault(param => (string?)param.Attribute("name") == parameter.Name);
             if (TextOf(documented).Length == 0) missing.Add($"param '{parameter.Name}'");
@@ -70,7 +94,7 @@ public class ComposedVerbDocumentationTests
         if (!member.Elements("exception").Any()) missing.Add("exception");
         if (!TextOf(member.Element("example")).Contains($".{name}(", StringComparison.Ordinal)) missing.Add($"an example that calls .{name}(");
 
-        Assert.True(missing.Count == 0, $"{verb.DeclaringType.Name}.{name} lacks: {string.Join(", ", missing)}.");
+        Assert.True(missing.Count == 0, $"{verb.DeclaringType!.Name}.{name} lacks: {string.Join(", ", missing)}.");
     }
 
     /// <summary>The summary of <c>Ridgeline</c> and its code say the bandwidth is the mean of the groups' own Silverman
@@ -80,7 +104,8 @@ public class ComposedVerbDocumentationTests
     [Fact]
     public void TheRidgelineBandwidthParameter_SaysWhatTheCodeDoesWhenItIsLeftOut()
     {
-        var member = Assert.Single(MembersStartingWith($"M:{typeof(DistributionAxesExtensions).FullName}.Ridgeline("));
+        var shim = Assert.Single(MembersStartingWith($"M:{typeof(DistributionAxesExtensions).FullName}.Ridgeline("));
+        var member = ResolveInheritedContent(shim);
         string text = TextOf(member.Elements("param").Single(param => (string?)param.Attribute("name") == "bandwidth"));
 
         Assert.Contains("mean of the groups", text, StringComparison.Ordinal);

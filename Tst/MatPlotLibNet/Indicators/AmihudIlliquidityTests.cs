@@ -28,7 +28,7 @@ public class AmihudIlliquidityTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var illiq = new AmihudIlliquidity([], [], period: 5);
+        var illiq = new AmihudIlliquidity(OhlcvBars.Cv([], []), period: 5);
         Assert.Empty(illiq.Compute().Values);
     }
 
@@ -37,7 +37,7 @@ public class AmihudIlliquidityTests
     public void Constructor_LengthMismatch_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new AmihudIlliquidity([100.0, 101], [1000.0], period: 1));
+            new AmihudIlliquidity(OhlcvBars.Cv([100.0, 101], [1000.0]), period: 1));
     }
 
     // ── Branch 3 — Length <= period → empty ──
@@ -45,7 +45,7 @@ public class AmihudIlliquidityTests
     public void Compute_LengthEqualsPeriod_ReturnsEmpty()
     {
         var illiq = new AmihudIlliquidity(
-            [100.0, 101, 102], [1000.0, 1000, 1000], period: 3);
+            OhlcvBars.Cv([100.0, 101, 102], [1000.0, 1000, 1000]), period: 3);
         Assert.Empty(illiq.Compute().Values);
     }
 
@@ -53,7 +53,7 @@ public class AmihudIlliquidityTests
     public void Compute_LengthBelowPeriod_ReturnsEmpty()
     {
         var illiq = new AmihudIlliquidity(
-            [100.0, 101], [1000.0, 1000], period: 5);
+            OhlcvBars.Cv([100.0, 101], [1000.0, 1000]), period: 5);
         Assert.Empty(illiq.Compute().Values);
     }
 
@@ -62,7 +62,7 @@ public class AmihudIlliquidityTests
     public void Compute_LengthEqualsPeriodPlusOne_ReturnsSingleValue()
     {
         var illiq = new AmihudIlliquidity(
-            [100.0, 101, 102, 103], [1000.0, 1000, 1000, 1000], period: 3);
+            OhlcvBars.Cv([100.0, 101, 102, 103], [1000.0, 1000, 1000, 1000]), period: 3);
         Assert.Single(illiq.Compute().Values);
     }
 
@@ -73,7 +73,7 @@ public class AmihudIlliquidityTests
     public void Constructor_NonPositivePeriod_Throws(int period)
     {
         Assert.Throws<ArgumentException>(() =>
-            new AmihudIlliquidity([100.0, 101, 102], [1.0, 1, 1], period));
+            new AmihudIlliquidity(OhlcvBars.Cv([100.0, 101, 102], [1.0, 1, 1]), period));
     }
 
     // ── Branch 6 — Zero volume on a bar → PositiveInfinity in that bar's contribution ──
@@ -82,7 +82,7 @@ public class AmihudIlliquidityTests
     {
         // Period=1, close=[100,101], volume=[1000,0]
         // Bar 1: |r|=0.00995, dollar_vol = 101*0 = 0 → infinity policy.
-        var illiq = new AmihudIlliquidity([100.0, 101], [1000.0, 0], period: 1);
+        var illiq = new AmihudIlliquidity(OhlcvBars.Cv([100.0, 101], [1000.0, 0]), period: 1);
         Assert.Equal(double.PositiveInfinity, illiq.Compute().Values[0]);
     }
 
@@ -96,7 +96,7 @@ public class AmihudIlliquidityTests
         var volume = new double[close.Length];
         for (int i = 0; i < volume.Length; i++) volume[i] = 1000;
         Assert.Throws<ArgumentException>(() =>
-            new AmihudIlliquidity(close, volume, period: 1));
+            new AmihudIlliquidity(OhlcvBars.Cv(close, volume), period: 1));
     }
 
     // ── Branch 8 — Flat prices → all zeros, no NaN ──
@@ -104,7 +104,7 @@ public class AmihudIlliquidityTests
     public void Compute_FlatPrices_ReturnsZero()
     {
         var illiq = new AmihudIlliquidity(
-            [100.0, 100, 100, 100, 100], [1000.0, 1000, 1000, 1000, 1000], period: 3);
+            OhlcvBars.Cv([100.0, 100, 100, 100, 100], [1000.0, 1000, 1000, 1000, 1000]), period: 3);
         var r = illiq.Compute().Values;
         Assert.All(r, v =>
         {
@@ -117,7 +117,7 @@ public class AmihudIlliquidityTests
     [Fact]
     public void Compute_KnownVector_MatchesReference()
     {
-        var illiq = new AmihudIlliquidity(RefClose, RefVolume, period: 3);
+        var illiq = new AmihudIlliquidity(OhlcvBars.Cv(RefClose, RefVolume), period: 3);
         var r = illiq.Compute().Values;
         Assert.Equal(2, r.Length);
         Assert.Equal(1.81010331e-7, r[0], precision: 12);
@@ -129,7 +129,7 @@ public class AmihudIlliquidityTests
     public void Apply_AddsLineSeries()
     {
         var axes = new Axes();
-        new AmihudIlliquidity(RefClose, RefVolume, period: 3).Apply(axes);
+        new AmihudIlliquidity(OhlcvBars.Cv(RefClose, RefVolume), period: 3).Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
@@ -138,7 +138,7 @@ public class AmihudIlliquidityTests
     public void Apply_SetsExpectedLabel()
     {
         var axes = new Axes();
-        new AmihudIlliquidity(RefClose, RefVolume, period: 3).Apply(axes);
+        new AmihudIlliquidity(OhlcvBars.Cv(RefClose, RefVolume), period: 3).Apply(axes);
         Assert.Equal("ILLIQ(3)", axes.Series[0].Label);
     }
 
@@ -147,7 +147,7 @@ public class AmihudIlliquidityTests
     {
         var close = new double[25]; var vol = new double[25];
         for (int i = 0; i < 25; i++) { close[i] = 100 + i; vol[i] = 1000; }
-        var illiq = new AmihudIlliquidity(close, vol);
+        var illiq = new AmihudIlliquidity(OhlcvBars.Cv(close, vol));
         Assert.Equal("ILLIQ(20)", illiq.Label);
     }
 
@@ -156,8 +156,8 @@ public class AmihudIlliquidityTests
     public void InheritsCandleIndicator()
     {
         Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(
-            new AmihudIlliquidity(RefClose, RefVolume, period: 3));
+            new AmihudIlliquidity(OhlcvBars.Cv(RefClose, RefVolume), period: 3));
         Assert.IsAssignableFrom<IIndicator>(
-            new AmihudIlliquidity(RefClose, RefVolume, period: 3));
+            new AmihudIlliquidity(OhlcvBars.Cv(RefClose, RefVolume), period: 3));
     }
 }

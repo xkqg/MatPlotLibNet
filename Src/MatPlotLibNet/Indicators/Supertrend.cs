@@ -17,18 +17,12 @@ public sealed class Supertrend : CandleIndicator<SupertrendResult>
     private readonly double _multiplier;
 
     /// <summary>Creates a new Supertrend indicator.</summary>
-    /// <param name="high">High prices.</param>
-    /// <param name="low">Low prices.</param>
-    /// <param name="close">Close prices.</param>
+    /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
     /// <param name="period">ATR lookback. Default 10. Must be ≥ 1.</param>
     /// <param name="multiplier">ATR band multiplier. Default 3.0. Must be &gt; 0.</param>
-    public Supertrend(double[] high, double[] low, double[] close,
-        int period = 10, double multiplier = 3.0)
-        : base(OhlcvBars.Hlc(high, low, close))
+    public Supertrend(OhlcvBars bars, int period = 10, double multiplier = 3.0)
+        : base(bars)
     {
-        if (high.Length != low.Length || high.Length != close.Length)
-            throw new ArgumentException(
-                $"high ({high.Length}), low ({low.Length}), and close ({close.Length}) must have equal length.");
         if (period < 1)
             throw new ArgumentException($"period must be >= 1 (got {period}).", nameof(period));
         if (multiplier <= 0)
@@ -47,7 +41,7 @@ public sealed class Supertrend : CandleIndicator<SupertrendResult>
                 Array.Empty<double>(), Array.Empty<int>(), Array.Empty<bool>());
 
         // ATR series — length n - period, aligned so atr[i] corresponds to global bar index period+i.
-        var atr = new Atr(High, Low, Close, _period).Compute().Values;
+        var atr = new Atr(OhlcvBars.Hlc(High, Low, Close), _period).Compute().Values;
 
         int outLen = n - _period;
         var line = new double[outLen];

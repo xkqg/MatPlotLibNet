@@ -14,12 +14,10 @@ public sealed class Cci : CandleIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new CCI indicator.</summary>
-    /// <param name="high">High prices.</param>
-    /// <param name="low">Low prices.</param>
-    /// <param name="close">Close prices.</param>
+    /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
     /// <param name="period">Lookback period (default 20).</param>
-    public Cci(double[] high, double[] low, double[] close, int period = 20)
-        : base(OhlcvBars.Hlc(high, low, close))
+    public Cci(OhlcvBars bars, int period = 20)
+        : base(bars)
     {
         _period = period;
         Label = $"CCI({period})";

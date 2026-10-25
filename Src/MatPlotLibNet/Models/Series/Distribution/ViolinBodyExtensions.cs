@@ -18,25 +18,27 @@ internal static class ViolinBodyExtensions
     /// <summary>The number of intervals the sample's extent is cut into: the outline stands at one more height than this.</summary>
     internal const int Intervals = 20;
 
-    /// <summary>The outline of the body of a violin, from the lowest value to the highest. The width at a height is the
-    /// share of the sample within a twentieth of the extent above and below it, times <paramref name="widths"/>; a sample
-    /// whose values are all equal is given an extent of 1.</summary>
-    /// <param name="sorted">The observations that can be drawn, ascending; at least one.</param>
-    /// <param name="widths">The series' <see cref="ViolinSeries.Widths"/>.</param>
-    /// <returns>The outline at <see cref="Intervals"/> + 1 heights, lowest first.</returns>
-    internal static ViolinSlice[] Outline(this double[] sorted, double widths)
+    extension(double[] sorted)
     {
-        double min = sorted[0], range = sorted[^1] - min;
-        if (range == 0) range = 1;
-        double bandwidth = range / Intervals;
-        var outline = new ViolinSlice[Intervals + 1];
-        for (int s = 0; s <= Intervals; s++)
+        /// <summary>The outline of the body of a violin, from the lowest value to the highest. The width at a height is the
+        /// share of the sample within a twentieth of the extent above and below it, times <paramref name="widths"/>; a sample
+        /// whose values are all equal is given an extent of 1.</summary>
+        /// <param name="widths">The series' <see cref="ViolinSeries.Widths"/>.</param>
+        /// <returns>The outline at <see cref="Intervals"/> + 1 heights, lowest first.</returns>
+        internal ViolinSlice[] Outline(double widths)
         {
-            double y = min + range * s / Intervals;
-            int lo = sorted.BisectLeft(y - bandwidth), hi = sorted.BisectRight(y + bandwidth);
-            outline[s] = new ViolinSlice(y, (hi - lo) / (double)sorted.Length * widths);
-        }
+            double min = sorted[0], range = sorted[^1] - min;
+            if (range == 0) range = 1;
+            double bandwidth = range / Intervals;
+            var outline = new ViolinSlice[Intervals + 1];
+            for (int s = 0; s <= Intervals; s++)
+            {
+                double y = min + range * s / Intervals;
+                int lo = sorted.BisectLeft(y - bandwidth), hi = sorted.BisectRight(y + bandwidth);
+                outline[s] = new ViolinSlice(y, (hi - lo) / (double)sorted.Length * widths);
+            }
 
-        return outline;
+            return outline;
+        }
     }
 }

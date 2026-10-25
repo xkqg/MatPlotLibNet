@@ -14,11 +14,10 @@ public sealed class VwapZScore : CandleIndicator<SignalResult>
     private readonly int _window;
 
     /// <summary>Creates a new VWAP Z-Score indicator.</summary>
-    /// <param name="close">Close prices.</param>
-    /// <param name="volume">Volume per bar. Must match <paramref name="close"/> length.</param>
+    /// <param name="bars">Close and Volume; built via <see cref="OhlcvBars.Cv"/>.</param>
     /// <param name="window">Rolling window length. Default 20. Must be ≥ 2.</param>
-    public VwapZScore(double[] close, double[] volume, int window = 20)
-        : base(OhlcvBars.Cv(close, volume))
+    public VwapZScore(OhlcvBars bars, int window = 20)
+        : base(bars)
     {
         if (window < 2)
             throw new ArgumentException($"window must be >= 2 (got {window}).", nameof(window));

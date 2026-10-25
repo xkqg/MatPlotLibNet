@@ -27,7 +27,7 @@ public class GarmanKlassTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var gk = new GarmanKlass([], [], [], [], period: 5);
+        var gk = new GarmanKlass(OhlcvBars.Ohlc([], [], [], []), period: 5);
         Assert.Empty(gk.Compute().Values);
     }
 
@@ -36,8 +36,9 @@ public class GarmanKlassTests
     public void Compute_LengthBelowPeriod_ReturnsEmpty()
     {
         var gk = new GarmanKlass(
-            [100.0, 101.0, 102.0], [101.0, 102.0, 103.0],
-            [99.0, 100.0, 101.0], [100.5, 101.5, 102.5], period: 5);
+            OhlcvBars.Ohlc(
+                [100.0, 101.0, 102.0], [101.0, 102.0, 103.0],
+                [99.0, 100.0, 101.0], [100.5, 101.5, 102.5]), period: 5);
         Assert.Empty(gk.Compute().Values);
     }
 
@@ -45,7 +46,7 @@ public class GarmanKlassTests
     [Fact]
     public void Compute_LengthEqualsPeriod_ReturnsSingleWindow()
     {
-        var gk = new GarmanKlass(RefO, RefH, RefL, RefC, period: 5);
+        var gk = new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 5);
         Assert.Single(gk.Compute().Values);
     }
 
@@ -59,7 +60,7 @@ public class GarmanKlassTests
     public void Constructor_NonPositivePrice_Throws(double o, double h, double l, double c)
     {
         Assert.Throws<ArgumentException>(() =>
-            new GarmanKlass([o, 1, 1, 1, 1], [h, 1, 1, 1, 1], [l, 1, 1, 1, 1], [c, 1, 1, 1, 1], period: 5));
+            new GarmanKlass(OhlcvBars.Ohlc([o, 1, 1, 1, 1], [h, 1, 1, 1, 1], [l, 1, 1, 1, 1], [c, 1, 1, 1, 1]), period: 5));
     }
 
     // ── Branch 5 — H == L (zero range) contributes 0, no NaN ──
@@ -71,7 +72,7 @@ public class GarmanKlassTests
         double[] h = [100, 101, 102, 103, 104];   // bar 0: H == L
         double[] l = [100, 99, 98, 97, 96];       // bar 0: H == L == 100
         double[] c = [100, 100, 100, 100, 100];
-        var result = new GarmanKlass(o, h, l, c, period: 5).Compute().Values;
+        var result = new GarmanKlass(OhlcvBars.Ohlc(o, h, l, c), period: 5).Compute().Values;
         Assert.Single(result);
         Assert.False(double.IsNaN(result[0]));
     }
@@ -84,7 +85,7 @@ public class GarmanKlassTests
         double[] h = [101, 102, 103, 104, 105];
         double[] l = [99, 98, 97, 96, 95];
         double[] c = [100, 100, 100, 100, 100]; // O == C every bar
-        var result = new GarmanKlass(o, h, l, c, period: 5).Compute().Values;
+        var result = new GarmanKlass(OhlcvBars.Ohlc(o, h, l, c), period: 5).Compute().Values;
         Assert.Single(result);
         Assert.False(double.IsNaN(result[0]));
         Assert.True(result[0] > 0); // HL range non-zero → σ > 0
@@ -95,7 +96,7 @@ public class GarmanKlassTests
     public void Compute_AllFlatWindow_ReturnsZero()
     {
         double[] flat = [100, 100, 100, 100, 100, 100, 100];
-        var gk = new GarmanKlass(flat, flat, flat, flat, period: 5);
+        var gk = new GarmanKlass(OhlcvBars.Ohlc(flat, flat, flat, flat), period: 5);
         var result = gk.Compute().Values;
         Assert.All(result, v =>
         {
@@ -108,7 +109,7 @@ public class GarmanKlassTests
     [Fact]
     public void Compute_KnownVector_MatchesPythonReference()
     {
-        var gk = new GarmanKlass(RefO, RefH, RefL, RefC, period: 5);
+        var gk = new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 5);
         var result = gk.Compute().Values;
         Assert.Single(result);
         Assert.Equal(0.0277119, result[0], precision: 5);
@@ -123,7 +124,7 @@ public class GarmanKlassTests
         double[] h = [105, 104, 106, 108, 109, 111, 112];
         double[] l = [99, 100, 102, 104, 106, 107, 109];
         double[] c = [102, 103, 105, 107, 108, 110, 111];
-        var result = new GarmanKlass(o, h, l, c, period: 5).Compute().Values;
+        var result = new GarmanKlass(OhlcvBars.Ohlc(o, h, l, c), period: 5).Compute().Values;
         Assert.Equal(3, result.Length);
         Assert.All(result, v =>
         {
@@ -137,7 +138,7 @@ public class GarmanKlassTests
     public void Apply_AddsLineSeries()
     {
         var axes = new Axes();
-        new GarmanKlass(RefO, RefH, RefL, RefC, period: 5).Apply(axes);
+        new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 5).Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
@@ -146,7 +147,7 @@ public class GarmanKlassTests
     public void Apply_SetsExpectedLabel()
     {
         var axes = new Axes();
-        new GarmanKlass(RefO, RefH, RefL, RefC, period: 7).Apply(axes);
+        new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 7).Apply(axes);
         Assert.Equal("GK(7)", axes.Series[0].Label);
     }
 
@@ -156,7 +157,7 @@ public class GarmanKlassTests
         // Constructor default applied via label
         var o = new double[25]; var h = new double[25]; var l = new double[25]; var c = new double[25];
         for (int i = 0; i < 25; i++) { o[i] = 100; h[i] = 101; l[i] = 99; c[i] = 100; }
-        var gk = new GarmanKlass(o, h, l, c);
+        var gk = new GarmanKlass(OhlcvBars.Ohlc(o, h, l, c));
         Assert.Equal("GK(20)", gk.Label);
     }
 
@@ -165,8 +166,8 @@ public class GarmanKlassTests
     public void InheritsCandleIndicator()
     {
         Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(
-            new GarmanKlass(RefO, RefH, RefL, RefC));
+            new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC)));
         Assert.IsAssignableFrom<IIndicator>(
-            new GarmanKlass(RefO, RefH, RefL, RefC));
+            new GarmanKlass(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC)));
     }
 }

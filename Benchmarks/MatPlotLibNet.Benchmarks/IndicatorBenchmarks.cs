@@ -54,19 +54,19 @@ public class IndicatorBenchmarks
     public BandsResult BollingerBands_20() => new BollingerBands(_prices, 20).Compute();
 
     [Benchmark]
-    public BandsResult KeltnerChannels_20() => new KeltnerChannels(_high, _low, _close, 20).Compute();
+    public BandsResult KeltnerChannels_20() => new KeltnerChannels(OhlcvBars.Hlc(_high, _low, _close), 20).Compute();
 
     [Benchmark]
-    public double[] Atr_14() => new Atr(_high, _low, _close, 14).Compute();
+    public double[] Atr_14() => new Atr(OhlcvBars.Hlc(_high, _low, _close), 14).Compute();
 
     [Benchmark]
-    public double[] Adx_14() => new Adx(_high, _low, _close, 14).Compute();
+    public double[] Adx_14() => new Adx(OhlcvBars.Hlc(_high, _low, _close), 14).Compute();
 
     [Benchmark]
     public MacdResult Macd_12_26_9() => new Macd(_prices).Compute();
 
     [Benchmark]
-    public StochasticResult Stochastic_14() => new Stochastic(_high, _low, _close).Compute();
+    public StochasticResult Stochastic_14() => new Stochastic(OhlcvBars.Hlc(_high, _low, _close)).Compute();
 
     // --- All indicators now use instance Compute() ---
 
@@ -85,13 +85,13 @@ public class IndicatorBenchmarks
     // --- Phase F indicators (v0.6.0) ---
 
     [Benchmark]
-    public double[] WilliamsR_14() => new Indicators.WilliamsR(_high, _low, _close, 14).Compute();
+    public double[] WilliamsR_14() => new Indicators.WilliamsR(Indicators.OhlcvBars.Hlc(_high, _low, _close), 14).Compute();
 
     [Benchmark]
     public double[] Obv() => new Indicators.Obv(_close, _volume).Compute();
 
     [Benchmark]
-    public double[] Cci_20() => new Indicators.Cci(_high, _low, _close, 20).Compute();
+    public double[] Cci_20() => new Indicators.Cci(Indicators.OhlcvBars.Hlc(_high, _low, _close), 20).Compute();
 
     [Benchmark]
     public Indicators.ParabolicSarResult ParabolicSar_() => new Indicators.ParabolicSar(_high, _low).Compute();

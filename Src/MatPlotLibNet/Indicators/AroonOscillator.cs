@@ -13,19 +13,18 @@ public sealed class AroonOscillator : CandleIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new Aroon Oscillator.</summary>
-    /// <param name="high">High prices.</param>
-    /// <param name="low">Low prices (must satisfy <c>L ≤ H</c>).</param>
+    /// <param name="bars">High and Low (must satisfy <c>L ≤ H</c>); built via <see cref="OhlcvBars.Hl"/>.</param>
     /// <param name="period">Lookback window. Default 25. Must be ≥ 2.</param>
-    public AroonOscillator(double[] high, double[] low, int period = 25)
-        : base(OhlcvBars.Hl(high, low))
+    public AroonOscillator(OhlcvBars bars, int period = 25)
+        : base(bars)
     {
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
-        for (int i = 0; i < high.Length; i++)
+        for (int i = 0; i < bars.High.Length; i++)
         {
-            if (high[i] < low[i])
+            if (bars.High[i] < bars.Low[i])
                 throw new ArgumentException(
-                    $"AroonOscillator requires H >= L; bar {i} has H={high[i]} < L={low[i]}.");
+                    $"AroonOscillator requires H >= L; bar {i} has H={bars.High[i]} < L={bars.Low[i]}.");
         }
         _period = period;
         Label = $"Aroon({period})";

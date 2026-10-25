@@ -14,32 +14,36 @@ namespace MatPlotLibNet.AspNetCore;
 /// <summary>Extension methods for registering MatPlotLibNet SignalR services and hub endpoints.</summary>
 public static class SignalRExtensions
 {
-    /// <summary>Registers SignalR services, chart rendering services, and the <see cref="IChartPublisher"/> singleton for real-time chart updates.</summary>
-    /// <returns>The service collection for chaining.</returns>
-    public static IServiceCollection AddMatPlotLibNetSignalR(this IServiceCollection services)
+    extension(IServiceCollection services)
     {
-        services.AddSignalR();
-        services.AddSingleton<IChartSerializer, ChartSerializer>();
-        services.AddSingleton<IChartRenderer, ChartRenderer>();
-        services.AddSingleton<ISvgRenderer, SvgTransform>();
-        services.AddSingleton<IChartPublisher, ChartPublisher>();
-        services.AddSingleton<ICallerPublisher, CallerPublisher>();
-        services.AddSingleton<FigureRegistry>();
-        // The subscription ledger: ONE instance, seen by the hub (writes) and by any publisher-side lane that
-        // asks "is anyone looking?" before it renders (reads, through the interface).
-        services.AddSingleton<ChartSubscriptions>();
-        services.AddSingleton<IChartSubscriptions>(sp => sp.GetRequiredService<ChartSubscriptions>());
-        return services;
+        /// <summary>Registers SignalR services, chart rendering services, and the <see cref="IChartPublisher"/> singleton for real-time chart updates.</summary>
+        /// <returns>The service collection for chaining.</returns>
+        public IServiceCollection AddMatPlotLibNetSignalR()
+        {
+            services.AddSignalR();
+            services.AddSingleton<IChartSerializer, ChartSerializer>();
+            services.AddSingleton<IChartRenderer, ChartRenderer>();
+            services.AddSingleton<ISvgRenderer, SvgTransform>();
+            services.AddSingleton<IChartPublisher, ChartPublisher>();
+            services.AddSingleton<ICallerPublisher, CallerPublisher>();
+            services.AddSingleton<FigureRegistry>();
+            // The subscription ledger: ONE instance, seen by the hub (writes) and by any publisher-side lane that
+            // asks "is anyone looking?" before it renders (reads, through the interface).
+            services.AddSingleton<ChartSubscriptions>();
+            services.AddSingleton<IChartSubscriptions>(sp => sp.GetRequiredService<ChartSubscriptions>());
+            return services;
+        }
     }
 
-    /// <summary>Maps the <see cref="ChartHub"/> SignalR hub to the specified route pattern.</summary>
-    /// <param name="endpoints">The endpoint route builder.</param>
-    /// <param name="pattern">The URL pattern for the hub endpoint (defaults to "/charts-hub").</param>
-    /// <returns>The endpoint route builder for chaining.</returns>
-    public static IEndpointRouteBuilder MapChartHub(
-        this IEndpointRouteBuilder endpoints, string pattern = "/charts-hub")
+    extension(IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapHub<ChartHub>(pattern);
-        return endpoints;
+        /// <summary>Maps the <see cref="ChartHub"/> SignalR hub to the specified route pattern.</summary>
+        /// <param name="pattern">The URL pattern for the hub endpoint (defaults to "/charts-hub").</param>
+        /// <returns>The endpoint route builder for chaining.</returns>
+        public IEndpointRouteBuilder MapChartHub(string pattern = "/charts-hub")
+        {
+            endpoints.MapHub<ChartHub>(pattern);
+            return endpoints;
+        }
     }
 }

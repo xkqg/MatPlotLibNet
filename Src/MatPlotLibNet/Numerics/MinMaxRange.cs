@@ -14,11 +14,14 @@ public readonly record struct MinMaxRange(double Min, double Max);
 /// <summary>Extension methods for computing color-bar data ranges from 2-D data arrays.</summary>
 public static class MinMaxRangeExtensions
 {
-    /// <summary>Scans every element of <paramref name="data"/> and returns the inclusive
-    /// <c>[min, max]</c> range of the values a colour scale can place: a missing value (NaN) and an
-    /// infinity are left out, the range the renderer colours the cells over. Falls back to
-    /// <c>[0, 1]</c> when all such values are equal, or there is none, so downstream normalizers
-    /// never divide by zero.</summary>
-    public static MinMaxRange ScanColorBarRange(this double[,] data) =>
-        data.DrawableRange() is { } range && range.Lo < range.Hi ? new(range.Lo, range.Hi) : new(0, 1);
+    extension(double[,] data)
+    {
+        /// <summary>Scans every element of this array and returns the inclusive
+        /// <c>[min, max]</c> range of the values a colour scale can place: a missing value (NaN) and an
+        /// infinity are left out, the range the renderer colours the cells over. Falls back to
+        /// <c>[0, 1]</c> when all such values are equal, or there is none, so downstream normalizers
+        /// never divide by zero.</summary>
+        public MinMaxRange ScanColorBarRange() =>
+            data.DrawableRange() is { } range && range.Lo < range.Hi ? new(range.Lo, range.Hi) : new(0, 1);
+    }
 }

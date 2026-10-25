@@ -17,25 +17,28 @@ namespace MatPlotLibNet;
 /// positions of their slots.</para></summary>
 public static class FigureDataTableExtensions
 {
-    /// <summary>The tables that say what <paramref name="figure"/> shows, one group of x-sharing series at a
-    /// time, subplot by subplot in draw order. Invisible series are left out — the table says what the picture
-    /// shows — and a series with no tabular form contributes nothing.</summary>
-    public static IReadOnlyList<ChartDataTable> ToDataTables(this Figure figure)
+    extension(Figure figure)
     {
-        ArgumentNullException.ThrowIfNull(figure);
-        string name = figure.AccessibleName();
-        var candidates = new List<(ChartDataTable Table, bool Unitable)>();
-        foreach (var axes in figure.SubPlots)
+        /// <summary>The tables that say what this figure shows, one group of x-sharing series at a
+        /// time, subplot by subplot in draw order. Invisible series are left out — the table says what the picture
+        /// shows — and a series with no tabular form contributes nothing.</summary>
+        public IReadOnlyList<ChartDataTable> ToDataTables()
         {
-            // A subplot that names itself has a name to lose, so its table is never swallowed into a row.
-            bool unitable = axes.Title is not { Length: > 0 };
-            foreach (var table in axes.ToDataTables(name))
+            ArgumentNullException.ThrowIfNull(figure);
+            string name = figure.AccessibleName();
+            var candidates = new List<(ChartDataTable Table, bool Unitable)>();
+            foreach (var axes in figure.SubPlots)
             {
-                candidates.Add((table, unitable));
+                // A subplot that names itself has a name to lose, so its table is never swallowed into a row.
+                bool unitable = axes.Title is not { Length: > 0 };
+                foreach (var table in axes.ToDataTables(name))
+                {
+                    candidates.Add((table, unitable));
+                }
             }
-        }
 
-        return UniteSingleRowRuns(candidates, name);
+            return UniteSingleRowRuns(candidates, name);
+        }
     }
 
     /// <summary>Runs of neighbouring tables that are the SAME single row said about different things become one
@@ -86,85 +89,89 @@ public static class FigureDataTableExtensions
         && left.Columns.Count == right.Columns.Count
         && left.Columns.SequenceEqual(right.Columns);
 
-    /// <summary>The tables for ONE subplot. <paramref name="figureName"/> is the figure's accessible name, which
-    /// the caption is built from; pass an empty string for a table that stands alone.</summary>
-    public static IReadOnlyList<ChartDataTable> ToDataTables(this Axes axes, string figureName = "")
+    extension(Axes axes)
     {
-        ArgumentNullException.ThrowIfNull(axes);
-        var fragments = new List<SeriesFragment>();
-        foreach (var series in axes.AllSeries)
+        /// <summary>The tables for ONE subplot. <paramref name="figureName"/> is the figure's accessible name, which
+        /// the caption is built from; pass an empty string for a table that stands alone.</summary>
+        public IReadOnlyList<ChartDataTable> ToDataTables(string figureName = "")
         {
-            if (series.Visible && axes.TableOf(series) is { } table)
+            ArgumentNullException.ThrowIfNull(axes);
+            var fragments = new List<SeriesFragment>();
+            foreach (var series in axes.AllSeries)
             {
-                fragments.Add(new SeriesFragment(series, table));
+                if (series.Visible && axes.TableOf(series) is { } table)
+                {
+                    fragments.Add(new SeriesFragment(series, table));
+                }
             }
+
+            if (fragments.Count == 0)
+            {
+                return [];
+            }
+
+            var groups = GroupBySharedFirstColumn(fragments);
+            var tables = new List<ChartDataTable>(groups.Count);
+            foreach (var group in groups)
+            {
+                // A caption names ONE table. Several tables from one subplot MUST each say which series they are —
+                // two anonymous grids under one heading are two things a reader cannot tell apart. A lone table says
+                // it too, unless a column header already carries the word, which is the common case for an x/y pair.
+                string? label = group[0].Series.Label;
+                bool alreadySaid = groups.Count == 1 && label is { Length: > 0 }
+                    && group.Any(f => f.Table.Columns.Any(c => c.Header == label));
+                string? suffix = alreadySaid ? null : label;
+                tables.Add(Merge(group, axes, Caption(figureName, axes.Title, suffix)));
+            }
+
+            return tables;
         }
 
-        if (fragments.Count == 0)
+        /// <summary>The table of one series as a reader reads it: the series says its own data, placed as it stands on the
+        /// axes (<see cref="ITableNamedByAxes"/>, for a series whose columns cannot say that as positions), and the column of
+        /// positions the axes names is its key, read as those names (<see cref="KeyedByName"/>).</summary>
+        /// <param name="series">The series.</param>
+        /// <returns>The table, or <see langword="null"/> for a series with no tabular form.</returns>
+        private ChartDataTable? TableOf(ISeries series)
         {
-            return [];
+            var names = AxisNames.Of(axes, series);
+            var table = series is ITableNamedByAxes placed ? placed.ToDataTable(names) : series.ToDataTable();
+            return table?.KeyedByName(axes, names, series.Label);
         }
-
-        var groups = GroupBySharedFirstColumn(fragments);
-        var tables = new List<ChartDataTable>(groups.Count);
-        foreach (var group in groups)
-        {
-            // A caption names ONE table. Several tables from one subplot MUST each say which series they are —
-            // two anonymous grids under one heading are two things a reader cannot tell apart. A lone table says
-            // it too, unless a column header already carries the word, which is the common case for an x/y pair.
-            string? label = group[0].Series.Label;
-            bool alreadySaid = groups.Count == 1 && label is { Length: > 0 }
-                && group.Any(f => f.Table.Columns.Any(c => c.Header == label));
-            string? suffix = alreadySaid ? null : label;
-            tables.Add(Merge(group, axes, Caption(figureName, axes.Title, suffix)));
-        }
-
-        return tables;
     }
 
     /// <summary>A fragment: the series and the table it gave.</summary>
     private readonly record struct SeriesFragment(ISeries Series, ChartDataTable Table);
 
-    /// <summary>The table of one series as a reader reads it: the series says its own data, placed as it stands on the
-    /// axes (<see cref="ITableNamedByAxes"/>, for a series whose columns cannot say that as positions), and the column of
-    /// positions the axes names is its key, read as those names (<see cref="KeyedByName"/>).</summary>
-    /// <param name="axes">The axes the series is drawn on: the owner of the names along its axes.</param>
-    /// <param name="series">The series.</param>
-    /// <returns>The table, or <see langword="null"/> for a series with no tabular form.</returns>
-    private static ChartDataTable? TableOf(this Axes axes, ISeries series)
+    extension(ChartDataTable table)
     {
-        var names = AxisNames.Of(axes, series);
-        var table = series is ITableNamedByAxes placed ? placed.ToDataTable(names) : series.ToDataTable();
-        return table?.KeyedByName(axes, names, series.Label);
-    }
-
-    /// <summary>The table keyed by the names its positions stand on. A mark on the centre of a named slot (a lollipop's
-    /// stem, a slope graph's end, a Pareto chart's point on its bar) has no position a reader needs beside its name: the
-    /// position IS the name, so its column reads as the names and becomes the table's key, under the axis' title, or
-    /// "category", the word a bar chart's table uses. The x column is the key when the X axis names it; otherwise a y
-    /// column the Y axis names becomes the key and moves in front (the dots of a dot plot, whose categories run down the
-    /// Y axis), and the x values it leaves take the series' label, which names the series' values whichever axis they run
-    /// along. A column the axis does not name in full keeps its numbers, and so does every other column.</summary>
-    /// <param name="table">The series' table.</param>
-    /// <param name="axes">The axes whose axis titles head a column of names.</param>
-    /// <param name="names">The names along the axes the series stands on.</param>
-    /// <param name="label">The series' label.</param>
-    /// <returns>The table keyed by names, or <paramref name="table"/> when no position of its key stands on a name.</returns>
-    private static ChartDataTable KeyedByName(this ChartDataTable table, Axes axes, AxisNames names, string? label)
-    {
-        var columns = table.Columns;
-        if (NamesIn(table, 0, names) is { } alongFirst)
+        /// <summary>The table keyed by the names its positions stand on. A mark on the centre of a named slot (a lollipop's
+        /// stem, a slope graph's end, a Pareto chart's point on its bar) has no position a reader needs beside its name: the
+        /// position IS the name, so its column reads as the names and becomes the table's key, under the axis' title, or
+        /// "category", the word a bar chart's table uses. The x column is the key when the X axis names it; otherwise a y
+        /// column the Y axis names becomes the key and moves in front (the dots of a dot plot, whose categories run down the
+        /// Y axis), and the x values it leaves take the series' label, which names the series' values whichever axis they run
+        /// along. A column the axis does not name in full keeps its numbers, and so does every other column.</summary>
+        /// <param name="axes">The axes whose axis titles head a column of names.</param>
+        /// <param name="names">The names along the axes the series stands on.</param>
+        /// <param name="label">The series' label.</param>
+        /// <returns>The table keyed by names, or this table when no position of its key stands on a name.</returns>
+        private ChartDataTable KeyedByName(Axes axes, AxisNames names, string? label)
         {
-            return Keyed(table, 0, alongFirst, NamedHeader(axes, columns[0].Axis), columns[0].Header);
-        }
+            var columns = table.Columns;
+            if (NamesIn(table, 0, names) is { } alongFirst)
+            {
+                return Keyed(table, 0, alongFirst, NamedHeader(axes, columns[0].Axis), columns[0].Header);
+            }
 
-        if (columns.Count > 1 && columns[0].Axis == DataAxis.X && columns[1].Axis == DataAxis.Y
-            && NamesIn(table, 1, names) is { } across)
-        {
-            return Keyed(table, 1, across, NamedHeader(axes, DataAxis.Y), label is { Length: > 0 } ? label : columns[0].Header);
-        }
+            if (columns.Count > 1 && columns[0].Axis == DataAxis.X && columns[1].Axis == DataAxis.Y
+                && NamesIn(table, 1, names) is { } across)
+            {
+                return Keyed(table, 1, across, NamedHeader(axes, DataAxis.Y), label is { Length: > 0 } ? label : columns[0].Header);
+            }
 
-        return table;
+            return table;
+        }
     }
 
     /// <summary>The names the axis of column <paramref name="column"/> shows at its positions, or <see langword="null"/>

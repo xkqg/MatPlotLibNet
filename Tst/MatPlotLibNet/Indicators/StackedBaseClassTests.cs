@@ -63,19 +63,19 @@ public class CandleIndicatorTests
     [Fact]
     public void AllHlcIndicators_InheritCandleIndicator()
     {
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(new Atr(H, L, C, 5));
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(new Adx(H, L, C, 5));
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(new Cci(H, L, C, 5));
-        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(new WilliamsR(H, L, C, 5));
-        Assert.IsAssignableFrom<CandleIndicator<StochasticResult>>(new Stochastic(H, L, C, 5, 3));
-        Assert.IsAssignableFrom<CandleIndicator<BandsResult>>(new KeltnerChannels(H, L, C, 5));
-        Assert.IsAssignableFrom<CandleIndicator<IchimokuResult>>(new Ichimoku(H, L, C, 5, 5, 10, 5));
+        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(new Atr(OhlcvBars.Hlc(H, L, C), 5));
+        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(new Adx(OhlcvBars.Hlc(H, L, C), 5));
+        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(new Cci(OhlcvBars.Hlc(H, L, C), 5));
+        Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(new WilliamsR(OhlcvBars.Hlc(H, L, C), 5));
+        Assert.IsAssignableFrom<CandleIndicator<StochasticResult>>(new Stochastic(OhlcvBars.Hlc(H, L, C), 5, 3));
+        Assert.IsAssignableFrom<CandleIndicator<BandsResult>>(new KeltnerChannels(OhlcvBars.Hlc(H, L, C), 5));
+        Assert.IsAssignableFrom<CandleIndicator<IchimokuResult>>(new Ichimoku(OhlcvBars.Hlc(H, L, C), 5, 5, 10, 5));
     }
 
     [Fact]
     public void CandleIndicator_IsAlsoIndicatorAndIIndicator()
     {
-        var atr = new Atr(H, L, C, 5);
+        var atr = new Atr(OhlcvBars.Hlc(H, L, C), 5);
         Assert.IsAssignableFrom<Indicator<SignalResult>>(atr);
         Assert.IsAssignableFrom<Indicator>(atr);
         Assert.IsAssignableFrom<IIndicator>(atr);
@@ -93,7 +93,7 @@ public class CandleIndicatorTests
     [Fact]
     public void Atr_Compute_UnchangedAfterRefactor()
     {
-        double[] atr = new Atr(H, L, C, 3).Compute();
+        double[] atr = new Atr(OhlcvBars.Hlc(H, L, C), 3).Compute();
         Assert.True(atr.Length > 0);
         Assert.All(atr, v => Assert.True(v > 0));
     }
@@ -101,21 +101,21 @@ public class CandleIndicatorTests
     [Fact]
     public void Adx_Compute_UnchangedAfterRefactor()
     {
-        double[] adx = new Adx(H, L, C, 3).Compute();
+        double[] adx = new Adx(OhlcvBars.Hlc(H, L, C), 3).Compute();
         Assert.True(adx.Length > 0);
     }
 
     [Fact]
     public void Cci_Compute_UnchangedAfterRefactor()
     {
-        double[] cci = new Cci(H, L, C, 5).Compute();
+        double[] cci = new Cci(OhlcvBars.Hlc(H, L, C), 5).Compute();
         Assert.True(cci.Length > 0);
     }
 
     [Fact]
     public void WilliamsR_Compute_UnchangedAfterRefactor()
     {
-        double[] wr = new WilliamsR(H, L, C, 5).Compute();
+        double[] wr = new WilliamsR(OhlcvBars.Hlc(H, L, C), 5).Compute();
         Assert.True(wr.Length > 0);
         Assert.All(wr, v => Assert.InRange(v, -100, 0));
     }
@@ -123,7 +123,7 @@ public class CandleIndicatorTests
     [Fact]
     public void Stochastic_Compute_UnchangedAfterRefactor()
     {
-        var result = new Stochastic(H, L, C, 5, 3).Compute();
+        var result = new Stochastic(OhlcvBars.Hlc(H, L, C), 5, 3).Compute();
         Assert.True(result.K.Length > 0);
         Assert.True(result.D.Length > 0);
     }
@@ -131,14 +131,14 @@ public class CandleIndicatorTests
     [Fact]
     public void KeltnerChannels_Compute_UnchangedAfterRefactor()
     {
-        var result = new KeltnerChannels(H, L, C, 5).Compute();
+        var result = new KeltnerChannels(OhlcvBars.Hlc(H, L, C), 5).Compute();
         Assert.True(result.Middle.Length > 0);
     }
 
     [Fact]
     public void Ichimoku_Compute_UnchangedAfterRefactor()
     {
-        var result = new Ichimoku(H, L, C, 3, 5, 8, 3).Compute();
+        var result = new Ichimoku(OhlcvBars.Hlc(H, L, C), 3, 5, 8, 3).Compute();
         Assert.True(result.TenkanSen.Length > 0);
         Assert.True(result.KijunSen.Length > 0);
     }
@@ -149,7 +149,7 @@ public class CandleIndicatorTests
     public void Atr_Apply_ProducesLineSeries()
     {
         var axes = new Axes();
-        new Atr(H, L, C, 5).Apply(axes);
+        new Atr(OhlcvBars.Hlc(H, L, C), 5).Apply(axes);
         Assert.Contains(axes.Series, s => s is LineSeries);
     }
 
@@ -157,7 +157,7 @@ public class CandleIndicatorTests
     public void Stochastic_Apply_ProducesTwoLines()
     {
         var axes = new Axes();
-        new Stochastic(H, L, C, 5, 3).Apply(axes);
+        new Stochastic(OhlcvBars.Hlc(H, L, C), 5, 3).Apply(axes);
         Assert.True(axes.Series.OfType<LineSeries>().Count() >= 2);
     }
 }
@@ -377,7 +377,7 @@ public class PlotBandsTests
         double[] l = Enumerable.Range(0, 30).Select(i => 90.0 + i % 10).ToArray();
         double[] c = Enumerable.Range(0, 30).Select(i => 100.0 + i % 10).ToArray();
         var axes = new Axes();
-        new KeltnerChannels(h, l, c, 10).Apply(axes);
+        new KeltnerChannels(OhlcvBars.Hlc(h, l, c), 10).Apply(axes);
         Assert.Contains(axes.Series, s => s is LineSeries);
         Assert.Contains(axes.Series, s => s is AreaSeries);
     }

@@ -17,16 +17,13 @@ public sealed class GarmanKlass : CandleIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new Garman-Klass volatility indicator.</summary>
-    /// <param name="open">Open prices (all strictly positive).</param>
-    /// <param name="high">High prices (all strictly positive).</param>
-    /// <param name="low">Low prices (all strictly positive).</param>
-    /// <param name="close">Close prices (all strictly positive).</param>
+    /// <param name="bars">Open, High, Low and Close (all strictly positive); built via <see cref="OhlcvBars.Ohlc"/>.</param>
     /// <param name="period">Rolling window length in bars (default 20).</param>
     /// <exception cref="ArgumentException">Thrown when any input bar has a non-positive price.</exception>
-    public GarmanKlass(double[] open, double[] high, double[] low, double[] close, int period = 20)
-        : base(OhlcvBars.Ohlc(open, high, low, close))
+    public GarmanKlass(OhlcvBars bars, int period = 20)
+        : base(bars)
     {
-        GuardPositive(open, high, low, close);
+        GuardPositive(bars.Open, bars.High, bars.Low, bars.Close);
         _period = period;
         Label = $"GK({period})";
     }

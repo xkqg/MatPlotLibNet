@@ -8,28 +8,30 @@ namespace MatPlotLibNet.Models.Series;
 /// takes its data as named groups.</summary>
 internal static class BarGroupExtensions
 {
-    /// <summary>Refuses <paramref name="group"/> unless it carries exactly one value per place it is drawn over: per
-    /// category, or per x position for a verb whose groups run along an x array. A group of two values over three
-    /// categories would leave a category without a bar, or draw a value under the wrong name.</summary>
-    /// <param name="group">The group to check.</param>
-    /// <param name="count">How many places (categories, or x positions) the group's values are drawn over.</param>
-    /// <param name="paramName">The caller's parameter that holds the group, named in the exception.</param>
-    /// <param name="places">What the places are called in the message: <c>categories</c> unless the verb draws its groups
-    /// over something else.</param>
-    /// <exception cref="ArgumentException">The group carries no values at all (its array is <see langword="null"/>), or
-    /// more or fewer values than there are places; the message names the group and the count.</exception>
-    internal static void ThrowIfMisaligned(this BarGroup group, int count, string paramName, string places = "categories")
+    extension(BarGroup group)
     {
-        if (group.Values is null)
+        /// <summary>Refuses this group unless it carries exactly one value per place it is drawn over: per
+        /// category, or per x position for a verb whose groups run along an x array. A group of two values over three
+        /// categories would leave a category without a bar, or draw a value under the wrong name.</summary>
+        /// <param name="count">How many places (categories, or x positions) the group's values are drawn over.</param>
+        /// <param name="paramName">The caller's parameter that holds the group, named in the exception.</param>
+        /// <param name="places">What the places are called in the message: <c>categories</c> unless the verb draws its groups
+        /// over something else.</param>
+        /// <exception cref="ArgumentException">The group carries no values at all (its array is <see langword="null"/>), or
+        /// more or fewer values than there are places; the message names the group and the count.</exception>
+        internal void ThrowIfMisaligned(int count, string paramName, string places = "categories")
         {
-            throw new ArgumentException(
-                $"Group '{group.Label}' carries no values; there are {count} {places}.", paramName);
-        }
+            if (group.Values is null)
+            {
+                throw new ArgumentException(
+                    $"Group '{group.Label}' carries no values; there are {count} {places}.", paramName);
+            }
 
-        if (group.Values.Length != count)
-        {
-            throw new ArgumentException(
-                $"Group '{group.Label}' carries {group.Values.Length} values; there are {count} {places}.", paramName);
+            if (group.Values.Length != count)
+            {
+                throw new ArgumentException(
+                    $"Group '{group.Label}' carries {group.Values.Length} values; there are {count} {places}.", paramName);
+            }
         }
     }
 }

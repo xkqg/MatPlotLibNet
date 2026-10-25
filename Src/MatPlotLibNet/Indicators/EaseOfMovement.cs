@@ -15,15 +15,12 @@ public sealed class EaseOfMovement : CandleIndicator<SignalResult>
     private readonly double _scale;
 
     /// <summary>Creates a new Ease of Movement indicator.</summary>
-    /// <param name="high">High prices.</param>
-    /// <param name="low">Low prices.</param>
-    /// <param name="volume">Volume per bar. Must match H/L length.</param>
+    /// <param name="bars">High, Low and Volume; built via <see cref="OhlcvBars.Hlv"/>.</param>
     /// <param name="period">SMA smoothing period for the raw EMV. Default 14. Must be ≥ 2.</param>
     /// <param name="scale">Volume-scale divisor — normalises volume to price-move magnitude.
     /// Default 10^6 (suits crypto / intraday). Must be &gt; 0.</param>
-    public EaseOfMovement(double[] high, double[] low, double[] volume,
-        int period = 14, double scale = 1_000_000)
-        : base(OhlcvBars.Hlv(high, low, volume))
+    public EaseOfMovement(OhlcvBars bars, int period = 14, double scale = 1_000_000)
+        : base(bars)
     {
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));

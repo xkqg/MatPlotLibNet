@@ -43,9 +43,12 @@ public static class FigureSkiaExtensions
     }
 #pragma warning restore CA2255
 
-    /// <summary>Exports the figure to a PNG byte array.</summary>
-    public static byte[] ToPng(this Figure figure) => figure.Transform(Png).ToBytes();
+    extension(Figure figure)
+    {
+        /// <summary>Exports the figure to a PNG byte array.</summary>
+        public byte[] ToPng() => figure.Transform(Png).ToBytes();
 
-    /// <summary>Exports the figure to a PDF byte array.</summary>
-    public static byte[] ToPdf(this Figure figure) => figure.Transform(Pdf).ToBytes();
+        /// <summary>Exports the figure to a PDF byte array.</summary>
+        public byte[] ToPdf() => figure.Transform(Pdf).ToBytes();
+    }
 }

@@ -265,7 +265,7 @@ Plt.Create()
     })
     .AddSubPlot(new GridPosition(0, 1, 1, 2), ax =>
     {
-        ax.WilliamsR(high, low, close, 14);
+        ax.WilliamsR(MatPlotLibNet.Indicators.OhlcvBars.Hlc(high, low, close), 14);
         ax.WithTitle("Williams %R");
     })
     .AddSubPlot(new GridPosition(1, 2, 0, 1), ax =>
@@ -275,7 +275,7 @@ Plt.Create()
     })
     .AddSubPlot(new GridPosition(1, 2, 1, 2), ax =>
     {
-        ax.Cci(high, low, close, 20);
+        ax.Cci(MatPlotLibNet.Indicators.OhlcvBars.Hlc(high, low, close), 20);
         ax.WithTitle("CCI(20)");
     })
     .SaveSvgAndPng(SamplesPath("phase_f_indicators.svg"));   // the file keeps its old name: pages link to it

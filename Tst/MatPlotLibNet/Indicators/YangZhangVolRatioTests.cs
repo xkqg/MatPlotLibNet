@@ -17,7 +17,7 @@ public class YangZhangVolRatioTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var r = new YangZhangVolRatio([], [], [], []);
+        var r = new YangZhangVolRatio(OhlcvBars.Ohlc([], [], [], []));
         Assert.Empty(r.Compute().Values);
     }
 
@@ -26,11 +26,11 @@ public class YangZhangVolRatioTests
     public void Constructor_LengthMismatch_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new YangZhangVolRatio([1.0, 2, 3], [1.0, 2], [1.0, 2, 3], [1.0, 2, 3]));
+            new YangZhangVolRatio(OhlcvBars.Ohlc([1.0, 2, 3], [1.0, 2], [1.0, 2, 3], [1.0, 2, 3])));
         Assert.Throws<ArgumentException>(() =>
-            new YangZhangVolRatio([1.0, 2, 3], [1.0, 2, 3], [1.0, 2], [1.0, 2, 3]));
+            new YangZhangVolRatio(OhlcvBars.Ohlc([1.0, 2, 3], [1.0, 2, 3], [1.0, 2], [1.0, 2, 3])));
         Assert.Throws<ArgumentException>(() =>
-            new YangZhangVolRatio([1.0, 2, 3], [1.0, 2, 3], [1.0, 2, 3], [1.0, 2]));
+            new YangZhangVolRatio(OhlcvBars.Ohlc([1.0, 2, 3], [1.0, 2, 3], [1.0, 2, 3], [1.0, 2])));
     }
 
     // ── Branch 3 — BarCount <= longWindow → empty ──
@@ -38,7 +38,7 @@ public class YangZhangVolRatioTests
     public void Compute_BarCountBelowLongWindow_ReturnsEmpty()
     {
         var flat = Flat(100, 30);
-        var r = new YangZhangVolRatio(flat, flat, flat, flat, shortWindow: 10, longWindow: 40)
+        var r = new YangZhangVolRatio(OhlcvBars.Ohlc(flat, flat, flat, flat), shortWindow: 10, longWindow: 40)
             .Compute().Values;
         Assert.Empty(r);
     }
@@ -51,7 +51,7 @@ public class YangZhangVolRatioTests
     {
         var flat = Flat(100, 100);
         Assert.Throws<ArgumentException>(() =>
-            new YangZhangVolRatio(flat, flat, flat, flat, shortWindow: shortW, longWindow: 20));
+            new YangZhangVolRatio(OhlcvBars.Ohlc(flat, flat, flat, flat), shortWindow: shortW, longWindow: 20));
     }
 
     // ── Branch 5 — longWindow <= shortWindow → throw ──
@@ -62,7 +62,7 @@ public class YangZhangVolRatioTests
     {
         var flat = Flat(100, 100);
         Assert.Throws<ArgumentException>(() =>
-            new YangZhangVolRatio(flat, flat, flat, flat, shortWindow: shortW, longWindow: longW));
+            new YangZhangVolRatio(OhlcvBars.Ohlc(flat, flat, flat, flat), shortWindow: shortW, longWindow: longW));
     }
 
     // ── Branch 6 — Constant prices → both YZ vols = 0 → ratio = 1 (guard) ──
@@ -71,7 +71,7 @@ public class YangZhangVolRatioTests
     {
         int n = 100;
         var flat = Flat(100, n);
-        var r = new YangZhangVolRatio(flat, flat, flat, flat, shortWindow: 20, longWindow: 60)
+        var r = new YangZhangVolRatio(OhlcvBars.Ohlc(flat, flat, flat, flat), shortWindow: 20, longWindow: 60)
             .Compute().Values;
         Assert.NotEmpty(r);
         Assert.All(r, v => Assert.Equal(1.0, v, precision: 9));
@@ -97,7 +97,7 @@ public class YangZhangVolRatioTests
             double lo = Math.Min(oPx, cPx) - rng.NextDouble() * noise;
             o[i] = oPx; h[i] = hi; l[i] = lo; c[i] = cPx;
         }
-        var r = new YangZhangVolRatio(o, h, l, c, shortWindow: 20, longWindow: 60).Compute().Values;
+        var r = new YangZhangVolRatio(OhlcvBars.Ohlc(o, h, l, c), shortWindow: 20, longWindow: 60).Compute().Values;
         Assert.True(r[^1] > 1.0, $"expected expansion tail > 1, got {r[^1]}");
     }
 
@@ -120,7 +120,7 @@ public class YangZhangVolRatioTests
             double lo = Math.Min(oPx, cPx) - rng.NextDouble() * noise;
             o[i] = oPx; h[i] = hi; l[i] = lo; c[i] = cPx;
         }
-        var r = new YangZhangVolRatio(o, h, l, c, shortWindow: 20, longWindow: 60).Compute().Values;
+        var r = new YangZhangVolRatio(OhlcvBars.Ohlc(o, h, l, c), shortWindow: 20, longWindow: 60).Compute().Values;
         Assert.True(r[^1] < 1.0, $"expected contraction tail < 1, got {r[^1]}");
     }
 
@@ -139,7 +139,7 @@ public class YangZhangVolRatioTests
             h[i] = Math.Max(o[i], c[i]) + rng.NextDouble();
             l[i] = Math.Min(o[i], c[i]) - rng.NextDouble();
         }
-        var r = new YangZhangVolRatio(o, h, l, c, shortWindow: 20, longWindow: 60).Compute().Values;
+        var r = new YangZhangVolRatio(OhlcvBars.Ohlc(o, h, l, c), shortWindow: 20, longWindow: 60).Compute().Values;
         Assert.NotEmpty(r);
         Assert.All(r, v =>
         {
@@ -156,7 +156,7 @@ public class YangZhangVolRatioTests
         int n = 100;
         var flat = Flat(100.0, n);
         var axes = new Axes();
-        new YangZhangVolRatio(flat, flat, flat, flat, shortWindow: 10, longWindow: 30).Apply(axes);
+        new YangZhangVolRatio(OhlcvBars.Ohlc(flat, flat, flat, flat), shortWindow: 10, longWindow: 30).Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
@@ -164,14 +164,14 @@ public class YangZhangVolRatioTests
     [Fact]
     public void DefaultLabel_HasWindows()
     {
-        var r = new YangZhangVolRatio([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]);
+        var r = new YangZhangVolRatio(OhlcvBars.Ohlc([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]));
         Assert.Equal("YZRatio(20/60)", r.Label);
     }
 
     [Fact]
     public void InheritsCandleIndicator()
     {
-        var r = new YangZhangVolRatio([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]);
+        var r = new YangZhangVolRatio(OhlcvBars.Ohlc([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]));
         Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(r);
         Assert.IsAssignableFrom<IIndicator>(r);
     }

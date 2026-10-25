@@ -155,7 +155,7 @@ public class IndicatorFidelityTests : FidelityTest
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Keltner Channels(20, 2)")
                 .Plot(x, close, s => s.Label = "close")
-                .Indicator(new KeltnerChannels(high, low, close, 20, 2.0))
+                .Indicator(new KeltnerChannels(OhlcvBars.Hlc(high, low, close), 20, 2.0))
                 .SetXLabel("bar")
                 .SetYLabel("price")
                 .WithLegend())
@@ -178,7 +178,7 @@ public class IndicatorFidelityTests : FidelityTest
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Ichimoku Cloud")
                 .Plot(x, close, s => s.Label = "close")
-                .Indicator(new Ichimoku(high, low, close))
+                .Indicator(new Ichimoku(OhlcvBars.Hlc(high, low, close)))
                 .SetXLabel("bar")
                 .SetYLabel("price")
                 .WithLegend())
@@ -267,7 +267,7 @@ public class IndicatorFidelityTests : FidelityTest
             .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Stochastic(14, 3)")
-                .Indicator(new Stochastic(high, low, close, 14, 3))
+                .Indicator(new Stochastic(OhlcvBars.Hlc(high, low, close), 14, 3))
                 .SetXLabel("bar")
                 .WithLegend())
             .Build();
@@ -287,7 +287,7 @@ public class IndicatorFidelityTests : FidelityTest
             .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Average True Range(14)")
-                .Indicator(new Atr(high, low, close, 14) { Label = "ATR(14)" })
+                .Indicator(new Atr(OhlcvBars.Hlc(high, low, close), 14) { Label = "ATR(14)" })
                 .SetXLabel("bar")
                 .SetYLabel("ATR")
                 .WithLegend())
@@ -308,7 +308,7 @@ public class IndicatorFidelityTests : FidelityTest
             .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("ADX(14)")
-                .Indicator(new Adx(high, low, close, 14))
+                .Indicator(new Adx(OhlcvBars.Hlc(high, low, close), 14))
                 .SetXLabel("bar")
                 .WithLegend())
             .Build();
@@ -328,7 +328,7 @@ public class IndicatorFidelityTests : FidelityTest
             .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Commodity Channel Index(20)")
-                .Cci(high, low, close, 20, i => i.Label = "CCI(20)")
+                .Cci(OhlcvBars.Hlc(high, low, close), 20, i => i.Label = "CCI(20)")
                 .SetXLabel("bar")
                 .WithLegend())
             .Build();
@@ -348,7 +348,7 @@ public class IndicatorFidelityTests : FidelityTest
             .WithTheme(ResolveTheme(themeId))
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Williams %R(14)")
-                .WilliamsR(high, low, close, 14, i => i.Label = "Williams %R(14)")
+                .WilliamsR(OhlcvBars.Hlc(high, low, close), 14, i => i.Label = "Williams %R(14)")
                 .SetXLabel("bar")
                 .WithLegend())
             .Build();

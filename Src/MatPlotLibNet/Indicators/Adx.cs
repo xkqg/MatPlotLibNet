@@ -19,8 +19,10 @@ public sealed class Adx : CandleIndicator<SignalResult>
     public Color? MinusDiColor { get; set; }
 
     /// <summary>Creates a new ADX indicator.</summary>
-    public Adx(double[] high, double[] low, double[] close, int period = 14)
-        : base(OhlcvBars.Hlc(high, low, close))
+    /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
+    /// <param name="period">Smoothing period (default 14).</param>
+    public Adx(OhlcvBars bars, int period = 14)
+        : base(bars)
     {
         _period = period;
         Label = $"ADX({period})";

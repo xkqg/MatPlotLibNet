@@ -9,13 +9,16 @@ namespace MatPlotLibNet.Models;
 /// edge of the axes, not a part of <see cref="Axis"/>, so each builder verb adds only its own.</summary>
 internal static class AxisColorExtensions
 {
-    /// <summary>Colours the tick marks, the tick labels and the title of <paramref name="axis"/> with
-    /// <paramref name="color"/>, keeping every other tick and label setting it already carries.</summary>
-    /// <param name="axis">The axis to colour; a missing <see cref="Axis.LabelStyle"/> is created.</param>
-    /// <param name="color">The colour all three take.</param>
-    internal static void ApplyAxisColor(this Axis axis, Color color)
+    extension(Axis axis)
     {
-        axis.MajorTicks = axis.MajorTicks with { Color = color, LabelColor = color };
-        axis.LabelStyle = (axis.LabelStyle ?? new TextStyle()) with { Color = color };
+        /// <summary>Colours the tick marks, the tick labels and the title of this axis with
+        /// <paramref name="color"/>, keeping every other tick and label setting it already carries; a missing
+        /// <see cref="Axis.LabelStyle"/> is created.</summary>
+        /// <param name="color">The colour all three take.</param>
+        internal void ApplyAxisColor(Color color)
+        {
+            axis.MajorTicks = axis.MajorTicks with { Color = color, LabelColor = color };
+            axis.LabelStyle = (axis.LabelStyle ?? new TextStyle()) with { Color = color };
+        }
     }
 }

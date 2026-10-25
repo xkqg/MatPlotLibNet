@@ -29,22 +29,24 @@ internal readonly record struct LegendEntry(ISeries Series, int OriginalIndex, i
 /// how many rows there are, in which order, or what they say.</remarks>
 internal static class AxesLegendEntryExtensions
 {
-    /// <summary>Lists the legend entries of <paramref name="axes"/>: the primary series, then the secondary-axis
-    /// series, each one that has a legend entry (see <c>HasLegendEntry</c>).</summary>
-    /// <param name="axes">The axes whose legend is described.</param>
-    /// <param name="directLabelsDrawn">Whether the renderer of these axes draws end-of-line labels
-    /// (<c>AxesRenderer.DrawsDirectLabels</c>). Only then does a series that asked for one leave the legend.</param>
-    /// <returns>The entries in drawing order; empty when no series has an entry.</returns>
-    internal static IReadOnlyList<LegendEntry> LegendEntries(this Axes axes, bool directLabelsDrawn)
+    extension(Axes axes)
     {
-        var entries = new List<LegendEntry>();
-        bool legendValues = axes.Legend.LegendValues;
-        Collect(axes, SeriesAxisPair.Primary, axes.Series, legendValues, directLabelsDrawn, entries);
-        // The SECONDARY-axis traces belong in the same legend: a dual-axis chart draws two lines, and a legend that
-        // names one of them reads as "the other line has no name". Their index is their colour slot, which continues
-        // where the primary series stopped (SeriesSlotExtensions.SlotIndex, the rule the secondary part draws with).
-        Collect(axes, SeriesAxisPair.SecondaryY, axes.SecondarySeries, legendValues, directLabelsDrawn, entries);
-        return entries;
+        /// <summary>Lists the legend entries of <paramref name="axes"/>: the primary series, then the secondary-axis
+        /// series, each one that has a legend entry (see <c>HasLegendEntry</c>).</summary>
+        /// <param name="directLabelsDrawn">Whether the renderer of these axes draws end-of-line labels
+        /// (<c>AxesRenderer.DrawsDirectLabels</c>). Only then does a series that asked for one leave the legend.</param>
+        /// <returns>The entries in drawing order; empty when no series has an entry.</returns>
+        internal IReadOnlyList<LegendEntry> LegendEntries(bool directLabelsDrawn)
+        {
+            var entries = new List<LegendEntry>();
+            bool legendValues = axes.Legend.LegendValues;
+            Collect(axes, SeriesAxisPair.Primary, axes.Series, legendValues, directLabelsDrawn, entries);
+            // The SECONDARY-axis traces belong in the same legend: a dual-axis chart draws two lines, and a legend that
+            // names one of them reads as "the other line has no name". Their index is their colour slot, which continues
+            // where the primary series stopped (SeriesSlotExtensions.SlotIndex, the rule the secondary part draws with).
+            Collect(axes, SeriesAxisPair.SecondaryY, axes.SecondarySeries, legendValues, directLabelsDrawn, entries);
+            return entries;
+        }
     }
 
     private static void Collect(Axes axes, SeriesAxisPair pair, IReadOnlyList<ISeries> series, bool legendValues,

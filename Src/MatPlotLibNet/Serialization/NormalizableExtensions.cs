@@ -10,23 +10,24 @@ namespace MatPlotLibNet.Serialization;
 /// same way and no series carries its own copy of the cast.</summary>
 internal static class NormalizableExtensions
 {
-    /// <summary>What the JSON carries for the normaliser of <paramref name="series"/>: the description the normaliser
-    /// writes of itself, or <see langword="null"/> when the series has none (it maps linearly) or has one written outside
-    /// the library, which is code and not data and so stays out of the document.</summary>
-    /// <param name="series">The series whose normaliser is written.</param>
-    internal static NormalizerDto? DescribeNormalizer(this INormalizable series) =>
-        (series.Normalizer as IJsonDescribed<NormalizerDto>)?.Describe();
-
-    /// <summary>Gives <paramref name="series"/> the normaliser <paramref name="dto"/> describes. A DTO without one leaves the
-    /// series on the normaliser it was created with; a kind this build does not know leaves it without one and is
-    /// reported through the chart diagnostics.</summary>
-    /// <param name="series">The series being read back.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    internal static void RestoreNormalizer(this INormalizable series, SeriesDto dto)
+    extension(INormalizable series)
     {
-        if (dto.Normalizer is { } description)
+        /// <summary>What the JSON carries for the normaliser of <paramref name="series"/>: the description the normaliser
+        /// writes of itself, or <see langword="null"/> when the series has none (it maps linearly) or has one written outside
+        /// the library, which is code and not data and so stays out of the document.</summary>
+        internal NormalizerDto? DescribeNormalizer() =>
+            (series.Normalizer as IJsonDescribed<NormalizerDto>)?.Describe();
+
+        /// <summary>Gives <paramref name="series"/> the normaliser <paramref name="dto"/> describes. A DTO without one leaves the
+        /// series on the normaliser it was created with; a kind this build does not know leaves it without one and is
+        /// reported through the chart diagnostics.</summary>
+        /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+        internal void RestoreNormalizer(SeriesDto dto)
         {
-            series.Normalizer = description.Restore();
+            if (dto.Normalizer is { } description)
+            {
+                series.Normalizer = description.Restore();
+            }
         }
     }
 }

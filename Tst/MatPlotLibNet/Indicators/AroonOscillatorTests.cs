@@ -15,7 +15,7 @@ public class AroonOscillatorTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        Assert.Empty(new AroonOscillator([], [], period: 5).Compute().Values);
+        Assert.Empty(new AroonOscillator(OhlcvBars.Hl([], []), period: 5).Compute().Values);
     }
 
     // ── Branch 2 — HL length mismatch throws ──
@@ -23,7 +23,7 @@ public class AroonOscillatorTests
     public void Constructor_LengthMismatch_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new AroonOscillator([101.0, 102], [99.0], period: 2));
+            new AroonOscillator(OhlcvBars.Hl([101.0, 102], [99.0]), period: 2));
     }
 
     // ── Branch 3 — period < 2 throws ──
@@ -34,7 +34,7 @@ public class AroonOscillatorTests
     public void Constructor_PeriodBelowTwo_Throws(int p)
     {
         Assert.Throws<ArgumentException>(() =>
-            new AroonOscillator([101.0, 102, 103], [99.0, 100, 101], p));
+            new AroonOscillator(OhlcvBars.Hl([101.0, 102, 103], [99.0, 100, 101]), p));
     }
 
     // ── Branch 4 — BarCount <= period → empty ──
@@ -42,7 +42,7 @@ public class AroonOscillatorTests
     public void Compute_BarCountEqualsPeriod_ReturnsEmpty()
     {
         var r = new AroonOscillator(
-            [101.0, 102, 103, 104, 105], [99.0, 100, 101, 102, 103], period: 5);
+            OhlcvBars.Hl([101.0, 102, 103, 104, 105], [99.0, 100, 101, 102, 103]), period: 5);
         Assert.Empty(r.Compute().Values);
     }
 
@@ -51,7 +51,7 @@ public class AroonOscillatorTests
     public void Compute_BarCountEqualsPeriodPlusOne_ReturnsSingleValue()
     {
         var r = new AroonOscillator(
-            [101.0, 102, 103, 104, 105, 106], [99.0, 100, 101, 102, 103, 104], period: 5);
+            OhlcvBars.Hl([101.0, 102, 103, 104, 105, 106], [99.0, 100, 101, 102, 103, 104]), period: 5);
         Assert.Single(r.Compute().Values);
     }
 
@@ -61,7 +61,7 @@ public class AroonOscillatorTests
     {
         // Bar 1 has H=99 < L=100 — invalid.
         Assert.Throws<ArgumentException>(() =>
-            new AroonOscillator([101.0, 99], [99.0, 100], period: 2));
+            new AroonOscillator(OhlcvBars.Hl([101.0, 99], [99.0, 100]), period: 2));
     }
 
     // ── Branch 7 — Ties on highest high: most recent wins ──
@@ -75,7 +75,7 @@ public class AroonOscillatorTests
     {
         double[] h = [100.0, 100, 100];
         double[] l = [99.0, 99, 99];
-        var r = new AroonOscillator(h, l, period: 2).Compute().Values;
+        var r = new AroonOscillator(OhlcvBars.Hl(h, l), period: 2).Compute().Values;
         Assert.Single(r);
         Assert.Equal(0.0, r[0], precision: 10);
     }
@@ -89,7 +89,7 @@ public class AroonOscillatorTests
         // H rises, L stays flat → Down always 100 (most recent low = today).
         double[] h = [100.0, 101, 102, 103];
         double[] l = [99.0, 99, 99, 99];
-        var r = new AroonOscillator(h, l, period: 3).Compute().Values;
+        var r = new AroonOscillator(OhlcvBars.Hl(h, l), period: 3).Compute().Values;
         Assert.Single(r);
         // Bar t=3, window [0..3]:
         //   Highs = 100, 101, 102, 103 — newest is bar 3 → bars_since_high = 0 → Up = 100.
@@ -104,7 +104,7 @@ public class AroonOscillatorTests
     {
         var h = Enumerable.Repeat(100.0, 30).ToArray();
         var l = Enumerable.Repeat(100.0, 30).ToArray();
-        var r = new AroonOscillator(h, l, period: 10).Compute().Values;
+        var r = new AroonOscillator(OhlcvBars.Hl(h, l), period: 10).Compute().Values;
         Assert.NotEmpty(r);
         Assert.All(r, v => Assert.Equal(0.0, v, precision: 10));
     }
@@ -114,7 +114,7 @@ public class AroonOscillatorTests
     public void Compute_MonotonicRise_OscillatorNearHundred()
     {
         var rising = Enumerable.Range(0, 20).Select(i => 100.0 + i).ToArray();
-        var r = new AroonOscillator(rising, rising, period: 5).Compute().Values;
+        var r = new AroonOscillator(OhlcvBars.Hl(rising, rising), period: 5).Compute().Values;
         Assert.NotEmpty(r);
         // At first output (bar t=5), window [0..5]: high = bar 5, low = bar 0.
         // Up = 100*(5 − 0)/5 = 100; Down = 100*(5 − 5)/5 = 0; Osc = 100.
@@ -127,7 +127,7 @@ public class AroonOscillatorTests
     public void Compute_MonotonicFall_OscillatorNearMinusHundred()
     {
         var falling = Enumerable.Range(0, 20).Select(i => 120.0 - i).ToArray();
-        var r = new AroonOscillator(falling, falling, period: 5).Compute().Values;
+        var r = new AroonOscillator(OhlcvBars.Hl(falling, falling), period: 5).Compute().Values;
         Assert.NotEmpty(r);
         Assert.All(r, v => Assert.Equal(-100.0, v, precision: 10));
     }
@@ -145,7 +145,7 @@ public class AroonOscillatorTests
             h[i] = mid + 0.5;
             l[i] = mid - 0.5;
         }
-        var r = new AroonOscillator(h, l, period: 25).Compute().Values;
+        var r = new AroonOscillator(OhlcvBars.Hl(h, l), period: 25).Compute().Values;
         Assert.Equal(75, r.Length); // 100 - 25
         Assert.All(r, v =>
         {
@@ -161,7 +161,7 @@ public class AroonOscillatorTests
         var axes = new Axes();
         var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
         var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
-        new AroonOscillator(h, l, period: 10).Apply(axes);
+        new AroonOscillator(OhlcvBars.Hl(h, l), period: 10).Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
@@ -172,7 +172,7 @@ public class AroonOscillatorTests
         var axes = new Axes();
         var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
         var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
-        new AroonOscillator(h, l, period: 10).Apply(axes);
+        new AroonOscillator(OhlcvBars.Hl(h, l), period: 10).Apply(axes);
         Assert.Equal(-100, axes.YAxis.Min);
         Assert.Equal(100, axes.YAxis.Max);
     }
@@ -183,7 +183,7 @@ public class AroonOscillatorTests
         var axes = new Axes();
         var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
         var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
-        new AroonOscillator(h, l, period: 25).Apply(axes);
+        new AroonOscillator(OhlcvBars.Hl(h, l), period: 25).Apply(axes);
         Assert.Equal("Aroon(25)", axes.Series[0].Label);
     }
 
@@ -192,14 +192,14 @@ public class AroonOscillatorTests
     {
         var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
         var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
-        var r = new AroonOscillator(h, l);
+        var r = new AroonOscillator(OhlcvBars.Hl(h, l));
         Assert.Equal("Aroon(25)", r.Label);
     }
 
     [Fact]
     public void InheritsCandleIndicator()
     {
-        var r = new AroonOscillator([101.0, 102], [99.0, 100], period: 2);
+        var r = new AroonOscillator(OhlcvBars.Hl([101.0, 102], [99.0, 100]), period: 2);
         Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(r);
         Assert.IsAssignableFrom<IIndicator>(r);
     }

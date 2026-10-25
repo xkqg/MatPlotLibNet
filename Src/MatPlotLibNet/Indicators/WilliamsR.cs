@@ -15,12 +15,10 @@ public sealed class WilliamsR : CandleIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new Williams %R indicator.</summary>
-    /// <param name="high">High prices.</param>
-    /// <param name="low">Low prices.</param>
-    /// <param name="close">Close prices.</param>
+    /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
     /// <param name="period">Lookback period (default 14).</param>
-    public WilliamsR(double[] high, double[] low, double[] close, int period = 14)
-        : base(OhlcvBars.Hlc(high, low, close))
+    public WilliamsR(OhlcvBars bars, int period = 14)
+        : base(bars)
     {
         _period = period;
         Label = $"%R({period})";

@@ -17,8 +17,11 @@ public sealed class KeltnerChannels : CandleIndicator<BandsResult>
     public double Alpha { get; set; } = 0.15;
 
     /// <summary>Creates a new Keltner Channels indicator.</summary>
-    public KeltnerChannels(double[] high, double[] low, double[] close, int period = 20, double atrMultiplier = 1.5)
-        : base(OhlcvBars.Hlc(high, low, close))
+    /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
+    /// <param name="period">EMA and ATR period (default 20).</param>
+    /// <param name="atrMultiplier">ATR band-width multiplier (default 1.5).</param>
+    public KeltnerChannels(OhlcvBars bars, int period = 20, double atrMultiplier = 1.5)
+        : base(bars)
     {
         _period = period; _atrMultiplier = atrMultiplier;
         Label = $"KC({period},{atrMultiplier})";
@@ -28,7 +31,7 @@ public sealed class KeltnerChannels : CandleIndicator<BandsResult>
     public override BandsResult Compute()
     {
         double[] ema = new Ema(Close, _period).Compute();
-        double[] atr = new Atr(High, Low, Close, _period).Compute();
+        double[] atr = new Atr(OhlcvBars.Hlc(High, Low, Close), _period).Compute();
 
         int len = Math.Min(atr.Length, ema.Length - _period);
         if (len <= 0) return new BandsResult([], [], []);

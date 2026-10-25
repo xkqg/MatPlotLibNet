@@ -131,7 +131,7 @@ public class StochasticTests
     public void Apply_AddsTwoLineSeriesToAxes()
     {
         var axes = new Axes();
-        new Stochastic(High, Low, Close, 14, 3).Apply(axes);
+        new Stochastic(OhlcvBars.Hlc(High, Low, Close), 14, 3).Apply(axes);
         Assert.Equal(2, axes.Series.Count); // %K + %D
     }
 
@@ -140,7 +140,7 @@ public class StochasticTests
     public void Apply_SetsAxisLimits()
     {
         var axes = new Axes();
-        new Stochastic(High, Low, Close, 14, 3).Apply(axes);
+        new Stochastic(OhlcvBars.Hlc(High, Low, Close), 14, 3).Apply(axes);
         Assert.Equal(0, axes.YAxis.Min);
         Assert.Equal(100, axes.YAxis.Max);
     }
@@ -149,7 +149,7 @@ public class StochasticTests
     [Fact]
     public void Compute_ValuesInRange()
     {
-        var result = new Stochastic(High, Low, Close, 14, 3).Compute();
+        var result = new Stochastic(OhlcvBars.Hlc(High, Low, Close), 14, 3).Compute();
         var k = result.K;
         foreach (var v in k)
             Assert.InRange(v, 0, 100);

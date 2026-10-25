@@ -30,43 +30,46 @@ internal static class SvgDocumentExtensions
     /// <summary>A number as the SVG writer emits it: optional sign, digits with an optional fraction, optional exponent.</summary>
     private static readonly Regex Number = new(@"-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?", RegexOptions.CultureInvariant);
 
-    /// <summary>The document with the SVG settings of <paramref name="options"/> applied. Options that ask for none of
-    /// them return <paramref name="svg"/> itself, byte for byte.</summary>
-    /// <exception cref="ArgumentOutOfRangeException"><see cref="SaveOptions.SvgDecimalPrecision"/> is outside 0 to 15.</exception>
-    public static string WithSaveOptions(this string svg, SaveOptions options)
+    extension(string svg)
     {
-        ArgumentNullException.ThrowIfNull(options);
-        if (options.SvgDecimalPrecision is < 0 or > MostDecimals)
+        /// <summary>The document with the SVG settings of <paramref name="options"/> applied. Options that ask for none of
+        /// them return <paramref name="svg"/> itself, byte for byte.</summary>
+        /// <exception cref="ArgumentOutOfRangeException"><see cref="SaveOptions.SvgDecimalPrecision"/> is outside 0 to 15.</exception>
+        public string WithSaveOptions(SaveOptions options)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(SaveOptions.SvgDecimalPrecision), options.SvgDecimalPrecision,
-                $"The number of decimals of an SVG must be between 0 and {MostDecimals}.");
+            ArgumentNullException.ThrowIfNull(options);
+            if (options.SvgDecimalPrecision is < 0 or > MostDecimals)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(SaveOptions.SvgDecimalPrecision), options.SvgDecimalPrecision,
+                    $"The number of decimals of an SVG must be between 0 and {MostDecimals}.");
+            }
+
+            string? title = options.TitleOrNull();
+            string? author = options.AuthorOrNull();
+            bool hasMetadata = title is not null || author is not null;
+            if (!options.PrettifySvg && options.SvgDecimalPrecision is null && !hasMetadata)
+            {
+                return svg;
+            }
+
+            // The whitespace between the elements is layout, not content: it is dropped when the document is to be indented
+            // (the writer lays it out again) and kept otherwise, so a document that is not indented keeps its lines.
+            XDocument document = XDocument.Parse(svg, options.PrettifySvg ? LoadOptions.None : LoadOptions.PreserveWhitespace);
+            XElement root = document.Root!;
+
+            if (hasMetadata)
+            {
+                AddMetadata(root, title, author);
+            }
+
+            if (options.SvgDecimalPrecision is { } decimals)
+            {
+                RoundCoordinates(root, decimals);
+            }
+
+            return Write(document, options.PrettifySvg);
         }
-
-        string? title = options.TitleOrNull();
-        string? author = options.AuthorOrNull();
-        bool hasMetadata = title is not null || author is not null;
-        if (!options.PrettifySvg && options.SvgDecimalPrecision is null && !hasMetadata)
-        {
-            return svg;
-        }
-
-        // The whitespace between the elements is layout, not content: it is dropped when the document is to be indented
-        // (the writer lays it out again) and kept otherwise, so a document that is not indented keeps its lines.
-        XDocument document = XDocument.Parse(svg, options.PrettifySvg ? LoadOptions.None : LoadOptions.PreserveWhitespace);
-        XElement root = document.Root!;
-
-        if (hasMetadata)
-        {
-            AddMetadata(root, title, author);
-        }
-
-        if (options.SvgDecimalPrecision is { } decimals)
-        {
-            RoundCoordinates(root, decimals);
-        }
-
-        return Write(document, options.PrettifySvg);
     }
 
     /// <summary>Writes the Dublin Core title and creator after the <c>title</c> and the <c>desc</c> that name the chart.</summary>

@@ -11,44 +11,48 @@ namespace MatPlotLibNet.Numerics;
 /// (lib/matplotlib/stackplot.py), after Byron and Wattenberg, "Stacked Graphs - Geometry and Aesthetics".</remarks>
 internal static class StackedBaselineExtensions
 {
-    /// <summary>Computes baseline offsets for each layer at each data point.
-    /// Returns <c>baselines[layer][point]</c> — the Y offset at which each layer starts.</summary>
-    /// <param name="baseline">The baseline strategy to apply.</param>
-    /// <param name="ySets">Layer data — <c>ySets[layer][point]</c>.</param>
-    /// <param name="n">Number of data points. When &gt; 0, baselines are padded to this length
-    /// so jagged YSets are safe; when 0 (default), falls back to max layer length.</param>
-    public static double[][] ComputeFor(this StackedBaseline baseline, double[][] ySets, int n = 0)
+    extension(StackedBaseline baseline)
     {
-        if (ySets.Length == 0) return [];
-        if (n <= 0) n = ySets.Max(s => s.Length);
-
-        return baseline switch
+        /// <summary>Computes baseline offsets for each layer at each data point.
+        /// Returns <c>baselines[layer][point]</c> — the Y offset at which each layer starts.</summary>
+        /// <param name="ySets">Layer data — <c>ySets[layer][point]</c>.</param>
+        /// <param name="n">Number of data points. When &gt; 0, baselines are padded to this length
+        /// so jagged YSets are safe; when 0 (default), falls back to max layer length.</param>
+        public double[][] ComputeFor(double[][] ySets, int n = 0)
         {
-            StackedBaseline.Symmetric      => ComputeSymmetric(ySets, n),
-            StackedBaseline.Wiggle         => StackOn(WiggleFirstLine(ySets, n), ySets),
-            StackedBaseline.WeightedWiggle => StackOn(WeightedWiggleFirstLine(ySets, n), ySets),
-            _                              => StackOn(new double[n], ySets),
-        };
+            if (ySets.Length == 0) return [];
+            if (n <= 0) n = ySets.Max(s => s.Length);
+
+            return baseline switch
+            {
+                StackedBaseline.Symmetric      => ComputeSymmetric(ySets, n),
+                StackedBaseline.Wiggle         => StackOn(WiggleFirstLine(ySets, n), ySets),
+                StackedBaseline.WeightedWiggle => StackOn(WeightedWiggleFirstLine(ySets, n), ySets),
+                _                              => StackOn(new double[n], ySets),
+            };
+        }
     }
 
-    /// <summary>The top edge of every layer: its baseline plus its own value, 0 past the end of a layer shorter than
-    /// <paramref name="n"/>. Whoever fills a layer between its baseline and this edge (the stacked-area series, a stream
-    /// graph) reads the stack by the one rule.</summary>
-    /// <param name="baselines">The baseline of every layer, from <see cref="ComputeFor"/>.</param>
-    /// <param name="ySets">Layer data — <c>ySets[layer][point]</c>, the layers <paramref name="baselines"/> was computed for.</param>
-    /// <param name="n">The number of data points; the edges are as long as this.</param>
-    /// <returns>One array of <paramref name="n"/> points per layer.</returns>
-    public static double[][] TopEdgesFor(this double[][] baselines, double[][] ySets, int n)
+    extension(double[][] baselines)
     {
-        var tops = new double[ySets.Length][];
-        for (int layer = 0; layer < ySets.Length; layer++)
+        /// <summary>The top edge of every layer: its baseline plus its own value, 0 past the end of a layer shorter than
+        /// <paramref name="n"/>. Whoever fills a layer between its baseline and this edge (the stacked-area series, a stream
+        /// graph) reads the stack by the one rule.</summary>
+        /// <param name="ySets">Layer data — <c>ySets[layer][point]</c>, the layers this array was computed for.</param>
+        /// <param name="n">The number of data points; the edges are as long as this.</param>
+        /// <returns>One array of <paramref name="n"/> points per layer.</returns>
+        public double[][] TopEdgesFor(double[][] ySets, int n)
         {
-            tops[layer] = new double[n];
-            for (int j = 0; j < n; j++)
-                tops[layer][j] = baselines[layer][j] + Value(ySets, layer, j);
-        }
+            var tops = new double[ySets.Length][];
+            for (int layer = 0; layer < ySets.Length; layer++)
+            {
+                tops[layer] = new double[n];
+                for (int j = 0; j < n; j++)
+                    tops[layer][j] = baselines[layer][j] + Value(ySets, layer, j);
+            }
 
-        return tops;
+            return tops;
+        }
     }
 
     // ── Zero is StackOn(zeros) above; Symmetric: shift so midpoint of total stack is at y = 0 ────────────

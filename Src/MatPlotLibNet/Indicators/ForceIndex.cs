@@ -13,11 +13,10 @@ public sealed class ForceIndex : CandleIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new Force Index indicator.</summary>
-    /// <param name="close">Close prices.</param>
-    /// <param name="volume">Volume per bar (same length as <paramref name="close"/>).</param>
+    /// <param name="bars">Close and Volume; built via <see cref="OhlcvBars.Cv"/>.</param>
     /// <param name="period">EMA smoothing period (default 13). Must be ≥ 1. Period 1 = no smoothing.</param>
-    public ForceIndex(double[] close, double[] volume, int period = 13)
-        : base(OhlcvBars.Cv(close, volume))
+    public ForceIndex(OhlcvBars bars, int period = 13)
+        : base(bars)
     {
         if (period < 1)
             throw new ArgumentException($"period must be >= 1 (got {period}).", nameof(period));

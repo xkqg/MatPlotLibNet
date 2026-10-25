@@ -13,40 +13,34 @@ namespace MatPlotLibNet.Data;
 /// 625 MB.</para></summary>
 public static class RingBufferExtensions
 {
-    /// <summary>The smallest value held, or <see langword="null"/> when the ring is empty.</summary>
-    /// <typeparam name="T">The numeric element type.</typeparam>
-    /// <param name="buffer">The ring to read.</param>
-    /// <returns>The minimum, or null when nothing is held.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is null.</exception>
-    public static T? Min<T>(this RingBuffer<T> buffer)
-        where T : struct, INumber<T>
+    extension<T>(RingBuffer<T> buffer) where T : struct, INumber<T>
     {
-        ArgumentNullException.ThrowIfNull(buffer);
-        return buffer.Aggregate<T?>(null, static (least, value) => least is { } l && l <= value ? l : value);
+        /// <summary>The smallest value held, or <see langword="null"/> when the ring is empty.</summary>
+        /// <returns>The minimum, or null when nothing is held.</returns>
+        public T? Min()
+        {
+            ArgumentNullException.ThrowIfNull(buffer);
+            return buffer.Aggregate<T?>(null, static (least, value) => least is { } l && l <= value ? l : value);
+        }
+
+        /// <summary>The largest value held, or <see langword="null"/> when the ring is empty.</summary>
+        /// <returns>The maximum, or null when nothing is held.</returns>
+        public T? Max()
+        {
+            ArgumentNullException.ThrowIfNull(buffer);
+            return buffer.Aggregate<T?>(null, static (most, value) => most is { } m && m >= value ? m : value);
+        }
     }
 
-    /// <summary>The largest value held, or <see langword="null"/> when the ring is empty.</summary>
-    /// <typeparam name="T">The numeric element type.</typeparam>
-    /// <param name="buffer">The ring to read.</param>
-    /// <returns>The maximum, or null when nothing is held.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is null.</exception>
-    public static T? Max<T>(this RingBuffer<T> buffer)
-        where T : struct, INumber<T>
+    extension(RingBuffer<double> buffer)
     {
-        ArgumentNullException.ThrowIfNull(buffer);
-        return buffer.Aggregate<T?>(null, static (most, value) => most is { } m && m >= value ? m : value);
+        /// <summary>The smallest value held, or <see cref="double.NaN"/> when the ring is empty — the form an axis
+        /// wants, because NaN is the value the rendering pipeline already knows to skip and a null is not.</summary>
+        /// <returns>The minimum, or NaN when nothing is held.</returns>
+        public double MinOrNaN() => buffer.Min() ?? double.NaN;
+
+        /// <summary>The largest value held, or <see cref="double.NaN"/> when the ring is empty.</summary>
+        /// <returns>The maximum, or NaN when nothing is held.</returns>
+        public double MaxOrNaN() => buffer.Max() ?? double.NaN;
     }
-
-    /// <summary>The smallest value held, or <see cref="double.NaN"/> when the ring is empty — the form an axis
-    /// wants, because NaN is the value the rendering pipeline already knows to skip and a null is not.</summary>
-    /// <param name="buffer">The ring to read.</param>
-    /// <returns>The minimum, or NaN when nothing is held.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is null.</exception>
-    public static double MinOrNaN(this RingBuffer<double> buffer) => buffer.Min() ?? double.NaN;
-
-    /// <summary>The largest value held, or <see cref="double.NaN"/> when the ring is empty.</summary>
-    /// <param name="buffer">The ring to read.</param>
-    /// <returns>The maximum, or NaN when nothing is held.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="buffer"/> is null.</exception>
-    public static double MaxOrNaN(this RingBuffer<double> buffer) => buffer.Max() ?? double.NaN;
 }

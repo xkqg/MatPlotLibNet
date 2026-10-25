@@ -7,17 +7,19 @@ namespace MatPlotLibNet.Numerics;
 /// permutation: a Pareto chart its categories and counts, a dot plot its categories and every group's values.</summary>
 internal static class SortOrderExtensions
 {
-    /// <summary>The order that puts <paramref name="values"/> from the largest to the smallest. Stable: equal values keep
-    /// the order they were given in, so a tie never reshuffles between runs or platforms. A missing value (NaN) comes
-    /// last, behind every number.</summary>
-    /// <param name="values">The values to order.</param>
-    /// <returns>A permutation of <c>0 .. n - 1</c>: <c>values[order[0]]</c> is the largest.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="values"/> is <see langword="null"/>.</exception>
-    internal static int[] DescendingOrder(this IReadOnlyList<double> values)
+    extension(IReadOnlyList<double> values)
     {
-        ArgumentNullException.ThrowIfNull(values);
+        /// <summary>The order that puts this list from the largest to the smallest. Stable: equal values keep
+        /// the order they were given in, so a tie never reshuffles between runs or platforms. A missing value (NaN) comes
+        /// last, behind every number.</summary>
+        /// <returns>A permutation of <c>0 .. n - 1</c>: <c>values[order[0]]</c> is the largest.</returns>
+        /// <exception cref="ArgumentNullException">This list is <see langword="null"/>.</exception>
+        internal int[] DescendingOrder()
+        {
+            ArgumentNullException.ThrowIfNull(values);
 
-        // OrderByDescending is a stable sort; Comparer<double>.Default ranks NaN below every number.
-        return [.. Enumerable.Range(0, values.Count).OrderByDescending(i => values[i])];
+            // OrderByDescending is a stable sort; Comparer<double>.Default ranks NaN below every number.
+            return [.. Enumerable.Range(0, values.Count).OrderByDescending(i => values[i])];
+        }
     }
 }

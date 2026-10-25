@@ -15,9 +15,14 @@ public sealed class Ichimoku : CandleIndicator<IchimokuResult>
     private readonly int _tenkanPeriod, _kijunPeriod, _senkouBPeriod, _displacement;
 
     /// <summary>Creates a new Ichimoku Cloud indicator with standard parameters.</summary>
-    public Ichimoku(double[] high, double[] low, double[] close,
+    /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
+    /// <param name="tenkanPeriod">Tenkan-Sen period (default 9).</param>
+    /// <param name="kijunPeriod">Kijun-Sen period (default 26).</param>
+    /// <param name="senkouBPeriod">Senkou Span B period (default 52).</param>
+    /// <param name="displacement">Cloud displacement in bars (default 26).</param>
+    public Ichimoku(OhlcvBars bars,
         int tenkanPeriod = 9, int kijunPeriod = 26, int senkouBPeriod = 52, int displacement = 26)
-        : base(OhlcvBars.Hlc(high, low, close))
+        : base(bars)
     {
         _tenkanPeriod = tenkanPeriod; _kijunPeriod = kijunPeriod;
         _senkouBPeriod = senkouBPeriod; _displacement = displacement;

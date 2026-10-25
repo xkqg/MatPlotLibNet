@@ -22,39 +22,42 @@ internal static class PngTextChunkExtensions
 
     private static readonly uint[] CrcTable = BuildCrcTable();
 
-    /// <summary>The PNG with one uncompressed UTF-8 <c>iTXt</c> chunk per entry, in order, straight after the header.
-    /// With no entries it returns <paramref name="png"/> itself.</summary>
-    /// <exception cref="ArgumentException"><paramref name="png"/> is not a PNG, or a keyword is not 1 to 79 printable
-    /// Latin-1 characters.</exception>
-    public static byte[] WithTextChunks(this byte[] png, IReadOnlyList<PngTextEntry> entries)
+    extension(byte[] png)
     {
-        if (entries.Count == 0)
+        /// <summary>The PNG with one uncompressed UTF-8 <c>iTXt</c> chunk per entry, in order, straight after the header.
+        /// With no entries it returns <paramref name="png"/> itself.</summary>
+        /// <exception cref="ArgumentException"><paramref name="png"/> is not a PNG, or a keyword is not 1 to 79 printable
+        /// Latin-1 characters.</exception>
+        public byte[] WithTextChunks(IReadOnlyList<PngTextEntry> entries)
         {
-            return png;
-        }
+            if (entries.Count == 0)
+            {
+                return png;
+            }
 
-        bool isPng = png.Length >= Signature.Length + HeaderChunkLength
-            && png.AsSpan(0, Signature.Length).SequenceEqual(Signature)
-            && BinaryPrimitives.ReadUInt32BigEndian(png.AsSpan(Signature.Length, 4)) == 13
-            && png.AsSpan(Signature.Length + 4, 4).SequenceEqual("IHDR"u8);
-        if (!isPng)
-        {
-            throw new ArgumentException("The bytes are not a PNG: the signature and the header chunk are missing.", nameof(png));
-        }
+            bool isPng = png.Length >= Signature.Length + HeaderChunkLength
+                && png.AsSpan(0, Signature.Length).SequenceEqual(Signature)
+                && BinaryPrimitives.ReadUInt32BigEndian(png.AsSpan(Signature.Length, 4)) == 13
+                && png.AsSpan(Signature.Length + 4, 4).SequenceEqual("IHDR"u8);
+            if (!isPng)
+            {
+                throw new ArgumentException("The bytes are not a PNG: the signature and the header chunk are missing.", nameof(png));
+            }
 
-        var chunks = entries.Select(Chunk).ToList();
-        int insertAt = Signature.Length + HeaderChunkLength;
-        var result = new byte[png.Length + chunks.Sum(c => c.Length)];
-        png.AsSpan(0, insertAt).CopyTo(result);
-        int at = insertAt;
-        foreach (byte[] chunk in chunks)
-        {
-            chunk.CopyTo(result, at);
-            at += chunk.Length;
-        }
+            var chunks = entries.Select(Chunk).ToList();
+            int insertAt = Signature.Length + HeaderChunkLength;
+            var result = new byte[png.Length + chunks.Sum(c => c.Length)];
+            png.AsSpan(0, insertAt).CopyTo(result);
+            int at = insertAt;
+            foreach (byte[] chunk in chunks)
+            {
+                chunk.CopyTo(result, at);
+                at += chunk.Length;
+            }
 
-        png.AsSpan(insertAt).CopyTo(result.AsSpan(at));
-        return result;
+            png.AsSpan(insertAt).CopyTo(result.AsSpan(at));
+            return result;
+        }
     }
 
     /// <summary>The CRC-32 the PNG standard puts after each chunk, taken over the chunk's type and data.</summary>

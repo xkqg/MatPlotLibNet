@@ -15,15 +15,12 @@ public sealed class SqueezeMomentum : CandleIndicator<SqueezeResult>
     private readonly double _kcMult;
 
     /// <summary>Creates a new Squeeze Momentum indicator.</summary>
-    /// <param name="high">High prices.</param>
-    /// <param name="low">Low prices.</param>
-    /// <param name="close">Close prices.</param>
+    /// <param name="bars">High, Low (must satisfy <c>L ≤ H</c>) and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
     /// <param name="period">Rolling window length (default 20). Must be ≥ 2.</param>
     /// <param name="bbMult">Bollinger Band stddev multiplier (default 2.0). Must be &gt; 0.</param>
     /// <param name="kcMult">Keltner Channel ATR multiplier (default 1.5). Must be &gt; 0.</param>
-    public SqueezeMomentum(double[] high, double[] low, double[] close,
-                           int period = 20, double bbMult = 2.0, double kcMult = 1.5)
-        : base(OhlcvBars.Hlc(high, low, close))
+    public SqueezeMomentum(OhlcvBars bars, int period = 20, double bbMult = 2.0, double kcMult = 1.5)
+        : base(bars)
     {
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
@@ -31,11 +28,11 @@ public sealed class SqueezeMomentum : CandleIndicator<SqueezeResult>
             throw new ArgumentException($"bbMult must be > 0 (got {bbMult}).", nameof(bbMult));
         if (kcMult <= 0)
             throw new ArgumentException($"kcMult must be > 0 (got {kcMult}).", nameof(kcMult));
-        for (int i = 0; i < high.Length; i++)
+        for (int i = 0; i < bars.High.Length; i++)
         {
-            if (high[i] < low[i])
+            if (bars.High[i] < bars.Low[i])
                 throw new ArgumentException(
-                    $"SqueezeMomentum requires H >= L; bar {i} has H={high[i]} < L={low[i]}.");
+                    $"SqueezeMomentum requires H >= L; bar {i} has H={bars.High[i]} < L={bars.Low[i]}.");
         }
         _period = period;
         _bbMult = bbMult;

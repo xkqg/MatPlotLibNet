@@ -13,14 +13,11 @@ public sealed class RelativeVigorIndex : CandleIndicator<RviResult>
     private readonly int _period;
 
     /// <summary>Creates a new Relative Vigor Index indicator.</summary>
-    /// <param name="open">Open prices.</param>
-    /// <param name="high">High prices.</param>
-    /// <param name="low">Low prices.</param>
-    /// <param name="close">Close prices.</param>
+    /// <param name="bars">Open, High, Low and Close; built via <see cref="OhlcvBars.Ohlc"/>.</param>
     /// <param name="period">Rolling SMA period on the weighted-smoothed value/range.
     /// Default 10. Must be ≥ 2.</param>
-    public RelativeVigorIndex(double[] open, double[] high, double[] low, double[] close, int period = 10)
-        : base(OhlcvBars.Ohlc(open, high, low, close))
+    public RelativeVigorIndex(OhlcvBars bars, int period = 10)
+        : base(bars)
     {
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));

@@ -173,9 +173,10 @@ public class AxesBuilderCoverageTests
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .WilliamsR(
-                    high: new[] { 10.0, 11, 12, 13, 14 },
-                    low:  new[] { 5.0, 6, 7, 8, 9 },
-                    close: new[] { 7.0, 9, 10, 11, 12 },
+                    global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(
+                        new[] { 10.0, 11, 12, 13, 14 },
+                        new[] { 5.0, 6, 7, 8, 9 },
+                        new[] { 7.0, 9, 10, 11, 12 }),
                     period: 3))
             .Build();
         Assert.NotNull(fig);
@@ -199,9 +200,10 @@ public class AxesBuilderCoverageTests
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Cci(
-                    high: new[] { 10.0, 11, 12, 13, 14, 15 },
-                    low:  new[] { 5.0, 6, 7, 8, 9, 10 },
-                    close: new[] { 7.0, 9, 10, 11, 12, 13 },
+                    global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(
+                        new[] { 10.0, 11, 12, 13, 14, 15 },
+                        new[] { 5.0, 6, 7, 8, 9, 10 },
+                        new[] { 7.0, 9, 10, 11, 12, 13 }),
                     period: 3))
             .Build();
         Assert.NotNull(fig);
@@ -394,9 +396,7 @@ public class AxesBuilderCoverageTests
     {
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.WilliamsR(
-                high: [10.0, 11, 12, 13, 14],
-                low:  [5.0, 6, 7, 8, 9],
-                close: [7.0, 9, 10, 11, 12],
+                global::MatPlotLibNet.Indicators.OhlcvBars.Hlc([10.0, 11, 12, 13, 14], [5.0, 6, 7, 8, 9], [7.0, 9, 10, 11, 12]),
                 period: 3,
                 configure: ind => ind.Offset = 1.0))
             .Build();
@@ -420,9 +420,7 @@ public class AxesBuilderCoverageTests
     {
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Cci(
-                high: [10.0, 11, 12, 13, 14, 15],
-                low:  [5.0, 6, 7, 8, 9, 10],
-                close: [7.0, 9, 10, 11, 12, 13],
+                global::MatPlotLibNet.Indicators.OhlcvBars.Hlc([10.0, 11, 12, 13, 14, 15], [5.0, 6, 7, 8, 9, 10], [7.0, 9, 10, 11, 12, 13]),
                 period: 3,
                 configure: ind => ind.Offset = 1.0))
             .Build();
@@ -532,9 +530,7 @@ public class AxesBuilderCoverageTests
             .AddSubPlot(1, 1, 1, ax => ax
                 .UseBarSlotX()
                 .WilliamsR(
-                    high: [10.0, 11, 12, 13, 14],
-                    low:  [5.0, 6, 7, 8, 9],
-                    close: [7.0, 9, 10, 11, 12],
+                    global::MatPlotLibNet.Indicators.OhlcvBars.Hlc([10.0, 11, 12, 13, 14], [5.0, 6, 7, 8, 9], [7.0, 9, 10, 11, 12]),
                     period: 3))
             .Build();
         Assert.NotNull(fig);
@@ -560,9 +556,7 @@ public class AxesBuilderCoverageTests
             .AddSubPlot(1, 1, 1, ax => ax
                 .UseBarSlotX()
                 .Cci(
-                    high: [10.0, 11, 12, 13, 14, 15],
-                    low:  [5.0, 6, 7, 8, 9, 10],
-                    close: [7.0, 9, 10, 11, 12, 13],
+                    global::MatPlotLibNet.Indicators.OhlcvBars.Hlc([10.0, 11, 12, 13, 14, 15], [5.0, 6, 7, 8, 9, 10], [7.0, 9, 10, 11, 12, 13]),
                     period: 3))
             .Build();
         Assert.NotNull(fig);
@@ -605,7 +599,7 @@ public class AxesBuilderCoverageTests
     public void GarmanKlass_Shortcut_AddsSeries()
     {
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.GarmanKlass(TierO, TierH, TierL, TierC, period: 5))
+            .AddSubPlot(1, 1, 1, ax => ax.GarmanKlass(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(TierO, TierH, TierL, TierC), period: 5))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -617,7 +611,7 @@ public class AxesBuilderCoverageTests
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .UseBarSlotX()
-                .GarmanKlass(TierO, TierH, TierL, TierC, period: 5))
+                .GarmanKlass(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(TierO, TierH, TierL, TierC), period: 5))
             .Build();
         Assert.NotNull(fig);
     }
@@ -629,7 +623,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .GarmanKlass(TierO, TierH, TierL, TierC, period: 5,
+                .GarmanKlass(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(TierO, TierH, TierL, TierC), period: 5,
                     configure: ind => { configured = true; ind.LineWidth = 3; }))
             .Build();
         Assert.True(configured);
@@ -640,7 +634,7 @@ public class AxesBuilderCoverageTests
     public void YangZhang_Shortcut_AddsSeries()
     {
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.YangZhang(TierO, TierH, TierL, TierC, period: 5))
+            .AddSubPlot(1, 1, 1, ax => ax.YangZhang(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(TierO, TierH, TierL, TierC), period: 5))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -652,7 +646,7 @@ public class AxesBuilderCoverageTests
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .UseBarSlotX()
-                .YangZhang(TierO, TierH, TierL, TierC, period: 5))
+                .YangZhang(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(TierO, TierH, TierL, TierC), period: 5))
             .Build();
         Assert.NotNull(fig);
     }
@@ -664,7 +658,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .YangZhang(TierO, TierH, TierL, TierC, period: 5,
+                .YangZhang(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(TierO, TierH, TierL, TierC), period: 5,
                     configure: ind => { configured = true; ind.LineWidth = 3; }))
             .Build();
         Assert.True(configured);
@@ -783,9 +777,10 @@ public class AxesBuilderCoverageTests
     {
         double[] prices = [100, 101, 102, 103, 104, 105, 106];
         var atr = new MatPlotLibNet.Indicators.Atr(
-            high: [101, 102, 103, 104, 105, 106, 107],
-            low:  [99, 100, 101, 102, 103, 104, 105],
-            close: prices,
+            MatPlotLibNet.Indicators.OhlcvBars.Hlc(
+                [101, 102, 103, 104, 105, 106, 107],
+                [99, 100, 101, 102, 103, 104, 105],
+                prices),
             period: 3);
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0], [1.0]).Indicator(atr))
@@ -890,7 +885,7 @@ public class AxesBuilderCoverageTests
     {
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .AmihudIlliquidity([100.0, 101, 102, 103, 104], [1000.0, 1000, 1000, 1000, 1000], period: 3))
+                .AmihudIlliquidity(global::MatPlotLibNet.Indicators.OhlcvBars.Cv([100.0, 101, 102, 103, 104], [1000.0, 1000, 1000, 1000, 1000]), period: 3))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -901,7 +896,7 @@ public class AxesBuilderCoverageTests
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .UseBarSlotX()
-                .AmihudIlliquidity([100.0, 101, 102, 103, 104], [1000.0, 1000, 1000, 1000, 1000], period: 3))
+                .AmihudIlliquidity(global::MatPlotLibNet.Indicators.OhlcvBars.Cv([100.0, 101, 102, 103, 104], [1000.0, 1000, 1000, 1000, 1000]), period: 3))
             .Build();
         Assert.NotNull(fig);
     }
@@ -912,7 +907,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .AmihudIlliquidity([100.0, 101, 102, 103, 104], [1000.0, 1000, 1000, 1000, 1000], period: 3,
+                .AmihudIlliquidity(global::MatPlotLibNet.Indicators.OhlcvBars.Cv([100.0, 101, 102, 103, 104], [1000.0, 1000, 1000, 1000, 1000]), period: 3,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -923,7 +918,7 @@ public class AxesBuilderCoverageTests
     {
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .CorwinSchultz([100.5, 100.5, 100.5, 100.5], [99.5, 99.5, 99.5, 99.5], period: 2))
+                .CorwinSchultz(global::MatPlotLibNet.Indicators.OhlcvBars.Hl([100.5, 100.5, 100.5, 100.5], [99.5, 99.5, 99.5, 99.5]), period: 2))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -934,7 +929,7 @@ public class AxesBuilderCoverageTests
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .UseBarSlotX()
-                .CorwinSchultz([100.5, 100.5, 100.5, 100.5], [99.5, 99.5, 99.5, 99.5], period: 2))
+                .CorwinSchultz(global::MatPlotLibNet.Indicators.OhlcvBars.Hl([100.5, 100.5, 100.5, 100.5], [99.5, 99.5, 99.5, 99.5]), period: 2))
             .Build();
         Assert.NotNull(fig);
     }
@@ -945,7 +940,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .CorwinSchultz([100.5, 100.5, 100.5, 100.5], [99.5, 99.5, 99.5, 99.5], period: 2,
+                .CorwinSchultz(global::MatPlotLibNet.Indicators.OhlcvBars.Hl([100.5, 100.5, 100.5, 100.5], [99.5, 99.5, 99.5, 99.5]), period: 2,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -957,7 +952,7 @@ public class AxesBuilderCoverageTests
         var close = new double[15]; var vol = new double[15];
         for (int i = 0; i < 15; i++) { close[i] = 100 + i; vol[i] = 1000; }
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Vpin(close, vol, bucketPeriod: 5, sigmaPeriod: 5))
+            .AddSubPlot(1, 1, 1, ax => ax.Vpin(global::MatPlotLibNet.Indicators.OhlcvBars.Cv(close, vol), bucketPeriod: 5, sigmaPeriod: 5))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -970,7 +965,7 @@ public class AxesBuilderCoverageTests
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .UseBarSlotX()
-                .Vpin(close, vol, bucketPeriod: 5, sigmaPeriod: 5))
+                .Vpin(global::MatPlotLibNet.Indicators.OhlcvBars.Cv(close, vol), bucketPeriod: 5, sigmaPeriod: 5))
             .Build();
         Assert.NotNull(fig);
     }
@@ -983,7 +978,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .Vpin(close, vol, bucketPeriod: 5, sigmaPeriod: 5,
+                .Vpin(global::MatPlotLibNet.Indicators.OhlcvBars.Cv(close, vol), bucketPeriod: 5, sigmaPeriod: 5,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1096,7 +1091,7 @@ public class AxesBuilderCoverageTests
         double[] h = c.Select(v => v + 0.5).ToArray();
         double[] l = c.Select(v => v - 0.5).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.SqueezeMomentum(h, l, c, period: 5))
+            .AddSubPlot(1, 1, 1, ax => ax.SqueezeMomentum(global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(h, l, c), period: 5))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -1108,7 +1103,7 @@ public class AxesBuilderCoverageTests
         double[] h = c.Select(v => v + 0.5).ToArray();
         double[] l = c.Select(v => v - 0.5).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().SqueezeMomentum(h, l, c, period: 5))
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().SqueezeMomentum(global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(h, l, c), period: 5))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1122,7 +1117,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .SqueezeMomentum(h, l, c, period: 5,
+                .SqueezeMomentum(global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(h, l, c), period: 5,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1446,7 +1441,7 @@ public class AxesBuilderCoverageTests
         var h = c.Select(v => v + 0.5).ToArray();
         var l = c.Select(v => v - 0.5).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.AdaptiveStochastic(h, l, c))
+            .AddSubPlot(1, 1, 1, ax => ax.AdaptiveStochastic(global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(h, l, c)))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -1458,7 +1453,7 @@ public class AxesBuilderCoverageTests
         var h = c.Select(v => v + 0.5).ToArray();
         var l = c.Select(v => v - 0.5).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().AdaptiveStochastic(h, l, c))
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().AdaptiveStochastic(global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(h, l, c)))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1472,7 +1467,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .AdaptiveStochastic(h, l, c, smoothingPeriod: 3,
+                .AdaptiveStochastic(global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(h, l, c), smoothingPeriod: 3,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1486,7 +1481,7 @@ public class AxesBuilderCoverageTests
         double[] close = [100, 101, 102, 103, 104];
         double[] volume = [1000, 1100, 900, 1200, 1000];
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.ForceIndex(close, volume))
+            .AddSubPlot(1, 1, 1, ax => ax.ForceIndex(global::MatPlotLibNet.Indicators.OhlcvBars.Cv(close, volume)))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -1497,7 +1492,7 @@ public class AxesBuilderCoverageTests
         double[] close = [100, 101, 102, 103, 104];
         double[] volume = [1000, 1100, 900, 1200, 1000];
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().ForceIndex(close, volume))
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().ForceIndex(global::MatPlotLibNet.Indicators.OhlcvBars.Cv(close, volume)))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1510,7 +1505,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .ForceIndex(close, volume, period: 3,
+                .ForceIndex(global::MatPlotLibNet.Indicators.OhlcvBars.Cv(close, volume), period: 3,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1522,7 +1517,7 @@ public class AxesBuilderCoverageTests
         var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
         var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.AroonOscillator(h, l))
+            .AddSubPlot(1, 1, 1, ax => ax.AroonOscillator(global::MatPlotLibNet.Indicators.OhlcvBars.Hl(h, l)))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -1533,7 +1528,7 @@ public class AxesBuilderCoverageTests
         var h = Enumerable.Range(0, 30).Select(i => 101.0 + i).ToArray();
         var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().AroonOscillator(h, l))
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().AroonOscillator(global::MatPlotLibNet.Indicators.OhlcvBars.Hl(h, l)))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1546,7 +1541,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .AroonOscillator(h, l, period: 5,
+                .AroonOscillator(global::MatPlotLibNet.Indicators.OhlcvBars.Hl(h, l), period: 5,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1557,7 +1552,7 @@ public class AxesBuilderCoverageTests
     {
         var a = Enumerable.Repeat(100.0, 30).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.RelativeVigorIndex(a, a, a, a))
+            .AddSubPlot(1, 1, 1, ax => ax.RelativeVigorIndex(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(a, a, a, a)))
             .Build();
         Assert.Equal(2, fig.SubPlots[0].Series.Count);
     }
@@ -1567,7 +1562,7 @@ public class AxesBuilderCoverageTests
     {
         var a = Enumerable.Repeat(100.0, 30).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().RelativeVigorIndex(a, a, a, a))
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().RelativeVigorIndex(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(a, a, a, a)))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1579,7 +1574,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .RelativeVigorIndex(a, a, a, a, period: 5,
+                .RelativeVigorIndex(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(a, a, a, a), period: 5,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1594,7 +1589,7 @@ public class AxesBuilderCoverageTests
         var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
         var v = Enumerable.Repeat(1000.0, 30).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.EaseOfMovement(h, l, v))
+            .AddSubPlot(1, 1, 1, ax => ax.EaseOfMovement(global::MatPlotLibNet.Indicators.OhlcvBars.Hlv(h, l, v)))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -1606,7 +1601,7 @@ public class AxesBuilderCoverageTests
         var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
         var v = Enumerable.Repeat(1000.0, 30).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().EaseOfMovement(h, l, v))
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().EaseOfMovement(global::MatPlotLibNet.Indicators.OhlcvBars.Hlv(h, l, v)))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1620,7 +1615,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .EaseOfMovement(h, l, v, period: 5, scale: 1e5,
+                .EaseOfMovement(global::MatPlotLibNet.Indicators.OhlcvBars.Hlv(h, l, v), period: 5, scale: 1e5,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1634,7 +1629,7 @@ public class AxesBuilderCoverageTests
         var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
         var v = Enumerable.Repeat(1000.0, 30).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.KlingerVolumeOscillator(h, l, c, v))
+            .AddSubPlot(1, 1, 1, ax => ax.KlingerVolumeOscillator(global::MatPlotLibNet.Indicators.OhlcvBars.Hlcv(h, l, c, v)))
             .Build();
         Assert.Equal(2, fig.SubPlots[0].Series.Count);
     }
@@ -1647,7 +1642,7 @@ public class AxesBuilderCoverageTests
         var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
         var v = Enumerable.Repeat(1000.0, 30).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().KlingerVolumeOscillator(h, l, c, v))
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().KlingerVolumeOscillator(global::MatPlotLibNet.Indicators.OhlcvBars.Hlcv(h, l, c, v)))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1662,7 +1657,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .KlingerVolumeOscillator(h, l, c, v, fastPeriod: 3, slowPeriod: 5, signalPeriod: 2,
+                .KlingerVolumeOscillator(global::MatPlotLibNet.Indicators.OhlcvBars.Hlcv(h, l, c, v), fastPeriod: 3, slowPeriod: 5, signalPeriod: 2,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1676,7 +1671,7 @@ public class AxesBuilderCoverageTests
         var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
         var v = Enumerable.Repeat(1000.0, 30).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.TwiggsMoneyFlow(h, l, c, v))
+            .AddSubPlot(1, 1, 1, ax => ax.TwiggsMoneyFlow(global::MatPlotLibNet.Indicators.OhlcvBars.Hlcv(h, l, c, v)))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -1689,7 +1684,7 @@ public class AxesBuilderCoverageTests
         var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
         var v = Enumerable.Repeat(1000.0, 30).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().TwiggsMoneyFlow(h, l, c, v))
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().TwiggsMoneyFlow(global::MatPlotLibNet.Indicators.OhlcvBars.Hlcv(h, l, c, v)))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1704,7 +1699,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .TwiggsMoneyFlow(h, l, c, v, period: 5,
+                .TwiggsMoneyFlow(global::MatPlotLibNet.Indicators.OhlcvBars.Hlcv(h, l, c, v), period: 5,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1716,7 +1711,7 @@ public class AxesBuilderCoverageTests
         var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
         var v = Enumerable.Repeat(1000.0, 30).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.VwapZScore(c, v))
+            .AddSubPlot(1, 1, 1, ax => ax.VwapZScore(global::MatPlotLibNet.Indicators.OhlcvBars.Cv(c, v)))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -1727,7 +1722,7 @@ public class AxesBuilderCoverageTests
         var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
         var v = Enumerable.Repeat(1000.0, 30).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().VwapZScore(c, v))
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().VwapZScore(global::MatPlotLibNet.Indicators.OhlcvBars.Cv(c, v)))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1740,7 +1735,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .VwapZScore(c, v, window: 5,
+                .VwapZScore(global::MatPlotLibNet.Indicators.OhlcvBars.Cv(c, v), window: 5,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1821,7 +1816,7 @@ public class AxesBuilderCoverageTests
         var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
         var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Supertrend(h, l, c))
+            .AddSubPlot(1, 1, 1, ax => ax.Supertrend(global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(h, l, c)))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -1833,7 +1828,7 @@ public class AxesBuilderCoverageTests
         var l = Enumerable.Range(0, 30).Select(i => 99.0 + i).ToArray();
         var c = Enumerable.Range(0, 30).Select(i => 100.0 + i).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().Supertrend(h, l, c))
+            .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX().Supertrend(global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(h, l, c)))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1847,7 +1842,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .Supertrend(h, l, c, period: 5, multiplier: 2.0,
+                .Supertrend(global::MatPlotLibNet.Indicators.OhlcvBars.Hlc(h, l, c), period: 5, multiplier: 2.0,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);
@@ -1858,7 +1853,7 @@ public class AxesBuilderCoverageTests
     {
         var a = Enumerable.Repeat(100.0, 100).ToArray();
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.YangZhangVolRatio(a, a, a, a, shortWindow: 10, longWindow: 30))
+            .AddSubPlot(1, 1, 1, ax => ax.YangZhangVolRatio(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(a, a, a, a), shortWindow: 10, longWindow: 30))
             .Build();
         Assert.NotEmpty(fig.SubPlots[0].Series);
     }
@@ -1869,7 +1864,7 @@ public class AxesBuilderCoverageTests
         var a = Enumerable.Repeat(100.0, 100).ToArray();
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.UseBarSlotX()
-                .YangZhangVolRatio(a, a, a, a, shortWindow: 10, longWindow: 30))
+                .YangZhangVolRatio(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(a, a, a, a), shortWindow: 10, longWindow: 30))
             .Build();
         Assert.NotNull(fig);
     }
@@ -1881,7 +1876,7 @@ public class AxesBuilderCoverageTests
         bool configured = false;
         Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .YangZhangVolRatio(a, a, a, a, shortWindow: 10, longWindow: 30,
+                .YangZhangVolRatio(global::MatPlotLibNet.Indicators.OhlcvBars.Ohlc(a, a, a, a), shortWindow: 10, longWindow: 30,
                     configure: ind => { configured = true; ind.LineWidth = 2; }))
             .Build();
         Assert.True(configured);

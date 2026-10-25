@@ -9,8 +9,11 @@ namespace MatPlotLibNet.Blazor;
 /// <summary>Extension methods for rendering figures in Blazor components.</summary>
 public static class BlazorExtensions
 {
-    /// <summary>Renders the figure as a Blazor <see cref="MarkupString"/> containing SVG markup for use in Razor templates.</summary>
-    /// <returns>A <see cref="MarkupString"/> containing the SVG output.</returns>
-    public static MarkupString ToMarkupString(this Figure figure) =>
-        new(SvgRendererDefault.Current.Render(figure));
+    extension(Figure figure)
+    {
+        /// <summary>Renders the figure as a Blazor <see cref="MarkupString"/> containing SVG markup for use in Razor templates.</summary>
+        /// <returns>A <see cref="MarkupString"/> containing the SVG output.</returns>
+        public MarkupString ToMarkupString() =>
+            new(SvgRendererDefault.Current.Render(figure));
+    }
 }

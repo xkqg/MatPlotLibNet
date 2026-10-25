@@ -7,13 +7,16 @@ namespace MatPlotLibNet.Maui;
 
 internal static class LineStyleExtensions
 {
-    internal static float[] ToMauiDashPattern(this LineStyle style)
+    extension(LineStyle style)
     {
-        var pattern = DashPatterns.GetPattern(style);
-        if (pattern.Length == 0) return [];
-        var result = new float[pattern.Length];
-        for (int i = 0; i < pattern.Length; i++)
-            result[i] = (float)pattern[i];
-        return result;
+        internal float[] ToMauiDashPattern()
+        {
+            var pattern = DashPatterns.GetPattern(style);
+            if (pattern.Length == 0) return [];
+            var result = new float[pattern.Length];
+            for (int i = 0; i < pattern.Length; i++)
+                result[i] = (float)pattern[i];
+            return result;
+        }
     }
 }

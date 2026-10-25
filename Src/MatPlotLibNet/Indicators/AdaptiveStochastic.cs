@@ -16,22 +16,20 @@ public sealed class AdaptiveStochastic : CandleIndicator<SignalResult>
     private readonly int _smoothingPeriod;
 
     /// <summary>Creates a new Adaptive Stochastic indicator.</summary>
-    /// <param name="high">High prices.</param>
-    /// <param name="low">Low prices (must satisfy <c>L ≤ H</c>).</param>
-    /// <param name="close">Close prices.</param>
+    /// <param name="bars">High, Low (must satisfy <c>L ≤ H</c>) and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
     /// <param name="smoothingPeriod">SuperSmoother period applied to raw %K. Default 3.
     /// Must be ≥ 1 (use 1 to skip smoothing).</param>
-    public AdaptiveStochastic(double[] high, double[] low, double[] close, int smoothingPeriod = 3)
-        : base(OhlcvBars.Hlc(high, low, close))
+    public AdaptiveStochastic(OhlcvBars bars, int smoothingPeriod = 3)
+        : base(bars)
     {
         if (smoothingPeriod < 1)
             throw new ArgumentException(
                 $"smoothingPeriod must be >= 1 (got {smoothingPeriod}).", nameof(smoothingPeriod));
-        for (int i = 0; i < high.Length; i++)
+        for (int i = 0; i < bars.High.Length; i++)
         {
-            if (high[i] < low[i])
+            if (bars.High[i] < bars.Low[i])
                 throw new ArgumentException(
-                    $"AdaptiveStochastic requires H >= L; bar {i} has H={high[i]} < L={low[i]}.");
+                    $"AdaptiveStochastic requires H >= L; bar {i} has H={bars.High[i]} < L={bars.Low[i]}.");
         }
         _smoothingPeriod = smoothingPeriod;
         Label = $"AdaptStoch({smoothingPeriod})";

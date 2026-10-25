@@ -14,13 +14,17 @@ public static class AngleExtensions
     private const double DegToRadFactor = Math.PI / 180.0;
     private const double RadToDegFactor = 180.0 / Math.PI;
 
-    /// <summary>Converts an angle expressed in degrees to radians.</summary>
-    /// <param name="degrees">The angle in degrees.</param>
-    /// <returns>The equivalent angle in radians.</returns>
-    public static double ToRadians(this double degrees) => degrees * DegToRadFactor;
+    extension(double degrees)
+    {
+        /// <summary>Converts an angle expressed in degrees to radians.</summary>
+        /// <returns>The equivalent angle in radians.</returns>
+        public double ToRadians() => degrees * DegToRadFactor;
+    }
 
-    /// <summary>Converts an angle expressed in radians to degrees.</summary>
-    /// <param name="radians">The angle in radians.</param>
-    /// <returns>The equivalent angle in degrees.</returns>
-    public static double ToDegrees(this double radians) => radians * RadToDegFactor;
+    extension(double radians)
+    {
+        /// <summary>Converts an angle expressed in radians to degrees.</summary>
+        /// <returns>The equivalent angle in degrees.</returns>
+        public double ToDegrees() => radians * RadToDegFactor;
+    }
 }

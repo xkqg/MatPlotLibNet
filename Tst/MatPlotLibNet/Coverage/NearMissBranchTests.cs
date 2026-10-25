@@ -129,7 +129,7 @@ public class NearMissBranchTests
         double[] L = Enumerable.Range(1, 50).Select(i => 40.0 + i).ToArray();
         double[] C = Enumerable.Range(1, 50).Select(i => 45.0 + i).ToArray();
         var axes = new Axes();
-        new Adx(H, L, C, period: 14)
+        new Adx(OhlcvBars.Hlc(H, L, C), period: 14)
         {
             PlusDiColor = Colors.Cyan,
             MinusDiColor = Colors.Magenta

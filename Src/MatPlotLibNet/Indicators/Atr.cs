@@ -13,8 +13,10 @@ public sealed class Atr : CandleIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new ATR indicator.</summary>
-    public Atr(double[] high, double[] low, double[] close, int period = 14)
-        : base(OhlcvBars.Hlc(high, low, close))
+    /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
+    /// <param name="period">Averaging period (default 14).</param>
+    public Atr(OhlcvBars bars, int period = 14)
+        : base(bars)
     {
         _period = period;
         Label = $"ATR({period})";

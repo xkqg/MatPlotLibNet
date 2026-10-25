@@ -37,7 +37,7 @@ public class YangZhangTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var yz = new YangZhang([], [], [], [], period: 5);
+        var yz = new YangZhang(OhlcvBars.Ohlc([], [], [], []), period: 5);
         Assert.Empty(yz.Compute().Values);
     }
 
@@ -47,8 +47,9 @@ public class YangZhangTests
     {
         // Exactly period bars — no bar available as prevClose for the first window bar
         var yz = new YangZhang(
-            [100.0, 101, 102, 103, 104], [101.0, 102, 103, 104, 105],
-            [99.0, 100, 101, 102, 103], [100.5, 101.5, 102.5, 103.5, 104.5], period: 5);
+            OhlcvBars.Ohlc(
+                [100.0, 101, 102, 103, 104], [101.0, 102, 103, 104, 105],
+                [99.0, 100, 101, 102, 103], [100.5, 101.5, 102.5, 103.5, 104.5]), period: 5);
         Assert.Empty(yz.Compute().Values);
     }
 
@@ -56,7 +57,7 @@ public class YangZhangTests
     public void Compute_LengthBelowPeriod_ReturnsEmpty()
     {
         var yz = new YangZhang(
-            [100.0, 101], [101.0, 102], [99.0, 100], [100.5, 101.5], period: 5);
+            OhlcvBars.Ohlc([100.0, 101], [101.0, 102], [99.0, 100], [100.5, 101.5]), period: 5);
         Assert.Empty(yz.Compute().Values);
     }
 
@@ -64,7 +65,7 @@ public class YangZhangTests
     [Fact]
     public void Compute_LengthEqualsPeriodPlusOne_ReturnsSingleWindow()
     {
-        var yz = new YangZhang(RefO, RefH, RefL, RefC, period: 5);
+        var yz = new YangZhang(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 5);
         Assert.Single(yz.Compute().Values);
     }
 
@@ -78,7 +79,7 @@ public class YangZhangTests
     public void Constructor_NonPositivePrice_Throws(double o, double h, double l, double c)
     {
         Assert.Throws<ArgumentException>(() =>
-            new YangZhang([o, 1, 1, 1, 1, 1], [h, 1, 1, 1, 1, 1], [l, 1, 1, 1, 1, 1], [c, 1, 1, 1, 1, 1], period: 5));
+            new YangZhang(OhlcvBars.Ohlc([o, 1, 1, 1, 1, 1], [h, 1, 1, 1, 1, 1], [l, 1, 1, 1, 1, 1], [c, 1, 1, 1, 1, 1]), period: 5));
     }
 
     // ── Branch 5 — All-flat window → 0.0, no NaN ──
@@ -86,7 +87,7 @@ public class YangZhangTests
     public void Compute_AllFlatWindow_ReturnsZero()
     {
         double[] flat = [100, 100, 100, 100, 100, 100, 100];
-        var yz = new YangZhang(flat, flat, flat, flat, period: 5);
+        var yz = new YangZhang(OhlcvBars.Ohlc(flat, flat, flat, flat), period: 5);
         var result = yz.Compute().Values;
         Assert.NotEmpty(result);
         Assert.All(result, v =>
@@ -101,16 +102,16 @@ public class YangZhangTests
     public void Constructor_PeriodBelowTwo_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new YangZhang(RefO, RefH, RefL, RefC, period: 1));
+            new YangZhang(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 1));
         Assert.Throws<ArgumentException>(() =>
-            new YangZhang(RefO, RefH, RefL, RefC, period: 0));
+            new YangZhang(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 0));
     }
 
     // ── Branch 7 — Normal multi-window path + known reference value ──
     [Fact]
     public void Compute_KnownVector_ApproxMatchesHandComputed()
     {
-        var yz = new YangZhang(RefO, RefH, RefL, RefC, period: 5);
+        var yz = new YangZhang(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 5);
         var result = yz.Compute().Values;
         Assert.Single(result);
         // Hand-computed σ_YZ ≈ 0.03421 (see class header comment for derivation).
@@ -125,7 +126,7 @@ public class YangZhangTests
         double[] h = [104, 107, 110, 113, 116, 119, 122, 125];
         double[] l = [98, 101, 104, 107, 110, 113, 116, 119];
         double[] c = [102, 105, 108, 111, 114, 117, 120, 123];
-        var yz = new YangZhang(o, h, l, c, period: 5);
+        var yz = new YangZhang(OhlcvBars.Ohlc(o, h, l, c), period: 5);
         var result = yz.Compute().Values;
         Assert.Equal(3, result.Length);
         Assert.All(result, v => Assert.False(double.IsNaN(v)));
@@ -140,7 +141,7 @@ public class YangZhangTests
         double[] h = [101, 102, 103];
         double[] l = [99, 100, 101];
         double[] c = [100.5, 101.5, 102.5];
-        var yz = new YangZhang(o, h, l, c, period: 2);
+        var yz = new YangZhang(OhlcvBars.Ohlc(o, h, l, c), period: 2);
         var result = yz.Compute().Values;
         Assert.Single(result);
         Assert.False(double.IsNaN(result[0]));
@@ -151,7 +152,7 @@ public class YangZhangTests
     public void Apply_AddsLineSeries()
     {
         var axes = new Axes();
-        new YangZhang(RefO, RefH, RefL, RefC, period: 5).Apply(axes);
+        new YangZhang(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 5).Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
@@ -160,7 +161,7 @@ public class YangZhangTests
     public void Apply_SetsExpectedLabel()
     {
         var axes = new Axes();
-        new YangZhang(RefO, RefH, RefL, RefC, period: 5).Apply(axes);
+        new YangZhang(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC), period: 5).Apply(axes);
         Assert.Equal("YZ(5)", axes.Series[0].Label);
     }
 
@@ -169,7 +170,7 @@ public class YangZhangTests
     {
         var o = new double[25]; var h = new double[25]; var l = new double[25]; var c = new double[25];
         for (int i = 0; i < 25; i++) { o[i] = 100; h[i] = 101; l[i] = 99; c[i] = 100; }
-        var yz = new YangZhang(o, h, l, c);
+        var yz = new YangZhang(OhlcvBars.Ohlc(o, h, l, c));
         Assert.Equal("YZ(20)", yz.Label);
     }
 
@@ -178,8 +179,8 @@ public class YangZhangTests
     public void InheritsCandleIndicator()
     {
         Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(
-            new YangZhang(RefO, RefH, RefL, RefC));
+            new YangZhang(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC)));
         Assert.IsAssignableFrom<IIndicator>(
-            new YangZhang(RefO, RefH, RefL, RefC));
+            new YangZhang(OhlcvBars.Ohlc(RefO, RefH, RefL, RefC)));
     }
 }

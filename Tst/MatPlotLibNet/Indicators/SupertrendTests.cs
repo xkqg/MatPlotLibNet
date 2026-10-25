@@ -19,7 +19,7 @@ public class SupertrendTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var r = new Supertrend([], [], []).Compute();
+        var r = new Supertrend(OhlcvBars.Hlc([], [], [])).Compute();
         Assert.Empty(r.Line);
         Assert.Empty(r.Direction);
         Assert.Empty(r.Flipped);
@@ -30,9 +30,9 @@ public class SupertrendTests
     public void Constructor_LengthMismatch_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new Supertrend([1.0, 2, 3], [1.0, 2], [1.0, 2, 3]));
+            new Supertrend(OhlcvBars.Hlc([1.0, 2, 3], [1.0, 2], [1.0, 2, 3])));
         Assert.Throws<ArgumentException>(() =>
-            new Supertrend([1.0, 2, 3], [1.0, 2, 3], [1.0, 2]));
+            new Supertrend(OhlcvBars.Hlc([1.0, 2, 3], [1.0, 2, 3], [1.0, 2])));
     }
 
     // ── Branch 3 — BarCount <= period → empty ──
@@ -40,7 +40,7 @@ public class SupertrendTests
     public void Compute_BarCountAtOrBelowPeriod_ReturnsEmpty()
     {
         // period=10 default, BarCount=10 → empty
-        var r = new Supertrend(Flat(100, 10), Flat(99, 10), Flat(99.5, 10)).Compute();
+        var r = new Supertrend(OhlcvBars.Hlc(Flat(100, 10), Flat(99, 10), Flat(99.5, 10))).Compute();
         Assert.Empty(r.Line);
     }
 
@@ -49,7 +49,7 @@ public class SupertrendTests
     public void Constructor_PeriodBelowOne_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new Supertrend(Ramp(101, 1, 20), Ramp(99, 1, 20), Ramp(100, 1, 20), period: 0));
+            new Supertrend(OhlcvBars.Hlc(Ramp(101, 1, 20), Ramp(99, 1, 20), Ramp(100, 1, 20)), period: 0));
     }
 
     // ── Branch 5 — multiplier <= 0 → throw ──
@@ -59,7 +59,7 @@ public class SupertrendTests
     public void Constructor_NonPositiveMultiplier_Throws(double mult)
     {
         Assert.Throws<ArgumentException>(() =>
-            new Supertrend(Ramp(101, 1, 20), Ramp(99, 1, 20), Ramp(100, 1, 20), multiplier: mult));
+            new Supertrend(OhlcvBars.Hlc(Ramp(101, 1, 20), Ramp(99, 1, 20), Ramp(100, 1, 20)), multiplier: mult));
     }
 
     // ── Branch 6 — Flat prices → direction stable (+1), line = midpoint − mult·ATR ──
@@ -71,7 +71,7 @@ public class SupertrendTests
         var h = Flat(101, n);
         var l = Flat(99, n);
         var c = Flat(100, n);
-        var r = new Supertrend(h, l, c, period: 10, multiplier: 3.0).Compute();
+        var r = new Supertrend(OhlcvBars.Hlc(h, l, c), period: 10, multiplier: 3.0).Compute();
         Assert.Equal(n - 10, r.Line.Length);
         Assert.All(r.Direction, d => Assert.Equal(+1, d));
         // First output bar never registers a flip (no predecessor).
@@ -86,7 +86,7 @@ public class SupertrendTests
         var h = Ramp(102, 1, n);
         var l = Ramp(98, 1, n);
         var c = Ramp(100, 1, n);
-        var r = new Supertrend(h, l, c, period: 10, multiplier: 3.0).Compute();
+        var r = new Supertrend(OhlcvBars.Hlc(h, l, c), period: 10, multiplier: 3.0).Compute();
         Assert.All(r.Direction, d => Assert.Equal(+1, d));
         // After the initial warmup bar, no flips should occur.
         for (int i = 1; i < r.Flipped.Length; i++) Assert.False(r.Flipped[i]);
@@ -108,7 +108,7 @@ public class SupertrendTests
             l[i] = mid - 1;
             c[i] = mid - 0.5;
         }
-        var r = new Supertrend(h, l, c, period: 10, multiplier: 1.5).Compute();
+        var r = new Supertrend(OhlcvBars.Hlc(h, l, c), period: 10, multiplier: 1.5).Compute();
         // Tail should be in downtrend.
         Assert.Equal(-1, r.Direction[^1]);
     }
@@ -134,7 +134,7 @@ public class SupertrendTests
             l[i] = 130 - (i - 30) * 3;
             c[i] = 135 - (i - 30) * 3;
         }
-        var r = new Supertrend(h, l, c, period: 10, multiplier: 2.0).Compute();
+        var r = new Supertrend(OhlcvBars.Hlc(h, l, c), period: 10, multiplier: 2.0).Compute();
         // At least one Flipped=true bar must exist (the crossover event).
         int flipCount = r.Flipped.Count(f => f);
         Assert.True(flipCount >= 1, "expected at least one direction flip");
@@ -155,7 +155,7 @@ public class SupertrendTests
             l[i] = 90;
             c[i] = 100 + (i % 3 - 1) * 0.1; // tiny jitter around 100
         }
-        var r = new Supertrend(h, l, c, period: 10, multiplier: 3.0).Compute();
+        var r = new Supertrend(OhlcvBars.Hlc(h, l, c), period: 10, multiplier: 3.0).Compute();
         // With tight close moves and wide bands, direction should be stable for most bars.
         int stableCount = 0;
         for (int i = 1; i < r.Direction.Length; i++)
@@ -172,7 +172,7 @@ public class SupertrendTests
         var h = Flat(101, n);
         var l = Flat(99, n);
         var c = Flat(100, n);
-        var r = new Supertrend(h, l, c, period: 10, multiplier: 3.0).Compute();
+        var r = new Supertrend(OhlcvBars.Hlc(h, l, c), period: 10, multiplier: 3.0).Compute();
         Assert.Equal(+1, r.Direction[0]);
         Assert.True(r.Line[0] < 100, $"expected initial line < close=100, got {r.Line[0]}");
     }
@@ -183,7 +183,7 @@ public class SupertrendTests
     {
         var axes = new Axes();
         int n = 30;
-        new Supertrend(Ramp(101, 1, n), Ramp(99, 1, n), Ramp(100, 1, n)).Apply(axes);
+        new Supertrend(OhlcvBars.Hlc(Ramp(101, 1, n), Ramp(99, 1, n), Ramp(100, 1, n))).Apply(axes);
         Assert.NotEmpty(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
@@ -191,14 +191,14 @@ public class SupertrendTests
     [Fact]
     public void DefaultLabel_HasPeriodAndMultiplier()
     {
-        var st = new Supertrend([1.0, 2], [1.0, 2], [1.0, 2]);
+        var st = new Supertrend(OhlcvBars.Hlc([1.0, 2], [1.0, 2], [1.0, 2]));
         Assert.Equal("ST(10,3)", st.Label);
     }
 
     [Fact]
     public void InheritsCandleIndicator()
     {
-        var st = new Supertrend([1.0, 2], [1.0, 2], [1.0, 2]);
+        var st = new Supertrend(OhlcvBars.Hlc([1.0, 2], [1.0, 2], [1.0, 2]));
         Assert.IsAssignableFrom<CandleIndicator<SupertrendResult>>(st);
         Assert.IsAssignableFrom<IIndicator>(st);
     }

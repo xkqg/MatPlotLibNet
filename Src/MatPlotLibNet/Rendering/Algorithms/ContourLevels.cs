@@ -9,17 +9,19 @@ namespace MatPlotLibNet.Rendering.Algorithms;
 /// filled contour fills the bands between them.</summary>
 internal static class ContourLevels
 {
-    /// <summary>The levels a user named, as a contour draws them: ascending, each once, and only those that can be drawn
-    /// (a level that is not a number, or infinite, has no place on any grid). Naming no level at all (<see langword="null"/>
-    /// or an empty list) means the user left it to the count, which is <see langword="null"/> here; naming levels of which
-    /// none can be drawn is an empty list, so the contour draws nothing instead of falling back to a count it was not
-    /// asked for. A level outside the range of the grid is kept: it simply crosses no cell.</summary>
-    /// <param name="levelValues">The levels the user named, in any order, or <see langword="null"/>.</param>
-    /// <returns>A new array of the levels to draw, or <see langword="null"/> when none were named.</returns>
-    internal static double[]? ExplicitLevels(this double[]? levelValues) =>
-        levelValues is null || levelValues.Length == 0
-            ? null
-            : [.. levelValues.Where(level => level.IsDrawable()).Distinct().Order()];
+    extension(double[]? levelValues)
+    {
+        /// <summary>The levels a user named, as a contour draws them: ascending, each once, and only those that can be drawn
+        /// (a level that is not a number, or infinite, has no place on any grid). Naming no level at all (<see langword="null"/>
+        /// or an empty list) means the user left it to the count, which is <see langword="null"/> here; naming levels of which
+        /// none can be drawn is an empty list, so the contour draws nothing instead of falling back to a count it was not
+        /// asked for. A level outside the range of the grid is kept: it simply crosses no cell.</summary>
+        /// <returns>A new array of the levels to draw, or <see langword="null"/> when none were named.</returns>
+        internal double[]? ExplicitLevels() =>
+            levelValues is null || levelValues.Length == 0
+                ? null
+                : [.. levelValues.Where(level => level.IsDrawable()).Distinct().Order()];
+    }
 
     /// <summary>The levels of a line contour that names none: <paramref name="count"/> levels spread evenly strictly
     /// between the ends of the range (a line at the lowest value would find every cell above it).</summary>

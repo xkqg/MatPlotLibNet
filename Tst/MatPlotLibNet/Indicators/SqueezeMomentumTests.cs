@@ -18,7 +18,7 @@ public class SqueezeMomentumTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var sq = new SqueezeMomentum([], [], [], period: 20);
+        var sq = new SqueezeMomentum(OhlcvBars.Hlc([], [], []), period: 20);
         var r = sq.Compute();
         Assert.Empty(r.SqueezeOn);
         Assert.Empty(r.Momentum);
@@ -29,7 +29,7 @@ public class SqueezeMomentumTests
     public void Constructor_LengthMismatch_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new SqueezeMomentum([100.0, 101], [99.0], [100.0, 100.5], period: 2));
+            new SqueezeMomentum(OhlcvBars.Hlc([100.0, 101], [99.0], [100.0, 100.5]), period: 2));
     }
 
     // ── Branch 3 — period <= 1 throws ──
@@ -40,7 +40,7 @@ public class SqueezeMomentumTests
     public void Constructor_PeriodBelowTwo_Throws(int period)
     {
         Assert.Throws<ArgumentException>(() =>
-            new SqueezeMomentum([102.0, 103], [100.0, 101], [101.0, 102], period));
+            new SqueezeMomentum(OhlcvBars.Hlc([102.0, 103], [100.0, 101], [101.0, 102]), period));
     }
 
     // ── Branch 4 — bbMult or kcMult <= 0 throws ──
@@ -53,7 +53,7 @@ public class SqueezeMomentumTests
     {
         Assert.Throws<ArgumentException>(() =>
             new SqueezeMomentum(
-                [102.0, 103, 104], [100.0, 101, 102], [101.0, 102, 103],
+                OhlcvBars.Hlc([102.0, 103, 104], [100.0, 101, 102], [101.0, 102, 103]),
                 period: 2, bbMult, kcMult));
     }
 
@@ -64,7 +64,7 @@ public class SqueezeMomentumTests
         int p = 3;
         var h = new double[p + 1]; var l = new double[p + 1]; var c = new double[p + 1];
         for (int i = 0; i < p + 1; i++) { h[i] = 101 + i; l[i] = 99 + i; c[i] = 100 + i; }
-        var sq = new SqueezeMomentum(h, l, c, period: p);
+        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p);
         var r = sq.Compute();
         Assert.Empty(r.Momentum);
     }
@@ -76,7 +76,7 @@ public class SqueezeMomentumTests
         int p = 3;
         var h = new double[p + 2]; var l = new double[p + 2]; var c = new double[p + 2];
         for (int i = 0; i < p + 2; i++) { h[i] = 101 + i; l[i] = 99 + i; c[i] = 100 + i; }
-        var sq = new SqueezeMomentum(h, l, c, period: p);
+        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p);
         var r = sq.Compute();
         Assert.Single(r.Momentum);
         Assert.Single(r.SqueezeOn);
@@ -89,7 +89,7 @@ public class SqueezeMomentumTests
         // Bar 1 has H=100 < L=101 → throw.
         Assert.Throws<ArgumentException>(() =>
             new SqueezeMomentum(
-                [101.0, 100], [99.0, 101], [100.0, 100.5], period: 2));
+                OhlcvBars.Hlc([101.0, 100], [99.0, 101], [100.0, 100.5]), period: 2));
     }
 
     // ── Branch 8 — Flat HLC → stddev=0, TR=0 → squeezeOn=false (strict <), momentum=0 ──
@@ -98,7 +98,7 @@ public class SqueezeMomentumTests
     {
         int p = 20;
         var flat = Flat(22, 100.0);
-        var sq = new SqueezeMomentum(flat, flat, flat, period: p);
+        var sq = new SqueezeMomentum(OhlcvBars.Hlc(flat, flat, flat), period: p);
         var r = sq.Compute();
         Assert.NotEmpty(r.Momentum);
         Assert.All(r.SqueezeOn, v => Assert.False(v));
@@ -120,7 +120,7 @@ public class SqueezeMomentumTests
         double[] c = [100, 100.1, 100, 100.1, 100, 100.1, 100];
         double[] h = [100.05, 100.15, 100.05, 100.15, 100.05, 100.15, 100.05];
         double[] l = [99.95, 100.05, 99.95, 100.05, 99.95, 100.05, 99.95];
-        var sq = new SqueezeMomentum(h, l, c, period: p, bbMult: 2.0, kcMult: 3.0);
+        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p, bbMult: 2.0, kcMult: 3.0);
         var r = sq.Compute();
         Assert.NotEmpty(r.SqueezeOn);
         // With kcMult=3 (wide KC) and stable small oscillation → expect BB inside KC.
@@ -137,7 +137,7 @@ public class SqueezeMomentumTests
         double[] h = [100.05, 100.05, 100.05, 100.05, 100.05, 100.05, 110, 115, 108, 113, 106, 112];
         double[] l = [99.95,  99.95,  99.95,  99.95,  99.95,  99.95,  90,  85,  92,  87,  94,  88];
         double[] c = [100,    100,    100,    100,    100,    100,    108, 88,  106, 89,  105, 90];
-        var sq = new SqueezeMomentum(h, l, c, period: p, bbMult: 2.0, kcMult: 1.0);
+        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p, bbMult: 2.0, kcMult: 1.0);
         var r = sq.Compute();
         Assert.Contains(r.SqueezeOn, v => v == true);
         Assert.Contains(r.SqueezeOn, v => v == false);
@@ -151,7 +151,7 @@ public class SqueezeMomentumTests
         double[] c = Enumerable.Range(0, 20).Select(i => 100.0 + i).ToArray();
         double[] h = c.Select(v => v + 0.5).ToArray();
         double[] l = c.Select(v => v - 0.5).ToArray();
-        var sq = new SqueezeMomentum(h, l, c, period: p);
+        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p);
         var r = sq.Compute();
         Assert.All(r.Momentum, v => Assert.True(v > 0, $"expected momentum > 0, got {v}"));
     }
@@ -164,7 +164,7 @@ public class SqueezeMomentumTests
         double[] c = Enumerable.Range(0, 20).Select(i => 120.0 - i).ToArray();
         double[] h = c.Select(v => v + 0.5).ToArray();
         double[] l = c.Select(v => v - 0.5).ToArray();
-        var sq = new SqueezeMomentum(h, l, c, period: p);
+        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p);
         var r = sq.Compute();
         Assert.All(r.Momentum, v => Assert.True(v < 0, $"expected momentum < 0, got {v}"));
     }
@@ -178,7 +178,7 @@ public class SqueezeMomentumTests
         double[] c = Enumerable.Range(0, 20).Select(i => 100.0 + i).ToArray();
         double[] h = c.Select(v => v + 0.5).ToArray();
         double[] l = c.Select(v => v - 0.5).ToArray();
-        new SqueezeMomentum(h, l, c, period: p).Apply(axes);
+        new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p).Apply(axes);
         Assert.NotEmpty(axes.Series);
     }
 
@@ -190,7 +190,7 @@ public class SqueezeMomentumTests
         double[] c = Enumerable.Range(0, 20).Select(i => 100.0 + i).ToArray();
         double[] h = c.Select(v => v + 0.5).ToArray();
         double[] l = c.Select(v => v - 0.5).ToArray();
-        new SqueezeMomentum(h, l, c, period: p).Apply(axes);
+        new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p).Apply(axes);
         Assert.Equal("Squeeze(5)", axes.Series[0].Label);
     }
 
@@ -200,7 +200,7 @@ public class SqueezeMomentumTests
         double[] c = Enumerable.Range(0, 25).Select(i => 100.0 + i).ToArray();
         double[] h = c.Select(v => v + 0.5).ToArray();
         double[] l = c.Select(v => v - 0.5).ToArray();
-        var sq = new SqueezeMomentum(h, l, c);
+        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c));
         Assert.Equal("Squeeze(20)", sq.Label);
     }
 
@@ -212,7 +212,7 @@ public class SqueezeMomentumTests
         double[] c = Enumerable.Range(0, 10).Select(i => 100.0 + i).ToArray();
         double[] h = c.Select(v => v + 0.5).ToArray();
         double[] l = c.Select(v => v - 0.5).ToArray();
-        var sq = new SqueezeMomentum(h, l, c, period: p);
+        var sq = new SqueezeMomentum(OhlcvBars.Hlc(h, l, c), period: p);
         Assert.IsAssignableFrom<CandleIndicator<SqueezeResult>>(sq);
         Assert.IsAssignableFrom<IIndicator>(sq);
     }

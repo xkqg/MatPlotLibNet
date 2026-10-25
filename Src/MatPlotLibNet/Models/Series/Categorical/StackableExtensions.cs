@@ -9,37 +9,38 @@ namespace MatPlotLibNet.Models.Series;
 /// in every foot and every end they give, so the picture and the range cannot stack differently.</summary>
 internal static class StackableExtensions
 {
-    /// <summary>Where each layer of a stack stands, column by column.</summary>
-    /// <param name="layers">The stackable series, bottom layer first.</param>
-    /// <returns>One array per layer, as long as the first layer: the sum of the layers below it in each column.</returns>
-    internal static double[][] StackedFeet(this IReadOnlyList<IStackable> layers)
+    extension(IReadOnlyList<IStackable> layers)
     {
-        var feet = new double[layers.Count][];
-        var cumulative = new double[layers.Count > 0 ? layers[0].Values.Length : 0];
-        for (int i = 0; i < layers.Count; i++)
+        /// <summary>Where each layer of a stack stands, column by column.</summary>
+        /// <returns>One array per layer, as long as the first layer: the sum of the layers below it in each column.</returns>
+        internal double[][] StackedFeet()
         {
-            feet[i] = (double[])cumulative.Clone();
-            for (int c = 0; c < Math.Min(cumulative.Length, layers[i].Values.Length); c++)
-                cumulative[c] += layers[i].Values[c];
+            var feet = new double[layers.Count][];
+            var cumulative = new double[layers.Count > 0 ? layers[0].Values.Length : 0];
+            for (int i = 0; i < layers.Count; i++)
+            {
+                feet[i] = (double[])cumulative.Clone();
+                for (int c = 0; c < Math.Min(cumulative.Length, layers[i].Values.Length); c++)
+                    cumulative[c] += layers[i].Values[c];
+            }
+
+            return feet;
         }
 
-        return feet;
-    }
-
-    /// <summary>Where each layer of a stack ends, column by column: its foot plus its own value, in the columns it has.</summary>
-    /// <param name="layers">The stackable series, bottom layer first.</param>
-    /// <returns>One array per layer, as long as the columns it holds a value in.</returns>
-    internal static double[][] StackedEnds(this IReadOnlyList<IStackable> layers)
-    {
-        var feet = layers.StackedFeet();
-        var ends = new double[layers.Count][];
-        for (int i = 0; i < layers.Count; i++)
+        /// <summary>Where each layer of a stack ends, column by column: its foot plus its own value, in the columns it has.</summary>
+        /// <returns>One array per layer, as long as the columns it holds a value in.</returns>
+        internal double[][] StackedEnds()
         {
-            ends[i] = new double[Math.Min(feet[i].Length, layers[i].Values.Length)];
-            for (int c = 0; c < ends[i].Length; c++)
-                ends[i][c] = feet[i][c] + layers[i].Values[c];
-        }
+            var feet = layers.StackedFeet();
+            var ends = new double[layers.Count][];
+            for (int i = 0; i < layers.Count; i++)
+            {
+                ends[i] = new double[Math.Min(feet[i].Length, layers[i].Values.Length)];
+                for (int c = 0; c < ends[i].Length; c++)
+                    ends[i][c] = feet[i][c] + layers[i].Values[c];
+            }
 
-        return ends;
+            return ends;
+        }
     }
 }

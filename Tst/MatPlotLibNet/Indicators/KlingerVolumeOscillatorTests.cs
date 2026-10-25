@@ -19,7 +19,7 @@ public class KlingerVolumeOscillatorTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var k = new KlingerVolumeOscillator([], [], [], []);
+        var k = new KlingerVolumeOscillator(OhlcvBars.Hlcv([], [], [], []));
         var r = k.Compute();
         Assert.Empty(r.Kvo);
         Assert.Empty(r.Signal);
@@ -30,18 +30,18 @@ public class KlingerVolumeOscillatorTests
     public void Constructor_LengthMismatch_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new KlingerVolumeOscillator([1.0, 2, 3], [1, 2], [1.0, 2, 3], [1.0, 2, 3]));
+            new KlingerVolumeOscillator(OhlcvBars.Hlcv([1.0, 2, 3], [1, 2], [1.0, 2, 3], [1.0, 2, 3])));
         Assert.Throws<ArgumentException>(() =>
-            new KlingerVolumeOscillator([1.0, 2, 3], [1.0, 2, 3], [1.0, 2], [1.0, 2, 3]));
+            new KlingerVolumeOscillator(OhlcvBars.Hlcv([1.0, 2, 3], [1.0, 2, 3], [1.0, 2], [1.0, 2, 3])));
         Assert.Throws<ArgumentException>(() =>
-            new KlingerVolumeOscillator([1.0, 2, 3], [1.0, 2, 3], [1.0, 2, 3], [1.0, 2]));
+            new KlingerVolumeOscillator(OhlcvBars.Hlcv([1.0, 2, 3], [1.0, 2, 3], [1.0, 2, 3], [1.0, 2])));
     }
 
     // ── Branch 3 — BarCount < 2 → empty ──
     [Fact]
     public void Compute_BarCountBelowTwo_ReturnsEmpty()
     {
-        var k = new KlingerVolumeOscillator([100.0], [99.0], [99.5], [1000.0]);
+        var k = new KlingerVolumeOscillator(OhlcvBars.Hlcv([100.0], [99.0], [99.5], [1000.0]));
         var r = k.Compute();
         Assert.Empty(r.Kvo);
         Assert.Empty(r.Signal);
@@ -54,7 +54,7 @@ public class KlingerVolumeOscillatorTests
     public void Constructor_FastPeriodBelowTwo_Throws(int fast)
     {
         Assert.Throws<ArgumentException>(() =>
-            new KlingerVolumeOscillator(Ramp(100, 1, 5), Ramp(99, 1, 5), Ramp(99.5, 1, 5), Flat(1000, 5),
+            new KlingerVolumeOscillator(OhlcvBars.Hlcv(Ramp(100, 1, 5), Ramp(99, 1, 5), Ramp(99.5, 1, 5), Flat(1000, 5)),
                 fastPeriod: fast));
     }
 
@@ -65,7 +65,7 @@ public class KlingerVolumeOscillatorTests
     public void Constructor_SlowNotGreaterThanFast_Throws(int fast, int slow)
     {
         Assert.Throws<ArgumentException>(() =>
-            new KlingerVolumeOscillator(Ramp(100, 1, 5), Ramp(99, 1, 5), Ramp(99.5, 1, 5), Flat(1000, 5),
+            new KlingerVolumeOscillator(OhlcvBars.Hlcv(Ramp(100, 1, 5), Ramp(99, 1, 5), Ramp(99.5, 1, 5), Flat(1000, 5)),
                 fastPeriod: fast, slowPeriod: slow));
     }
 
@@ -74,7 +74,7 @@ public class KlingerVolumeOscillatorTests
     public void Constructor_SignalPeriodBelowOne_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new KlingerVolumeOscillator(Ramp(100, 1, 5), Ramp(99, 1, 5), Ramp(99.5, 1, 5), Flat(1000, 5),
+            new KlingerVolumeOscillator(OhlcvBars.Hlcv(Ramp(100, 1, 5), Ramp(99, 1, 5), Ramp(99.5, 1, 5), Flat(1000, 5)),
                 fastPeriod: 2, slowPeriod: 3, signalPeriod: 0));
     }
 
@@ -84,7 +84,7 @@ public class KlingerVolumeOscillatorTests
     {
         int n = 100;
         var r = new KlingerVolumeOscillator(
-            Flat(100, n), Flat(100, n), Flat(100, n), Flat(1000, n)).Compute();
+            OhlcvBars.Hlcv(Flat(100, n), Flat(100, n), Flat(100, n), Flat(1000, n))).Compute();
         Assert.Equal(n - 1, r.Kvo.Length);
         Assert.Equal(n - 1, r.Signal.Length);
         Assert.All(r.Kvo, v => Assert.Equal(0.0, v, precision: 10));
@@ -101,7 +101,7 @@ public class KlingerVolumeOscillatorTests
         var l = new double[] { 100, 101, 102, 103, 104, 105, 106, 107 };
         var c = new double[] { 100, 101, 102, 103, 104, 105, 106, 107 };
         var v = Flat(1000, 8);
-        var r = new KlingerVolumeOscillator(h, l, c, v, fastPeriod: 2, slowPeriod: 3, signalPeriod: 2).Compute();
+        var r = new KlingerVolumeOscillator(OhlcvBars.Hlcv(h, l, c, v), fastPeriod: 2, slowPeriod: 3, signalPeriod: 2).Compute();
         Assert.Equal(7, r.Kvo.Length);
         Assert.All(r.Kvo, x =>
         {
@@ -129,7 +129,7 @@ public class KlingerVolumeOscillatorTests
             c[i] = mid;
         }
         var vol = Flat(1000, n);
-        var r = new KlingerVolumeOscillator(h, l, c, vol,
+        var r = new KlingerVolumeOscillator(OhlcvBars.Hlcv(h, l, c, vol),
             fastPeriod: 3, slowPeriod: 5, signalPeriod: 3).Compute();
 
         Assert.Equal(n - 1, r.Kvo.Length);
@@ -157,7 +157,7 @@ public class KlingerVolumeOscillatorTests
         var l = Ramp(99, 1, n);
         var c = Ramp(100, 1, n);
         var v = Flat(1000, n);
-        var r = new KlingerVolumeOscillator(h, l, c, v,
+        var r = new KlingerVolumeOscillator(OhlcvBars.Hlcv(h, l, c, v),
             fastPeriod: 5, slowPeriod: 13, signalPeriod: 5).Compute();
 
         // Tail portion should have positive KVO (sustained up-trend → positive VF → positive EMAs diff).
@@ -173,7 +173,7 @@ public class KlingerVolumeOscillatorTests
     {
         var axes = new Axes();
         int n = 30;
-        new KlingerVolumeOscillator(Ramp(101, 1, n), Ramp(99, 1, n), Ramp(100, 1, n), Flat(1000, n))
+        new KlingerVolumeOscillator(OhlcvBars.Hlcv(Ramp(101, 1, n), Ramp(99, 1, n), Ramp(100, 1, n), Flat(1000, n)))
             .Apply(axes);
         Assert.Equal(2, axes.Series.Count);
         Assert.All(axes.Series, s => Assert.IsType<LineSeries>(s));
@@ -184,7 +184,7 @@ public class KlingerVolumeOscillatorTests
     {
         var axes = new Axes();
         int n = 30;
-        new KlingerVolumeOscillator(Ramp(101, 1, n), Ramp(99, 1, n), Ramp(100, 1, n), Flat(1000, n))
+        new KlingerVolumeOscillator(OhlcvBars.Hlcv(Ramp(101, 1, n), Ramp(99, 1, n), Ramp(100, 1, n), Flat(1000, n)))
             .Apply(axes);
         Assert.Equal("KVO", axes.Series[0].Label);
         Assert.Equal("Signal", axes.Series[1].Label);
@@ -193,14 +193,14 @@ public class KlingerVolumeOscillatorTests
     [Fact]
     public void DefaultLabel_HasPeriodSignature()
     {
-        var k = new KlingerVolumeOscillator([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]);
+        var k = new KlingerVolumeOscillator(OhlcvBars.Hlcv([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]));
         Assert.Equal("KVO(34/55/13)", k.Label);
     }
 
     [Fact]
     public void InheritsCandleIndicator()
     {
-        var k = new KlingerVolumeOscillator([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]);
+        var k = new KlingerVolumeOscillator(OhlcvBars.Hlcv([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]));
         Assert.IsAssignableFrom<CandleIndicator<KlingerResult>>(k);
         Assert.IsAssignableFrom<IIndicator>(k);
     }

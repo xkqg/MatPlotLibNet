@@ -17,22 +17,21 @@ public sealed class Vpin : CandleIndicator<SignalResult>
     private readonly int _sigmaPeriod;
 
     /// <summary>Creates a new VPIN indicator.</summary>
-    /// <param name="close">Close prices (strictly positive).</param>
-    /// <param name="volume">Volume per bar (same length as close).</param>
+    /// <param name="bars">Close (strictly positive) and Volume; built via <see cref="OhlcvBars.Cv"/>.</param>
     /// <param name="bucketPeriod">Rolling VPIN bucket length (default 50).</param>
     /// <param name="sigmaPeriod">Rolling return-std normalization window (default 50).</param>
-    public Vpin(double[] close, double[] volume, int bucketPeriod = 50, int sigmaPeriod = 50)
-        : base(OhlcvBars.Cv(close, volume))
+    public Vpin(OhlcvBars bars, int bucketPeriod = 50, int sigmaPeriod = 50)
+        : base(bars)
     {
         if (bucketPeriod <= 0)
             throw new ArgumentException($"bucketPeriod must be > 0 (got {bucketPeriod}).", nameof(bucketPeriod));
         if (sigmaPeriod <= 0)
             throw new ArgumentException($"sigmaPeriod must be > 0 (got {sigmaPeriod}).", nameof(sigmaPeriod));
-        for (int i = 0; i < close.Length; i++)
+        for (int i = 0; i < bars.Close.Length; i++)
         {
-            if (close[i] <= 0)
+            if (bars.Close[i] <= 0)
                 throw new ArgumentException(
-                    $"Vpin requires strictly positive close; bar {i} has {close[i]}.", nameof(close));
+                    $"Vpin requires strictly positive close; bar {i} has {bars.Close[i]}.", nameof(bars));
         }
         _bucketPeriod = bucketPeriod;
         _sigmaPeriod = sigmaPeriod;

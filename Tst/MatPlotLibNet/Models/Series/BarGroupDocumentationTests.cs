@@ -22,6 +22,13 @@ public class BarGroupDocumentationTests
         || (type.IsArray && type.GetElementType() == typeof(BarGroup))
         || (type.IsGenericType && type.GetGenericArguments().Contains(typeof(BarGroup)));
 
+    /// <summary>A C# 14 <c>extension(T){ }</c> member's reflected <see cref="MethodInfo.DeclaringType"/> is a
+    /// compiler-synthesized nested skeleton type (named <c>&lt;G&gt;$&lt;hash&gt;</c>), not the class the block is
+    /// written in. The outer, user-written type — the one a doc comment's <c>&lt;see cref&gt;</c> names — is one
+    /// <see cref="Type.DeclaringType"/> up.</summary>
+    private static Type UserWrittenDeclaringType(MethodInfo method) =>
+        method.DeclaringType!.IsNested ? method.DeclaringType.DeclaringType! : method.DeclaringType;
+
     /// <summary>Every public method of the library that takes a <see cref="BarGroup"/>, alone, in an array or in a list. The
     /// record's own members (its equality) take one too, and are not verbs.</summary>
     private static HashSet<Verb> VerbsThatTakeAGroup() =>
@@ -29,7 +36,7 @@ public class BarGroupDocumentationTests
             .Where(type => type != typeof(BarGroup))
             .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             .Where(method => method.GetParameters().Any(parameter => TakesGroups(parameter.ParameterType)))
-            .Select(method => new Verb(method.DeclaringType!.FullName!, method.Name))];
+            .Select(method => new Verb(UserWrittenDeclaringType(method).FullName!, method.Name))];
 
     /// <summary>The methods the summary of <see cref="BarGroup"/> refers to, as the XML documentation of the library has them.</summary>
     private static HashSet<Verb> VerbsTheSummaryNames()

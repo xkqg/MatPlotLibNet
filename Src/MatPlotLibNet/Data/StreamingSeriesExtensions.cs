@@ -10,35 +10,41 @@ namespace MatPlotLibNet.Data;
 /// on System.Reactive — only <see cref="IObservable{T}"/> (built into .NET) is used.</summary>
 public static class StreamingSeriesExtensions
 {
-    /// <summary>Subscribes a streaming XY series to an observable source of
-    /// <see cref="StreamingPoint"/> samples. Each emitted point is appended to the series via
-    /// <see cref="IStreamingSeries.AppendPoint"/>. Errors and completion are silently absorbed.</summary>
-    /// <param name="series">Target streaming series whose ring buffer receives the samples.</param>
-    /// <param name="source">Observable source of <see cref="StreamingPoint"/> values.</param>
-    /// <returns>A disposable subscription handle — dispose to stop forwarding samples.</returns>
-    public static IDisposable SubscribeTo(this IStreamingSeries series, IObservable<StreamingPoint> source)
+    extension(IStreamingSeries series)
     {
-        return source.Subscribe(new XYObserver(series));
+        /// <summary>Subscribes a streaming XY series to an observable source of
+        /// <see cref="StreamingPoint"/> samples. Each emitted point is appended to the series via
+        /// <see cref="IStreamingSeries.AppendPoint"/>. Errors and completion are silently absorbed.</summary>
+        /// <param name="source">Observable source of <see cref="StreamingPoint"/> values.</param>
+        /// <returns>A disposable subscription handle — dispose to stop forwarding samples.</returns>
+        public IDisposable SubscribeTo(IObservable<StreamingPoint> source)
+        {
+            return source.Subscribe(new XYObserver(series));
+        }
     }
 
-    /// <summary>Subscribes a streaming OHLC series to an observable source of
-    /// <see cref="OhlcBar"/> values. Errors and completion are silently absorbed.</summary>
-    /// <param name="series">Target streaming OHLC series whose ring buffer receives the bars.</param>
-    /// <param name="source">Observable source of <see cref="OhlcBar"/> values.</param>
-    /// <returns>A disposable subscription handle — dispose to stop forwarding bars.</returns>
-    public static IDisposable SubscribeTo(this IStreamingOhlcSeries series, IObservable<OhlcBar> source)
+    extension(IStreamingOhlcSeries series)
     {
-        return source.Subscribe(new OhlcObserver(series));
+        /// <summary>Subscribes a streaming OHLC series to an observable source of
+        /// <see cref="OhlcBar"/> values. Errors and completion are silently absorbed.</summary>
+        /// <param name="source">Observable source of <see cref="OhlcBar"/> values.</param>
+        /// <returns>A disposable subscription handle — dispose to stop forwarding bars.</returns>
+        public IDisposable SubscribeTo(IObservable<OhlcBar> source)
+        {
+            return source.Subscribe(new OhlcObserver(series));
+        }
     }
 
-    /// <summary>Subscribes a streaming signal series to an observable source of scalar Y
-    /// samples. Errors and completion are silently absorbed.</summary>
-    /// <param name="series">Target streaming signal series whose ring buffer receives the samples.</param>
-    /// <param name="source">Observable source of scalar Y values.</param>
-    /// <returns>A disposable subscription handle — dispose to stop forwarding samples.</returns>
-    public static IDisposable SubscribeTo(this StreamingSignalSeries series, IObservable<double> source)
+    extension(StreamingSignalSeries series)
     {
-        return source.Subscribe(new SignalObserver(series));
+        /// <summary>Subscribes a streaming signal series to an observable source of scalar Y
+        /// samples. Errors and completion are silently absorbed.</summary>
+        /// <param name="source">Observable source of scalar Y values.</param>
+        /// <returns>A disposable subscription handle — dispose to stop forwarding samples.</returns>
+        public IDisposable SubscribeTo(IObservable<double> source)
+        {
+            return source.Subscribe(new SignalObserver(series));
+        }
     }
 
     private sealed class XYObserver(IStreamingSeries series) : IObserver<StreamingPoint>

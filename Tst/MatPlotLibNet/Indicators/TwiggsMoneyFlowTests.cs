@@ -19,7 +19,7 @@ public class TwiggsMoneyFlowTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var tmf = new TwiggsMoneyFlow([], [], [], []);
+        var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv([], [], [], []));
         Assert.Empty(tmf.Compute().Values);
     }
 
@@ -28,14 +28,14 @@ public class TwiggsMoneyFlowTests
     public void Constructor_LengthMismatch_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new TwiggsMoneyFlow([1.0, 2], [1.0, 2, 3], [1.0, 2], [1.0, 2]));
+            new TwiggsMoneyFlow(OhlcvBars.Hlcv([1.0, 2], [1.0, 2, 3], [1.0, 2], [1.0, 2])));
     }
 
     // ── Branch 3 — BarCount < 2 → empty ──
     [Fact]
     public void Compute_SingleBar_ReturnsEmpty()
     {
-        var tmf = new TwiggsMoneyFlow([100.0], [99.0], [99.5], [1000.0]);
+        var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv([100.0], [99.0], [99.5], [1000.0]));
         Assert.Empty(tmf.Compute().Values);
     }
 
@@ -46,7 +46,7 @@ public class TwiggsMoneyFlowTests
     public void Constructor_PeriodBelowTwo_Throws(int period)
     {
         Assert.Throws<ArgumentException>(() =>
-            new TwiggsMoneyFlow(Flat(100, 5), Flat(100, 5), Flat(100, 5), Flat(1000, 5), period));
+            new TwiggsMoneyFlow(OhlcvBars.Hlcv(Flat(100, 5), Flat(100, 5), Flat(100, 5), Flat(1000, 5)), period));
     }
 
     // ── Branch 5 — Flat prices + positive volume → TR = 0 → AD = 0 → TMF = 0 ──
@@ -54,7 +54,7 @@ public class TwiggsMoneyFlowTests
     public void Compute_FlatPricesPositiveVolume_ReturnsZero()
     {
         int n = 50;
-        var tmf = new TwiggsMoneyFlow(Flat(100, n), Flat(100, n), Flat(100, n), Flat(1000, n), period: 10)
+        var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv(Flat(100, n), Flat(100, n), Flat(100, n), Flat(1000, n)), period: 10)
             .Compute().Values;
         Assert.Equal(n - 1, tmf.Length);
         Assert.All(tmf, v => Assert.Equal(0.0, v, precision: 10));
@@ -65,7 +65,7 @@ public class TwiggsMoneyFlowTests
     public void Compute_ZeroVolume_NoDivisionByZero()
     {
         int n = 30;
-        var tmf = new TwiggsMoneyFlow(Flat(100, n), Flat(100, n), Flat(100, n), Flat(0, n), period: 10)
+        var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv(Flat(100, n), Flat(100, n), Flat(100, n), Flat(0, n)), period: 10)
             .Compute().Values;
         Assert.Equal(n - 1, tmf.Length);
         Assert.All(tmf, v =>
@@ -85,7 +85,7 @@ public class TwiggsMoneyFlowTests
         var low = Ramp(98, 1, n);
         var close = Ramp(102, 1, n); // C == H → (2C - TH - TL) / TR = (2C - max(H,pC) - min(L,pC)) / TR → (C - pC) / TR-ish
         // After warmup, TMF should trend strongly positive.
-        var tmf = new TwiggsMoneyFlow(high, low, close, Flat(1000, n), period: 10).Compute().Values;
+        var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv(high, low, close, Flat(1000, n)), period: 10).Compute().Values;
         Assert.True(tmf[^1] > 0.5, $"expected tail TMF > 0.5 on close-at-TH, got {tmf[^1]}");
     }
 
@@ -98,7 +98,7 @@ public class TwiggsMoneyFlowTests
         var high = Enumerable.Range(0, n).Select(i => 200.0 - i).ToArray();
         var low = Enumerable.Range(0, n).Select(i => 196.0 - i).ToArray();
         var close = low;                                                       // C at low extreme
-        var tmf = new TwiggsMoneyFlow(high, low, close, Flat(1000, n), period: 10).Compute().Values;
+        var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv(high, low, close, Flat(1000, n)), period: 10).Compute().Values;
         Assert.True(tmf[^1] < -0.5, $"expected tail TMF < -0.5 on close-at-TL, got {tmf[^1]}");
     }
 
@@ -117,7 +117,7 @@ public class TwiggsMoneyFlowTests
             c[i] = mid + rng.NextDouble() - 0.5;
             v[i] = 1000 + rng.NextDouble() * 500;
         }
-        var tmf = new TwiggsMoneyFlow(h, l, c, v, period: 10).Compute().Values;
+        var tmf = new TwiggsMoneyFlow(OhlcvBars.Hlcv(h, l, c, v), period: 10).Compute().Values;
         Assert.Equal(n - 1, tmf.Length);
         Assert.All(tmf, x =>
         {
@@ -133,7 +133,7 @@ public class TwiggsMoneyFlowTests
     {
         var axes = new Axes();
         int n = 30;
-        new TwiggsMoneyFlow(Ramp(101, 1, n), Ramp(99, 1, n), Ramp(100, 1, n), Flat(1000, n)).Apply(axes);
+        new TwiggsMoneyFlow(OhlcvBars.Hlcv(Ramp(101, 1, n), Ramp(99, 1, n), Ramp(100, 1, n), Flat(1000, n))).Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
         Assert.Equal(-1, axes.YAxis.Min);
@@ -143,14 +143,14 @@ public class TwiggsMoneyFlowTests
     [Fact]
     public void DefaultLabel_HasPeriod()
     {
-        var t = new TwiggsMoneyFlow([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]);
+        var t = new TwiggsMoneyFlow(OhlcvBars.Hlcv([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]));
         Assert.Equal("TMF(21)", t.Label);
     }
 
     [Fact]
     public void InheritsCandleIndicator()
     {
-        var t = new TwiggsMoneyFlow([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]);
+        var t = new TwiggsMoneyFlow(OhlcvBars.Hlcv([1.0, 2], [1.0, 2], [1.0, 2], [1.0, 2]));
         Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(t);
         Assert.IsAssignableFrom<IIndicator>(t);
     }

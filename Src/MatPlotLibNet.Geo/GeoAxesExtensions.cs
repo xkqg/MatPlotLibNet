@@ -15,80 +15,83 @@ namespace MatPlotLibNet.Geo;
 /// Provides a cartopy-like API: <c>ax.WithProjection(Robinson).Coastlines().Borders()</c>.</summary>
 public static class GeoAxesExtensions
 {
-    /// <summary>Sets the map projection for this axes and configures it for geographic display
-    /// (hides standard axes chrome). Subsequent calls to <see cref="Coastlines"/>, <see cref="Borders"/>,
-    /// <see cref="Ocean"/>, and <see cref="Land"/> use the projection passed to those methods.</summary>
-    public static AxesBuilder WithProjection(this AxesBuilder ax, IGeoProjection projection)
+    extension(AxesBuilder ax)
     {
-        ax.HideAllAxes();
-        return ax;
-    }
-
-    /// <summary>Adds Natural Earth 110m coastlines to the axes. Coastlines are LineString
-    /// geometries — <paramref name="color"/> sets the stroke color (default: black).</summary>
-    public static AxesBuilder Coastlines(this AxesBuilder ax, IGeoProjection projection,
-        Color? color = null, double lineWidth = 0.5)
-    {
-        var features = NaturalEarth110m.Coastlines();
-        var series = new GeoPolygonSeries(features, projection)
+        /// <summary>Sets the map projection for this axes and configures it for geographic display
+        /// (hides standard axes chrome). Subsequent calls to <see cref="Coastlines"/>, <see cref="Borders"/>,
+        /// <see cref="Ocean"/>, and <see cref="Land"/> use the projection passed to those methods.</summary>
+        public AxesBuilder WithProjection(IGeoProjection projection)
         {
-            StrokeColor = color ?? Colors.Black,
-            StrokeWidth = lineWidth,
-            Label = "Coastlines"
-        };
-        return ax.AddSeries(series);
-    }
+            ax.HideAllAxes();
+            return ax;
+        }
 
-    /// <summary>Adds Natural Earth 110m country borders to the axes. <paramref name="color"/>
-    /// sets the stroke color (default: gray).</summary>
-    public static AxesBuilder Borders(this AxesBuilder ax, IGeoProjection projection,
-        Color? color = null, double lineWidth = 0.3)
-    {
-        var features = NaturalEarth110m.Countries();
-        var series = new GeoPolygonSeries(features, projection)
+        /// <summary>Adds Natural Earth 110m coastlines to the axes. Coastlines are LineString
+        /// geometries — <paramref name="color"/> sets the stroke color (default: black).</summary>
+        public AxesBuilder Coastlines(IGeoProjection projection,
+            Color? color = null, double lineWidth = 0.5)
         {
-            StrokeColor = color ?? Colors.Gray,
-            StrokeWidth = lineWidth,
-            Label = "Borders"
-        };
-        return ax.AddSeries(series);
-    }
-
-    /// <summary>Fills ocean areas with the specified color. Ocean is rendered as a single
-    /// polygon spanning the full projection bounds (drawn first so land/coastlines layer on top).</summary>
-    public static AxesBuilder Ocean(this AxesBuilder ax, IGeoProjection projection, Color color)
-    {
-        var bounds = projection.Bounds;
-        var oceanFeature = new GeoFeature(
-            new GeoGeometry
+            var features = NaturalEarth110m.Coastlines();
+            var series = new GeoPolygonSeries(features, projection)
             {
-                Type = "Polygon",
-                Rings = [[(bounds.XMin, bounds.YMin), (bounds.XMax, bounds.YMin),
-                          (bounds.XMax, bounds.YMax), (bounds.XMin, bounds.YMax),
-                          (bounds.XMin, bounds.YMin)]]
-            },
-            new Dictionary<string, string>());
+                StrokeColor = color ?? Colors.Black,
+                StrokeWidth = lineWidth,
+                Label = "Coastlines"
+            };
+            return ax.AddSeries(series);
+        }
 
-        var series = new GeoPolygonSeries([oceanFeature], projection)
+        /// <summary>Adds Natural Earth 110m country borders to the axes. <paramref name="color"/>
+        /// sets the stroke color (default: gray).</summary>
+        public AxesBuilder Borders(IGeoProjection projection,
+            Color? color = null, double lineWidth = 0.3)
         {
-            Color = color,
-            Label = "Ocean",
-            ZOrder = -2,  // behind everything
-            IsRawProjected = true,  // ring uses projected (X, Y), not (lon, lat)
-        };
-        return ax.AddSeries(series);
-    }
+            var features = NaturalEarth110m.Countries();
+            var series = new GeoPolygonSeries(features, projection)
+            {
+                StrokeColor = color ?? Colors.Gray,
+                StrokeWidth = lineWidth,
+                Label = "Borders"
+            };
+            return ax.AddSeries(series);
+        }
 
-    /// <summary>Fills land areas with the specified color using country polygons.</summary>
-    public static AxesBuilder Land(this AxesBuilder ax, IGeoProjection projection, Color color)
-    {
-        var features = NaturalEarth110m.Countries();
-        var series = new GeoPolygonSeries(features, projection)
+        /// <summary>Fills ocean areas with the specified color. Ocean is rendered as a single
+        /// polygon spanning the full projection bounds (drawn first so land/coastlines layer on top).</summary>
+        public AxesBuilder Ocean(IGeoProjection projection, Color color)
         {
-            Color = color,
-            Label = "Land",
-            ZOrder = -1,  // above ocean, below coastlines/borders
-        };
-        return ax.AddSeries(series);
+            var bounds = projection.Bounds;
+            var oceanFeature = new GeoFeature(
+                new GeoGeometry
+                {
+                    Type = "Polygon",
+                    Rings = [[(bounds.XMin, bounds.YMin), (bounds.XMax, bounds.YMin),
+                              (bounds.XMax, bounds.YMax), (bounds.XMin, bounds.YMax),
+                              (bounds.XMin, bounds.YMin)]]
+                },
+                new Dictionary<string, string>());
+
+            var series = new GeoPolygonSeries([oceanFeature], projection)
+            {
+                Color = color,
+                Label = "Ocean",
+                ZOrder = -2,  // behind everything
+                IsRawProjected = true,  // ring uses projected (X, Y), not (lon, lat)
+            };
+            return ax.AddSeries(series);
+        }
+
+        /// <summary>Fills land areas with the specified color using country polygons.</summary>
+        public AxesBuilder Land(IGeoProjection projection, Color color)
+        {
+            var features = NaturalEarth110m.Countries();
+            var series = new GeoPolygonSeries(features, projection)
+            {
+                Color = color,
+                Label = "Land",
+                ZOrder = -1,  // above ocean, below coastlines/borders
+            };
+            return ax.AddSeries(series);
+        }
     }
 }

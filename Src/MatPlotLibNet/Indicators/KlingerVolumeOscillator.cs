@@ -18,16 +18,12 @@ public sealed class KlingerVolumeOscillator : CandleIndicator<KlingerResult>
     private readonly int _signalPeriod;
 
     /// <summary>Creates a new Klinger Volume Oscillator.</summary>
-    /// <param name="high">High prices.</param>
-    /// <param name="low">Low prices.</param>
-    /// <param name="close">Close prices.</param>
-    /// <param name="volume">Volume per bar.</param>
+    /// <param name="bars">High, Low, Close and Volume; built via <see cref="OhlcvBars.Hlcv"/>.</param>
     /// <param name="fastPeriod">Fast EMA span for volume-force smoothing. Default 34. Must be ≥ 2.</param>
     /// <param name="slowPeriod">Slow EMA span. Default 55. Must be &gt; <paramref name="fastPeriod"/>.</param>
     /// <param name="signalPeriod">EMA span for the signal line. Default 13. Must be ≥ 1.</param>
-    public KlingerVolumeOscillator(double[] high, double[] low, double[] close, double[] volume,
-        int fastPeriod = 34, int slowPeriod = 55, int signalPeriod = 13)
-        : base(OhlcvBars.Hlcv(high, low, close, volume))
+    public KlingerVolumeOscillator(OhlcvBars bars, int fastPeriod = 34, int slowPeriod = 55, int signalPeriod = 13)
+        : base(bars)
     {
         if (fastPeriod < 2)
             throw new ArgumentException($"fastPeriod must be >= 2 (got {fastPeriod}).", nameof(fastPeriod));

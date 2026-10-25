@@ -15,13 +15,10 @@ public sealed class TwiggsMoneyFlow : CandleIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new Twiggs Money Flow indicator.</summary>
-    /// <param name="high">High prices.</param>
-    /// <param name="low">Low prices.</param>
-    /// <param name="close">Close prices.</param>
-    /// <param name="volume">Volume per bar.</param>
+    /// <param name="bars">High, Low, Close and Volume; built via <see cref="OhlcvBars.Hlcv"/>.</param>
     /// <param name="period">Wilder smoothing period. Default 21. Must be ≥ 2.</param>
-    public TwiggsMoneyFlow(double[] high, double[] low, double[] close, double[] volume, int period = 21)
-        : base(OhlcvBars.Hlcv(high, low, close, volume))
+    public TwiggsMoneyFlow(OhlcvBars bars, int period = 21)
+        : base(bars)
     {
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));

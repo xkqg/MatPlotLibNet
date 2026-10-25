@@ -17,7 +17,7 @@ public class VwapZScoreTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var z = new VwapZScore([], []);
+        var z = new VwapZScore(OhlcvBars.Cv([], []));
         Assert.Empty(z.Compute().Values);
     }
 
@@ -26,14 +26,14 @@ public class VwapZScoreTests
     public void Constructor_LengthMismatch_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new VwapZScore([1.0, 2, 3], [1000.0, 1000]));
+            new VwapZScore(OhlcvBars.Cv([1.0, 2, 3], [1000.0, 1000])));
     }
 
     // ── Branch 3 — BarCount < window → empty ──
     [Fact]
     public void Compute_BarCountBelowWindow_ReturnsEmpty()
     {
-        var z = new VwapZScore(Flat(100, 5), Flat(1000, 5), window: 20);
+        var z = new VwapZScore(OhlcvBars.Cv(Flat(100, 5), Flat(1000, 5)), window: 20);
         Assert.Empty(z.Compute().Values);
     }
 
@@ -42,7 +42,7 @@ public class VwapZScoreTests
     public void Compute_BarCountEqualsWindow_ReturnsSingleValue()
     {
         // BarCount=window → single window → one output. With flat input it's 0.
-        var z = new VwapZScore(Flat(100, 20), Flat(1000, 20), window: 20).Compute().Values;
+        var z = new VwapZScore(OhlcvBars.Cv(Flat(100, 20), Flat(1000, 20)), window: 20).Compute().Values;
         Assert.Single(z);
         Assert.Equal(0.0, z[0], precision: 10);
     }
@@ -54,7 +54,7 @@ public class VwapZScoreTests
     public void Constructor_WindowBelowTwo_Throws(int window)
     {
         Assert.Throws<ArgumentException>(() =>
-            new VwapZScore(Flat(100, 30), Flat(1000, 30), window));
+            new VwapZScore(OhlcvBars.Cv(Flat(100, 30), Flat(1000, 30)), window));
     }
 
     // ── Branch 6 — Zero total volume in window → VWAP guard → Z = 0 ──
@@ -62,7 +62,7 @@ public class VwapZScoreTests
     public void Compute_ZeroVolume_NoDivisionByZero()
     {
         int n = 30;
-        var z = new VwapZScore(Flat(100, n), Flat(0, n), window: 10).Compute().Values;
+        var z = new VwapZScore(OhlcvBars.Cv(Flat(100, n), Flat(0, n)), window: 10).Compute().Values;
         Assert.Equal(n - 10 + 1, z.Length);
         Assert.All(z, x =>
         {
@@ -77,7 +77,7 @@ public class VwapZScoreTests
     public void Compute_ConstantPrice_ReturnsZero()
     {
         int n = 50;
-        var z = new VwapZScore(Flat(100, n), Flat(1000, n), window: 10).Compute().Values;
+        var z = new VwapZScore(OhlcvBars.Cv(Flat(100, n), Flat(1000, n)), window: 10).Compute().Values;
         Assert.Equal(n - 10 + 1, z.Length);
         Assert.All(z, v => Assert.Equal(0.0, v, precision: 10));
     }
@@ -92,7 +92,7 @@ public class VwapZScoreTests
         int n = 60;
         var rng = new Random(3);
         var c = Enumerable.Range(0, n).Select(i => 100.0 + i + (rng.NextDouble() - 0.5) * 0.5).ToArray();
-        var z = new VwapZScore(c, Flat(1000, n), window: 20).Compute().Values;
+        var z = new VwapZScore(OhlcvBars.Cv(c, Flat(1000, n)), window: 20).Compute().Values;
         Assert.True(z[^1] > 0, $"expected positive Z on upward drift tail, got {z[^1]}");
     }
 
@@ -104,7 +104,7 @@ public class VwapZScoreTests
         var c = new double[n];
         for (int i = 0; i < n - 1; i++) c[i] = 100.0;
         c[n - 1] = 150.0;                                // sudden jump on the last bar
-        var z = new VwapZScore(c, Flat(1000, n), window: 20).Compute().Values;
+        var z = new VwapZScore(OhlcvBars.Cv(c, Flat(1000, n)), window: 20).Compute().Values;
         Assert.True(Math.Abs(z[^1]) > 1.0, $"expected |Z| > 1 on dislocation, got {z[^1]}");
     }
 
@@ -121,7 +121,7 @@ public class VwapZScoreTests
             c[i] = 100 + i + rng.NextDouble();
             v[i] = 1000 + rng.NextDouble() * 500;
         }
-        var z = new VwapZScore(c, v, window: 20).Compute().Values;
+        var z = new VwapZScore(OhlcvBars.Cv(c, v), window: 20).Compute().Values;
         Assert.Equal(n - 20 + 1, z.Length);
         Assert.All(z, x =>
         {
@@ -136,7 +136,7 @@ public class VwapZScoreTests
     {
         var axes = new Axes();
         int n = 30;
-        new VwapZScore(Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray(), Flat(1000, n))
+        new VwapZScore(OhlcvBars.Cv(Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray(), Flat(1000, n)))
             .Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
@@ -145,14 +145,14 @@ public class VwapZScoreTests
     [Fact]
     public void DefaultLabel_HasWindow()
     {
-        var z = new VwapZScore([1.0, 2], [1000.0, 1000]);
+        var z = new VwapZScore(OhlcvBars.Cv([1.0, 2], [1000.0, 1000]));
         Assert.Equal("VwapZ(20)", z.Label);
     }
 
     [Fact]
     public void InheritsCandleIndicator()
     {
-        var z = new VwapZScore([1.0, 2], [1000.0, 1000]);
+        var z = new VwapZScore(OhlcvBars.Cv([1.0, 2], [1000.0, 1000]));
         Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(z);
         Assert.IsAssignableFrom<IIndicator>(z);
     }

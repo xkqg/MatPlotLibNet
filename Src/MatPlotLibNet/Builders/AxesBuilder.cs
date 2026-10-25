@@ -1197,9 +1197,9 @@ public sealed class AxesBuilder
     }
 
     /// <summary>Adds a Williams %R panel indicator.</summary>
-    public AxesBuilder WilliamsR(double[] high, double[] low, double[] close, int period = 14, Action<Indicators.WilliamsR>? configure = null)
+    public AxesBuilder WilliamsR(Indicators.OhlcvBars bars, int period = 14, Action<Indicators.WilliamsR>? configure = null)
     {
-        var indicator = new Indicators.WilliamsR(high, low, close, period);
+        var indicator = new Indicators.WilliamsR(bars, period);
         return ApplyIndicator(indicator, configure);
     }
 
@@ -1211,9 +1211,9 @@ public sealed class AxesBuilder
     }
 
     /// <summary>Adds a Commodity Channel Index panel indicator.</summary>
-    public AxesBuilder Cci(double[] high, double[] low, double[] close, int period = 20, Action<Indicators.Cci>? configure = null)
+    public AxesBuilder Cci(Indicators.OhlcvBars bars, int period = 20, Action<Indicators.Cci>? configure = null)
     {
-        var indicator = new Indicators.Cci(high, low, close, period);
+        var indicator = new Indicators.Cci(bars, period);
         return ApplyIndicator(indicator, configure);
     }
 
@@ -1225,18 +1225,16 @@ public sealed class AxesBuilder
     }
 
     /// <summary>Adds a Garman-Klass volatility panel indicator.</summary>
-    public AxesBuilder GarmanKlass(double[] open, double[] high, double[] low, double[] close,
-                                   int period = 20, Action<Indicators.GarmanKlass>? configure = null)
+    public AxesBuilder GarmanKlass(Indicators.OhlcvBars bars, int period = 20, Action<Indicators.GarmanKlass>? configure = null)
     {
-        var indicator = new Indicators.GarmanKlass(open, high, low, close, period);
+        var indicator = new Indicators.GarmanKlass(bars, period);
         return ApplyIndicator(indicator, configure);
     }
 
     /// <summary>Adds a Yang-Zhang volatility panel indicator.</summary>
-    public AxesBuilder YangZhang(double[] open, double[] high, double[] low, double[] close,
-                                 int period = 20, Action<Indicators.YangZhang>? configure = null)
+    public AxesBuilder YangZhang(Indicators.OhlcvBars bars, int period = 20, Action<Indicators.YangZhang>? configure = null)
     {
-        var indicator = new Indicators.YangZhang(open, high, low, close, period);
+        var indicator = new Indicators.YangZhang(bars, period);
         return ApplyIndicator(indicator, configure);
     }
 
@@ -1265,27 +1263,27 @@ public sealed class AxesBuilder
     }
 
     /// <summary>Adds an Amihud illiquidity panel indicator.</summary>
-    public AxesBuilder AmihudIlliquidity(double[] close, double[] volume, int period = 20,
+    public AxesBuilder AmihudIlliquidity(Indicators.OhlcvBars bars, int period = 20,
         Action<Indicators.AmihudIlliquidity>? configure = null)
     {
-        var indicator = new Indicators.AmihudIlliquidity(close, volume, period);
+        var indicator = new Indicators.AmihudIlliquidity(bars, period);
         return ApplyIndicator(indicator, configure);
     }
 
     /// <summary>Adds a Corwin-Schultz bid-ask-spread panel indicator.</summary>
-    public AxesBuilder CorwinSchultz(double[] high, double[] low, int period = 20,
+    public AxesBuilder CorwinSchultz(Indicators.OhlcvBars bars, int period = 20,
         Action<Indicators.CorwinSchultz>? configure = null)
     {
-        var indicator = new Indicators.CorwinSchultz(high, low, period);
+        var indicator = new Indicators.CorwinSchultz(bars, period);
         return ApplyIndicator(indicator, configure);
     }
 
     /// <summary>Adds a VPIN (Volume-Synchronized Probability of Informed Trading) panel indicator.
     /// Output bounded to [0, 1].</summary>
-    public AxesBuilder Vpin(double[] close, double[] volume, int bucketPeriod = 50, int sigmaPeriod = 50,
+    public AxesBuilder Vpin(Indicators.OhlcvBars bars, int bucketPeriod = 50, int sigmaPeriod = 50,
         Action<Indicators.Vpin>? configure = null)
     {
-        var indicator = new Indicators.Vpin(close, volume, bucketPeriod, sigmaPeriod);
+        var indicator = new Indicators.Vpin(bars, bucketPeriod, sigmaPeriod);
         return ApplyIndicator(indicator, configure);
     }
 
@@ -1314,11 +1312,11 @@ public sealed class AxesBuilder
     }
 
     /// <summary>Adds a Squeeze Momentum (LazyBear) panel indicator.</summary>
-    public AxesBuilder SqueezeMomentum(double[] high, double[] low, double[] close,
+    public AxesBuilder SqueezeMomentum(Indicators.OhlcvBars bars,
         int period = 20, double bbMult = 2.0, double kcMult = 1.5,
         Action<Indicators.SqueezeMomentum>? configure = null)
     {
-        var indicator = new Indicators.SqueezeMomentum(high, low, close, period, bbMult, kcMult);
+        var indicator = new Indicators.SqueezeMomentum(bars, period, bbMult, kcMult);
         return ApplyIndicator(indicator, configure);
     }
 
@@ -1401,36 +1399,36 @@ public sealed class AxesBuilder
     }
 
     /// <summary>Adds an Ehlers Adaptive Stochastic panel indicator. Output in [0, 100].</summary>
-    public AxesBuilder AdaptiveStochastic(double[] high, double[] low, double[] close,
+    public AxesBuilder AdaptiveStochastic(Indicators.OhlcvBars bars,
         int smoothingPeriod = 3,
         Action<Indicators.AdaptiveStochastic>? configure = null)
     {
-        var indicator = new Indicators.AdaptiveStochastic(high, low, close, smoothingPeriod);
+        var indicator = new Indicators.AdaptiveStochastic(bars, smoothingPeriod);
         return ApplyIndicator(indicator, configure);
     }
 
     /// <summary>Adds an Aroon Oscillator panel indicator (Chande 1995). Output in [-100, 100].</summary>
-    public AxesBuilder AroonOscillator(double[] high, double[] low, int period = 25,
+    public AxesBuilder AroonOscillator(Indicators.OhlcvBars bars, int period = 25,
         Action<Indicators.AroonOscillator>? configure = null)
     {
-        var indicator = new Indicators.AroonOscillator(high, low, period);
+        var indicator = new Indicators.AroonOscillator(bars, period);
         return ApplyIndicator(indicator, configure);
     }
 
     /// <summary>Adds an Elder Force Index panel indicator (Elder 1993). Signed momentum.</summary>
-    public AxesBuilder ForceIndex(double[] close, double[] volume, int period = 13,
+    public AxesBuilder ForceIndex(Indicators.OhlcvBars bars, int period = 13,
         Action<Indicators.ForceIndex>? configure = null)
     {
-        var indicator = new Indicators.ForceIndex(close, volume, period);
+        var indicator = new Indicators.ForceIndex(bars, period);
         return ApplyIndicator(indicator, configure);
     }
 
     /// <summary>Adds a Relative Vigor Index panel indicator (Ehlers 2002). Two lines (RVI + Signal).</summary>
-    public AxesBuilder RelativeVigorIndex(double[] open, double[] high, double[] low, double[] close,
+    public AxesBuilder RelativeVigorIndex(Indicators.OhlcvBars bars,
         int period = 10,
         Action<Indicators.RelativeVigorIndex>? configure = null)
     {
-        var indicator = new Indicators.RelativeVigorIndex(open, high, low, close, period);
+        var indicator = new Indicators.RelativeVigorIndex(bars, period);
         return ApplyIndicator(indicator, configure);
     }
 
@@ -1438,43 +1436,42 @@ public sealed class AxesBuilder
 
     /// <summary>Adds an Ease of Movement panel indicator (Arms 1975). Signed — positive =
     /// price rises easily on light volume (accumulation), negative = easy decline.</summary>
-    public AxesBuilder EaseOfMovement(double[] high, double[] low, double[] volume,
+    public AxesBuilder EaseOfMovement(Indicators.OhlcvBars bars,
         int period = 14, double scale = 1_000_000,
         Action<Indicators.EaseOfMovement>? configure = null)
     {
-        var indicator = new Indicators.EaseOfMovement(high, low, volume, period, scale);
+        var indicator = new Indicators.EaseOfMovement(bars, period, scale);
         return ApplyIndicator(indicator, configure);
     }
 
     /// <summary>Adds a Klinger Volume Oscillator panel indicator (Klinger 1977). Two lines —
     /// KVO (fast EMA − slow EMA of volume force) + Signal (EMA of KVO). Crossovers are the
     /// standard buy / sell trigger.</summary>
-    public AxesBuilder KlingerVolumeOscillator(double[] high, double[] low, double[] close, double[] volume,
+    public AxesBuilder KlingerVolumeOscillator(Indicators.OhlcvBars bars,
         int fastPeriod = 34, int slowPeriod = 55, int signalPeriod = 13,
         Action<Indicators.KlingerVolumeOscillator>? configure = null)
     {
-        var indicator = new Indicators.KlingerVolumeOscillator(high, low, close, volume,
-            fastPeriod, slowPeriod, signalPeriod);
+        var indicator = new Indicators.KlingerVolumeOscillator(bars, fastPeriod, slowPeriod, signalPeriod);
         return ApplyIndicator(indicator, configure);
     }
 
     /// <summary>Adds a Twiggs Money Flow panel indicator (Twiggs 2002). Output bounded in
     /// <c>[-1, 1]</c>; positive = accumulation, negative = distribution.</summary>
-    public AxesBuilder TwiggsMoneyFlow(double[] high, double[] low, double[] close, double[] volume,
+    public AxesBuilder TwiggsMoneyFlow(Indicators.OhlcvBars bars,
         int period = 21,
         Action<Indicators.TwiggsMoneyFlow>? configure = null)
     {
-        var indicator = new Indicators.TwiggsMoneyFlow(high, low, close, volume, period);
+        var indicator = new Indicators.TwiggsMoneyFlow(bars, period);
         return ApplyIndicator(indicator, configure);
     }
 
     /// <summary>Adds a VWAP Z-Score panel indicator — standardised deviation from the rolling
     /// volume-weighted average price. Mean-reversion signal; extremes beyond ±2σ mark
     /// dislocations from fair value.</summary>
-    public AxesBuilder VwapZScore(double[] close, double[] volume, int window = 20,
+    public AxesBuilder VwapZScore(Indicators.OhlcvBars bars, int window = 20,
         Action<Indicators.VwapZScore>? configure = null)
     {
-        var indicator = new Indicators.VwapZScore(close, volume, window);
+        var indicator = new Indicators.VwapZScore(bars, window);
         return ApplyIndicator(indicator, configure);
     }
 
@@ -1501,22 +1498,22 @@ public sealed class AxesBuilder
 
     /// <summary>Adds a Supertrend overlay (Seban 2008) — ATR-based trailing stop with direction
     /// flips. Renders as a single line below price in uptrends, above price in downtrends.</summary>
-    public AxesBuilder Supertrend(double[] high, double[] low, double[] close,
+    public AxesBuilder Supertrend(Indicators.OhlcvBars bars,
         int period = 10, double multiplier = 3.0,
         Action<Indicators.Supertrend>? configure = null)
     {
-        var indicator = new Indicators.Supertrend(high, low, close, period, multiplier);
+        var indicator = new Indicators.Supertrend(bars, period, multiplier);
         return ApplyIndicator(indicator, configure);
     }
 
     /// <summary>Adds a Yang-Zhang volatility ratio panel — <c>short-window YZ / long-window YZ</c>.
     /// Ratio &gt; 1 = vol expansion (possible breakout); &lt; 1 = consolidation. Reuses
     /// <see cref="Indicators.YangZhang"/> for both numerator and denominator.</summary>
-    public AxesBuilder YangZhangVolRatio(double[] open, double[] high, double[] low, double[] close,
+    public AxesBuilder YangZhangVolRatio(Indicators.OhlcvBars bars,
         int shortWindow = 20, int longWindow = 60,
         Action<Indicators.YangZhangVolRatio>? configure = null)
     {
-        var indicator = new Indicators.YangZhangVolRatio(open, high, low, close, shortWindow, longWindow);
+        var indicator = new Indicators.YangZhangVolRatio(bars, shortWindow, longWindow);
         return ApplyIndicator(indicator, configure);
     }
 

@@ -28,14 +28,17 @@ public enum HeatmapMaskMode
 /// <summary>Geometric predicate extension for <see cref="HeatmapMaskMode"/>.</summary>
 public static class HeatmapMaskModeExtensions
 {
-    /// <summary>Returns <see langword="true"/> when the cell at (<paramref name="row"/>, <paramref name="col"/>)
-    /// should be hidden under this mask mode.</summary>
-    public static bool Hides(this HeatmapMaskMode mode, int row, int col) => mode switch
+    extension(HeatmapMaskMode mode)
     {
-        HeatmapMaskMode.UpperTriangle        => col > row,
-        HeatmapMaskMode.LowerTriangle        => col < row,
-        HeatmapMaskMode.UpperTriangleStrict  => col >= row,
-        HeatmapMaskMode.LowerTriangleStrict  => col <= row,
-        _                                    => false,
-    };
+        /// <summary>Returns <see langword="true"/> when the cell at (<paramref name="row"/>, <paramref name="col"/>)
+        /// should be hidden under this mask mode.</summary>
+        public bool Hides(int row, int col) => mode switch
+        {
+            HeatmapMaskMode.UpperTriangle        => col > row,
+            HeatmapMaskMode.LowerTriangle        => col < row,
+            HeatmapMaskMode.UpperTriangleStrict  => col >= row,
+            HeatmapMaskMode.LowerTriangleStrict  => col <= row,
+            _                                    => false,
+        };
+    }
 }

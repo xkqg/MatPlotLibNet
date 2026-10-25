@@ -20,7 +20,7 @@ public class BranchCoverage_IndicatorsTests
     {
         // Adx is the canonical CandleIndicator<SignalResult> subclass — short data triggers
         // the base-class warm-up early-return that pinpoint coverage flagged unhit.
-        var adx = new Adx([1, 2], [0.5, 1.5], [0.7, 1.7], period: 14);
+        var adx = new Adx(OhlcvBars.Hlc([1, 2], [0.5, 1.5], [0.7, 1.7]), period: 14);
         double[] result = adx.Compute();
         Assert.Empty(result);
     }
@@ -29,7 +29,7 @@ public class BranchCoverage_IndicatorsTests
     [Fact] public void Ichimoku_ShortClose_ApplyEarlyReturns()
     {
         var axes = new Axes();
-        new Ichimoku([1, 2, 3], [0.5, 1.5, 2.5], [0.7, 1.7, 2.7], senkouBPeriod: 52).Apply(axes);
+        new Ichimoku(OhlcvBars.Hlc([1, 2, 3], [0.5, 1.5, 2.5], [0.7, 1.7, 2.7]), senkouBPeriod: 52).Apply(axes);
         // Apply early-returns with no series added.
         Assert.Empty(axes.Series);
     }
@@ -47,7 +47,7 @@ public class BranchCoverage_IndicatorsTests
     [Fact] public void WilliamsR_ShortData_ApplyEarlyReturns()
     {
         var axes = new Axes();
-        new WilliamsR([1, 2], [0.5, 1.5], [0.7, 1.7], period: 14).Apply(axes);
+        new WilliamsR(OhlcvBars.Hlc([1, 2], [0.5, 1.5], [0.7, 1.7]), period: 14).Apply(axes);
         Assert.Empty(axes.Series);
     }
 
@@ -291,7 +291,7 @@ public class BranchCoverage_IndicatorsTests
         double[] C = Enumerable.Range(1, 10).Select(i => (double)(45 + i)).ToArray();
         try
         {
-            var ich = new Ichimoku(H, L, C, tenkanPeriod: 2, kijunPeriod: 26, senkouBPeriod: 52);
+            var ich = new Ichimoku(OhlcvBars.Hlc(H, L, C), tenkanPeriod: 2, kijunPeriod: 26, senkouBPeriod: 52);
             ich.Compute();
         }
         catch (OverflowException) { /* second branch hits ComputeDonchianMid early-return */ }
@@ -320,7 +320,7 @@ public class BranchCoverage_IndicatorsTests
     {
         // Flat OHLC → DM components are all zero → the ternary fallbacks fire.
         double[] flat = Enumerable.Repeat(50.0, 30).ToArray();
-        var adx = new Adx(flat, flat, flat, period: 14);
+        var adx = new Adx(OhlcvBars.Hlc(flat, flat, flat), period: 14);
         var result = adx.Compute();
         Assert.NotNull(result);
     }

@@ -11,37 +11,38 @@ namespace MatPlotLibNet.Serialization;
 /// series cannot carry its own copy of it.</summary>
 internal static class HierarchicalSeriesExtensions
 {
-    /// <summary><paramref name="dto"/> with the settings every hierarchical series draws filled in; a setting at its
-    /// resting value is left out, so a series nobody configured writes the bytes it wrote before.</summary>
-    /// <param name="series">The series being written.</param>
-    /// <param name="dto">The DTO holding the settings the series' own type adds.</param>
-    internal static SeriesDto DescribeSharedSettings(this HierarchicalSeries series, SeriesDto dto) => dto with
+    extension(HierarchicalSeries series)
     {
-        ColorMapName = series.ColorMap.NameForJson(),
-        ColorMap = series.ColorMap.DescriptionForJson(),
-        VMin = series.VMin,
-        VMax = series.VMax,
-        ShowLabels = series.ShowLabels ? null : false,
-        Normalizer = series.DescribeNormalizer(),
-        // The tree itself (JSON-roundtrip plan, cluster A) — one line here carries it for every hierarchical
-        // series at once, the same economy this extension already gives the settings above.
-        TreeRoot = series.Root.TreeNodeToDto(),
-    };
-
-    /// <summary>Gives <paramref name="series"/> the settings <paramref name="dto"/> carries; one the DTO does not carry
-    /// leaves the series at the value it was created with.</summary>
-    /// <param name="series">The series being read back.</param>
-    /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
-    internal static void RestoreSharedSettings(this HierarchicalSeries series, SeriesDto dto)
-    {
-        series.RestoreColorMap(dto);
-        series.VMin = dto.VMin;
-        series.VMax = dto.VMax;
-        if (dto.ShowLabels.HasValue)
+        /// <summary><paramref name="dto"/> with the settings every hierarchical series draws filled in; a setting at its
+        /// resting value is left out, so a series nobody configured writes the bytes it wrote before.</summary>
+        /// <param name="dto">The DTO holding the settings the series' own type adds.</param>
+        internal SeriesDto DescribeSharedSettings(SeriesDto dto) => dto with
         {
-            series.ShowLabels = dto.ShowLabels.Value;
-        }
+            ColorMapName = series.ColorMap.NameForJson(),
+            ColorMap = series.ColorMap.DescriptionForJson(),
+            VMin = series.VMin,
+            VMax = series.VMax,
+            ShowLabels = series.ShowLabels ? null : false,
+            Normalizer = series.DescribeNormalizer(),
+            // The tree itself (JSON-roundtrip plan, cluster A) — one line here carries it for every hierarchical
+            // series at once, the same economy this extension already gives the settings above.
+            TreeRoot = series.Root.TreeNodeToDto(),
+        };
 
-        series.RestoreNormalizer(dto);
+        /// <summary>Gives <paramref name="series"/> the settings <paramref name="dto"/> carries; one the DTO does not carry
+        /// leaves the series at the value it was created with.</summary>
+        /// <param name="dto">The serialization DTO carrying the series' persisted properties.</param>
+        internal void RestoreSharedSettings(SeriesDto dto)
+        {
+            series.RestoreColorMap(dto);
+            series.VMin = dto.VMin;
+            series.VMax = dto.VMax;
+            if (dto.ShowLabels.HasValue)
+            {
+                series.ShowLabels = dto.ShowLabels.Value;
+            }
+
+            series.RestoreNormalizer(dto);
+        }
     }
 }

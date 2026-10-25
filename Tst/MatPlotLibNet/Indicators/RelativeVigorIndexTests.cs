@@ -14,7 +14,7 @@ public class RelativeVigorIndexTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var r = new RelativeVigorIndex([], [], [], [], period: 5).Compute();
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc([], [], [], []), period: 5).Compute();
         Assert.Empty(r.Rvi);
         Assert.Empty(r.Signal);
     }
@@ -24,7 +24,7 @@ public class RelativeVigorIndexTests
     public void Constructor_LengthMismatch_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new RelativeVigorIndex([100.0, 101], [102.0], [99.0, 100], [100.5, 100.8], period: 2));
+            new RelativeVigorIndex(OhlcvBars.Ohlc([100.0, 101], [102.0], [99.0, 100], [100.5, 100.8]), period: 2));
     }
 
     // ── Branch 3 — period < 2 throws ──
@@ -36,7 +36,7 @@ public class RelativeVigorIndexTests
     {
         var a = Enumerable.Repeat(100.0, 10).ToArray();
         Assert.Throws<ArgumentException>(() =>
-            new RelativeVigorIndex(a, a, a, a, p));
+            new RelativeVigorIndex(OhlcvBars.Ohlc(a, a, a, a), p));
     }
 
     // ── Branch 4 — BarCount <= period + 3 → empty (insufficient for weighted-smooth + SMA) ──
@@ -45,7 +45,7 @@ public class RelativeVigorIndexTests
     {
         // period=5 → need > period + 5 = 10 bars for full RVI+Signal output; 7 < 8 = period+3.
         var a = Enumerable.Repeat(100.0, 7).ToArray();
-        var r = new RelativeVigorIndex(a, a, a, a, period: 5).Compute();
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(a, a, a, a), period: 5).Compute();
         Assert.Empty(r.Rvi);
         Assert.Empty(r.Signal);
     }
@@ -55,7 +55,7 @@ public class RelativeVigorIndexTests
     public void Compute_FlatOhlc_RviAndSignalAllZero()
     {
         var a = Enumerable.Repeat(100.0, 30).ToArray();
-        var r = new RelativeVigorIndex(a, a, a, a, period: 5).Compute();
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(a, a, a, a), period: 5).Compute();
         Assert.NotEmpty(r.Rvi);
         Assert.NotEmpty(r.Signal);
         Assert.All(r.Rvi, v =>
@@ -81,7 +81,7 @@ public class RelativeVigorIndexTests
             o[i] = 100; c[i] = 100; // Close == Open
             h[i] = 101; l[i] = 99;  // H > L
         }
-        var r = new RelativeVigorIndex(o, h, l, c, period: 5).Compute();
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(o, h, l, c), period: 5).Compute();
         Assert.All(r.Rvi, v => Assert.Equal(0.0, v, precision: 12));
     }
 
@@ -98,7 +98,7 @@ public class RelativeVigorIndexTests
             h[i] = o[i] + 1.0;
             l[i] = o[i] - 0.2;
         }
-        var r = new RelativeVigorIndex(o, h, l, c, period: 5).Compute();
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(o, h, l, c), period: 5).Compute();
         Assert.NotEmpty(r.Rvi);
         // Tail values should all be > 0 after smoothing settles.
         for (int i = r.Rvi.Length - 5; i < r.Rvi.Length; i++)
@@ -118,7 +118,7 @@ public class RelativeVigorIndexTests
             h[i] = o[i] + 0.2;
             l[i] = o[i] - 1.0;
         }
-        var r = new RelativeVigorIndex(o, h, l, c, period: 5).Compute();
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(o, h, l, c), period: 5).Compute();
         Assert.NotEmpty(r.Rvi);
         for (int i = r.Rvi.Length - 5; i < r.Rvi.Length; i++)
             Assert.True(r.Rvi[i] < 0, $"bar {i} RVI = {r.Rvi[i]}, expected < 0");
@@ -134,7 +134,7 @@ public class RelativeVigorIndexTests
         var l = Enumerable.Repeat(100.0, n).ToArray();
         var o = Enumerable.Repeat(100.0, n).ToArray();
         var c = Enumerable.Range(0, n).Select(i => 100.0 + 0.01 * i).ToArray();
-        var r = new RelativeVigorIndex(o, h, l, c, period: 5).Compute();
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(o, h, l, c), period: 5).Compute();
         // All Den = 0 → RVI forced to 0 by guard → Signal = 0.
         Assert.All(r.Rvi, v =>
         {
@@ -158,7 +158,7 @@ public class RelativeVigorIndexTests
             h[i] = Math.Max(o[i], c[i]) + rng.NextDouble();
             l[i] = Math.Min(o[i], c[i]) - rng.NextDouble();
         }
-        var r = new RelativeVigorIndex(o, h, l, c, period: 10).Compute();
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(o, h, l, c), period: 10).Compute();
         Assert.All(r.Rvi, v =>
         {
             Assert.False(double.IsNaN(v));
@@ -177,7 +177,7 @@ public class RelativeVigorIndexTests
     {
         var axes = new Axes();
         var a = Enumerable.Repeat(100.0, 30).ToArray();
-        new RelativeVigorIndex(a, a, a, a, period: 5).Apply(axes);
+        new RelativeVigorIndex(OhlcvBars.Ohlc(a, a, a, a), period: 5).Apply(axes);
         Assert.Equal(2, axes.Series.Count);
     }
 
@@ -186,7 +186,7 @@ public class RelativeVigorIndexTests
     {
         var axes = new Axes();
         var a = Enumerable.Repeat(100.0, 30).ToArray();
-        new RelativeVigorIndex(a, a, a, a, period: 5).Apply(axes);
+        new RelativeVigorIndex(OhlcvBars.Ohlc(a, a, a, a), period: 5).Apply(axes);
         Assert.Equal("RVI", axes.Series[0].Label);
         Assert.Equal("Signal", axes.Series[1].Label);
     }
@@ -195,7 +195,7 @@ public class RelativeVigorIndexTests
     public void ConstructorLabel_IncludesPeriod()
     {
         var a = Enumerable.Repeat(100.0, 10).ToArray();
-        var r = new RelativeVigorIndex(a, a, a, a, period: 10);
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(a, a, a, a), period: 10);
         Assert.Equal("RVI(10)", r.Label);
     }
 
@@ -203,7 +203,7 @@ public class RelativeVigorIndexTests
     public void DefaultPeriod_IsTen()
     {
         var a = Enumerable.Repeat(100.0, 10).ToArray();
-        var r = new RelativeVigorIndex(a, a, a, a);
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(a, a, a, a));
         Assert.Equal("RVI(10)", r.Label);
     }
 
@@ -211,7 +211,7 @@ public class RelativeVigorIndexTests
     public void InheritsCandleIndicator()
     {
         var a = Enumerable.Repeat(100.0, 10).ToArray();
-        var r = new RelativeVigorIndex(a, a, a, a, period: 5);
+        var r = new RelativeVigorIndex(OhlcvBars.Ohlc(a, a, a, a), period: 5);
         Assert.IsAssignableFrom<CandleIndicator<RviResult>>(r);
         Assert.IsAssignableFrom<IIndicator>(r);
     }

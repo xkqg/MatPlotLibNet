@@ -17,18 +17,15 @@ public sealed class YangZhang : CandleIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new Yang-Zhang volatility indicator.</summary>
-    /// <param name="open">Open prices (strictly positive).</param>
-    /// <param name="high">High prices (strictly positive).</param>
-    /// <param name="low">Low prices (strictly positive).</param>
-    /// <param name="close">Close prices (strictly positive).</param>
+    /// <param name="bars">Open, High, Low and Close (all strictly positive); built via <see cref="OhlcvBars.Ohlc"/>.</param>
     /// <param name="period">Rolling window length. Must be ≥ 2 (k formula has (N−1) in denominator).</param>
     /// <exception cref="ArgumentException">Thrown when period &lt; 2 or any input bar has a non-positive price.</exception>
-    public YangZhang(double[] open, double[] high, double[] low, double[] close, int period = 20)
-        : base(OhlcvBars.Ohlc(open, high, low, close))
+    public YangZhang(OhlcvBars bars, int period = 20)
+        : base(bars)
     {
         if (period < 2)
             throw new ArgumentException($"YangZhang period must be >= 2 (got {period}); k formula has (N-1) in denominator.", nameof(period));
-        GuardPositive(open, high, low, close);
+        GuardPositive(bars.Open, bars.High, bars.Low, bars.Close);
         _period = period;
         Label = $"YZ({period})";
     }

@@ -323,7 +323,7 @@ public class IndicatorBranchCoverageTests
     [Fact]
     public void Stochastic_ShortData_ReturnsEmptyResult()
     {
-        var s = new Stochastic([1, 2, 3], [0.5, 1.5, 2.5], [0.7, 1.7, 2.7], kPeriod: 14);
+        var s = new Stochastic(OhlcvBars.Hlc([1, 2, 3], [0.5, 1.5, 2.5], [0.7, 1.7, 2.7]), kPeriod: 14);
         var result = s.Compute();
         Assert.Empty(result.K);
         Assert.Empty(result.D);
@@ -336,7 +336,7 @@ public class IndicatorBranchCoverageTests
     public void Stochastic_FlatData_FallsBackToFiftyPercent()
     {
         double[] flat = Enumerable.Repeat(10.0, 20).ToArray();
-        var s = new Stochastic(flat, flat, flat, kPeriod: 5);
+        var s = new Stochastic(OhlcvBars.Hlc(flat, flat, flat), kPeriod: 5);
         var result = s.Compute();
         Assert.NotEmpty(result.K);
         Assert.All(result.K, v => Assert.Equal(50.0, v));
@@ -348,7 +348,7 @@ public class IndicatorBranchCoverageTests
     public void Stochastic_ExplicitDColor_AppliesIt()
     {
         var axes = new Axes();
-        new Stochastic(LongHigh, LongLow, LongClose, kPeriod: 5, dPeriod: 3) { DColor = Colors.Red }.Apply(axes);
+        new Stochastic(OhlcvBars.Hlc(LongHigh, LongLow, LongClose), kPeriod: 5, dPeriod: 3) { DColor = Colors.Red }.Apply(axes);
         Assert.True(axes.Series.Count >= 2);
     }
 
@@ -356,7 +356,7 @@ public class IndicatorBranchCoverageTests
     [Fact]
     public void WilliamsR_ShortData_ReturnsEmptyResult()
     {
-        var w = new WilliamsR([1, 2, 3], [0.5, 1.5, 2.5], [0.7, 1.7, 2.7], period: 14);
+        var w = new WilliamsR(OhlcvBars.Hlc([1, 2, 3], [0.5, 1.5, 2.5], [0.7, 1.7, 2.7]), period: 14);
         Assert.Empty(w.Compute().Values);
     }
 
@@ -366,7 +366,7 @@ public class IndicatorBranchCoverageTests
     public void WilliamsR_FlatData_DoesNotCrash()
     {
         double[] flat = Enumerable.Repeat(10.0, 20).ToArray();
-        var w = new WilliamsR(flat, flat, flat, period: 5);
+        var w = new WilliamsR(OhlcvBars.Hlc(flat, flat, flat), period: 5);
         double[] result = w.Compute();
         Assert.NotEmpty(result);
         Assert.All(result, v => Assert.False(double.IsNaN(v) || double.IsInfinity(v)));
@@ -378,7 +378,7 @@ public class IndicatorBranchCoverageTests
     public void KeltnerChannels_ShortData_ReturnsEmptyResult()
     {
         var k = new KeltnerChannels(
-            high: [1, 2, 3], low: [0.5, 1.5, 2.5], close: [0.7, 1.7, 2.7],
+            OhlcvBars.Hlc(high: [1, 2, 3], low: [0.5, 1.5, 2.5], close: [0.7, 1.7, 2.7]),
             period: 20);
         var result = k.Compute();
         Assert.Empty(result.Middle);

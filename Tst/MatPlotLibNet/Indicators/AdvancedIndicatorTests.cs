@@ -18,7 +18,7 @@ public class AtrTests
     [Fact]
     public void Compute_ReturnsCorrectLength()
     {
-        double[] atr = new Atr(High, Low, Close, 14).Compute();
+        double[] atr = new Atr(OhlcvBars.Hlc(High, Low, Close), 14).Compute();
         Assert.Equal(Close.Length - 14, atr.Length);
     }
 
@@ -26,7 +26,7 @@ public class AtrTests
     [Fact]
     public void Compute_ValuesArePositive()
     {
-        double[] atr = new Atr(High, Low, Close, 5).Compute();
+        double[] atr = new Atr(OhlcvBars.Hlc(High, Low, Close), 5).Compute();
         foreach (var v in atr) Assert.True(v > 0);
     }
 
@@ -35,7 +35,7 @@ public class AtrTests
     public void Apply_AddsLineSeries()
     {
         var axes = new Axes();
-        new Atr(High, Low, Close, 5).Apply(axes);
+        new Atr(OhlcvBars.Hlc(High, Low, Close), 5).Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
@@ -48,7 +48,7 @@ public class AtrTests
         double[] h = [10, 11, 12];
         double[] l = [8, 9, 10];
         double[] c = [9, 10, 11];
-        Assert.Empty(new Atr(h, l, c, 14).Compute().Values);
+        Assert.Empty(new Atr(OhlcvBars.Hlc(h, l, c), 14).Compute().Values);
     }
 }
 
@@ -63,7 +63,7 @@ public class AdxTests
     [Fact]
     public void Compute_ReturnsNonEmpty()
     {
-        double[] adx = new Adx(High, Low, Close, 5).Compute();
+        double[] adx = new Adx(OhlcvBars.Hlc(High, Low, Close), 5).Compute();
         Assert.True(adx.Length > 0);
     }
 
@@ -71,7 +71,7 @@ public class AdxTests
     [Fact]
     public void Compute_ValuesInRange()
     {
-        double[] adx = new Adx(High, Low, Close, 5).Compute();
+        double[] adx = new Adx(OhlcvBars.Hlc(High, Low, Close), 5).Compute();
         foreach (var v in adx) Assert.InRange(v, 0, 100);
     }
 
@@ -80,7 +80,7 @@ public class AdxTests
     public void Apply_AddsLineSeries()
     {
         var axes = new Axes();
-        new Adx(High, Low, Close, 5).Apply(axes);
+        new Adx(OhlcvBars.Hlc(High, Low, Close), 5).Apply(axes);
         Assert.True(axes.Series.Count >= 1);
     }
 
@@ -92,7 +92,7 @@ public class AdxTests
         double[] h = [10, 11, 12, 13, 14];
         double[] l = [8, 9, 10, 11, 12];
         double[] c = [9, 10, 11, 12, 13];
-        Assert.Empty(new Adx(h, l, c, 5).Compute().Values);
+        Assert.Empty(new Adx(OhlcvBars.Hlc(h, l, c), 5).Compute().Values);
     }
 
     /// <summary>Apply with insufficient bars adds no DI lines (covers the plusDi.Length != adx.Length empty path).</summary>
@@ -106,7 +106,7 @@ public class AdxTests
         double[] h = [10, 11, 12, 13, 14];
         double[] l = [8, 9, 10, 11, 12];
         double[] c = [9, 10, 11, 12, 13];
-        var ex = Record.Exception(() => new Adx(h, l, c, 5).Apply(axes));
+        var ex = Record.Exception(() => new Adx(OhlcvBars.Hlc(h, l, c), 5).Apply(axes));
         Assert.Null(ex);
     }
 
@@ -115,7 +115,7 @@ public class AdxTests
     public void Apply_CustomDiColors_AppliedToSeries()
     {
         var axes = new Axes();
-        new Adx(High, Low, Close, 5)
+        new Adx(OhlcvBars.Hlc(High, Low, Close), 5)
         {
             PlusDiColor = MatPlotLibNet.Styling.Colors.Cyan,
             MinusDiColor = MatPlotLibNet.Styling.Colors.Magenta
@@ -130,7 +130,7 @@ public class AdxTests
     [Fact]
     public void ComputeFull_PlusDi_NotAllFifty()
     {
-        var r = new Adx(High, Low, Close, 5).ComputeFull();
+        var r = new Adx(OhlcvBars.Hlc(High, Low, Close), 5).ComputeFull();
         Assert.NotEmpty(r.PlusDi);
         Assert.False(r.PlusDi.All(v => v == 50.0), "+DI must not be the 50 placeholder");
     }
@@ -139,7 +139,7 @@ public class AdxTests
     [Fact]
     public void ComputeFull_PlusDiMinusDi_InRange()
     {
-        var r = new Adx(High, Low, Close, 5).ComputeFull();
+        var r = new Adx(OhlcvBars.Hlc(High, Low, Close), 5).ComputeFull();
         foreach (var v in r.PlusDi)    Assert.InRange(v, 0, 100);
         foreach (var v in r.MinusDi)   Assert.InRange(v, 0, 100);
     }
@@ -148,7 +148,7 @@ public class AdxTests
     [Fact]
     public void ComputeFull_AllThree_SameLength()
     {
-        var r = new Adx(High, Low, Close, 5).ComputeFull();
+        var r = new Adx(OhlcvBars.Hlc(High, Low, Close), 5).ComputeFull();
         Assert.NotEmpty(r.Adx);
         Assert.Equal(r.Adx.Length, r.PlusDi.Length);
         Assert.Equal(r.Adx.Length, r.MinusDi.Length);
@@ -167,7 +167,7 @@ public class KeltnerChannelsTests
     public void Apply_AddsThreeSeries()
     {
         var axes = new Axes();
-        new KeltnerChannels(High, Low, Close, 5).Apply(axes);
+        new KeltnerChannels(OhlcvBars.Hlc(High, Low, Close), 5).Apply(axes);
         // AreaSeries (channel fill) + LineSeries (middle EMA) = 2
         Assert.Equal(2, axes.Series.Count);
     }
@@ -185,7 +185,7 @@ public class IchimokuTests
     public void Apply_AddsSeriesToAxes()
     {
         var axes = new Axes();
-        new Ichimoku(High, Low, Close).Apply(axes);
+        new Ichimoku(OhlcvBars.Hlc(High, Low, Close)).Apply(axes);
         Assert.True(axes.Series.Count >= 3); // Tenkan, Kijun, Cloud fill at minimum
     }
 }

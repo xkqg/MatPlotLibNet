@@ -17,21 +17,23 @@ public sealed class CorwinSchultz : CandleIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new Corwin-Schultz indicator.</summary>
+    /// <param name="bars">High and Low; built via <see cref="OhlcvBars.Hl"/>.</param>
+    /// <param name="period">Rolling window length in bars (default 20).</param>
     /// <exception cref="ArgumentException">Thrown on length mismatch, period &lt; 2,
     /// non-positive H or L, or H &lt; L on any bar.</exception>
-    public CorwinSchultz(double[] high, double[] low, int period = 20)
-        : base(OhlcvBars.Hl(high, low))
+    public CorwinSchultz(OhlcvBars bars, int period = 20)
+        : base(bars)
     {
         if (period < 2)
             throw new ArgumentException($"period must be >= 2 (got {period}).", nameof(period));
-        for (int i = 0; i < high.Length; i++)
+        for (int i = 0; i < bars.High.Length; i++)
         {
-            if (high[i] <= 0 || low[i] <= 0)
+            if (bars.High[i] <= 0 || bars.Low[i] <= 0)
                 throw new ArgumentException(
-                    $"CorwinSchultz requires strictly positive H/L; bar {i} has H={high[i]}, L={low[i]}.");
-            if (high[i] < low[i])
+                    $"CorwinSchultz requires strictly positive H/L; bar {i} has H={bars.High[i]}, L={bars.Low[i]}.");
+            if (bars.High[i] < bars.Low[i])
                 throw new ArgumentException(
-                    $"CorwinSchultz requires H >= L; bar {i} has H={high[i]} < L={low[i]}.");
+                    $"CorwinSchultz requires H >= L; bar {i} has H={bars.High[i]} < L={bars.Low[i]}.");
         }
         _period = period;
         Label = $"CS({period})";

@@ -18,13 +18,11 @@ public sealed class Stochastic : CandleIndicator<StochasticResult>
     public Color? DColor { get; set; }
 
     /// <summary>Creates a new Stochastic Oscillator indicator.</summary>
-    /// <param name="high">The high price data.</param>
-    /// <param name="low">The low price data.</param>
-    /// <param name="close">The close price data.</param>
+    /// <param name="bars">High, Low and Close; built via <see cref="OhlcvBars.Hlc"/>.</param>
     /// <param name="kPeriod">The %K lookback period (default 14).</param>
     /// <param name="dPeriod">The %D smoothing period (default 3).</param>
-    public Stochastic(double[] high, double[] low, double[] close, int kPeriod = 14, int dPeriod = 3)
-        : base(OhlcvBars.Hlc(high, low, close))
+    public Stochastic(OhlcvBars bars, int kPeriod = 14, int dPeriod = 3)
+        : base(bars)
     {
         _kPeriod = kPeriod;
         _dPeriod = dPeriod;

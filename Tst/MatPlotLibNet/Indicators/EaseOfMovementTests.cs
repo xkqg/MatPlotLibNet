@@ -17,7 +17,7 @@ public class EaseOfMovementTests
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()
     {
-        var emv = new EaseOfMovement([], [], []);
+        var emv = new EaseOfMovement(OhlcvBars.Hlv([], [], []));
         Assert.Empty(emv.Compute().Values);
     }
 
@@ -26,9 +26,9 @@ public class EaseOfMovementTests
     public void Constructor_LengthMismatch_Throws()
     {
         Assert.Throws<ArgumentException>(() =>
-            new EaseOfMovement([1.0, 2], [1.0, 2, 3], [1000.0, 1000]));
+            new EaseOfMovement(OhlcvBars.Hlv([1.0, 2], [1.0, 2, 3], [1000.0, 1000])));
         Assert.Throws<ArgumentException>(() =>
-            new EaseOfMovement([1.0, 2], [1.0, 2], [1000.0, 1000, 1000]));
+            new EaseOfMovement(OhlcvBars.Hlv([1.0, 2], [1.0, 2], [1000.0, 1000, 1000])));
     }
 
     // ── Branch 3 — BarCount <= period → empty ──
@@ -36,7 +36,7 @@ public class EaseOfMovementTests
     public void Compute_BarCountAtOrBelowPeriod_ReturnsEmpty()
     {
         // period=14 default, 14 bars → BarCount == period → empty
-        var emv = new EaseOfMovement(Flat(100, 14), Flat(99, 14), Flat(1000, 14));
+        var emv = new EaseOfMovement(OhlcvBars.Hlv(Flat(100, 14), Flat(99, 14), Flat(1000, 14)));
         Assert.Empty(emv.Compute().Values);
     }
 
@@ -47,7 +47,7 @@ public class EaseOfMovementTests
     public void Constructor_PeriodBelowTwo_Throws(int period)
     {
         Assert.Throws<ArgumentException>(() =>
-            new EaseOfMovement(Flat(100, 20), Flat(99, 20), Flat(1000, 20), period));
+            new EaseOfMovement(OhlcvBars.Hlv(Flat(100, 20), Flat(99, 20), Flat(1000, 20)), period));
     }
 
     // ── Branch 5 — scale <= 0 → throw ──
@@ -57,7 +57,7 @@ public class EaseOfMovementTests
     public void Constructor_NonPositiveScale_Throws(double scale)
     {
         Assert.Throws<ArgumentException>(() =>
-            new EaseOfMovement(Flat(100, 20), Flat(99, 20), Flat(1000, 20), scale: scale));
+            new EaseOfMovement(OhlcvBars.Hlv(Flat(100, 20), Flat(99, 20), Flat(1000, 20)), scale: scale));
     }
 
     // ── Branch 6 — Zero volume → BoxRatio = 0 → EMV_1 = 0 (division guard) ──
@@ -69,7 +69,7 @@ public class EaseOfMovementTests
         var h = Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray();
         var l = Enumerable.Range(0, n).Select(i => 99.0 + i).ToArray();
         var v = Flat(0, n);
-        var emv = new EaseOfMovement(h, l, v, period: 10).Compute().Values;
+        var emv = new EaseOfMovement(OhlcvBars.Hlv(h, l, v), period: 10).Compute().Values;
         Assert.All(emv, x =>
         {
             Assert.False(double.IsNaN(x));
@@ -86,7 +86,7 @@ public class EaseOfMovementTests
         // H == L on every bar but midpoint moves (via increasing common value).
         var same = Enumerable.Range(0, n).Select(i => 100.0 + i).ToArray();
         var v = Flat(1000, n);
-        var emv = new EaseOfMovement(same, same, v, period: 10).Compute().Values;
+        var emv = new EaseOfMovement(OhlcvBars.Hlv(same, same, v), period: 10).Compute().Values;
         Assert.All(emv, x =>
         {
             Assert.False(double.IsNaN(x));
@@ -100,7 +100,7 @@ public class EaseOfMovementTests
     public void Compute_FlatMidpoints_ReturnsZero()
     {
         int n = 30;
-        var emv = new EaseOfMovement(Flat(100, n), Flat(99, n), Flat(1000, n), period: 10)
+        var emv = new EaseOfMovement(OhlcvBars.Hlv(Flat(100, n), Flat(99, n), Flat(1000, n)), period: 10)
             .Compute().Values;
         Assert.Equal(n - 10, emv.Length);
         Assert.All(emv, v => Assert.Equal(0.0, v, precision: 10));
@@ -114,7 +114,7 @@ public class EaseOfMovementTests
         var h = Enumerable.Range(0, n).Select(i => 101.0 + i).ToArray();
         var l = Enumerable.Range(0, n).Select(i => 99.0 + i).ToArray();
         var v = Flat(1000, n);
-        var emv = new EaseOfMovement(h, l, v, period: 14, scale: 1e6).Compute().Values;
+        var emv = new EaseOfMovement(OhlcvBars.Hlv(h, l, v), period: 14, scale: 1e6).Compute().Values;
         Assert.Equal(n - 14, emv.Length);
         Assert.All(emv, x =>
         {
@@ -133,7 +133,7 @@ public class EaseOfMovementTests
         int n = 30;
         var h = Enumerable.Range(0, n).Select(i => 101.0 + i).ToArray();
         var l = Enumerable.Range(0, n).Select(i => 99.0 + i).ToArray();
-        new EaseOfMovement(h, l, Flat(1000, n)).Apply(axes);
+        new EaseOfMovement(OhlcvBars.Hlv(h, l, Flat(1000, n))).Apply(axes);
         Assert.Single(axes.Series);
         Assert.IsType<LineSeries>(axes.Series[0]);
     }
@@ -141,14 +141,14 @@ public class EaseOfMovementTests
     [Fact]
     public void DefaultLabel_HasPeriod()
     {
-        var emv = new EaseOfMovement([1.0, 2], [1.0, 2], [1000.0, 1000]);
+        var emv = new EaseOfMovement(OhlcvBars.Hlv([1.0, 2], [1.0, 2], [1000.0, 1000]));
         Assert.Equal("EMV(14)", emv.Label);
     }
 
     [Fact]
     public void InheritsCandleIndicator()
     {
-        var emv = new EaseOfMovement([1.0, 2], [1.0, 2], [1000.0, 1000]);
+        var emv = new EaseOfMovement(OhlcvBars.Hlv([1.0, 2], [1.0, 2], [1000.0, 1000]));
         Assert.IsAssignableFrom<CandleIndicator<SignalResult>>(emv);
         Assert.IsAssignableFrom<IIndicator>(emv);
     }

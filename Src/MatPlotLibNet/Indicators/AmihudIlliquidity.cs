@@ -17,22 +17,21 @@ public sealed class AmihudIlliquidity : CandleIndicator<SignalResult>
     private readonly int _period;
 
     /// <summary>Creates a new Amihud illiquidity indicator.</summary>
-    /// <param name="close">Close prices (strictly positive).</param>
-    /// <param name="volume">Volume per bar (same length as <paramref name="close"/>).</param>
+    /// <param name="bars">Close (strictly positive) and Volume; built via <see cref="OhlcvBars.Cv"/>.</param>
     /// <param name="period">Rolling window length (default 20, must be ≥ 1).</param>
     /// <exception cref="ArgumentException">Thrown on length mismatch, non-positive period,
     /// or non-positive close.</exception>
-    public AmihudIlliquidity(double[] close, double[] volume, int period = 20)
-        : base(OhlcvBars.Cv(close, volume))
+    public AmihudIlliquidity(OhlcvBars bars, int period = 20)
+        : base(bars)
     {
         if (period <= 0)
             throw new ArgumentException($"period must be > 0 (got {period}).", nameof(period));
-        for (int i = 0; i < close.Length; i++)
+        for (int i = 0; i < bars.Close.Length; i++)
         {
-            if (close[i] <= 0)
+            if (bars.Close[i] <= 0)
                 throw new ArgumentException(
-                    $"AmihudIlliquidity requires strictly positive close; bar {i} has {close[i]}.",
-                    nameof(close));
+                    $"AmihudIlliquidity requires strictly positive close; bar {i} has {bars.Close[i]}.",
+                    nameof(bars));
         }
         _period = period;
         Label = $"ILLIQ({period})";
