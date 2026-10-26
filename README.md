@@ -27,6 +27,9 @@ right, each with its own range, ticks, series and legend entry, the way matplotl
 secondary axis restores through the same registry the primary one does, so a bar or an area survives there and on
 the top axis too, not only a line or a point; and a wheel zoom, a drag pan, a rectangle zoom and Home now move
 every one of those axes, each by its own amount, whether the server answers the gesture or a native control does.
+Underneath, the close to a hundred chart verbs the fluent API builds from now live one-per-file as extension
+members on `Axes` instead of all sharing one class — a file-layout change only, no call a reader writes is any
+different because of it.
 
 **1.22.0** lets several series share one colour instead of each taking the next one from the theme's cycle, and
 spends it on three things: a Kaplan-Meier curve now draws its confidence band and its censor marks in the curve's
