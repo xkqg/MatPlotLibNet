@@ -325,7 +325,24 @@ public class CartesianAxesRenderer : AxesRenderer
         // established place yet — left for a later pass, not a silent drop (ARCHITECTURE.md: name what waits).
         if (Axes.LeftYAxes.Count > 0)
         {
-            var leftOffsets = Layout.ConstrainedLayoutEngine.LeftAxisBands(Axes, Ctx, Theme).StackedOffsets();
+            // One generic container, nearest-to-plot first: the primary Y axis's OWN band (slot -1 — it already
+            // sits past the plot's left edge the way every left-stacked slot sits past the one before it), then
+            // every LeftYAxes slot's band, stacked ONCE (AxisStackingExtensions.StackedOffsets). The same shape
+            // whether LeftYAxes holds 1 slot or 6 — no special case for "the first stacked slot", because the
+            // primary is already the container's first element, not a one-off term added beside it. Unlike the
+            // right side (nothing but the plot edge stands before its own slot 0), the primary Y axis ALWAYS
+            // draws ticks/a title at the plot's left edge (AxesRenderer.RenderAxisLabels), so slot 0 here must
+            // start past THAT band, not past offset 0 — the bug this fixes (ROADMAP.md row 101: the left-stacked
+            // slot and the primary axis drew their ticks at the identical pixel column).
+            var yMajor = Axes.YAxis.MajorTicks;
+            double primaryLeftBand = Axes.YAxis.Label is not null
+                ? yMajor.AxisLabelOffset(MeasuredYTickMaxWidth) + (Axes.YAxis.LabelStyle?.Pad ?? 0)
+                    + Ctx.MeasureText(Axes.YAxis.Label, Axes.YAxis.LabelStyle?.ApplyTo(LabelFont()) ?? LabelFont()).Height
+                : yMajor.Visible ? yMajor.TickLabelBand(MeasuredYTickMaxWidth) : 0;
+            var leftBands = new double[Axes.LeftYAxes.Count + 1];
+            leftBands[0] = primaryLeftBand;
+            Layout.ConstrainedLayoutEngine.LeftAxisBands(Axes, Ctx, Theme).CopyTo(leftBands, 1);
+            var leftOffsets = leftBands.StackedOffsets();
             int startingIndex = 0;
             for (int i = 0; i < Axes.LeftYAxes.Count; i++)
             {
@@ -335,7 +352,7 @@ public class CartesianAxesRenderer : AxesRenderer
                     var leftRange = ComputeSecondaryDataRanges(range.XMin, range.XMax, slot.Axis, slot.Series);
                     var leftTransform = new DataTransform(leftRange.XMin, leftRange.XMax, leftRange.YMin, leftRange.YMax, PlotArea);
                     new CartesianParts.CartesianSecondaryLeftYAxisPart(
-                        Axes, PlotArea, Ctx, Theme, transform, slot, startingIndex, leftOffsets[i],
+                        Axes, PlotArea, Ctx, Theme, transform, slot, startingIndex, leftOffsets[i + 1],
                         leftRange, leftTransform, _directLabels).Render();
                 }
                 startingIndex += slot.Series.Count;

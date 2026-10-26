@@ -928,6 +928,44 @@ public class CartesianAxesRendererCoverageTests
         Assert.Equal(2, axes.RightYAxes.Count);
     }
 
+    /// <summary>Reproduces the user-reported defect (2026-10-26, a rendered four-axis chart): the primary Y axis
+    /// ALWAYS draws its own ticks + title past the plot's left edge (<see cref="AxesRenderer.RenderAxisLabels"/>),
+    /// but the first left-outward-stacked slot's offset came only from <c>LeftAxisBands(...).StackedOffsets()</c> —
+    /// the LeftYAxes slots summed among THEMSELVES, with no base term for the primary axis's own band — so slot 0
+    /// drew its own ticks/title at the EXACT SAME pixel column the primary axis already occupied: both titles'
+    /// rotated-text anchors landed on close to the same X, reading as interleaved digits/letters. Unlike the right
+    /// side (nothing stands before its own slot 0), the left side's slot 0 always has the primary's band before it.</summary>
+    [Fact]
+    public void Render_LeftOutwardAxis_TitleStandsPastThePrimaryAxisOwnBand_NotOnTopOfIt()
+    {
+        var fig = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
+            .Plot([0.0, 10], [0.0, 10])
+            .SetYLabel("Primary"))
+            .Build();
+        var leftSlot = fig.SubPlots[0].AddOutwardYAxis(AxisSide.Left);
+        leftSlot.AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [-50.0, -10.0]));
+        leftSlot.Axis.Label = "LeftOuter";
+
+        var svg = fig.ToSvg();
+
+        double XOf(string label)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(svg,
+                $@"rotate\(-?90,(-?[\d.]+),-?[\d.]+\)[^>]*>{label}<");
+            Assert.True(m.Success, $"no rotated title found for '{label}' in:\n{svg}");
+            return double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        double primaryX = XOf("Primary");
+        double leftOuterX = XOf("LeftOuter");
+
+        // Both titles are centred, rotated 90 degrees, growing further LEFT (smaller X) past the plot's edge — the
+        // outward slot's title must stand clearly past (smaller X than) the primary's own, never at/near the same
+        // column. The pre-fix code put them within ~1px of each other (the SAME column); require a real gap.
+        Assert.True(primaryX - leftOuterX > 15.0,
+            $"expected LeftOuter's title to stand well past Primary's (gap > 15px), got primary={primaryX}, leftOuter={leftOuterX}, gap={primaryX - leftOuterX}");
+    }
+
     // ── X major ticks hidden — L287 `!xMajor.Visible` TRUE arm ─────────────
 
     /// <summary>X major ticks hidden — L287 `else if (!xMajor.Visible)` TRUE arm:
