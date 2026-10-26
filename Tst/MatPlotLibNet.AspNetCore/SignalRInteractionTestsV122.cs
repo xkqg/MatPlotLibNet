@@ -204,6 +204,46 @@ public class SignalRInteractionTestsV122 : IAsyncDisposable
         await registry.UnregisterAsync("zoom-regression");
     }
 
+    /// <summary>ROADMAP.md row 100: the embedded browser JS builds a plain object for <c>secondaryRanges</c>, not a
+    /// strongly-typed <see cref="ZoomEvent"/> — this pins which wire shape <see cref="AxisSide"/> actually binds
+    /// from, since the default JSON hub protocol carries no <c>JsonStringEnumConverter</c> (confirmed by reading
+    /// <c>SignalRExtensions.AddMatPlotLibNetSignalR</c>: a bare <c>AddSignalR()</c>, no protocol options).</summary>
+    [Fact]
+    public async Task OnZoom_WithSecondaryRanges_BindsAxisSideFromItsOrdinal_NotItsName()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var registry = _host.Services.GetRequiredService<FigureRegistry>();
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+            .Plot([1.0, 2.0], [3.0, 4.0])
+            .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0]))).Build();
+        registry.Register("zoom-secondary-ordinal", figure);
+
+        var conn = CreateConnection();
+        var svgReceived = new TaskCompletionSource<string>();
+        conn.On<string, string>("UpdateChartSvg", (_, svg) => svgReceived.TrySetResult(svg));
+        await conn.StartAsync(ct);
+        await conn.InvokeAsync("Subscribe", "zoom-secondary-ordinal", cancellationToken: ct);
+
+        // The exact shape the JS sends: a plain object, side as AxisSide's ordinal (Right = 1).
+        var payload = new
+        {
+            chartId = "zoom-secondary-ordinal", axesIndex = 0,
+            xMin = 1.0, xMax = 2.0, yMin = 3.0, yMax = 4.0,
+            secondaryRanges = new[]
+            {
+                new { side = 1, slotIndex = 0, range = new { xMin = 0.0, xMax = 0.0, yMin = 10.0, yMax = 20.0 } },
+            },
+        };
+        await conn.InvokeAsync("OnZoom", payload, cancellationToken: ct);
+
+        _ = await svgReceived.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
+        Assert.Equal(10.0, figure.SubPlots[0].SecondaryYAxis!.Min);
+        Assert.Equal(20.0, figure.SubPlots[0].SecondaryYAxis!.Max);
+
+        await conn.DisposeAsync();
+        await registry.UnregisterAsync("zoom-secondary-ordinal");
+    }
+
     private HubConnection CreateConnection() =>
         new HubConnectionBuilder()
             .WithUrl("http://localhost/charts-hub", o =>

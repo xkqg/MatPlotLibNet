@@ -55,6 +55,9 @@ public static class EnumOrdinalSnapshot
             [typeof(AxisScale)] = new Dictionary<string, int> {
                 ["Linear"] = 0, ["Log"] = 1, ["SymLog"] = 2, ["Logit"] = 3, ["Date"] = 4,
             },
+            [typeof(AxisSide)] = new Dictionary<string, int> {
+                ["Left"] = 0, ["Right"] = 1,
+            },
             [typeof(BarAlignment)] = new Dictionary<string, int> {
                 ["Center"] = 0, ["Edge"] = 1,
             },

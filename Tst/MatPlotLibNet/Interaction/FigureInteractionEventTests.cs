@@ -4,6 +4,7 @@
 using MatPlotLibNet.Interaction;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Interaction;
 
@@ -54,6 +55,65 @@ public class FigureInteractionEventTests
         Assert.Equal(12.0, axes.XAxis.Max);
         Assert.Equal(-5.0, axes.YAxis.Min);
         Assert.Equal(15.0, axes.YAxis.Max);
+    }
+
+    /// <summary>ROADMAP.md row 100: zoom/reset must move every outward-stacked secondary axis' own range, not
+    /// only the primary. Each change is a slot's OWN new range — DataRange.XMin/XMax are unused here (a secondary
+    /// Y axis shares the primary X, already carried by ZoomEvent's own XMin/XMax).</summary>
+    [Fact]
+    public void ZoomEvent_ApplyTo_WithSecondaryRanges_SetsEachSlotsOwnRange()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .WithSecondaryYAxis(y2 => y2.Plot([1.0, 2], [50.0, 60]))
+                .WithOutwardYAxis(AxisSide.Right, outer => outer.Plot([1.0, 2], [500.0, 600]))
+                .WithOutwardYAxis(AxisSide.Left, left => left.Plot([1.0, 2], [5.0, 6])))
+            .Build();
+
+        var evt = new ZoomEvent("chart-1", 0, 0.5, 2.5, 0, 10)
+        {
+            SecondaryRanges =
+            [
+                new SecondaryAxisRange(AxisSide.Right, 0, new DataRange(0, 1, 10, 20)),
+                new SecondaryAxisRange(AxisSide.Right, 1, new DataRange(0, 1, 100, 200)),
+                new SecondaryAxisRange(AxisSide.Left, 0, new DataRange(0, 1, 1, 2)),
+            ],
+        };
+
+        evt.ApplyTo(figure);
+
+        var axes = figure.SubPlots[0];
+        Assert.Equal(10.0, axes.RightYAxes[0].Axis.Min);
+        Assert.Equal(20.0, axes.RightYAxes[0].Axis.Max);
+        Assert.Equal(100.0, axes.RightYAxes[1].Axis.Min);
+        Assert.Equal(200.0, axes.RightYAxes[1].Axis.Max);
+        Assert.Equal(1.0, axes.LeftYAxes[0].Axis.Min);
+        Assert.Equal(2.0, axes.LeftYAxes[0].Axis.Max);
+    }
+
+    /// <summary>A pan carries the ALREADY-computed final range per secondary slot (PanModifier works out each
+    /// slot's own proportional delta before sending, since the primary's DxData/DyData are in the PRIMARY's data
+    /// units) — ApplyTo assigns it directly, it does not re-derive a shift from DyData for a secondary slot.</summary>
+    [Fact]
+    public void PanEvent_ApplyTo_WithSecondaryRanges_AssignsEachSlotsOwnRangeDirectly()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .WithSecondaryYAxis(y2 => y2.Plot([1.0, 2], [50.0, 60])))
+            .Build();
+
+        var evt = new PanEvent("chart-1", 0, 2.0, -5.0)
+        {
+            SecondaryRanges = [new SecondaryAxisRange(AxisSide.Right, 0, new DataRange(0, 1, 30, 70))],
+        };
+
+        evt.ApplyTo(figure);
+
+        var axes = figure.SubPlots[0];
+        Assert.Equal(30.0, axes.RightYAxes[0].Axis.Min);
+        Assert.Equal(70.0, axes.RightYAxes[0].Axis.Max);
     }
 
     [Fact]

@@ -25,9 +25,9 @@ public class CartesianSecondaryYAxisPartUnitTests
     private static CartesianSecondaryYAxisPart Build(Axes axes, IRenderContext ctx, Theme? theme = null)
     {
         var secondary = new DataTransform(Range.XMin, Range.XMax, Range.YMin, Range.YMax, Plot);
-        var labels = new CartesianDirectLabelsPart(axes, Plot, ctx, theme ?? DefaultTheme, PrimaryTransform(), secondary,
+        var labels = new CartesianDirectLabelsPart(axes, Plot, ctx, theme ?? DefaultTheme, PrimaryTransform(), [secondary],
             new MinMaxRange(Range.XMin, Range.XMax), 0);
-        return new(axes, Plot, ctx, theme ?? DefaultTheme, PrimaryTransform(), Range, secondary, labels);
+        return new(axes, Plot, ctx, theme ?? DefaultTheme, PrimaryTransform(), axes.RightYAxes[0], 0, 0, Range, secondary, labels);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -427,6 +427,57 @@ public class CartesianSecondaryYAxisPartUnitTests
         // Some numeric-looking string for each tick; just verify no % sign.
         foreach (var c in ctx.OfKind("DrawText"))
             Assert.DoesNotContain('%', (string)((dynamic)c.Args!).text);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // A second, outward-stacked right axis (ROADMAP.md row 101): its own offset, its own identity slot
+    // ──────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Render_WithAnOutwardOffset_DrawsItsTicksPastThePlotEdgeByThatOffset()
+    {
+        var ax = new Axes();
+        var slot1 = ax.AddOutwardYAxis(AxisSide.Right);
+        slot1.AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [0.0, 100]));
+        var secondary = new DataTransform(Range.XMin, Range.XMax, Range.YMin, Range.YMax, Plot);
+        var labels = new CartesianDirectLabelsPart(ax, Plot, new RecordingRenderContext(), DefaultTheme, PrimaryTransform(),
+            [secondary], new MinMaxRange(Range.XMin, Range.XMax), 0);
+        var ctx = new RecordingRenderContext();
+        const double outwardOffset = 37.5;
+
+        new CartesianSecondaryYAxisPart(ax, Plot, ctx, DefaultTheme, PrimaryTransform(), slot1, 0, outwardOffset,
+            Range, secondary, labels).Render();
+
+        // p2 is the tick's outer end: AxisEdge (right + outwardOffset) + the default tick length, unaffected by the
+        // spine-half adjustment p1 carries (Render_TicksPositionedAtRightEdge covers that one, at offset 0).
+        var right = Plot.X + Plot.Width;
+        var length = new TickConfig().Length;
+        Assert.NotEmpty(ctx.OfKind("DrawLine"));
+        Assert.All(ctx.OfKind("DrawLine"), c =>
+            Assert.Equal(right + outwardOffset + length, ((Point)((dynamic)c.Args!).p2).X, 6));
+    }
+
+    [Fact]
+    public void Render_SecondSlot_UsesTheRunningIndexPastEverySeriesBeforeIt_ForItsColourSlot()
+    {
+        var cycler = new PropCyclerBuilder().WithColors(Colors.Red, Colors.Green, Colors.Blue, Colors.Amber).Build();
+        var theme = Theme.CreateFrom(Theme.Default).WithPropCycler(cycler).Build();
+        var ax = new Axes();
+        ax.Plot([0.0, 10], [0.0, 10]); // primary: colour slot 0 (Red)
+        ax.PlotSecondary([0.0, 10], [10.0, 90]); // right slot 0's only series: colour slot 1 (Green)
+        var slot1 = ax.AddOutwardYAxis(AxisSide.Right);
+        slot1.AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [0.0, 100])); // right slot 1's series: colour slot 2 (Blue)
+
+        var secondary = new DataTransform(Range.XMin, Range.XMax, Range.YMin, Range.YMax, Plot);
+        var labels = new CartesianDirectLabelsPart(ax, Plot, new RecordingRenderContext(), theme, PrimaryTransform(),
+            [secondary], new MinMaxRange(Range.XMin, Range.XMax), 0);
+        var ctx = new RecordingRenderContext();
+
+        // startingIndexInPair = 1: one right-side series (slot 0's) stands before slot 1's own.
+        new CartesianSecondaryYAxisPart(ax, Plot, ctx, theme, PrimaryTransform(), slot1, 1, 0, Range, secondary, labels).Render();
+
+        var line = Assert.Single(ctx.OfKind("DrawLines"));
+        Assert.Equal(Colors.Blue, (Color)((dynamic)line.Args!).color);
     }
 }
 

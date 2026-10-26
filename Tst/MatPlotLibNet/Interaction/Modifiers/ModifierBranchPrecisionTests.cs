@@ -69,6 +69,34 @@ public class ModifierBranchPrecisionTests
         Assert.Empty(events);   // release short-circuits at endCoords-null
     }
 
+    /// <summary>ROADMAP.md row 100: a Ctrl+drag zoom rectangle must narrow a secondary axis' own range too, read
+    /// through the SAME two pixel corners as the primary.</summary>
+    [Fact]
+    public void RectangleZoom_OnPointerReleased_AlsoNarrowsASecondaryAxissOwnRange()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
+            .Build();
+        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
+        var events = new List<FigureInteractionEvent>();
+        var m = new RectangleZoomModifier("c1", layout, events.Add);
+
+        m.OnPointerPressed(new PointerInputArgs(30, 15, PointerButton.Left, ModifierKeys.Ctrl));
+        m.OnPointerReleased(new PointerInputArgs(80, 45, PointerButton.Left, ModifierKeys.Ctrl));
+
+        var zoom = Assert.IsType<RectangleZoomEvent>(Assert.Single(events));
+        var secondary = Assert.Single(zoom.SecondaryRanges!);
+        Assert.Equal(AxisSide.Right, secondary.Side);
+        Assert.True(secondary.Range.YMax - secondary.Range.YMin < 500.0,
+            "A zoom rectangle smaller than the plot area should narrow the secondary axis' own range too.");
+
+        zoom.ApplyTo(figure);
+        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].SecondaryYAxis!.Min);
+        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].SecondaryYAxis!.Max);
+    }
+
     /// <summary>BrushSelectModifier line 64 — OnPointerMoved without prior press
     /// (_active=false). Generic ModifierTestBase already covers OnPointerReleased
     /// without prior press; this covers the OnPointerMoved counterpart.</summary>

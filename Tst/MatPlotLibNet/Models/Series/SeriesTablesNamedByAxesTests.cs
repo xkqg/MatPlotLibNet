@@ -49,6 +49,22 @@ public class SeriesTablesNamedByAxesTests
         Assert.False(AxisNames.Of(axes, top).OnPrimaryX);
     }
 
+    /// <summary>ROADMAP.md row 101: a series on the 2nd right axis, or on a left axis, is on neither the primary Y
+    /// axis nor right slot 0 — <c>AxisNames.Of</c> must not fall back to "primary" just because it isn't in
+    /// <c>SecondarySeries</c> (right slot 0 alone).</summary>
+    [Fact]
+    public void AxisNames_OfASeriesOnAFurtherOutwardAxis_ReadNothingAlongItEither()
+    {
+        var axes = WithYNames("a");
+        var secondRight = axes.AddOutwardYAxis(AxisSide.Right).AddSeries(new LineSeries([0.5], [0.5]));
+        var left = axes.AddOutwardYAxis(AxisSide.Left).AddSeries(new LineSeries([0.5], [0.5]));
+
+        Assert.False(AxisNames.Of(axes, secondRight).OnPrimaryY);
+        Assert.False(AxisNames.Of(axes, left).OnPrimaryY);
+        Assert.Null(AxisNames.Of(axes, secondRight).Along(DataAxis.Y, [0.5]));
+        Assert.Null(AxisNames.Of(axes, left).Along(DataAxis.Y, [0.5]));
+    }
+
     [Fact]
     public void AxisNames_AlongNoAxis_NameNothing()
     {

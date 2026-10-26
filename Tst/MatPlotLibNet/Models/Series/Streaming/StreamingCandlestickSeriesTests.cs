@@ -41,6 +41,25 @@ public sealed class StreamingCandlestickSeriesTests
         Assert.Contains("123456", svg, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>The sibling half of the test above: an explicit <see cref="StreamingCandlestickSeries.DownColor"/>,
+    /// the branch no other test sets (every other construction leaves it at its default null, taking
+    /// <c>SvgSeriesRenderer</c>'s own fallback, <c>Colors.Red</c>).</summary>
+    [Fact]
+    public void ToSvg_WithAnExplicitDownColor_DrawsADownBarInIt()
+    {
+        var distinctiveDownColor = new Color(0x65, 0x43, 0x21);
+
+        var svg = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                var s = ax.StreamingCandlestick();
+                s.DownColor = distinctiveDownColor;
+                s.AppendBar(100, 105, 95, 90); // close below open -> "down"
+            })
+            .ToSvg();
+
+        Assert.Contains("654321", svg, StringComparison.OrdinalIgnoreCase);
+    }
 
     [Fact]
     public void Construction_DefaultCapacity_Is5000()

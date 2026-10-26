@@ -125,6 +125,144 @@ public class ChartSerializerRoundTripTests
         }
     }
 
+    // ── Theory: every registered series type round-trips on a SECONDARY axis too (ROADMAP.md row 99 — "the
+    // right-hand and top axes carry lines and points; a bar or an area there is not kept") ─────────────────
+
+    /// <summary>Same series set as <see cref="EachSeriesType_RoundTrips_PreservesSeriesCount"/>, moved onto the
+    /// secondary Y axis before round-tripping (<see cref="Axes.TakeLastSeries"/> + <see cref="Axes.AddSecondarySeries{TSeries}"/>
+    /// — the model already accepts any kind there; only the JSON restore path used to know line/scatter alone).</summary>
+    [Theory]
+    [InlineData("line")]
+    [InlineData("scatter")]
+    [InlineData("bar")]
+    [InlineData("histogram")]
+    [InlineData("pie")]
+    [InlineData("box")]
+    [InlineData("violin")]
+    [InlineData("hexbin")]
+    [InlineData("regression")]
+    [InlineData("kde")]
+    [InlineData("heatmap")]
+    [InlineData("image")]
+    [InlineData("histogram2d")]
+    [InlineData("stem")]
+    [InlineData("fillbetween")]
+    [InlineData("step")]
+    [InlineData("ecdf")]
+    [InlineData("stackplot")]
+    [InlineData("errorbar")]
+    [InlineData("candlestick")]
+    [InlineData("waterfall")]
+    [InlineData("funnel")]
+    [InlineData("gauge")]
+    [InlineData("sparkline")]
+    [InlineData("rugplot")]
+    [InlineData("eventplot")]
+    [InlineData("countplot")]
+    [InlineData("polarline")]
+    [InlineData("polarscatter")]
+    [InlineData("polarbar")]
+    [InlineData("scatter3d")]
+    [InlineData("plot3d")]
+    [InlineData("stem3d")]
+    public void EachSeriesType_RoundTrips_OnASecondaryAxis_PreservesSeriesCount(string seriesKind)
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => AddSeriesByKind(ax, seriesKind))
+            .Build();
+        var axes = fig.SubPlots[0];
+        var moved = axes.TakeLastSeries()!;
+        axes.AddSecondarySeries(moved);
+        Assert.Empty(axes.Series);
+        Assert.Single(axes.SecondarySeries);
+
+        var rt = RoundTrip(fig);
+
+        Assert.Empty(rt.SubPlots[0].Series);
+        Assert.Single(rt.SubPlots[0].SecondarySeries);
+    }
+
+    /// <summary>The coverage plan's row-99 reproduction: a streaming series (built differently than the
+    /// array-constructed kinds above — appended to after creation, not passed two arrays) on the secondary axis
+    /// must also survive, not just Line/Scatter.</summary>
+    [Fact]
+    public void RoundTrip_StreamingLineOnSecondaryAxis_PreservesKindAndAppendedPoints()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithSecondaryYAxis(y2 =>
+                {
+                    var s = y2.StreamingPlot();
+                    s.AppendPoint(1.0, 2.0);
+                    s.AppendPoint(2.0, 3.0);
+                }))
+            .Build();
+
+        var rt = RoundTrip(fig);
+
+        Assert.Single(rt.SubPlots[0].SecondarySeries);
+        Assert.IsType<MatPlotLibNet.Models.Series.Streaming.StreamingLineSeries>(rt.SubPlots[0].SecondarySeries[0]);
+    }
+
+    /// <summary>ROADMAP.md row 101's "4 axes, 2 left and 2 right": a 2nd right axis and a left axis are new model
+    /// surface (<see cref="Axes.RightYAxes"/>/<see cref="Axes.LeftYAxes"/>) the wire never carried before — only
+    /// slot 0 (<see cref="Axes.SecondaryYAxis"/>/<see cref="Axes.SecondarySeries"/>) did. Proves the additive DTO
+    /// extension (<c>AxesDto.ExtraRightYAxes</c>/<c>LeftYAxes</c>) keeps every slot's own label, range and series —
+    /// including a kind other than line/scatter, reusing the same seat-aware restore the row-99 fix built.</summary>
+    [Fact]
+    public void RoundTrip_WithASecondRightAxisAndALeftAxis_PreservesEveryAxisItsOwnLabelRangeAndSeries()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .WithSecondaryYAxis(y2 => y2.SetYLabel("right1").Plot([1.0, 2], [50.0, 60]))
+                .WithOutwardYAxis(AxisSide.Right, outer => outer.SetYLabel("right2").SetYLim(0, 1).Scatter([1.0, 2], [0.2, 0.4]))
+                .WithOutwardYAxis(AxisSide.Left, left => left.SetYLabel("left1").Plot([1.0, 2], [9.0, 8])))
+            .Build();
+
+        // Model-level kind diversity on the new slots (post-build, not through the builder, which only offers
+        // Plot/Scatter/StreamingPlot) — the wire must keep a Bar there too, not only Line/Scatter.
+        fig.SubPlots[0].RightYAxes[1].AddSeries(new BarSeries(["a", "b"], [1.0, 2.0]));
+
+        var rt = RoundTrip(fig);
+        var axes = rt.SubPlots[0];
+
+        Assert.Equal(2, axes.RightYAxes.Count);
+        Assert.Single(axes.LeftYAxes);
+        Assert.Equal("right1", axes.RightYAxes[0].Axis.Label);
+        Assert.Equal("right2", axes.RightYAxes[1].Axis.Label);
+        Assert.Equal(0, axes.RightYAxes[1].Axis.Min);
+        Assert.Equal(1, axes.RightYAxes[1].Axis.Max);
+        Assert.Equal("left1", axes.LeftYAxes[0].Axis.Label);
+        Assert.Single(axes.RightYAxes[0].Series);
+        Assert.Equal(2, axes.RightYAxes[1].Series.Count);
+        Assert.IsType<ScatterSeries>(axes.RightYAxes[1].Series[0]);
+        Assert.IsType<BarSeries>(axes.RightYAxes[1].Series[1]);
+        Assert.Single(axes.LeftYAxes[0].Series);
+        Assert.IsType<LineSeries>(axes.LeftYAxes[0].Series[0]);
+    }
+
+    /// <summary>ROADMAP.md row 99 names the top axis too: a bar moved onto the secondary X axis must survive a
+    /// round trip the same way, not only through the right-hand axis.</summary>
+    [Fact]
+    public void RoundTrip_BarOnSecondaryXAxis_PreservesKind()
+    {
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Bar(["A", "B"], [1.0, 2.0]))
+            .Build();
+        var axes = fig.SubPlots[0];
+        var moved = axes.TakeLastSeries()!;
+        axes.AddXSecondarySeries(moved);
+        Assert.Empty(axes.Series);
+        Assert.Single(axes.XSecondarySeries);
+
+        var rt = RoundTrip(fig);
+
+        Assert.Empty(rt.SubPlots[0].Series);
+        Assert.Single(rt.SubPlots[0].XSecondarySeries);
+        Assert.IsType<BarSeries>(rt.SubPlots[0].XSecondarySeries[0]);
+    }
+
     // ── Axes-level extras: spans / refs / annotations / breaks / insets / lighting
 
     /// <summary>Round-trips horizontal+vertical SpanRegions with custom alpha/linestyle
@@ -260,8 +398,8 @@ public class ChartSerializerRoundTripTests
         Assert.Equal(0.85, dl.Diffuse);
     }
 
-    /// <summary>Round-trips a SecondaryYAxis with line + scatter on it
-    /// (lines 270-285 — TwinX dispatch through CreateSecondaryLine/Scatter).</summary>
+    /// <summary>Round-trips a SecondaryYAxis with line + scatter on it (ChartSerializer.CreateOnSecondarySeat,
+    /// the same registry-based restore the primary axis uses).</summary>
     [Fact]
     public void RoundTrip_WithSecondaryYAxisAndSeries_PreservesAxisAndSeries()
     {

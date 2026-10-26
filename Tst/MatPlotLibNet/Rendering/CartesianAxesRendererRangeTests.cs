@@ -192,4 +192,26 @@ public class CartesianAxesRendererRangeTests
         Assert.Equal(primaryRange.XMin, secRange.XMin);
         Assert.Equal(primaryRange.XMax, secRange.XMax);
     }
+
+    /// <summary>ROADMAP.md row 101/99: a second, outward-stacked right axis keeps its OWN range — it must not fold
+    /// into the first right axis' range (the old single-list shape could only ever hold one, so this gap never had
+    /// a wrong answer before; it is new behaviour, not a regression guard).</summary>
+    [Fact]
+    public void SecondOutwardRightAxis_ComputesItsOwnIndependentYRange_SeparateFromSlotZero()
+    {
+        var axes = new Axes();
+        axes.PlotSecondary([0.0, 10.0], [100.0, 500.0]); // slot 0: Y in [100, 500]
+        var slot1 = axes.AddOutwardYAxis(AxisSide.Right);
+        slot1.AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10.0], [-5.0, -1.0])); // slot 1: Y in [-5, -1]
+
+        var renderer = BuildRenderer(axes);
+        var primary = renderer.ComputeDataRanges();
+        var slot0Range = renderer.ComputeSecondaryDataRanges(primary.XMin, primary.XMax, axes.RightYAxes[0].Axis, axes.RightYAxes[0].Series);
+        var slot1Range = renderer.ComputeSecondaryDataRanges(primary.XMin, primary.XMax, axes.RightYAxes[1].Axis, axes.RightYAxes[1].Series);
+
+        Assert.True(slot0Range.YMin <= 100.0 && slot0Range.YMax >= 500.0);
+        Assert.True(slot1Range.YMin <= -5.0 && slot1Range.YMax >= -1.0);
+        // Disjoint: slot 1's range never reaches into slot 0's, proving they were not folded into one union.
+        Assert.True(slot1Range.YMax < slot0Range.YMin);
+    }
 }

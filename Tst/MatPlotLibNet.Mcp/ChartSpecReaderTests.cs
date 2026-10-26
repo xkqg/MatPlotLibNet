@@ -292,16 +292,29 @@ public class ChartSpecReaderTests
     }
 
     [Fact]
-    public void ASecondarySeriesOfAnUnsupportedType_IsRefused_WithTheSupportedTypes()
+    public void ASecondaryBarSeries_IsNowAccepted()
     {
-        // Core routes secondary-axis series through a switch that ends in "_ => null" with no diagnostic:
-        // a bar on the secondary axis vanishes without a word. The reader refuses it by name.
+        // Was refused: core routed secondary-axis series through a switch that ended in "_ => null" with no
+        // diagnostic, so a bar on the secondary axis vanished without a word (ROADMAP.md row 99). Fixed: the
+        // secondary restore path now goes through SeriesRegistry like the primary one, so the reader accepts
+        // whatever the catalog lists there too, same as on the primary axis.
+        var figure = Reader.Read(new ChartSpec(Spec(Line,
+            axesExtras: ""","secondaryYAxis":{},"secondarySeries":[{"type":"bar","categories":["a"],"values":[1]}]""")));
+
+        Assert.NotNull(figure.SubPlots[0].SecondaryYAxis);
+        Assert.IsType<BarSeries>(Assert.Single(figure.SubPlots[0].SecondarySeries));
+    }
+
+    [Fact]
+    public void ASecondarySeriesOfAnUnlistedType_IsRefused_WithTheNearestListedType()
+    {
+        // A truly unknown/misspelled type is still refused on the secondary axis, by the SAME catalog check
+        // (and the same message) the primary axis uses — not a separate, narrower allowlist.
         var refusal = Assert.Throws<ToolRefusalException>(() =>
             Reader.Read(new ChartSpec(Spec(Line,
-                axesExtras: ""","secondaryYAxis":{},"secondarySeries":[{"type":"bar","categories":["a"],"values":[1]}]"""))));
+                axesExtras: ""","secondaryYAxis":{},"secondarySeries":[{"type":"lien","xData":[1,2],"yData":[1,2]}]"""))));
 
-        Assert.Contains("'bar'", refusal.Message);
-        Assert.Contains("secondary", refusal.Message);
+        Assert.Contains("'lien'", refusal.Message);
         Assert.Contains("'line'", refusal.Message);
     }
 

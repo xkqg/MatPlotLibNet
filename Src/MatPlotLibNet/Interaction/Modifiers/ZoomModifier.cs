@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
+
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Zooms the axes range centered on the cursor position in response to scroll-wheel events. The zoom is taken on
@@ -55,7 +57,29 @@ public sealed class ZoomModifier : IInteractionModifier
         var low  = view.PixelToData(new Rendering.Point(left, bottom));
         var high = view.PixelToData(new Rendering.Point(right, top));
 
-        _sink(new ZoomEvent(_chartId, axesIndex, low.X, high.X, low.Y, high.Y));
+        _sink(new ZoomEvent(_chartId, axesIndex, low.X, high.X, low.Y, high.Y)
+        {
+            SecondaryRanges = SecondaryRangesFor(axesIndex, left, right, top, bottom),
+        });
+    }
+
+    /// <summary>Every outward-stacked secondary Y axis' new range after this scroll — the SAME pixel edges the
+    /// primary zoomed to, read through each secondary axis' OWN transform instead (ROADMAP.md row 100), so a log
+    /// or symlog secondary axis narrows correctly too, not just linearly.</summary>
+    private List<SecondaryAxisRange>? SecondaryRangesFor(int axesIndex, double left, double right, double top, double bottom)
+    {
+        var views = _layout.SecondaryViewsOf(axesIndex);
+        if (views.Count == 0) return null;
+
+        var ranges = new List<SecondaryAxisRange>(views.Count);
+        foreach (var v in views)
+        {
+            var svLow  = v.Transform.PixelToData(new Rendering.Point(left, bottom));
+            var svHigh = v.Transform.PixelToData(new Rendering.Point(right, top));
+            ranges.Add(new SecondaryAxisRange(v.Side, v.SlotIndex, new DataRange(svLow.X, svHigh.X, svLow.Y, svHigh.Y)));
+        }
+
+        return ranges;
     }
 
     /// <inheritdoc />

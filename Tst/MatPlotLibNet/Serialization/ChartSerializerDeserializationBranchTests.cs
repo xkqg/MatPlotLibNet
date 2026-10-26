@@ -308,7 +308,7 @@ public class ChartSerializerDeserializationBranchTests
 
     // ── SecondaryYAxis "scatter" type arm ────────────────────────────────────
 
-    /// <summary>SecondaryYAxis with a "scatter" series → L422 CreateSecondaryScatter arm.</summary>
+    /// <summary>SecondaryYAxis with a "scatter" series → restored through the registry, like the primary axis.</summary>
     [Fact]
     public void FromJson_SecondarySeriesScatterType_CreatesScatterSeries()
     {
@@ -462,8 +462,9 @@ public class ChartSerializerDeserializationBranchTests
     }
 
     /// <summary>A line or scatter on either secondary axis with no xData/yData loads as an empty series of that kind,
-    /// on that axis (CreateSecondaryLine / CreateSecondaryScatter / CreateXSecondaryLine / CreateXSecondaryScatter,
-    /// both <c>?? []</c> arms each), the same leniency the primary line and scatter have.</summary>
+    /// on that axis (LineSeries.FromSeriesDto / ScatterSeries.FromSeriesDto, reached through
+    /// ChartSerializer.CreateOnSecondarySeat on both axes now, both <c>?? []</c> arms each), the same leniency the
+    /// primary line and scatter have.</summary>
     [Theory]
     [InlineData("secondaryYAxis", "secondarySeries", "line")]
     [InlineData("secondaryYAxis", "secondarySeries", "scatter")]

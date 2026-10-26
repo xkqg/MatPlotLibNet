@@ -883,6 +883,51 @@ public class CartesianAxesRendererCoverageTests
         Assert.Contains("<svg", svg);
     }
 
+    // ── A second, outward-stacked right axis — ROADMAP.md row 101, end to end ──────
+
+    /// <summary>The full render pipeline (<c>Figure.ToSvg()</c>, not an isolated Part) with two outward-stacked
+    /// right axes, each with its own series: both lines reach the SVG, at two different Y scales, with no exception
+    /// from the orchestration this change touched (CartesianAxesRenderer.Render, the layout engine, the direct-label
+    /// column).</summary>
+    [Fact]
+    public void Render_TwoOutwardStackedRightAxes_BothLinesReachTheSvg_AtTheirOwnScale()
+    {
+        var fig = Plt.Create().WithSize(500, 400).AddSubPlot(1, 1, 1, ax => ax
+            .Plot([0.0, 10], [0.0, 10])
+            .WithSecondaryYAxis(y2 => y2.Plot([0.0, 10], [1_000.0, 2_000.0]))).Build();
+        fig.SubPlots[0].AddOutwardYAxis(AxisSide.Right)
+            .AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [-50.0, -10.0]));
+
+        var svg = fig.ToSvg();
+
+        Assert.Contains("<svg", svg);
+        // Three series, three polylines: the primary, slot 0's and slot 1's — none dropped, none merged.
+        Assert.Equal(3, System.Text.RegularExpressions.Regex.Matches(svg, "<polyline").Count);
+    }
+
+    /// <summary>The owner's exact spec (ROADMAP.md:101, 2026-10-25): "4 axes, 2 left and 2 right" — the primary Y
+    /// plus one left-stacked axis, <see cref="Axes.SecondaryYAxis"/> plus one right-stacked axis, all four with
+    /// their own series, end to end through the real render pipeline.</summary>
+    [Fact]
+    public void Render_FourYAxesTwoLeftTwoRight_AllFourSeriesReachTheSvg()
+    {
+        var fig = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
+            .Plot([0.0, 10], [0.0, 10])                                   // primary (left slot 0)
+            .WithSecondaryYAxis(y2 => y2.Plot([0.0, 10], [1_000.0, 2_000.0]))).Build(); // right slot 0
+        var axes = fig.SubPlots[0];
+        axes.AddOutwardYAxis(AxisSide.Left).AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [-50.0, -10.0])); // left slot 1
+        axes.AddOutwardYAxis(AxisSide.Right).AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [500_000.0, 900_000.0])); // right slot 1
+
+        var svg = fig.ToSvg();
+
+        Assert.Contains("<svg", svg);
+        Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(svg, "<polyline").Count);
+        // The primary Y counts as the left side's own first axis, so "2 left" is ONE entry in LeftYAxes;
+        // SecondaryYAxis counts as the right side's own first axis, so "2 right" is TWO entries in RightYAxes.
+        Assert.Single(axes.LeftYAxes);
+        Assert.Equal(2, axes.RightYAxes.Count);
+    }
+
     // ── X major ticks hidden — L287 `!xMajor.Visible` TRUE arm ─────────────
 
     /// <summary>X major ticks hidden — L287 `else if (!xMajor.Visible)` TRUE arm:

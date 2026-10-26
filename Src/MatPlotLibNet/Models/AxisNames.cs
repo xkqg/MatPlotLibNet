@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Linq;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering;
 
@@ -10,8 +11,9 @@ namespace MatPlotLibNet.Models;
 /// named tick stands on reads as that tick's name, by the rule the picture is drawn by
 /// (<see cref="AxesTickSourceExtensions.NamesAt"/>). The names are the axes', never the series': the table asks the axes and
 /// hands the answer to a series that has to place it (<see cref="ITableNamedByAxes"/>).
-/// <para>Only the primary axes name categories, so a series on a secondary axis is named along neither that axis nor,
-/// through it, the primary one.</para></summary>
+/// <para>Only the primary axes name categories, so a series on any secondary axis — the right-hand one, the top one,
+/// or any outward-stacked one beyond them (ROADMAP.md row 101) — is named along neither that axis nor, through it,
+/// the primary one.</para></summary>
 /// <param name="Axes">The axes the series is drawn on.</param>
 /// <param name="OnPrimaryX">Whether the series stands on the primary X axis.</param>
 /// <param name="OnPrimaryY">Whether the series stands on the primary Y axis.</param>
@@ -22,7 +24,9 @@ internal readonly record struct AxisNames(Axes Axes, bool OnPrimaryX, bool OnPri
     /// <param name="series">One of its series.</param>
     /// <returns>The names along the series' axes.</returns>
     internal static AxisNames Of(Axes axes, ISeries series) =>
-        new(axes, !axes.XSecondarySeries.Contains(series), !axes.SecondarySeries.Contains(series));
+        new(axes,
+            !axes.XSecondarySeries.Contains(series),
+            !axes.RightYAxes.Any(slot => slot.Series.Contains(series)) && !axes.LeftYAxes.Any(slot => slot.Series.Contains(series)));
 
     /// <summary>The names shown at <paramref name="positions"/> along <paramref name="axis"/>: one for each position
     /// (<see langword="null"/> where it cannot be placed), or <see langword="null"/> when that axis does not name every

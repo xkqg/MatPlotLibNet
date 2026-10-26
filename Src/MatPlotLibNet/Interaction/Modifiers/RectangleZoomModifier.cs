@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
+
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Ctrl+left-drag draws a zoom rectangle; on release, zooms the axes to that rectangle.
@@ -76,7 +78,29 @@ public sealed class RectangleZoomModifier : IInteractionModifier
         // Ignore tiny drags (< 2px in either direction)
         if (Math.Abs(args.X - _startPixelX) < 2 && Math.Abs(args.Y - _startPixelY) < 2) return;
 
-        _sink(new RectangleZoomEvent(_chartId, _activeAxes, xMin, xMax, yMin, yMax));
+        _sink(new RectangleZoomEvent(_chartId, _activeAxes, xMin, xMax, yMin, yMax)
+        {
+            SecondaryRanges = SecondaryRangesFor(args.X, args.Y),
+        });
+    }
+
+    /// <summary>Every outward-stacked secondary Y axis' new range after this drag — the SAME two pixel corners the
+    /// primary zoomed to, read through each secondary axis' OWN transform instead (ROADMAP.md row 100).</summary>
+    private List<SecondaryAxisRange>? SecondaryRangesFor(double endPixelX, double endPixelY)
+    {
+        var views = _layout.SecondaryViewsOf(_activeAxes);
+        if (views.Count == 0) return null;
+
+        var ranges = new List<SecondaryAxisRange>(views.Count);
+        foreach (var v in views)
+        {
+            var a = v.Transform.PixelToData(new Rendering.Point(_startPixelX, _startPixelY));
+            var b = v.Transform.PixelToData(new Rendering.Point(endPixelX, endPixelY));
+            ranges.Add(new SecondaryAxisRange(v.Side, v.SlotIndex,
+                new DataRange(Math.Min(a.X, b.X), Math.Max(a.X, b.X), Math.Min(a.Y, b.Y), Math.Max(a.Y, b.Y))));
+        }
+
+        return ranges;
     }
 
     /// <inheritdoc />

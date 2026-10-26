@@ -132,6 +132,8 @@ public sealed class ChartSerializer : IChartSerializer
         SecondarySeries = axes.SecondarySeries.Count > 0 ? SeriesToDtos(axes.SecondarySeries) : null,
         SecondaryXAxis = axes.SecondaryXAxis is not null ? AxisToDto(axes.SecondaryXAxis) : null,
         XSecondarySeries = axes.XSecondarySeries.Count > 0 ? SeriesToDtos(axes.XSecondarySeries) : null,
+        ExtraRightYAxes = axes.RightYAxes.Count > 1 ? axes.RightYAxes.Skip(1).Select(SlotToDto).ToList() : null,
+        LeftYAxes = axes.LeftYAxes.Count > 0 ? axes.LeftYAxes.Select(SlotToDto).ToList() : null,
         Spans = axes.Spans.Count > 0 ? axes.Spans.Select(s => new SpanRegionDto
         {
             Min = s.Min, Max = s.Max, Orientation = s.Orientation.ToString().ToLowerInvariant(),
@@ -321,7 +323,7 @@ public sealed class ChartSerializer : IChartSerializer
     /// <summary>The ONE place the fields every series shares enter the model: the counterpart of
     /// <see cref="SeriesToDto"/>, shared by the primary list and both secondary axes. A field that is absent, or an
     /// unknown placement, leaves the value the series was created with.</summary>
-    private static void RestoreSharedFields(ISeries series, SeriesDto dto)
+    internal static void RestoreSharedFields(ISeries series, SeriesDto dto)
     {
         series.Label = dto.Label;
         if (series is IHasLabelPlacement carrier)
@@ -526,20 +528,40 @@ public sealed class ChartSerializer : IChartSerializer
         {
             axes.TwinX();
             ApplyAxis(axes.SecondaryYAxis!, axDto.SecondaryYAxis);
-            // Route secondary series through PlotSecondary/ScatterSecondary
-            AddSecondarySeriesFromDtos(axDto.SecondarySeries,
-                sDto => axes.CreateSecondaryLine(sDto), sDto => axes.CreateSecondaryScatter(sDto));
+            foreach (var sDto in axDto.SecondarySeries ?? [])
+                axes.CreateOnSecondarySeat(sDto, s => axes.AddSecondarySeries(s));
         }
+
+        // ROADMAP.md row 101 — every right slot beyond 0, then every left slot, each in its own stack order
+        // (AddOutwardYAxis adds exactly one more slot per call, matching the writer's Skip(1)/full-list split).
+        foreach (var slotDto in axDto.ExtraRightYAxes ?? [])
+            RestoreOutwardSlot(axes, axes.AddOutwardYAxis(AxisSide.Right), slotDto);
+        foreach (var slotDto in axDto.LeftYAxes ?? [])
+            RestoreOutwardSlot(axes, axes.AddOutwardYAxis(AxisSide.Left), slotDto);
 
         if (axDto.SecondaryXAxis is not null)
         {
             axes.TwinY();
             ApplyAxis(axes.SecondaryXAxis!, axDto.SecondaryXAxis);
-            // Route top-axis series through PlotXSecondary/ScatterXSecondary
-            AddSecondarySeriesFromDtos(axDto.XSecondarySeries,
-                sDto => axes.CreateXSecondaryLine(sDto), sDto => axes.CreateXSecondaryScatter(sDto));
+            foreach (var sDto in axDto.XSecondarySeries ?? [])
+                axes.CreateOnSecondarySeat(sDto, s => axes.AddXSecondarySeries(s));
         }
     }
+
+    /// <summary>Restores one outward-stacked slot's own axis settings and series onto <paramref name="slot"/>,
+    /// which <see cref="Axes.AddOutwardYAxis"/> already created.</summary>
+    private static void RestoreOutwardSlot(Axes axes, SecondaryAxisSlot slot, SecondaryAxisSlotDto slotDto)
+    {
+        if (slotDto.Axis is not null) ApplyAxis(slot.Axis, slotDto.Axis);
+        foreach (var sDto in slotDto.Series ?? [])
+            axes.CreateOnSecondarySeat(sDto, s => slot.AddSeries(s));
+    }
+
+    private static SecondaryAxisSlotDto SlotToDto(SecondaryAxisSlot slot) => new()
+    {
+        Axis = AxisToDto(slot.Axis),
+        Series = slot.Series.Count > 0 ? SeriesToDtos(slot.Series) : null,
+    };
 
     private static void RestoreSpans(Axes axes, List<SpanRegionDto>? dtos)
     {
@@ -648,23 +670,6 @@ public sealed class ChartSerializer : IChartSerializer
         if (dto.LabelColor is { } labelColor) axis.LabelStyle = (axis.LabelStyle ?? new TextStyle()) with { Color = labelColor };
     }
 
-    /// <summary>Restores the series of one secondary axis: a line or a scatter is rebuilt by the axis' own factory
-    /// and keeps its label; any other kind is skipped, as it always was on the right-hand axis.</summary>
-    private static void AddSecondarySeriesFromDtos(IEnumerable<SeriesDto>? dtos,
-        Func<SeriesDto, LineSeries> createLine, Func<SeriesDto, ScatterSeries> createScatter)
-    {
-        foreach (var sDto in dtos ?? [])
-        {
-            ISeries? sec = sDto.Type switch
-            {
-                "line" => createLine(sDto),
-                "scatter" => createScatter(sDto),
-                _ => null
-            };
-            if (sec is not null) RestoreSharedFields(sec, sDto);
-        }
-    }
-
     private static void AddSeriesFromDto(Axes axes, SeriesDto dto)
     {
         var type = dto.Type ?? "unknown";
@@ -720,36 +725,34 @@ internal static class AxesSerializationExtensions
         /// at a time.</summary>
         internal void CopyAxesState(Axes source, Theme theme) => ChartSerializer.RestoreAxes(target, ChartSerializer.AxesToDto(source, theme));
 
-        /// <summary>Reconstructs a <see cref="LineSeries"/> on the secondary Y-axis from the DTO.</summary>
-        internal LineSeries CreateSecondaryLine(SeriesDto dto)
+        /// <summary>Reconstructs ANY registered series kind from <paramref name="dto"/> and seats it where
+        /// <paramref name="reseat"/> says — the row-99 fix (ROADMAP.md: "the right-hand and top axes carry lines
+        /// and points; a bar or an area there is not kept"). <see cref="SeriesRegistry.Create"/> always lands its
+        /// series on <c>target.Series</c> (every factory calls its own primary verb, e.g. <c>axes.Plot</c>), so
+        /// this builds normally and then moves the just-created one, instead of rewriting 70 factories to take a
+        /// seat parameter. Emits the same <see cref="ChartDiagnostics"/> entry <see cref="ChartSerializer.AddSeriesFromDto"/>
+        /// emits for an unknown kind, so a secondary-axis series no longer vanishes silently either.</summary>
+        /// <param name="dto">The series to reconstruct.</param>
+        /// <param name="reseat">Where the series belongs once built — <c>axes.AddSecondarySeries</c>,
+        /// <c>axes.AddXSecondarySeries</c>, or an outward-stacked slot's own <see cref="SecondaryAxisSlot.AddSeries{TSeries}"/>.</param>
+        /// <returns>The reconstructed series, or <see langword="null"/> for an unknown discriminator.</returns>
+        internal ISeries? CreateOnSecondarySeat(SeriesDto dto, Action<ISeries> reseat)
         {
-            var s = target.PlotSecondary(dto.XData ?? [], dto.YData ?? []);
-            s.RestoreFrom(dto);
-            return s;
-        }
+            var type = dto.Type ?? "unknown";
+            var created = SeriesRegistry.Create(type, target, dto);
+            if (created is null)
+            {
+                ChartDiagnostics.Emit(new ChartDiagnostic(
+                    nameof(ChartSerializer),
+                    $"Unknown series discriminator '{type}' was skipped during deserialization.",
+                    null));
+                return null;
+            }
 
-        /// <summary>Reconstructs a <see cref="ScatterSeries"/> on the secondary Y-axis from the DTO.</summary>
-        internal ScatterSeries CreateSecondaryScatter(SeriesDto dto)
-        {
-            var s = target.ScatterSecondary(dto.XData ?? [], dto.YData ?? []);
-            s.RestoreFrom(dto);
-            return s;
-        }
-
-        /// <summary>Reconstructs a <see cref="LineSeries"/> on the secondary X-axis (top edge) from the DTO.</summary>
-        internal LineSeries CreateXSecondaryLine(SeriesDto dto)
-        {
-            var s = target.PlotXSecondary(dto.XData ?? [], dto.YData ?? []);
-            s.RestoreFrom(dto);
-            return s;
-        }
-
-        /// <summary>Reconstructs a <see cref="ScatterSeries"/> on the secondary X-axis (top edge) from the DTO.</summary>
-        internal ScatterSeries CreateXSecondaryScatter(SeriesDto dto)
-        {
-            var s = target.ScatterXSecondary(dto.XData ?? [], dto.YData ?? []);
-            s.RestoreFrom(dto);
-            return s;
+            target.TakeLastSeries();
+            reseat(created);
+            ChartSerializer.RestoreSharedFields(created, dto);
+            return created;
         }
     }
 }
@@ -1065,6 +1068,13 @@ internal sealed record AxesDto
     public List<SeriesDto>? SecondarySeries { get; init; }
     public AxisDto? SecondaryXAxis { get; init; }
     public List<SeriesDto>? XSecondarySeries { get; init; }
+    /// <summary>Every right-stacked Y axis BEYOND slot 0 (<see cref="SecondaryYAxis"/>/<see cref="SecondarySeries"/>
+    /// already carry that one, kept as-is for wire back-compat), in stack order — ROADMAP.md row 101's "4 axes, 2
+    /// left and 2 right." Additive: old JSON with no 2nd right axis simply has no entry here.</summary>
+    public List<SecondaryAxisSlotDto>? ExtraRightYAxes { get; init; }
+    /// <summary>Every left-stacked Y axis, in stack order — entirely new wire surface, no slot-0 legacy field to
+    /// stay compatible with (the primary <see cref="Axes.YAxis"/> is the left side's own first axis).</summary>
+    public List<SecondaryAxisSlotDto>? LeftYAxes { get; init; }
     public List<AnnotationDto>? Annotations { get; init; }
     public List<ReferenceLineDto>? ReferenceLines { get; init; }
     public List<SpanRegionDto>? Spans { get; init; }
@@ -1101,6 +1111,14 @@ internal sealed record AxesDto
     public bool? Emit3DVertexData { get; init; }
     /// <summary>Cartesian, polar or three-D; absent for the default <c>Cartesian</c>.</summary>
     public string? CoordinateSystem { get; init; }
+}
+
+/// <summary>Data-transfer object for one <see cref="Models.SecondaryAxisSlot"/> — a right or left axis beyond
+/// the slot the wire already had a field for (<see cref="AxesDto.SecondaryYAxis"/>).</summary>
+internal sealed record SecondaryAxisSlotDto
+{
+    public AxisDto? Axis { get; init; }
+    public List<SeriesDto>? Series { get; init; }
 }
 
 /// <summary>Data-transfer object for <see cref="Models.Pane3DConfig"/>.</summary>

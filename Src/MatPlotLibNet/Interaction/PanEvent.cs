@@ -27,6 +27,13 @@ public sealed record PanEvent(
     /// still wins over it.</para></summary>
     public DataRange? InView { get; init; }
 
+    /// <summary>Every outward-stacked secondary Y axis' new range (ROADMAP.md row 100), already computed by
+    /// <see cref="PanModifier"/> from the SAME pixel delta this event shifts the primary by — each in
+    /// that axis' own data units, not the primary's (<see cref="Shifted"/>, read against
+    /// <see cref="IChartLayout.GetSecondaryDataRanges"/>'s current value for that slot). <see langword="init"/>-only
+    /// so every existing construction site keeps working; absent/empty leaves every secondary axis where it was.</summary>
+    public IReadOnlyList<SecondaryAxisRange>? SecondaryRanges { get; init; }
+
     /// <inheritdoc />
     public override void ApplyTo(Figure figure)
     {
@@ -40,13 +47,22 @@ public sealed record PanEvent(
 
         if (!axes.HasFixedYRange && (axes.YAxis.Min ?? InView?.YMin) is double yMin && (axes.YAxis.Max ?? InView?.YMax) is double yMax)
             Shift(axes.YAxis, yMin, yMax, DyData);
+
+        AxisRangeEventExtensions.ApplySecondaryRanges(axes, SecondaryRanges);
     }
 
     /// <summary>Sets <paramref name="axis"/>' limits to <paramref name="min"/>..<paramref name="max"/> moved by
     /// <paramref name="delta"/> in the space the axis is drawn in (<see cref="AxisScaleExtensions"/>).</summary>
     private static void Shift(Axis axis, double min, double max, double delta)
     {
-        axis.Min = axis.Scale.Inverse(axis.Scale.Forward(min, axis.SymLogLinThresh) + delta, axis.SymLogLinThresh);
-        axis.Max = axis.Scale.Inverse(axis.Scale.Forward(max, axis.SymLogLinThresh) + delta, axis.SymLogLinThresh);
+        (axis.Min, axis.Max) = Shifted(min, max, delta, axis.Scale, axis.SymLogLinThresh);
     }
+
+    /// <summary><paramref name="min"/>..<paramref name="max"/> moved by <paramref name="delta"/> in the space
+    /// <paramref name="scale"/> draws in — the computation <see cref="Shift"/> applies to the primary axis,
+    /// exposed so <see cref="PanModifier"/> can apply the SAME rule to a secondary axis' own scale
+    /// without going through an <see cref="Axis"/> object (a modifier only ever sees a range and a transform).</summary>
+    internal static (double Min, double Max) Shifted(double min, double max, double delta, AxisScale scale, double linThresh) =>
+        (scale.Inverse(scale.Forward(min, linThresh) + delta, linThresh),
+         scale.Inverse(scale.Forward(max, linThresh) + delta, linThresh));
 }

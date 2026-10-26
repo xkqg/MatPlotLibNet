@@ -283,6 +283,19 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>Enables one more Y axis stacked outward on <paramref name="side"/> and configures it — the
+    /// fluent-API path to the second right axis or the left side's own secondary axis (ROADMAP.md row 101's
+    /// "4 axes, 2 left and 2 right"). <see cref="WithSecondaryYAxis"/> remains the way to the first right axis.</summary>
+    /// <param name="side">Which side to stack the new axis on.</param>
+    /// <param name="configure">Callback that configures the new axis and adds series to it.</param>
+    public AxesBuilder WithOutwardYAxis(AxisSide side, Action<OutwardYAxisBuilder> configure)
+    {
+        var slot = _axes.AddOutwardYAxis(side);
+        var builder = new OutwardYAxisBuilder(slot);
+        configure(builder);
+        return this;
+    }
+
     /// <summary>Adds a text annotation at the specified data coordinates.</summary>
     public AxesBuilder Annotate(string text, double x, double y, Action<Annotation>? configure = null)
     {
@@ -1595,17 +1608,14 @@ public sealed class AxesBuilder
 
     private double[] GetPriceData()
     {
-        // Prefer the most recently added price series. This lets users *chain* indicators:
-        //   .Plot(x, close).Sma(20).Sma(5)
-        // computes SMA(5) over the SMA(20) output, not over the raw close again.
-        // If no prior line/area series exists, fall back to the last OHLC price series so
-        // `.Candlestick(o,h,l,c).Sma(20)` still resolves to close.
+        // Prefer the most recently added price series, searched across the WHOLE list, not just the last
+        // one added: this lets users *chain* indicators (.Plot(x, close).Sma(20).Sma(5) computes SMA(5) over
+        // the SMA(20) output, not the raw close again), and it already resolves `.Candlestick(o,h,l,c).Sma(20)`
+        // to Close too — CandlestickSeries and OhlcBarSeries are themselves IPriceSeries (via OhlcSeries), so
+        // a separate OHLC-only fallback search here would never find anything this one hadn't already.
         var last = _axes.Series.LastOrDefault(s => s is IPriceSeries);
-        if (last is IPriceSeries price) return price.PriceData;
-
-        var ohlc = _axes.Series.LastOrDefault(s => s is CandlestickSeries or OhlcBarSeries);
-        return ohlc is IPriceSeries canonical
-            ? canonical.PriceData
+        return last is IPriceSeries price
+            ? price.PriceData
             : throw new InvalidOperationException("No price data found. Add a series with Y data before calling indicator shortcuts.");
     }
 
@@ -1716,6 +1726,69 @@ public sealed class SecondaryAxisBuilder
     public SecondaryAxisBuilder WithDirectLabel()
     {
         if (_axes.SecondarySeries.LastOrDefault() is Models.Series.IHasLabelPlacement p) p.LabelPlacement = Models.Series.SeriesLabelPlacement.LineEnd;
+        return this;
+    }
+}
+
+/// <summary>Fluent builder for configuring ONE further outward-stacked Y axis — the second right axis or the
+/// left side's own secondary axis (ROADMAP.md row 101's "4 axes, 2 left and 2 right").</summary>
+/// <remarks>Obtained via <see cref="AxesBuilder.WithOutwardYAxis"/>. Unlike <see cref="SecondaryAxisBuilder"/>
+/// (always right slot 0, the pre-row-101 shape) this wraps its own <see cref="SecondaryAxisSlot"/> directly, so it
+/// reaches the right axis regardless of how many already stack on that side. Carries no <c>SetYAxisColor</c>: a
+/// slot beyond the first draws no spine line of its own yet (ticks and labels only, exactly like slot 0's own
+/// secondary axis), so there is nothing per-slot to recolor.</remarks>
+public sealed class OutwardYAxisBuilder
+{
+    private readonly SecondaryAxisSlot _slot;
+
+    /// <summary>Initializes a new <see cref="OutwardYAxisBuilder"/> wrapping the given slot.</summary>
+    internal OutwardYAxisBuilder(SecondaryAxisSlot slot) => _slot = slot;
+
+    /// <summary>Sets the label displayed alongside this axis.</summary>
+    public OutwardYAxisBuilder SetYLabel(string label) { _slot.Axis.Label = label; return this; }
+
+    /// <summary>Sets explicit min/max limits for this axis' data range.</summary>
+    public OutwardYAxisBuilder SetYLim(double min, double max) { _slot.Axis.Min = min; _slot.Axis.Max = max; return this; }
+
+    /// <summary>Adds a line series plotted against this axis.</summary>
+    public OutwardYAxisBuilder Plot(double[] x, double[] y, Action<LineSeries>? configure = null)
+    {
+        x.Length.ThrowIfMisaligned(y.Length);
+        var series = _slot.AddSeries(new LineSeries(x, y));
+        configure?.Invoke(series);
+        return this;
+    }
+
+    /// <summary>Adds a scatter series plotted against this axis.</summary>
+    public OutwardYAxisBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null)
+    {
+        x.Length.ThrowIfMisaligned(y.Length);
+        var series = _slot.AddSeries(new ScatterSeries(x, y));
+        configure?.Invoke(series);
+        return this;
+    }
+
+    /// <summary>Adds a STREAMING line series against this axis, so a live chart can carry a third or fourth
+    /// unit at once.</summary>
+    /// <param name="capacity">Maximum data points retained in the ring buffer. Default 10,000.</param>
+    /// <param name="configure">Optional configuration callback.</param>
+    /// <returns>The created series, so the caller can <c>AppendPoint</c> to it from any thread — unlike the
+    /// other methods here it does NOT return the builder, matching <see cref="SecondaryAxisBuilder.StreamingPlot"/>.</returns>
+    public Models.Series.Streaming.StreamingLineSeries StreamingPlot(
+        int capacity = 10_000, Action<Models.Series.Streaming.StreamingLineSeries>? configure = null)
+    {
+        var series = _slot.AddSeries(new Models.Series.Streaming.StreamingLineSeries(capacity));
+        configure?.Invoke(series);
+        return series;
+    }
+
+    /// <summary>Draws the name of the series added last at the end of its line instead of in the legend. Takes
+    /// effect on a right-side slot (<see cref="Rendering.Layout.DirectLabelMetrics"/> collects every right slot);
+    /// on a left-side slot it is harmlessly inert — the left side draws no end-of-line label column yet.</summary>
+    /// <returns>This builder, for chaining.</returns>
+    public OutwardYAxisBuilder WithDirectLabel()
+    {
+        if (_slot.Series.LastOrDefault() is Models.Series.IHasLabelPlacement p) p.LabelPlacement = Models.Series.SeriesLabelPlacement.LineEnd;
         return this;
     }
 }

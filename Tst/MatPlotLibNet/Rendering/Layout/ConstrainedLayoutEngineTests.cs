@@ -450,6 +450,52 @@ public class ConstrainedLayoutEngineTests
         Assert.Equal(band.SecondaryAxis + ConstrainedLayoutEngine.PadRight, band.Width, 6);
     }
 
+    /// <summary>ROADMAP.md row 101: a second, outward-stacked right axis — the total the layout reserves is the SUM
+    /// of every slot's own band, read by <see cref="ConstrainedLayoutEngine.SecondaryAxisBand"/> and by
+    /// <c>CartesianSecondaryYAxisPart</c>'s own outward offset (<see cref="AxisStackingExtensions.StackedOffsets"/>)
+    /// alike, so the two can never disagree about where a slot's edge is.</summary>
+    [Fact]
+    public void RightBand_TwoOutwardStackedAxes_TotalIsTheSumOfEachSlotsOwnBand()
+    {
+        var ctx = new RecordingRenderContext();
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+            .Plot(X, [1.0, 2.0, 3.0])
+            .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]))).Build();
+        var axes = figure.SubPlots[0];
+        axes.AddOutwardYAxis(AxisSide.Right).AddSeries(new MatPlotLibNet.Models.Series.LineSeries(X, [1.0, 2.0, 3.0]));
+
+        var perSlotBands = ConstrainedLayoutEngine.SecondaryAxisBands(axes, ctx, figure.Theme);
+        var band = new ConstrainedLayoutEngine().MeasureRightBand(axes, ctx, figure.Theme, 0);
+
+        Assert.Equal(2, perSlotBands.Length);
+        Assert.True(perSlotBands[0] > 0 && perSlotBands[1] > 0, "Both slots should charge a nonzero band.");
+        // Different tick-label widths (5-digit values vs 1-digit) prove the two entries are genuinely distinct, not
+        // the same band measured twice.
+        Assert.NotEqual(perSlotBands[0], perSlotBands[1]);
+        Assert.Equal(perSlotBands[0] + perSlotBands[1], band.SecondaryAxis, 6);
+    }
+
+    /// <summary>ROADMAP.md row 101: a left-stacked outward secondary axis widens the left margin past the primary
+    /// Y axis' own band — the mirror of the right band, read the same way by <see cref="ConstrainedLayoutEngine.LeftAxisBands"/>.</summary>
+    [Fact]
+    public void Compute_WithALeftStackedAxis_WidensTheLeftMarginPastThePrimarysOwnBand()
+    {
+        var ctx = new RecordingRenderContext();
+        var without = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])).Build();
+        var with = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])).Build();
+        with.SubPlots[0].AddOutwardYAxis(AxisSide.Left)
+            .AddSeries(new MatPlotLibNet.Models.Series.LineSeries(X, [10_000.0, 20_000.0, 30_000.0]));
+
+        var marginWithout = new ConstrainedLayoutEngine().Compute(without, ctx).MarginLeft;
+        var marginWith = new ConstrainedLayoutEngine().Compute(with, ctx).MarginLeft;
+        var leftBand = ConstrainedLayoutEngine.LeftAxisBands(with.SubPlots[0], ctx, with.Theme);
+
+        Assert.Single(leftBand);
+        Assert.True(leftBand[0] > 0);
+        Assert.True(marginWith > marginWithout,
+            $"Expected the left-axis figure's margin ({marginWith}) to exceed the plain one's ({marginWithout}).");
+    }
+
     [Fact]
     public void RightBand_SecondaryTickFormatter_IsWhatIsMeasured()
     {

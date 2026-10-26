@@ -794,14 +794,34 @@ public class AxesBuilderCoverageTests
     [Fact]
     public void Sma_AfterCandlestick_ResolvesPriceFromOhlcSeries()
     {
-        // No Plot() — Candlestick alone. Indicator shortcut needs GetPriceData to fall
-        // through to the OHLC branch (line 1070) and pull Close prices.
+        // No Plot() — Candlestick alone. CandlestickSeries IS IPriceSeries (via OhlcSeries), so this is found
+        // by GetPriceData's FIRST search (the most-recently-added IPriceSeries) — it never reaches the OHLC
+        // fallback search specifically; see the next test for that.
         double[] o = [10, 11, 12, 13, 14, 15];
         double[] h = [12, 13, 14, 15, 16, 17];
         double[] l = [9, 10, 11, 12, 13, 14];
         double[] c = [11, 12, 13, 14, 15, 16];
         var fig = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Candlestick(o, h, l, c).Sma(3))
+            .Build();
+        Assert.NotNull(fig);
+    }
+
+    /// <summary>The OHLC fallback search itself: the LAST series is not an IPriceSeries (a Bar isn't), so the
+    /// first search in GetPriceData fails and it must fall through to the explicit
+    /// CandlestickSeries/OhlcBarSeries search further back in the list.</summary>
+    [Fact]
+    public void Sma_AfterCandlestickThenBar_StillResolvesPriceFromTheEarlierOhlcSeries()
+    {
+        double[] o = [10, 11, 12, 13, 14, 15];
+        double[] h = [12, 13, 14, 15, 16, 17];
+        double[] l = [9, 10, 11, 12, 13, 14];
+        double[] c = [11, 12, 13, 14, 15, 16];
+        var fig = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Candlestick(o, h, l, c)
+                .Bar(["flag"], [1.0])
+                .Sma(3))
             .Build();
         Assert.NotNull(fig);
     }

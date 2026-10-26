@@ -266,4 +266,126 @@ public class AxesTests
             _ => invoked = true);
         Assert.True(invoked);
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // A third and fourth Y axis, outward-stacked two to a side (ROADMAP.md row 101)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void DefaultAxes_HasNoOutwardAxesOnEitherSide()
+    {
+        var axes = new Axes();
+        Assert.Empty(axes.RightYAxes);
+        Assert.Empty(axes.LeftYAxes);
+    }
+
+    [Fact]
+    public void TwinX_CreatesTheFirstRightAxis_AsRightYAxesSlotZero()
+    {
+        var axes = new Axes();
+        axes.TwinX();
+        Assert.Single(axes.RightYAxes);
+        Assert.Same(axes.SecondaryYAxis, axes.RightYAxes[0].Axis);
+        Assert.Equal(AxisSide.Right, axes.RightYAxes[0].Side);
+    }
+
+    [Fact]
+    public void TwinX_CalledTwice_StaysAtOneRightAxis()
+    {
+        var axes = new Axes();
+        axes.TwinX();
+        var first = axes.SecondaryYAxis;
+        axes.TwinX();
+        Assert.Single(axes.RightYAxes);
+        Assert.Same(first, axes.SecondaryYAxis);
+    }
+
+    [Fact]
+    public void AddOutwardYAxis_Right_CreatesASecondRightAxis_DistinctFromSecondaryYAxis()
+    {
+        var axes = new Axes();
+        axes.TwinX();
+        var second = axes.AddOutwardYAxis(AxisSide.Right);
+
+        Assert.Equal(2, axes.RightYAxes.Count);
+        Assert.NotSame(axes.SecondaryYAxis, second.Axis);
+        Assert.Equal(AxisSide.Right, second.Side);
+    }
+
+    [Fact]
+    public void AddOutwardYAxis_Right_WithoutTwinXFirst_StillCreatesBothSlots()
+    {
+        var axes = new Axes();
+        axes.AddOutwardYAxis(AxisSide.Right);
+
+        Assert.Equal(2, axes.RightYAxes.Count);
+        Assert.NotNull(axes.SecondaryYAxis);
+    }
+
+    [Fact]
+    public void AddOutwardYAxis_Right_CalledThreeTimes_CapsAtTwoRightAxes()
+    {
+        var axes = new Axes();
+        axes.AddOutwardYAxis(AxisSide.Right);
+        var second = axes.AddOutwardYAxis(AxisSide.Right);
+        var third = axes.AddOutwardYAxis(AxisSide.Right);
+
+        Assert.Equal(2, axes.RightYAxes.Count);
+        Assert.Equal(second.Axis, third.Axis);
+    }
+
+    [Fact]
+    public void AddOutwardYAxis_Left_CreatesOneLeftAxis_TheOwnersTwoLeftTwoRight()
+    {
+        var axes = new Axes();
+        var left = axes.AddOutwardYAxis(AxisSide.Left);
+
+        Assert.Single(axes.LeftYAxes);
+        Assert.Equal(AxisSide.Left, left.Side);
+    }
+
+    [Fact]
+    public void AddOutwardYAxis_Left_CalledTwice_CapsAtOneLeftAxis()
+    {
+        var axes = new Axes();
+        var first = axes.AddOutwardYAxis(AxisSide.Left);
+        var second = axes.AddOutwardYAxis(AxisSide.Left);
+
+        Assert.Single(axes.LeftYAxes);
+        Assert.Equal(first.Axis, second.Axis);
+    }
+
+    /// <summary>TakeLastSeries on an axes with no primary series: the branch every other caller's own non-null
+    /// forgiving operator (`!`) never exercises, since they always pop right after adding one.</summary>
+    [Fact]
+    public void TakeLastSeries_WithNoPrimarySeries_ReturnsNull()
+    {
+        var axes = new Axes();
+
+        Assert.Null(axes.TakeLastSeries());
+    }
+
+    [Fact]
+    public void SecondaryAxisSlot_AddSeries_AddsToThatSlotsOwnList_NotToSecondaryYAxisSlotZero()
+    {
+        var axes = new Axes();
+        axes.TwinX();
+        var second = axes.AddOutwardYAxis(AxisSide.Right);
+        second.AddSeries(new LineSeries([0.0, 1], [0.0, 1]));
+
+        Assert.Empty(axes.SecondarySeries);
+        Assert.Single(second.Series);
+    }
+
+    [Fact]
+    public void AddSecondarySeries_StillTargetsRightSlotZero_BackCompat()
+    {
+        var axes = new Axes();
+        axes.AddOutwardYAxis(AxisSide.Right);
+        var series = axes.AddSecondarySeries(new LineSeries([0.0, 1], [0.0, 1]));
+
+        Assert.Single(axes.SecondarySeries);
+        Assert.Same(series, axes.SecondarySeries[0]);
+        Assert.Empty(axes.RightYAxes[1].Series);
+    }
 }

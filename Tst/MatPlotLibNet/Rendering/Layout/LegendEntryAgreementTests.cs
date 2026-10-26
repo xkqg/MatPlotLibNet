@@ -30,6 +30,9 @@ public class LegendEntryAgreementTests
         { "all of them together",       ["B = 6.00", "S = 60.00"],           [1, 2] },
         { "direct-labelled series",     ["A"],                               [0] },
         { "direct-labelled secondary",  ["A", "T"],                          [0, 2] },
+        { "second right axis",          ["A", "S", "S2"],                    [0, 1, 2] },
+        { "left axis",                  ["A", "L"],                          [0, 1] },
+        { "left and right together",    ["A", "S", "L"],                     [0, 1, 2] },
     };
 
     private static FigureBuilder Build(string name) => name switch
@@ -65,6 +68,19 @@ public class LegendEntryAgreementTests
                 .Plot(X, [40.0, 50.0, 60.0], s => s.Label = "S")
                 .WithDirectLabel()
                 .Plot(X, [60.0, 50.0, 40.0], s => s.Label = "T"))),
+        // ROADMAP.md row 101 — a 2nd right axis (or a left-side secondary axis) must get legend entries too, not
+        // only right slot 0: the legend, the hit-test and the measurer share ONE list, so they share this gap too.
+        "second right axis" => Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
+            .Plot(X, [2.0, 3.0, 4.0], s => s.Label = "A")
+            .WithSecondaryYAxis(y2 => y2.Plot(X, [40.0, 50.0, 60.0], s => s.Label = "S"))
+            .WithOutwardYAxis(AxisSide.Right, outer => outer.Plot(X, [400.0, 500.0, 600.0], s => s.Label = "S2"))),
+        "left axis" => Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
+            .Plot(X, [2.0, 3.0, 4.0], s => s.Label = "A")
+            .WithOutwardYAxis(AxisSide.Left, left => left.Plot(X, [0.1, 0.2, 0.3], s => s.Label = "L"))),
+        "left and right together" => Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
+            .Plot(X, [2.0, 3.0, 4.0], s => s.Label = "A")
+            .WithSecondaryYAxis(y2 => y2.Plot(X, [40.0, 50.0, 60.0], s => s.Label = "S"))
+            .WithOutwardYAxis(AxisSide.Left, left => left.Plot(X, [0.1, 0.2, 0.3], s => s.Label = "L"))),
         _ => throw new ArgumentOutOfRangeException(nameof(name), name, null),
     };
 

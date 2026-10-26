@@ -275,8 +275,14 @@ internal sealed class ConstrainedLayoutEngine
                 : yMajor.TickLabelBand(ctx.MeasureText(EstimateYTickLabel(axes), tickFont).Width);
         }
 
-        double leftNeeded = LeftNeed(axes, ctx, theme, yTickExtent);
-        double leftBand = bands.Left > 0 ? leftNeeded : 0;
+        // A left-stacked outward secondary axis (ROADMAP.md row 101) adds past the primary Y's own band, the same
+        // "a reservation that is too wide never clips" rule the right side's secondary axis follows — charged even
+        // when a slot draws nothing (see SecondaryAxisBand's remarks).
+        double leftSecondaryBand = LeftAxisBands(axes, ctx, theme).TotalStackedBand();
+        double leftNeeded = LeftNeed(axes, ctx, theme, yTickExtent) + leftSecondaryBand;
+        // leftNeeded already folds leftSecondaryBand in when category names drove a measured band; otherwise the
+        // secondary band is still what was actually drawn there, so it alone counts.
+        double leftBand = bands.Left > 0 ? leftNeeded : leftSecondaryBand;
 
         // --- Bottom margin: X-tick labels + optional X-axis label ---
         // What the axes draws below its bottom spine is measured by the renderer that draws it (bands.Bottom, the tick
@@ -413,25 +419,55 @@ internal sealed class ConstrainedLayoutEngine
                              widestLabel > 0 ? DirectLabelMetrics.Gap + widestLabel : 0);
     }
 
-    /// <summary>From the right spine to the far side of the secondary Y axis, as
-    /// <c>CartesianSecondaryYAxisPart</c> draws it: tick labels left-aligned at <see cref="TickConfig.Length"/> +
-    /// <see cref="TickConfig.Pad"/> past the spine (<see cref="AxisTickExtensions.TickLabelBand"/>), then the rotated
-    /// title centred at <see cref="AxisTickExtensions.AxisLabelOffset"/> plus the label style's pad. The title is
-    /// charged its full height past that centre (the rule the left margin uses for the primary title), which
-    /// over-reserves a little: the safe direction.</summary>
-    /// <remarks>An axis without secondary series draws nothing, but it is still charged: what it would draw is what
+    /// <summary>From the right spine to the far side of every right-side slot stacked together, as
+    /// <c>CartesianSecondaryYAxisPart</c> draws them: tick labels left-aligned at <see cref="TickConfig.Length"/> +
+    /// <see cref="TickConfig.Pad"/> past each slot's own edge (<see cref="AxisTickExtensions.TickLabelBand"/>), then
+    /// the rotated title centred at <see cref="AxisTickExtensions.AxisLabelOffset"/> plus the label style's pad. The
+    /// title is charged its full height past that centre (the rule the left margin uses for the primary title),
+    /// which over-reserves a little: the safe direction. The total across every slot is <see cref="SecondaryAxisBands"/>
+    /// summed (<see cref="AxisStackingExtensions.TotalStackedBand"/>).</summary>
+    /// <remarks>A slot without secondary series draws nothing, but it is still charged: what it would draw is what
     /// the figure asked for, and a reservation that is too wide never clips. The end-label column
     /// (<c>CartesianDirectLabelsPart</c>) starts past this band, so labels never sit on the secondary ticks.</remarks>
-    internal static double SecondaryAxisBand(Axes axes, IRenderContext ctx, Theme theme)
+    internal static double SecondaryAxisBand(Axes axes, IRenderContext ctx, Theme theme) =>
+        SecondaryAxisBands(axes, ctx, theme).TotalStackedBand();
+
+    /// <summary>The band of every right-side outward-stacked slot, nearest-to-the-plot (<see cref="Axes.SecondaryYAxis"/>,
+    /// slot 0) first — <see cref="SecondaryAxisBand"/> sums these for the layout's total reservation, and
+    /// <c>CartesianSecondaryYAxisPart</c> stacks them (<see cref="AxisStackingExtensions.StackedOffsets"/>) to place
+    /// each slot's ticks past every slot before it. Empty when the axes has no right-side slot at all.</summary>
+    internal static double[] SecondaryAxisBands(Axes axes, IRenderContext ctx, Theme theme) =>
+        SlotBands(axes.RightYAxes, axes, ctx, theme);
+
+    /// <summary>The band of every left-side outward-stacked slot, nearest-to-the-plot (past the primary <see cref="Axes.YAxis"/>)
+    /// first — summed (<see cref="AxisStackingExtensions.TotalStackedBand"/>) for the left margin's extra reservation,
+    /// stacked (<see cref="AxisStackingExtensions.StackedOffsets"/>) for each slot's own render-time outward offset.
+    /// Empty when the axes has no left-side slot at all.</summary>
+    internal static double[] LeftAxisBands(Axes axes, IRenderContext ctx, Theme theme) =>
+        SlotBands(axes.LeftYAxes, axes, ctx, theme);
+
+    private static double[] SlotBands(IReadOnlyList<Models.SecondaryAxisSlot> slots, Axes axes, IRenderContext ctx, Theme theme)
     {
-        if (axes.SecondaryYAxis is not { } axis) return 0;
+        if (slots.Count == 0) return [];
+        var renderer = new CartesianAxesRenderer(axes, default, ctx, theme);
+        var bands = new double[slots.Count];
+        for (int i = 0; i < slots.Count; i++)
+        {
+            var slot = slots[i];
+            // The same range, tick values, formatter and font the secondary part draws this slot with.
+            var range = renderer.ComputeSecondaryDataRanges(0, 1, slot.Axis, slot.Series);
+            bands[i] = SlotBand(slot.Axis, range, ctx, theme);
+        }
+        return bands;
+    }
+
+    private static double SlotBand(Axis axis, DataRange axisRange, IRenderContext ctx, Theme theme)
+    {
         var ticks = axis.MajorTicks;
         double widest = 0, band = 0;
         if (ticks.Visible)
         {
-            // The same range, tick values, formatter and font the secondary part draws with.
-            var range = new CartesianAxesRenderer(axes, default, ctx, theme).ComputeSecondaryDataRanges(0, 1);
-            var values = AxesRenderer.ComputeTickValuesInternal(range.YMin, range.YMax);
+            var values = AxesRenderer.ComputeTickValuesInternal(axisRange.YMin, axisRange.YMax);
             var uniform = AxesRenderer.BuildUniformTickFormatter(values);
             var font = ticks.LabelFont(ThemedFontProvider.TickFont(theme));
             foreach (var value in values)
@@ -554,11 +590,13 @@ internal sealed class ConstrainedLayoutEngine
                 hGap = Math.Max(hGap, resolved.HorizontalGap + band);
                 interiorRightBand = Math.Max(interiorRightBand, band);
             }
-            // Left of the left spine only measured category names are new (a numeric Y axis fits the resolved spacing):
-            // the margin holds them and the title past them, and a gutter holds them right of its neighbour's band.
-            if (bands.Left > 0)
+            // Left of the left spine only measured category names, or a left-stacked outward secondary axis
+            // (ROADMAP.md row 101), are new (a plain numeric Y axis fits the resolved spacing): the margin holds
+            // them and the title past them, and a gutter holds them right of its neighbour's band.
+            double leftSecondary = LeftAxisBands(axes, ctx, figure.Theme).TotalStackedBand();
+            if (bands.Left > 0 || leftSecondary > 0)
             {
-                double need = LeftNeed(axes, ctx, figure.Theme, bands.Left);
+                double need = LeftNeed(axes, ctx, figure.Theme, bands.Left) + leftSecondary;
                 if (pos.ColStart == 0) left = Math.Max(left, need);
                 else interiorLeftNeed = Math.Max(interiorLeftNeed, need);
             }

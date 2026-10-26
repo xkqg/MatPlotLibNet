@@ -97,6 +97,28 @@ internal static class SvgSignalRInteractionScript
                     yMin: num(svg, 'data-reset-ymin'), yMax: num(svg, 'data-reset-ymax')
                 }
             };
+            // One outward-stacked secondary Y axis (ROADMAP.md row 101), read from the data-sec-<side>-<slot>-*
+            // attributes SvgRenderContext.AppendSecondaryViews writes. side is sent to the server as AxisSide's
+            // ORDINAL (Right = 1, Left = 0), not its name: the default JSON hub protocol carries no
+            // JsonStringEnumConverter (pinned by SignalRInteractionTestsV122.OnZoom_WithSecondaryRanges_BindsAxisSideFromItsOrdinal_NotItsName).
+            function readSecondarySlot(el, side, sideOrdinal, slot) {
+                var prefix = 'data-sec-' + side + '-' + slot + '-';
+                var s = {
+                    sideOrdinal: sideOrdinal, slot: slot,
+                    yMin: num(el, prefix + 'ymin'), yMax: num(el, prefix + 'ymax'),
+                    yScale: el.getAttribute(prefix + 'yscale'), yLinThresh: num(el, prefix + 'ylinthresh')
+                };
+                s.resetYMin = s.yMin; s.resetYMax = s.yMax;
+                return s;
+            }
+            function readSecondarySlots(el) {
+                var out = [];
+                var rightCount = parseInt(el.getAttribute('data-sec-right-count'), 10) || 0;
+                for (var i = 0; i < rightCount; i++) out.push(readSecondarySlot(el, 'right', 1, i));
+                var leftCount = parseInt(el.getAttribute('data-sec-left-count'), 10) || 0;
+                for (var j = 0; j < leftCount; j++) out.push(readSecondarySlot(el, 'left', 0, j));
+                return out;
+            }
             function readView(el) {
                 var v = {
                     axesIndex: parseInt(el.getAttribute('data-axes-index'), 10) || 0,
@@ -111,7 +133,53 @@ internal static class SvgSignalRInteractionScript
                 var start = v.mapped ? v : root;
                 v.xMin = start.xMin; v.xMax = start.xMax; v.yMin = start.yMin; v.yMax = start.yMax;
                 v.reset = v.mapped ? { xMin: v.xMin, xMax: v.xMax, yMin: v.yMin, yMax: v.yMax } : root.reset;
+                v.secondary = v.mapped ? readSecondarySlots(el) : [];
                 return v;
+            }
+            // Every secondary slot's new range, each unscaled in ITS OWN units — read, not re-derived, by the
+            // caller: zoomSecondary/panSecondary/resetSecondary each compute the drawn-space value their own way
+            // (ROADMAP.md row 100), this only wraps the result in the shape OnZoom/OnPan/OnReset send.
+            function secondaryRangesPayload(view) {
+                var out = [];
+                for (var i = 0; i < view.secondary.length; i++) {
+                    var s = view.secondary[i];
+                    out.push({
+                        side: s.sideOrdinal, slotIndex: s.slot,
+                        range: { xMin: 0, xMax: 0, yMin: dataY(s, s.yMin), yMax: dataY(s, s.yMax) }
+                    });
+                }
+                return out;
+            }
+            // Zooms every secondary slot about the SAME fraction-of-plot point the primary zoomed about, so a log
+            // or symlog secondary axis narrows correctly too (the drawn-space point under the pointer, read
+            // through that slot's own range, mirrors drawnAt's rule for the primary).
+            function zoomSecondary(view, f, scale) {
+                for (var i = 0; i < view.secondary.length; i++) {
+                    var s = view.secondary[i];
+                    var sy = s.yMin + (1 - f.fy) * (s.yMax - s.yMin);
+                    s.yMin = sy - (sy - s.yMin) * scale;
+                    s.yMax = sy + (s.yMax - sy) * scale;
+                }
+                return secondaryRangesPayload(view);
+            }
+            // Shifts every secondary slot by the SAME fraction-of-plot delta the primary panned by, scaled to
+            // THAT slot's own span -- the same pixel move is a different data-space delta on an axis with a
+            // different range (mirrors PanEvent.Shifted's forward/inverse rule, in the drawn space already).
+            function panSecondary(view, f1, f0) {
+                for (var i = 0; i < view.secondary.length; i++) {
+                    var s = view.secondary[i];
+                    var dy = (f1.fy - f0.fy) * (s.yMax - s.yMin);
+                    s.yMin += dy; s.yMax += dy;
+                }
+                return secondaryRangesPayload(view);
+            }
+            // Restores every secondary slot to the range it had when this view was first read.
+            function resetSecondary(view) {
+                for (var i = 0; i < view.secondary.length; i++) {
+                    var s = view.secondary[i];
+                    s.yMin = s.resetYMin; s.yMax = s.resetYMax;
+                }
+                return secondaryRangesPayload(view);
             }
             var views = [];
             var axesEls = svg.querySelectorAll('[data-axes-index]');
@@ -178,13 +246,15 @@ internal static class SvgSignalRInteractionScript
                 if (!isFinite(v.xMin) || !isFinite(v.xMax)) return;
                 e.preventDefault();
                 var scale = e.deltaY > 0 ? 1.1 : 0.9;
+                var f = fractionAt(v, e);
                 var c = drawnAt(v, e);
                 v.xMin = c.x - (c.x - v.xMin) * scale; v.xMax = c.x + (v.xMax - c.x) * scale;
                 v.yMin = c.y - (c.y - v.yMin) * scale; v.yMax = c.y + (v.yMax - c.y) * scale;
                 var z = limits(v, v);
                 invoke('OnZoom', {
                     chartId: chartId, axesIndex: v.axesIndex,
-                    xMin: z.xMin, xMax: z.xMax, yMin: z.yMin, yMax: z.yMax
+                    xMin: z.xMin, xMax: z.xMax, yMin: z.yMin, yMax: z.yMax,
+                    secondaryRanges: zoomSecondary(v, f, scale)
                 });
             }, { passive: false });
 
@@ -208,7 +278,8 @@ internal static class SvgSignalRInteractionScript
                 v.yMin += dyData; v.yMax += dyData;
                 invoke('OnPan', {
                     chartId: chartId, axesIndex: v.axesIndex,
-                    dxData: dxData, dyData: dyData, inView: inView
+                    dxData: dxData, dyData: dyData, inView: inView,
+                    secondaryRanges: panSecondary(v, f1, f0)
                 });
             });
             svg.addEventListener('pointerup', function (e) {
@@ -225,7 +296,8 @@ internal static class SvgSignalRInteractionScript
                         v.xMin = r.xMin; v.xMax = r.xMax; v.yMin = r.yMin; v.yMax = r.yMax;
                         invoke('OnReset', {
                             chartId: chartId, axesIndex: v.axesIndex,
-                            xMin: d.xMin, xMax: d.xMax, yMin: d.yMin, yMax: d.yMax
+                            xMin: d.xMin, xMax: d.xMax, yMin: d.yMin, yMax: d.yMax,
+                            secondaryRanges: resetSecondary(v)
                         });
                     }
                 }

@@ -48,13 +48,14 @@ internal sealed class CartesianDirectLabelsPart
     /// <param name="ctx">The context labels are measured with and drawn into.</param>
     /// <param name="theme">Active theme (font, cycle colours).</param>
     /// <param name="transform">Data→pixel transform of the primary axes.</param>
-    /// <param name="secondaryTransform">Data→pixel transform of the secondary Y axis, the same value the secondary part
-    /// draws its lines with; <see langword="null"/> when the axes has no secondary series.</param>
+    /// <param name="secondaryTransforms">Data→pixel transform of every right-side slot, in slot order — the same
+    /// values the secondary parts draw their lines with (<see cref="DirectLabel.AxisSlot"/> indexes into this);
+    /// empty when the axes has no right-side slot.</param>
     /// <param name="visibleX">The X range the axes is drawn with: a point outside it is not the end of a line.</param>
     /// <param name="mirroredYTicks">The band the mirrored Y tick labels took past the right spine
     /// (<see cref="EdgeBands.Right"/>); 0 when none were drawn. The column starts past it.</param>
     public CartesianDirectLabelsPart(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme,
-                                     DataTransform transform, DataTransform? secondaryTransform, MinMaxRange visibleX,
+                                     DataTransform transform, IReadOnlyList<DataTransform> secondaryTransforms, MinMaxRange visibleX,
                                      double mirroredYTicks)
     {
         _axes = axes;
@@ -63,7 +64,7 @@ internal sealed class CartesianDirectLabelsPart
         _theme = theme;
         _transform = transform;
         _mirroredYTicks = mirroredYTicks;
-        Placements = Place(secondaryTransform, visibleX);
+        Placements = Place(secondaryTransforms, visibleX);
     }
 
     private readonly Axes _axes;
@@ -96,7 +97,7 @@ internal sealed class CartesianDirectLabelsPart
             _ctx.DrawText(text, placed.Position, placed.Font, TextAlignment.Left);
     }
 
-    private List<PlacedDirectLabel> Place(DataTransform? secondaryTransform, MinMaxRange visibleX)
+    private List<PlacedDirectLabel> Place(IReadOnlyList<DataTransform> secondaryTransforms, MinMaxRange visibleX)
     {
         var metrics = new DirectLabelMetrics(_axes, _theme, _ctx, visibleX);
         var labels = new List<DirectLabel>();
@@ -104,7 +105,7 @@ internal sealed class CartesianDirectLabelsPart
         double labelHeight = 0;
         foreach (var label in metrics.Labels)
         {
-            var transform = label.Pair == SeriesAxisPair.Primary ? _transform : secondaryTransform!;
+            var transform = label.Pair == SeriesAxisPair.Primary ? _transform : secondaryTransforms[label.AxisSlot];
             var anchor = transform.DataToPixel(label.EndX, label.EndY);
             // The axis cannot draw this end (a non-positive value on a log axis, a value inside a break): the line has
             // no visible end there, so the label has nowhere to stand.

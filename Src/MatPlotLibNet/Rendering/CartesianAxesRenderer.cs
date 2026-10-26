@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Numerics;
+using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
@@ -36,8 +37,8 @@ public class CartesianAxesRenderer : AxesRenderer
     /// The end labels start past it.</summary>
     private double _mirroredYTickBand;
 
-    /// <summary>Whether a secondary Y axis is drawn: it has series. A drawn secondary axis owns the right edge.</summary>
-    private bool DrawsSecondaryY => Axes.SecondaryYAxis is not null && Axes.SecondarySeries.Count > 0;
+    /// <summary>Whether any right-side slot is drawn: it has series. A drawn secondary axis owns the right edge.</summary>
+    private bool DrawsSecondaryY => Axes.RightYAxes.Any(s => s.Series.Count > 0);
 
     /// <summary>Whether a secondary X axis is drawn: it has series. A drawn secondary axis owns the top edge.</summary>
     private bool DrawsSecondaryX => Axes.SecondaryXAxis is not null && Axes.XSecondarySeries.Count > 0;
@@ -270,21 +271,29 @@ public class CartesianAxesRenderer : AxesRenderer
                 bar.StackedBottoms = stacked ? feet[i] : null;
         }
 
-        // The secondary Y transform is built ONCE: the secondary part draws its lines with it and the end-label part
-        // places a secondary line's label with the same value.
-        DataRange secYRange = default;
-        DataTransform? secYTransform = null;
-        if (DrawsSecondaryY)
+        // Every right-side slot's transform is built ONCE, for every slot that EXISTS (an empty one is still charged
+        // a reserved band, so its outward offset must still be correct for the slot past it): the secondary parts
+        // draw their lines with these and the end-label part places a secondary line's label with the same values.
+        // A slot without series still reserves its band, by the same rule <see cref="AxisStackingExtensions"/> and
+        // the layout engine share, but only a slot WITH series gets its own part rendered — the single-slot rule
+        // this generalizes, applied per slot.
+        var secYRanges = new DataRange[Axes.RightYAxes.Count];
+        var secYTransforms = new DataTransform[Axes.RightYAxes.Count];
+        var secYOffsets = Axes.RightYAxes.Count > 0
+            ? Layout.ConstrainedLayoutEngine.SecondaryAxisBands(Axes, Ctx, Theme).StackedOffsets()
+            : [];
+        for (int i = 0; i < Axes.RightYAxes.Count; i++)
         {
-            secYRange = ComputeSecondaryDataRanges(range.XMin, range.XMax);
-            secYTransform = new DataTransform(secYRange.XMin, secYRange.XMax, secYRange.YMin, secYRange.YMax, PlotArea);
+            var slot = Axes.RightYAxes[i];
+            secYRanges[i] = ComputeSecondaryDataRanges(range.XMin, range.XMax, slot.Axis, slot.Series);
+            secYTransforms[i] = new DataTransform(secYRanges[i].XMin, secYRanges[i].XMax, secYRanges[i].YMin, secYRanges[i].YMax, PlotArea);
         }
 
         // End-of-line labels: placed once, across every series, before any is drawn. Each label is drawn inside its own
-        // series' group — by the primary pass (DrawInsideSeriesGroup) or the secondary Y part — so whatever hides the
-        // series hides its label.
+        // series' group — by the primary pass (DrawInsideSeriesGroup) or its own secondary Y part — so whatever hides
+        // the series hides its label.
         _directLabels = new CartesianParts.CartesianDirectLabelsPart(Axes, PlotArea, Ctx, Theme, transform,
-            secYTransform, new MinMaxRange(range.XMin, range.XMax), _mirroredYTickBand);
+            secYTransforms, new MinMaxRange(range.XMin, range.XMax), _mirroredYTickBand);
 
         // Series
         RenderSeries(transform);
@@ -293,11 +302,44 @@ public class CartesianAxesRenderer : AxesRenderer
         if (Axes.XBreaks.Count > 0) RenderBreakMarkers(Axes.XBreaks, transform, isXAxis: true);
         if (Axes.YBreaks.Count > 0) RenderBreakMarkers(Axes.YBreaks, transform, isXAxis: false);
 
-        // Secondary Y-axis series (Phase B.7 — extracted to CartesianSecondaryYAxisPart)
-        if (secYTransform is not null)
+        // Secondary Y-axis series (Phase B.7 — extracted to CartesianSecondaryYAxisPart), one instance per
+        // outward-stacked right-side slot that has series, each at its own stacked offset.
         {
-            new CartesianParts.CartesianSecondaryYAxisPart(
-                Axes, PlotArea, Ctx, Theme, transform, secYRange, secYTransform, _directLabels).Render();
+            int startingIndex = 0;
+            for (int i = 0; i < Axes.RightYAxes.Count; i++)
+            {
+                var slot = Axes.RightYAxes[i];
+                if (slot.Series.Count > 0)
+                {
+                    new CartesianParts.CartesianSecondaryYAxisPart(
+                        Axes, PlotArea, Ctx, Theme, transform, slot, startingIndex, secYOffsets[i],
+                        secYRanges[i], secYTransforms[i], _directLabels).Render();
+                }
+                startingIndex += slot.Series.Count;
+            }
+        }
+
+        // Secondary LEFT Y-axis series (ROADMAP.md row 101 — the mirror of the block above, stacked past the
+        // primary Y axis instead of past the plot's right edge). End-of-line labels are not drawn for these: the
+        // label column is a right-of-the-plot concept (DirectLabelMetrics), and a left-axis line's label has no
+        // established place yet — left for a later pass, not a silent drop (ARCHITECTURE.md: name what waits).
+        if (Axes.LeftYAxes.Count > 0)
+        {
+            var leftOffsets = Layout.ConstrainedLayoutEngine.LeftAxisBands(Axes, Ctx, Theme).StackedOffsets();
+            int startingIndex = 0;
+            for (int i = 0; i < Axes.LeftYAxes.Count; i++)
+            {
+                var slot = Axes.LeftYAxes[i];
+                if (slot.Series.Count > 0)
+                {
+                    var leftRange = ComputeSecondaryDataRanges(range.XMin, range.XMax, slot.Axis, slot.Series);
+                    var leftTransform = new DataTransform(leftRange.XMin, leftRange.XMax, leftRange.YMin, leftRange.YMax, PlotArea);
+                    new CartesianParts.CartesianSecondaryLeftYAxisPart(
+                        Axes, PlotArea, Ctx, Theme, transform, slot, startingIndex, leftOffsets[i],
+                        leftRange, leftTransform, _directLabels).Render();
+                }
+                startingIndex += slot.Series.Count;
+            }
         }
 
         // Secondary X-axis series (Phase B.8 — extracted to CartesianSecondaryXAxisPart). It owns the top edge, so the
@@ -338,6 +380,29 @@ public class CartesianAxesRenderer : AxesRenderer
     /// <remarks>The range is <see cref="ComputeDataRanges"/>' and the transform is built by <see cref="ViewTransform"/>,
     /// the two calls <see cref="Render"/> makes before it draws anything.</remarks>
     internal override DataTransform ComputeViewTransform() => ViewTransform(ComputeDataRanges());
+
+    /// <inheritdoc />
+    /// <remarks>Mirrors the per-slot loop <see cref="Render"/> itself builds (right slots then left slots), without
+    /// drawing anything — the same <see cref="ComputeSecondaryDataRanges(double,double,Axis,IReadOnlyList{ISeries})"/>
+    /// call, against the primary X range every slot shares.</remarks>
+    internal override IReadOnlyList<SecondaryAxisTransform> ComputeSecondaryViewTransforms()
+    {
+        var range = ComputeDataRanges();
+        var views = new List<SecondaryAxisTransform>(Axes.RightYAxes.Count + Axes.LeftYAxes.Count);
+        for (int i = 0; i < Axes.RightYAxes.Count; i++)
+        {
+            var slot = Axes.RightYAxes[i];
+            var r = ComputeSecondaryDataRanges(range.XMin, range.XMax, slot.Axis, slot.Series);
+            views.Add(new SecondaryAxisTransform(AxisSide.Right, i, new DataTransform(r.XMin, r.XMax, r.YMin, r.YMax, PlotArea)));
+        }
+        for (int i = 0; i < Axes.LeftYAxes.Count; i++)
+        {
+            var slot = Axes.LeftYAxes[i];
+            var r = ComputeSecondaryDataRanges(range.XMin, range.XMax, slot.Axis, slot.Series);
+            views.Add(new SecondaryAxisTransform(AxisSide.Left, i, new DataTransform(r.XMin, r.XMax, r.YMin, r.YMax, PlotArea)));
+        }
+        return views;
+    }
 
     /// <summary>The transform that maps <paramref name="range"/> onto the plot area: axis breaks compress it, and on a
     /// log or symlog axis the pixel mapping works in the scaled space (<see cref="AxisScaleExtensions.Forward"/>) so
@@ -577,26 +642,38 @@ public class CartesianAxesRenderer : AxesRenderer
         return new DataRange(xRange.Lo, xRange.Hi, yRange.Lo, yRange.Hi);
     }
 
-    /// <summary>Computes the Y data range for series plotted against the secondary Y-axis.</summary>
-    internal DataRange ComputeSecondaryDataRanges(double xMin, double xMax)
+    /// <summary>Computes the Y data range for series plotted against <see cref="Axes.SecondaryYAxis"/> (right slot 0).
+    /// A back-compat convenience over <see cref="ComputeSecondaryDataRanges(double,double,Axis,IReadOnlyList{ISeries})"/>
+    /// for the one slot this method answered before ROADMAP.md row 101.</summary>
+    internal DataRange ComputeSecondaryDataRanges(double xMin, double xMax) =>
+        ComputeSecondaryDataRanges(xMin, xMax, Axes.SecondaryYAxis!, Axes.SecondarySeries);
+
+    /// <summary>Computes the Y data range for <paramref name="series"/> plotted against <paramref name="axis"/> — one
+    /// outward-stacked right-side slot's own range, independent of every other slot's (each
+    /// <see cref="Models.SecondaryAxisSlot"/> keeps its own series, so nothing here folds two slots' data together).</summary>
+    /// <param name="xMin">The primary axes' X minimum, shared by every right-side slot.</param>
+    /// <param name="xMax">The primary axes' X maximum, shared by every right-side slot.</param>
+    /// <param name="axis">The slot's own axis (its set limits and scale orientation).</param>
+    /// <param name="series">The slot's own series — never another slot's.</param>
+    internal DataRange ComputeSecondaryDataRanges(double xMin, double xMax, Axis axis, IReadOnlyList<ISeries> series)
     {
-        double yMin = Axes.SecondaryYAxis?.Min ?? double.MaxValue;
-        double yMax = Axes.SecondaryYAxis?.Max ?? double.MinValue;
+        double yMin = axis.Min ?? double.MaxValue;
+        double yMax = axis.Max ?? double.MinValue;
 
         var context = new AxesContextAdapter(Axes);
-        foreach (var series in Axes.SecondarySeries)
+        foreach (var s in series)
         {
             // ISeries.ComputeDataRange, not an `is IHasDataRange` test: every series carries the member, but
             // not every one carries that separate marker interface — a streaming series does not, so the test
             // skipped it, the range stayed at its 0..1 sentinel and the trace was drawn off the plot area
             // while the primary path (SnapshotContributions) had ranged it correctly all along.
-            var c = series.ComputeDataRange(context);
+            var c = s.ComputeDataRange(context);
             if (c.YMin.HasValue && c.YMin.Value < yMin) yMin = c.YMin.Value;
             if (c.YMax.HasValue && c.YMax.Value > yMax) yMax = c.YMax.Value;
         }
 
         // A set limit is exact, the same rule the primary axes follow (Range1D.WithExplicitLimits).
-        var exact = new Range1D(yMin, yMax).WithExplicitLimits(Axes.SecondaryYAxis!);
+        var exact = new Range1D(yMin, yMax).WithExplicitLimits(axis);
         yMin = exact.Lo;
         yMax = exact.Hi;
 
@@ -604,11 +681,11 @@ public class CartesianAxesRenderer : AxesRenderer
         if (Math.Abs(yMax - yMin) < 1e-10) { yMin -= 0.5; yMax += 0.5; }
 
         double yPadding = (yMax - yMin) * 0.05;
-        if (!Axes.SecondaryYAxis!.Min.HasValue) yMin -= yPadding;
-        if (!Axes.SecondaryYAxis!.Max.HasValue) yMax += yPadding;
+        if (!axis.Min.HasValue) yMin -= yPadding;
+        if (!axis.Max.HasValue) yMax += yPadding;
 
         // An inverted axis is drawn high to low, the rule the primary axes follow (Range1D.OrientedBy).
-        var drawn = new Range1D(yMin, yMax).OrientedBy(Axes.SecondaryYAxis);
+        var drawn = new Range1D(yMin, yMax).OrientedBy(axis);
         return new DataRange(xMin, xMax, drawn.Lo, drawn.Hi);
     }
 

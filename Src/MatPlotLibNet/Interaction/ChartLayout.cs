@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
@@ -62,6 +63,25 @@ public sealed class ChartLayout : IChartLayout
     /// <remarks>The range the renderer draws: after autoscale, margins and limits, in data units on every scale, in drawn
     /// orientation (a reversed limit stays reversed). See <see cref="View"/>.</remarks>
     public DataRange GetDataRange(int axesIndex) => View(axesIndex).DrawnRange;
+
+    /// <inheritdoc />
+    /// <remarks>Not cached like <see cref="View"/> — a figure with secondary axes being actively dragged recomputes
+    /// every move. Scoped deliberately: the primary cache exists because a line of a million points is 8ms to
+    /// autoscale and a drag converts several times a frame; a secondary axis pays that cost again per move until
+    /// profiling shows it matters in practice.</remarks>
+    public IReadOnlyList<SecondaryAxisRange> GetSecondaryDataRanges(int axesIndex) =>
+        SecondaryViews(axesIndex).Select(v => new SecondaryAxisRange(v.Side, v.SlotIndex, v.Transform.DrawnRange)).ToList();
+
+    /// <summary>The transform the renderer draws every secondary Y axis with, for the figure as it is now — the
+    /// secondary counterpart of <see cref="View"/>, read by an interaction modifier through
+    /// <see cref="ChartLayoutViewExtensions.SecondaryViewsOf"/> instead of <see cref="GetSecondaryDataRanges"/> when it
+    /// needs to convert a pixel position through a SPECIFIC secondary axis' own scale.</summary>
+    internal IReadOnlyList<SecondaryAxisTransform> SecondaryViews(int axesIndex)
+    {
+        var axes = _figure.SubPlots[axesIndex];
+        var area = _plotAreas[axesIndex];
+        return AxesRenderer.Create(axes, area, _viewSurface, _figure.Theme).ComputeSecondaryViewTransforms();
+    }
 
     /// <summary>The transform the renderer draws axes <paramref name="axesIndex"/> with, for the figure as it is now
     /// (<see cref="AxesRenderer.ComputeViewTransform"/>, the call <c>Render</c> makes): the plot area, the range after

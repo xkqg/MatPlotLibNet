@@ -18,6 +18,13 @@ public interface IChartLayout
     /// <summary>Returns the current data-space range displayed by the given axes.</summary>
     DataRange GetDataRange(int axesIndex);
 
+    /// <summary>Returns every outward-stacked secondary Y axis' current data range for the given subplot, right
+    /// slots then left slots, in stack order (ROADMAP.md row 101's "4 axes, 2 left and 2 right"; row 100: "zoom and
+    /// pan change the main X and Y axes; the right-hand and top axes keep their range" — the gap this closes).
+    /// Default interface member: a host with nothing but a plot area and a primary range has no secondary axes to
+    /// report, so every existing <see cref="IChartLayout"/> implementer keeps working unchanged.</summary>
+    IReadOnlyList<SecondaryAxisRange> GetSecondaryDataRanges(int axesIndex) => [];
+
     /// <summary>Returns the axes index whose plot area contains the given pixel position,
     /// or <c>null</c> if the point is outside every plot area.</summary>
     int? HitTestAxes(double pixelX, double pixelY);

@@ -132,12 +132,6 @@ jobs:
       - name: Build MAUI
         run: dotnet build Src/MatPlotLibNet.Maui/MatPlotLibNet.Maui.csproj --configuration Release
 
-      # Uno Platform requires the Uno SDK (source generators for SKCanvasElement).
-      # No dotnet workload exists for Uno — it installs via VS extension or Uno.Templates.
-      # Build and pack the Uno package locally where the SDK is installed, then push manually.
-      # TODO: add Uno CI support when Uno ships a dotnet workload or the Uno.Sdk becomes
-      #       available via NuGet restore alone.
-
       - name: Build WPF
         run: dotnet build Src/MatPlotLibNet.Wpf/MatPlotLibNet.Wpf.csproj --configuration Release
 
@@ -171,3 +165,54 @@ jobs:
               throw "dotnet nuget push failed for $($pkg.Name) with exit code $LASTEXITCODE"
             }
           }
+
+  # Was its own workflow (push-uno.yml), triggered separately by `release: published` — which silently did not
+  # fire for a bot-authored release exactly like THIS workflow's own trigger (see the comment above), with no
+  # shared ritual to catch it up. The miss compounds: EnablePackageValidation's baseline restore needs the
+  # immediately-prior version already on nuget.org, so a skipped release here makes the NEXT release's restore
+  # hard-fail too (measured: v1.21.0's Uno push never ran, so v1.22.0's failed with NU1102 "Unable to find
+  # package MatPlotLibNet.Uno with version (= 1.21.0)" until both were pushed by hand). A job in THIS workflow
+  # shares the one trigger and the one manual-catchup dispatch every other package already rides, so there is no
+  # second ritual left to forget.
+  publish-uno:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: The tag names the version the packages carry
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          tag="$TAG"
+          tag="${tag#v}"
+          tag="${tag#.}"
+          declared=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Src/MatPlotLibNet/MatPlotLibNet.csproj | head -n 1)
+          test -n "$declared" || { echo "Src/MatPlotLibNet/MatPlotLibNet.csproj declares no <Version>"; exit 1; }
+          test "$tag" = "$declared" || { echo "The tag $TAG names $tag; the packages carry $declared"; exit 1; }
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      # Uno Platform requires the Uno SDK source generators (SKCanvasElement etc.), which are not part of any
+      # dotnet workload — they install via Uno.Templates. That is the one thing this job needs that the other
+      # two don't; nothing else about publishing Uno is actually special.
+      - name: Install Uno templates
+        run: dotnet new install Uno.Templates
+
+      - name: Restore
+        run: dotnet restore Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj
+
+      - name: Build
+        run: dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-restore --configuration Release
+
+      - name: Pack
+        run: dotnet pack Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-build --configuration Release --output nupkgs
+
+      - name: Push to NuGet
+        run: dotnet nuget push "nupkgs/MatPlotLibNet.Uno.*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

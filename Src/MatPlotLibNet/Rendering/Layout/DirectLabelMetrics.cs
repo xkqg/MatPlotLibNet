@@ -14,12 +14,15 @@ namespace MatPlotLibNet.Rendering.Layout;
 /// <param name="Series">The labelled series.</param>
 /// <param name="Pair">The axes it is plotted against (<see cref="SeriesAxisPair.Primary"/> or
 /// <see cref="SeriesAxisPair.SecondaryY"/>).</param>
-/// <param name="IndexInPair">Its index in <see cref="Axes.Series"/> or <see cref="Axes.SecondarySeries"/>.</param>
+/// <param name="IndexInPair">Its index across EVERY right-side slot's series, in slot order — the same number
+/// <see cref="Rendering.SeriesSlotExtensions.SlotIndex"/> expects, not an index within one slot alone.</param>
+/// <param name="AxisSlot">Which right-side slot (<see cref="Axes.RightYAxes"/>) this label's line is drawn against;
+/// meaningless (always 0) for <see cref="SeriesAxisPair.Primary"/>.</param>
 /// <param name="Text">The label as drawn: the series label, plus the legend-values suffix when it applies.</param>
 /// <param name="EndX">The x value of the point the label is placed at (data space).</param>
 /// <param name="EndY">The y value of that point (data space); the legend-values suffix shows it.</param>
-internal readonly record struct DirectLabel(ISeries Series, SeriesAxisPair Pair, int IndexInPair, string Text,
-                                            double EndX, double EndY);
+internal readonly record struct DirectLabel(ISeries Series, SeriesAxisPair Pair, int IndexInPair, int AxisSlot,
+                                            string Text, double EndX, double EndY);
 
 /// <summary>The one owner of what the end-of-line labels of an axes say, where their lines end, the font they are drawn
 /// in and the gap before them. The layout engine reserves the right-edge band with it and the label drawing draws with
@@ -89,16 +92,23 @@ internal sealed class DirectLabelMetrics
     {
         var labels = new List<DirectLabel>();
         var range = new MinMaxRange(Math.Min(visibleX.Min, visibleX.Max), Math.Max(visibleX.Min, visibleX.Max));
-        Collect(axes.Series, SeriesAxisPair.Primary, axes.Legend.LegendValues, range, labels);
-        Collect(axes.SecondarySeries, SeriesAxisPair.SecondaryY, axes.Legend.LegendValues, range, labels);
+        Collect(axes.Series, SeriesAxisPair.Primary, 0, axes.Legend.LegendValues, range, labels);
+        // Every right-side slot's series, in slot order, numbered as ONE running index across every slot — the same
+        // number SlotIndex(SecondaryY, i) expects (Axes.AllSeries' order), never reset per slot.
+        int indexInPair = 0;
+        for (int slot = 0; slot < axes.RightYAxes.Count; slot++)
+        {
+            Collect(axes.RightYAxes[slot].Series, SeriesAxisPair.SecondaryY, slot, axes.Legend.LegendValues, range, labels, indexInPair);
+            indexInPair += axes.RightYAxes[slot].Series.Count;
+        }
         // Asked only when some series wants a label: whether one is drawn is the answer of the renderer the factory
         // builds for these axes, the rule the legend applies when it leaves such a series out.
         if (labels.Count > 0 && !AxesRenderer.Create(axes, default, ctx, theme).DrawsDirectLabels) labels.Clear();
         return labels;
     }
 
-    private static void Collect(IReadOnlyList<ISeries> series, SeriesAxisPair pair, bool legendValues,
-                                MinMaxRange visibleX, List<DirectLabel> labels)
+    private static void Collect(IReadOnlyList<ISeries> series, SeriesAxisPair pair, int axisSlot, bool legendValues,
+                                MinMaxRange visibleX, List<DirectLabel> labels, int startingIndexInPair = 0)
     {
         for (int i = 0; i < series.Count; i++)
         {
@@ -109,8 +119,8 @@ internal sealed class DirectLabelMetrics
             int end = points.XData.LastDrawableIndex(points.YData, visibleX.Min, visibleX.Max);
             if (end < 0) continue;
             double x = points.XData[end], y = points.YData[end];
-            labels.Add(new DirectLabel(one, pair, i, legendValues ? AxesRenderer.WithLegendValue(one.Label, y) : one.Label,
-                                       x, y));
+            labels.Add(new DirectLabel(one, pair, startingIndexInPair + i, axisSlot,
+                                       legendValues ? AxesRenderer.WithLegendValue(one.Label, y) : one.Label, x, y));
         }
     }
 }

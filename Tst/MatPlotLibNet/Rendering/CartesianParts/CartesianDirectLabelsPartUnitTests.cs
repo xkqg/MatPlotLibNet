@@ -28,7 +28,7 @@ public class CartesianDirectLabelsPartUnitTests
     private static CartesianDirectLabelsPart Part(Axes ax, IRenderContext ctx, MinMaxRange? visibleX = null,
                                                   Theme? theme = null, DataTransform? transform = null) =>
         new(ax, Plot, ctx, theme ?? Theme.Default, transform ?? Primary(),
-            ax.SecondarySeries.Count > 0 ? Secondary() : null, visibleX ?? AllX, 0);
+            ax.RightYAxes.Count > 0 ? [Secondary()] : [], visibleX ?? AllX, 0);
 
     /// <summary>Draws every label the way the renderer does: each one in its series' turn, the primary series first,
     /// then the secondary ones.</summary>
@@ -172,7 +172,7 @@ public class CartesianDirectLabelsPartUnitTests
         var logY = new DataTransform(0, 1, 0, 1, Plot, [], [], 1, 10, 1, 10, AxisScale.Linear, AxisScale.Log, 1, 1);
         var ctx = new RecordingRenderContext();
 
-        DrawAll(new CartesianDirectLabelsPart(ax, Plot, ctx, Theme.Default, logY, null, new MinMaxRange(1, 10), 0), ax);
+        DrawAll(new CartesianDirectLabelsPart(ax, Plot, ctx, Theme.Default, logY, [], new MinMaxRange(1, 10), 0), ax);
 
         Assert.Empty(Texts(ctx));
     }

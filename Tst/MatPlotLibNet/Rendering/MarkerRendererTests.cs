@@ -137,4 +137,18 @@ public class MarkerRendererTests
             Assert.True(ex is null, $"MarkerStyle.{style} threw: {ex}");
         }
     }
+
+    /// <summary>The other half of the guard above: an undeclared value DOES throw — the default arm this
+    /// exhaustiveness test exists to exercise, which no valid enum member ever reaches.</summary>
+    [Fact]
+    public void DrawMarker_UndeclaredStyle_ThrowsNamingTheStyle()
+    {
+        var ctx = new SvgRenderContext();
+        var shape = new ShapeStyle(Colors.Blue, Colors.Black, 1);
+        var undeclared = (MarkerStyle)999;
+
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => ctx.DrawMarker(undeclared, new Point(10, 10), 8, shape));
+
+        Assert.Contains("999", ex.Message);
+    }
 }

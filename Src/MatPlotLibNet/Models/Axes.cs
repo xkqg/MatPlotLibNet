@@ -105,12 +105,14 @@ public sealed class Axes
     public IReadOnlyList<ISeries> Series => _series;
     private readonly List<ISeries> _series = [];
 
-    /// <summary>Every series drawn on this subplot, in draw order: <see cref="Series"/>, then
-    /// <see cref="SecondarySeries"/>, then <see cref="XSecondarySeries"/>. This is the answer to "what does the
-    /// picture show" — the data table reads it, and so does anything that describes the subplot. It is NOT
-    /// <see cref="Series.IAxesContext.AllSeries"/>, which names only the series that share ONE axis pair (the set a
-    /// stacked bar sums over); the two differ on purpose, and each is documented against the other.</summary>
-    public IEnumerable<ISeries> AllSeries => _series.Concat(_secondarySeries).Concat(_xSecondarySeries);
+    /// <summary>Every series drawn on this subplot, in draw order: <see cref="Series"/>, then every
+    /// <see cref="RightYAxes"/> and <see cref="LeftYAxes"/> slot's own series, then <see cref="XSecondarySeries"/>.
+    /// This is the answer to "what does the picture show" — the data table reads it, and so does anything that
+    /// describes the subplot. It is NOT <see cref="Series.IAxesContext.AllSeries"/>, which names only the series
+    /// that share ONE axis pair (the set a stacked bar sums over); the two differ on purpose, and each is
+    /// documented against the other.</summary>
+    public IEnumerable<ISeries> AllSeries =>
+        _series.Concat(_rightYAxes.SelectMany(s => s.Series)).Concat(_leftYAxes.SelectMany(s => s.Series)).Concat(_xSecondarySeries);
 
     /// <summary>A fresh <see cref="Series.ChartSeries.ColorGroup"/> value: one more than the highest already held by
     /// a series of these axes, or 0 when none holds one. Derived fresh every call, never stored — a counter field
@@ -128,20 +130,35 @@ public sealed class Axes
         return series;
     }
 
+    /// <summary>Removes and returns the LAST primary series, or <see langword="null"/> when there is none. The seat-aware
+    /// JSON restore path (<c>AxesSerializationExtensions.CreateOnSlot</c>) needs this: every registered
+    /// <c>SeriesRegistry</c> factory lands its series here through its own primary verb (<c>axes.Plot</c>, <c>axes.Bar</c>,
+    /// …), so restoring one onto a secondary slot or the top axis means building it normally, then moving it — not
+    /// rewriting 70 factories to take a seat parameter.</summary>
+    internal ISeries? TakeLastSeries()
+    {
+        if (_series.Count == 0) return null;
+        var last = _series[^1];
+        _series.RemoveAt(_series.Count - 1);
+        return last;
+    }
+
     /// <summary>Gets the collection of text annotations on this axes.</summary>
     public IReadOnlyList<Annotation> Annotations => _annotations;
     private readonly List<Annotation> _annotations = [];
 
     /// <summary>True when every series on this axes fixes the vertical range itself (a state timeline), so pan and
     /// zoom have nothing to move vertically. An axes with no series, or with one series that does not, is free.</summary>
-    internal bool HasFixedYRange => Series.Count > 0 && Series.All(s => s is ChartSeries { FixesYRange: true });
+    internal bool HasFixedYRange => Series.HasFixedYRange();
 
-    /// <summary>True when any axis of this axes (X, Y, the secondary Y or the secondary X) has a limit set, by
-    /// <c>SetXLim</c>/<c>SetYLim</c> or by a zoom or pan applied to it. A set limit is exact, so data can then lie past
-    /// the plot area and the series are clipped to it; a range that scaled itself encloses every series and needs no
-    /// clip.</summary>
+    /// <summary>True when any axis of this axes (X, Y, any outward-stacked Y, or the secondary X) has a limit set,
+    /// by <c>SetXLim</c>/<c>SetYLim</c> or by a zoom or pan applied to it. A set limit is exact, so data can then lie
+    /// past the plot area and the series are clipped to it; a range that scaled itself encloses every series and
+    /// needs no clip.</summary>
     internal bool HasExplicitLimit =>
-        XAxis.HasLimit || YAxis.HasLimit || SecondaryYAxis is { HasLimit: true } || SecondaryXAxis is { HasLimit: true };
+        XAxis.HasLimit || YAxis.HasLimit
+        || _rightYAxes.Any(s => s.Axis.HasLimit) || _leftYAxes.Any(s => s.Axis.HasLimit)
+        || SecondaryXAxis is { HasLimit: true };
 
     /// <summary>Gets the collection of reference lines on this axes.</summary>
     public IReadOnlyList<ReferenceLine> ReferenceLines => _referenceLines;
@@ -229,26 +246,59 @@ public sealed class Axes
     public Axes InsetAxes(double x, double y, double width, double height)
         => AddInset(x, y, width, height);
 
-    public Axis? SecondaryYAxis { get; private set; }
+    /// <summary>Gets the first (innermost) outward-stacked axis on the right — <see langword="null"/> until
+    /// <see cref="TwinX"/> or <see cref="AddOutwardYAxis"/> creates it. A computed view of <see cref="RightYAxes"/>
+    /// slot 0, kept for the callers who only ever needed the one secondary axis this side had before
+    /// ROADMAP.md row 101.</summary>
+    public Axis? SecondaryYAxis => _rightYAxes.Count > 0 ? _rightYAxes[0].Axis : null;
 
-    /// <summary>Gets the collection of data series plotted against the secondary Y-axis.</summary>
+    /// <summary>Gets the series plotted against <see cref="SecondaryYAxis"/> (right slot 0 only — a second right
+    /// axis, from <see cref="AddOutwardYAxis"/>, keeps its series on its own <see cref="SecondaryAxisSlot"/>).</summary>
     /// <remarks>These series use a separate <see cref="Rendering.DataTransform"/> based on the secondary Y range,
     /// while sharing the primary X-axis transform.</remarks>
-    public IReadOnlyList<ISeries> SecondarySeries => _secondarySeries;
-    private readonly List<ISeries> _secondarySeries = [];
+    public IReadOnlyList<ISeries> SecondarySeries => _rightYAxes.Count > 0 ? _rightYAxes[0].Series : [];
+
+    /// <summary>Gets the axes stacked outward to the right of the plot, index 0 (<see cref="SecondaryYAxis"/>)
+    /// nearest the plot and each further one stacked past the ones before it.</summary>
+    public IReadOnlyList<SecondaryAxisSlot> RightYAxes => _rightYAxes;
+    private readonly List<SecondaryAxisSlot> _rightYAxes = [];
+
+    /// <summary>Gets the axes stacked outward to the left of the plot, past the primary <see cref="YAxis"/>.</summary>
+    public IReadOnlyList<SecondaryAxisSlot> LeftYAxes => _leftYAxes;
+    private readonly List<SecondaryAxisSlot> _leftYAxes = [];
+
+    /// <summary>How many axes a side holds besides the primary: one on the left (the primary is the left side's
+    /// own first axis), two on the right (<see cref="SecondaryYAxis"/> is the right side's own first axis) — the
+    /// owner's "4 axes, 2 left and 2 right."</summary>
+    private static int CapFor(AxisSide side) => side == AxisSide.Left ? 1 : 2;
 
     /// <summary>Enables a secondary Y-axis (right side) on this axes, creating it if it does not already exist.</summary>
     /// <returns>This axes instance for chaining.</returns>
     public Axes TwinX()
     {
-        SecondaryYAxis ??= new Axis();
+        if (_rightYAxes.Count == 0) _rightYAxes.Add(new SecondaryAxisSlot(new Axis(), AxisSide.Right));
         return this;
     }
 
-    /// <summary>Adds an already-constructed series to the secondary Y-axis.</summary>
+    /// <summary>Enables one more Y axis stacked outward on <paramref name="side"/>, past every axis already there
+    /// on that side, creating the first one too if none exists yet. Idempotent once a side's cap is reached: the
+    /// left side holds at most one of these, the right side at most two (<see cref="SecondaryYAxis"/> plus
+    /// this one) — calling it again returns the outermost slot already there rather than adding past the cap.</summary>
+    /// <param name="side">Which side to stack the new axis on.</param>
+    /// <returns>The outermost <see cref="SecondaryAxisSlot"/> on that side after the call.</returns>
+    public SecondaryAxisSlot AddOutwardYAxis(AxisSide side)
+    {
+        var slots = side == AxisSide.Left ? _leftYAxes : _rightYAxes;
+        if (side == AxisSide.Right) TwinX();
+        if (slots.Count < CapFor(side)) slots.Add(new SecondaryAxisSlot(new Axis(), side));
+        return slots[^1];
+    }
+
+    /// <summary>Adds an already-constructed series to <see cref="SecondaryYAxis"/> (right slot 0).</summary>
     /// <remarks>Implicitly calls <see cref="TwinX"/> to ensure the secondary axis exists. This is the seam a
     /// STREAMING series arrives through: its ring buffer is filled after the figure is built, so it cannot be
-    /// handed in as two arrays the way the <c>PlotSecondary</c> verb takes them.</remarks>
+    /// handed in as two arrays the way the <c>PlotSecondary</c> verb takes them. A series for a second right axis
+    /// goes through the <see cref="SecondaryAxisSlot"/> <see cref="AddOutwardYAxis"/> returns instead.</remarks>
     /// <param name="series">The series to plot against the right-hand axis.</param>
     /// <returns>The same series, so the caller can keep appending to it.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="series"/> is null.</exception>
@@ -256,8 +306,7 @@ public sealed class Axes
     {
         ArgumentNullException.ThrowIfNull(series);
         TwinX();
-        _secondarySeries.Add(series);
-        return series;
+        return _rightYAxes[0].AddSeries(series);
     }
 
     // ── TwinY — secondary X-axis (top edge) ─────────────────────────────────

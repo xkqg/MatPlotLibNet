@@ -7,14 +7,22 @@ using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
 
-/// <summary>The three series lists of an axes, one per axis pair the series are drawn against.</summary>
+/// <summary>The series lists of an axes, one per axis pair the series are drawn against.</summary>
+/// <remarks><b>Append-only ordinal contract:</b> never reorder, remove, or renumber — the order here is drawing
+/// order, which must match <see cref="Axes.AllSeries"/>'s concatenation order for <see cref="SeriesSlotExtensions.SlotIndex"/>
+/// to agree with it.</remarks>
 internal enum SeriesAxisPair
 {
     /// <summary><see cref="Axes.Series"/>: the bottom X axis and the left Y axis.</summary>
     Primary,
 
-    /// <summary><see cref="Axes.SecondarySeries"/>: the bottom X axis and the right-hand Y axis.</summary>
+    /// <summary>Every <see cref="Axes.RightYAxes"/> slot's own series, in slot order, numbered as one running
+    /// sequence across every slot (<see cref="Axes.SecondarySeries"/> is right slot 0 alone).</summary>
     SecondaryY,
+
+    /// <summary>Every <see cref="Axes.LeftYAxes"/> slot's own series, in slot order, numbered as one running
+    /// sequence across every slot, kept apart from <see cref="SecondaryY"/>'s.</summary>
+    SecondaryLeftY,
 
     /// <summary><see cref="Axes.XSecondarySeries"/>: the top X axis and the left Y axis.</summary>
     SecondaryX,
@@ -166,9 +174,28 @@ internal static class SeriesSlotExtensions
         {
             SeriesAxisPair.Primary => indexInPair,
             SeriesAxisPair.SecondaryY => axes.Series.Count + indexInPair,
-            SeriesAxisPair.SecondaryX => axes.Series.Count + axes.SecondarySeries.Count + indexInPair,
+            SeriesAxisPair.SecondaryLeftY => axes.Series.Count + axes.TotalRightSeries() + indexInPair,
+            SeriesAxisPair.SecondaryX => axes.Series.Count + axes.TotalRightSeries() + axes.TotalLeftSeries() + indexInPair,
             _ => throw new ArgumentOutOfRangeException(nameof(pair), pair, "Not a series list of an axes."),
         };
+
+        /// <summary>Every right-side slot's series, summed — not <see cref="Axes.SecondarySeries"/>, which is right
+        /// slot 0 alone. Matches <see cref="Axes.AllSeries"/>'s concatenation order, which every
+        /// <see cref="SeriesAxisPair"/> after <see cref="SeriesAxisPair.SecondaryY"/> counts past.</summary>
+        private int TotalRightSeries()
+        {
+            int total = 0;
+            foreach (var slot in axes.RightYAxes) total += slot.Series.Count;
+            return total;
+        }
+
+        /// <summary>Every left-side slot's series, summed — the mirror of <see cref="TotalRightSeries"/>.</summary>
+        private int TotalLeftSeries()
+        {
+            int total = 0;
+            foreach (var slot in axes.LeftYAxes) total += slot.Series.Count;
+            return total;
+        }
 
         /// <summary>The colour slots of every series in <see cref="Axes.AllSeries"/>, in order: one table, built once.
         /// A series with no <see cref="Models.Series.ChartSeries.ColorGroup"/> holds a slot of its own, exactly where

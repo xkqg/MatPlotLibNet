@@ -193,6 +193,37 @@ public sealed class PanModifierGenericTests : InteractionModifierTests<PanModifi
         m.OnPointerMoved(new PointerInputArgs(50, 35, PointerButton.Left, ModifierKeys.None));
         Assert.Empty(events);
     }
+
+    /// <summary>ROADMAP.md row 100: a drag must move a secondary axis' own range too, scaled to ITS OWN span —
+    /// right slot 0 here is [0,500], ten times the primary's [0,5], so the same pixel move must shift it by ten
+    /// times as much in data units, not by the primary's own delta.</summary>
+    [Fact]
+    public void OnPointerMoved_WhileCaptured_AlsoMovesASecondaryAxisByItsOwnProportionalDelta()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
+            .Build();
+        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
+        var events = new List<FigureInteractionEvent>();
+        var m = new PanModifier("chart-1", layout, events.Add);
+
+        m.OnPointerPressed(new PointerInputArgs(60, 35, PointerButton.Left, ModifierKeys.None));
+        m.OnPointerMoved(new PointerInputArgs(60, 25, PointerButton.Left, ModifierKeys.None));
+
+        var pan = Assert.IsType<PanEvent>(events[0]);
+        var secondary = Assert.Single(pan.SecondaryRanges!);
+        Assert.Equal(AxisSide.Right, secondary.Side);
+        Assert.Equal(0, secondary.SlotIndex);
+        double secondarySpan = secondary.Range.YMax - secondary.Range.YMin;
+        Assert.Equal(500.0, secondarySpan, precision: 6);
+        Assert.NotEqual(0.0, secondary.Range.YMin);
+
+        pan.ApplyTo(figure);
+        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].SecondaryYAxis!.Min);
+        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].SecondaryYAxis!.Max);
+    }
 }
 
 public sealed class Rotate3DModifierGenericTests : InteractionModifierTests<Rotate3DModifier>
@@ -402,6 +433,33 @@ public sealed class ZoomModifierGenericTests : InteractionModifierTests<ZoomModi
         m.OnPointerMoved(new PointerInputArgs(50, 30, PointerButton.None, ModifierKeys.None));
         m.OnPointerReleased(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None));
         m.OnKeyDown(new KeyInputArgs("Home"));
+    }
+
+    /// <summary>ROADMAP.md row 100: a scroll-zoom must narrow a secondary axis' own range too — right slot 0
+    /// here is [0,500], and zooming in must shrink IT proportionally, not leave it at its full span.</summary>
+    [Fact]
+    public void OnScroll_ZoomIn_AlsoNarrowsASecondaryAxissOwnRange()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
+            .Build();
+        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
+        var events = new List<FigureInteractionEvent>();
+        var m = new ZoomModifier("chart-1", layout, events.Add);
+
+        m.OnScroll(new ScrollInputArgs(60, 35, 0, -1));
+
+        var zoom = Assert.IsType<ZoomEvent>(events[0]);
+        var secondary = Assert.Single(zoom.SecondaryRanges!);
+        Assert.Equal(AxisSide.Right, secondary.Side);
+        double secondarySpan = secondary.Range.YMax - secondary.Range.YMin;
+        Assert.True(secondarySpan < 500.0, "Zoom in should narrow the secondary axis' own range too.");
+
+        zoom.ApplyTo(figure);
+        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].SecondaryYAxis!.Min);
+        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].SecondaryYAxis!.Max);
     }
 }
 
@@ -631,6 +689,37 @@ public sealed class ResetModifierGenericTests : InteractionModifierTests<ResetMo
         Assert.Equal(10, reset.XMax);
         Assert.Equal(0,  reset.YMin);
         Assert.Equal(5,  reset.YMax);
+    }
+
+    /// <summary>ROADMAP.md row 100: resetting must restore a secondary axis to the range it had when the modifier
+    /// was created, not leave it at whatever a zoom/pan moved it to.</summary>
+    [Fact]
+    public void OnPointerPressed_ResetEvent_RestoresASecondaryAxisToItsOriginalRangeToo()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2.0], [3.0, 4.0])
+                .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
+            .Build();
+        var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
+        var events = new List<FigureInteractionEvent>();
+        var m = new ResetModifier("chart-1", layout, events.Add);
+
+        // Move the secondary axis away from its original range before resetting.
+        figure.SubPlots[0].SecondaryYAxis!.Min = 123;
+        figure.SubPlots[0].SecondaryYAxis!.Max = 456;
+
+        m.OnPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 2));
+
+        var reset = Assert.IsType<ResetEvent>(events[0]);
+        var secondary = Assert.Single(reset.SecondaryRanges!);
+        Assert.Equal(AxisSide.Right, secondary.Side);
+        Assert.Equal(0.0, secondary.Range.YMin);
+        Assert.Equal(500.0, secondary.Range.YMax);
+
+        reset.ApplyTo(figure);
+        Assert.Equal(0.0, figure.SubPlots[0].SecondaryYAxis!.Min);
+        Assert.Equal(500.0, figure.SubPlots[0].SecondaryYAxis!.Max);
     }
 
     [Fact]

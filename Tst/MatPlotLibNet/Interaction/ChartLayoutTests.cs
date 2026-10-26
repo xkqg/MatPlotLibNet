@@ -51,6 +51,87 @@ public class ChartLayoutTests
         Assert.Equal(2,  yMax);
     }
 
+    /// <summary>ROADMAP.md row 100: an interaction modifier reads every outward-stacked secondary axis' own
+    /// current range through this, the counterpart of GetDataRange for everything beyond the primary.</summary>
+    [Fact]
+    public void GetSecondaryDataRanges_ReturnsEverySlotsOwnRange_RightSlotsThenLeftSlots()
+    {
+        var figure = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2], [3.0, 4])
+                .WithSecondaryYAxis(y2 => y2.SetYLim(10, 20).Plot([1.0, 2], [12.0, 18]))
+                .WithOutwardYAxis(AxisSide.Right, outer => outer.SetYLim(100, 200).Plot([1.0, 2], [120.0, 180]))
+                .WithOutwardYAxis(AxisSide.Left, left => left.SetYLim(1, 2).Plot([1.0, 2], [1.2, 1.8])))
+            .Build();
+        var areas = new[] { new Rect(10, 10, 100, 50) };
+        var layout = ChartLayout.Create(figure, areas);
+
+        var views = layout.GetSecondaryDataRanges(0);
+
+        Assert.Equal(3, views.Count);
+        Assert.Equal(AxisSide.Right, views[0].Side);
+        Assert.Equal(0, views[0].SlotIndex);
+        Assert.Equal(10, views[0].Range.YMin);
+        Assert.Equal(20, views[0].Range.YMax);
+        Assert.Equal(AxisSide.Right, views[1].Side);
+        Assert.Equal(1, views[1].SlotIndex);
+        Assert.Equal(100, views[1].Range.YMin);
+        Assert.Equal(200, views[1].Range.YMax);
+        Assert.Equal(AxisSide.Left, views[2].Side);
+        Assert.Equal(0, views[2].SlotIndex);
+        Assert.Equal(1, views[2].Range.YMin);
+        Assert.Equal(2, views[2].Range.YMax);
+    }
+
+    /// <summary>A host that implements nothing but the required members (every other <see cref="IChartLayout"/>
+    /// implementer in this repo, and any third party's) gets the default-interface empty list, not a refusal —
+    /// the additive promise behind the new member.</summary>
+    [Fact]
+    public void GetSecondaryDataRanges_DefaultImplementation_IsEmpty()
+    {
+        IChartLayout minimal = new MinimalChartLayoutStub();
+        Assert.Empty(minimal.GetSecondaryDataRanges(0));
+    }
+
+    private sealed class MinimalChartLayoutStub : IChartLayout
+    {
+        public int AxesCount => 1;
+        public Rect GetPlotArea(int axesIndex) => new(0, 0, 100, 100);
+        public DataRange GetDataRange(int axesIndex) => new(0, 1, 0, 1);
+        public int? HitTestAxes(double pixelX, double pixelY) => 0;
+        public int? HitTestLegendItem(double pixelX, double pixelY, int axesIndex) => null;
+    }
+
+    /// <summary>ROADMAP.md row 100: a host OTHER than the library's own <see cref="ChartLayout"/> — "nothing but a
+    /// plot area and a range" — states a secondary axis' range only; <see cref="ChartLayoutViewExtensions.SecondaryViewsOf"/>
+    /// must still build a usable (plain linear) transform from it for a modifier to convert a pixel through.</summary>
+    [Fact]
+    public void SecondaryViewsOf_ForAHostThatIsNotChartLayout_BuildsALinearTransformFromItsStatedRange()
+    {
+        IChartLayout host = new StatedSecondaryChartLayoutStub();
+
+        var views = host.SecondaryViewsOf(0);
+
+        var view = Assert.Single(views);
+        Assert.Equal(AxisSide.Right, view.Side);
+        Assert.Equal(0, view.SlotIndex);
+        // Linear over the stated plot area and the stated primary X range + this slot's own Y range.
+        var mid = view.Transform.PixelToData(new Point(50, 50));
+        Assert.Equal(0.5, mid.X, 6);
+        Assert.Equal(15.0, mid.Y, 6);
+    }
+
+    private sealed class StatedSecondaryChartLayoutStub : IChartLayout
+    {
+        public int AxesCount => 1;
+        public Rect GetPlotArea(int axesIndex) => new(0, 0, 100, 100);
+        public DataRange GetDataRange(int axesIndex) => new(0, 1, 0, 1);
+        public int? HitTestAxes(double pixelX, double pixelY) => 0;
+        public int? HitTestLegendItem(double pixelX, double pixelY, int axesIndex) => null;
+        public IReadOnlyList<SecondaryAxisRange> GetSecondaryDataRanges(int axesIndex) =>
+            [new SecondaryAxisRange(AxisSide.Right, 0, new DataRange(0, 1, 10, 20))];
+    }
+
     [Fact]
     public void HitTestAxes_PointInsidePlotArea_ReturnsAxesIndex()
     {

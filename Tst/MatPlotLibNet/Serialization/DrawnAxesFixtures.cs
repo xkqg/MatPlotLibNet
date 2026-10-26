@@ -92,6 +92,12 @@ public static class DrawnAxesFixtures
         new("AxesSettings", TheAxes, "", typeof(Axes), AxesSettings),
         new("SecondaryYAxis", TheAxes, nameof(Axes.SecondaryYAxis), typeof(Axis)),
         new("SecondaryXAxis", TheAxes, nameof(Axes.SecondaryXAxis), typeof(Axis)),
+        // SecondaryAxisSlot has no settable property of its own (Axis and Side are construction-only, set through
+        // Axes.TwinX/AddOutwardYAxis, never by property assignment) — this row contributes zero DrawnPaths and exists
+        // only so ComposedChartRoundTripTests recognises the type a reflected Axes.RightYAxes/LeftYAxes slot reaches.
+        // The data it wraps round-trips through the "SecondaryYAxis" part (the Axis) and the series contract (the
+        // slot's own series); extending both to every slot, not just slot 0, is ROADMAP.md row 99's own JSON phase.
+        new("SecondaryAxisSlot", figure => TheAxes(figure).RightYAxes[0], "", typeof(SecondaryAxisSlot)),
         new("InsetXAxis", TheInset, nameof(Axes.XAxis), typeof(Axis)),
         new("Title", TheAxes, "", typeof(Axes), [nameof(Axes.TitleStyle), nameof(Axes.TitleLoc)]),
         new("Legend", TheAxes, nameof(Axes.Legend), typeof(Legend)),

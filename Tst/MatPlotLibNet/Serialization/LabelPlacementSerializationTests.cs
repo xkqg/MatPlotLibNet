@@ -196,11 +196,13 @@ public class LabelPlacementSerializationTests
     }
 
     [Fact]
-    public void ASecondaryStreamingLine_WritesItsPlacement_ButIsStillDroppedByFromJson()
+    public void ASecondaryStreamingLine_WritesItsPlacement_AndNowSurvivesFromJson()
     {
-        // The streaming series itself now round-trips (see the Fact above); a secondary-axis series restore
-        // still only knows "line"/"scatter" (ChartSerializer.AddSecondarySeriesFromDtos) — a different, narrower
-        // gap than the one this cluster fixed (roadmap: "More kinds of series on a second axis"), unchanged here.
+        // Was: a secondary-axis series restore only knew "line"/"scatter" (ChartSerializer.AddSecondarySeriesFromDtos),
+        // a different, narrower gap than the one AStreamingLine_WritesItsPlacement_AndNowSurvivesFromJson fixed
+        // (ROADMAP.md row 99: "the right-hand and top axes carry lines and points; a bar or an area there is not
+        // kept"). Fixed: the secondary restore path now goes through SeriesRegistry like the primary one
+        // (ChartSerializer.CreateOnSecondarySeat), so any registered kind survives there too.
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y)
             .WithSecondaryYAxis(y2 =>
@@ -215,6 +217,9 @@ public class LabelPlacementSerializationTests
         Assert.Contains("\"type\":\"streaming_line\"", json);
         Assert.Contains("\"labelPlacement\":\"lineend\"", json);
         Assert.NotNull(restored.SecondaryYAxis);
-        Assert.Empty(restored.SecondarySeries);
+        var live2 = Assert.Single(restored.SecondarySeries);
+        Assert.Equal("live", live2.Label);
+        var streaming = Assert.IsType<StreamingLineSeries>(live2);
+        Assert.Equal(SeriesLabelPlacement.LineEnd, streaming.LabelPlacement);
     }
 }

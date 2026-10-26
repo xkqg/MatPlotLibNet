@@ -94,13 +94,19 @@ public abstract class AxesRenderer
     /// (polar, 3-D); the Cartesian renderer overrides it.</summary>
     internal virtual DataTransform? ComputeViewTransform() => null;
 
+    /// <summary>Every outward-stacked secondary Y axis' transform, computed the same way as <see cref="ComputeViewTransform"/>
+    /// — without drawing or measuring anything — so an interaction modifier can convert a pointer position through a
+    /// specific secondary axis, not only the primary (ROADMAP.md row 100). Empty here, for a renderer with no secondary
+    /// axes of this kind; the Cartesian renderer overrides it.</summary>
+    internal virtual IReadOnlyList<SecondaryAxisTransform> ComputeSecondaryViewTransforms() => [];
+
     /// <summary>Writes the axes' view for the server-interaction script, when the figure asked for one
     /// (<see cref="Models.Axes.ServerViewIndex"/>) and the surface is SVG: the axes' index, its plot area and the range
     /// it drew (<see cref="SvgRenderContext.WriteAxesView"/>). Called once the axes is drawn.</summary>
     internal void WriteServerView()
     {
         if (Axes.ServerViewIndex is int index && Ctx is SvgRenderContext svg)
-            svg.WriteAxesView(index, PlotArea, DrawnTransform);
+            svg.WriteAxesView(index, PlotArea, DrawnTransform, ComputeSecondaryViewTransforms());
     }
 
     /// <summary>Returns the inner data-plot bounds (after axis-label and tick reservations).

@@ -508,11 +508,44 @@ public sealed class SvgRenderContext : IRenderContext
     /// <param name="axesIndex">The axes' index in the figure's subplots — what the script sends as <c>axesIndex</c>.</param>
     /// <param name="plotArea">The axes' plot area, used when <paramref name="drawnWith"/> is <see langword="null"/>.</param>
     /// <param name="drawnWith">The transform the axes drew its primary series with, or <see langword="null"/>.</param>
-    internal void WriteAxesView(int axesIndex, Rect plotArea, DataTransform? drawnWith)
+    /// <param name="secondary">Every outward-stacked secondary Y axis' own transform (ROADMAP.md row 100), right
+    /// slots then left slots — empty for axes with none, or a renderer that draws no secondary axis of this kind.</param>
+    internal void WriteAxesView(int axesIndex, Rect plotArea, DataTransform? drawnWith,
+        IReadOnlyList<SecondaryAxisTransform>? secondary = null)
     {
         _sb.Append("<g data-axes-index=\"").Append(axesIndex).Append('"');
         AppendView(drawnWith?.PlotBounds ?? plotArea, drawnWith);
+        AppendSecondaryViews(secondary);
         _sb.AppendLine(" />");
+    }
+
+    /// <summary>Writes every outward-stacked secondary Y axis' own range (and scale, when not linear) as attributes
+    /// prefixed by its side and slot — <c>data-sec-right-0-ymin</c>, <c>data-sec-left-1-yscale</c>, and so on — plus
+    /// a count per side (<c>data-sec-right-count</c>/<c>data-sec-left-count</c>) so the script knows how many to
+    /// read without having to probe. The script converts a gesture through a specific slot's own range the same way
+    /// <see cref="AppendView"/>'s primary range is converted (ROADMAP.md row 100).</summary>
+    private void AppendSecondaryViews(IReadOnlyList<SecondaryAxisTransform>? secondary)
+    {
+        if (secondary is not { Count: > 0 }) return;
+
+        int rightCount = 0, leftCount = 0;
+        foreach (var s in secondary)
+        {
+            string side = s.Side == AxisSide.Right ? "right" : "left";
+            if (s.Side == AxisSide.Right) rightCount++; else leftCount++;
+            string prefix = $"data-sec-{side}-{s.SlotIndex}-";
+            _sb.Append(' ').Append(prefix).Append("ymin=\"").Append(s.Transform.DataYMin.ToSvgNumber())
+               .Append("\" ").Append(prefix).Append("ymax=\"").Append(s.Transform.DataYMax.ToSvgNumber()).Append('"');
+            if (s.Transform.YScale.ViewName() is { } name)
+            {
+                _sb.Append(' ').Append(prefix).Append("yscale=\"").Append(name).Append('"');
+                if (s.Transform.YScale == AxisScale.SymLog)
+                    _sb.Append(' ').Append(prefix).Append("ylinthresh=\"").Append(s.Transform.YLinThresh.ToSvgNumber()).Append('"');
+            }
+        }
+
+        if (rightCount > 0) _sb.Append(" data-sec-right-count=\"").Append(rightCount).Append('"');
+        if (leftCount > 0) _sb.Append(" data-sec-left-count=\"").Append(leftCount).Append('"');
     }
 
     /// <summary>The one writer of a view: the plot area, then the data range of <paramref name="range"/> when given. The

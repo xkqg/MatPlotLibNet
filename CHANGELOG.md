@@ -15,6 +15,25 @@ needs. Internally, every chart verb the fluent API builds from (close to a hundr
 file as a set of extension members on `Axes`, instead of all sharing one class; nothing a caller writes changes
 because of this, it is the file layout underneath the same calls.
 
+A chart with more than two scales had nowhere to put the extra ones: a secondary Y axis was one slot, enough for
+a right-hand axis but not a third or a fourth. `WithOutwardYAxis` stacks one more Y axis past the one before it
+on either side — four scales total, two to the left of the primary axis and two to the right, each with its own
+range, ticks, series and legend entry — the way matplotlib moves a twin's spine outward
+(`ax.spines['right'].set_position(('outward', N))`). The secondary-axis JSON restore path now goes through the
+same series registry the primary axis uses, so a bar or an area — any registered kind — survives a round trip
+there and on the top axis, not only a line or a point; the MCP server accepts the same types on a secondary axis
+it accepts on the primary. A wheel zoom, a drag pan, a rectangle zoom and Home now move every outward-stacked
+axis' own range by its own proportional amount, whether the server answers the gesture or a native control does.
+
+### Added
+
+- **A third and fourth Y axis, outward-stacked two to a side.** `WithOutwardYAxis(AxisSide.Right, ...)` and
+  `WithOutwardYAxis(AxisSide.Left, ...)`, with the new `OutwardYAxisBuilder` (`SetYLabel`, `SetYLim`, `Plot`,
+  `Scatter`, `StreamingPlot`, `WithDirectLabel`), add a second right axis and a left axis beyond the existing
+  secondary one. `Axes.RightYAxes`/`LeftYAxes` carry every slot in stack order; `SecondaryYAxis`, `SecondarySeries`
+  and `TwinX()` keep their old meaning (right slot 0) unchanged, and the new axes travel through JSON additively
+  — old JSON with no second right or left axis simply has no entry for them.
+
 ### Changed
 
 - **Indicator verbs take one `OhlcvBars` value, not several arrays.** `ax.WilliamsR(high, low, close)` is now
@@ -24,6 +43,21 @@ because of this, it is the file layout underneath the same calls.
   call that builds the value instead of silently truncating inside the indicator. The `MatPlotLibNet.DataFrame`
   package's column-name verbs (`df.WilliamsR("high", "low", "close")`) are unaffected — they already took names,
   not arrays.
+
+- **A secondary axis keeps any series kind through a JSON round trip.** Restoring a series on the right-hand
+  axis, the top axis, or any outward-stacked slot now goes through the same `SeriesRegistry` the primary axis
+  uses, instead of a switch that knew only `"line"` and `"scatter"`; an unrecognised kind there now reports the
+  same diagnostic an unrecognised primary series already did, instead of vanishing without a word.
+
+- **Zoom, pan, rectangle-zoom and Home move every secondary axis, not only the primary.** The zoom/pan/reset
+  events carry each outward-stacked axis' own new range; `IChartLayout.GetSecondaryDataRanges` is the per-axis
+  counterpart of `GetDataRange`. The WPF, Avalonia and Uno controls get this for free (same event types); the
+  browser's own interactive script computes each secondary axis' proportional move the same way it already
+  computes the primary's.
+
+- **A series on a second axis gets its own legend entry.** Previously only the first right-hand axis' series
+  appeared in the legend; a second right axis or a left axis' series now does too, each keeping its own identity
+  and colour.
 
 ## [1.22.0]
 

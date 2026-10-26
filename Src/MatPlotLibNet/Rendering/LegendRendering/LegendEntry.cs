@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 
@@ -31,8 +32,9 @@ internal static class AxesLegendEntryExtensions
 {
     extension(Axes axes)
     {
-        /// <summary>Lists the legend entries of <paramref name="axes"/>: the primary series, then the secondary-axis
-        /// series, each one that has a legend entry (see <c>HasLegendEntry</c>).</summary>
+        /// <summary>Lists the legend entries of <paramref name="axes"/>: the primary series, then every right-side
+        /// outward-stacked axis' series in slot order, then every left-side one's, each that has a legend entry
+        /// (see <c>HasLegendEntry</c>).</summary>
         /// <param name="directLabelsDrawn">Whether the renderer of these axes draws end-of-line labels
         /// (<c>AxesRenderer.DrawsDirectLabels</c>). Only then does a series that asked for one leave the legend.</param>
         /// <returns>The entries in drawing order; empty when no series has an entry.</returns>
@@ -43,8 +45,11 @@ internal static class AxesLegendEntryExtensions
             Collect(axes, SeriesAxisPair.Primary, axes.Series, legendValues, directLabelsDrawn, entries);
             // The SECONDARY-axis traces belong in the same legend: a dual-axis chart draws two lines, and a legend that
             // names one of them reads as "the other line has no name". Their index is their colour slot, which continues
-            // where the primary series stopped (SeriesSlotExtensions.SlotIndex, the rule the secondary part draws with).
-            Collect(axes, SeriesAxisPair.SecondaryY, axes.SecondarySeries, legendValues, directLabelsDrawn, entries);
+            // where the primary series stopped (SeriesSlotExtensions.SlotIndex, the rule the secondary parts draw with).
+            // Every right slot's series is ONE running sequence here (ROADMAP.md row 101 — ditto the left side), matching
+            // how Axes.AllSeries and SlotIndex both concatenate them: flattening per side, not per slot.
+            Collect(axes, SeriesAxisPair.SecondaryY, [.. axes.RightYAxes.SelectMany(s => s.Series)], legendValues, directLabelsDrawn, entries);
+            Collect(axes, SeriesAxisPair.SecondaryLeftY, [.. axes.LeftYAxes.SelectMany(s => s.Series)], legendValues, directLabelsDrawn, entries);
             return entries;
         }
     }

@@ -21,7 +21,12 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 **1.23.0** moves the technical indicators that read a candle's open, high, low, close and volume from separate
 array parameters to one `OhlcvBars` value, built with the factory that names the columns the indicator actually
 uses (`OhlcvBars.Hlc(high, low, close)`, `OhlcvBars.Cv(close, volume)`, and so on) instead of repeating the same
-arrays across every indicator on a chart.
+arrays across every indicator on a chart. A chart with more than two scales now has somewhere to put the extra
+ones: `WithOutwardYAxis` stacks a second axis past the first on either side — four scales total, two left and two
+right, each with its own range, ticks, series and legend entry, the way matplotlib moves a twin's spine outward. A
+secondary axis restores through the same registry the primary one does, so a bar or an area survives there and on
+the top axis too, not only a line or a point; and a wheel zoom, a drag pan, a rectangle zoom and Home now move
+every one of those axes, each by its own amount, whether the server answers the gesture or a native control does.
 
 **1.22.0** lets several series share one colour instead of each taking the next one from the theme's cycle, and
 spends it on three things: a Kaplan-Meier curve now draws its confidence band and its censor marks in the curve's
@@ -62,8 +67,8 @@ its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadma
 what is still to come and what is left out on purpose, with a section for each row on the
 [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (817 classes, at
-99.7 % line / 98.6 % branch) across 19,890 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (848 classes, at
+99.7 % line / 98.5 % branch) across 19,995 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
 rendering with reference images drawn by matplotlib; it is not part of the CI run.
 
 ---

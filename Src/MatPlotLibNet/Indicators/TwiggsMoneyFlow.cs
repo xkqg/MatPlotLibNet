@@ -61,12 +61,12 @@ public sealed class TwiggsMoneyFlow : CandleIndicator<SignalResult>
     /// <c>y_t = α·x_t + (1−α)·y_{t−1}</c>.</summary>
     private static double[] WilderEma(double[] values, double alpha)
     {
-        int n = values.Length;
-        var y = new double[n];
-        if (n == 0) return y;
+        // values.Length is always >= 1 here: Compute() returns early for BarCount < 2, so outLen = n-1 >= 1
+        // on every call this private helper ever receives.
+        var y = new double[values.Length];
         double oneMinusAlpha = 1.0 - alpha;
         y[0] = values[0];
-        for (int i = 1; i < n; i++) y[i] = alpha * values[i] + oneMinusAlpha * y[i - 1];
+        for (int i = 1; i < y.Length; i++) y[i] = alpha * values[i] + oneMinusAlpha * y[i - 1];
         return y;
     }
 

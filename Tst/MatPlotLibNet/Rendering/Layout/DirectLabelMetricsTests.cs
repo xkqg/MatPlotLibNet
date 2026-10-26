@@ -157,8 +157,8 @@ public class DirectLabelMetricsTests
             .WithSecondaryYAxis(y2 => y2.Plot(X, [5.0, 6.0, 7.0], s => s.Label = "secondary").WithDirectLabel()));
 
         Assert.Equal(
-            [new DirectLabel(m.Labels[0].Series, SeriesAxisPair.Primary, 4, "primary", 2.0, 3.0),
-             new DirectLabel(m.Labels[1].Series, SeriesAxisPair.SecondaryY, 0, "secondary", 2.0, 7.0)],
+            [new DirectLabel(m.Labels[0].Series, SeriesAxisPair.Primary, 4, 0, "primary", 2.0, 3.0),
+             new DirectLabel(m.Labels[1].Series, SeriesAxisPair.SecondaryY, 0, 0, "secondary", 2.0, 7.0)],
             m.Labels);
         Assert.Equal("primary", m.Labels[0].Series.Label);
         Assert.Equal("secondary", m.Labels[1].Series.Label);

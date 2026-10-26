@@ -13,6 +13,24 @@ public class VwapZScoreTests
 {
     private static double[] Flat(double v, int n) => Enumerable.Repeat(v, n).ToArray();
 
+    /// <summary>The rolling-std pass's OWN local-VWAP guard (distinct from the outer per-window one Branch 6
+    /// above covers): a SUB-window ending at an early bar can have zero volume even while the OUTER window it
+    /// sits in does not (its later bars carry the volume). window=2, bars 0..4, volume [5,0,0,5,5]: window w=2
+    /// (bars 2..3) has outer sum 0+5=5 (passes the outer guard), but its first inner i=2's own sub-window
+    /// (bars 1..2) sums to 0+0=0 — the branch this pins.</summary>
+    [Fact]
+    public void Compute_ASubWindowWithZeroVolume_InAnOtherwiseNonZeroOuterWindow_DoesNotThrow()
+    {
+        double[] close = [10.0, 11, 12, 13, 14];
+        double[] volume = [5.0, 0, 0, 5, 5];
+
+        var z = new VwapZScore(OhlcvBars.Cv(close, volume), window: 2);
+        var result = z.Compute();
+
+        Assert.Equal(4, result.Values.Length);
+        Assert.All(result.Values, v => Assert.False(double.IsNaN(v)));
+    }
+
     // ── Branch 1 — Empty input ──
     [Fact]
     public void Compute_EmptyInput_ReturnsEmpty()

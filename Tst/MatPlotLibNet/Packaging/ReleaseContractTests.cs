@@ -109,12 +109,10 @@ public class ReleaseContractTests
         // publish-core and still pushed, so the freeze would last exactly until the next release.
         var filter = CiFilterProjects();
         string publish = Read(".github", "workflows", "publish.yml");
-        string uno = Read(".github", "workflows", "push-uno.yml");
 
         var stillMoving = Frozen.Keys
             .Where(path => filter.Contains(path, StringComparer.Ordinal)
-                        || publish.Contains(path, StringComparison.Ordinal)
-                        || uno.Contains(path, StringComparison.Ordinal))
+                        || publish.Contains(path, StringComparison.Ordinal))
             .ToArray();
 
         Assert.True(stillMoving.Length == 0,
@@ -877,16 +875,15 @@ public class ReleaseContractTests
     public void EveryPackableProject_IsPublishedBySomeWorkflow()
     {
         // publish-core packs the whole CI filter in one go; the platform packages are packed by name on Windows,
-        // and Uno has its own workflow because its SDK has no dotnet workload.
+        // and publish-uno likewise (its own job, in the same workflow and trigger, because its SDK has no dotnet
+        // workload and needs the Uno.Templates install the other two jobs don't).
         var inFilter = CiFilterProjects();
         string publish = Read(".github", "workflows", "publish.yml");
-        string uno = Read(".github", "workflows", "push-uno.yml");
 
         var unpublished = LivePackages()
             .Select(p => p.Path)
             .Where(path => !inFilter.Contains(path, StringComparer.Ordinal)
-                           && !publish.Contains(path, StringComparison.Ordinal)
-                           && !uno.Contains(path, StringComparison.Ordinal))
+                           && !publish.Contains(path, StringComparison.Ordinal))
             .ToArray();
 
         Assert.True(unpublished.Length == 0,

@@ -51,6 +51,72 @@ public class ChartSerializerUnknownDiscriminatorDiagnosticsTests
         }
     }
 
+    /// <summary>A secondary-axis series with no "type" field at all (dto.Type is null, not merely unrecognised) —
+    /// AxesSerializationExtensions.CreateOnSecondarySeat's own "unknown" fallback, the branch the kind-named test
+    /// above does not reach.</summary>
+    [Fact]
+    public void FromJson_SecondarySeriesWithNoTypeField_EmitsDiagnosticNamingItUnknown()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{
+                "secondaryYAxis":{},
+                "secondarySeries":[{"label":"skip"}]
+            }]
+        }
+        """;
+
+        ChartDiagnostic? received = null;
+        void Handler(ChartDiagnostic d) => received = d;
+        ChartDiagnostics.Emitted += Handler;
+        try
+        {
+            var fig = S.FromJson(json);
+
+            Assert.Empty(fig.SubPlots[0].SecondarySeries);
+            Assert.NotNull(received);
+            Assert.Contains("'unknown'", received!.Value.Message);
+        }
+        finally
+        {
+            ChartDiagnostics.Emitted -= Handler;
+        }
+    }
+
+    /// <summary>The same signal on the secondary-axis restore path (ROADMAP.md row 99): before the fix this switch
+    /// ended in <c>_ =&gt; null</c> with no diagnostic at all — a bar on the right-hand axis vanished silently.</summary>
+    [Fact]
+    public void FromJson_UnknownDiscriminator_OnSecondaryAxis_EmitsDiagnostic()
+    {
+        const string json = """
+        {
+            "width":800,"height":600,
+            "subPlots":[{
+                "secondaryYAxis":{},
+                "secondarySeries":[{"type":"__bogus_kind__","label":"skip"}]
+            }]
+        }
+        """;
+
+        ChartDiagnostic? received = null;
+        void Handler(ChartDiagnostic d) => received = d;
+        ChartDiagnostics.Emitted += Handler;
+        try
+        {
+            var fig = S.FromJson(json);
+
+            Assert.Empty(fig.SubPlots[0].SecondarySeries);
+            Assert.NotNull(received);
+            Assert.Equal("ChartSerializer", received!.Value.Source);
+            Assert.Contains("__bogus_kind__", received.Value.Message);
+        }
+        finally
+        {
+            ChartDiagnostics.Emitted -= Handler;
+        }
+    }
+
     /// <summary>A tick locator, tick formatter, normaliser or colour map of a kind this build does not know (JSON from a
     /// later release, or a typo) is skipped the same way: the figure loads, the axis or series keeps its own default, and
     /// the skip is reported. A reversed map of an unknown map is no map either.</summary>

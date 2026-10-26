@@ -14,6 +14,10 @@ public sealed class ResetModifier : IInteractionModifier
     /// <summary>Original data ranges captured when the modifier was created, keyed by axes index.</summary>
     private readonly Dictionary<int, DataRange> _originalRanges;
 
+    /// <summary>Every outward-stacked secondary Y axis' original range, keyed by axes index — the counterpart of
+    /// <see cref="_originalRanges"/> for everything beyond the primary (ROADMAP.md row 100).</summary>
+    private readonly Dictionary<int, IReadOnlyList<SecondaryAxisRange>> _originalSecondaryRanges;
+
     /// <summary>Creates a reset modifier. The original axis limits are snapshotted at construction time.</summary>
     public ResetModifier(string chartId, IChartLayout layout, Action<FigureInteractionEvent> sink)
     {
@@ -21,9 +25,13 @@ public sealed class ResetModifier : IInteractionModifier
         _layout         = layout;
         _sink           = sink;
         _originalRanges = new Dictionary<int, DataRange>();
+        _originalSecondaryRanges = new Dictionary<int, IReadOnlyList<SecondaryAxisRange>>();
 
         for (int i = 0; i < layout.AxesCount; i++)
+        {
             _originalRanges[i] = layout.GetDataRange(i);
+            _originalSecondaryRanges[i] = layout.GetSecondaryDataRanges(i);
+        }
     }
 
     /// <inheritdoc />
@@ -62,6 +70,7 @@ public sealed class ResetModifier : IInteractionModifier
     private void EmitReset(int axesIndex)
     {
         if (!_originalRanges.TryGetValue(axesIndex, out var orig)) return;
-        _sink(new ResetEvent(_chartId, axesIndex, orig.XMin, orig.XMax, orig.YMin, orig.YMax));
+        _originalSecondaryRanges.TryGetValue(axesIndex, out var secondary);
+        _sink(new ResetEvent(_chartId, axesIndex, orig.XMin, orig.XMax, orig.YMin, orig.YMax) { SecondaryRanges = secondary });
     }
 }

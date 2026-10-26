@@ -493,14 +493,14 @@ internal sealed partial class ChartSpecReader
         var series = axes.Series ?? [];
         for (int j = 0; j < series.Count; j++)
         {
-            ValidateSeries(series[j], $"{path}.series[{j}]", secondary: false);
+            ValidateSeries(series[j], $"{path}.series[{j}]");
             drawn++;
         }
 
         var secondary = axes.SecondarySeries ?? [];
         for (int j = 0; j < secondary.Count; j++)
         {
-            ValidateSeries(secondary[j], $"{path}.secondarySeries[{j}]", secondary: true);
+            ValidateSeries(secondary[j], $"{path}.secondarySeries[{j}]");
             drawn++;
         }
 
@@ -513,23 +513,17 @@ internal sealed partial class ChartSpecReader
         return drawn;
     }
 
-    private void ValidateSeries(SeriesDto series, string path, bool secondary)
+    private void ValidateSeries(SeriesDto series, string path)
     {
         if (string.IsNullOrEmpty(series.Type))
         {
             throw new ToolRefusalException($"The series at {path} has no 'type'. list_chart_types names the accepted types.");
         }
 
-        if (secondary)
-        {
-            // The serializer routes secondary-axis series through a switch that ends in "_ => null" without a
-            // diagnostic: a bar on the secondary axis vanishes without a word.
-            if (series.Type is not ("line" or "scatter"))
-            {
-                throw new ToolRefusalException($"'{series.Type}' at {path}.type is not supported on the secondary axis: only 'line' and 'scatter' are.");
-            }
-        }
-        else if (!_catalog.IsListed(series.Type))
+        // Core's secondary-axis restore now goes through the same SeriesRegistry the primary axis does
+        // (ChartSerializer.CreateOnSecondarySeat, ROADMAP.md row 99), so the same catalog check applies to both —
+        // no separate, narrower allowlist for a series on the right-hand or top axis.
+        if (!_catalog.IsListed(series.Type))
         {
             if (_catalog.Excluded.TryGetValue(series.Type, out var reason))
             {

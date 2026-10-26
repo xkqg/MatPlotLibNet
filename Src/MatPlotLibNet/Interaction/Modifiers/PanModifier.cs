@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
+
 namespace MatPlotLibNet.Interaction;
 
 /// <summary>Translates the visible axes range when the user drags with the left mouse button
@@ -59,16 +61,41 @@ public sealed class PanModifier : IInteractionModifier
 
         var view = _layout.ViewOf(_activeAxes);
         var area = _layout.GetPlotArea(_activeAxes);
+        double dyPixels = args.Y - _lastPixelY;
         // Drawn units per pixel; negative on a reversed axis, so the shift still follows the pointer.
         double dx = (_lastPixelX - args.X) / area.Width * (view.DataXMax - view.DataXMin);
-        double dy = (args.Y - _lastPixelY) / area.Height * (view.DataYMax - view.DataYMin);
+        double dy = dyPixels / area.Height * (view.DataYMax - view.DataYMin);
 
         if (dx == 0 && dy == 0) return;
 
-        _sink(new PanEvent(_chartId, _activeAxes, dx, dy) { InView = _layout.GetDataRange(_activeAxes) });
+        _sink(new PanEvent(_chartId, _activeAxes, dx, dy)
+        {
+            InView = _layout.GetDataRange(_activeAxes),
+            SecondaryRanges = SecondaryRangesFor(view, dyPixels, area.Height),
+        });
 
         _lastPixelX = args.X;
         _lastPixelY = args.Y;
+    }
+
+    /// <summary>Every outward-stacked secondary Y axis' new range after this move — each in ITS OWN data units
+    /// (<see cref="PanEvent.Shifted"/> against <see cref="DataTransform.DataYMin"/>/<see cref="DataTransform.DataYMax"/>),
+    /// not the primary's <c>dy</c>: the same pixel delta is a different data-space delta on an axis with a
+    /// different span (ROADMAP.md row 100).</summary>
+    private List<SecondaryAxisRange>? SecondaryRangesFor(DataTransform primaryView, double dyPixels, double areaHeight)
+    {
+        var views = _layout.SecondaryViewsOf(_activeAxes);
+        if (views.Count == 0) return null;
+
+        var ranges = new List<SecondaryAxisRange>(views.Count);
+        foreach (var v in views)
+        {
+            double svDy = dyPixels / areaHeight * (v.Transform.DataYMax - v.Transform.DataYMin);
+            var (min, max) = PanEvent.Shifted(v.Transform.DataYMin, v.Transform.DataYMax, svDy, v.Transform.YScale, v.Transform.YLinThresh);
+            ranges.Add(new SecondaryAxisRange(v.Side, v.SlotIndex, new DataRange(primaryView.DataXMin, primaryView.DataXMax, min, max)));
+        }
+
+        return ranges;
     }
 
     /// <inheritdoc />
