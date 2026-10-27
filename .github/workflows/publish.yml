@@ -211,8 +211,16 @@ jobs:
       - name: Build
         run: dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-restore --configuration Release
 
+      # --no-dependencies: `dotnet pack --no-build` still does an implicit restore, which by default walks every
+      # ProjectReference -- MatPlotLibNet and MatPlotLibNet.Skia are both multi-targeted (net10.0 + net8.0), and
+      # resolving their net8.0 TargetPath through that restore invokes their own Build target, which collides
+      # with the NoBuild=true this step already set (NETSDK1085: "'NoBuild' was true but 'Build' was invoked"),
+      # on exactly the two referenced projects, never on MatPlotLibNet.Uno.csproj itself. publish-core and
+      # publish-platform never hit this because each packs a project directly, never through a reference to
+      # another packable one. The Build step above already built the references transitively; this flag just
+      # stops Pack's own restore from touching them again (measured failing: run 40451651136, v1.23.0).
       - name: Pack
-        run: dotnet pack Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-build --configuration Release --output nupkgs
+        run: dotnet pack Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-build --no-dependencies --configuration Release --output nupkgs
 
       - name: Push to NuGet
         run: dotnet nuget push "nupkgs/MatPlotLibNet.Uno.*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
