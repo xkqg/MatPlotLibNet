@@ -208,19 +208,18 @@ jobs:
       - name: Restore
         run: dotnet restore Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj
 
+      # A separate `dotnet pack --no-build` step (publish-core's and publish-platform's own pattern) fails here
+      # with NETSDK1085 on MatPlotLibNet.Skia.csproj and MatPlotLibNet.csproj (run 40452305941, confirmed by
+      # job log): packing Uno.csproj --no-build still resolves its ProjectReference to Skia, which is itself
+      # multi-targeted (net10.0;net8.0) and references the equally multi-targeted core MatPlotLibNet.csproj --
+      # that P2P TargetPath resolution invokes the referenced projects' own Build target, which collides with
+      # the NoBuild=true global property Pack set. publish-core/publish-platform never hit this: each packs a
+      # project directly, never through a reference to another multi-targeted packable one. Uno.csproj already
+      # sets GeneratePackageOnBuild=true, and this Build step's own log already shows it producing the .nupkg
+      # (`Successfully created package '.../MatPlotLibNet.Uno.1.23.0.nupkg'`) -- so there is nothing left for a
+      # second Pack step to do; it only needs telling where to put what Build already made.
       - name: Build
-        run: dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-restore --configuration Release
-
-      # --no-dependencies: `dotnet pack --no-build` still does an implicit restore, which by default walks every
-      # ProjectReference -- MatPlotLibNet and MatPlotLibNet.Skia are both multi-targeted (net10.0 + net8.0), and
-      # resolving their net8.0 TargetPath through that restore invokes their own Build target, which collides
-      # with the NoBuild=true this step already set (NETSDK1085: "'NoBuild' was true but 'Build' was invoked"),
-      # on exactly the two referenced projects, never on MatPlotLibNet.Uno.csproj itself. publish-core and
-      # publish-platform never hit this because each packs a project directly, never through a reference to
-      # another packable one. The Build step above already built the references transitively; this flag just
-      # stops Pack's own restore from touching them again (measured failing: run 40451651136, v1.23.0).
-      - name: Pack
-        run: dotnet pack Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-build --no-dependencies --configuration Release --output nupkgs
+        run: dotnet build Src/MatPlotLibNet.Uno/MatPlotLibNet.Uno.csproj --no-restore --configuration Release -p:PackageOutputPath=$(pwd)/nupkgs
 
       - name: Push to NuGet
         run: dotnet nuget push "nupkgs/MatPlotLibNet.Uno.*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

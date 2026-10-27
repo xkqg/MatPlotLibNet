@@ -110,6 +110,24 @@ document that states it. The tests keep their own lists: add the instance to `Al
 (with its overload on the test-side `TestSeriesVisitor`) and the discriminator to the `ChartSerializerRoundTripTests`
 Theory — `docs/COVERAGE.md` § "Cross-cutting Theory pattern": extend those, do not clone a per-type test file.
 
+**Shared behaviour is a C# 14 `extension(T value) { }` block, never a `this`-param static method.** Every
+`*Extensions` class in `Src/` and the satellite packages is written this way (`LangVersion` is 14 repo-wide,
+`Directory.Build.props`). Two traps that only show up past the call site: a member's reflected
+`MethodInfo.DeclaringType` is a compiler-synthesized nested `<ContainingClass>+<G>$<hash>` skeleton type, not
+the class as written — one `.DeclaringType` up recovers it — and the generated XML doc mirrors the split (the
+entry under the clean name is a bare `<inheritdoc cref="...skeleton.../>` shim; the real summary/param/returns
+content lives under the skeleton member, and `GetParameters()[0]` is always the receiver, documented once on
+the block rather than per member). A bare `Foo.Bar(...)` where `Foo` is a namespace resolves only in a file
+whose own `namespace` nests directly under `MatPlotLibNet` (C#'s enclosing-namespace lookup, not `using`) — true
+everywhere in `Src/`, false in `Samples/`, the wiki and docs code-fences, which need the qualified form.
+
+**A technical indicator takes one `OhlcvBars` value, not five parallel arrays.** `Indicators/OhlcvBars.cs` is a
+record struct with one named factory per shape an indicator actually reads — `Hlc`, `Hl`, `Hlv`, `Cv`, `Ohlc`,
+`Hlcv` — each validating only the arrays it uses via `ArrayLengthExtensions.ThrowIfMisaligned`. Every
+`CandleIndicator<TResult>` subclass and the `AxesBuilder` verb that forwards to it takes `OhlcvBars bars`;
+`MatPlotLibNet.DataFrame`'s column-name verbs keep their own string signature and build the value internally
+from `df.DoubleCol(...)`.
+
 **Colours and colormaps are three classes, not one.** `Colors` is a 40-name curated palette, `Css4Colors` the
 full 148-name CSS4 table, and the maps live on `ColorMaps` (9 named + `Get(name)`), `DivergingColorMaps`,
 `SequentialColorMaps`, `QualitativeColorMaps`, `CyclicColorMaps`. A reversed map is `new ReversedColorMap(map)`
