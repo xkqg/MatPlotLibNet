@@ -201,10 +201,10 @@ Plt.Create()
     .AddSubPlot(1, 1, 1, ax => ax
         .Plot(x, temperature, s => { s.Color = Colors.Red; s.Label = "Temperature (°C)"; })
         .SetYLabel("Temperature (°C)")
-        .WithSecondaryYAxis(sec =>
+        .WithAddRightYAxis(right =>
         {
-            sec.Plot(x, pressure, s => { s.Color = Colors.Blue; s.Label = "Pressure (hPa)"; });
-            sec.SetYLabel("Pressure (hPa)");
+            right.Plot(x, pressure, s => { s.Color = Colors.Blue; s.Label = "Pressure (hPa)"; });
+            right.SetYLabel("Pressure (hPa)");
         })
         .WithLegend())
     .Save("dual_axis.svg");
@@ -212,6 +212,46 @@ Plt.Create()
 
 To name each line where it ends and colour each axis like its line, so the chart needs no legend, see
 [Direct labels and axis colours](direct-labels-and-axis-colours.md).
+
+### Any number of Y axes
+
+Call `WithAddRightYAxis` or `WithAddLeftYAxis` once for each further axis. Each call stacks one more axis past the
+ones before it on that side, with its own range, ticks, colour, series and legend entry. The primary Y axis stays the
+left axis nearest the plot, so the first `WithAddLeftYAxis` stands next to it. There is no limit to count against:
+
+```csharp
+double[] days        = [1, 2, 3, 4, 5, 6];
+double[] temperature = [14, 18, 27, 22, 19, 15];
+double[] pressure    = [1010, 1012, 1008, 1011, 1013, 1009];
+double[] humidity    = [88, 70, 46, 60, 72, 85];
+double[] wind        = [2.1, 3.4, 5.0, 4.2, 2.8, 3.1];
+
+Plt.Create()
+    .WithSize(900, 450)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot(days, temperature, s => { s.Color = Colors.Red; s.Label = "Temperature (°C)"; })
+        .SetYLabel("Temperature (°C)")
+        .SetYAxisColor(Colors.Red)
+        .WithAddRightYAxis(right => right
+            .Plot(days, pressure, s => { s.Color = Colors.Blue; s.Label = "Pressure (hPa)"; })
+            .SetYLabel("Pressure (hPa)")
+            .SetYAxisColor(Colors.Blue))
+        .WithAddRightYAxis(right => right
+            .Plot(days, humidity, s => { s.Color = Colors.Green; s.Label = "Humidity (%)"; })
+            .SetYLabel("Humidity (%)")
+            .SetYAxisColor(Colors.Green))
+        .WithAddLeftYAxis(left => left
+            .Plot(days, wind, s => { s.Color = Colors.Orange; s.Label = "Wind (m/s)"; })
+            .SetYLabel("Wind (m/s)")
+            .SetYAxisColor(Colors.Orange))
+        .WithLegend())
+    .Save("four_axes.svg");
+```
+
+Every Y axis title stands 4 px from the tick labels beside it, the same on the left and on the right and for every
+axis, and the same 4 px separates one stacked axis from the next. A browser draws the text with the metrics of its own
+font, so what you see differs from that by a pixel or two. `WithYAxisTitleGap(pixels)` sets another distance for the
+whole subplot. A figure with this many axes still saves to JSON and reads back whole.
 
 ## PropCycler — automatic color + line style cycling
 
@@ -266,6 +306,24 @@ Plt.Create()
 ```
 
 ![LTTB downsampling](../images/lttb_downsampling.png)
+
+## Where the legend stands
+
+A legend that names no position, `WithLegend()` with none, stands at `LegendPosition.Best`: it looks at the marks the chart
+drew and takes the one of ten places, tried in matplotlib's order, that covers the fewest. The places are the upper right, upper
+left, lower left, lower right, right, centre left, centre right, lower centre, upper centre and the centre; a place scores the
+vertices of the lines and the centres of the points inside the legend's box, the bars and boxes that overlap it and the paths
+that cross it, and the first place with the lowest score wins. Hidden series count, as in matplotlib, and so do the texts of
+annotations. A position you name is always kept, and `Theme.MatplotlibClassic` keeps matplotlib's classic default, the upper
+right corner, for a legend that names none.
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot([1.0, 2, 3, 4, 5], [1.0, 2, 3, 4, 5], s => s.Label = "climb")
+        .WithLegend())                                  // the line climbs into the upper right: the legend stands elsewhere
+    .Save("legend_best.svg");
+```
 
 ## Outside legend
 
@@ -446,6 +504,43 @@ takes them in, so they are drawn inside the plot even when every value lies betw
 the line, is left out of the estimate and is never a violation; the moving range spans the gap. Nothing is in the
 legend until you name a part: `ControlChartParts` hands you the values, the violations and the three lines.
 
+## Stacked area with named layers
+
+`StackPlot` stacks its layers on the first value of each x. `Labels` names them, and each name is an entry of the legend in
+the colour its layer is drawn in; in an interactive chart a click on any of them hides or shows the whole stack. The series
+holds one colour of the cycle for each layer, so the line drawn after it takes the colour past the layers, as in matplotlib,
+and not one a layer already wears:
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Models;
+
+double[] months = Enumerable.Range(1, 12).Select(m => (double)m).ToArray();
+double[][] layers =
+[
+    [.. months.Select(m => 20 + 2 * m)],
+    [.. months.Select(m => 15 + 3 * Math.Sin(m / 2.0) + m)],
+    [.. months.Select(m => 10 + 1.5 * m)],
+];
+double[] target = [.. months.Select(m => 55 + 3.5 * m)];
+
+Plt.Create()
+    .WithTitle("Revenue by product line against the target")
+    .WithSize(900, 480)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .StackPlot(months, layers, s => s.Labels = ["Hardware", "Software", "Services"])
+        .Plot(months, target, s => { s.Label = "Target"; s.LineWidth = 2; })
+        .SetXLabel("Month")
+        .SetYLabel("Revenue (k€)")
+        .WithLegend(LegendPosition.UpperLeft))
+    .Save("stackplot_legend_line.svg");
+```
+
+![Three stacked areas with a red target line above them and a legend that names the layers and the line](../images/stackplot_legend_line.png)
+
+A stack without layer names keeps one legend entry under the series' name. A layer must hold a value for every x; the MCP
+server accepts a stacked-area spec.
+
 ## Stream graph
 
 A stacked area chart whose stack floats around the middle of the plot instead of standing on zero, so the layers
@@ -485,8 +580,8 @@ weighted by its size), `Symmetric` (the middle of the total on the middle line) 
 chart).
 
 Each layer is one opaque area series, named in the legend, so a click on its entry hides that layer alone. Unlike
-`StackPlot`, which is one series whose layer names do not reach the legend, every layer here takes a colour slot of
-its own. A value is 0 or more; a negative one is refused. A missing value (`double.NaN`) is a gap: on the floating
+`StackPlot`, which is one series whose click hides the whole stack, every layer here is a series of its own and takes a
+colour slot of its own. A value is 0 or more; a negative one is refused. A missing value (`double.NaN`) is a gap: on the floating
 baselines in every layer at that x, on `Zero` in that layer and the ones above it. The stream fills the plot, so the
 legend goes beside it, as above.
 

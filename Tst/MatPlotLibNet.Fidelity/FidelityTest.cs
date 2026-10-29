@@ -110,6 +110,7 @@ public abstract class FidelityTest
         }
 
         var result = PerceptualDiff.Compare(reference, actual);
+        RecordScore(subdir, fixtureName, result);
         if (!result.Passed(rmsThreshold, ssimThreshold, deltaEThreshold))
         {
             string diffPath = WriteDiff($"{subdir}_{fixtureName}", reference, actual);
@@ -121,6 +122,19 @@ public abstract class FidelityTest
                 $"  Colors: {colorDiag}\n" +
                 $"  Diff image: {diffPath}");
         }
+    }
+
+    // MPL_FIDELITY_SCORES=<file> appends one "style/name<TAB>rms<TAB>ssim<TAB>deltaE" line per compared
+    // fixture, pass or fail, so a change that moves pictures can be scored before and after.
+    private static readonly string? ScoresPath = Environment.GetEnvironmentVariable("MPL_FIDELITY_SCORES");
+    private static readonly object ScoresLock = new();
+
+    private static void RecordScore(string subdir, string fixtureName, PerceptualDiff.Result result)
+    {
+        if (string.IsNullOrEmpty(ScoresPath)) return;
+        string line = string.Create(System.Globalization.CultureInfo.InvariantCulture,
+            $"{subdir}/{fixtureName}\t{result.Rms:F2}\t{result.Ssim:F4}\t{result.MaxDeltaE:F2}{Environment.NewLine}");
+        lock (ScoresLock) File.AppendAllText(ScoresPath, line);
     }
 
     // ──────────────────────────────────────────────────────────────────────────

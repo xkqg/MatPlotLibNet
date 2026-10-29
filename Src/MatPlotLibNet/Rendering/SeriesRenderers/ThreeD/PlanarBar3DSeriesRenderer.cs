@@ -22,6 +22,9 @@ internal sealed class PlanarBar3DSeriesRenderer : SeriesRenderer<PlanarBar3DSeri
     public PlanarBar3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(PlanarBar3DSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(PlanarBar3DSeries series)
     {
         if (series.X.Length == 0) return;

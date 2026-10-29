@@ -58,7 +58,7 @@ public class DumbbellTests
         Assert.IsType<ErrorBarSeries>(axes.Series[2]);
         Assert.Equal("Before", from.Label);
         Assert.Equal("After", to.Label);
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
     }
 
     /// <summary>Each dot stands on the centre of its category's slot at its group's value.</summary>

@@ -30,7 +30,7 @@ public class CartesianSecondaryXAxisPartUnitTests
         // Slots run primary, then secondary Y, then secondary X: one of each puts the top-axis line in slot 2.
         var ax = new Axes { EnableInteractiveAttributes = true };
         ax.Plot([0.0, 10], [0.0, 10]);
-        ax.PlotSecondary([0.0, 10], [10.0, 90]);
+        ax.YAxes.Right.FirstOrAdd().AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [10.0, 90]));
         ax.PlotXSecondary([0.0, 100], [0.0, 10]).Label = "top";
         var ctx = new MatPlotLibNet.Rendering.Svg.SvgRenderContext();
 
@@ -64,7 +64,7 @@ public class CartesianSecondaryXAxisPartUnitTests
         var theme = Theme.CreateFrom(Theme.Default).WithPropCycler(cycler).Build();
         var ax = new Axes();
         ax.Plot([0.0, 10], [0.0, 10]);
-        ax.PlotSecondary([0.0, 10], [10.0, 90]);
+        ax.YAxes.Right.FirstOrAdd().AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [10.0, 90]));
         ax.PlotXSecondary([0.0, 100], [0.0, 10]);
         var ctx = new RecordingRenderContext();
 

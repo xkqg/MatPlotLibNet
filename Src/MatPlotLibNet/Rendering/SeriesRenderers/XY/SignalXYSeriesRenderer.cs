@@ -12,12 +12,21 @@ internal sealed class SignalXYSeriesRenderer : SeriesRenderer<SignalXYSeries>
     /// <inheritdoc />
     public SignalXYSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <summary>The points of the signal in pixels: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/>
+    /// hands to a legend.</summary>
+    private Point[] Path(SignalXYSeries series)
+    {
+        var data = ApplyMonotonicDownsampling(series, series.MaxDisplayPoints);
+        return Transform.TransformBatch(data.X, data.Y);
+    }
+
+    /// <inheritdoc />
+    internal override void AddMarks(SignalXYSeries series, MarkObstacles.Builder marks) => AddPolyline(marks, Path(series));
+
     /// <inheritdoc />
     public override void Render(SignalXYSeries series)
     {
         var color = ResolveColor(series.Color);
-        var data  = ApplyMonotonicDownsampling(series, series.MaxDisplayPoints);
-        Point[] points = Transform.TransformBatch(data.X, data.Y);
-        Ctx.DrawLines(points, Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
+        Ctx.DrawLines(Path(series), Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
     }
 }

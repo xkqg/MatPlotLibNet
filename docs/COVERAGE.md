@@ -2,6 +2,38 @@
 
 MatPlotLibNet enforces **≥90% line coverage AND ≥90% branch coverage on every public class**. The CI build fails if any class drops below its threshold or regresses against the committed baseline.
 
+**Status (v1.24.0, a container for the Y axes, the placement of texts, the scales and the maps):** **896/896 classes at ≥90/90**, strict gate **PASSES** with no
+regressions (`PASS: All 896 classes meet 90/90 threshold + no regressions`). Total project coverage:
+**99.7L / 98.7B**; **22,297 tests, 0 failures** across the 11 measured suites (the wiki suite, the WPF suite and the Uno suite run beside the gate and
+are not measured by it). The new classes are the container itself (`YAxisContainer`, `YAxisStack`, `YAxisSlot`), the one slot part that draws every
+Y axis, and the title-clearance rules both sides now share. The growth in tests covers the stacking of any number of axes per side, the two sides
+sharing one title gap, the old members pinned one by one in a single file (the one place that still calls them), the JSON of the version before, kept
+byte for byte, and the spec reader's refusal of a null axis. The first strict run reported one class short on branches (`ChartSession`, 100 % to
+91.7 %): the guard that keeps one failing event from ending a chart session left two arms without a test, a closed channel and a handler that
+finishes later than the call. A test per arm closed it, and the closed-channel one was shown to fail when its arm is flipped.
+
+The placement of texts added the classes that hold the marks a legend and an annotation keep clear of (`MarkObstacles`,
+`MarkCollectingContext`), the rule for the rectangle a text occupies (`TextBox`), the layout of the annotations that move
+(`AnnotationLayout`) and the pixels of a bar as drawn. Its first strict run reported two classes below 90/90 and five
+that regressed from 100 %: `MarkCollectingContext` had no test of its own (an ellipse, a Bezier step, the clip calls and the
+measuring calls were never made), and the marks of the error bar, the kernel density, the regression and the residual plot left
+one arm each without a test (an error bar every third point and one with errors along X; a series with nothing to fit). A test
+per arm closed them. `CartesianAnnotationsPart` had two arms untested (a text that stays put beside one that moves, and the colour of a leader line) and
+lost a property no caller used.
+
+The thirteen roadmap rows of this release added classes of their own, among them the colour bar's scale and its choice of provider (`ColorBarScale`,
+`ColorBarProviderExtensions`), the polar scale (`RadialScale`, `RadialExtent`), the legend's swatch and part (`LegendSwatch`,
+`LegendPart`), the contour band fill, the state segment fill, the Sankey link check, and in the Geo package the package data of a map
+(`GeoPackageData`, `GeoPackage`), the great circle, the projected region, a flow, a polygon and a position, and the GeoJSON writer. Its first
+strict run reported seven classes below 90/90 and four that regressed: the arms left without a test were geometries built from rings
+alone, a geometry with no type, a polygon with no rings, the writer for lines, the great circle of two places that coincide or lie
+opposite each other, every way the package data of a map can fail to describe one, the numbers, equality and description of a
+projection, bubbles of no value, flows given a colour, a cartogram of no region, a polar heatmap whose `RMax` cannot be drawn, a filled contour whose
+levels bound no width and a series from outside the hierarchy in the legend. A test per arm closed them, each shown to fail when its line is changed.
+Two arms were not behaviour and were deleted instead: the legend repeated the empty-label rule its entry list already holds, and the comparison of two
+projections looked up a key the same kind always has. Making a projection from its name was a string `switch`, whose equality jumps no test can take
+both ways; it is a table of the 13 kinds now, and each parametric projection knows how to be made again from numbers.
+
 **Status (v1.22.0, series that share one colour):** **817/817 classes at ≥90/90**, strict gate **PASSES** with no
 regressions (`PASS: All 817 classes meet 90/90 threshold + no regressions`). Total project coverage:
 **99.7L / 98.6B**; **19,890 tests, 0 failures** across the 11 measured suites (the wiki suite and the WPF suite run beside the gate and are not

@@ -13,5 +13,13 @@ public sealed record AddHorizontalLevelEvent(
     HorizontalLevel Tool) : FigureInteractionEvent(ChartId, AxesIndex)
 {
     /// <inheritdoc />
-    public override void ApplyTo(Figure figure) => TargetAxes(figure).AddLevel(Tool);
+    public override void ApplyTo(Figure figure) => TryApplyTo(figure);
+
+    /// <inheritdoc />
+    internal override bool TryApplyTo(Figure figure)
+    {
+        if (!TryTargetAxes(figure, out var axes)) return false;
+        axes.AddLevel(Tool);
+        return true;
+    }
 }

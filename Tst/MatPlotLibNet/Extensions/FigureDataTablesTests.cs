@@ -92,13 +92,13 @@ public class FigureDataTablesTests
     }
 
     [Fact]
-    public void ASecondaryAxisSeries_IsInTheTable_UnderItsOwnAxisLabel()
+    public void ARightAxisSeries_IsInTheTable_UnderItsOwnAxisLabel()
     {
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.SetXLabel("t").Plot([1.0, 2.0], [1.0, 2.0], s => s.Label = "left");
-                ax.WithSecondaryYAxis(sec => sec.SetYLabel("right").Plot([1.0, 2.0], [10.0, 20.0], s => s.Label = "right series"));
+                ax.WithAddRightYAxis(sec => sec.SetYLabel("right").Plot([1.0, 2.0], [10.0, 20.0], s => s.Label = "right series"));
             })
             .Build();
 

@@ -21,4 +21,18 @@ public abstract class PolarSeries : ChartSeries, IPolarSeries
     /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
+
+    /// <inheritdoc />
+    /// <remarks>The largest radius that can be placed and reaches out from the centre: a missing, infinite or negative radius
+    /// is left out, as it is not drawn.</remarks>
+    internal override RadialExtent? RadialExtent
+    {
+        get
+        {
+            double max = 0;
+            foreach (double radius in R)
+                if (double.IsFinite(radius) && radius > max) max = radius;
+            return max > 0 ? new RadialExtent(max, Sticky: false) : null;
+        }
+    }
 }

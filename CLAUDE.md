@@ -6,7 +6,8 @@ All contributor rules — versions, TDD, class design, dead-code deletion, git w
 documentation sweep — live in [**CONTRIBUTING.md**](CONTRIBUTING.md). Read it before any commit. This file
 covers only what that document does not: the commands that actually work, and the shape of the code.
 **Never add a `Co-Authored-By` line** — not to a commit, not to a doc, not to code (CONTRIBUTING.md:154). It overrides any
-attribution default the tooling suggests.
+attribution default the tooling suggests. Commits stay local and several are fine; the maintainer says when to push
+(one push per finished strand) and he alone tags (CONTRIBUTING.md:152-155).
 Deeper design notes: `Src/MatPlotLibNet/ARCHITECTURE.md` (there is no root-level ARCHITECTURE.md).
 
 ## Commands
@@ -32,11 +33,21 @@ tools/prepush.ps1                        # everything CI judges, incl. the docfx
 **Run coverage through native PowerShell, never `bash tools/coverage/run.sh`** — under Git Bash the
 dotnet-coverage profiler fails to attach ("Profiler was not initialized") and measures nothing.
 
+**The ubuntu half runs locally in docker.** `docker run --rm -v <repo>:/mnt/repo:ro -v <wiki>:/mnt/wiki:ro
+mcr.microsoft.com/dotnet/sdk:10.0-noble bash -c "<script>"`, started from PowerShell (Git Bash rewrites the mount paths).
+The script installs `libfontconfig1 libfreetype6 git ca-certificates` (and `python3` for the Pages job), `git clone`s both
+mounts beside each other (the committed state with LF endings, as on the runner, not the CRLF working copy), points
+`origin` at the GitHub URL (without it SourceLink warns and the build is not 0 warnings), then runs the steps of `ci.yml`
+(restore, build `MatPlotLibNet.CI.slnf`, the 12 suites with `dotnet run --no-build`) and, for `pages.yml`,
+`dotnet tool install -g docfx`, `docfx metadata docs/docfx.json` and `docfx build docs/docfx.json` with
+`DOTNET_ROLL_FORWARD=Major` (the image has the 10 runtime only). Measured on the 1.24.0 tree: 0 warnings, 0 errors,
+all 12 suites green, docfx 0 errors.
+
 `tools/coverage/thresholds.json` carries no exemptions by policy (`90/90`, `exemptions: {}`); a class that is
 legitimately untestable gets `[ExcludeFromCodeCoverage]` at the source instead, so it drops out of the cobertura
 report rather than being floor-exempted in config.
 
-The `push-gate` agent (`.claude/agents/push-gate.md`) runs `tools/prepush.ps1` and reports ready / not ready; it
+The `push-gate` agent (`.claude/agents/push-gate.md`; `.claude/` is gitignored, so a fresh clone has none) runs `tools/prepush.ps1` and reports ready / not ready; it
 never commits or pushes. CI builds with the `10.0.x` SDK at `dotnet-quality: preview` (`ci.yml`).
 
 ## The two solution views, and why a green build can still be red
@@ -57,7 +68,9 @@ never commits or pushes. CI builds with the `10.0.x` SDK at `dotnet-quality: pre
   and fails with that command when the clone is missing. ci.yml build-and-test clones it first; the coverage job
   and publish.yml do not run the suite (publish checks out the release tag, and the wiki has no tags). A marker
   comment on the line above a block steers it: `<!-- example: name -->`, `<!-- continues: name -->`,
-  `<!-- a C# cell of a notebook -->`, `<!-- needs: Wpf -->` (or Uno, Maui); any other comment there is refused.
+  `<!-- a C# cell of a notebook -->`, `<!-- needs: Wpf -->` (or Uno, Maui); any other comment there is refused. It also
+  holds the wiki's `images/` byte-for-byte to the repository's `images/`: the sample program draws every picture
+  (`WikiPictures.cs` the ones no sample draws), so after a rendering change re-run it and copy what changed into the wiki.
 - `docs/docfx.json` is the only docfx config Pages and `prepush.ps1` build; the `docfx.json` in the repo root (with
   the root `articles/`, `api/` and `toc.yml` it points at, plus the root `coverlet.runsettings` — no collector reads
   it, the coverage collector is `dotnet-coverage` and a contract test refuses any coverlet package) is older config
@@ -70,8 +83,9 @@ never commits or pushes. CI builds with the `10.0.x` SDK at `dotnet-quality: pre
   project's TargetFramework as a *global* MSBuild property, which spills onto every other project's reference
   resolution on the Linux Pages runner, so core and Skia would otherwise refuse with "set EnableWindowsTargeting"
   mid-build. One root cause, one root-level fix — never a per-project workaround.
-- The runners are **ubuntu-latest**. A change to a TFM, a csproj property or `docfx.json` has no local verdict:
-  read it against the runner's OS instead of pushing a probe.
+- The runners are **ubuntu-latest**, and docker on a Windows box runs that half ("The ubuntu half runs locally in docker"
+  above): a change to a TFM, a csproj property or `docfx.json` is judged in a Linux container, not read against the
+  runner's OS and not pushed as a probe.
 
 ## Architecture
 
@@ -110,6 +124,19 @@ document that states it. The tests keep their own lists: add the instance to `Al
 (with its overload on the test-side `TestSeriesVisitor`) and the discriminator to the `ChartSerializerRoundTripTests`
 Theory — `docs/COVERAGE.md` § "Cross-cutting Theory pattern": extend those, do not clone a per-type test file.
 
+**A settable property on a series or axes must also reach the JSON.** `SeriesDrawnPropertiesRoundTripTests` and
+`AxesDrawnPropertiesRoundTripTests` (`Tst/MatPlotLibNet/Serialization/`) reflect over every settable property of the
+types in `DrawnSeriesFixtures` / `DrawnAxesFixtures` and go red, naming type and property, until the DTO carries it:
+a DTO field, written in `ToSeriesDto`, read in `FromSeriesDto`, a default left out via `OrNullAtRest`. A property no
+JSON can carry goes in `DrawnSeriesFixtures.NotCarried` with its reason; a series type outside the contract goes in
+`NotUnderContract`.
+
+**A chart composed of existing series is a verb, not a series.** Pareto, ridgeline and calendar heatmap are
+extension methods on `AxesBuilder` in the family class that matches the caller's data (`Categorical`, `Distribution`,
+`XY` or `GridAxesExtensions`, in `Builders/`): no `ISeries`, no `SeriesRegistry` key, `SeriesCountContractTests`
+untouched. It needs a `ComposedChartShapes` entry and a row in `ARCHITECTURE.md` § "Where a verb lives"
+(`VerbPlacementContractTests`); the full recipe is CONTRIBUTING.md § "Adding a chart verb".
+
 **Shared behaviour is a C# 14 `extension(T value) { }` block, never a `this`-param static method.** Every
 `*Extensions` class in `Src/` and the satellite packages is written this way (`LangVersion` is 14 repo-wide,
 `Directory.Build.props`). Two traps that only show up past the call site: a member's reflected
@@ -139,7 +166,7 @@ Interactive (browser popup), GraphQL, Avalonia/Uno/Wpf/Maui (native controls), D
 formatter). **`MatPlotLibNet.Notebooks` is frozen** at the version it reached and is deliberately out of
 `CI.slnf` and both workflows; `ReleaseContractTests.Frozen` holds that with its reason.
 
-**The release contract is executable.** `Tst/MatPlotLibNet/Packaging/ReleaseContractTests.cs` (1200+ lines, 40+
+**The release contract is executable.** `Tst/MatPlotLibNet/Packaging/ReleaseContractTests.cs` (1200+ lines, 50+
 tests) reads the csprojs, the workflows, `docs/docfx.json`, `docs/index.md`, the cookbook pages, the coverage
 runsettings and `run.sh`, and fails when a hand-kept list drifts — every package must carry the same version, be
 built and pushed by some workflow, be measured by the coverage gate, and be linked from the docs. It reaches past
@@ -165,8 +192,8 @@ ulp), no `new Uri("/x")` (Linux accepts it, Windows rejects it), `InvariantCultu
 
 ## Code graph (roslyn-codelens)
 
-The live source graph is the **`roslyn-codelens`** MCP server in `.mcp.json` (Roslyn over `MatPlotLibNet.slnx`,
-compiler-exact). Use `search_symbols`, `get_symbol_context`, `get_type_overview`, `find_callers`,
+The live source graph is the **`roslyn-codelens`** MCP server in `.mcp.json` (gitignored, so a fresh clone has none;
+Roslyn over `MatPlotLibNet.slnx`, compiler-exact). Use `search_symbols`, `get_symbol_context`, `get_type_overview`, `find_callers`,
 `get_call_graph`, `find_references`, `analyze_change_impact` before reading files.
 ⚠ no file-watcher — call `rebuild_solution` after edits.
 Top god nodes: `AxesBuilder`, `Axes`, `FigureBuilder` — the fluent API core is the architectural centre.

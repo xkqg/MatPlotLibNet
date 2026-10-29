@@ -13,6 +13,10 @@ public static class AxesFlowVerbs
     extension(Axes axes)
     {
         /// <summary>Adds a Sankey diagram series to the axes.</summary>
-        public SankeySeries Sankey(SankeyNode[] nodes, SankeyLink[] links) => axes.AddSeries(new SankeySeries(nodes, links));
+        public SankeySeries Sankey(SankeyNode[] nodes, SankeyLink[] links)
+        {
+            links.ThrowIfPointingOutside(nodes.Length);
+            return axes.AddSeries(new SankeySeries(nodes, links));
+        }
     }
 }

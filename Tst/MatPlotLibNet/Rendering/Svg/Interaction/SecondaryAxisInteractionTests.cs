@@ -22,7 +22,7 @@ public class SecondaryAxisInteractionTests
         .WithServerInteraction("c", s => s.All())
         .AddSubPlot(1, 1, 1, ax => ax
             .Plot([1.0, 2.0, 3.0], [10.0, 40.0, 20.0], s => s.Label = "load")
-            .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0, 3.0], [100.0, 400.0, 200.0])));
+            .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0, 3.0], [100.0, 400.0, 200.0])));
 
     private static Figure Build(Action<FigureBuilder> configure)
     {
@@ -89,7 +89,7 @@ public class SecondaryAxisInteractionTests
             SecondaryRanges = [secondary],
         }.ApplyTo(figure);
 
-        var secondaryAxis = figure.SubPlots[0].SecondaryYAxis!;
+        var secondaryAxis = figure.SubPlots[0].YAxes.Right[0].Axis;
         double narrowedSpan = secondaryAxis.Max!.Value - secondaryAxis.Min!.Value;
         Assert.True(narrowedSpan < 500.0, "Zoom in should narrow the secondary axis' own range too.");
         Assert.True(narrowedSpan > 400.0, "A tenth narrower (90%), not collapsed to nothing.");
@@ -124,7 +124,7 @@ public class SecondaryAxisInteractionTests
             SecondaryRanges = [secondary],
         }.ApplyTo(figure);
 
-        var secondaryAxis = figure.SubPlots[0].SecondaryYAxis!;
+        var secondaryAxis = figure.SubPlots[0].YAxes.Right[0].Axis;
         Assert.Equal(secondary.Range.YMin, secondaryAxis.Min);
         Assert.Equal(secondary.Range.YMax, secondaryAxis.Max);
     }
@@ -146,14 +146,14 @@ public class SecondaryAxisInteractionTests
         Assert.Equal(500.0, secondary.Range.YMax, precision: 6);
 
         var figure = Build(WithSecondary);
-        figure.SubPlots[0].SecondaryYAxis!.Min = 123;
-        figure.SubPlots[0].SecondaryYAxis!.Max = 456;
+        figure.SubPlots[0].YAxes.Right[0].Axis.Min = 123;
+        figure.SubPlots[0].YAxes.Right[0].Axis.Max = 456;
         new ResetEvent("c", Convert.ToInt32(reset["axesIndex"]), Num(reset, "xMin"), Num(reset, "xMax"), Num(reset, "yMin"), Num(reset, "yMax"))
         {
             SecondaryRanges = [secondary],
         }.ApplyTo(figure);
 
-        Assert.Equal(0.0, figure.SubPlots[0].SecondaryYAxis!.Min);
-        Assert.Equal(500.0, figure.SubPlots[0].SecondaryYAxis!.Max);
+        Assert.Equal(0.0, figure.SubPlots[0].YAxes.Right[0].Axis.Min);
+        Assert.Equal(500.0, figure.SubPlots[0].YAxes.Right[0].Axis.Max);
     }
 }

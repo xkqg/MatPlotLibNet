@@ -10,17 +10,21 @@ namespace MatPlotLibNet.Interaction;
 /// <see cref="ChartSeries.Visible"/> flag. <see cref="SeriesIndex"/> is the index the legend entry carries: the
 /// series' position in <see cref="Axes.AllSeries"/> (the primary series, then the secondary-Y series, then the
 /// secondary-X series), so an entry of a secondary line toggles that line. No-op if the index is out of range or the
-/// series is not a <see cref="ChartSeries"/>.</summary>
+/// series is not a <see cref="ChartSeries"/>; an event for a subplot the figure does not have is dropped.</summary>
 public sealed record LegendToggleEvent(
     string ChartId,
     int AxesIndex,
     int SeriesIndex) : FigureInteractionEvent(ChartId, AxesIndex)
 {
     /// <inheritdoc />
-    public override void ApplyTo(Figure figure)
+    public override void ApplyTo(Figure figure) => TryApplyTo(figure);
+
+    /// <inheritdoc />
+    internal override bool TryApplyTo(Figure figure)
     {
-        if (SeriesIndex < 0) return;
-        if (TargetAxes(figure).AllSeries.ElementAtOrDefault(SeriesIndex) is ChartSeries series)
+        if (!TryTargetAxes(figure, out var axes)) return false;
+        if (SeriesIndex >= 0 && axes.AllSeries.ElementAtOrDefault(SeriesIndex) is ChartSeries series)
             series.Visible = !series.Visible;
+        return true;
     }
 }

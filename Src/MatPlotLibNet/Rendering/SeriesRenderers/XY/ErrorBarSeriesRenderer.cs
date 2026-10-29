@@ -13,6 +13,43 @@ internal sealed class ErrorBarSeriesRenderer : SeriesRenderer<ErrorBarSeries>
     public ErrorBarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(ErrorBarSeries series, MarkObstacles.Builder marks)
+    {
+        var pixels = Pixels(series);
+        for (int i = 0; i < pixels.Centre.Length; i++)
+        {
+            var center = new Point(pixels.X[i], pixels.Centre[i]);
+            if (!center.IsDrawable()) continue;
+            marks.AddPoint(center);
+            if (series.ErrorEvery > 1 && i % series.ErrorEvery != 0) continue;
+            var top = new Point(pixels.X[i], pixels.Top[i]);
+            var bottom = new Point(pixels.X[i], pixels.Bottom[i]);
+            if (bottom.CanDrawLineTo(top)) marks.AddPath([bottom, top]);
+            if (series.XErrorLow is not null && series.XErrorHigh is not null)
+            {
+                var left = Transform.DataToPixel(series.XData[i] - series.XErrorLow[i], series.YData[i]);
+                var right = Transform.DataToPixel(series.XData[i] + series.XErrorHigh[i], series.YData[i]);
+                if (left.CanDrawLineTo(right)) marks.AddPath([left, right]);
+            }
+        }
+    }
+
+    /// <summary>Where the points and the ends of their error bars stand in pixels: X, the point, its top and its bottom.</summary>
+    private readonly record struct ErrorBarPixels(double[] X, double[] Centre, double[] Top, double[] Bottom);
+
+    /// <summary>Works the error bars' pixels out (batch-transformed, SIMD): the one geometry <see cref="Render"/> draws and
+    /// <see cref="AddMarks"/> hands to a legend.</summary>
+    private ErrorBarPixels Pixels(ErrorBarSeries series)
+    {
+        int n = series.XData.Length;
+        var topYData = new double[n];
+        var botYData = new double[n];
+        for (int i = 0; i < n; i++) { topYData[i] = series.YData[i] + series.YErrorHigh[i]; botYData[i] = series.YData[i] - series.YErrorLow[i]; }
+        return new ErrorBarPixels(Transform.TransformX(series.XData), Transform.TransformY(series.YData),
+            Transform.TransformY(topYData), Transform.TransformY(botYData));
+    }
+
+    /// <inheritdoc />
     public override void Render(ErrorBarSeries series)
     {
         var color = ResolveColor(series.Color);
@@ -23,14 +60,7 @@ internal sealed class ErrorBarSeriesRenderer : SeriesRenderer<ErrorBarSeries>
         double eLineWidth = series.ELineWidth ?? lineWidth;
         double capThick = series.CapThick ?? lineWidth;
 
-        // Batch-transform all center, top, and bottom Y coordinates (SIMD)
-        var pxCenter = Transform.TransformX(series.XData);
-        var pyCenterArr = Transform.TransformY(series.YData);
-        var topYData = new double[n];
-        var botYData = new double[n];
-        for (int i = 0; i < n; i++) { topYData[i] = series.YData[i] + series.YErrorHigh[i]; botYData[i] = series.YData[i] - series.YErrorLow[i]; }
-        var pyTop = Transform.TransformY(topYData);
-        var pyBot = Transform.TransformY(botYData);
+        var (pxCenter, pyCenterArr, pyTop, pyBot) = Pixels(series);
 
         for (int i = 0; i < n; i++)
         {

@@ -10,7 +10,7 @@ namespace MatPlotLibNet.Tests.Builders;
 
 /// <summary>
 /// SetYAxisColor / SetXAxisColor on all four axes (left Y and bottom X on <see cref="AxesBuilder"/>, right Y on
-/// <see cref="SecondaryAxisBuilder"/>, top X on <see cref="SecondaryXAxisBuilder"/>). One axis colour is four
+/// <see cref="YAxisSlotBuilder"/>, top X on <see cref="SecondaryXAxisBuilder"/>). One axis colour is four
 /// settings: the spine, the tick marks, the tick labels and the axis title. The render facts render the same figure
 /// with and without the colour and prove the two SVGs are equal apart from exactly those four things on exactly that
 /// axis.
@@ -35,7 +35,7 @@ public class AxisColorTests
             ax.Plot([1.0, 2, 3], [1.0, 4, 9]).SetXLabel("Time").SetYLabel("Level");
             if (c.Left is { } left) ax.SetYAxisColor(left);
             if (c.Bottom is { } bottom) ax.SetXAxisColor(bottom);
-            ax.WithSecondaryYAxis(s =>
+            ax.WithAddRightYAxis(s =>
             {
                 s.Plot([1.0, 2, 3], [10.0, 20, 30]).SetYLabel("Right");
                 if (c.Right is { } right) s.SetYAxisColor(right);
@@ -142,7 +142,7 @@ public class AxisColorTests
             "1.00", "1.25", "1.50", "1.75", "2.00", "2.25", "2.50", "2.75", "3.00", "Time");
 
     [Fact]
-    public void SecondaryYAxis_SetYAxisColor_ColoursTheRightSpineTheTickMarksTheTickLabelsAndTheTitle_andNothingElse()
+    public void RightYAxis_SetYAxisColor_ColoursTheRightSpineTheTickMarksTheTickLabelsAndTheTitle_andNothingElse()
         => AssertOnlyOneAxisIsColoured(new AxisColors(null, null, Mark, null), Side.Right,
             "10.0", "12.5", "15.0", "17.5", "20.0", "22.5", "25.0", "27.5", "30.0", "Right");
 
@@ -201,14 +201,14 @@ public class AxisColorTests
     }
 
     [Fact]
-    public void SecondaryYAxis_SetYAxisColor_WritesTheRightSpineAndTheSecondaryAxis()
+    public void RightYAxis_SetYAxisColor_WritesTheRightSpineAndTheRightAxis()
     {
-        var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.WithSecondaryYAxis(s => s.SetYAxisColor(Mark))).Build().SubPlots[0];
+        var axes = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.WithAddRightYAxis(s => s.SetYAxisColor(Mark))).Build().SubPlots[0];
 
         Assert.Equal(Mark, axes.Spines.Right.Color);
-        Assert.Equal(Mark, axes.SecondaryYAxis!.MajorTicks.Color);
-        Assert.Equal(Mark, axes.SecondaryYAxis.MajorTicks.LabelColor);
-        Assert.Equal(Mark, axes.SecondaryYAxis.LabelStyle!.Color);
+        Assert.Equal(Mark, axes.YAxes.Right[0].Axis.MajorTicks.Color);
+        Assert.Equal(Mark, axes.YAxes.Right[0].Axis.MajorTicks.LabelColor);
+        Assert.Equal(Mark, axes.YAxes.Right[0].Axis.LabelStyle!.Color);
         Assert.Null(axes.Spines.Left.Color);
         Assert.Null(axes.YAxis.MajorTicks.Color);
     }
@@ -261,7 +261,7 @@ public class AxisColorTests
         {
             Assert.Same(ax, ax.SetYAxisColor(Mark));
             Assert.Same(ax, ax.SetXAxisColor(Mark));
-            ax.WithSecondaryYAxis(s => Assert.Same(s, s.SetYAxisColor(Mark)));
+            ax.WithAddRightYAxis(s => Assert.Same(s, s.SetYAxisColor(Mark)));
             ax.WithSecondaryXAxis(s => Assert.Same(s, s.SetXAxisColor(Mark)));
         }).Build();
     }

@@ -34,14 +34,8 @@ internal sealed class StateTimelineSeriesRenderer : SeriesRenderer<StateTimeline
             // A segment with an end that cannot be placed is skipped with its label.
             if (!segment.IsDrawable()) continue;
 
-            // Draw the filled rectangle spanning the full plot height. A hatched segment reads as "no
-            // information" rather than as a state — see StateSegment.Hatch. When the caller stated a
-            // condition instead of a pattern, the condition supplies one; an explicit hatch still wins.
-            var hatch = seg.Hatch != HatchPattern.None
-                ? seg.Hatch
-                : seg.Condition.Resolve(Context.Theme.Alarm).Hatch;
-
-            Ctx.DrawRectangle(segment, new ShapeStyle(seg.Color, null, 0) { Hatch = hatch });
+            // Draw the filled rectangle spanning the full plot height, in the fill the legend swatch shows the state in.
+            Ctx.DrawRectangle(segment, seg.Fill(Context.Theme));
 
             // Centre the label text inside the rectangle
             if (!string.IsNullOrEmpty(seg.Label))

@@ -14,14 +14,18 @@ public sealed record RemoveDrawingToolEvent(
     object Tool) : FigureInteractionEvent(ChartId, AxesIndex)
 {
     /// <inheritdoc />
-    public override void ApplyTo(Figure figure)
+    public override void ApplyTo(Figure figure) => TryApplyTo(figure);
+
+    /// <inheritdoc />
+    internal override bool TryApplyTo(Figure figure)
     {
-        var axes = TargetAxes(figure);
+        if (!TryTargetAxes(figure, out var axes)) return false;
         switch (Tool)
         {
             case Trendline t:          axes.RemoveTrendline(t); break;
             case HorizontalLevel l:    axes.RemoveLevel(l); break;
             case FibonacciRetracement f: axes.RemoveFibonacci(f); break;
         }
+        return true;
     }
 }

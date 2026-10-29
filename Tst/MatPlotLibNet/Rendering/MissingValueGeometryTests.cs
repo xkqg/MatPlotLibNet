@@ -494,19 +494,20 @@ public class MissingValueGeometryTests
         Assert.Equal(Signature(without), Signature(withGap));
     }
 
-    /// <summary>A contour filled through its heatmap underlay traces the same lines as unfilled, and its missing cell
-    /// takes the colour map's bad colour (transparent), as a heatmap's does.</summary>
+    /// <summary>A filled contour traces the same lines as unfilled, and its missing cell is left empty: the fill is painted over
+    /// the cells that have a value, and nothing over the one that has not.</summary>
     [Fact]
-    public void AFilledContour_TracesTheSameLines_AndLeavesTheMissingCellTransparent()
+    public void AFilledContour_TracesTheSameLines_AndLeavesTheMissingCellEmpty()
     {
         var filled = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(TwoCellsX, [0, 1], TwoCellsWithAMissingCorner) { Levels = 4, Filled = true }));
         var lines = Render(c => new ContourSeriesRenderer(c).Render(new ContourSeries(TwoCellsX, [0, 1], TwoCellsWithAMissingCorner) { Levels = 4 }));
 
         AssertNothingUndrawableReached(filled);
         Assert.Equal(Signature(lines, "DrawLines"), Signature(filled, "DrawLines"));
-        var fills = filled.Calls.Where(c => c.Kind == "DrawRectangle")
-            .Select(c => (Color?)c.Args!.GetType().GetProperty("fill")!.GetValue(c.Args)).ToList();
-        Assert.Contains(fills, f => f is { A: 0 });
+        // Of the two cells of the grid the left one has the missing corner: the lowest band is painted over the right one alone.
+        var cell = (Rect)Assert.Single(filled.Calls, c => c.Kind == "DrawRectangle").Args!.GetType().GetProperty("rect")!.GetValue(
+            Assert.Single(filled.Calls, c => c.Kind == "DrawRectangle").Args)!;
+        Assert.True(cell.X >= 40 - 1e-9, "the lowest band reaches the masked cell on the left");
     }
 
     [Fact]
@@ -533,12 +534,13 @@ public class MissingValueGeometryTests
     }
 
     [Fact]
-    public void AFilledContourWithoutAMissingValue_PaintsItsLowestBandUnderTheWholePlot()
+    public void AFilledContourWithoutAMissingValue_PaintsItsLowestBandUnderTheGridAndNotTheWholePlot()
     {
         var ctx = Render(c => new ContourfSeriesRenderer(c).Render(new ContourfSeries(RightCellX, [0, 1], RightCell) { Levels = 4 }));
 
+        // The grid is the cell x 1..2, y 0..1: pixels 40..80 across and 270..300 down, where the plot is 0..400 and 0..300.
         var bottom = Assert.Single(ctx.Calls, c => c.Kind == "DrawRectangle").Args!;
-        Assert.Equal(Bounds, (Rect)bottom.GetType().GetProperty("rect")!.GetValue(bottom)!);
+        Assert.Equal(new Rect(40, 270, 40, 30), (Rect)bottom.GetType().GetProperty("rect")!.GetValue(bottom)!);
     }
 
     /// <summary>A triangle with a vertex that is missing (in z, or in x or y) is masked; the levels come from the values
@@ -1004,7 +1006,10 @@ public class MissingValueGeometryTests
     /// <summary>Every registered type, read from JSON with no data at all, renders an empty plot. Measured before: the
     /// funnel was the one of 78 that threw. The pair grid is not here: its constructor refuses a grid with no variable
     /// (an invariant of the model, refused when the JSON is read).</summary>
-    public static TheoryData<string> EveryTypeButThePairGrid { get; } = new(SeriesRegistry.Discriminators.Where(t => t != "pairgrid"));
+    /// <remarks>The series of this library: a package that ships its own series (the map of <c>MatPlotLibNet.Geo</c>) registers its
+    /// reader when its assembly loads, which this test project's references make depend on what ran before, and a map is
+    /// held to its own contract in that package's tests (a map read from JSON with no data is dropped with a diagnostic).</remarks>
+    public static TheoryData<string> EveryTypeButThePairGrid { get; } = new(SeriesRegistry.Discriminators.Where(t => t != "pairgrid" && t != "geo_polygon"));
 
     [Theory]
     [MemberData(nameof(EveryTypeButThePairGrid))]
@@ -1083,6 +1088,21 @@ public class MissingValueGeometryTests
             .AddTrendline(0, 1, 3, NaN).AddLevel(NaN).AddFibonacci(NaN, 1).AddSignal(2, NaN, SignalDirection.Sell)
             .Annotate("peak", 2, NaN)
             .WithLegend().WithLegendValues()).ToSvg();
+
+        Assert.Empty(NonFiniteTokens(svg));
+    }
+
+    /// <summary>A Best legend looks at the marks a chart drew, and a mark at a value the axes cannot place is no mark: the
+    /// picture of series with missing values and a legend holds no NaN, whichever place the legend finds.</summary>
+    [Fact]
+    public void ABestLegend_OverSeriesWithMissingValues_WritesNoValueTheAxesCannotPlace()
+    {
+        double[] x = [0, 1, 2, 3, 4, 5];
+        string svg = Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax
+            .Plot(x, [1, 2, NaN, 4, 5, 6], s => s.Label = "line")
+            .Scatter(x, [NaN, 2, 3, 1, NaN, 2], s => s.Label = "dots")
+            .Bar(["a", "b", "c"], [1.0, NaN, 3.0], s => s.Label = "bars")
+            .WithLegend()).ToSvg();
 
         Assert.Empty(NonFiniteTokens(svg));
     }

@@ -119,7 +119,7 @@ public class DotPlotTests
         Assert.Equal(2, scatters.Length);
         Assert.Equal("2015", scatters[0].Label);
         Assert.Equal("2025", scatters[1].Label);
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
         Assert.Empty(axes.ReferenceLines);
         Assert.Empty(axes.Annotations);
@@ -403,8 +403,8 @@ public class DotPlotTests
     }
 
     /// <summary>The legend stands in the lower right corner, the corner the order of the rows leaves empty (the largest
-    /// values are at the top right, the smallest at the bottom left): it covers no dot, where the default corner, the upper
-    /// right, would cover the largest ones.</summary>
+    /// values are at the top right, the smallest at the bottom left): it covers no dot, where the upper right would cover the
+    /// largest ones. The verb names the place, whatever the data.</summary>
     [Fact]
     public void TheLegend_StandsInTheCornerTheOrderLeavesEmpty_AndCoversNoDot()
     {

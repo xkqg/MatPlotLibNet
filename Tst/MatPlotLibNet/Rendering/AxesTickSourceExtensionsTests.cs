@@ -180,4 +180,42 @@ public class AxesTickSourceExtensionsTests
 
         Assert.Equal(Names, axes.NamesAt(isX: true, [0.5, 1.5, 2.5]));
     }
+
+    // ── the ticks a Y axis slot stacked beside the plot draws ──
+
+    private static readonly DataRange SlotRange = new(0, 1, -0.05, 1.05);
+
+    /// <summary>A slot's own locator places its ticks; its spacing does when it has no locator; the default placement
+    /// otherwise. Its drawing and the layout's reserve both read this one source.</summary>
+    [Fact]
+    public void SlotTickValues_AreTheLocatorsTheSpacingsOrTheDefaultPlacement()
+    {
+        var located = new Axis { TickLocator = new FixedLocator([0.1, 0.7]) };
+        var spaced = new Axis();
+        spaced.MajorTicks = spaced.MajorTicks with { Spacing = 0.25 };
+
+        Assert.Equal([0.1, 0.7], located.SlotTickValues(SlotRange, AxesRenderer.FullTickDensityLength));
+        Assert.Equal([0.0, 0.25, 0.5, 0.75, 1.0], spaced.SlotTickValues(SlotRange, AxesRenderer.FullTickDensityLength));
+        Assert.Equal(AxesRenderer.ComputeTickValuesInternal(-0.05, 1.05), new Axis().SlotTickValues(SlotRange, AxesRenderer.FullTickDensityLength));
+    }
+
+    /// <summary>A slot's ticks follow the rule the primary's do: its own locator wins; without one its scale brings its
+    /// locator, the log scale with its formatter; a linear slot keeps its own formatter, or none.</summary>
+    [Fact]
+    public void SlotTickSource_IsItsLocator_OrItsScales_OrNone()
+    {
+        var own = new Axis { Scale = AxisScale.Log, TickLocator = new FixedLocator([1.0, 5.0]) };
+        var log = new Axis { Scale = AxisScale.Log };
+        var symlog = new Axis { Scale = AxisScale.SymLog, SymLogLinThresh = 2 };
+        var linear = new Axis { TickFormatter = new PercentFormatter(1) };
+
+        Assert.IsType<FixedLocator>(own.SlotTickSource().Locator);
+        Assert.Null(own.SlotTickSource().Formatter);
+        Assert.IsType<LogLocator>(log.SlotTickSource().Locator);
+        Assert.IsType<LogTickFormatter>(log.SlotTickSource().Formatter);
+        Assert.IsType<SymlogLocator>(symlog.SlotTickSource().Locator);
+        Assert.Null(symlog.SlotTickSource().Formatter);
+        Assert.Equal(new TickSource(null, linear.TickFormatter, false), linear.SlotTickSource());
+        Assert.Equal(new LogLocator().LocateInterval(1, 1000), log.SlotTickValues(new DataRange(0, 1, 1, 1000), AxesRenderer.FullTickDensityLength));
+    }
 }

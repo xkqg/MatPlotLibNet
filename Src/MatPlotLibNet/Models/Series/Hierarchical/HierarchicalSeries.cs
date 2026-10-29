@@ -9,6 +9,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Base class for series types that render hierarchical <see cref="TreeNode"/> data.</summary>
 public abstract class HierarchicalSeries : ChartSeries, IColormappable, INormalizable
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     public TreeNode Root { get; }
 
     public IColorMap? ColorMap { get; set; }

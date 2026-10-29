@@ -14,6 +14,9 @@ namespace MatPlotLibNet.Models.Series;
 /// </summary>
 public sealed class SignalXYSeries : XYSeries, XY.IMonotonicXY, IHasColor
 {
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle);
+
     public Color? Color { get; set; }
 
     public LineStyle LineStyle { get; set; } = LineStyle.Solid;

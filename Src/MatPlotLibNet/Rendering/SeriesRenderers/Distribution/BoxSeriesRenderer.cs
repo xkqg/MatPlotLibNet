@@ -13,9 +13,24 @@ internal sealed class BoxSeriesRenderer : SeriesRenderer<BoxSeries>
     public BoxSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
-    public override void Render(BoxSeries series)
+    internal override void AddMarks(BoxSeries series, MarkObstacles.Builder marks)
     {
-        var color = ResolveColor(series.Color);
+        foreach (var box in Boxes(series))
+        {
+            if (box.Box.IsDrawable()) marks.AddBox(box.Box);
+            AddSegment(marks, box.Median.From, box.Median.To);
+            AddSegment(marks, box.WhiskerUp.From, box.WhiskerUp.To);
+            AddSegment(marks, box.WhiskerDown.From, box.WhiskerDown.To);
+            if (box.Mean is { } mean && mean.IsDrawable()) marks.AddPoint(mean);
+        }
+    }
+
+    /// <summary>One box as it stands on the plot: its rectangle, its median and whiskers, and its mean when it shows one.</summary>
+    private readonly record struct BoxPixels(Rect Box, PixelSegment Median, PixelSegment WhiskerUp, PixelSegment WhiskerDown, Point? Mean);
+
+    /// <summary>The boxes in order: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to a legend.</summary>
+    private IEnumerable<BoxPixels> Boxes(BoxSeries series)
+    {
         double halfW = series.HalfWidth;
         for (int i = 0; i < series.Datasets.Length; i++)
         {
@@ -28,40 +43,49 @@ internal sealed class BoxSeriesRenderer : SeriesRenderer<BoxSeries>
             double iqr = q3 - q1;
             double whisLo = Math.Max(data[0], q1 - series.Whis * iqr);
             double whisHi = Math.Min(data[^1], q3 + series.Whis * iqr);
+            double? mean = series.ShowMeans ? data.Average() : null;
 
             // The box and each whisker stand on their lower statistic and reach the upper one, as a bar stands on its
             // foot: a lower statistic the axis cannot place (0 or below on a log axis) is clipped to the edge where the
             // axis begins, as matplotlib clips it, and a part whose upper statistic it cannot place lies wholly beyond the
             // axis and is skipped. The median and the mean stand at one value: skipped when it cannot be placed. The box is
             // the rectangle between its two corners (Rect.FromCorners), of positive size on an axis that runs backwards.
-            var boxStyle = new ShapeStyle(null, color, 1.5);
-            var medianStroke = new StrokeStyle(series.MedianColor ?? Colors.Red, 2, LineStyle.Solid);
-            var whiskerStroke = new StrokeStyle(color, 1, LineStyle.Solid);
             if (series.Vert)
             {
-                DrawBox(Rect.FromCorners(Transform.DataToPixel(pos - halfW, q3), Transform.DataToPixelClippedY(pos + halfW, q1)), boxStyle);
-                DrawSegment(Transform.DataToPixel(pos - halfW, median), Transform.DataToPixel(pos + halfW, median), medianStroke);
-                DrawSegment(Transform.DataToPixelClippedY(pos, q3), Transform.DataToPixel(pos, whisHi), whiskerStroke);
-                DrawSegment(Transform.DataToPixel(pos, q1), Transform.DataToPixelClippedY(pos, whisLo), whiskerStroke);
-                if (series.ShowMeans)
-                {
-                    double mean = data.Average();
-                    DrawMean(Transform.DataToPixel(pos, mean));
-                }
+                yield return new BoxPixels(
+                    Rect.FromCorners(Transform.DataToPixel(pos - halfW, q3), Transform.DataToPixelClippedY(pos + halfW, q1)),
+                    new PixelSegment(Transform.DataToPixel(pos - halfW, median), Transform.DataToPixel(pos + halfW, median)),
+                    new PixelSegment(Transform.DataToPixelClippedY(pos, q3), Transform.DataToPixel(pos, whisHi)),
+                    new PixelSegment(Transform.DataToPixel(pos, q1), Transform.DataToPixelClippedY(pos, whisLo)),
+                    mean is { } m ? Transform.DataToPixel(pos, m) : null);
             }
             else
             {
                 // Horizontal orientation — swap axes.
-                DrawBox(Rect.FromCorners(Transform.DataToPixelClippedX(q1, pos + halfW), Transform.DataToPixel(q3, pos - halfW)), boxStyle);
-                DrawSegment(Transform.DataToPixel(median, pos - halfW), Transform.DataToPixel(median, pos + halfW), medianStroke);
-                DrawSegment(Transform.DataToPixelClippedX(q3, pos), Transform.DataToPixel(whisHi, pos), whiskerStroke);
-                DrawSegment(Transform.DataToPixel(q1, pos), Transform.DataToPixelClippedX(whisLo, pos), whiskerStroke);
-                if (series.ShowMeans)
-                {
-                    double mean = data.Average();
-                    DrawMean(Transform.DataToPixel(mean, pos));
-                }
+                yield return new BoxPixels(
+                    Rect.FromCorners(Transform.DataToPixelClippedX(q1, pos + halfW), Transform.DataToPixel(q3, pos - halfW)),
+                    new PixelSegment(Transform.DataToPixel(median, pos - halfW), Transform.DataToPixel(median, pos + halfW)),
+                    new PixelSegment(Transform.DataToPixelClippedX(q3, pos), Transform.DataToPixel(whisHi, pos)),
+                    new PixelSegment(Transform.DataToPixel(q1, pos), Transform.DataToPixelClippedX(whisLo, pos)),
+                    mean is { } m ? Transform.DataToPixel(m, pos) : null);
             }
+        }
+    }
+
+    /// <inheritdoc />
+    public override void Render(BoxSeries series)
+    {
+        var color = ResolveColor(series.Color);
+        var boxStyle = new ShapeStyle(null, color, 1.5);
+        var medianStroke = new StrokeStyle(series.MedianColor ?? Colors.Red, 2, LineStyle.Solid);
+        var whiskerStroke = new StrokeStyle(color, 1, LineStyle.Solid);
+        foreach (var box in Boxes(series))
+        {
+            DrawBox(box.Box, boxStyle);
+            DrawSegment(box.Median.From, box.Median.To, medianStroke);
+            DrawSegment(box.WhiskerUp.From, box.WhiskerUp.To, whiskerStroke);
+            DrawSegment(box.WhiskerDown.From, box.WhiskerDown.To, whiskerStroke);
+            if (box.Mean is { } mean) DrawMean(mean);
         }
     }
 

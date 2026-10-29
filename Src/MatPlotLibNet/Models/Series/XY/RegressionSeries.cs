@@ -10,6 +10,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a polynomial regression series that fits and draws a trend line with optional confidence bands.</summary>
 public sealed class RegressionSeries : ChartSeries, IHasColor
 {
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle, RestingLineWidth);
+
     public double[] XData { get; }
 
     public double[] YData { get; }

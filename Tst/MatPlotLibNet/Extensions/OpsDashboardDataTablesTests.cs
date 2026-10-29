@@ -28,18 +28,18 @@ public class OpsDashboardDataTablesTests
             .AddTile(15, tile => { tile.Label = "Buses"; tile.Caption = "all 15 normal"; })
             .AddTile(28.1, tile =>
             {
-                tile.Label = "RFx p99";
+                tile.Label = "Request p99";
                 tile.Target = 25;
                 tile.Caption = "target 25 ms · +3.1 over";
                 tile.Trend = [24.1, 24.8, 25.3, 26, 27.2, 28.1];
             })
-            .AddTile(0, tile => { tile.Label = "Exchange"; tile.Caption = "no contact"; tile.Hatch = HatchPattern.ForwardDiagonal; })
+            .AddTile(0, tile => { tile.Label = "Pricing"; tile.Caption = "no contact"; tile.Hatch = HatchPattern.ForwardDiagonal; })
             .AddTimeline(
                 [
                     new StateSegment(At(300), At(180), "normal", theme.Alarm.Resting),
                     new StateSegment(At(180), At(100), "degraded", theme.Alarm.Warning),
                     new StateSegment(At(100), At(0), "normal", theme.Alarm.Resting),
-                ], timeline => timeline.Label = "Exchange feed")
+                ], timeline => timeline.Label = "Price feed")
             .AddTrend(t, [2310, 2380, 2450, 2290, 2510], s => s.Label = "msg/s")
             .Build()
             .WithTheme(theme)
@@ -55,7 +55,7 @@ public class OpsDashboardDataTablesTests
 
         Assert.Equal("Order service - gateway", tiles.Caption);
         Assert.Equal(["label", "value", "target", "caption", "trend"], tiles.Columns.Select(c => c.Header));
-        Assert.Equal(["Buses", "RFx p99", "Exchange"], tiles.Rows.Select(r => r[0].Text));
+        Assert.Equal(["Buses", "Request p99", "Pricing"], tiles.Rows.Select(r => r[0].Text));
     }
 
     /// <summary>A tile carries value, target, caption and trend; a bare number is the failed pattern the tile
@@ -102,7 +102,7 @@ public class OpsDashboardDataTablesTests
     {
         var tables = Dashboard().ToDataTables();
 
-        Assert.Equal("Order service - gateway — Exchange feed", tables[1].Caption);
+        Assert.Equal("Order service - gateway — Price feed", tables[1].Caption);
         // The trend's label IS its value header, so the caption does not say it twice.
         Assert.Equal("Order service - gateway", tables[2].Caption);
     }

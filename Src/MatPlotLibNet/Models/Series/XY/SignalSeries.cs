@@ -15,6 +15,9 @@ namespace MatPlotLibNet.Models.Series;
 /// </summary>
 public sealed class SignalSeries : XYSeries, XY.IMonotonicXY, IHasColor
 {
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle);
+
     private double[]? _materializedX;
 
     /// <summary>Samples per X-unit (e.g., Hz for a time-domain signal).</summary>

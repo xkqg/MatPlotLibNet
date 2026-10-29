@@ -77,7 +77,7 @@ public class ModifierBranchPrecisionTests
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
+                .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
             .Build();
         var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
         var events = new List<FigureInteractionEvent>();
@@ -93,8 +93,8 @@ public class ModifierBranchPrecisionTests
             "A zoom rectangle smaller than the plot area should narrow the secondary axis' own range too.");
 
         zoom.ApplyTo(figure);
-        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].SecondaryYAxis!.Min);
-        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].SecondaryYAxis!.Max);
+        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].YAxes.Right[0].Axis.Min);
+        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].YAxes.Right[0].Axis.Max);
     }
 
     /// <summary>BrushSelectModifier line 64 — OnPointerMoved without prior press

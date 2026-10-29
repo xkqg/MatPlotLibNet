@@ -21,10 +21,6 @@ internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
         int cols = series.ZData.GetLength(1);
         if (rows < 2 || cols < 2) return;
 
-        // Filled contour: delegate to heatmap for the background fill
-        if (series.Filled)
-            new HeatmapSeriesRenderer(Context).RenderInArea(new HeatmapSeries(series.ZData) { ColorMap = series.ColorMap });
-
         // Compute the Z range, over the values that are there: a missing value (NaN) and an infinity are left out, and
         // the cells they are a corner of are masked when the lines are traced.
         if (series.ZData.DrawableRange() is not { } z || z.Lo >= z.Hi) return;
@@ -38,6 +34,16 @@ internal sealed class ContourSeriesRenderer : SeriesRenderer<ContourSeries>
         var contours = MarchingSquares.Extract(series.XData, series.YData, series.ZData, levels);
 
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);
+
+        // A filled contour fills the bands between the levels the lines are traced at, from the lowest value to the highest,
+        // through the one fill a Contourf uses (so the fill stands where the grid stands and its edges are the lines).
+        if (series.Filled)
+        {
+            double[] thresholds = [zMin, .. levels.Where(level => level > zMin && level < zMax), zMax];
+            Context.FillContourBands(series.XData, series.YData, series.ZData,
+                MarchingSquares.ExtractBands(series.XData, series.YData, series.ZData, thresholds), cmap, LinearNormalizer.Instance);
+        }
+
         var labelFont = new Font { Size = series.LabelFontSize };
         string fmt = series.LabelFormat ?? "G4";
 

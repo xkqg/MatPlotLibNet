@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.ColorBarRendering;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering.Layout;
@@ -28,14 +30,91 @@ internal sealed class ConstrainedLayoutEngine
     private const double XLabelGap       = AxisTickExtensions.XLabelGap;   // gap between X tick-label cell and X-axis label cell
 
     /// <summary>Computes optimal <see cref="SubPlotSpacing"/> margins for the figure: the sides first
-    /// (<see cref="ComputeSides"/>), since what an axes draws past its left and right spines does not depend on its plot's
-    /// width; then the top and the bottom (<see cref="ComputeEnds"/>), measured at the width each plot is drawn at
-    /// (<see cref="ChartRenderer.SubPlotRects"/>), since the X tick labels turn when upright ones would collide at that
-    /// width, and how far they reach below the plot (and above it, mirrored) follows.</summary>
+    /// (<see cref="ComputeSides"/>), what an axes draws past its left and right spines that does not depend on its plot's
+    /// width (the Y tick labels, the secondary axes, the end labels); then the room the X tick labels need beside their plot,
+    /// which does depend on it, since they turn when upright ones would collide at the width the plot is drawn at and a turned
+    /// label stands out sideways (<see cref="SettleSides"/>); then the top and the bottom (<see cref="ComputeEnds"/>), measured
+    /// at the width each plot is drawn at (<see cref="ChartRenderer.SubPlotRects"/>), and how far the labels reach below the
+    /// plot (and above it, mirrored) follows.</summary>
     internal SubPlotSpacing Compute(Figure figure, IRenderContext ctx)
     {
         var sides = ComputeSides(figure, ctx);
-        return ComputeEnds(figure, ctx, sides, ChartRenderer.SubPlotRects(figure, sides.MarginTop, sides));
+        var settled = SettleSides(figure, ctx, sides);
+        return ComputeEnds(figure, ctx, settled.Sides, settled.Plots);
+    }
+
+    /// <summary>The sides together with the plot areas they give, once the room the X tick labels need beside their plot is
+    /// settled in.</summary>
+    /// <param name="Sides">The spacing with its sides widened for the labels that stand out sideways.</param>
+    /// <param name="Plots">The plot area of each axes under <paramref name="Sides"/>.</param>
+    private readonly record struct SettledSides(SubPlotSpacing Sides, List<Rect> Plots);
+
+    /// <summary>How many times <see cref="SettleSides"/> measures at the plots the last measure gave before it stops: the
+    /// labels turn, never un-turn, as the plot narrows, so the width converges in two or three.</summary>
+    private const int MaxSettlePasses = 4;
+
+    /// <summary>How close two measures of a margin must come for the sides to be settled, in pixels.</summary>
+    private const double SettledWithin = 0.01;
+
+    /// <summary>Settles the sides for what the X tick labels need beside their plot: the first label of a bottom axis, hung from
+    /// its end and turned, stands out to the left of its plot, and the last stands out to the right of it, so the margin (or the
+    /// gutter) holds that by the one rule (<see cref="WidenForOverhang"/>). Whether the labels turn depends on the width of the
+    /// plot, and the plot's width on the sides, so the room is measured at the width the sides give and the sides given at first
+    /// are widened by it; that narrows the plot, where a label that did not turn may now turn (the labels turn, never un-turn,
+    /// as the plot narrows) and the ticks stand a little differently, so it is measured again at the width that remains, a
+    /// bounded number of times (<see cref="MaxSettlePasses"/>), until two measures agree to within <see cref="SettledWithin"/>.
+    /// The sides come back as they were when nothing stands out.</summary>
+    /// <param name="figure">The figure being laid out.</param>
+    /// <param name="ctx">The context text is measured with.</param>
+    /// <param name="sides">The spacing with its sides settled for what does not depend on the plot's width.</param>
+    private SettledSides SettleSides(Figure figure, IRenderContext ctx, SubPlotSpacing sides)
+    {
+        var plots = ChartRenderer.SubPlotRects(figure, sides.MarginTop, sides);
+        var current = sides;
+        for (int pass = 0; pass < MaxSettlePasses; pass++)
+        {
+            var widened = WidenForOverhang(figure, ctx, sides, plots);
+            if (widened == sides) return new SettledSides(sides, ChartRenderer.SubPlotRects(figure, sides.MarginTop, sides));
+            bool settled = Math.Abs(widened.MarginLeft - current.MarginLeft) < SettledWithin
+                && Math.Abs(widened.MarginRight - current.MarginRight) < SettledWithin
+                && Math.Abs(widened.HorizontalGap - current.HorizontalGap) < SettledWithin;
+            current = widened;
+            plots = ChartRenderer.SubPlotRects(figure, current.MarginTop, current);
+            if (settled) break;
+        }
+        return new SettledSides(current, plots);
+    }
+
+    /// <summary>The sides widened for the labels that stand out sideways past their plot, measured at the plots
+    /// <paramref name="plots"/>: an axes in the first column widens the left margin to the overhang on its left and the pad, one
+    /// in the last column the right margin to the overhang on its right and the pad, and an interior axes the gutter by the
+    /// overhangs that meet in it (the worst case, as the gutter rule is). An overhang within the margin the sides already give
+    /// changes nothing.</summary>
+    /// <param name="figure">The figure being laid out.</param>
+    /// <param name="ctx">The context text is measured with.</param>
+    /// <param name="sides">The sides to widen.</param>
+    /// <param name="plots">The plot area of each axes under the sides the labels are measured at.</param>
+    /// <returns>The sides, widened; <paramref name="sides"/> itself when nothing stands out past them.</returns>
+    private SubPlotSpacing WidenForOverhang(Figure figure, IRenderContext ctx, SubPlotSpacing sides, List<Rect> plots)
+    {
+        double left = sides.MarginLeft, right = sides.MarginRight, hGap = sides.HorizontalGap;
+        double interiorLeft = 0, interiorRight = 0;
+        int maxCols = GetMaxCols(figure);
+        for (int i = 0; i < figure.SubPlots.Count; i++)
+        {
+            var axes = figure.SubPlots[i];
+            var overhang = EdgeBandsOf(axes, figure, ctx, plots[i]).Overhang;
+            if (overhang.Left <= 0 && overhang.Right <= 0) continue;
+            var pos = GetEffectivePosition(axes, figure);
+            if (pos.ColStart == 0) left = Math.Max(left, overhang.Left + PadLeft);
+            else interiorLeft = Math.Max(interiorLeft, overhang.Left);
+            if (pos.ColEnd >= maxCols) right = Math.Max(right, overhang.Right + PadRight);
+            else interiorRight = Math.Max(interiorRight, overhang.Right);
+        }
+        hGap = Math.Max(hGap, interiorLeft + interiorRight);
+        return left == sides.MarginLeft && right == sides.MarginRight && hGap == sides.HorizontalGap
+            ? sides
+            : sides with { MarginLeft = left, MarginRight = right, HorizontalGap = hGap };
     }
 
     /// <summary>The left and right margins and the horizontal gutter of <see cref="Compute"/>: each edge axes' need on its
@@ -263,9 +342,9 @@ internal sealed class ConstrainedLayoutEngine
         // reservation is not only a margin: Compute widens the inter-subplot GUTTER to the same number, so a
         // row of tiles paid it between every pair of cards. Measured 2026-09-01 on the nine-tile ops wall —
         // cards 218 pt wide with a 57,5 pt gutter against the 12 the template asked for.
-        // The Y tick labels: the category names on the Y axis are measured by the renderer that draws them (bands.Left,
-        // the TickLabelBand of the widest name); a numeric axis is estimated from a representative label with the same
-        // band rule.
+        // The Y tick labels, numbers and category names alike, are measured by the renderer that draws them (bands.Left,
+        // the TickLabelBand of the widest label); a renderer that measures none (polar, 3-D) is estimated from a
+        // representative label with the same band rule.
         var yMajor = axes.YAxis.MajorTicks;
         double yTickExtent = 0;
         if (yMajor.Visible)
@@ -275,14 +354,11 @@ internal sealed class ConstrainedLayoutEngine
                 : yMajor.TickLabelBand(ctx.MeasureText(EstimateYTickLabel(axes), tickFont).Width);
         }
 
-        // A left-stacked outward secondary axis (ROADMAP.md row 101) adds past the primary Y's own band, the same
-        // "a reservation that is too wide never clips" rule the right side's secondary axis follows — charged even
-        // when a slot draws nothing (see SecondaryAxisBand's remarks).
-        double leftSecondaryBand = LeftAxisBands(axes, ctx, theme).TotalStackedBand();
-        double leftNeeded = LeftNeed(axes, ctx, theme, yTickExtent) + leftSecondaryBand;
-        // leftNeeded already folds leftSecondaryBand in when category names drove a measured band; otherwise the
-        // secondary band is still what was actually drawn there, so it alone counts.
-        double leftBand = bands.Left > 0 ? leftNeeded : leftSecondaryBand;
+        // The whole left stack of the container: the primary, then every slot stacked past it, each charged even when it
+        // draws nothing (see SecondaryAxisBand's remarks). What was measured there lifts the left cap.
+        var leftSlots = LeftAxisBands(axes, ctx, theme);
+        double leftNeeded = LeftNeed(axes, theme, yTickExtent, leftSlots);
+        double leftBand = bands.Left > 0 || leftSlots.Length > 0 ? leftNeeded : 0;
 
         // --- Bottom margin: X-tick labels + optional X-axis label ---
         // What the axes draws below its bottom spine is measured by the renderer that draws it (bands.Bottom, the tick
@@ -323,8 +399,12 @@ internal sealed class ConstrainedLayoutEngine
         if (axes.ColorBar is { Visible: true, Orientation: ColorBarOrientation.Vertical } cb)
         {
             // Reserve: padding gap + bar width + 4-px gap + widest tick label + 8-px gap +
-            // (rotated) label height + PadRight. Tick label width estimated from worst-case 8-char number.
-            double tickLabelW = ctx.MeasureText("0.0000", tickFont).Width;
+            // (rotated) label height + PadRight. The widest label is the wider of a 6-char number (the estimate the bar was
+            // laid out by) and the widest label the bar's ticks can have: the layout does not know how long the bar turns out
+            // to be, so it takes the widest over every number of ticks the bar can ask for.
+            var barRange = cb.RangeOf(axes.Series.ColorBarProvider());
+            double tickLabelW = Math.Max(ctx.MeasureText("0.0000", tickFont).Width,
+                ColorBarScale.WidestLabel(barRange.Min, barRange.Max, ctx, tickFont));
             double labelH = cb.Label is not null ? ctx.MeasureText(cb.Label, labelFont).Height : 0;
             double cbWidth = cb.Padding + cb.Width + 4 + tickLabelW + 8 + labelH + PadRight;
             if (cbWidth > rightNeeded) rightNeeded = cbWidth;
@@ -379,25 +459,40 @@ internal sealed class ConstrainedLayoutEngine
     private static double BottomNeed(EdgeBands bands) =>
         (bands.BottomTitle > 0 ? bands.BottomTitle : bands.Bottom) + PadBottom;
 
-    /// <summary>The one rule for what the left edge of <paramref name="axes"/> needs: the Y tick label band
-    /// (<paramref name="yTickExtent"/>), then the rotated Y axis title, which the renderer centres 12 px past that band
-    /// (<see cref="AxisTickExtensions.AxisLabelOffset"/>) and which is charged its full height (the safe direction), then
-    /// <see cref="PadLeft"/>. Both layout paths reserve it: <see cref="Compute"/> always, <see cref="ReserveEdgeBands"/>
-    /// when the band was measured (category names on the Y axis).</summary>
+    /// <summary>The one rule for what the left edge of <paramref name="axes"/> needs: the left stack of its Y axis
+    /// container, the band the renderer draws there. Slot 0 is the primary Y axis: its tick label band
+    /// (<paramref name="primaryTickBand"/>) and its title by the one band rule (<see cref="YAxisTitleExtensions"/>, the
+    /// rule its title is placed by, so the title's outward ink is reserved where it is drawn); then every slot stacked past
+    /// it (<paramref name="outwardBands"/>), with the container's gap between each pair
+    /// (<see cref="AxisStackingExtensions.TotalStackedBand"/>); then <see cref="PadLeft"/>. Both layout paths reserve it:
+    /// <see cref="Compute"/> and <see cref="ReserveEdgeBands"/>.</summary>
     /// <param name="axes">The axes to measure.</param>
-    /// <param name="ctx">The context text is measured with.</param>
-    /// <param name="theme">The active theme (the label font).</param>
-    /// <param name="yTickExtent">From the left spine to the far side of the Y tick labels; 0 when none are drawn.</param>
+    /// <param name="theme">The active theme (the title font).</param>
+    /// <param name="primaryTickBand">From the left spine to the far side of the primary's tick labels; 0 when none are
+    /// drawn.</param>
+    /// <param name="outwardBands">The band of every left slot past the primary, nearest the plot first
+    /// (<see cref="LeftAxisBands"/>).</param>
     /// <returns>The room the left edge needs.</returns>
-    private static double LeftNeed(Axes axes, IRenderContext ctx, Theme theme, double yTickExtent)
+    private static double LeftNeed(Axes axes, Theme theme, double primaryTickBand, double[] outwardBands) =>
+        LeftStackBand(axes, theme, primaryTickBand, outwardBands) + PadLeft;
+
+    /// <summary>From the left spine to the far side of everything the whole left stack of the Y axis container draws: the
+    /// primary's tick label band and its title by the one band rule (<see cref="YAxisTitleExtensions"/>), then every slot
+    /// past it with the container's gap between each pair (<see cref="AxisStackingExtensions.TotalStackedBand"/>). 0 when
+    /// nothing is drawn there (hidden tick labels, no title, no slot past the primary).</summary>
+    /// <param name="axes">The axes to measure.</param>
+    /// <param name="theme">The active theme (the title font).</param>
+    /// <param name="primaryTickBand">From the left spine to the far side of the primary's tick labels; 0 when none are
+    /// drawn.</param>
+    /// <param name="outwardBands">The band of every left slot past the primary, nearest the plot first.</param>
+    /// <returns>The band of the left stack, without the pad.</returns>
+    private static double LeftStackBand(Axes axes, Theme theme, double primaryTickBand, double[] outwardBands)
     {
-        if (axes.YAxis.Label is null) return yTickExtent + PadLeft;
-        // Rotated y-label: its horizontal footprint is the LABEL HEIGHT (font size), not the text width.
-        // Renderer formula: x = PlotArea.X - tickLength - tickPad - maxTickWidth - YLabelGap(12)
-        // We add labelHeight + PadLeft so the rotated text fits inside the figure left margin.
-        const double YLabelGap = 12;
-        double labelHeight = ctx.MeasureText(axes.YAxis.Label, ThemedFontProvider.LabelFont(theme)).Height;
-        return yTickExtent + YLabelGap + labelHeight + PadLeft;
+        double gap = axes.YAxes.TitleGap;
+        double primary = axes.YAxis.YTitleExtent(
+            new YAxisTitleInput(primaryTickBand, AxisSide.Left, gap, ThemedFontProvider.LabelFont(theme))).Band;
+        double[] stack = [primary, .. outwardBands];
+        return stack.TotalStackedBand(gap);
     }
 
     /// <summary>The one rule for what the right edge of <paramref name="axes"/> draws past its right spine, measured
@@ -419,68 +514,46 @@ internal sealed class ConstrainedLayoutEngine
                              widestLabel > 0 ? DirectLabelMetrics.Gap + widestLabel : 0);
     }
 
-    /// <summary>From the right spine to the far side of every right-side slot stacked together, as
-    /// <c>CartesianSecondaryYAxisPart</c> draws them: tick labels left-aligned at <see cref="TickConfig.Length"/> +
-    /// <see cref="TickConfig.Pad"/> past each slot's own edge (<see cref="AxisTickExtensions.TickLabelBand"/>), then
-    /// the rotated title centred at <see cref="AxisTickExtensions.AxisLabelOffset"/> plus the label style's pad. The
-    /// title is charged its full height past that centre (the rule the left margin uses for the primary title),
-    /// which over-reserves a little: the safe direction. The total across every slot is <see cref="SecondaryAxisBands"/>
-    /// summed (<see cref="AxisStackingExtensions.TotalStackedBand"/>).</summary>
-    /// <remarks>A slot without secondary series draws nothing, but it is still charged: what it would draw is what
-    /// the figure asked for, and a reservation that is too wide never clips. The end-label column
-    /// (<c>CartesianDirectLabelsPart</c>) starts past this band, so labels never sit on the secondary ticks.</remarks>
+    /// <summary>From the right spine to the far side of every right slot of the container stacked together, as the slots
+    /// draw them: each slot's band (<see cref="SecondaryAxisBands"/>) with the container's gap between each pair
+    /// (<see cref="AxisStackingExtensions.TotalStackedBand"/>).</summary>
+    /// <remarks>A slot without series draws nothing, but it is still charged: what it would draw is what the figure asked
+    /// for, and a reservation that is too wide never clips. The end-label column (<c>CartesianDirectLabelsPart</c>) starts
+    /// past this band, so labels never sit on the slots' ticks.</remarks>
     internal static double SecondaryAxisBand(Axes axes, IRenderContext ctx, Theme theme) =>
-        SecondaryAxisBands(axes, ctx, theme).TotalStackedBand();
+        SecondaryAxisBands(axes, ctx, theme).TotalStackedBand(axes.YAxes.TitleGap);
 
-    /// <summary>The band of every right-side outward-stacked slot, nearest-to-the-plot (<see cref="Axes.SecondaryYAxis"/>,
-    /// slot 0) first — <see cref="SecondaryAxisBand"/> sums these for the layout's total reservation, and
-    /// <c>CartesianSecondaryYAxisPart</c> stacks them (<see cref="AxisStackingExtensions.StackedOffsets"/>) to place
-    /// each slot's ticks past every slot before it. Empty when the axes has no right-side slot at all.</summary>
+    /// <summary>The band of every right slot of the container, nearest the plot first (<see cref="SlotBand"/>):
+    /// <see cref="SecondaryAxisBand"/> stacks these for the layout's reservation, and the renderer stacks them
+    /// (<see cref="AxisStackingExtensions.StackedOffsets"/>) to place each slot past every slot before it. Empty when the
+    /// axes has no right slot.</summary>
     internal static double[] SecondaryAxisBands(Axes axes, IRenderContext ctx, Theme theme) =>
-        SlotBands(axes.RightYAxes, axes, ctx, theme);
+        SlotBands(axes.YAxes.Right, axes, ctx, theme);
 
-    /// <summary>The band of every left-side outward-stacked slot, nearest-to-the-plot (past the primary <see cref="Axes.YAxis"/>)
-    /// first — summed (<see cref="AxisStackingExtensions.TotalStackedBand"/>) for the left margin's extra reservation,
-    /// stacked (<see cref="AxisStackingExtensions.StackedOffsets"/>) for each slot's own render-time outward offset.
-    /// Empty when the axes has no left-side slot at all.</summary>
+    /// <summary>The band of every left slot of the container past the primary, nearest the plot first
+    /// (<see cref="SlotBand"/>): stacked after the primary's own band for the left margin (<see cref="LeftNeed"/>) and for
+    /// each slot's render-time offset. Empty when the axes has no left slot past the primary.</summary>
     internal static double[] LeftAxisBands(Axes axes, IRenderContext ctx, Theme theme) =>
-        SlotBands(axes.LeftYAxes, axes, ctx, theme);
+        SlotBands(axes.YAxes.Left.Skip(axes.YAxes.Left.OutwardOffset), axes, ctx, theme);
 
-    private static double[] SlotBands(IReadOnlyList<Models.SecondaryAxisSlot> slots, Axes axes, IRenderContext ctx, Theme theme)
-    {
-        if (slots.Count == 0) return [];
-        var renderer = new CartesianAxesRenderer(axes, default, ctx, theme);
-        var bands = new double[slots.Count];
-        for (int i = 0; i < slots.Count; i++)
-        {
-            var slot = slots[i];
-            // The same range, tick values, formatter and font the secondary part draws this slot with.
-            var range = renderer.ComputeSecondaryDataRanges(0, 1, slot.Axis, slot.Series);
-            bands[i] = SlotBand(slot.Axis, range, ctx, theme);
-        }
-        return bands;
-    }
+    private static double[] SlotBands(IEnumerable<YAxisSlot> slots, Axes axes, IRenderContext ctx, Theme theme) =>
+        [.. slots.Select(slot => SlotBand(axes, slot, ctx, theme))];
 
-    private static double SlotBand(Axis axis, DataRange axisRange, IRenderContext ctx, Theme theme)
+    /// <summary>From one stacked slot's edge to the far side of what it draws, as its part draws it: the slot placed where
+    /// the render places it (<see cref="CartesianAxesRenderer.PlaceSlot"/>: its range, its ticks) and measured by the band
+    /// rule the render stacks it by (<see cref="CartesianAxesRenderer.SlotBand"/>). A slot's band does not depend on the
+    /// X extent, so the slot is placed over 0..1. The plot's height is not known yet: the slot is placed beside a plot of
+    /// <see cref="AxesRenderer.FullTickDensityLength"/>, so its ticks are the densest it can draw and what is reserved holds
+    /// the labels of a shorter plot, whose ticks are a coarser set of the same values.</summary>
+    /// <param name="axes">The axes the slot belongs to.</param>
+    /// <param name="slot">The slot.</param>
+    /// <param name="ctx">The context text is measured with.</param>
+    /// <param name="theme">The active theme (fonts).</param>
+    /// <returns>The slot's band.</returns>
+    private static double SlotBand(Axes axes, YAxisSlot slot, IRenderContext ctx, Theme theme)
     {
-        var ticks = axis.MajorTicks;
-        double widest = 0, band = 0;
-        if (ticks.Visible)
-        {
-            var values = AxesRenderer.ComputeTickValuesInternal(axisRange.YMin, axisRange.YMax);
-            var uniform = AxesRenderer.BuildUniformTickFormatter(values);
-            var font = ticks.LabelFont(ThemedFontProvider.TickFont(theme));
-            foreach (var value in values)
-                widest = Math.Max(widest, ctx.MeasureText(axis.TickFormatter?.Format(value) ?? uniform(value), font).Width);
-            band = ticks.TickLabelBand(widest);
-        }
-        if (axis.Label is not null)
-        {
-            var labelFont = ThemedFontProvider.LabelFont(theme);
-            var font = axis.LabelStyle?.ApplyTo(labelFont) ?? labelFont;
-            band = ticks.AxisLabelOffset(widest) + (axis.LabelStyle?.Pad ?? 0) + ctx.MeasureText(axis.Label, font).Height;
-        }
-        return band;
+        var renderer = new CartesianAxesRenderer(axes, new Rect(0, 0, 0, AxesRenderer.FullTickDensityLength), ctx, theme);
+        return renderer.SlotBand(renderer.PlaceSlot(slot, new Numerics.MinMaxRange(0, 1)));
     }
 
     /// <summary>What <paramref name="axes"/> draws past its four spines, measured by the renderer the axes is drawn with
@@ -490,7 +563,8 @@ internal sealed class ConstrainedLayoutEngine
     /// (<paramref name="plot"/>, from <see cref="ChartRenderer.SubPlotRects"/>): the X tick labels turn when upright ones
     /// would collide at that width, so the top and bottom bands are read from this measurement. Before that (no
     /// <paramref name="plot"/>) the plot has no width, and only the left and right bands, which do not depend on it, are
-    /// read.</summary>
+    /// read; with it, the sideways overhang of the X tick labels (<see cref="EdgeBands.Overhang"/>) is read too, which the sides
+    /// are then widened for (<see cref="SettleSides"/>).</summary>
     /// <param name="axes">The axes to measure.</param>
     /// <param name="figure">The figure it belongs to.</param>
     /// <param name="ctx">The context text is measured with.</param>
@@ -500,7 +574,9 @@ internal sealed class ConstrainedLayoutEngine
         var pos = GetEffectivePosition(axes, figure);
         double cellHeight = figure.Height * (pos.RowEnd - pos.RowStart) / GetMaxRows(figure);
         var area = plot is { } drawn ? new Rect(drawn.X, 0, drawn.Width, cellHeight) : new Rect(0, 0, 0, cellHeight);
-        return AxesRenderer.Create(axes, area, ctx, figure.Theme).MeasureEdgeBands();
+        var renderer = AxesRenderer.Create(axes, area, ctx, figure.Theme);
+        // Each pass measures only the edges it reads: the sides before the plot has a width, the ends once it has one.
+        return plot is null ? renderer.MeasureSideBands() : renderer.MeasureEndBands();
     }
 
     /// <summary>From the top spine to the top of the axes title, as <c>AxesRenderer.RenderTitle</c> draws it: the
@@ -521,8 +597,9 @@ internal sealed class ConstrainedLayoutEngine
     /// a top band
     /// (<see cref="EdgeBands.Top"/>: mirrored X tick labels or a drawn secondary X axis) in the top row widens
     /// <see cref="SubPlotSpacing.MarginTop"/> to the band and the title above it (the rule <see cref="Compute"/>
-    /// applies); in a lower row it widens the row gap by the band, the distance its title rises. Category names on the Y
-    /// axis (<see cref="EdgeBands.Left"/>) widen the left margin or the gutter to <see cref="LeftNeed"/>; what is drawn
+    /// applies); in a lower row it widens the row gap by the band, the distance its title rises. The left stack of the Y
+    /// axis container (the primary's measured tick labels, <see cref="EdgeBands.Left"/>, its title and every slot past it)
+    /// widens the left margin or the gutter to <see cref="LeftNeed"/>; what is drawn
     /// below the bottom spine (<see cref="EdgeBands.Bottom"/>, <see cref="EdgeBands.BottomTitle"/>) widens
     /// <see cref="SubPlotSpacing.MarginBottom"/> of an axes in the last row to <see cref="BottomNeed"/>, and the row gap
     /// below an axes in an upper row to that need plus the room the lower row's title takes (<see cref="TitleBand"/>). The
@@ -536,8 +613,7 @@ internal sealed class ConstrainedLayoutEngine
     /// <returns>The spacing with room for the edge bands.</returns>
     internal SubPlotSpacing ReserveEdgeBands(Figure figure, SubPlotSpacing resolved, IRenderContext ctx)
     {
-        var sides = ReserveSideBands(figure, resolved, ctx);
-        var plots = ChartRenderer.SubPlotRects(figure, sides.MarginTop, sides);
+        var (sides, plots) = SettleSides(figure, ctx, ReserveSideBands(figure, resolved, ctx));
         double top = resolved.MarginTop, vGap = resolved.VerticalGap;
         double bottom = resolved.MarginBottom, interiorBottomNeed = 0, lowerTopNeed = 0;
         int maxRows = GetMaxRows(figure);
@@ -570,9 +646,10 @@ internal sealed class ConstrainedLayoutEngine
     }
 
     /// <summary>The sides of <see cref="ReserveEdgeBands"/>, settled before its top and bottom: what an axes draws past its
-    /// left and right spines does not depend on its plot's width. An axes in the last column widens
+    /// left and right spines does not depend on its plot's width (the room the X tick labels need beside their plot does, and
+    /// is settled after it, <see cref="SettleSides"/>). An axes in the last column widens
     /// <see cref="SubPlotSpacing.MarginRight"/> to its <see cref="MeasureRightBand"/>, one left of another the gutter by
-    /// it; category names on the Y axis widen the left margin or the gutter to <see cref="LeftNeed"/>.</summary>
+    /// it; the left stack of the Y axis container widens the left margin or the gutter to <see cref="LeftNeed"/>.</summary>
     /// <returns><paramref name="resolved"/> with its left and right margins and its horizontal gutter settled.</returns>
     private SubPlotSpacing ReserveSideBands(Figure figure, SubPlotSpacing resolved, IRenderContext ctx)
     {
@@ -590,13 +667,15 @@ internal sealed class ConstrainedLayoutEngine
                 hGap = Math.Max(hGap, resolved.HorizontalGap + band);
                 interiorRightBand = Math.Max(interiorRightBand, band);
             }
-            // Left of the left spine only measured category names, or a left-stacked outward secondary axis
-            // (ROADMAP.md row 101), are new (a plain numeric Y axis fits the resolved spacing): the margin holds
-            // them and the title past them, and a gutter holds them right of its neighbour's band.
-            double leftSecondary = LeftAxisBands(axes, ctx, figure.Theme).TotalStackedBand();
-            if (bands.Left > 0 || leftSecondary > 0)
+            // Left of the left spine the whole left stack of the container as the renderer draws it (the primary's tick
+            // labels measured by its renderer, its title, every slot past it): the margin holds it, and a gutter holds it
+            // right of its neighbour's band. Nothing drawn there reserves nothing, not even the pad: the pad holds the
+            // outermost ink off the figure's edge, and a figure that draws none (an icon that fills its square, a row of
+            // tiles with no axes) keeps the margin and the gutter its caller asked for.
+            double stack = LeftStackBand(axes, figure.Theme, bands.Left, LeftAxisBands(axes, ctx, figure.Theme));
+            if (stack > 0)
             {
-                double need = LeftNeed(axes, ctx, figure.Theme, bands.Left) + leftSecondary;
+                double need = stack + PadLeft;
                 if (pos.ColStart == 0) left = Math.Max(left, need);
                 else interiorLeftNeed = Math.Max(interiorLeftNeed, need);
             }

@@ -114,7 +114,7 @@ public class ParallelCoordinatesTests
 
         var lines = Lines(axes);
         Assert.Equal(["dog", "cat"], lines.Select(l => l.Label));
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
     }
 

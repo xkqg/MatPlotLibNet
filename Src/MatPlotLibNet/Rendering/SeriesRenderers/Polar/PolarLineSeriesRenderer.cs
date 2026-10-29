@@ -7,17 +7,19 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering.SeriesRenderers;
 
 /// <summary>Renders a <see cref="PolarLineSeries"/> as connected lines in polar coordinates.</summary>
-internal sealed class PolarLineSeriesRenderer : PolarTransformRenderer<PolarLineSeries>
+internal sealed class PolarLineSeriesRenderer : SeriesRenderer<PolarLineSeries>
 {
     /// <inheritdoc />
     public PolarLineSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(PolarLineSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(PolarLineSeries series)
     {
         var color = ResolveColor(series.Color);
-        var bounds = Area.PlotBounds;
-        var transform = PrepareTransform(series.R, bounds);
+        var transform = Context.PolarTransformFor(series);
 
         var points = new List<Point>(series.R.Length);
         for (int i = 0; i < series.R.Length; i++)

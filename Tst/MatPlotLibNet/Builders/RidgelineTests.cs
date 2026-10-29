@@ -59,7 +59,7 @@ public class RidgelineTests
 
         var ridges = Ridges(axes);
         Assert.Equal(3, ridges.Length);
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
         Assert.All(ridges, r => Assert.NotNull(r.YData2));
         Assert.All(ridges, r => Assert.Null(r.Label));

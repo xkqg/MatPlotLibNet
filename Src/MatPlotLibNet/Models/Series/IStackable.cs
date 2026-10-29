@@ -6,7 +6,8 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Series that can be stacked (cumulative baseline) when multiple instances share an axes.</summary>
 public interface IStackable
 {
-    /// <summary>The values a stacked render sums: each series starts on the sum of the series added before it.</summary>
+    /// <summary>The values a stacked render sums: each series starts on the sum of the series added before it that point the same
+    /// way, one running sum for the values at or above zero and one for the values below zero.</summary>
     double[] Values { get; }
 
     /// <summary>Where each value starts, as the user sets it; <see langword="null"/> starts every value at zero. A

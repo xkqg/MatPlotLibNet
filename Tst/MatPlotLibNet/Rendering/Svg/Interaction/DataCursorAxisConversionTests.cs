@@ -23,7 +23,7 @@ public class DataCursorAxisConversionTests
             .WithServerInteraction("c", s => s.EnableDataCursor())
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "primary")
-                .WithSecondaryYAxis(y2 => y2.Plot(X, [100.0, 250.0, 400.0], s => s.Label = "secondary"))
+                .WithAddRightYAxis(y2 => y2.Plot(X, [100.0, 250.0, 400.0], s => s.Label = "secondary"))
                 .WithSecondaryXAxis(x2 => x2.PlotXSecondary([1000.0, 2000.0, 3000.0], [3.0, 1.0, 2.0], s => s.Label = "top"))));
 
     /// <summary>The pixel the renderer drew point <paramref name="index"/> of the series labelled
@@ -60,7 +60,7 @@ public class DataCursorAxisConversionTests
     }
 
     [Fact]
-    public void AClickOnASecondaryYLine_ReportsTheValueOnTheSecondaryYAxis()
+    public void AClickOnARightYLine_ReportsTheValueOnTheRightYAxis()
     {
         using var h = TwinAxes();
 
@@ -141,7 +141,7 @@ public class DataCursorAxisConversionTests
         // The mapping is weight only the data cursor reads: an interactive figure that did not ask for it keeps its bytes.
         var doc = XDocument.Parse(Plt.Create().WithLegendToggle().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "A")
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "S"))).ToSvg());
+            .WithAddRightYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "S"))).ToSvg());
 
         var groups = doc.Descendants().Where(e => e.Name.LocalName == "g" && e.Attribute("data-series-index") is not null).ToList();
         Assert.NotEmpty(groups);

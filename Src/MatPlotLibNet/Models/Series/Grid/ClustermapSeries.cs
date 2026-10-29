@@ -14,6 +14,9 @@ namespace MatPlotLibNet.Models.Series;
 /// match the leaf order of the corresponding dendrogram.</summary>
 public sealed class ClustermapSeries : ChartSeries, IColorBarDataProvider, IColormappable, INormalizable, ILabelable
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     private double _rowDendrogramWidth = 0.15;
     private double _columnDendrogramHeight = 0.15;
 

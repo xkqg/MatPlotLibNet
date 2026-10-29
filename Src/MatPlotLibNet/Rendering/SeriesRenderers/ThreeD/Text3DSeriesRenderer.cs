@@ -13,6 +13,9 @@ internal sealed class Text3DSeriesRenderer : SeriesRenderer<Text3DSeries>
     public Text3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(Text3DSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(Text3DSeries series)
     {
         if (series.Annotations.Count == 0) return;

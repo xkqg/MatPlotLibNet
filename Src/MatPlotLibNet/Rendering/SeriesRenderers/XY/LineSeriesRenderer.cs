@@ -14,10 +14,14 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
     /// <inheritdoc />
     public LineSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
-    /// <inheritdoc />
-    public override void Render(LineSeries series)
+    /// <summary>What a line stands on in pixels: the samples it keeps after the viewport cull and the point budget, and
+    /// the points of its path, those samples after the draw style's steps and the smoothing.</summary>
+    private readonly record struct LinePixels(XYData Data, Point[] Path);
+
+    /// <summary>Works the line's pixels out: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to
+    /// a legend, so a legend keeps clear of the line that is drawn.</summary>
+    private LinePixels Pixels(LineSeries series)
     {
-        var color = ResolveColor(series.Color);
         var data = ApplyDownsampling(series.XData, series.YData, series.MaxDisplayPoints);
 
         // Apply DrawStyle step interpolation before transforming
@@ -28,7 +32,18 @@ internal sealed class LineSeriesRenderer : SeriesRenderer<LineSeries>
         if (series.Smooth && drawX.Length >= 3)
             (drawX, drawY) = MonotoneCubicSpline.Interpolate(drawX, drawY, series.SmoothResolution);
 
-        Point[] points = Transform.TransformBatch(drawX, drawY);
+        return new LinePixels(data, Transform.TransformBatch(drawX, drawY));
+    }
+
+    /// <inheritdoc />
+    internal override void AddMarks(LineSeries series, MarkObstacles.Builder marks) =>
+        AddPolyline(marks, Pixels(series).Path);
+
+    /// <inheritdoc />
+    public override void Render(LineSeries series)
+    {
+        var color = ResolveColor(series.Color);
+        var (data, points) = Pixels(series);
         DrawPolyline(points, Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
 
         if (Slot.LineMarkerOf(series.Marker) is { } marker and not MarkerStyle.None)

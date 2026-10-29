@@ -1,0 +1,11 @@
+{
+  "chart": "bar_label_signs",
+  "mpl_version": "3.11.2",
+  "figsize": [
+    8,
+    6
+  ],
+  "dpi": 100,
+  "style": "default",
+  "seed": 42
+}

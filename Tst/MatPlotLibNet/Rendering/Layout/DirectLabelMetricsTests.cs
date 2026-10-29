@@ -146,19 +146,21 @@ public class DirectLabelMetricsTests
     }
 
     [Fact]
-    public void OnlyVisibleLabelledLineEndSeries_AreListed_PrimaryThenSecondary()
+    public void OnlyVisibleLabelledLineEndSeries_AreListed_PrimaryThenSecondary_EachWithTheSlotItIsDrawnAgainst()
     {
-        var m = Metrics(ax => ax
+        var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Scatter(X, [1.0, 2.0, 3.0], s => s.Label = "a scatter has no line end")
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "legend only")
             .Plot(X, [1.0, 2.0, 3.0], s => s.LabelPlacement = SeriesLabelPlacement.LineEnd)
             .Plot(X, [1.0, 2.0, 3.0], s => { s.Label = "hidden"; s.Visible = false; }).WithDirectLabel()
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "primary").WithDirectLabel()
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [5.0, 6.0, 7.0], s => s.Label = "secondary").WithDirectLabel()));
+            .WithAddRightYAxis(y2 => y2.Plot(X, [5.0, 6.0, 7.0], s => s.Label = "secondary").WithDirectLabel())).Build();
+        var axes = figure.SubPlots[0];
+        var m = new DirectLabelMetrics(axes, figure.Theme, new RecordingRenderContext());
 
         Assert.Equal(
-            [new DirectLabel(m.Labels[0].Series, SeriesAxisPair.Primary, 4, 0, "primary", 2.0, 3.0),
-             new DirectLabel(m.Labels[1].Series, SeriesAxisPair.SecondaryY, 0, 0, "secondary", 2.0, 7.0)],
+            [new DirectLabel(m.Labels[0].Series, SeriesAxisPair.Primary, 4, axes.YAxes.Left[0], "primary", 2.0, 3.0),
+             new DirectLabel(m.Labels[1].Series, SeriesAxisPair.SecondaryY, 0, axes.YAxes.Right[0], "secondary", 2.0, 7.0)],
             m.Labels);
         Assert.Equal("primary", m.Labels[0].Series.Label);
         Assert.Equal("secondary", m.Labels[1].Series.Label);

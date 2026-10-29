@@ -4,6 +4,393 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.24.0]
+
+Every Y axis of a chart now belongs to one container, and the left side no longer treats the primary axis as a special
+case: it is the first axis of that side, and each further axis stacks past the one before it. `WithAddRightYAxis` and
+`WithAddLeftYAxis` add an axis on a side as often as the chart needs one, with no cap and without a "second" or "third"
+in the name; the older `WithSecondaryYAxis` and `WithOutwardYAxis` keep working and are marked obsolete in favour of them.
+The space between a Y axis title and its tick labels is the same on the left and on the right, 4 px by default, and a
+container can set its own.
+
+Three things changed with it. Every Y axis draws the way the primary one does, whichever side it is on and however many
+stand beside it: its own scale, tick locator, minor ticks and a title in math markup. The layout reserves exactly the room
+the axes draw, so a left-hand title is no longer cut off at the edge of the figure and a right-hand title no longer
+touches its tick labels at a large font. And the JSON keeps every axis, whatever their number, in a shape a 1.23.0 reader
+still understands: a figure that stays within the four axes 1.23.0 allowed writes the same file as before.
+
+The release also places the texts of a chart with more care. A legend left at `LegendPosition.Best` stands where it covers
+the fewest marks, as matplotlib's `loc='best'` does, instead of always in the upper right corner; an annotation takes the
+theme's text size, can be moved by a number of pixels and can move out of the way of the data, the legend and the other
+annotations; a bar's value label stands beyond the bar's end whichever way the bar points; and a turned tick label has
+room beside the plot as well as below it.
+
+Thirteen more of the things the roadmap listed as waiting are in, each the one rule where there had been two. A colour bar
+puts its ticks at round numbers, spread by how long the bar is. A polar chart has one radial scale that the rings, the lines,
+the bars and the heatmap all read, and polar bars stack. Bars stack on both sides of zero. A filled contour fills the bands
+between its levels, over the grid, and follows the limits you set. A series that cannot be drawn from the data it was given is
+refused when it is built, instead of failing when the chart is drawn. A stacked area names its layers in the legend and no
+longer shares its colours with the line drawn after it, a state timeline's legend entry wears its states, and a series says for
+itself whether it needs axes around it. And a map from `MatPlotLibNet.Geo` keeps its holes, comes back from JSON, colours its
+regions by a value, and carries points, bubbles, hexagon bins, flows, a cartogram and a Dorling map.
+
+### Added
+
+- **`WithAddRightYAxis` and `WithAddLeftYAxis`.** Call one as often as the chart has Y axes. Each call stacks one more
+  axis on its side, past the ones already there, and hands its callback a `YAxisSlotBuilder`; on the left, the first
+  axis it adds stands next to the primary one, which stays the axis nearest the plot. There is no cap and nothing to
+  count: four calls on the right give four right axes, two calls on the left give two left axes past the primary (the
+  1.23.0 verb stopped at two on the right and one past the primary on the left, and handed back the outermost axis on the
+  next call). They are matplotlib's repeated `twinx()` with the spine moved outward, in one verb. A null callback throws
+  `ArgumentNullException` and adds no axis.
+
+  ```csharp
+  Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+      .Plot(days, price).SetYLabel("Price")
+      .WithAddRightYAxis(rate => rate.SetYLabel("Rate (%)").Plot(days, rates))
+      .WithAddRightYAxis(load => load.SetYLabel("Load").SetYLim(0, 1).Plot(days, loads))
+      .WithAddLeftYAxis(queue => queue.SetYLabel("Queue").Plot(days, lengths)));
+  ```
+
+- **`YAxisSlotBuilder`, one builder for every Y axis.** `SetYLabel` (with the optional text style), `SetYLim`,
+  `SetYAxisColor`, `Plot`, `Scatter`, `StreamingPlot` (which returns the series, as before) and `WithDirectLabel`, the
+  same verbs with the same meaning on any axis. `AxesBuilder`'s own `SetYLabel`, `SetYAxisColor` and `SetYLim` are this
+  builder over the primary Y axis, so a setting made on the primary is made the same way on any other. A chart built with
+  the new verbs draws the same SVG and writes the same JSON as the same chart built with the old ones (held on five
+  figures, both outputs).
+
+- **A colour for every Y axis.** `SetYAxisColor` now exists on every axis, including the ones stacked past the first on a
+  side, which had no colour verb before: it colours the axis' tick marks, tick labels and title. On the first axis of a
+  side (the primary Y axis, the first right axis) it also colours that side's spine; an axis stacked past it draws no
+  spine of its own, so it leaves every spine alone. Colouring an axis is one rule shared by all four colour verbs.
+
+- **`Axes.YAxes`, the container.** `axes.YAxes.Left` and `axes.YAxes.Right` are the stacks of each side. Slot 0 of the
+  left stack is the primary Y axis (`axes.YAxes.Left[0].Axis` is `axes.YAxis`, and its series are `axes.Series`); `Add()`
+  stacks one more axis on a side and `FirstOrAdd()` returns the first one, creating it only when there is none.
+
+- **`WithYAxisTitleGap(pixels)`.** Sets the blank gap between every Y axis title and its tick labels, and between two
+  stacked axes, for the whole subplot, on both sides. The default is 4, matplotlib's `axes.labelpad`; a title's own `Pad`
+  (the text style given to `SetYLabel`) still moves that one title further out on top of it. A negative, NaN or infinite
+  value throws `ArgumentOutOfRangeException`.
+
+- **`Annotation.AvoidOverlap`.** An annotation that sets it moves its text clear of the marks the chart drew, the
+  legend's box, the annotations that stay put and the ones already moved. It tries the place it was anchored at, then
+  eight directions (up, down, right, left and the four diagonals) at one, two, three and four text heights from there,
+  keeps inside the plot, and takes the first place that covers the fewest; when it moved more than 6 px a thin line joins
+  it to its point, and an annotation with an arrow needs none. It is off by default: an annotation stands where it is
+  anchored, as it always did.
+
+- **`Annotation.OffsetX` and `Annotation.OffsetY`.** Move the text a number of screen pixels from its point
+  (`OffsetY` counts downward, as the picture does). The point stays where `X` and `Y` put it and an arrow still points
+  at its target; the text, its box and the start of its arrow move.
+
+- **`Annotation.VerticalAlignment` and `TextVerticalAlignment`.** `Baseline` (the default, as before), `Center`, `Top`
+  and `Bottom` say which part of the text stands on the point. The size comes from the theme when the chart is drawn, so a
+  centred text stays centred when the theme changes its size, which a pixel offset worked out beforehand cannot do. The
+  MCP server's spec reads it as `verticalAlignment`.
+
+- **`Theme.DefaultLegendPosition`.** Where a legend that names no position stands: matplotlib's `legend.loc`. The classic
+  theme keeps matplotlib's classic default, the upper right corner, and every other theme leaves it at
+  `LegendPosition.Best`. The figure JSON carries it, left out when it is `Best`, and a theme derived from another keeps
+  its base's.
+
+- **Maps come back from JSON.** A figure holding a map (`Land`, `Ocean`, `Borders`, `Coastlines`, a choropleth, a cartogram)
+  is read back whole: the series writes its projection (the kind and the numbers it was made with, such as a Lambert's two
+  standard parallels, by their PROJ names `lon_0`, `lat_0`, `lat_1`, `lat_2`) and its features, as the id of a built-in set
+  (`ne_110m_admin_0_countries`, `ne_110m_coastline`) or, for features of your own, as a GeoJSON FeatureCollection with the
+  holes kept. The reader is registered when the package loads; a process that reads the JSON before it has used any type of
+  `MatPlotLibNet.Geo` calls `GeoPolygonSeries.RegisterReader()` once. Core gains one field for this, `SeriesDto.PackageData`,
+  which carries what a package writes of its own series and is absent from every series of core. A figure written by 1.23.0
+  reads as it always did: the maps are dropped, each with the diagnostic for a series kind that is not known, and the rest of
+  the figure is intact. `GeoJsonWriter.Write` is the counterpart of `GeoJsonReader.Parse`.
+
+- **One projection for a map axes.** `WithProjection` records the projection and every layer reads it: `Land(color)`,
+  `Ocean(color)`, `Borders()` and `Coastlines()` need no projection of their own, and are refused with "call WithProjection
+  first" when the axes has none. The verbs that take a projection still do; one that is not the axes' (another kind, or the
+  same kind with other numbers) is refused with an `ArgumentException` naming both, where it used to draw on a projection
+  the axes had never been given.
+
+- **A map coloured by value.** `GeoPolygonSeries` takes `Values` (one for each feature), a `ColorMap` and a `Normalizer`, and is
+  a colour bar's data provider: each region is drawn in the colour its value has in the map, a missing value in the map's bad
+  colour, and `WithColorBar()` reads the range of the values that can be drawn. `Choropleth` joins values to the built-in
+  countries by their three-letter code (`ADM0_A3`: FRA, NOR, ...) or reads a numeric property of the features (`POP_EST`,
+  `GDP_MD`) through the new `GeoFeature.NumberOf`, which parses invariantly, so a decimal point is a decimal point in every
+  culture. The values, the colour map (one built in code included) and the normaliser travel in the JSON.
+
+- **Data on a map.** `Points` and `Bubbles` mark places (a bubble's area is in proportion to its value, the largest 400 square
+  points, as a scatter's size is), `HexBins` bins places into hexagons in the plane of the map, `Flows` draws a line along the
+  great circle for each `GeoFlow` as wide as its quantity, cut where it crosses the antimeridian, `Cartogram` resizes each
+  country so that its area is in proportion to its value without moving its centre, and `Dorling` puts a bubble at the centre
+  of each country. A place the projection cannot place (the far side of an orthographic globe) is left out, and a refused call
+  leaves the axes as it was. Public additions: `GeoPosition` and `GeoPolygon` (an exterior ring and its holes),
+  `GeoGeometry.Polygons`, `GeoFlow`.
+
+- **Polar bars stack.** Set the axes' bar mode to stacked and the polar bar series of the axes stand on one another, wedge by
+  wedge, each starting where the one below it ends; the rings reach the top of the stack. A wind rose with its speeds stacked
+  outward is one `PolarBar` call for each speed class and `SetBarMode(BarMode.Stacked)`.
+
+- **Bars stack on both sides of zero.** A value at or above zero grows up from the sum of the layers at or above zero before
+  it and a value below zero grows down from the sum of those below zero, so a Likert scale (the answers that disagree below
+  the middle line, the answers that agree above it) is a stacked bar chart. A value that is not a number adds to neither
+  sum. A zero goes with the positives.
+
+- **Named layers in the legend.** A stack plot whose layers have names (`Labels`) lists each layer in the legend, in the colour
+  it is drawn in, and a click on any of them hides or shows the stack (every entry of it dims together). A stack with no
+  layer names keeps one entry under the series' name.
+
+- **A state timeline's legend entry wears its states.** One entry, the name of the series, with a stripe for each distinct state
+  in the order it first appears, in the fill the timeline draws that state with (its colour, and the hatch an explicit
+  pattern or a stated condition gives it).
+
+- **`Choropleth`, `Points`, ... are held to the shape of every verb.** At most four parameters besides the builder, a
+  `configure` callback last and optional, and the builder returned.
+
+### Changed
+
+- **A legend left at `LegendPosition.Best` stands where it covers the fewest marks.** `Best`, the position
+  `WithLegend()` gives and the one a legend has when nobody names another, used to be the upper right corner whatever the
+  data. It now tries ten places in matplotlib's order (upper right, upper left, lower left, lower right, right, centre
+  left, centre right, lower centre, upper centre, centre) and takes the first with the lowest score. A place scores the
+  vertices of the lines inside the legend's box, the centres of the points inside it, each bar or other box that overlaps
+  it and each path with a segment that crosses it, and the search stops at one that scores nothing. Every series counts,
+  a hidden one too, as in matplotlib, and so do the texts of the annotations at their points; Cartesian, polar and 3-D
+  axes look for room, and the legend of a map stands in the upper right as before. A position you name is kept. Under
+  `Theme.MatplotlibClassic` a legend that names none stays in the upper right corner, as matplotlib's classic style has it.
+  On the comparison against matplotlib's own pictures (162 tests) the classic charts with a legend keep their scores, the
+  line chart of the current style scores closer (structural similarity 0.908 to 0.921) and the indicator charts move by
+  about 0.01 either way, since the legend's box is a few pixels larger than matplotlib's.
+
+- **An annotation takes the theme's text size.** It was drawn at size 10 under every theme; its text now follows the
+  theme as tick labels do, and its `Font` still overrides it. The labels of a radar chart, the percentages of a pie, the
+  node names of a network graph, a funnel's labels and a bar's value labels follow the theme the same way. The start
+  names of a slope graph are centred on their markers at the size of its end names, where they stood about 3 px above
+  them in a smaller size.
+
+- **A bar's value label stands beyond the bar's end.** With `ShowLabels`, the value of a bar that rises stands above its
+  end and the value of a bar that falls stands below its end (to the right or to the left of it on a horizontal bar), 4 px
+  from the end, on an axis that runs forwards and on one that runs backwards. Before, the label stood 4 px above the end as
+  the screen draws it, whichever way the bar pointed: the label of a bar below zero stood over the zero line, and on an axis
+  that runs backwards every label stood inside its bar.
+
+- **A turned tick label has room beside the plot.** The layout measured a turned X tick label below the axis and a Y tick
+  label upright. It now measures an X tick label at the rotation it is drawn at beside the plot as well, and a Y tick label
+  at its own rotation: the first label of a crowded bottom axis, hung from its end, no longer passes the left edge of the
+  figure, nor the last the right edge. The left margin, the right margin or the gutter between two plots grows by what
+  stands out and the pad; whether labels turn depends on the width of the plot and the width on the margins, so the
+  layout settles them in at most four passes, until two measures agree to 0.01 px. A figure whose labels stay inside
+  its plot is laid out as before (measured over plot widths from 300 to 700 px in steps of 7: no label crosses the
+  figure's edge).
+
+- **A Y axis title stands the same distance from its tick labels on both sides.** For every Y axis, the primary
+  included, the gap between the ink of the title and the ink of the widest tick label is 4 px by default. Before, the
+  left title stood 12 px away and the right one 4 px at the theme's default size, and at 18 pt the right title touched
+  its labels. The right-hand title stays where 1.23.0 had it at the default sizes (within 1 px) and the left-hand title
+  comes about 8 px closer, because the old rule put every title at one fixed offset whichever side it stood on and
+  however large its font; the distance no longer depends on the font size, which is what kept a large right-hand title
+  off its labels (at 18 pt it stands 3 px further out). The title is placed by the ink a reader sees facing the labels,
+  the baseline on the left and the body of the text on the right. The 4 px is
+  what the library places; a browser draws the same SVG with the ink metrics of its own font, so what a reader sees
+  differs by a few pixels (measured in a browser on a chart of two axes at 13, 13.89 and 18 pt: 4 to 5 px on the left
+  and 3 to 4 px on the right; between stacked axes 3 to 4 px on the right and 1 to 5 px on the left, where the
+  descenders of a title such as "(gp)" dip into the gap).
+
+- **Stacked Y axes stand the same gap apart on both sides.** The gap from the outer edge of one axis' title to the tick
+  marks of the next is the container's 4 px on the left and on the right (it was 6 px on the left and 13 px on the
+  right).
+
+- **The layout reserves what the Y axes draw.** The left margin and the gutter between subplots hold the primary's tick
+  labels and title and every axis stacked past it, by the same rule the drawing places them by, in the default layout as
+  well as the tight one. A figure whose Y labels and title did not fit the default margin or gutter gets a wider one (a
+  two-column grid's 40 px gutter becomes 44 px to hold the right subplot's tick labels), and one that over-reserved gets
+  a narrower one (a right axis reserved 63 px where it drew 50). Four right axes reserve exactly their own width
+  (measured: the outermost title ends exactly the layout's 8 px right padding from the figure's edge).
+
+- **Every Y axis draws like the primary one.** A title with math markup (`$\alpha$ rate`) is drawn as math on every
+  axis, minor ticks appear on any axis whose minor ticks are switched on, an axis stacked past the first draws the ticks
+  of its own tick locator or tick spacing, and an axis on a log or symlog scale draws its series and its ticks on that
+  scale (decades written as 10^n), with the layout reserving room for the ticks it draws. Before, every axis past the
+  primary was drawn on a linear scale whatever its setting.
+
+- **An axis added to a chart with no right axis is the first right axis, not the second.** In 1.23.0,
+  `WithOutwardYAxis(AxisSide.Right, ...)` on a subplot with no right axis created an empty first right axis and then the
+  one it configured (two axes, the first empty); it now creates one, which is the first right axis. Code that relied on
+  the empty first slot, with series on `RightYAxes[1]` after one call, now finds them on `RightYAxes[0]`. The cap went
+  with it: the old verb no longer hands back the outermost axis once a side is full, it stacks another.
+
+- **The JSON keeps every Y axis.** A figure written with `ToJson` (and sent by the REST and SignalR updates and the MCP
+  server) keeps any number of axes on the right and on the left, each with its own label, limits, ticks, colour and
+  series. Before, the JSON could hold them, but a reader that met more than two right axes or more than one axis past the
+  primary on the left put the series of the further ones onto the last axis it had. The shape 1.23.0 wrote is frozen and
+  reads forever: a JSON a 1.23.0 release wrote reads exactly as before, every axis in its place, and saving it again gives
+  the same bytes, and a figure that stays within two right axes and one axis past the primary on the left writes the same
+  bytes 1.23.0 did, so 1.23.0 reads a file written by this version for such a figure unchanged. Axes past those two go in
+  two new fields, `rightYAxesOverflow` and `leftYAxesOverflow`, which are left out when empty. The gap set with
+  `WithYAxisTitleGap` is kept in a new `yAxisTitleGap` field, written only when it is not 4; a negative, NaN or infinite
+  value in a JSON is refused, as the verb refuses it.
+
+- **The numbering of the extra Y axes in a browser's gestures does not change.** `data-sec-left-0-*` is still the first
+  axis past the primary Y axis and `data-sec-right-0-*` the first right axis, in the drawing, in
+  `SecondaryAxisRange.SlotIndex` and in `IChartLayout.GetSecondaryDataRanges`, as 1.23.0 numbered them, and the primary Y
+  axis is still not addressable through it. An open browser tab with an older drawing keeps working after an upgrade
+  (measured: the attribute names and values of a four-axis figure drawn by the published 1.23.0 equal this version's).
+  The interaction names that say "secondary" keep their names for that reason.
+
+- **The MCP server checks every axis of a spec, and says which.** It used to check the first two. A chart type that does
+  not exist (`"type": "lien"`), a misspelled axis scale (`"scale": "lgo"`) or a 5000-character label was refused on the
+  primary axes and the secondary series but silently accepted on a left axis, on a right axis past the first, on a top-axis
+  series, on a Z axis and on the axes of the new overflow lists: the chart rendered without that series, or with a linear
+  axis, and the 512-character text limit did not apply there. Measured on 14 probe specs (a bad type, a bad scale or an
+  over-long label on each of those seats): all 14 were accepted before, all 14 are refused now. The refusal names the
+  place, for example `'lien' at $.subPlots[0].leftYAxes[1].series[0].type is not a chart type this server lists`; a tick
+  locator or formatter written out of order or in the wrong case on any Y axis reads the way it does on the primary; and
+  a `null` entry in any list of objects of a spec (series, Y axes, subplots, insets, annotations, reference lines, spans,
+  trendlines, levels, breaks) is refused with its path instead of surfacing as a bare `NullReferenceException`. A spec
+  whose only series sits on a Y axis other than the primary no longer fails as "nothing to draw". `describe_chart_schema`
+  lists the axis seats and series seats of a subplot (taken from the list the checks use, so the two cannot drift) and
+  explains `extraRightYAxes`, `rightYAxesOverflow`, `leftYAxes`, `leftYAxesOverflow` and `yAxisTitleGap`.
+
+- **A colour bar's ticks are round numbers, spread by its length.** The bar asks for as many ticks as fit along its length (a
+  tick for every two to three lines of the tick font, from 2 to 9), at round values, all labelled in one number format, and
+  a tick stands where its value is on the gradient. A bar for 0 to 11 now reads 0, 2, ..., 10 and the bar of a figure reads the
+  same as the bar of an axes. The layout reserves room for the widest label the bar can carry, and no longer for a label
+  of four decimals. The colour bar reads the series that has values: a map's ocean or land, which is a plain fill, backs
+  none.
+
+- **A polar axes has one radial scale.** The rings stand at round numbers (a tick locator over the radius, not fifths of 1.1
+  times the largest radius), are labelled in one number format (or by the axis' own formatter) at 22.5 degrees, and the
+  lines, the scatter, the bars and the heatmap all read that scale, so a ring labelled 10 stands where a radius of 10 is
+  drawn, whichever kind draws it. The scale reaches 5 % past the farthest radius, or exactly the limit the axes was given; a
+  radius below zero is left out. The rings of every polar chart move.
+
+- **Y axes past the primary tick as densely as the primary.** All of them use the one rule of the primary axis, which asks
+  for 8 ticks from a plot 240 px high and fewer below that.
+
+- **The density curve reaches past the sample.** A `Kde` is drawn over the sample from three bandwidths below the smallest
+  value to three above the largest, so the tails fall to zero inside the picture, and its range is the curve's.
+
+- **A filled contour fills the grid in bands.** `ContourSeries` with `Filled` and `Contourf` fill the bands between the levels,
+  from the lowest value to the highest, by one code: the fill stands where the grid stands, follows the axes' range and the
+  limits you set, and its edges are the lines. The backdrop that did not follow the axes' range (the known limitation listed
+  under 1.20.0) is gone, and it concerned `Contourf` as well, whose lowest band covered the whole plot rectangle and now
+  covers the grid, so a grid cut by narrower limits no longer paints outside it.
+
+- **Series that draw without axes say so.** A stat tile, a donut, a funnel, a gauge, a progress bar, a bullet graph, a
+  sparkline, a Sankey, a clustermap and a pair grid draw no grid, ticks or frame of their own accord, as a radar, a pie, a
+  treemap, a table and a tree grid already did, whether or not `HideAllAxes()` was called (it still works). The axes asks each
+  series (`DrawsWithoutAxes`) instead of keeping a list of types, and a test holds the answers to a measurement: a series
+  that draws the same marks whatever the limits are, or one that moves with them.
+
+- **A map keeps its holes and its frame.** A country with a hole (Lesotho inside South Africa) is one path with the hole left
+  unfilled, where its ring used to be filled as a country of its own on top. The map's range is the projection's bounds
+  exactly, so a mark placed in the projected coordinates by another series stands on the pixel the polygon of the same
+  coordinates is drawn at (it stood about 19 px off). `Land` and `Ocean` are `<path>` elements in the SVG now, not
+  `<polygon>` elements. The package no longer embeds `lakes.geojson`, a file nothing read.
+
+- **A stack plot's layers hold their own colours.** A series drawn after a stack of three layers wears the fourth colour of the
+  cycle, as matplotlib's does, and not the second, which a layer already wore; a pie, a donut and a funnel take one slot for
+  each part in the same way, so a pie drawn after a line no longer repeats the line's colour.
+
+### Fixed
+
+- **The left Y axis title is no longer clipped at the figure's left edge.** The layout charged the title as if it stood on
+  the baseline, so its ink started outside the figure (measured on a 1215 x 330 operations chart: the title's ink started
+  3 px outside the figure, and with an 18 pt theme font it vanished entirely; it now starts 4 to 5 px inside).
+
+- **A line on a left-hand Y axis keeps its name.** A left-axis line that asked for an end label (`WithDirectLabel()`)
+  lost its name altogether (the legend dropped it and no label was drawn). It now gets one, in the same column of end
+  labels right of the plot as every other line's, at the height its own axis puts the end of the line at.
+
+- **A labelled series on the top X axis appears in the legend.** It had no entry at all; it is listed now, after the
+  series of the Y axes.
+
+- **A pointer event that cannot be applied no longer ends a live chart session.** A chart served over SignalR applies every
+  zoom, pan, reset and legend click on one reader per chart. One event that threw (a subplot index that no longer exists
+  after the server's figure changed, a crafted index, a failing application-defined event or a failing handler) ended that
+  reader for good: the chart stopped answering, the hub kept accepting events and nothing reported an error. Now only that
+  event is lost; the next ones are applied and published as usual. Events for a subplot the figure does not have (a
+  negative index, one past the last subplot, any index on a figure with no subplots) are dropped instead of throwing, for
+  every event the library ships: zoom, reset, rectangle zoom, pan, legend toggle, 3-D rotate and the add and remove
+  drawing-tool events. A subclass of `FigureInteractionEvent` keeps `TargetAxes` as it was and gains the protected
+  `TryTargetAxes(figure, out axes)`, which answers `false` instead of throwing. Cancellation still ends the session, as
+  shutting it down always did.
+
+- **A series that cannot be drawn is refused when it is built.** Writing every shipped series to JSON, damaging each array
+  (one place short, empty, absent, ragged, turned) and reading it back found 88 figures that were read and then threw while
+  they were drawn (the 3-D series, wind barbs, polar series, a pseudocolour mesh, triangle contours and colours, a Sankey, a
+  stream plot, a surface, a wireframe), and a 2-D histogram of zero or fewer bins. They are refused with an
+  `ArgumentException` in the library's wording ("Array lengths must match. Got 3 and 2."; for a grid, "The values have 2 rows
+  and 3 columns; the axes give 3 y and 3 x values."), by the verb that builds them, so a figure that reads back from JSON draws.
+  A mesh has one edge more than it has cells, a Sankey link names nodes that exist, `StackPlot` layers hold a value for every x,
+  and a `Histogram2D` has at least one bin along each axis. The MCP server asks the library whether a series fits and names the
+  place it stands (for example `$.subPlots[0].series[1]`), and no longer carries a rule of its own: a stacked area (x values and
+  layers, no y values) is accepted, where it was refused, and a signal given x values alone no longer crashes it. A residual
+  plot keeps its tolerance (a mismatch is reported through the chart diagnostics and skipped) and now holds it for more
+  y values than x values too, which threw out of the render.
+
+- **An axis with limits as close as the spacing of doubles no longer exhausts memory.** The tick locator stopped only when its
+  step reached zero; it now returns the distinct end points when the step falls below the spacing of doubles.
+
+- **The MCP server accepts a stacked-area spec.** And the same spec a model writes for a signal with only `xData` is read as
+  the empty signal it is.
+
+### Deprecated
+
+Every verb, builder, accessor and type that put a second, third or fourth Y axis on a subplot before the container is now
+marked obsolete with a compiler warning, not an error: code written against 1.23.0 and earlier still compiles, draws the
+same SVG and writes the same JSON, and each warning names what to use instead. Nothing was removed, so the package API
+check against 1.23.0 reports no break. Old member, then what to use:
+
+- `AxesBuilder.WithSecondaryYAxis(right => ...)` → `WithAddRightYAxis(right => ...)`. The old verb keeps its meaning: it
+  configures the first right-hand axis (creating it when there is none) and never stacks, so calling it twice configures
+  the same axis, where the new verb adds one more right-hand axis on every call.
+- `AxesBuilder.WithOutwardYAxis(AxisSide.Right, ...)` and `(AxisSide.Left, ...)` → `WithAddRightYAxis(...)` and
+  `WithAddLeftYAxis(...)`.
+- `SecondaryAxisBuilder` and `OutwardYAxisBuilder` → `YAxisSlotBuilder`, which has every verb of both and `SetYAxisColor`
+  on every axis.
+- `Axes.SecondaryYAxis` → `Axes.YAxes.Right[0].Axis`; `Axes.SecondarySeries` → `Axes.YAxes.Right[0].Series`.
+- `Axes.TwinX()` → `Axes.YAxes.Right.FirstOrAdd()`, which returns the first right-hand axis and creates it when there is
+  none; `Axes.YAxes.Right.Add()` stacks another.
+- `Axes.AddSecondarySeries(series)` → `Axes.YAxes.Right.FirstOrAdd().AddSeries(series)`.
+- `Axes.AddOutwardYAxis(AxisSide.Right)` and `(AxisSide.Left)` → `Axes.YAxes.Right.Add()` and `Axes.YAxes.Left.Add()`.
+- `Axes.RightYAxes` → `Axes.YAxes.Right` (the same axes in the same order); `Axes.LeftYAxes` → `Axes.YAxes.Left`, whose
+  slot 0 is the primary Y axis, so the axes `LeftYAxes` holds start at index 1 there.
+- `SecondaryAxisSlot` → `YAxisSlot`, the slot the container holds; the old type is a value view of it. One difference: a
+  `default(SecondaryAxisSlot)`, a value nobody got from the library, used to answer null for `Axis` and `Series` and now
+  throws `NullReferenceException`, because the view has no slot. Values from `RightYAxes`, `LeftYAxes` or
+  `AddOutwardYAxis` behave as before.
+- The extension verbs `PlotSecondary(x, y)` and `ScatterSecondary(x, y)` → `WithAddRightYAxis(right => right.Plot(x, y))`
+  and `right.Scatter(x, y)`, or `Axes.YAxes.Right.FirstOrAdd().AddSeries(...)` when you need the series back.
+
+### Upgrading
+
+- **An older library reading a file this version wrote drops what is new.** A 1.23.0 core ignores `offsetX`, `offsetY`,
+  `verticalAlignment` and `avoidOverlap` of an annotation and `defaultLegendPosition` of a theme, and draws the chart
+  without them; an older MCP server refuses a spec that carries them, as it refuses any field it does not list.
+- **From 1.23.0 or earlier, nothing breaks.** The obsolete members above compile, draw and write what they always did.
+  The visible changes are the ones under Changed: Y axis titles move to the 4 px gap (a left title about 8 px closer to its
+  tick labels, a right title where it was, at the default size), the layout margins follow what is drawn,
+  and axes past the first on a side draw with their own scale and ticks. The texts move too: a legend left at `Best`
+  may stand elsewhere, an annotation is drawn at the theme's size, and the label of a bar below zero is under its end.
+- **An older library reading a file this version wrote keeps the first axes and drops the rest.** A 1.23.0 reader keeps
+  the first right axis, the next one and one axis past the primary on the left; the axes past those, and their series,
+  are in the overflow fields it does not read, so it leaves them out and draws exactly what this version would draw of that
+  smaller figure (measured with the published 1.23.0 reading a figure with four right and three left axes past the
+  primary: right axes R0 and R1 and left axis L1, the drawing identical to the same figure built with only those three).
+  Nothing is merged onto a wrong axis.
+- **Old JSON reads as before, with one difference for maps.** Every figure written by 1.23.0 or earlier reads as it did; a map
+  in it is dropped (as it always was, with the unknown-series diagnostic), and a map written by this version reads back whole.
+  An older core reading a figure with a map drops `packageData` silently and then the map, and an older MCP server refuses
+  the spec for the field it does not list. A process that only reads JSON calls `GeoPolygonSeries.RegisterReader()` once.
+- **Pictures move.** Colour bars, polar charts, the density curve, filled contours, stacks with negative values, a stack plot
+  followed by another series, the legend of a state timeline, the stat tile, donut, funnel, gauge, progress bar, bullet graph,
+  sparkline, Sankey, clustermap and pair grid (which lose a grid, ticks and a frame they were drawn with), and every map.
+- **`FromJson` and the series verbs refuse more.** Input that used to read and then throw while the chart was drawn now throws
+  an `ArgumentException` when it is built or read, so a caller that caught the draw-time exception catches this one at the
+  read instead.
+- **The 1.23.0 entry below is a record and says what that release did under the names it had.** It describes
+  `WithOutwardYAxis`, `Axes.RightYAxes` and `Axes.LeftYAxes` and "four scales total, two to a side" as that release
+  shipped them; the verb and the lists are obsolete now (see Deprecated) and the limit of four is gone.
+
 ## [1.23.0]
 
 The technical indicators that read a candle's open, high, low, close and volume used to take those as separate
@@ -1512,7 +1899,7 @@ the view first drawn.
   DTO or a renderer's point list, but it is no longer the way to compute a value about the window. Measured on a
   10 000-point streaming series asked for its range 20 000 times: **320 097 bytes per call as a copy, 33 bytes
   as a walk**. `Min()`, `Max()` and all three streaming `ComputeDataRange` implementations now use the walk. The
-  design follows Ait.Core, where every read of its own ring is a `foreach` over the slots that answers the
+  design follows a sibling ring buffer, where every read of its own ring is a `foreach` over the slots that answers the
   question and allocates nothing.
 - **`RingBufferExtensions`** adds `Min()` and `Max()` over any `INumber<T>` ring (so an `int` ring gets them
   too), folding under one read lock without allocating, plus `MinOrNaN()` / `MaxOrNaN()` for the `double` ring
@@ -2979,8 +3366,7 @@ NuGet.org on every green merge to `main`, and it requires the `NUGET_API_KEY` se
 > in compiler-generated lambda closures (`<>c__DisplayClass`, `<>c`, async state machines) and in
 > the giant `AxesRenderer.RenderColorBar` and `CartesianAxesRenderer` broken-axis blocks, which
 > need production-code refactors (split into helpers) before strict mode becomes feasible. The
-> production refactor candidates are listed in
-> `C:\Users\hpgan\.claude\plans\federated-meandering-hearth.md` for explicit user opt-in.
+> production refactor candidates were listed in a private plan for explicit maintainer opt-in.
 
 - **Ω.1 — `SeriesRegistry` per-series fully-populated round-trips** (~26 facts).
   `Tst/MatPlotLibNet/Serialization/ChartSerializerRoundTripTests.cs` gains one fact for every

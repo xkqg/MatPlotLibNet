@@ -167,6 +167,53 @@ public class ChartSchemaDescriptionTests
         Assert.Contains(explanation, line);
     }
 
+    /// <summary>The reader walks every seat of a subplot, so the schema names every one: the heading of the axis fields and
+    /// the heading of the series fields come off the same seat shape the reader walks.</summary>
+    [Fact]
+    public void TheSchema_NamesEverySeatOfASubplot_AxesAndSeriesAlike()
+    {
+        string schema = Description.Describe(null);
+
+        Assert.All(AxesSeatShape.OfSubplot.Names, seat => Assert.Contains($".{seat.Path}", schema));
+    }
+
+    [Fact]
+    public void TheSchema_ListsTheFieldsOfAYAxisSlot_UnderTheListsThatHoldThem()
+    {
+        string schema = Description.Describe(null);
+
+        int at = schema.IndexOf("Y axis slot fields", StringComparison.Ordinal);
+        Assert.True(at >= 0, "'Y axis slot fields' is not in the schema.");
+        string[] section = schema[at..].Split(Environment.NewLine);
+        Assert.All(AxesSeatShape.OfSubplot.SlotLists, list => Assert.Contains($".{list}", section[0]));
+        Assert.Contains(section.Skip(1).Take(2), line => line.Trim() == "axis: object");
+        Assert.Contains(section.Skip(1).Take(2), line => line.Trim().StartsWith("series: object[]", StringComparison.Ordinal));
+    }
+
+    /// <summary>The lists of Y axes and the gap between their titles carry little in their names: the schema says what an
+    /// entry is, which end of the plot it stands at, and which list continues which.</summary>
+    [Theory]
+    [InlineData("extraRightYAxes:", "secondaryYAxis")]
+    [InlineData("rightYAxesOverflow:", "extraRightYAxes")]
+    [InlineData("leftYAxes:", "yAxis")]
+    [InlineData("leftYAxesOverflow:", "continues")]
+    [InlineData("yAxisTitleGap:", "pixels")]
+    public void AFieldOfTheYAxisLists_IsExplainedWhereItIsListed(string field, string explanation)
+    {
+        string schema = Description.Describe(null);
+
+        var line = schema.Split(Environment.NewLine).Single(l => l.TrimStart().StartsWith(field, StringComparison.Ordinal));
+        Assert.Contains(explanation, line);
+    }
+
+    [Fact]
+    public void TheDescriptionOfOneChartType_NamesEverySeatASeriesMayStandAt()
+    {
+        string schema = Description.Describe("line");
+
+        Assert.Contains("leftYAxes[].series[]", schema);
+    }
+
     /// <summary>The normaliser is not a public member of the series record, so its line is written by hand: one chart
     /// type's description still names it.</summary>
     [Fact]

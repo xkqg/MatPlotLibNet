@@ -13,20 +13,27 @@ internal sealed class PolarBarSeriesRenderer : SeriesRenderer<PolarBarSeries>
     public PolarBarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(PolarBarSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(PolarBarSeries series)
     {
         var baseColor = ResolveColor(series.Color);
         var fillColor = ApplyAlpha(baseColor, series.Alpha);
-        var bounds = Area.PlotBounds;
-        double rMax = series.R.DrawableRange() is { } radii ? radii.Hi * 1.1 : 1;
-        var transform = new PolarTransform(bounds, rMax);
+        var transform = Context.PolarTransformFor(series);
+
+        // Stacked bars stand on the wedges of the same index before them (the scale carries where), the others on the centre.
+        var feet = Context.RadialScale?.FootOf(series);
 
         double halfWidth = series.BarWidth / 2;
 
         for (int i = 0; i < series.R.Length; i++)
         {
             double theta = series.Theta[i];
+            double inner = feet is not null && i < feet.Length ? feet[i] : 0;
             double r = series.R[i];
+            if (!double.IsFinite(r) || r < 0) continue;
+            r += inner;
 
             // Draw wedge as a path: inner arc -> outer arc -> close
             int segments = 12;
@@ -43,7 +50,7 @@ internal sealed class PolarBarSeriesRenderer : SeriesRenderer<PolarBarSeries>
             for (int s = segments; s >= 0; s--)
             {
                 double a = theta - halfWidth + (series.BarWidth * s / segments);
-                pts.Add(transform.PolarToPixel(0, a));
+                pts.Add(transform.PolarToPixel(inner, a));
             }
 
             // A bar at a radius or an angle that cannot be placed is skipped whole, as a cartesian bar is.

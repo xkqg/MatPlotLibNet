@@ -42,6 +42,9 @@ public readonly record struct TreeGridRow(string Label, IReadOnlyList<string> Ce
 /// </summary>
 public sealed class TreeGridSeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     /// <summary>The rows, in the order they are drawn — the caller owns the tree's flattening, because only the
     /// caller knows which subtrees are open.</summary>
     public IReadOnlyList<TreeGridRow> Rows { get; }

@@ -204,8 +204,8 @@ public static class XYAxesExtensions
         /// <c>SetYTickLocator(new AutoLocator())</c>; the numbers then name positions, and a thickness is the distance between two
         /// of them. The verb sets no axis limits, and a limit of your own stays yours. The X axis is left to the data, its ticks
         /// too: for a handful of whole-number positions such as years, give it <c>SetXTickLocator(new MultipleLocator(1))</c>.</para>
-        /// <para>The stream fills the plot, so the legend, which stands in the upper right corner by default, covers part of it:
-        /// put it beside the plot with <c>WithLegend(LegendPosition.OutsideRight)</c> under <c>TightLayout()</c>.</para>
+        /// <para>The stream fills the plot, so the legend, which stands where it covers the fewest marks by default, covers part of
+        /// it all the same: put it beside the plot with <c>WithLegend(LegendPosition.OutsideRight)</c> under <c>TightLayout()</c>.</para>
         /// <para>A value is a thickness: it is finite and 0 or more. A missing value (NaN) leaves a gap, never a bridge. With the
         /// three floating baselines the middle of the stream cannot be placed without it, so every layer has a gap at that x
         /// position; with <see cref="StackedBaseline.Zero"/> only that layer and the layers stacked on it do.</para>

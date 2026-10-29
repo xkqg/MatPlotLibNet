@@ -18,8 +18,7 @@ internal sealed class PolarHeatmapSeriesRenderer : SeriesRenderer<PolarHeatmapSe
     /// <inheritdoc />
     public override void Render(PolarHeatmapSeries series)
     {
-        var bounds = Area.PlotBounds;
-        var transform = new PolarTransform(bounds, series.RMax);
+        var transform = Context.PolarTransformFor(series);
 
         var (min, max) = series.GetColorBarRange();
         var cmap = series.GetColorMapOrDefault(ColorMaps.Viridis);

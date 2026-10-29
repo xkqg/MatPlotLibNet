@@ -55,7 +55,7 @@ public class ChartSerializerUnknownDiscriminatorDiagnosticsTests
     /// AxesSerializationExtensions.CreateOnSecondarySeat's own "unknown" fallback, the branch the kind-named test
     /// above does not reach.</summary>
     [Fact]
-    public void FromJson_SecondarySeriesWithNoTypeField_EmitsDiagnosticNamingItUnknown()
+    public void FromJson_ARightSlotZeroSeriesWithNoTypeField_EmitsDiagnosticNamingItUnknown()
     {
         const string json = """
         {
@@ -74,7 +74,7 @@ public class ChartSerializerUnknownDiscriminatorDiagnosticsTests
         {
             var fig = S.FromJson(json);
 
-            Assert.Empty(fig.SubPlots[0].SecondarySeries);
+            Assert.Empty(fig.SubPlots[0].YAxes.Right[0].Series);
             Assert.NotNull(received);
             Assert.Contains("'unknown'", received!.Value.Message);
         }
@@ -106,7 +106,7 @@ public class ChartSerializerUnknownDiscriminatorDiagnosticsTests
         {
             var fig = S.FromJson(json);
 
-            Assert.Empty(fig.SubPlots[0].SecondarySeries);
+            Assert.Empty(fig.SubPlots[0].YAxes.Right[0].Series);
             Assert.NotNull(received);
             Assert.Equal("ChartSerializer", received!.Value.Source);
             Assert.Contains("__bogus_kind__", received.Value.Message);

@@ -48,6 +48,15 @@ public class MirroredTickLayoutTests
     private static double Widest(RecordingRenderContext ctx, IEnumerable<dynamic> labels) =>
         labels.Max(a => ctx.MeasureText((string)a.text, (Font)a.font).Width);
 
+    /// <summary>The band the primary Y tick labels take left of the spine as they are drawn: the mark, the pad and the
+    /// widest label.</summary>
+    private static double DrawnLeftBand(Axes axes)
+    {
+        var ctx = Draw(axes);
+        var ticks = axes.YAxis.MajorTicks;
+        return ticks.Length + ticks.Pad + Widest(ctx, LeftLabels(ctx));
+    }
+
     // ── the rule ────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -149,10 +158,10 @@ public class MirroredTickLayoutTests
     }
 
     [Fact]
-    public void NoMirroredTicks_MeasureNoTopRightOrLeftBand()
+    public void NoMirroredTicks_MeasureNoTopOrRightBand_AndTheDrawnLeftBand()
     {
-        // Nothing is drawn past the top or the right spine, and the numbers on the left are the layout's estimate; the
-        // X tick labels below the bottom spine are measured (the bottom band).
+        // Nothing is drawn past the top or the right spine; the numbers on the left are measured as they are drawn (the
+        // left band, the primary Y axis' slot in the container), and so are the X tick labels below the bottom spine.
         var axes = new Axes();
         axes.Plot(X, [1.0, 2.0, 3.0]);
 
@@ -160,7 +169,7 @@ public class MirroredTickLayoutTests
 
         Assert.Equal(0, bands.Top);
         Assert.Equal(0, bands.Right);
-        Assert.Equal(0, bands.Left);
+        Assert.Equal(DrawnLeftBand(axes), bands.Left, 6);
         Assert.Equal(0, bands.BottomTitle);
         Assert.True(bands.Bottom > 0);
     }
@@ -177,15 +186,74 @@ public class MirroredTickLayoutTests
         Assert.Empty(RightLabels(Draw(axes)));
     }
 
-    [Fact]
-    public void AxisLessSeries_DrawNoTicks_AndMeasureNone()
+    /// <summary>The series that draw without axes (<c>ChartSeries.DrawsWithoutAxes</c>), one verb each.</summary>
+    public static TheoryData<string> AxisLessKinds =>
+        ["pie", "donut", "radar", "funnel", "gauge", "progressBar", "statTile", "sparkline"];
+
+    /// <summary>One series of the kind on the axes, the axes' decoration left as it is, or with every axis hidden by the
+    /// verb that hides them.</summary>
+    private static void AddAxisLess(AxesBuilder ax, string kind, bool hideAllAxes = false)
     {
-        var axes = new Axes();
-        axes.Pie([1.0, 2.0, 3.0]);
+        switch (kind)
+        {
+            case "pie": ax.Pie([1.0, 2.0, 3.0]); break;
+            case "donut": ax.Donut([1.0, 2.0, 3.0]); break;
+            case "radar": ax.Radar(["a", "b", "c"], [1.0, 2.0, 3.0]); break;
+            case "funnel": ax.Funnel(["a", "b"], [3.0, 2.0]); break;
+            case "gauge": ax.Gauge(0.4); break;
+            case "progressBar": ax.ProgressBar(0.4); break;
+            case "statTile": ax.StatTile(42); break;
+            case "sparkline": ax.Sparkline([1.0, 3.0, 2.0]); break;
+            default: throw new ArgumentOutOfRangeException(nameof(kind), kind, "not a kind of this table");
+        }
+
+        if (hideAllAxes) ax.HideAllAxes();
+    }
+
+    private static Axes AxisLessAxes(string kind) =>
+        Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => AddAxisLess(ax, kind)).Build().SubPlots[0];
+
+    [Theory]
+    [MemberData(nameof(AxisLessKinds))]
+    public void AxisLessSeries_DrawNoTicks_AndMeasureNone(string kind)
+    {
+        var axes = AxisLessAxes(kind);
         axes.XAxis.MajorTicks = axes.XAxis.MajorTicks with { Mirror = true };
         axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Mirror = true };
 
         Assert.Equal(default, Measure(axes));
+    }
+
+    /// <summary>The picture of an axis-less series is the picture with every axis hidden: no grid, no ticks, no frame, no band
+    /// reserved for them, whether or not the author asked.</summary>
+    [Theory]
+    [MemberData(nameof(AxisLessKinds))]
+    public void AxisLessSeries_DrawTheSameAsWithEveryAxisHidden(string kind)
+    {
+        string Svg(bool hide) =>
+            Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => AddAxisLess(ax, kind, hide)).ToSvg();
+
+        Assert.Equal(Svg(hide: true), Svg(hide: false));
+    }
+
+    [Fact]
+    public void ALineBesideAStatTile_IsNotAxisLess_ItNeedsTheAxes()
+    {
+        var axes = new Axes();
+        axes.Plot(X, [1.0, 2.0, 3.0]);
+        axes.StatTile(42);
+
+        Assert.NotEqual(default, Measure(axes));
+    }
+
+    [Fact]
+    public void AnAxesWithNoSeries_IsNotAxisLess()
+    {
+        var axes = new Axes();
+        axes.XAxis.MajorTicks = axes.XAxis.MajorTicks with { Mirror = true };
+        axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Mirror = true };
+
+        Assert.NotEqual(default, Measure(axes));
     }
 
     [Fact]
@@ -258,12 +326,12 @@ public class MirroredTickLayoutTests
     // ── a drawn secondary axis owns its edge ────────────────────────────────────
 
     [Fact]
-    public void ADrawnSecondaryYAxis_OwnsTheRightEdge_TheMirroredLabelsGiveWay()
+    public void ADrawnRightYAxis_OwnsTheRightEdge_TheMirroredLabelsGiveWay()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [0.0, 0.5, 1.0])
             .WithYTicksMirrored()
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [1_000.0, 3_000.0, 5_000.0]))).Build();
+            .WithAddRightYAxis(y2 => y2.Plot(X, [1_000.0, 3_000.0, 5_000.0]))).Build();
         var axes = figure.SubPlots[0];
 
         Assert.Equal(0, Measure(axes).Right);
@@ -275,12 +343,12 @@ public class MirroredTickLayoutTests
     }
 
     [Fact]
-    public void ASecondaryYAxisWithoutSeries_DrawsNothing_SoTheMirroredLabelsStay()
+    public void ARightYAxisWithoutSeries_DrawsNothing_SoTheMirroredLabelsStay()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [0.0, 0.5, 1.0])
             .WithYTicksMirrored()
-            .WithSecondaryYAxis(_ => { })).Build();
+            .WithAddRightYAxis(_ => { })).Build();
         var axes = figure.SubPlots[0];
 
         Assert.True(Measure(axes).Right > 0);
@@ -677,13 +745,16 @@ public class MirroredTickLayoutTests
         Assert.Equal(length + pad + Widest(ctx, labels), measured.Left, 6);
     }
 
+    /// <summary>The numbers of a numeric Y axis are measured as they are drawn, as category names are: the primary Y axis
+    /// is left slot 0 of the container, and the layout reserves the band it draws, not an estimate.</summary>
     [Fact]
-    public void ANumericYAxis_MeasuresNoLeftBand_TheLayoutKeepsItsEstimate()
+    public void ANumericYAxis_MeasuresTheLeftBandItDraws()
     {
         var vertical = new Axes();
-        vertical.Bar(["North", "South-east coastal region", "West"], [1.0, 2.0, 3.0]);
+        vertical.Bar(["North", "South-east coastal region", "West"], [1.0, 2.0, 30_000.0]);
 
-        Assert.Equal(0, Measure(vertical).Left);
+        Assert.Equal(DrawnLeftBand(vertical), Measure(vertical).Left, 6);
+        Assert.True(Measure(vertical).Left > vertical.YAxis.MajorTicks.Length + vertical.YAxis.MajorTicks.Pad);
     }
 
     [Fact]
@@ -698,11 +769,11 @@ public class MirroredTickLayoutTests
     [Fact]
     public void ALocatorOnTheYAxis_TakesThePlaceOfTheCategoryNames()
     {
-        // The axis' own locator wins, as it does on X: its ticks carry numbers, and the layout keeps its estimate.
+        // The axis' own locator wins, as it does on X: its ticks carry numbers, measured as they are drawn.
         var axes = HorizontalBars();
         axes.YAxis.TickLocator = new MatPlotLibNet.Rendering.TickLocators.MultipleLocator(1);
 
-        Assert.Equal(0, Measure(axes).Left);
+        Assert.Equal(DrawnLeftBand(axes), Measure(axes).Left, 6);
         Assert.DoesNotContain(LeftLabels(Draw(axes)), a => (string)a.text == "West");
     }
 
@@ -713,7 +784,7 @@ public class MirroredTickLayoutTests
         var axes = HorizontalBars();
         axes.YAxis.Scale = AxisScale.Log;
 
-        Assert.Equal(0, Measure(axes).Left);
+        Assert.Equal(DrawnLeftBand(axes), Measure(axes).Left, 6);
         Assert.DoesNotContain(LeftLabels(Draw(axes)), a => (string)a.text == "West");
     }
 
@@ -761,7 +832,10 @@ public class MirroredTickLayoutTests
         Assert.True(band + ConstrainedLayoutEngine.PadLeft > resolved,
             $"precondition: the band ({band:F2}) and the pad exceed the default left margin ({resolved:F2})");
         Assert.Equal(band + ConstrainedLayoutEngine.PadLeft, PlotAreas(named)[0].X, 6);
-        Assert.Equal(0, Bands(LeftColumn(false)).Left);
+        // The numbers of upright bars are measured too, and fit the resolved margin, so it is not widened.
+        double numbers = Bands(LeftColumn(false)).Left;
+        Assert.True(numbers > 0 && numbers + ConstrainedLayoutEngine.PadLeft < resolved,
+            $"the numbers' band ({numbers:F2}) and the pad fit the resolved margin ({resolved:F2})");
     }
 
     [Fact]
@@ -774,6 +848,49 @@ public class MirroredTickLayoutTests
 
         Assert.True(Bands(figure).Left > 0);
         Assert.Equal(PlotAreas(LeftColumn(false))[0].X, PlotAreas(figure)[0].X, 6);
+    }
+
+    private static Figure HiddenAxesTiles(int columns)
+    {
+        // A mark that fills its figure edge to edge (the package icon) asks for no margin and no gap and hides its axes.
+        var figure = Plt.Create().WithSize(128 * columns, 128)
+            .WithSubPlotSpacing(s => s with
+            {
+                MarginLeft = 0, MarginRight = 0, MarginTop = 0, MarginBottom = 0, HorizontalGap = 0, VerticalGap = 0,
+            });
+        for (int column = 1; column <= columns; column++)
+            figure = figure.AddSubPlot(1, columns, column, ax => ax.Plot(X, [1.0, 2.0, 3.0]).HideAllAxes());
+        return figure.Build();
+    }
+
+    [Fact]
+    public void DefaultLayout_NothingDrawnLeftOfTheSpine_KeepsTheMarginTheCallerAsked()
+    {
+        // The pad that holds the outermost ink off the figure's edge has no ink to hold off when the Y axis draws no tick
+        // label and no title: the left margin stays the 0 the caller asked for, as it was before the container.
+        Assert.Equal(0, PlotAreas(HiddenAxesTiles(1))[0].X, 6);
+    }
+
+    [Fact]
+    public void DefaultLayout_NothingDrawnLeftOfAnInteriorSpine_KeepsTheGutterTheCallerAsked()
+    {
+        var areas = PlotAreas(HiddenAxesTiles(2));
+
+        Assert.Equal(areas[0].X + areas[0].Width, areas[1].X, 6);
+    }
+
+    [Fact]
+    public void DefaultLayout_ATitleOnAYAxisWithHiddenTicks_StillWidensTheLeftMargin()
+    {
+        // The skip is for nothing drawn: a title stands at its fixed place without tick labels, and it is reserved.
+        var titled = Plt.Create().WithSize(128, 128)
+            .WithSubPlotSpacing(s => s with { MarginLeft = 0 })
+            .AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0]).SetYLabel("Rate"))
+            .Build();
+        titled.SubPlots[0].YAxis.MajorTicks = titled.SubPlots[0].YAxis.MajorTicks with { Visible = false };
+
+        Assert.True(PlotAreas(titled)[0].X > ConstrainedLayoutEngine.PadLeft,
+            $"a title with hidden ticks left the margin at {PlotAreas(titled)[0].X:F2}");
     }
 
     // ── category names on the X axis: the bottom band ───────────────────────────────
@@ -804,7 +921,8 @@ public class MirroredTickLayoutTests
         var labels = BottomLabels(ctx);
         Assert.Equal(["North", "South", "West"], labels.Select(a => (string)a.text));
         Assert.Equal(length + pad + Tallest(ctx, labels), measured.Bottom, 6);
-        Assert.Equal(0, measured.Left);
+        // The numbers on the Y axis are measured as they are drawn; the names below take no part in that band.
+        Assert.Equal(DrawnLeftBand(axes), measured.Left, 6);
     }
 
     /// <summary>The X tick labels of a numeric axis (numbers, dates, the values of bars that lie down) are measured by the

@@ -69,7 +69,7 @@ public class KaplanMeierTests
         Assert.Equal(["Worked", null, null, "Second", null, null], axes.Series.Select(s => s.Label));
         Assert.All(axes.Series.OfType<LineSeries>(), s => Assert.Null(s.Marker));
         Assert.All(axes.Series.OfType<ScatterSeries>(), s => Assert.Equal(MarkerStyle.Plus, s.Marker));
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.ReferenceLines);
         Assert.Empty(axes.Annotations);
         Assert.Empty(axes.Trendlines);

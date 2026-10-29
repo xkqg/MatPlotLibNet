@@ -69,8 +69,13 @@ The levels you name are the levels drawn, ascending and each once; `Levels` is i
 value. A level outside the range of the grid crosses no cell, so it draws no line, and a level that is not a number
 is left out. A filled contour (`Contourf`) takes `LevelValues` too: it fills one band between each pair of
 neighbouring levels and runs its colour map and colour bar from the first level to the last, whatever range the
-grid spans. Its lowest band is painted under the whole plot, so where the grid lies below the first level you name,
-the plot shows that band's colour; matplotlib leaves that area empty unless asked to extend the colours.
+grid spans. Its lowest band is painted over the whole grid, so where the grid's values lie below the first level you name,
+the grid shows that band's colour; matplotlib leaves that area empty unless asked to extend the colours. Outside the grid
+nothing is painted.
+
+A filled contour (`Contourf`, and a `Contour` with `Filled` set) fills the bands over the points of the grid by one rule, with
+the level lines as the edges of the bands. The fill follows the axes' range and the limits you set, so a grid cut to a window
+by `SetXLim` and `SetYLim` shows the same bands over that window, and a cell with a value that cannot be drawn is left empty.
 
 ## Contour with level count
 

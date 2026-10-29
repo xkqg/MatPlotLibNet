@@ -13,6 +13,9 @@ internal sealed class Stem3DSeriesRenderer : SeriesRenderer<Stem3DSeries>
     public Stem3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(Stem3DSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(Stem3DSeries series)
     {
         if (series.X.Length == 0) return;

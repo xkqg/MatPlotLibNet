@@ -11,6 +11,12 @@ namespace MatPlotLibNet.Models.Series;
 /// <remarks>Designed for inline dashboard use. Renders only the line within the full plot bounds.</remarks>
 public sealed class SparklineSeries : ChartSeries, IHasColor
 {
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.SolidLine, LineWidth);
+
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     public double[] Values { get; }
 
     public Color? Color { get; set; }

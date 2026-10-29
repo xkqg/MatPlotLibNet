@@ -25,18 +25,31 @@ public class CartesianDirectLabelsPartUnitTests
     private static DataTransform Primary() => new(0, 10, 0, 10, Plot);
     private static DataTransform Secondary() => new(0, 10, 0, 100, Plot);
 
+    /// <summary>The part for <paramref name="ax"/>: the primary placed over <paramref name="visibleX"/> with
+    /// <paramref name="transform"/>, and right slot 0, when there is one, with <see cref="Secondary"/>.</summary>
     private static CartesianDirectLabelsPart Part(Axes ax, IRenderContext ctx, MinMaxRange? visibleX = null,
-                                                  Theme? theme = null, DataTransform? transform = null) =>
-        new(ax, Plot, ctx, theme ?? Theme.Default, transform ?? Primary(),
-            ax.RightYAxes.Count > 0 ? [Secondary()] : [], visibleX ?? AllX, 0);
+                                                  Theme? theme = null, DataTransform? transform = null)
+    {
+        var x = visibleX ?? AllX;
+        var placed = new List<PlacedYSlot>
+        {
+            new() { Slot = ax.YAxes.Left[0], Range = new(x.Min, x.Max, 0, 10), Transform = transform ?? Primary(), Ticks = [], Source = default },
+        };
+        if (ax.YAxes.Right.Count > 0)
+            placed.Add(new() { Slot = ax.YAxes.Right[0], Range = new(x.Min, x.Max, 0, 100), Transform = Secondary(), Ticks = [], Source = default });
+        return new CartesianDirectLabelsPart(new CartesianPartContext(ax, Plot, ctx, theme ?? Theme.Default), placed, 0);
+    }
 
-    /// <summary>Draws every label the way the renderer does: each one in its series' turn, the primary series first,
-    /// then the secondary ones.</summary>
+    /// <summary>Draws every label the way the renderer does: each one in its series' turn, in identity order, the
+    /// primary series first, then the right axis' ones.</summary>
     private static void DrawAll(CartesianDirectLabelsPart part, Axes ax)
     {
-        for (int i = 0; i < ax.Series.Count; i++) part.DrawLabelOf(SeriesAxisPair.Primary, i);
-        for (int i = 0; i < ax.SecondarySeries.Count; i++) part.DrawLabelOf(SeriesAxisPair.SecondaryY, i);
+        for (int i = 0; i < ax.AllSeries.Count(); i++) part.DrawLabelOf(i);
     }
+
+    /// <summary>A line on right slot 0, created when the axes has none.</summary>
+    private static LineSeries RightLine(Axes ax, double[] x, double[] y) =>
+        ax.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries(x, y));
 
     private static LineSeries Labelled(LineSeries s, string label)
     {
@@ -172,7 +185,7 @@ public class CartesianDirectLabelsPartUnitTests
         var logY = new DataTransform(0, 1, 0, 1, Plot, [], [], 1, 10, 1, 10, AxisScale.Linear, AxisScale.Log, 1, 1);
         var ctx = new RecordingRenderContext();
 
-        DrawAll(new CartesianDirectLabelsPart(ax, Plot, ctx, Theme.Default, logY, [], new MinMaxRange(1, 10), 0), ax);
+        DrawAll(Part(ax, ctx, visibleX: new MinMaxRange(1, 10), transform: logY), ax);
 
         Assert.Empty(Texts(ctx));
     }
@@ -184,7 +197,7 @@ public class CartesianDirectLabelsPartUnitTests
         var theme = Theme.CreateFrom(Theme.Default).WithPropCycler(cycler).Build();
         var ax = new Axes();
         ax.Plot([0.0, 10], [1.0, 2]);
-        Labelled(ax.PlotSecondary([0.0, 10], [10.0, 80]), "margin");
+        Labelled(RightLine(ax, [0.0, 10], [10.0, 80]), "margin");
         var ctx = new RecordingRenderContext();
         var part = Part(ax, ctx, theme: theme);
 
@@ -201,27 +214,27 @@ public class CartesianDirectLabelsPartUnitTests
     {
         var ax = new Axes();
         Labelled(ax.Plot([0.0, 10], [1.0, 2]), "primary");
-        Labelled(ax.PlotSecondary([0.0, 10], [10.0, 80]), "secondary");
+        Labelled(RightLine(ax, [0.0, 10], [10.0, 80]), "secondary");
         var ctx = new RecordingRenderContext();
         var part = Part(ax, ctx);
 
-        part.DrawLabelOf(SeriesAxisPair.SecondaryY, 0);
+        part.DrawLabelOf(1);
         Assert.Equal(["secondary"], Texts(ctx).Select(t => (string)t.text));
 
-        part.DrawLabelOf(SeriesAxisPair.Primary, 0);
+        part.DrawLabelOf(0);
         Assert.Equal(["secondary", "primary"], Texts(ctx).Select(t => (string)t.text));
     }
 
     [Fact]
-    public void DrawLabelOf_ThePrimarySeriesAtTheSameIndexAsASecondaryOne_DrawsOnlyThePrimaryLabel()
+    public void DrawLabelOf_ThePrimarySeriesIdentitySlot_DrawsOnlyThePrimaryLabel()
     {
-        // The pair is part of the key: index 0 names one series on each axis.
+        // The key is the series' identity slot: 0 names the primary series, 1 the right axis' first series.
         var ax = new Axes();
         Labelled(ax.Plot([0.0, 10], [1.0, 2]), "primary");
-        Labelled(ax.PlotSecondary([0.0, 10], [10.0, 80]), "secondary");
+        Labelled(RightLine(ax, [0.0, 10], [10.0, 80]), "secondary");
         var ctx = new RecordingRenderContext();
 
-        Part(ax, ctx).DrawLabelOf(SeriesAxisPair.Primary, 0);
+        Part(ax, ctx).DrawLabelOf(0);
 
         Assert.Equal(["primary"], Texts(ctx).Select(t => (string)t.text));
     }
@@ -234,7 +247,7 @@ public class CartesianDirectLabelsPartUnitTests
         Labelled(ax.Plot([0.0, 10], [1.0, 2]), "end");
         var ctx = new RecordingRenderContext();
 
-        Part(ax, ctx).DrawLabelOf(SeriesAxisPair.Primary, 0);
+        Part(ax, ctx).DrawLabelOf(0);
 
         Assert.Empty(Texts(ctx));
     }

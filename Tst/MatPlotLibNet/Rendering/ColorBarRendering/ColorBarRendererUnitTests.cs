@@ -150,7 +150,7 @@ public class ColorBarRendererUnitTests
     }
 
     [Fact]
-    public void Horizontal_TickLabels_SixByDefault()
+    public void Horizontal_TickLabels_AreSixForARangeOfZeroToOne()
     {
         var ctx = new RecordingRenderContext();
         var cb = new ColorBar { Orientation = ColorBarOrientation.Horizontal };

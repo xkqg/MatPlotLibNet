@@ -103,7 +103,11 @@ public class SpecialChartFidelityTests : FidelityTest
     [InlineData("classic")]
     [InlineData("v2")]
     [Trait("Category", "Fidelity")]
-    [FidelityTolerance(Rms = 85, Ssim = 0.50, DeltaE = 80)]   // our radar uses tab10 fill, matplotlib recipe uses C0 (blue)
+    // Our radar is a polygon with its first axis at the top, matplotlib's recipe a polar disc with it at the right, so the
+    // two pictures only share their palette and text. Our fill is the tab10 colour, the recipe's is C0 (blue). The labels are
+    // now set in the theme's text size (classic 12 pt, as matplotlib's own), which moved the dominant-colour distance of the
+    // classic picture from 76 to 111 while its rms (45) and ssim (0.68) stayed far inside the tolerance.
+    [FidelityTolerance(Rms = 85, Ssim = 0.50, DeltaE = 115)]
     public void Radar_FiveAxes_MatchesMatplotlib(string themeId)
     {
         string[] categories = ["Speed", "Power", "Range", "Accuracy", "Cost"];

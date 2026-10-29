@@ -350,8 +350,9 @@ public class BarSeriesRendererTests
         Assert.All(Abc, name => Assert.Equal(20, Assert.Single(Texts(sized, name)).Size));
     }
 
-    /// <summary>The Y axis title stands clear of the longest name: 12 px past the far side of the widest name, the rule a
-    /// numeric Y axis follows (the names end at the tick mark and the pad left of the spine).</summary>
+    /// <summary>The Y axis title stands clear of the longest name, by the rule a numeric Y axis follows (the names end at
+    /// the tick mark and the pad left of the spine): the title's ink that faces the names, its baseline (the title being
+    /// turned a quarter about its anchor), stands the container's 4 px gap past the far side of the widest name.</summary>
     [Fact]
     public void TheYAxisTitle_StandsClearOfTheLongestName()
     {
@@ -366,7 +367,7 @@ public class BarSeriesRendererTests
 
         var title = Assert.Single(Texts(svg, "Region"));
 
-        Assert.Equal(namesEnd - widest - 12, title.X, 6);
+        Assert.Equal(namesEnd - widest - 4, title.X + MatPlotLibNet.Rendering.FacingInk.TurnedSink * title.Size, 6);
         Assert.All(names, name => Assert.Equal(namesEnd, Assert.Single(Texts(svg, name)).X, 6));
     }
 

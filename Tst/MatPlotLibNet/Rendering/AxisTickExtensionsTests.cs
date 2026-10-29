@@ -281,14 +281,50 @@ public class AxisTickExtensionsTests
         }
     }
 
+    /// <summary>On a left or right edge a label reaches the horizontal extent of its turned box: its width upright, and, turned
+    /// about its anchor, the width times the cosine plus what the font size (the letters above the baseline) or the descent (below
+    /// it) adds times the sine. A label on a left edge ends at its anchor and one on a right edge starts at it.</summary>
     [Theory]
-    [InlineData(false, 30.0)]
-    [InlineData(true, 90.0)]
-    public void LabelExtent_OnAVerticalEdge_IsTheLabelWidth(bool right, double rotation)
+    [InlineData(false, 0.0, 42.5)]
+    [InlineData(false, 30.0, 42.5 * 0.8660254037844386 + 12 * 0.5)]
+    [InlineData(false, 45.0, (42.5 + 12) * 0.7071067811865476)]
+    [InlineData(false, 90.0, 12.0)]
+    [InlineData(true, 0.0, 42.5)]
+    [InlineData(true, 30.0, 42.5 * 0.8660254037844386 + 2.4 * 0.5)]
+    [InlineData(true, 45.0, (42.5 + 2.4) * 0.7071067811865476)]
+    [InlineData(true, 90.0, 2.4)]
+    public void LabelExtent_OnAVerticalEdge_IsTheHorizontalExtentOfTheTurnedBox(bool right, double rotation, double expected)
     {
-        var draw = Draw(right ? TickSide.Right : TickSide.Left, 0, rotation: rotation, alignment: TextAlignment.Right);
+        var draw = Draw(right ? TickSide.Right : TickSide.Left, 0, rotation: rotation,
+            alignment: right ? TextAlignment.Left : TextAlignment.Right);
 
-        Assert.Equal(42.5, draw.LabelExtent(new Size(42.5, 14.4), 12));
+        Assert.Equal(expected, draw.LabelExtent(new Size(42.5, 14.4), 12), 9);
+    }
+
+    /// <summary>How far a bottom label stands before and after its anchor along the edge, turned: a label that ends at its
+    /// anchor and is turned up reaches back by its width times the cosine and the font size times the sine.</summary>
+    [Fact]
+    public void Reach_OfATurnedBottomLabel_SaysHowFarItStandsBeforeAndAfterItsAnchor()
+    {
+        var draw = Draw(TickSide.Bottom, 0, rotation: 30, alignment: TextAlignment.Right);
+
+        var reach = draw.Reach(new Size(60, 14.4), 12);
+
+        Assert.Equal(60 * 0.8660254037844386 + 12 * 0.5, reach.Before, 9);
+        Assert.Equal(2.4 * 0.5, reach.After, 9);
+        Assert.Equal(draw.LabelExtent(new Size(60, 14.4), 12), reach.Away, 9);
+    }
+
+    [Fact]
+    public void Reach_OfAnUprightCentredLabel_IsHalfItsWidthEitherWay()
+    {
+        var draw = Draw(TickSide.Bottom, 0, rotation: 0, alignment: TextAlignment.Center);
+
+        var reach = draw.Reach(new Size(60, 14.4), 12);
+
+        Assert.Equal(30, reach.Before, 9);
+        Assert.Equal(30, reach.After, 9);
+        Assert.Equal(14.4, reach.Away, 9);
     }
 
     [Theory]
@@ -329,17 +365,110 @@ public class AxisTickExtensionsTests
         Assert.Equal(baseFont, new TickConfig().LabelFont(baseFont));
     }
 
+    /// <summary>A Y title clears the mark, the pad and the widest tick label, then the container's gap, then the part of
+    /// its own ink that faces them: nothing on the left (its baseline faces them), the body of its text on the right (0.6
+    /// of its size), so the blank gap between the two inks is the same on both sides. A 4 px mark, a 3 px pad, a 20 px
+    /// label, a 4 px gap and a 10 px title.</summary>
+    [Theory]
+    [InlineData("Left", 4 + 3 + 20 + 4 + 0)]
+    [InlineData("Right", 4 + 3 + 20 + 4 + 6)]
+    public void AYTitle_ClearsMarkPadWidestLabel_TheGapAndItsFacingInk(string side, double offset)
+    {
+        var axis = new Axis { Label = "Y", MajorTicks = new TickConfig { Length = 4, Pad = 3 } };
+
+        var extent = axis.YTitleExtent(new YAxisTitleInput(axis.MajorTicks.TickLabelBand(20), Enum.Parse<AxisSide>(side), 4,
+            new Font { Size = 10 }));
+
+        Assert.Equal(offset, extent.TitleOffset, 9);
+    }
+
+    [Theory]
+    [InlineData("Left")]
+    [InlineData("Right")]
+    public void AYTitle_WithNoTickLabelDrawn_IsTheFixed45(string side)
+    {
+        var axis = new Axis { Label = "Y" };
+
+        var extent = axis.YTitleExtent(new YAxisTitleInput(axis.MajorTicks.TickLabelBand(0), Enum.Parse<AxisSide>(side), 4,
+            new Font { Size = 10 }));
+
+        Assert.Equal(45, extent.TitleOffset, 9);
+    }
+
+    /// <summary>The one facing-edge rule, on every edge: the title's anchor stands past a 27 px tick label band by the gap
+    /// and the part of the title's ink that faces the labels, so that ink edge stands exactly the gap past the band. A Y
+    /// title is drawn turned a quarter (<c>rotate(-90)</c>) about its anchor with no <c>dy</c>, so its ink spans
+    /// [x - 0.8 em, x + 0.2 em]; the ink it is read to face the labels with is the baseline left of a left edge and 0.6 em
+    /// above it right of a right edge. Above a top edge a horizontal title's descent (0.2 em) faces them, below a bottom
+    /// edge its ascent (0.8 em). A 10 px title and a 4 px gap: 27 + 4 + 0 = 31 left, 27 + 4 + 6 = 37 right, 27 + 4 + 2 = 33
+    /// above a top edge and 27 + 4 + 8 = 39 below a bottom one.</summary>
+    [Theory]
+    [InlineData("Left", 31.0, 0.8)]
+    [InlineData("Top", 33.0, 1.0)]
+    [InlineData("Right", 37.0, 0.8)]
+    [InlineData("Bottom", 39.0, 1.0)]
+    public void TitleOffset_PutsTheFacingInkEdgeTheGapPastTheTickLabelBand_OnEveryEdge(string edge, double offset, double reach)
+    {
+        var side = Enum.Parse<TickSide>(edge);
+        var ink = FacingInk.Of(side);
+
+        double placed = new TitleClearance(TickLabelBand: 27, Gap: 4, LabelSize: 10, ink).TitleOffset();
+
+        Assert.Equal(offset, placed, 9);
+        // The ink edge facing the labels, measured from the axis edge, is the band plus the gap: the anchor less the
+        // facing ink, whichever way the title faces.
+        Assert.Equal(27 + 4, placed - ink.Facing * 10, 9);
+        // A horizontal title's two ink edges together span its font size (ascent 0.8 em plus descent 0.2 em); a turned
+        // title's facing ink is the part the reader sees, so its edges span the 0.8 em its outward ink and facing ink make.
+        Assert.Equal(reach, ink.Facing + ink.Outward, 12);
+    }
+
+    /// <summary>An edge with no tick label drawn keeps its fixed offset when it has one (the 45 px a Y title has always
+    /// stood at, the 35 px below a bottom edge); an edge without one places the title the gap and the facing ink past the
+    /// edge itself, as the top edge always has.</summary>
     [Fact]
-    public void AxisLabelOffset_ClearsMarkPadWidestLabelAndAGap()
+    public void TitleOffset_WithNoTickLabelDrawn_IsTheEdgesFixedOffset_OrTheGapPastTheEdge()
+    {
+        var left = new TitleClearance(0, 4, 10, FacingInk.Of(TickSide.Left)) { WithoutTickLabels = 45 };
+        var top = new TitleClearance(0, 6, 10, FacingInk.Of(TickSide.Top));
+
+        Assert.Equal(45, left.TitleOffset(), 9);
+        Assert.Equal(6 + 2, top.TitleOffset(), 9);
+        // A drawn band wins over the fixed offset.
+        Assert.Equal(27 + 4 + 0, (left with { TickLabelBand = 27 }).TitleOffset(), 9);
+    }
+
+    /// <summary>A context that carries the labels' sizes, one per tick (measured once where they decided the rotation), is
+    /// measured and drawn by those sizes; sizes that do not match the ticks are not read, and the labels are measured.</summary>
+    [Fact]
+    public void LabelSizes_OnePerTick_AreReadInsteadOfMeasuring_OtherwiseTheLabelsAreMeasured()
+    {
+        double[] ticks = [0.0, 1.0, 2.0];
+        var carried = Draw(TickSide.Left, 0) with { LabelSizes = [new Size(7, 9), new Size(41, 9), new Size(3, 9)] };
+        var mismatched = carried with { LabelSizes = [new Size(41, 9)] };
+        var ctx = new RecordingRenderContext();
+
+        Assert.Equal(41, ctx.MeasureAxisTicks(ticks, Config, carried), 9);
+        Assert.Equal(41, ctx.RenderAxisTicks(ticks, 0.0, Tf(), Config, carried), 9);
+        // Measured: "0", "1", "2" at 10 px are each 6 px wide in the recording context.
+        Assert.Equal(6, ctx.MeasureAxisTicks(ticks, Config, mismatched), 9);
+    }
+
+    /// <summary>The horizontal axis titles' offsets, as plain numbers at two title sizes: a 4 px mark, a 3 px pad and a 20 px
+    /// tall tick label make a 27 px band; the title's baseline stands a 6 px gap past it plus the part of the title that
+    /// faces the labels (a fifth of its size above a top edge, four fifths below a bottom one), or the fixed 35 px below a
+    /// bottom edge, when no label is drawn there. Written as numbers, not as the rule, so a change to the rule that
+    /// unifies the title offsets cannot move where an X axis title stands without this going red.</summary>
+    [Theory]
+    [InlineData(13.0, 35.6, 43.4, 8.6)]
+    [InlineData(18.0, 36.6, 47.4, 9.6)]
+    public void TopAndBottomTitleOffsets_KeepTodaysValues(double titleSize, double top, double bottom, double topWithNoLabels)
     {
         var config = new TickConfig { Length = 4, Pad = 3 };
 
-        Assert.Equal(4 + 3 + 20 + 12, config.AxisLabelOffset(20));
-    }
-
-    [Fact]
-    public void AxisLabelOffset_WithNoTickLabelDrawn_IsTheFixed45()
-    {
-        Assert.Equal(45, new TickConfig().AxisLabelOffset(0));
+        Assert.Equal(top, config.TopAxisLabelOffset(20, titleSize), 9);
+        Assert.Equal(bottom, config.BottomAxisLabelOffset(20, titleSize), 9);
+        Assert.Equal(topWithNoLabels, config.TopAxisLabelOffset(0, titleSize), 9);
+        Assert.Equal(35, config.BottomAxisLabelOffset(0, titleSize), 9);
     }
 }

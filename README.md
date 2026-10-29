@@ -18,11 +18,39 @@ ASP.NET Core, inside a Verso notebook cell, and TypeScript clients are there for
 
 ## Where this is going
 
+**1.24.0** gathers every Y axis of a chart into one container. The primary axis is the first axis of the left side,
+and each further axis stacks outward past the one before it, on either side and as many times as the chart needs one:
+`WithAddRightYAxis` and `WithAddLeftYAxis` add an axis with its own range, ticks, colour, series and legend entry,
+there is no "second" or "third" in the name to count, and the four scales 1.23.0 stopped at are no limit any more. The
+older verbs for a secondary and for an outward-stacked Y axis keep working and are marked obsolete in favour of them;
+the changelog lists each with what replaces it. A Y axis title now stands the same distance from its tick labels on the
+left and on the right, 4 px between the title and the widest label by default, and `WithYAxisTitleGap` sets another
+distance for the whole chart; the left title no longer runs off the edge of the figure. Every axis draws the way the
+primary one does, with its own log or symlog scale, tick locator, minor ticks and a title in math markup, and a line on
+a left-hand axis can carry its name at its end. A figure written to JSON keeps every axis, whatever their number, and
+a figure that stays within the old four writes the file 1.23.0 wrote. A chart server drops a zoom or pan that names a
+subplot it does not have, and one event that fails no longer ends the chart's session for good, as it used to; the MCP
+server checks every axis of a chart spec instead of the first two. The texts of a chart are placed with more care: a
+legend left at `Best` stands where it covers the fewest marks, as matplotlib's `loc='best'` does, an annotation takes the
+theme's text size and can move by a number of pixels or out of the way of the data and the legend, a bar's value label
+stands beyond the bar's end whichever way the bar points, and a turned tick label has room beside the plot.
+
+The same release picks up thirteen more rows of the roadmap, each one rule where there had been two. A colour bar puts
+its ticks at round numbers, as many as fit along its length. A polar chart has one radial scale that its rings, lines,
+bars and heatmap all read, and polar bars stack, so a wind rose is one `PolarBar` call for each speed class. Bars stack
+on both sides of zero, so a Likert scale is a stacked bar chart. A filled contour fills the bands between its levels
+over the grid and follows the limits you set. A series that cannot be drawn from the data it was given is refused when
+it is built, and not when the chart is drawn, and the MCP server names the place in the spec where it stands. A stacked
+area names its layers in the legend, a state timeline's legend entry shows its states, and a series says for itself
+whether it needs axes around it. A map from `MatPlotLibNet.Geo` keeps its holes, comes back from JSON, colours its
+regions by a value (`Choropleth`) and takes points, bubbles, hexagon bins, flows along great circles, a cartogram and a
+Dorling map.
+
 **1.23.0** moves the technical indicators that read a candle's open, high, low, close and volume from separate
 array parameters to one `OhlcvBars` value, built with the factory that names the columns the indicator actually
 uses (`OhlcvBars.Hlc(high, low, close)`, `OhlcvBars.Cv(close, volume)`, and so on) instead of repeating the same
 arrays across every indicator on a chart. A chart with more than two scales now has somewhere to put the extra
-ones: `WithOutwardYAxis` stacks a second axis past the first on either side — four scales total, two left and two
+ones: a verb that stacks a second axis past the first on either side — four scales total, two left and two
 right, each with its own range, ticks, series and legend entry, the way matplotlib moves a twin's spine outward. A
 secondary axis restores through the same registry the primary one does, so a bar or an area survives there and on
 the top axis too, not only a line or a point; and a wheel zoom, a drag pan, a rectangle zoom and Home now move
@@ -42,7 +70,7 @@ streaming chart's current points and a planar 3-D bar's data all come back from 
 placeholder — the [MCP server](https://github.com/xkqg/MatPlotLibNet/wiki/MCP-Server) lists and accepts all eight
 again, where it used to refuse them by name. An axes' Z axis, its 3-D pane colours and its tooltip switch come back
 too. The one series this release did not reach is `MatPlotLibNet.Geo`'s `GeoPolygonSeries`, named on the
-[roadmap](ROADMAP.md).
+[roadmap](ROADMAP.md); 1.24.0 brings it back from JSON too.
 
 **1.20.0** turns charts that took a page of code into one call. Fifteen verbs on the axes builder, among them
 `Pareto`, `Ridgeline`, `CalendarHeatmap`, `QQPlot`, `ControlChart`, `KaplanMeier`, `StreamGraph` and `Marimekko`, take
@@ -70,8 +98,8 @@ its migration notes, is listed in the [CHANGELOG](CHANGELOG.md), and the [roadma
 what is still to come and what is left out on purpose, with a section for each row on the
 [wiki's page](https://github.com/xkqg/MatPlotLibNet/wiki/Roadmap).
 
-Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (848 classes, at
-99.7 % line / 98.5 % branch) across 19,995 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
+Quality bar: every class must pass a strict coverage gate of ≥90 % line and branch coverage (896 classes, at
+99.7 % line / 98.7 % branch) across 22,297 tests. A separate suite (`Tst/MatPlotLibNet.Fidelity`) compares the
 rendering with reference images drawn by matplotlib; it is not part of the CI run.
 
 ---
@@ -165,7 +193,7 @@ the server rejects it before rendering and names the wrong field, instead of ret
 
 **Streaming & Realtime** — `StreamingLineSeries`, `StreamingScatterSeries`, `StreamingSignalSeries` and `StreamingCandlestickSeries` are backed by `RingBuffer<T>` and add points with `AppendPoint(x, y)`. A `RingBuffer<T>` is a fixed-capacity circular sequence of any type (64 M appends/s, and it never allocates on append). `StreamingFigure` provides throttled re-rendering and auto-scaling axes (`SlidingWindow`, `StickyRight`, `AutoScale`). 11 streaming indicators (SMA, EMA, RSI, Bollinger, MACD, OBV, ATR, Stochastic, WilliamsR, CCI, VWAP) attach automatically to candlestick data. Streaming controls exist for WPF, Avalonia, Uno, MAUI, Blazor, and ASP.NET Core. The library includes an SVG diff engine to save bandwidth, and an Rx `IObservable<T>` adapter.
 
-**Geographic projections** — the `MatPlotLibNet.Geo` package has 13 map projections (PlateCarree, Mercator, TransverseMercator, Robinson, Orthographic, LambertConformal, AlbersEqualArea, AzimuthalEquidistant, EqualEarth, Mollweide, Natural Earth, Sinusoidal, Stereographic), a GeoJSON parser, embedded Natural Earth 110m data, and `GeoPolygonSeries` for coastlines, borders and choropleths. A symlog axis scale handles data that spans positive and negative ranges.
+**Geographic projections** — the `MatPlotLibNet.Geo` package has 13 map projections (PlateCarree, Mercator, TransverseMercator, Robinson, Orthographic, LambertConformal, AlbersEqualArea, AzimuthalEquidistant, EqualEarth, Mollweide, Natural Earth, Sinusoidal, Stereographic), a GeoJSON parser and writer, embedded Natural Earth 110m data, and `GeoPolygonSeries` for coastlines, borders and choropleths. A map axes has one projection that every layer reads, a region with a hole is drawn with the hole, the map comes back whole from JSON, and `Points`, `Bubbles`, `HexBins`, `Flows`, `Cartogram` and `Dorling` put data on it. A symlog axis scale handles data that spans positive and negative ranges.
 
 **Bidirectional SignalR** — server-authoritative interactive charts with mutation events (zoom, pan, reset, legend toggle) and notification events (brush-select, hover, the clicked data point). The events form a hierarchy of stacked records, they merge on their own, and the server sends each caller its own hover response.
 

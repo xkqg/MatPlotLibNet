@@ -1,6 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.TextMeasurement;
+using MatPlotLibNet.Styling;
 using ModelContextProtocol;
 using System.Text.Json;
 
@@ -34,15 +37,44 @@ public class ToolEdgeTests : IDisposable
     [Fact]
     public void AChartTheRendererCannotDraw_IsRefusedDuringRendering()
     {
-        // The reader pairs xData with yData; a 3-D line's z values are paired with them only when it is drawn, and here
-        // there is one z for three points. Measured over every listed type with each field mutated to an edge value: 24
-        // specs pass the reader and fail while drawing (3-D series short of z values, a 2-D histogram of 0 or -1 bins,
-        // a stream field short of its grid), so this boundary still has inputs to catch.
+        // The library refuses what cannot be drawn when the document is read: a probe over every series type it ships
+        // (arrays damaged five ways, numbers at zero and below) finds no figure that reads back and then fails while it is
+        // drawn. This net catches what no input check can foresee; here the text measurement itself fails.
+        var spec = new ChartSpec("""{"width":400,"height":300,"subPlots":[{"series":[{"type":"line","xData":[1,2,3],"yData":[1,2,3]}]}]}""");
+        Rendering.Render(spec, ChartFormat.Png);   // loads the PNG backend first: its module initializer installs its own text measurement
+        var before = FontMetricsDefault.Current;
+        FontMetricsDefault.Current = new FailingFontMetrics();
+        try
+        {
+            var refusal = Assert.Throws<ToolRefusalException>(() => Rendering.Render(spec, ChartFormat.Png));
+
+            Assert.Contains("could not be rendered", refusal.Message);
+            Assert.Contains("no font here", refusal.Message);
+        }
+        finally
+        {
+            FontMetricsDefault.Current = before;
+        }
+    }
+
+    /// <summary>A 3-D line with one z value for three points used to pass the reader and fail while it was drawn; the library
+    /// refuses it while the spec is read, naming the series, so the picture is never attempted.</summary>
+    [Fact]
+    public void AThreeDLineShortOfZValues_IsRefusedWhenTheSpecIsRead_NamingTheSeries()
+    {
         var refusal = Assert.Throws<ToolRefusalException>(() => Rendering.Render(
             new ChartSpec("""{"width":400,"height":300,"subPlots":[{"series":[{"type":"line3d","xData":[1,2,3],"yData":[1,2,3],"zData":[1]}]}]}"""),
             ChartFormat.Png));
 
-        Assert.Contains("could not be rendered", refusal.Message);
+        Assert.Contains("$.subPlots[0].series[0]", refusal.Message);
+        Assert.Contains("Array lengths must match. Got 3 and 1.", refusal.Message);
+        Assert.DoesNotContain("could not be rendered", refusal.Message);
+    }
+
+    /// <summary>A text measurement that fails whatever it is asked to measure.</summary>
+    private sealed class FailingFontMetrics : IFontMetrics
+    {
+        public Size Measure(string text, Font font) => throw new InvalidOperationException("no font here");
     }
 
     /// <summary>An empty funnel has nothing to draw: it renders an empty plot, as every other type does with no data (it

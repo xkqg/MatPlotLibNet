@@ -131,12 +131,12 @@ public class DirectLabelMarginTests
     }
 
     [Fact]
-    public void ASecondaryYAxis_ReservesItsTickLabelsInsideTheFigure()
+    public void ARightYAxis_ReservesItsTickLabelsInsideTheFigure()
     {
         var figure = Plt.Create().WithSize(FigureWidth, 400)
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot(X, [1.0, 2.0, 3.0])
-                .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0])))
+                .WithAddRightYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0])))
             .Build();
         var ctx = new RecordingRenderContext();
         new ChartRenderer().Render(figure, ctx);
@@ -155,7 +155,7 @@ public class DirectLabelMarginTests
 
     // â”€â”€ (f) nothing at the right edge: the default path keeps the spacing exactly as given â”€â”€
 
-    public static TheoryData<string> PlainFigures => ["plain", "legend label", "grid", "fractional", "polar line end", "no label", "hidden"];
+    public static TheoryData<string> PlainFigures => ["plain", "legend label", "fractional", "polar line end", "no label", "hidden"];
 
     private static Figure Plain(string kind) => kind switch
     {
@@ -193,5 +193,32 @@ public class DirectLabelMarginTests
             ? themed
             : figure.Spacing;
         Assert.Equal(given.Resolve(figure.Width, figure.Height), spacing);
+    }
+
+    /// <summary>A grid with nothing at its right edges: the default path keeps the given spacing on every edge, and the
+    /// gutter holds the left stack of the right subplot's Y axis container, as the tight layout's gutter does: its Y tick
+    /// labels (the mark, the pad and the widest label, as drawn) and the layout's left pad. Here the theme's 40 px gutter
+    /// is narrower than that, so the gutter widens to it and nothing else moves.</summary>
+    [Fact]
+    public void AGrid_TheDefaultPathWidensOnlyTheGutter_ToTheRightSubplotsTickLabelsAndThePad()
+    {
+        var figure = Plain("grid");
+        var given = (figure.Theme.DefaultSpacing ?? figure.Spacing).Resolve(figure.Width, figure.Height);
+
+        // One context lays the figure out and draws it, so the labels are measured as the layout measured them.
+        var ctx = new RecordingRenderContext();
+        var spacing = new ChartRenderer().PrepareSpacing(figure, ctx);
+
+        Assert.Equal(given with { HorizontalGap = spacing.HorizontalGap }, spacing);
+        new ChartRenderer().Render(figure, ctx);
+        var right = new ChartRenderer().ComputeLayout(figure, ctx).PlotAreas[1];
+        var labels = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!)
+            .Where(a => (double)a.position.X < right.X && (double)a.position.X > right.X - spacing.HorizontalGap
+                        && (TextAlignment)a.alignment == TextAlignment.Right).ToList();
+        Assert.NotEmpty(labels);
+        var ticks = figure.SubPlots[1].YAxis.MajorTicks;
+        double band = ticks.Length + ticks.Pad + labels.Max(a => ctx.MeasureText((string)a.text, (MatPlotLibNet.Styling.Font)a.font).Width);
+        Assert.Equal(Math.Max(given.HorizontalGap, band + ConstrainedLayoutEngine.PadLeft), spacing.HorizontalGap, 6);
+        Assert.True(spacing.HorizontalGap > given.HorizontalGap, $"precondition: the band ({band:F2}) and the pad exceed the theme's gutter");
     }
 }

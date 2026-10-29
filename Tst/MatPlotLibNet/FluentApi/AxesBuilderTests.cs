@@ -181,135 +181,153 @@ public class AxesBuilderTests
         Assert.IsType<StemSeries>(figure.SubPlots[0].Series[0]);
     }
 
-    /// <summary>Verifies that WithSecondaryYAxis configures a secondary Y-axis with its own series.</summary>
+    /// <summary>Every call stacks one more right axis past the ones before it, as often as the caller wants it: three
+    /// calls give three right axes, each with its own label and series, and the left side keeps only the primary.</summary>
     [Fact]
-    public void WithSecondaryYAxis_ConfiguresSecondaryAxis()
+    public void WithAddRightYAxis_CalledThreeTimes_StacksThreeRightAxes()
     {
-        var figure = Plt.Create()
+        var axes = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithSecondaryYAxis(sec => sec
-                    .SetYLabel("Secondary")
-                    .Plot([1.0, 2.0], [100.0, 200.0])))
-            .Build();
+                .WithAddRightYAxis(right => right.SetYLabel("Rate").Plot([1.0, 2.0], [10.0, 20.0]))
+                .WithAddRightYAxis(right => right.SetYLabel("Load").Plot([1.0, 2.0], [0.1, 0.2]))
+                .WithAddRightYAxis(right => right.SetYLabel("Temp").Plot([1.0, 2.0], [300.0, 310.0])))
+            .Build().SubPlots[0];
 
-        Assert.NotNull(figure.SubPlots[0].SecondaryYAxis);
-        Assert.Equal("Secondary", figure.SubPlots[0].SecondaryYAxis!.Label);
-        Assert.Single(figure.SubPlots[0].SecondarySeries);
+        Assert.Equal(3, axes.YAxes.Right.Count);
+        Assert.Equal(["Rate", "Load", "Temp"], axes.YAxes.Right.Select(slot => slot.Axis.Label));
+        Assert.All(axes.YAxes.Right, slot => Assert.Single(slot.Series));
+        Assert.Single(axes.YAxes.Left);
     }
 
-    /// <summary>Verifies that WithOutwardYAxis(Right) reaches the SECOND right axis, independent of slot 0
-    /// (<see cref="AxesBuilder.WithSecondaryYAxis"/>'s axis) — ROADMAP.md row 101's "2 left and 2 right."</summary>
+    /// <summary>The container's title gap is 4 px (matplotlib's <c>axes.labelpad</c>) until the figure sets another, for
+    /// the whole container, and the verb chains.</summary>
     [Fact]
-    public void WithOutwardYAxis_Right_AddsASecondRightAxisIndependentOfSlotZero()
+    public void WithYAxisTitleGap_SetsTheContainersGap_AndChains()
     {
-        var figure = Plt.Create()
+        var plain = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [3.0, 4.0])).Build().SubPlots[0];
+        var set = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2.0], [3.0, 4.0]).WithYAxisTitleGap(7.5).WithTitle("chained"))
+            .Build().SubPlots[0];
+
+        Assert.Equal(4, plain.YAxes.TitleGap);
+        Assert.Equal(7.5, set.YAxes.TitleGap);
+        Assert.Equal("chained", set.Title);
+    }
+
+    /// <summary>A gap must be a finite number of pixels, 0 or more: a negative, NaN or infinite one is refused, naming the
+    /// parameter, and the container keeps its gap.</summary>
+    [Theory]
+    [InlineData(-1.0)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void WithYAxisTitleGap_Negative_Throws(double pixels)
+    {
+        var refused = Assert.Throws<ArgumentOutOfRangeException>(() => Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.WithYAxisTitleGap(pixels)).Build());
+        var axes = new Axes();
+        var refusedOnTheModel = Assert.Throws<ArgumentOutOfRangeException>(() => axes.YAxes.TitleGap = pixels);
+
+        Assert.Equal("pixels", refused.ParamName);
+        Assert.Equal("value", refusedOnTheModel.ParamName);
+        Assert.Equal(4, axes.YAxes.TitleGap);
+    }
+
+    /// <summary>The primary Y axis is left slot 0 and stays there: the first axis added on the left is left slot 1, the
+    /// next stacks past it, and the primary keeps its label and its series.</summary>
+    [Fact]
+    public void WithAddLeftYAxis_StacksPastThePrimary()
+    {
+        var axes = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithSecondaryYAxis(sec => sec.SetYLabel("First right").Plot([1.0, 2.0], [100.0, 200.0]))
-                .WithOutwardYAxis(AxisSide.Right, outer => outer.SetYLabel("Second right").Plot([1.0, 2.0], [1000.0, 2000.0])))
-            .Build();
+                .SetYLabel("Primary")
+                .WithAddLeftYAxis(left => left.SetYLabel("Queue").Plot([1.0, 2.0], [5.0, 6.0]))
+                .WithAddLeftYAxis(left => left.SetYLabel("Depth").Plot([1.0, 2.0], [7.0, 8.0])))
+            .Build().SubPlots[0];
 
-        var axes = figure.SubPlots[0];
-        Assert.Equal(2, axes.RightYAxes.Count);
-        Assert.Equal("First right", axes.RightYAxes[0].Axis.Label);
-        Assert.Equal("Second right", axes.RightYAxes[1].Axis.Label);
-        Assert.Single(axes.RightYAxes[1].Series);
+        Assert.Equal(3, axes.YAxes.Left.Count);
+        Assert.Same(axes.YAxis, axes.YAxes.Left[0].Axis);
+        Assert.Equal(["Primary", "Queue", "Depth"], axes.YAxes.Left.Select(slot => slot.Axis.Label));
+        Assert.Single(axes.Series);
+        Assert.Same(axes.Series, axes.YAxes.Left[0].Series);
+        Assert.Single(axes.YAxes.Left[1].Series);
+        Assert.Single(axes.YAxes.Left[2].Series);
+        Assert.Empty(axes.YAxes.Right);
     }
 
-    /// <summary>Verifies that WithOutwardYAxis(Left) is reachable from the fluent API, without dropping to the
-    /// raw <see cref="Models.Axes.AddOutwardYAxis"/>.</summary>
+    /// <summary>The primary, one more on the left and two on the right make four Y axes, each with its own label and
+    /// series, numbered in the order the subplot's series have always been (primary, right axes, left axes past the
+    /// primary) and each drawing its title.</summary>
     [Fact]
-    public void WithOutwardYAxis_Left_AddsALeftStackedAxis()
+    public void WithAddRightYAxis_AndLeft_FourAxesTotal_EachWithItsOwnLabelAndSeries()
     {
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithOutwardYAxis(AxisSide.Left, left => left.SetYLabel("Left secondary").SetYLim(0, 1).Plot([1.0, 2.0], [0.1, 0.9])))
+                .Plot([1.0, 2.0], [3.0, 4.0], line => line.Label = "p line")
+                .SetYLabel("Primary")
+                .WithAddLeftYAxis(left => left.SetYLabel("Left 1").Plot([1.0, 2.0], [5.0, 6.0], line => line.Label = "l1 line"))
+                .WithAddRightYAxis(right => right.SetYLabel("Right 0").Plot([1.0, 2.0], [50.0, 60.0], line => line.Label = "r0 line"))
+                .WithAddRightYAxis(right => right.SetYLabel("Right 1").Plot([1.0, 2.0], [500.0, 600.0], line => line.Label = "r1 line")))
             .Build();
-
         var axes = figure.SubPlots[0];
-        Assert.Single(axes.LeftYAxes);
-        Assert.Equal("Left secondary", axes.LeftYAxes[0].Axis.Label);
-        Assert.Equal(0, axes.LeftYAxes[0].Axis.Min);
-        Assert.Equal(1, axes.LeftYAxes[0].Axis.Max);
-        Assert.Single(axes.LeftYAxes[0].Series);
+
+        var slots = axes.YAxes.IdentityOrder.ToArray();
+        Assert.Equal(4, slots.Length);
+        Assert.Equal(["Primary", "Right 0", "Right 1", "Left 1"], slots.Select(slot => slot.Axis.Label));
+        Assert.All(slots, slot => Assert.Single(slot.Series));
+        Assert.Equal(["p line", "r0 line", "r1 line", "l1 line"], axes.AllSeries.Select(series => series.Label));
+        string svg = figure.ToSvg();
+        Assert.All(slots, slot => Assert.Contains($">{slot.Axis.Label}<", svg, StringComparison.Ordinal));
     }
 
-    /// <summary>Verifies WithOutwardYAxis returns the <see cref="AxesBuilder"/> itself, so it keeps chaining.</summary>
+    /// <summary>The first call on a side with no axis yet creates that side's slot 0 and colours its spine; a call after
+    /// it stacks an axis that draws no spine, so colouring it leaves the right spine as the first axis set it.</summary>
     [Fact]
-    public void WithOutwardYAxis_ReturnsAxesBuilder_ForChaining()
+    public void WithAddRightYAxis_FirstCallIsRightSlotZero_AndOnlyItsColourReachesTheRightSpine()
     {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithOutwardYAxis(AxisSide.Left, left => left.Plot([1.0], [2.0]))
-                .WithTitle("after outward"))
-            .Build();
+        var first = Color.FromHex("#1F77B4");
+        var second = Color.FromHex("#FF7F0E");
 
-        Assert.Equal("after outward", figure.SubPlots[0].Title);
+        var axes = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithAddRightYAxis(right => right.Plot([1.0], [2.0]).SetYAxisColor(first))
+                .WithAddRightYAxis(right => right.Plot([1.0], [3.0]).SetYAxisColor(second)))
+            .Build().SubPlots[0];
+
+        Assert.Equal(2, axes.YAxes.Right.Count);
+        Assert.Equal(first, axes.Spines.Right.Color);
+        Assert.Equal(first, axes.YAxes.Right[0].Axis.MajorTicks.Color);
+        Assert.Equal(second, axes.YAxes.Right[1].Axis.MajorTicks.Color);
+        Assert.Equal(second, axes.YAxes.Right[1].Axis.LabelStyle!.Color);
     }
 
-    /// <summary>Verifies Scatter/StreamingPlot on <see cref="OutwardYAxisBuilder"/> reach that slot's own series
-    /// list — and that calling it with no prior secondary axis leaves right slot 0 untouched (it is created by
-    /// the implicit <see cref="Models.Axes.TwinX"/> but carries no series; the configured slot is the new, outer
-    /// one, per <see cref="Models.Axes.AddOutwardYAxis"/>'s own contract).</summary>
     [Fact]
-    public void WithOutwardYAxis_ScatterAndStreamingPlot_AddToTheOuterSlotsOwnSeries()
+    public void TheAddVerbs_ReturnTheAxesBuilder_ForChaining()
     {
-        var figure = Plt.Create()
+        var axes = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
-                .WithOutwardYAxis(AxisSide.Right, outer =>
-                {
-                    outer.Scatter([1.0], [2.0]);
-                    outer.StreamingPlot();
-                }))
-            .Build();
+                .WithAddLeftYAxis(left => left.Plot([1.0], [2.0]))
+                .WithAddRightYAxis(right => right.Plot([1.0], [2.0]))
+                .WithTitle("after the add verbs"))
+            .Build().SubPlots[0];
 
-        var axes = figure.SubPlots[0];
-        Assert.Equal(2, axes.RightYAxes.Count);
-        Assert.Empty(axes.RightYAxes[0].Series);
-        Assert.Equal(2, axes.RightYAxes[1].Series.Count);
-        Assert.IsType<ScatterSeries>(axes.RightYAxes[1].Series[0]);
+        Assert.Equal("after the add verbs", axes.Title);
     }
 
-    /// <summary>Verifies the configure callback on OutwardYAxisBuilder's Plot/Scatter/StreamingPlot runs, the
-    /// branch the other OutwardYAxisBuilder tests leave untaken (they all call these with no callback).</summary>
     [Fact]
-    public void WithOutwardYAxis_ConfigureCallback_RunsOnEachVerb()
+    public void TheAddVerbs_WithoutACallback_Throw_AndAddNoAxis()
     {
-        bool plotted = false, scattered = false, streamed = false;
-        Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithOutwardYAxis(AxisSide.Right, outer => outer
-                    .Plot([1.0], [2.0], s => plotted = true)
-                    .Scatter([1.0], [2.0], s => scattered = true)))
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithOutwardYAxis(AxisSide.Right, outer => outer.StreamingPlot(configure: s => streamed = true)))
-            .Build();
+        var axes = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                Assert.Throws<ArgumentNullException>(() => ax.WithAddRightYAxis(null!));
+                Assert.Throws<ArgumentNullException>(() => ax.WithAddLeftYAxis(null!));
+            })
+            .Build().SubPlots[0];
 
-        Assert.True(plotted);
-        Assert.True(scattered);
-        Assert.True(streamed);
-    }
-
-    /// <summary>Verifies WithDirectLabel on OutwardYAxisBuilder: it takes effect on a right slot (the same
-    /// mechanism SecondaryAxisBuilder.WithDirectLabel uses), and is harmlessly inert on a left slot.</summary>
-    [Fact]
-    public void WithOutwardYAxis_WithDirectLabel_SetsPlacement_OnRight_AndIsInert_OnLeft()
-    {
-        var figure = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .WithOutwardYAxis(AxisSide.Right, outer => outer.Plot([1.0], [2.0]).WithDirectLabel())
-                .WithOutwardYAxis(AxisSide.Left, left => left.Plot([1.0], [2.0]).WithDirectLabel()))
-            .Build();
-
-        var axes = figure.SubPlots[0];
-        var rightSeries = Assert.IsAssignableFrom<LineSeries>(axes.RightYAxes[1].Series[0]);
-        var leftSeries = Assert.IsAssignableFrom<LineSeries>(axes.LeftYAxes[0].Series[0]);
-        Assert.Equal(SeriesLabelPlacement.LineEnd, rightSeries.LabelPlacement);
-        // Inert, not a no-op that throws: the left series still carries SOME placement value, just one the
-        // left-side renderer never reads yet (CartesianSecondaryLeftYAxisPart draws no end-label column).
-        Assert.Equal(SeriesLabelPlacement.LineEnd, leftSeries.LabelPlacement);
+        Assert.Empty(axes.YAxes.Right);
+        Assert.Single(axes.YAxes.Left);
     }
 
     /// <summary>Verifies that Annotate adds an annotation to the axes.</summary>

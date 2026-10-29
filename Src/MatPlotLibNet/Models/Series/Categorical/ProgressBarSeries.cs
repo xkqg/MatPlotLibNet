@@ -10,6 +10,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a progress bar showing a value as a fraction of a track (0.0 to 1.0).</summary>
 public sealed class ProgressBarSeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     public double Value { get; }
 
     public Color FillColor { get; set; } = Colors.Tab10Blue;

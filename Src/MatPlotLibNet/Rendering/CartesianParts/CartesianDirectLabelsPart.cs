@@ -23,69 +23,59 @@ internal readonly record struct PlacedDirectLabel(DirectLabel Label, Point Ancho
 /// colour of its line, at the height of the line's last drawable point, pushed apart so no two overlap.
 /// </summary>
 /// <remarks>
-/// <para>The labels of every series of the axes — primary and secondary Y — are placed ONCE, in the constructor, so they
-/// can be kept apart across series. What a label says and which point is the end of its line come from
+/// <para>The labels of every series of the axes — on every Y axis of the container, either side — are placed ONCE, in
+/// the constructor, so they can be kept apart across series; each stands at the height its own slot's transform puts the
+/// end of its line at (<see cref="PlacedYSlot"/>). What a label says and which point is the end of its line come from
 /// <see cref="DirectLabelMetrics"/>, the owner the layout engine reserves the right edge with; the column starts past
-/// the axis side of the edge (<see cref="RightBand.Axis"/>: the secondary Y axis' band or the mirrored Y tick labels,
-/// the rule that side is reserved with) plus <see cref="DirectLabelMetrics.Gap"/>; the colour is the series' slot colour
-/// (<see cref="SeriesSlotExtensions"/>), the one its line and legend swatch wear.</para>
+/// the axis side of the edge (<see cref="RightBand.Axis"/>: the right axes' bands stacked together or the mirrored Y tick
+/// labels, the rule that side is reserved with) plus <see cref="DirectLabelMetrics.Gap"/>; the colour is the series' slot
+/// colour (<see cref="SeriesSlotExtensions"/>), the one its line and legend swatch wear.</para>
 /// <para>Every label is drawn inside its own series' group, while the pass that draws that series has it open
-/// (<see cref="DrawLabelOf"/>): the primary series pass for a primary line, the secondary Y part for a secondary one. So
+/// (<see cref="DrawLabelOf"/>): the primary series pass for a primary line, the part of its slot for any other. So
 /// whatever shows, hides or highlights the series — the legend toggle, the hover highlight, a diff by
-/// <c>data-series-index</c> — takes the label along, on either axis. The part therefore draws nothing on its own: it is
-/// not a step of the renderer's part sequence but the collaborator both series passes call.</para>
+/// <c>data-series-index</c> — takes the label along, on any axis. The part therefore draws nothing on its own: it is
+/// not a step of the renderer's part sequence but the collaborator every series pass calls.</para>
 /// <para>The part keeps its state to itself: subplots render in parallel and each renderer builds its own part.</para>
 /// </remarks>
 internal sealed class CartesianDirectLabelsPart
 {
-    /// <summary>How far below a label's vertical centre its baseline sits, as a fraction of the font size: the text is
-    /// centred on the end of its line.</summary>
-    private const double BaselineDrop = 0.35;
-
-    /// <summary>Places the end labels of <paramref name="axes"/>.</summary>
-    /// <param name="axes">The axes whose series are labelled.</param>
-    /// <param name="plotArea">Pixel-space plot-area rectangle.</param>
-    /// <param name="ctx">The context labels are measured with and drawn into.</param>
-    /// <param name="theme">Active theme (font, cycle colours).</param>
-    /// <param name="transform">Data→pixel transform of the primary axes.</param>
-    /// <param name="secondaryTransforms">Data→pixel transform of every right-side slot, in slot order — the same
-    /// values the secondary parts draw their lines with (<see cref="DirectLabel.AxisSlot"/> indexes into this);
-    /// empty when the axes has no right-side slot.</param>
-    /// <param name="visibleX">The X range the axes is drawn with: a point outside it is not the end of a line.</param>
+    /// <summary>Places the end labels of the axes of <paramref name="context"/>.</summary>
+    /// <param name="context">The axes whose series are labelled, the plot area, the context labels are measured with and
+    /// drawn into, and the active theme (font, cycle colours).</param>
+    /// <param name="slots">Every Y axis slot of the axes as this render places it, the primary first
+    /// (<see cref="PlacedYSlot"/>): a label stands at the height its own slot's transform puts the end of its line at, the
+    /// X range they share is the range the axes is drawn with (a point outside it is not the end of a line), and the column
+    /// starts past the right slots' bands stacked together.</param>
     /// <param name="mirroredYTicks">The band the mirrored Y tick labels took past the right spine
     /// (<see cref="EdgeBands.Right"/>); 0 when none were drawn. The column starts past it.</param>
-    public CartesianDirectLabelsPart(Axes axes, Rect plotArea, IRenderContext ctx, Theme theme,
-                                     DataTransform transform, IReadOnlyList<DataTransform> secondaryTransforms, MinMaxRange visibleX,
-                                     double mirroredYTicks)
+    internal CartesianDirectLabelsPart(CartesianPartContext context, IReadOnlyList<PlacedYSlot> slots, double mirroredYTicks)
     {
-        _axes = axes;
-        _plotArea = plotArea;
-        _ctx = ctx;
-        _theme = theme;
-        _transform = transform;
+        _axes = context.Axes;
+        _plotArea = context.PlotArea;
+        _ctx = context.Ctx;
+        _theme = context.Theme;
         _mirroredYTicks = mirroredYTicks;
-        Placements = Place(secondaryTransforms, visibleX);
+        Placements = Place(slots);
     }
 
     private readonly Axes _axes;
     private readonly Rect _plotArea;
     private readonly IRenderContext _ctx;
     private readonly Theme _theme;
-    private readonly DataTransform _transform;
     private readonly double _mirroredYTicks;
 
-    /// <summary>The placed labels: primary series first, then secondary Y, each list in series order.</summary>
+    /// <summary>The placed labels in identity order: the primary's series first, then every right slot's, then every left
+    /// slot's, each list in series order.</summary>
     internal IReadOnlyList<PlacedDirectLabel> Placements { get; }
 
-    /// <summary>Draws the end label of the series at <paramref name="indexInPair"/> in <paramref name="pair"/>'s list,
-    /// when it has one. Called inside that series' group, by whichever pass draws the series.</summary>
-    /// <param name="pair">The list the series sits in (<see cref="SeriesAxisPair.Primary"/> or
-    /// <see cref="SeriesAxisPair.SecondaryY"/>).</param>
-    /// <param name="indexInPair">The series' index in that list.</param>
-    internal void DrawLabelOf(SeriesAxisPair pair, int indexInPair)
+    /// <summary>Draws the end label of the series whose identity slot is <paramref name="seriesIndex"/>
+    /// (<see cref="SeriesSlotExtensions.SlotIndex"/>, its place in <see cref="Axes.AllSeries"/>), when it has one. Called
+    /// inside that series' group, by whichever pass draws the series.</summary>
+    /// <param name="seriesIndex">The series' identity slot.</param>
+    internal void DrawLabelOf(int seriesIndex)
     {
         foreach (var placed in Placements)
-            if (placed.Label.Pair == pair && placed.Label.IndexInPair == indexInPair) Draw(placed);
+            if (_axes.SlotIndex(placed.Label.Pair, placed.Label.IndexInPair) == seriesIndex) Draw(placed);
     }
 
     private void Draw(PlacedDirectLabel placed)
@@ -97,15 +87,16 @@ internal sealed class CartesianDirectLabelsPart
             _ctx.DrawText(text, placed.Position, placed.Font, TextAlignment.Left);
     }
 
-    private List<PlacedDirectLabel> Place(IReadOnlyList<DataTransform> secondaryTransforms, MinMaxRange visibleX)
+    private List<PlacedDirectLabel> Place(IReadOnlyList<PlacedYSlot> slots)
     {
-        var metrics = new DirectLabelMetrics(_axes, _theme, _ctx, visibleX);
+        var shared = slots[0].Range;
+        var metrics = new DirectLabelMetrics(_axes, _theme, _ctx, new MinMaxRange(shared.XMin, shared.XMax));
         var labels = new List<DirectLabel>();
         var anchors = new List<Point>();
         double labelHeight = 0;
         foreach (var label in metrics.Labels)
         {
-            var transform = label.Pair == SeriesAxisPair.Primary ? _transform : secondaryTransforms[label.AxisSlot];
+            var transform = slots.First(placed => ReferenceEquals(placed.Slot, label.Slot)).Transform;
             var anchor = transform.DataToPixel(label.EndX, label.EndY);
             // The axis cannot draw this end (a non-positive value on a log axis, a value inside a break): the line has
             // no visible end there, so the label has nowhere to stand.
@@ -121,8 +112,10 @@ internal sealed class CartesianDirectLabelsPart
         var centres = anchors.Select(a => new Interval1D(a.Y, 0)).ToList();
         centres.SpreadApart(labelHeight, _plotArea.Y, _plotArea.Y + _plotArea.Height);
 
-        // Past the axis side of the right edge, by the rule the layout reserves it with (RightBand.Axis).
-        double axisSide = new RightBand(ConstrainedLayoutEngine.SecondaryAxisBand(_axes, _ctx, _theme), _mirroredYTicks, 0).Axis;
+        // Past the axis side of the right edge, by the rule the layout reserves it with (RightBand.Axis): the bands this
+        // render placed the right slots by, stacked together as the layout stacks them.
+        double[] rightBands = [.. slots.Where(placed => placed.Slot.Side == AxisSide.Right).Select(placed => placed.Band)];
+        double axisSide = new RightBand(rightBands.TotalStackedBand(_axes.YAxes.TitleGap), _mirroredYTicks, 0).Axis;
         double x = _plotArea.X + _plotArea.Width + axisSide + DirectLabelMetrics.Gap;
         var placed = new List<PlacedDirectLabel>(labels.Count);
         var colorSlots = _axes.ColorSlots();
@@ -134,7 +127,7 @@ internal sealed class CartesianDirectLabelsPart
                 Color = _theme.SeriesSlot(colorSlots[_axes.SlotIndex(label.Pair, label.IndexInPair)]).ColorOf(label.Series),
             };
             placed.Add(new PlacedDirectLabel(label, anchors[k],
-                new Point(x, centres[k].Start + font.Size * BaselineDrop), font));
+                new Point(x, centres[k].Start + font.Size * TextBox.CentreDrop), font));
         }
         return placed;
     }

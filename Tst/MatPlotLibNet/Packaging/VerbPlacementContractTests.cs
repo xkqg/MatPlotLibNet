@@ -275,6 +275,58 @@ public class VerbPlacementContractTests
         Assert.True(violations.Count == 0, $"{verb.DeclaringType!.Name}.{name}: {Show(violations)}.");
     }
 
+    // ---- the container verbs ------------------------------------------------------------------------------------------
+
+    /// <summary>The verbs that add a Y axis to the container: instance methods of the builder (they add an axis, not a
+    /// composed chart, so they are not in a family), found through the callback they hand a
+    /// <see cref="YAxisSlotBuilder"/> to, so a verb added tomorrow is found without an edit here.</summary>
+    private static MethodInfo[] ContainerVerbs =>
+        [.. typeof(AxesBuilder).GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+            .Where(method => method.GetParameters().Any(parameter => parameter.ParameterType == typeof(Action<YAxisSlotBuilder>)))
+            .OrderBy(method => method.Name, StringComparer.Ordinal)];
+
+    [Fact]
+    public void TheContainerVerbs_AreFound()
+    {
+        Assert.Equal(["WithAddLeftYAxis", "WithAddRightYAxis"], ContainerVerbs.Select(verb => verb.Name));
+    }
+
+    [Fact]
+    public void TheContainerVerbs_KeepTheShapeThePlacementRuleGives()
+    {
+        foreach (var verb in ContainerVerbs)
+        {
+            var violations = verb.ContainerVerbViolations(ParameterBudget);
+
+            Assert.True(violations.Count == 0, $"AxesBuilder.{verb.Name}: {Show(violations)}.");
+        }
+    }
+
+    [Theory]
+    [InlineData(nameof(ContainerVerbViolators.NotPublic), "public")]
+    [InlineData(nameof(ContainerVerbViolators.NotFluent), "returns")]
+    [InlineData(nameof(ContainerVerbViolators.TooManyParameters), "parameters")]
+    [InlineData(nameof(ContainerVerbViolators.NoCallback), "callback")]
+    [InlineData(nameof(ContainerVerbViolators.ConfigureNotLast), "callback")]
+    [InlineData(nameof(ContainerVerbViolators.WrongBuilder), "callback")]
+    [InlineData(nameof(ContainerVerbViolators.ConfigureMisnamed), "configure")]
+    public void AContainerVerbRuleBreaker_IsNamedByTheShapeCheck(string violator, string fragment)
+    {
+        var method = typeof(ContainerVerbViolators).GetMethod(violator, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        var violations = method.ContainerVerbViolations(ParameterBudget);
+
+        Assert.Contains(violations, violation => violation.Contains(fragment, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AContainerVerbThatKeepsTheShape_IsNotNamedByTheShapeCheck()
+    {
+        var method = typeof(ContainerVerbViolators).GetMethod(nameof(ContainerVerbViolators.Fine))!;
+
+        Assert.Empty(method.ContainerVerbViolations(ParameterBudget));
+    }
+
     [Fact]
     public void EveryPartsTypeAVerbHandsOut_CanOnlyBeMadeByTheLibrary()
     {
@@ -384,6 +436,42 @@ internal static class VerbShapeExtensions
         return violations;
     }
 
+    /// <summary>The shape of a container verb, an instance method of the builder that stacks one Y axis and hands it to a
+    /// callback: public, returns the builder so the chain goes on, takes at most <paramref name="parameterBudget"/>
+    /// parameters, and ends with the callback, named <c>configure</c> and typed <c>Action&lt;YAxisSlotBuilder&gt;</c>.</summary>
+    internal static IReadOnlyList<string> ContainerVerbViolations(this MethodInfo verb, int parameterBudget)
+    {
+        var violations = new List<string>();
+        var parameters = verb.GetParameters();
+
+        if (!verb.IsPublic)
+        {
+            violations.Add("is not public");
+        }
+
+        if (verb.ReturnType != typeof(AxesBuilder))
+        {
+            violations.Add($"returns {verb.ReturnType.Name}, not AxesBuilder, so the chain breaks");
+        }
+
+        if (parameters.Length > parameterBudget)
+        {
+            violations.Add($"takes {parameters.Length} parameters; at most {parameterBudget}");
+        }
+
+        var last = parameters.LastOrDefault();
+        if (last is null || last.ParameterType != typeof(Action<YAxisSlotBuilder>))
+        {
+            violations.Add("does not end with an Action<YAxisSlotBuilder> callback");
+        }
+        else if (last.Name != "configure")
+        {
+            violations.Add($"names its trailing callback {last.Name}, not configure");
+        }
+
+        return violations;
+    }
+
     internal static IReadOnlyList<string> PartsViolations(this Type parts)
     {
         var violations = new List<string>();
@@ -426,6 +514,27 @@ internal static class VerbViolators
     public static AxesBuilder WrongReceiver(this FigureBuilder figure) => throw new NotSupportedException();
 
     public static AxesBuilder PlainStatic(AxesBuilder axes) => axes;
+}
+
+/// <summary>Instance methods that each break one rule of the container verbs' shape, so the check that names the rule is
+/// shown to fire. Not verbs: nothing in the library calls them.</summary>
+internal sealed class ContainerVerbViolators
+{
+    public AxesBuilder Fine(int count, Action<YAxisSlotBuilder> configure) => throw new NotSupportedException();
+
+    internal AxesBuilder NotPublic(Action<YAxisSlotBuilder> configure) => throw new NotSupportedException();
+
+    public void NotFluent(Action<YAxisSlotBuilder> configure) { }
+
+    public AxesBuilder TooManyParameters(int a, int b, int c, int d, Action<YAxisSlotBuilder> configure) => throw new NotSupportedException();
+
+    public AxesBuilder NoCallback(int count) => throw new NotSupportedException();
+
+    public AxesBuilder ConfigureNotLast(Action<YAxisSlotBuilder> configure, int count) => throw new NotSupportedException();
+
+    public AxesBuilder WrongBuilder(Action<AxesBuilder> configure) => throw new NotSupportedException();
+
+    public AxesBuilder ConfigureMisnamed(Action<YAxisSlotBuilder> style) => throw new NotSupportedException();
 }
 
 internal readonly record struct PartsWithAPublicConstructor

@@ -19,7 +19,7 @@ namespace MatPlotLibNet.Tests.Coverage;
 /// PolarTransform, LogLocator, EcdfSeriesRenderer, CountSeries, SunburstSeries, ThreeDAxes,
 /// ConstrainedLayoutEngine, TripcolorRenderer, HexbinRenderer, Trisurf3DRenderer,
 /// MarkerRenderer, SankeyRenderer, FacetedFigure, JointPlotFigure, PairPlotFigure,
-/// ChartRenderer/theme, SecondaryAxisBuilder, QuiverKeySeries rendering, and ParabolicSar.</summary>
+/// ChartRenderer/theme, QuiverKeySeries rendering, and ParabolicSar.</summary>
 public class BranchCoverage_RenderingTests
 {
     // PolarTransform.cs L17: `rMax > 0 ? rMax : 1` — non-positive rMax fallback.
@@ -316,8 +316,8 @@ public class BranchCoverage_RenderingTests
     public void TripcolorRenderer_EmptyZ_UsesZeroOneRange()
     {
         var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Tripcolor(
-                [0.0, 1, 0.5, 0.3], [0.0, 0, 1, 0.5], [],  // Empty Z!
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(   // built directly: the verb refuses a Z that does not pair with X and Y
+                new TripcolorSeries(new double[] { 0.0, 1, 0.5, 0.3 }, new double[] { 0.0, 0, 1, 0.5 }, Array.Empty<double>()),  // Empty Z!
                 s => { s.Triangles = [0, 1, 2, 0, 1, 3]; }))
             .Build();
         var svg = fig.ToSvg();
@@ -790,30 +790,6 @@ public class BranchCoverage_RenderingTests
             .Build()
             .ToSvg();
         Assert.Contains("<svg", svg);
-    }
-
-    // ── SecondaryAxisBuilder ──────────────────────────────────────────────────────
-
-    [Fact]
-    public void SecondaryAxisBuilder_Scatter_NullConfigure_NoOp()
-    {
-        var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2], [3.0, 4])
-                .WithSecondaryYAxis(s => s.Scatter([1.5], [55.0], configure: null)))
-            .Build();
-        Assert.NotEmpty(fig.SubPlots[0].SecondarySeries);
-    }
-
-    [Fact]
-    public void SecondaryAxisBuilder_Plot_NullConfigure_NoOp()
-    {
-        var fig = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax
-                .Plot([1.0, 2], [3.0, 4])
-                .WithSecondaryYAxis(s => s.Plot([1.5, 2.5], [55.0, 60], configure: null)))
-            .Build();
-        Assert.NotEmpty(fig.SubPlots[0].SecondarySeries);
     }
 
     // ── QuiverKeySeries rendering ─────────────────────────────────────────────────

@@ -52,6 +52,14 @@ public sealed class StateTimelineSeries : ChartSeries
     internal override bool FixesYRange => true;
 
     /// <inheritdoc />
+    /// <remarks>One entry, the name of the series, wearing the states: a stripe for each distinct state the timeline draws, in
+    /// the order each first appears. A timeline with nothing to draw keeps a plain swatch.</remarks>
+    internal override LegendSwatch LegendSwatch =>
+        Segments.Any(s => double.IsFinite(s.Start) && double.IsFinite(s.End))
+            ? new(LegendSwatchKind.Stripes, States: Segments)
+            : LegendSwatch.Patch;
+
+    /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (Segments.Count == 0) return new(null, null, null, null);

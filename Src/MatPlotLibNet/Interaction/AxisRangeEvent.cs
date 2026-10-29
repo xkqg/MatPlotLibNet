@@ -18,17 +18,21 @@ public abstract record AxisRangeEvent(
     double YMin,
     double YMax) : FigureInteractionEvent(ChartId, AxesIndex)
 {
-    /// <summary>Every outward-stacked secondary Y axis' new range (ROADMAP.md row 100), already computed by the
+    /// <summary>The new range of every Y axis stacked past the primary, already computed by the
     /// modifier that sent this event (<see cref="IChartLayout.GetSecondaryDataRanges"/> read through the SAME
     /// pixel rectangle this event zooms/resets the primary to, via <c>ChartLayoutViewExtensions.SecondaryViewsOf</c>).
     /// <see langword="init"/>-only so every existing construction site keeps working; absent/empty leaves every
-    /// secondary axis where it was (today's behavior).</summary>
+    /// such axis where it was (today's behavior).</summary>
     public IReadOnlyList<SecondaryAxisRange>? SecondaryRanges { get; init; }
 
     /// <inheritdoc />
-    public sealed override void ApplyTo(Figure figure)
+    public sealed override void ApplyTo(Figure figure) => TryApplyTo(figure);
+
+    /// <inheritdoc />
+    internal sealed override bool TryApplyTo(Figure figure)
     {
-        var axes = TargetAxes(figure);
+        if (!TryTargetAxes(figure, out var axes)) return false;
+
         foreach (var linked in XLinkedAxes(figure))
         {
             linked.XAxis.Min = XMin;
@@ -42,6 +46,7 @@ public abstract record AxisRangeEvent(
             axes.YAxis.Max = YMax;
         }
 
-        AxisRangeEventExtensions.ApplySecondaryRanges(axes, SecondaryRanges);
+        axes.ApplySecondaryRanges(SecondaryRanges);
+        return true;
     }
 }

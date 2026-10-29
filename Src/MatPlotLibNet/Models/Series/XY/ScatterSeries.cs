@@ -11,6 +11,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a scatter chart series displaying individual data points as markers.</summary>
 public sealed class ScatterSeries : XYSeries, IColormappable, INormalizable, IHasColor, IHasAlpha, IHasMarkerStyle
 {
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Marker, Marker: Marker, MarkerSize: MarkerSize);
+
     public double[]? Sizes { get; set; }
 
     public Color[]? Colors { get; set; }

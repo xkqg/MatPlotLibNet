@@ -43,7 +43,8 @@ public abstract class ColorBarRenderer
     /// <summary>The number of gradient steps along the colorbar (default 50).</summary>
     protected int Steps { get; }
 
-    /// <summary>Number of tick labels along the colorbar (default 6 = 0%, 20%, 40%, 60%, 80%, 100%).</summary>
+    /// <summary>Number of tick labels along the colorbar when it was drawn at fifths of its range.</summary>
+    [Obsolete("The ticks of a colour bar come from a tick locator and their number depends on the length of the bar; nothing reads this any more.")]
     protected const int TickCount = 6;
 
     /// <summary>Fraction of the colorbar length used for each extend wedge (default 0.10 = 10%).</summary>
@@ -70,6 +71,12 @@ public abstract class ColorBarRenderer
         ExtendMin = cb.Extend is ColorBarExtend.Min or ColorBarExtend.Both;
         ExtendMax = cb.Extend is ColorBarExtend.Max or ColorBarExtend.Both;
     }
+
+    /// <summary>The ticks along a gradient of <paramref name="lengthPx"/>, in the theme's tick font.</summary>
+    /// <param name="lengthPx">The length of the whole bar.</param>
+    /// <param name="vertical">Whether the bar is vertical.</param>
+    internal ColorBarScale ScaleAlong(double lengthPx, bool vertical) =>
+        ColorBarScale.For(Min, Max, lengthPx, ThemedFontProvider.TickFont(Theme).Size, vertical);
 
     /// <summary>Renders the colorbar onto the context. Concrete subclasses implement
     /// orientation-specific layout (horizontal below the plot, vertical to the right).</summary>

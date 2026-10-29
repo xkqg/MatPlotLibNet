@@ -118,7 +118,7 @@ public class BumpChartTests
 
         var lines = Lines(axes);
         Assert.Equal(Table.Length, lines.Length);
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
         for (int g = 0; g < Table.Length; g++)
         {

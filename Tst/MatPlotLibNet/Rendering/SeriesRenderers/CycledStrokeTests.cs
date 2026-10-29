@@ -365,7 +365,7 @@ public class CycledStrokeTests
     [Fact]
     public void ALineOnTheRightHandAxis_FollowsTheSlotRuleAfterThePrimarySeries()
     {
-        var doc = Doc(ThemeWith(Styled), ax => ax.Plot(X, Y1).WithSecondaryYAxis(y2 => y2.Plot(X, Y2)));
+        var doc = Doc(ThemeWith(Styled), ax => ax.Plot(X, Y1).WithAddRightYAxis(y2 => y2.Plot(X, Y2)));
 
         Assert.Null(Dash(Polyline(doc, Colors.Red)));
         var secondary = Polyline(doc, Colors.Green);
@@ -455,7 +455,7 @@ public class CycledStrokeTests
     private static string EveryFamily(Theme theme) => Plt.Create().WithTheme(theme).WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
         .Plot(X, Y1, s => s.Label = "line").Scatter(X, Y2, s => s.Label = "scatter").Step(X, Y1, s => s.Label = "step")
         .FillBetween(X, Y2, null, s => s.Label = "area").ErrorBar(X, Y1, Low, Low, s => s.Label = "errors")
-        .Plot(X, Y2, s => s.Label = "again").WithSecondaryYAxis(y2 => y2.Plot(X, Y1, s => s.Label = "right"))
+        .Plot(X, Y2, s => s.Label = "again").WithAddRightYAxis(y2 => y2.Plot(X, Y1, s => s.Label = "right"))
         .WithLegend()).ToSvg();
 
     /// <summary>The line renderers that took the slot later: a regression line is 2 wide of its own, so it is the one a

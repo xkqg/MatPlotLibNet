@@ -14,7 +14,7 @@ namespace MatPlotLibNet.Rendering.CartesianParts;
 /// </summary>
 /// <remarks>
 /// Each concrete subclass owns ONE responsibility: Annotations, Spans,
-/// ReferenceLines, SecondaryYAxis, SecondaryXAxis, Signals. The orchestrator
+/// ReferenceLines, the Y axis slots, SecondaryXAxis, Signals. The orchestrator
 /// keeps the overall sequencing + delegates to the parts.
 /// </remarks>
 public abstract class CartesianAxesPart

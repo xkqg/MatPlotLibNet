@@ -30,6 +30,16 @@ public abstract record LegendPositionStrategy
     /// <param name="boxH">The pre-measured legend box height in pixels.</param>
     public abstract Point ComputeBox(Rect plotArea, double boxW, double boxH);
 
+    /// <summary>Computes the top-left pixel position of the legend box knowing the marks the chart drew. A position that
+    /// names its place (every one but <see cref="LegendPosition.Best"/>) stands there whatever is under it, so this is the
+    /// answer of <see cref="ComputeBox(Rect, double, double)"/>; <c>Best</c> overrides it to look.</summary>
+    /// <param name="plotArea">The pixel-space rectangle that bounds the plot.</param>
+    /// <param name="boxW">The pre-measured legend box width in pixels.</param>
+    /// <param name="boxH">The pre-measured legend box height in pixels.</param>
+    /// <param name="obstacles">The marks the chart drew on this axes.</param>
+    internal virtual Point ComputeBox(Rect plotArea, double boxW, double boxH, MarkObstacles obstacles)
+        => ComputeBox(plotArea, boxW, boxH);
+
     // Helpers used by the centered/outside strategies (avoid recomputing per-call).
     /// <summary>The horizontal centre of the plot area.</summary>
     protected static double CenterX(Rect plotArea) => plotArea.X + plotArea.Width / 2;
@@ -123,11 +133,32 @@ internal sealed record OutsideBottomStrategy : LegendPositionStrategy
 }
 
 /// <summary>
-/// "Best" position falls back to <see cref="UpperRightStrategy"/>'s placement
-/// (matching matplotlib's default and the OLD inline switch's `_` arm).
+/// The "best" position: the first of ten places that covers the fewest of the chart's marks, tried in matplotlib's order
+/// (upper right, upper left, lower left, lower right, right, centre left, centre right, lower centre, upper centre,
+/// centre), each placed by its own strategy. With no marks to look at it is the upper right, as it always was; the marks
+/// come in through <see cref="ComputeBox(Rect, double, double, MarkObstacles)"/>.
 /// </summary>
 internal sealed record BestStrategy : LegendPositionStrategy
 {
+    private static readonly LegendPositionStrategy[] Places =
+    [
+        new UpperRightStrategy(), new UpperLeftStrategy(), new LowerLeftStrategy(), new LowerRightStrategy(),
+        new RightStrategy(), new CenterLeftStrategy(), new CenterRightStrategy(), new LowerCenterStrategy(),
+        new UpperCenterStrategy(), new CenterStrategy(),
+    ];
+
     public override Point ComputeBox(Rect plotArea, double boxW, double boxH)
-        => new(plotArea.X + plotArea.Width - boxW - Inset, plotArea.Y + Inset);
+        => Places[0].ComputeBox(plotArea, boxW, boxH);
+
+    internal override Point ComputeBox(Rect plotArea, double boxW, double boxH, MarkObstacles obstacles)
+    {
+        var corners = new Point[Places.Length];
+        var boxes = new Rect[Places.Length];
+        for (int i = 0; i < Places.Length; i++)
+        {
+            corners[i] = Places[i].ComputeBox(plotArea, boxW, boxH);
+            boxes[i] = new Rect(corners[i].X, corners[i].Y, boxW, boxH);
+        }
+        return corners[obstacles.FirstLeastCovered(boxes)];
+    }
 }

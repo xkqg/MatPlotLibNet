@@ -10,6 +10,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a radar (spider) chart series displaying multi-axis categorical data.</summary>
 public sealed class RadarSeries : ChartSeries, IHasColor, IHasAlpha
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     public string[] Categories { get; }
 
     public double[] Values { get; }

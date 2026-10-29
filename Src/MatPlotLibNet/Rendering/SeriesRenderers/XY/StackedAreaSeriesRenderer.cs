@@ -14,11 +14,21 @@ internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeri
     public StackedAreaSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
-    public override void Render(StackedAreaSeries series)
+    internal override void AddMarks(StackedAreaSeries series, MarkObstacles.Builder marks)
+    {
+        foreach (var layer in Layers(series)) marks.AddPath(layer.Polygon);
+    }
+
+    /// <summary>One filled run of one layer: the layer's place in the stack and the polygon's vertices in pixels.</summary>
+    private readonly record struct LayerPolygon(int Layer, List<Point> Polygon);
+
+    /// <summary>The polygons of every layer: the one geometry <see cref="Render"/> fills and <see cref="AddMarks"/> hands to a
+    /// legend.</summary>
+    private IEnumerable<LayerPolygon> Layers(StackedAreaSeries series)
     {
         int n = series.X.Length;
         int layers = series.YSets.Length;
-        if (n == 0 || layers == 0) return;
+        if (n == 0 || layers == 0) yield break;
 
         // Compute per-layer baselines using the chosen strategy, and each layer's top edge on its baseline
         var baselines = series.Baseline.ComputeFor(series.YSets, n);
@@ -27,11 +37,8 @@ internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeri
         // Precompute pixel X coordinates once for all layers (SIMD batch)
         var pxArr = Transform.TransformX(series.X);
 
-        // Draw each layer as a filled polygon between baseline and top edge
         for (int layer = 0; layer < layers; layer++)
         {
-            var fillColor = ApplyAlpha(PartColor(layer), series.Alpha);
-
             // A layer stands on the one below it, the first on its baseline (0 for a plain stack): a floor the axis cannot
             // place (0 on a log axis) is clipped to the edge where the axis begins, as matplotlib clips it.
             var pyTop = Transform.TransformY(tops[layer]);
@@ -52,8 +59,19 @@ internal sealed class StackedAreaSeriesRenderer : SeriesRenderer<StackedAreaSeri
                 for (int i = run.EndExclusive - 1; i >= run.StartInclusive; i--)
                     polygon.Add(new Point(pxArr[i], pyBot[i]));
 
-                Ctx.DrawPolygon(polygon, new ShapeStyle(fillColor, null, 0) { Hatch = series.Hatch, HatchColor = series.HatchColor });
+                yield return new LayerPolygon(layer, polygon);
             }
+        }
+    }
+
+    /// <inheritdoc />
+    public override void Render(StackedAreaSeries series)
+    {
+        // Each layer is a filled polygon between its baseline and its top edge.
+        foreach (var layer in Layers(series))
+        {
+            var fillColor = ApplyAlpha(PartColor(layer.Layer), series.Alpha);
+            Ctx.DrawPolygon(layer.Polygon, new ShapeStyle(fillColor, null, 0) { Hatch = series.Hatch, HatchColor = series.HatchColor });
         }
     }
 }

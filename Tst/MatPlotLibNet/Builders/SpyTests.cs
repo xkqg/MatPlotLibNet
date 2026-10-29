@@ -86,7 +86,7 @@ public class SpyTests
         var axes = AxesOf(ax => ax.Spy(Wide));
 
         var spy = Assert.IsType<ScatterSeries>(Assert.Single(axes.Series));
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
         Assert.Equal([0.0, 1, 4, 0, 3, 4], spy.XData);
         Assert.Equal([0.0, 0, 1, 2, 2, 2], spy.YData);

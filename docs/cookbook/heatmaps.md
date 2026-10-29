@@ -72,6 +72,11 @@ Plt.Create()
     .Save("colorbar_custom.svg");
 ```
 
+The ticks of a colour bar are round numbers, as many as fit along its length (a vertical bar one for every two lines of the
+tick font, a horizontal bar one for every three, never fewer than 2 or more than 9), in one number format: a bar for 0 to
+11 reads 0, 2, 4, 6, 8 and 10, and a short bar is not crowded. The bar spaces its gradient and its ticks evenly in the value,
+whatever normaliser the series has.
+
 ## Color normalization
 
 Control how data values map to colors:

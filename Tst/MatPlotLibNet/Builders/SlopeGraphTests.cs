@@ -57,6 +57,9 @@ public class SlopeGraphTests
         return builder.AddSubPlot(1, 1, 1, configure).Build().ToSvg();
     }
 
+    /// <summary>The font a name is drawn in: the text size of the theme a figure wears when none is chosen.</summary>
+    private static Font NameFont() => ThemedFontProvider.DataTextFont(Plt.Create().Build().Theme);
+
     private static string Svg(BarGroup from, BarGroup to) => Svg(ax => ax.SlopeGraph(Regions, from, to));
 
     private static double Num(string text) => double.Parse(text, CultureInfo.InvariantCulture);
@@ -109,7 +112,7 @@ public class SlopeGraphTests
 
         var lines = Lines(axes);
         Assert.Equal(Regions.Length, lines.Length);
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
         for (int k = 0; k < Regions.Length; k++)
         {
@@ -195,6 +198,7 @@ public class SlopeGraphTests
             Assert.Equal(Start.Values[k], annotation.Y);
             Assert.True(annotation.X < 0.5, $"the start name of '{Regions[k]}' stands at x = {annotation.X}, not left of the start column at 0.5");
             Assert.Equal(TextAlignment.Right, annotation.Alignment);
+            Assert.Equal(TextVerticalAlignment.Center, annotation.VerticalAlignment);
             Assert.Null(annotation.Color);
             Assert.Null(annotation.Font);
             Assert.Equal(AnnotationCoordinates.Data, annotation.Coordinates);
@@ -212,17 +216,50 @@ public class SlopeGraphTests
         var groups = SeriesGroups(svg);
         var names = StartNames(svg);
         var measurer = new SvgRenderContext();
-        var font = new Font { Family = Theme.Default.DefaultFont.Family, Size = 10 };
+        var font = NameFont();
 
         Assert.Equal(Regions, names.Select(n => n.Text));
         for (int k = 0; k < Regions.Length; k++)
         {
             var marker = Dots(groups[k])[0];
-            Assert.Equal(marker.Cy, names[k].Y, 6);
+            Assert.Equal(marker.Cy + 0.35 * font.Size, names[k].Y, 6);   // centred on the marker: the baseline a third of the size below it
             double gap = marker.Cx - names[k].X;
             Assert.True(gap > 4 && gap < 30, $"'{Regions[k]}' ends {gap} px left of its marker; the marker's radius is 4");
             double start = names[k].X - measurer.MeasureText(Regions[k], font).Width;
             Assert.True(start > plot.X, $"'{Regions[k]}' starts at {start}, left of the plot area beginning at {plot.X}");
+        }
+    }
+
+    /// <summary>A start name stands on its marker by the rule the end name stands on its own: a third of the size of the
+    /// theme's text below the point it names, whatever that size is.</summary>
+    [Theory]
+    [InlineData("Default")]
+    [InlineData("Poster")]
+    [InlineData("Paper")]
+    public void TheStartNames_AreCentredOnTheirMarkers(string themeName)
+    {
+        var theme = themeName switch { "Poster" => Theme.Poster, "Paper" => Theme.Paper, _ => Theme.Default };
+        string svg = Svg(ax => ax.SlopeGraph(Regions, Start, End), theme);
+        var groups = SeriesGroups(svg);
+        var names = StartNames(svg);
+
+        for (int k = 0; k < Regions.Length; k++)
+            Assert.Equal(TextBox.CentreDrop * theme.DefaultFont.Size, names[k].Y - Dots(groups[k])[0].Cy, 6);
+    }
+
+    /// <summary>Where the end names stand clear of one another they stand on their markers by that same rule, so a start
+    /// name and an end name are centred alike.</summary>
+    [Fact]
+    public void TheStartNames_AreCentredAsTheEndNamesAre_WhereTheEndNamesAreNotPushedApart()
+    {
+        string svg = Svg(Start, End);
+        var groups = SeriesGroups(svg);
+        var names = StartNames(svg);
+
+        for (int k = 0; k < Regions.Length; k++)
+        {
+            var dots = Dots(groups[k]);
+            Assert.Equal(EndName(groups[k])!.Value.Y - dots[1].Cy, names[k].Y - dots[0].Cy, 6);
         }
     }
 
@@ -323,7 +360,7 @@ public class SlopeGraphTests
         string withMargin = Svg(Start, End);
         string theThemesMargin = Svg(ax => ax.SlopeGraph(Regions, Start, End).SetXMargin(0.05));
         var measurer = new SvgRenderContext();
-        var font = new Font { Family = Theme.Default.DefaultFont.Family, Size = 10 };
+        var font = NameFont();
         double width = measurer.MeasureText("Central", font).Width;
 
         var central = StartNames(withMargin).Single(n => n.Text == "Central");

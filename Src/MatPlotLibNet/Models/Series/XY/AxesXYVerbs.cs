@@ -38,7 +38,11 @@ public static class AxesXYVerbs
         /// <param name="x">The shared X-axis data values.</param>
         /// <param name="ySets">An array of Y arrays, one per stacked layer.</param>
         /// <returns>The newly created <see cref="StackedAreaSeries"/> for further configuration.</returns>
-        public StackedAreaSeries StackPlot(double[] x, double[][] ySets) => axes.AddSeries(new StackedAreaSeries(x, ySets));
+        public StackedAreaSeries StackPlot(double[] x, double[][] ySets)
+        {
+            foreach (var layer in ySets) x.Length.ThrowIfMisaligned(layer.Length);
+            return axes.AddSeries(new StackedAreaSeries(x, ySets));
+        }
 
         /// <summary>Adds a step-function series from the given X and Y data arrays.</summary>
         /// <param name="x">The X-axis data values.</param>
@@ -129,22 +133,26 @@ public static class AxesXYVerbs
         /// <summary>Adds a sparkline — a tiny inline line chart with no axes or labels.</summary>
         public SparklineSeries Sparkline(double[] values) => axes.AddSeries(new SparklineSeries(values));
 
-        /// <summary>Adds a line series plotted against the secondary Y-axis.</summary>
-        /// <remarks>Implicitly calls <see cref="Axes.TwinX"/> to ensure the secondary axis exists.</remarks>
+        /// <summary>Adds a line series plotted against the first right-hand Y axis.</summary>
+        /// <remarks>Obsolete: use <c>WithAddRightYAxis(right => right.Plot(x, y))</c> on the builder, or
+        /// <c>Axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries(x, y))</c> when you need the series back. Creates that
+        /// axis when there is none, as <c>YAxes.Right.FirstOrAdd()</c> does; it never stacks another.</remarks>
+        [Obsolete("Use WithAddRightYAxis(right => right.Plot(x, y)), or Axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries(x, y)) when you need the series back.")]
         public LineSeries PlotSecondary(double[] x, double[] y)
         {
             x.Length.ThrowIfMisaligned(y.Length);
-            axes.TwinX();
-            return axes.AddSecondarySeries(new LineSeries(x, y));
+            return axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries(x, y));
         }
 
-        /// <summary>Adds a scatter series plotted against the secondary Y-axis.</summary>
-        /// <remarks>Implicitly calls <see cref="Axes.TwinX"/> to ensure the secondary axis exists.</remarks>
+        /// <summary>Adds a scatter series plotted against the first right-hand Y axis.</summary>
+        /// <remarks>Obsolete: use <c>WithAddRightYAxis(right => right.Scatter(x, y))</c> on the builder, or
+        /// <c>Axes.YAxes.Right.FirstOrAdd().AddSeries(new ScatterSeries(x, y))</c> when you need the series back. Creates
+        /// that axis when there is none, as <c>YAxes.Right.FirstOrAdd()</c> does; it never stacks another.</remarks>
+        [Obsolete("Use WithAddRightYAxis(right => right.Scatter(x, y)), or Axes.YAxes.Right.FirstOrAdd().AddSeries(new ScatterSeries(x, y)) when you need the series back.")]
         public ScatterSeries ScatterSecondary(double[] x, double[] y)
         {
             x.Length.ThrowIfMisaligned(y.Length);
-            axes.TwinX();
-            return axes.AddSecondarySeries(new ScatterSeries(x, y));
+            return axes.YAxes.Right.FirstOrAdd().AddSeries(new ScatterSeries(x, y));
         }
 
         /// <summary>Adds a line series plotted against the secondary X-axis.</summary>

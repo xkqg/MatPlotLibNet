@@ -5,9 +5,11 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.ColorBarRendering;
 using MatPlotLibNet.Rendering.LegendRendering;
 using MatPlotLibNet.Rendering.Lighting;
 using MatPlotLibNet.Rendering.MathText;
+using MatPlotLibNet.Rendering.SeriesRenderers;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
@@ -27,8 +29,9 @@ public abstract class AxesRenderer
 
     protected Theme Theme { get; }
 
-    /// <summary>Maximum rendered width of Y-axis tick labels. Set by subclasses during tick rendering;
-    /// consumed by <see cref="RenderAxisLabels"/> to place the Y-axis label clear of the widest tick label.</summary>
+    /// <summary>Maximum rendered width of Y-axis tick labels. Set by subclasses during tick rendering; consumed by
+    /// <see cref="RenderAxisLabels"/> to place the Y-axis title clear of the widest tick label
+    /// (<see cref="YAxisTitleExtensions"/>), and by the Cartesian renderer to stack the left slots past the primary.</summary>
     protected double MeasuredYTickMaxWidth { get; set; }
 
     /// <summary>How far the X-axis tick labels, numbers or category names, reach below the mark and the pad as they are
@@ -70,16 +73,34 @@ public abstract class AxesRenderer
     /// renderer, which owns the end-label drawing, overrides it.</summary>
     internal virtual bool DrawsDirectLabels => false;
 
-    /// <summary>What is drawn past the top spine below the title (the mirrored X tick labels or the secondary X axis) and
-    /// past the right spine by the mirrored Y tick labels, measured before anything is drawn, so the layout can reserve
-    /// it. Nothing here: only the Cartesian renderer draws mirrored ticks and a secondary X axis.</summary>
-    /// <returns>The two bands; both 0 here.</returns>
-    internal virtual Layout.EdgeBands MeasureEdgeBands() => default;
+    /// <summary>What is drawn past the four spines besides the titles of the axes and the end labels, measured before
+    /// anything is drawn, so the layout can reserve it: the sides (<see cref="MeasureSideBands"/>) and the ends
+    /// (<see cref="MeasureEndBands"/>) together.</summary>
+    /// <returns>The bands of all four edges.</returns>
+    internal Layout.EdgeBands MeasureEdgeBands()
+    {
+        var sides = MeasureSideBands();
+        return MeasureEndBands() with { Left = sides.Left, Right = sides.Right };
+    }
 
-    /// <summary>Draws what belongs to the primary series at <paramref name="seriesIndex"/> beyond its own marks, while
+    /// <summary>What is drawn past the left and right spines: the primary Y tick labels and their mirror. The layout reads
+    /// it before the plot's width is laid out (these bands do not depend on it). Nothing here: only the Cartesian renderer
+    /// measures them.</summary>
+    /// <returns>The bands with <see cref="Layout.EdgeBands.Left"/> and <see cref="Layout.EdgeBands.Right"/> set; 0 here.</returns>
+    internal virtual Layout.EdgeBands MeasureSideBands() => default;
+
+    /// <summary>What is drawn past the top spine below the title (the mirrored X tick labels or the secondary X axis) and
+    /// below the bottom spine (the X tick labels and the X axis title). The layout reads it with the plot at the width it is
+    /// drawn at, since the X tick labels turn by that width. Nothing here: only the Cartesian renderer measures them.</summary>
+    /// <returns>The bands with the top, bottom and bottom-title fields set; 0 here.</returns>
+    internal virtual Layout.EdgeBands MeasureEndBands() => default;
+
+    /// <summary>Draws what belongs to the series at identity slot <paramref name="seriesIndex"/> beyond its own marks, while
     /// that series' group is still open, so it is shown, hidden and highlighted together with the series. Called by
-    /// every series pass after the series is drawn. Nothing here; the Cartesian renderer draws the series' end label.</summary>
-    /// <param name="seriesIndex">The series' index in <see cref="Models.Axes.Series"/>.</param>
+    /// every series pass after the series is drawn, on any axis. Nothing here; the Cartesian renderer draws the series'
+    /// end label.</summary>
+    /// <param name="seriesIndex">The series' identity slot (<see cref="SeriesSlotExtensions.SlotIndex"/>): its place in
+    /// <see cref="Models.Axes.AllSeries"/>, which for a primary series is its index in <see cref="Models.Axes.Series"/>.</param>
     internal virtual void DrawInsideSeriesGroup(int seriesIndex) { }
 
     /// <summary>The transform the primary series were drawn with in the last <see cref="Render"/>: the plot area and the
@@ -94,10 +115,10 @@ public abstract class AxesRenderer
     /// (polar, 3-D); the Cartesian renderer overrides it.</summary>
     internal virtual DataTransform? ComputeViewTransform() => null;
 
-    /// <summary>Every outward-stacked secondary Y axis' transform, computed the same way as <see cref="ComputeViewTransform"/>
+    /// <summary>The transform of every Y axis stacked past the primary, computed the same way as <see cref="ComputeViewTransform"/>
     /// — without drawing or measuring anything — so an interaction modifier can convert a pointer position through a
-    /// specific secondary axis, not only the primary (ROADMAP.md row 100). Empty here, for a renderer with no secondary
-    /// axes of this kind; the Cartesian renderer overrides it.</summary>
+    /// specific axis, not only the primary. Empty here, for a renderer with no Y axes of this kind; the Cartesian renderer
+    /// overrides it.</summary>
     internal virtual IReadOnlyList<SecondaryAxisTransform> ComputeSecondaryViewTransforms() => [];
 
     /// <summary>Writes the axes' view for the server-interaction script, when the figure asked for one
@@ -155,7 +176,11 @@ public abstract class AxesRenderer
     // --- Shared rendering helpers (available to all subclasses) ---
 
     /// <summary>Renders all series on these axes through the visitor pattern.</summary>
-    protected void RenderSeries()
+    protected void RenderSeries() => RenderSeries((RadialScale?)null);
+
+    /// <summary>Renders all series on these axes through the visitor pattern.</summary>
+    /// <param name="radial">The radial scale the series of a polar axes are drawn on; <see langword="null"/> on any other.</param>
+    private protected void RenderSeries(RadialScale? radial)
     {
         // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
         var colorSlots = Axes.ColorSlots();
@@ -163,11 +188,12 @@ public abstract class AxesRenderer
         foreach (var (series, i) in ordered)
         {
             if (!series.Visible) continue;
-            var slot = Theme.SeriesSlot(colorSlots[Axes.SlotIndex(SeriesAxisPair.Primary, i)]);
+            int firstSlot = colorSlots[Axes.SlotIndex(SeriesAxisPair.Primary, i)];
+            var slot = Theme.SeriesSlot(firstSlot);
             bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i);
             var renderer = new SvgSeriesRenderer(
                 new DataTransform(0, 1, 0, 1, PlotArea), Ctx, slot.CycleColor, Theme, slot.CycledProperties,
-                Axes.EnableTooltips, PlotArea);
+                Axes.EnableTooltips, PlotArea) { RadialScale = radial, FirstColorSlot = firstSlot };
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             DrawInsideSeriesGroup(i);
@@ -188,11 +214,12 @@ public abstract class AxesRenderer
         foreach (var (series, i) in ordered)
         {
             if (!series.Visible) continue;
-            var slot = Theme.SeriesSlot(colorSlots[Axes.SlotIndex(SeriesAxisPair.Primary, i)]);
+            int firstSlot = colorSlots[Axes.SlotIndex(SeriesAxisPair.Primary, i)];
+            var slot = Theme.SeriesSlot(firstSlot);
             bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i);
             var renderer = new SvgSeriesRenderer(
                 new DataTransform(0, 1, 0, 1, PlotArea), Ctx, slot.CycleColor, Theme, slot.CycledProperties,
-                Axes.EnableTooltips, PlotArea, projection, lightSource, emit3D, depthQueue);
+                Axes.EnableTooltips, PlotArea, projection, lightSource, emit3D, depthQueue) { FirstColorSlot = firstSlot };
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             DrawInsideSeriesGroup(i);
@@ -200,17 +227,16 @@ public abstract class AxesRenderer
         }
     }
 
-    /// <summary>Renders all series with a specific DataTransform.</summary>
-    /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
-    protected void RenderSeries(DataTransform transform)
+    /// <summary>Arranges the bar series that share their categories: when several non-stacked bar series share the same
+    /// categories they step aside for each other so the bars sit side by side, the way matplotlib's grouped bars do. Each
+    /// ORIENTATION is grouped among its own — a vertical bar offset against a horizontal one compares nothing — and until
+    /// 1.17.1 the horizontal ones were skipped altogether, so two of them were drawn exactly on top of each other with the
+    /// last one painted over the rest. A bar with a foot of its own (stacked, or lifted onto a StackBaseline) is not grouped.
+    /// The offsets are render state: every bar starts from none on every call, so a bar that left a group (a stacked render
+    /// after a grouped one) does not keep the place it had in it. The drawing and the marks a legend keeps clear of both
+    /// arrange the bars here, so they stand where they are drawn.</summary>
+    internal void ArrangeBarGroups()
     {
-        // Bar grouping: when several non-stacked bar series share the same categories, they step aside for
-        // each other so the bars sit side by side, the way matplotlib's grouped bars do. Each ORIENTATION is
-        // grouped among its own — a vertical bar offset against a horizontal one compares nothing — and until
-        // 1.17.1 the horizontal ones were skipped altogether, so two of them were drawn exactly on top of each
-        // other with the last one painted over the rest. A bar with a foot of its own (stacked, or lifted onto a
-        // StackBaseline) is not grouped. The offsets are render state: every bar starts from none on every render,
-        // so a bar that left a group (a stacked render after a grouped one) does not keep the place it had in it.
         foreach (var bar in Axes.Series.OfType<Models.Series.BarSeries>())
         {
             bar.BarGroupOffset = 0;
@@ -235,6 +261,13 @@ public abstract class AxesRenderer
                 }
             }
         }
+    }
+
+    /// <summary>Renders all series with a specific DataTransform.</summary>
+    /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
+    protected void RenderSeries(DataTransform transform)
+    {
+        ArrangeBarGroups();
 
         // Stable sort by ZOrder so fills (ZOrder=-1) render behind other series (ZOrder=0).
         var colorSlots = Axes.ColorSlots();
@@ -242,11 +275,12 @@ public abstract class AxesRenderer
         foreach (var (series, i) in ordered)
         {
             if (!series.Visible) continue;
-            var slot = Theme.SeriesSlot(colorSlots[Axes.SlotIndex(SeriesAxisPair.Primary, i)]);
+            int firstSlot = colorSlots[Axes.SlotIndex(SeriesAxisPair.Primary, i)];
+            var slot = Theme.SeriesSlot(firstSlot);
             bool openedGroup = Ctx.BeginSeriesGroup(Axes, series, i, transform);
             bool clipped = Ctx.BeginSeriesClip(Axes, PlotArea);
             var renderer = new SvgSeriesRenderer(transform, Ctx, slot.CycleColor, Theme, slot.CycledProperties,
-                Axes.EnableTooltips, PlotArea);
+                Axes.EnableTooltips, PlotArea) { FirstColorSlot = firstSlot };
             var area = new RenderArea(PlotArea, Ctx);
             series.Accept(renderer, area);
             if (clipped) Ctx.PopClip();
@@ -280,20 +314,86 @@ public abstract class AxesRenderer
     /// <see cref="Models.Series.ChartSeries.ColorGroup"/> shows the swatch its group is actually drawn in.</summary>
     private SeriesSlot LegendEntrySlot(LegendRendering.LegendEntry entry) => Theme.SeriesSlot(entry.ColorSlotIndex);
 
+    /// <summary>The marks this axes has drawn or is about to draw, as a legend at <see cref="LegendPosition.Best"/> must keep
+    /// clear of them, worked out without drawing or measuring anything beyond text: each series adds the rectangles, paths
+    /// and points it draws (<see cref="SeriesRenderers.SeriesRenderer{T}.AddMarks"/>) at the pixels the draw pass puts
+    /// them at. Nothing here: a coordinate system that collects no marks leaves a Best legend in the upper right, as it
+    /// always stood.</summary>
+    /// <returns>The marks, or <see cref="MarkObstacles.None"/>.</returns>
+    internal virtual MarkObstacles LegendObstacles() => MarkObstacles.None;
+
+    /// <summary>Adds the marks of <paramref name="series"/>, as they are drawn through <paramref name="transform"/> (and
+    /// <paramref name="projection"/>, for 3-D series), to <paramref name="marks"/>: the series visitor in its collecting mode,
+    /// which draws nothing.</summary>
+    /// <param name="series">The series, hidden ones too.</param>
+    /// <param name="transform">The transform the series are drawn with.</param>
+    /// <param name="marks">The collection the marks go into.</param>
+    /// <param name="projection">The projection the 3-D series are drawn through; <see langword="null"/> for others.</param>
+    /// <param name="radial">The radial scale the polar series are drawn on; <see langword="null"/> for others.</param>
+    internal void CollectMarks(IEnumerable<Models.Series.ISeries> series, DataTransform transform, MarkObstacles.Builder marks,
+        Projection3D? projection = null, RadialScale? radial = null)
+    {
+        var collector = new SvgSeriesRenderer(transform, Ctx, default, Theme, plotArea: PlotArea, projection: projection)
+        {
+            Marks = marks,
+            RadialScale = radial,
+        };
+
+        // A series that draws itself in Accept, outside the visitor (a map from the Geo package), draws through the area it is
+        // handed: that area must hold a context that draws nothing, or the series would be drawn into the picture a second time.
+        // What such a series draws is not collected: a map fills its plot, so every place a legend could stand is under it alike.
+        var area = new RenderArea(PlotArea, new MarkCollectingContext(Ctx, new MarkObstacles.Builder()));
+        foreach (var one in series) one.Accept(collector, area);
+    }
+
+    /// <summary>The legend as this renderer lays it out: the entries it lists and the box they stand in.</summary>
+    private readonly record struct ResolvedLegend(IReadOnlyList<LegendEntry> Entries, LegendLayout Layout);
+
+    /// <summary>The ONE place the legend is laid out. The draw pass (<see cref="RenderLegend"/>) and the hit-test pass
+    /// (<see cref="ComputeLegendBounds"/>, which feeds the interactive heads on every paint with no drawing) both read it,
+    /// so the box a pointer is tested against is the box that is drawn.</summary>
+    /// <returns>The legend's entries and layout; <see langword="null"/> when the legend is hidden or lists nothing.</returns>
+    private ResolvedLegend? ResolveLegend()
+    {
+        var legend = Axes.Legend;
+        if (!legend.Visible) return null;
+
+        var entries = Axes.LegendEntries(DrawsDirectLabels);
+        if (entries.Count == 0) return null;
+
+        // Only a legend that looks for its place needs the marks, and only then are they collected.
+        var calculator = new LegendLayoutCalculator(Theme, Ctx);
+        var obstacles = calculator.PositionOf(legend) == LegendPosition.Best ? LegendObstacles() : MarkObstacles.None;
+        var layout = calculator.Compute(legend, entries.Select(e => e.Label).ToList(), PlotArea, obstacles);
+        return new ResolvedLegend(entries, layout);
+    }
+
+    /// <summary>The legend resolved by <see cref="PlaceLegend"/> for the pass being drawn; read once by <see cref="RenderLegend"/>.</summary>
+    private ResolvedLegend? _placedLegend;
+    private bool _legendPlaced;
+
+    /// <summary>Resolves the legend now, ahead of the annotations that keep clear of its box, so the box they are laid out
+    /// around is the one <see cref="RenderLegend"/> draws a moment later (the legend is still drawn after them, so the
+    /// stacking order is unchanged). The place a Best legend takes depends on the marks and on where the annotations were put,
+    /// never on where they ended up, so nothing is circular.</summary>
+    /// <returns>The box the legend will stand in; <see langword="null"/> when there is none.</returns>
+    internal Rect? PlaceLegend()
+    {
+        _placedLegend = ResolveLegend();
+        _legendPlaced = true;
+        return _placedLegend is { } placed ? new Rect(placed.Layout.BoxX, placed.Layout.BoxY, placed.Layout.BoxWidth, placed.Layout.BoxHeight) : null;
+    }
+
     /// <summary>Renders the legend if any series have labels.</summary>
     protected void RenderLegend()
     {
-        if (!Axes.Legend.Visible) return;
+        var placed = _legendPlaced ? _placedLegend : ResolveLegend();
+        _legendPlaced = false;
+        _placedLegend = null;
+        if (placed is not { } resolved) return;
 
         var legend = Axes.Legend;
-        var entries = Axes.LegendEntries(DrawsDirectLabels);
-
-        if (entries.Count == 0) return;
-
-        // Phase B.3 — layout computation moved to LegendLayoutCalculator (was
-        // duplicated verbatim here AND in ComputeLegendBounds below).
-        var layout = new LegendRendering.LegendLayoutCalculator(Theme, Ctx)
-            .Compute(legend, entries.Select(e => e.Label).ToList(), PlotArea);
+        var (entries, layout) = resolved;
 
         // Open the legend group FIRST — frame, shadow, title, and entries all live inside
         // it as siblings. Phase S (2026-04-19) — the legend-drag script applies a
@@ -355,7 +455,7 @@ public abstract class AxesRenderer
 
             // Swatch dispatch: line segment for line-type series, marker for scatter,
             // line+caps for error bar, filled rectangle for patches (bar/hist/area/violin/pie).
-            DrawLegendSwatch(entry.Series, colX, entryY, layout.SwatchWidth, layout.SwatchHeight, LegendEntrySlot(entry));
+            DrawLegendSwatch(entry.Series, entry.Swatch, colX, entryY, layout.SwatchWidth, layout.SwatchHeight, LegendEntrySlot(entry));
 
             // Text anchor sits just past the swatch.
             var textPoint = new Point(colX + layout.SwatchWidth + layout.SwatchGap, entryY + layout.SwatchHeight - 1);
@@ -375,18 +475,9 @@ public abstract class AxesRenderer
     internal void ComputeLegendBounds()
     {
         LegendBounds.Clear();
-        if (!Axes.Legend.Visible) return;
+        if (ResolveLegend() is not { } resolved) return;
 
-        var legend = Axes.Legend;
-        var entries = Axes.LegendEntries(DrawsDirectLabels);
-
-        if (entries.Count == 0) return;
-
-        // Phase B.3 — identical layout calculation to RenderLegend, now sharing
-        // the single LegendLayoutCalculator instead of duplicating ~45 lines of math.
-        var layout = new LegendRendering.LegendLayoutCalculator(Theme, Ctx)
-            .Compute(legend, entries.Select(e => e.Label).ToList(), PlotArea);
-
+        var (entries, layout) = resolved;
         for (int i = 0; i < entries.Count; i++)
         {
             int row = i / layout.NCols;
@@ -397,69 +488,62 @@ public abstract class AxesRenderer
         }
     }
 
-    /// <summary>Draws a type-appropriate legend handle at (x, y): line segment for line series,
-    /// single centred marker for scatter, line+caps for error bar, filled rectangle for patches.</summary>
-    private void DrawLegendSwatch(Models.Series.ISeries series, double x, double y, double wMax, double h, SeriesSlot slot)
+    /// <summary>Draws the legend handle a series says it has (<see cref="Models.Series.ChartSeries.LegendSwatch"/>) at (x, y):
+    /// a line segment for a line, a single marker for a scatter, a line with caps for an error bar, a filled rectangle for
+    /// patches. The colour-cycle slot decides what the series leaves to it (its colour, and the width, dash and marker it
+    /// names no value for), the same rules the series renderer strokes the series by.</summary>
+    private void DrawLegendSwatch(Models.Series.ISeries series, Models.Series.LegendSwatch swatch, double x, double y, double wMax,
+        double h, SeriesSlot slot)
     {
         double midY = y + h / 2;
         var color = slot.ColorOf(series);
 
-        switch (series)
+        switch (swatch.Kind)
         {
-            case Models.Series.LineSeries ls:
-            {
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), slot.StrokeOf(color, ls.LineWidth, ls.LineStyle));
-                if (slot.LineMarkerOf(ls.Marker) is { } marker and not MarkerStyle.None)
-                    DrawLegendMarker(x + wMax / 2, midY, marker, ls.MarkerSize, color);
-                break;
-            }
-            case Models.Series.SignalSeries ss:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), slot.StrokeOf(color, ss.LineWidth, ss.LineStyle));
-                break;
-            case Models.Series.SignalXYSeries sxy:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), slot.StrokeOf(color, sxy.LineWidth, sxy.LineStyle));
-                break;
-            case Models.Series.SparklineSeries sp:
-                // solid, as the sparkline itself: the slot decides only the width
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), new StrokeStyle(color, slot.LineWidthOf(sp.LineWidth), LineStyle.Solid));
-                break;
-            case Models.Series.EcdfSeries ec:
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), slot.StrokeOf(color, ec.LineWidth, ec.LineStyle));
-                break;
-            case Models.Series.RegressionSeries rs:
+            case Models.Series.LegendSwatchKind.Line:
                 Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY),
-                    slot.StrokeOf(color, rs.LineWidth, rs.LineStyle, Models.Series.RegressionSeries.RestingLineWidth));
+                    slot.StrokeOf(color, swatch.LineWidth, swatch.LineStyle, swatch.RestingLineWidth));
                 break;
-            case Models.Series.StepSeries stp:
-            {
-                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY), slot.StrokeOf(color, stp.LineWidth, stp.LineStyle));
-                if (slot.LineMarkerOf(stp.Marker) is { } marker and not MarkerStyle.None)
-                    DrawLegendMarker(x + wMax / 2, midY, marker, Models.Series.LineSeries.RestingMarkerSize, color);
+            case Models.Series.LegendSwatchKind.LineMarker:
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY),
+                    slot.StrokeOf(color, swatch.LineWidth, swatch.LineStyle, swatch.RestingLineWidth));
+                if (slot.LineMarkerOf(swatch.Marker) is { } marker and not MarkerStyle.None)
+                    DrawLegendMarker(x + wMax / 2, midY, marker, swatch.MarkerSize, color);
                 break;
-            }
-            case Models.Series.ScatterSeries sc:
+            case Models.Series.LegendSwatchKind.SolidLine:
+                // solid, as the series itself: the slot decides only the width
+                Ctx.DrawLine(new Point(x, midY), new Point(x + wMax, midY),
+                    new StrokeStyle(color, slot.LineWidthOf(swatch.LineWidth), LineStyle.Solid));
+                break;
+            case Models.Series.LegendSwatchKind.Marker:
             {
                 // matplotlib legend marker size ≈ series point size, scaled down slightly.
-                double radius = Math.Min(h / 2 - 1, Math.Sqrt(sc.MarkerSize / Math.PI) * (100.0 / 72.0));
-                DrawLegendMarker(x + h / 2, midY, slot.ScatterMarkerOf(sc.Marker), radius * radius * Math.PI, color);
+                double radius = Math.Min(h / 2 - 1, Math.Sqrt(swatch.MarkerSize / Math.PI) * (100.0 / 72.0));
+                DrawLegendMarker(x + h / 2, midY, slot.ScatterMarkerOf(swatch.Marker ?? SeriesSlot.RestingScatterMarker), radius * radius * Math.PI, color);
                 break;
             }
-            case Models.Series.ErrorBarSeries eb:
+            case Models.Series.LegendSwatchKind.ErrorBar:
             {
-                double width = slot.LineWidthOf(eb.LineWidth);
+                double width = slot.LineWidthOf(swatch.LineWidth);
                 Ctx.DrawLine(new Point(x + 2, midY), new Point(x + wMax - 2, midY), new StrokeStyle(color, width, LineStyle.Solid));
                 Ctx.DrawLine(new Point(x + 2, midY - 3), new Point(x + 2, midY + 3), new StrokeStyle(color, width, LineStyle.Solid));
                 Ctx.DrawLine(new Point(x + wMax - 2, midY - 3), new Point(x + wMax - 2, midY + 3), new StrokeStyle(color, width, LineStyle.Solid));
                 break;
             }
-            default:
+            case Models.Series.LegendSwatchKind.Stripes when (swatch.States ?? []).DistinctFills(Theme) is { Count: > 0 } fills:
             {
+                // One stripe for each distinct state, side by side across the swatch, each in the fill the series draws it in.
+                double stripeWidth = wMax / fills.Count;
+                for (int i = 0; i < fills.Count; i++)
+                    Ctx.DrawRectangle(new Rect(x + i * stripeWidth, y, stripeWidth, h), fills[i]);
+                break;
+            }
+            default:
                 // Patch-like: bar/hist/area/violin/pie/etc → filled RECTANGLE (matplotlib uses
                 // handlelength × handleheight; our wMax carries handlelength, h carries handleheight).
                 // Previous `Math.Min(wMax, h)` clamped it to a square which matplotlib never does.
                 Ctx.DrawRectangle(new Rect(x, y, wMax, h), new ShapeStyle(color, null, 0));
                 break;
-            }
         }
     }
 
@@ -480,18 +564,9 @@ public abstract class AxesRenderer
     {
         if (Axes.ColorBar is not { Visible: true } cb) return;
 
-        IColorMap colorMap = cb.ColorMap ?? ColorMaps.Viridis;
-        double min = cb.Min, max = cb.Max;
-
-        var dataProvider = Axes.Series.OfType<IColorBarDataProvider>().FirstOrDefault();
-        if (dataProvider is not null)
-        {
-            colorMap = cb.ColorMap ?? dataProvider.ColorMap ?? ColorMaps.Viridis;
-            var (dMin, dMax) = dataProvider.GetColorBarRange();
-            if (dMin < dMax) { min = dMin; max = dMax; }
-        }
-
-        if (Math.Abs(max - min) < 1e-10) { min = 0; max = 1; }
+        var dataProvider = Axes.Series.ColorBarProvider();
+        IColorMap colorMap = cb.ColorMap ?? dataProvider?.ColorMap ?? ColorMaps.Viridis;
+        var (min, max) = cb.RangeOf(dataProvider);
 
         if (Ctx is SvgRenderContext svgCtxColorBar)
             svgCtxColorBar.BeginAccessibleGroup("colorbar", "Color bar");
@@ -557,21 +632,19 @@ public abstract class AxesRenderer
             else
                 Ctx.DrawText(Axes.XAxis.Label, point, font, TextAlignment.Center);
         }
-        if (Axes.YAxis.Label is not null)
-        {
-            var font = Axes.YAxis.LabelStyle?.ApplyTo(baseFont) ?? baseFont;
-            double padOffset = Axes.YAxis.LabelStyle?.Pad ?? 0;
-            // Compute y-label x dynamically: tick mark + pad + widest rendered tick label + gap, the rule the
-            // secondary Y axis shares. Falls back to the fixed 45-px offset when no tick widths were measured
-            // (non-Cartesian renderers or empty axes).
-            double dynamicOffset = Axes.YAxis.MajorTicks.AxisLabelOffset(MeasuredYTickMaxWidth);
-            var point = new Point(PlotArea.X - dynamicOffset - padOffset, PlotArea.Y + PlotArea.Height / 2);
-            if (MathTextParser.ContainsMath(Axes.YAxis.Label))
-                Ctx.DrawRichText(MathTextParser.Parse(Axes.YAxis.Label), point, font, TextAlignment.Center, 90);
-            else
-                Ctx.DrawText(Axes.YAxis.Label, point, font, TextAlignment.Center, 90);
-        }
+        RenderYAxisTitle();
     }
+
+    /// <summary>Draws the title of the primary Y axis, left slot 0 of the container, by the one band rule every Y axis
+    /// shares (<see cref="YAxisTitleExtensions"/>): its descent, which faces the tick labels it measured while drawing them
+    /// (<see cref="MeasuredYTickMaxWidth"/>), stands the container's gap past them, its style's pad on top; the fixed offset
+    /// when no tick label was drawn. Called by <see cref="RenderAxisLabels"/> after the X axis title; the Cartesian
+    /// renderer draws it through the part that draws every Y axis.</summary>
+    private protected virtual void RenderYAxisTitle() =>
+        Ctx.DrawYAxisTitle(Axes.YAxis,
+            new YAxisTitleInput(Axes.YAxis.MajorTicks.TickLabelBand(MeasuredYTickMaxWidth), AxisSide.Left, Axes.YAxes.TitleGap,
+                LabelFont()),
+            new Point(PlotArea.X, PlotArea.Y + PlotArea.Height / 2));
 
     // --- Font factories ---
     // All themed fonts delegate to ThemedFontProvider, the single source of truth shared
@@ -678,9 +751,24 @@ public abstract class AxesRenderer
         if (axis.TickLocator is not null) return axis.TickLocator.LocateInterval(min, max);
         if (axis.MajorTicks.Spacing.HasValue)
             return new TickLocators.MultipleLocator(axis.MajorTicks.Spacing.Value).LocateInterval(min, max);
-        // Preserve the default 8-tick density for normal-sized plots so existing fidelity
-        // tests stay green; only downscale for short rows where labels would otherwise overlap.
-        int target = plotPixels >= 240 ? 8 : Math.Clamp((int)Math.Round(plotPixels / 30), 2, 6);
+        return DefaultTickValues(min, max, plotPixels);
+    }
+
+    /// <summary>The plot length, in pixels, from which an axis asks for the default 8 tick intervals; a shorter plot asks
+    /// for fewer. The layout, which does not know how long a plot turns out to be, measures the ticks of a stacked Y axis as
+    /// for a plot of this length, the densest they can be.</summary>
+    internal const double FullTickDensityLength = 240;
+
+    /// <summary>The default placement of ticks over a range for a plot <paramref name="plotPixels"/> long: the default 8
+    /// intervals for a normal-sized plot, so existing pictures stay as they are, fewer for a short one (a sparkline, a row
+    /// of a dashboard) where the labels would otherwise overlap. The primary axes and every Y axis slot stacked beside the
+    /// plot place their ticks by this one rule.</summary>
+    /// <param name="min">Visible range min.</param>
+    /// <param name="max">Visible range max.</param>
+    /// <param name="plotPixels">Plot area length in pixels along the tick direction.</param>
+    internal static double[] DefaultTickValues(double min, double max, double plotPixels)
+    {
+        int target = plotPixels >= FullTickDensityLength ? 8 : Math.Clamp((int)Math.Round(plotPixels / 30), 2, 6);
         return ComputeTickValues(min, max, target);
     }
 }

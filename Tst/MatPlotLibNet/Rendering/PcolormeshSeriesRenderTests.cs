@@ -54,20 +54,22 @@ public class PcolormeshSeriesRenderTests
     [Fact]
     public void Pcolormesh_EmptyC_RendersWithoutError()
     {
+        // The verb refuses edges for a cell that has no value, so the series is built directly.
         string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Pcolormesh([0.0, 1.0], [0.0, 1.0], new double[0, 0]))
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new PcolormeshSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 1.0 }, new double[0, 0])))
             .ToSvg();
         Assert.Contains("<svg", svg);
     }
 
-    // Branch coverage — exercise each early-return guard in PcolormeshSeriesRenderer.
+    // Branch coverage — exercise each early-return guard in PcolormeshSeriesRenderer. The verb refuses edges that do not
+    // match the cells, so each of these builds the series directly: the renderer's own guard is what is characterised.
 
     [Fact]
     public void Pcolormesh_ZeroCols_EarlyReturn_NoCellsEmitted()
     {
         // rows>0 but cols==0 — the second half of `rows == 0 || cols == 0`.
         string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Pcolormesh([0.0, 1.0], [0.0, 1.0, 2.0], new double[2, 0]))
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new PcolormeshSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 1.0, 2.0 }, new double[2, 0])))
             .ToSvg();
         Assert.Contains("<svg", svg);
     }
@@ -77,7 +79,7 @@ public class PcolormeshSeriesRenderTests
     {
         // X.Length < 2 — first half of edges-too-short guard.
         string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Pcolormesh([0.0], [0.0, 1.0, 2.0], new double[,] { { 1.0 } }))
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new PcolormeshSeries(new double[] { 0.0 }, new double[] { 0.0, 1.0, 2.0 }, new double[,] { { 1.0 } })))
             .ToSvg();
         Assert.Contains("<svg", svg);
     }
@@ -87,7 +89,7 @@ public class PcolormeshSeriesRenderTests
     {
         // Y.Length < 2 — second half of edges-too-short guard.
         string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Pcolormesh([0.0, 1.0, 2.0], [0.0], new double[,] { { 1.0 } }))
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new PcolormeshSeries(new double[] { 0.0, 1.0, 2.0 }, new double[] { 0.0 }, new double[,] { { 1.0 } })))
             .ToSvg();
         Assert.Contains("<svg", svg);
     }

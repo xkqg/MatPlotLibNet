@@ -6,7 +6,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Rendering.LegendRendering;
 
 /// <summary>
-/// Immutable result of <see cref="LegendLayoutCalculator.Compute"/>: all the
+/// Immutable result of <see cref="LegendLayoutCalculator.Compute(MatPlotLibNet.Models.Legend, IReadOnlyList{string}, Rect)"/>: all the
 /// pre-computed geometry a renderer needs to draw the legend (box dimensions,
 /// fonts, column widths, per-entry X/Y offsets).
 /// </summary>

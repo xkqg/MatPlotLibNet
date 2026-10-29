@@ -3,6 +3,7 @@
 
 using System.Globalization;
 using System.Text.RegularExpressions;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.TestFixtures;
 
@@ -17,12 +18,12 @@ namespace MatPlotLibNet.Tests.TestFixtures;
 /// extraction declarative.</para></summary>
 public static partial class SvgGeometry
 {
-    /// <summary>Extracts (X, Y) point pairs from every <c>&lt;polyline points="..."&gt;</c>
+    /// <summary>Extracts the points of every <c>&lt;polyline points="..."&gt;</c>
     /// in the SVG. NaN values (from break regions) are preserved so callers can assert
     /// that gaps exist.</summary>
-    public static List<(double X, double Y)> ExtractPolylinePoints(string svg)
+    public static List<Point> ExtractPolylinePoints(string svg)
     {
-        var pts = new List<(double X, double Y)>();
+        var pts = new List<Point>();
         foreach (Match m in PolylineRegex().Matches(svg))
         foreach (var pair in m.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
         {
@@ -30,7 +31,7 @@ public static partial class SvgGeometry
             if (parts.Length != 2) continue;
             double x = double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var xv) ? xv : double.NaN;
             double y = double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var yv) ? yv : double.NaN;
-            pts.Add((x, y));
+            pts.Add(new Point(x, y));
         }
         return pts;
     }
@@ -52,6 +53,20 @@ public static partial class SvgGeometry
         return positions;
     }
 
+    extension(string svg)
+    {
+        /// <summary>The frame of the legend box the picture draws: the rectangle inside its <c>legend</c> group, in pixels;
+        /// <see langword="null"/> when the picture holds no legend.</summary>
+        public Rect? LegendFrame()
+        {
+            var group = LegendRegex().Match(svg);
+            if (!group.Success) return null;
+            double Read(string name) => double.Parse(
+                Regex.Match(group.Groups[1].Value, name + "=\"([^\"]*)\"").Groups[1].Value, CultureInfo.InvariantCulture);
+            return new Rect(Read("x"), Read("y"), Read("width"), Read("height"));
+        }
+    }
+
     /// <summary>Counts <c>&lt;polygon&gt;</c> elements (used by Geo land/coastlines and
     /// area fills).</summary>
     public static int CountPolygons(string svg) => PolygonRegex().Matches(svg).Count;
@@ -63,7 +78,7 @@ public static partial class SvgGeometry
     /// <summary>Asserts that every point in <paramref name="points"/> falls within the
     /// pixel <paramref name="canvas"/> rect (or is NaN, which represents a hidden gap).
     /// Throws Xunit assertion failure on violation with the offending coordinate.</summary>
-    public static void AssertPointsInCanvas(IEnumerable<(double X, double Y)> points,
+    public static void AssertPointsInCanvas(IEnumerable<Point> points,
         double xMin, double xMax, double yMin, double yMax, string label = "")
     {
         foreach (var (x, y) in points)
@@ -80,6 +95,9 @@ public static partial class SvgGeometry
 
     [GeneratedRegex(@"<line\s+x1=""(?<x1>[\d\.\-]+)""\s+y1=""(?<y1>[\d\.\-]+)""\s+x2=""(?<x2>[\d\.\-]+)""\s+y2=""(?<y2>[\d\.\-]+)""")]
     private static partial Regex LineRegex();
+
+    [GeneratedRegex(@"<g class=""legend""[^>]*>\s*<rect ([^>]*)/>")]
+    private static partial Regex LegendRegex();
 
     [GeneratedRegex(@"<polygon\b")]
     private static partial Regex PolygonRegex();

@@ -124,16 +124,17 @@ public class InvertedAxisTests
     }
 
     [Fact]
-    public void AnInvertedSecondaryYAxis_DrawsItsTicksUpsideDown()
+    public void AnInvertedRightYAxis_DrawsItsTicksUpsideDown()
     {
-        var forward = Labels(Render(a => a.PlotSecondary(X, [100.0, 300.0, 500.0, 200.0, 400.0])), "start");
+        var forward = Labels(Render(a => a.YAxes.Right.FirstOrAdd().AddSeries(new MatPlotLibNet.Models.Series.LineSeries(X, [100.0, 300.0, 500.0, 200.0, 400.0]))), "start");
         var inverted = Labels(Render(a =>
         {
-            a.PlotSecondary(X, [100.0, 300.0, 500.0, 200.0, 400.0]);
-            a.SecondaryYAxis!.Inverted = true;
+            var right = a.YAxes.Right.FirstOrAdd();
+            right.AddSeries(new MatPlotLibNet.Models.Series.LineSeries(X, [100.0, 300.0, 500.0, 200.0, 400.0]));
+            right.Axis.Inverted = true;
         }), "start");
 
-        Assert.True(forward.Count >= 3, $"forward secondary Y draws {forward.Count} labels");
+        Assert.True(forward.Count >= 3, $"forward right Y draws {forward.Count} labels");
         Assert.Equal(forward.Select(l => l.Text).Order(StringComparer.Ordinal), inverted.Select(l => l.Text).Order(StringComparer.Ordinal));
         var byValue = inverted.OrderBy(Value).ToList();
         for (int i = 1; i < byValue.Count; i++)

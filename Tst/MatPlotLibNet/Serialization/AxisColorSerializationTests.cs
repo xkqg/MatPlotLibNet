@@ -26,21 +26,21 @@ public class AxisColorSerializationTests
         {
             ax.Plot([1.0, 2, 3], [1.0, 4, 9]).SetXLabel("Time").SetYLabel("Level")
                 .SetYAxisColor(Red).SetXAxisColor(Green);
-            ax.WithSecondaryYAxis(s => s.Plot([1.0, 2, 3], [10.0, 20, 30]).SetYLabel("Right").SetYAxisColor(Blue));
+            ax.WithAddRightYAxis(s => s.Plot([1.0, 2, 3], [10.0, 20, 30]).SetYLabel("Right").SetYAxisColor(Blue));
             ax.WithSecondaryXAxis(s => s.PlotXSecondary([10.0, 20, 30], [1.0, 2, 3]).SetXLabel("Top").SetXAxisColor(Pink));
         })
         .Build();
 
     [Fact]
-    public void ColouredSecondaryYAxis_KeepsSpineTicksLabelsAndTitleColour()
+    public void ColouredRightYAxis_KeepsSpineTicksLabelsAndTitleColour()
     {
         var axes = S.FromJson(S.ToJson(AllFourAxesColoured())).SubPlots[0];
 
         Assert.Equal(Blue, axes.Spines.Right.Color);
-        Assert.Equal(Blue, axes.SecondaryYAxis!.MajorTicks.Color);
-        Assert.Equal(Blue, axes.SecondaryYAxis.MajorTicks.LabelColor);
-        Assert.Equal(Blue, axes.SecondaryYAxis.LabelStyle!.Color);
-        Assert.Equal("Right", axes.SecondaryYAxis.Label);
+        Assert.Equal(Blue, axes.YAxes.Right[0].Axis.MajorTicks.Color);
+        Assert.Equal(Blue, axes.YAxes.Right[0].Axis.MajorTicks.LabelColor);
+        Assert.Equal(Blue, axes.YAxes.Right[0].Axis.LabelStyle!.Color);
+        Assert.Equal("Right", axes.YAxes.Right[0].Axis.Label);
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public class AxisColorSerializationTests
         Assert.IsType<MatPlotLibNet.Models.Series.LineSeries>(axes.XSecondarySeries[0]);
         Assert.Equal("upper", axes.XSecondarySeries[0].Label);
         Assert.IsType<MatPlotLibNet.Models.Series.ScatterSeries>(axes.XSecondarySeries[1]);
-        Assert.Null(axes.SecondaryYAxis);
+        Assert.Empty(axes.YAxes.Right);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public class AxisColorSerializationTests
     {
         var json = S.ToJson(Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot([1.0, 2], [3.0, 4]).SetXLabel("x").SetYLabel("y")
-            .WithSecondaryYAxis(s => s.Plot([1.0, 2], [5.0, 6]))).Build());
+            .WithAddRightYAxis(s => s.Plot([1.0, 2], [5.0, 6]))).Build());
 
         Assert.DoesNotContain("spines", json);
         Assert.DoesNotContain("tickColor", json);
@@ -148,8 +148,8 @@ public class AxisColorSerializationTests
         Assert.Null(axes.YAxis.MajorTicks.LabelColor);
         Assert.Null(axes.YAxis.LabelStyle);
         Assert.Equal("Level", axes.YAxis.Label);
-        Assert.Null(axes.SecondaryYAxis!.MajorTicks.Color);
-        Assert.Null(axes.SecondaryYAxis.LabelStyle);
+        Assert.Null(axes.YAxes.Right[0].Axis.MajorTicks.Color);
+        Assert.Null(axes.YAxes.Right[0].Axis.LabelStyle);
         Assert.Null(axes.SecondaryXAxis);
     }
 

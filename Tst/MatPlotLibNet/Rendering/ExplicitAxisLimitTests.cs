@@ -95,16 +95,17 @@ public class ExplicitAxisLimitTests
     }
 
     [Fact]
-    public void SecondaryYLimitNarrowerThanItsData_IsTheRangeItsSeriesAreDrawnWith()
+    public void RightYLimitNarrowerThanItsData_IsTheRangeItsSeriesAreDrawnWith()
     {
         var axes = new Axes();
         axes.Plot(X, Y);
-        axes.PlotSecondary(X, [100.0, 500.0, 300.0]);
-        axes.SecondaryYAxis!.Min = 200; axes.SecondaryYAxis.Max = 400;
+        axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries(X, [100.0, 500.0, 300.0]));
+        axes.YAxes.Right[0].Axis.Min = 200; axes.YAxes.Right[0].Axis.Max = 400;
 
         var renderer = new CartesianAxesRenderer(axes, new Rect(80, 60, 700, 400), new MatPlotLibNet.Rendering.Svg.SvgRenderContext(),
             MatPlotLibNet.Styling.Theme.MatplotlibV2);
-        var sec = renderer.ComputeSecondaryDataRanges(1, 3);
+        var right = axes.YAxes.Right[0];
+        var sec = renderer.ComputeSecondaryDataRanges(1, 3, right.Axis, right.Series);
 
         Assert.Equal(200, sec.YMin);
         Assert.Equal(400, sec.YMax);
@@ -184,9 +185,9 @@ public class ExplicitAxisLimitTests
         var figure = Plt.Create().WithSize(600, 500).WithServerInteraction("c", s => s.EnableZoom())
             .AddSubPlot(1, 1, 1, ax => ax.Plot(X, Y, s => s.Label = "main")).Build();
         var axes = figure.SubPlots[0];
-        axes.PlotSecondary(X, [100.0, 500.0, 300.0]).Label = "right";
+        axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries(X, [100.0, 500.0, 300.0])).Label = "right";
         axes.PlotXSecondary([0.0, 50.0, 100.0], Y).Label = "top";
-        axes.SecondaryYAxis!.Min = 200; axes.SecondaryYAxis.Max = 400;
+        axes.YAxes.Right[0].Axis.Min = 200; axes.YAxes.Right[0].Axis.Max = 400;
         var svg = figure.ToSvg();
 
         var groups = XDocument.Parse(svg).Descendants()

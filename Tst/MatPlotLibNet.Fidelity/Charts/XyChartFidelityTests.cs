@@ -63,7 +63,7 @@ public class XyChartFidelityTests : FidelityTest
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithTitle("Stacked area")
                 .StackPlot(x, [y1, y2, y3], s => s.Labels = ["A", "B", "C"])
-                .WithLegend())
+                .WithLegend(LegendPosition.UpperRight))
             .Build();
         AssertFidelity(figure, "stacked_area");
     }

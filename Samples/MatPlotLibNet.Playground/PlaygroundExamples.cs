@@ -655,7 +655,7 @@ public static class PlaygroundExamples
                   .SetXLabel("Hour of the day")
                   .SetYLabel("Temperature (°C)")
                   .SetYAxisColor(warm)
-                  .WithSecondaryYAxis(right => right
+                  .WithAddRightYAxis(right => right
                       .Plot(hours, humidity, s => Style(s, "Humidity", cool))
                       .WithDirectLabel()
                       .SetYLabel("Relative humidity (%)")
@@ -679,8 +679,8 @@ public static class PlaygroundExamples
             {
                 ax.Pareto(defects, counts, parts => parts.Bars.Label = "Defect count");
                 opts.ApplyToAxes(ax);
-                // The options set the legend record anew, in the default corner over the line's last points; keep
-                // the place the verb chose and only take the on/off switch from the options.
+                // The options set the legend record anew, at Best; keep the place the verb chose (the right, clear of
+                // the line's last points) and only take the on/off switch from the options.
                 ax.WithLegend(legend => legend with { Position = LegendPosition.Right });
             });
 
@@ -748,7 +748,7 @@ public static class PlaygroundExamples
                 "        .WithDirectLabel()\n" +
                 "        .SetYLabel(\"Temperature (°C)\")\n" +
                 "        .SetYAxisColor(Colors.Tab10Orange)\n" +
-                "        .WithSecondaryYAxis(right => right\n" +
+                "        .WithAddRightYAxis(right => right\n" +
                 "            .Plot(hours, humidity, s => { s.Label = \"Humidity\"; s.Color = Colors.Tab10Blue; })\n" +
                 "            .WithDirectLabel()\n" +
                 "            .SetYLabel(\"Relative humidity (%)\")\n" +

@@ -59,7 +59,7 @@ public class ControlChartTests
         Violations(axes);
         Assert.Equal(3, axes.ReferenceLines.Count);
         Assert.All(axes.ReferenceLines, r => Assert.Equal(Orientation.Horizontal, r.Orientation));
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.Trendlines);
         Assert.Empty(axes.Annotations);
     }

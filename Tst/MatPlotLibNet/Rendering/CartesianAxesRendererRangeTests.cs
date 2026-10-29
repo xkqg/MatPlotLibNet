@@ -168,20 +168,21 @@ public class CartesianAxesRendererRangeTests
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// <c>ComputeSecondaryDataRanges</c> aggregates the secondary (TwinX) series range
+    /// <c>ComputeSecondaryDataRanges</c> aggregates the first right axis' series range
     /// using the primary axes' X range as the shared X extent. The Y range is
     /// computed independently from the secondary series' own values.
     /// </summary>
     [Fact]
-    public void SecondaryYAxis_ComputesIndependentYRange()
+    public void RightYAxis_ComputesIndependentYRange()
     {
         var axes = new Axes();
         axes.Plot([0.0, 10.0], [0.0, 1.0]);          // primary series, Y in [0, 1]
-        axes.PlotSecondary([0.0, 10.0], [100.0, 500.0]);  // twin-X series, Y in [100, 500]
+        axes.YAxes.Right.FirstOrAdd().AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10.0], [100.0, 500.0]));  // right-axis series, Y in [100, 500]
 
         var renderer = BuildRenderer(axes);
         var primaryRange = renderer.ComputeDataRanges();
-        var secRange     = renderer.ComputeSecondaryDataRanges(primaryRange.XMin, primaryRange.XMax);
+        var right        = axes.YAxes.Right[0];
+        var secRange     = renderer.ComputeSecondaryDataRanges(primaryRange.XMin, primaryRange.XMax, right.Axis, right.Series);
 
         // Primary Y is in the [0, 1] band — should be nowhere near 100+
         Assert.True(primaryRange.YMax <= 10.0);
@@ -197,17 +198,17 @@ public class CartesianAxesRendererRangeTests
     /// into the first right axis' range (the old single-list shape could only ever hold one, so this gap never had
     /// a wrong answer before; it is new behaviour, not a regression guard).</summary>
     [Fact]
-    public void SecondOutwardRightAxis_ComputesItsOwnIndependentYRange_SeparateFromSlotZero()
+    public void SecondRightAxis_ComputesItsOwnIndependentYRange_SeparateFromSlotZero()
     {
         var axes = new Axes();
-        axes.PlotSecondary([0.0, 10.0], [100.0, 500.0]); // slot 0: Y in [100, 500]
-        var slot1 = axes.AddOutwardYAxis(AxisSide.Right);
+        axes.YAxes.Right.FirstOrAdd().AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10.0], [100.0, 500.0])); // slot 0: Y in [100, 500]
+        var slot1 = axes.YAxes.Right.Add();
         slot1.AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10.0], [-5.0, -1.0])); // slot 1: Y in [-5, -1]
 
         var renderer = BuildRenderer(axes);
         var primary = renderer.ComputeDataRanges();
-        var slot0Range = renderer.ComputeSecondaryDataRanges(primary.XMin, primary.XMax, axes.RightYAxes[0].Axis, axes.RightYAxes[0].Series);
-        var slot1Range = renderer.ComputeSecondaryDataRanges(primary.XMin, primary.XMax, axes.RightYAxes[1].Axis, axes.RightYAxes[1].Series);
+        var slot0Range = renderer.ComputeSecondaryDataRanges(primary.XMin, primary.XMax, axes.YAxes.Right[0].Axis, axes.YAxes.Right[0].Series);
+        var slot1Range = renderer.ComputeSecondaryDataRanges(primary.XMin, primary.XMax, axes.YAxes.Right[1].Axis, axes.YAxes.Right[1].Series);
 
         Assert.True(slot0Range.YMin <= 100.0 && slot0Range.YMax >= 500.0);
         Assert.True(slot1Range.YMin <= -5.0 && slot1Range.YMax >= -1.0);

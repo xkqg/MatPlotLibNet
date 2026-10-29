@@ -13,6 +13,9 @@ internal sealed class Line3DSeriesRenderer : SeriesRenderer<Line3DSeries>
     public Line3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(Line3DSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(Line3DSeries series)
     {
         if (series.X.Length < 2) return;

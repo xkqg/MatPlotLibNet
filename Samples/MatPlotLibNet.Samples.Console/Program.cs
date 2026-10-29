@@ -13,6 +13,7 @@ using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
 using MatPlotLibNet.Transforms;
 using MatPlotLibNet.Geo;
+using MatPlotLibNet.Geo.Data;
 using MatPlotLibNet.Geo.Projections;
 using MatPlotLibNet.Skia;
 
@@ -194,6 +195,46 @@ Plt.Create()
         }))
     .SaveSvgAndPng(SamplesPath("annotations_enhanced.svg"));
 Console.WriteLine("Saved annotations_enhanced.svg");
+
+// --- 11b. Annotations that move out of the way of the data, the legend and each other ---
+{
+    double[] ramp = Enumerable.Range(0, 11).Select(i => (double)i).ToArray();
+    Plt.Create()
+        .WithSize(700, 420)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .WithTitle("Annotations that move out of the way")
+            .Plot(ramp, ramp, line => { line.Label = "Growth"; })
+            .WithLegend(MatPlotLibNet.Models.LegendPosition.UpperRight)
+            .Annotate("Start", 1.0, 1.1, ann => ann.AvoidOverlap = true)
+            .Annotate("Halfway", 5.0, 5.0, ann => ann.AvoidOverlap = true)
+            .Annotate("Halfway, noted twice", 5.1, 5.15, ann => ann.AvoidOverlap = true)
+            .Annotate("Peak", 9.0, 9.0, ann =>
+            {
+                ann.AvoidOverlap = true;
+                ann.ArrowTargetX = 9.0;
+                ann.ArrowTargetY = 9.0;
+            }))
+        .SaveSvgAndPng(SamplesPath("annotations_avoid_overlap.svg"));
+    Console.WriteLine("Saved annotations_avoid_overlap.svg");
+}
+
+// --- 11c. Bar value labels stand beyond the end of the bar, whichever way it points ---
+{
+    string[] groups = ["North", "South", "East", "West"];
+    double[] change = [3.0, -2.0, 5.0, -4.0];
+    Plt.Create()
+        .WithSize(800, 380)
+        .AddSubPlot(1, 2, 1, ax => ax
+            .WithTitle("Axis running up")
+            .Bar(groups, change, s => s.ShowLabels = true)
+            .SetYLim(-6, 8))
+        .AddSubPlot(1, 2, 2, ax => ax
+            .WithTitle("Axis running down")
+            .Bar(groups, change, s => s.ShowLabels = true)
+            .SetYLim(8, -6))
+        .SaveSvgAndPng(SamplesPath("bar_labels_beyond_the_end.svg"));
+    Console.WriteLine("Saved bar_labels_beyond_the_end.svg");
+}
 
 // =====================================================================
 // SIMD vectors, financial templates and technical indicators
@@ -1667,8 +1708,7 @@ Console.WriteLine("Saved accessibility_highcontrast.svg");
 
 // --- 30. Cookbook images — wind rose ---
 // A polar bar takes its angle in radians, counter-clockwise from the right (east); a compass bearing counts clockwise
-// from north, so it is turned first. One series: polar bar series do not share one radial scale, so speeds are not
-// stacked or overlaid.
+// from north, so it is turned first. One series here; the next sample stacks the speeds outward.
 {
     double[] bearings  = [0, 45, 90, 135, 180, 225, 270, 315];          // N, NE, E, SE, S, SW, W, NW
     double[] frequency = [9.5, 7.8, 12.8, 6.3, 9.4, 14.1, 10.1, 7.1];   // % of the hours, all speeds
@@ -2291,7 +2331,7 @@ Console.WriteLine("Saved international.svg and international.png");
             .SetXLabel("Hour of the day")
             .SetYLabel("Temperature (°C)")
             .SetYAxisColor(warm)
-            .WithSecondaryYAxis(right => right
+            .WithAddRightYAxis(right => right
                 .Plot(hours, humidity, s => { s.Label = "Humidity"; s.Color = cool; })
                 .WithDirectLabel()
                 .SetYLabel("Relative humidity (%)")
@@ -2552,6 +2592,216 @@ Console.WriteLine("Saved horizontal_bars.svg");
         .SaveSvgAndPng(SamplesPath("horizon_chart.svg"));
     Console.WriteLine("Saved horizon_chart.svg");
 }
+
+// --- 60. Cookbook images — a Likert scale: bars stacked on both sides of zero ---
+// The answers that disagree are negative and grow down from zero, the ones that agree are positive and grow up from it, each
+// kind from zero outward, so the eye reads the balance of a question at the middle line.
+{
+    string[] questions = ["Easy to use", "Fast", "Reliable", "Good value", "Would recommend"];
+    double[] stronglyDisagree = [-6, -4, -3, -10, -5];
+    double[] disagree = [-12, -8, -6, -15, -9];
+    double[] neutral = [14, 12, 10, 18, 11];
+    double[] agree = [41, 44, 47, 38, 43];
+    double[] stronglyAgree = [27, 32, 34, 19, 32];
+
+    Plt.Create()
+        .WithTitle("How users rate the product (share of answers, %)")
+        .WithSize(900, 480)
+        .TightLayout()
+        .AddSubPlot(1, 1, 1, ax => ax
+            .Bar(questions, stronglyDisagree, s => { s.Label = "Strongly disagree"; s.Color = Color.FromHex("#B2182B"); })
+            .Bar(questions, disagree, s => { s.Label = "Disagree"; s.Color = Color.FromHex("#EF8A62"); })
+            .Bar(questions, neutral, s => { s.Label = "Neutral"; s.Color = Color.FromHex("#D9D9D9"); })
+            .Bar(questions, agree, s => { s.Label = "Agree"; s.Color = Color.FromHex("#67A9CF"); })
+            .Bar(questions, stronglyAgree, s => { s.Label = "Strongly agree"; s.Color = Color.FromHex("#2166AC"); })
+            .SetBarMode(BarMode.Stacked)
+            .AxHLine(0, line => { line.Color = Colors.Black; line.LineWidth = 1; })
+            .SetYLabel("Share of answers (%)")
+            .WithLegend(LegendPosition.OutsideRight))
+        .SaveSvgAndPng(SamplesPath("likert_diverging_bars.svg"));
+    Console.WriteLine("Saved likert_diverging_bars");
+}
+
+// --- 61. Cookbook images — a wind rose with the speeds stacked outward ---
+// One polar bar series for each speed class on one axes, set to stack: each class starts where the one below it ends, and the
+// rings read the total share of the hours in a direction.
+{
+    double[] bearings = [0, 45, 90, 135, 180, 225, 270, 315];
+    double[] theta = [.. bearings.Select(b => (90 - b) * Math.PI / 180)];
+    double[] calm = [3.1, 2.4, 4.0, 2.1, 3.0, 4.4, 3.3, 2.2];       // % of the hours, under 5 m/s
+    double[] breeze = [4.2, 3.6, 5.5, 2.9, 4.1, 6.0, 4.5, 3.2];     // 5 to 10 m/s
+    double[] strong = [2.2, 1.8, 3.3, 1.3, 2.3, 3.7, 2.3, 1.7];     // over 10 m/s
+
+    Plt.Create()
+        .WithTitle("Wind Rose — share of the hours by direction and speed")
+        .WithSize(640, 640)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .PolarBar(calm, theta, s => { s.Color = Color.FromHex("#9ECAE1"); s.BarWidth = 0.9 * Math.PI / 4; s.Label = "under 5 m/s"; })
+            .PolarBar(breeze, theta, s => { s.Color = Color.FromHex("#3182BD"); s.BarWidth = 0.9 * Math.PI / 4; s.Label = "5 to 10 m/s"; })
+            .PolarBar(strong, theta, s => { s.Color = Color.FromHex("#08306B"); s.BarWidth = 0.9 * Math.PI / 4; s.Label = "over 10 m/s"; })
+            .SetBarMode(BarMode.Stacked)
+            .WithLegend())
+        .SaveSvgAndPng(SamplesPath("wind_rose_stacked.svg"));
+    Console.WriteLine("Saved wind_rose_stacked");
+}
+
+// --- 62. Cookbook images — a filled contour fills its grid, whatever the limits are ---
+// The same field twice, cut to the same window: the fill follows the limits, and its edges are the lines.
+{
+    double[] gx = Enumerable.Range(0, 41).Select(i => -4.0 + i * 0.2).ToArray();
+    double[] gy = Enumerable.Range(0, 41).Select(i => -4.0 + i * 0.2).ToArray();
+    var gz = new double[41, 41];
+    for (int r = 0; r < 41; r++)
+        for (int c = 0; c < 41; c++)
+            gz[r, c] = Math.Exp(-((gx[c] - 0.8) * (gx[c] - 0.8) + (gy[r] + 0.4) * (gy[r] + 0.4)) / 3)
+                       - 0.6 * Math.Exp(-((gx[c] + 1.4) * (gx[c] + 1.4) + (gy[r] - 1.2) * (gy[r] - 1.2)) / 2);
+
+    Plt.Create()
+        .WithTitle("A filled contour cut to a window")
+        .WithSize(1000, 460)
+        .AddSubPlot(1, 2, 1, ax => ax
+            .WithTitle("Contour, Filled")
+            .Contour(gx, gy, gz, s => { s.Filled = true; s.Levels = 8; })
+            .SetXLim(-2, 2).SetYLim(-2, 2)
+            .WithColorMap("viridis"))
+        .AddSubPlot(1, 2, 2, ax => ax
+            .WithTitle("Contourf")
+            .Contourf(gx, gy, gz, s => s.Levels = 8)
+            .SetXLim(-2, 2).SetYLim(-2, 2)
+            .WithColorMap("viridis"))
+        .SaveSvgAndPng(SamplesPath("contour_filled_limits.svg"));
+    Console.WriteLine("Saved contour_filled_limits");
+}
+
+// --- 63. Cookbook images — a stack plot with named layers and a line after it ---
+// The layers are legend entries of their own, each in its colour, and the line drawn after the stack wears the next
+// colour of the cycle, not one a layer already wears.
+{
+    double[] months = Enumerable.Range(1, 12).Select(m => (double)m).ToArray();
+    double[][] layers =
+    [
+        [.. months.Select(m => 20 + 2 * m)],
+        [.. months.Select(m => 15 + 3 * Math.Sin(m / 2.0) + m)],
+        [.. months.Select(m => 10 + 1.5 * m)],
+    ];
+    double[] target = [.. months.Select(m => 55 + 3.5 * m)];
+
+    Plt.Create()
+        .WithTitle("Revenue by product line against the target")
+        .WithSize(900, 480)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .StackPlot(months, layers, s => s.Labels = ["Hardware", "Software", "Services"])
+            .Plot(months, target, s => { s.Label = "Target"; s.LineWidth = 2; })
+            .SetXLabel("Month")
+            .SetYLabel("Revenue (k€)")
+            .WithLegend(LegendPosition.UpperLeft))
+        .SaveSvgAndPng(SamplesPath("stackplot_legend_line.svg"));
+    Console.WriteLine("Saved stackplot_legend_line");
+}
+
+// --- 64. Cookbook images — a map coloured by value, with a colour bar ---
+// Each country takes the colour its value has in the colour map; the countries without a value (here: none the 110m data
+// lacks) would take the map's bad colour. The values are the base-10 logarithm of the population the data carries.
+{
+    var proj = GeoProjection.Robinson;
+    var populationOf = NaturalEarth110m.Countries()
+        .Where(country => country.NumberOf("POP_EST") > 0)
+        .ToDictionary(country => country.Properties["ADM0_A3"], country => Math.Log10(country.NumberOf("POP_EST")));
+
+    Plt.Create()
+        .WithTitle("Population by country (log10)")
+        .WithSize(1000, 560)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .WithProjection(proj)
+            .Ocean(Color.FromHex("#dfeaf5"))
+            .Choropleth(populationOf, ColorMaps.Plasma)
+            .WithColorBar()
+            .WithLegend(visible: false))
+        .SaveSvgAndPng(SamplesPath("choropleth_world.svg"));
+    Console.WriteLine("Saved choropleth_world");
+}
+
+// --- 65. Cookbook images — bubbles on a map ---
+// A bubble stands at the projected position of a place and its area is in proportion to its value.
+{
+    var proj = GeoProjection.Robinson;
+    double[] cityLat = [35.68, 28.61, 31.23, -23.55, 19.43, 30.04, 19.08, 39.90, 23.81, 40.71, 6.52, 41.01, 51.51, -33.87];
+    double[] cityLon = [139.69, 77.21, 121.47, -46.63, -99.13, 31.24, 72.88, 116.41, 90.41, -74.01, 3.38, 28.98, -0.13, 151.21];
+    double[] cityMillions = [37.4, 31.0, 27.1, 22.0, 21.8, 21.3, 20.7, 20.5, 21.0, 18.8, 15.4, 15.5, 9.5, 5.3];
+
+    Plt.Create()
+        .WithTitle("Largest cities — population in millions")
+        .WithSize(1000, 520)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .WithProjection(proj)
+            .Ocean(Color.FromHex("#1a3a5c"))
+            .Land(Color.FromHex("#2d5a27"))
+            .Borders(Color.FromHex("#4c7a45"), 0.2)
+            .Bubbles(cityLat, cityLon, cityMillions, s => { s.Color = Color.FromHex("#FFB000"); s.Alpha = 0.75; })
+            .WithLegend(visible: false))
+        .SaveSvgAndPng(SamplesPath("bubble_map.svg"));
+    Console.WriteLine("Saved bubble_map");
+}
+
+// --- 66. Cookbook images — flows between places on a map ---
+// A flow follows the great circle between its ends and is as wide as its quantity; the one over the Pacific is cut where
+// it leaves the map on one side and starts again on the other.
+{
+    var proj = GeoProjection.Robinson;
+    GeoFlow[] routes =
+    [
+        new(new GeoCoordinate(35.68, 139.69), new GeoCoordinate(37.77, -122.42), 9),   // Tokyo to San Francisco
+        new(new GeoCoordinate(51.51, -0.13), new GeoCoordinate(40.71, -74.01), 7),     // London to New York
+        new(new GeoCoordinate(-33.87, 151.21), new GeoCoordinate(51.51, -0.13), 4),    // Sydney to London
+        new(new GeoCoordinate(-23.55, -46.63), new GeoCoordinate(6.52, 3.38), 3),      // São Paulo to Lagos
+        new(new GeoCoordinate(31.23, 121.47), new GeoCoordinate(25.2, 55.27), 5),      // Shanghai to Dubai
+    ];
+
+    Plt.Create()
+        .WithTitle("Freight routes — width by tonnes")
+        .WithSize(1000, 520)
+        .AddSubPlot(1, 1, 1, ax => ax
+            .WithProjection(proj)
+            .Ocean(Color.FromHex("#1a3a5c"))
+            .Land(Color.FromHex("#2d5a27"))
+            .Flows(routes, Color.FromHex("#FFB000"), maxWidth: 4)
+            .WithLegend(visible: false))
+        .SaveSvgAndPng(SamplesPath("flow_map.svg"));
+    Console.WriteLine("Saved flow_map");
+}
+
+// --- 67. Cookbook images — regions resized by a value, and a bubble at each ---
+{
+    var proj = GeoProjection.Robinson;
+    var populationOf = NaturalEarth110m.Countries()
+        .Where(country => country.NumberOf("POP_EST") > 0)
+        .ToDictionary(country => country.Properties["ADM0_A3"], country => country.NumberOf("POP_EST"));
+
+    Plt.Create()
+        .WithTitle("Population — countries resized, and a bubble at each")
+        .WithSize(1000, 960)
+        .AddSubPlot(2, 1, 1, ax => ax
+            .WithProjection(proj)
+            .Ocean(Color.FromHex("#dfeaf5"))
+            .Cartogram(populationOf, s => { s.Color = Color.FromHex("#d95f02"); s.StrokeColor = Colors.White; })
+            .WithLegend(visible: false))
+        .AddSubPlot(2, 1, 2, ax => ax
+            .WithProjection(proj)
+            .Ocean(Color.FromHex("#dfeaf5"))
+            .Land(Color.FromHex("#cfcfcf"))
+            .Dorling(populationOf, s => { s.Color = Color.FromHex("#d95f02"); s.Alpha = 0.7; })
+            .WithLegend(visible: false))
+        .SaveSvgAndPng(SamplesPath("cartogram_dorling.svg"));
+    Console.WriteLine("Saved cartogram_dorling");
+}
+
+// --- 59. The pictures the wiki shows that no sample above draws ---
+// The wiki keeps a copy of each of them; WikiPicturesTests holds the copies to what is drawn here.
+WikiPictures.SaveAll((name, figure) =>
+{
+    File.WriteAllBytes(SamplesPath(name + ".png"), figure.ToPng());
+    Console.WriteLine($"Saved {name}.png");
+});
 
 Console.WriteLine("Done!");
 

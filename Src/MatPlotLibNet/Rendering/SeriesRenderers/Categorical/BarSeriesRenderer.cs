@@ -14,85 +14,73 @@ internal sealed class BarSeriesRenderer : SeriesRenderer<BarSeries>
     /// <inheritdoc />
     public BarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
+    /// <summary>How far a label stands from the end of its bar, in pixels.</summary>
+    private const double LabelPad = 4;
+
+    /// <summary>The labels of the bars, each with the point it would stand at: beyond the end of its bar, the way the bar points
+    /// in the data. A bar whose value is zero or more points towards the larger values, a bar below zero towards the smaller;
+    /// where those lie on the screen depends on whether the axis runs backwards, so a label never stands inside its own bar
+    /// because the axis was turned. Above the end the baseline stands the pad above it; below it, the pad and the height the
+    /// letters rise above their baseline below it; right of a horizontal bar's end the text starts the pad after it, left of
+    /// it the text ends the pad before it.</summary>
+    private List<LabelCandidate> LabelCandidates(BarSeries series)
+    {
+        var candidates = new List<LabelCandidate>();
+        if (!series.ShowLabels) return candidates;
+
+        var font = ThemedFontProvider.DataTextFont(Context.Theme);
+        bool backwards = Transform.ValueRunsBackwards(series.Orientation);
+        foreach (var pixel in series.PixelBars(Transform))
+        {
+            string label = FormatValue(series.Values[pixel.Index], series.LabelFormat);
+            bool towardsHigher = pixel.Rising != backwards;   // the end lies above (right of) the foot on the screen
+            if (series.Orientation == BarOrientation.Vertical)
+            {
+                double centreX = (pixel.From.X + pixel.To.X) / 2;
+                double end = pixel.VerticalEnd;
+                candidates.Add(new LabelCandidate(
+                    new Point(centreX, towardsHigher ? end - LabelPad : end + LabelPad + font.Size), label, font, TextAlignment.Center));
+            }
+            else
+            {
+                double centreY = (pixel.From.Y + pixel.To.Y) / 2;
+                double end = pixel.HorizontalEnd;
+                candidates.Add(towardsHigher
+                    ? new LabelCandidate(new Point(end + LabelPad, centreY + 4), label, font, TextAlignment.Left)
+                    : new LabelCandidate(new Point(end - LabelPad, centreY + 4), label, font, TextAlignment.Right));
+            }
+        }
+        return candidates;
+    }
+
+    /// <inheritdoc />
+    internal override void AddMarks(BarSeries series, MarkObstacles.Builder marks)
+    {
+        foreach (var pixel in series.PixelBars(Transform)) marks.AddBox(pixel.Bar);
+
+        // A label is a text among the marks, where the label layout puts it.
+        var font = ThemedFontProvider.DataTextFont(Context.Theme);
+        foreach (var placed in PlaceLabels(LabelCandidates(series), Area.PlotBounds))
+        {
+            marks.AddBox(new TextBox(placed.FinalPoint, Ctx.MeasureText(placed.Text, placed.Font), placed.Font.Size, placed.Alignment,
+                TextVerticalAlignment.Baseline, 0).Bounds());
+        }
+    }
+
     /// <inheritdoc />
     public override void Render(BarSeries series)
     {
         var baseColor = ResolveColor(series.Color);
         var fillColor = ApplyAlpha(baseColor, series.Alpha);
-        var df = Context.Theme.DefaultFont;
-        var labelFont = new Font { Family = df.Family, Size = df.Size, Color = df.Color };
         double edgeWidth = series.LineWidth > 0 ? series.LineWidth : (series.EdgeColor.HasValue ? 1 : 0);
         Color? edgeColor = series.LineWidth > 0 ? (series.EdgeColor ?? baseColor) : series.EdgeColor;
 
-        // Collect label candidates during the bar loop; placing them in one batch after all
-        // bars draw lets LabelLayoutEngine shift the few that would otherwise overlap
-        // neighbouring bars (dense category axes, narrow bars, long labels).
-        var labelCandidates = series.ShowLabels ? new List<LabelCandidate>() : null;
+        foreach (var pixel in series.PixelBars(Transform))
+            Ctx.DrawRectangle(pixel.Bar, new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
 
-        for (int i = 0; i < series.Categories.Length; i++)
-        {
-            // Where the bar stands along its category axis: in its category's slot, or around its numeric x
-            // (CategorySlot, the one rule the data range and the category labels read too).
-            var slot = series.SlotOf(i);
-            double barLeft = slot.Left, barRight = slot.Right;
-
-            double baseline = series.Bottoms is { } bottoms ? bottoms[i] : 0;
-            double value = series.Values[i];
-            double end = baseline + value;
-            // The bar stands on its foot and reaches its end. A foot the axis cannot place (0 on a log axis) is clipped to
-            // the edge where the axis begins, as matplotlib clips it; a bar whose end, position or missing foot the axes
-            // cannot place is skipped with its label. A rising bar's end is its top, a falling bar's its bottom. The bar is
-            // the rectangle between the two corners (Rect.FromCorners), so it keeps a positive size on an axis that runs
-            // backwards.
-            bool rising = value >= 0;
-            if (series.Orientation == BarOrientation.Vertical)
-            {
-                var tl = rising ? Transform.DataToPixel(barLeft, end) : Transform.DataToPixelClippedY(barLeft, baseline);
-                var br = rising ? Transform.DataToPixelClippedY(barRight, baseline) : Transform.DataToPixel(barRight, end);
-                var bar = Rect.FromCorners(tl, br);
-                if (!bar.IsDrawable()) continue;
-                Ctx.DrawRectangle(bar, new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
-
-                if (labelCandidates is not null)
-                {
-                    string label = FormatValue(series.Values[i], series.LabelFormat);
-                    double barCenterX = (tl.X + br.X) / 2;
-                    labelCandidates.Add(new LabelCandidate(
-                        new Point(barCenterX, tl.Y - 4), label, labelFont, TextAlignment.Center));
-                }
-            }
-            else
-            {
-                var tl = rising ? Transform.DataToPixelClippedX(baseline, barRight) : Transform.DataToPixel(end, barRight);
-                var br = rising ? Transform.DataToPixel(end, barLeft) : Transform.DataToPixelClippedX(baseline, barLeft);
-                var bar = Rect.FromCorners(tl, br);
-                if (!bar.IsDrawable()) continue;
-                Ctx.DrawRectangle(bar, new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
-
-                if (labelCandidates is not null)
-                {
-                    string label = FormatValue(series.Values[i], series.LabelFormat);
-                    double barCenterY = (tl.Y + br.Y) / 2;
-                    labelCandidates.Add(new LabelCandidate(
-                        new Point(br.X + 4, barCenterY + 4), label, labelFont, TextAlignment.Left));
-                }
-            }
-        }
-
-        if (labelCandidates is { Count: > 0 })
-        {
-            var placements = LabelLayoutEngine.Place(
-                labelCandidates,
-                Context!.Area.PlotBounds,
-                FontMetricsDefault.Current);
-            var leaderColor = Context.Theme.ForegroundText;
-            foreach (var p in placements)
-            {
-                if (p.LeaderLineStart is { } anchor)
-                    CalloutBoxRenderer.DrawLeaderLine(Ctx, anchor, p.FinalPoint, leaderColor);
-                Ctx.DrawText(p.Text, p.FinalPoint, p.Font, p.Alignment);
-            }
-        }
+        // The labels are placed in one batch after all the bars are drawn, so the layout can shift the few that would
+        // otherwise stand on a neighbouring bar's label (dense category axes, narrow bars, long labels).
+        DrawPlacedLabels(PlaceLabels(LabelCandidates(series), Area.PlotBounds));
     }
 
     /// <summary>The label of a bar that names no format: up to six significant digits, trailing zeros dropped, an

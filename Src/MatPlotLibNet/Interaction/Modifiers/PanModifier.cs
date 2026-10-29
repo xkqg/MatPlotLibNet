@@ -78,10 +78,10 @@ public sealed class PanModifier : IInteractionModifier
         _lastPixelY = args.Y;
     }
 
-    /// <summary>Every outward-stacked secondary Y axis' new range after this move — each in ITS OWN data units
+    /// <summary>The new range of every Y axis stacked past the primary after this move — each in ITS OWN data units
     /// (<see cref="PanEvent.Shifted"/> against <see cref="DataTransform.DataYMin"/>/<see cref="DataTransform.DataYMax"/>),
     /// not the primary's <c>dy</c>: the same pixel delta is a different data-space delta on an axis with a
-    /// different span (ROADMAP.md row 100).</summary>
+    /// different span.</summary>
     private List<SecondaryAxisRange>? SecondaryRangesFor(DataTransform primaryView, double dyPixels, double areaHeight)
     {
         var views = _layout.SecondaryViewsOf(_activeAxes);
@@ -91,8 +91,8 @@ public sealed class PanModifier : IInteractionModifier
         foreach (var v in views)
         {
             double svDy = dyPixels / areaHeight * (v.Transform.DataYMax - v.Transform.DataYMin);
-            var (min, max) = PanEvent.Shifted(v.Transform.DataYMin, v.Transform.DataYMax, svDy, v.Transform.YScale, v.Transform.YLinThresh);
-            ranges.Add(new SecondaryAxisRange(v.Side, v.SlotIndex, new DataRange(primaryView.DataXMin, primaryView.DataXMax, min, max)));
+            var moved = PanEvent.Shifted(new DataSpan(v.Transform.DataYMin, v.Transform.DataYMax), svDy, v.Transform.YScale, v.Transform.YLinThresh);
+            ranges.Add(new SecondaryAxisRange(v.Side, v.SlotIndex, new DataRange(primaryView.DataXMin, primaryView.DataXMax, moved.Min, moved.Max)));
         }
 
         return ranges;

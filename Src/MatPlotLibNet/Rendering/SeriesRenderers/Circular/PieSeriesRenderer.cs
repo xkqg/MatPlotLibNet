@@ -17,6 +17,9 @@ internal sealed class PieSeriesRenderer : CircularRenderer<PieSeries>
     public PieSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(PieSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(PieSeries series)
     {
         // The total of the slices that are there: a slice that cannot be drawn (missing, or infinite) counts as 0 and
@@ -83,7 +86,7 @@ internal sealed class PieSeriesRenderer : CircularRenderer<PieSeries>
                 double textR = radius * 0.6;
                 double tx = sliceCx + textR * Math.Cos(textAngle);
                 double ty = sliceCy - textR * Math.Sin(textAngle);
-                Ctx.DrawText(label, new Point(tx, ty), new Font { Size = 10, Color = Colors.White }, TextAlignment.Center);
+                Ctx.DrawText(label, new Point(tx, ty), ThemedFontProvider.DataTextFont(Context.Theme) with { Color = Colors.White }, TextAlignment.Center);
             }
 
             // Collect the outer label for the collision pass — do not draw yet.

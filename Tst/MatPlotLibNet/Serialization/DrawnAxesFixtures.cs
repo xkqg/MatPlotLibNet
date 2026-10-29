@@ -90,14 +90,22 @@ public static class DrawnAxesFixtures
         new("ZAxis", TheAxes, nameof(Axes.ZAxis), typeof(Axis)),
         new("Pane3D", TheAxes, nameof(Axes.Pane3D), typeof(Pane3DConfig)),
         new("AxesSettings", TheAxes, "", typeof(Axes), AxesSettings),
-        new("SecondaryYAxis", TheAxes, nameof(Axes.SecondaryYAxis), typeof(Axis)),
+        // Every seat a Y axis has on the wire, each through the container: the primary as left slot 0 ("yAxis"), right
+        // slot 0 ("secondaryYAxis"), the one slot each side's frozen list holds (right slot 1 in "extraRightYAxes", left
+        // slot 1 in "leftYAxes") and a slot past it (slot 2 of each side, in "rightYAxesOverflow" / "leftYAxesOverflow").
+        new("LeftYAxisSlot0", figure => TheAxes(figure).YAxes.Left[0], nameof(YAxisSlot.Axis), typeof(Axis)),
+        new("LeftYAxisSlot1", figure => TheAxes(figure).YAxes.Left[1], nameof(YAxisSlot.Axis), typeof(Axis)),
+        new("LeftYAxisSlot2", figure => TheAxes(figure).YAxes.Left[2], nameof(YAxisSlot.Axis), typeof(Axis)),
+        new("RightYAxisSlot0", figure => TheAxes(figure).YAxes.Right[0], nameof(YAxisSlot.Axis), typeof(Axis)),
+        new("RightYAxisSlot1", figure => TheAxes(figure).YAxes.Right[1], nameof(YAxisSlot.Axis), typeof(Axis)),
+        new("RightYAxisSlot2", figure => TheAxes(figure).YAxes.Right[2], nameof(YAxisSlot.Axis), typeof(Axis)),
+        new("YAxisContainer", TheAxes, nameof(Axes.YAxes), typeof(YAxisContainer)),
         new("SecondaryXAxis", TheAxes, nameof(Axes.SecondaryXAxis), typeof(Axis)),
-        // SecondaryAxisSlot has no settable property of its own (Axis and Side are construction-only, set through
-        // Axes.TwinX/AddOutwardYAxis, never by property assignment) — this row contributes zero DrawnPaths and exists
-        // only so ComposedChartRoundTripTests recognises the type a reflected Axes.RightYAxes/LeftYAxes slot reaches.
-        // The data it wraps round-trips through the "SecondaryYAxis" part (the Axis) and the series contract (the
-        // slot's own series); extending both to every slot, not just slot 0, is ROADMAP.md row 99's own JSON phase.
-        new("SecondaryAxisSlot", figure => TheAxes(figure).RightYAxes[0], "", typeof(SecondaryAxisSlot)),
+        // A YAxisSlot has no settable property of its own (Axis and Side are construction-only) — this row contributes
+        // zero DrawnPaths and exists only so ComposedChartRoundTripTests recognises the type every slot of the container
+        // has. The data a slot wraps round-trips through the Y axis slot parts above (the Axis) and the series contract
+        // (the slot's own series).
+        new("YAxisSlot", figure => TheAxes(figure).YAxes.Right[0], "", typeof(YAxisSlot)),
         new("InsetXAxis", TheInset, nameof(Axes.XAxis), typeof(Axis)),
         new("Title", TheAxes, "", typeof(Axes), [nameof(Axes.TitleStyle), nameof(Axes.TitleLoc)]),
         new("Legend", TheAxes, nameof(Axes.Legend), typeof(Legend)),
@@ -165,15 +173,21 @@ public static class DrawnAxesFixtures
         return rows;
     }
 
-    /// <summary>A figure with one subplot that holds every part: a labelled line, a secondary Y and a secondary X axis
-    /// with a line each, a reference line, an annotation, a span, a trendline, a level, a Fibonacci retracement and an
-    /// inset with a line. At rest, or with every drawn property of every part set to a value that is not its default.</summary>
+    /// <summary>A figure with one subplot that holds every part: a labelled line, three right Y axes and two left Y axes
+    /// past the primary (so every wire seat of a Y axis is taken: slot 0, the frozen list's one slot and a slot past it, on
+    /// both sides) and a secondary X axis, with a line each, a reference line, an annotation, a span, a trendline, a level,
+    /// a Fibonacci retracement and an inset with a line. At rest, or with every drawn property of every part set to a
+    /// value that is not its default.</summary>
     public static Figure Build(bool everyPropertySet)
     {
         double[] x = [1, 2, 3], y = [2, 4, 3];
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(x, y, s => s.Label = "values")
-            .WithSecondaryYAxis(y2 => y2.Plot(x, x))
+            .WithAddRightYAxis(r0 => r0.Plot(x, x))
+            .WithAddRightYAxis(r1 => r1.Plot(x, y))
+            .WithAddRightYAxis(r2 => r2.Plot(y, x))
+            .WithAddLeftYAxis(l1 => l1.Plot(x, x))
+            .WithAddLeftYAxis(l2 => l2.Plot(x, y))
             .WithSecondaryXAxis(x2 => x2.PlotXSecondary(x, x))).Build();
         var axes = figure.SubPlots[0];
         axes.AxHLine(2.5);

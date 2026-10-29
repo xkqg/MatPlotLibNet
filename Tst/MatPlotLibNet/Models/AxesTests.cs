@@ -268,91 +268,16 @@ public class AxesTests
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // A third and fourth Y axis, outward-stacked two to a side (ROADMAP.md row 101)
+    // Y axes past the primary, stacked outward, as many to a side as wanted (ROADMAP.md row 101)
     // ──────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public void DefaultAxes_HasNoOutwardAxesOnEitherSide()
     {
         var axes = new Axes();
-        Assert.Empty(axes.RightYAxes);
-        Assert.Empty(axes.LeftYAxes);
-    }
-
-    [Fact]
-    public void TwinX_CreatesTheFirstRightAxis_AsRightYAxesSlotZero()
-    {
-        var axes = new Axes();
-        axes.TwinX();
-        Assert.Single(axes.RightYAxes);
-        Assert.Same(axes.SecondaryYAxis, axes.RightYAxes[0].Axis);
-        Assert.Equal(AxisSide.Right, axes.RightYAxes[0].Side);
-    }
-
-    [Fact]
-    public void TwinX_CalledTwice_StaysAtOneRightAxis()
-    {
-        var axes = new Axes();
-        axes.TwinX();
-        var first = axes.SecondaryYAxis;
-        axes.TwinX();
-        Assert.Single(axes.RightYAxes);
-        Assert.Same(first, axes.SecondaryYAxis);
-    }
-
-    [Fact]
-    public void AddOutwardYAxis_Right_CreatesASecondRightAxis_DistinctFromSecondaryYAxis()
-    {
-        var axes = new Axes();
-        axes.TwinX();
-        var second = axes.AddOutwardYAxis(AxisSide.Right);
-
-        Assert.Equal(2, axes.RightYAxes.Count);
-        Assert.NotSame(axes.SecondaryYAxis, second.Axis);
-        Assert.Equal(AxisSide.Right, second.Side);
-    }
-
-    [Fact]
-    public void AddOutwardYAxis_Right_WithoutTwinXFirst_StillCreatesBothSlots()
-    {
-        var axes = new Axes();
-        axes.AddOutwardYAxis(AxisSide.Right);
-
-        Assert.Equal(2, axes.RightYAxes.Count);
-        Assert.NotNull(axes.SecondaryYAxis);
-    }
-
-    [Fact]
-    public void AddOutwardYAxis_Right_CalledThreeTimes_CapsAtTwoRightAxes()
-    {
-        var axes = new Axes();
-        axes.AddOutwardYAxis(AxisSide.Right);
-        var second = axes.AddOutwardYAxis(AxisSide.Right);
-        var third = axes.AddOutwardYAxis(AxisSide.Right);
-
-        Assert.Equal(2, axes.RightYAxes.Count);
-        Assert.Equal(second.Axis, third.Axis);
-    }
-
-    [Fact]
-    public void AddOutwardYAxis_Left_CreatesOneLeftAxis_TheOwnersTwoLeftTwoRight()
-    {
-        var axes = new Axes();
-        var left = axes.AddOutwardYAxis(AxisSide.Left);
-
-        Assert.Single(axes.LeftYAxes);
-        Assert.Equal(AxisSide.Left, left.Side);
-    }
-
-    [Fact]
-    public void AddOutwardYAxis_Left_CalledTwice_CapsAtOneLeftAxis()
-    {
-        var axes = new Axes();
-        var first = axes.AddOutwardYAxis(AxisSide.Left);
-        var second = axes.AddOutwardYAxis(AxisSide.Left);
-
-        Assert.Single(axes.LeftYAxes);
-        Assert.Equal(first.Axis, second.Axis);
+        Assert.Empty(axes.YAxes.Right);
+        Assert.Single(axes.YAxes.Left);
+        Assert.Same(axes.YAxis, axes.YAxes.Left[0].Axis);
     }
 
     /// <summary>TakeLastSeries on an axes with no primary series: the branch every other caller's own non-null
@@ -365,27 +290,26 @@ public class AxesTests
         Assert.Null(axes.TakeLastSeries());
     }
 
+    /// <summary>The order <see cref="Axes.AllSeries"/> lists the series in is an identity and a colour contract: the SVG's
+    /// <c>data-series-index</c>, a legend toggle's target and the colour slots all count along it. It is the primary series,
+    /// then every right slot's (slot 0 first), then every outward left slot's, then the top axis' — whatever order the
+    /// calls that built the figure came in, and whichever way the axes stores its slots.</summary>
     [Fact]
-    public void SecondaryAxisSlot_AddSeries_AddsToThatSlotsOwnList_NotToSecondaryYAxisSlotZero()
+    public void AllSeries_Order_IsPrimaryThenRightSlotsThenLeftOutwardSlotsThenTopX()
     {
-        var axes = new Axes();
-        axes.TwinX();
-        var second = axes.AddOutwardYAxis(AxisSide.Right);
-        second.AddSeries(new LineSeries([0.0, 1], [0.0, 1]));
+        var axes = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax
+                .WithSecondaryXAxis(x2 => x2.PlotXSecondary([10.0, 20], [1.0, 2], s => s.Label = "top"))
+                .WithAddLeftYAxis(left => left.Plot([1.0, 2], [5.0, 6], s => s.Label = "left0"))
+                .Plot([1.0, 2], [3.0, 4], s => s.Label = "primary0")
+                .WithAddRightYAxis(y2 => y2
+                    .Plot([1.0, 2], [50.0, 60], s => s.Label = "right0a")
+                    .Plot([1.0, 2], [55.0, 65], s => s.Label = "right0b"))
+                .WithAddRightYAxis(outer => outer.Plot([1.0, 2], [500.0, 600], s => s.Label = "right1"))
+                .Plot([1.0, 2], [4.0, 5], s => s.Label = "primary1"))
+            .Build().SubPlots[0];
 
-        Assert.Empty(axes.SecondarySeries);
-        Assert.Single(second.Series);
-    }
-
-    [Fact]
-    public void AddSecondarySeries_StillTargetsRightSlotZero_BackCompat()
-    {
-        var axes = new Axes();
-        axes.AddOutwardYAxis(AxisSide.Right);
-        var series = axes.AddSecondarySeries(new LineSeries([0.0, 1], [0.0, 1]));
-
-        Assert.Single(axes.SecondarySeries);
-        Assert.Same(series, axes.SecondarySeries[0]);
-        Assert.Empty(axes.RightYAxes[1].Series);
+        Assert.Equal(["primary0", "primary1", "right0a", "right0b", "right1", "left0", "top"],
+            axes.AllSeries.Select(s => s.Label));
     }
 }

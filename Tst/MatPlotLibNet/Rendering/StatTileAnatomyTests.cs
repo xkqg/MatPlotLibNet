@@ -58,13 +58,13 @@ public class StatTileAnatomyTests
         string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.StatTile(28.1, s =>
             {
-                s.Label = "RFx p99";
+                s.Label = "Request p99";
                 s.Caption = "target 25 ms · +3.1 over";
             }))
             .ToSvg();
 
         Assert.Contains("target 25 ms", svg);
-        Assert.Contains("RFx p99", svg);
+        Assert.Contains("Request p99", svg);
     }
 
     /// <summary>A caption may carry MORE THAN ONE LINE. A tile's gap line answers "is this good or bad", and a
@@ -158,7 +158,7 @@ public class StatTileAnatomyTests
         string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.StatTile(3.8, s =>
             {
-                s.Label = "Nexus";
+                s.Label = "Relay";
                 s.Caption = caption;
             }))
             .ToSvg();
@@ -231,7 +231,7 @@ public class StatTileAnatomyTests
             {
                 ax.StatTile(3.8, s =>
                 {
-                    s.Label = "Nexus";
+                    s.Label = "Relay";
                     s.Caption = "threshold 6" + Environment.NewLine + "2 148 msg · 1 s";
                     s.Trend = trend;
                 });

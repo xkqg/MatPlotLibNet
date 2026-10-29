@@ -14,8 +14,8 @@ public sealed class ResetModifier : IInteractionModifier
     /// <summary>Original data ranges captured when the modifier was created, keyed by axes index.</summary>
     private readonly Dictionary<int, DataRange> _originalRanges;
 
-    /// <summary>Every outward-stacked secondary Y axis' original range, keyed by axes index — the counterpart of
-    /// <see cref="_originalRanges"/> for everything beyond the primary (ROADMAP.md row 100).</summary>
+    /// <summary>The original range of every Y axis stacked past the primary, keyed by axes index — the counterpart of
+    /// <see cref="_originalRanges"/> for everything beyond the primary.</summary>
     private readonly Dictionary<int, IReadOnlyList<SecondaryAxisRange>> _originalSecondaryRanges;
 
     /// <summary>Creates a reset modifier. The original axis limits are snapshotted at construction time.</summary>

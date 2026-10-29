@@ -19,12 +19,14 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
     /// <summary>Cached raw series data minimum per axis, used to filter tick labels below the data floor.</summary>
     private double _rawXMin, _rawYMin, _rawZMin;
 
-    /// <inheritdoc />
-    public override void Render()
-    {
-        var axesBg = Theme.AxesBackground;
-        Ctx.DrawRectangle(PlotArea, new ShapeStyle(axesBg, null, 0));
+    /// <summary>Where the 3-D scene stands: the projection every series is drawn through, the square the cube fills, the data
+    /// range it spans and the camera.</summary>
+    private readonly record struct Scene(Projection3D Projection, Rect CubeBounds, DataRange3D Range, double Elevation, double Azimuth, double? Distance);
 
+    /// <summary>Works the scene out from the axes without drawing or measuring anything: the one place the projection is
+    /// built, which <see cref="Render"/> draws through and <see cref="LegendObstacles"/> hands to a legend.</summary>
+    private Scene ComputeScene()
+    {
         // Compute 3D data ranges from all 3D series
         var range3D = Compute3DDataRanges();
 
@@ -56,6 +58,27 @@ public sealed class ThreeDAxesRenderer : AxesRenderer
         double? distance = Axes.CameraDistance;
         var proj = new Projection3D(elevation, azimuth, cubeBounds,
             range3D.XMin, range3D.XMax, range3D.YMin, range3D.YMax, range3D.ZMin, range3D.ZMax, distance);
+
+        return new Scene(proj, cubeBounds, range3D, elevation, azimuth, distance);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>Every 3-D series, hidden ones too, through the projection <see cref="Render"/> draws them through; nothing is
+    /// drawn.</remarks>
+    internal override MarkObstacles LegendObstacles()
+    {
+        var marks = new MarkObstacles.Builder();
+        CollectMarks(Axes.Series, new DataTransform(0, 1, 0, 1, PlotArea), marks, ComputeScene().Projection);
+        return marks.Build();
+    }
+
+    /// <inheritdoc />
+    public override void Render()
+    {
+        var axesBg = Theme.AxesBackground;
+        Ctx.DrawRectangle(PlotArea, new ShapeStyle(axesBg, null, 0));
+
+        var (proj, cubeBounds, range3D, elevation, azimuth, distance) = ComputeScene();
 
         var edgeColor = Colors.EdgeGray;
 

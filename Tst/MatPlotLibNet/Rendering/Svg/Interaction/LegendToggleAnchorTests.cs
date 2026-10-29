@@ -19,7 +19,7 @@ public class LegendToggleAnchorTests
         .WithServerInteraction("c", s => s.EnableLegendToggle().EnableDataCursor())
         .AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "primary")
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [100.0, 250.0, 400.0], s => s.Label = "secondary")));
+            .WithAddRightYAxis(y2 => y2.Plot(X, [100.0, 250.0, 400.0], s => s.Label = "secondary")));
 
     private static DomElement SeriesGroup(InteractionScriptHarness h, string label) =>
         h.Document.QuerySelectorAllRaw("[data-series-index]").Single(g => g.getAttribute("aria-label") == label);
@@ -61,8 +61,29 @@ public class LegendToggleAnchorTests
         Assert.DoesNotContain(calls, c => c.Method == "OnDataCursor");
     }
 
+    private static readonly Action<FigureBuilder> NamedStack = b => b
+        .WithSize(600, 500)
+        .WithServerInteraction("c", s => s.EnableLegendToggle().EnableDataCursor())
+        .AddSubPlot(1, 1, 1, ax => ax.StackPlot(X, [[1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]], s => s.Labels = ["a", "b", "c"]));
+
+    /// <summary>A stack with named layers has an entry for each layer and is one series: a click on any of the entries
+    /// sends that one series' index.</summary>
+    [Theory]
+    [InlineData("a")]
+    [InlineData("b")]
+    [InlineData("c")]
+    public void AClickOnAnyLayersEntry_SendsTheIndexOfTheOneStack(string layer)
+    {
+        using var h = InteractionScriptHarness.FromBuilder(NamedStack);
+
+        var calls = Click(h, LegendEntry(h, layer));
+
+        var toggle = Assert.Single(calls, c => c.Method == "OnLegendToggle");
+        Assert.Equal(0, Convert.ToInt32(((IDictionary<string, object?>)toggle.Payload!)["seriesIndex"]));
+    }
+
     [Fact]
-    public void AClickOnASecondaryLegendEntry_TogglesThatSecondarySeries()
+    public void AClickOnARightLegendEntry_TogglesThatRightSeries()
     {
         using var h = InteractionScriptHarness.FromBuilder(TwinAxes);
 
@@ -80,7 +101,7 @@ public class LegendToggleAnchorTests
         new LegendToggleEvent("c", Convert.ToInt32(payload["axesIndex"]), seriesIndex).ApplyTo(figure);
 
         var axes = figure.SubPlots[0];
-        Assert.False(((ChartSeries)axes.SecondarySeries[0]).Visible);
+        Assert.False(((ChartSeries)axes.YAxes.Right[0].Series[0]).Visible);
         Assert.True(((ChartSeries)axes.Series[0]).Visible);
     }
 }

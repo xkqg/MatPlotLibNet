@@ -10,6 +10,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents an empirical cumulative distribution function (ECDF) step-function series.</summary>
 public sealed class EcdfSeries : ChartSeries, IHasColor
 {
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.Line, LineWidth, LineStyle);
+
     public double[] Data { get; }
 
     public double[] SortedX { get; }

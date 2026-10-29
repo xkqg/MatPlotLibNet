@@ -25,12 +25,13 @@ public class ThemedPartColourTests
         Theme.CreateFrom(Theme.Default).WithPropCycler(RedGreenBlue).Build();
 
     /// <summary>The four charts, one part per count: a layer of a stacked area (alpha 1, so the fill is the bare colour),
-    /// a wedge of a donut or a pie, a stage of a funnel. <paramref name="explicitColors"/> is what the series names itself.</summary>
-    private static Color[] PartFills(string chart, Theme theme, int parts, Color[]? explicitColors = null)
+    /// a wedge of a donut or a pie, a stage of a funnel. <paramref name="explicitColors"/> is what the series names itself;
+    /// <paramref name="firstColorSlot"/> the first colour slot the series holds (the parts take the slots from there on).</summary>
+    private static Color[] PartFills(string chart, Theme theme, int parts, Color[]? explicitColors = null, int firstColorSlot = 0)
     {
         var ctx = new RecordingRenderContext();
         var context = new SeriesRenderContext(new DataTransform(0, 10, 0, 10, Bounds), ctx, Colors.Tab10Blue,
-            new RenderArea(Bounds, ctx)) { Theme = theme };
+            new RenderArea(Bounds, ctx)) { Theme = theme, FirstColorSlot = firstColorSlot };
         switch (chart)
         {
             case "stackedarea":
@@ -119,6 +120,66 @@ public class ThemedPartColourTests
         var fills = PartFills(chart, CyclerTheme, 3);
 
         Assert.Equal([Colors.Red, Colors.Green, Colors.Blue], fills);
+    }
+
+    // ── the parts take their slots from the first slot the series holds ─────────────────────────────────────────
+
+    [Theory]
+    [InlineData("stackedarea")]
+    [InlineData("donut")]
+    [InlineData("pie")]
+    [InlineData("funnel")]
+    public void APartWearsTheSlotPastTheFirstSlotTheSeriesHolds(string chart)
+    {
+        var fills = PartFills(chart, Theme.Ggplot, 3, firstColorSlot: 2);
+
+        Assert.Equal(Theme.Ggplot.CycleColors.Skip(2).Take(3), fills);
+    }
+
+    [Theory]
+    [InlineData("donut")]
+    [InlineData("pie")]
+    [InlineData("funnel")]
+    public void AColourTheSeriesNamesWins_PastTheFirstSlotToo(string chart)
+    {
+        var fills = PartFills(chart, Theme.Ggplot, 3, [Colors.Red], firstColorSlot: 2);
+
+        Assert.Equal([Colors.Red, Theme.Ggplot.CycleColors[3], Theme.Ggplot.CycleColors[4]], fills);
+    }
+
+    [Theory]
+    [InlineData("stackedarea")]
+    [InlineData("donut")]
+    [InlineData("pie")]
+    [InlineData("funnel")]
+    public void AChartDrawnAfterALine_WearsTheColoursPastTheLines(string chart)
+    {
+        string svg = Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax =>
+        {
+            ax.Plot([0.0, 1, 2], [1.0, 2, 1]);
+            switch (chart)
+            {
+                case "stackedarea": ax.StackPlot([0.0, 1, 2], [[1.0, 2, 1], [1.0, 1, 1], [2.0, 1, 2]]); break;
+                case "donut": ax.Donut([3.0, 2, 1]); break;
+                case "pie": ax.Pie([3.0, 2, 1]); break;
+                default: ax.Funnel(["a", "b", "c"], [3.0, 2, 1]); break;
+            }
+        }).ToSvg();
+
+        for (int slot = 1; slot <= 3; slot++)
+            Assert.Contains(Theme.Default.CycleColors[slot].ToHex(), svg, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ALineDrawnAfterAStackOfThreeLayers_WearsTheFourthColour_NotOneALayerWears()
+    {
+        string svg = Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => ax
+            .StackPlot([0.0, 1, 2], [[1.0, 2, 1], [1.0, 1, 1], [2.0, 1, 2]])
+            .Plot([0.0, 1, 2], [1.0, 2, 1])).ToSvg();
+
+        var line = System.Text.RegularExpressions.Regex.Match(svg, "<polyline[^>]*stroke=\"(?<c>#[0-9A-Fa-f]{6})\"");
+        Assert.True(line.Success, "no polyline found");
+        Assert.Equal(Theme.Default.CycleColors[3].ToHex(), line.Groups["c"].Value, ignoreCase: true);
     }
 
     // ── a colour the series names itself still wins ──────────────────────────────────────────────────────────

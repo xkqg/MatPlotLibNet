@@ -14,20 +14,28 @@ internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
     public HistogramSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
-    public override void Render(HistogramSeries series)
+    internal override void AddMarks(HistogramSeries series, MarkObstacles.Builder marks)
     {
-        var baseColor = ResolveColor(series.Color);
-        var fillColor = ApplyAlpha(baseColor, series.Alpha);
-        if (series.Data.Length == 0) return;
+        foreach (var shape in Shapes(series))
+        {
+            if (shape.Bar is { } bar) marks.AddBox(bar);
+            else marks.AddPath(shape.Outline!);
+        }
+    }
+
+    /// <summary>One thing a histogram draws: a bar, or the outline of its steps (filled or not).</summary>
+    private readonly record struct HistogramShape(Rect? Bar, List<Point>? Outline, bool Filled);
+
+    /// <summary>Everything the histogram draws, in drawing order: the one geometry <see cref="Render"/> draws and
+    /// <see cref="AddMarks"/> hands to a legend.</summary>
+    private IEnumerable<HistogramShape> Shapes(HistogramSeries series)
+    {
+        if (series.Data.Length == 0) yield break;
         var bins = series.ComputeBins();
         int n = bins.Counts.Length;
 
         // The heights the bars stand at (counts, weights, density, cumulative): the series' own rule, which its range reads too.
         double[] heights = series.Heights(bins);
-
-        // Use series-level EdgeColor if set; otherwise fall back to theme PatchEdgeColor (e.g. black in MatplotlibClassic).
-        Color? edgeColor = series.EdgeColor ?? Context.Theme.PatchEdgeColor;
-        double edgeWidth = edgeColor.HasValue ? 0.5 : 0;
 
         // A bin's bar stands on 0 and reaches its height. On a log axis 0 is clipped to the edge where the axis begins, as
         // matplotlib clips it; a height the axis cannot place (an empty bin there) is skipped.
@@ -40,7 +48,7 @@ internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
                 double gap = (bins.BinWidth - barW) / 2;
                 var bar = Rect.FromCorners(Transform.DataToPixel(x0 + gap, heights[i]), Transform.DataToPixelClippedY(x0 + gap + barW, 0));
                 if (!bar.IsDrawable()) continue;
-                Ctx.DrawRectangle(bar, new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
+                yield return new HistogramShape(bar, null, false);
             }
         }
         else
@@ -62,16 +70,35 @@ internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
             double[] top = Array.ConvertAll(topLeft, p => p.Y);
             double[] right = Array.ConvertAll(topRight, p => p.X);
             foreach (var run in left.DrawableIndexRuns(top, right))
-            {
-                RenderStepOutline(series, bins, topLeft, topRight, run, fillColor, edgeColor, edgeWidth, baseColor);
-            }
+                yield return StepOutline(series, bins, topLeft, topRight, run);
         }
     }
 
-    /// <summary>Renders the step outline of the bins in <paramref name="run"/>: up from the base at the run's left edge,
-    /// along each bin's top, down to the base at its right edge (and back to the start when filled).</summary>
-    private void RenderStepOutline(HistogramSeries series, HistogramBins bins, Point[] topLeft, Point[] topRight,
-        IndexRange run, Color fillColor, Color? edgeColor, double edgeWidth, Color baseColor)
+    /// <inheritdoc />
+    public override void Render(HistogramSeries series)
+    {
+        var baseColor = ResolveColor(series.Color);
+        var fillColor = ApplyAlpha(baseColor, series.Alpha);
+
+        // Use series-level EdgeColor if set; otherwise fall back to theme PatchEdgeColor (e.g. black in MatplotlibClassic).
+        Color? edgeColor = series.EdgeColor ?? Context.Theme.PatchEdgeColor;
+        double edgeWidth = edgeColor.HasValue ? 0.5 : 0;
+
+        foreach (var shape in Shapes(series))
+        {
+            if (shape.Bar is { } bar)
+                Ctx.DrawRectangle(bar, new ShapeStyle(fillColor, edgeColor, edgeWidth) { Hatch = series.Hatch, HatchColor = series.HatchColor });
+            else if (shape.Filled)
+                Ctx.DrawPolygon(shape.Outline!, new ShapeStyle(fillColor, edgeColor, edgeWidth > 0 ? edgeWidth : 1) { Hatch = series.Hatch, HatchColor = series.HatchColor });
+            else
+                // Step: draw just the outline (no fill).
+                Ctx.DrawLines(shape.Outline!, new StrokeStyle(baseColor, 1.5, LineStyle.Solid));
+        }
+    }
+
+    /// <summary>The outline of one run of steps: standing on the baseline, over the tops of its bins and back to the baseline;
+    /// closed on its start when the histogram is filled.</summary>
+    private HistogramShape StepOutline(HistogramSeries series, HistogramBins bins, Point[] topLeft, Point[] topRight, IndexRange run)
     {
         var pts = new List<Point>();
         var start = Transform.DataToPixelClippedY(bins.Min + run.StartInclusive * bins.BinWidth, 0);
@@ -83,16 +110,9 @@ internal sealed class HistogramSeriesRenderer : SeriesRenderer<HistogramSeries>
         }
         pts.Add(Transform.DataToPixelClippedY(bins.Min + run.EndExclusive * bins.BinWidth, 0));
 
-        if (series.HistType == HistType.StepFilled)
-        {
-            pts.Add(start);
-            Ctx.DrawPolygon(pts, new ShapeStyle(fillColor, edgeColor, edgeWidth > 0 ? edgeWidth : 1) { Hatch = series.Hatch, HatchColor = series.HatchColor });
-        }
-        else
-        {
-            // Step: draw just the outline (no fill).
-            Ctx.DrawLines(pts, new StrokeStyle(baseColor, 1.5, LineStyle.Solid));
-        }
+        bool filled = series.HistType == HistType.StepFilled;
+        if (filled) pts.Add(start);
+        return new HistogramShape(null, pts, filled);
     }
 
 }

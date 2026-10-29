@@ -175,7 +175,7 @@ public class ChartSpecReaderTests
         var axes = Reader.Read(new ChartSpec(Spec(primary, axesExtras: axesExtras))).SubPlots[0];
 
         Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)axes.Series[0]).LabelPlacement);
-        Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)axes.SecondarySeries[0]).LabelPlacement);
+        Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)axes.YAxes.Right[0].Series[0]).LabelPlacement);
     }
 
     [Theory]
@@ -215,23 +215,63 @@ public class ChartSpecReaderTests
         var refusal = Assert.Throws<ToolRefusalException>(() =>
             Reader.Read(new ChartSpec(Spec("""{"type":"line","xData":[1,2,3],"yData":[1]}"""))));
 
-        Assert.Contains("subPlots[0].series[0]", refusal.Message);
-        Assert.Contains("xData", refusal.Message);
-        Assert.Contains("yData", refusal.Message);
-        Assert.Contains("3", refusal.Message);
-        Assert.Contains("1", refusal.Message);
+        Assert.Equal("The 'line' series at $.subPlots[0].series[0] was refused: Array lengths must match. Got 3 and 1.", refusal.Message);
+    }
+
+    /// <summary>The library's own rule, named by the place the series stands: a grid whose rows are not one per y value is
+    /// refused while the document is read, with the JSON path of the series and the library's wording of why — the reader
+    /// has no rule of its own for it, so the library never sees a document it would only fail to draw.</summary>
+    [Fact]
+    public void AGridThatDoesNotFitItsAxes_IsRefused_NamingTheSeriesAndWhy()
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() =>
+            Reader.Read(new ChartSpec(Spec("""{"type":"surface","xData":[0,1,2],"yData":[0,1,2],"zGridData":[[1,2,3],[4,5,6]]}"""))));
+
+        Assert.Contains("$.subPlots[0].series[0]", refusal.Message);
+        Assert.Contains("Array lengths must match", refusal.Message);
+        Assert.Contains("'surface'", refusal.Message);
     }
 
     [Fact]
-    public void AnAbsentSeriesArray_IsRefused_NamingTheMissingField()
+    public void AnAbsentSeriesArray_IsRefused_NamingTheSeriesAndTheLengths()
     {
-        // The library substitutes an empty array and then throws "Array lengths must match. Got 3 and 0." with
-        // no field name; the reader says which array is missing before the library ever sees the document.
+        // The library substitutes an empty array for the absent half and refuses the pair; the reader adds the place.
         var refusal = Assert.Throws<ToolRefusalException>(() =>
             Reader.Read(new ChartSpec(Spec("""{"type":"line","xData":[1,2,3]}"""))));
 
-        Assert.Contains("yData", refusal.Message);
-        Assert.Contains("subPlots[0].series[0]", refusal.Message);
+        Assert.Equal("The 'line' series at $.subPlots[0].series[0] was refused: Array lengths must match. Got 3 and 0.", refusal.Message);
+    }
+
+    /// <summary>A stacked area has x values and its layers but no y values: the library writes exactly this, and the server
+    /// lists the type. A reader that wanted a 'yData' beside every 'xData' turned away the document <c>ToJson</c> produces.</summary>
+    [Fact]
+    public void AStackedArea_IsRead_ItHasXValuesAndLayersButNoYValues()
+    {
+        var figure = Reader.Read(new ChartSpec(Spec("""{"type":"stackedarea","xData":[1,2],"datasets":[[1,2],[3,4]]}""")));
+
+        var area = Assert.IsType<StackedAreaSeries>(figure.SubPlots[0].Series[0]);
+        Assert.Equal([1.0, 2.0], area.X);
+        Assert.Equal(2, area.YSets.Length);
+    }
+
+    [Fact]
+    public void AStackedAreaWithoutXValues_IsRefused_NamingTheSeries()
+    {
+        var refusal = Assert.Throws<ToolRefusalException>(() =>
+            Reader.Read(new ChartSpec(Spec("""{"type":"stackedarea","datasets":[[1,2],[3,4]]}"""))));
+
+        Assert.StartsWith("The 'stackedarea' series at $.subPlots[0].series[0] was refused: Array lengths must match.", refusal.Message);
+    }
+
+    /// <summary>A signal given x values and no y values has no samples: it reads as the empty signal it is, the way any
+    /// series with no data reads, and does not crash the reader.</summary>
+    [Fact]
+    public void ASignalWithXDataAlone_ReadsAsAnEmptySignal_NotACrash()
+    {
+        var figure = Reader.Read(new ChartSpec(Spec("""{"type":"signal","xData":[1,2,3]}""")));
+
+        var signal = Assert.IsType<SignalSeries>(figure.SubPlots[0].Series[0]);
+        Assert.Empty(signal.YData);
     }
 
     /// <summary>A signal is sampled at a rate, so its x values follow from the rate and its JSON carries the y values
@@ -248,15 +288,14 @@ public class ChartSpecReaderTests
     }
 
     /// <summary>Only a type whose reader derives the other half may leave it out: a line with y values alone is
-    /// still refused, naming the missing 'xData'.</summary>
+    /// still refused, naming the series and the lengths.</summary>
     [Fact]
-    public void ALineWithYDataAlone_IsStillRefused_NamingTheMissingField()
+    public void ALineWithYDataAlone_IsStillRefused_NamingTheSeriesAndTheLengths()
     {
         var refusal = Assert.Throws<ToolRefusalException>(() =>
             Reader.Read(new ChartSpec(Spec("""{"type":"line","yData":[1,2,3]}"""))));
 
-        Assert.Contains("xData", refusal.Message);
-        Assert.Contains("subPlots[0].series[0]", refusal.Message);
+        Assert.Equal("The 'line' series at $.subPlots[0].series[0] was refused: Array lengths must match. Got 0 and 3.", refusal.Message);
     }
 
     [Theory]
@@ -301,8 +340,8 @@ public class ChartSpecReaderTests
         var figure = Reader.Read(new ChartSpec(Spec(Line,
             axesExtras: ""","secondaryYAxis":{},"secondarySeries":[{"type":"bar","categories":["a"],"values":[1]}]""")));
 
-        Assert.NotNull(figure.SubPlots[0].SecondaryYAxis);
-        Assert.IsType<BarSeries>(Assert.Single(figure.SubPlots[0].SecondarySeries));
+        Assert.NotEmpty(figure.SubPlots[0].YAxes.Right);
+        Assert.IsType<BarSeries>(Assert.Single(figure.SubPlots[0].YAxes.Right[0].Series));
     }
 
     [Fact]
@@ -324,7 +363,7 @@ public class ChartSpecReaderTests
         var figure = Reader.Read(new ChartSpec(Spec(Line,
             axesExtras: ""","secondaryYAxis":{},"secondarySeries":[{"type":"line","xData":[1,2],"yData":[5,6]}]""")));
 
-        Assert.NotNull(figure.SubPlots[0].SecondaryYAxis);
+        Assert.NotEmpty(figure.SubPlots[0].YAxes.Right);
     }
 
     /// <summary>NaN is the library's missing value; a spec states one the way the serializer writes it.</summary>

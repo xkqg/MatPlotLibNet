@@ -325,21 +325,21 @@ public class ChartSerializerTests
         Assert.IsType<HeatmapSeries>(restored.SubPlots[0].Series[0]);
     }
 
-    /// <summary>Verifies that a round-trip serialization preserves the secondary Y axis and its series.</summary>
+    /// <summary>Verifies that a round-trip serialization preserves the right Y axis and its series.</summary>
     [Fact]
-    public void RoundTrip_PreservesSecondaryYAxis()
+    public void RoundTrip_PreservesTheRightYAxis()
     {
         var figure = new Figure();
         var axes = figure.AddSubPlot();
         axes.Plot([1.0, 2.0], [3.0, 4.0]);
-        axes.TwinX();
-        axes.SecondaryYAxis!.Label = "Right";
-        axes.PlotSecondary([1.0, 2.0], [100.0, 200.0]);
+        var right = axes.YAxes.Right.FirstOrAdd();
+        right.Axis.Label = "Right";
+        right.AddSeries(new LineSeries([1.0, 2.0], [100.0, 200.0]));
 
         var restored = ChartSerializerDefault.Current.FromJson(ChartSerializerDefault.Current.ToJson(figure));
-        Assert.NotNull(restored.SubPlots[0].SecondaryYAxis);
-        Assert.Equal("Right", restored.SubPlots[0].SecondaryYAxis!.Label);
-        Assert.Single(restored.SubPlots[0].SecondarySeries);
+        Assert.NotEmpty(restored.SubPlots[0].YAxes.Right);
+        Assert.Equal("Right", restored.SubPlots[0].YAxes.Right[0].Axis.Label);
+        Assert.Single(restored.SubPlots[0].YAxes.Right[0].Series);
     }
 
     /// <summary>Verifies that a round-trip serialization preserves annotation text and arrow targets.</summary>

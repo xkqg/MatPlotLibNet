@@ -19,13 +19,11 @@ public class SpecDrawnPropertiesTests
 
     private static readonly ChartTypeCatalog Catalog = new();
 
-    /// <summary>The rows of the core contract, less the types the reader refuses as a whole: the stacked area (it has x
-    /// values and stacked layers but no y values) and every type the catalog does not list because its JSON reader
-    /// builds a placeholder (the treemap and the sunburst). Each is a roadmap row of its own, not a property the reader
-    /// drops.</summary>
+    /// <summary>The rows of the core contract, less the types the catalog does not list because their JSON reader builds a
+    /// placeholder (the treemap and the sunburst): a roadmap row of its own, not a property the reader drops.</summary>
     public static TheoryData<string, string> ReaderRows { get; } =
         new(DrawnSeriesFixtures.DrawnTypes
-            .Where(type => type != typeof(StackedAreaSeries) && !Catalog.Excluded.ContainsKey(DiscriminatorOf(type)))
+            .Where(type => !Catalog.Excluded.ContainsKey(DiscriminatorOf(type)))
             .SelectMany(type => DrawnSeriesFixtures.DrawnProperties(type).Select(property => (type.Name, property.Name))));
 
     /// <summary>The <c>type</c> the series of <paramref name="type"/> is written as.</summary>

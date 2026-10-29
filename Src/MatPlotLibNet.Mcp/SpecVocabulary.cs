@@ -132,6 +132,7 @@ internal sealed class SpecVocabulary
         [(SpecNodeKind.Font, "slant")] = Names<FontSlant>(),
         [(SpecNodeKind.Annotation, "coordinates")] = Names<AnnotationCoordinates>(),
         [(SpecNodeKind.Annotation, "alignment")] = Names<TextAlignment>(),
+        [(SpecNodeKind.Annotation, "verticalAlignment")] = Names<TextVerticalAlignment>(),
         [(SpecNodeKind.Annotation, "arrowStyle")] = Names<ArrowStyle>(),
         [(SpecNodeKind.TickLocator, "type")] = KindsOf<TickLocatorDto>(),
         [(SpecNodeKind.TickFormatter, "type")] = KindsOf<TickFormatterDto>(),

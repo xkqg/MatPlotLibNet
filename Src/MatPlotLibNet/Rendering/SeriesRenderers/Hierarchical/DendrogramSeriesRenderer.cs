@@ -18,6 +18,9 @@ internal sealed class DendrogramSeriesRenderer : SeriesRenderer<DendrogramSeries
     public DendrogramSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(DendrogramSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(DendrogramSeries series)
     {
         // ReferenceEqualityComparer.Instance: TreeNode is a value-equal record, so two

@@ -32,9 +32,21 @@ public class SpecDecorationTests
         Assert.Equal(BoxStyle.Round, annotation.BoxStyle);
     }
 
+    [Fact]
+    public void AnAnnotation_KeepsItsVerticalAlignmentAndItsPixelOffset()
+    {
+        var figure = Read(""","annotations":[{"text":"peak","x":2,"y":4,"verticalAlignment":"center","offsetX":12,"offsetY":-8}]""");
+
+        var annotation = Assert.Single(figure.SubPlots[0].Annotations);
+        Assert.Equal(MatPlotLibNet.Rendering.TextVerticalAlignment.Center, annotation.VerticalAlignment);
+        Assert.Equal(12, annotation.OffsetX);
+        Assert.Equal(-8, annotation.OffsetY);
+    }
+
     [Theory]
     [InlineData("""{"text":"x","x":1,"y":1,"connectionStyle":"arc9"}""", "arc9")]
     [InlineData("""{"text":"x","x":1,"y":1,"boxStyle":"roundish"}""", "roundish")]
+    [InlineData("""{"text":"x","x":1,"y":1,"verticalAlignment":"middle"}""", "middle")]
     public void AMisspelledAnnotationStyle_IsRefusedByValue(string annotation, string wrong)
     {
         var refusal = Assert.Throws<ToolRefusalException>(() => Read($""","annotations":[{annotation}]"""));

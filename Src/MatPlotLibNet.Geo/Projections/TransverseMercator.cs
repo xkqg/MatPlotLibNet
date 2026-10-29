@@ -5,13 +5,24 @@ namespace MatPlotLibNet.Geo.Projections;
 
 /// <summary>Transverse Mercator projection (spherical) — conformal cylindrical rotated 90°.
 /// Foundation of UTM (Universal Transverse Mercator) grid system.</summary>
-public sealed class TransverseMercator : IGeoProjection
+public sealed class TransverseMercator : IGeoProjection, IProjectionParameters
 {
     private readonly double _lam0;
+    private readonly Dictionary<string, double> _parameters;
 
     public string Name => "TransverseMercator";
 
-    public TransverseMercator(double centerLon = 0) => _lam0 = centerLon.ToRadians();
+    public TransverseMercator(double centerLon = 0)
+    {
+        _parameters = new() { ["lon_0"] = centerLon };
+        _lam0 = centerLon.ToRadians();
+    }
+
+    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters;
+
+    /// <inheritdoc />
+    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) =>
+        new TransverseMercator(parameters.GetValueOrDefault("lon_0", _parameters["lon_0"]));
 
     public ProjectedPoint Forward(double latitude, double longitude)
     {

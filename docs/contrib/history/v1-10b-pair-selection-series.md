@@ -557,7 +557,7 @@ moved to [v1.10](v1-10c-network-graph.md).)
 ## What this is NOT
 
 - **Not a portfolio-management package.** No asset-selection logic, no return computation, no clustering driver. The series accept pre-computed inputs (`TreeNode`, `double[,]`, `double[][]`) — clustering, dimensional reduction, and statistics belong in user code or in a separate `MatPlotLibNet.Quant` package.
-- **Not crypto-specific.** No references to trading, exchanges, or any Ait.RL concepts in the production code or XML doc comments. Consumer-side examples in `Samples/` may use a financial dataset for illustration, but the series themselves stay generic.
+- **Not crypto-specific.** No references to trading, exchanges, or any concepts of a particular application in the production code or XML doc comments. Consumer-side examples in `Samples/` may use a financial dataset for illustration, but the series themselves stay generic.
 - **Not a streaming feature.** Cluster computation and N×N pair-grid layout are too expensive per-tick; both are periodic / offline workflows. No `Streaming*` variants of these series.
 - **Not new packages.** All four additions land in the existing `MatPlotLibNet` core package. The file structure (`Models/Series/Grid/` for ClustermapSeries and PairGridSeries; `Models/Series/Hierarchical/` for DendrogramSeries) handles the categorisation.
 

@@ -12,6 +12,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <see cref="Value"/> within the <c>[Min, Max]</c> range.</summary>
 public sealed class GaugeSeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     /// <summary>Current value indicated by the needle, within <c>[Min, Max]</c>.</summary>
     public double Value { get; }
 

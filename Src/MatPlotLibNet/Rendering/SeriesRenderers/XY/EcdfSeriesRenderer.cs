@@ -12,12 +12,12 @@ internal sealed class EcdfSeriesRenderer : SeriesRenderer<EcdfSeries>
     /// <inheritdoc />
     public EcdfSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
-    /// <inheritdoc />
-    public override void Render(EcdfSeries series)
+    /// <summary>The points of the staircase in pixels: the one geometry <see cref="Render"/> draws and
+    /// <see cref="AddMarks"/> hands to a legend. Empty for a series with no sample.</summary>
+    private List<Point> Path(EcdfSeries series)
     {
-        var color = ResolveColor(series.Color);
         int n = series.SortedX.Length;
-        if (n == 0) return;
+        if (n == 0) return [];
 
         // Precompute pixel coordinates for all data points (SIMD batch)
         var pxArr = Transform.TransformX(series.SortedX);
@@ -36,7 +36,17 @@ internal sealed class EcdfSeriesRenderer : SeriesRenderer<EcdfSeries>
             pts.Add(new Point(pxArr[i], pyArr[i]));
         }
 
+        return pts;
+    }
+
+    /// <inheritdoc />
+    internal override void AddMarks(EcdfSeries series, MarkObstacles.Builder marks) => AddPolyline(marks, Path(series));
+
+    /// <inheritdoc />
+    public override void Render(EcdfSeries series)
+    {
+        var color = ResolveColor(series.Color);
         // A line: a point the axes cannot place (its start at 0 on a log axis) is masked and breaks it, as a line does.
-        DrawPolyline(pts, Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
+        DrawPolyline(Path(series), Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
     }
 }

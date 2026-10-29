@@ -368,7 +368,7 @@ public class PlaygroundExampleTests
         var (figure, code) = PlaygroundExamples.Build(PlaygroundExample.DirectLabels, Defaults());
         var axes = figure.SubPlots[0];
         var left = Assert.IsType<LineSeries>(Assert.Single(axes.Series));
-        var right = Assert.IsType<LineSeries>(Assert.Single(axes.SecondarySeries));
+        var right = Assert.IsType<LineSeries>(Assert.Single(axes.YAxes.Right[0].Series));
 
         Assert.Equal(SeriesLabelPlacement.LineEnd, left.LabelPlacement);
         Assert.Equal(SeriesLabelPlacement.LineEnd, right.LabelPlacement);
@@ -379,12 +379,12 @@ public class PlaygroundExampleTests
         Assert.NotEqual(left.Color, right.Color);
         Assert.Equal(left.Color, axes.YAxis.MajorTicks.LabelColor);
         Assert.Equal(left.Color, axes.Spines.Left.Color);
-        Assert.Equal(right.Color, axes.SecondaryYAxis!.MajorTicks.LabelColor);
+        Assert.Equal(right.Color, axes.YAxes.Right[0].Axis.MajorTicks.LabelColor);
         Assert.Equal(right.Color, axes.Spines.Right.Color);
 
         // ... and the colour is never the only cue: both axes keep a title in words.
         Assert.False(string.IsNullOrEmpty(axes.YAxis.Label));
-        Assert.False(string.IsNullOrEmpty(axes.SecondaryYAxis.Label));
+        Assert.False(string.IsNullOrEmpty(axes.YAxes.Right[0].Axis.Label));
 
         // The names are drawn at the line ends, so no legend is drawn at all.
         string svg = figure.ToSvg();
@@ -403,7 +403,7 @@ public class PlaygroundExampleTests
         var opts = Defaults() with { LineStyle = LineStyle.Dashed, LineWidth = 3.5, Marker = MarkerStyle.Square, MarkerSize = 9 };
         var axes = PlaygroundExamples.Build(PlaygroundExample.DirectLabels, opts).Figure.SubPlots[0];
 
-        foreach (var line in axes.Series.Concat(axes.SecondarySeries).Cast<LineSeries>())
+        foreach (var line in axes.Series.Concat(axes.YAxes.Right[0].Series).Cast<LineSeries>())
         {
             Assert.Equal(LineStyle.Dashed, line.LineStyle);
             Assert.Equal(3.5, line.LineWidth);
@@ -420,7 +420,7 @@ public class PlaygroundExampleTests
         var (figure, code) = PlaygroundExamples.Build(PlaygroundExample.ParetoChart, Defaults());
         var axes = figure.SubPlots[0];
         var bars = Assert.IsType<BarSeries>(Assert.Single(axes.Series));
-        var share = Assert.IsType<LineSeries>(Assert.Single(axes.SecondarySeries));
+        var share = Assert.IsType<LineSeries>(Assert.Single(axes.YAxes.Right[0].Series));
 
         Assert.Equal(bars.Values.OrderByDescending(v => v), bars.Values);
         Assert.Equal(100, share.YData[^1]);
@@ -429,7 +429,7 @@ public class PlaygroundExampleTests
 
         // The snippet a user copies is the one call, not a recipe.
         Assert.Contains(".Pareto(", code);
-        Assert.DoesNotContain("WithSecondaryYAxis", code);
+        Assert.DoesNotContain("WithAddRightYAxis", code);
     }
 
     [Fact]

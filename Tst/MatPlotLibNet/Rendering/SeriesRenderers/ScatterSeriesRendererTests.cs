@@ -256,11 +256,11 @@ public class ScatterSeriesRendererTests
 
     /// <summary>A scatter on the secondary axis is the same series drawn by the same renderer.</summary>
     [Fact]
-    public void Render_Alpha_ReachesAScatterOnTheSecondaryAxis()
+    public void Render_Alpha_ReachesAScatterOnTheRightAxis()
     {
         var svg = Plt.Create().WithSize(400, 300)
             .AddSubPlot(1, 1, 1, ax => ax.Plot(Xs, Ys)
-                .WithSecondaryYAxis(y2 => y2.Scatter(Xs, Ys, s => { s.Color = Colors.Red; s.Alpha = 0.5; })))
+                .WithAddRightYAxis(y2 => y2.Scatter(Xs, Ys, s => { s.Color = Colors.Red; s.Alpha = 0.5; })))
             .Build().ToSvg();
 
         var markers = Markers(svg, fillHex: Colors.Red.ToHex());

@@ -13,21 +13,31 @@ internal sealed class BrokenBarSeriesRenderer : SeriesRenderer<BrokenBarSeries>
     public BrokenBarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
-    public override void Render(BrokenBarSeries series)
+    internal override void AddMarks(BrokenBarSeries series, MarkObstacles.Builder marks)
     {
-        if (series.Ranges.Length == 0) return;
+        foreach (var segment in Segments(series)) marks.AddBox(segment);
+    }
 
-        var color = ResolveColor(series.Color);
+    /// <summary>The segments that can be drawn: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to
+    /// a legend. A segment that cannot be placed is left out.</summary>
+    private IEnumerable<Rect> Segments(BrokenBarSeries series)
+    {
         double halfH = series.BarHeight / 2.0;
-
         for (int i = 0; i < series.Ranges.Length; i++)
         {
             foreach (var (start, width) in series.Ranges[i])
             {
                 var segment = Rect.FromCorners(Transform.DataToPixel(start, i + halfH), Transform.DataToPixel(start + width, i - halfH));
-                if (!segment.IsDrawable()) continue;   // a segment that cannot be placed is skipped
-                Ctx.DrawRectangle(segment, new ShapeStyle(color, null, 0));
+                if (segment.IsDrawable()) yield return segment;
             }
         }
+    }
+
+    /// <inheritdoc />
+    public override void Render(BrokenBarSeries series)
+    {
+        var color = ResolveColor(series.Color);
+        foreach (var segment in Segments(series))
+            Ctx.DrawRectangle(segment, new ShapeStyle(color, null, 0));
     }
 }

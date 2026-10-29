@@ -44,6 +44,30 @@ public class ResidualSeriesRendererDiagnosticsTests
         }
     }
 
+    /// <summary>The other way round: more y values than x. The fit runs over the x values and gives a prediction per x, so the
+    /// subtraction of the prediction from y is the step that meets arrays of different lengths — it is part of the fit and is
+    /// reported and skipped the same way, not thrown out of the render.</summary>
+    [Fact]
+    public void ResidualSeriesRenderer_MoreYThanX_EmitsDiagnosticAndSkips()
+    {
+        var received = new List<ChartDiagnostic>();
+        void Handler(ChartDiagnostic d) => received.Add(d);
+        ChartDiagnostics.Emitted += Handler;
+        try
+        {
+            string svg = Plt.Create()
+                .AddSubPlot(1, 1, 1, ax => ax.Residplot([1.0, 2.0], [1.0, 2.0, 3.0]))
+                .ToSvg();
+
+            Assert.Contains(received, d => d.Source == "ResidualSeriesRenderer" && d.Exception is not null);
+            Assert.Contains("<svg", svg);
+        }
+        finally
+        {
+            ChartDiagnostics.Emitted -= Handler;
+        }
+    }
+
     /// <summary>Direct unit test of the model-level guard: <c>ResidualSeries.ComputeDataRange</c> must
     /// not crash on mismatched data — it contributes nothing to the axes range, mirroring the
     /// empty-series default (<c>new(0, 1, -1, 1)</c>, see <c>ResidualSeries.cs:38</c>), and reports why

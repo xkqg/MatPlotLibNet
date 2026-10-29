@@ -32,12 +32,23 @@ public static class AxesFieldVerbs
         }
 
         /// <summary>Adds a streamplot (vector field streamlines) series from the given grid and velocity data.</summary>
-        public StreamplotSeries Streamplot(double[] x, double[] y, double[,] u, double[,] v) => axes.AddSeries(new StreamplotSeries(x, y, u, v));
+        public StreamplotSeries Streamplot(double[] x, double[] y, double[,] u, double[,] v)
+        {
+            u.ThrowIfMisaligned(y.Length, x.Length);
+            v.ThrowIfMisaligned(y.Length, x.Length);
+            return axes.AddSeries(new StreamplotSeries(x, y, u, v));
+        }
 
         /// <summary>Adds a quiver key (reference arrow) series.</summary>
         public QuiverKeySeries QuiverKey(double x, double y, double u, string label) => axes.AddSeries(new QuiverKeySeries(x, y, u, label));
 
         /// <summary>Adds a wind barb series.</summary>
-        public BarbsSeries Barbs(Numerics.Vec x, Numerics.Vec y, Numerics.Vec speed, Numerics.Vec direction) => axes.AddSeries(new BarbsSeries(x, y, speed, direction));
+        public BarbsSeries Barbs(Numerics.Vec x, Numerics.Vec y, Numerics.Vec speed, Numerics.Vec direction)
+        {
+            x.Length.ThrowIfMisaligned(y.Length);
+            x.Length.ThrowIfMisaligned(speed.Length);
+            x.Length.ThrowIfMisaligned(direction.Length);
+            return axes.AddSeries(new BarbsSeries(x, y, speed, direction));
+        }
     }
 }

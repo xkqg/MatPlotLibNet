@@ -40,7 +40,7 @@ public class RaincloudTests
         var points = Assert.IsType<ScatterSeries>(axes.Series[2]);
         Assert.Equal(ViolinSide.High, violin.Side);
         Assert.False(box.ShowOutliers);
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
     }
 
     /// <summary>The violin and the box hold one dataset per group, in the order given, each at its group's index — the

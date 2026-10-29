@@ -5,9 +5,10 @@ namespace MatPlotLibNet.Geo.Projections;
 
 /// <summary>Lambert Conformal Conic projection — good for mid-latitude regions (US, Europe).
 /// Preserves shapes locally. Two standard parallels control the cone.</summary>
-public sealed class LambertConformal : IGeoProjection
+public sealed class LambertConformal : IGeoProjection, IProjectionParameters
 {
     private readonly double _n, _f, _rho0, _lon0;
+    private readonly Dictionary<string, double> _parameters;
 
     /// <inheritdoc />
     public string Name => "LambertConformal";
@@ -20,6 +21,7 @@ public sealed class LambertConformal : IGeoProjection
     public LambertConformal(double standardParallel1 = 33, double standardParallel2 = 45,
         double centerLon = 0, double centerLat = 39)
     {
+        _parameters = new() { ["lat_1"] = standardParallel1, ["lat_2"] = standardParallel2, ["lon_0"] = centerLon, ["lat_0"] = centerLat };
         double phi1 = standardParallel1.ToRadians();
         double phi2 = standardParallel2.ToRadians();
         double phi0 = centerLat.ToRadians();
@@ -30,6 +32,13 @@ public sealed class LambertConformal : IGeoProjection
         _f = Math.Cos(phi1) * Math.Pow(Math.Tan(Math.PI / 4 + phi1 / 2), _n) / _n;
         _rho0 = _f / Math.Pow(Math.Tan(Math.PI / 4 + phi0 / 2), _n);
     }
+
+    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters;
+
+    /// <inheritdoc />
+    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) =>
+        new LambertConformal(parameters.GetValueOrDefault("lat_1", _parameters["lat_1"]), parameters.GetValueOrDefault("lat_2", _parameters["lat_2"]),
+            parameters.GetValueOrDefault("lon_0", _parameters["lon_0"]), parameters.GetValueOrDefault("lat_0", _parameters["lat_0"]));
 
     /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)

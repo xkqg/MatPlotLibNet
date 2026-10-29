@@ -43,4 +43,13 @@ public record SeriesRenderContext(
 
     /// <summary>The active visual theme, used by renderers for theme-specific defaults (e.g. matplotlib patch edge color).</summary>
     public Styling.Theme Theme { get; init; } = Styling.Theme.Default;
+
+    /// <summary>The radial scale of the polar axes the series is drawn on, worked out once per paint by the axes; none on any
+    /// other axes, and none when a renderer is invoked directly (a polar series then scales itself, alone).</summary>
+    internal RadialScale? RadialScale { get; init; }
+
+    /// <summary>The first colour slot the series holds (<see cref="SeriesSlotExtensions.ColorSlots"/>): a series that colours
+    /// its own parts takes the slots from here on, one for each part, so the parts of a series drawn after another wear the
+    /// colours past the ones before it. 0 for a renderer invoked on its own.</summary>
+    internal int FirstColorSlot { get; init; }
 }

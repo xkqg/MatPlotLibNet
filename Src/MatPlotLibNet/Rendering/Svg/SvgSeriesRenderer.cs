@@ -16,7 +16,7 @@ namespace MatPlotLibNet.Rendering.Svg;
 /// Lazy fields use ??= which is not atomic. Do not share instances across threads.</remarks>
 internal sealed class SvgSeriesRenderer : ISeriesVisitor
 {
-    private readonly SeriesRenderContext _context;
+    private SeriesRenderContext _context;
 
     // XY family
     private LineSeriesRenderer? _line;
@@ -131,6 +131,25 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private SignalXYSeriesRenderer? _signalXY;
     private SignalSeriesRenderer? _signal;
 
+    /// <summary>The radial scale of the polar axes the series are drawn on, handed to every polar renderer through its context.</summary>
+    internal RadialScale? RadialScale { init => _context = _context with { RadialScale = value }; }
+
+    /// <summary>The first colour slot the series holds; its parts take the slots from here on
+    /// (<see cref="SeriesRenderContext.FirstColorSlot"/>).</summary>
+    internal int FirstColorSlot { init => _context = _context with { FirstColorSlot = value }; }
+
+    /// <summary>When set, this visitor draws nothing: each series adds the marks it would draw to this collection
+    /// (<see cref="SeriesRenderer{T}.AddMarks"/>), so a legend can find the place that covers the fewest of them.</summary>
+    internal MarkObstacles.Builder? Marks { get; init; }
+
+    /// <summary>Draws <paramref name="series"/> through its renderer, or, when this visitor collects
+    /// (<see cref="Marks"/>), adds its marks instead: the one place the two modes part.</summary>
+    private void Dispatch<T>(SeriesRenderer<T> renderer, T series) where T : ISeries
+    {
+        if (Marks is { } marks) renderer.AddMarks(series, marks);
+        else renderer.Render(series);
+    }
+
     /// <summary>Initializes a new <see cref="SvgSeriesRenderer"/> for a single render pass.</summary>
     /// <param name="transform">The coordinate transform mapping data space to pixel space.</param>
     /// <param name="ctx">The drawing target for this render pass.</param>
@@ -162,193 +181,193 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
 
     // XY family
     /// <inheritdoc />
-    public void Visit(LineSeries s, RenderArea a) => (_line ??= new(_context)).Render(s);
+    public void Visit(LineSeries s, RenderArea a) => Dispatch(_line ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(RegressionSeries s, RenderArea a) => (_regression ??= new(_context)).Render(s);
+    public void Visit(RegressionSeries s, RenderArea a) => Dispatch(_regression ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(ScatterSeries s, RenderArea a) => (_scatter ??= new(_context)).Render(s);
+    public void Visit(ScatterSeries s, RenderArea a) => Dispatch(_scatter ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(StepSeries s, RenderArea a) => (_step ??= new(_context)).Render(s);
+    public void Visit(StepSeries s, RenderArea a) => Dispatch(_step ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(AreaSeries s, RenderArea a) => (_area ??= new(_context)).Render(s);
+    public void Visit(AreaSeries s, RenderArea a) => Dispatch(_area ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(ErrorBarSeries s, RenderArea a) => (_errorBar ??= new(_context)).Render(s);
+    public void Visit(ErrorBarSeries s, RenderArea a) => Dispatch(_errorBar ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(BubbleSeries s, RenderArea a) => (_bubble ??= new(_context)).Render(s);
+    public void Visit(BubbleSeries s, RenderArea a) => Dispatch(_bubble ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(SparklineSeries s, RenderArea a) => (_sparkline ??= new(_context)).Render(s);
+    public void Visit(SparklineSeries s, RenderArea a) => Dispatch(_sparkline ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(EcdfSeries s, RenderArea a) => (_ecdf ??= new(_context)).Render(s);
+    public void Visit(EcdfSeries s, RenderArea a) => Dispatch(_ecdf ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(StackedAreaSeries s, RenderArea a) => (_stackedArea ??= new(_context)).Render(s);
+    public void Visit(StackedAreaSeries s, RenderArea a) => Dispatch(_stackedArea ??= new(_context), s);
 
     // Categorical family
     /// <inheritdoc />
-    public void Visit(BarSeries s, RenderArea a) => (_bar ??= new(_context)).Render(s);
+    public void Visit(BarSeries s, RenderArea a) => Dispatch(_bar ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(HistogramSeries s, RenderArea a) => (_histogram ??= new(_context)).Render(s);
+    public void Visit(HistogramSeries s, RenderArea a) => Dispatch(_histogram ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(WaterfallSeries s, RenderArea a) => (_waterfall ??= new(_context)).Render(s);
+    public void Visit(WaterfallSeries s, RenderArea a) => Dispatch(_waterfall ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(FunnelSeries s, RenderArea a) => (_funnel ??= new(_context)).Render(s);
+    public void Visit(FunnelSeries s, RenderArea a) => Dispatch(_funnel ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(GanttSeries s, RenderArea a) => (_gantt ??= new(_context)).Render(s);
+    public void Visit(GanttSeries s, RenderArea a) => Dispatch(_gantt ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(ProgressBarSeries s, RenderArea a) => (_progressBar ??= new(_context)).Render(s);
+    public void Visit(ProgressBarSeries s, RenderArea a) => Dispatch(_progressBar ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(StatTileSeries s, RenderArea a) => (_statTile ??= new(_context)).Render(s);
+    public void Visit(StatTileSeries s, RenderArea a) => Dispatch(_statTile ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(StateTimelineSeries s, RenderArea a) => (_stateTimeline ??= new(_context)).Render(s);
+    public void Visit(StateTimelineSeries s, RenderArea a) => Dispatch(_stateTimeline ??= new(_context), s);
 
     /// <inheritdoc />
-    public void Visit(BulletGraphSeries s, RenderArea a) => (_bullet ??= new(_context)).Render(s);
+    public void Visit(BulletGraphSeries s, RenderArea a) => Dispatch(_bullet ??= new(_context), s);
 
     // Circular family
     /// <inheritdoc />
-    public void Visit(PieSeries s, RenderArea a) => (_pie ??= new(_context)).Render(s);
+    public void Visit(PieSeries s, RenderArea a) => Dispatch(_pie ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(RadarSeries s, RenderArea a) => (_radar ??= new(_context)).Render(s);
+    public void Visit(RadarSeries s, RenderArea a) => Dispatch(_radar ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(DonutSeries s, RenderArea a) => (_donut ??= new(_context)).Render(s);
+    public void Visit(DonutSeries s, RenderArea a) => Dispatch(_donut ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(GaugeSeries s, RenderArea a) => (_gauge ??= new(_context)).Render(s);
+    public void Visit(GaugeSeries s, RenderArea a) => Dispatch(_gauge ??= new(_context), s);
 
     // Grid family
     /// <inheritdoc />
-    public void Visit(HeatmapSeries s, RenderArea a) => (_heatmap ??= new(_context)).Render(s);
+    public void Visit(HeatmapSeries s, RenderArea a) => Dispatch(_heatmap ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(HexbinSeries s, RenderArea a) => (_hexbin ??= new(_context)).Render(s);
+    public void Visit(HexbinSeries s, RenderArea a) => Dispatch(_hexbin ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(ImageSeries s, RenderArea a) => (_image ??= new(_context)).Render(s);
+    public void Visit(ImageSeries s, RenderArea a) => Dispatch(_image ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(Histogram2DSeries s, RenderArea a) => (_histogram2D ??= new(_context)).Render(s);
+    public void Visit(Histogram2DSeries s, RenderArea a) => Dispatch(_histogram2D ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(ContourSeries s, RenderArea a) => (_contour ??= new(_context)).Render(s);
+    public void Visit(ContourSeries s, RenderArea a) => Dispatch(_contour ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(ContourfSeries s, RenderArea a) => (_contourf ??= new(_context)).Render(s);
+    public void Visit(ContourfSeries s, RenderArea a) => Dispatch(_contourf ??= new(_context), s);
 
     // Distribution family
     /// <inheritdoc />
-    public void Visit(BoxSeries s, RenderArea a) => (_box ??= new(_context)).Render(s);
+    public void Visit(BoxSeries s, RenderArea a) => Dispatch(_box ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(ViolinSeries s, RenderArea a) => (_violin ??= new(_context)).Render(s);
+    public void Visit(ViolinSeries s, RenderArea a) => Dispatch(_violin ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(KdeSeries s, RenderArea a) => (_kde ??= new(_context)).Render(s);
+    public void Visit(KdeSeries s, RenderArea a) => Dispatch(_kde ??= new(_context), s);
 
     // Financial family
     /// <inheritdoc />
-    public void Visit(CandlestickSeries s, RenderArea a) => (_candlestick ??= new(_context)).Render(s);
+    public void Visit(CandlestickSeries s, RenderArea a) => Dispatch(_candlestick ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(OhlcBarSeries s, RenderArea a) => (_ohlcBar ??= new(_context)).Render(s);
+    public void Visit(OhlcBarSeries s, RenderArea a) => Dispatch(_ohlcBar ??= new(_context), s);
 
     // Field family
     /// <inheritdoc />
-    public void Visit(QuiverSeries s, RenderArea a) => (_quiver ??= new(_context)).Render(s);
+    public void Visit(QuiverSeries s, RenderArea a) => Dispatch(_quiver ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(StreamplotSeries s, RenderArea a) => (_streamplot ??= new(_context)).Render(s);
+    public void Visit(StreamplotSeries s, RenderArea a) => Dispatch(_streamplot ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(StemSeries s, RenderArea a) => (_stem ??= new(_context)).Render(s);
+    public void Visit(StemSeries s, RenderArea a) => Dispatch(_stem ??= new(_context), s);
 
     // Hierarchical family
     /// <inheritdoc />
-    public void Visit(TreemapSeries s, RenderArea a) => (_treemap ??= new(_context)).Render(s);
+    public void Visit(TreemapSeries s, RenderArea a) => Dispatch(_treemap ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(SunburstSeries s, RenderArea a) => (_sunburst ??= new(_context)).Render(s);
+    public void Visit(SunburstSeries s, RenderArea a) => Dispatch(_sunburst ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(DendrogramSeries s, RenderArea a) => (_dendrogram ??= new(_context)).Render(s);
+    public void Visit(DendrogramSeries s, RenderArea a) => Dispatch(_dendrogram ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(ClustermapSeries s, RenderArea a) => (_clustermap ??= new(_context)).Render(s);
+    public void Visit(ClustermapSeries s, RenderArea a) => Dispatch(_clustermap ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(PairGridSeries s, RenderArea a) => (_pairgrid ??= new(_context)).Render(s);
+    public void Visit(PairGridSeries s, RenderArea a) => Dispatch(_pairgrid ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(NetworkGraphSeries s, RenderArea a) => (_networkgraph ??= new(_context)).Render(s);
-    public void Visit(RelativeRotationSeries s, RenderArea a) => (_relativeRotation ??= new(_context)).Render(s);
+    public void Visit(NetworkGraphSeries s, RenderArea a) => Dispatch(_networkgraph ??= new(_context), s);
+    public void Visit(RelativeRotationSeries s, RenderArea a) => Dispatch(_relativeRotation ??= new(_context), s);
 
     // Flow family
     /// <inheritdoc />
-    public void Visit(SankeySeries s, RenderArea a) => (_sankey ??= new(_context)).Render(s);
+    public void Visit(SankeySeries s, RenderArea a) => Dispatch(_sankey ??= new(_context), s);
 
     // Polar family
     /// <inheritdoc />
-    public void Visit(PolarLineSeries s, RenderArea a) => (_polarLine ??= new(_context)).Render(s);
+    public void Visit(PolarLineSeries s, RenderArea a) => Dispatch(_polarLine ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(PolarScatterSeries s, RenderArea a) => (_polarScatter ??= new(_context)).Render(s);
+    public void Visit(PolarScatterSeries s, RenderArea a) => Dispatch(_polarScatter ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(PolarBarSeries s, RenderArea a) => (_polarBar ??= new(_context)).Render(s);
+    public void Visit(PolarBarSeries s, RenderArea a) => Dispatch(_polarBar ??= new(_context), s);
 
     // ThreeD family
     /// <inheritdoc />
-    public void Visit(SurfaceSeries s, RenderArea a) => (_surface ??= new(_context)).Render(s);
+    public void Visit(SurfaceSeries s, RenderArea a) => Dispatch(_surface ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(WireframeSeries s, RenderArea a) => (_wireframe ??= new(_context)).Render(s);
+    public void Visit(WireframeSeries s, RenderArea a) => Dispatch(_wireframe ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(Scatter3DSeries s, RenderArea a) => (_scatter3D ??= new(_context)).Render(s);
+    public void Visit(Scatter3DSeries s, RenderArea a) => Dispatch(_scatter3D ??= new(_context), s);
 
     // Distribution v0.8
     /// <inheritdoc />
-    public void Visit(RugplotSeries s, RenderArea a) => (_rugplot ??= new(_context)).Render(s);
+    public void Visit(RugplotSeries s, RenderArea a) => Dispatch(_rugplot ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(StripplotSeries s, RenderArea a) => (_stripplot ??= new(_context)).Render(s);
+    public void Visit(StripplotSeries s, RenderArea a) => Dispatch(_stripplot ??= new(_context), s);
 
     // Categorical v0.8
     /// <inheritdoc />
-    public void Visit(EventplotSeries s, RenderArea a) => (_eventplot ??= new(_context)).Render(s);
+    public void Visit(EventplotSeries s, RenderArea a) => Dispatch(_eventplot ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(BrokenBarSeries s, RenderArea a) => (_brokenBar ??= new(_context)).Render(s);
+    public void Visit(BrokenBarSeries s, RenderArea a) => Dispatch(_brokenBar ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(CountSeries s, RenderArea a) => (_count ??= new(_context)).Render(s);
+    public void Visit(CountSeries s, RenderArea a) => Dispatch(_count ??= new(_context), s);
 
     // Grid v0.8
     /// <inheritdoc />
-    public void Visit(PcolormeshSeries s, RenderArea a) => (_pcolormesh ??= new(_context)).Render(s);
+    public void Visit(PcolormeshSeries s, RenderArea a) => Dispatch(_pcolormesh ??= new(_context), s);
 
     // XY v0.8
     /// <inheritdoc />
-    public void Visit(ResidualSeries s, RenderArea a) => (_residual ??= new(_context)).Render(s);
+    public void Visit(ResidualSeries s, RenderArea a) => Dispatch(_residual ??= new(_context), s);
 
     // Phase B additions
     /// <inheritdoc />
-    public void Visit(PointplotSeries s, RenderArea a) => (_pointplot ??= new(_context)).Render(s);
+    public void Visit(PointplotSeries s, RenderArea a) => Dispatch(_pointplot ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(SwarmplotSeries s, RenderArea a) => (_swarmplot ??= new(_context)).Render(s);
+    public void Visit(SwarmplotSeries s, RenderArea a) => Dispatch(_swarmplot ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(SpectrogramSeries s, RenderArea a) => (_spectrogram ??= new(_context)).Render(s);
+    public void Visit(SpectrogramSeries s, RenderArea a) => Dispatch(_spectrogram ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(TableSeries s, RenderArea a) => (_table ??= new(_context)).Render(s);
+    public void Visit(TableSeries s, RenderArea a) => Dispatch(_table ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(TreeGridSeries s, RenderArea a) => (_treeGrid ??= new(_context)).Render(s);
+    public void Visit(TreeGridSeries s, RenderArea a) => Dispatch(_treeGrid ??= new(_context), s);
 
     // Phase C additions
     /// <inheritdoc />
-    public void Visit(TricontourSeries s, RenderArea a) => (_tricontour ??= new(_context)).Render(s);
+    public void Visit(TricontourSeries s, RenderArea a) => Dispatch(_tricontour ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(TripcolorSeries s, RenderArea a) => (_tripcolor ??= new(_context)).Render(s);
+    public void Visit(TripcolorSeries s, RenderArea a) => Dispatch(_tripcolor ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(QuiverKeySeries s, RenderArea a) => (_quiverKey ??= new(_context)).Render(s);
+    public void Visit(QuiverKeySeries s, RenderArea a) => Dispatch(_quiverKey ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(BarbsSeries s, RenderArea a) => (_barbs ??= new(_context)).Render(s);
+    public void Visit(BarbsSeries s, RenderArea a) => Dispatch(_barbs ??= new(_context), s);
 
     // Phase D additions
     private Stem3DSeriesRenderer? _stem3D;
     private Bar3DSeriesRenderer? _bar3D;
     private PlanarBar3DSeriesRenderer? _planarBar3D;
     /// <inheritdoc />
-    public void Visit(Stem3DSeries s, RenderArea a) => (_stem3D ??= new(_context)).Render(s);
+    public void Visit(Stem3DSeries s, RenderArea a) => Dispatch(_stem3D ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(Bar3DSeries s, RenderArea a) => (_bar3D ??= new(_context)).Render(s);
+    public void Visit(Bar3DSeries s, RenderArea a) => Dispatch(_bar3D ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(PlanarBar3DSeries s, RenderArea a) => (_planarBar3D ??= new(_context)).Render(s);
+    public void Visit(PlanarBar3DSeries s, RenderArea a) => Dispatch(_planarBar3D ??= new(_context), s);
 
     // Signal v1.0
     /// <inheritdoc />
-    public void Visit(SignalXYSeries s, RenderArea a) => (_signalXY ??= new(_context)).Render(s);
+    public void Visit(SignalXYSeries s, RenderArea a) => Dispatch(_signalXY ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(SignalSeries s, RenderArea a) => (_signal ??= new(_context)).Render(s);
+    public void Visit(SignalSeries s, RenderArea a) => Dispatch(_signal ??= new(_context), s);
 
     // Polar heatmap v1.1.1
     private PolarHeatmapSeriesRenderer? _polarHeatmap;
     /// <inheritdoc />
-    public void Visit(PolarHeatmapSeries s, RenderArea a) => (_polarHeatmap ??= new(_context)).Render(s);
+    public void Visit(PolarHeatmapSeries s, RenderArea a) => Dispatch(_polarHeatmap ??= new(_context), s);
 
     // ThreeD v1.3.0
     private Line3DSeriesRenderer? _line3D;
@@ -358,17 +377,17 @@ internal sealed class SvgSeriesRenderer : ISeriesVisitor
     private VoxelSeriesRenderer? _voxel;
     private Text3DSeriesRenderer? _text3D;
     /// <inheritdoc />
-    public void Visit(Line3DSeries s, RenderArea a) => (_line3D ??= new(_context)).Render(s);
+    public void Visit(Line3DSeries s, RenderArea a) => Dispatch(_line3D ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(Trisurf3DSeries s, RenderArea a) => (_trisurf3D ??= new(_context)).Render(s);
+    public void Visit(Trisurf3DSeries s, RenderArea a) => Dispatch(_trisurf3D ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(Contour3DSeries s, RenderArea a) => (_contour3D ??= new(_context)).Render(s);
+    public void Visit(Contour3DSeries s, RenderArea a) => Dispatch(_contour3D ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(Quiver3DSeries s, RenderArea a) => (_quiver3D ??= new(_context)).Render(s);
+    public void Visit(Quiver3DSeries s, RenderArea a) => Dispatch(_quiver3D ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(VoxelSeries s, RenderArea a) => (_voxel ??= new(_context)).Render(s);
+    public void Visit(VoxelSeries s, RenderArea a) => Dispatch(_voxel ??= new(_context), s);
     /// <inheritdoc />
-    public void Visit(Text3DSeries s, RenderArea a) => (_text3D ??= new(_context)).Render(s);
+    public void Visit(Text3DSeries s, RenderArea a) => Dispatch(_text3D ??= new(_context), s);
 
     // Streaming v1.4.0 — the ring buffers, drawn.
     //

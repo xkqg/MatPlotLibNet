@@ -41,12 +41,12 @@ public class ParetoTests
 
     /// <summary>One bar series on the left axis and one line on the right-hand axis, and nothing else.</summary>
     [Fact]
-    public void TheChart_IsOneBarSeriesAndOneLineOnTheSecondaryAxis()
+    public void TheChart_IsOneBarSeriesAndOneLineOnTheRightAxis()
     {
         var axes = Pareto(Defects, Counts);
 
         var bars = Assert.IsType<BarSeries>(Assert.Single(axes.Series));
-        var line = Assert.IsType<LineSeries>(Assert.Single(axes.SecondarySeries));
+        var line = Assert.IsType<LineSeries>(Assert.Single(axes.YAxes.Right[0].Series));
         Assert.Empty(axes.XSecondarySeries);
         Assert.Equal("Count", bars.Label);
         Assert.Equal("Cumulative %", line.Label);
@@ -87,7 +87,7 @@ public class ParetoTests
     {
         string[] categories = [.. counts.Select((_, i) => $"c{i}")];
 
-        var line = (LineSeries)Pareto(categories, counts).SecondarySeries[0];
+        var line = (LineSeries)Pareto(categories, counts).YAxes.Right[0].Series[0];
 
         Assert.Equal(shares, line.YData);
     }
@@ -125,7 +125,7 @@ public class ParetoTests
     {
         var axes = Pareto(["a", "b", "c", "d"], [10, double.NaN, 30, 60]);
         var bars = (BarSeries)axes.Series[0];
-        var line = (LineSeries)axes.SecondarySeries[0];
+        var line = (LineSeries)axes.YAxes.Right[0].Series[0];
 
         Assert.Equal(["d", "c", "a", "b"], bars.Categories);
         Assert.Equal([60.0, 30, 10, double.NaN], bars.Values);
@@ -153,7 +153,7 @@ public class ParetoTests
     public void ThePoints_StandOnTheCentresOfTheirBars()
     {
         var axes = Pareto(Defects, Counts);
-        var line = (LineSeries)axes.SecondarySeries[0];
+        var line = (LineSeries)axes.YAxes.Right[0].Series[0];
         Assert.Equal(Enumerable.Range(0, Defects.Length).Select(k => CategorySlot.Of(k).Centre), line.XData);
 
         string svg = Svg(Defects, Counts);
@@ -178,8 +178,8 @@ public class ParetoTests
 
         Assert.Equal(0, axes.YAxis.Min);
         Assert.Equal(total * 1.05, axes.YAxis.Max);
-        Assert.Equal(0, axes.SecondaryYAxis!.Min);
-        Assert.Equal(105, axes.SecondaryYAxis.Max);
+        Assert.Equal(0, axes.YAxes.Right[0].Axis.Min);
+        Assert.Equal(105, axes.YAxes.Right[0].Axis.Max);
 
         string svg = Svg(Defects, Counts);
         Assert.Equal(Bars(svg)[0].Y, Points(svg)[0].Y, 6);
@@ -227,7 +227,7 @@ public class ParetoTests
     {
         var axes = Pareto(Defects, Counts);
         var bars = (BarSeries)axes.Series[0];
-        var line = (LineSeries)axes.SecondarySeries[0];
+        var line = (LineSeries)axes.YAxes.Right[0].Series[0];
 
         Assert.Equal(Colors.Tab10Blue, bars.Color);
         Assert.Equal(Colors.Tab10Orange, line.Color);
@@ -235,12 +235,34 @@ public class ParetoTests
         Assert.Equal(Colors.Tab10Blue, axes.YAxis.MajorTicks.Color);
         Assert.Equal(Colors.Tab10Blue, axes.YAxis.LabelStyle!.Color);
         Assert.Equal(Colors.Tab10Orange, axes.Spines.Right.Color);
-        Assert.Equal(Colors.Tab10Orange, axes.SecondaryYAxis!.MajorTicks.Color);
-        Assert.Equal(Colors.Tab10Orange, axes.SecondaryYAxis.LabelStyle!.Color);
+        Assert.Equal(Colors.Tab10Orange, axes.YAxes.Right[0].Axis.MajorTicks.Color);
+        Assert.Equal(Colors.Tab10Orange, axes.YAxes.Right[0].Axis.LabelStyle!.Color);
         Assert.Equal("Count", axes.YAxis.Label);
-        Assert.Equal("Cumulative %", axes.SecondaryYAxis.Label);
+        Assert.Equal("Cumulative %", axes.YAxes.Right[0].Axis.Label);
         Assert.Null(axes.Spines.Bottom.Color);
         Assert.Null(axes.XAxis.MajorTicks.Color);
+    }
+
+    /// <summary>The chart holds exactly ONE right-hand axis, whatever the verb does inside to colour and title it: no further
+    /// slot on that side and none on the left, the line is the only series on it, and the slot wears the line's colour and
+    /// carries its name. Two right axes (the second one empty) is what the chart would grow if its two entries into the
+    /// right-hand axis stacked instead of reaching the same one.</summary>
+    [Fact]
+    public void Pareto_HasExactlyOneRightAxis_WearingTheLineColour()
+    {
+        var axes = Pareto(Defects, Counts);
+        var line = (LineSeries)Assert.Single(axes.YAxes.Right[0].Series);
+
+        var right = Assert.Single(axes.YAxes.Right);
+        Assert.Single(axes.YAxes.Left);
+        Assert.Same(axes.YAxes.Right[0].Axis, right.Axis);
+        Assert.Same(line, Assert.Single(right.Series));
+        Assert.Equal(Colors.Tab10Orange, line.Color);
+        Assert.Equal(line.Color, right.Axis.MajorTicks.Color);
+        Assert.Equal(line.Color, right.Axis.MajorTicks.LabelColor);
+        Assert.Equal(line.Color, right.Axis.LabelStyle!.Color);
+        Assert.Equal(line.Color, axes.Spines.Right.Color);
+        Assert.Equal(line.Label, right.Axis.Label);
     }
 
     /// <summary>The legend stands right of centre: between the short tail bars and the line, which at that height runs near
@@ -295,13 +317,13 @@ public class ParetoTests
         Assert.Equal("Count", barLabelWhenCalled);
         Assert.Equal(Colors.Tab10Orange, lineColourWhenCalled);
         Assert.Same(axes.Series[0], seen.Bars);
-        Assert.Same(axes.SecondarySeries[0], seen.Cumulative);
+        Assert.Same(axes.YAxes.Right[0].Series[0], seen.Cumulative);
         Assert.Equal(plum, axes.Spines.Left.Color);
         Assert.Equal(plum, axes.YAxis.LabelStyle!.Color);
         Assert.Equal("Defects", axes.YAxis.Label);
         Assert.Equal(green, axes.Spines.Right.Color);
-        Assert.Equal(green, axes.SecondaryYAxis!.LabelStyle!.Color);
-        Assert.Equal("Share of all defects (%)", axes.SecondaryYAxis.Label);
+        Assert.Equal(green, axes.YAxes.Right[0].Axis.LabelStyle!.Color);
+        Assert.Equal("Share of all defects (%)", axes.YAxes.Right[0].Axis.Label);
     }
 
     /// <summary>A part left without a colour of its own (it then takes the theme's) leaves its axis uncoloured, and a part
@@ -319,7 +341,7 @@ public class ParetoTests
         Assert.Null(axes.YAxis.MajorTicks.Color);
         Assert.Equal("Count", axes.YAxis.Label);
         Assert.Equal(Colors.Tab10Orange, axes.Spines.Right.Color);
-        Assert.Null(axes.SecondaryYAxis!.Label);
+        Assert.Null(axes.YAxes.Right[0].Axis.Label);
     }
 
     /// <summary>The parts are a public readonly record struct a caller cannot make: no public constructor, no setters.</summary>
@@ -424,8 +446,7 @@ public class ParetoTests
         var axes = builder.Build(1, 1, 1);
 
         Assert.Empty(axes.Series);
-        Assert.Empty(axes.SecondarySeries);
-        Assert.Null(axes.SecondaryYAxis);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Null(axes.YAxis.Max);
         Assert.Null(axes.YAxis.Label);
         Assert.Equal(new Legend(), axes.Legend);

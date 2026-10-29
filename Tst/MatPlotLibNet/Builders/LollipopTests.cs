@@ -31,7 +31,7 @@ public class LollipopTests
         var axes = AxesOf(ax => ax.Lollipop(Products, Scores));
 
         var stem = Assert.IsType<StemSeries>(Assert.Single(axes.Series));
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
         Assert.Equal(Scores, stem.YData);
     }

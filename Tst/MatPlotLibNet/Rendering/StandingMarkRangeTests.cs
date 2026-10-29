@@ -252,8 +252,8 @@ public class StandingMarkRangeTests
         Assert.Equal(0, drawn.YMax);
     }
 
-    /// <summary>A stack whose second layer falls: columns run 0 → 3 → -2, 0 → 3 → 4 and 0 → 3 → -1, so the bars reach from
-    /// -2 to 4.</summary>
+    /// <summary>A stack whose second layer falls in two columns: the layer that falls stands on zero, not on the 3 the first
+    /// layer adds up to, so the columns end at 3 and -5, 3 and 4, and 3 and -4: the bars reach from -5 to 4.</summary>
     [Fact]
     public void AStackWithAFallingLayer_RangesOverEveryEndItReaches()
     {
@@ -263,7 +263,7 @@ public class StandingMarkRangeTests
 
         var range = RangeOf(lower, axes);
 
-        Assert.Equal(-2, range.YMin);
+        Assert.Equal(-5, range.YMin);
         Assert.Equal(4, range.YMax);
     }
 

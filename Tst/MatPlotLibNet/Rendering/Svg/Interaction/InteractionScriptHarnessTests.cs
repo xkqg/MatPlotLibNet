@@ -60,14 +60,14 @@ public class InteractionScriptHarnessTests
     /// carrying that same index, so a click on the entry hides that line — and never a primary series that happens to
     /// sit at the entry's position.</summary>
     [Fact]
-    public void LegendToggle_ClickOnASecondaryEntry_HidesThatSecondarySeries_AndNoPrimarySeries()
+    public void LegendToggle_ClickOnARightEntry_HidesThatRightSeries_AndNoPrimarySeries()
     {
         using var h = InteractionScriptHarness.FromBuilder(b => b
             .WithLegendToggle()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A")
                 .Plot([1.0, 2.0], [5.0, 6.0])
-                .WithSecondaryYAxis(y2 => y2.Plot([1.0, 2.0], [50.0, 60.0], s => s.Label = "S"))));
+                .WithAddRightYAxis(y2 => y2.Plot([1.0, 2.0], [50.0, 60.0], s => s.Label = "S"))));
 
         var entry = System.Text.RegularExpressions.Regex.Match(
             h.Svg, "data-legend-index=\"(?<i>\\d+)\"[^>]*aria-label=\"S\"");
@@ -86,13 +86,13 @@ public class InteractionScriptHarnessTests
     /// the group carries the series' slot (primary series first, then the secondary ones), so whatever hides that index
     /// takes the label along, and a click on another entry — here the other secondary line's — leaves it shown.</summary>
     [Fact]
-    public void LegendToggle_ASecondaryEndLabel_LivesInItsOwnSeriesGroup_AndAnotherEntryLeavesItShown()
+    public void LegendToggle_ARightEndLabel_LivesInItsOwnSeriesGroup_AndAnotherEntryLeavesItShown()
     {
         using var h = InteractionScriptHarness.FromBuilder(b => b
             .WithLegendToggle()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A")
-                .WithSecondaryYAxis(y2 => y2
+                .WithAddRightYAxis(y2 => y2
                     .Plot([1.0, 2.0], [50.0, 60.0], s => s.Label = "S")
                     .Plot([1.0, 2.0], [70.0, 80.0], s => s.Label = "T").WithDirectLabel())));
 
@@ -112,13 +112,13 @@ public class InteractionScriptHarnessTests
     /// <summary>The hover highlight dims every series group but the one under the pointer. A secondary line has a
     /// group of its own, so hovering it dims the primary line and keeps the secondary one at full opacity.</summary>
     [Fact]
-    public void Highlight_HoverOnASecondaryLine_DimsThePrimaryLine_AndKeepsTheSecondaryOne()
+    public void Highlight_HoverOnARightLine_DimsThePrimaryLine_AndKeepsTheRightOne()
     {
         using var h = InteractionScriptHarness.FromBuilder(b => b
             .WithHighlight()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0], s => s.Label = "A")
-                .WithSecondaryYAxis(y2 => y2.Plot([1.0, 2.0], [50.0, 60.0], s => s.Label = "S"))));
+                .WithAddRightYAxis(y2 => y2.Plot([1.0, 2.0], [50.0, 60.0], s => s.Label = "S"))));
 
         int hovered = h.Simulate("[data-series-index='1']", "mouseenter");
 

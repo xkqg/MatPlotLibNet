@@ -177,12 +177,12 @@ foreach (var table in dashboard.ToDataTables())
 }
 
 // **Order service — gateway**
-// | label   | value | target | caption            | trend                  |
-// | ---     | ---   | ---    | ---                | ---                    |
-// | Buses   | 15    |        | all 15 normal      |                        |
-// | RFx p99 | 28.1  | 25     | target 25 ms · +3.1| 24.1, 24.8, 25.3, 26…  |
+// | label       | value | target | caption            | trend                  |
+// | ---         | ---   | ---    | ---                | ---                    |
+// | Buses       | 15    |        | all 15 normal      |                        |
+// | Request p99 | 28.1  | 25     | target 25 ms · +3.1| 24.1, 24.8, 25.3, 26…  |
 //
-// **Order service — gateway — Exchange feed**
+// **Order service — gateway — Price feed**
 // | state    | start               | end                 |
 // | ---      | ---                 | ---                 |
 // | normal   | 2026-09-12 07:55    | 2026-09-12 07:57    |
@@ -236,7 +236,7 @@ reader and on a bad projector, where colour alone does not.
 // dashboard that paints them the same lies exactly when it matters.
 ax.StatTile(0, t =>
 {
-    t.Label = "Exchange";
+    t.Label = "Pricing";
     t.Caption = "no contact";
     t.Hatch = HatchPattern.ForwardDiagonal;
 });
@@ -249,14 +249,14 @@ the same one:
 ```csharp
 ax.StatTile(0, t =>
 {
-    t.Label = "Exchange";
+    t.Label = "Pricing";
     t.Caption = "no contact";
     t.Condition = OpsCondition.Unknown;                       // hatched: we cannot see it
 });
 
 ax.StatTile(412, t =>
 {
-    t.Label = "RFx p99";
+    t.Label = "Request p99";
     t.Caption = "muted by the night shift";
     t.Condition = new OpsCondition(OpsSeverity.Critical).Shelve();   // its own pattern: muted, still critical
 });
@@ -285,7 +285,7 @@ ax.Plot(hours, temperature, s => { s.Label = "Temperature"; s.Color = warm; })
   .WithDirectLabel()
   .SetYLabel("Temperature (°C)")              // the title says in words what the colour says
   .SetYAxisColor(warm)
-  .WithSecondaryYAxis(right => right
+  .WithAddRightYAxis(right => right
       .Plot(hours, humidity, s => { s.Label = "Humidity"; s.Color = cool; })
       .WithDirectLabel()
       .SetYLabel("Relative humidity (%)")

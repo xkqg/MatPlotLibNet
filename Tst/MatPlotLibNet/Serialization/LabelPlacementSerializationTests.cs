@@ -43,12 +43,12 @@ public class LabelPlacementSerializationTests
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y, s => s.Label = "left")
-            .WithSecondaryYAxis(y2 => y2
+            .WithAddRightYAxis(y2 => y2
                 .Plot(X, Y, s => s.Label = "plain")
                 .Plot(X, Y, s => s.Label = "right")
                 .WithDirectLabel())).Build();
 
-        var secondary = S.FromJson(S.ToJson(figure)).SubPlots[0].SecondarySeries;
+        var secondary = S.FromJson(S.ToJson(figure)).SubPlots[0].YAxes.Right[0].Series;
 
         Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)secondary[0]).LabelPlacement);
         Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)secondary[1]).LabelPlacement);
@@ -92,7 +92,7 @@ public class LabelPlacementSerializationTests
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y, s => s.Label = "a")
-            .WithSecondaryYAxis(y2 => y2.Plot(X, Y, s => s.Label = "b"))).Build();
+            .WithAddRightYAxis(y2 => y2.Plot(X, Y, s => s.Label = "b"))).Build();
 
         Assert.DoesNotContain("labelPlacement", S.ToJson(figure), StringComparison.OrdinalIgnoreCase);
     }
@@ -122,7 +122,7 @@ public class LabelPlacementSerializationTests
         var axes = S.FromJson(vintage).SubPlots[0];
 
         Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)axes.Series[0]).LabelPlacement);
-        Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)axes.SecondarySeries[0]).LabelPlacement);
+        Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)axes.YAxes.Right[0].Series[0]).LabelPlacement);
         Assert.Equal("old", axes.Series[0].Label);
     }
 
@@ -205,7 +205,7 @@ public class LabelPlacementSerializationTests
         // (ChartSerializer.CreateOnSecondarySeat), so any registered kind survives there too.
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y)
-            .WithSecondaryYAxis(y2 =>
+            .WithAddRightYAxis(y2 =>
             {
                 var live = y2.StreamingPlot(configure: s => s.Label = "live");
                 live.LabelPlacement = SeriesLabelPlacement.LineEnd;
@@ -216,8 +216,8 @@ public class LabelPlacementSerializationTests
 
         Assert.Contains("\"type\":\"streaming_line\"", json);
         Assert.Contains("\"labelPlacement\":\"lineend\"", json);
-        Assert.NotNull(restored.SecondaryYAxis);
-        var live2 = Assert.Single(restored.SecondarySeries);
+        Assert.NotEmpty(restored.YAxes.Right);
+        var live2 = Assert.Single(restored.YAxes.Right[0].Series);
         Assert.Equal("live", live2.Label);
         var streaming = Assert.IsType<StreamingLineSeries>(live2);
         Assert.Equal(SeriesLabelPlacement.LineEnd, streaming.LabelPlacement);

@@ -11,6 +11,19 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a stacked area (stackplot) series where multiple Y datasets are stacked vertically with filled areas.</summary>
 public sealed class StackedAreaSeries : ChartSeries, IHasAlpha
 {
+    /// <inheritdoc />
+    internal override int ColorSlotSpan => Math.Max(1, YSets.Length);
+
+    /// <inheritdoc />
+    /// <remarks>With named layers, an entry for each layer that has a name, in the colour that layer is drawn in; a layer with
+    /// an empty name draws no entry and a name past the last layer is ignored. The series' own name is the entry of a stack
+    /// whose layers are not named, and is not a second row beside the layers' names.</remarks>
+    internal override IReadOnlyList<LegendPart> LegendParts =>
+        Labels is { Length: > 0 } labels
+            ? [.. labels.Take(YSets.Length).Select((label, layer) => new LegendPart(label, LegendSwatch.Patch, layer))
+                .Where(part => !string.IsNullOrEmpty(part.Label))]
+            : base.LegendParts;
+
     public double[] X { get; }
 
     public double[][] YSets { get; }

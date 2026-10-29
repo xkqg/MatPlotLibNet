@@ -18,7 +18,7 @@ internal sealed class ChartSchemaDescription
     private static readonly IReadOnlyDictionary<string, string> Notes = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["type"] = "the chart type; list_chart_types names every accepted value",
-        ["xData"] = "x values; must be the same length as yData (a signal has none: its x values follow from signalSampleRate)",
+        ["xData"] = "x values; must be the same length as yData, or as each dataset of a stacked area (a signal has none: its x values follow from signalSampleRate)",
         ["yData"] = "y values; must be the same length as xData",
         ["color"] = "a CSS4 colour name (\"steelblue\") or #RRGGBB (#RRGGBBAA with transparency)",
         ["label"] = "the name of this series: a legend entry, unless labelPlacement says lineEnd",
@@ -41,12 +41,18 @@ internal sealed class ChartSchemaDescription
         ["explode"] = "how far each slice of a pie is pulled out of the circle, one value per slice",
         ["fontSize"] = "the point size of the text a table, a tree grid or a line contour's labels write",
         ["zOrder"] = "the drawing order: a higher one is drawn on top; a filled area defaults to -1, everything else to 0",
+        ["packageData"] = "data another package writes for its own series type (a map from MatPlotLibNet.Geo); this server reads none, so a spec leaves it out",
         ["tickLocator"] = "where the ticks go, written by kind: {\"type\": a tick locator named below, then that kind's fields}",
         ["tickFormatter"] = "how the tick labels read, written by kind: {\"type\": a tick formatter named below, then that kind's fields}",
         ["normalizer"] = "how the values of a series drawn through a colour map (scatter, heatmap, contour, image, 3-D surface and the like) map onto it, written by kind: {\"type\": a normaliser named in the overview, then that kind's fields}",
         ["dpi"] = "the resolution, 96 by default: a PNG is drawn with dpi / 96 pixels for each unit of width and height, so 192 doubles its size in pixels with the same layout; the picture may not exceed the canvas ceiling in pixels. SVG and PDF are vector and ignore it",
         ["theme"] = "the figure's look; absent for the matplotlib-v2 default. Written field by field over the plain 'default' theme: a field left out is that theme's. Its name is a label, not a preset to load",
         ["gridOverridesTheme"] = "true when grid is the axes' own choice, drawn whatever the theme's grid is (a grid switched off included)",
+        ["extraRightYAxes"] = "the right Y axes past the first, outward from the plot: entry i is the right axis i + 1, secondaryYAxis being axis 0 (with none, an empty axis 0 stands first); each entry is a Y axis slot, below",
+        ["rightYAxesOverflow"] = "more right Y axes, in the same outward order: it continues where extraRightYAxes stops, and the reader takes both lists in that order; each entry is a Y axis slot",
+        ["leftYAxes"] = "the left Y axes past the primary yAxis, outward from the plot: entry i is the left axis i + 1; each entry is a Y axis slot, below",
+        ["leftYAxesOverflow"] = "more left Y axes, in the same outward order: it continues where leftYAxes stops, and the reader takes both lists in that order; each entry is a Y axis slot",
+        ["yAxisTitleGap"] = "the blank gap in pixels between each Y axis title and its tick labels, and between two stacked Y axes; 4 when absent, never negative",
     };
 
     /// <summary>One field as the spec writes it: its wire name and what kind of value it takes.</summary>
@@ -90,7 +96,7 @@ internal sealed class ChartSchemaDescription
         }
 
         var text = new StringBuilder();
-        text.AppendLine($"Chart type '{seriesType}' — a series object inside subPlots[].series[].")
+        text.AppendLine($"Chart type '{seriesType}' — a series object at any series seat of a subplot ({SeatPaths(SeatKind.Series)}).")
             .AppendLine()
             .AppendLine("Every field a series may carry (the same set the renderer reads; a type uses the subset that applies to it):");
         AppendFields(text, FieldsOf(typeof(SeriesDto)));
@@ -106,8 +112,10 @@ internal sealed class ChartSchemaDescription
         AppendFields(text, FieldsOf(TypeNamed("FigureDto")));
         text.AppendLine().AppendLine("Subplot fields (subPlots[]):");
         AppendFields(text, FieldsOf(TypeNamed("AxesDto")));
-        text.AppendLine().AppendLine("Axis fields (subPlots[].xAxis / .yAxis / .secondaryYAxis / .secondaryXAxis):");
+        text.AppendLine().AppendLine($"Axis fields ({SeatPaths(SeatKind.Axis)}):");
         AppendFields(text, FieldsOf(TypeNamed("AxisDto")));
+        text.AppendLine().AppendLine($"Y axis slot fields (an entry of {SlotListPaths()}: one more Y axis of its side, and the series drawn against it):");
+        AppendFields(text, FieldsOf(TypeNamed("SecondaryAxisSlotDto")));
         text.AppendLine().AppendLine("Tick fields (an axis's majorTicks / minorTicks):");
         AppendFields(text, FieldsOf(TypeNamed("TickConfigDto")));
         text.AppendLine().AppendLine("Text style fields (subPlots[].titleStyle, an axis's labelStyle):");
@@ -136,12 +144,23 @@ internal sealed class ChartSchemaDescription
         AppendKinds(text, typeof(NormalizerDto));
         text.AppendLine().AppendLine("Colour maps built in code (a series' or a colour bar's colorMap; colours as names or #RRGGBB; positions rise from 0 to 1, one per colour; a reversed map holds the map it reverses, a named one the name a map is registered under):");
         AppendKinds(text, typeof(ColorMapDto));
-        text.AppendLine().AppendLine($"Series fields (subPlots[].series[]) — {FieldsOf(typeof(SeriesDto)).Count} in total, each type uses the ones that apply:");
+        text.AppendLine().AppendLine($"Series fields (a series stands at {SeatPaths(SeatKind.Series)}) — {FieldsOf(typeof(SeriesDto)).Count} in total, each type uses the ones that apply:");
         AppendFields(text, FieldsOf(typeof(SeriesDto)).Take(24).ToArray());
         text.AppendLine("  … ask describe_chart_schema for one chart type to see the whole list.")
             .AppendLine().AppendLine("Example:").AppendLine(Example);
         return text.ToString().TrimEnd();
     }
+
+    /// <summary>The seats of <paramref name="kind"/> a subplot keeps, written as the paths the reader names in a refusal
+    /// (<c>subPlots[].xAxis / .yAxis / ...</c>). They come off the shape the reader walks, so the schema cannot name a seat
+    /// the reader does not check, nor leave one out.</summary>
+    private static string SeatPaths(SeatKind kind) =>
+        PathsOf(AxesSeatShape.OfSubplot.Names.Where(seat => seat.Kind == kind).Select(seat => seat.Path));
+
+    /// <summary>The lists of Y axis slots a subplot keeps, in the same notation as <see cref="SeatPaths"/>.</summary>
+    private static string SlotListPaths() => PathsOf(AxesSeatShape.OfSubplot.SlotLists);
+
+    private static string PathsOf(IEnumerable<string> paths) => $"subPlots[].{string.Join(" / .", paths)}";
 
     private static void AppendFields(StringBuilder text, IReadOnlyList<WireField> fields)
     {

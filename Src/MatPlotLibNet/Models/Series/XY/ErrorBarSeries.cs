@@ -10,6 +10,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents an error bar series showing uncertainty at each data point.</summary>
 public sealed class ErrorBarSeries : XYSeries, IHasColor
 {
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.ErrorBar, LineWidth);
+
     public double[] YErrorLow { get; }
 
     public double[] YErrorHigh { get; }

@@ -14,14 +14,22 @@ internal sealed class PointplotSeriesRenderer : SeriesRenderer<PointplotSeries>
     public PointplotSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
-    public override void Render(PointplotSeries series)
+    internal override void AddMarks(PointplotSeries series, MarkObstacles.Builder marks)
     {
-        if (series.Datasets.Length == 0) return;
+        foreach (var point in Points(series))
+        {
+            if (point.Mean.IsDrawable()) marks.AddPoint(point.Mean);
+            AddSegment(marks, point.Interval.From, point.Interval.To);
+        }
+    }
 
-        var color = ResolveColor(series.Color);
-        double r = series.MarkerSize / 2.0;
+    /// <summary>One category's point: the mean, the vertical interval and its two caps.</summary>
+    private readonly record struct PointPixels(Point Mean, PixelSegment Interval, PixelSegment LowerCap, PixelSegment UpperCap);
+
+    /// <summary>The points in order: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to a legend.</summary>
+    private IEnumerable<PointPixels> Points(PointplotSeries series)
+    {
         double halfCap = series.CapSize / 2.0;
-
         for (int i = 0; i < series.Datasets.Length; i++)
         {
             var data = series.Datasets[i];
@@ -33,24 +41,32 @@ internal sealed class PointplotSeriesRenderer : SeriesRenderer<PointplotSeries>
             double lower = mean - ci;
             double upper = mean + ci;
 
-            var meanPx = Transform.DataToPixel(i, mean);
-            var lowerPx = Transform.DataToPixel(i, lower);
-            var upperPx = Transform.DataToPixel(i, upper);
+            yield return new PointPixels(
+                Transform.DataToPixel(i, mean),
+                new PixelSegment(Transform.DataToPixel(i, lower), Transform.DataToPixel(i, upper)),
+                new PixelSegment(Transform.DataToPixel(i - halfCap, lower), Transform.DataToPixel(i + halfCap, lower)),
+                new PixelSegment(Transform.DataToPixel(i - halfCap, upper), Transform.DataToPixel(i + halfCap, upper)));
+        }
+    }
 
+    /// <inheritdoc />
+    public override void Render(PointplotSeries series)
+    {
+        var color = ResolveColor(series.Color);
+        double r = series.MarkerSize / 2.0;
+        var stroke = new StrokeStyle(color, 1.5, Styling.LineStyle.Solid);
+
+        foreach (var point in Points(series))
+        {
             // Vertical CI line
-            Ctx.DrawLine(lowerPx, upperPx, new StrokeStyle(color, 1.5, Styling.LineStyle.Solid));
+            Ctx.DrawLine(point.Interval.From, point.Interval.To, stroke);
 
             // Cap lines
-            var capLeft = Transform.DataToPixel(i - halfCap, lower);
-            var capRight = Transform.DataToPixel(i + halfCap, lower);
-            Ctx.DrawLine(capLeft, capRight, new StrokeStyle(color, 1.5, Styling.LineStyle.Solid));
-
-            capLeft = Transform.DataToPixel(i - halfCap, upper);
-            capRight = Transform.DataToPixel(i + halfCap, upper);
-            Ctx.DrawLine(capLeft, capRight, new StrokeStyle(color, 1.5, Styling.LineStyle.Solid));
+            Ctx.DrawLine(point.LowerCap.From, point.LowerCap.To, stroke);
+            Ctx.DrawLine(point.UpperCap.From, point.UpperCap.To, stroke);
 
             // Mean circle
-            Ctx.DrawCircle(meanPx, r, new ShapeStyle(color, null, 0));
+            Ctx.DrawCircle(point.Mean, r, new ShapeStyle(color, null, 0));
         }
     }
 

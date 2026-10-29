@@ -25,7 +25,7 @@ public sealed class ContourSeries : ChartSeries, IColormappable, ILabelable
     /// <see cref="Levels"/> is ignored: they are taken in ascending order, each once, and a value that is not a number or is
     /// infinite is left out. A level outside the range of the grid crosses no cell, so it draws no line. When none of the
     /// values can be drawn, nothing is drawn. The colour of a line and the label of a line (<see cref="ShowLabels"/>) follow
-    /// its level. The heatmap under a filled contour (<see cref="Filled"/>) does not follow the levels.</summary>
+    /// its level. A filled contour (<see cref="Filled"/>) fills the bands between these levels, from the lowest value to the highest.</summary>
     public double[]? LevelValues { get; set; }
 
     public bool Filled { get; set; }

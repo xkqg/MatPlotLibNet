@@ -215,7 +215,7 @@ public class SignalRInteractionTestsV122 : IAsyncDisposable
         var registry = _host.Services.GetRequiredService<FigureRegistry>();
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot([1.0, 2.0], [3.0, 4.0])
-            .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0]))).Build();
+            .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0]))).Build();
         registry.Register("zoom-secondary-ordinal", figure);
 
         var conn = CreateConnection();
@@ -237,8 +237,8 @@ public class SignalRInteractionTestsV122 : IAsyncDisposable
         await conn.InvokeAsync("OnZoom", payload, cancellationToken: ct);
 
         _ = await svgReceived.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
-        Assert.Equal(10.0, figure.SubPlots[0].SecondaryYAxis!.Min);
-        Assert.Equal(20.0, figure.SubPlots[0].SecondaryYAxis!.Max);
+        Assert.Equal(10.0, figure.SubPlots[0].YAxes.Right[0].Axis.Min);
+        Assert.Equal(20.0, figure.SubPlots[0].YAxes.Right[0].Axis.Max);
 
         await conn.DisposeAsync();
         await registry.UnregisterAsync("zoom-secondary-ordinal");

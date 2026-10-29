@@ -375,4 +375,25 @@ public class ChartRendererCoverageTests
         var svg = figure.ToSvg();
         Assert.Contains("<svg", svg);
     }
+
+    /// <summary>The layout pass the interactive heads run on every paint measures and draws nothing: a Best legend finds its
+    /// place among the marks without a dry-run drawing.</summary>
+    [Fact]
+    public void ComputeLayout_WithABestLegend_IssuesNoDrawCalls()
+    {
+        double[] ramp = [0, 1, 2, 3, 4, 5];
+        var figure = Plt.Create().WithSize(500, 350)
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot(ramp, ramp, s => s.Label = "line")
+                .Bar(["a", "b"], [1.0, 2.0], s => s.Label = "bars")
+                .Scatter(ramp, ramp, s => s.Label = "dots")
+                .Annotate("note", 2, 2)
+                .WithLegend())
+            .Build();
+        var ctx = new RecordingRenderContext();
+
+        new ChartRenderer().ComputeLayout(figure, ctx);
+
+        Assert.DoesNotContain(ctx.Calls, call => call.Kind.StartsWith("Draw", StringComparison.Ordinal));
+    }
 }

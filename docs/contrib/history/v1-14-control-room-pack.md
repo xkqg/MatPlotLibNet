@@ -185,10 +185,10 @@ configuration/composition API is exactly where the fluent builder canon applies.
 
 ```csharp
 Plt.OpsDashboard()
-   .WithTitle("Synapse — federation")
+   .WithTitle("Payments — federation")
    .WithWindow(DateTime.UtcNow, TimeSpan.FromMinutes(5))   // pinned rolling clock, shared by EVERY time panel
    .AddTile(15,   t => { t.Label = "Buses"; t.Caption = "all 15 normal"; })
-   .AddTile(24.8, t => { t.Label = "RFx p99"; t.Target = 25; t.Trend = p99; t.Format = "0.0' ms'"; })
+   .AddTile(24.8, t => { t.Label = "Request p99"; t.Target = 25; t.Trend = p99; t.Format = "0.0' ms'"; })
    .AddTimeline(busSegments, s => s.Label = "Service Bus")
    .AddTrend(x, publish, s => s.Label = "publish")
    .AddTrend(x, consume, s => s.Label = "consume")

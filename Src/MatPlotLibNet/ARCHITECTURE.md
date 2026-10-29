@@ -1,4 +1,4 @@
-# MatPlotLibNet Core -- Architecture (v1.23.0)
+# MatPlotLibNet Core -- Architecture (v1.24.0)
 
 ## Package dependency graph
 
@@ -77,6 +77,18 @@ MatPlotLibNet/
   Builders/
     FigureBuilder.cs                  fluent API: Plt.Create().WithTitle().Plot().Build() (build only)
     AxesBuilder.cs                    subplot config: WithTitle(), SetXLabel(), Plot(), Scatter(), Threshold() (ref-line+breach-span+label), WithLegendValues() (last-Y in legend), etc.
+                                      The Y axes are the container's (Models/YAxisContainer.cs): WithAddRightYAxis(configure) and
+                                      WithAddLeftYAxis(configure) stack ONE more Y axis on their side per call, no cap, nothing to
+                                      count; WithYAxisTitleGap(pixels) sets the container's gap. The two verbs share one body
+                                      (AddYAxis) and take a required callback; SetYLabel/SetYLim/SetYAxisColor act on the primary
+                                      axis, left slot 0. The older verbs WithSecondaryYAxis (the first right axis, created when there
+                                      is none, never stacking) and WithOutwardYAxis (one more axis on the side it is given) are
+                                      [Obsolete] wrappers over the container
+    YAxisSlotBuilder.cs               ONE builder for any Y axis, either side: SetYLabel/SetYLim/SetYAxisColor/Plot/Scatter/StreamingPlot/
+                                      WithDirectLabel, over one YAxisSlot. The callback of AxesBuilder.WithAddRightYAxis/WithAddLeftYAxis
+                                      receives it; the builder's own Y verbs are it over the primary axis (left slot 0), so a setting
+                                      is made the same way on every Y axis. SetYAxisColor colours the slot's ticks, tick labels and
+                                      title, and the spine of its edge for slot 0 of a side only
     CategoryTickExtensions.cs         internal: SetXCategoryTicks(names) / SetYCategoryTicks(names, topDown) — categories written as
                                       an axis's ticks: a FixedLocator on each slot centre (CategorySlot) and the CategoryFormatter
                                       that reads the name there, made as one pair (names.AsCategoryTicks() → CategoryTicks) so
@@ -97,12 +109,9 @@ MatPlotLibNet/
     ControlChartParts.cs              Reference), ControlChart (Values, Violations, Center, Lower, Upper)
     ControlLimits.cs                  readonly record struct (Center, Lower, Upper): the limits ControlChart draws as given
                                       instead of estimating them
-    SecondaryAxisBuilder.cs           secondary Y-axis, right slot 0: SetYLabel(), SetYAxisColor(), SetYLim(),
-                                      Plot(), Scatter(), StreamingPlot(), WithDirectLabel()
-    OutwardYAxisBuilder.cs            one further outward-stacked Y axis — the 2nd right slot or the left slot
-                                      (ROADMAP.md row 101, "4 axes, 2 left and 2 right") — wraps its own
-                                      SecondaryAxisSlot directly instead of always reaching right slot 0; no
-                                      SetYAxisColor (no slot past the first draws a spine line of its own yet)
+    (AxesBuilder.cs)                  SecondaryAxisBuilder and OutwardYAxisBuilder, the two builders 1.23.0 published for a second Y
+                                      axis, are [Obsolete] and hold only a YAxisSlotBuilder: every verb forwards to it, so the old
+                                      and the new builder cannot differ. Kept so code written against 1.23.0 still compiles
     ThemeBuilder.cs                   custom themes: Theme.CreateFrom().WithFont().WithName().WithAlarmPalette().Build()
                                       (v1.14: Build() CLONES the base theme — it used to rebuild from 8 of 15
                                       properties and silently reset the rest)
@@ -128,6 +137,13 @@ MatPlotLibNet/
                                       table's key, under the axis title or "category": the x column, or a y
                                       column the Y axis names, moved in front (a dot plot). A series whose rows
                                       its columns cannot place (ITableNamedByAxes) tables itself with AxisNames
+    ArrayLengthExtensions.cs          internal: ThrowIfMisaligned — the one check, in one wording ("Array lengths must match. Got 3 and 2."; for a
+                                      grid "... The values have R rows and C columns; the axes give Y y and X x values."), that a verb makes of the
+                                      arrays of a series BEFORE it constructs it. A series is refused at its verb, and a figure read from JSON builds
+                                      each series through its verb, so a document whose arrays do not pair is refused when it is read (an
+                                      ArgumentException) and never at the first draw. The MCP reader asks the library and holds no copy of the rule.
+                                      RegressionSeries and ResidualSeries keep their tolerance: what does not pair is skipped and reported
+                                      through ChartDiagnostics
     MissingValueExtensions.cs         internal: NaN is the one missing value, and only a finite value can be drawn. IsDrawable,
                                       DrawableRange (a series' data range, over what can be placed on its axis), DrawableRuns
                                       and DrawableIndexRuns (a line breaks at every point that cannot be drawn),
@@ -140,26 +156,47 @@ MatPlotLibNet/
 
   Models/
     Figure.cs                         top-level container (Title, Width, Height, Dpi — sizes a PNG or a GIF frame: a unit of the layout is dpi / 96 pixels, Theme, EnableZoomPan, EnableLegendToggle, EnableRichTooltips, EnableHighlight, EnableSelection, HasInteractivity)
-    Axes.cs                           subplot: series, annotations, ref lines, spans, secondary axes, insets, ShareX/ShareY, EnableInteractiveAttributes,
-                                      AllSeries (primary + every RightYAxes slot + every LeftYAxes slot +
-                                      secondary-X, in that concatenation order — the one answer to "what does this
-                                      subplot show", and the order SeriesSlotExtensions.SlotIndex counts through).
-                                      RightYAxes/LeftYAxes: SecondaryAxisSlot lists, index 0 nearest the plot, each
-                                      further one stacked outward past it (ROADMAP.md row 101). SecondaryYAxis/
-                                      SecondarySeries/TwinX() are computed accessors over right slot 0, kept for
-                                      back-compat; AddOutwardYAxis(side) adds the next slot on that side (caps:
-                                      left 1, right 2 — the primary counts as the left side's own first axis)
+    Axes.cs                           subplot: series, annotations, ref lines, spans, the Y axis container (YAxes), the top X axis,
+                                      insets, ShareX/ShareY, EnableInteractiveAttributes.
+                                      YAxis is YAxes.Left[0].Axis and Series is YAxes.Left[0].Series: the primary Y axis is the first
+                                      axis of the left side, held in no list of its own.
+                                      AllSeries = every Y axis' series in YAxisContainer.IdentityOrder (the primary's, every right
+                                      slot's, every left slot's past the primary) + the top X axis' — the one answer to "what does
+                                      this subplot show", and the order SeriesSlotExtensions.SlotIndex counts through. The order is
+                                      an identity contract (data-series-index, a legend toggle's target, the default colours), so it
+                                      never follows the order slots were added in.
+                                      The 1.23.0 shapes are [Obsolete] accessors over the container, kept so old code compiles:
+                                      SecondaryYAxis/SecondarySeries (right slot 0), RightYAxes/LeftYAxes (live views of the stacks,
+                                      indexed past the primary), TwinX() (FirstOrAdd on the right stack), AddOutwardYAxis(side) (Add
+                                      on that side's stack, no cap) and AddSecondarySeries (a series on right slot 0)
     Axis.cs                           label, min/max, scale, ticks, Inverted (drawn high to low: Range1D.OrientedBy, the rule a
                                       limit set high to low follows; a state like matplotlib's set_inverted, never a second turn)
-    SecondaryAxisSlot.cs              readonly record struct (Axis, Side, Series): one outward-stacked secondary Y
-                                      axis and the series plotted against it, held in Axes.RightYAxes/LeftYAxes
-                                      lists — stack rank is the slot's position in the list, nothing stores it twice
-    AxisSide.cs                       enum: Left, Right (ordinals pinned, EnumOrdinalContractTests) — which side a
-                                      SecondaryAxisSlot stacks outward from
-    AxisColorExtensions.cs            Axis.ApplyAxisColor(color): the one rule that colours an axis — tick marks, tick labels and
-                                      title. The spine belongs to the axes, so each builder verb (SetYAxisColor, SetXAxisColor,
-                                      and the secondary-axis builders') adds only its own spine
-    Annotation.cs                     text annotation: Text, X, Y, ArrowTarget, Alignment, Rotation, ArrowStyle, BackgroundColor
+    YAxisContainer.cs                 every Y axis of an Axes: Left and Right, one YAxisStack per side, and TitleGap (4 by default,
+                                      matplotlib's axes.labelpad; set with AxesBuilder.WithYAxisTitleGap; negative, NaN or infinite is
+                                      refused). TitleGap is ONE value for the whole subplot: the blank gap between a Y title's ink and
+                                      the ink of the widest tick label beside it, on both sides and for every slot, and the gap
+                                      between one slot and the one stacked past it. IdentityOrder is the numbering order above
+    YAxisStack.cs                     the Y axes of ONE side, in stack order, 0 nearest the plot. Add() stacks one more (no cap),
+                                      FirstOrAdd() returns slot 0 and creates it only when there is none (it never stacks).
+                                      The left stack is born holding the primary Y axis (OutwardOffset 1), the right stack empty
+                                      (0). SlotAtOutward(i) is the ONE conversion between the numbering of the container and the
+                                      outward numbering the interaction wire and the 1.23.0 JSON fields use (see Interaction/ below)
+    YAxisSlot.cs                      sealed class (Axis, Side, Series, AddSeries): one Y axis and the series plotted against it.
+                                      A class, held by the stack, the builders and the renderer alike, so a setting made through one
+                                      reaches the others. Stack rank is the slot's position in its stack, nothing stores it twice
+    SecondaryAxisSlot.cs              [Obsolete] readonly record struct: a value view of a YAxisSlot, what the obsolete RightYAxes and
+                                      LeftYAxes lists hand out (SecondaryAxisSlotView is their live list). Two views of one slot are equal
+    AxisSide.cs                       enum: Left, Right (ordinals pinned, EnumOrdinalContractTests) — which side a Y axis stands on
+    AxisColorExtensions.cs            Axis.ApplyAxisColor(color): colours an axis' tick marks, tick labels and title; Axes.ApplyAxisColor(axis,
+                                      SpineEdge?, color): the ONE rule every colour verb calls (SetYAxisColor/SetXAxisColor on AxesBuilder,
+                                      SetYAxisColor on YAxisSlotBuilder, SetXAxisColor on the top-X builder) — it also colours the spine
+                                      on the axis' edge (slot 0 of a side, the bottom X axis, the top X axis), or none for a Y axis
+                                      stacked past slot 0 of its side, which draws no spine. The colour of every axis lives on its own
+                                      Axis (tick marks, tick labels, title), so it reaches the JSON through the axis' own fields
+    Annotation.cs                     text annotation: Text, X, Y, ArrowTarget, Font (null = the theme's data text font), Alignment,
+                                        VerticalAlignment (TextVerticalAlignment: Baseline default, Center, Top, Bottom), OffsetX/OffsetY
+                                        (screen pixels, y down, applied before the text is placed), AvoidOverlap (opt in to AnnotationLayout),
+                                        Rotation, ArrowStyle, BackgroundColor
     ValueObjects/OpsCondition.cs      what an operations reading is in, on TWO axes that must never be one:
                                         enum OpsSeverity {Normal, Warning, Critical} — the only one that
                                           compares; a roll-up takes the worst
@@ -212,8 +249,9 @@ MatPlotLibNet/
                                       (HeatmapSeries: its rows and columns; AreaSeries: a fill down to a named level, a ridge)
       IHasBarOrientation.cs           internal interface: BarOrientation Orientation (BarSeries, CountSeries) — which axis their
                                       categories stand along (BarOrientationExtensions)
-      IColorBarDataProvider.cs        interface: GetColorBarRange() + ColorMap for colorbar auto-detection
-      IStackable.cs                   interface: Values a stacked render sums + StackBaseline, the foot a user sets (a stacked render keeps its own stacking as render state, never in this field)
+      IColorBarDataProvider.cs        interface: GetColorBarRange() + ColorMap for colorbar auto-detection; a provider that is a plain fill answers
+                                      ChartSeries.ProvidesColorBar = false and the bar is backed by the series that has values
+      IStackable.cs                   interface: Values a stacked render sums (on two running sums, see StackableExtensions) + StackBaseline, the foot a user sets (a stacked render keeps its own stacking as render state, never in this field)
       IHasColor.cs                    interface: Color? Color — polymorphic color access (~20 series)
       IHasAlpha.cs                    interface: double Alpha — polymorphic alpha access (~7 series)
       IHasEdgeColor.cs                interface: Color? EdgeColor — polymorphic edge-color access (~3 series)
@@ -226,12 +264,30 @@ MatPlotLibNet/
                                       end label is placed at the end of the line that is drawn
       ChartSeries.cs                  abstract base: implements ISeries + ISeriesSerializable; declares the
                                       virtual ToDataTable() 63 types override — 8 family bases plus 55 leaves (a class cannot
-                                      override a default interface member — the base must own the virtual)
+                                      override a default interface member — the base must own the virtual).
+                                      A series also SAYS what it is, through internal virtual capabilities, so the renderers, the legend and the
+                                      layout ask it and hold no list of types: DrawsOwnLabel, FixesYRange, DrawsWithoutAxes (its marks stand where
+                                      it puts them whatever the limits are — radar, pie, donut, funnel, gauge, progress bar, bullet graph, stat
+                                      tile, sparkline, Sankey, treemap/sunburst/dendrogram, table, tree grid, clustermap, pair grid — so the axes
+                                      draws no grid, ticks or frame when every series on it says so; AxisLessCapabilityContractTests measures each
+                                      answer against the limits), LegendSwatch and LegendParts (what the legend draws for it, an entry for each
+                                      part; LegendSwatchCapabilityTests), ColorSlotSpan (how many slots of the colour cycle it holds),
+                                      ProvidesColorBar and RadialExtent (how far out it reaches on a polar axes). A package that has
+                                      InternalsVisibleTo (Geo) overrides them like a series of core
+      LegendSwatch.cs                 internal: enum LegendSwatchKind (Patch, Line, LineMarker, SolidLine, Marker, ErrorBar, Stripes) + the readonly
+                                      record struct LegendSwatch(Kind, LineWidth, LineStyle, RestingLineWidth, Marker, MarkerSize, States): how one
+                                      series is drawn in its legend entry. The series states its own values, the slot's cycler decides the colour
+                                      and AxesRenderer.DrawLegendSwatch draws the shape
+      LegendPart.cs                   internal readonly record struct (Label, Swatch, ColorSlotOffset): one entry of a legend. ChartSeries.LegendParts
+                                      is one under the series' label unless a series names its own parts (a stack plot's layers)
+      RadialExtent.cs                 internal readonly record struct (Max, Sticky): how far out a series reaches on a polar axes — the input of
+                                      RadialScale; Sticky = exactly (a polar heatmap's cell edge), not with the 5 % margin
       XYSeries.cs                     generic base: XData, YData, MaxDisplayPoints (Line, Scatter, Step, Area, ErrorBar, Bubble, Sparkline, Stem, Ecdf)
       OhlcSeries.cs                   financial base: Open, High, Low, Close, DateLabels, UpColor, DownColor, PriceData (Candlestick, OhlcBar)
       DatasetSeries.cs                distribution base: Datasets[][], default ComputeDataRange (Stripplot, Swarmplot, Pointplot, Box, Violin;
                                       Box and Violin override it to range over where they are drawn, see DatasetPositionExtensions)
-      PolarSeries.cs                  generic base: RData, ThetaData (PolarLine, PolarScatter, PolarBar)
+      PolarSeries.cs                  generic base: RData, ThetaData (PolarLine, PolarScatter, PolarBar); states its RadialExtent (the largest radius
+                                      that can be placed) and never scales itself — the scale is the axes' (RadialScale)
       GridSeries3D.cs                 generic base: XData, YData, ZData[,] (Surface, Wireframe)
       HierarchicalSeries.cs           abstract base: Root, ColorMap, ShowLabels, IColormappable (Treemap, Sunburst, Dendrogram)
       LineSeries.cs                   XYSeries: Color, LineStyle, LineWidth, Marker
@@ -250,10 +306,13 @@ MatPlotLibNet/
                                       edges with them — and ValueScale(context), the scale of the axis the values run along, which
                                       the bar and count ranges fold through. Read by BarSeries, CountSeries and (a box that lies
                                       down) BoxSeries ranges and by CartesianAxesRenderer (which axis names the categories) (Categorical/)
-      StackableExtensions.cs          internal: StackedFeet(layers) / StackedEnds(layers) — the one rule for stacking bars: in each
-                                      column a layer stands on the sum of the layers before it; the columns are the first layer's.
-                                      CartesianAxesRenderer stands each layer on its feet (StackedBottoms) and the stacked bar range
-                                      takes in every foot and end, a falling layer's too (Categorical/)
+      StackableExtensions.cs          internal: StackedFeet(layers) / StackedEnds(layers) — the one rule for stacking bars, on TWO running sums:
+                                      in each column a layer stands on the sum of the layers before it that point the same way, so the layers
+                                      at or above zero grow up from zero and the layers below zero grow down from it (a diverging stack, a Likert
+                                      chart); a zero goes with the positives, a value that is not finite adds to neither sum; the columns are the
+                                      first layer's. An overload over plain columns (IReadOnlyList&lt;double[]&gt;) serves a stack the series model
+                                      does not hold: the polar bars (RadialScale). CartesianAxesRenderer stands each layer on its feet
+                                      (StackedBottoms) and the stacked bar range takes in every foot and end, a falling layer's too (Categorical/)
       BarGroup.cs                     public readonly record struct (Label, Values): a name and one value per place — the named-values
                                       type of GroupedBar and of seven verbs (Dumbbell, SlopeGraph, DotPlot, ParallelCoordinates,
                                       Marimekko, BumpChart, StreamGraph); its summary names them and a test keeps that list equal
@@ -271,7 +330,7 @@ MatPlotLibNet/
                                       its renderer and by its table, which writes a row or column the axis names as that name
       HeatmapMaskMode.cs              enum: None, UpperTriangle, LowerTriangle, UpperTriangleStrict, LowerTriangleStrict + HeatmapMaskModeExtensions.Hides(row,col)
       ImageSeries.cs                  Data[,], ColorMap, Normalizer, VMin, VMax, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
-      Histogram2DSeries.cs            X[], Y[], BinsX, BinsY, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
+      Histogram2DSeries.cs            X[], Y[], BinsX, BinsY (each at least 1), ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       BoxSeries.cs                    DatasetSeries: Color, MedianColor, ShowOutliers, ShowMeans, Whis, Positions, Widths, Vert; overrides
                                       ComputeDataRange to cover each box at its position plus and minus half its width, turned onto
                                       the axes when the box lies down; internal HalfWidth
@@ -294,7 +353,7 @@ MatPlotLibNet/
       SurvivalGroupExtensions.cs      internal: ProductLimit() — the product-limit estimate of a group, and the check its data is
                                       held to (a missing, negative or infinite duration is refused); returns SurvivalCurve (Times,
                                       Survival) (Distribution/)
-      ContourSeries.cs                XData, YData, ZData[,], Levels, LevelValues, Filled, ShowLabels, LabelFormat, LabelFontSize, ColorMap, IColormappable, IHasDataRange
+      ContourSeries.cs                XData, YData, ZData[,], Levels, LevelValues, Filled, ShowLabels, LabelFormat, LabelFontSize, ColorMap, IColormappable, IHasDataRange; Filled paints through ContourBandFillExtensions, as ContourfSeries does
       ContourfSeries.cs               XData, YData, ZData[,], Levels, LevelValues, Alpha, ShowLines, LineWidth, ColorMap, Normalizer, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
                                       LevelValues are the levels drawn when named (ascending, each once); Levels is the count otherwise
                                       (Rendering/Algorithms/ContourLevels.cs is the one place that says which)
@@ -326,15 +385,20 @@ MatPlotLibNet/
       BulletGraphSeries.cs            Value, Target, Bands (IReadOnlyList&lt;GaugeBand&gt;?), BarColor, TargetColor,
                                        Orientation — Few's bullet graph (measure + target tick + qualitative bands
                                        in one hue); new v1.14.0, reuses GaugeBand rather than a second band model (Categorical/)
-      StateTimelineSeries.cs          IReadOnlyList&lt;StateSegment&gt; Segments — single-row discrete-state timeline along X (Categorical/)
+      StateTimelineSeries.cs          IReadOnlyList&lt;StateSegment&gt; Segments — single-row discrete-state timeline along X; its legend entry is a
+                                      Stripes swatch, one stripe for each distinct state fill in first-seen order (StateSegmentExtensions.DistinctFills,
+                                      the fill the renderer draws a state with: its colour and its hatch) (Categorical/)
       SparklineSeries.cs              XYSeries: Values, LineWidth (XY/)
       EcdfSeries.cs                   XYSeries: sorted empirical CDF (XY/)
-      StackedAreaSeries.cs            X[], YSets[][], StackLabels, FillColors, Baseline, IStackable; LayerTops delegates to
-                                      StackedBaselineExtensions.TopEdgesFor, so the series and StreamGraph read the stack by one rule (XY/)
+      StackedAreaSeries.cs            X[], YSets[][], Labels (a name for each layer), Baseline, Alpha, Hatch, HatchColor, IHasAlpha; LayerTops delegates to
+                                      StackedBaselineExtensions.TopEdgesFor, so the series and StreamGraph read the stack by one rule. It holds one
+                                      colour slot for each layer (ColorSlotSpan), so the series drawn after it wears the slot past them, and lists
+                                      each named layer in the legend in its own colour (LegendParts). It is not IStackable (XY/)
       StreamplotSeries.cs             XData[], YData[], UData[,], VData[,], Density, ArrowSize (Field/)
       PolarLineSeries.cs              PolarSeries: Color, LineStyle (Polar/)
       PolarScatterSeries.cs           PolarSeries: Color, MarkerSize (Polar/)
-      PolarBarSeries.cs               PolarSeries: Color, BarWidth (Polar/)
+      PolarBarSeries.cs               PolarSeries: Color, Alpha, BarWidth; the bar series of an axes whose BarMode is Stacked stand on one another,
+                                      wedge by wedge (the feet come from RadialScale, never written into the series) (Polar/)
       SurfaceSeries.cs                GridSeries3D: ColorMap, ShowWireframe, IColormappable, I3DGridSeries
       WireframeSeries.cs              GridSeries3D: WireColor, I3DGridSeries
       Scatter3DSeries.cs              I3DPointSeries: XData, YData, ZData, MarkerSize
@@ -355,7 +419,9 @@ MatPlotLibNet/
       Graph/GraphEdge.cs              readonly record struct: From, To, Weight, IsDirected
       Graph/GraphLayout.cs            enum: Manual=0, ForceDirected=1, Circular=2, Hierarchical=3
       SankeySeries.cs                 Nodes, Links (Flow/)
-      KdeSeries.cs                    Data[], Bandwidth?, Fill, Alpha, LineWidth, Color, LineStyle (Distribution/)
+      KdeSeries.cs                    Data[], Bandwidth?, Fill, Alpha, LineWidth, Color, LineStyle; the curve is evaluated from three bandwidths below
+                                      the smallest value to three above the largest, and its data range is that extent; a bandwidth that is not a
+                                      positive finite number falls back to Silverman's (Distribution/)
       RegressionSeries.cs             XData[], YData[], Degree, ShowConfidence, ConfidenceLevel, BandColor, BandAlpha (XY/)
       HexbinSeries.cs                 X[], Y[], GridSize, MinCount, IColormappable, INormalizable, IColorBarDataProvider (Grid/)
       RugplotSeries.cs                Vec Data, Height, Color, Alpha, LineWidth (Distribution/)
@@ -461,41 +527,119 @@ MatPlotLibNet/
   Rendering/
     IChartRenderer.cs                 interface: Render(Figure, IRenderContext)
     ChartRenderer.cs                  figure-level orchestrator: background, constrained layout, subplot layout, dispatch to AxesRenderer.
-                                        SubPlotRects is the one rule for the plot areas; the drawing and the layout both ask it
+                                        SubPlotRects is the one rule for the plot areas; the drawing and the layout both ask it.
+                                        The figure's colour bar reads the same provider and the same ticks as an axes' (ColorBarRendering/)
     AxesRenderer.cs                   abstract base for coordinate-system-specific rendering (ConcurrentDictionary registry). The legend
                                         swatch of a line, a step or a scatter draws its marker through MarkerRenderer, the one owner of
                                         marker shapes, so a swatch shows the marker its series has
+    MarkObstacles.cs                  the marks a chart drew on one axes, in pixels as drawn: boxes (a bar, a text's box), paths
+                                        (a line's vertices) and points (a scatter's centres). ONE obstacle map, ONE score and ONE selector for
+                                        legend Best and for the annotations that avoid overlap: Badness is matplotlib's four integer terms
+                                        (path vertices strictly inside the box + point centres strictly inside + overlapping boxes, touching
+                                        is not overlapping + 1 per path with a segment that touches it, the separating-axis test of
+                                        _path.h), FirstLeastCovered takes the first minimum and stops at 0. Builder collects, Including adds
+                                        a box (an annotation's text). Internal
+    MarkCollectingContext.cs          an IRenderContext that measures through the one it wraps, draws nothing and records what a
+                                        renderer draws as marks: the way the renderers of polar, 3-D and the small-mark families (AddMarksByDrawing)
+                                        report their marks without a second drawing code
+    TextBox.cs                        the one rule for the rectangle a text occupies (Anchor, Size, FontSize, Alignment, Vertical,
+                                        Rotation): ascent = the font size, descent = the height less it, a turned text rotated
+                                        counter-clockwise about its drawn baseline point; CentreDrop = 0.35 is the one constant for centring
+                                        on a point. The annotations' text boxes and the tick label reach (AxisTickExtensions.Reach) read it,
+                                        so what is measured is what is drawn
+    TextVerticalAlignment.cs          enum {Baseline = 0, Center = 1, Top = 2, Bottom = 3}: public, ordinals are contract
+    ThemedFontProvider.cs             the theme's fonts: TickFont, DefaultFont and DataTextFont(theme), the family and size of the
+                                        default font in the foreground text colour — the font of the annotations, the radar's, the
+                                        funnel's and the network graph's labels and the bar's value labels; the pie's percentages
+                                        take its family and size, in white
     CartesianAxesRenderer.cs          Cartesian (X,Y): grid, ticks, spans, series, annotations, signals
                                         internal helpers: RenderGridLines(Orientation,…), DrawBreakSegments(Orientation,BreakStyle,…)
                                         Its ticks come from AxesTickSourceExtensions.PrimaryTickSource, the rule the data table shares.
                                         PrimaryXDraw / XLabelRotation: the one decision whether the X labels turn, taken at the width the
                                         plot is drawn at; the layout asks the same code through MeasureEdgeBands
+                                        Every Y axis slot is PLACED once per render, here: PlacePrimary (left slot 0: the axes' own range
+                                        and transform) and PlaceSlot (a slot past it: its own range, the transform through its own scale
+                                        and symlog threshold, its ticks by its own locator or its scale's) make a PlacedYSlot; SlotBand is
+                                        its band by the one band rule; PlaceYSlots adds the identity and the outward offset of each slot
+                                        (each side stacked once, the container's gap between each pair). The drawing, the layout's
+                                        reserve (ConstrainedLayoutEngine asks PlaceSlot and SlotBand) and the interaction views
+                                        (ComputeSecondaryViewTransforms) all read these, so none works a slot's range, transform or band
+                                        out a second way
     CartesianInsetAxesRenderer.cs     inset axes (Axes.InsetBounds; chosen by the Cartesian factory entry): draws like
                                         Cartesian but answers DrawsDirectLabels = false — an inset has no right margin, so
                                         a directly-labelled line keeps its legend entry instead of a label over the parent
-    SeriesSlot.cs                     the owner of a series' colour AND its stroke: SeriesAxisPair (Primary / SecondaryY / SecondaryX),
-                                        SeriesSlot (the cycle colour, the theme's cycler entry for the slot and the colours the theme
+    SeriesSlot.cs                     the owner of a series' colour AND its stroke: SeriesAxisPair (Primary / SecondaryY = every right
+                                        slot / SecondaryLeftY = every left slot past the primary / SecondaryX; append-only, in the
+                                        order AllSeries concatenates), YSlotSeat + Axes.YSlotSeats() (every Y slot in identity order
+                                        with the list that numbers its series), SeriesSlot (the cycle colour, the theme's cycler entry for the slot and the colours the theme
                                         gives a violin; ColorOf(series) = own colour, else the theme's violin colour for a violin, else
                                         the slot colour; StatsColorOf for the lines over a violin; LineStyleOf, LineWidthOf,
                                         LineMarkerOf and ScatterMarkerOf = the series' own value when it names one, else the cycler's;
                                         StrokeOf builds the whole stroke in one call) and Axes.SlotIndex / Theme.SeriesSlot /
-                                        Theme.ThemedSlot. A value counts as named when it differs from what a new series holds
+                                        Theme.ThemedSlot. Axes.ColorSlots() numbers the colour slot of every series: a series takes
+                                        ChartSeries.ColorSlotSpan slots from its first (a stacked area's layers, a pie's slices, a funnel's stages)
+                                        and the series after it the slot past them, a ColorGroup run takes the largest span of its members;
+                                        SeriesRenderContext.FirstColorSlot hands a renderer its first slot. A value counts as named when it differs from what a new series holds
                                         (RestingLineStyle, RestingLineWidth, RestingScatterMarker), the rule the JSON uses for a
                                         value at rest, so a figure draws the same picture before and after a round trip. Primary
-                                        passes, both secondary-axis parts, the line renderers and the legend swatch all ask here, so
+                                        passes, the part of every Y slot, the line renderers and the legend swatch all ask here, so
                                         a line and its swatch always wear the same colour, dash, width and marker
     SeriesGroupExtensions.cs          the one rule for the group a series is drawn in (IRenderContext.BeginSeriesGroup):
                                         data-series-index = slot + aria-label when interactive, aria-label otherwise.
-                                        Used by the primary passes and both secondary-axis parts, so the legend toggle,
-                                        the hover highlight and SvgDiffEngine reach a secondary line too
+                                        Used by the primary passes and the part of every Y slot, so the legend toggle,
+                                        the hover highlight and SvgDiffEngine reach a line on any axis too
     AxisTickExtensions.cs             the one tick drawing: IRenderContext.RenderAxisTicks/DrawTickMark + TickDrawContext + TickSide
                                         (Bottom/Left/Right/Top); honours TickConfig (length, width, colour, direction, label
-                                        size/colour, pad, visibility). Used by the primary axes, their mirrored side and both
-                                        secondary-axis parts, for numbers and category names alike; TickLabelBand, AxisLabelOffset
-                                        and Top/BottomAxisLabelOffset place an axis title past the tick labels it measured, and
-                                        BottomAxisTitleExtent is the room the X title takes below them (the layout reserves it).
+                                        size/colour, pad, visibility). Used by the primary axes, their mirrored side and the part of
+                                        every Y slot, for numbers and category names alike. TickLabelBand is the band the labels take
+                                        from the edge. ONE rule places an axis title past them on all four edges, TitleOffset, fed by
+                                        a TitleClearance (the band, the blank gap, the title's size, the FacingInk): the title's
+                                        placing line stands the band, the gap and the part of its own ink that faces the labels
+                                        (FacingInk.Facing times the size) past the edge, so that ink edge stands exactly the gap away
+                                        whichever way the title faces. Top/BottomAxisLabelOffset call it with XLabelGap (6) and
+                                        BottomAxisTitleExtent is the room the X title takes below the labels (the layout reserves it);
+                                        the Y titles call it through YAxisTitleExtent, with the container's gap
                                         LabelExtent is how far a label reaches past the mark and its pad, turned or upright, so a
                                         label turned by a set rotation or by the 30 degrees of crowded labels is measured turned
+    FacingInk.cs                      internal readonly record struct (Facing, Outward): how far an axis title's ink reaches each way
+                                        from its placing line, as fractions of its font size. The font metrics measure a box, not an
+                                        ascent and a descent, so the X titles are placed by an ascent of 0.8 em (Ascent) and a descent
+                                        of 0.2 em (Descent). A Y title is turned (rotate(-90)), its up direction points left: its ink
+                                        spans [x - ascent, x + descent], and that reach decides what it takes away from the room beside
+                                        it (Outward). Where it stands is decided by the ink a reader sees facing the labels, which is
+                                        less: the baseline on the left (TurnedSink, 0) and the body of the text on the right (TurnedRise,
+                                        0.6 em, not the full ascent of a bracket). With those, the 4 px gap leaves the right title where
+                                        1.23.0 stood it and brings the left one 8 px closer; a Y title placed at one fixed offset stood
+                                        12 px from its labels on the left and 4 px on the right. FacingInk.Of (TickSide) says which
+    TitleClearance.cs                 internal readonly record struct (TickLabelBand, Gap, LabelSize, Ink; WithoutTickLabels): the
+                                        input of TitleOffset. WithoutTickLabels is the fixed place of a title when no tick label is
+                                        drawn on its edge (hidden ticks, axis-less series): 45 px for a Y title, 35 for the X title
+    YAxisTitleExtent.cs               YAxisTitleInput (tick label band, side, gap, theme title font) and YAxisTitleExtent (TitleOffset,
+                                        Band): the ONE band rule of a Y slot, for every slot including the primary, in
+                                        YAxisTitleExtensions (Axis.YTitleExtent, IRenderContext.DrawYAxisTitle, Axis.TitleFont). The
+                                        title stands the container's gap past the widest tick label's ink, its style's pad (TextStyle.Pad)
+                                        on top of the gap; the band reaches the title's OUTWARD ink (its ascent on the left, its
+                                        descent on the right), so on both sides it is the tick label band, the gap, the pad and the
+                                        title's size. The layout reserves by it, the renderer stacks the slots by it and each slot
+                                        places its title by it, so what is reserved is what is drawn.
+                                        The 4 px is the library's geometry contract: exactly equal on both sides and between stacked
+                                        slots, measured with the library's own font metrics and pinned by tests. A browser draws the
+                                        same SVG with the ink metrics of its own font (the library measures a digit at 0.6 em where a
+                                        font draws about 0.556), so what a reader sees is font-dependent: measured in Edge on a chart of
+                                        two axes at 13, 13.89 and 18 pt, the left gap is 4 to 5 px and the right 3 to 4 px (1.23.0: 12
+                                        left, 4 right at 13 pt); between stacked slots 3 to 4 px on the right and 1 to 5 on the left,
+                                        where a descender dips into the gap. The Y titles are calibrated to what is seen, not to the
+                                        ascent of a bracket, which is why the right title did not move
+    PlacedYSlot.cs                    internal readonly record struct: one Y slot as ONE render draws it: the slot, its Range, its
+                                        Transform (through the slot's own scale), its Ticks and TickSource, where its series stand in
+                                        the identity order (Pair, FirstIndexInPair), its Band and its Offset past the plot's edge;
+                                        TickDraw(theme) is how its labels are drawn and measured. Placed once per render
+                                        (CartesianAxesRenderer) and read by the part, the end labels and the interaction views
+    YSideTerms.cs                     internal readonly record struct: everything that differs between a Y axis on the left and one on
+                                        the right, derived once from AxisSide (Left, Right, Of(side)): the tick side, the outward
+                                        sign, the edge fraction, the label alignment, the spine, the series list that numbers the side's
+                                        outward slots. The slot part never asks which side it is on, so a left slot is the mirror
+                                        image of a right slot; the mirrored primary Y ticks use the Right terms too
     AxisScaleExtensions.cs            the one rule that maps a data value into the space an axis is drawn in and back (log10,
                                         symlog, identity): DataTransform, the range the renderer draws, the server-interaction
                                         view and a pan all go through it
@@ -522,21 +666,42 @@ MatPlotLibNet/
                                         (LineSegmentExtensions.HorizontalAcross / VerticalAcross)
       CartesianToolsPart.cs             trendlines, levels, Fibonacci overlays; a trendline is cut to the plot area
                                         (LineSegmentExtensions.ClippedTo)
-      CartesianAnnotationsPart.cs       text, arrows, callouts
+      CartesianAnnotationsPart.cs       text, arrows, callouts: the text in the theme's data text font on its point's baseline, centre,
+                                        top or bottom, moved by OffsetX/OffsetY. Placed() is every text's TextBox before anything is drawn
+                                        (the legend's input, AddTextBoxes), Laid() the box an AvoidOverlap annotation ends at, with a
+                                        leader line when it moved more than 6 px (none when it has an arrow)
+      AnnotationLayout.cs               where the annotations that set AvoidOverlap stand: each tries its anchor, then eight directions
+                                        (up, down, right, left, the four diagonals) at one to four text heights, inside the plot, and takes
+                                        the first place MarkObstacles.FirstLeastCovered scores lowest against the marks, the legend's box,
+                                        the annotations that stay put and the ones already placed. Annotations do not go through
+                                        LabelLayoutEngine.Place: that is continuous repulsion with a clamp, this is a fixed candidate set
       CartesianSignalsPart.cs           buy/sell markers
-      CartesianSecondaryYAxisPart.cs    ONE right-stacked slot's own series (own group per series via SeriesGroupExtensions),
-                                        ticks (AxisTickExtensions) and title, at its own stacked outward offset
-                                        (AxisStackingExtensions.StackedOffsets) — instantiated once per right slot WITH
-                                        series; slot 0 owns the right edge when drawn
-      CartesianSecondaryLeftYAxisPart.cs  the mirror, for a left-stacked slot: TickSide.Left, labels right-aligned (grow
-                                        further left); draws no end-of-line label (DirectLabelMetrics is a right-of-the-
-                                        plot concept only, ROADMAP.md row 101)
+      CartesianYAxisSlotPart.cs         ONE part for EVERY Y axis of the container, the primary (left slot 0) included:
+                                        a slot's own series (own group per series), major and minor ticks
+                                        (AxisTickExtensions) and title (YAxisTitleExtensions.DrawYAxisTitle, math as rich
+                                        text), from its PlacedYSlot (range, transform, ticks, identity, offset — placed once
+                                        per render by CartesianAxesRenderer) and YSideTerms (edge sign, tick side, label
+                                        anchor, spine; derived once from AxisSide, no side branch in the part). A slot past
+                                        the primary WITH series is drawn whole (Render); the primary goes through the same
+                                        part in the axes' drawing order (ticks with the X ticks, title with the X title).
+                                        What one axis can do every axis does: a log or symlog scale, a tick locator or spacing,
+                                        minor ticks, turned tick labels, a title in math markup. It replaces two parts that
+                                        differed only in their side (a right part and a left part) and the primary's own inline copy
+      CartesianPartContext.cs           the axes, plot area, context and theme every part of one render draws with
       CartesianSecondaryXAxisPart.cs    the top axis likewise; MeasureBand is the band the layout reserves for it
-      CartesianDirectLabelsPart.cs      the end labels: placed ONCE per axes (primary and secondary lines together, spread by
-                                        Interval1DExtensions.SpreadApart), drawn by each series pass inside that series' own
-                                        group so hiding or highlighting the series takes its label along. Not a step of the
-                                        sequence: the collaborator both series passes call
-    PolarAxesRenderer.cs              Polar (r,theta): circular grid, radial lines, angle labels
+      CartesianDirectLabelsPart.cs      the end labels: placed ONCE per axes (the lines of every Y axis together, spread by
+                                        Interval1DExtensions.SpreadApart), each at the height its own slot's transform puts the end of
+                                        its line at (PlacedYSlot), in one column right of the plot past the right axes. Drawn by each
+                                        series pass inside that series' own group so hiding or highlighting the series takes its
+                                        label along. Not a step of the sequence: the collaborator every series pass calls
+    PolarAxesRenderer.cs              Polar (r,theta): angle labels and the circular grid; the rings, their labels (at 22.5 degrees) and the extent
+                                        come from RadialScale, which every polar series reads too (SeriesRenderContext.RadialScale)
+    RadialScale.cs                    internal readonly record struct (Extent, Rings, Labels, Feet): the ONE radial scale of a polar axes. The extent
+                                        is the limit the axes was given, exactly, or the farthest radius any series states (RadialExtent) with a 5 %
+                                        margin; the rings are a MaxNLocator sized to the radius in pixels, in one number format (or the axis'
+                                        formatter); Feet = where each polar bar series starts when BarMode is Stacked (StackableExtensions, a radius
+                                        that is not drawn adds nothing). The grid and every series read it, so a ring labelled 10 stands where a
+                                        radius of 10 is drawn; nothing in it is written into a series or its JSON
     ThreeDAxesRenderer.cs             3D (X,Y,Z): projection, bounding box wireframe, depth sorting.
                                         Panes / the 9 drawn cube edges / wall grids / tick rows / axis titles all
                                         read Projection3D.Faces (v1.14.1) instead of literal planes, so the axis
@@ -560,7 +725,10 @@ MatPlotLibNet/
     TickLocators/                       ITickLocator strategy for axis tick placement
       ITickLocator.cs                   interface: double[] Locate(double min, double max)
       AutoLocator.cs                    nice-number algorithm (extracted from AxesRenderer)
-      MaxNLocator.cs                    nice numbers capped to at most N ticks
+      MaxNLocator.cs                    nice numbers capped to at most N ticks; ForLength(lengthPx, tickFontPx, labelSpan) chooses N from how many
+                                        labels fit along a length (VerticalLabelSpan 2, HorizontalLabelSpan 3 label heights for one tick, clamped to
+                                        FewestTicks 2 .. MostTicks 9): the colour bar and the polar rings use it. A bar is a short ruler, so its tick
+                                        density differs from an axis's (AutoLocator) on purpose
       MultipleLocator.cs                ticks at multiples of a fixed base
       FixedLocator.cs                   exactly the provided positions within range
       LogLocator.cs                     powers of 10 within range
@@ -585,47 +753,88 @@ MatPlotLibNet/
       ConstrainedLayoutEngine.cs        Compute(Figure, IRenderContext) → SubPlotSpacing; measures text extents, clamps margins.
                                         Owns the right, top, measured-left and measured-bottom edge rules for BOTH layout paths
                                         (Compute for tight/constrained, ReserveEdgeBands for the default path): MeasureRightBand,
-                                        SecondaryAxisBand(s), LeftAxisBands, TitleBand, LeftNeed (Y tick band + Y title + pad),
+                                        SecondaryAxisBand(s) (the right stack), LeftAxisBands (the left stack past the primary),
+                                        TitleBand, LeftNeed (the whole left stack, below),
                                         BottomNeed (the measured X tick band and X title + pad; the default path widens the
                                         theme's margin to it, the tight path never goes below its old floor); measured bands
-                                        lift the margin, gutter and row-gap caps. SecondaryAxisBands/LeftAxisBands sum EVERY
-                                        slot on their side (AxisStackingExtensions) — a slot with no series still reserves its
-                                        band, by the same rule the right side already followed for slot 0 (ROADMAP.md row 101).
-                                        Two passes in both paths: the sides first (ComputeSides in Compute, ReserveSideBands in
-                                        ReserveEdgeBands), since what an axes draws past its left and right spines does not
-                                        depend on its plot's width, then the top and bottom, measured at the width each plot is
-                                        drawn at (ChartRenderer.SubPlotRects), because crowded X labels turn at that width
-      AxisStackingExtensions.cs         StackedOffsets()/TotalStackedBand() on IReadOnlyList<double>: the ONE rule both the
-                                        layout engine (how much to reserve) and the render part (where each slot's outward
-                                        offset starts) read, so the two can never disagree (CLAUDE.md §5)
+                                        lift the margin, gutter and row-gap caps. LeftNeed is the whole left stack of the Y axis
+                                        container: the primary's tick label band and its title by the one band rule
+                                        (YAxisTitleExtensions), every left slot past it, the container's TitleGap between each pair
+                                        (LeftStackBand), then PadLeft; the default path reserves it only when the stack draws
+                                        something, so a figure that asks for no margin and draws nothing left of the spine (an icon
+                                        that fills its square, a row of tiles with no axes) keeps the margin and the gutter it asked
+                                        for. SecondaryAxisBands/LeftAxisBands give the band of EVERY slot on their side, each
+                                        measured by the renderer that draws it (PlaceSlot + SlotBand: the slot's own locator, scale
+                                        and ticks, not a recomputation), summed by AxisStackingExtensions — a slot with no series
+                                        still reserves its band. There is no second copy of the title rule: the constant of 12 px the
+                                        layout used and the one-off term the renderer added for the primary's band are gone.
+                                        Three steps in both paths: the sides first (ComputeSides in Compute, ReserveSideBands in
+                                        ReserveEdgeBands: the Y tick labels, the secondary axes and the end labels, which do not
+                                        depend on the plot's width); then SettleSides, because the room the X tick labels need BESIDE
+                                        their plot does depend on it: they turn at the width the plot is drawn at, and a turned
+                                        label stands out sideways (EdgeBands.Overhang). WidenForOverhang widens the left margin, the
+                                        right margin or the gutter by the overhang and the pad; the widening narrows the plot, so it
+                                        is measured again at the width that remains, in at most 4 passes (MaxSettlePasses), stopping
+                                        when two measures agree to 0.01 px (SettledWithin); nothing standing out changes nothing.
+                                        Then the top and bottom, measured at the width each plot is drawn at
+                                        (ChartRenderer.SubPlotRects), because crowded X labels turn at that width
+      AxisStackingExtensions.cs         StackedOffsets(gap)/TotalStackedBand(gap) on IReadOnlyList<double>: the ONE rule both the
+                                        layout engine (how much to reserve) and the render (where each slot's outward offset starts)
+                                        read, so the two can never disagree. The first slot stands at the plot's edge, each slot
+                                        after it one gap past the far side of the one before it; bands are summed once, one gap
+                                        between each pair, none before the first or past the last. The gap is the container's TitleGap
+      LabelLayoutEngine.cs              Place(candidates, bounds): continuous repulsion of text boxes that stay inside the bounds; the
+                                        value labels of a bar, a pie and a sankey are placed by it (SeriesRenderer.PlaceLabels). The end
+                                        labels keep their own layout, Interval1DExtensions.SpreadApart, on purpose: they are a one-
+                                        dimensional, order-preserving column OUTSIDE the plot, x is fixed and only y is spread, and
+                                        Place's clamp to the plot bounds would pull them back inside. Their centring constant is
+                                        TextBox.CentreDrop, the one owner it shares with the annotations
       LayoutMetrics.cs                  internal record: LeftNeeded, BottomNeeded, TopNeeded, RightNeeded, RightBand, TopBand,
                                         LeftBand, BottomBand (per subplot)
-      EdgeBands.cs                      readonly record struct (Top, Right, Left, Bottom, BottomTitle): what an axes draws past
+      EdgeBands.cs                      readonly record struct (Top, Right, Left, Bottom, BottomTitle, Overhang; Overhang =
+                                        SideOverhang(Left, Right): how far the first and the last X tick label stand out sideways
+                                        past the plot at the rotation they are drawn at, from AxisTickExtensions.LabelReach(Away,
+                                        Before, After) over the label's TextBox): what an axes draws past
                                         its four spines besides the title and the end labels (mirrored tick labels, secondary X
                                         axis, the category names on the Y axis, every X axis' tick labels and the X title below
                                         them), MEASURED by the renderer that draws it (AxesRenderer.MeasureEdgeBands) — the drawer
-                                        is the measurer; a numeric Y axis leaves Left at 0 and the layout estimates its labels; a
-                                        polar or 3-D axes measures nothing below (it draws its X title elsewhere)
+                                        is the measurer; Left is the far side of the primary Y axis' tick labels, numbers or category
+                                        names, as drawn (a polar or 3-D axes measures none, and the tight layout estimates its
+                                        labels); a polar or 3-D axes measures nothing below (it draws its X title elsewhere)
       RightBand.cs                      readonly record struct (SecondaryAxis, MirroredYTicks, EndLabels): the right edge in drawing
                                         order; Axis = the TOTAL stacked width of every right slot (AxisStackingExtensions),
                                         Width = axis side + end labels + outer padding. The layout reserves Width and
                                         CartesianDirectLabelsPart starts its column at Axis
       DirectLabelMetrics.cs             the owner of what the end labels say, where each line ends (last finite point inside the
                                         visible X range), their font (the legend's) and the gap; layout reserves with it and the
-                                        drawing draws with it. DirectLabel record struct = one label, now carrying AxisSlot (which
-                                        right slot's own transform it reads) — Collect() walks every Axes.RightYAxes slot with a
-                                        running index; left-axis lines get no end label (no established place for one yet)
+                                        drawing draws with it. DirectLabel record struct = one label, carrying its Slot (which Y
+                                        axis' own transform puts the end of its line) — Collect() walks every Y slot of the container
+                                        in identity order (Axes.YSlotSeats), the primary's lines and those of every slot on either
+                                        side, so a line on a left-hand axis keeps its name at its end like any other
       Interval1D.cs                     readonly record struct (Start, Size): a span on one axis
       Interval1DExtensions.cs           SpreadApart: order-preserving collision sweep over spans; Sankey node padding and the end
                                         labels call the same one
       LegendMeasurer.cs                 the legend box and font, measured from the same LegendEntries list the drawing reads
 
     LegendRendering/                    the legend
-      LegendEntry.cs                    readonly record struct (Series, OriginalIndex, Label) + Axes.LegendEntries(directLabelsDrawn):
+      LegendLayoutCalculator.cs         the legend's geometry from the Legend config, its labels and the plot area (font, columns,
+                                        box, place): drawing and hit-testing read one copy. PositionOf(legend) is the one rule for
+                                        the place: the one named, or, for a legend left at Best, Theme.DefaultLegendPosition (the classic
+                                        theme: UpperRight; every other theme: Best); the renderer's decision to collect the marks reads it too
+      LegendPositionStrategy.cs         one strategy per place (UpperRight ... Center, the four Outside*) + BestStrategy: the first of
+                                        ten places, in matplotlib's order, that MarkObstacles.FirstLeastCovered scores lowest; with no
+                                        marks it is the upper right. Best works over the marks of Cartesian, polar and 3-D axes
+                                        (AxesRenderer.LegendObstacles); a map (Geo) hands over none
+      LegendEntry.cs                    readonly record struct (Series, OriginalIndex, ColorSlotIndex, Label, Swatch) +
+                                        Axes.LegendEntries(directLabelsDrawn):
                                         the ONE enumerator of which series are named in a legend, in which order, under which
-                                        index (the series slot) and with which text. RenderLegend, ComputeLegendBounds (the
-                                        hit-test) and LegendMeasurer all read it, so drawing, click and margin cannot disagree.
-                                        A series that draws its own label (ChartSeries.DrawsOwnLabel: the stat tile) never has an entry
+                                        index (the series slot), in which colour slot, with which text and swatch: every Y slot's series
+                                        in identity order, then the top X axis' (a labelled series on the top axis has an entry), an entry
+                                        for each of a series' LegendParts. The parts of one series share its index, so a click hides or shows
+                                        the whole series and SvgLegendToggleScript dims every entry of it together. RenderLegend,
+                                        ComputeLegendBounds (the hit-test) and LegendMeasurer all read it, so drawing, click and
+                                        margin cannot disagree. A series that draws its own label (ChartSeries.DrawsOwnLabel: the
+                                        stat tile) never has an entry
 
     TextMeasurement/                    text width estimation (new v0.8.1)
       CharacterWidthTable.cs            internal static: per-char width factors for Helvetica/Arial at 1em
@@ -664,6 +873,15 @@ MatPlotLibNet/
     SeriesRenderers/                    generic SeriesRenderer<T> per series type
       SeriesRenderContext.cs            record: Transform + Ctx + Color + Area + options
       SeriesRenderer.cs                 abstract base: ResolveColor(), ApplyAlpha(), ApplyDownsampling(), ApplyMonotonicDownsampling(), ResolveColormapping() + ColormapContext record struct + generic SeriesRenderer<T>
+                                        Collect mode: SeriesRenderer<T>.AddMarks (internal virtual, no-op = a family that is not scanned)
+                                        reports the marks a series draws, from the pixel geometry its Render uses; AddPolyline/AddSegment
+                                        are for the hot families, AddMarksByDrawing runs Render against a MarkCollectingContext for the
+                                        families with few marks. PlaceLabels/DrawPlacedLabel(s) are the shared bar, pie and sankey label placing
+      PixelSegment.cs                   readonly record struct: one stroked segment as drawn, for AddSegment
+      Categorical/BarPixels.cs          PixelBar/PixelBars: the bars of a series as drawn (stacked, grouped, either orientation), with
+                                        VerticalEnd/HorizontalEnd — the end a value label stands beyond; the bar renderer and its AddMarks share them.
+                                        A value label stands beyond the end in the direction the bar points in the data
+                                        (DataTransform.ValueRunsBackwards), 4 px from it, on an axis that runs either way
       DrawStyleInterpolation.cs         internal static: Apply(x, y, style) — shared step-mode interpolation; eliminates duplication between LineSeriesRenderer and AreaSeriesRenderer
       XY/                               Line (LTTB), Scatter (viewport cull), Step (LTTB), Area (LTTB), ErrorBar, Bubble, Sparkline, Ecdf, StackedArea, Regression (LeastSquares polynomial + confidence band), Residual (LeastSquares residuals + optional zero line)
                                         A line, a step, an area (its outline too) and a stacked area break at every point that cannot be
@@ -673,19 +891,33 @@ MatPlotLibNet/
       Circular/                         CircularRenderer<TSeries> (abstract base: BuildWedgePath, PlaceOuterLabels); Pie, Radar, Donut, Gauge
       Grid/                             Heatmap (its cells stand at their data coordinates, so a limit or a zoom moves them with the axes;
                                         RenderInArea fills the plot rectangle for a heatmap that is a panel of a larger chart: the clustermap's
-                                        matrix, a filled contour's backdrop), Contour, Contourf, Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill), Clustermap (composite: heatmap + row/column dendrograms with sub-pixel-suppressed margin panels), PairGrid (composite: N×N matrix of histograms/KDE on diagonal + scatters/hexbin off-diagonal, optional hue grouping)
+                                        matrix, a filled contour's backdrop), Contour, Contourf (both fill the bands between their levels through ContourBandFillExtensions.FillContourBands: the lowest band over the grid, the bands above it painted over, so the fill stands where the grid stands and follows the axes' range and the limits you set), Image, Histogram2D, Hexbin (HexGrid flat-top bins), Pcolormesh (quadrilateral cells), Spectrogram (STFT via Fft helper), Tricontour (Delaunay + marching triangles), Tripcolor (Delaunay fill), Clustermap (composite: heatmap + row/column dendrograms with sub-pixel-suppressed margin panels), PairGrid (composite: N×N matrix of histograms/KDE on diagonal + scatters/hexbin off-diagonal, optional hue grouping)
                                         PairGridLayout.cs — pure geometry: ComputeCellRects(plotBounds, n, cellSpacing) → Rect[n,n]; MinPanelPx sub-pixel gate
                                         PairGridOffDiagonalPainters.cs — IPairGridOffDiagonalPainter strategy + ScatterOffDiagonalPainter / HexbinOffDiagonalPainter / Registry; PairGridGeometry (MapPoint, ComputeAxisSpan); PairGridHue (IsValid, BuildCache, GetColor)
       Graph/                            NetworkGraph (composite: nodes + edges in 2D, directed-edge arrowheads, optional weight labels; layout delegated to Numerics/NetworkGraphLayouts.cs)
       Distribution/                     Box, Violin, Kde (density math delegated to Numerics/GaussianKde.cs — Silverman bandwidth), Rugplot (tick marks), Stripplot (jittered points), Swarmplot (BeeswarmLayout circle-packing)
       Financial/                        Candlestick, OhlcBar
-      Polar/                            PolarTransformRenderer<TSeries> (abstract base: PrepareTransform → rMax + PolarTransform); PolarLine, PolarScatter, PolarBar
+      Polar/                            PolarLine, PolarScatter, PolarBar (stacked on the RadialScale feet), PolarHeatmap; PolarSeriesContextExtensions.PolarTransformFor(series):
+                                        the transform out to the axes' radial scale (the extent the series makes alone when no axes hands one over)
       Field/                            Quiver, Stem, Streamplot, QuiverKey (reference arrow), Barbs (meteorological wind barbs)
       Hierarchical/                     Treemap, Sunburst, Dendrogram (shared HierarchicalSeries base; tree-of-U-shape segments with optional cut-height clustering)
                                         HierarchicalLayout.cs — nested Dendrogram/Treemap/Sunburst/Clustermap constant classes (LabelOffsetPx, HeaderHeightPx, OuterRingInsetPx, MinPanelPx, …)
       Flow/                             Sankey
       Special/                          Table (measured column widths, header+data rows, borders)
       ThreeD/                           Stem3D (vertical stems via Projection3D), Bar3D (prism faces, painter's depth sort)
+
+    ColorBarRendering/                  the colour bar
+      ColorBarRenderer.cs               abstract base (range, colour map, extend wedges) of the orientation renderers (Vertical/HorizontalColorBarRenderer,
+                                        chosen by ColorBarRendererFactory); ScaleAlong(length, vertical) asks ColorBarScale for the ticks of the bar as
+                                        long as it is drawn. The obsolete TickCount (6, fifths of the range) stays for binary compatibility; nothing reads it
+      ColorBarScale.cs                  internal readonly record struct (Min, Max, Ticks, Labels): the ONE place a colour bar decides which values it names —
+                                        a MaxNLocator sized to the bar's length (MaxNLocator.ForLength), at round numbers, in one number format; FractionOf(value)
+                                        is where a tick stands along the gradient. WidestLabel is the widest label any tick count can produce, which the layout
+                                        reserves before it knows the length. ColorBarRangeExtensions.RangeOf(provider) is the one range rule: the provider's
+                                        range when it has a width, otherwise the bar's own Min and Max, 0 to 1 when that has none
+      ColorBarProviderExtensions.cs     internal: ColorBarProvider() — the one rule for the series a bar reads: the first IColorBarDataProvider that
+                                        ProvidesColorBar. AxesRenderer.RenderColorBar, ChartRenderer (the figure's bar) and ConstrainedLayoutEngine call it,
+                                        so the bar of an axes, the bar of a figure and the room the layout reserves cannot read different series
 
     Svg/
       ISvgRenderer.cs                 interface: Render(Figure) -> string (backward compat)
@@ -695,9 +927,10 @@ MatPlotLibNet/
                                       finished document text so they hold for whichever ISvgRenderer wrote it: PrettifySvg indents one
                                       element to a line, SvgDecimalPrecision rounds positions and sizes (never stroke widths, opacities or
                                       font sizes), Title and Author become Dublin Core metadata. Options that ask for none return the very string
-      SvgSeriesRenderer.cs            thin visitor dispatcher to SeriesRenderer<T> instances
+      SvgSeriesRenderer.cs            thin visitor dispatcher to SeriesRenderer<T> instances; in collect mode (Marks) the same dispatch calls
+                                      AddMarks instead of Render (Dispatch), so there is one place that knows which renderer a series has
       SvgInteractivityScript.cs       embedded JS: zoom/pan via viewBox; tabindex + aria-roledescription; keyboard +/-/arrows/Home (new v0.8.8)
-      SvgLegendToggleScript.cs        embedded JS: click/Enter/Space on data-legend-index; role=button, aria-pressed, tabindex (new v0.8.8; toggle on click only, never pointerdown)
+      SvgLegendToggleScript.cs        embedded JS: click/Enter/Space on data-legend-index; role=button, aria-pressed, tabindex (new v0.8.8; toggle on click only, never pointerdown); every entry of one index dims and undims together
       SvgLegendDragScript.cs          embedded JS: press-and-hold legend item to translate <g class="legend"> via transform; capture-phase stopPropagation coordinates with pan/zoom + toggle; viewBox clamp; client-only translation
       SvgCustomTooltipScript.cs       embedded JS: styled floating div tooltip; role=tooltip, aria-live=polite, focus/blur listeners (new v0.8.8)
       SvgHighlightScript.cs           embedded JS: mouseenter/focus dims siblings; tabindex, blur restores (new v0.8.8)
@@ -747,26 +980,36 @@ MatPlotLibNet/
                                       transform Render draws with (ComputeViewTransform: autoscale, margins,
                                       limits, log/symlog), kept until a gesture changes the limits or scales.
                                       GetSecondaryDataRanges(axesIndex) is the per-axis counterpart for every
-                                      outward-stacked secondary Y axis (ROADMAP.md row 100) — a DEFAULT INTERFACE
-                                      MEMBER (empty for a host that states only a plot area and a primary range),
-                                      so every pre-existing IChartLayout implementer kept compiling unchanged;
-                                      ChartLayout's own override is NOT cached like View (a figure with secondary
-                                      axes being actively dragged recomputes every move — a deliberate, named cost
-                                      trade-off, not an oversight)
+                                      Y axis stacked PAST the primary, in the OUTWARD numbering (see below) — a DEFAULT
+                                      INTERFACE MEMBER (empty for a host that states only a plot area and a primary
+                                      range), so every pre-existing IChartLayout implementer kept compiling unchanged;
+                                      ChartLayout's own override is NOT cached like View (a figure with several
+                                      Y axes being actively dragged recomputes every move — a deliberate, named cost
+                                      trade-off, not an oversight). The views are the slots placed by the renderer
+                                      (CartesianAxesRenderer.ComputeSecondaryViewTransforms: PlaceSlot, the one
+                                      range-and-transform rule the drawing uses), read through YAxisStack.SlotAtOutward
     ChartLayoutViewExtensions.cs      ViewOf(layout, axes): that transform for every modifier; a host's own
                                       IChartLayout is read linearly over the range it states. SecondaryViewsOf
-                                      mirrors it for every secondary slot — scale-aware for ChartLayout, a plain
+                                      mirrors it for every slot past the primary — scale-aware for ChartLayout, a plain
                                       linear DataTransform built from GetSecondaryDataRanges for any other host —
-                                      so a modifier converts a pixel position through a SPECIFIC secondary axis'
+                                      so a modifier converts a pixel position through a SPECIFIC axis'
                                       own scale (PixelToData already inverts log/symlog correctly; no scale math
-                                      is re-derived by hand for a secondary slot)
+                                      is re-derived by hand for a slot)
     NearestPointFinder.cs             which data point is under the cursor, across every visible XY series in
                                       one axes, with the pixel distance it was found at; a StateTimelineSeries
                                       segment is hit by containing the cursor (last drawn wins) and reports its
                                       index in Segments plus a Detail sentence the tooltip shows
     FigureInteractionEvent.cs         the abstract event with ApplyTo(figure). Fifteen leaves: Pan, Zoom,
                                       AxisRange, Reset, LegendToggle, BrushSelect, SpanSelect, RectangleZoom,
-                                      Rotate3D, Hover, DataCursor, the three add-drawing events and the remove
+                                      Rotate3D, Hover, DataCursor, the three add-drawing events and the remove.
+                                      An event comes from a client over the wire, so the subplot it names may be gone (the
+                                      server's figure changed after the client drew) or never have been (a crafted index): every
+                                      event the library ships DROPS itself then — it changes nothing and does not throw, because
+                                      one stale event must not end the loop that applies the events behind it. TryApplyTo (internal
+                                      virtual) says which happened; TargetAxes (protected) still throws, as it always did, for the
+                                      events outside the library, and TryTargetAxes (protected) answers false instead of throwing,
+                                      with the same bounds rule; XLinkedAxes is empty for a missing subplot. A session that drains
+                                      events counts the dropped ones and the ones that throw (see "Real-time SignalR updates")
     FigureNotificationEvent.cs        the events that ask a question rather than change anything: ApplyTo is a
                                       sealed no-op, so a host cannot accidentally mutate a figure with one
     SignalREventSink.cs               the sink that publishes events to a hub instead of applying them
@@ -776,17 +1019,34 @@ MatPlotLibNet/
                                       of series that fix their own Y range (timelines) ignores the vertical part.
                                       PanEvent.InView carries the range on screen so a pan can pin an auto-scaled axes.
                                       Both carry SecondaryRanges (IReadOnlyList<SecondaryAxisRange>?, init-only —
-                                      the SAME additive idiom InView already set) so a gesture moves every outward-
-                                      stacked secondary axis too, each by its own range (ROADMAP.md row 100); a
+                                      the SAME additive idiom InView already set) so a gesture moves every Y axis
+                                      stacked past the primary too, each by its own range; a
                                       slot whose own series fix their Y range is skipped the same way the primary
-                                      is, independently (AxisRangeEventExtensions.ApplySecondaryRanges, the ONE
-                                      place either event family writes a change onto a slot). The modifiers compute
+                                      is, independently (AxisRangeEventExtensions.ApplySecondaryRanges, an
+                                      extension(Axes) block and the ONE place either event family writes a change onto a
+                                      slot; a change for a slot the axes does not have is skipped). The modifiers compute
                                       each slot's new range before sending: Zoom/RectangleZoom re-read the SAME
                                       pixel rectangle through that slot's own transform (DataTransform.PixelToData
                                       already inverts log/symlog); Pan scales the SAME fraction-of-plot delta by
-                                      that slot's own span (PanEvent.Shifted, extracted from the primary's own
-                                      Shift so a modifier can apply it without an Axis object); Reset replays the
-                                      snapshot taken at construction, same as it already did for the primary
+                                      that slot's own span (PanEvent.Shifted: a DataSpan in, a DataSpan out, so a modifier
+                                      can apply it without an Axis object); Reset replays the
+                                      snapshot taken at construction, same as it already did for the primary.
+                                      THE WIRE IS OUTWARD-ONLY, and stays so. SecondaryAxisRange(Side, SlotIndex, Range),
+                                      GetSecondaryDataRanges and the data-sec-right-N / data-sec-left-N attributes
+                                      number only the slots PAST the primary: (Left, 0) is the first left axis past the
+                                      primary Y axis, (Right, 0) is the first right axis, and the primary is never
+                                      addressable through it. The container's own index counts the primary as left
+                                      slot 0, so the left side shifts by one between the two; YAxisStack.OutwardOffset
+                                      (left 1, right 0) and SlotAtOutward(i) are the ONLY place that converts, read by
+                                      ApplySecondaryRanges, by the renderer's views and by the SVG writer (SvgRenderContext's
+                                      data-sec attributes). The numbering is a contract with every browser tab that holds an
+                                      older drawing, which sends these indices back after an upgrade, so it did not change when
+                                      the container arrived; the names keep "secondary" for the same reason
+                                      (they mean "an axis past the primary"). SvgSignalRInteractionScript reads
+                                      data-sec-*-count and the loop index as the slot, and needs no knowledge of the container
+    DataSpan.cs                       internal readonly record struct (Min, Max): one axis' range as a pair of data values, the
+                                      range a pan starts from and the range it moves to (PanEvent.Shifted takes and returns one,
+                                      with the scale and threshold, so the arithmetic stays within four parameters)
     PinnedAnnotation.cs               a clicked point: series label, data x/y, pixel x/y, axes index, and the
                                       point's own position in the caller's arrays — what DataCursorEvent
                                       carries and what DataPointClicked hands the application
@@ -873,6 +1133,34 @@ MatPlotLibNet/
                                       (ColorJsonConverter). ComposedChartRoundTripTests holds every composed chart to a
                                       write, a read back that draws the same picture, and a missing value that is never
                                       written into the picture.
+                                      PACKAGE DATA: SeriesDto.PackageData (a JsonElement?) carries what a package writes of its OWN series. Core writes
+                                      it for no series and reads it for none: the series of the package reads it in its own FromSeriesDto (the maps of
+                                      MatPlotLibNet.Geo). It is left out when absent. A 1.23.0 core ignores the field and drops the series it belongs to
+                                      with the diagnostic for a kind it does not know; an older MCP server refuses a spec that carries it. A package
+                                      registers the reader of its series with SeriesRegistry.Register (Geo: [ModuleInitializer], and the public
+                                      GeoPolygonSeries.RegisterReader() for a process that reads the JSON before it has used any type of the package)
+                                      THE Y AXES on the wire (SlotsPastSlot0ToDto writes, RestoreSlotsPastSlot0 reads, one path
+                                      per side). The 1.23.0 fields are frozen and mean what 1.23.0 made them mean: yAxis and series
+                                      are the primary (left slot 0), secondaryYAxis and secondarySeries right slot 0, and the
+                                      entries of extraRightYAxes and leftYAxes the slots past slot 0 of their side, in OUTWARD
+                                      order (entry i is slot i + 1; the primary is never an entry). A 1.23.0 reader holds one entry
+                                      per side and MERGES every further entry onto it, so the writer puts at most one slot past
+                                      slot 0 in each frozen list (YAxisSlotsPastSlot0Dto.FrozenCap) and every further slot, in the
+                                      same order, in a field a 1.23.0 reader skips: rightYAxesOverflow and leftYAxesOverflow, left
+                                      out when empty. Every slot has exactly one carrier, there is no version marker, and the reader
+                                      takes the frozen list and then the overflow list. So a figure within the old caps (two
+                                      right axes, one left past the primary) writes the bytes 1.23.0 wrote, and a JSON 1.23.0
+                                      wrote reads into the container with every slot in its place and writes back byte for byte
+                                      (Compat/v1.23.0-four-axes.json, written by the published 1.23.0, is pinned outside the
+                                      regenerated golden files). A 1.23.0 reader that meets a newer file keeps the first axes and
+                                      DROPS the overflow: it draws exactly the capped figure, and nothing is merged onto a wrong
+                                      axis. yAxisTitleGap (the container's TitleGap) is written only when it is not 4, and a
+                                      negative, NaN or infinite value is refused on read. The colour of an axis travels on its
+                                      own axis fields; spines.left/right.color keep meaning the plot's left and right edge, so
+                                      slot 0 of a side. AxesDrawnPropertiesRoundTripTests reads the container through
+                                      DrawnAxesFixtures, which has a row for every seat of the wire: left slots 0 to 2 and
+                                      right slots 0 to 2 (the third of each side travels in an overflow field) and the
+                                      container with its gap, so a Y axis setting a JSON drops turns a Theory red
     ThemeDto.cs                       a theme as data: every property written where it differs from the plain
                                       Theme.Default and read back over it, so a ThemeBuilder theme survives too
                                       (PropCyclerDto: the cycler's four lists as built; AlarmPaletteDto). The name
@@ -937,7 +1225,7 @@ MatPlotLibNet/
                                       EdgeGray, Amber, FibonacciOrange (replace magic hex strings)
     ColorExtensions.cs                Color.Luminance() (Rec. 709 Y'), Color.ContrastingTextColor() — auto black/white for readable cell labels
     Font.cs                           sealed record (Family, Size, Weight, Slant, Color)
-    Theme.cs                          30 built-in themes (incl. OpsNight/OpsPanel/OpsWarm/OpsContrast operator backgrounds) + AlarmPalette (Resting/Warning/Critical/Unknown — colour is reserved for what needs attention; the resting state wears none)
+    Theme.cs                          30 built-in themes (incl. OpsNight/OpsPanel/OpsWarm/OpsContrast operator backgrounds); DefaultLegendPosition (matplotlib's legend.loc: UpperRight for the classic theme, Best for every other; carried by ThemeDto, omitted at rest) + AlarmPalette (Resting/Warning/Critical/Unknown — colour is reserved for what needs attention; the resting state wears none)
     AlarmPalette.cs                   readonly record struct: the colours a theme reserves for abnormal states (+ ColorBlindSafe Okabe-Ito, HighContrast WCAG AAA) + GridStyle sealed record + PropCycler? property (new v0.8.8)
     LineStyle.cs                      enum: Solid, Dashed, Dotted, DashDot, None
     MarkerStyle.cs                    enum: None, Circle, Square, Triangle, Diamond, etc.
@@ -1025,6 +1313,21 @@ What holds for every verb:
 - The verb draws exactly what the same chain of public calls draws: the tests compare the SVG of each verb with the SVG
   of that chain (`ComposedChartShapes` keeps most of the chains).
 
+The two container verbs, `WithAddRightYAxis` and `WithAddLeftYAxis`, are in no family: they add a Y axis to the
+container, not a composed chart, so they are instance methods of `AxesBuilder`. Each stacks one more axis on its side per call
+and hands a `YAxisSlotBuilder` to a required `configure` callback that comes last; they return the builder and take no more
+than four parameters. `VerbPlacementContractTests` finds them through that callback type, so a container verb added later is
+held to the same shape without an edit.
+
+The verbs of `MatPlotLibNet.Geo` (`GeoAxesExtensions`: `WithProjection`, `Land`, `Ocean`, `Borders`, `Coastlines`, `Choropleth`,
+`Points`, `Bubbles`, `HexBins`, `Flows`, `Cartogram`, `Dorling`) live in that package, in namespace `MatPlotLibNet.Geo`, because the
+package ships its own series and its own data. They have the same shape (extensions of `AxesBuilder` that return it, at most four
+parameters besides it, `configure` last and optional) and are held to it by a test of the Geo test project (GeoVerbShapeTests),
+which reads the class by reflection, as `VerbPlacementContractTests` does for the families above. A map layer is refused before anything is added, so a
+refused call leaves the axes as it was; `Points`, `Bubbles`, `Dorling`, `HexBins` and `Flows` draw existing series (`ScatterSeries`,
+`HexbinSeries`, `LineSeries`) and travel as those series, and the layers that draw a map (`Land`, `Ocean`, `Borders`, `Coastlines`,
+`Choropleth`, `Cartogram`) are one series kind, `GeoPolygonSeries`.
+
 A family's class is added together with its first verb. `GroupedBar`, `DensityScatter` and `Threshold` stay instance
 methods of `AxesBuilder`, as they shipped: they predate the rule, and moving a shipped method into an extension class
 keeps the source compiling but breaks every caller compiled against the old method, a binary break that package
@@ -1043,6 +1346,13 @@ The verbs share internal owners instead of each holding a copy of a rule:
 | where a day stands in a calendar | `CalendarGrid` | `CalendarHeatmap` |
 | the name an axis shows at a position | `AxesTickSourceExtensions` (`PrimaryTickSource`, `NamesAt`) | the axes renderer, the data table, which keys a verb's table by its categories |
 | the top edge of each stacked layer | `StackedBaselineExtensions.TopEdgesFor` | the stacked-area series and `StreamGraph` |
+| what a bar stands on in a stack, on two sums (above zero, below zero) | `StackableExtensions` (`StackedFeet`, `StackedEnds`) | the stacked bar renderer and range, the polar bars (`RadialScale`) |
+| which arrays of a series fit, in one wording | `ArrayLengthExtensions` (`ThrowIfMisaligned`) | every verb that builds a series, `FromJson` through them, the MCP reader (it asks the library) |
+| which values a colour bar names, and where | `ColorBarScale` (`For`, `WidestLabel`, `FractionOf`), `MaxNLocator.ForLength` | the vertical and horizontal bar, the figure's bar, the layout that reserves its room |
+| which series a colour bar reads | `ColorBarProviderExtensions.ColorBarProvider` | the axes' bar, the figure's bar, the layout |
+| the radial scale of a polar axes: extent, rings, stacked feet | `RadialScale` | the polar grid and every polar series |
+| the fill of a contour: the bands between its levels, over the grid | `ContourBandFillExtensions.FillContourBands` | `ContourSeries` with `Filled` and `ContourfSeries` |
+| the one projection of a map axes | `GeoAxesExtensions` (recorded by `WithProjection`, read by every layer) | `Land`, `Ocean`, `Borders`, `Coastlines`, `Choropleth`, `Points`, `Bubbles`, `HexBins`, `Flows`, `Cartogram`, `Dorling` |
 | one bandwidth for several groups, a shared grid, a density at given points | `GaussianKde` | `Ridgeline`, the density curve |
 | the inverse of the normal CDF | `StandardNormal.Quantile` | `QQPlot`, the regression band |
 | what NaN and infinity mean to a chart | `MissingValueExtensions` | every renderer and every data range |
@@ -1069,7 +1379,8 @@ ChartRenderer          per subplot: computes data ranges, creates DataTransform
     |                  renders spans, reference lines (decorations)
     |                  renders grid, ticks, axis labels
     |                  for each series: creates SvgSeriesRenderer (visitor)
-    |                  renders every right/left-stacked secondary Y-axis slot with its own transform
+    |                  places every Y axis slot of the container once (range, transform, ticks, band, offset)
+    |                  and draws each with the one slot part, on either side, through its own scale
     |                  renders annotations (text + arrows)
     |
 SvgSeriesRenderer      visitor dispatches to type-specific rendering
@@ -1124,6 +1435,9 @@ figure.Transform(new SvgTransform()).ToStream(stream);
 figure.ToJson()        calls ChartSerializerDefault.Current.ToJson(figure)
     |
 ChartSerializer        Figure -> each series via ISeriesSerializable -> JsonSerializer.Serialize()
+    |                  the Y axis container -> yAxis (primary), secondaryYAxis (right slot 0), the slots past slot 0 of
+    |                  each side in extraRightYAxes / leftYAxes (the old caps) and rightYAxesOverflow / leftYAxesOverflow
+    |                  (every one past them), yAxisTitleGap only when it is not 4
     |
 string                 JSON with camelCase, null-ignoring, Color as hex, a number that is not finite as the string "NaN",
                        "Infinity" or "-Infinity"; a value at its default is left out
@@ -1131,9 +1445,13 @@ string                 JSON with camelCase, null-ignoring, Color as hex, a numbe
 ChartSerializerDefault.Current.FromJson(json)
     |
 ChartSerializer        JsonSerializer.Deserialize() -> SeriesRegistry resolves type -> Figure
+    |                  each frozen list, then its overflow list, stacks its slots on the container in outward order
     |
 SeriesRegistry         ConcurrentDictionary<string, Func<...>> maps type discriminator to factory
 ```
+
+The Y axes are the one part of the wire that is shaped by the reader of an older release: see the Y axes paragraph of
+`ChartSerializer.cs` above for what 1.23.0 reads of a newer file.
 
 ### Real-time SignalR updates
 
@@ -1147,13 +1465,41 @@ ChartHub               routes to SignalR group by chartId
     +-- Blazor client:   ChartSubscriptionClient (C#, implements IChartSubscriptionClient)
     +-- Angular client:  ChartSubscriptionClient (TypeScript, mirrors same pattern)
     +-- Interactive:     embedded JS in ChartPage.cs HTML template
+
+Client gesture (server-interactive chart): the SVG's script sends a zoom, pan, reset or legend event over the hub
+    |
+ChartHub               writes the event to the chart's channel and returns
+    |
+ChartSession           ONE reader task per chart drains the channel in order and applies each event to the figure
+                       (TryApplyTo), publishing once per drained batch. One event costs the chart only itself: an event
+                       that names a subplot the figure lacks is dropped and counted (DroppedEventCount), one that throws
+                       (an application event, a handler) is counted (FaultedEventCount, LastFault) and the reader goes
+                       on with the next. Only cancellation and a closed channel end the reader
 ```
+
+## Left out on purpose
+
+Things a reader may expect that the library does not do, with the reason:
+
+- **Radar rings stay at fifths of the axis.** They carry no value labels, and every radar is normalised to its own documented `MaxValue`.
+- **`AutoLocator` keeps its nearest-step rule** (matplotlib takes the smallest step at or above). Changing it moves every axis picture. The tick count of a colour bar and of polar rings is chosen by length on purpose (`MaxNLocator.ForLength`); an axis is not.
+- **A colour bar does not follow the normaliser.** Its gradient and its ticks are linear in the value, whatever normaliser the series has. This is a limit of colour mapping, stated on the roadmap, not of tick placement.
+- **A polar axes has no offset origin** (matplotlib's `rmin`): `PolarTransform` maps radius 0 to the centre.
+- **A colour bar's tick count cannot be set.**
+- **A filled `ContourSeries` has no colour bar of its own;** `ContourfSeries` is the contour that backs one.
+- **The legends of a pie, a donut and a funnel are unchanged:** one entry for the series. Only their colour slots span their parts.
+- **`RegressionSeries`, `ResidualSeries` and the tolerant XY models are not refused at the verb.** What does not pair is skipped and reported through `ChartDiagnostics`, by documented, tested design.
+- **No H3 cells.** They need the H3 index library, which the package does not ship; `HexBins` covers the need.
+- **No contiguous (diffusion) cartogram.** The contiguous methods are iterative field algorithms; `Cartogram` resizes each country about its centre and `Dorling` puts a bubble on it.
+- **The MCP server does not know the Geo package.** A map is not an accepted chart type of a spec; the catalog and the schema tests pin it.
+- **Bubble and scatter size formulas stay as they are,** and the map bubbles use the scatter's rule. Changing the bubble series would move its pictures.
+- **A colour bar's extend wedge is 10 % of its length** (matplotlib's is 5 %) **and the polar angle grid is every 30 degrees** (matplotlib's is every 45). Neither is part of any request; changing them moves pictures.
 
 ## Key design patterns
 
 | Pattern | Where | Why |
 |---------|-------|-----|
-| Fluent builder | FigureBuilder, AxesBuilder, ThemeBuilder, SecondaryAxisBuilder, OutwardYAxisBuilder | matplotlib-style method chaining |
+| Fluent builder | FigureBuilder, AxesBuilder, ThemeBuilder, YAxisSlotBuilder | matplotlib-style method chaining |
 | Visitor | ISeriesVisitor + ChartSeries.Accept() | extensible per-series rendering without switch |
 | Strategy | IRenderContext (SVG, MAUI, Skia), AxesRenderer (Cartesian, Polar, 3D) | multiple output targets and coordinate systems from same model |
 | Template method | FigureTransform base class, AxesRenderer base class | shared renderer, format/coordinate-specific overrides |
@@ -1164,7 +1510,7 @@ ChartHub               routes to SignalR group by chartId
 | One shaped text, three readers | Skia: TextShaper → ShapedText, read by SkiaFontMetrics (width), SkiaGlyphPathProvider (SVG outlines) and SkiaRenderContext (pixels) | the renderer draws text at the same width the layout measured for it; bidi levels come from Core's BidiAlgorithm and scripts from HarfBuzz, so Arabic letters join and Hebrew runs reverse the same way in every output |
 | Ambient context | RcParams + AsyncLocal + StyleContext | thread-safe global config with scoped overrides |
 | Registry | SeriesRegistry (ConcurrentDictionary<string, Func<Axes, SeriesDto, ISeries?>>) | thread-safe lookup from a discriminator to the series' own FromSeriesDto factory; thin table only |
-| Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries; CircularRenderer<T>, PolarTransformRenderer<T>, OhlcStreamingIndicatorTests<T> | DRY shared properties and behaviour across series and renderer families |
+| Generic base classes | XYSeries, PolarSeries, GridSeries3D, HierarchicalSeries; CircularRenderer<T>, OhlcStreamingIndicatorTests<T> | DRY shared properties and behaviour across series and renderer families |
 | Interface segregation | IHasDataRange, IPolarSeries, I3DGridSeries, I3DPointSeries, IPriceSeries, IColormappable, INormalizable, ICategoryLabeled, IColorBarDataProvider, IStackable, IHasColor, IHasAlpha, IHasEdgeColor, ILabelable, IHasBarOrientation (internal) | narrow contracts for cross-cutting concerns |
 | DI interfaces | IFigureTransform, IChartRenderer, ISvgRenderer, IChartSerializer | testable, replaceable services |
 | SRP extension methods | FigureExtensions (Save, Transform, ToSvg, RegisterTransform) | FigureExtensions holds the output methods, so FigureBuilder only builds the figure |
@@ -1177,18 +1523,27 @@ ChartHub               routes to SignalR group by chartId
 | Default interface method | IRenderContext.DrawRichText; ISeries.ToDataTable() | a new member reaches every implementor without breaking any of them; the default supplies the fallback answer (plain text; "no tabular form") |
 | State machine | MathTextParser | single-pass text classification into Normal/Superscript/Subscript spans |
 | Two-pass layout | ConstrainedLayoutEngine | measure text extents first, then compute margins |
-| One enumerator for the legend | `Axes.LegendEntries(directLabelsDrawn)` → `LegendEntry` | the drawing, the click hit-test and the margin reservation read one list, so the number of rows, their order, their index and their text cannot differ between them; "a series is named in the legend" is decided in one place |
+| One obstacle map, one score, one selector | `MarkObstacles` (`Builder`, `Badness`, `FirstLeastCovered`), `AxesRenderer.LegendObstacles` / `CollectMarks`, `SeriesRenderer<T>.AddMarks` | the legend at `Best` and the annotations that avoid overlap look at the same marks as drawn, score a candidate by the same matplotlib terms and take the first least covered one, so the two cannot disagree about what covers what; a renderer reports its marks from the pixel geometry it draws with, never from a copy of it. The order is acyclic: the series' marks, then the legend (marks and the annotations' boxes at their anchors), then the annotations that opted in (marks, the chosen legend box, the annotations that stay, the ones placed already); the legend is still drawn after them |
+| One enumerator for the legend | `Axes.LegendEntries(directLabelsDrawn)` → `LegendEntry`, one per `LegendPart` | the drawing, the click hit-test and the margin reservation read one list, so the number of rows, their order, their index, their colour slot, their swatch and their text cannot differ between them; "a series is named in the legend" is decided in one place, and a series with named parts (a stack plot's layers) says them itself |
 | One rule for where a category sits | `CategorySlot` (`Of`, `Bar`, `Around`), `BarSeries.SlotOf`, `CategoryTickExtensions` | the bar and count renderers, their data ranges, the category labels, a candlestick body, the indicator shortcuts and the category ticks read one rule, so a label, a mark and the bar it belongs to cannot drift apart: an edge-aligned bar chart's range and a count plot's labels had drifted from their bars before they shared it |
-| One owner of a series' colour and stroke | `SeriesSlotExtensions` (`Axes.SlotIndex`, `Theme.SeriesSlot`), `SeriesSlot` (`ColorOf`, `LineStyleOf`, `LineWidthOf`, `LineMarkerOf`, `ScatterMarkerOf`, `StrokeOf`) | the primary passes, every right- and left-stacked secondary-axis part, the line renderers and the legend swatch ask the same owner, so a secondary line and its swatch cannot wear different colours, dashes, widths or markers under a cycler theme — `SlotIndex` sums every right slot's series before counting a left or X-secondary one, so two slots on different sides never collide on the same identity; a pie, a donut, a funnel and a stacked area take their colours from the theme through it too |
+| One owner of a series' colour and stroke | `SeriesSlotExtensions` (`Axes.SlotIndex`, `Theme.SeriesSlot`), `SeriesSlot` (`ColorOf`, `LineStyleOf`, `LineWidthOf`, `LineMarkerOf`, `ScatterMarkerOf`, `StrokeOf`) | the primary passes, the part of every Y slot, the line renderers and the legend swatch ask the same owner, so a line on any axis and its swatch cannot wear different colours, dashes, widths or markers under a cycler theme — `SlotIndex` sums every right slot's series before counting a left slot's or the top axis', so two slots on different sides never collide on the same identity; a pie, a donut, a funnel and a stacked area take their colours from the theme through it too, one slot for each part (`ChartSeries.ColorSlotSpan`), and the series after them the slot past them |
 | Compose existing series | `CategoricalAxesExtensions`, `DistributionAxesExtensions`, `XYAxesExtensions`, `GridAxesExtensions`, the `XxxParts` record structs | a chart that is a drawing of several series adds no series type, no registry key and no serializer path: one drawn unit is one series (a colour slot, a legend entry, a JSON entry), the chart travels as its parts, and the verb draws what the same chain of public calls draws |
 | One missing value | `MissingValueExtensions` | a colormap, a renderer and a data range ask one class what NaN and infinity mean: a line breaks at the gap, a mark that cannot be placed is skipped before any render context sees it, and the automatic range leaves it out. When each layer tested `double.IsNaN` for itself, charts wrote NaN into the SVG |
 | A reflected contract | `SeriesDrawnPropertiesRoundTripTests` over `DrawnSeriesFixtures`, `AxesDrawnPropertiesRoundTripTests` over `DrawnAxesFixtures` | every settable property of every series type and every part of an axes is found by reflection, set to a value that is not its default, and compared after a JSON round trip, so a property added without its DTO field turns a Theory red and names itself; a property no JSON can carry is named in a list with the reason, and a series type that is neither under the contract nor named fails a test |
 | Closed polymorphic DTO family | `TickLocatorDto`, `TickFormatterDto`, `NormalizerDto`, `ColorMapDto` with `IJsonDescribed<T>` | a built-in describes itself and a derived record restores it through a virtual, so JSON carries the kind and what it was made with; an unknown kind reads as the base record and emits a diagnostic; no registry and no switch |
+| A series states what it is | `ChartSeries.DrawsWithoutAxes`, `LegendSwatch`, `LegendParts`, `ColorSlotSpan`, `ProvidesColorBar`, `RadialExtent`, `DrawsOwnLabel`, `FixesYRange` (internal virtual) | the axes, the legend, the colour bar and the polar scale ask the series; none of them holds a list of series types, so a new kind of series (or one in a package) needs no edit in any of them. `AxisLessCapabilityContractTests` checks each `DrawsWithoutAxes` answer against a measurement (the same marks under any limits, or marks that move with them) |
+| One scale per concern | `ColorBarScale`, `RadialScale`, `MaxNLocator.ForLength` | where a colour bar names its values and where polar rings stand are each decided once, from the length they are drawn along; the drawing, the layout's reserve and every series that draws on them read the same value, so a tick and a mark cannot disagree |
+| Refused at the verb | `ArrayLengthExtensions`, the series verbs, `ChartSpecReader.RefuseWhatTheLibraryRefuses` | a series that cannot be drawn from its data is refused when it is built, in one wording, and a figure read from JSON builds through the same verbs; the MCP reader asks the library whether a series fits and names only the place it stands |
+| Package data | `SeriesDto.PackageData`, `SeriesRegistry.Register`, `GeoPackageData` | a package carries its own series through the shared DTO without core knowing its shape; the package writes and reads one shape (`GeoPackageData`) and registers its reader when it loads |
 | A value at rest is not written | `RestingValueExtensions.OrNullAtRest` | JSON from an earlier release reads at the defaults and a figure that never touches a setting writes the bytes it always wrote |
-| Edge bands: the drawer measures | `AxesRenderer.MeasureEdgeBands` → `EdgeBands`; `ConstrainedLayoutEngine.MeasureRightBand` → `RightBand`; `ConstrainedLayoutEngine.LeftNeed` / `BottomNeed` / `LeftAxisBands`; `AxisStackingExtensions`; `DirectLabelMetrics` | layout and renderer share one rule for what sits past the four spines (mirrored ticks, every outward-stacked secondary Y axis on either side, end labels, the category names on the Y axis, the X tick labels and X title below the plot): the renderer that draws a band reports its size, and the layout engine reserves exactly that in both layout paths — a slot beyond the first on either side follows the SAME rule, not a second one (ROADMAP.md row 101) |
+| Edge bands: the drawer measures | `AxesRenderer.MeasureEdgeBands` → `EdgeBands`; `ConstrainedLayoutEngine.MeasureRightBand` → `RightBand`; `ConstrainedLayoutEngine.LeftNeed` / `BottomNeed` / `LeftAxisBands`; `AxisStackingExtensions`; `DirectLabelMetrics` | layout and renderer share one rule for what sits past the four spines (mirrored ticks, every Y axis of the container on either side, end labels, the category names on the Y axis, the X tick labels and X title below the plot): the renderer that draws a band reports its size, and the layout engine reserves exactly that in both layout paths — every slot on either side, the primary included, follows the SAME rule, not a second one |
+| One container for the Y axes | `YAxisContainer` (`Left`, `Right`, `TitleGap`, `IdentityOrder`), `YAxisStack` (`Add`, `FirstOrAdd`, `OutwardOffset`, `SlotAtOutward`), `YAxisSlot` | the primary Y axis, the first right axis and every axis stacked past them are the SAME kind of thing, held in one place, with no cap and no empty "ghost" axis: the builders, the renderer, the legend, the end labels, the serializer and the interaction layer all ask the container, so a seat for a fifth axis needs no new list and no new branch. The two old shapes (a primary held in no list, and two parallel lists of slots with a cap each) were three things a caller reached for depending on how many axes already stood on a side |
+| One rule per concern for a Y axis | `YAxisTitleExtensions` (`YTitleExtent`, `DrawYAxisTitle`), `TitleClearance` + `FacingInk` (`TitleOffset`), `YSideTerms`, `PlacedYSlot`, `CartesianYAxisSlotPart` | where a Y title stands, how much room a slot takes, where its ticks are, which way it faces and how it is drawn are each decided once: the layout reserves by the rule the renderer places by, the left and the right are one part fed by side terms (no branch on the side), and the primary is left slot 0 of the same part. The gap between a title's ink and its tick labels is therefore equal on both sides for every slot, held by a mirror test |
+| The wire shows outward-only | `YAxisStack.OutwardOffset` / `SlotAtOutward`, `SecondaryAxisRange`, `GetSecondaryDataRanges`, the `data-sec-*` attributes, `YAxisSlotsPastSlot0Dto` | the interaction wire and the 1.23.0 JSON fields number only the axes past the primary and must keep doing so (an open browser tab and a published reader depend on it); the container counts the primary as left slot 0, so one conversion owns the shift of one and everything else reads it. An axis past the old caps goes in a field a 1.23.0 reader skips, so an older reader loses the extra axes and never merges them onto a wrong one |
+| A wrapper over the new shape | the `[Obsolete]` Y axis members (`WithSecondaryYAxis`, `WithOutwardYAxis`, `SecondaryAxisBuilder`, `OutwardYAxisBuilder`, `Axes.SecondaryYAxis`, `SecondarySeries`, `TwinX`, `AddSecondarySeries`, `AddOutwardYAxis`, `RightYAxes`, `LeftYAxes`, `SecondaryAxisSlot`, `PlotSecondary`, `ScatterSecondary`) | a published member that a better shape replaces is not removed (that would break every caller compiled against it) but kept as a wrapper that forwards to the new shape and says what replaces it in its `Obsolete` message; nothing inside the library calls it, and one test file (`ObsoleteYAxisMembersCompatTests`) pins what each still does, the first right axis never stacking among them |
 | One rule for which axis carries the categories | `BarOrientationExtensions` (`CategoriesAlongY`, `OnAxes`, `NamesCategoriesAlongY`), `IHasBarOrientation` | a horizontal bar chart is an upright one with its axes swapped: the bar and count ranges are measured upright and put on the axes by one transposition, and the axes renderer names the categories on the axis that carries them through that axis' tick path (`AxesTickSourceExtensions.PrimaryTickSource`, one rule for X and Y, which the data table reads too), so hidden ticks, label size, colour, rotation, mirroring and the grid reach the names as they reach numbers |
 | A reversed axis | `Range1D.Interval` / `OrientedLike` / `OrientedBy`, `TickLocatorExtensions.LocateInterval` | a limit set high to low and `Axis.Inverted` draw an axis reversed by one rule: the range runs high to low, the ticks are the ticks of its interval, each drawn where its value is; `Inverted` is a state (matplotlib's `set_inverted(True)`), so the two together reverse the axis once, and a zoom that writes the limits as drawn keeps it reversed |
-| One extension opens every series group | `IRenderContext.BeginSeriesGroup` / `BeginSeriesClip` (`SeriesGroupExtensions`) | primary and secondary passes open the group the same way, so the legend toggle, hover highlight and `SvgDiffEngine` find a secondary line exactly as a primary one; the end label is drawn inside that group |
+| One extension opens every series group | `IRenderContext.BeginSeriesGroup` / `BeginSeriesClip` (`SeriesGroupExtensions`) | the primary passes and the part of every Y slot open the group the same way, so the legend toggle, hover highlight and `SvgDiffEngine` find a line on any axis exactly as a primary one; the end label is drawn inside that group |
 | Capability + template method | `IHasLabelPlacement` on the series; `AxesRenderer.DrawsDirectLabels` (virtual, false) and `DrawInsideSeriesGroup` (virtual, no-op) overridden by the Cartesian renderer, `DrawsDirectLabels` re-overridden to false by `CartesianInsetAxesRenderer` | the series says where its name goes; the renderer of the axes says whether it can draw it. Only then does the series leave the legend, so polar, 3-D and inset axes keep the legend entry and the name is never lost, with no `is` check on the axes type |
 | Named record types | IndexRange, Normalized3DPoint, AdxResult, ConfidenceBand, ColorStop, StreamingPoint, MinMaxRange, MatShape, XYCurve, BarRange, GaugeBand, DataPoint, LineSegment, Size, Vec3, CubePlane, CubeFaceSelection, AxisEdge3D, BarGroup, NamedSample, SurvivalGroup, ControlLimits, CategorySlot, WaterfallBar, SurvivalCurve, ViolinSlice, RasterSize | replace anonymous/named tuples in public API for discoverability and structural equality (v1.8.0 completed the sweep — no anonymous tuples remain) |
 | Extension methods on value types | `string.EscapeForXml()`, `double[].Percentile()` / `BisectLeft()` / `BisectRight()`, `Color.Modulate()` / `Shade()`, `RingBuffer<T>.Min()` / `Max()` (INumber-constrained) | replaces `*Helper` static classes with discoverable dot-access APIs (v1.8.0: SvgXmlHelper → SvgXml, MathHelpers → SortedArrayExtensions, LightingHelper → Vec3 + ColorExtensions) |
@@ -1250,6 +1605,9 @@ MatPlotLibNet.Mcp/
   ChartTools.cs                    the only [McpServerTool] file: five tools, and the one error boundary
   ChartSpec.cs                     readonly record struct ChartSpec(string Json) — a spec cannot be swapped with a path
   ChartSpecReader.cs               parse -> normalise -> strict DTO pass -> semantic pass -> ChartSerializer.FromJson
+  AxesSeatShape.cs                 where a subplot keeps its axes and series, read off the wire records (AxesDto,
+                                   SecondaryAxisSlotDto): a new axis or series list on the wire is a seat on the next build
+  AxesSeatWalk.cs                  the one seat walk, over the JSON nodes (normalise) and the DTO records (validate)
   SpecVocabulary.cs                the accepted values of every enum-valued spec field, per node kind
   ChartTypeCatalog.cs              SeriesRegistry.Discriminators minus the types whose reader ignores the document
   ChartRendering.cs                spec -> Figure -> bytes; one owner, two sinks (inline PNG, or a file)
@@ -1278,6 +1636,19 @@ ignored by `Enum.TryParse`, and an absent `width` overwrites the figure default 
 compatibility for the library's own clients. When a model writes the document, each of those cases turns a typo into a
 blank picture and reports it as a success. So the package validates the document first, against the same DTO records
 the serializer reads, and refuses it with the field name and the JSON path.
+
+A subplot keeps its axes and its series at many seats: the primary pair, the top and right axes, and every Y axis slot of
+either side (the frozen lists and their overflow lists). Every check of the reader (the chart-type catalog, the text limit,
+the enum spelling, the order of a described value) must reach every seat, so none is written as a loop over a field name:
+`AxesSeatShape` finds the seats once from the wire records, by member type (an axis record, a list of series, a list of
+Y axis slots), and both the normalising pass (over the JSON nodes) and the validating pass (over the DTO records) walk it.
+A seat added to the wire format is covered on the next build, and `describe_chart_schema` names the seats from the same
+shape. A refusal names the seat's path (`$.subPlots[0].leftYAxes[1].series[0].type`). An inset is a subplot in turn.
+
+Whether a series fits its own data (arrays that pair, a grid the size of its axes, a count of at least one) is the library's
+rule, so the reader holds none: it builds the series through the registry on a scratch axes (`RefuseWhatTheLibraryRefuses`) and,
+when the library refuses it, names the place from its own seat walk with the library's reason (`The 'surface' series at
+$.subPlots[0].series[1] was refused: Array lengths must match. ...`). A rule the library gains is a rule here, at every seat.
 
 A chart the library composes from several series travels as those series: none of the 17 chart verbs is a chart type of
 this server, in its catalog, its served list or its vocabulary, and a spec that asks for one is refused like any unknown
@@ -1335,3 +1706,46 @@ All column access goes through `DataFrameColumnReader.ToDoubleArray` / `ToString
 `DataFrameNumericsExtensions` wraps the `LeastSquares` static methods:
 `PolyFit(xCol, yCol, degree)` returns the coefficients; `PolyEval(xCol, coeffs)` returns the fitted Y;
 `ConfidenceBand(xCol, yCol, coeffs, evalX, level)` returns `ConfidenceBand(Upper[], Lower[])`.
+
+## MatPlotLibNet.Geo package
+
+Map projections, Natural Earth 110m data and the layers of a map axes. Core exposes its internals to this package
+(`InternalsVisibleTo` in core's `Properties/AssemblyAttributes.cs`), so the map series overrides the same internal capabilities
+as a series of core (`ProvidesColorBar`, the data range's sticky edges) and reads `SeriesDto.PackageData`.
+
+```
+MatPlotLibNet.Geo/
+  GeoAxesExtensions.cs           the verbs of a map axes. WithProjection records the axes' ONE projection (a ConditionalWeakTable keyed by
+                                 the builder); every layer reads it, a layer given a projection of its own must give the same kind with the
+                                 same numbers (IsSameProjectionAs) or is refused, and a layer asked for before the axes has one is refused.
+                                 Land, Ocean, Borders, Coastlines, Choropleth and Cartogram add one GeoPolygonSeries; Points, Bubbles,
+                                 Dorling, HexBins and Flows project the places and add Scatter, Hexbin and Line series. A layer is refused
+                                 before anything is added
+  GeoPackage.cs                  internal: the [ModuleInitializer] that registers the reader (GeoPolygonSeries.RegisterReader)
+  GeoFlow.cs                     public readonly record struct (From, To, Value): a quantity that moves between two places
+  Series/GeoPolygonSeries.cs     the map series: Features, Projection, Color, StrokeColor, StrokeWidth, Values (one for each feature), ColorMap,
+                                 Normalizer, IsRawProjected (the features are already in the plane of the projection). It is a colour bar's data
+                                 provider only with Values (ProvidesColorBar), draws a region with its holes as ONE path, has the projection's
+                                 bounds as its sticky frame, and is written and read through ToSeriesDto / FromSeriesDto
+  Series/GeoPackageData.cs       internal: the one writer and the one reader of what a map puts into SeriesDto.PackageData — the projection (name and
+                                 PROJ-named parameters), the features (the id of a built-in set, or a GeoJSON FeatureCollection) and whether they are
+                                 raw-projected; Read returns GeoMapData, or null for data this package cannot make a map of
+  GeoJson/                       GeoFeature (Geometry, Properties; NumberOf(property) reads a number invariantly, NaN when it is none), GeoGeometry
+                                 (Rings flat, Polygons with their holes), GeoPolygon + GeoPosition (public record structs; FromRings winds the
+                                 exterior counter-clockwise and the holes clockwise), GeoJsonReader / GeoJsonWriter (the writer is the counterpart
+                                 of the reader and keeps the holes), GeoClipping, ProjectedRegion (ProjectedBy, Measure, ScaledAbout: a region in
+                                 the plane of a projection, its area and centre, and resized about its centre — the ground of Cartogram and Dorling)
+  Projections/                   IGeoProjection and the 13 projections; ProjectionParameters.cs (internal IProjectionParameters: the PROJ-named
+                                 numbers a projection was made with — lon_0, lat_0, lat_1, lat_2 — and Made(parameters), the projection of the
+                                 same kind made again from numbers, which the parametric projection itself knows how to do; and
+                                 GeoProjectionExtensions: ParametersOf, IsSameProjectionAs, Described, and Make(name, parameters), a lookup of
+                                 the name in the table of the 13 kinds); GreatCircle (the places along the shortest path, for Flows)
+  Data/NaturalEarth110m.cs       Coastlines() and Countries() from the embedded GeoJSON; SourceOf / OfSource give a built-in set the id a map's JSON
+                                 carries instead of its features
+```
+
+A map travels through JSON whole: `ToSeriesDto` writes the shared fields (colour, edge colour, line width, values, colour map,
+normaliser) and `PackageData`, and the reader registered by the package rebuilds it. A figure that holds a map and is read by a
+core that does not know the series drops it with a diagnostic, as for any unknown kind. The Geo test project's
+GeoDrawnPropertiesRoundTripTests holds every settable property of the map series to the round trip, as the contract tests of core
+do for core's series.

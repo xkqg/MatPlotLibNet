@@ -252,6 +252,9 @@ public static class EnumOrdinalSnapshot
                 ["MatrixCellSeparator"] = 12, ["MatrixRowSeparator"] = 13,
                 ["MatrixEnd"] = 14,
             },
+            [typeof(TextVerticalAlignment)] = new Dictionary<string, int> {
+                ["Baseline"] = 0, ["Center"] = 1, ["Top"] = 2, ["Bottom"] = 3,
+            },
             [typeof(ThresholdBreach)] = new Dictionary<string, int> {
                 ["Above"] = 0, ["Below"] = 1,
             },

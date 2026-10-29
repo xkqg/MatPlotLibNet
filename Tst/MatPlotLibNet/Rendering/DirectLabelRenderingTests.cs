@@ -65,11 +65,11 @@ public class DirectLabelRenderingTests
     }
 
     [Fact]
-    public void UnderAPropCyclerTheme_PrimaryAndSecondaryLabels_WearTheirLinesStroke()
+    public void UnderAPropCyclerTheme_PrimaryAndRightLabels_WearTheirLinesStroke()
     {
         var doc = XDocument.Parse(Plt.Create().WithTheme(CyclerTheme()).AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "primary").WithDirectLabel()
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "secondary").WithDirectLabel())).ToSvg());
+            .WithAddRightYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "secondary").WithDirectLabel())).ToSvg());
 
         var primary = Label(doc, "primary");
         Assert.Equal("#FF0000", ((string)primary.Attribute("fill")!).ToUpperInvariant());
@@ -83,11 +83,11 @@ public class DirectLabelRenderingTests
     }
 
     [Fact]
-    public void ASecondaryLabel_UnderTheDefaultTheme_WearsItsLinesStroke()
+    public void ARightLabel_UnderTheDefaultTheme_WearsItsLinesStroke()
     {
         var doc = XDocument.Parse(Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0])
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "secondary").WithDirectLabel())).ToSvg());
+            .WithAddRightYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "secondary").WithDirectLabel())).ToSvg());
 
         var polylines = Named(doc, "polyline").ToList();
         Assert.Equal(2, polylines.Count);
@@ -107,7 +107,7 @@ public class DirectLabelRenderingTests
         if (tight) builder = builder.TightLayout();
         var figure = builder.AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = name).WithDirectLabel()
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0], s => s.Label = "secondary").WithDirectLabel()))
+            .WithAddRightYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0], s => s.Label = "secondary").WithDirectLabel()))
             .Build();
 
         var doc = XDocument.Parse(new MatPlotLibNet.Transforms.SvgTransform().Render(figure));
@@ -121,18 +121,18 @@ public class DirectLabelRenderingTests
     }
 
     [Fact]
-    public void WithASecondaryAxis_TheLabelColumnStartsPastTheSecondaryTickLabels()
+    public void WithARightAxis_TheLabelColumnStartsPastTheRightTickLabels()
     {
         var figure = Plt.Create().WithSize(FigureWidth, 400).AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "primary").WithDirectLabel()
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]))).Build();
+            .WithAddRightYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]))).Build();
         var ctx = new RecordingRenderContext();
         new ChartRenderer().Render(figure, ctx);
 
         var texts = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).ToList();
         var label = texts.Single(t => (string)t.text == "primary");
         double labelX = (double)label.position.X;
-        // Every secondary tick label (drawn right of the plot) ends before the label column starts.
+        // Every right-axis tick label (drawn right of the plot) ends before the label column starts.
         var area = new ChartRenderer().ComputeLayout(figure, new MatPlotLibNet.Rendering.Svg.SvgRenderContext()).PlotAreas[0];
         var ticks = texts.Where(t => (double)t.position.X > area.X + area.Width && (string)t.text != "primary").ToList();
         Assert.NotEmpty(ticks);

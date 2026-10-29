@@ -146,7 +146,44 @@ Plt.Create()
 
 ![Wind rose](../images/wind_rose.png)
 
-A wind rose often splits each direction by wind speed, the slow winds near the centre and the fast ones stacked
-outside them. That is not drawn yet. A polar bar always starts at the centre, and each polar bar series is scaled to
-its own largest bar, so the bars of two series laid over each other do not share one radial scale and cannot be
-compared. Draw one series per chart until polar bars can be stacked.
+## Wind rose stacked by speed
+
+A wind rose often splits each direction by wind speed, the slow winds near the centre and the fast ones stacked outside
+them. Set the bar mode of the axes to stacked and its `PolarBar` series stand on one another, wedge by wedge: each starts
+where the one below it ends, and the rings reach the top of the highest stack.
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
+
+double[] bearings = [0, 45, 90, 135, 180, 225, 270, 315];
+double[] theta = [.. bearings.Select(b => (90 - b) * Math.PI / 180)];
+double[] calm = [3.1, 2.4, 4.0, 2.1, 3.0, 4.4, 3.3, 2.2];       // % of the hours, under 5 m/s
+double[] breeze = [4.2, 3.6, 5.5, 2.9, 4.1, 6.0, 4.5, 3.2];     // 5 to 10 m/s
+double[] strong = [2.2, 1.8, 3.3, 1.3, 2.3, 3.7, 2.3, 1.7];     // over 10 m/s
+
+Plt.Create()
+    .WithTitle("Wind Rose — share of the hours by direction and speed")
+    .WithSize(640, 640)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .PolarBar(calm, theta, s => { s.Color = Color.FromHex("#9ECAE1"); s.BarWidth = 0.9 * Math.PI / 4; s.Label = "under 5 m/s"; })
+        .PolarBar(breeze, theta, s => { s.Color = Color.FromHex("#3182BD"); s.BarWidth = 0.9 * Math.PI / 4; s.Label = "5 to 10 m/s"; })
+        .PolarBar(strong, theta, s => { s.Color = Color.FromHex("#08306B"); s.BarWidth = 0.9 * Math.PI / 4; s.Label = "over 10 m/s"; })
+        .SetBarMode(BarMode.Stacked)
+        .WithLegend())
+    .Save("wind_rose_stacked.svg");
+```
+
+![A wind rose of eight wedges, each of three stacked layers, the palest nearest the centre](../images/wind_rose_stacked.png)
+
+The wedges of one direction are the same index of every series. One series alone is not a stack, a radius that is not drawn
+(missing, infinite or below zero) adds nothing, and the stacking is worked out when the chart is drawn and written into no
+series.
+
+## One radial scale
+
+The grid and every polar series (lines, points, bars and heatmaps) read one radial scale. The rings stand at round numbers,
+labelled in one number format (or by the axis' own formatter) at 22.5° so the labels stay clear of the bars, and a ring
+labelled 10 stands exactly where a radius of 10 is drawn, whichever kind of series draws it, so two series on one axes can be
+compared. The scale reaches 5 % beyond the farthest radius, or exactly the limit you gave the axes.

@@ -10,6 +10,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a data table rendered inside the plot area.</summary>
 public sealed class TableSeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     public string[][] CellData { get; }
 
     public string[]? ColumnHeaders { get; set; }

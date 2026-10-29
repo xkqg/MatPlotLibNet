@@ -156,19 +156,19 @@ public class ConstrainedLayoutEngineCoverageTests
             {
                 ax.Plot([1.0, 2.0], [1.0, 2.0]);
                 ax.SetYLabel("Long left Y label");
-                ax.WithSecondaryYAxis(y2 => y2.SetYLabel("Long right Y label"));
+                ax.WithAddRightYAxis(y2 => y2.SetYLabel("Long right Y label"));
             })
             .AddSubPlot(1, 3, 2, ax =>
             {
                 ax.Plot([1.0, 2.0], [1.0, 2.0]);
                 ax.SetYLabel("Long left Y label");
-                ax.WithSecondaryYAxis(y2 => y2.SetYLabel("Long right Y label"));
+                ax.WithAddRightYAxis(y2 => y2.SetYLabel("Long right Y label"));
             })
             .AddSubPlot(1, 3, 3, ax =>
             {
                 ax.Plot([1.0, 2.0], [1.0, 2.0]);
                 ax.SetYLabel("Long left Y label");
-                ax.WithSecondaryYAxis(y2 => y2.SetYLabel("Long right Y label"));
+                ax.WithAddRightYAxis(y2 => y2.SetYLabel("Long right Y label"));
             })
             .Build();
 
@@ -334,7 +334,7 @@ public class ConstrainedLayoutEngineTests
     {
         var figure = Tight().AddSubPlot(1, 1, 1, ax => ax
                 .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "Revenue").WithDirectLabel()
-                .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0])))
+                .WithAddRightYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0])))
             .Build();
         var ctx = new RecordingRenderContext();
         new ChartRenderer().Render(figure, ctx);
@@ -359,16 +359,17 @@ public class ConstrainedLayoutEngineTests
     {
         var figure = Tight().AddSubPlot(1, 1, 1, ax => ax
                 .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "Revenue").WithDirectLabel()
-                .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]).SetYLabel("Margin %")))
+                .WithAddRightYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]).SetYLabel("Margin %")))
             .Build();
         var ctx = new RecordingRenderContext();
         new ChartRenderer().Render(figure, ctx);
 
         var title = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).Single(a => (string)a.text == "Margin %");
-        double titleHeight = ctx.MeasureText("Margin %", (Font)title.font).Height;
+        // The turned title's ink ends its descent past its anchor (FacingInk); the end labels stand past that.
+        double titleInkEnd = (double)title.position.X + FacingInk.Descent * ((Font)title.font).Size;
         double labelBand = DirectLabelMetrics.Gap + LabelWidth(figure, "Revenue", ctx);
-        Assert.True((double)title.position.X + titleHeight + labelBand <= FigureWidth,
-            $"secondary title at {(double)title.position.X:F2} leaves no room for the end label band {labelBand:F2}");
+        Assert.True(titleInkEnd + labelBand <= FigureWidth,
+            $"secondary title ink ends at {titleInkEnd:F2} and leaves no room for the end label band {labelBand:F2}");
     }
 
     // ── (e) user and fractional spacing smaller than the label ───────────────────
@@ -435,7 +436,7 @@ public class ConstrainedLayoutEngineTests
         var ctx = new RecordingRenderContext();
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0])
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]))).Build();
+            .WithAddRightYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]))).Build();
         var axes = figure.SubPlots[0];
 
         var band = new ConstrainedLayoutEngine().MeasureRightBand(axes, ctx, figure.Theme, 0);
@@ -444,25 +445,25 @@ public class ConstrainedLayoutEngineTests
         new ChartRenderer().Render(figure, ctx);
         var drawn = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).Where(a => (string)a.text != "" && (int)a.alignment == (int)TextAlignment.Left).ToList();
         double widest = drawn.Max(a => ctx.MeasureText((string)a.text, (Font)a.font).Width);
-        var ticks = axes.SecondaryYAxis!.MajorTicks;
+        var ticks = axes.YAxes.Right[0].Axis.MajorTicks;
         Assert.Equal(ticks.Length + ticks.Pad + widest, band.SecondaryAxis, 6);
         Assert.Equal(0, band.EndLabels);
         Assert.Equal(band.SecondaryAxis + ConstrainedLayoutEngine.PadRight, band.Width, 6);
     }
 
-    /// <summary>ROADMAP.md row 101: a second, outward-stacked right axis — the total the layout reserves is the SUM
+    /// <summary>ROADMAP.md row 101: a second, stacked right axis — the total the layout reserves is the SUM
     /// of every slot's own band, read by <see cref="ConstrainedLayoutEngine.SecondaryAxisBand"/> and by
-    /// <c>CartesianSecondaryYAxisPart</c>'s own outward offset (<see cref="AxisStackingExtensions.StackedOffsets"/>)
+    /// <c>CartesianYAxisSlotPart</c>'s own outward offset (<see cref="AxisStackingExtensions.StackedOffsets"/>)
     /// alike, so the two can never disagree about where a slot's edge is.</summary>
     [Fact]
-    public void RightBand_TwoOutwardStackedAxes_TotalIsTheSumOfEachSlotsOwnBand()
+    public void RightBand_TwoStackedAxes_TotalIsEachSlotsOwnBand_AndTheGapBetween()
     {
         var ctx = new RecordingRenderContext();
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, [1.0, 2.0, 3.0])
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]))).Build();
+            .WithAddRightYAxis(y2 => y2.Plot(X, [10_000.0, 20_000.0, 30_000.0]))).Build();
         var axes = figure.SubPlots[0];
-        axes.AddOutwardYAxis(AxisSide.Right).AddSeries(new MatPlotLibNet.Models.Series.LineSeries(X, [1.0, 2.0, 3.0]));
+        axes.YAxes.Right.Add().AddSeries(new MatPlotLibNet.Models.Series.LineSeries(X, [1.0, 2.0, 3.0]));
 
         var perSlotBands = ConstrainedLayoutEngine.SecondaryAxisBands(axes, ctx, figure.Theme);
         var band = new ConstrainedLayoutEngine().MeasureRightBand(axes, ctx, figure.Theme, 0);
@@ -472,10 +473,11 @@ public class ConstrainedLayoutEngineTests
         // Different tick-label widths (5-digit values vs 1-digit) prove the two entries are genuinely distinct, not
         // the same band measured twice.
         Assert.NotEqual(perSlotBands[0], perSlotBands[1]);
-        Assert.Equal(perSlotBands[0] + perSlotBands[1], band.SecondaryAxis, 6);
+        // The second slot stands the container's gap past the far side of the first.
+        Assert.Equal(perSlotBands[0] + axes.YAxes.TitleGap + perSlotBands[1], band.SecondaryAxis, 6);
     }
 
-    /// <summary>ROADMAP.md row 101: a left-stacked outward secondary axis widens the left margin past the primary
+    /// <summary>ROADMAP.md row 101: a left-stacked axis widens the left margin past the primary
     /// Y axis' own band — the mirror of the right band, read the same way by <see cref="ConstrainedLayoutEngine.LeftAxisBands"/>.</summary>
     [Fact]
     public void Compute_WithALeftStackedAxis_WidensTheLeftMarginPastThePrimarysOwnBand()
@@ -483,7 +485,7 @@ public class ConstrainedLayoutEngineTests
         var ctx = new RecordingRenderContext();
         var without = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])).Build();
         var with = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])).Build();
-        with.SubPlots[0].AddOutwardYAxis(AxisSide.Left)
+        with.SubPlots[0].YAxes.Left.Add()
             .AddSeries(new MatPlotLibNet.Models.Series.LineSeries(X, [10_000.0, 20_000.0, 30_000.0]));
 
         var marginWithout = new ConstrainedLayoutEngine().Compute(without, ctx).MarginLeft;
@@ -496,16 +498,37 @@ public class ConstrainedLayoutEngineTests
             $"Expected the left-axis figure's margin ({marginWith}) to exceed the plain one's ({marginWithout}).");
     }
 
+    /// <summary>The left stack of the container lifts the left cap the way measured content does, even when the primary
+    /// draws nothing there: a left slot wider than the 120 px cap is reserved whole, past the primary's empty band and the
+    /// container's gap, plus the layout's left pad.</summary>
+    [Fact]
+    public void Compute_HiddenPrimaryTicks_ALeftSlotWiderThanTheCap_LiftsTheLeftCap()
+    {
+        var ctx = new RecordingRenderContext();
+        var figure = Tight().AddSubPlot(1, 1, 1, ax => ax
+            .Plot(X, [1.0, 2.0, 3.0])
+            .WithAddLeftYAxis(left => left.Plot(X, [1.0, 2.0, 3.0]))).Build();
+        var axes = figure.SubPlots[0];
+        axes.YAxis.MajorTicks = axes.YAxis.MajorTicks with { Visible = false };
+        axes.YAxes.Left[1].Axis.TickFormatter = new WideFormatter();
+
+        double slot = Assert.Single(ConstrainedLayoutEngine.LeftAxisBands(axes, ctx, figure.Theme));
+        double margin = new ConstrainedLayoutEngine().Compute(figure, ctx).MarginLeft;
+
+        Assert.True(slot > 120, $"precondition: the slot's band ({slot:F2}) is wider than the 120 px cap");
+        Assert.Equal(0 + axes.YAxes.TitleGap + slot + ConstrainedLayoutEngine.PadLeft, margin, 6);
+    }
+
     [Fact]
     public void RightBand_SecondaryTickFormatter_IsWhatIsMeasured()
     {
         var ctx = new RecordingRenderContext();
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]))).Build();
-        figure.SubPlots[0].SecondaryYAxis!.TickFormatter = new WideFormatter();
+            .WithAddRightYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]))).Build();
+        figure.SubPlots[0].YAxes.Right[0].Axis.TickFormatter = new WideFormatter();
         var wide = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
 
-        var ticks = figure.SubPlots[0].SecondaryYAxis!.MajorTicks;
+        var ticks = figure.SubPlots[0].YAxes.Right[0].Axis.MajorTicks;
         double expected = ticks.Length + ticks.Pad
             + ctx.MeasureText(WideFormatter.Text, ticks.LabelFont(ThemedFontProvider.TickFont(figure.Theme))).Width;
         Assert.Equal(expected, wide.SecondaryAxis, 6);
@@ -521,8 +544,8 @@ public class ConstrainedLayoutEngineTests
     public void RightBand_HiddenSecondaryTicks_ChargeNothingWithoutATitle()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]))).Build();
-        var axis = figure.SubPlots[0].SecondaryYAxis!;
+            .WithAddRightYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]))).Build();
+        var axis = figure.SubPlots[0].YAxes.Right[0].Axis;
         axis.MajorTicks = axis.MajorTicks with { Visible = false };
 
         var band = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], new RecordingRenderContext(), figure.Theme, 0);
@@ -530,12 +553,14 @@ public class ConstrainedLayoutEngineTests
         Assert.Equal(0, band.SecondaryAxis);
     }
 
+    /// <summary>The band reaches where the part draws the title's anchor, plus the title's ink past it: on the right its
+    /// descent (<see cref="FacingInk"/>), the ink a turned title reaches outward.</summary>
     [Fact]
-    public void RightBand_SecondaryTitle_SitsWhereThePartDrawsIt_PlusItsHeight()
+    public void RightBand_SecondaryTitle_SitsWhereThePartDrawsIt_PlusItsOutwardInk()
     {
         var ctx = new RecordingRenderContext();
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]).SetYLabel("Margin %"))).Build();
+            .WithAddRightYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]).SetYLabel("Margin %"))).Build();
         var axes = figure.SubPlots[0];
 
         var band = new ConstrainedLayoutEngine().MeasureRightBand(axes, ctx, figure.Theme, 0);
@@ -544,8 +569,7 @@ public class ConstrainedLayoutEngineTests
         var area = PlotAreas(figure, ctx)[0];
         var title = ctx.OfKind("DrawText").Select(c => (dynamic)c.Args!).Single(a => (string)a.text == "Margin %");
         double centre = (double)title.position.X - (area.X + area.Width);
-        double height = ctx.MeasureText("Margin %", (Font)title.font).Height;
-        Assert.Equal(centre + height, band.SecondaryAxis, 6);
+        Assert.Equal(centre + FacingInk.Descent * ((Font)title.font).Size, band.SecondaryAxis, 6);
     }
 
     [Fact]
@@ -553,15 +577,16 @@ public class ConstrainedLayoutEngineTests
     {
         var ctx = new RecordingRenderContext();
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax.Plot(X, [1.0, 2.0, 3.0])
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]).SetYLabel("Margin %"))).Build();
-        var axis = figure.SubPlots[0].SecondaryYAxis!;
+            .WithAddRightYAxis(y2 => y2.Plot(X, [1.0, 2.0, 3.0]).SetYLabel("Margin %"))).Build();
+        var axis = figure.SubPlots[0].YAxes.Right[0].Axis;
         axis.MajorTicks = axis.MajorTicks with { Visible = false };
         axis.LabelStyle = new TextStyle { Pad = 7 };
 
         var band = new ConstrainedLayoutEngine().MeasureRightBand(figure.SubPlots[0], ctx, figure.Theme, 0);
 
-        double height = ctx.MeasureText("Margin %", axis.LabelStyle.ApplyTo(ThemedFontProvider.LabelFont(figure.Theme))).Height;
-        Assert.Equal(45 + 7 + height, band.SecondaryAxis, 6);
+        // The title keeps its fixed 45 px plus its pad, and the band reaches its descent past that.
+        double size = axis.LabelStyle.ApplyTo(ThemedFontProvider.LabelFont(figure.Theme)).Size;
+        Assert.Equal(45 + 7 + FacingInk.Descent * size, band.SecondaryAxis, 6);
     }
 
     [Fact]
@@ -585,7 +610,7 @@ public class ConstrainedLayoutEngineTests
         var ctx = new RecordingRenderContext();
         var both = Band(ax => ax
             .Plot(X, [1.0, 2.0, 3.0], s => s.Label = "Revenue").WithDirectLabel()
-            .WithSecondaryYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0])), ctx);
+            .WithAddRightYAxis(y2 => y2.Plot(X, [10.0, 20.0, 30.0])), ctx);
 
         Assert.True(both.SecondaryAxis > 0 && both.EndLabels > 0);
         Assert.Equal(both.SecondaryAxis + both.EndLabels + ConstrainedLayoutEngine.PadRight, both.Width, 6);

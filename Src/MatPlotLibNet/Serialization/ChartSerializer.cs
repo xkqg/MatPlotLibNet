@@ -102,98 +102,110 @@ public sealed class ChartSerializer : IChartSerializer
     /// is a change (code the JSON cannot carry), so it is written as the grid it draws under that theme, marked as the
     /// axes' own (<see cref="AxesDto.GridOverridesTheme"/>) so that a grid switched off stays off under a theme that
     /// draws one.</summary>
-    internal static AxesDto AxesToDto(Axes axes, Theme theme) => new()
+    internal static AxesDto AxesToDto(Axes axes, Theme theme)
     {
-        Title = axes.Title,
-        Key = axes.Key,
-        ShareXKey = axes.ShareXWith?.Key,
-        ShareYKey = axes.ShareYWith?.Key,
-        GridPosition = axes.GridPosition is { } gp ? new GridPositionDto
+        var rightPast = SlotsPastSlot0ToDto(axes.YAxes.Right);
+        var leftPast = SlotsPastSlot0ToDto(axes.YAxes.Left);
+        return new()
         {
-            RowStart = gp.RowStart, RowEnd = gp.RowEnd,
-            ColStart = gp.ColStart, ColEnd = gp.ColEnd
-        } : null,
-        Spines = axes.Spines == new SpinesConfig() ? null : SpinesToDto(axes.Spines),
-        XAxis = AxisToDto(axes.XAxis),
-        YAxis = AxisToDto(axes.YAxis),
-        ZAxis = AxisToDto(axes.ZAxis),
-        Grid = GridDto.From(axes.GridOverride is null ? axes.Grid : axes.GridUnder(theme)),
-        GridOverridesTheme = axes.GridOverride is null ? null : true,
-        BarMode = axes.BarMode == BarMode.Stacked ? "stacked" : null,
-        Series = SeriesToDtos(axes.Series),
-        Annotations = axes.Annotations.Count > 0 ? axes.Annotations.Select(AnnotationToDto).ToList() : null,
-        ReferenceLines = axes.ReferenceLines.Count > 0 ? axes.ReferenceLines.Select(r => new ReferenceLineDto
-        {
-            Value = r.Value, Orientation = r.Orientation.ToString().ToLowerInvariant(),
-            LineStyle = r.LineStyle.ToString().ToLowerInvariant(), LineWidth = r.LineWidth, Label = r.Label,
-            Color = r.Color,
-        }).ToList() : null,
-        SecondaryYAxis = axes.SecondaryYAxis is not null ? AxisToDto(axes.SecondaryYAxis) : null,
-        SecondarySeries = axes.SecondarySeries.Count > 0 ? SeriesToDtos(axes.SecondarySeries) : null,
-        SecondaryXAxis = axes.SecondaryXAxis is not null ? AxisToDto(axes.SecondaryXAxis) : null,
-        XSecondarySeries = axes.XSecondarySeries.Count > 0 ? SeriesToDtos(axes.XSecondarySeries) : null,
-        ExtraRightYAxes = axes.RightYAxes.Count > 1 ? axes.RightYAxes.Skip(1).Select(SlotToDto).ToList() : null,
-        LeftYAxes = axes.LeftYAxes.Count > 0 ? axes.LeftYAxes.Select(SlotToDto).ToList() : null,
-        Spans = axes.Spans.Count > 0 ? axes.Spans.Select(s => new SpanRegionDto
-        {
-            Min = s.Min, Max = s.Max, Orientation = s.Orientation.ToString().ToLowerInvariant(),
-            Alpha = s.Alpha,
-            LineStyle = s.LineStyle != LineStyle.None ? s.LineStyle.ToString().ToLowerInvariant() : null,
-            LineWidth = s.LineWidth != 1.0 ? s.LineWidth : null,
-            Label = s.Label,
-            Color = s.Color,
-            EdgeColor = s.EdgeColor,
-        }).ToList() : null,
-        Trendlines = axes.Trendlines.Count > 0 ? axes.Trendlines.Select(t => new TrendlineDto
-        {
-            X1 = t.X1, Y1 = t.Y1, X2 = t.X2, Y2 = t.Y2,
-            Color = t.Color is { } tc ? tc.ToHex() : null,
-            LineStyle = t.LineStyle != Styling.LineStyle.Solid ? t.LineStyle.ToString().ToLowerInvariant() : null,
-            LineWidth = t.LineWidth, Label = t.Label, IsExtended = t.IsExtended,
-        }).ToList() : null,
-        HorizontalLevels = axes.HorizontalLevels.Count > 0 ? axes.HorizontalLevels.Select(l => new HorizontalLevelDto
-        {
-            Value = l.Value,
-            Color = l.Color is { } lc ? lc.ToHex() : null,
-            LineStyle = l.LineStyle != Styling.LineStyle.Dashed ? l.LineStyle.ToString().ToLowerInvariant() : null,
-            LineWidth = l.LineWidth, Label = l.Label,
-        }).ToList() : null,
-        FibonacciRetracements = axes.FibonacciRetracements.Count > 0 ? axes.FibonacciRetracements.Select(f => new FibonacciRetracementDto
-        {
-            PriceHigh = f.PriceHigh, PriceLow = f.PriceLow,
-            Color = f.Color is { } fc ? fc.ToHex() : null,
-            LineWidth = f.LineWidth, ShowLabels = f.ShowLabels,
-        }).ToList() : null,
-        InsetBounds = axes.InsetBounds is { } ib ? new InsetBoundsDto
-        {
-            X = ib.X, Y = ib.Y, Width = ib.Width, Height = ib.Height
-        } : null,
-        Insets = axes.Insets.Count > 0 ? AxesToDtos(axes.Insets, theme) : null,
-        Elevation = axes.Elevation != 30 ? axes.Elevation : null,
-        Azimuth = axes.Azimuth != -60 ? axes.Azimuth : null,
-        CameraDistance = axes.CameraDistance,
-        LightSourceType = axes.LightSource is Rendering.Lighting.DirectionalLight dl
-            ? FormattableString.Invariant($"directional:{dl.Dx},{dl.Dy},{dl.Dz},{dl.Ambient},{dl.Diffuse}")
-            : null,
-        XBreaks = axes.XBreaks.Count > 0 ? axes.XBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null,
-        YBreaks = axes.YBreaks.Count > 0 ? axes.YBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null,
-        TitleStyle = TextStyleDto.From(axes.TitleStyle),
-        TitleLoc = axes.TitleLoc.OrNullAtRest(TitleLocation.Center),
-        Legend = LegendDto.From(axes.Legend),
-        ColorBar = ColorBarDto.From(axes.ColorBar),
-        Pane3D = axes.Pane3D == new Pane3DConfig() ? null : new Pane3DConfigDto
-        {
-            FloorColor = axes.Pane3D.FloorColor,
-            LeftWallColor = axes.Pane3D.LeftWallColor,
-            RightWallColor = axes.Pane3D.RightWallColor,
-            Alpha = axes.Pane3D.Alpha,
-            Visible = axes.Pane3D.Visible,
-        },
-        EnableTooltips = axes.EnableTooltips.OrNullAtRest(false),
-        EnableInteractiveAttributes = axes.EnableInteractiveAttributes.OrNullAtRest(false),
-        Emit3DVertexData = axes.Emit3DVertexData.OrNullAtRest(false),
-        CoordinateSystem = axes.CoordinateSystem == Models.CoordinateSystem.Cartesian ? null : axes.CoordinateSystem.ToString().ToLowerInvariant(),
-    };
+            Title = axes.Title,
+            Key = axes.Key,
+            ShareXKey = axes.ShareXWith?.Key,
+            ShareYKey = axes.ShareYWith?.Key,
+            GridPosition = axes.GridPosition is { } gp ? new GridPositionDto
+            {
+                RowStart = gp.RowStart, RowEnd = gp.RowEnd,
+                ColStart = gp.ColStart, ColEnd = gp.ColEnd
+            } : null,
+            Spines = axes.Spines == new SpinesConfig() ? null : SpinesToDto(axes.Spines),
+            XAxis = AxisToDto(axes.XAxis),
+            YAxis = AxisToDto(axes.YAxis),
+            ZAxis = AxisToDto(axes.ZAxis),
+            Grid = GridDto.From(axes.GridOverride is null ? axes.Grid : axes.GridUnder(theme)),
+            GridOverridesTheme = axes.GridOverride is null ? null : true,
+            BarMode = axes.BarMode == BarMode.Stacked ? "stacked" : null,
+            Series = SeriesToDtos(axes.Series),
+            Annotations = axes.Annotations.Count > 0 ? axes.Annotations.Select(AnnotationToDto).ToList() : null,
+            ReferenceLines = axes.ReferenceLines.Count > 0 ? axes.ReferenceLines.Select(r => new ReferenceLineDto
+            {
+                Value = r.Value, Orientation = r.Orientation.ToString().ToLowerInvariant(),
+                LineStyle = r.LineStyle.ToString().ToLowerInvariant(), LineWidth = r.LineWidth, Label = r.Label,
+                Color = r.Color,
+            }).ToList() : null,
+            SecondaryYAxis = axes.YAxes.Right.Count > 0 ? AxisToDto(axes.YAxes.Right[0].Axis) : null,
+            SecondarySeries = axes.YAxes.Right is { Count: > 0 } rightStack && rightStack[0].Series.Count > 0 ? SeriesToDtos(rightStack[0].Series) : null,
+            SecondaryXAxis = axes.SecondaryXAxis is not null ? AxisToDto(axes.SecondaryXAxis) : null,
+            XSecondarySeries = axes.XSecondarySeries.Count > 0 ? SeriesToDtos(axes.XSecondarySeries) : null,
+            ExtraRightYAxes = rightPast.Frozen,
+            RightYAxesOverflow = rightPast.Overflow,
+            LeftYAxes = leftPast.Frozen,
+            LeftYAxesOverflow = leftPast.Overflow,
+            YAxisTitleGap = axes.YAxes.TitleGap.OrNullAtRest(RestingYAxisTitleGap),
+            Spans = axes.Spans.Count > 0 ? axes.Spans.Select(s => new SpanRegionDto
+            {
+                Min = s.Min, Max = s.Max, Orientation = s.Orientation.ToString().ToLowerInvariant(),
+                Alpha = s.Alpha,
+                LineStyle = s.LineStyle != LineStyle.None ? s.LineStyle.ToString().ToLowerInvariant() : null,
+                LineWidth = s.LineWidth != 1.0 ? s.LineWidth : null,
+                Label = s.Label,
+                Color = s.Color,
+                EdgeColor = s.EdgeColor,
+            }).ToList() : null,
+            Trendlines = axes.Trendlines.Count > 0 ? axes.Trendlines.Select(t => new TrendlineDto
+            {
+                X1 = t.X1, Y1 = t.Y1, X2 = t.X2, Y2 = t.Y2,
+                Color = t.Color is { } tc ? tc.ToHex() : null,
+                LineStyle = t.LineStyle != Styling.LineStyle.Solid ? t.LineStyle.ToString().ToLowerInvariant() : null,
+                LineWidth = t.LineWidth, Label = t.Label, IsExtended = t.IsExtended,
+            }).ToList() : null,
+            HorizontalLevels = axes.HorizontalLevels.Count > 0 ? axes.HorizontalLevels.Select(l => new HorizontalLevelDto
+            {
+                Value = l.Value,
+                Color = l.Color is { } lc ? lc.ToHex() : null,
+                LineStyle = l.LineStyle != Styling.LineStyle.Dashed ? l.LineStyle.ToString().ToLowerInvariant() : null,
+                LineWidth = l.LineWidth, Label = l.Label,
+            }).ToList() : null,
+            FibonacciRetracements = axes.FibonacciRetracements.Count > 0 ? axes.FibonacciRetracements.Select(f => new FibonacciRetracementDto
+            {
+                PriceHigh = f.PriceHigh, PriceLow = f.PriceLow,
+                Color = f.Color is { } fc ? fc.ToHex() : null,
+                LineWidth = f.LineWidth, ShowLabels = f.ShowLabels,
+            }).ToList() : null,
+            InsetBounds = axes.InsetBounds is { } ib ? new InsetBoundsDto
+            {
+                X = ib.X, Y = ib.Y, Width = ib.Width, Height = ib.Height
+            } : null,
+            Insets = axes.Insets.Count > 0 ? AxesToDtos(axes.Insets, theme) : null,
+            Elevation = axes.Elevation != 30 ? axes.Elevation : null,
+            Azimuth = axes.Azimuth != -60 ? axes.Azimuth : null,
+            CameraDistance = axes.CameraDistance,
+            LightSourceType = axes.LightSource is Rendering.Lighting.DirectionalLight dl
+                ? FormattableString.Invariant($"directional:{dl.Dx},{dl.Dy},{dl.Dz},{dl.Ambient},{dl.Diffuse}")
+                : null,
+            XBreaks = axes.XBreaks.Count > 0 ? axes.XBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null,
+            YBreaks = axes.YBreaks.Count > 0 ? axes.YBreaks.Select(b => new AxisBreakDto(b.From, b.To, b.Style.ToString().ToLowerInvariant())).ToList() : null,
+            TitleStyle = TextStyleDto.From(axes.TitleStyle),
+            TitleLoc = axes.TitleLoc.OrNullAtRest(TitleLocation.Center),
+            Legend = LegendDto.From(axes.Legend),
+            ColorBar = ColorBarDto.From(axes.ColorBar),
+            Pane3D = axes.Pane3D == new Pane3DConfig() ? null : new Pane3DConfigDto
+            {
+                FloorColor = axes.Pane3D.FloorColor,
+                LeftWallColor = axes.Pane3D.LeftWallColor,
+                RightWallColor = axes.Pane3D.RightWallColor,
+                Alpha = axes.Pane3D.Alpha,
+                Visible = axes.Pane3D.Visible,
+            },
+            EnableTooltips = axes.EnableTooltips.OrNullAtRest(false),
+            EnableInteractiveAttributes = axes.EnableInteractiveAttributes.OrNullAtRest(false),
+            Emit3DVertexData = axes.Emit3DVertexData.OrNullAtRest(false),
+            CoordinateSystem = axes.CoordinateSystem == Models.CoordinateSystem.Cartesian ? null : axes.CoordinateSystem.ToString().ToLowerInvariant(),
+        };
+    }
+
+    /// <summary>The title gap of a new container (4): the value <see cref="AxesDto.YAxisTitleGap"/> is left out at, and
+    /// read back as when it is absent.</summary>
+    private static readonly double RestingYAxisTitleGap = new YAxisContainer().TitleGap;
 
     /// <summary>Writes one annotation: what it says and where, and everything it is drawn with. A value at the one a new
     /// annotation has is left out.</summary>
@@ -215,6 +227,10 @@ public sealed class ChartSerializer : IChartSerializer
             Color = a.Color,
             ArrowColor = a.ArrowColor,
             Alignment = a.Alignment.OrNullAtRest(rest.Alignment),
+            VerticalAlignment = a.VerticalAlignment.OrNullAtRest(rest.VerticalAlignment),
+            OffsetX = a.OffsetX.OrNullAtRest(rest.OffsetX),
+            OffsetY = a.OffsetY.OrNullAtRest(rest.OffsetY),
+            AvoidOverlap = a.AvoidOverlap.OrNullAtRest(rest.AvoidOverlap),
             Rotation = a.Rotation.OrNullAtRest(rest.Rotation),
             ArrowStyle = a.ArrowStyle.OrNullAtRest(rest.ArrowStyle),
             BackgroundColor = a.BackgroundColor,
@@ -228,8 +244,8 @@ public sealed class ChartSerializer : IChartSerializer
     /// <see cref="AxesToDto"/>.</summary>
     private static List<AxesDto> AxesToDtos(IEnumerable<Axes> axes, Theme theme) => axes.Select(a => AxesToDto(a, theme)).ToList();
 
-    /// <summary>The ONE place a list of series is written: the primary list and both secondary axes, each series through
-    /// <see cref="SeriesToDto"/>.</summary>
+    /// <summary>The ONE place a list of series is written: the primary list, every other Y axis' and the top axis',
+    /// each series through <see cref="SeriesToDto"/>.</summary>
     private static List<SeriesDto> SeriesToDtos(IEnumerable<ISeries> series) => series.Select(SeriesToDto).ToList();
 
     /// <summary>The ticks, the minor ticks and the linear threshold of a new axis: the values an axis setting is left out
@@ -303,7 +319,7 @@ public sealed class ChartSerializer : IChartSerializer
 
     /// <summary>The ONE place the fields every series shares leave the model: its label and where it is shown when
     /// that is not the legend, its place in the drawing order, whether it is shown at all, and how many points an x/y
-    /// series draws at most. Every series list (primary, both secondary axes, insets) is written through here; what a
+    /// series draws at most. Every series list (primary, every other Y axis, the top axis, insets) is written through here; what a
     /// series type draws beyond these, its own <c>ToSeriesDto</c> writes.</summary>
     private static SeriesDto SeriesToDto(ISeries series)
     {
@@ -321,7 +337,7 @@ public sealed class ChartSerializer : IChartSerializer
     }
 
     /// <summary>The ONE place the fields every series shares enter the model: the counterpart of
-    /// <see cref="SeriesToDto"/>, shared by the primary list and both secondary axes. A field that is absent, or an
+    /// <see cref="SeriesToDto"/>, shared by the primary list, every other Y axis and the top axis. A field that is absent, or an
     /// unknown placement, leaves the value the series was created with.</summary>
     internal static void RestoreSharedFields(ISeries series, SeriesDto dto)
     {
@@ -500,6 +516,10 @@ public sealed class ChartSerializer : IChartSerializer
             ann.Color = aDto.Color;
             ann.ArrowColor = aDto.ArrowColor;
             if (aDto.Alignment is { } alignment) ann.Alignment = alignment;
+            if (aDto.VerticalAlignment is { } verticalAlignment) ann.VerticalAlignment = verticalAlignment;
+            if (aDto.OffsetX is { } offsetX) ann.OffsetX = offsetX;
+            if (aDto.OffsetY is { } offsetY) ann.OffsetY = offsetY;
+            if (aDto.AvoidOverlap is { } avoidOverlap) ann.AvoidOverlap = avoidOverlap;
             if (aDto.Rotation is { } rotation) ann.Rotation = rotation;
             if (aDto.ArrowStyle is { } arrowStyle) ann.ArrowStyle = arrowStyle;
             ann.BackgroundColor = aDto.BackgroundColor;
@@ -522,22 +542,25 @@ public sealed class ChartSerializer : IChartSerializer
         }
     }
 
+    /// <summary>Reads every Y axis past the primary back into the container, the container's title gap, and the top X
+    /// axis. The frozen 1.23.0 fields keep their published meaning: <c>secondaryYAxis</c> is right slot 0 (the primary,
+    /// left slot 0, is <c>yAxis</c>); the entries of <c>extraRightYAxes</c> and <c>leftYAxes</c> are the slots past slot 0
+    /// of their side, in outward order, and <c>rightYAxesOverflow</c> and <c>leftYAxesOverflow</c> continue that order.</summary>
+    /// <exception cref="ArgumentOutOfRangeException"><c>yAxisTitleGap</c> is negative, NaN or infinite.</exception>
     private static void RestoreSecondaryAxes(Axes axes, AxesDto axDto)
     {
         if (axDto.SecondaryYAxis is not null)
         {
-            axes.TwinX();
-            ApplyAxis(axes.SecondaryYAxis!, axDto.SecondaryYAxis);
+            var first = axes.YAxes.Right.FirstOrAdd();
+            ApplyAxis(first.Axis, axDto.SecondaryYAxis);
             foreach (var sDto in axDto.SecondarySeries ?? [])
-                axes.CreateOnSecondarySeat(sDto, s => axes.AddSecondarySeries(s));
+                axes.CreateOnSecondarySeat(sDto, s => first.AddSeries(s));
         }
 
-        // ROADMAP.md row 101 — every right slot beyond 0, then every left slot, each in its own stack order
-        // (AddOutwardYAxis adds exactly one more slot per call, matching the writer's Skip(1)/full-list split).
-        foreach (var slotDto in axDto.ExtraRightYAxes ?? [])
-            RestoreOutwardSlot(axes, axes.AddOutwardYAxis(AxisSide.Right), slotDto);
-        foreach (var slotDto in axDto.LeftYAxes ?? [])
-            RestoreOutwardSlot(axes, axes.AddOutwardYAxis(AxisSide.Left), slotDto);
+        RestoreSlotsPastSlot0(axes, axes.YAxes.Right, new(axDto.ExtraRightYAxes, axDto.RightYAxesOverflow));
+        RestoreSlotsPastSlot0(axes, axes.YAxes.Left, new(axDto.LeftYAxes, axDto.LeftYAxesOverflow));
+        if (axDto.YAxisTitleGap is { } titleGap)
+            axes.YAxes.TitleGap = YAxisContainer.ValidTitleGap(titleGap, "yAxisTitleGap");
 
         if (axDto.SecondaryXAxis is not null)
         {
@@ -548,16 +571,44 @@ public sealed class ChartSerializer : IChartSerializer
         }
     }
 
+    /// <summary>The one reader of the slots past slot 0 of a side: each entry, the frozen field's and then the overflow
+    /// field's, stacks exactly one slot on <paramref name="stack"/>. Slot 0 is made first (on the left it is the primary,
+    /// always there), so an entry never moves down into slot 0, even from a JSON that carries no slot 0 of the right side.</summary>
+    /// <param name="axes">The axes being read; its series registry builds each slot's series.</param>
+    /// <param name="stack">The side's stack of the axes' Y axes.</param>
+    /// <param name="entries">The side's entries past slot 0.</param>
+    private static void RestoreSlotsPastSlot0(Axes axes, YAxisStack stack, YAxisSlotsPastSlot0Dto entries)
+    {
+        foreach (var slotDto in entries.InOutwardOrder)
+        {
+            stack.FirstOrAdd();
+            RestoreOutwardSlot(axes, stack.Add(), slotDto);
+        }
+    }
+
     /// <summary>Restores one outward-stacked slot's own axis settings and series onto <paramref name="slot"/>,
-    /// which <see cref="Axes.AddOutwardYAxis"/> already created.</summary>
-    private static void RestoreOutwardSlot(Axes axes, SecondaryAxisSlot slot, SecondaryAxisSlotDto slotDto)
+    /// which <see cref="YAxisStack.Add"/> already created.</summary>
+    private static void RestoreOutwardSlot(Axes axes, YAxisSlot slot, SecondaryAxisSlotDto slotDto)
     {
         if (slotDto.Axis is not null) ApplyAxis(slot.Axis, slotDto.Axis);
         foreach (var sDto in slotDto.Series ?? [])
             axes.CreateOnSecondarySeat(sDto, s => slot.AddSeries(s));
     }
 
-    private static SecondaryAxisSlotDto SlotToDto(SecondaryAxisSlot slot) => new()
+    /// <summary>The one writer of the slots past slot 0 of a side, in outward order: the first
+    /// <see cref="YAxisSlotsPastSlot0Dto.FrozenCap"/> into the side's frozen field, every further one into its overflow
+    /// field, each list <see langword="null"/> (left out) when it holds none. So every slot has exactly one carrier, and a
+    /// figure within the 1.23.0 caps writes the bytes 1.23.0 wrote.</summary>
+    /// <param name="stack">The side's stack of the axes' Y axes.</param>
+    private static YAxisSlotsPastSlot0Dto SlotsPastSlot0ToDto(YAxisStack stack)
+    {
+        var pastSlot0 = stack.Skip(1).Select(SlotToDto).ToList();
+        return new(
+            pastSlot0.Count > 0 ? pastSlot0.Take(YAxisSlotsPastSlot0Dto.FrozenCap).ToList() : null,
+            pastSlot0.Count > YAxisSlotsPastSlot0Dto.FrozenCap ? pastSlot0.Skip(YAxisSlotsPastSlot0Dto.FrozenCap).ToList() : null);
+    }
+
+    private static SecondaryAxisSlotDto SlotToDto(YAxisSlot slot) => new()
     {
         Axis = AxisToDto(slot.Axis),
         Series = slot.Series.Count > 0 ? SeriesToDtos(slot.Series) : null,
@@ -733,8 +784,8 @@ internal static class AxesSerializationExtensions
         /// seat parameter. Emits the same <see cref="ChartDiagnostics"/> entry <see cref="ChartSerializer.AddSeriesFromDto"/>
         /// emits for an unknown kind, so a secondary-axis series no longer vanishes silently either.</summary>
         /// <param name="dto">The series to reconstruct.</param>
-        /// <param name="reseat">Where the series belongs once built — <c>axes.AddSecondarySeries</c>,
-        /// <c>axes.AddXSecondarySeries</c>, or an outward-stacked slot's own <see cref="SecondaryAxisSlot.AddSeries{TSeries}"/>.</param>
+        /// <param name="reseat">Where the series belongs once built — <c>axes.AddXSecondarySeries</c>, or a Y axis
+        /// slot's own <see cref="YAxisSlot.AddSeries{TSeries}"/>.</param>
         /// <returns>The reconstructed series, or <see langword="null"/> for an unknown discriminator.</returns>
         internal ISeries? CreateOnSecondarySeat(SeriesDto dto, Action<ISeries> reseat)
         {
@@ -1068,13 +1119,30 @@ internal sealed record AxesDto
     public List<SeriesDto>? SecondarySeries { get; init; }
     public AxisDto? SecondaryXAxis { get; init; }
     public List<SeriesDto>? XSecondarySeries { get; init; }
-    /// <summary>Every right-stacked Y axis BEYOND slot 0 (<see cref="SecondaryYAxis"/>/<see cref="SecondarySeries"/>
-    /// already carry that one, kept as-is for wire back-compat), in stack order — ROADMAP.md row 101's "4 axes, 2
-    /// left and 2 right." Additive: old JSON with no 2nd right axis simply has no entry here.</summary>
+    /// <summary>The right Y axes past slot 0 (<see cref="SecondaryYAxis"/>/<see cref="SecondarySeries"/> carry slot 0),
+    /// in outward order: entry <c>i</c> is right slot <c>i + 1</c>, even in a JSON that has no slot 0. Frozen as 1.23.0
+    /// published it, whose reader holds one entry and merges every further one onto it, so the writer puts at most
+    /// <see cref="YAxisSlotsPastSlot0Dto.FrozenCap"/> slot here and the rest in <see cref="RightYAxesOverflow"/>; the
+    /// reader takes every entry. Absent when the right side has no slot past slot 0.</summary>
     public List<SecondaryAxisSlotDto>? ExtraRightYAxes { get; init; }
-    /// <summary>Every left-stacked Y axis, in stack order — entirely new wire surface, no slot-0 legacy field to
-    /// stay compatible with (the primary <see cref="Axes.YAxis"/> is the left side's own first axis).</summary>
+    /// <summary>The right Y axes past the ones <see cref="ExtraRightYAxes"/> holds, in outward order, continuing where it
+    /// stops (the first entry is right slot 2). Absent when there are none, so a figure within the 1.23.0 caps writes the
+    /// bytes 1.23.0 wrote; a 1.23.0 reader skips this field and draws the figure without these axes.</summary>
+    public List<SecondaryAxisSlotDto>? RightYAxesOverflow { get; init; }
+    /// <summary>The left Y axes past the primary (<see cref="YAxis"/>/<see cref="Series"/> carry the primary, left slot 0),
+    /// in outward order: entry <c>i</c> is left slot <c>i + 1</c>. Frozen as 1.23.0 published it, whose reader holds one
+    /// entry and merges every further one onto it, so the writer puts at most <see cref="YAxisSlotsPastSlot0Dto.FrozenCap"/>
+    /// slot here and the rest in <see cref="LeftYAxesOverflow"/>; the reader takes every entry. Absent when the left side
+    /// has no slot past the primary.</summary>
     public List<SecondaryAxisSlotDto>? LeftYAxes { get; init; }
+    /// <summary>The left Y axes past the ones <see cref="LeftYAxes"/> holds, in outward order, continuing where it stops
+    /// (the first entry is left slot 2). Absent when there are none, so a figure within the 1.23.0 caps writes the bytes
+    /// 1.23.0 wrote; a 1.23.0 reader skips this field and draws the figure without these axes.</summary>
+    public List<SecondaryAxisSlotDto>? LeftYAxesOverflow { get; init; }
+    /// <summary>The blank gap in pixels between every Y axis title and its tick labels, and between two stacked Y axes
+    /// (<see cref="YAxisContainer.TitleGap"/>). Absent at the default of 4, which is what a JSON without it reads as; a
+    /// value that is negative, NaN or infinite is refused.</summary>
+    public double? YAxisTitleGap { get; init; }
     public List<AnnotationDto>? Annotations { get; init; }
     public List<ReferenceLineDto>? ReferenceLines { get; init; }
     public List<SpanRegionDto>? Spans { get; init; }
@@ -1113,12 +1181,32 @@ internal sealed record AxesDto
     public string? CoordinateSystem { get; init; }
 }
 
-/// <summary>Data-transfer object for one <see cref="Models.SecondaryAxisSlot"/> — a right or left axis beyond
-/// the slot the wire already had a field for (<see cref="AxesDto.SecondaryYAxis"/>).</summary>
+/// <summary>Data-transfer object for one <see cref="YAxisSlot"/> past slot 0 of its side: an entry of the frozen lists
+/// (<see cref="AxesDto.ExtraRightYAxes"/>, <see cref="AxesDto.LeftYAxes"/>) or of the overflow lists
+/// (<see cref="AxesDto.RightYAxesOverflow"/>, <see cref="AxesDto.LeftYAxesOverflow"/>).</summary>
 internal sealed record SecondaryAxisSlotDto
 {
+    /// <summary>The slot's axis: its label, limits, ticks, scale and colours.</summary>
     public AxisDto? Axis { get; init; }
+    /// <summary>The series plotted against the slot's axis; absent when it has none.</summary>
     public List<SeriesDto>? Series { get; init; }
+}
+
+/// <summary>The slots past slot 0 of one side, the way the wire carries them: the side's frozen 1.23.0 list
+/// (<see cref="AxesDto.ExtraRightYAxes"/> or <see cref="AxesDto.LeftYAxes"/>) and its overflow list
+/// (<see cref="AxesDto.RightYAxesOverflow"/> or <see cref="AxesDto.LeftYAxesOverflow"/>), each <see langword="null"/>
+/// when it holds none.</summary>
+/// <param name="Frozen">The entries of the side's frozen list.</param>
+/// <param name="Overflow">The entries of the side's overflow list, continuing the outward order where
+/// <paramref name="Frozen"/> stops.</param>
+internal readonly record struct YAxisSlotsPastSlot0Dto(List<SecondaryAxisSlotDto>? Frozen, List<SecondaryAxisSlotDto>? Overflow)
+{
+    /// <summary>How many slots past slot 0 a 1.23.0 reader holds per side (right slot 1, left slot 1); it merges every
+    /// further entry of the frozen list onto that one, so the writer puts no more than this many there.</summary>
+    internal const int FrozenCap = 1;
+
+    /// <summary>Every entry in outward order: the frozen list's, then the overflow list's.</summary>
+    internal IEnumerable<SecondaryAxisSlotDto> InOutwardOrder => (Frozen ?? []).Concat(Overflow ?? []);
 }
 
 /// <summary>Data-transfer object for <see cref="Models.Pane3DConfig"/>.</summary>
@@ -1167,6 +1255,14 @@ internal sealed record AnnotationDto
     public Color? ArrowColor { get; init; }
     /// <summary>How the text stands against its point; absent for left.</summary>
     public Rendering.TextAlignment? Alignment { get; init; }
+    /// <summary>How the text stands against its point vertically; absent for the baseline.</summary>
+    public Rendering.TextVerticalAlignment? VerticalAlignment { get; init; }
+    /// <summary>How many pixels the text stands right of its point; absent for none.</summary>
+    public double? OffsetX { get; init; }
+    /// <summary>How many pixels the text stands below its point; absent for none.</summary>
+    public double? OffsetY { get; init; }
+    /// <summary>Whether the text moves out of the way of what stands where it was put; absent for no.</summary>
+    public bool? AvoidOverlap { get; init; }
     /// <summary>The text's rotation in degrees; absent for none.</summary>
     public double? Rotation { get; init; }
     /// <summary>The arrow's style; absent for the simple arrow.</summary>
@@ -1535,6 +1631,12 @@ public sealed record SeriesDto
     /// absent for a series that holds its own slot, as every series does until a verb groups it. Read back, two
     /// series written with the same value here are drawn in one cycled colour again, as they were.</summary>
     public int? ColorGroup { get; set; }
+
+    /// <summary>What a series of another package writes of itself beyond the fields above, for the discriminator that package
+    /// registers a reader for (<see cref="SeriesRegistry.Register"/>): a JSON value this library carries and does not read. Absent
+    /// for every series of this package, and for one whose package writes none. A figure holding it, read by a build of this
+    /// library older than the field, loses it silently.</summary>
+    public JsonElement? PackageData { get; init; }
 
     /// <summary>The marker shape of a line, a scatter, a stem, a step or a 3-D scatter series.</summary>
     public MarkerStyle? Marker { get; init; }

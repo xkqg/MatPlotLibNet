@@ -41,7 +41,7 @@ public class SeriesTablesNamedByAxesTests
     public void AxisNames_OfASeriesOnASecondaryAxis_ReadNothingAlongIt()
     {
         var axes = WithYNames("a");
-        var right = axes.AddSecondarySeries(new LineSeries([0.5], [0.5]));
+        var right = axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries([0.5], [0.5]));
         var top = axes.PlotXSecondary([0.5], [0.5]);
 
         Assert.Null(AxisNames.Of(axes, right).Along(DataAxis.Y, [0.5]));
@@ -51,18 +51,40 @@ public class SeriesTablesNamedByAxesTests
 
     /// <summary>ROADMAP.md row 101: a series on the 2nd right axis, or on a left axis, is on neither the primary Y
     /// axis nor right slot 0 — <c>AxisNames.Of</c> must not fall back to "primary" just because it isn't in
-    /// <c>SecondarySeries</c> (right slot 0 alone).</summary>
+    /// <c>YAxes.Right[0].Series</c> (right slot 0 alone).</summary>
     [Fact]
     public void AxisNames_OfASeriesOnAFurtherOutwardAxis_ReadNothingAlongItEither()
     {
         var axes = WithYNames("a");
-        var secondRight = axes.AddOutwardYAxis(AxisSide.Right).AddSeries(new LineSeries([0.5], [0.5]));
-        var left = axes.AddOutwardYAxis(AxisSide.Left).AddSeries(new LineSeries([0.5], [0.5]));
+        axes.YAxes.Right.FirstOrAdd();
+        var secondRight = axes.YAxes.Right.Add().AddSeries(new LineSeries([0.5], [0.5]));
+        var left = axes.YAxes.Left.Add().AddSeries(new LineSeries([0.5], [0.5]));
 
         Assert.False(AxisNames.Of(axes, secondRight).OnPrimaryY);
         Assert.False(AxisNames.Of(axes, left).OnPrimaryY);
         Assert.Null(AxisNames.Of(axes, secondRight).Along(DataAxis.Y, [0.5]));
         Assert.Null(AxisNames.Of(axes, left).Along(DataAxis.Y, [0.5]));
+    }
+
+    /// <summary>Only the primary Y axis names categories: a series on it reads <c>OnPrimaryY</c>, and a series on any other
+    /// Y axis — either right slot, a left slot — reads false. The top axis' series shares the primary Y axis, so it reads
+    /// true on Y and false on X.</summary>
+    [Fact]
+    public void ThePrimaryY_IsOnPrimaryY()
+    {
+        var axes = WithYNames("a");
+        var primary = axes.AddSeries(new LineSeries([0.5], [0.5]));
+        var right0 = axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries([0.5], [0.5]));
+        var right1 = axes.YAxes.Right.Add().AddSeries(new LineSeries([0.5], [0.5]));
+        var left0 = axes.YAxes.Left.Add().AddSeries(new LineSeries([0.5], [0.5]));
+        var top = axes.PlotXSecondary([0.5], [0.5]);
+
+        Assert.True(AxisNames.Of(axes, primary).OnPrimaryY);
+        Assert.False(AxisNames.Of(axes, right0).OnPrimaryY);
+        Assert.False(AxisNames.Of(axes, right1).OnPrimaryY);
+        Assert.False(AxisNames.Of(axes, left0).OnPrimaryY);
+        Assert.True(AxisNames.Of(axes, top).OnPrimaryY);
+        Assert.False(AxisNames.Of(axes, top).OnPrimaryX);
     }
 
     [Fact]

@@ -70,6 +70,14 @@ public sealed class Theme
     /// </summary>
     public double AxisYMargin { get; init; } = 0.05;
 
+    /// <summary>
+    /// Where a legend stands when nobody named a place for it, i.e. one left at <see cref="Models.LegendPosition.Best"/>
+    /// (matplotlib's <c>legend.loc</c> rcParam). The classic style puts it in the upper right,
+    /// <c>legend.loc: upper right</c>; every other theme leaves it at <see cref="Models.LegendPosition.Best"/>, where the legend
+    /// looks for the least covered place. An inside position, or <see cref="Models.LegendPosition.Best"/>.
+    /// </summary>
+    public Models.LegendPosition DefaultLegendPosition { get; init; } = Models.LegendPosition.Best;
+
     /// <summary>Default background color for 3D axes panes (floor, left wall, right wall).
     /// When <c>null</c>, the renderer uses <c>#F5F5F5</c>. Override in custom themes for
     /// dark-mode 3D charts.</summary>
@@ -115,6 +123,7 @@ public sealed class Theme
         ViolinStatsColor = other.ViolinStatsColor;
         AxisXMargin = other.AxisXMargin;
         AxisYMargin = other.AxisYMargin;
+        DefaultLegendPosition = other.DefaultLegendPosition;
         Pane3DColor = other.Pane3DColor;
         Alarm = other.Alarm;
     }

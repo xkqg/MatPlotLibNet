@@ -10,6 +10,12 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a funnel chart showing progressive reduction through stages (e.g., sales pipeline).</summary>
 public sealed class FunnelSeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override int ColorSlotSpan => Math.Max(1, Values.Length);
+
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     public string[] Labels { get; }
     public double[] Values { get; }
     public Color[]? Colors { get; set; }

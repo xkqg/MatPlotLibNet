@@ -12,9 +12,9 @@ fleet status views, and monitoring UIs. A tile draws a formatted value and a tim
 a row of coloured segments along a time axis. Compose them with mosaic or subplot
 layouts.
 
-A tile is a number, not a chart, but the axes it stands on still draw their frame and
-ticks (0 to 1) unless told otherwise. Call `HideAllAxes()` on a tile's axes, as the
-samples below do; `Plt.OpsDashboard()` does the same for its tiles.
+A tile is a number, not a chart, and a series that needs no axes says so: the axes a tile
+stands on draw no frame, ticks or grid, whether or not `HideAllAxes()` is called on them. The
+samples below still call it, which does no harm; a timeline needs its time axis and keeps it.
 
 ## Stat tile — single KPI number
 
@@ -104,7 +104,9 @@ Plt.Create()
 A `StateTimelineSeries` renders a single-row horizontal bar divided into coloured
 rectangles, one per `StateSegment`. Each segment spans `[Start, End]` in data units
 and shows a centred text label. The Y range is fixed at `[0, 1]` so the bar fills
-the full plot height.
+the full plot height. A timeline that has a name has one legend entry, with a stripe for each
+distinct state in the order the states first appear, each in the fill that state is drawn with
+(its colour, and the hatch an explicit pattern or a stated condition gives it).
 
 The `StateSegment` record struct takes four positional arguments:
 
@@ -349,7 +351,7 @@ Plt.OpsDashboard()
     })
     .AddTile(28.1, t =>
     {
-        t.Label = "RFx p99";
+        t.Label = "Request p99";
         t.Format = "0.0' ms'";
         t.Target = 25;
         t.Caption = "target 25 ms · +3.1 over";
@@ -358,13 +360,13 @@ Plt.OpsDashboard()
     })
     .AddTile(0, t =>
     {
-        t.Label = "Exchange";
+        t.Label = "Pricing";
         t.Caption = "no contact";
         t.Hatch = HatchPattern.ForwardDiagonal;  // unknown ≠ broken — a pattern, never a colour
     })
     .AddTile(3.8, t =>
     {
-        t.Label = "Nexus";
+        t.Label = "Relay";
         t.Format = "0.0' µs/msg'";
         t.Target = 6;
         // A caption may answer TWO questions — "is this good or bad" and "measured over what". Newlines
@@ -685,7 +687,7 @@ started holding opinions about when something is broken — and hands the tile t
 Plt.OpsDashboard()
     .AddTile(p99, t =>
     {
-        t.Label = "RFx p99";
+        t.Label = "Request p99";
         t.Condition = p99 > 30 ? new OpsCondition(OpsSeverity.Critical)
                     : p99 > 25 ? new OpsCondition(OpsSeverity.Warning)
                     : OpsCondition.Resting;

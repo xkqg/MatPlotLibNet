@@ -13,17 +13,20 @@ internal sealed class StepSeriesRenderer : SeriesRenderer<StepSeries>
     /// <inheritdoc />
     public StepSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
-    /// <inheritdoc />
-    public override void Render(StepSeries series)
+    /// <summary>What a step stands on in pixels: the points of its path, and the pixel of every sample it keeps.</summary>
+    private readonly record struct StepPixels(List<Point> Path, double[] X, double[] Y);
+
+    /// <summary>Works the step's pixels out: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to a
+    /// legend.</summary>
+    private StepPixels Pixels(StepSeries series)
     {
-        var color = ResolveColor(series.Color);
         var data = ApplyDownsampling(series.XData, series.YData, series.MaxDisplayPoints);
         int n = data.X.Length;
-        if (n == 0) return;
+        var pts = new List<Point>();
+        if (n == 0) return new StepPixels(pts, [], []);
         // Precompute pixel coordinates for all data points (SIMD batch)
         var pxArr = Transform.TransformX(data.X);
         var pyArr = Transform.TransformY(data.Y);
-        var pts = new List<Point>();
         switch (series.StepPosition)
         {
             case StepPosition.Post:
@@ -43,6 +46,20 @@ internal sealed class StepSeriesRenderer : SeriesRenderer<StepSeries>
                 pts.Add(new Point(pxArr[n - 1], pyArr[n - 1]));
                 break;
         }
+        return new StepPixels(pts, pxArr, pyArr);
+    }
+
+    /// <inheritdoc />
+    internal override void AddMarks(StepSeries series, MarkObstacles.Builder marks) =>
+        AddPolyline(marks, Pixels(series).Path);
+
+    /// <inheritdoc />
+    public override void Render(StepSeries series)
+    {
+        var color = ResolveColor(series.Color);
+        var (pts, pxArr, pyArr) = Pixels(series);
+        int n = pxArr.Length;
+        if (n == 0) return;
         DrawPolyline(pts, Slot.StrokeOf(color, series.LineWidth, series.LineStyle));
 
         // The marker the step names, or its slot's, sits on each data point (not on the corners of the steps). A step has

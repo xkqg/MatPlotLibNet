@@ -190,17 +190,17 @@ public class CartesianAxesRendererCoverageTests
         Assert.Contains(">Cat C<", svg);
     }
 
-    // ── Secondary axes ─────────────────────────────────────────────────────
+    // ── Right Y axes ───────────────────────────────────────────────────────
 
     [Fact]
-    public void Render_WithSecondaryYAxis_DrawsRightAxis()
+    public void Render_WithAddRightYAxis_DrawsRightAxis()
     {
         var fig = Plt.Create()
             .WithSize(500, 400)
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.Plot([1.0, 2, 3], [1.0, 2, 3]);
-                ax.WithSecondaryYAxis(s => s.SetYLabel("Right axis").SetYLim(0, 100));
+                ax.WithAddRightYAxis(s => s.SetYLabel("Right axis").SetYLim(0, 100));
             })
             .Build();
         var svg = fig.ToSvg();
@@ -320,7 +320,7 @@ public class CartesianAxesRendererCoverageTests
         Assert.Contains("<svg", svg);
     }
 
-    /// <summary>Radar series in axes (line 79-81 radarOnly true arm — skip Cartesian decorations).</summary>
+    /// <summary>Radar series in axes (the axis-less arm: skip Cartesian decorations).</summary>
     [Fact]
     public void Render_WithRadarSeriesOnly_SkipsCartesianGridAndTicks()
     {
@@ -328,7 +328,7 @@ public class CartesianAxesRendererCoverageTests
         Assert.Contains("<svg", svg);
     }
 
-    /// <summary>Pie series in axes (line 79-81 radarOnly true via PieSeries).</summary>
+    /// <summary>Pie series in axes (the axis-less arm, through PieSeries).</summary>
     [Fact]
     public void Render_WithPieSeriesOnly_SkipsCartesianGridAndTicks()
     {
@@ -386,50 +386,50 @@ public class CartesianAxesRendererCoverageTests
     // annotations with arrow/box, signal markers, grid variants, log-scale.
     // ─────────────────────────────────────────────────────────────────────
 
-    /// <summary>Renders a figure with secondary Y-axis + secondary line series — flips
+    /// <summary>Renders a figure with a right Y-axis + right-axis line series — flips
     /// the entire L201-238 block (29 lines) that's been dead in the cobertura.</summary>
     [Fact]
-    public void Render_WithSecondaryYAxisAndLineSeries_RendersWithoutError()
+    public void Render_WithAddRightYAxisAndLineSeries_RendersWithoutError()
     {
         var svg = RenderFigure(ax => ax
             .Plot([1.0, 2, 3], [3.0, 4, 5])
-            .WithSecondaryYAxis(s => s
+            .WithAddRightYAxis(s => s
                 .SetYLabel("right axis")
                 .Plot([1.0, 2, 3], [50.0, 60, 70])
                 .Scatter([1.5, 2.5], [55.0, 65])));
         Assert.Contains("<svg", svg);
     }
 
-    /// <summary>Secondary Y-axis with custom TickFormatter — flips the
+    /// <summary>Right Y-axis with custom TickFormatter — flips the
     /// `?? secYUniformFormat` arm at L227.</summary>
     [Fact]
-    public void Render_WithSecondaryYAxisCustomFormatter_UsesFormatter()
+    public void Render_WithAddRightYAxisCustomFormatter_UsesFormatter()
     {
         var fig = Plt.Create()
             .WithSize(500, 400)
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2], [3.0, 4])
-                .WithSecondaryYAxis(s => s
+                .WithAddRightYAxis(s => s
                     .SetYLabel("right")
                     .Plot([1.0, 2], [50.0, 60])))
             .Build();
-        fig.SubPlots[0].SecondaryYAxis!.TickFormatter = new global::MatPlotLibNet.Rendering.TickFormatters.NumericTickFormatter();
+        fig.SubPlots[0].YAxes.Right[0].Axis.TickFormatter = new global::MatPlotLibNet.Rendering.TickFormatters.NumericTickFormatter();
         var svg = fig.ToSvg();
         Assert.Contains("<svg", svg);
     }
 
-    /// <summary>Secondary Y-axis with hidden series — L210 `if (!series.Visible) continue;`
+    /// <summary>Right Y-axis with hidden series — L210 `if (!series.Visible) continue;`
     /// true arm.</summary>
     [Fact]
-    public void Render_WithSecondaryYAxisAndInvisibleSeries_SkipsHidden()
+    public void Render_WithAddRightYAxisAndInvisibleSeries_SkipsHidden()
     {
         var fig = Plt.Create()
             .WithSize(500, 400)
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2], [3.0, 4])
-                .WithSecondaryYAxis(s => s.Plot([1.0, 2], [50.0, 60])))
+                .WithAddRightYAxis(s => s.Plot([1.0, 2], [50.0, 60])))
             .Build();
-        fig.SubPlots[0].SecondarySeries[0].Visible = false;
+        fig.SubPlots[0].YAxes.Right[0].Series[0].Visible = false;
         var svg = fig.ToSvg();
         Assert.Contains("<svg", svg);
     }
@@ -685,16 +685,16 @@ public class CartesianAxesRendererCoverageTests
         Assert.Contains("<svg", svg);
     }
 
-    /// <summary>Secondary Y axis data range — ComputeSecondaryDataRanges with HasValue arms.
+    /// <summary>Right Y axis data range — ComputeSecondaryDataRanges with HasValue arms.
     /// Also covers L576 yMin==MaxValue false arm (yMin was set from series data).</summary>
     [Fact]
-    public void Render_SecondaryYAxisWithExplicitLimits_CoversHasValueArms()
+    public void Render_RightYAxisWithExplicitLimits_CoversHasValueArms()
     {
         var svg = Plt.Create()
             .WithSize(500, 400)
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2, 3], [1.0, 4, 9])
-                .WithSecondaryYAxis(sy => sy
+                .WithAddRightYAxis(sy => sy
                     .SetYLabel("Right")
                     .SetYLim(10, 100)
                     .Plot([1.0, 2, 3], [50.0, 60, 70])))
@@ -789,15 +789,15 @@ public class CartesianAxesRendererCoverageTests
     }
 
     /// <summary>ComputeSecondaryDataRanges: degenerate yMax-yMin &lt; 1e-10 — L577 TRUE arm.
-    /// All secondary series have the same y value → yMax-yMin ≈ 0 → padded by ±0.5.</summary>
+    /// All right-axis series have the same y value → yMax-yMin ≈ 0 → padded by ±0.5.</summary>
     [Fact]
-    public void Render_SecondaryYAxisDegenerateRange_PadsToHalfUnit()
+    public void Render_RightYAxisDegenerateRange_PadsToHalfUnit()
     {
         var svg = Plt.Create()
             .WithSize(500, 400)
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2, 3], [1.0, 2, 3])
-                .WithSecondaryYAxis(sy => sy
+                .WithAddRightYAxis(sy => sy
                     .Plot([1.0, 2, 3], [50.0, 50.0, 50.0])))
             .Build()
             .ToSvg();
@@ -867,35 +867,35 @@ public class CartesianAxesRendererCoverageTests
         Assert.Contains("<svg", svg);
     }
 
-    // ── Secondary Y axis with no series — L576 TRUE arm ────────────────────
+    // ── Right Y axis with no series — L576 TRUE arm ────────────────────────
 
-    /// <summary>SecondaryYAxis present but no secondary series → L576 TRUE arm: yMin stays
+    /// <summary>A right Y axis present but no right-axis series → L576 TRUE arm: yMin stays
     /// double.MaxValue → defaulted to (0, 1).</summary>
     [Fact]
-    public void Render_SecondaryYAxisWithNoSeries_FallsBackToDefaultRange()
+    public void Render_RightYAxisWithNoSeries_FallsBackToDefaultRange()
     {
         var fig = Plt.Create()
             .WithSize(500, 400)
             .AddSubPlot(1, 1, 1, ax => ax.Plot([1.0, 2, 3], [1.0, 2, 3]))
             .Build();
-        fig.SubPlots[0].TwinX();
+        fig.SubPlots[0].YAxes.Right.FirstOrAdd();
         var svg = fig.ToSvg();
         Assert.Contains("<svg", svg);
     }
 
-    // ── A second, outward-stacked right axis — ROADMAP.md row 101, end to end ──────
+    // ── A second, stacked right axis — ROADMAP.md row 101, end to end ──────────────
 
-    /// <summary>The full render pipeline (<c>Figure.ToSvg()</c>, not an isolated Part) with two outward-stacked
+    /// <summary>The full render pipeline (<c>Figure.ToSvg()</c>, not an isolated Part) with two stacked
     /// right axes, each with its own series: both lines reach the SVG, at two different Y scales, with no exception
     /// from the orchestration this change touched (CartesianAxesRenderer.Render, the layout engine, the direct-label
     /// column).</summary>
     [Fact]
-    public void Render_TwoOutwardStackedRightAxes_BothLinesReachTheSvg_AtTheirOwnScale()
+    public void Render_TwoStackedRightAxes_BothLinesReachTheSvg_AtTheirOwnScale()
     {
         var fig = Plt.Create().WithSize(500, 400).AddSubPlot(1, 1, 1, ax => ax
             .Plot([0.0, 10], [0.0, 10])
-            .WithSecondaryYAxis(y2 => y2.Plot([0.0, 10], [1_000.0, 2_000.0]))).Build();
-        fig.SubPlots[0].AddOutwardYAxis(AxisSide.Right)
+            .WithAddRightYAxis(y2 => y2.Plot([0.0, 10], [1_000.0, 2_000.0]))).Build();
+        fig.SubPlots[0].YAxes.Right.Add()
             .AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [-50.0, -10.0]));
 
         var svg = fig.ToSvg();
@@ -906,32 +906,32 @@ public class CartesianAxesRendererCoverageTests
     }
 
     /// <summary>The owner's exact spec (ROADMAP.md:101, 2026-10-25): "4 axes, 2 left and 2 right" — the primary Y
-    /// plus one left-stacked axis, <see cref="Axes.SecondaryYAxis"/> plus one right-stacked axis, all four with
+    /// plus one left-stacked axis, the first right axis plus one right-stacked axis, all four with
     /// their own series, end to end through the real render pipeline.</summary>
     [Fact]
     public void Render_FourYAxesTwoLeftTwoRight_AllFourSeriesReachTheSvg()
     {
         var fig = Plt.Create().WithSize(600, 400).AddSubPlot(1, 1, 1, ax => ax
             .Plot([0.0, 10], [0.0, 10])                                   // primary (left slot 0)
-            .WithSecondaryYAxis(y2 => y2.Plot([0.0, 10], [1_000.0, 2_000.0]))).Build(); // right slot 0
+            .WithAddRightYAxis(y2 => y2.Plot([0.0, 10], [1_000.0, 2_000.0]))).Build(); // right slot 0
         var axes = fig.SubPlots[0];
-        axes.AddOutwardYAxis(AxisSide.Left).AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [-50.0, -10.0])); // left slot 1
-        axes.AddOutwardYAxis(AxisSide.Right).AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [500_000.0, 900_000.0])); // right slot 1
+        axes.YAxes.Left.Add().AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [-50.0, -10.0])); // left slot 1
+        axes.YAxes.Right.Add().AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [500_000.0, 900_000.0])); // right slot 1
 
         var svg = fig.ToSvg();
 
         Assert.Contains("<svg", svg);
         Assert.Equal(4, System.Text.RegularExpressions.Regex.Matches(svg, "<polyline").Count);
-        // The primary Y counts as the left side's own first axis, so "2 left" is ONE entry in LeftYAxes;
-        // SecondaryYAxis counts as the right side's own first axis, so "2 right" is TWO entries in RightYAxes.
-        Assert.Single(axes.LeftYAxes);
-        Assert.Equal(2, axes.RightYAxes.Count);
+        // The primary Y is the left stack's own slot 0, so "2 left" is TWO slots on the left stack and "2 right" is
+        // TWO slots on the right stack.
+        Assert.Equal(2, axes.YAxes.Left.Count);
+        Assert.Equal(2, axes.YAxes.Right.Count);
     }
 
     /// <summary>Reproduces the user-reported defect (2026-10-26, a rendered four-axis chart): the primary Y axis
     /// ALWAYS draws its own ticks + title past the plot's left edge (<see cref="AxesRenderer.RenderAxisLabels"/>),
     /// but the first left-outward-stacked slot's offset came only from <c>LeftAxisBands(...).StackedOffsets()</c> —
-    /// the LeftYAxes slots summed among THEMSELVES, with no base term for the primary axis's own band — so slot 0
+    /// the outward left slots summed among THEMSELVES, with no base term for the primary axis's own band — so slot 0
     /// drew its own ticks/title at the EXACT SAME pixel column the primary axis already occupied: both titles'
     /// rotated-text anchors landed on close to the same X, reading as interleaved digits/letters. Unlike the right
     /// side (nothing stands before its own slot 0), the left side's slot 0 always has the primary's band before it.</summary>
@@ -942,7 +942,7 @@ public class CartesianAxesRendererCoverageTests
             .Plot([0.0, 10], [0.0, 10])
             .SetYLabel("Primary"))
             .Build();
-        var leftSlot = fig.SubPlots[0].AddOutwardYAxis(AxisSide.Left);
+        var leftSlot = fig.SubPlots[0].YAxes.Left.Add();
         leftSlot.AddSeries(new MatPlotLibNet.Models.Series.LineSeries([0.0, 10], [-50.0, -10.0]));
         leftSlot.Axis.Label = "LeftOuter";
 

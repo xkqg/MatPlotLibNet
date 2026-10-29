@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" width="900" height="500" style="width:100%;height:auto" role="img" aria-labelledby="chart-title">
+<title id="chart-title">Four Y axes</title>
+<rect x="0" y="0" width="900" height="500" fill="#FFFFFF" />
+<text x="450" y="24.099999999999998" font-family="DejaVu Sans, sans-serif" font-size="17.88888888888889" text-anchor="middle" font-weight="bold" fill="#262626">Four Y axes</text>
+<rect x="112" y="60" width="661.5555555555555" height="385" fill="#FFFFFF" />
+<line x1="142.07070707070707" y1="444.6" x2="142.07070707070707" y2="449.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="142.07070707070707" y="468.61111111111114" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">0.0</text>
+<line x1="242.30639730639732" y1="444.6" x2="242.30639730639732" y2="449.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="242.30639730639732" y="468.61111111111114" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">0.5</text>
+<line x1="342.54208754208753" y1="444.6" x2="342.54208754208753" y2="449.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="342.54208754208753" y="468.61111111111114" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">1.0</text>
+<line x1="442.7777777777778" y1="444.6" x2="442.7777777777778" y2="449.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="442.7777777777778" y="468.61111111111114" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">1.5</text>
+<line x1="543.013468013468" y1="444.6" x2="543.013468013468" y2="449.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="543.013468013468" y="468.61111111111114" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">2.0</text>
+<line x1="643.2491582491583" y1="444.6" x2="643.2491582491583" y2="449.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="643.2491582491583" y="468.61111111111114" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">2.5</text>
+<line x1="743.4848484848485" y1="444.6" x2="743.4848484848485" y2="449.8611111111111" stroke="#262626" stroke-width="1.1111111111111112" />
+<text x="743.4848484848485" y="468.61111111111114" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">3.0</text>
+<line x1="107.13888888888889" y1="427.5" x2="112.4" y2="427.5" stroke="#1F77B4" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="431.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#1F77B4">1.0</text>
+<line x1="107.13888888888889" y1="369.16666666666663" x2="112.4" y2="369.16666666666663" stroke="#1F77B4" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="373.16666666666663" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#1F77B4">1.5</text>
+<line x1="107.13888888888889" y1="310.8333333333333" x2="112.4" y2="310.8333333333333" stroke="#1F77B4" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="314.8333333333333" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#1F77B4">2.0</text>
+<line x1="107.13888888888889" y1="252.5" x2="112.4" y2="252.5" stroke="#1F77B4" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="256.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#1F77B4">2.5</text>
+<line x1="107.13888888888889" y1="194.16666666666663" x2="112.4" y2="194.16666666666663" stroke="#1F77B4" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="198.16666666666663" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#1F77B4">3.0</text>
+<line x1="107.13888888888889" y1="135.83333333333331" x2="112.4" y2="135.83333333333331" stroke="#1F77B4" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="139.83333333333331" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#1F77B4">3.5</text>
+<line x1="107.13888888888889" y1="77.5" x2="112.4" y2="77.5" stroke="#1F77B4" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="81.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#1F77B4">4.0</text>
+<g class="series" aria-label="Primary line">
+<polyline points="142.07070707070707,427.5 342.54208754208753,194.16666666666666 543.013468013468,310.8333333333333 743.4848484848485,77.5" fill="none" stroke="#1F77B4" stroke-width="1.5" />
+</g>
+<g class="series" aria-label="Right 0 line">
+<polyline points="142.07070707070707,427.49999999999994 342.54208754208753,194.16666666666666 543.013468013468,310.8333333333333 743.4848484848485,77.49999999999999" fill="none" stroke="#FF7F0E" stroke-width="1.5" />
+</g>
+<line x1="773.1555555555556" y1="427.5" x2="778.4166666666666" y2="427.5" stroke="#FF7F0E" stroke-width="1.1111111111111112" />
+<text x="783.2777777777777" y="431.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#FF7F0E">10</text>
+<line x1="773.1555555555556" y1="369.16666666666663" x2="778.4166666666666" y2="369.16666666666663" stroke="#FF7F0E" stroke-width="1.1111111111111112" />
+<text x="783.2777777777777" y="373.16666666666663" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#FF7F0E">15</text>
+<line x1="773.1555555555556" y1="310.8333333333333" x2="778.4166666666666" y2="310.8333333333333" stroke="#FF7F0E" stroke-width="1.1111111111111112" />
+<text x="783.2777777777777" y="314.8333333333333" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#FF7F0E">20</text>
+<line x1="773.1555555555556" y1="252.5" x2="778.4166666666666" y2="252.5" stroke="#FF7F0E" stroke-width="1.1111111111111112" />
+<text x="783.2777777777777" y="256.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#FF7F0E">25</text>
+<line x1="773.1555555555556" y1="194.16666666666663" x2="778.4166666666666" y2="194.16666666666663" stroke="#FF7F0E" stroke-width="1.1111111111111112" />
+<text x="783.2777777777777" y="198.16666666666663" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#FF7F0E">30</text>
+<line x1="773.1555555555556" y1="135.83333333333331" x2="778.4166666666666" y2="135.83333333333331" stroke="#FF7F0E" stroke-width="1.1111111111111112" />
+<text x="783.2777777777777" y="139.83333333333331" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#FF7F0E">35</text>
+<line x1="773.1555555555556" y1="77.5" x2="778.4166666666666" y2="77.5" stroke="#FF7F0E" stroke-width="1.1111111111111112" />
+<text x="783.2777777777777" y="81.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#FF7F0E">40</text>
+<text x="811.9444444444445" y="252.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" transform="rotate(-90,811.9444444444445,252.5)" fill="#FF7F0E">Right 0</text>
+<g class="series" aria-label="Right 1 line">
+<polyline points="142.07070707070707,427.49999999999994 342.54208754208753,194.1666666666666 543.013468013468,310.83333333333326 743.4848484848485,77.49999999999993" fill="none" stroke="#2CA02C" stroke-width="1.5" />
+</g>
+<line x1="828.2111111111111" y1="427.49999999999994" x2="833.4722222222222" y2="427.49999999999994" stroke="#2CA02C" stroke-width="1.1111111111111112" />
+<text x="838.3333333333333" y="431.49999999999994" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#2CA02C">100</text>
+<line x1="828.2111111111111" y1="369.16666666666663" x2="833.4722222222222" y2="369.16666666666663" stroke="#2CA02C" stroke-width="1.1111111111111112" />
+<text x="838.3333333333333" y="373.16666666666663" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#2CA02C">150</text>
+<line x1="828.2111111111111" y1="310.83333333333326" x2="833.4722222222222" y2="310.83333333333326" stroke="#2CA02C" stroke-width="1.1111111111111112" />
+<text x="838.3333333333333" y="314.83333333333326" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#2CA02C">200</text>
+<line x1="828.2111111111111" y1="252.49999999999994" x2="833.4722222222222" y2="252.49999999999994" stroke="#2CA02C" stroke-width="1.1111111111111112" />
+<text x="838.3333333333333" y="256.49999999999994" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#2CA02C">250</text>
+<line x1="828.2111111111111" y1="194.16666666666663" x2="833.4722222222222" y2="194.16666666666663" stroke="#2CA02C" stroke-width="1.1111111111111112" />
+<text x="838.3333333333333" y="198.16666666666663" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#2CA02C">300</text>
+<line x1="828.2111111111111" y1="135.83333333333326" x2="833.4722222222222" y2="135.83333333333326" stroke="#2CA02C" stroke-width="1.1111111111111112" />
+<text x="838.3333333333333" y="139.83333333333326" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#2CA02C">350</text>
+<line x1="828.2111111111111" y1="77.49999999999994" x2="833.4722222222222" y2="77.49999999999994" stroke="#2CA02C" stroke-width="1.1111111111111112" />
+<text x="838.3333333333333" y="81.49999999999994" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#2CA02C">400</text>
+<text x="875.3333333333333" y="252.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" transform="rotate(-90,875.3333333333333,252.5)" fill="#2CA02C">Right 1</text>
+<g class="series" aria-label="Left 0 line">
+<polyline points="142.07070707070707,427.5 342.54208754208753,194.16666666666666 543.013468013468,310.8333333333333 743.4848484848485,77.5" fill="none" stroke="#D62728" stroke-width="1.5" />
+</g>
+<line x1="107.13888888888889" y1="404.16666666666663" x2="112.4" y2="404.16666666666663" stroke="#D62728" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="408.16666666666663" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#D62728">0.6</text>
+<line x1="107.13888888888889" y1="357.5" x2="112.4" y2="357.5" stroke="#D62728" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="361.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#D62728">0.8</text>
+<line x1="107.13888888888889" y1="310.8333333333333" x2="112.4" y2="310.8333333333333" stroke="#D62728" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="314.8333333333333" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#D62728">1.0</text>
+<line x1="107.13888888888889" y1="264.1666666666667" x2="112.4" y2="264.1666666666667" stroke="#D62728" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="268.1666666666667" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#D62728">1.2</text>
+<line x1="107.13888888888889" y1="217.5" x2="112.4" y2="217.5" stroke="#D62728" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="221.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#D62728">1.4</text>
+<line x1="107.13888888888889" y1="170.83333333333331" x2="112.4" y2="170.83333333333331" stroke="#D62728" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="174.83333333333331" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#D62728">1.6</text>
+<line x1="107.13888888888889" y1="124.16666666666663" x2="112.4" y2="124.16666666666663" stroke="#D62728" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="128.16666666666663" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#D62728">1.8</text>
+<line x1="107.13888888888889" y1="77.5" x2="112.4" y2="77.5" stroke="#D62728" stroke-width="1.1111111111111112" />
+<text x="102.27777777777777" y="81.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="end" fill="#D62728">2.0</text>
+<text x="69.44444444444444" y="252.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" transform="rotate(-90,69.44444444444444,252.5)" fill="#D62728">Left 0</text>
+<g class="spine">
+<line x1="112" y1="445" x2="773.5555555555555" y2="445" stroke="#262626" stroke-width="0.8" />
+</g>
+<g class="spine">
+<line x1="112" y1="60" x2="773.5555555555555" y2="60" stroke="#262626" stroke-width="0.8" />
+</g>
+<g class="spine">
+<line x1="112" y1="60" x2="112" y2="445" stroke="#1F77B4" stroke-width="0.8" />
+</g>
+<g class="spine">
+<line x1="773.5555555555555" y1="60" x2="773.5555555555555" y2="445" stroke="#FF7F0E" stroke-width="0.8" />
+</g>
+<g class="legend" aria-label="Chart legend">
+<rect x="122" y="70" width="132.38888888888889" height="75.72222222222221" fill="#FFFFFF" fill-opacity="0.8" stroke="#CCCCCC" stroke-width="0.5" />
+<line x1="130" y1="82.86111111111111" x2="157.77777777777777" y2="82.86111111111111" stroke="#1F77B4" stroke-width="1.5" />
+<text x="168.88888888888889" y="86.72222222222223" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#262626">Primary line</text>
+<line x1="130" y1="99.52777777777777" x2="157.77777777777777" y2="99.52777777777777" stroke="#FF7F0E" stroke-width="1.5" />
+<text x="168.88888888888889" y="103.38888888888889" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#262626">Right 0 line</text>
+<line x1="130" y1="116.19444444444444" x2="157.77777777777777" y2="116.19444444444444" stroke="#2CA02C" stroke-width="1.5" />
+<text x="168.88888888888889" y="120.05555555555554" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#262626">Right 1 line</text>
+<line x1="130" y1="132.86111111111111" x2="157.77777777777777" y2="132.86111111111111" stroke="#D62728" stroke-width="1.5" />
+<text x="168.88888888888889" y="136.72222222222223" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="start" fill="#262626">Left 0 line</text>
+</g>
+<text x="442.77777777777777" y="488.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" fill="#262626">Time</text>
+<text x="69.44444444444444" y="252.5" font-family="DejaVu Sans, sans-serif" font-size="13.88888888888889" text-anchor="middle" transform="rotate(-90,69.44444444444444,252.5)" fill="#1F77B4">Primary</text>
+</svg>

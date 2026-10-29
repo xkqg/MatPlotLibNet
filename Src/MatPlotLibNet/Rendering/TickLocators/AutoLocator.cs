@@ -30,9 +30,19 @@ public sealed class AutoLocator : ITickLocator, IJsonDescribed<TickLocatorDto>
 
         double step = NiceStep(range, _targetCount);
         double first = Math.Ceiling(min / step) * step;
+        double limit = max + step * 0.01;
+
+        // Each tick is worked out from its index, not added to the one before it: far from zero a step smaller than the
+        // spacing of doubles leaves the sum where it is, and a walk that adds never reaches the end of the range. A tick
+        // that lands on the one before it is left out, and a NaN ends the walk (it is not at or below the limit).
         var ticks = new List<double>();
-        for (double t = first; t <= max + step * 0.01; t += step)
-            ticks.Add(Math.Round(t, 10));
+        for (long i = 0; ; i++)
+        {
+            double t = first + i * step;
+            if (!(t <= limit)) break;
+            double rounded = Math.Round(t, 10);
+            if (ticks.Count == 0 || rounded > ticks[^1]) ticks.Add(rounded);
+        }
 
         return ticks.ToArray();
     }

@@ -62,15 +62,9 @@ internal sealed class HorizontalColorBarRenderer : ColorBarRenderer
 
         var tickFont = ThemedFontProvider.TickFont(Theme);
         double labelY = barY + barH + 4 + tickFont.Size;
-        var hCbTicks = new double[TickCount];
-        for (int i = 0; i < TickCount; i++) hCbTicks[i] = Min + ((double)i / (TickCount - 1)) * (Max - Min);
-        var hCbFormat = AxesRenderer.BuildUniformTickFormatter(hCbTicks);
-        for (int i = 0; i < TickCount; i++)
-        {
-            double frac = (double)i / (TickCount - 1);
-            double value = Min + frac * (Max - Min);
-            Ctx.DrawText(hCbFormat(value), new Point(gradX + gradW * frac, labelY), tickFont, TextAlignment.Center);
-        }
+        var scale = ScaleAlong(fullW, vertical: false);
+        for (int i = 0; i < scale.Ticks.Length; i++)
+            Ctx.DrawText(scale.Labels[i], new Point(gradX + gradW * scale.FractionOf(scale.Ticks[i]), labelY), tickFont, TextAlignment.Center);
 
         if (Cb.Label is not null)
             Ctx.DrawText(Cb.Label, new Point(barX + fullW / 2, labelY + tickFont.Size + 4), ThemedFontProvider.LabelFont(Theme), TextAlignment.Center);

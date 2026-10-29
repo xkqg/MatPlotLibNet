@@ -57,9 +57,10 @@ public class BarbsSeriesRenderTests
     [Fact]
     public void Barbs_SpeedArrayShorterThanPositions_FallsBackToZero()
     {
-        // BarbsSeriesRenderer: i >= series.Speed.Length ternary false-branch
+        // BarbsSeriesRenderer: i >= series.Speed.Length ternary false-branch. The verb refuses arrays that do not pair, so the
+        // series is built directly: the renderer's own guard is what is characterised.
         string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Barbs([0.0, 1.0], [0.0, 0.0], [20.0], [45.0, 90.0]))
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new BarbsSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 0.0 }, new double[] { 20.0 }, new double[] { 45.0, 90.0 })))
             .ToSvg();
         Assert.Contains("<line", svg);
     }
@@ -67,9 +68,9 @@ public class BarbsSeriesRenderTests
     [Fact]
     public void Barbs_DirectionArrayShorterThanPositions_FallsBackToZero()
     {
-        // BarbsSeriesRenderer: i >= series.Direction.Length ternary false-branch
+        // BarbsSeriesRenderer: i >= series.Direction.Length ternary false-branch (built directly, as above).
         string svg = Plt.Create()
-            .AddSubPlot(1, 1, 1, ax => ax.Barbs([0.0, 1.0], [0.0, 0.0], [20.0, 30.0], [45.0]))
+            .AddSubPlot(1, 1, 1, ax => ax.AddSeries(new BarbsSeries(new double[] { 0.0, 1.0 }, new double[] { 0.0, 0.0 }, new double[] { 20.0, 30.0 }, new double[] { 45.0 })))
             .ToSvg();
         Assert.Contains("<line", svg);
     }

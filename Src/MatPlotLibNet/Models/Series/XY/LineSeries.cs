@@ -10,6 +10,9 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a line chart series connecting data points with a line.</summary>
 public sealed class LineSeries : XYSeries, IHasColor, IHasLabelPlacement
 {
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.LineMarker, LineWidth, LineStyle, Marker: Marker, MarkerSize: MarkerSize);
+
     public Color? Color { get; set; }
 
     /// <inheritdoc />

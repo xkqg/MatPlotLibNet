@@ -19,6 +19,9 @@ namespace MatPlotLibNet.Models.Series;
 /// the composite-renderer pattern from <see cref="ClustermapSeries"/>.</remarks>
 public sealed class PairGridSeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     private double _cellSpacing = 0.02;
 
     /// <summary>The N input variables. Each <c>double[]</c> is one variable's samples.

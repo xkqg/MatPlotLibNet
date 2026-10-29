@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 using System.Globalization;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using MatPlotLibNet.Models;
 
 namespace MatPlotLibNet.Tests.Packaging;
 
@@ -1194,6 +1196,148 @@ public class ReleaseContractTests
             $"the translation table checks {checkedCalls} calls; it is meant to cover the pyplot surface people search for");
     }
 
+    // ---- the old Y axis shape is a phase-out: obsolete, naming what replaces it, and named by no document -----------
+
+    private static MemberInfo CoreMember(Type declaring, string name) =>
+        declaring.GetMember(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static).Single();
+
+    /// <summary>A published type of the core package, found by name: the old types are obsolete, and a <c>typeof</c> of
+    /// one in this file would be the very warning the attribute exists to raise.</summary>
+    private static Type CoreType(string fullName) => typeof(Plt).Assembly.GetType(fullName, throwOnError: true)!;
+
+    /// <summary>The Y axis members 1.23.0 published that the container replaced, each with the members of the container
+    /// that replace it. The exact list: a member that is not here is not part of the phase-out, and a member here that
+    /// is not obsolete (or does not say what to use instead) is a defect. They are found by name, never by
+    /// <c>nameof</c>, so this file does not call them either.</summary>
+    private static OldYAxisMember[] OldYAxisMembers()
+    {
+        var builder = typeof(AxesBuilder);
+        var axes = typeof(Axes);
+        var verbs = typeof(AxesXYVerbs);
+        MemberInfo addRight = CoreMember(builder, nameof(AxesBuilder.WithAddRightYAxis));
+        MemberInfo addLeft = CoreMember(builder, nameof(AxesBuilder.WithAddLeftYAxis));
+        MemberInfo yAxes = CoreMember(axes, nameof(Axes.YAxes));
+        MemberInfo right = CoreMember(typeof(YAxisContainer), nameof(YAxisContainer.Right));
+        MemberInfo left = CoreMember(typeof(YAxisContainer), nameof(YAxisContainer.Left));
+        MemberInfo firstOrAdd = CoreMember(typeof(YAxisStack), nameof(YAxisStack.FirstOrAdd));
+        MemberInfo add = CoreMember(typeof(YAxisStack), nameof(YAxisStack.Add));
+        MemberInfo addSeries = CoreMember(typeof(YAxisSlot), nameof(YAxisSlot.AddSeries));
+
+        return
+        [
+            new(CoreMember(builder, "WithSecondaryYAxis"), [addRight]),
+            new(CoreMember(builder, "WithOutwardYAxis"), [addRight, addLeft]),
+            new(CoreType("MatPlotLibNet.SecondaryAxisBuilder"), [typeof(YAxisSlotBuilder)]),
+            new(CoreType("MatPlotLibNet.OutwardYAxisBuilder"), [typeof(YAxisSlotBuilder)]),
+            new(CoreMember(axes, "SecondaryYAxis"), [yAxes, right]),
+            new(CoreMember(axes, "SecondarySeries"), [yAxes, right]),
+            new(CoreMember(axes, "TwinX"), [yAxes, firstOrAdd]),
+            new(CoreMember(axes, "AddSecondarySeries"), [firstOrAdd, addSeries]),
+            new(CoreMember(axes, "AddOutwardYAxis"), [yAxes, right, left, add]),
+            new(CoreMember(axes, "RightYAxes"), [yAxes, right]),
+            new(CoreMember(axes, "LeftYAxes"), [yAxes, left]),
+            new(CoreType("MatPlotLibNet.Models.SecondaryAxisSlot"), [typeof(YAxisSlot)]),
+            new(CoreMember(verbs, "PlotSecondary"), [addRight, firstOrAdd, addSeries]),
+            new(CoreMember(verbs, "ScatterSecondary"), [addRight, firstOrAdd, addSeries]),
+        ];
+    }
+
+    /// <summary>A name in a line of text that is one of the old members' names as a whole word, case sensitive:
+    /// <c>XSecondarySeries</c>, <c>SecondaryAxisSlotDto</c> and the JSON field <c>leftYAxes</c> are other names.</summary>
+    private static Regex ObsoleteYAxisName() =>
+        new(@"(?<![A-Za-z0-9_])(?:" + string.Join('|', OldYAxisMembers().Select(m => Regex.Escape(m.Old.Name)).Distinct())
+            + @")(?![A-Za-z0-9_])", RegexOptions.CultureInvariant);
+
+    [Fact]
+    public void EveryOldYAxisMember_IsObsolete_NamingItsReplacement()
+    {
+        // The container replaced the verbs, builders, accessors and types 1.23.0 published, and they stay published so
+        // old code compiles. Staying is only half the phase-out: without [Obsolete] a reader never learns the shorter
+        // form exists, and an [Obsolete] that says only "obsolete" sends them to the changelog to find out which one.
+        // A warning, not an error: an error would break the code the members are kept for.
+        var problems = new List<string>();
+        foreach (var (old, replacements) in OldYAxisMembers())
+        {
+            string who = old.DeclaringType is { } owner ? $"{owner.Name}.{old.Name}" : old.Name;
+            var obsolete = old.GetCustomAttribute<ObsoleteAttribute>(inherit: false);
+            if (obsolete is null) { problems.Add($"{who} carries no [Obsolete]"); continue; }
+
+            if (obsolete.IsError) { problems.Add($"{who} is an error, not a warning"); }
+            if (string.IsNullOrWhiteSpace(obsolete.Message)) { problems.Add($"{who} is obsolete and says nothing"); continue; }
+
+            foreach (var replacement in replacements.Where(r => !Regex.IsMatch(obsolete.Message, $@"(?<![A-Za-z0-9_]){Regex.Escape(r.Name)}(?![A-Za-z0-9_])")))
+            {
+                problems.Add($"{who} does not name {replacement.Name}: \"{obsolete.Message}\"");
+            }
+        }
+
+        Assert.True(problems.Count == 0, "These old Y axis members do not tell a reader what replaces them:\n" + string.Join("\n", problems));
+    }
+
+    [Fact]
+    public void TheMatplotlibTranslationPage_NamesNoObsoleteMember()
+    {
+        // The page is where a matplotlib user looks for the C# of what they know. Naming a member that is on its way out
+        // there teaches the old shape to exactly the readers who have none to unlearn, and twinx is the row that did.
+        string page = Read("docs", "cookbook", "matplotlib-to-csharp.md");
+        var offenders = ObsoleteYAxisName().Matches(page).Select(m => m.Value).Distinct().ToArray();
+
+        Assert.True(offenders.Length == 0,
+            $"The matplotlib translation page names obsolete members: {string.Join(", ", offenders)}");
+
+        var twinx = Regex.Matches(page, @"^\|(?<cells>.+)\|\s*$", RegexOptions.Multiline)
+            .Select(row => row.Groups["cells"].Value.Split('|'))
+            .Single(cells => cells.Length >= 2 && cells[0].Contains("ax.twinx()", StringComparison.Ordinal));
+        Assert.Contains("WithAddRightYAxis", twinx[1], StringComparison.Ordinal);
+    }
+
+    /// <summary>The documents that teach the library: every authored markdown file except the records that keep what
+    /// each release added or the design it was built to (<c>CHANGELOG.md</c>, <c>ROADMAP.md</c>, <c>ARCHITECTURE.md</c>),
+    /// the design records under <c>docs/contrib</c>, and the generated API pages and benchmark reports.</summary>
+    private static string[] AuthoredDocuments() =>
+        [.. CurrentStateDocuments().Where(path =>
+            !path.StartsWith("docs/api/", StringComparison.Ordinal)
+            && !path.StartsWith("docs/contrib/", StringComparison.Ordinal)
+            && !path.StartsWith(".claude/", StringComparison.Ordinal)
+            && !path.Contains("BenchmarkDotNet.Artifacts/", StringComparison.Ordinal)
+            && path != "ROADMAP.md"
+            && path != "Src/MatPlotLibNet/ARCHITECTURE.md")];
+
+    [Fact]
+    public void NoAuthoredDocument_NamesAnObsoleteMember()
+    {
+        // A reader copies what a document shows. 94 samples had drifted off the API before they were swept, and a
+        // document that keeps showing the old Y axis verbs would put the phase-out back one copy-paste at a time. The
+        // records are left out on purpose: a changelog line says what 1.23.0 added under the name it had.
+        var documents = AuthoredDocuments();
+        var name = ObsoleteYAxisName();
+
+        // A scan that finds nothing proves nothing: the pattern must see a name where one stands, and the list of
+        // documents must hold the front door and a package page, or a path bug would read green.
+        Assert.Matches(name, "ax.TwinX()");
+        Assert.DoesNotMatch(name, "axes.XSecondarySeries and the secondaryYAxis field");
+        Assert.Contains("README.md", documents);
+        Assert.Contains("docs/cookbook/streaming.md", documents);
+        Assert.Contains("Src/MatPlotLibNet.Mcp/README.md", documents);
+
+        var offending = new List<string>();
+        foreach (string path in documents)
+        {
+            var lines = Read(path).Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                foreach (Match hit in name.Matches(lines[i]))
+                {
+                    offending.Add($"{path}:{i + 1} names {hit.Value}");
+                }
+            }
+        }
+
+        Assert.True(offending.Count == 0,
+            "These documents name an obsolete Y axis member; use WithAddRightYAxis, WithAddLeftYAxis and Axes.YAxes:\n"
+            + string.Join("\n", offending));
+    }
+
     [Fact]
     public void ThePublishWorkflow_CannotReportSuccessWhileItPushedNothing()
     {
@@ -1254,6 +1398,11 @@ public class ReleaseContractTests
         Assert.Contains("PNG", readme[readme.IndexOf("`dpi`", StringComparison.Ordinal)..], StringComparison.Ordinal);
     }
 }
+
+/// <summary>An old Y axis member and the members of the container that replace it.</summary>
+/// <param name="Old">The old type or member, as published.</param>
+/// <param name="Replacements">The members (or types) its obsolete message has to name.</param>
+internal readonly record struct OldYAxisMember(MemberInfo Old, MemberInfo[] Replacements);
 
 /// <summary>A suite named together with the workflow it is said of.</summary>
 /// <param name="Workflow">The workflow's file name.</param>

@@ -79,13 +79,13 @@ public class LabelPlacementTests
     }
 
     [Fact]
-    public void SecondaryWithDirectLabel_MarksTheLastSecondaryLine_AndLeavesThePrimaryAlone()
+    public void RightWithDirectLabel_MarksTheLastRightLine_AndLeavesThePrimaryAlone()
     {
-        SecondaryAxisBuilder? returned = null;
-        SecondaryAxisBuilder? self = null;
+        YAxisSlotBuilder? returned = null;
+        YAxisSlotBuilder? self = null;
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y, s => s.Label = "left")
-            .WithSecondaryYAxis(y2 =>
+            .WithAddRightYAxis(y2 =>
             {
                 self = y2;
                 returned = y2.Plot(X, [10.0, 20.0, 30.0], s => s.Label = "right 1")
@@ -96,17 +96,17 @@ public class LabelPlacementTests
         Assert.Same(self, returned);
         var axes = figure.SubPlots[0];
         Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)axes.Series[0]).LabelPlacement);
-        Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)axes.SecondarySeries[0]).LabelPlacement);
-        Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)axes.SecondarySeries[1]).LabelPlacement);
+        Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)axes.YAxes.Right[0].Series[0]).LabelPlacement);
+        Assert.Equal(SeriesLabelPlacement.LineEnd, ((LineSeries)axes.YAxes.Right[0].Series[1]).LabelPlacement);
     }
 
     [Fact]
-    public void SecondaryWithDirectLabel_MarksASecondaryStreamingLine()
+    public void RightWithDirectLabel_MarksARightStreamingLine()
     {
         StreamingLineSeries? live = null;
         Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y)
-            .WithSecondaryYAxis(y2 =>
+            .WithAddRightYAxis(y2 =>
             {
                 live = y2.StreamingPlot(configure: s => s.Label = "live");
                 y2.WithDirectLabel();
@@ -116,26 +116,26 @@ public class LabelPlacementTests
     }
 
     [Fact]
-    public void SecondaryWithDirectLabel_OnASecondaryScatter_MarksNothing_AndThrowsNothing()
+    public void RightWithDirectLabel_OnARightScatter_MarksNothing_AndThrowsNothing()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y)
-            .WithSecondaryYAxis(y2 => y2
+            .WithAddRightYAxis(y2 => y2
                 .Plot(X, Y, s => s.Label = "line")
                 .Scatter(X, Y, s => s.Label = "dots")
                 .WithDirectLabel())).Build();
 
-        Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)figure.SubPlots[0].SecondarySeries[0]).LabelPlacement);
+        Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)figure.SubPlots[0].YAxes.Right[0].Series[0]).LabelPlacement);
     }
 
     [Fact]
-    public void SecondaryWithDirectLabel_WithNoSecondarySeries_ThrowsNothing()
+    public void RightWithDirectLabel_WithNoRightSeries_ThrowsNothing()
     {
         var figure = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
             .Plot(X, Y, s => s.Label = "left")
-            .WithSecondaryYAxis(y2 => y2.WithDirectLabel())).Build();
+            .WithAddRightYAxis(y2 => y2.WithDirectLabel())).Build();
 
-        // A secondary verb never reaches across to the primary series.
+        // A right-axis verb never reaches across to the primary series.
         Assert.Equal(SeriesLabelPlacement.Legend, ((LineSeries)figure.SubPlots[0].Series[0]).LabelPlacement);
     }
 

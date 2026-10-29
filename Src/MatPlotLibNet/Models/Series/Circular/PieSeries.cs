@@ -10,6 +10,12 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a pie chart series displaying proportional data as circular slices.</summary>
 public sealed class PieSeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override int ColorSlotSpan => Math.Max(1, Sizes.Length);
+
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     public double[] Sizes { get; }
 
     public string[]? Labels { get; set; }

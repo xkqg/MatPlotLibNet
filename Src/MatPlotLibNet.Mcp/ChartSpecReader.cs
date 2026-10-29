@@ -19,7 +19,9 @@ namespace MatPlotLibNet.Mcp;
 /// field and path, and only a document it has normalised reaches <see cref="IChartSerializer.FromJson"/>.</summary>
 /// <remarks>Order: parse → normalise (defaults, colours, enum spelling, bounds, text lengths) → strict structural pass
 /// over the SAME DTO records the serializer reads (an unknown field is a refusal with its path) → semantic pass
-/// (types against the catalog, array lengths) → the serializer.</remarks>
+/// (types against the catalog, array lengths) → the serializer. A subplot keeps its axes and series at many seats (the
+/// primary pair, the top and right axes, every Y axis slot of either side): the normalising and the semantic pass both walk
+/// them through <see cref="AxesSeatShape"/>, so a check reaches every seat and a refusal names the seat's path.</remarks>
 internal sealed partial class ChartSpecReader
 {
     private const double DefaultWidth = 800;
@@ -34,11 +36,6 @@ internal sealed partial class ChartSpecReader
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
-
-    /// <summary>The types whose JSON carries y values alone: a signal is sampled at a rate (<c>signalSampleRate</c>,
-    /// <c>signalXStart</c>), so its x values follow from the rate and the library never writes them. Every other
-    /// x/y type needs both halves of the pair.</summary>
-    private static readonly HashSet<string> DerivesItsXData = new(StringComparer.Ordinal) { "signal" };
 
     private readonly ChartTypeCatalog _catalog;
     private readonly RenderLimits _limits;
@@ -114,14 +111,21 @@ internal sealed partial class ChartSpecReader
         }
     }
 
+    /// <summary>One subplot: its own text and enum fields and its overlays, then every axis and every series it keeps, at
+    /// every seat (<see cref="AxesSeatShape"/>): the primary pair, the top and right axes and every Y axis slot of either
+    /// side. Its insets are subplots in turn.</summary>
     private void NormaliseAxes(JsonObject axes, string path)
     {
         CheckText(axes, path, "title");
-        foreach (var axisName in new[] { "xAxis", "yAxis", "secondaryYAxis", "secondaryXAxis" })
+        foreach (var seat in axes.Seats(path))
         {
-            if (axes[axisName] is JsonObject axis)
+            if (seat.Kind == SeatKind.Axis)
             {
-                NormaliseAxis(axis, $"{path}.{axisName}");
+                NormaliseAxis(seat.Node, seat.Path);
+            }
+            else
+            {
+                NormaliseSeries(seat.Node, seat.Path);
             }
         }
 
@@ -139,9 +143,6 @@ internal sealed partial class ChartSpecReader
             }
         }
 
-        ForEachObject(axes, "series", path, NormaliseSeries);
-        ForEachObject(axes, "secondarySeries", path, NormaliseSeries);
-        ForEachObject(axes, "xSecondarySeries", path, NormaliseSeries);
         ForEachObject(axes, "annotations", path, (annotation, p) =>
         {
             CheckText(annotation, p, "text");
@@ -149,6 +150,7 @@ internal sealed partial class ChartSpecReader
             NormaliseEnum(annotation, SpecNodeKind.Annotation, "boxStyle", p, null);
             NormaliseEnum(annotation, SpecNodeKind.Annotation, "coordinates", p, null);
             NormaliseEnum(annotation, SpecNodeKind.Annotation, "alignment", p, null);
+            NormaliseEnum(annotation, SpecNodeKind.Annotation, "verticalAlignment", p, null);
             NormaliseEnum(annotation, SpecNodeKind.Annotation, "arrowStyle", p, null);
             NormaliseFields(annotation, "font", p, SpecNodeKind.Font, "weight", "slant");
         });
@@ -260,7 +262,9 @@ internal sealed partial class ChartSpecReader
     }
 
     /// <summary>Visits every object element of the array at <paramref name="field"/>; a value of another shape is
-    /// left for the strict pass, which names it.</summary>
+    /// left for the strict pass, which names it, except <c>null</c>, which the strict pass cannot name (it would
+    /// surface as a bare <see cref="NullReferenceException"/> there or in core's restore): it is refused here with its path.</summary>
+    /// <exception cref="ToolRefusalException">An entry of the list is <c>null</c>.</exception>
     private static void ForEachObject(JsonObject parent, string field, string path, Action<JsonObject, string> visit)
     {
         if (parent[field] is not JsonArray items)
@@ -270,6 +274,11 @@ internal sealed partial class ChartSpecReader
 
         for (int i = 0; i < items.Count; i++)
         {
+            if (items[i] is null)
+            {
+                throw new ToolRefusalException($"The entry at {path}.{field}[{i}] is null; it must be an object.");
+            }
+
             if (items[i] is JsonObject item)
             {
                 visit(item, $"{path}.{field}[{i}]");
@@ -487,20 +496,14 @@ internal sealed partial class ChartSpecReader
         }
     }
 
+    /// <summary>The series of one subplot at every seat (<see cref="AxesSeatShape"/>), each checked once, and the number the
+    /// subplot and its insets draw.</summary>
     private int ValidateAxes(AxesDto axes, string path)
     {
         int drawn = 0;
-        var series = axes.Series ?? [];
-        for (int j = 0; j < series.Count; j++)
+        foreach (var seat in axes.SeriesSeats(path))
         {
-            ValidateSeries(series[j], $"{path}.series[{j}]");
-            drawn++;
-        }
-
-        var secondary = axes.SecondarySeries ?? [];
-        for (int j = 0; j < secondary.Count; j++)
-        {
-            ValidateSeries(secondary[j], $"{path}.secondarySeries[{j}]");
+            ValidateSeries(seat.Node, seat.Path);
             drawn++;
         }
 
@@ -534,19 +537,22 @@ internal sealed partial class ChartSpecReader
             throw new ToolRefusalException($"'{series.Type}' at {path}.type is not a chart type this server lists{hint} list_chart_types names the accepted types.");
         }
 
-        // The serializer substitutes an empty array for a missing half of the pair and then throws
-        // "Array lengths must match. Got 3 and 0." with no field name and no path.
-        bool hasX = series.XData is not null;
-        bool hasY = series.YData is not null;
-        if (hasX != hasY && !DerivesItsXData.Contains(series.Type))
-        {
-            throw new ToolRefusalException($"The series at {path} has '{(hasX ? "xData" : "yData")}' but no '{(hasX ? "yData" : "xData")}'.");
-        }
+        RefuseWhatTheLibraryRefuses(series, path);
+    }
 
-        if (hasX && series.XData!.Length != series.YData!.Length)
+    /// <summary>Whether the series fits its own data (arrays that pair, a grid the size of its axes, a count of at least one)
+    /// is the library's rule, asked of the very code that builds the series: the verb. This reader holds no copy of it and only
+    /// names the place, so a rule the library gains is a rule here, for every seat the series can stand at.</summary>
+    /// <exception cref="ToolRefusalException">The library refuses the series; the message names its place and the library's reason.</exception>
+    private static void RefuseWhatTheLibraryRefuses(SeriesDto series, string path)
+    {
+        try
         {
-            throw new ToolRefusalException(
-                $"The series at {path} has {series.XData.Length} 'xData' values and {series.YData.Length} 'yData' values; they must match.");
+            SeriesRegistry.Create(series.Type!, new Axes(), series);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException)
+        {
+            throw new ToolRefusalException($"The '{series.Type}' series at {path} was refused: {ex.Message}");
         }
     }
 

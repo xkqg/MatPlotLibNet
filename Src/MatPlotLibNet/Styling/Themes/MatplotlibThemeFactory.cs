@@ -1,6 +1,8 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models;
+
 namespace MatPlotLibNet.Styling.Themes;
 
 /// <summary>
@@ -89,7 +91,9 @@ internal static class MatplotlibThemeFactory
         // matplotlib classic style: axes.xmargin = 0, axes.ymargin = 0
         // — data touches the left/right spines exactly.
         axisXMargin: 0.0,
-        axisYMargin: 0.0);
+        axisYMargin: 0.0,
+        // matplotlib classic style: legend.loc = 'upper right' (v2+ is 'best').
+        legendPosition: LegendPosition.UpperRight);
 
     internal static Theme CreateV2() => Build(
         name: "matplotlib-v2",
@@ -103,7 +107,7 @@ internal static class MatplotlibThemeFactory
 
     private static Theme Build(string name, Color background, Color foreground, Color[] cycleColors, MatplotlibFontStack fontStack,
         Color? patchEdgeColor = null, Color? violinBodyColor = null, Color? violinStatsColor = null,
-        double axisXMargin = 0.05, double axisYMargin = 0.05) =>
+        double axisXMargin = 0.05, double axisYMargin = 0.05, LegendPosition legendPosition = LegendPosition.Best) =>
         new(
             name: name,
             background: background,
@@ -119,6 +123,7 @@ internal static class MatplotlibThemeFactory
             ViolinStatsColor = violinStatsColor,
             AxisXMargin      = axisXMargin,
             AxisYMargin      = axisYMargin,
+            DefaultLegendPosition = legendPosition,
         };
 
     private static Font BuildFont(MatplotlibFontStack stack, Color color) => new()

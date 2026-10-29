@@ -14,7 +14,7 @@ namespace MatPlotLibNet;
 
 /// <summary>Fluent builder for configuring an <see cref="Models.Axes"/> instance within a subplot.</summary>
 /// <example>
-/// Dual-axis chart: candlestick + Bollinger bands on the left, volume bar on secondary Y:
+/// Dual-axis chart: candlestick + Bollinger bands on the left, the traded volume against its own Y axis on the right:
 /// <code>
 /// string svg = Plt.Create()
 ///     .AddSubPlot(1, 1, 1, ax =>
@@ -23,8 +23,8 @@ namespace MatPlotLibNet;
 ///           .BollingerBands(20, 2.0)
 ///           .AxHLine(support, r => r.Color = Color.Red)
 ///           .SetYLabel("Price")
-///           .WithSecondaryYAxis(y2 =>
-///               y2.Bar(labels, volume).SetYLabel("Volume"));
+///           .WithAddRightYAxis(volumeAxis =>
+///               volumeAxis.SetYLabel("Volume").Plot(days, volume));
 ///     })
 ///     .ToSvg();
 /// </code>
@@ -62,16 +62,19 @@ public sealed class AxesBuilder
         return this;
     }
 
+    /// <summary>The Y verbs of this builder act on the primary Y axis, which is slot 0 of the left side of the
+    /// subplot's Y axes: they are <see cref="YAxisSlotBuilder"/>'s verbs over that slot, not a second copy.</summary>
+    private YAxisSlotBuilder PrimaryYAxis => new(_axes, _axes.YAxes.Left[0]);
+
     /// <summary>Sets the Y-axis label.</summary>
-    public AxesBuilder SetYLabel(string label) { _axes.YAxis.Label = label; return this; }
+    public AxesBuilder SetYLabel(string label) { PrimaryYAxis.SetYLabel(label); return this; }
 
     /// <summary>Sets the Y-axis label with an optional text style override.</summary>
     /// <param name="label">The axis label text.</param>
     /// <param name="configure">Function that receives the current <see cref="TextStyle"/> and returns a modified copy; <see langword="null"/> leaves the style unchanged.</param>
     public AxesBuilder SetYLabel(string label, Func<TextStyle, TextStyle>? configure)
     {
-        _axes.YAxis.Label = label;
-        if (configure is not null) _axes.YAxis.LabelStyle = configure(_axes.YAxis.LabelStyle ?? new TextStyle());
+        PrimaryYAxis.SetYLabel(label, configure);
         return this;
     }
 
@@ -81,13 +84,9 @@ public sealed class AxesBuilder
     /// <param name="color">The colour all four take.</param>
     /// <returns>This builder, for chaining.</returns>
     /// <remarks>Everything else the axis carries (tick length, label rotation, font size, spine width) is kept.
-    /// The right-hand axis is coloured with <see cref="SecondaryAxisBuilder.SetYAxisColor"/>.</remarks>
-    public AxesBuilder SetYAxisColor(Color color)
-    {
-        _axes.YAxis.ApplyAxisColor(color);
-        _axes.Spines = _axes.Spines with { Left = _axes.Spines.Left with { Color = color } };
-        return this;
-    }
+    /// Every further Y axis is coloured with <see cref="YAxisSlotBuilder.SetYAxisColor"/>: slot 0 of the right side
+    /// colours the right spine, an axis stacked past slot 0 colours its ticks, tick labels and title.</remarks>
+    public AxesBuilder SetYAxisColor(Color color) { PrimaryYAxis.SetYAxisColor(color); return this; }
 
     /// <summary>Colours the bottom X axis in one call: its spine, its tick marks, its tick labels and its title.</summary>
     /// <param name="color">The colour all four take.</param>
@@ -96,8 +95,7 @@ public sealed class AxesBuilder
     /// The top axis is coloured with <see cref="SecondaryXAxisBuilder.SetXAxisColor"/>.</remarks>
     public AxesBuilder SetXAxisColor(Color color)
     {
-        _axes.XAxis.ApplyAxisColor(color);
-        _axes.Spines = _axes.Spines with { Bottom = _axes.Spines.Bottom with { Color = color } };
+        _axes.ApplyAxisColor(_axes.XAxis, SpineEdge.Bottom, color);
         return this;
     }
 
@@ -105,7 +103,7 @@ public sealed class AxesBuilder
     public AxesBuilder SetXLim(double min, double max) { _axes.XAxis.Min = min; _axes.XAxis.Max = max; return this; }
 
     /// <summary>Sets the Y-axis data range limits.</summary>
-    public AxesBuilder SetYLim(double min, double max) { _axes.YAxis.Min = min; _axes.YAxis.Max = max; return this; }
+    public AxesBuilder SetYLim(double min, double max) { PrimaryYAxis.SetYLim(min, max); return this; }
 
     /// <summary>Sets the Z-axis label (3D charts only).</summary>
     public AxesBuilder SetZLabel(string label) { _axes.ZAxis.Label = label; return this; }
@@ -265,12 +263,15 @@ public sealed class AxesBuilder
     /// <summary>Enables or disables native SVG tooltips for data elements.</summary>
     public AxesBuilder WithTooltips(bool enabled = true) { _axes.EnableTooltips = enabled; return this; }
 
-    /// <summary>Configures a secondary Y-axis and adds series to it.</summary>
+    /// <summary>Configures the first Y axis on the right of the plot and adds series to it, creating that axis when there
+    /// is none. Called again it configures the same axis; it never stacks another.</summary>
+    /// <remarks>The container verb <see cref="WithAddRightYAxis"/> replaces it: it stacks one more right-hand axis every
+    /// call, so a chart with three right axes needs no count and no "second" or "third" in a name. This verb stays
+    /// published so existing code compiles and draws what it always drew.</remarks>
+    [Obsolete("Use WithAddRightYAxis, which stacks one more right-hand Y axis per call; WithSecondaryYAxis keeps configuring the first right-hand axis.")]
     public AxesBuilder WithSecondaryYAxis(Action<SecondaryAxisBuilder> configure)
     {
-        _axes.TwinX();
-        var builder = new SecondaryAxisBuilder(_axes);
-        configure(builder);
+        configure(new SecondaryAxisBuilder(new YAxisSlotBuilder(_axes, _axes.YAxes.Right.FirstOrAdd())));
         return this;
     }
 
@@ -283,16 +284,93 @@ public sealed class AxesBuilder
         return this;
     }
 
-    /// <summary>Enables one more Y axis stacked outward on <paramref name="side"/> and configures it — the
-    /// fluent-API path to the second right axis or the left side's own secondary axis (ROADMAP.md row 101's
-    /// "4 axes, 2 left and 2 right"). <see cref="WithSecondaryYAxis"/> remains the way to the first right axis.</summary>
+    /// <summary>Stacks one more Y axis outward on <paramref name="side"/>, past every axis already there, and
+    /// configures it. Every call adds one; there is no cap. On a right side with no axis yet, the new axis is the
+    /// first right axis.</summary>
     /// <param name="side">Which side to stack the new axis on.</param>
     /// <param name="configure">Callback that configures the new axis and adds series to it.</param>
+    /// <remarks>The container verbs <see cref="WithAddRightYAxis"/> and <see cref="WithAddLeftYAxis"/> replace it, one
+    /// per side. This verb stays published so existing code compiles and draws what it always drew.</remarks>
+    [Obsolete("Use WithAddRightYAxis or WithAddLeftYAxis, which stack one more Y axis on their side per call; WithOutwardYAxis does the same for the side it is given.")]
     public AxesBuilder WithOutwardYAxis(AxisSide side, Action<OutwardYAxisBuilder> configure)
     {
-        var slot = _axes.AddOutwardYAxis(side);
-        var builder = new OutwardYAxisBuilder(slot);
-        configure(builder);
+        configure(new OutwardYAxisBuilder(new YAxisSlotBuilder(_axes, _axes.YAxes.StackOn(side).Add())));
+        return this;
+    }
+
+    /// <summary>Stacks one more Y axis on the right of the plot, past every right axis already there, and configures it.
+    /// Call it as often as you want axes: the first call adds the axis nearest the plot, each further call stacks one more
+    /// past it, with no cap and nothing to count. This is matplotlib's repeated <c>ax.twinx()</c> with its right spine
+    /// moved outward by <c>ax.spines['right'].set_position(('outward', N))</c>, in one verb.</summary>
+    /// <param name="configure">Callback that receives the builder of the new axis: label, limits, colour and the series
+    /// plotted against it.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    /// <remarks>The layout makes room for every axis, and each one keeps its own tick labels and title. The first right
+    /// axis colours the right spine when it is given a colour; an axis stacked past it draws no spine of its own.</remarks>
+    /// <example>
+    /// Three units against one time axis:
+    /// <code>
+    /// Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+    ///     .Plot(days, price).SetYLabel("Price")
+    ///     .WithAddRightYAxis(rate => rate.SetYLabel("Rate (%)").Plot(days, rates))
+    ///     .WithAddRightYAxis(load => load.SetYLabel("Load").SetYLim(0, 1).Plot(days, loads)));
+    /// </code>
+    /// </example>
+    public AxesBuilder WithAddRightYAxis(Action<YAxisSlotBuilder> configure) => AddYAxis(_axes.YAxes.Right, configure);
+
+    /// <summary>Stacks one more Y axis on the left of the plot, past the primary Y axis and every left axis already
+    /// added, and configures it. The primary Y axis stays the left axis nearest the plot; the first call adds the axis next
+    /// to it, each further call stacks one more past that, with no cap and nothing to count. This is matplotlib's repeated
+    /// <c>ax.twinx()</c> with its Y axis moved to the left (<c>twin.yaxis.tick_left()</c>) and its left spine moved outward
+    /// by <c>twin.spines['left'].set_position(('outward', N))</c>, in one verb.</summary>
+    /// <param name="configure">Callback that receives the builder of the new axis: label, limits, colour and the series
+    /// plotted against it.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="configure"/> is null.</exception>
+    /// <remarks>The layout makes room for every axis, and each one keeps its own tick labels and title. An axis stacked
+    /// past the primary draws no spine of its own, so colouring it colours its ticks, tick labels and title only.</remarks>
+    /// <example>
+    /// A queue length next to the primary price axis:
+    /// <code>
+    /// Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+    ///     .Plot(days, price).SetYLabel("Price")
+    ///     .WithAddLeftYAxis(queue => queue.SetYLabel("Queue").Plot(days, lengths)));
+    /// </code>
+    /// </example>
+    public AxesBuilder WithAddLeftYAxis(Action<YAxisSlotBuilder> configure) => AddYAxis(_axes.YAxes.Left, configure);
+
+    /// <summary>Sets the blank gap, in pixels, between the ink of every Y axis title of the subplot and the ink of the
+    /// widest tick label beside it: the same for the primary Y axis and every axis added with
+    /// <see cref="WithAddLeftYAxis"/> or <see cref="WithAddRightYAxis"/>, on both sides, and between two stacked axes. The
+    /// default is 4, matplotlib's <c>axes.labelpad</c>. A title's own pad (the <c>Pad</c> of the text style given to
+    /// <c>SetYLabel</c>) moves that one title further out on top of it.</summary>
+    /// <param name="pixels">The gap in pixels: a finite number, 0 or more.</param>
+    /// <returns>This builder, for chaining.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="pixels"/> is negative, NaN or infinite.</exception>
+    /// <example>
+    /// Titles a little further from their tick labels on both sides:
+    /// <code>
+    /// Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+    ///     .Plot(days, price).SetYLabel("Price")
+    ///     .WithAddRightYAxis(rate => rate.SetYLabel("Rate (%)").Plot(days, rates))
+    ///     .WithYAxisTitleGap(8));
+    /// </code>
+    /// </example>
+    public AxesBuilder WithYAxisTitleGap(double pixels)
+    {
+        _axes.YAxes.TitleGap = YAxisContainer.ValidTitleGap(pixels, nameof(pixels));
+        return this;
+    }
+
+    /// <summary>Stacks one more axis on <paramref name="stack"/> and hands it to <paramref name="configure"/>: the one
+    /// body both container verbs share.</summary>
+    /// <param name="stack">The side's stack of the subplot's Y axes.</param>
+    /// <param name="configure">The caller's callback; checked before anything is added.</param>
+    private AxesBuilder AddYAxis(YAxisStack stack, Action<YAxisSlotBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        configure(new YAxisSlotBuilder(_axes, stack.Add()));
         return this;
     }
 
@@ -577,7 +655,8 @@ public sealed class AxesBuilder
     /// <see cref="Legend"/> property already set earlier in the chain (e.g. via
     /// <see cref="WithLegendValues"/> or the <see cref="WithLegend(Func{Legend, Legend})"/>
     /// transform overload) — only <see cref="Legend.Visible"/> and <see cref="Legend.Position"/>
-    /// are updated.</summary>
+    /// are updated. A legend that names no position stands at <see cref="LegendPosition.Best"/>, where it covers the
+    /// fewest marks (the upper right under the classic theme).</summary>
     public AxesBuilder WithLegend(LegendPosition position = LegendPosition.Best, bool visible = true)
     {
         _axes.Legend = _axes.Legend with { Visible = visible, Position = position };
@@ -1659,138 +1738,114 @@ public sealed class AxesBuilder
         => AddInset(new InsetBounds(x, y, width, height), configure);
 }
 
-/// <summary>Fluent builder for configuring a secondary Y-axis and adding series that scale against it.</summary>
-/// <remarks>Obtained via <see cref="AxesBuilder.WithSecondaryYAxis"/>. The secondary axis renders ticks and
-/// labels on the right side of the plot and uses an independent Y-axis data range.</remarks>
+/// <summary>Fluent builder for configuring the first right-hand Y axis and adding series that scale against it.</summary>
+/// <remarks>Obsolete: use <see cref="YAxisSlotBuilder"/>, which <see cref="AxesBuilder.WithAddRightYAxis"/> and
+/// <see cref="AxesBuilder.WithAddLeftYAxis"/> hand to their callback. This builder is handed out by the obsolete
+/// <c>WithSecondaryYAxis</c> only. The axis renders ticks and labels on the right side
+/// of the plot and uses an independent Y-axis data range. It is <see cref="YAxisSlotBuilder"/> over that axis with the
+/// return types this builder was published with: every verb forwards to the one builder, so the two cannot differ.</remarks>
+[Obsolete("Use YAxisSlotBuilder, the builder WithAddRightYAxis and WithAddLeftYAxis hand to their callback; it has every verb this builder has.")]
 public sealed class SecondaryAxisBuilder
 {
-    private readonly Axes _axes;
+    private readonly YAxisSlotBuilder _slot;
 
-    /// <summary>Initializes a new <see cref="SecondaryAxisBuilder"/> attached to the given axes.</summary>
-    internal SecondaryAxisBuilder(Axes axes) => _axes = axes;
+    /// <summary>Initializes a new <see cref="SecondaryAxisBuilder"/> over the first right-hand axis.</summary>
+    /// <param name="slot">The builder of that axis.</param>
+    internal SecondaryAxisBuilder(YAxisSlotBuilder slot) => _slot = slot;
 
     /// <summary>Sets the label displayed alongside the right-side Y-axis.</summary>
-    public SecondaryAxisBuilder SetYLabel(string label) { _axes.SecondaryYAxis!.Label = label; return this; }
+    public SecondaryAxisBuilder SetYLabel(string label) { _slot.SetYLabel(label); return this; }
 
     /// <summary>Colours the right-hand Y axis in one call: its spine, its tick marks, its tick labels and its title,
     /// so the axis reads as belonging to the series drawn in that colour. Keep <see cref="SetYLabel"/> naming the
     /// series and its unit, so the colour is never the only thing that says which series the axis belongs to.</summary>
     /// <param name="color">The colour all four take.</param>
     /// <returns>This builder, for chaining.</returns>
-    public SecondaryAxisBuilder SetYAxisColor(Color color)
-    {
-        _axes.SecondaryYAxis!.ApplyAxisColor(color);
-        _axes.Spines = _axes.Spines with { Right = _axes.Spines.Right with { Color = color } };
-        return this;
-    }
+    public SecondaryAxisBuilder SetYAxisColor(Color color) { _slot.SetYAxisColor(color); return this; }
 
-    /// <summary>Sets explicit min/max limits for the secondary Y-axis data range.</summary>
-    public SecondaryAxisBuilder SetYLim(double min, double max) { _axes.SecondaryYAxis!.Min = min; _axes.SecondaryYAxis!.Max = max; return this; }
+    /// <summary>Sets explicit min/max limits for the right-hand Y-axis data range.</summary>
+    public SecondaryAxisBuilder SetYLim(double min, double max) { _slot.SetYLim(min, max); return this; }
 
-    /// <summary>Adds a line series plotted against the secondary Y-axis.</summary>
+    /// <summary>Adds a line series plotted against the right-hand Y-axis.</summary>
     public SecondaryAxisBuilder Plot(double[] x, double[] y, Action<LineSeries>? configure = null)
     {
-        var series = _axes.PlotSecondary(x, y);
-        configure?.Invoke(series);
+        _slot.Plot(x, y, configure);
         return this;
     }
 
-    /// <summary>Adds a scatter series plotted against the secondary Y-axis.</summary>
+    /// <summary>Adds a scatter series plotted against the right-hand Y-axis.</summary>
     public SecondaryAxisBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null)
     {
-        var series = _axes.ScatterSecondary(x, y);
-        configure?.Invoke(series);
+        _slot.Scatter(x, y, configure);
         return this;
     }
 
-    /// <summary>Adds a STREAMING line series against the secondary Y-axis, so a live chart can carry two
+    /// <summary>Adds a STREAMING line series against the right-hand Y-axis, so a live chart can carry two
     /// units at once — one appended on the left, one on the right.</summary>
     /// <param name="capacity">Maximum data points retained in the ring buffer. Default 10,000.</param>
     /// <param name="configure">Optional configuration callback.</param>
     /// <returns>The created series, so the caller can <c>AppendPoint</c> to it from any thread — unlike the
     /// other methods here it does NOT return the builder, because the series IS the handle live data needs
     /// (the same shape <see cref="AxesBuilder.StreamingPlot"/> already has on the primary axis).</returns>
-    public Models.Series.Streaming.StreamingLineSeries StreamingPlot(
-        int capacity = 10_000, Action<Models.Series.Streaming.StreamingLineSeries>? configure = null)
-    {
-        var series = _axes.AddSecondarySeries(new Models.Series.Streaming.StreamingLineSeries(capacity));
-        configure?.Invoke(series);
-        return series;
-    }
+    public StreamingLineSeries StreamingPlot(int capacity = 10_000, Action<StreamingLineSeries>? configure = null) =>
+        _slot.StreamingPlot(capacity, configure);
 
-    /// <summary>Draws the name of the secondary-axis series added last at the end of its line, in the line's
+    /// <summary>Draws the name of the series added last to this axis at the end of its line, in the line's
     /// colour, instead of in the legend. Applies to a line or a streaming line
-    /// (<see cref="Models.Series.IHasLabelPlacement"/>) that carries a label; when the last secondary series cannot
+    /// (<see cref="IHasLabelPlacement"/>) that carries a label; when the last series cannot
     /// carry a placement, or there is none, nothing changes.</summary>
     /// <returns>This builder, for chaining.</returns>
-    public SecondaryAxisBuilder WithDirectLabel()
-    {
-        if (_axes.SecondarySeries.LastOrDefault() is Models.Series.IHasLabelPlacement p) p.LabelPlacement = Models.Series.SeriesLabelPlacement.LineEnd;
-        return this;
-    }
+    public SecondaryAxisBuilder WithDirectLabel() { _slot.WithDirectLabel(); return this; }
 }
 
-/// <summary>Fluent builder for configuring ONE further outward-stacked Y axis — the second right axis or the
-/// left side's own secondary axis (ROADMAP.md row 101's "4 axes, 2 left and 2 right").</summary>
-/// <remarks>Obtained via <see cref="AxesBuilder.WithOutwardYAxis"/>. Unlike <see cref="SecondaryAxisBuilder"/>
-/// (always right slot 0, the pre-row-101 shape) this wraps its own <see cref="SecondaryAxisSlot"/> directly, so it
-/// reaches the right axis regardless of how many already stack on that side. Carries no <c>SetYAxisColor</c>: a
-/// slot beyond the first draws no spine line of its own yet (ticks and labels only, exactly like slot 0's own
-/// secondary axis), so there is nothing per-slot to recolor.</remarks>
+/// <summary>Fluent builder for configuring ONE outward-stacked Y axis, on either side.</summary>
+/// <remarks>Obsolete: use <see cref="YAxisSlotBuilder"/>, which <see cref="AxesBuilder.WithAddRightYAxis"/> and
+/// <see cref="AxesBuilder.WithAddLeftYAxis"/> hand to their callback. This builder is handed out by the obsolete
+/// <c>WithOutwardYAxis</c> only; it is over the axis the call just stacked, so it reaches the right axis whatever
+/// number already stand on that side. It is <see cref="YAxisSlotBuilder"/> over that axis with the return types this
+/// builder was published with, and carries no <c>SetYAxisColor</c>: the one builder has it, and so does every axis.</remarks>
+[Obsolete("Use YAxisSlotBuilder, the builder WithAddRightYAxis and WithAddLeftYAxis hand to their callback; it has every verb this builder has.")]
 public sealed class OutwardYAxisBuilder
 {
-    private readonly SecondaryAxisSlot _slot;
+    private readonly YAxisSlotBuilder _slot;
 
-    /// <summary>Initializes a new <see cref="OutwardYAxisBuilder"/> wrapping the given slot.</summary>
-    internal OutwardYAxisBuilder(SecondaryAxisSlot slot) => _slot = slot;
+    /// <summary>Initializes a new <see cref="OutwardYAxisBuilder"/> over the axis just stacked.</summary>
+    /// <param name="slot">The builder of that axis.</param>
+    internal OutwardYAxisBuilder(YAxisSlotBuilder slot) => _slot = slot;
 
     /// <summary>Sets the label displayed alongside this axis.</summary>
-    public OutwardYAxisBuilder SetYLabel(string label) { _slot.Axis.Label = label; return this; }
+    public OutwardYAxisBuilder SetYLabel(string label) { _slot.SetYLabel(label); return this; }
 
     /// <summary>Sets explicit min/max limits for this axis' data range.</summary>
-    public OutwardYAxisBuilder SetYLim(double min, double max) { _slot.Axis.Min = min; _slot.Axis.Max = max; return this; }
+    public OutwardYAxisBuilder SetYLim(double min, double max) { _slot.SetYLim(min, max); return this; }
 
     /// <summary>Adds a line series plotted against this axis.</summary>
     public OutwardYAxisBuilder Plot(double[] x, double[] y, Action<LineSeries>? configure = null)
     {
-        x.Length.ThrowIfMisaligned(y.Length);
-        var series = _slot.AddSeries(new LineSeries(x, y));
-        configure?.Invoke(series);
+        _slot.Plot(x, y, configure);
         return this;
     }
 
     /// <summary>Adds a scatter series plotted against this axis.</summary>
     public OutwardYAxisBuilder Scatter(double[] x, double[] y, Action<ScatterSeries>? configure = null)
     {
-        x.Length.ThrowIfMisaligned(y.Length);
-        var series = _slot.AddSeries(new ScatterSeries(x, y));
-        configure?.Invoke(series);
+        _slot.Scatter(x, y, configure);
         return this;
     }
 
-    /// <summary>Adds a STREAMING line series against this axis, so a live chart can carry a third or fourth
-    /// unit at once.</summary>
+    /// <summary>Adds a STREAMING line series against this axis, so a live chart can carry another unit at once.</summary>
     /// <param name="capacity">Maximum data points retained in the ring buffer. Default 10,000.</param>
     /// <param name="configure">Optional configuration callback.</param>
     /// <returns>The created series, so the caller can <c>AppendPoint</c> to it from any thread — unlike the
-    /// other methods here it does NOT return the builder, matching <see cref="SecondaryAxisBuilder.StreamingPlot"/>.</returns>
-    public Models.Series.Streaming.StreamingLineSeries StreamingPlot(
-        int capacity = 10_000, Action<Models.Series.Streaming.StreamingLineSeries>? configure = null)
-    {
-        var series = _slot.AddSeries(new Models.Series.Streaming.StreamingLineSeries(capacity));
-        configure?.Invoke(series);
-        return series;
-    }
+    /// other methods here it does NOT return the builder, matching <see cref="YAxisSlotBuilder.StreamingPlot"/>.</returns>
+    public StreamingLineSeries StreamingPlot(int capacity = 10_000, Action<StreamingLineSeries>? configure = null) =>
+        _slot.StreamingPlot(capacity, configure);
 
-    /// <summary>Draws the name of the series added last at the end of its line instead of in the legend. Takes
-    /// effect on a right-side slot (<see cref="Rendering.Layout.DirectLabelMetrics"/> collects every right slot);
-    /// on a left-side slot it is harmlessly inert — the left side draws no end-of-line label column yet.</summary>
+    /// <summary>Draws the name of the series added last at the end of its line instead of in the legend, on an axis on
+    /// either side: the end labels stand in one column right of the plot, at the height this axis puts the end of the
+    /// line at.</summary>
     /// <returns>This builder, for chaining.</returns>
-    public OutwardYAxisBuilder WithDirectLabel()
-    {
-        if (_slot.Series.LastOrDefault() is Models.Series.IHasLabelPlacement p) p.LabelPlacement = Models.Series.SeriesLabelPlacement.LineEnd;
-        return this;
-    }
+    public OutwardYAxisBuilder WithDirectLabel() { _slot.WithDirectLabel(); return this; }
 }
 
 /// <summary>Fluent builder for configuring a secondary X-axis (top edge) and adding series that scale against it.</summary>
@@ -1811,8 +1866,7 @@ public sealed class SecondaryXAxisBuilder
     /// <returns>This builder, for chaining.</returns>
     public SecondaryXAxisBuilder SetXAxisColor(Color color)
     {
-        _axes.SecondaryXAxis!.ApplyAxisColor(color);
-        _axes.Spines = _axes.Spines with { Top = _axes.Spines.Top with { Color = color } };
+        _axes.ApplyAxisColor(_axes.SecondaryXAxis!, SpineEdge.Top, color);
         return this;
     }
 

@@ -213,6 +213,61 @@ Plt.Create()
     .Save("math_annotations.svg");
 ```
 
+## Annotations that move out of the way
+
+Set `AvoidOverlap` and the text moves clear of the marks the chart drew, the legend's box and the other annotations, to
+the nearest of a fixed list of places that covers the fewest. When it moved, a thin line joins it to its point; an
+annotation with an arrow needs none. An annotation that does not set it stands where it is anchored:
+
+```csharp
+double[] ramp = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+Plt.Create()
+    .WithSize(700, 420)
+    .AddSubPlot(1, 1, 1, ax => ax
+        .WithTitle("Annotations that move out of the way")
+        .Plot(ramp, ramp, line => { line.Label = "Growth"; })
+        .WithLegend(LegendPosition.UpperRight)
+        .Annotate("Start", 1.0, 1.1, ann => ann.AvoidOverlap = true)
+        .Annotate("Halfway", 5.0, 5.0, ann => ann.AvoidOverlap = true)
+        .Annotate("Halfway, noted twice", 5.1, 5.15, ann => ann.AvoidOverlap = true)
+        .Annotate("Peak", 9.0, 9.0, ann =>
+        {
+            ann.AvoidOverlap = true;
+            ann.ArrowTargetX = 9.0;
+            ann.ArrowTargetY = 9.0;
+        }))
+    .Save("annotations_avoid_overlap.svg");
+```
+
+![Annotations that move out of the way](../images/annotations_avoid_overlap.png)
+
+## Text size, offset and alignment
+
+An annotation's text takes the theme's text size, as tick labels do, and `Font` overrides it. `OffsetX` and `OffsetY` move
+the text a number of screen pixels from its point, `OffsetY` counting downward as the picture does; the point and an
+arrow's target stay where they are. `VerticalAlignment` says which part of the text stands on the point:
+
+```csharp
+Plt.Create()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Plot([1.0, 2, 3, 4, 5], [2.0, 3, 5, 4, 6])
+        .Annotate("Launch", 3.0, 5.0, ann =>
+        {
+            ann.OffsetX = 12;                                              // 12 px to the right of the point
+            ann.OffsetY = -10;                                             // and 10 px above it
+            ann.VerticalAlignment = TextVerticalAlignment.Bottom;          // the text stands on that place
+        }))
+    .Save("annotation_offset.svg");
+```
+
+| `TextVerticalAlignment` | The part of the text on the point |
+|---|---|
+| `Baseline` | The baseline (default) |
+| `Center` | The middle of the text |
+| `Top` | The text hangs from the point |
+| `Bottom` | The text stands on the point |
+
 ## Fluent API reference
 
 | Method | Parameters | Description |
@@ -232,9 +287,12 @@ Plt.Create()
 | `ArrowTargetX/Y` | `double` | Arrow endpoint |
 | `ArrowStyle` | `ArrowStyle` | FancyArrow, Simple, ... |
 | `BackgroundColor` | `Color` | Text background |
-| `FontSize` | `double` | Font size |
+| `Font` | `Font?` | Text font; its size is the theme's text size unless set |
 | `Rotation` | `double` | Text rotation in degrees |
 | `Alignment` | `TextAlignment` | Left, Center, Right |
+| `VerticalAlignment` | `TextVerticalAlignment` | Baseline (default), Center, Top, Bottom |
+| `OffsetX` / `OffsetY` | `double` | Screen pixels from the point; `OffsetY` counts downward |
+| `AvoidOverlap` | `bool` | Move the text out of the way of the marks, the legend and other annotations; off by default |
 
 ### ReferenceLine properties
 

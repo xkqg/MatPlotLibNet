@@ -147,12 +147,12 @@ public class ChartSerializerDeserializationBranchTests
         Assert.Equal(LineStyle.Dashed, fig.SubPlots[0].ReferenceLines[0].LineStyle);
     }
 
-    // ── SecondaryYAxis unknown series type arm ────────────────────────────────
+    // ── right slot 0: unknown series type arm ─────────────────────────────────
 
-    /// <summary>SecondaryYAxis present but secondary series has an unknown type —
+    /// <summary>The right slot 0 axis is present but its series has an unknown type —
     /// switch default arm (L278 `_ => null`) + `if (sec is not null)` false arm (L283).</summary>
     [Fact]
-    public void FromJson_SecondarySeriesUnknownType_SkipsGracefully()
+    public void FromJson_ARightSlotZeroSeriesOfAnUnknownType_SkipsGracefully()
     {
         const string json = """
         {
@@ -164,8 +164,8 @@ public class ChartSerializerDeserializationBranchTests
         }
         """;
         var fig = S.FromJson(json);
-        Assert.NotNull(fig.SubPlots[0].SecondaryYAxis);
-        Assert.Empty(fig.SubPlots[0].SecondarySeries);
+        Assert.NotEmpty(fig.SubPlots[0].YAxes.Right);
+        Assert.Empty(fig.SubPlots[0].YAxes.Right[0].Series);
     }
 
     // ── Spans TryParse failure arm ────────────────────────────────────────────
@@ -306,11 +306,11 @@ public class ChartSerializerDeserializationBranchTests
         Assert.Same(fig.SubPlots[0], fig.SubPlots[1].ShareYWith);
     }
 
-    // ── SecondaryYAxis "scatter" type arm ────────────────────────────────────
+    // ── right slot 0 "scatter" type arm ──────────────────────────────────────
 
-    /// <summary>SecondaryYAxis with a "scatter" series → restored through the registry, like the primary axis.</summary>
+    /// <summary>The right slot 0 with a "scatter" series → restored through the registry, like the primary axis.</summary>
     [Fact]
-    public void FromJson_SecondarySeriesScatterType_CreatesScatterSeries()
+    public void FromJson_ARightSlotZeroScatterSeries_CreatesScatterSeries()
     {
         const string json = """
         {
@@ -324,9 +324,9 @@ public class ChartSerializerDeserializationBranchTests
         }
         """;
         var fig = S.FromJson(json);
-        Assert.NotNull(fig.SubPlots[0].SecondaryYAxis);
-        Assert.Single(fig.SubPlots[0].SecondarySeries);
-        Assert.IsType<MatPlotLibNet.Models.Series.ScatterSeries>(fig.SubPlots[0].SecondarySeries[0]);
+        Assert.NotEmpty(fig.SubPlots[0].YAxes.Right);
+        Assert.Single(fig.SubPlots[0].YAxes.Right[0].Series);
+        Assert.IsType<MatPlotLibNet.Models.Series.ScatterSeries>(fig.SubPlots[0].YAxes.Right[0].Series[0]);
     }
 
     // ── SeriesRegistry null-fallback arms (L36, L45, L105, L116, L124 etc.) ──
@@ -481,7 +481,7 @@ public class ChartSerializerDeserializationBranchTests
 
         var axes = S.FromJson(json).SubPlots[0];
 
-        var list = axisField == "secondaryYAxis" ? axes.SecondarySeries : axes.XSecondarySeries;
+        var list = axisField == "secondaryYAxis" ? axes.YAxes.Right[0].Series : axes.XSecondarySeries;
         var series = Assert.Single(list);
         Assert.Equal("empty", series.Label);
         var xy = Assert.IsAssignableFrom<MatPlotLibNet.Models.Series.XYSeries>(series);

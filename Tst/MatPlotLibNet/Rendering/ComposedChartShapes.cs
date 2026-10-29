@@ -204,7 +204,7 @@ public static class ComposedChartShapes
             .SetYLim(0, total * 1.05)
             .SetYLabel("Count")
             .SetYAxisColor(Colors.Tab10Blue)
-            .WithSecondaryYAxis(y2 => y2
+            .WithAddRightYAxis(y2 => y2
                 .Plot(centres, cumulative, s =>
                 {
                     s.Color = Colors.Tab10Orange; s.LineWidth = 2; s.Marker = MarkerStyle.Circle; s.MarkerSize = 7; s.Label = "Cumulative %";
@@ -486,7 +486,7 @@ public static class ComposedChartShapes
                     s.LineWidth = 2; s.Marker = MarkerStyle.Circle; s.MarkerSize = 8; s.Label = SlopeCategories[k];
                 });
                 if (double.IsFinite(after[k])) ax.WithDirectLabel();
-                if (double.IsFinite(before[k])) ax.Annotate(SlopeCategories[k], 0.5 - 0.04, before[k], a => a.Alignment = TextAlignment.Right);
+                if (double.IsFinite(before[k])) ax.Annotate(SlopeCategories[k], 0.5 - 0.04, before[k], a => { a.Alignment = TextAlignment.Right; a.VerticalAlignment = TextVerticalAlignment.Center; });
             }
             ax.SetXMargin(0.25).SetXTickLocator(new FixedLocator([0.5, 1.5])).SetXTickFormatter(new CategoryFormatter(["2015", "2025"]))
               .WithLegend(visible: false);

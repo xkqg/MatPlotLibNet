@@ -21,13 +21,13 @@ Browse to <http://localhost:5000>. The `<base href="/">` setting in `wwwroot/ind
 
 ## Console
 
-A console app that creates every sample image shipped with the wiki and cookbook: 89 SVG/PNG pairs covering every chart family, the charts drawn by one call (Pareto, lollipop, dumbbell, slope graph, dot plot, parallel coordinates, Marimekko, ridgeline, Q-Q plot, Kaplan-Meier, bump chart, control chart, stream graph, calendar heatmap and spy plot) among them, plus the package icon at the repository root and the documentation site's 1200x630 link preview card. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
+A console app that creates every sample image shipped with the wiki and cookbook: 99 SVG/PNG pairs covering every chart family, the charts drawn by one call (Pareto, lollipop, dumbbell, slope graph, dot plot, parallel coordinates, Marimekko, ridgeline, Q-Q plot, Kaplan-Meier, bump chart, control chart, stream graph, calendar heatmap and spy plot) among them, a Likert chart of bars stacked on both sides of zero, a wind rose stacked by speed, a filled contour cut to a window, a stack plot with named layers and the maps (a choropleth, bubbles, flows, a cartogram and a Dorling map) too, plus the package icon at the repository root and the documentation site's 1200x630 link preview card. It is also the generator for the Sankey / Treemap / 3D / MathText / Geo gallery.
 
 ```
 dotnet run --project MatPlotLibNet.Samples.Console
 ```
 
-Output goes to the `images/` directory at the repository root. Re-run it whenever a rendering change would alter committed sample output, and run it twice: two runs write the same bytes, so a file that differs between them is a defect to find, not a new picture. Commit only the files that changed.
+Output goes to the `images/` directory at the repository root. Re-run it whenever a rendering change would alter committed sample output, and run it twice: two runs write the same bytes, so a file that differs between them is a defect to find, not a new picture. Commit only the files that changed. The program also draws the pictures the wiki shows that no sample draws (`WikiPictures.cs`: the gallery tiles, the control room and the picture of each Examples block); the wiki keeps a copy of every picture, and the wiki suite fails while a copy is older than the one drawn here.
 
 ## Blazor
 
@@ -137,7 +137,7 @@ These NuGet packages do not yet have runnable samples. Contributions are welcome
 | `MatPlotLibNet.Maui` | Add `<mpl:FigureView Figure="{Binding Figure}" />` in a MAUI page |
 | `MatPlotLibNet.DataFrame` | `df.PlotBar()` / `df.PlotLine()` extensions on `Microsoft.Data.Analysis.DataFrame` — covered in the DataFrame cookbook page |
 | `MatPlotLibNet.Skia` | `SkiaTransform` renders to `SKBitmap`; see unit tests in `Tst/MatPlotLibNet.Skia/` |
-| `MatPlotLibNet.Geo` | `Geo.Extensions.WithNaturalEarth()` + any of 13 projections; see the `geo_*` cookbook pages |
+| `MatPlotLibNet.Geo` | `ax.WithProjection(GeoProjection.Robinson)` (any of 13), then the layers `Land`, `Ocean`, `Coastlines`, `Borders`, `Choropleth`, `Bubbles`, `Flows`, `Cartogram` and `Dorling`; the console sample draws the maps, and the [geographic cookbook page](../docs/cookbook/geographic.md) shows each |
 | `MatPlotLibNet.Notebooks` | Polyglot Notebooks: `#r "nuget: MatPlotLibNet.Notebooks"`, then any `.ToSvg()` renders inline |
 | `MatPlotLibNet.Interactive` | .NET Interactive kernel extension; same inline rendering as Notebooks |
 | `MatPlotLibNet.Mcp` | Point an MCP host at it (`dnx MatPlotLibNet.Mcp`) and ask the model for a chart; see the [MCP cookbook page](../docs/cookbook/mcp.md) |

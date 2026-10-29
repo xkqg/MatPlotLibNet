@@ -1,6 +1,7 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Serialization;
@@ -28,6 +29,7 @@ internal sealed record ThemeDto
     public Color? ViolinStatsColor { get; init; }
     public double? AxisXMargin { get; init; }
     public double? AxisYMargin { get; init; }
+    public LegendPosition? DefaultLegendPosition { get; init; }
     public Color? Pane3DColor { get; init; }
     public AlarmPaletteDto? Alarm { get; init; }
 
@@ -51,6 +53,7 @@ internal sealed record ThemeDto
         ViolinStatsColor = theme.ViolinStatsColor,
         AxisXMargin = theme.AxisXMargin.OrNullAtRest(Plain.AxisXMargin),
         AxisYMargin = theme.AxisYMargin.OrNullAtRest(Plain.AxisYMargin),
+        DefaultLegendPosition = theme.DefaultLegendPosition.OrNullAtRest(Plain.DefaultLegendPosition),
         Pane3DColor = theme.Pane3DColor,
         Alarm = theme.Alarm == Plain.Alarm ? null : AlarmPaletteDto.From(theme.Alarm, Plain.Alarm),
     };
@@ -71,6 +74,7 @@ internal sealed record ThemeDto
         ViolinStatsColor = ViolinStatsColor,
         AxisXMargin = AxisXMargin ?? Plain.AxisXMargin,
         AxisYMargin = AxisYMargin ?? Plain.AxisYMargin,
+        DefaultLegendPosition = DefaultLegendPosition ?? Plain.DefaultLegendPosition,
         Pane3DColor = Pane3DColor,
         Alarm = Alarm?.ToAlarmPalette(Plain.Alarm) ?? Plain.Alarm,
     };

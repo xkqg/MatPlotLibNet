@@ -104,6 +104,46 @@ Plt.Create()
     .Save("bar_stacked.svg");
 ```
 
+## Diverging stacked bars (Likert)
+
+A stacked bar chart keeps two running sums, one for the layers at or above zero and one for the layers below it. A value
+below zero grows down from zero whatever the layers above it add up to, so a Likert chart, with the answers that disagree
+below the middle line and the answers that agree above it, is one `Bar` call for each answer:
+
+```csharp
+using MatPlotLibNet;
+using MatPlotLibNet.Models;
+using MatPlotLibNet.Styling;
+
+string[] questions = ["Easy to use", "Fast", "Reliable", "Good value", "Would recommend"];
+double[] stronglyDisagree = [-6, -4, -3, -10, -5];
+double[] disagree = [-12, -8, -6, -15, -9];
+double[] neutral = [14, 12, 10, 18, 11];
+double[] agree = [41, 44, 47, 38, 43];
+double[] stronglyAgree = [27, 32, 34, 19, 32];
+
+Plt.Create()
+    .WithTitle("How users rate the product (share of answers, %)")
+    .WithSize(900, 480)
+    .TightLayout()
+    .AddSubPlot(1, 1, 1, ax => ax
+        .Bar(questions, stronglyDisagree, s => { s.Label = "Strongly disagree"; s.Color = Color.FromHex("#B2182B"); })
+        .Bar(questions, disagree, s => { s.Label = "Disagree"; s.Color = Color.FromHex("#EF8A62"); })
+        .Bar(questions, neutral, s => { s.Label = "Neutral"; s.Color = Color.FromHex("#D9D9D9"); })
+        .Bar(questions, agree, s => { s.Label = "Agree"; s.Color = Color.FromHex("#67A9CF"); })
+        .Bar(questions, stronglyAgree, s => { s.Label = "Strongly agree"; s.Color = Color.FromHex("#2166AC"); })
+        .SetBarMode(BarMode.Stacked)
+        .AxHLine(0, line => { line.Color = Colors.Black; line.LineWidth = 1; })
+        .SetYLabel("Share of answers (%)")
+        .WithLegend(LegendPosition.OutsideRight))
+    .Save("likert_diverging_bars.svg");
+```
+
+![Five stacked columns with the disagreeing answers below the zero line and the others above it](../images/likert_diverging_bars.png)
+
+A value of zero goes with the answers above the line, and a value that is not a number adds to neither sum. The range of the
+axes takes in every foot and end of the stack.
+
 ## Grouped bars
 
 Several bars per category, in one call:
@@ -214,6 +254,31 @@ Plt.Create()
         }))
     .Save("bar_custom_labels.svg");
 ```
+
+## Bar labels beyond the bar's end
+
+With `ShowLabels` a bar's value stands beyond the bar's end, in the direction the bar points in the data: above the end of a
+bar that rises and below the end of a bar that falls, to the right or the left of it on a horizontal bar, 4 px from the end.
+It does so on an axis that runs forwards and on one that runs backwards:
+
+```csharp
+string[] groups = ["North", "South", "East", "West"];
+double[] change = [3.0, -2.0, 5.0, -4.0];
+
+Plt.Create()
+    .WithSize(800, 380)
+    .AddSubPlot(1, 2, 1, ax => ax
+        .WithTitle("Axis running up")
+        .Bar(groups, change, s => s.ShowLabels = true)
+        .SetYLim(-6, 8))
+    .AddSubPlot(1, 2, 2, ax => ax
+        .WithTitle("Axis running down")
+        .Bar(groups, change, s => s.ShowLabels = true)
+        .SetYLim(8, -6))
+    .Save("bar_labels_beyond_the_end.svg");
+```
+
+![Bar labels beyond the end of the bars](../images/bar_labels_beyond_the_end.png)
 
 ## Fluent API reference — BarSeries
 
@@ -374,7 +439,8 @@ on the X axis by the groups' names. A category's name stands at both ends: right
 colour, and left of the start point in the theme's text colour, so the chart draws no legend. The verb widens the X
 margin to a quarter of the distance between the two moments, so the start names stand clear of the Y axis' tick
 labels; a longer name needs more room, `.SetXMargin(0.35)` after the call. A missing value leaves that point and its
-name out; the other end is still drawn, as a marker of its own.
+name out; the other end is still drawn, as a marker of its own. Both names are centred on their markers, at the
+theme's text size.
 
 ## Dot plot
 

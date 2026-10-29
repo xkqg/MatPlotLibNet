@@ -13,7 +13,18 @@ internal sealed class WaterfallSeriesRenderer : SeriesRenderer<WaterfallSeries>
     public WaterfallSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
-    public override void Render(WaterfallSeries series)
+    internal override void AddMarks(WaterfallSeries series, MarkObstacles.Builder marks)
+    {
+        foreach (var step in Steps(series))
+            if (step.Bar.IsDrawable()) marks.AddBox(step.Bar);
+    }
+
+    /// <summary>One step of a waterfall: its bar, the colour it wears and the connector to the next step, when there is one.</summary>
+    private readonly record struct WaterfallStep(Rect Bar, Color Colour, Point? ConnectorFrom, Point? ConnectorTo);
+
+    /// <summary>The steps in order: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to a
+    /// legend.</summary>
+    private IEnumerable<WaterfallStep> Steps(WaterfallSeries series)
     {
         var bars = series.Bars();
         for (int i = 0; i < bars.Length; i++)
@@ -30,16 +41,25 @@ internal sealed class WaterfallSeriesRenderer : SeriesRenderer<WaterfallSeries>
             // connectors go too.
             var tl = bar.Rises ? Transform.DataToPixel(slot.Left, bar.Top) : Transform.DataToPixelClippedY(slot.Left, bar.Foot);
             var br = bar.Rises ? Transform.DataToPixelClippedY(slot.Right, bar.Foot) : Transform.DataToPixel(slot.Right, bar.Top);
-            var step = Rect.FromCorners(tl, br);
-            if (step.IsDrawable())
-                Ctx.DrawRectangle(step, new ShapeStyle(color, null, 0));
+            Point? from = null, to = null;
             if (i < bars.Length - 1)
             {
-                var ls = Transform.DataToPixel(slot.Right, bar.Top);
-                var le = Transform.DataToPixel(series.SlotOf(i + 1).Left, bar.Top);
-                if (ls.CanDrawLineTo(le))
-                    Ctx.DrawLine(ls, le, new StrokeStyle(Colors.Gray, 0.5, LineStyle.Dashed));
+                from = Transform.DataToPixel(slot.Right, bar.Top);
+                to = Transform.DataToPixel(series.SlotOf(i + 1).Left, bar.Top);
             }
+            yield return new WaterfallStep(Rect.FromCorners(tl, br), color, from, to);
+        }
+    }
+
+    /// <inheritdoc />
+    public override void Render(WaterfallSeries series)
+    {
+        foreach (var step in Steps(series))
+        {
+            if (step.Bar.IsDrawable())
+                Ctx.DrawRectangle(step.Bar, new ShapeStyle(step.Colour, null, 0));
+            if (step.ConnectorFrom is { } ls && step.ConnectorTo is { } le && ls.CanDrawLineTo(le))
+                Ctx.DrawLine(ls, le, new StrokeStyle(Colors.Gray, 0.5, LineStyle.Dashed));
         }
     }
 }

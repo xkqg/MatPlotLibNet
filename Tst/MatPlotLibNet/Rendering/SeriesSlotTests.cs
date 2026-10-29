@@ -355,8 +355,8 @@ public class SeriesSlotTests
     {
         var axes = new Axes();
         axes.Plot([0.0, 1], [0.0, 1]);
-        axes.PlotSecondary([0.0, 1], [0.0, 1]);
-        axes.PlotSecondary([0.0, 1], [0.0, 1]);
+        axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries([0.0, 1], [0.0, 1]));
+        axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries([0.0, 1], [0.0, 1]));
         axes.PlotXSecondary([0.0, 1], [0.0, 1]);
         axes.PlotXSecondary([0.0, 1], [0.0, 1]);
         axes.PlotXSecondary([0.0, 1], [0.0, 1]);
@@ -388,7 +388,7 @@ public class SeriesSlotTests
         var all = axes.AllSeries.ToList();
 
         Assert.Equal(all.IndexOf(axes.Series[0]), axes.SlotIndex(SeriesAxisPair.Primary, 0));
-        Assert.Equal(all.IndexOf(axes.SecondarySeries[1]), axes.SlotIndex(SeriesAxisPair.SecondaryY, 1));
+        Assert.Equal(all.IndexOf(axes.YAxes.Right[0].Series[1]), axes.SlotIndex(SeriesAxisPair.SecondaryY, 1));
         Assert.Equal(all.IndexOf(axes.XSecondarySeries[2]), axes.SlotIndex(SeriesAxisPair.SecondaryX, 2));
     }
 
@@ -516,5 +516,75 @@ public class SeriesSlotTests
 
         Assert.Equal(axes.SeriesSlot(CyclerTheme, SeriesAxisPair.Primary, 0).CycleColor,
             axes.SeriesSlot(CyclerTheme, SeriesAxisPair.Primary, 1).CycleColor);
+    }
+
+    // ── ColorSlotSpan: a series that colours its own parts holds a slot for each of them ──────
+
+    private static readonly double[] Xs = [0.0, 1, 2];
+
+    [Fact]
+    public void AStackOfThreeLayers_HoldsThreeSlots_AndTheLineAfterItTakesTheFourth()
+    {
+        var axes = new Axes();
+        axes.StackPlot(Xs, [[1.0, 2, 3], [2.0, 3, 4], [3.0, 4, 5]]);
+        axes.Plot(Xs, Xs);
+
+        Assert.Equal([0, 3], axes.ColorSlots());
+    }
+
+    [Fact]
+    public void ALineBeforeAndAfterAStack_TakeTheSlotsOnEitherSideOfItsLayers()
+    {
+        var axes = new Axes();
+        axes.Plot(Xs, Xs);
+        axes.StackPlot(Xs, [[1.0, 2, 3], [2.0, 3, 4], [3.0, 4, 5]]);
+        axes.Plot(Xs, Xs);
+
+        Assert.Equal([0, 1, 4], axes.ColorSlots());
+    }
+
+    [Fact]
+    public void APieDonutAndFunnel_HoldOneSlotForEachPart()
+    {
+        var axes = new Axes();
+        axes.Pie([1.0, 2, 3, 4]);
+        axes.Donut([1.0, 2, 3]);
+        axes.Funnel(["a", "b"], [3.0, 2]);
+        axes.Plot(Xs, Xs);
+
+        Assert.Equal([0, 4, 7, 9], axes.ColorSlots());
+    }
+
+    [Fact]
+    public void ASeriesWithNoPartsToColour_StillHoldsOneSlot()
+    {
+        var axes = new Axes();
+        axes.StackPlot(Xs, []);
+        axes.Plot(Xs, Xs);
+
+        Assert.Equal([0, 1], axes.ColorSlots());
+    }
+
+    [Fact]
+    public void AColorGroup_TakesTheLargestSpanOfItsMembers_AndTheNextSeriesContinuesPastIt()
+    {
+        var axes = new Axes();
+        var stack = axes.StackPlot(Xs, [[1.0, 2, 3], [2.0, 3, 4], [3.0, 4, 5]]);
+        var line = axes.Plot(Xs, Xs);
+        stack.ColorGroup = line.ColorGroup = 0;
+        axes.Plot(Xs, Xs);
+
+        Assert.Equal([0, 0, 3], axes.ColorSlots());
+    }
+
+    [Fact]
+    public void IdentityStaysPositional_WhateverTheSpans()
+    {
+        var axes = new Axes();
+        axes.StackPlot(Xs, [[1.0, 2, 3], [2.0, 3, 4], [3.0, 4, 5]]);
+        axes.Plot(Xs, Xs);
+
+        Assert.Equal(1, axes.SlotIndex(SeriesAxisPair.Primary, 1));
+        Assert.Equal(3, axes.ColorSlotIndex(SeriesAxisPair.Primary, 1));
     }
 }

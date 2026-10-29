@@ -13,5 +13,13 @@ public sealed record AddTrendlineEvent(
     Trendline Tool) : FigureInteractionEvent(ChartId, AxesIndex)
 {
     /// <inheritdoc />
-    public override void ApplyTo(Figure figure) => TargetAxes(figure).AddTrendline(Tool);
+    public override void ApplyTo(Figure figure) => TryApplyTo(figure);
+
+    /// <inheritdoc />
+    internal override bool TryApplyTo(Figure figure)
+    {
+        if (!TryTargetAxes(figure, out var axes)) return false;
+        axes.AddTrendline(Tool);
+        return true;
+    }
 }

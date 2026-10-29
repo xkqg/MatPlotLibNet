@@ -13,17 +13,21 @@ internal sealed class CountSeriesRenderer : SeriesRenderer<CountSeries>
     public CountSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
-    public override void Render(CountSeries series)
+    internal override void AddMarks(CountSeries series, MarkObstacles.Builder marks)
     {
-        if (series.Values.Length == 0) return;
+        foreach (var bar in Bars(series)) marks.AddBox(bar);
+    }
 
-        var color = ResolveColor(series.Color);
+    /// <summary>The bars that can be drawn: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to a
+    /// legend. A count's bar stands on 0, which a log axis clips to the edge where it begins, as matplotlib clips it; a bar
+    /// the axes cannot place is left out. Along the category axis it stands centred in its category's slot
+    /// (CategorySlot), where the axis writes the category's name.</summary>
+    private IEnumerable<Rect> Bars(CountSeries series)
+    {
+        if (series.Values.Length == 0) yield break;
+
         var counts = series.ComputeCounts();
         var categories = counts.Keys.ToArray();
-
-        // A count's bar stands on 0, which a log axis clips to the edge where it begins, as matplotlib clips it; a bar the
-        // axes cannot place is skipped. Along the category axis it stands centred in its category's slot (CategorySlot),
-        // where the axis writes the category's name.
         for (int i = 0; i < categories.Length; i++)
         {
             double count = counts[categories[i]];
@@ -32,8 +36,15 @@ internal sealed class CountSeriesRenderer : SeriesRenderer<CountSeries>
             var tl = vertical ? Transform.DataToPixel(slot.Left, count) : Transform.DataToPixelClippedX(0, slot.Right);
             var br = vertical ? Transform.DataToPixelClippedY(slot.Right, 0) : Transform.DataToPixel(count, slot.Left);
             var bar = Rect.FromCorners(tl, br);
-            if (bar.IsDrawable())
-                Ctx.DrawRectangle(bar, new ShapeStyle(color, null, 0));
+            if (bar.IsDrawable()) yield return bar;
         }
+    }
+
+    /// <inheritdoc />
+    public override void Render(CountSeries series)
+    {
+        var color = ResolveColor(series.Color);
+        foreach (var bar in Bars(series))
+            Ctx.DrawRectangle(bar, new ShapeStyle(color, null, 0));
     }
 }

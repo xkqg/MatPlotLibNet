@@ -15,6 +15,9 @@ internal sealed class SunburstSeriesRenderer : CircularRenderer<SunburstSeries>
     public SunburstSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(SunburstSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(SunburstSeries series)
     {
         var bounds = Context.Area.PlotBounds;

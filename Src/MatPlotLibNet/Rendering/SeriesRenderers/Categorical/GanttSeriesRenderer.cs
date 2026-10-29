@@ -13,15 +13,28 @@ internal sealed class GanttSeriesRenderer : SeriesRenderer<GanttSeries>
     public GanttSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
-    public override void Render(GanttSeries series)
+    internal override void AddMarks(GanttSeries series, MarkObstacles.Builder marks)
     {
-        var color = ResolveColor(series.Color);
+        foreach (var bar in Bars(series)) marks.AddBox(bar);
+    }
+
+    /// <summary>The task bars that can be drawn: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands
+    /// to a legend. A task with an end that cannot be placed draws no bar.</summary>
+    private IEnumerable<Rect> Bars(GanttSeries series)
+    {
         double halfH = series.BarHeight / 2;
         for (int i = 0; i < series.Tasks.Length; i++)
         {
             var bar = Rect.FromCorners(Transform.DataToPixel(series.Starts[i], i + halfH), Transform.DataToPixel(series.Ends[i], i - halfH));
-            if (!bar.IsDrawable()) continue;   // a task with an end that cannot be placed draws no bar
-            Ctx.DrawRectangle(bar, new ShapeStyle(color, null, 0));
+            if (bar.IsDrawable()) yield return bar;
         }
+    }
+
+    /// <inheritdoc />
+    public override void Render(GanttSeries series)
+    {
+        var color = ResolveColor(series.Color);
+        foreach (var bar in Bars(series))
+            Ctx.DrawRectangle(bar, new ShapeStyle(color, null, 0));
     }
 }

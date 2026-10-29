@@ -10,6 +10,12 @@ namespace MatPlotLibNet.Models.Series;
 /// <summary>Represents a donut chart — a pie chart with a hollow center for displaying a summary value.</summary>
 public sealed class DonutSeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override int ColorSlotSpan => Math.Max(1, Sizes.Length);
+
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     public double[] Sizes { get; }
     public string[]? Labels { get; set; }
     public Color[]? Colors { get; set; }

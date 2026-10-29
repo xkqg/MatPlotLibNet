@@ -60,16 +60,13 @@ internal sealed class VerticalColorBarRenderer : ColorBarRenderer
         var tickFont = ThemedFontProvider.TickFont(Theme);
         double labelX = barX + barW + 4;
         double maxTickWidth = 0;
-        var vCbTicks = new double[TickCount];
-        for (int i = 0; i < TickCount; i++) vCbTicks[i] = Max - ((double)i / (TickCount - 1)) * (Max - Min);
-        var vCbFormat = AxesRenderer.BuildUniformTickFormatter(vCbTicks);
-        for (int i = 0; i < TickCount; i++)
+        var scale = ScaleAlong(fullH, vertical: true);
+        // Top to bottom: the end of the gradient is on top, and a tick stands over the gradient, not over the wedges at its ends.
+        foreach (int i in Enumerable.Range(0, scale.Ticks.Length).OrderByDescending(i => scale.FractionOf(scale.Ticks[i])))
         {
-            double frac = (double)i / (TickCount - 1);
-            double value = Max - frac * (Max - Min);
-            var tickText = vCbFormat(value);
-            Ctx.DrawText(tickText, new Point(labelX, barY + fullH * frac + 4), tickFont, TextAlignment.Left);
-            var w = Ctx.MeasureText(tickText, tickFont).Width;
+            double y = gradY + gradH * (1 - scale.FractionOf(scale.Ticks[i]));
+            Ctx.DrawText(scale.Labels[i], new Point(labelX, y + 4), tickFont, TextAlignment.Left);
+            var w = Ctx.MeasureText(scale.Labels[i], tickFont).Width;
             if (w > maxTickWidth) maxTickWidth = w;
         }
 

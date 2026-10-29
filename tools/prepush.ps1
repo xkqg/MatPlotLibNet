@@ -11,11 +11,12 @@
 # been run locally -- the docfx site the Pages workflow builds -- was the one that broke. A list that must be
 # remembered is only as good as the memory of whoever remembers it.
 #
-# WHAT THIS CANNOT JUDGE, ever, on a Windows box:
-#   * The Pages workflow runs on ubuntu-latest. Anything conditioned on a non-Windows host --
-#     EnableWindowsTargeting above all -- is INERT here and live there. A change to any TargetFramework, to a
-#     csproj property, or to docs/docfx.json therefore has no local verdict: READ it against the runner's OS.
-#     Do not push a probe to find out -- one push per finished strand, then block on the Actions page.
+# WHAT THIS SCRIPT CANNOT SEE, on a Windows box:
+#   * The CI and Pages workflows run on ubuntu-latest. Anything conditioned on a non-Windows host --
+#     EnableWindowsTargeting above all -- is INERT here and live there, so a change to any TargetFramework, to a
+#     csproj property, or to docs/docfx.json shows nothing in this script. A Linux container does see it: run the
+#     steps of ci.yml and pages.yml in mcr.microsoft.com/dotnet/sdk:10.0-noble (CLAUDE.md, "The ubuntu half runs
+#     locally in docker") before the push. Do not push a probe to find out -- one push per finished strand.
 #   * The MAUI projects (no workload on this box) and anything the workload would resolve.
 
 [CmdletBinding()]

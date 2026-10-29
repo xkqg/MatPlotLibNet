@@ -16,6 +16,7 @@ public static class AxesPolarVerbs
         /// <summary>Adds a polar line series and sets coordinate system to Polar.</summary>
         public PolarLineSeries PolarPlot(double[] r, double[] theta)
         {
+            r.Length.ThrowIfMisaligned(theta.Length);
             axes.CoordinateSystem = CoordinateSystem.Polar;
             return axes.AddSeries(new PolarLineSeries(r, theta));
         }
@@ -23,6 +24,7 @@ public static class AxesPolarVerbs
         /// <summary>Adds a polar scatter series and sets coordinate system to Polar.</summary>
         public PolarScatterSeries PolarScatter(double[] r, double[] theta)
         {
+            r.Length.ThrowIfMisaligned(theta.Length);
             axes.CoordinateSystem = CoordinateSystem.Polar;
             return axes.AddSeries(new PolarScatterSeries(r, theta));
         }
@@ -30,6 +32,7 @@ public static class AxesPolarVerbs
         /// <summary>Adds a polar bar series and sets coordinate system to Polar.</summary>
         public PolarBarSeries PolarBar(double[] r, double[] theta)
         {
+            r.Length.ThrowIfMisaligned(theta.Length);
             axes.CoordinateSystem = CoordinateSystem.Polar;
             return axes.AddSeries(new PolarBarSeries(r, theta));
         }

@@ -404,7 +404,7 @@
             s.ProcessState, trend: Simulator.PublishTrend,
             link: busiest is null ? null : new TileLink(BusUrl(busiest.Id), BusId is not null));
 
-        yield return Tile(s.P99, "RFx p99", $"target ≤ 25 ms · {(s.P99 <= 25 ? "within" : $"+{s.P99 - 25:0.0} over")}",
+        yield return Tile(s.P99, "Request p99", $"target ≤ 25 ms · {(s.P99 <= 25 ? "within" : $"+{s.P99 - 25:0.0} over")}",
             s.P99 > 30 ? new OpsCondition(OpsSeverity.Critical) : s.P99 > 25 ? new OpsCondition(OpsSeverity.Warning) : OpsCondition.Resting,
             format: "0.0' ms'", target: 25, trend: Simulator.P99Trend);
 

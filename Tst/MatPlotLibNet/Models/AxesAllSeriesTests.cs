@@ -23,7 +23,7 @@ public class AxesAllSeriesTests
     {
         var axes = new Axes();
         var primary = axes.Plot([1.0], [1.0]);
-        var secondaryY = axes.AddSecondarySeries(new LineSeries([1.0], [2.0]));
+        var secondaryY = axes.YAxes.Right.FirstOrAdd().AddSeries(new LineSeries([1.0], [2.0]));
         var secondaryX = axes.PlotXSecondary([1.0], [3.0]);
 
         Assert.Equal([primary, secondaryY, secondaryX], axes.AllSeries.ToArray());

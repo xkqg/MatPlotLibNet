@@ -109,7 +109,7 @@ public class StreamGraphTests
         var areas = Areas(axes);
         Assert.Equal(3, areas.Length);
         Assert.Equal(["a", "b", "c"], areas.Select(a => a.Label));
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
         Assert.Empty(axes.ReferenceLines);
     }
@@ -347,7 +347,7 @@ public class StreamGraphTests
         [.. SeriesGroups(svg).Select(group => (string)Named(group, "polyline").First().Attribute("stroke")!)];
 
     /// <summary>One drawn unit is one colour: layer i wears the theme's colour at slot i, in order, the area and its outline
-    /// alike; no two layers share a colour. (StackPlot is ONE series: the layers there are parts of one slot.)</summary>
+    /// alike; no two layers share a colour. (StackPlot is one series: its layers take one slot each, from the first slot of the series on.)</summary>
     [Fact]
     public void EveryLayer_WearsItsOwnColourOfTheCycle_InOrder()
     {
@@ -360,8 +360,8 @@ public class StreamGraphTests
     }
 
     /// <summary>Each layer takes a colour slot of its own, so a series added after the chart wears the colour after the
-    /// layers': the fourth of the cycle after three layers. (A plain stacked-area series is one series: a line added after it
-    /// takes its second colour, which one of its own layers already wears.)</summary>
+    /// layers': the fourth of the cycle after three layers. (A StackPlot holds one slot for each of its layers too, so a line
+    /// added after it wears the colour after them as well.)</summary>
     [Fact]
     public void ASeriesAddedAfterTheChart_TakesTheNextFreeColour()
     {
@@ -383,7 +383,7 @@ public class StreamGraphTests
     }
 
     /// <summary>The legend lists one entry for each layer, in the order of the layers, named by them; a click on an entry
-    /// hides that layer alone. (StackPlot's layer names never reach the legend.)</summary>
+    /// hides that layer alone. (A StackPlot lists its named layers too, but a click on one of its entries hides the whole stack.)</summary>
     [Fact]
     public void TheLegend_ListsOneEntryPerLayer_InOrder()
     {
@@ -398,7 +398,7 @@ public class StreamGraphTests
         Assert.Equal(["a", "b", "c"], Named(legend, "text").Select(t => t.Value));
     }
 
-    /// <summary>The stream fills the plot, so the legend in the default corner covers part of it: the legend is the caller's to
+    /// <summary>The stream fills the plot, so the legend, which stands where it covers the fewest marks by default, covers part of it: the legend is the caller's to
     /// move, and a legend set outside the plot under a tight layout stands right of the plot area, covering none of the stream
     /// (what the documentation says to do).</summary>
     [Fact]

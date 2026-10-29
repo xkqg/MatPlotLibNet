@@ -100,14 +100,14 @@ public class GeoExtensionRenderTests
     [Fact]
     public void Land_SvgContainsRenderedPolygons()
     {
-        // Land renders countries as filled polygons — must contain at least one <polygon>.
+        // Land renders countries as filled paths (a polygon with a hole is one path) — must contain at least one <path>.
         string svg = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .WithProjection(GeoProjection.Robinson)
                 .Land(GeoProjection.Robinson, Colors.Green))
             .ToSvg();
 
-        Assert.Contains("<polygon", svg);
+        Assert.Contains("<path", svg);
     }
 
     // ── Wave J.2 — NaturalEarth110m cache-hit and GeoPolygonSeries edge cases ──
@@ -190,7 +190,7 @@ public class GeoExtensionRenderTests
                 .WithProjection(GeoProjection.PlateCarree)
                 .Ocean(GeoProjection.PlateCarree, Colors.Blue))
             .ToSvg();
-        Assert.Contains("<polygon", svg);
+        Assert.Contains("<path", svg);
     }
 
     /// <summary>L70 TRUE arm — NaN projected coordinate is skipped. A LineString with one
@@ -265,5 +265,24 @@ public class GeoExtensionRenderTests
         Assert.True(
             svg.Contains("<polyline") || svg.Contains("<path") || svg.Contains("<line"),
             "SVG must contain line geometry drawn using Colors.Black final fallback");
+    }
+
+    /// <summary>A Best legend looks at the marks the chart drew without drawing it again: a map draws itself, and drawing it
+    /// into the picture while the legend finds its place would write every polygon of it twice.</summary>
+    [Fact]
+    public void ABestLegend_OverAMap_DoesNotDrawTheMapASecondTime()
+    {
+        int Polygons(bool legend)
+        {
+            string svg = Plt.Create().AddSubPlot(1, 1, 1, ax => ax
+                .WithProjection(GeoProjection.Robinson)
+                .Ocean(GeoProjection.Robinson, Colors.Blue)
+                .Land(GeoProjection.Robinson, Colors.Green)
+                .Plot([0.0, 1.0], [0.0, 1.0], line => line.Label = "route")
+                .WithLegend(legend ? MatPlotLibNet.Models.LegendPosition.Best : MatPlotLibNet.Models.LegendPosition.UpperRight)).ToSvg();
+            return System.Text.RegularExpressions.Regex.Matches(svg, "<polygon").Count;
+        }
+
+        Assert.Equal(Polygons(legend: false), Polygons(legend: true));
     }
 }

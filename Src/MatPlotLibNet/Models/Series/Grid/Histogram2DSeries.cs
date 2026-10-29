@@ -16,9 +16,26 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
 
     public double[] Y { get; }
 
-    public int BinsX { get; set; }
+    /// <summary>The number of bins along the X axis: at least one.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value set is below one; the series keeps the bins it had.</exception>
+    public int BinsX
+    {
+        get => _binsX;
+        set => _binsX = AtLeastOneBin(value);
+    }
 
-    public int BinsY { get; set; }
+    /// <summary>The number of bins along the Y axis: at least one.</summary>
+    /// <exception cref="ArgumentOutOfRangeException">The value set is below one; the series keeps the bins it had.</exception>
+    public int BinsY
+    {
+        get => _binsY;
+        set => _binsY = AtLeastOneBin(value);
+    }
+
+    private int _binsX, _binsY;
+
+    private static int AtLeastOneBin(int bins, [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(bins))] string? paramName = null) =>
+        bins >= 1 ? bins : throw new ArgumentOutOfRangeException(paramName, bins, "A 2-D histogram has at least one bin along each axis.");
 
     public IColorMap? ColorMap { get; set; }
 
@@ -29,6 +46,7 @@ public sealed class Histogram2DSeries : ChartSeries, IColorBarDataProvider, ICol
     /// <param name="y">The Y-axis data values.</param>
     /// <param name="binsX">The number of bins along the X axis.</param>
     /// <param name="binsY">The number of bins along the Y axis.</param>
+    /// <exception cref="ArgumentOutOfRangeException">A number of bins is below one.</exception>
     public Histogram2DSeries(double[] x, double[] y, int binsX = 20, int binsY = 20)
     {
         X = x;

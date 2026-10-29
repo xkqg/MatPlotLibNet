@@ -7,7 +7,7 @@ namespace MatPlotLibNet.Models.Series;
 /// streaming line series.</summary>
 /// <remarks>The placement only has meaning for a series that carries a <see cref="ISeries.Label"/>. Set it per series
 /// (<c>s.LabelPlacement = SeriesLabelPlacement.LineEnd</c>) or with <c>WithDirectLabel()</c> on the axes builder or the
-/// secondary-axis builder, which marks the series added last.</remarks>
+/// builder of any Y axis (<see cref="YAxisSlotBuilder"/>), which marks the series added last.</remarks>
 public interface IHasLabelPlacement
 {
     /// <summary>Where the series shows its name. Default <see cref="SeriesLabelPlacement.Legend"/>.</summary>

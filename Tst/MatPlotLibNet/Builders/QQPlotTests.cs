@@ -74,7 +74,7 @@ public class QQPlotTests
 
         Points(axes);
         Reference(axes);
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
         Assert.Empty(axes.ReferenceLines);
         Assert.Empty(axes.Annotations);

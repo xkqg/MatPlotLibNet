@@ -15,20 +15,15 @@ namespace MatPlotLibNet.Rendering.Layout;
 /// size to position the box during the actual draw pass).
 /// </summary>
 /// <remarks>
-/// Extracting this into a single function guarantees both callers compute byte-identical
-/// dimensions — if they drifted, outside legends would either clip (layout under-reserved)
-/// or leave a gap (layout over-reserved). The measurement formulas here MUST stay in sync
-/// with <see cref="AxesRenderer.RenderLegend"/>'s own layout math.
-///
-/// The measurer builds the legend font itself from the theme, so a caller cannot pass a size other
-/// than the one the legend is drawn at: measuring with a font two points smaller than the drawn
-/// one under-reports a 4-entry legend by about 20 px, enough to clip an outside legend.
+/// The size is the one <see cref="LegendLayoutCalculator"/> lays the box out at, the calculator the draw pass and the
+/// hit-test read as well, so the margin an outside legend reserves and the box that is drawn can not drift apart: if
+/// they did, outside legends would either clip (layout under-reserved) or leave a gap (layout over-reserved). The
+/// calculator builds the legend font itself from the theme, so a caller cannot pass a size other than the one the
+/// legend is drawn at: measuring with a font two points smaller than the drawn one under-reports a 4-entry legend by
+/// about 20 px, enough to clip an outside legend.
 /// </remarks>
 internal static class LegendMeasurer
 {
-    /// <summary>Padding inside the legend frame, in pixels.</summary>
-    internal const double FramePadding = 8;
-
     /// <summary>Returns the font the renderer uses for legend entries. Delegates to
     /// <see cref="ThemedFontProvider.TickFont"/> (the single source of truth shared with
     /// <see cref="AxesRenderer.RenderLegend"/>), then applies any explicit
@@ -58,45 +53,10 @@ internal static class LegendMeasurer
         var labels = axes.LegendEntries(directLabelsDrawn).Select(e => e.Label).ToList();
         if (labels.Count == 0) return Size.Empty;
 
-        var legend = axes.Legend;
-        var font = LegendFont(axes, theme);
-
-        // Handle geometry — matches AxesRenderer.RenderLegend lines 240-247
-        double handleWidth  = font.Size * 2.0 * legend.MarkerScale;
-        double handleHeight = font.Size * 0.7 * legend.MarkerScale;
-        double swatchSize   = handleHeight;
-        double maxSwatchW   = handleWidth;
-        double swatchGap    = font.Size * 0.8;
-        double lineHeight   = swatchSize + Math.Max(0, legend.LabelSpacing * font.Size);
-
-        int nCols = Math.Max(1, legend.NCols);
-        int nRows = (int)Math.Ceiling((double)labels.Count / nCols);
-
-        // Per-column max label width
-        var colMaxWidths = new double[nCols];
-        for (int i = 0; i < labels.Count; i++)
-        {
-            int col = i % nCols;
-            var size = MathTextParser.ContainsMath(labels[i])
-                ? ctx.MeasureRichText(MathTextParser.Parse(labels[i]), font)
-                : ctx.MeasureText(labels[i], font);
-            if (size.Width > colMaxWidths[col]) colMaxWidths[col] = size.Width;
-        }
-
-        double colSpacingPx = legend.ColumnSpacing * font.Size;
-        double totalContentWidth = maxSwatchW + swatchGap + colMaxWidths.Sum()
-            + (nCols - 1) * (maxSwatchW + swatchGap + colSpacingPx);
-
-        // Title height
-        var titleFont = legend.TitleFontSize.HasValue
-            ? font with { Size = legend.TitleFontSize.Value, Weight = FontWeight.Bold }
-            : font with { Size = font.Size + 1, Weight = FontWeight.Bold };
-        double titleHeight = !string.IsNullOrEmpty(legend.Title) ? titleFont.Size + 4 : 0;
-
-        double boxWidth = FramePadding + totalContentWidth + FramePadding;
-        double boxHeight = FramePadding + titleHeight + nRows * lineHeight - (lineHeight - swatchSize) + FramePadding;
-
-        return new Size(boxWidth, boxHeight);
+        // The box is the one the legend is laid out with, so what is reserved is what is drawn. Where it stands is not
+        // asked here, only how big it is.
+        var layout = new LegendLayoutCalculator(theme, ctx).Compute(axes.Legend, labels, default);
+        return new Size(layout.BoxWidth, layout.BoxHeight);
     }
 
     /// <summary>Returns <see langword="true"/> if the legend position places the box

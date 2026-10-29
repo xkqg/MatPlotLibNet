@@ -1,0 +1,11 @@
+{
+  "chart": "annotate_default",
+  "mpl_version": "3.11.2",
+  "figsize": [
+    8,
+    6
+  ],
+  "dpi": 100,
+  "style": "classic",
+  "seed": 42
+}

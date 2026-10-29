@@ -13,6 +13,9 @@ internal sealed class DonutSeriesRenderer : CircularRenderer<DonutSeries>
     public DonutSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(DonutSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(DonutSeries series)
     {
         var bounds = Area.PlotBounds;

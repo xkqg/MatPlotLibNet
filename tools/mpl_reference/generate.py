@@ -1268,6 +1268,57 @@ def fig_geo_robinson():
     return fig
 
 
+def fig_annotate_default():
+    """Two annotations with no font of their own: matplotlib draws them at the size of the tick labels."""
+    x = np.linspace(0, 10, 50)
+    with plt.style.context(STYLE):
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        ax.plot(x, x)
+        ax.annotate("peak", xy=(5, 5))
+        ax.annotate("start", xy=(1, 1))
+        ax.set_title("Annotation text size")
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+    return fig
+
+
+# MatPlotLibNet stands a bar label 4 px beyond the bar's end; matplotlib's padding is in points.
+BAR_LABEL_PADDING_PT = 4 * 72 / DPI
+
+
+def _bar_label_figure(horizontal: bool, inverted: bool, title: str):
+    """Bars 3, 5 and -2 with value labels at the bar's end; the value axis runs forwards or backwards."""
+    categories = ["a", "b", "c"]
+    values = [3.0, 5.0, -2.0]
+    with plt.style.context(STYLE):
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        bars = ax.barh(categories, values) if horizontal else ax.bar(categories, values)
+        ax.bar_label(bars, padding=BAR_LABEL_PADDING_PT)
+        limits = (8, -4) if inverted else (-4, 8)
+        if horizontal:
+            ax.set_xlim(*limits)
+        else:
+            ax.set_ylim(*limits)
+        ax.set_title(title)
+    return fig
+
+
+def fig_bar_label_signs():
+    return _bar_label_figure(False, False, "Bar labels — positive and negative")
+
+
+def fig_bar_label_inverted():
+    return _bar_label_figure(False, True, "Bar labels — backwards Y axis")
+
+
+def fig_bar_label_horizontal():
+    return _bar_label_figure(True, False, "Bar labels — horizontal bars")
+
+
+def fig_bar_label_horizontal_inverted():
+    return _bar_label_figure(True, True, "Bar labels — horizontal bars, backwards axis")
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Registry
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1362,6 +1413,12 @@ CHARTS: dict[str, callable] = {
     "broken_y":      fig_broken_y,
     "symlog":        fig_symlog,
     "geo_robinson":  fig_geo_robinson,   # requires cartopy
+    # Text placement — annotation size, bar label side
+    "annotate_default":              fig_annotate_default,
+    "bar_label_signs":               fig_bar_label_signs,
+    "bar_label_inverted":            fig_bar_label_inverted,
+    "bar_label_horizontal":          fig_bar_label_horizontal,
+    "bar_label_horizontal_inverted": fig_bar_label_horizontal_inverted,
 }
 
 

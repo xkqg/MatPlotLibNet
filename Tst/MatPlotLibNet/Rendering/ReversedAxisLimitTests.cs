@@ -73,18 +73,19 @@ public class ReversedAxisLimitTests
     }
 
     [Fact]
-    public void AReversedSecondaryYLimit_DrawsTheTicksOfTheSameInterval_UpsideDown()
+    public void AReversedRightYLimit_DrawsTheTicksOfTheSameInterval_UpsideDown()
     {
-        static void WithSecondary(Axes a, double min, double max)
+        static void WithRight(Axes a, double min, double max)
         {
-            a.PlotSecondary(X, [100.0, 300.0, 500.0, 200.0, 400.0]);
-            a.SecondaryYAxis!.Min = min;
-            a.SecondaryYAxis.Max = max;
+            var right = a.YAxes.Right.FirstOrAdd();
+            right.AddSeries(new MatPlotLibNet.Models.Series.LineSeries(X, [100.0, 300.0, 500.0, 200.0, 400.0]));
+            right.Axis.Min = min;
+            right.Axis.Max = max;
         }
-        var forward = Labels(Render(a => WithSecondary(a, 0, 600)), "start");
-        var reversed = Labels(Render(a => WithSecondary(a, 600, 0)), "start");
+        var forward = Labels(Render(a => WithRight(a, 0, 600)), "start");
+        var reversed = Labels(Render(a => WithRight(a, 600, 0)), "start");
 
-        Assert.True(forward.Count >= 5, $"forward secondary Y draws {forward.Count} labels");
+        Assert.True(forward.Count >= 5, $"forward right Y draws {forward.Count} labels");
         Assert.Equal(Texts(forward), Texts(reversed));
         var byValue = reversed.OrderBy(Value).ToList();
         for (int i = 1; i < byValue.Count; i++)

@@ -150,4 +150,30 @@ public class AutoLocatorTests
         Assert.Equal(rawLo, lo);
         Assert.Equal(rawHi, hi);
     }
+
+    /// <summary>A range far from zero and narrower than the spacing of doubles there (1e16 has a spacing of 2): the step
+    /// is smaller than the spacing, so adding it to a tick changes nothing. The locator ends all the same, with finite,
+    /// distinct ticks, the first and the last of them the ends of the range.</summary>
+    [Fact]
+    public async Task Locate_EndsWhenTheStepIsBelowTheSpacingOfDoubles()
+    {
+        var ticks = await Task.Run(() => new AutoLocator(8).Locate(1e16, 1e16 + 2), TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.NotEmpty(ticks);
+        Assert.All(ticks, tick => Assert.True(double.IsFinite(tick)));
+        Assert.Equal(ticks.Length, ticks.Distinct().Count());
+        Assert.Equal(1e16, ticks[0]);
+        Assert.Equal(1e16 + 2, ticks[^1]);
+    }
+
+    [Theory]
+    [InlineData(double.NaN, 1.0)]
+    [InlineData(0.0, double.NaN)]
+    [InlineData(0.0, double.PositiveInfinity)]
+    public async Task Locate_OfARangeThatCannotBeDrawn_EndsWithNoTick(double min, double max)
+    {
+        var ticks = await Task.Run(() => new AutoLocator(8).Locate(min, max), TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Empty(ticks);
+    }
 }

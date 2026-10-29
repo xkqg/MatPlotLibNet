@@ -59,9 +59,9 @@ public class ChartLayoutTests
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2], [3.0, 4])
-                .WithSecondaryYAxis(y2 => y2.SetYLim(10, 20).Plot([1.0, 2], [12.0, 18]))
-                .WithOutwardYAxis(AxisSide.Right, outer => outer.SetYLim(100, 200).Plot([1.0, 2], [120.0, 180]))
-                .WithOutwardYAxis(AxisSide.Left, left => left.SetYLim(1, 2).Plot([1.0, 2], [1.2, 1.8])))
+                .WithAddRightYAxis(y2 => y2.SetYLim(10, 20).Plot([1.0, 2], [12.0, 18]))
+                .WithAddRightYAxis(outer => outer.SetYLim(100, 200).Plot([1.0, 2], [120.0, 180]))
+                .WithAddLeftYAxis(left => left.SetYLim(1, 2).Plot([1.0, 2], [1.2, 1.8])))
             .Build();
         var areas = new[] { new Rect(10, 10, 100, 50) };
         var layout = ChartLayout.Create(figure, areas);

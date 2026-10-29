@@ -12,16 +12,15 @@ namespace MatPlotLibNet.Rendering.Layout;
 /// <summary>One end-of-line label: the series it names, the axis pair it is plotted against, its index in that pair's
 /// series list, and the text that is drawn.</summary>
 /// <param name="Series">The labelled series.</param>
-/// <param name="Pair">The axes it is plotted against (<see cref="SeriesAxisPair.Primary"/> or
-/// <see cref="SeriesAxisPair.SecondaryY"/>).</param>
-/// <param name="IndexInPair">Its index across EVERY right-side slot's series, in slot order — the same number
-/// <see cref="Rendering.SeriesSlotExtensions.SlotIndex"/> expects, not an index within one slot alone.</param>
-/// <param name="AxisSlot">Which right-side slot (<see cref="Axes.RightYAxes"/>) this label's line is drawn against;
-/// meaningless (always 0) for <see cref="SeriesAxisPair.Primary"/>.</param>
+/// <param name="Pair">The series list that numbers it (<see cref="Rendering.YSlotSeat.Pair"/>).</param>
+/// <param name="IndexInPair">Its index in that list — the same number <see cref="Rendering.SeriesSlotExtensions.SlotIndex"/>
+/// expects, counted across every slot on that list, not within one slot alone.</param>
+/// <param name="Slot">The Y axis slot this label's line is drawn against: the label stands where that slot's transform
+/// puts the end of the line.</param>
 /// <param name="Text">The label as drawn: the series label, plus the legend-values suffix when it applies.</param>
 /// <param name="EndX">The x value of the point the label is placed at (data space).</param>
 /// <param name="EndY">The y value of that point (data space); the legend-values suffix shows it.</param>
-internal readonly record struct DirectLabel(ISeries Series, SeriesAxisPair Pair, int IndexInPair, int AxisSlot,
+internal readonly record struct DirectLabel(ISeries Series, SeriesAxisPair Pair, int IndexInPair, YAxisSlot Slot,
                                             string Text, double EndX, double EndY);
 
 /// <summary>The one owner of what the end-of-line labels of an axes say, where their lines end, the font they are drawn
@@ -66,8 +65,8 @@ internal sealed class DirectLabelMetrics
     /// <summary>The font every end label of the axes is drawn in (the drawing applies the series colour).</summary>
     internal Font Font { get; }
 
-    /// <summary>The labels in drawing order: the primary series, then the secondary-Y series. Empty when the axes'
-    /// renderer draws no end labels (polar, 3D: there the name stays in the legend).</summary>
+    /// <summary>The labels in identity order: the primary series, then every right slot's, then every left slot's. Empty
+    /// when the axes' renderer draws no end labels (polar, 3D: there the name stays in the legend).</summary>
     internal IReadOnlyList<DirectLabel> Labels { get; }
 
     /// <summary>The size of <paramref name="text"/> in <see cref="Font"/>; a label with math markup is measured as the
@@ -92,24 +91,20 @@ internal sealed class DirectLabelMetrics
     {
         var labels = new List<DirectLabel>();
         var range = new MinMaxRange(Math.Min(visibleX.Min, visibleX.Max), Math.Max(visibleX.Min, visibleX.Max));
-        Collect(axes.Series, SeriesAxisPair.Primary, 0, axes.Legend.LegendValues, range, labels);
-        // Every right-side slot's series, in slot order, numbered as ONE running index across every slot — the same
-        // number SlotIndex(SecondaryY, i) expects (Axes.AllSeries' order), never reset per slot.
-        int indexInPair = 0;
-        for (int slot = 0; slot < axes.RightYAxes.Count; slot++)
-        {
-            Collect(axes.RightYAxes[slot].Series, SeriesAxisPair.SecondaryY, slot, axes.Legend.LegendValues, range, labels, indexInPair);
-            indexInPair += axes.RightYAxes[slot].Series.Count;
-        }
+        // Every Y slot's series, the primary's and every slot's on either side, numbered as the series passes number them
+        // (Axes.YSlotSeats: one running index per list). A line ends at the right of the plot whatever axis measures it,
+        // so every label stands in the one column there, at the height its own slot puts the end of its line at.
+        foreach (var seat in axes.YSlotSeats())
+            Collect(seat, axes.Legend.LegendValues, range, labels);
         // Asked only when some series wants a label: whether one is drawn is the answer of the renderer the factory
         // builds for these axes, the rule the legend applies when it leaves such a series out.
         if (labels.Count > 0 && !AxesRenderer.Create(axes, default, ctx, theme).DrawsDirectLabels) labels.Clear();
         return labels;
     }
 
-    private static void Collect(IReadOnlyList<ISeries> series, SeriesAxisPair pair, int axisSlot, bool legendValues,
-                                MinMaxRange visibleX, List<DirectLabel> labels, int startingIndexInPair = 0)
+    private static void Collect(YSlotSeat seat, bool legendValues, MinMaxRange visibleX, List<DirectLabel> labels)
     {
+        var series = seat.Slot.Series;
         for (int i = 0; i < series.Count; i++)
         {
             if (series[i] is not IHasLabelPlacement { LabelPlacement: SeriesLabelPlacement.LineEnd } placed) continue;
@@ -119,7 +114,7 @@ internal sealed class DirectLabelMetrics
             int end = points.XData.LastDrawableIndex(points.YData, visibleX.Min, visibleX.Max);
             if (end < 0) continue;
             double x = points.XData[end], y = points.YData[end];
-            labels.Add(new DirectLabel(one, pair, startingIndexInPair + i, axisSlot,
+            labels.Add(new DirectLabel(one, seat.Pair, seat.FirstIndexInPair + i, seat.Slot,
                                        legendValues ? AxesRenderer.WithLegendValue(one.Label, y) : one.Label, x, y));
         }
     }

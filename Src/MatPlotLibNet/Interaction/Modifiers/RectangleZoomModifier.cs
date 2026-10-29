@@ -84,8 +84,8 @@ public sealed class RectangleZoomModifier : IInteractionModifier
         });
     }
 
-    /// <summary>Every outward-stacked secondary Y axis' new range after this drag — the SAME two pixel corners the
-    /// primary zoomed to, read through each secondary axis' OWN transform instead (ROADMAP.md row 100).</summary>
+    /// <summary>The new range of every Y axis stacked past the primary after this drag — the SAME two pixel corners the
+    /// primary zoomed to, read through each axis' OWN transform instead.</summary>
     private List<SecondaryAxisRange>? SecondaryRangesFor(double endPixelX, double endPixelY)
     {
         var views = _layout.SecondaryViewsOf(_activeAxes);

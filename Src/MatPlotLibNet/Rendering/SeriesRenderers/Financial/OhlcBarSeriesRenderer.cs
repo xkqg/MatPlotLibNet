@@ -13,25 +13,46 @@ internal sealed class OhlcBarSeriesRenderer : SeriesRenderer<OhlcBarSeries>
     public OhlcBarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
-    public override void Render(OhlcBarSeries series)
+    internal override void AddMarks(OhlcBarSeries series, MarkObstacles.Builder marks)
+    {
+        foreach (var bar in Bars(series))
+        {
+            if (bar.Low.CanDrawLineTo(bar.High)) marks.AddPath([bar.Low, bar.High]);
+            if (bar.OpenTick.CanDrawLineTo(bar.Open)) marks.AddPath([bar.OpenTick, bar.Open]);
+            if (bar.Close.CanDrawLineTo(bar.CloseTick)) marks.AddPath([bar.Close, bar.CloseTick]);
+        }
+    }
+
+    /// <summary>One OHLC bar: the colour it wears, its range line and the two ticks with the prices they stand at.</summary>
+    private readonly record struct OhlcPixels(Color Colour, Point Low, Point High, Point Open, Point OpenTick, Point Close, Point CloseTick);
+
+    /// <summary>The bars in order: the one geometry <see cref="Render"/> draws and <see cref="AddMarks"/> hands to a legend.
+    /// The line and the two ticks are marks of their own: a price that cannot be placed skips the one it belongs to.</summary>
+    private IEnumerable<OhlcPixels> Bars(OhlcBarSeries series)
     {
         for (int i = 0; i < series.Open.Length; i++)
         {
             bool isUp = series.Close[i] >= series.Open[i];
-            var color = isUp ? series.UpColor : series.DownColor;
-            // The line and the two ticks are marks of their own: a price that cannot be placed skips the one it belongs to.
-            var low = Transform.DataToPixel(i, series.Low[i]);
-            var high = Transform.DataToPixel(i, series.High[i]);
-            if (low.CanDrawLineTo(high))
-                Ctx.DrawLine(low, high, new StrokeStyle(color, 1.5, LineStyle.Solid));
-            var openPt = Transform.DataToPixel(i, series.Open[i]);
-            var openTick = new Point(openPt.X - series.TickWidth * 20, openPt.Y);
-            if (openTick.CanDrawLineTo(openPt))
-                Ctx.DrawLine(openTick, openPt, new StrokeStyle(color, 1.5, LineStyle.Solid));
-            var closePt = Transform.DataToPixel(i, series.Close[i]);
-            var closeTick = new Point(closePt.X + series.TickWidth * 20, closePt.Y);
-            if (closePt.CanDrawLineTo(closeTick))
-                Ctx.DrawLine(closePt, closeTick, new StrokeStyle(color, 1.5, LineStyle.Solid));
+            var open = Transform.DataToPixel(i, series.Open[i]);
+            var close = Transform.DataToPixel(i, series.Close[i]);
+            yield return new OhlcPixels(isUp ? series.UpColor : series.DownColor,
+                Transform.DataToPixel(i, series.Low[i]), Transform.DataToPixel(i, series.High[i]),
+                open, new Point(open.X - series.TickWidth * 20, open.Y),
+                close, new Point(close.X + series.TickWidth * 20, close.Y));
+        }
+    }
+
+    /// <inheritdoc />
+    public override void Render(OhlcBarSeries series)
+    {
+        foreach (var bar in Bars(series))
+        {
+            if (bar.Low.CanDrawLineTo(bar.High))
+                Ctx.DrawLine(bar.Low, bar.High, new StrokeStyle(bar.Colour, 1.5, LineStyle.Solid));
+            if (bar.OpenTick.CanDrawLineTo(bar.Open))
+                Ctx.DrawLine(bar.OpenTick, bar.Open, new StrokeStyle(bar.Colour, 1.5, LineStyle.Solid));
+            if (bar.Close.CanDrawLineTo(bar.CloseTick))
+                Ctx.DrawLine(bar.Close, bar.CloseTick, new StrokeStyle(bar.Colour, 1.5, LineStyle.Solid));
         }
     }
 }

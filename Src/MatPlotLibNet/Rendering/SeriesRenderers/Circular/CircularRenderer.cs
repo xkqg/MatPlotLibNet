@@ -58,16 +58,6 @@ internal abstract class CircularRenderer<TSeries> : SeriesRenderer<TSeries>
 
     /// <summary>Runs <see cref="LabelLayoutEngine.Place"/> on <paramref name="candidates"/>, draws
     /// a leader line for any displaced label, then draws each label text via <see cref="SeriesRenderer.Ctx"/>.</summary>
-    internal void PlaceOuterLabels(IReadOnlyList<LabelCandidate> candidates, Rect bounds)
-    {
-        if (candidates.Count == 0) return;
-        var placements = LabelLayoutEngine.Place(candidates, bounds, FontMetricsDefault.Current);
-        var leaderColor = Context.Theme.ForegroundText;
-        foreach (var p in placements)
-        {
-            if (p.LeaderLineStart is { } anchor)
-                CalloutBoxRenderer.DrawLeaderLine(Ctx, anchor, p.FinalPoint, leaderColor);
-            Ctx.DrawText(p.Text, p.FinalPoint, p.Font, p.Alignment);
-        }
-    }
+    internal void PlaceOuterLabels(IReadOnlyList<LabelCandidate> candidates, Rect bounds) =>
+        DrawPlacedLabels(PlaceLabels(candidates, bounds));
 }

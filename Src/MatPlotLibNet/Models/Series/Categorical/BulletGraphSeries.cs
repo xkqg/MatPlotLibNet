@@ -26,6 +26,9 @@ namespace MatPlotLibNet.Models.Series;
 /// permanent backdrop leaves nothing for the thing that is actually wrong.</para></summary>
 public sealed class BulletGraphSeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     /// <summary>The measure — the bar itself.</summary>
     public double Value { get; }
 

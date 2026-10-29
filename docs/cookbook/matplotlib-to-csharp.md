@@ -92,7 +92,7 @@ Plt.Create()
 | `ax.barh(labels, widths)` | `ax.Bar(labels, values, s => s.Orientation = BarOrientation.Horizontal)` | One series flag rather than a second verb. |
 | `ax.step(x, y)` | `ax.Step(x, y)` | |
 | `ax.stem(x, y)` | `ax.Stem(x, y)` | |
-| `ax.stackplot(x, ys)` | `ax.StackPlot(x, ySets)` | |
+| `ax.stackplot(x, ys)` | `ax.StackPlot(x, ySets)` | Name the layers with `Labels` and each is a legend entry. |
 | `ax.fill_between(x, y1, y2)` | `ax.FillBetween(x, y, y2)` | |
 | `ax.errorbar(x, y, yerr=e)` | `ax.ErrorBar(x, y, errorLow, errorHigh)` | |
 | `ax.pie(sizes, labels=…)` | `ax.Pie(sizes, labels)` | |
@@ -147,13 +147,13 @@ and [heatmaps](heatmaps.md) pages show each one with its picture.
 | `ax.margins(x=0.1)` | `ax.SetXMargin(0.1)` | |
 | `ax.margins(0)` | `ax.WithTightMargins()` | |
 | `ax.spines['top'].set_visible(False)` | `ax.HideTopSpine()` | `HideRightSpine()` for the other one. |
-| `ax.tick_params(axis='y', colors='C1')` and `ax.spines['left'].set_color('C1')` | `ax.SetYAxisColor(Colors.Tab10Orange)` | One call colours the spine, the tick marks, the tick labels and the title. `SetXAxisColor` for X; the secondary-axis builders have the same verbs. |
+| `ax.tick_params(axis='y', colors='C1')` and `ax.spines['left'].set_color('C1')` | `ax.SetYAxisColor(Colors.Tab10Orange)` | One call colours the spine, the tick marks, the tick labels and the title. `SetXAxisColor` for X; the callback of `WithAddRightYAxis` and `WithAddLeftYAxis` has `SetYAxisColor` for every further Y axis. |
 | `ax.axhline(y=0)` | `ax.AxHLine(0)` | |
 | `ax.axvline(x=0)` | `ax.AxVLine(0)` | |
 | `ax.axhspan(1, 2)` | `ax.AxHSpan(1, 2)` | |
 | `ax.axvspan(1, 2)` | `ax.AxVSpan(1, 2)` | |
 | `ax.annotate('…', xy=…)` | `ax.Annotate("…", x, y)` | Arrows, callout boxes and axes-fraction placement are all on the same call. |
-| `ax.twinx()` | `ax.WithSecondaryYAxis(right => …)` | |
+| `ax.twinx()` | `ax.WithAddRightYAxis(right => …)` | Each call stacks one more right-hand axis past the one before it, as repeated `twinx()` with an outward spine does, so there is nothing to count. `ax.WithAddLeftYAxis(left => …)` stacks on the left. |
 | `ax.sharex(other)` | `ax.ShareX("time")` | |
 | `plt.xticks(rotation=45)` | `ax.WithXTickLabelRotation(45)` | |
 | `ax.xaxis.set_major_formatter(f)` | `ax.SetXTickFormatter(formatter)` | |

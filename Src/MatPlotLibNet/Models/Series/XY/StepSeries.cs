@@ -25,6 +25,9 @@ public enum StepPosition
 /// <summary>Represents a step-function line series.</summary>
 public sealed class StepSeries : XYSeries, IHasColor
 {
+    /// <inheritdoc />
+    internal override LegendSwatch LegendSwatch => new(LegendSwatchKind.LineMarker, LineWidth, LineStyle, Marker: Marker, MarkerSize: LineSeries.RestingMarkerSize);
+
     public StepPosition StepPosition { get; set; } = StepPosition.Post;
 
     public Color? Color { get; set; }

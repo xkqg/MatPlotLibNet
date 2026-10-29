@@ -512,13 +512,15 @@ public class AxesDrawnPropertiesRoundTripTests
         Assert.Equal(figure.ToSvg(), RoundTrip(figure).ToSvg());
     }
 
-    /// <summary>A figure that sets none of the new parts writes the bytes it wrote before they reached the JSON.</summary>
+    /// <summary>A figure that sets none of the new parts writes the bytes it wrote before they reached the JSON. (The
+    /// fixture holds Y axes past the old caps on purpose, so its overflow fields are written; a figure within the caps
+    /// writing none is <see cref="YAxisContainerWireCompatTests.AFigureWithinTheOldCaps_WritesNoOverflowField"/>.)</summary>
     [Fact]
     public void AFigureThatSetsNoAxesPart_WritesNoneOfTheirFields()
     {
         string json = Serializer.ToJson(DrawnAxesFixtures.Build(everyPropertySet: false));
 
-        foreach (var field in new[] { "tickLocator", "tickFormatter", "legend", "colorBar", "figureColorBar", "titleStyle", "titleLoc", "majorTicks", "minorTicks", "labelStyle", "inverted", "margin", "symLogLinThresh", "themed" })
+        foreach (var field in new[] { "tickLocator", "tickFormatter", "legend", "colorBar", "figureColorBar", "titleStyle", "titleLoc", "majorTicks", "minorTicks", "labelStyle", "inverted", "margin", "symLogLinThresh", "themed", "yAxisTitleGap" })
         {
             Assert.False(Regex.IsMatch(json, $"\"{field}\":"), $"'{field}' was written for a figure that never set it: {json}");
         }

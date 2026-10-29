@@ -3,36 +3,40 @@
 
 namespace MatPlotLibNet.Rendering.Layout;
 
-/// <summary>The one rule for stacking outward-stacked secondary axes past each other — matplotlib's own repeated
-/// <c>ax.twinx()</c> plus <c>spines.set_position(('outward', N))</c>, in pixels: the first slot sits flush against the
-/// plot edge, and each slot after it stands past the SUM of the bands every slot before it takes. Read by the layout
-/// engine (to reserve the total) and the render part (to offset each slot) alike, so the two can never disagree about
-/// where a slot's edge is — the same bug class as <c>ConstrainedLayoutEngine.cs:427</c> vs
-/// <c>CartesianAxesRenderer.cs:40</c> deciding "is this axis drawn" two different ways.</summary>
+/// <summary>The one rule for stacking the Y axes of one side past each other — matplotlib's own repeated
+/// <c>ax.twinx()</c> plus <c>spines.set_position(('outward', N))</c>, in pixels: the first slot stands at the plot edge, and
+/// each slot after it stands the stacking gap past the far side of the one before it. Read by the layout engine (to
+/// reserve the total) and the renderer (to offset each slot) alike, so the two can never disagree about where a slot's
+/// edge is.</summary>
 internal static class AxisStackingExtensions
 {
-    /// <summary>The outward pixel offset of each band in <paramref name="bands"/>, in the order given: 0 for the
-    /// first, then the running sum of every band before it.</summary>
-    /// <param name="bands">One band per stacked slot, nearest-to-the-plot first.</param>
-    /// <returns>One offset per band, the same length and order as <paramref name="bands"/>.</returns>
-    internal static double[] StackedOffsets(this IReadOnlyList<double> bands)
+    extension(IReadOnlyList<double> bands)
     {
-        var offsets = new double[bands.Count];
-        double running = 0;
-        for (int i = 0; i < bands.Count; i++)
+        /// <summary>The outward pixel offset of each band, in the order given: 0 for the first, then the running sum of
+        /// every band before it and one <paramref name="gap"/> after each of them.</summary>
+        /// <param name="gap">The blank gap between the far side of a slot and the tick marks of the slot past it.</param>
+        /// <returns>One offset per band, the same length and order as the bands.</returns>
+        internal double[] StackedOffsets(double gap)
         {
-            offsets[i] = running;
-            running += bands[i];
+            var offsets = new double[bands.Count];
+            double running = 0;
+            for (int i = 0; i < bands.Count; i++)
+            {
+                offsets[i] = running;
+                running += bands[i] + gap;
+            }
+            return offsets;
         }
-        return offsets;
-    }
 
-    /// <summary>The total room every band in <paramref name="bands"/> takes together: the sum, the same total the
-    /// layout reserves and the last slot's <see cref="StackedOffsets"/> entry plus its own band reach.</summary>
-    internal static double TotalStackedBand(this IReadOnlyList<double> bands)
-    {
-        double total = 0;
-        foreach (var band in bands) total += band;
-        return total;
+        /// <summary>The room every band takes together: every band and one <paramref name="gap"/> between each pair, so
+        /// the last slot's <see cref="StackedOffsets"/> entry plus its own band; 0 for no band.</summary>
+        /// <param name="gap">The blank gap between the far side of a slot and the tick marks of the slot past it.</param>
+        /// <returns>The total band in pixels.</returns>
+        internal double TotalStackedBand(double gap)
+        {
+            double total = 0;
+            foreach (var band in bands) total += band;
+            return bands.Count > 1 ? total + (bands.Count - 1) * gap : total;
+        }
     }
 }

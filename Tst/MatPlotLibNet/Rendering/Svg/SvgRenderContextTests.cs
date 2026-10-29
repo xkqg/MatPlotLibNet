@@ -1,6 +1,9 @@
 // Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
+using System.Xml.Linq;
+using MatPlotLibNet.Models;
 using MatPlotLibNet.Rendering;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Rendering.TextMeasurement;
@@ -547,4 +550,102 @@ public class SvgRenderContextTests
         Assert.Contains("text-anchor=\"end\"", svg);
         Assert.Contains("<tspan", svg);
     }
+
+    /// <summary>The view a server-interaction axes writes numbers the Y axes PAST the primary, per side:
+    /// <c>data-sec-left-0-ymin</c>/<c>-ymax</c> is the range of the first OUTWARD left axis, and the primary Y axis, which the
+    /// left side also holds, keeps the plain <c>data-ymin</c>/<c>data-ymax</c> and is never a <c>data-sec-left-*</c> entry.
+    /// The script sends that index back in a secondary range, so the numbering is a contract an open tab keeps across a
+    /// redeploy.</summary>
+    [Fact]
+    public void DataSecLeftZero_IsTheFirstOutwardLeftSlotsRange()
+    {
+        var svg = Plt.Create().WithSize(600, 500).WithServerInteraction("c", s => s.EnableZoom())
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2, 3], [10.0, 20, 30]).SetYLim(0, 100)
+                .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2, 3], [100.0, 300, 200]))
+                .WithAddLeftYAxis(left => left.SetYLim(-7, 7).Plot([1.0, 2, 3], [1.0, -2, 3])))
+            .ToSvg();
+
+        var view = XDocument.Parse(svg).Descendants().Single(e => e.Attribute("data-axes-index") is not null);
+        double Number(string name)
+        {
+            var attribute = view.Attribute(name);
+            Assert.True(attribute is not null, $"the axes' view carries no {name}");
+            return double.Parse(attribute!.Value, CultureInfo.InvariantCulture);
+        }
+
+        Assert.Equal(-7, Number("data-sec-left-0-ymin"));
+        Assert.Equal(7, Number("data-sec-left-0-ymax"));
+        Assert.Equal("1", (string?)view.Attribute("data-sec-left-count"));
+        Assert.Null(view.Attribute("data-sec-left-1-ymin"));
+        Assert.Equal(0, Number("data-sec-right-0-ymin"));
+        Assert.Equal(500, Number("data-sec-right-0-ymax"));
+        Assert.Equal("1", (string?)view.Attribute("data-sec-right-count"));
+        Assert.Equal(0, Number("data-ymin"));
+        Assert.Equal(100, Number("data-ymax"));
+    }
+
+    /// <summary>The attributes an axes' view carries number the Y axes PAST the primary, per side, exactly as the published
+    /// 1.23.0 numbered them: a browser tab that still holds an older SVG sends those indices back after a redeploy, so a
+    /// number may never change its meaning. The four-axes figure of the 1.23.0 fixture drawn by today's code carries the
+    /// attribute names and values 1.23.0 wrote (<c>v1.23.0-four-axes-view.json</c>, everything the view holds apart from the
+    /// plot area, which moves with the layout), and a figure with two axes out on each side numbers them 0 and 1 per side,
+    /// the primary Y axis being none of them.
+    /// <para>To reproduce the fixture, run the figure below with the 1.23.0 package from nuget.org (that package's own
+    /// verbs for the first right axis and for the axes stacked past it, as in the recipe of
+    /// <c>YAxisContainerWireCompatTests</c>, in place of the container verbs, <c>WithServerInteraction("c", s =&gt;
+    /// s.EnableZoom())</c> added) and print the <c>data-*</c> attributes of the <c>&lt;g data-axes-index="0"&gt;</c> group
+    /// other than <c>data-plot-*</c>.</para></summary>
+    [Fact]
+    public void DataSecAttributes_AreNumberedOutwardOnly()
+    {
+        var published = XDocument.Parse(Plt.Create().WithTitle("Four Y axes").WithSize(900, 500)
+            .WithServerInteraction("c", s => s.EnableZoom())
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([0.0, 1, 2, 3], [1.0, 3, 2, 4])
+                .WithAddRightYAxis(y => y.Plot([0.0, 1, 2, 3], [10.0, 30, 20, 40]))
+                .WithAddRightYAxis(y => y.Plot([0.0, 1, 2, 3], [100.0, 300, 200, 400]))
+                .WithAddLeftYAxis(y => y.Plot([0.0, 1, 2, 3], [0.5, 1.5, 1.0, 2.0])))
+            .ToSvg());
+
+        var written = AxesView(published).Attributes()
+            .Where(a => a.Name.LocalName.StartsWith("data-", StringComparison.Ordinal) && !a.Name.LocalName.StartsWith("data-plot-", StringComparison.Ordinal)
+                        && a.Name.LocalName != "data-axes-index")
+            .Select(a => KeyValuePair.Create(a.Name.LocalName, a.Value))
+            .ToList();
+        var fixture = System.Text.Json.Nodes.JsonNode.Parse(
+                File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Serialization", "Compat", "v1.23.0-four-axes-view.json")))!
+            .AsObject()
+            .Select(p => KeyValuePair.Create(p.Key, (string)p.Value!))
+            .ToList();
+        Assert.Equal(fixture, written);
+
+        var stacked = AxesView(XDocument.Parse(Plt.Create().WithSize(700, 500).WithServerInteraction("c", s => s.EnableZoom())
+            .AddSubPlot(1, 1, 1, ax => ax
+                .Plot([1.0, 2, 3], [10.0, 20, 30]).SetYLim(0, 100)
+                .WithAddRightYAxis(y => y.SetYLim(0, 500).Plot([1.0, 2, 3], [100.0, 300, 200]))
+                .WithAddRightYAxis(y => y.SetYLim(0, 5000).Plot([1.0, 2, 3], [1000.0, 3000, 2000]))
+                .WithAddLeftYAxis(y => y.SetYLim(-7, 7).Plot([1.0, 2, 3], [1.0, -2, 3]))
+                .WithAddLeftYAxis(y => y.SetYLim(-70, 70).Plot([1.0, 2, 3], [10.0, -20, 30])))
+            .ToSvg()));
+
+        void AssertRange(string prefix, string min, string max)
+        {
+            Assert.Equal(min, (string?)stacked.Attribute(prefix + "ymin"));
+            Assert.Equal(max, (string?)stacked.Attribute(prefix + "ymax"));
+        }
+
+        AssertRange("data-sec-left-0-", "-7", "7");
+        AssertRange("data-sec-left-1-", "-70", "70");
+        AssertRange("data-sec-right-0-", "0", "500");
+        AssertRange("data-sec-right-1-", "0", "5000");
+        AssertRange("data-", "0", "100");
+        Assert.Equal("2", (string?)stacked.Attribute("data-sec-left-count"));
+        Assert.Equal("2", (string?)stacked.Attribute("data-sec-right-count"));
+        Assert.DoesNotContain(stacked.Attributes(), a => a.Name.LocalName.StartsWith("data-sec-left-2-", StringComparison.Ordinal)
+                                                          || a.Name.LocalName.StartsWith("data-sec-right-2-", StringComparison.Ordinal));
+    }
+
+    private static XElement AxesView(XDocument svg) =>
+        svg.Descendants().Single(e => e.Attribute("data-axes-index") is not null);
 }

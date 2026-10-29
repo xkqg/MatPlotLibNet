@@ -16,6 +16,7 @@ public static class AxesThreeDVerbs
         /// <summary>Adds a 3D surface series and sets coordinate system to ThreeD.</summary>
         public SurfaceSeries Surface(double[] x, double[] y, double[,] z)
         {
+            z.ThrowIfMisaligned(y.Length, x.Length);
             axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new SurfaceSeries(x, y, z));
         }
@@ -23,6 +24,7 @@ public static class AxesThreeDVerbs
         /// <summary>Adds a 3D wireframe series and sets coordinate system to ThreeD.</summary>
         public WireframeSeries Wireframe(double[] x, double[] y, double[,] z)
         {
+            z.ThrowIfMisaligned(y.Length, x.Length);
             axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new WireframeSeries(x, y, z));
         }
@@ -30,6 +32,8 @@ public static class AxesThreeDVerbs
         /// <summary>Adds a 3D scatter series and sets coordinate system to ThreeD.</summary>
         public Scatter3DSeries Scatter3D(double[] x, double[] y, double[] z)
         {
+            x.Length.ThrowIfMisaligned(y.Length);
+            x.Length.ThrowIfMisaligned(z.Length);
             axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Scatter3DSeries(x, y, z));
         }
@@ -37,6 +41,8 @@ public static class AxesThreeDVerbs
         /// <summary>Adds a 3D stem series and sets coordinate system to ThreeD.</summary>
         public Stem3DSeries Stem3D(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
         {
+            x.Length.ThrowIfMisaligned(y.Length);
+            x.Length.ThrowIfMisaligned(z.Length);
             axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Stem3DSeries(x, y, z));
         }
@@ -44,6 +50,8 @@ public static class AxesThreeDVerbs
         /// <summary>Adds a 3D bar series and sets coordinate system to ThreeD.</summary>
         public Bar3DSeries Bar3D(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
         {
+            x.Length.ThrowIfMisaligned(y.Length);
+            x.Length.ThrowIfMisaligned(z.Length);
             axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Bar3DSeries(x, y, z));
         }
@@ -52,6 +60,8 @@ public static class AxesThreeDVerbs
         /// matplotlib's "2D bars in different planes" pattern) and sets coordinate system to ThreeD.</summary>
         public PlanarBar3DSeries PlanarBar3D(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
         {
+            x.Length.ThrowIfMisaligned(y.Length);
+            x.Length.ThrowIfMisaligned(z.Length);
             axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new PlanarBar3DSeries(x, y, z));
         }
@@ -59,6 +69,8 @@ public static class AxesThreeDVerbs
         /// <summary>Adds a 3D line (polyline) series and sets coordinate system to ThreeD.</summary>
         public Line3DSeries Plot3D(double[] x, double[] y, double[] z)
         {
+            x.Length.ThrowIfMisaligned(y.Length);
+            x.Length.ThrowIfMisaligned(z.Length);
             axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Line3DSeries(x, y, z));
         }
@@ -66,6 +78,8 @@ public static class AxesThreeDVerbs
         /// <summary>Adds a triangulated surface series and sets coordinate system to ThreeD.</summary>
         public Trisurf3DSeries Trisurf(double[] x, double[] y, double[] z)
         {
+            x.Length.ThrowIfMisaligned(y.Length);
+            x.Length.ThrowIfMisaligned(z.Length);
             axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Trisurf3DSeries(x, y, z));
         }
@@ -73,6 +87,7 @@ public static class AxesThreeDVerbs
         /// <summary>Adds a 3D contour series and sets coordinate system to ThreeD.</summary>
         public Contour3DSeries Contour3D(double[] x, double[] y, double[,] z)
         {
+            z.ThrowIfMisaligned(y.Length, x.Length);
             axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Contour3DSeries(x, y, z));
         }
@@ -80,6 +95,11 @@ public static class AxesThreeDVerbs
         /// <summary>Adds a 3D quiver (vector field) series and sets coordinate system to ThreeD.</summary>
         public Quiver3DSeries Quiver3D(double[] x, double[] y, double[] z, double[] u, double[] v, double[] w)
         {
+            x.Length.ThrowIfMisaligned(y.Length);
+            x.Length.ThrowIfMisaligned(z.Length);
+            x.Length.ThrowIfMisaligned(u.Length);
+            x.Length.ThrowIfMisaligned(v.Length);
+            x.Length.ThrowIfMisaligned(w.Length);
             axes.CoordinateSystem = CoordinateSystem.ThreeD;
             return axes.AddSeries(new Quiver3DSeries(x, y, z, u, v, w));
         }

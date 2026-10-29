@@ -277,19 +277,45 @@ public class ConstrainedLayoutTests
             $"Vertical colorbar must widen right margin; got cb={cbSpacing.MarginRight}, bare={bareSpacing.MarginRight}");
     }
 
+    /// <summary>The right margin holds the widest label the bar can draw. The bar's ticks come from a locator that returns
+    /// at most 2 to 9 of them, by how long the bar turns out to be, which the layout does not know yet: it reserves for the
+    /// widest label over those 2 to 9. A range of 0 to 123456789 has 0 and 100000000 as the two ticks of the shortest bar.</summary>
+    [Fact]
+    public void Engine_VerticalColorBar_ReservesTheWidestTickLabelItCanDraw()
+    {
+        double[,] wide = { { 0, 123456789 }, { 5, 8 } };
+        var figure = new FigureBuilder()
+            .WithTheme(Theme.Default)
+            .AddSubPlot(1, 1, 1, ax =>
+            {
+                ax.Heatmap(wide);
+                ax.WithColorBar(cb => cb with { Visible = true, Orientation = ColorBarOrientation.Vertical });
+            })
+            .Build();
+        var ctx = MakeCtx();
+
+        var spacing = new ConstrainedLayoutEngine().Compute(figure, ctx);
+
+        var widestText = AxesRenderer.BuildUniformTickFormatter([0.0, 1e8])(1e8);
+        double widest = ctx.MeasureText(widestText, ThemedFontProvider.TickFont(Theme.Default)).Width;
+        var bar = new ColorBar();
+        Assert.True(spacing.MarginRight >= bar.Padding + bar.Width + 4 + widest + 8 + ConstrainedLayoutEngine.PadRight,
+            $"the right margin {spacing.MarginRight} does not hold a label of {widest} px beside the bar");
+    }
+
     /// <summary>
-    /// A secondary Y-axis label (twinX) widens the right margin — the engine branch that
-    /// handles <c>axes.SecondaryYAxis?.Label</c> on the right side.
+    /// A right Y-axis label widens the right margin — the engine branch that
+    /// handles the label of the first right axis (<c>axes.YAxes.Right[0].Axis.Label</c>) on the right side.
     /// </summary>
     [Fact]
-    public void Engine_SecondaryYAxisLabel_WidensRightMargin()
+    public void Engine_RightYAxisLabel_WidensRightMargin()
     {
         var ctx = MakeCtx();
         var withSecondary = new FigureBuilder()
             .AddSubPlot(1, 1, 1, ax =>
             {
                 ax.Plot([1.0, 2.0], [1.0, 2.0]);
-                ax.WithSecondaryYAxis(y2 => y2.SetYLabel("Secondary axis label"));
+                ax.WithAddRightYAxis(y2 => y2.SetYLabel("Secondary axis label"));
             })
             .Build();
 

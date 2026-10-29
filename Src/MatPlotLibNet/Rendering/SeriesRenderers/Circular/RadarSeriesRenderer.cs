@@ -13,6 +13,9 @@ internal sealed class RadarSeriesRenderer : SeriesRenderer<RadarSeries>
     public RadarSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(RadarSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(RadarSeries series)
     {
         var color = ResolveColor(series.Color);
@@ -33,7 +36,7 @@ internal sealed class RadarSeriesRenderer : SeriesRenderer<RadarSeries>
             for (int i = 0; i < n; i++) { double a = 2 * Math.PI * i / n - Math.PI / 2; ringPts.Add(new Point(cx + radius * frac * Math.Cos(a), cy + radius * frac * Math.Sin(a))); }
             Ctx.DrawPolygon(ringPts, new ShapeStyle(null, webColor, 0.5));
         }
-        var labelFont = new Font { Size = 10 };
+        var labelFont = ThemedFontProvider.DataTextFont(Context.Theme);
         for (int i = 0; i < n; i++)
         {
             double a = 2 * Math.PI * i / n - Math.PI / 2;

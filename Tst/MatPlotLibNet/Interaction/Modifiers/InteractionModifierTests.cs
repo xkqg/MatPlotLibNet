@@ -203,7 +203,7 @@ public sealed class PanModifierGenericTests : InteractionModifierTests<PanModifi
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
+                .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
             .Build();
         var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
         var events = new List<FigureInteractionEvent>();
@@ -221,8 +221,8 @@ public sealed class PanModifierGenericTests : InteractionModifierTests<PanModifi
         Assert.NotEqual(0.0, secondary.Range.YMin);
 
         pan.ApplyTo(figure);
-        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].SecondaryYAxis!.Min);
-        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].SecondaryYAxis!.Max);
+        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].YAxes.Right[0].Axis.Min);
+        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].YAxes.Right[0].Axis.Max);
     }
 }
 
@@ -443,7 +443,7 @@ public sealed class ZoomModifierGenericTests : InteractionModifierTests<ZoomModi
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
+                .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
             .Build();
         var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
         var events = new List<FigureInteractionEvent>();
@@ -458,8 +458,8 @@ public sealed class ZoomModifierGenericTests : InteractionModifierTests<ZoomModi
         Assert.True(secondarySpan < 500.0, "Zoom in should narrow the secondary axis' own range too.");
 
         zoom.ApplyTo(figure);
-        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].SecondaryYAxis!.Min);
-        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].SecondaryYAxis!.Max);
+        Assert.Equal(secondary.Range.YMin, figure.SubPlots[0].YAxes.Right[0].Axis.Min);
+        Assert.Equal(secondary.Range.YMax, figure.SubPlots[0].YAxes.Right[0].Axis.Max);
     }
 }
 
@@ -699,15 +699,15 @@ public sealed class ResetModifierGenericTests : InteractionModifierTests<ResetMo
         var figure = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax
                 .Plot([1.0, 2.0], [3.0, 4.0])
-                .WithSecondaryYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
+                .WithAddRightYAxis(y2 => y2.SetYLim(0, 500).Plot([1.0, 2.0], [100.0, 200.0])))
             .Build();
         var layout = ChartLayout.Create(figure, [new Rect(10, 10, 100, 50)]);
         var events = new List<FigureInteractionEvent>();
         var m = new ResetModifier("chart-1", layout, events.Add);
 
         // Move the secondary axis away from its original range before resetting.
-        figure.SubPlots[0].SecondaryYAxis!.Min = 123;
-        figure.SubPlots[0].SecondaryYAxis!.Max = 456;
+        figure.SubPlots[0].YAxes.Right[0].Axis.Min = 123;
+        figure.SubPlots[0].YAxes.Right[0].Axis.Max = 456;
 
         m.OnPointerPressed(new PointerInputArgs(50, 30, PointerButton.Left, ModifierKeys.None, ClickCount: 2));
 
@@ -718,8 +718,8 @@ public sealed class ResetModifierGenericTests : InteractionModifierTests<ResetMo
         Assert.Equal(500.0, secondary.Range.YMax);
 
         reset.ApplyTo(figure);
-        Assert.Equal(0.0, figure.SubPlots[0].SecondaryYAxis!.Min);
-        Assert.Equal(500.0, figure.SubPlots[0].SecondaryYAxis!.Max);
+        Assert.Equal(0.0, figure.SubPlots[0].YAxes.Right[0].Axis.Min);
+        Assert.Equal(500.0, figure.SubPlots[0].YAxes.Right[0].Axis.Max);
     }
 
     [Fact]

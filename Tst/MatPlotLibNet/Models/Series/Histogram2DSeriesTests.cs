@@ -84,6 +84,59 @@ public class Histogram2DSeriesTests
         Assert.Equal(SampleY[0], restoredSeries.Y[0]);
     }
 
+    // ---- a histogram has bins ---------------------------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(0, 5)]
+    [InlineData(-1, 5)]
+    [InlineData(5, 0)]
+    [InlineData(5, -1)]
+    public void ANumberOfBinsBelowOne_IsRefused_WhenTheSeriesIsBuilt(int binsX, int binsY)
+    {
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Histogram2DSeries(SampleX, SampleY, binsX, binsY));
+
+        Assert.Contains("at least one bin along each axis", ex.Message);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ANumberOfBinsBelowOne_IsRefused_ByTheVerb(int bins) =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Axes().Histogram2D(SampleX, SampleY, bins));
+
+    [Fact]
+    public void ANumberOfBinsBelowOne_IsRefused_WhenItIsSet_AndTheSeriesKeepsItsBins()
+    {
+        var series = new Histogram2DSeries(SampleX, SampleY, 7, 9);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => series.BinsX = 0);
+        Assert.Throws<ArgumentOutOfRangeException>(() => series.BinsY = -3);
+
+        Assert.Equal(7, series.BinsX);
+        Assert.Equal(9, series.BinsY);
+    }
+
+    [Fact]
+    public void OneBinAlongEachAxis_IsTheSmallestHistogram_AndDraws()
+    {
+        string svg = Plt.Create().Histogram2D(SampleX, SampleY, 1).ToSvg();
+
+        Assert.Contains("rect", svg);
+    }
+
+    [Theory]
+    [InlineData("bins")]
+    [InlineData("binsY")]
+    public void ADocumentWithNoBinsInOneAxis_IsRefusedWhenItIsRead(string member)
+    {
+        string json = $$"""{"subPlots":[{"series":[{"type":"histogram2d","xData":[1,2],"yData":[1,2],"bins":4,"binsY":4}]}]}"""
+            .Replace($"\"{member}\":4", $"\"{member}\":0");
+
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new ChartSerializer().FromJson(json));
+
+        Assert.Contains("at least one bin along each axis", ex.Message);
+    }
+
     /// <summary>Verifies that rendering produces SVG output containing rect elements.</summary>
     [Fact]
     public void Render_ProducesSvg()

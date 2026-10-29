@@ -45,6 +45,10 @@ public sealed class PolarHeatmapSeries : ChartSeries, IColormappable, INormaliza
     public MinMaxRange GetColorBarRange() => Data.ScanColorBarRange();
 
     /// <inheritdoc />
+    /// <remarks>The heatmap's cells end at <see cref="RMax"/>, so the scale reaches at least that far, exactly.</remarks>
+    internal override RadialExtent? RadialExtent => double.IsFinite(RMax) && RMax > 0 ? new RadialExtent(RMax, Sticky: true) : null;
+
+    /// <inheritdoc />
     public override DataRangeContribution ComputeDataRange(IAxesContext context) =>
         new(null, null, null, null);
 

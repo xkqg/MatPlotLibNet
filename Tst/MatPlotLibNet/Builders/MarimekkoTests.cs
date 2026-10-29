@@ -133,7 +133,7 @@ public class MarimekkoTests
         var areas = Areas(axes);
         Assert.Equal(3, areas.Length);
         Assert.Equal(["A", "B", "C"], areas.Select(a => a.Label));
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
         Assert.Empty(axes.ReferenceLines);
     }

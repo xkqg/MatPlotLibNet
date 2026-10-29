@@ -147,11 +147,21 @@ public class ComposedChartRoundTripTests
     // ---- promise 5: every part is in a drawn-property contract --------------------------------------------------
 
     /// <summary>The overlay lists of an axes (annotations, reference lines, spans, trendlines, ...): every public list
-    /// property whose items are neither series nor axes. Reflected, so an overlay kind added tomorrow is walked too.</summary>
+    /// property whose items are neither series, axes nor Y axis slots (the slots are walked through the container, see
+    /// <see cref="YAxisSlotsOf"/>). Reflected, so an overlay kind added tomorrow is walked too.</summary>
     private static readonly PropertyInfo[] OverlayLists =
         [.. typeof(Axes).GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.PropertyType.IsGenericType && p.PropertyType.GetGenericTypeDefinition() == typeof(IReadOnlyList<>))
-            .Where(p => p.PropertyType.GetGenericArguments()[0] is var item && !typeof(ISeries).IsAssignableFrom(item) && item != typeof(Axes))];
+            .Where(p => p.PropertyType.GetGenericArguments()[0] is var item
+                && !typeof(ISeries).IsAssignableFrom(item) && item != typeof(Axes) && !IsYAxisSlot(item))];
+
+    /// <summary>Whether <paramref name="item"/> is a Y axis slot: the container's <see cref="YAxisSlot"/>, or any list item
+    /// that carries a Y axis' <see cref="YAxisSlot.Axis"/> the way a slot does.</summary>
+    private static bool IsYAxisSlot(Type item) =>
+        item == typeof(YAxisSlot) || item.GetProperty(nameof(YAxisSlot.Axis))?.PropertyType == typeof(Axis);
+
+    /// <summary>Every Y axis slot of <paramref name="axes"/>, the primary included, through the container.</summary>
+    private static IEnumerable<YAxisSlot> YAxisSlotsOf(Axes axes) => axes.YAxes.IdentityOrder;
 
     private static IEnumerable<Axes> AxesOf(Figure figure)
     {
@@ -168,8 +178,9 @@ public class ComposedChartRoundTripTests
     public void EveryPartTheShapeIsBuiltFrom_IsInADrawnPropertyContract(string name)
     {
         var axes = AxesOf(ComposedChartShapes.Named(name).Build(false).Build()).ToList();
-        var seriesTypes = axes.SelectMany(a => a.Series.Concat(a.SecondarySeries).Concat(a.XSecondarySeries)).Select(s => s.GetType());
-        var overlayTypes = axes.SelectMany(a => OverlayLists.SelectMany(list => ((IEnumerable)list.GetValue(a)!).Cast<object>())).Select(o => o.GetType());
+        var seriesTypes = axes.SelectMany(a => a.AllSeries).Select(s => s.GetType());
+        var overlayTypes = axes.SelectMany(a => OverlayLists.SelectMany(list => ((IEnumerable)list.GetValue(a)!).Cast<object>())
+                .Concat(YAxisSlotsOf(a))).Select(o => o.GetType());
 
         var unguarded = seriesTypes.Except(DrawnSeriesFixtures.DrawnTypes)
             .Concat(overlayTypes.Except(DrawnAxesFixtures.Parts.Select(part => part.Type)))

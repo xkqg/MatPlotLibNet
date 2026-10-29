@@ -16,6 +16,9 @@ internal sealed class Bar3DSeriesRenderer : SeriesRenderer<Bar3DSeries>
     public Bar3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(Bar3DSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(Bar3DSeries series)
     {
         if (series.X.Length == 0) return;

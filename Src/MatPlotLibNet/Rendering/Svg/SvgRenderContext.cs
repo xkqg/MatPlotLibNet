@@ -508,8 +508,8 @@ public sealed class SvgRenderContext : IRenderContext
     /// <param name="axesIndex">The axes' index in the figure's subplots — what the script sends as <c>axesIndex</c>.</param>
     /// <param name="plotArea">The axes' plot area, used when <paramref name="drawnWith"/> is <see langword="null"/>.</param>
     /// <param name="drawnWith">The transform the axes drew its primary series with, or <see langword="null"/>.</param>
-    /// <param name="secondary">Every outward-stacked secondary Y axis' own transform (ROADMAP.md row 100), right
-    /// slots then left slots — empty for axes with none, or a renderer that draws no secondary axis of this kind.</param>
+    /// <param name="secondary">The own transform of every Y axis stacked past the primary, right
+    /// slots then left slots — empty for axes with none, or a renderer that draws no Y axis of this kind.</param>
     internal void WriteAxesView(int axesIndex, Rect plotArea, DataTransform? drawnWith,
         IReadOnlyList<SecondaryAxisTransform>? secondary = null)
     {
@@ -519,11 +519,12 @@ public sealed class SvgRenderContext : IRenderContext
         _sb.AppendLine(" />");
     }
 
-    /// <summary>Writes every outward-stacked secondary Y axis' own range (and scale, when not linear) as attributes
+    /// <summary>Writes the own range (and scale, when not linear) of every Y axis stacked past the primary as attributes
     /// prefixed by its side and slot — <c>data-sec-right-0-ymin</c>, <c>data-sec-left-1-yscale</c>, and so on — plus
     /// a count per side (<c>data-sec-right-count</c>/<c>data-sec-left-count</c>) so the script knows how many to
     /// read without having to probe. The script converts a gesture through a specific slot's own range the same way
-    /// <see cref="AppendView"/>'s primary range is converted (ROADMAP.md row 100).</summary>
+    /// <see cref="AppendView"/>'s primary range is converted. The numbering is OUTWARD only (the primary Y axis has no
+    /// index here) and stays so: a browser tab that holds an older drawing sends it back.</summary>
     private void AppendSecondaryViews(IReadOnlyList<SecondaryAxisTransform>? secondary)
     {
         if (secondary is not { Count: > 0 }) return;

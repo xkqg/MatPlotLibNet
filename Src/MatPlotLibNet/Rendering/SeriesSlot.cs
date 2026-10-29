@@ -16,12 +16,12 @@ internal enum SeriesAxisPair
     /// <summary><see cref="Axes.Series"/>: the bottom X axis and the left Y axis.</summary>
     Primary,
 
-    /// <summary>Every <see cref="Axes.RightYAxes"/> slot's own series, in slot order, numbered as one running
-    /// sequence across every slot (<see cref="Axes.SecondarySeries"/> is right slot 0 alone).</summary>
+    /// <summary>Every right slot's own series (<see cref="YAxisContainer.Right"/>), in slot order, numbered as one running
+    /// sequence across every slot.</summary>
     SecondaryY,
 
-    /// <summary>Every <see cref="Axes.LeftYAxes"/> slot's own series, in slot order, numbered as one running
-    /// sequence across every slot, kept apart from <see cref="SecondaryY"/>'s.</summary>
+    /// <summary>Every left slot's own series past the primary (<see cref="YAxisContainer.Left"/>), in slot order,
+    /// numbered as one running sequence across every slot, kept apart from <see cref="SecondaryY"/>'s.</summary>
     SecondaryLeftY,
 
     /// <summary><see cref="Axes.XSecondarySeries"/>: the top X axis and the left Y axis.</summary>
@@ -127,12 +127,22 @@ internal readonly record struct SeriesSlot(
         CycledProperties?.MarkerStyle is { } marker and not MarkerStyle.None ? marker : null;
 }
 
+/// <summary>A Y axis slot of the container and where its series stand in the series lists that number them: the list
+/// (<see cref="Pair"/>) and the index its first series has there, so series <c>i</c> of the slot is
+/// <c>SlotIndex(Pair, FirstIndexInPair + i)</c>.</summary>
+/// <param name="Slot">The slot.</param>
+/// <param name="Pair">The list that numbers its series: <see cref="SeriesAxisPair.Primary"/> for the primary Y axis, the
+/// side's own list for a slot stacked past it.</param>
+/// <param name="FirstIndexInPair">The index its first series has in that list: the series of every slot nearer the plot
+/// on the same list stand before it.</param>
+internal readonly record struct YSlotSeat(YAxisSlot Slot, SeriesAxisPair Pair, int FirstIndexInPair);
+
 /// <summary>The one owner of "the colour of series i" and of how it is stroked. The axes decides which slot a series
 /// holds; the theme decides what that slot is worth.</summary>
 /// <remarks>Every site that draws a series or names it by colour goes through here: the primary series passes in
-/// <see cref="AxesRenderer"/>, both secondary-axis parts, and the legend. Before this owner the secondary parts read
-/// <see cref="Theme.CycleColors"/> only while the legend read the <see cref="Theme.PropCycler"/> first, so under a
-/// cycler theme a secondary line and its swatch wore different colours. The same goes for the dash, the marker and the
+/// <see cref="AxesRenderer"/>, the part of every Y axis slot, and the legend. Before this owner the parts that drew the
+/// axes past the primary read <see cref="Theme.CycleColors"/> only while the legend read the <see cref="Theme.PropCycler"/>
+/// first, so under a cycler theme a line on such an axis and its swatch wore different colours. The same goes for the dash, the marker and the
 /// width: the series renderers and the legend swatch both ask the slot (the <c>SeriesSlot</c> value this hands out).</remarks>
 internal static class SeriesSlotExtensions
 {
@@ -174,50 +184,73 @@ internal static class SeriesSlotExtensions
         {
             SeriesAxisPair.Primary => indexInPair,
             SeriesAxisPair.SecondaryY => axes.Series.Count + indexInPair,
-            SeriesAxisPair.SecondaryLeftY => axes.Series.Count + axes.TotalRightSeries() + indexInPair,
-            SeriesAxisPair.SecondaryX => axes.Series.Count + axes.TotalRightSeries() + axes.TotalLeftSeries() + indexInPair,
+            SeriesAxisPair.SecondaryLeftY => axes.Series.Count + axes.YAxes.Right.OutwardSeriesCount + indexInPair,
+            SeriesAxisPair.SecondaryX => axes.Series.Count + axes.YAxes.Right.OutwardSeriesCount + axes.YAxes.Left.OutwardSeriesCount + indexInPair,
             _ => throw new ArgumentOutOfRangeException(nameof(pair), pair, "Not a series list of an axes."),
         };
 
-        /// <summary>Every right-side slot's series, summed — not <see cref="Axes.SecondarySeries"/>, which is right
-        /// slot 0 alone. Matches <see cref="Axes.AllSeries"/>'s concatenation order, which every
-        /// <see cref="SeriesAxisPair"/> after <see cref="SeriesAxisPair.SecondaryY"/> counts past.</summary>
-        private int TotalRightSeries()
+        /// <summary>Every Y axis slot of the container in identity order (<see cref="YAxisContainer.IdentityOrder"/>), each
+        /// with the list that numbers its series and the index its first series has there: the one rule the series passes,
+        /// the legend and the end labels number a slot's series by, so a series answers to the same
+        /// <see cref="SlotIndex"/> wherever it is drawn or named.</summary>
+        /// <returns>The primary first, then every right slot nearest the plot first, then every left slot past the
+        /// primary.</returns>
+        internal IReadOnlyList<YSlotSeat> YSlotSeats()
         {
-            int total = 0;
-            foreach (var slot in axes.RightYAxes) total += slot.Series.Count;
-            return total;
-        }
-
-        /// <summary>Every left-side slot's series, summed — the mirror of <see cref="TotalRightSeries"/>.</summary>
-        private int TotalLeftSeries()
-        {
-            int total = 0;
-            foreach (var slot in axes.LeftYAxes) total += slot.Series.Count;
-            return total;
+            var left = axes.YAxes.Left;
+            var seats = new List<YSlotSeat>();
+            foreach (var primary in left.Take(left.OutwardOffset)) seats.Add(new YSlotSeat(primary, SeriesAxisPair.Primary, 0));
+            foreach (var stack in new[] { axes.YAxes.Right, left })
+            {
+                var pair = YSideTerms.Of(stack.Side).OutwardPair;
+                int first = 0;
+                foreach (var slot in stack.Skip(stack.OutwardOffset))
+                {
+                    seats.Add(new YSlotSeat(slot, pair, first));
+                    first += slot.Series.Count;
+                }
+            }
+            return seats;
         }
 
         /// <summary>The colour slots of every series in <see cref="Axes.AllSeries"/>, in order: one table, built once.
         /// A series with no <see cref="Models.Series.ChartSeries.ColorGroup"/> holds a slot of its own, exactly where
-        /// <see cref="SlotIndex"/> would put it; a run of series that share the SAME group value, standing next to each
-        /// other, holds ONE slot between them — the slot does not advance again until the group changes. A group that is
+        /// <see cref="SlotIndex"/> would put it, or as many as it colours parts
+        /// (<see cref="Models.Series.ChartSeries.ColorSlotSpan"/>), the first of which is its number here; a run of series
+        /// that share the SAME group value, standing next to each other, holds ONE slot between them, as many as the
+        /// largest span among them — the slot does not advance again until the group changes. A group that is
         /// not contiguous (its members do not stand next to each other) is not collapsed: each run gets its own slot, by
         /// design — every verb that builds a group adds its members back to back, and nothing in the library splits them
         /// apart afterward.</summary>
-        /// <returns>One colour-slot number per series of <see cref="Axes.AllSeries"/>, in that order.</returns>
+        /// <returns>One colour-slot number per series of <see cref="Axes.AllSeries"/>, in that order: the first slot the
+        /// series colours with.</returns>
         internal int[] ColorSlots()
         {
             var all = axes.AllSeries.ToList();
             var slots = new int[all.Count];
-            int slot = -1;
+            int next = 0, runFirst = 0, runSpan = 0;
             int? previousGroup = null;
             bool previousGrouped = false;
             for (int i = 0; i < all.Count; i++)
             {
-                int? group = (all[i] as Models.Series.ChartSeries)?.ColorGroup;
+                var chart = all[i] as Models.Series.ChartSeries;
+                int? group = chart?.ColorGroup;
+                int span = chart?.ColorSlotSpan ?? 1;
                 bool sameGroupAsBefore = group.HasValue && previousGrouped && group == previousGroup;
-                if (!sameGroupAsBefore) slot++;
-                slots[i] = slot;
+                if (sameGroupAsBefore)
+                {
+                    // The run keeps its slot and grows to the largest span among its members.
+                    runSpan = Math.Max(runSpan, span);
+                    next = runFirst + runSpan;
+                }
+                else
+                {
+                    runFirst = next;
+                    runSpan = span;
+                    next = runFirst + runSpan;
+                }
+
+                slots[i] = runFirst;
                 previousGroup = group;
                 previousGrouped = group.HasValue;
             }

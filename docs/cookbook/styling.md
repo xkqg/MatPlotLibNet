@@ -140,7 +140,8 @@ FigureTemplates.SparklineDashboard(
 
 ## Hide all axes chrome
 
-Use this for custom visualizations where you control everything:
+Use this for custom visualizations where you control everything. A series that needs no axes (a treemap, a Sankey, a pie, a stat
+tile) draws none on its own, so the call is for a chart that has axes you want gone:
 
 ```csharp
 Plt.Create()

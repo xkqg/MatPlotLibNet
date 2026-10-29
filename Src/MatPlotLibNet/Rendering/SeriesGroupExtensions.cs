@@ -8,8 +8,8 @@ using MatPlotLibNet.Rendering.Svg;
 namespace MatPlotLibNet.Rendering;
 
 /// <summary>The one rule for the group a series is drawn in. The primary series passes (<see cref="AxesRenderer"/>) and
-/// both secondary-axis parts open it the same way, so the legend toggle, the hover highlight and a streaming diff — all of
-/// which find a series by its group — reach a secondary line exactly as they reach a primary one.</summary>
+/// the part of every Y axis slot open it the same way, so the legend toggle, the hover highlight and a streaming diff — all of
+/// which find a series by its group — reach a line on any axis exactly as they reach a primary one.</summary>
 internal static class SeriesGroupExtensions
 {
     extension(IRenderContext ctx)

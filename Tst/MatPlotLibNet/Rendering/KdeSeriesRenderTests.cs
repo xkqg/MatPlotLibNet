@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -79,5 +80,26 @@ public class KdeSeriesRenderTests
             .Kde(Data)
             .ToSvg();
         Assert.Contains("<svg", svg);
+    }
+
+    /// <summary>The curve lies inside the plot: for 1 to 6 and 30 in a figure of 500 by 350 pixels it used to run 82.66 px
+    /// past the plot on each side, into the margins and past the edge of the figure, because the range of the axes and the
+    /// grid the curve is drawn on were two rules for one extent.</summary>
+    [Fact]
+    public void TheCurve_LiesInsideThePlot_WhateverTheSample()
+    {
+        var figure = Plt.Create().WithSize(500, 350)
+            .AddSubPlot(1, 1, 1, ax => ax.Kde([1.0, 2, 3, 4, 5, 6, 30]))
+            .Build();
+        var ctx = new RecordingRenderContext();
+
+        new ChartRenderer().Render(figure, ctx);
+
+        var curve = ctx.OfKind("DrawLines").Select(c => (Point[])((dynamic)c.Args!).points).OrderByDescending(p => p.Length).First();
+        var plot = ctx.OfKind("DrawRectangle").Select(c => (Rect)((dynamic)c.Args!).rect).OrderByDescending(r => r.Width * r.Height).Skip(1).First();
+        Assert.All(curve, p =>
+        {
+            Assert.True(p.X >= plot.X - 1e-6 && p.X <= plot.X + plot.Width + 1e-6, $"x {p.X} lies outside the plot {plot.X}..{plot.X + plot.Width}");
+        });
     }
 }

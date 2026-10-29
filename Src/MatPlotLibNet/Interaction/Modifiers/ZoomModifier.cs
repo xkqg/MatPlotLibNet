@@ -63,9 +63,9 @@ public sealed class ZoomModifier : IInteractionModifier
         });
     }
 
-    /// <summary>Every outward-stacked secondary Y axis' new range after this scroll — the SAME pixel edges the
-    /// primary zoomed to, read through each secondary axis' OWN transform instead (ROADMAP.md row 100), so a log
-    /// or symlog secondary axis narrows correctly too, not just linearly.</summary>
+    /// <summary>The new range of every Y axis stacked past the primary after this scroll — the SAME pixel edges the
+    /// primary zoomed to, read through each axis' OWN transform instead, so a log
+    /// or symlog axis narrows correctly too, not just linearly.</summary>
     private List<SecondaryAxisRange>? SecondaryRangesFor(int axesIndex, double left, double right, double top, double bottom)
     {
         var views = _layout.SecondaryViewsOf(axesIndex);

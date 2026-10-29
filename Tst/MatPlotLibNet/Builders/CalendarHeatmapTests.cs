@@ -84,7 +84,7 @@ public class CalendarHeatmapTests
         var axes = AxesOf(ax => ax.CalendarHeatmap(Year2025, Counts(Year2025)));
 
         var heatmap = Assert.IsType<HeatmapSeries>(Assert.Single(axes.Series));
-        Assert.Empty(axes.SecondarySeries);
+        Assert.Empty(axes.YAxes.Right);
         Assert.Empty(axes.XSecondarySeries);
         Assert.Equal(CalendarGrid.Of(Year2025, Counts(Year2025), DayOfWeek.Monday).Cells, heatmap.Data);
         Assert.Equal(7, heatmap.Data.GetLength(0));

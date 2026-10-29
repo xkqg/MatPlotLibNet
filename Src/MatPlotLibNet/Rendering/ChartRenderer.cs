@@ -3,6 +3,7 @@
 
 using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
+using MatPlotLibNet.Rendering.ColorBarRendering;
 using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Rendering.MathText;
 using MatPlotLibNet.Styling;
@@ -317,24 +318,10 @@ public sealed class ChartRenderer : IChartRenderer
         SubPlotSpacing? spacing = null)
     {
         var sp = spacing ?? ResolveSpacing(figure);
-        // Find first IColorBarDataProvider across all subplots
-        IColorBarDataProvider? provider = null;
-        IColorMap colorMap = cb.ColorMap ?? ColorMaps.Viridis;
-        double min = cb.Min, max = cb.Max;
-
-        foreach (var axes in figure.SubPlots)
-        {
-            provider = axes.Series.OfType<IColorBarDataProvider>().FirstOrDefault();
-            if (provider is not null)
-            {
-                colorMap = cb.ColorMap ?? provider.ColorMap ?? ColorMaps.Viridis;
-                var (dMin, dMax) = provider.GetColorBarRange();
-                if (dMin < dMax) { min = dMin; max = dMax; }
-                break;
-            }
-        }
-
-        if (Math.Abs(max - min) < 1e-10) { min = 0; max = 1; }
+        // The first series of any subplot that provides a colour bar with values
+        var provider = figure.SubPlots.SelectMany(axes => axes.Series).ColorBarProvider();
+        IColorMap colorMap = cb.ColorMap ?? provider?.ColorMap ?? ColorMaps.Viridis;
+        var (min, max) = cb.RangeOf(provider);
 
         // Compute bounding rect of all subplot plot areas
         double allLeft   = plotAreas.Count > 0 ? plotAreas.Min(r => r.X)             : sp.MarginLeft;
@@ -367,12 +354,9 @@ public sealed class ChartRenderer : IChartRenderer
             ctx.DrawRectangle(new Rect(barX, barY, totalW, barH), new ShapeStyle(null, theme.ForegroundText, 0.5));
 
             double labelY = barY + barH + 4 + tickFont.Size;
-            for (int i = 0; i <= 5; i++)
-            {
-                double frac  = (double)i / 5;
-                double value = min + frac * (max - min);
-                ctx.DrawText(AxesRenderer.FormatTickValue(value), new Point(barX + totalW * frac, labelY), tickFont, TextAlignment.Center);
-            }
+            var scale = ColorBarScale.For(min, max, totalW, tickFont.Size, vertical: false);
+            for (int i = 0; i < scale.Ticks.Length; i++)
+                ctx.DrawText(scale.Labels[i], new Point(barX + totalW * scale.FractionOf(scale.Ticks[i]), labelY), tickFont, TextAlignment.Center);
             if (cb.Label is not null)
                 ctx.DrawText(cb.Label, new Point(barX + totalW / 2, labelY + tickFont.Size + 4), labelFont, TextAlignment.Center);
         }
@@ -397,12 +381,9 @@ public sealed class ChartRenderer : IChartRenderer
             ctx.DrawRectangle(new Rect(barX, barY, barW, totalH), new ShapeStyle(null, theme.ForegroundText, 0.5));
 
             double labelX = barX + barW + 4;
-            for (int i = 0; i <= 5; i++)
-            {
-                double frac  = (double)i / 5;
-                double value = max - frac * (max - min);
-                ctx.DrawText(AxesRenderer.FormatTickValue(value), new Point(labelX, barY + totalH * frac + 4), tickFont, TextAlignment.Left);
-            }
+            var scale = ColorBarScale.For(min, max, totalH, tickFont.Size, vertical: true);
+            for (int i = 0; i < scale.Ticks.Length; i++)
+                ctx.DrawText(scale.Labels[i], new Point(labelX, barY + totalH * (1 - scale.FractionOf(scale.Ticks[i])) + 4), tickFont, TextAlignment.Left);
             if (cb.Label is not null)
                 ctx.DrawText(cb.Label, new Point(labelX + tickAreaW, barY + totalH / 2),
                     labelFont, TextAlignment.Center, 90);

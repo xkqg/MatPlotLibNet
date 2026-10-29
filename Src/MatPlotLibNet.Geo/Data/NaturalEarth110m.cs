@@ -7,11 +7,32 @@ using MatPlotLibNet.Geo.GeoJson;
 namespace MatPlotLibNet.Geo.Data;
 
 /// <summary>Loads Natural Earth 110m resolution geographic data from embedded GeoJSON resources.
-/// Data includes coastlines, country borders, and lakes at the coarsest (global overview) resolution.</summary>
+/// Data includes coastlines and country borders at the coarsest (global overview) resolution.</summary>
 public static class NaturalEarth110m
 {
+    /// <summary>The id a map's JSON gives the country set: the Natural Earth file it is read from.</summary>
+    internal const string CountriesSource = "ne_110m_admin_0_countries";
+
+    /// <summary>The id a map's JSON gives the coastline set.</summary>
+    internal const string CoastlinesSource = "ne_110m_coastline";
+
     private static List<GeoFeature>? _coastlines;
     private static List<GeoFeature>? _countries;
+
+    /// <summary>The id of the built-in set <paramref name="features"/> is, when it is that very list; otherwise
+    /// <see langword="null"/> (a filtered or a made set is not a built-in one).</summary>
+    internal static string? SourceOf(List<GeoFeature> features) =>
+        ReferenceEquals(features, Countries()) ? CountriesSource
+        : ReferenceEquals(features, Coastlines()) ? CoastlinesSource
+        : null;
+
+    /// <summary>The built-in set of the given id; <see langword="null"/> for an id this package does not know.</summary>
+    internal static List<GeoFeature>? OfSource(string source) => source switch
+    {
+        CountriesSource => Countries(),
+        CoastlinesSource => Coastlines(),
+        _ => null,
+    };
 
     /// <summary>Loads coastline features (line geometries).</summary>
     public static List<GeoFeature> Coastlines() =>

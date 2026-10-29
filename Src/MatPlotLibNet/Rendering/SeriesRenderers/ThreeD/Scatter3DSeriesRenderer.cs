@@ -14,6 +14,9 @@ internal sealed class Scatter3DSeriesRenderer : SeriesRenderer<Scatter3DSeries>
     public Scatter3DSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(Scatter3DSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(Scatter3DSeries series)
     {
         if (series.X.Length == 0) return;

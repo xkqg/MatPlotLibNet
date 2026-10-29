@@ -4,6 +4,7 @@
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Models.Series.XY;
 using MatPlotLibNet.Rendering.Downsampling;
+using MatPlotLibNet.Rendering.Layout;
 using MatPlotLibNet.Rendering.Svg;
 using MatPlotLibNet.Styling;
 using MatPlotLibNet.Styling.ColorMaps;
@@ -19,8 +20,13 @@ internal abstract class SeriesRenderer
     /// <summary>Gets the coordinate transform. Override to apply custom transformations.</summary>
     protected virtual DataTransform Transform => Context.Transform;
 
-    /// <summary>Gets the drawing target. Override to intercept or wrap drawing calls.</summary>
-    protected virtual IRenderContext Ctx => Context.Ctx;
+    /// <summary>Gets the drawing target. Override to intercept or wrap drawing calls. While the renderer hands its marks to a
+    /// legend by drawing them (<see cref="SeriesRenderer{T}.AddMarksByDrawing"/>) it is a context that draws nothing.</summary>
+    protected virtual IRenderContext Ctx => Collector ?? Context.Ctx;
+
+    /// <summary>The context that collects what is drawn instead of drawing it, while a pass that collects marks runs;
+    /// <see langword="null"/> otherwise.</summary>
+    private protected IRenderContext? Collector { get; set; }
 
     /// <summary>Gets the theme cycle color for this series. Override to change default coloring logic.</summary>
     protected virtual Color SeriesColor => Context.SeriesColor;
@@ -42,11 +48,12 @@ internal abstract class SeriesRenderer
     /// stacked area, a wedge of a donut, a stage of a funnel) when it names no colour for it: what the figure's theme
     /// hands out at that slot, asked from the one owner of series colours
     /// (<see cref="SeriesSlotExtensions.SeriesSlot(Theme, int)"/>), so a part wears the theme's palette (and its cycler,
-    /// when it has one) exactly as a series does. The slot is the part's own position, so the first part always wears the
-    /// theme's first colour.</summary>
+    /// when it has one) exactly as a series does. The slot is the first slot the series holds
+    /// (<see cref="SeriesRenderContext.FirstColorSlot"/>) plus the part's own position, so the first part wears the colour
+    /// of the series' own slot: the theme's first colour for a series that stands first on its axes.</summary>
     /// <param name="index">The position of the part within its series.</param>
     /// <returns>The theme's colour at that slot.</returns>
-    protected Color PartColor(int index) => Context.Theme.SeriesSlot(index).CycleColor;
+    protected Color PartColor(int index) => Context.Theme.SeriesSlot(Context.FirstColorSlot + index).CycleColor;
 
     /// <summary>The colour of the part at <paramref name="index"/>: the one the series names for it in
     /// <paramref name="explicitColors"/> when that array reaches it, otherwise the theme's (<see cref="PartColor(int)"/>).</summary>
@@ -104,6 +111,53 @@ internal abstract class SeriesRenderer
         {
             Ctx.DrawLine(from, to, stroke);
         }
+    }
+
+    /// <summary>Adds the line <see cref="DrawPolyline"/> draws through <paramref name="points"/> to <paramref name="marks"/>:
+    /// each run of two or more points the axes can place is one path, the points that break it are no part of any.</summary>
+    /// <param name="marks">The collection the paths go into.</param>
+    /// <param name="points">The points of the line, in drawing order.</param>
+    protected static void AddPolyline(MarkObstacles.Builder marks, IReadOnlyList<Point> points)
+    {
+        foreach (var run in points.DrawableRuns())
+        {
+            if (run.Count >= 2) marks.AddPath(run);
+        }
+    }
+
+    /// <summary>Adds the segment <see cref="DrawSegment"/> draws from <paramref name="from"/> to <paramref name="to"/> to
+    /// <paramref name="marks"/>, when both its ends can be drawn: a segment with an end the axes cannot place is masked,
+    /// as a line is.</summary>
+    /// <param name="marks">The collection the path goes into.</param>
+    /// <param name="from">One end, in pixels.</param>
+    /// <param name="to">The other end, in pixels.</param>
+    protected static void AddSegment(MarkObstacles.Builder marks, Point from, Point to)
+    {
+        if (from.CanDrawLineTo(to)) marks.AddPath([from, to]);
+    }
+
+    /// <summary>Places a batch of labels through the label layout, which moves the few that would stand on one another or leave
+    /// <paramref name="bounds"/> and says where each ended up. The one place a renderer asks it.</summary>
+    /// <param name="candidates">The labels, each with the point it would stand at.</param>
+    /// <param name="bounds">The area the labels stay inside.</param>
+    /// <returns>Where each label stands, in the order given.</returns>
+    protected static IReadOnlyList<LabelPlacement> PlaceLabels(IReadOnlyList<LabelCandidate> candidates, Rect bounds) =>
+        candidates.Count == 0 ? [] : LabelLayoutEngine.Place(candidates, bounds, FontMetricsDefault.Current);
+
+    /// <summary>Draws one placed label: a leader line from where it was meant to stand when the layout moved it, then its text.</summary>
+    /// <param name="placement">The label as the layout placed it.</param>
+    protected void DrawPlacedLabel(LabelPlacement placement)
+    {
+        if (placement.LeaderLineStart is { } anchor)
+            CalloutBoxRenderer.DrawLeaderLine(Ctx, anchor, placement.FinalPoint, Context.Theme.ForegroundText);
+        Ctx.DrawText(placement.Text, placement.FinalPoint, placement.Font, placement.Alignment);
+    }
+
+    /// <summary>Draws every placed label (<see cref="DrawPlacedLabel"/>), in order.</summary>
+    /// <param name="placements">The labels as the layout placed them.</param>
+    protected void DrawPlacedLabels(IReadOnlyList<LabelPlacement> placements)
+    {
+        foreach (var placement in placements) DrawPlacedLabel(placement);
     }
 
     /// <summary>The projection a 3-D series is drawn through: the 3-D axes' own; for a 3-D series placed on 2-D axes, one
@@ -176,4 +230,25 @@ internal abstract class SeriesRenderer<T> : SeriesRenderer where T : ISeries
 
     /// <summary>Renders the given series using the context provided at construction time.</summary>
     public abstract void Render(T series);
+
+    /// <summary>Adds to <paramref name="marks"/> what this series draws, as the rectangles, paths and points those marks
+    /// have in pixels: the marks a legend must keep clear of. It does the geometry <see cref="Render"/> does (a renderer
+    /// that contributes computes it once, in one place, for both), draws nothing and issues no call to the drawing target
+    /// other than measuring. A series that fills its axes (a heat map, a treemap) has no mark to keep clear of and
+    /// contributes nothing, which is what this does.</summary>
+    /// <param name="series">The series, as it is about to be drawn.</param>
+    /// <param name="marks">The collection the marks go into.</param>
+    internal virtual void AddMarks(T series, MarkObstacles.Builder marks) { }
+
+    /// <summary>Adds the marks of <paramref name="series"/> by drawing it into a context that draws nothing and collects what
+    /// it is given (<see cref="MarkCollectingContext"/>): its marks are exactly the ones it draws. For a renderer whose marks
+    /// are few, where working the pixels out twice in two places would cost more than it pays.</summary>
+    /// <param name="series">The series, as it is about to be drawn.</param>
+    /// <param name="marks">The collection the marks go into.</param>
+    protected void AddMarksByDrawing(T series, MarkObstacles.Builder marks)
+    {
+        Collector = new MarkCollectingContext(Context.Ctx, marks);
+        try { Render(series); }
+        finally { Collector = null; }
+    }
 }

@@ -47,7 +47,9 @@ The spec is the library's own figure JSON: the same document that `figure.ToJson
 
 The server validates the spec before it renders. It rejects an unknown field, an unknown chart type, a misspelled
 enum value, a colour the library does not know, or a missing size. The error message names the field that is
-wrong, so the model can correct the spec instead of receiving a blank picture.
+wrong, so the model can correct the spec instead of receiving a blank picture. It checks every axis and every series
+of a subplot the same way, a left-hand Y axis or the fifth right-hand one included, and the message names the place
+(for example `$.subPlots[0].leftYAxes[1].series[0].type`). A chart can have any number of Y axes on either side.
 
 A spec's `dpi` sizes the PNG it renders, as `WithDpi` does in code: an 800 by 600 spec at 192 dpi is a 1600 by 1200
 pixel picture with the same layout, drawn finer. SVG and PDF ignore it. The canvas ceiling (4,000 by 4,000 pixels)

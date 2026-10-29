@@ -203,29 +203,31 @@ public static class CategoricalAxesExtensions
             {
                 Color = ParetoBarColor, Label = ParetoBarLabel,
             };
+            // The right axis is entered ONCE: the container verb stacks a new axis on every call, so the plot, the limits, the
+            // caller's styling and the axis' colour and name all happen inside this one callback.
             LineSeries line = null!;
             axes.AddSeries(bars)
                 .SetYLim(0, total * ParetoHeadroom)
-                .WithSecondaryYAxis(y2 => y2
-                    .Plot(SlotCentres(categories.Length), cumulative, s =>
-                    {
-                        line = s;
-                        s.Color = ParetoLineColor; s.LineWidth = 2; s.Marker = MarkerStyle.Circle; s.MarkerSize = 7;
-                        s.Label = ParetoLineLabel;
-                    })
-                    .SetYLim(0, 100 * ParetoHeadroom))
+                .WithAddRightYAxis(y2 =>
+                {
+                    y2.Plot(SlotCentres(categories.Length), cumulative, s =>
+                        {
+                            line = s;
+                            s.Color = ParetoLineColor; s.LineWidth = 2; s.Marker = MarkerStyle.Circle; s.MarkerSize = 7;
+                            s.Label = ParetoLineLabel;
+                        })
+                        .SetYLim(0, 100 * ParetoHeadroom);
+
+                    configure?.Invoke(new ParetoParts(bars, line));
+
+                    // Each Y axis wears its series' colour and name as the callback left them.
+                    if (line.Color is { } lineColor) y2.SetYAxisColor(lineColor);
+                    if (line.Label is { } lineLabel) y2.SetYLabel(lineLabel);
+                })
                 .WithLegend(LegendPosition.Right);
 
-            configure?.Invoke(new ParetoParts(bars, line));
-
-            // Each Y axis wears its series' colour and name as the callback left them.
             if (bars.Color is { } barColor) axes.SetYAxisColor(barColor);
             if (bars.Label is { } barLabel) axes.SetYLabel(barLabel);
-            axes.WithSecondaryYAxis(y2 =>
-            {
-                if (line.Color is { } lineColor) y2.SetYAxisColor(lineColor);
-                if (line.Label is { } lineLabel) y2.SetYLabel(lineLabel);
-            });
             return axes;
         }
 
@@ -296,7 +298,12 @@ public static class CategoricalAxesExtensions
                 // at a start that is missing is not drawn, and is not added.
                 if (double.IsFinite(start))
                 {
-                    axes.Annotate(categories[k], columns[0] - SlopeNameGap, start, a => a.Alignment = TextAlignment.Right);
+                    axes.Annotate(categories[k], columns[0] - SlopeNameGap, start, a =>
+                    {
+                        a.Alignment = TextAlignment.Right;
+                        // Centred on the marker by the rule the end name stands on its own marker by.
+                        a.VerticalAlignment = TextVerticalAlignment.Center;
+                    });
                 }
             }
 
@@ -320,8 +327,9 @@ public static class CategoricalAxesExtensions
         /// <c>WithGrid</c> after the call. A missing value (NaN) leaves that dot out and nothing else.</para>
         /// <para>The verb sets no axis limits; a limit of your own, set before or after the call, stays yours. The legend names
         /// the groups and stands in the lower right corner: the order of the rows puts the largest values at the top right and
-        /// the smallest at the bottom left, so the lower right is the corner the dots leave empty, where the default corner (upper
-        /// right) would cover the largest dots. A <c>WithLegend</c> after the call moves it or switches it off.</para></summary>
+        /// the smallest at the bottom left, so the lower right is the corner the dots leave empty, where the upper right would
+        /// cover the largest dots; the verb puts the legend there whatever the data. A <c>WithLegend</c> after the call moves it or
+        /// switches it off.</para></summary>
         /// <param name="categories">The categories' names, in any order; they are drawn in the order of the first group's
         /// values.</param>
         /// <param name="groups">The groups to draw, one set of dots each, in the order they take colours. A group's
@@ -383,7 +391,7 @@ public static class CategoricalAxesExtensions
             }
 
             // The guide lines are the theme's grid along the Y axis: one line through each category, drawn behind the dots. The
-            // legend stands where the order leaves the plot empty: the default corner, upper right, is where the largest dots are.
+            // legend stands where the order leaves the plot empty, the lower right: the upper right is where the largest dots are.
             return axes
                 .SetYCategoryTicks([.. order.Select(i => categories[i])], topDown: true)
                 .WithGrid(g => g with { Visible = true, Axis = GridAxis.Y })
@@ -404,8 +412,9 @@ public static class CategoricalAxesExtensions
         /// own axis is the vertical line at its name, a solid line in the reference line's default grey. Axes that show each
         /// column's own units are not drawn.</para>
         /// <para>The dimension names are the X ticks, on the centres of the slots, as every verb that names categories puts them.
-        /// The legend stands where the theme puts it, in the upper right corner unless told otherwise, over whatever lines run
-        /// there: the lines of a parallel-coordinates chart fill the plot, so no corner is empty. <c>WithLegend</c> after the call
+        /// The legend stands where the theme puts it unless told otherwise, <see cref="LegendPosition.Best"/> (the place that
+        /// covers the fewest marks; the upper right corner under the classic theme): the lines of a parallel-coordinates chart
+        /// fill the plot, so every place covers some of them. <c>WithLegend</c> after the call
         /// moves it, for example <c>WithLegend(LegendPosition.OutsideRight)</c> under <c>TightLayout()</c> puts it beside the plot.
         /// The verb sets no axis limits; a limit of your own, set before or after the call, stays yours. The chart is its parts:
         /// written to JSON it is one line series for each class and one reference line for each dimension, and read back it draws

@@ -127,6 +127,36 @@ public class GeoJsonReaderEdgeCaseTests
     }
 
     [Fact]
+    public void Parse_AGeometryWithNoType_IsUnknown_AndHasNoRings()
+    {
+        const string json = """
+        { "type": "FeatureCollection", "features": [{
+            "type": "Feature", "properties": {},
+            "geometry": { "type": null, "coordinates": [] } }] }
+        """;
+
+        var feature = Assert.Single(GeoJsonReader.Parse(json));
+
+        Assert.Equal("Unknown", feature.Geometry.Type);
+        Assert.Empty(feature.Geometry.Rings);
+    }
+
+    [Fact]
+    public void Parse_APolygonWithNoRings_IsOnePolygonWithoutPositions()
+    {
+        const string json = """
+        { "type": "FeatureCollection", "features": [{
+            "type": "Feature", "properties": {},
+            "geometry": { "type": "Polygon", "coordinates": [] } }] }
+        """;
+
+        var polygon = Assert.Single(Assert.Single(GeoJsonReader.Parse(json)).Geometry.Polygons);
+
+        Assert.Empty(polygon.Exterior);
+        Assert.Empty(polygon.Holes);
+    }
+
+    [Fact]
     public void Parse_UnknownGeometryType_ReturnsEmptyRings()
     {
         // The else-chain doesn't match → rings stays empty

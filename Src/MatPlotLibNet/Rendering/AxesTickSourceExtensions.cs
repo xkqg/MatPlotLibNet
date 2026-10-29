@@ -5,6 +5,7 @@ using MatPlotLibNet.Models;
 using MatPlotLibNet.Models.Series;
 using MatPlotLibNet.Rendering.TickFormatters;
 using MatPlotLibNet.Rendering.TickLocators;
+using MatPlotLibNet.Styling;
 
 namespace MatPlotLibNet.Rendering;
 
@@ -41,11 +42,7 @@ internal static class AxesTickSourceExtensions
         internal TickSource PrimaryTickSource(bool isX)
         {
             var axis = isX ? axes.XAxis : axes.YAxis;
-            if ((axis.TickLocator ?? axis.ScaleLocator(isX)) is { } locator)
-            {
-                var formatter = axis.TickFormatter ?? (axis.TickLocator is null ? locator.ScaleFormatter() : null);
-                return new TickSource(locator, formatter, formatter is CategoryFormatter);
-            }
+            if (axis.LocatedTickSource(isX) is { } located) return located;
 
             if (axes.CategoryNames(alongY: !isX) is { } names)
             {
@@ -105,6 +102,41 @@ internal static class AxesTickSourceExtensions
 
     extension(Axis axis)
     {
+        /// <summary>The ticks of an axis that a locator places, the first rule of every axis' tick source
+        /// (<see cref="PrimaryTickSource"/>, <see cref="SlotTickSource"/>): its own locator; otherwise the one its scale
+        /// brings (<see cref="ScaleLocator"/>), with that scale's formatter. The axis' own formatter is kept, and its labels
+        /// are names when that formatter is a <see cref="CategoryFormatter"/>.</summary>
+        /// <param name="isX">Whether the axis is the X axis: only an X axis brings date ticks with its scale.</param>
+        /// <returns>The source, or <see langword="null"/> when no locator places the axis' ticks.</returns>
+        internal TickSource? LocatedTickSource(bool isX)
+        {
+            if ((axis.TickLocator ?? axis.ScaleLocator(isX)) is not { } locator) return null;
+            var formatter = axis.TickFormatter ?? (axis.TickLocator is null ? locator.ScaleFormatter() : null);
+            return new TickSource(locator, formatter, formatter is CategoryFormatter);
+        }
+
+        /// <summary>The source of the ticks of a Y axis slot stacked beside the plot, by the rule the primary's ticks follow
+        /// (<see cref="LocatedTickSource"/>): its own locator, otherwise the one its scale brings (a log slot's decades, a
+        /// symlog slot's), each with its formatter; otherwise its spacing or the default placement, in its own formatter
+        /// (<see cref="SlotTickValues"/>).</summary>
+        /// <returns>Where the slot's ticks come from.</returns>
+        internal TickSource SlotTickSource() => axis.LocatedTickSource(isX: false) ?? new TickSource(null, axis.TickFormatter, false);
+
+        /// <summary>The major tick values a Y axis slot stacked beside the plot draws over <paramref name="range"/>'s Y
+        /// extent, the one source its drawing and the layout's reserve share: the locator of its tick source
+        /// (<see cref="SlotTickSource"/>: its own, or its scale's), otherwise its tick spacing
+        /// (<see cref="TickConfig.Spacing"/>), otherwise the default placement for the length of the plot, as the primary axis
+        /// places its own (<see cref="AxesRenderer.DefaultTickValues"/>).</summary>
+        /// <param name="range">The slot's data range; only its Y extent is read.</param>
+        /// <param name="plotPixels">The height of the plot the slot stands beside.</param>
+        /// <returns>The tick values.</returns>
+        internal double[] SlotTickValues(DataRange range, double plotPixels)
+        {
+            if (axis.SlotTickSource().Locator is { } locator) return locator.LocateInterval(range.YMin, range.YMax);
+            if (axis.MajorTicks.Spacing is { } spacing) return new MultipleLocator(spacing).LocateInterval(range.YMin, range.YMax);
+            return AxesRenderer.DefaultTickValues(range.YMin, range.YMax, plotPixels);
+        }
+
         /// <summary>The tick locator a scale brings when the axis has none: <see cref="AutoDateLocator"/> for a date X
         /// axis, <see cref="SymlogLocator"/> for symlog, <see cref="LogLocator"/> for log; <see langword="null"/>
         /// otherwise.</summary>

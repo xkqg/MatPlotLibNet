@@ -125,7 +125,7 @@ public static AxesBuilder NetworkGraph(this AxesBuilder axes,
 ## What this is NOT
 
 - **Not a portfolio-management package.** No asset-selection logic, no return computation, no clustering driver. The series accepts pre-computed inputs (`GraphNode[]`, `GraphEdge[]`) — clustering and statistics belong in user code or in a separate `MatPlotLibNet.Quant` package.
-- **Not crypto-specific.** No references to trading, exchanges, or any Ait.RL concepts in the production code or XML doc comments.
+- **Not crypto-specific.** No references to trading, exchanges, or any concepts of a particular application in the production code or XML doc comments.
 - **Not a streaming feature.** Network layout is too expensive per-tick; use static snapshots.
 - **Not a new package.** Lands in the existing `MatPlotLibNet` core package under `Models/Series/Graph/`.
 

@@ -119,7 +119,8 @@ server validates the document before it renders, and the error message names the
 | `"x": [...]` | `Unknown field 'x' at $.subPlots[0].series[0]. describe_chart_schema lists the fields a spec accepts.` |
 | `"scale": "logarithmic"` | `'logarithmic' … is not an accepted value; accepted: Linear, Log, SymLog, Logit, Date.` |
 | `"color": "reddish"` | `'reddish' … is not a colour the library knows: use a CSS4 colour name or #RRGGBB.` |
-| `xData` of 3, `yData` of 1 | `The series at $.subPlots[0].series[0] has 3 'xData' values and 1 'yData' values; they must match.` |
+| `xData` of 3, `yData` of 1 | `The 'line' series at $.subPlots[0].series[0] was refused: Array lengths must match. Got 3 and 1.` |
+| a `surface` of 2 rows over 3 `yData` and 3 `xData` | `The 'surface' series at $.subPlots[0].series[0] was refused: Array lengths must match. The values have 2 rows and 3 columns; the axes give 3 y and 3 x values.` |
 | no `width` | rendered at the library default, 800×600 |
 | `"width": 16000` | `'width' must be between 1 and 4000 … the picture goes into a context window.` |
 | `"dpi": 600` on an 800×600 spec | `'dpi' 600 draws the picture 5000 by 3750 pixels (width and height times dpi / 96); the ceiling is 4000 by 4000 …` |

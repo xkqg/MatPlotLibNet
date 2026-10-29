@@ -33,8 +33,13 @@ internal static class SvgLegendToggleScript
                         hidden = s.style.display === 'none';
                         s.style.display = hidden ? '' : 'none';
                     });
-                    item.style.opacity = hidden ? '1' : '0.3';
-                    item.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+                    // Every entry of this series shows the one state: a series with named parts (the layers of a stacked
+                    // area) has an entry for each, all carrying its index.
+                    legendItems.forEach(function(entry) {
+                        if (entry.getAttribute('data-legend-index') !== idx) return;
+                        entry.style.opacity = hidden ? '1' : '0.3';
+                        entry.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+                    });
                 }
 
                 // Toggle fires ONLY on a real click (full press-and-release without drag). Firing

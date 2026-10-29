@@ -62,6 +62,8 @@ Plt.Create()
 
 Both axes support rotation, through `WithXTickLabelRotation(double)` and `WithYTickLabelRotation(double)`. Pass `0` to restore horizontal labels. Dense X-axis labels still auto-rotate to 30° unless you set a different angle.
 
-The layout measures X labels as they are drawn, turned or not: the bottom margin holds what a turned label reaches below the axis, and the X axis title stands clear below it, in the default layout and under `TightLayout()`. Whether crowded labels turn depends on how wide the plot is, so the same names can stand upright under a wide plot and turn under a narrow one.
+The layout measures X labels as they are drawn, turned or not: the bottom margin holds what a turned label reaches below the axis, and the X axis title stands clear below it, in the default layout and under `TightLayout()`. Whether crowded labels turn depends on how wide the plot is, so the same names can stand upright under a wide plot and turn under a narrow one. A turned label has room beside the plot too:
+the first label of a crowded bottom axis, hung from its end, no longer passes the left edge of the figure, nor the last the right
+edge, because the margin (or the gutter between two plots) grows by what stands out. A Y tick label is measured at its own rotation.
 
 Internally, the `TickConfig.LabelRotation` property drives the rotation overload of `SvgRenderContext.DrawText`, which emits `transform="rotate(...)"` on the `<text>` element. The renderer decides to auto-rotate by comparing the pixel spacing between adjacent ticks with the widest label measured by `Ctx.MeasureText`.

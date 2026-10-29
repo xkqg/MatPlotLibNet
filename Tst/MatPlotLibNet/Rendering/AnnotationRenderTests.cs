@@ -1,7 +1,12 @@
 ﻿// Copyright (c) 2026 H.P. Gansevoort. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+using System.Globalization;
+using System.Text.RegularExpressions;
 using MatPlotLibNet.Models;
+using MatPlotLibNet.Rendering;
+using MatPlotLibNet.Rendering.Svg;
+using MatPlotLibNet.Tests.TestFixtures;
 
 namespace MatPlotLibNet.Tests.Rendering;
 
@@ -229,5 +234,60 @@ public class AnnotationRenderTests
         string svg = figure.ToSvg();
 
         Assert.Contains($"fill=\"{figure.Theme.ForegroundText.ToHex()}\"", svg, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ---- annotations that move out of the way ----------------------------------------------------------------------
+
+    private static string Crowded(bool avoid) => Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax
+        // A legend that stays in the upper right: a Best one would move off the annotations by itself.
+        .Plot([0.0, 10.0], [0.0, 10.0], s => s.Label = "line").WithLegend(LegendPosition.UpperRight)
+        .Annotate("alpha", 5, 5, a => a.AvoidOverlap = avoid)
+        .Annotate("beta label", 5.05, 5.1, a => a.AvoidOverlap = avoid)
+        .Annotate("gamma", 9.2, 9.0, a => a.AvoidOverlap = avoid)).ToSvg();
+
+    /// <summary>The box a drawn text stands in, from its element in the picture.</summary>
+    private static Rect TextBoxOf(string svg, string text)
+    {
+        var tag = Regex.Match(svg, "<text x=\"([\\d.]+)\" y=\"([\\d.]+)\"[^>]*font-size=\"([\\d.]+)\"[^>]*>" + Regex.Escape(text) + "</text>");
+        Assert.True(tag.Success, $"no text '{text}' in the picture");
+        double x = double.Parse(tag.Groups[1].Value, CultureInfo.InvariantCulture), y = double.Parse(tag.Groups[2].Value, CultureInfo.InvariantCulture);
+        double size = double.Parse(tag.Groups[3].Value, CultureInfo.InvariantCulture);
+        var font = new MatPlotLibNet.Styling.Font { Size = size };
+        return new TextBox(new Point(x, y), new SvgRenderContext().MeasureText(text, font), size, TextAlignment.Left, TextVerticalAlignment.Baseline, 0).Bounds();
+    }
+
+    [Fact]
+    public void CrowdedAnnotationsThatStayPut_OverlapEachOtherAndTheLegend()
+    {
+        string svg = Crowded(avoid: false);
+        var legend = svg.LegendFrame()!.Value;
+
+        Assert.True(TextBoxOf(svg, "alpha").Overlaps(TextBoxOf(svg, "beta label")), "alpha and beta label were expected to collide");
+        Assert.True(TextBoxOf(svg, "gamma").Overlaps(legend), "gamma was expected to stand on the legend");
+    }
+
+    [Fact]
+    public void CrowdedAnnotationsThatAskToMove_StandClearOfEachOtherAndOfTheLegend()
+    {
+        string svg = Crowded(avoid: true);
+        var legend = svg.LegendFrame()!.Value;
+        var boxes = new[] { "alpha", "beta label", "gamma" }.Select(t => TextBoxOf(svg, t)).ToList();
+
+        for (int i = 0; i < boxes.Count; i++)
+        {
+            Assert.False(boxes[i].Overlaps(legend), $"annotation {i} stands on the legend");
+            for (int j = i + 1; j < boxes.Count; j++)
+                Assert.False(boxes[i].Overlaps(boxes[j]), $"annotations {i} and {j} overlap");
+        }
+    }
+
+    [Fact]
+    public void AnAnnotationThatAsksToMoveButOverlapsNothing_IsDrawnExactlyAsWithoutTheAsk()
+    {
+        string Chart(bool avoid) => Plt.Create().WithSize(500, 350).AddSubPlot(1, 1, 1, ax => ax
+            .Plot([0.0, 1.0], [5.0, 5.0]).SetXLim(0, 10).SetYLim(0, 10)
+            .Annotate("alone", 2, 2, a => a.AvoidOverlap = avoid)).ToSvg();
+
+        Assert.Equal(Chart(avoid: false), Chart(avoid: true));
     }
 }

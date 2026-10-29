@@ -22,6 +22,9 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
     public NetworkGraphSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(NetworkGraphSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(NetworkGraphSeries series)
     {
         if (series.Nodes.Count == 0) return;
@@ -80,8 +83,7 @@ internal sealed class NetworkGraphSeriesRenderer : SeriesRenderer<NetworkGraphSe
                 string label = n.Label ?? n.Id;
                 // Place label slightly to the right of the node.
                 var labelPos = new Point(pixelPositions[i].X + radius + 2, pixelPositions[i].Y);
-                Ctx.DrawText(label, labelPos, new Font { Family = "sans-serif", Size = 10, Color = Colors.Black },
-                    TextAlignment.Left);
+                Ctx.DrawText(label, labelPos, ThemedFontProvider.DataTextFont(Context.Theme), TextAlignment.Left);
             }
         }
     }

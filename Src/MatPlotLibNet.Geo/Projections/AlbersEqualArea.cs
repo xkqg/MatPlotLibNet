@@ -5,20 +5,29 @@ namespace MatPlotLibNet.Geo.Projections;
 
 /// <summary>Albers Equal Area Conic projection — preserves area. Standard for US maps
 /// (USGS uses standard parallels 29.5°N and 45.5°N).</summary>
-public sealed class AlbersEqualArea : IGeoProjection
+public sealed class AlbersEqualArea : IGeoProjection, IProjectionParameters
 {
     private readonly double _n, _c, _rho0, _lon0;
+    private readonly Dictionary<string, double> _parameters;
 
     public string Name => "AlbersEqualArea";
 
     public AlbersEqualArea(double sp1 = 29.5, double sp2 = 45.5, double centerLon = -96, double centerLat = 37.5)
     {
+        _parameters = new() { ["lat_1"] = sp1, ["lat_2"] = sp2, ["lon_0"] = centerLon, ["lat_0"] = centerLat };
         double phi1 = sp1.ToRadians(), phi2 = sp2.ToRadians(), phi0 = centerLat.ToRadians();
         _lon0 = centerLon.ToRadians();
         _n = (Math.Sin(phi1) + Math.Sin(phi2)) / 2;
         _c = Math.Cos(phi1) * Math.Cos(phi1) + 2 * _n * Math.Sin(phi1);
         _rho0 = Math.Sqrt(_c - 2 * _n * Math.Sin(phi0)) / _n;
     }
+
+    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters => _parameters;
+
+    /// <inheritdoc />
+    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) =>
+        new AlbersEqualArea(parameters.GetValueOrDefault("lat_1", _parameters["lat_1"]), parameters.GetValueOrDefault("lat_2", _parameters["lat_2"]),
+            parameters.GetValueOrDefault("lon_0", _parameters["lon_0"]), parameters.GetValueOrDefault("lat_0", _parameters["lat_0"]));
 
     public ProjectedPoint Forward(double latitude, double longitude)
     {

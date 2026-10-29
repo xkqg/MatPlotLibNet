@@ -73,14 +73,18 @@ ax.Plot(months, web, s =>
 
 `SetYAxisColor(color)` colours the left Y axis in one call: its spine, its tick marks, its tick labels and its
 title. Everything else the axis carries (tick length, label rotation, font size, spine width) is kept. The
-other three axes have the same verb:
+other axes have the same verb:
 
 | Axis | Call |
 |---|---|
 | Left Y | `ax.SetYAxisColor(color)` |
-| Right Y | `ax.WithSecondaryYAxis(right => right.SetYAxisColor(color))` |
+| Right Y | `ax.WithAddRightYAxis(right => right.SetYAxisColor(color))` |
+| A further Y axis | `ax.WithAddLeftYAxis(left => left.SetYAxisColor(color))`, or another `WithAddRightYAxis` |
 | Bottom X | `ax.SetXAxisColor(color)` |
 | Top X | `ax.WithSecondaryXAxis(top => top.SetXAxisColor(color))` |
+
+Every Y axis has the verb, however many a side holds. The first axis of a side also colours that side's spine; an
+axis stacked past it draws no spine of its own, so it colours its tick marks, tick labels and title.
 
 ## Both together: a dual axis that needs no legend
 
@@ -104,7 +108,7 @@ Plt.Create()
         .SetXLabel("Hour of the day")
         .SetYLabel("Temperature (°C)")
         .SetYAxisColor(warm)
-        .WithSecondaryYAxis(right => right
+        .WithAddRightYAxis(right => right
             .Plot(hours, humidity, s => { s.Label = "Humidity"; s.Color = cool; })
             .WithDirectLabel()
             .SetYLabel("Relative humidity (%)")
@@ -114,8 +118,8 @@ Plt.Create()
 
 ![Dual axis with coloured axes and end labels](../images/direct_labels_dual_axis.png)
 
-The end labels stand past the right-hand axis's tick labels and title, so the labels of the secondary line
-never cover its own axis. Each label is drawn inside the group of its series, so the interactive legend toggle,
+The end labels stand past the right-hand axis's tick labels and title, so the labels never cover the axis of
+the line they name. Each label is drawn inside the group of its series, so the interactive legend toggle,
 the hover highlight and a streaming update treat the label as part of the line, on either axis.
 
 Colour is a second cue here, never the only one: each axis title names its quantity and its unit, and each line
@@ -150,7 +154,7 @@ var sf = Plt.Create()
         });
         ax.SetYLabel("messages / sec")
           .SetYAxisColor(Colors.Tab10Blue)
-          .WithSecondaryYAxis(right =>
+          .WithAddRightYAxis(right =>
           {
               traffic = right.StreamingPlot(600, s =>
               {
@@ -196,8 +200,9 @@ A name is never lost. Where an end label cannot be drawn, the series keeps its l
   legend.
 - **Insets** have no right margin of their own, and a label there would cover the parent plot's data. The series
   stays in the inset's legend.
-- **The top X axis.** End labels are drawn for lines on the left and the right Y axis. `WithSecondaryXAxis` has no
-  `WithDirectLabel()`.
+- **The top X axis.** End labels are drawn for lines on any Y axis, on the left or the right and however many
+  axes stand there. `WithSecondaryXAxis` has no `WithDirectLabel()`; a labelled series on the top axis keeps its
+  legend entry.
 - **Other series types.** Only line and streaming line series carry a placement. Name a scatter, a bar or an area
   series in the legend, or with [`Annotate`](annotations.md).
 

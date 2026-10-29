@@ -55,9 +55,30 @@ internal readonly struct TickDrawContext
 
     /// <summary>How a label is anchored at its point.</summary>
     public TextAlignment Alignment { get; init; }
+
+    /// <summary>The upright size of each tick's label in the font it is drawn in, in the order of the ticks this context
+    /// is used with; <see langword="null"/> to measure each label while drawing or measuring. A site that measured the
+    /// labels to decide how to draw them (the X labels' rotation) hands the sizes on, so they are measured once. Read only
+    /// when it holds one size per tick.</summary>
+    public IReadOnlyList<Size>? LabelSizes { get; init; }
 }
 
-/// <summary>The one drawing of axis ticks. The primary axes, their mirrored side and both secondary axes call it, so
+/// <summary>How far one tick label reaches once turned: away from the edge it hangs from, and before and after its anchor
+/// along the edge (<see cref="AxisTickExtensions"/>' <c>Reach</c>).</summary>
+/// <param name="Away">From the line past the mark and the pad to the far side of the label, away from the edge.</param>
+/// <param name="Before">How far the label stands before its anchor along the edge: to the left on a top or bottom edge, above
+/// on a left or right one; never negative.</param>
+/// <param name="After">How far it stands after its anchor along the edge; never negative.</param>
+internal readonly record struct LabelReach(double Away, double Before, double After);
+
+/// <summary>The major ticks of one axis as they stand on the plot: what the minor ticks between them are placed by.</summary>
+/// <param name="Ticks">The major tick values, in data space.</param>
+/// <param name="FixedCoord">The data value on the other axis the ticks are mapped at; only the coordinate along the edge
+/// is used.</param>
+/// <param name="Transform">The data-to-pixel transform of the axis; its plot bounds clip the minor ticks.</param>
+internal readonly record struct TickRun(double[] Ticks, double FixedCoord, DataTransform Transform);
+
+/// <summary>The one drawing of axis ticks. The primary axes, their mirrored side and every Y axis slot call it, so
 /// every tick honours its <see cref="TickConfig"/> by the same rule: mark length, width, colour and direction, label
 /// size, colour, padding and visibility.</summary>
 internal static class AxisTickExtensions
@@ -84,34 +105,33 @@ internal static class AxisTickExtensions
         internal double TickLabelBand(double labelExtent) =>
             labelExtent > 0 ? config.Length + config.Pad + labelExtent : 0;
 
-        /// <summary>How far an axis title sits from its edge: past the mark, the pad, the widest tick label and a 12 px
-        /// gap, or the fixed 45 px when no tick label was drawn. The primary and the secondary Y axis share this rule.</summary>
-        /// <param name="widestTickLabel">The widest tick label drawn on that edge, 0 when none was drawn.</param>
-        /// <returns>The distance from the edge to the centre of the rotated axis title.</returns>
-        internal double AxisLabelOffset(double widestTickLabel) =>
-            widestTickLabel > 0 ? config.TickLabelBand(widestTickLabel) + 12 : 45;
-
-        /// <summary>How far the baseline of a horizontal axis title drawn above a top edge sits from that edge: past the
-        /// tick label band (<see cref="TickLabelBand"/>), the <see cref="XLabelGap"/> and the title's descent (a fifth of
-        /// its size), so the bottom of the title clears the top of the tick labels. The secondary X axis places its title
-        /// here, and its band (what the axes title rises by and the layout reserves) reaches the top of that title.</summary>
+        /// <summary>How far the baseline of a horizontal axis title drawn above a top edge sits from that edge: the one
+        /// facing-edge rule (<see cref="TitleOffset"/>) with the <see cref="XLabelGap"/>, so the title's descent (a fifth of
+        /// its size, the ink that faces the labels) stands the gap past the tick label band (<see cref="TickLabelBand"/>).
+        /// The secondary X axis places its title here, and its band (what the axes title rises by and the layout reserves)
+        /// reaches the top of that title.</summary>
         /// <param name="tallestTickLabel">The tallest tick label drawn on that edge, 0 when none was drawn.</param>
         /// <param name="labelSize">The font size of the axis title.</param>
         /// <returns>The distance from the edge to the title's baseline.</returns>
         internal double TopAxisLabelOffset(double tallestTickLabel, double labelSize) =>
-            config.TickLabelBand(tallestTickLabel) + XLabelGap + 0.2 * labelSize;
+            new TitleClearance(config.TickLabelBand(tallestTickLabel), XLabelGap, labelSize, FacingInk.Of(TickSide.Top))
+                .TitleOffset();
 
-        /// <summary>How far the baseline of a horizontal axis title drawn below a bottom edge sits from that edge: past the
-        /// tick label band (<see cref="TickLabelBand"/>), the <see cref="XLabelGap"/> and the title's ascent (four fifths of its
-        /// size), so the top of the title clears the bottom of the tick labels, whether they read numbers or category names;
-        /// the fixed 35 px when no tick label was drawn, as <see cref="AxisLabelOffset"/> keeps its fixed 45 px. The mirror of
-        /// <see cref="TopAxisLabelOffset"/>: the primary X axis places its title here from the band it measured while drawing
-        /// its tick labels, and the layout reserves the band, the gap and the title's height below it.</summary>
+        /// <summary>How far the baseline of a horizontal axis title drawn below a bottom edge sits from that edge: the one
+        /// facing-edge rule (<see cref="TitleOffset"/>) with the <see cref="XLabelGap"/>, so the title's ascent (four fifths
+        /// of its size, the ink that faces the labels) stands the gap past the tick label band (<see cref="TickLabelBand"/>),
+        /// whether the labels read numbers or category names; the fixed <see cref="BottomAxisLabelFallback"/> when no tick
+        /// label was drawn. The mirror of <see cref="TopAxisLabelOffset"/>: the primary X axis places its title here from the
+        /// band it measured while drawing its tick labels, and the layout reserves the band, the gap and the title's height
+        /// below it.</summary>
         /// <param name="tallestTickLabel">The tallest tick label drawn on that edge, 0 when none was drawn.</param>
         /// <param name="labelSize">The font size of the axis title.</param>
         /// <returns>The distance from the edge to the title's baseline.</returns>
         internal double BottomAxisLabelOffset(double tallestTickLabel, double labelSize) =>
-            tallestTickLabel > 0 ? config.TickLabelBand(tallestTickLabel) + XLabelGap + 0.8 * labelSize : BottomAxisLabelFallback;
+            new TitleClearance(config.TickLabelBand(tallestTickLabel), XLabelGap, labelSize, FacingInk.Of(TickSide.Bottom))
+            {
+                WithoutTickLabels = BottomAxisLabelFallback,
+            }.TitleOffset();
 
         /// <summary>From a bottom edge to the far side of the horizontal axis title drawn below it, the room the layout keeps
         /// for it: the title's top stands where <see cref="BottomAxisLabelOffset"/> puts its baseline less its ascent (four
@@ -128,7 +148,21 @@ internal static class AxisTickExtensions
             double titleHeight, double pad) =>
             tallestTickLabel > 0
                 ? config.TickLabelBand(tallestTickLabel) + XLabelGap + pad + titleHeight
-                : BottomAxisLabelFallback - 0.8 * labelSize + pad + titleHeight;
+                : BottomAxisLabelFallback - FacingInk.Of(TickSide.Bottom).Facing * labelSize + pad + titleHeight;
+    }
+
+    extension(TitleClearance clearance)
+    {
+        /// <summary>The one rule for where an axis title stands beside the tick labels of its edge, on all four edges: its
+        /// placing line (the baseline of a horizontal title, the anchor line of a turned Y title) stands past the tick label
+        /// band by the gap and the part of the title's ink that faces the labels (<see cref="FacingInk.Facing"/>), so that
+        /// ink edge stands exactly the gap past the band whichever way the title faces. When no tick label is drawn and the
+        /// edge has a fixed place (<see cref="TitleClearance.WithoutTickLabels"/>), the title stands there.</summary>
+        /// <returns>The distance from the edge to the title's placing line.</returns>
+        internal double TitleOffset() =>
+            clearance.TickLabelBand > 0 || clearance.WithoutTickLabels is not { } fixedOffset
+                ? clearance.TickLabelBand + clearance.Gap + clearance.Ink.Facing * clearance.LabelSize
+                : fixedOffset;
     }
 
     /// <summary>The gap between the tick labels on a top or bottom edge and the horizontal axis title beside them.</summary>
@@ -141,47 +175,60 @@ internal static class AxisTickExtensions
     extension(TickDrawContext draw)
     {
         /// <summary>The text of the label of <paramref name="tick"/>: the axis' formatter, or the uniform format.</summary>
-        private string LabelText(double tick) =>
+        internal string LabelText(double tick) =>
             draw.Formatter?.Format(tick) ?? draw.UniformFormat(tick);
 
-        /// <summary>How far one tick label reaches past the mark and the pad, away from the edge it hangs from, as it is drawn:
-        /// on a top or bottom edge at the label's rotation and alignment (<see cref="TickDrawContext.LabelRotation"/>,
-        /// <see cref="TickDrawContext.Alignment"/>), on a left or right edge its width. Upright, a label on a top or bottom
-        /// edge reaches exactly its height, the band every upright label is reserved. Turned, it reaches that height changed by
-        /// what the turn adds (<see cref="TurnedReach"/>): below a bottom edge the anchor's depth (the font size), the turned
-        /// width times the sine of the angle and the descent times its cosine, for a label hung from its end and turned up to
-        /// 90 degrees. The drawing (<see cref="RenderAxisTicks"/>) and the measuring (<see cref="MeasureAxisTicks"/>) take it
-        /// from here, so the band the layout reserves for turned labels and the room the X axis title clears are the drawn
-        /// ones.</summary>
+        /// <summary>The upright size of the label of tick <paramref name="index"/> of <paramref name="ticks"/> in
+        /// <paramref name="font"/>: the size the context carries (<see cref="TickDrawContext.LabelSizes"/>) when it holds
+        /// one per tick, otherwise measured.</summary>
+        private Size LabelSize(IRenderContext ctx, double[] ticks, int index, Font font) =>
+            draw.LabelSizes is { } sizes && sizes.Count == ticks.Length
+                ? sizes[index]
+                : ctx.MeasureText(draw.LabelText(ticks[index]), font);
+
+        /// <summary>How far one tick label reaches, as it is drawn, by the one rule for all four edges and every rotation: the
+        /// label's box (<see cref="TextBox"/>, the font size above the baseline, the rest of the measured height below it, in
+        /// the label's alignment) turned about its anchor by the label's rotation. <see cref="LabelReach.Away"/> is how far it
+        /// stands from the edge it hangs from, past the mark and the pad; <see cref="LabelReach.Before"/> and
+        /// <see cref="LabelReach.After"/> how far it stands before and after its anchor along the edge. Upright, a label on a
+        /// top or bottom edge reaches exactly its height and one on a left or right edge exactly its width, the band every
+        /// upright label is reserved, so a figure whose labels are not turned is laid out to the bit as before.</summary>
+        /// <param name="size">The label's measured size, upright.</param>
+        /// <param name="fontSize">The label's font size: how far above its baseline the letters rise.</param>
+        /// <returns>The label's reach, in pixels.</returns>
+        internal LabelReach Reach(Size size, double fontSize)
+        {
+            var box = draw.TurnedBox(size, fontSize, draw.LabelRotation);
+            bool alongX = draw.Side is TickSide.Bottom or TickSide.Top;
+            double before = Math.Max(0, alongX ? -box.X : -box.Y);
+            double after = Math.Max(0, alongX ? box.Right : box.Bottom);
+            if (draw.LabelRotation == 0)
+                return new LabelReach(alongX ? size.Height : size.Width, before, after);
+
+            double away = draw.Side switch
+            {
+                TickSide.Bottom => size.Height + (box.Bottom - draw.TurnedBox(size, fontSize, 0).Bottom),
+                TickSide.Top    => size.Height + (-box.Y + draw.TurnedBox(size, fontSize, 0).Y),
+                TickSide.Left   => -box.X,
+                _               => box.Right,
+            };
+            return new LabelReach(away, before, after);
+        }
+
+        /// <summary>The box of a label of <paramref name="size"/> turned by <paramref name="degrees"/> about its anchor, at the
+        /// anchor (the origin), in the label's alignment: the one box every reach is read off.</summary>
+        private Rect TurnedBox(Size size, double fontSize, double degrees) =>
+            new TextBox(new Point(0, 0), size, fontSize, draw.Alignment, TextVerticalAlignment.Baseline, degrees).Bounds();
+
+        /// <summary>How far one tick label reaches past the mark and the pad, away from the edge it hangs from, as it is drawn
+        /// (<see cref="Reach"/>): the tallest label's height or the widest label's width upright, and what the turn carries it
+        /// to when it is turned. The drawing (<see cref="RenderAxisTicks"/>) and the measuring (<see cref="MeasureAxisTicks"/>)
+        /// take it from here, so the band the layout reserves for turned labels and the room the axis title clears are the
+        /// drawn ones.</summary>
         /// <param name="size">The label's measured size, upright.</param>
         /// <param name="fontSize">The label's font size: how far below the reach line a bottom label's baseline stands.</param>
         /// <returns>The label's extent away from the edge, in pixels.</returns>
-        internal double LabelExtent(Size size, double fontSize) =>
-            draw.Side is TickSide.Bottom or TickSide.Top
-                ? size.Height + (draw.TurnedReach(size, fontSize, draw.LabelRotation) - draw.TurnedReach(size, fontSize, 0))
-                : size.Width;
-
-        /// <summary>How far past its anchor, away from a top or bottom edge, a label reaches when it is turned
-        /// counter-clockwise by <paramref name="degrees"/> about its anchor. The label's box runs along its baseline from the
-        /// anchor by its width (to the left of an end anchor, both ways from a centre one) and from the font size above the
-        /// baseline to the rest of its measured height below it, the box the upright band has always held. A point (x, y) of
-        /// the box, y downward, lies -x sin + y cos below the anchor once turned; the farthest corner decides, and the two
-        /// coordinates are maximised apart.</summary>
-        private double TurnedReach(Size size, double fontSize, double degrees)
-        {
-            double radians = degrees * Math.PI / 180;
-            double sin = Math.Sin(radians), cos = Math.Cos(radians);
-            double start = draw.Alignment switch
-            {
-                TextAlignment.Right  => -size.Width,
-                TextAlignment.Center => -size.Width / 2,
-                _                    => 0,
-            };
-            double end = start + size.Width, above = -fontSize, below = size.Height - fontSize;
-            return draw.Side == TickSide.Bottom
-                ? Math.Max(-start * sin, -end * sin) + Math.Max(above * cos, below * cos)
-                : Math.Max(start * sin, end * sin) + Math.Max(-above * cos, -below * cos);
-        }
+        internal double LabelExtent(Size size, double fontSize) => draw.Reach(size, fontSize).Away;
     }
 
     extension(IRenderContext ctx)
@@ -199,8 +246,8 @@ internal static class AxisTickExtensions
             if (!config.Visible) return 0;
             var font = config.LabelFont(draw.BaseFont);
             double maxDim = 0;
-            foreach (var tick in ticks)
-                maxDim = Math.Max(maxDim, draw.LabelExtent(ctx.MeasureText(draw.LabelText(tick), font), font.Size));
+            for (int i = 0; i < ticks.Length; i++)
+                maxDim = Math.Max(maxDim, draw.LabelExtent(draw.LabelSize(ctx, ticks, i, font), font.Size));
             return maxDim;
         }
 
@@ -224,10 +271,11 @@ internal static class AxisTickExtensions
             var color = config.Color ?? draw.Foreground;
             double reach = config.Length + config.Pad;
             double maxDim = 0;
-            foreach (var tick in ticks)
+            for (int i = 0; i < ticks.Length; i++)
             {
+                double tick = ticks[i];
                 var text = draw.LabelText(tick);
-                maxDim = Math.Max(maxDim, draw.LabelExtent(ctx.MeasureText(text, font), font.Size));
+                maxDim = Math.Max(maxDim, draw.LabelExtent(draw.LabelSize(ctx, ticks, i, font), font.Size));
                 if (alongX)
                 {
                     double x = transform.DataToPixel(tick, fixedCoord).X;
@@ -248,6 +296,40 @@ internal static class AxisTickExtensions
                 }
             }
             return maxDim;
+        }
+
+        /// <summary>Draws the minor tick marks of one axis, no labels, on the edge <paramref name="draw"/> hangs from, by its
+        /// <see cref="TickConfig"/>: between the major ticks of <paramref name="run"/>, its own spacing when it set one and
+        /// matplotlib's five-way subdivision otherwise, skipping a position a major tick stands on and one outside the plot.
+        /// Every axis draws its minor ticks here, the X axis, the primary Y axis and every Y slot alike.</summary>
+        /// <param name="run">The major ticks, the coordinate they are mapped at and the transform.</param>
+        /// <param name="minor">The axis' minor tick settings; nothing is drawn when they are not visible.</param>
+        /// <param name="draw">The edge, its side, half its spine and the foreground a mark without a colour takes.</param>
+        internal void RenderMinorTicks(TickRun run, TickConfig minor, TickDrawContext draw)
+        {
+            var majorTicks = run.Ticks;
+            if (!minor.Visible || majorTicks.Length < 2) return;
+            bool alongX = draw.Side is TickSide.Bottom or TickSide.Top;
+            var color = minor.Color ?? draw.Foreground;
+            double majorStep = majorTicks[1] - majorTicks[0];
+            // The caller's own spacing wins when it set one; otherwise matplotlib's five-way subdivision, which is what
+            // every axis that has not asked for anything still gets. A non-positive value is a computed spacing that came
+            // out wrong, never an instruction — it falls back rather than dividing by zero.
+            double minorStep = minor.Spacing is { } spacing && spacing > 0 ? spacing : majorStep / 5;
+            double rangeStart = majorTicks[0] - majorStep;
+            double rangeEnd   = majorTicks[^1] + majorStep;
+            var bounds = run.Transform.PlotBounds;
+            double areaMin = alongX ? bounds.X : bounds.Y;
+            double areaMax = alongX ? bounds.X + bounds.Width : bounds.Y + bounds.Height;
+            for (double mt = rangeStart; mt <= rangeEnd + minorStep * 0.01; mt += minorStep)
+            {
+                mt = Math.Round(mt, 10);
+                if (Array.Exists(majorTicks, t => Math.Abs(t - mt) < minorStep * 0.01)) continue;
+                var pt = alongX ? run.Transform.DataToPixel(mt, run.FixedCoord) : run.Transform.DataToPixel(run.FixedCoord, mt);
+                double pos = alongX ? pt.X : pt.Y;
+                if (pos < areaMin || pos > areaMax) continue;
+                ctx.DrawTickMark(pos, draw.AxisEdge, draw.Side, minor.Length, color, minor.Width, minor.Direction, draw.SpineHalf);
+            }
         }
 
         /// <summary>Draws one tick mark on <paramref name="side"/>. <see cref="TickDirection.Out"/> points away from the

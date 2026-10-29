@@ -37,6 +37,9 @@ internal sealed class RelativeRotationSeriesRenderer : SeriesRenderer<RelativeRo
     public RelativeRotationSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
+    internal override void AddMarks(RelativeRotationSeries series, MarkObstacles.Builder marks) => AddMarksByDrawing(series, marks);
+
+    /// <inheritdoc />
     public override void Render(RelativeRotationSeries series)
     {
         var rsData = series.ComputeRsData();

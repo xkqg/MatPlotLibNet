@@ -214,17 +214,11 @@ internal sealed class SankeySeriesRenderer : SeriesRenderer<SankeySeries>
         // Batch-place outer labels through the collision-avoidance engine.
         if (outerCandidates.Count > 0)
         {
-            var placements = LabelLayoutEngine.Place(
-                outerCandidates,
-                Context!.Area.PlotBounds,
-                FontMetricsDefault.Current);
-            var leaderColor = Context.Theme.ForegroundText;
+            var placements = PlaceLabels(outerCandidates, Context.Area.PlotBounds);
             for (int k = 0; k < placements.Count; k++)
             {
                 var p = placements[k];
-                if (p.LeaderLineStart is { } anchor)
-                    CalloutBoxRenderer.DrawLeaderLine(Ctx, anchor, p.FinalPoint, leaderColor);
-                Ctx.DrawText(p.Text, p.FinalPoint, p.Font, p.Alignment);
+                DrawPlacedLabel(p);
 
                 // Draw the sub-label one line below the primary label's final position.
                 int nodeIdx = outerNodeIndex[k];

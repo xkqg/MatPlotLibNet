@@ -6,7 +6,7 @@ namespace MatPlotLibNet.Geo.Projections;
 /// <summary>Orthographic projection — globe view from infinite distance. Shows one hemisphere
 /// at a time. Points on the far side of the globe are signalled as <c>(NaN, NaN)</c> by
 /// <see cref="Forward"/> (see <see cref="ProjectedPoint"/>).</summary>
-public sealed class Orthographic : IGeoProjection
+public sealed class Orthographic : IGeoProjection, IProjectionParameters
 {
     /// <summary>Center latitude of the projection in degrees.</summary>
     public double CenterLat { get; }
@@ -23,6 +23,13 @@ public sealed class Orthographic : IGeoProjection
 
     /// <inheritdoc />
     public string Name => "Orthographic";
+
+    IReadOnlyDictionary<string, double> IProjectionParameters.Parameters =>
+        new Dictionary<string, double> { ["lat_0"] = CenterLat, ["lon_0"] = CenterLon };
+
+    /// <inheritdoc />
+    IGeoProjection IProjectionParameters.Made(IReadOnlyDictionary<string, double> parameters) =>
+        new Orthographic(parameters.GetValueOrDefault("lat_0", CenterLat), parameters.GetValueOrDefault("lon_0", CenterLon));
 
     /// <inheritdoc />
     public ProjectedPoint Forward(double latitude, double longitude)

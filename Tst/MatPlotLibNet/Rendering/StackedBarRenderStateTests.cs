@@ -76,6 +76,27 @@ public class StackedBarRenderStateTests
         Assert.Equal(Rects(byHand.ToSvg()), Rects(stacked.ToSvg()));
     }
 
+    /// <summary>A diverging stack (a Likert chart): the layer that falls stands on zero and grows down, the layer after it
+    /// stands on the layer above zero, exactly as bars the user lifts onto those heights by hand.</summary>
+    [Fact]
+    public void ADivergingStack_StandsTheFallingLayerOnZero_AndTheLayerAfterItOnTheLayerAboveZero()
+    {
+        var stacked = Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => ax
+            .Bar(["A", "B"], [2.0, 3.0])
+            .Bar(["A", "B"], [-1.0, -2.0])
+            .Bar(["A", "B"], [4.0, 1.0])
+            .SetBarMode(BarMode.Stacked)).Build();
+        var byHand = Plt.Create().WithSize(400, 300).AddSubPlot(1, 1, 1, ax => ax
+            .Bar(["A", "B"], [2.0, 3.0], s => s.StackBaseline = [0, 0])
+            .Bar(["A", "B"], [-1.0, -2.0], s => s.StackBaseline = [0, 0])
+            .Bar(["A", "B"], [4.0, 1.0], s => s.StackBaseline = [2, 3])
+            .SetYLim(-3, 7)).Build();
+        stacked.SubPlots[0].YAxis.Min = -3;
+        stacked.SubPlots[0].YAxis.Max = 7;
+
+        Assert.Equal(Rects(byHand.ToSvg()), Rects(stacked.ToSvg()));
+    }
+
     /// <summary>The stack sums every stackable series, in the order they were added, the same set the data range sums;
     /// a stackable that is not a bar lifts the bars after it too.</summary>
     [Fact]

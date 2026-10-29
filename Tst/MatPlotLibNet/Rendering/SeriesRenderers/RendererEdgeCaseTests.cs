@@ -168,11 +168,11 @@ public class RendererEdgeCaseTests
     }
 
     [Fact]
-    public void Cartesian_SecondaryYAxis_DoesNotThrow()
+    public void Cartesian_RightYAxis_DoesNotThrow()
     {
         var svg = Render(ax => ax
             .Plot(EdgeCaseData.Ramp(10), EdgeCaseData.Sin(10))
-            .WithSecondaryYAxis(s => s.SetYLim(0, 100)));
+            .WithAddRightYAxis(s => s.SetYLim(0, 100)));
         Assert.Contains("<svg", svg);
     }
 

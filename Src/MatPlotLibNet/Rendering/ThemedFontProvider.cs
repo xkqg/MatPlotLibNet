@@ -47,6 +47,17 @@ internal static class ThemedFontProvider
         Color  = theme.ForegroundText,
     };
 
+    /// <summary>Font for the text a chart draws among its data: an annotation, a bar's value, a radar spoke's name, a pie
+    /// slice's percentage, a funnel stage's name, a graph node's name. The size of the tick labels, in the theme's
+    /// foreground colour; matplotlib has one text size for all of these, and a theme that grows or shrinks its text
+    /// does so for them too. A caller that needs another colour (white on a pie slice) sets it on the returned font.</summary>
+    public static Font DataTextFont(Theme theme) => new()
+    {
+        Family = theme.DefaultFont.Family,
+        Size   = theme.DefaultFont.Size,
+        Color  = theme.ForegroundText,
+    };
+
     /// <summary>Font for the per-subplot axes title — 2 points larger than axis labels,
     /// bold. Matches matplotlib's <c>axes.titlesize = 'large'</c> default.</summary>
     public static Font TitleFont(Theme theme) => new()

@@ -318,19 +318,31 @@ public class SankeySeriesRenderTests
     }
 
     [Fact]
-    public void HideAllAxes_SuppressesTickLabels()
+    public void ASankey_DrawsNoAxesDecoration_WhetherOrNotTheAxesAreHidden()
     {
-        string withAxes = Plt.Create()
+        string asIs = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.Sankey(LinearNodes(), LinearLinks()))
             .ToSvg();
-        string without = Plt.Create()
+        string hidden = Plt.Create()
             .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Sankey(LinearNodes(), LinearLinks()))
             .ToSvg();
 
-        // HideAllAxes removes spines + ticks + tick labels, so the clean version should be
-        // SHORTER than the version that renders the full cartesian decoration.
-        Assert.True(without.Length < withAxes.Length,
-            $"HideAllAxes should shrink SVG output; got without={without.Length} vs with={withAxes.Length}");
+        // A Sankey draws without axes (its nodes and flows are positions in the plot, not on an axis), so the grid, the ticks
+        // and the frame that HideAllAxes removes are not drawn for it in the first place.
+        Assert.Equal(hidden, asIs);
+    }
+
+    [Fact]
+    public void ASankeyBesideALine_StillHasItsAxes()
+    {
+        string both = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.Plot([0.0, 1.0], [0.0, 1.0]).Sankey(LinearNodes(), LinearLinks()))
+            .ToSvg();
+        string bothHidden = Plt.Create()
+            .AddSubPlot(1, 1, 1, ax => ax.HideAllAxes().Plot([0.0, 1.0], [0.0, 1.0]).Sankey(LinearNodes(), LinearLinks()))
+            .ToSvg();
+
+        Assert.True(bothHidden.Length < both.Length, "a line on the axes needs them: hiding them shrinks the picture");
     }
 
     // ── Wave J.2 — missing SankeySeriesRenderer branches ─────────────────

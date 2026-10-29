@@ -171,6 +171,10 @@ A figure written with `ToJson` and read back with `FromJson` (the MCP server and
 - The roadmap is one table in two places: the wiki's Roadmap page and `ROADMAP.md`. A change that finishes a row
   moves it from Later to Done in both copies, and its section on the wiki from what is still to come to what is
   done; the wiki suite fails when the two tables differ.
+- Every picture the wiki shows is drawn here: by a sample of the sample program or, when no sample draws it, by
+  `Samples/MatPlotLibNet.Samples.Console/WikiPictures.cs`, and the wiki keeps a byte-for-byte copy in its `images`
+  folder. After a rendering change, re-run the sample program and copy the pictures it changed over the wiki's;
+  the wiki suite fails, naming each picture, while a copy is older than the picture drawn here.
 - A number a document states about the library is a claim, and a claim that can be checked gets a test. The
   colormap count is held against the registry in every current-state document; the series and indicator counts
   are held against the assembly, the verbs and the number of them against the public API (`VerbPlacementContractTests`), and the map projections against the Geo package. Add the test with the number. The class and test counts are the exception: a

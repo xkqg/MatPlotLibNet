@@ -34,6 +34,90 @@ public class LegendLayoutCalculatorTests
     private static LegendLayoutCalculator NewCalculator()
         => new(Theme.Default, new SvgRenderContext());
 
+    // ── Best, with the marks a chart drew ─────────────────────────────────
+
+    private static void AssertSameBox(LegendLayout expected, LegendLayout actual)
+    {
+        Assert.Equal(expected.BoxX, actual.BoxX);
+        Assert.Equal(expected.BoxY, actual.BoxY);
+        Assert.Equal(expected.BoxWidth, actual.BoxWidth);
+        Assert.Equal(expected.BoxHeight, actual.BoxHeight);
+    }
+
+    [Fact]
+    public void Compute_BestWithNoMarks_IsTheThreeArgumentResult()
+    {
+        var legend = DefaultLegend() with { Position = LegendPosition.Best };
+
+        var byThree = NewCalculator().Compute(legend, new[] { "A" }, PlotArea);
+        var byFour = NewCalculator().Compute(legend, new[] { "A" }, PlotArea, MarkObstacles.None);
+
+        AssertSameBox(byThree, byFour);
+    }
+
+    [Fact]
+    public void Compute_BestWithMarksInTheUpperRight_StandsInTheUpperLeft()
+    {
+        var legend = DefaultLegend() with { Position = LegendPosition.Best };
+        var upperRight = NewCalculator().Compute(legend, new[] { "A" }, PlotArea);
+        var marks = new MarkObstacles.Builder()
+            .AddPoint(new Point(upperRight.BoxX + upperRight.BoxWidth / 2, upperRight.BoxY + upperRight.BoxHeight / 2))
+            .Build();
+
+        var layout = NewCalculator().Compute(legend, new[] { "A" }, PlotArea, marks);
+
+        Assert.Equal(PlotArea.X + LegendPositionStrategy.Inset, layout.BoxX);
+        Assert.Equal(PlotArea.Y + LegendPositionStrategy.Inset, layout.BoxY);
+        Assert.Equal(upperRight.BoxWidth, layout.BoxWidth);
+        Assert.Equal(upperRight.BoxHeight, layout.BoxHeight);
+    }
+
+    [Fact]
+    public void Compute_AFixedPosition_IgnoresTheMarks()
+    {
+        var legend = DefaultLegend() with { Position = LegendPosition.UpperRight };
+        var covered = new MarkObstacles.Builder().AddBox(PlotArea).Build();
+
+        var byThree = NewCalculator().Compute(legend, new[] { "A" }, PlotArea);
+        var byFour = NewCalculator().Compute(legend, new[] { "A" }, PlotArea, covered);
+
+        AssertSameBox(byThree, byFour);
+    }
+
+    // ── The place a legend left at Best takes, by the theme ───────────────
+
+    private static LegendLayoutCalculator NewCalculator(Theme theme)
+        => new(theme, new SvgRenderContext());
+
+    [Fact]
+    public void PositionOf_BestUnderTheClassicTheme_IsTheThemesPlace()
+        => Assert.Equal(LegendPosition.UpperRight,
+            NewCalculator(Theme.MatplotlibClassic).PositionOf(DefaultLegend() with { Position = LegendPosition.Best }));
+
+    [Fact]
+    public void PositionOf_BestUnderTheDefaultTheme_IsBest()
+        => Assert.Equal(LegendPosition.Best,
+            NewCalculator(Theme.MatplotlibV2).PositionOf(DefaultLegend() with { Position = LegendPosition.Best }));
+
+    [Fact]
+    public void PositionOf_ANamedPlace_IsThatPlaceUnderAnyTheme()
+        => Assert.Equal(LegendPosition.LowerLeft,
+            NewCalculator(Theme.MatplotlibClassic).PositionOf(DefaultLegend() with { Position = LegendPosition.LowerLeft }));
+
+    [Fact]
+    public void Compute_BestUnderTheClassicTheme_StandsInTheUpperRightEvenWithMarksThere()
+    {
+        var legend = DefaultLegend() with { Position = LegendPosition.Best };
+        var upperRight = NewCalculator(Theme.MatplotlibClassic).Compute(DefaultLegend(), new[] { "A" }, PlotArea);
+        var marks = new MarkObstacles.Builder()
+            .AddPoint(new Point(upperRight.BoxX + upperRight.BoxWidth / 2, upperRight.BoxY + upperRight.BoxHeight / 2))
+            .Build();
+
+        var layout = NewCalculator(Theme.MatplotlibClassic).Compute(legend, new[] { "A" }, PlotArea, marks);
+
+        AssertSameBox(upperRight, layout);
+    }
+
     // ── Font / title-font resolution (matches the OLD inline code) ────────
 
     [Fact]

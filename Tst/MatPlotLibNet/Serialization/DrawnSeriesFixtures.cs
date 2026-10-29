@@ -123,6 +123,7 @@ public static class DrawnSeriesFixtures
         double[] x = [1, 2, 3], y = [2, 4, 3], low = [0.5, 0.5, 0.5];
         double[][] sets = [[1, 2, 3], [2, 3, 4], [3, 4, 5]];
         double[,] grid = { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } };
+        double[] edges = [1, 2, 3, 4];   // a mesh has one edge more than it has cells along each axis
         string[] categories = ["A", "B", "C"];
         var tree = new TreeNode { Label = "Root" };
         void Set<T>(T series) where T : ISeries
@@ -135,8 +136,8 @@ public static class DrawnSeriesFixtures
 
         return Plt.Create().AddSubPlot(1, 1, 1, ax => _ = (typeName, seat) switch
         {
-            (nameof(LineSeries), SeriesSeat.SecondaryY) => ax.WithSecondaryYAxis(y2 => y2.Plot(x, y, Set)),
-            (nameof(ScatterSeries), SeriesSeat.SecondaryY) => ax.WithSecondaryYAxis(y2 => y2.Scatter(x, y, Set)),
+            (nameof(LineSeries), SeriesSeat.SecondaryY) => ax.WithAddRightYAxis(y2 => y2.Plot(x, y, Set)),
+            (nameof(ScatterSeries), SeriesSeat.SecondaryY) => ax.WithAddRightYAxis(y2 => y2.Scatter(x, y, Set)),
             (nameof(LineSeries), SeriesSeat.SecondaryX) => ax.WithSecondaryXAxis(x2 => x2.PlotXSecondary(x, y, Set)),
             (nameof(ScatterSeries), SeriesSeat.SecondaryX) => ax.WithSecondaryXAxis(x2 => x2.ScatterXSecondary(x, y, Set)),
             (_, not SeriesSeat.Primary) => throw new ArgumentException($"A {typeName} has no seat on a secondary axis.", nameof(seat)),
@@ -158,7 +159,7 @@ public static class DrawnSeriesFixtures
             (nameof(HexbinSeries), _) => ax.Hexbin(x, y, Set),
             (nameof(Histogram2DSeries), _) => ax.Histogram2D(x, y, 3, Set),
             (nameof(ImageSeries), _) => ax.Image(grid, Set),
-            (nameof(PcolormeshSeries), _) => ax.Pcolormesh(x, x, grid, Set),
+            (nameof(PcolormeshSeries), _) => ax.Pcolormesh(edges, edges, grid, Set),
             (nameof(SpectrogramSeries), _) => ax.Spectrogram(y, 1, Set),
             (nameof(TricontourSeries), _) => ax.Tricontour(x, y, low, Set),
             (nameof(TripcolorSeries), _) => ax.Tripcolor(x, y, low, Set),
@@ -228,7 +229,7 @@ public static class DrawnSeriesFixtures
         var axes = figure.SubPlots[0];
         return seat switch
         {
-            SeriesSeat.SecondaryY => axes.SecondarySeries.Single(),
+            SeriesSeat.SecondaryY => axes.YAxes.Right[0].Series.Single(),
             SeriesSeat.SecondaryX => axes.XSecondarySeries.Single(),
             _ => axes.Series.Single(),
         };

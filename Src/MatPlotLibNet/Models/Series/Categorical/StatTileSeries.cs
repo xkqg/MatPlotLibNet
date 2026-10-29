@@ -15,6 +15,9 @@ namespace MatPlotLibNet.Models.Series;
 /// its label itself, so it never appears as a legend entry.</summary>
 public sealed class StatTileSeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     /// <summary>The value displayed as the tile's headline number.</summary>
     public double Value { get; }
 

@@ -30,11 +30,27 @@ public sealed class LegendLayoutCalculator
         _ctx = ctx;
     }
 
+    /// <summary>The place <paramref name="legend"/> stands in under this calculator's theme: the one it names, or, when it was
+    /// left at <see cref="LegendPosition.Best"/>, the theme's own (<see cref="Theme.DefaultLegendPosition"/>). The one rule the
+    /// layout and the renderer's decision to collect the marks both read.</summary>
+    /// <param name="legend">The Legend config.</param>
+    internal LegendPosition PositionOf(Legend legend)
+        => legend.Position == LegendPosition.Best ? _theme.DefaultLegendPosition : legend.Position;
+
     /// <summary>Computes the full legend layout for the given inputs.</summary>
     /// <param name="legend">The Legend config (font size, title, position, n-cols, frame, etc.).</param>
     /// <param name="labels">The label strings for the entries to be laid out.</param>
     /// <param name="plotArea">The pixel-space plot-area rectangle (used for box positioning).</param>
     public LegendLayout Compute(Legend legend, IReadOnlyList<string> labels, Rect plotArea)
+        => Compute(legend, labels, plotArea, MarkObstacles.None);
+
+    /// <summary>Computes the full legend layout knowing the marks the chart drew, which a legend at
+    /// <see cref="LegendPosition.Best"/> keeps clear of; every other position stands where it names whatever is there.</summary>
+    /// <param name="legend">The Legend config (font size, title, position, n-cols, frame, etc.).</param>
+    /// <param name="labels">The label strings for the entries to be laid out.</param>
+    /// <param name="plotArea">The pixel-space plot-area rectangle (used for box positioning).</param>
+    /// <param name="obstacles">The marks the chart drew on the axes.</param>
+    internal LegendLayout Compute(Legend legend, IReadOnlyList<string> labels, Rect plotArea, MarkObstacles obstacles)
     {
         // Font: merge FontSize override into tick font
         var baseFont = ThemedFontProvider.TickFont(_theme);
@@ -77,8 +93,8 @@ public sealed class LegendLayoutCalculator
 
         // Polymorphic position dispatch (Phase B.2)
         var (boxX, boxY) = LegendPositionStrategyFactory
-            .Create(legend.Position)
-            .ComputeBox(plotArea, boxWidth, boxHeight);
+            .Create(PositionOf(legend))
+            .ComputeBox(plotArea, boxWidth, boxHeight, obstacles);
 
         return new LegendLayout(
             Font: font,

@@ -34,17 +34,16 @@ public static class GeoJsonReader
     {
         var type = geom.GetProperty("type").GetString() ?? "Unknown";
         var rings = new List<List<(double Lon, double Lat)>>();
+        var polygons = new List<GeoPolygon>();
 
         if (type == "Polygon")
         {
-            foreach (var ring in geom.GetProperty("coordinates").EnumerateArray())
-                rings.Add(ParseRing(ring));
+            polygons.Add(ParsePolygon(geom.GetProperty("coordinates"), rings));
         }
         else if (type == "MultiPolygon")
         {
             foreach (var polygon in geom.GetProperty("coordinates").EnumerateArray())
-                foreach (var ring in polygon.EnumerateArray())
-                    rings.Add(ParseRing(ring));
+                polygons.Add(ParsePolygon(polygon, rings));
         }
         else if (type == "LineString")
         {
@@ -56,7 +55,17 @@ public static class GeoJsonReader
                 rings.Add(ParseRing(line));
         }
 
-        return new GeoGeometry { Type = type, Rings = rings };
+        return new GeoGeometry { Type = type, Rings = rings, Polygons = polygons };
+    }
+
+    /// <summary>One polygon of the file: its first ring the exterior and the rest its holes, wound by their signed area. Every
+    /// ring read is also added to <paramref name="flattened"/>, in the order the file has them.</summary>
+    private static GeoPolygon ParsePolygon(JsonElement rings, List<List<(double Lon, double Lat)>> flattened)
+    {
+        var parsed = rings.EnumerateArray().Select(ParseRing).ToList();
+        flattened.AddRange(parsed);
+        static IReadOnlyList<GeoPosition> Positions(List<(double Lon, double Lat)> ring) => [.. ring.Select(p => new GeoPosition(p.Lon, p.Lat))];
+        return GeoPolygon.FromRings(parsed.Count > 0 ? Positions(parsed[0]) : [], parsed.Skip(1).Select(Positions));
     }
 
     private static List<(double Lon, double Lat)> ParseRing(JsonElement coords)

@@ -48,6 +48,9 @@ public enum SankeyOrientation
 /// <summary>Represents a Sankey diagram that renders flows between nodes as curved links.</summary>
 public sealed class SankeySeries : ChartSeries
 {
+    /// <inheritdoc />
+    internal override bool DrawsWithoutAxes => true;
+
     public IReadOnlyList<SankeyNode> Nodes { get; }
 
     public IReadOnlyList<SankeyLink> Links { get; }

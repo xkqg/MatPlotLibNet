@@ -23,9 +23,9 @@ internal static class ChartLayoutViewExtensions
             return new DataTransform(xMin, xMax, yMin, yMax, layout.GetPlotArea(axesIndex));
         }
 
-        /// <summary>The transform every outward-stacked secondary Y axis of <paramref name="axesIndex"/> is drawn with —
-        /// the secondary counterpart of <see cref="ViewOf"/>, so a modifier converts a pixel position through a
-        /// SPECIFIC secondary axis' own scale, not only the primary's (ROADMAP.md row 100). For the library's own
+        /// <summary>The transform every Y axis stacked past the primary of <paramref name="axesIndex"/> is drawn with —
+        /// the counterpart of <see cref="ViewOf"/> for those axes, so a modifier converts a pixel position through a
+        /// SPECIFIC axis' own scale, not only the primary's. For the library's own
         /// <see cref="ChartLayout"/> that is the renderer's own view; any other host states only a range
         /// (<see cref="IChartLayout.GetSecondaryDataRanges"/>), read here as linear over the shared plot area.</summary>
         internal IReadOnlyList<SecondaryAxisTransform> SecondaryViewsOf(int axesIndex)

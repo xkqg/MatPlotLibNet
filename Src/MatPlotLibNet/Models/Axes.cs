@@ -10,7 +10,7 @@ using MatPlotLibNet.Styling;
 namespace MatPlotLibNet.Models;
 
 /// <summary>Represents a set of axes within a figure, onto which data series are plotted. Holds axes state (title,
-/// grid, spines, 3D camera/lighting, insets, secondary axes, breaks) and the collections a series or decoration is
+/// grid, spines, 3D camera/lighting, insets, the Y axis container and the top X axis, breaks) and the collections a series or decoration is
 /// added to; the open-ended set of chart-type verbs (<c>Plot</c>, <c>Bar</c>, <c>Heatmap</c>, …) lives as extension
 /// members grouped by series family under <c>Models/Series/&lt;family&gt;/</c> — adding a chart type is a new
 /// extension member there, never a change here.</summary>
@@ -24,7 +24,12 @@ public sealed class Axes
 
     public Axis XAxis { get; } = new();
 
-    public Axis YAxis { get; } = new();
+    /// <summary>The primary Y axis: slot 0 of the left side of <see cref="YAxes"/>.</summary>
+    public Axis YAxis => YAxes.Left[0].Axis;
+
+    /// <summary>Every Y axis of this axes: one stack per side, the primary <see cref="YAxis"/> as left slot 0, each
+    /// further axis stacked outward past the one before it on its side, as many as wanted.</summary>
+    public YAxisContainer YAxes { get; } = new();
 
     public Axis3D ZAxis { get; } = new();
 
@@ -101,18 +106,20 @@ public sealed class Axes
 
     public ColorBar? ColorBar { get; set; }
 
-    /// <summary>Gets the collection of data series plotted on this axes.</summary>
-    public IReadOnlyList<ISeries> Series => _series;
-    private readonly List<ISeries> _series = [];
+    /// <summary>Gets the collection of data series plotted on this axes: the series of the primary <see cref="YAxis"/>,
+    /// the same list as left slot 0's <see cref="YAxisSlot.Series"/>.</summary>
+    public IReadOnlyList<ISeries> Series => PrimarySeriesList;
+    private List<ISeries> PrimarySeriesList => YAxes.Left[0].SeriesList;
 
-    /// <summary>Every series drawn on this subplot, in draw order: <see cref="Series"/>, then every
-    /// <see cref="RightYAxes"/> and <see cref="LeftYAxes"/> slot's own series, then <see cref="XSecondarySeries"/>.
+    /// <summary>Every series drawn on this subplot, in draw order: every Y axis' own series in
+    /// <see cref="YAxisContainer.IdentityOrder"/> (<see cref="Series"/>, then every right slot's, then every left slot's
+    /// past the primary), then <see cref="XSecondarySeries"/>.
     /// This is the answer to "what does the picture show" — the data table reads it, and so does anything that
     /// describes the subplot. It is NOT <see cref="Series.IAxesContext.AllSeries"/>, which names only the series
     /// that share ONE axis pair (the set a stacked bar sums over); the two differ on purpose, and each is
     /// documented against the other.</summary>
     public IEnumerable<ISeries> AllSeries =>
-        _series.Concat(_rightYAxes.SelectMany(s => s.Series)).Concat(_leftYAxes.SelectMany(s => s.Series)).Concat(_xSecondarySeries);
+        YAxes.IdentityOrder.SelectMany(s => s.Series).Concat(_xSecondarySeries);
 
     /// <summary>A fresh <see cref="Series.ChartSeries.ColorGroup"/> value: one more than the highest already held by
     /// a series of these axes, or 0 when none holds one. Derived fresh every call, never stored — a counter field
@@ -126,7 +133,7 @@ public sealed class Axes
     /// <summary>Adds a pre-constructed series to the axes.</summary>
     public T AddSeries<T>(T series) where T : ISeries
     {
-        _series.Add(series);
+        PrimarySeriesList.Add(series);
         return series;
     }
 
@@ -137,9 +144,10 @@ public sealed class Axes
     /// rewriting 70 factories to take a seat parameter.</summary>
     internal ISeries? TakeLastSeries()
     {
-        if (_series.Count == 0) return null;
-        var last = _series[^1];
-        _series.RemoveAt(_series.Count - 1);
+        var series = PrimarySeriesList;
+        if (series.Count == 0) return null;
+        var last = series[^1];
+        series.RemoveAt(series.Count - 1);
         return last;
     }
 
@@ -156,9 +164,7 @@ public sealed class Axes
     /// past the plot area and the series are clipped to it; a range that scaled itself encloses every series and
     /// needs no clip.</summary>
     internal bool HasExplicitLimit =>
-        XAxis.HasLimit || YAxis.HasLimit
-        || _rightYAxes.Any(s => s.Axis.HasLimit) || _leftYAxes.Any(s => s.Axis.HasLimit)
-        || SecondaryXAxis is { HasLimit: true };
+        XAxis.HasLimit || YAxes.IdentityOrder.Any(s => s.Axis.HasLimit) || SecondaryXAxis is { HasLimit: true };
 
     /// <summary>Gets the collection of reference lines on this axes.</summary>
     public IReadOnlyList<ReferenceLine> ReferenceLines => _referenceLines;
@@ -246,67 +252,74 @@ public sealed class Axes
     public Axes InsetAxes(double x, double y, double width, double height)
         => AddInset(x, y, width, height);
 
-    /// <summary>Gets the first (innermost) outward-stacked axis on the right — <see langword="null"/> until
-    /// <see cref="TwinX"/> or <see cref="AddOutwardYAxis"/> creates it. A computed view of <see cref="RightYAxes"/>
-    /// slot 0, kept for the callers who only ever needed the one secondary axis this side had before
-    /// ROADMAP.md row 101.</summary>
-    public Axis? SecondaryYAxis => _rightYAxes.Count > 0 ? _rightYAxes[0].Axis : null;
+    /// <summary>Gets the first (innermost) Y axis on the right, <see langword="null"/> while the right side has none:
+    /// right slot 0 of <see cref="YAxes"/>.</summary>
+    /// <remarks>Obsolete: read <c>Axes.YAxes.Right[0].Axis</c> instead (<see cref="YAxisStack.FirstOrAdd"/> creates the
+    /// slot when there is none). Kept so code written for the one right-hand axis this side had before the container
+    /// compiles.</remarks>
+    [Obsolete("Use Axes.YAxes.Right[0].Axis, the first right-hand Y axis of the YAxes container (YAxes.Right.FirstOrAdd() creates it when there is none).")]
+    public Axis? SecondaryYAxis => YAxes.Right.Count > 0 ? YAxes.Right[0].Axis : null;
 
-    /// <summary>Gets the series plotted against <see cref="SecondaryYAxis"/> (right slot 0 only — a second right
-    /// axis, from <see cref="AddOutwardYAxis"/>, keeps its series on its own <see cref="SecondaryAxisSlot"/>).</summary>
-    /// <remarks>These series use a separate <see cref="Rendering.DataTransform"/> based on the secondary Y range,
-    /// while sharing the primary X-axis transform.</remarks>
-    public IReadOnlyList<ISeries> SecondarySeries => _rightYAxes.Count > 0 ? _rightYAxes[0].Series : [];
+    /// <summary>Gets the series plotted against the first right-hand Y axis (right slot 0 only — a further right axis
+    /// keeps its series on its own slot).</summary>
+    /// <remarks>Obsolete: read <c>Axes.YAxes.Right[0].Series</c> instead (<see cref="YAxisSlot.Series"/>). These series
+    /// use a separate <see cref="Rendering.DataTransform"/> based on that axis' own Y range, while sharing the primary
+    /// X-axis transform.</remarks>
+    [Obsolete("Use Axes.YAxes.Right[0].Series, the series of the first right-hand Y axis of the YAxes container.")]
+    public IReadOnlyList<ISeries> SecondarySeries => YAxes.Right.Count > 0 ? YAxes.Right[0].Series : [];
 
-    /// <summary>Gets the axes stacked outward to the right of the plot, index 0 (<see cref="SecondaryYAxis"/>)
-    /// nearest the plot and each further one stacked past the ones before it.</summary>
-    public IReadOnlyList<SecondaryAxisSlot> RightYAxes => _rightYAxes;
-    private readonly List<SecondaryAxisSlot> _rightYAxes = [];
+    /// <summary>Gets the Y axes on the right of the plot, index 0 nearest the plot and each further one stacked past the
+    /// ones before it: a live view of <see cref="YAxes"/>' right stack.</summary>
+    /// <remarks>Obsolete: use <see cref="YAxisContainer.Right"/> (<c>Axes.YAxes.Right</c>), the same axes in the same
+    /// order as <see cref="YAxisSlot"/> values.</remarks>
+    [Obsolete("Use Axes.YAxes.Right, the stack of right-hand Y axes: the same axes in the same order.")]
+    public IReadOnlyList<SecondaryAxisSlot> RightYAxes => _rightYAxes ??= new(YAxes.Right);
+    [Obsolete("Only the obsolete Axes.RightYAxes and Axes.LeftYAxes use this view.")]
+    private SecondaryAxisSlotView? _rightYAxes;
 
-    /// <summary>Gets the axes stacked outward to the left of the plot, past the primary <see cref="YAxis"/>.</summary>
-    public IReadOnlyList<SecondaryAxisSlot> LeftYAxes => _leftYAxes;
-    private readonly List<SecondaryAxisSlot> _leftYAxes = [];
+    /// <summary>Gets the Y axes stacked to the left of the plot past the primary <see cref="YAxis"/>: a live view of
+    /// <see cref="YAxes"/>' left stack without its slot 0.</summary>
+    /// <remarks>Obsolete: use <see cref="YAxisContainer.Left"/> (<c>Axes.YAxes.Left</c>), whose slot 0 is the primary Y
+    /// axis, so the axes this list holds start at index 1 there.</remarks>
+    [Obsolete("Use Axes.YAxes.Left, the stack of left-hand Y axes; its slot 0 is the primary Y axis, so the axes this list holds start at index 1.")]
+    public IReadOnlyList<SecondaryAxisSlot> LeftYAxes => _leftYAxes ??= new(YAxes.Left);
+    [Obsolete("Only the obsolete Axes.RightYAxes and Axes.LeftYAxes use this view.")]
+    private SecondaryAxisSlotView? _leftYAxes;
 
-    /// <summary>How many axes a side holds besides the primary: one on the left (the primary is the left side's
-    /// own first axis), two on the right (<see cref="SecondaryYAxis"/> is the right side's own first axis) — the
-    /// owner's "4 axes, 2 left and 2 right."</summary>
-    private static int CapFor(AxisSide side) => side == AxisSide.Left ? 1 : 2;
-
-    /// <summary>Enables a secondary Y-axis (right side) on this axes, creating it if it does not already exist.</summary>
+    /// <summary>Makes sure the right side has its first Y axis, creating it if it does not already exist: right slot 0
+    /// of <see cref="YAxes"/>. It never stacks.</summary>
     /// <returns>This axes instance for chaining.</returns>
+    /// <remarks>Obsolete: use <see cref="YAxisStack.FirstOrAdd"/> on <c>Axes.YAxes.Right</c>, which also hands back the
+    /// slot, and <see cref="YAxisStack.Add"/> to stack another.</remarks>
+    [Obsolete("Use Axes.YAxes.Right.FirstOrAdd(), which returns the first right-hand Y axis and creates it when there is none; YAxes.Right.Add() stacks another one.")]
     public Axes TwinX()
     {
-        if (_rightYAxes.Count == 0) _rightYAxes.Add(new SecondaryAxisSlot(new Axis(), AxisSide.Right));
+        YAxes.Right.FirstOrAdd();
         return this;
     }
 
-    /// <summary>Enables one more Y axis stacked outward on <paramref name="side"/>, past every axis already there
-    /// on that side, creating the first one too if none exists yet. Idempotent once a side's cap is reached: the
-    /// left side holds at most one of these, the right side at most two (<see cref="SecondaryYAxis"/> plus
-    /// this one) — calling it again returns the outermost slot already there rather than adding past the cap.</summary>
+    /// <summary>Stacks one more Y axis outward on <paramref name="side"/>, past every axis already there on that side.
+    /// Every call adds one; there is no cap. On a right side with no axis yet, the axis it adds is right slot 0.</summary>
     /// <param name="side">Which side to stack the new axis on.</param>
-    /// <returns>The outermost <see cref="SecondaryAxisSlot"/> on that side after the call.</returns>
-    public SecondaryAxisSlot AddOutwardYAxis(AxisSide side)
-    {
-        var slots = side == AxisSide.Left ? _leftYAxes : _rightYAxes;
-        if (side == AxisSide.Right) TwinX();
-        if (slots.Count < CapFor(side)) slots.Add(new SecondaryAxisSlot(new Axis(), side));
-        return slots[^1];
-    }
+    /// <returns>A view of the new axis' slot, the outermost on that side.</returns>
+    /// <remarks>Obsolete: use <see cref="YAxisStack.Add"/> on <c>Axes.YAxes.Right</c> or <c>Axes.YAxes.Left</c>, which
+    /// returns the <see cref="YAxisSlot"/> itself.</remarks>
+    [Obsolete("Use Axes.YAxes.Right.Add() or Axes.YAxes.Left.Add(), which stack one more Y axis on that side and return its YAxisSlot.")]
+    public SecondaryAxisSlot AddOutwardYAxis(AxisSide side) => new(YAxes.StackOn(side).Add());
 
-    /// <summary>Adds an already-constructed series to <see cref="SecondaryYAxis"/> (right slot 0).</summary>
-    /// <remarks>Implicitly calls <see cref="TwinX"/> to ensure the secondary axis exists. This is the seam a
-    /// STREAMING series arrives through: its ring buffer is filled after the figure is built, so it cannot be
-    /// handed in as two arrays the way the <c>PlotSecondary</c> verb takes them. A series for a second right axis
-    /// goes through the <see cref="SecondaryAxisSlot"/> <see cref="AddOutwardYAxis"/> returns instead.</remarks>
+    /// <summary>Adds an already-constructed series to the first right-hand Y axis (right slot 0).</summary>
+    /// <remarks>Obsolete: use <c>Axes.YAxes.Right.FirstOrAdd().AddSeries(series)</c> (<see cref="YAxisStack.FirstOrAdd"/>,
+    /// <see cref="YAxisSlot.AddSeries{TSeries}"/>), or <c>AddSeries</c> on the slot of the right-hand axis you mean.
+    /// It creates right slot 0 when it does not exist yet. This is the seam a STREAMING series arrives through: its ring
+    /// buffer is filled after the figure is built, so it cannot be handed in as two arrays the way a verb takes them.</remarks>
     /// <param name="series">The series to plot against the right-hand axis.</param>
     /// <returns>The same series, so the caller can keep appending to it.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="series"/> is null.</exception>
+    [Obsolete("Use Axes.YAxes.Right.FirstOrAdd().AddSeries(series), or AddSeries on the slot of the right-hand Y axis you mean.")]
     public TSeries AddSecondarySeries<TSeries>(TSeries series) where TSeries : ISeries
     {
         ArgumentNullException.ThrowIfNull(series);
-        TwinX();
-        return _rightYAxes[0].AddSeries(series);
+        return YAxes.Right.FirstOrAdd().AddSeries(series);
     }
 
     // ── TwinY — secondary X-axis (top edge) ─────────────────────────────────
@@ -327,7 +340,8 @@ public sealed class Axes
 
     /// <summary>Adds an already-constructed series to the secondary X-axis.</summary>
     /// <remarks>Implicitly calls <see cref="TwinY"/> to ensure the secondary axis exists. The
-    /// <see cref="_xSecondarySeries"/> counterpart of <see cref="AddSecondarySeries{TSeries}"/>.</remarks>
+    /// <see cref="_xSecondarySeries"/> counterpart of <see cref="YAxisSlot.AddSeries{TSeries}"/>, which a Y axis slot
+    /// adds its series through.</remarks>
     /// <param name="series">The series to plot against the top axis.</param>
     /// <returns>The same series, so the caller can keep appending to it.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="series"/> is null.</exception>
@@ -519,7 +533,13 @@ public sealed record Legend
 /// remove, or renumber.</remarks>
 public enum LegendPosition
 {
-    /// <summary>Automatically choose the best position to minimize overlap.</summary>
+    /// <summary>The place that covers the fewest marks, as matplotlib's <c>loc='best'</c> chooses it: the first of ten places
+    /// (upper right, upper left, lower left, lower right, right, centre left, centre right, lower centre, upper centre, centre)
+    /// with the lowest score, where a place scores the vertices of lines and the centres of points inside the legend's box, the
+    /// bars and boxes that overlap it and the paths that cross it. Every series counts, a hidden one too, and so does the
+    /// text of an annotation at its point. Cartesian, polar and 3-D axes look for room; the legend of a map stands in the
+    /// upper right. A legend that names no position is at <c>Best</c>, and the theme says what that means:
+    /// <see cref="Styling.Theme.DefaultLegendPosition"/> (the upper right under the classic theme, <c>Best</c> otherwise).</summary>
     Best = 0,
 
     /// <summary>Place the legend in the upper-right corner.</summary>

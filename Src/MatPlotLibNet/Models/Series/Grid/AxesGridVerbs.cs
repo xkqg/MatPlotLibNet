@@ -80,7 +80,11 @@ public static class AxesGridVerbs
         /// <param name="y">The N+1 Y-axis edge coordinates.</param>
         /// <param name="c">The N×M data matrix.</param>
         /// <returns>The newly created <see cref="PcolormeshSeries"/> for further configuration.</returns>
-        public PcolormeshSeries Pcolormesh(Numerics.Vec x, Numerics.Vec y, double[,] c) => axes.AddSeries(new PcolormeshSeries(x, y, c));
+        public PcolormeshSeries Pcolormesh(Numerics.Vec x, Numerics.Vec y, double[,] c)
+        {
+            c.ThrowIfMisaligned(Math.Max(0, y.Length - 1), Math.Max(0, x.Length - 1));
+            return axes.AddSeries(new PcolormeshSeries(x, y, c));
+        }
 
         /// <summary>Adds a spectrogram series displaying the time-frequency content of a signal.</summary>
         /// <param name="signal">The input signal values.</param>
@@ -89,9 +93,19 @@ public static class AxesGridVerbs
         public SpectrogramSeries Spectrogram(Numerics.Vec signal, int sampleRate = 1) => axes.AddSeries(new SpectrogramSeries(signal) { SampleRate = sampleRate });
 
         /// <summary>Adds a contour series on an unstructured triangular mesh.</summary>
-        public TricontourSeries Tricontour(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z) => axes.AddSeries(new TricontourSeries(x, y, z));
+        public TricontourSeries Tricontour(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
+        {
+            x.Length.ThrowIfMisaligned(y.Length);
+            x.Length.ThrowIfMisaligned(z.Length);
+            return axes.AddSeries(new TricontourSeries(x, y, z));
+        }
 
         /// <summary>Adds a pseudocolor series on a triangular mesh.</summary>
-        public TripcolorSeries Tripcolor(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z) => axes.AddSeries(new TripcolorSeries(x, y, z));
+        public TripcolorSeries Tripcolor(Numerics.Vec x, Numerics.Vec y, Numerics.Vec z)
+        {
+            x.Length.ThrowIfMisaligned(y.Length);
+            x.Length.ThrowIfMisaligned(z.Length);
+            return axes.AddSeries(new TripcolorSeries(x, y, z));
+        }
     }
 }

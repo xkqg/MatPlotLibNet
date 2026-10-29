@@ -68,6 +68,28 @@ public class PolarHeatmapSeriesTests
         Assert.Equal(1.0, max);
     }
 
+    // ---- RadialExtent -------------------------------------------------------
+
+    [Fact]
+    public void RadialExtent_IsTheRMaxTheCellsEndAt_ExactlyAndWithNoMargin()
+    {
+        var s = new PolarHeatmapSeries(MakeData(), 4, 3) { RMax = 5 };
+
+        Assert.Equal(new RadialExtent(5, Sticky: true), s.RadialExtent);
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(-1.0)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void RadialExtent_IsNone_WhenRMaxCannotBeDrawn(double rMax)
+    {
+        var s = new PolarHeatmapSeries(MakeData(), 4, 3) { RMax = rMax };
+
+        Assert.Null(s.RadialExtent);
+    }
+
     // ---- DataRange ----------------------------------------------------------
 
     [Fact]

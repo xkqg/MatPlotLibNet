@@ -12,18 +12,26 @@ namespace MatPlotLibNet.Interaction;
 /// families never diverge on how a secondary axis' range is written (CLAUDE.md §5).</summary>
 internal static class AxisRangeEventExtensions
 {
-    /// <summary>Writes each change's range onto its own slot, unless that slot's own series fix their Y range (a
-    /// state timeline on a secondary axis — independent of the primary's <see cref="Axes.HasFixedYRange"/>).</summary>
-    /// <param name="axes">The axes the changes target.</param>
-    /// <param name="ranges">The changes to apply; <see langword="null"/> or empty does nothing.</param>
-    internal static void ApplySecondaryRanges(Axes axes, IReadOnlyList<SecondaryAxisRange>? ranges)
+    extension(Axes axes)
     {
-        foreach (var change in ranges ?? [])
+        /// <summary>Writes each change's range onto its own slot, unless that slot's own series fix their Y range (a
+        /// state timeline on a secondary axis — independent of the primary's <see cref="Axes.HasFixedYRange"/>).
+        /// <para>The index of a change is the interaction wire's, OUTWARD only: <see cref="SecondaryAxisRange.SlotIndex"/> 0
+        /// on a side is the first slot PAST the primary Y axis, which is never addressable here.
+        /// <see cref="YAxisStack.SlotAtOutward"/> is the one place that turns it into a slot of the container.</para>
+        /// A change for a slot the axes does not have is skipped, as <see cref="LegendToggleEvent"/> skips a series index
+        /// past the end: the index comes from a client over the wire, and one stale or crafted value must not throw out
+        /// of the session's drain loop.</summary>
+        /// <param name="ranges">The changes to apply; <see langword="null"/> or empty does nothing.</param>
+        internal void ApplySecondaryRanges(IReadOnlyList<SecondaryAxisRange>? ranges)
         {
-            var slot = change.Side == AxisSide.Right ? axes.RightYAxes[change.SlotIndex] : axes.LeftYAxes[change.SlotIndex];
-            if (slot.Series.HasFixedYRange()) continue;
-            slot.Axis.Min = change.Range.YMin;
-            slot.Axis.Max = change.Range.YMax;
+            foreach (var change in ranges ?? [])
+            {
+                if (axes.YAxes.StackOn(change.Side).SlotAtOutward(change.SlotIndex) is not { } slot) continue;
+                if (slot.Series.HasFixedYRange()) continue;
+                slot.Axis.Min = change.Range.YMin;
+                slot.Axis.Max = change.Range.YMax;
+            }
         }
     }
 }

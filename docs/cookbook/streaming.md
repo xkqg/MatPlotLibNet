@@ -51,7 +51,7 @@ var sf = Plt.Create()
     {
         delivered = ax.StreamingPlot(600, s => s.Label = "Delivered (msg/s)");
         ax.SetYLabel("messages / sec")
-          .WithSecondaryYAxis(right =>
+          .WithAddRightYAxis(right =>
           {
               traffic = right.StreamingPlot(600, s => s.Label = "Traffic (kB/s)");
               right.SetYLabel("kB / sec");
@@ -64,7 +64,7 @@ delivered!.AppendPoint(t, msgPerSecond);
 traffic!.AppendPoint(t, kbPerSecond);
 ```
 
-> `SecondaryAxisBuilder.StreamingPlot` returns the series, not the builder. You need that series
+> `YAxisSlotBuilder.StreamingPlot` returns the series, not the builder. You need that series
 > object to append the live data. The figure makes room on the right for the right-hand axis's tick labels and
 > title by itself, with or without `TightLayout()`.
 

@@ -36,19 +36,24 @@ public sealed class KdeSeries : ChartSeries, IHasColor, IHasAlpha
     public override DataRangeContribution ComputeDataRange(IAxesContext context)
     {
         if (Data.Length == 0) return new(0, 1, 0, 1);
+
+        // The range is the curve's own extent: the grid it is drawn on and the density's peak, so the axes cover the whole
+        // curve and nothing past it. (Reporting no yMax would leave the aggregator's yMax at double.MinValue and the 5 %
+        // margin pass would produce axis labels around ±1e307.)
+        if (Curve() is not { } curve) return new(null, null, null, null);
+        return new(curve.X[0], curve.X[^1], 0, curve.Y.Max() * 1.05);
+    }
+
+    /// <summary>The density curve: the grid it is drawn on, which reaches three bandwidths past the smallest and the largest
+    /// observation, and the density at each point of it. The range of the axes and the renderer both read it, so the curve
+    /// and the range are one extent. A bandwidth that is not a positive finite number is not used: Silverman's is.</summary>
+    /// <returns>The curve; <see langword="null"/> when no observation can be drawn.</returns>
+    internal XYCurve? Curve()
+    {
         var sorted = SortedSample();
-        if (sorted.Length == 0) return new(null, null, null, null);
-        double min = sorted[0], max = sorted[^1];
-        double range = max - min;
-        if (range == 0) range = 1.0;
-        double padding = range * 0.3;
-        // Evaluate the actual KDE to find the density peak so the Y axis covers the full curve.
-        // Without this, reporting yMax=null leaves the aggregator's yMax at double.MinValue and
-        // the 5 % margin pass produces axis labels around ±1e307.
-        double bw = Bandwidth ?? GaussianKde.SilvermanBandwidth(sorted);
-        var (_, density) = GaussianKde.Evaluate(sorted, bw);
-        double yMax = density.Length > 0 ? density.Max() * 1.05 : 1.0;
-        return new(min - padding, max + padding, 0, yMax);
+        if (sorted.Length == 0) return null;
+        double bandwidth = Bandwidth is > 0 and < double.PositiveInfinity and { } given ? given : GaussianKde.SilvermanBandwidth(sorted);
+        return GaussianKde.Evaluate(sorted, bandwidth);
     }
 
     /// <summary>The observations the density is estimated from, in ascending order: a missing value (NaN) and an infinity

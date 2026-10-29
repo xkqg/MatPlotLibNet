@@ -15,42 +15,64 @@ internal sealed class ResidualSeriesRenderer : SeriesRenderer<ResidualSeries>
     public ResidualSeriesRenderer(SeriesRenderContext context) : base(context) { }
 
     /// <inheritdoc />
-    public override void Render(ResidualSeries series)
+    internal override void AddMarks(ResidualSeries series, MarkObstacles.Builder marks)
+    {
+        if (Residuals(series, reportFailure: false) is not { } residuals) return;
+        foreach (var point in residuals) marks.AddPoint(point);
+    }
+
+    /// <summary>The pixel of every residual that can be drawn: the one geometry <see cref="Render"/> draws and
+    /// <see cref="AddMarks"/> hands to a legend.</summary>
+    /// <param name="series">The series to fit.</param>
+    /// <param name="reportFailure">Whether a fit that fails is reported (the draw reports it; the legend's pass only skips).</param>
+    /// <returns>The pixels; <see langword="null"/> when there is nothing to fit or the fit fails.</returns>
+    private List<Point>? Residuals(ResidualSeries series, bool reportFailure)
     {
         // The fit is made over the pairs that can be drawn: a pair with a missing value (NaN) or an infinity is left out,
         // and draws no marker (one NaN made every coefficient and every residual NaN).
         var pairs = series.XData.Data.DrawablePairs(series.YData.Data);
-        if (pairs.X.Length == 0) return;
+        if (pairs.X.Length == 0) return null;
 
-        double[] coeffs;
+        Vec residuals;
         try
         {
-            coeffs = LeastSquares.PolyFit(pairs.X, pairs.Y, series.Degree);
+            double[] coeffs = LeastSquares.PolyFit(pairs.X, pairs.Y, series.Degree);
+            double[] predicted = LeastSquares.PolyEval(coeffs, pairs.X);
+            residuals = new Vec(pairs.Y) - new Vec(predicted);
         }
         catch (Exception ex) when (ex is ArgumentException or IndexOutOfRangeException)
         {
             // Same reachable failure as RegressionSeriesRenderer (council fix B8): mismatched
-            // XData/YData lengths throw IndexOutOfRangeException mid-fit (identical-X data does
-            // NOT throw — the normal-equations solver degrades to a degenerate-but-valid fit for
-            // singular matrices). Skip this series' render, but tell someone.
-            ChartDiagnostics.Emit(new ChartDiagnostic(
-                nameof(ResidualSeriesRenderer),
-                $"Residual fit failed and was skipped: {ex.Message}",
-                ex));
-            return;
+            // XData/YData lengths throw IndexOutOfRangeException mid-fit, or ArgumentException where the
+            // residual is taken against the prediction (identical-X data does NOT throw — the
+            // normal-equations solver degrades to a degenerate-but-valid fit for singular matrices).
+            // Skip this series' render, but tell someone.
+            if (reportFailure)
+                ChartDiagnostics.Emit(new ChartDiagnostic(
+                    nameof(ResidualSeriesRenderer),
+                    $"Residual fit failed and was skipped: {ex.Message}",
+                    ex));
+            return null;
         }
-        double[] predicted = LeastSquares.PolyEval(coeffs, pairs.X);
-        Vec residuals = new Vec(pairs.Y) - new Vec(predicted);
 
-        var color = ResolveColor(series.Color);
-        double r = series.MarkerSize / 2.0;
-
+        var points = new List<Point>(pairs.X.Length);
         for (int i = 0; i < pairs.X.Length; i++)
         {
             var px = Transform.DataToPixel(pairs.X[i], residuals[i]);
-            if (!px.IsDrawable()) continue;   // a residual the axis cannot place is skipped, as a marker is
-            Ctx.DrawCircle(px, r, new ShapeStyle(color, null, 0));
+            if (px.IsDrawable()) points.Add(px);   // a residual the axis cannot place is skipped, as a marker is
         }
+        return points;
+    }
+
+    /// <inheritdoc />
+    public override void Render(ResidualSeries series)
+    {
+        if (Residuals(series, reportFailure: true) is not { } points) return;
+
+        var color = ResolveColor(series.Color);
+        double r = series.MarkerSize / 2.0;
+        foreach (var point in points)
+            Ctx.DrawCircle(point, r, new ShapeStyle(color, null, 0));
 
         if (series.ShowZeroLine)
         {
